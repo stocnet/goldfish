@@ -1,8 +1,8 @@
 Package: goldfish
 Type: Package
 Title: Goldfish -- Statistical network models for dynamic network data
-Version: 1.3.2
-Date: 2019-08-23
+Version: 1.4.0
+Date: 2019-09-11
 Authors@R: c(person("Christoph", "Stadtfeld", role = c("cre", "aut"), email = "c.stadtfeld@ethz.ch"),
               person("James", "Hollway", role = c("aut", "dtc")),
               person("Timon", "Elmer", role = "ctb"),
