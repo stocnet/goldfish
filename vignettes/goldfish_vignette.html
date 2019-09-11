@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+
+<title></title>
+
+
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+</style>
+
+
+
+<link href="data:text/css;charset=utf-8,body%20%7B%0Abackground%2Dcolor%3A%20%23fff%3B%0Amargin%3A%201em%20auto%3B%0Amax%2Dwidth%3A%20700px%3B%0Aoverflow%3A%20visible%3B%0Apadding%2Dleft%3A%202em%3B%0Apadding%2Dright%3A%202em%3B%0Afont%2Dfamily%3A%20%22Open%20Sans%22%2C%20%22Helvetica%20Neue%22%2C%20Helvetica%2C%20Arial%2C%20sans%2Dserif%3B%0Afont%2Dsize%3A%2014px%3B%0Aline%2Dheight%3A%201%2E35%3B%0A%7D%0A%23header%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0A%23TOC%20%7B%0Aclear%3A%20both%3B%0Amargin%3A%200%200%2010px%2010px%3B%0Apadding%3A%204px%3B%0Awidth%3A%20400px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Aborder%2Dradius%3A%205px%3B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Afont%2Dsize%3A%2013px%3B%0Aline%2Dheight%3A%201%2E3%3B%0A%7D%0A%23TOC%20%2Etoctitle%20%7B%0Afont%2Dweight%3A%20bold%3B%0Afont%2Dsize%3A%2015px%3B%0Amargin%2Dleft%3A%205px%3B%0A%7D%0A%23TOC%20ul%20%7B%0Apadding%2Dleft%3A%2040px%3B%0Amargin%2Dleft%3A%20%2D1%2E5em%3B%0Amargin%2Dtop%3A%205px%3B%0Amargin%2Dbottom%3A%205px%3B%0A%7D%0A%23TOC%20ul%20ul%20%7B%0Amargin%2Dleft%3A%20%2D2em%3B%0A%7D%0A%23TOC%20li%20%7B%0Aline%2Dheight%3A%2016px%3B%0A%7D%0Atable%20%7B%0Amargin%3A%201em%20auto%3B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dcolor%3A%20%23DDDDDD%3B%0Aborder%2Dstyle%3A%20outset%3B%0Aborder%2Dcollapse%3A%20collapse%3B%0A%7D%0Atable%20th%20%7B%0Aborder%2Dwidth%3A%202px%3B%0Apadding%3A%205px%3B%0Aborder%2Dstyle%3A%20inset%3B%0A%7D%0Atable%20td%20%7B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dstyle%3A%20inset%3B%0Aline%2Dheight%3A%2018px%3B%0Apadding%3A%205px%205px%3B%0A%7D%0Atable%2C%20table%20th%2C%20table%20td%20%7B%0Aborder%2Dleft%2Dstyle%3A%20none%3B%0Aborder%2Dright%2Dstyle%3A%20none%3B%0A%7D%0Atable%20thead%2C%20table%20tr%2Eeven%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Ap%20%7B%0Amargin%3A%200%2E5em%200%3B%0A%7D%0Ablockquote%20%7B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Apadding%3A%200%2E25em%200%2E75em%3B%0A%7D%0Ahr%20%7B%0Aborder%2Dstyle%3A%20solid%3B%0Aborder%3A%20none%3B%0Aborder%2Dtop%3A%201px%20solid%20%23777%3B%0Amargin%3A%2028px%200%3B%0A%7D%0Adl%20%7B%0Amargin%2Dleft%3A%200%3B%0A%7D%0Adl%20dd%20%7B%0Amargin%2Dbottom%3A%2013px%3B%0Amargin%2Dleft%3A%2013px%3B%0A%7D%0Adl%20dt%20%7B%0Afont%2Dweight%3A%20bold%3B%0A%7D%0Aul%20%7B%0Amargin%2Dtop%3A%200%3B%0A%7D%0Aul%20li%20%7B%0Alist%2Dstyle%3A%20circle%20outside%3B%0A%7D%0Aul%20ul%20%7B%0Amargin%2Dbottom%3A%200%3B%0A%7D%0Apre%2C%20code%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0Aborder%2Dradius%3A%203px%3B%0Acolor%3A%20%23333%3B%0Awhite%2Dspace%3A%20pre%2Dwrap%3B%20%0A%7D%0Apre%20%7B%0Aborder%2Dradius%3A%203px%3B%0Amargin%3A%205px%200px%2010px%200px%3B%0Apadding%3A%2010px%3B%0A%7D%0Apre%3Anot%28%5Bclass%5D%29%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Acode%20%7B%0Afont%2Dfamily%3A%20Consolas%2C%20Monaco%2C%20%27Courier%20New%27%2C%20monospace%3B%0Afont%2Dsize%3A%2085%25%3B%0A%7D%0Ap%20%3E%20code%2C%20li%20%3E%20code%20%7B%0Apadding%3A%202px%200px%3B%0A%7D%0Adiv%2Efigure%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0Aimg%20%7B%0Abackground%2Dcolor%3A%20%23FFFFFF%3B%0Apadding%3A%202px%3B%0Aborder%3A%201px%20solid%20%23DDDDDD%3B%0Aborder%2Dradius%3A%203px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Amargin%3A%200%205px%3B%0A%7D%0Ah1%20%7B%0Amargin%2Dtop%3A%200%3B%0Afont%2Dsize%3A%2035px%3B%0Aline%2Dheight%3A%2040px%3B%0A%7D%0Ah2%20%7B%0Aborder%2Dbottom%3A%204px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Apadding%2Dbottom%3A%202px%3B%0Afont%2Dsize%3A%20145%25%3B%0A%7D%0Ah3%20%7B%0Aborder%2Dbottom%3A%202px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Afont%2Dsize%3A%20120%25%3B%0A%7D%0Ah4%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23f7f7f7%3B%0Amargin%2Dleft%3A%208px%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Ah5%2C%20h6%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23ccc%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Aa%20%7B%0Acolor%3A%20%230033dd%3B%0Atext%2Ddecoration%3A%20none%3B%0A%7D%0Aa%3Ahover%20%7B%0Acolor%3A%20%236666ff%3B%20%7D%0Aa%3Avisited%20%7B%0Acolor%3A%20%23800080%3B%20%7D%0Aa%3Avisited%3Ahover%20%7B%0Acolor%3A%20%23BB00BB%3B%20%7D%0Aa%5Bhref%5E%3D%22http%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0Aa%5Bhref%5E%3D%22https%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0A%0Acode%20%3E%20span%2Ekw%20%7B%20color%3A%20%23555%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Edt%20%7B%20color%3A%20%23902000%3B%20%7D%20%0Acode%20%3E%20span%2Edv%20%7B%20color%3A%20%2340a070%3B%20%7D%20%0Acode%20%3E%20span%2Ebn%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Efl%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Ech%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Est%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Eco%20%7B%20color%3A%20%23888888%3B%20font%2Dstyle%3A%20italic%3B%20%7D%20%0Acode%20%3E%20span%2Eot%20%7B%20color%3A%20%23007020%3B%20%7D%20%0Acode%20%3E%20span%2Eal%20%7B%20color%3A%20%23ff0000%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Efu%20%7B%20color%3A%20%23900%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%20code%20%3E%20span%2Eer%20%7B%20color%3A%20%23a61717%3B%20background%2Dcolor%3A%20%23e3d2d2%3B%20%7D%20%0A" rel="stylesheet" type="text/css" />
+
+</head>
+
+<body>
+
+
+
+
+
+
+
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+
+<p>Social networks change through time, and researchers from various disciplines have an interest in understanding the social mechanisms that drive these dynamics. Often, the data available have the form of relational events where dynamic observations do not stem from consecutively collecting social networks into a panel, but but by observing fine-grained time-stamped interactions between two nodes that may or may not be directly related to social network ties. Examples are automatically collected network data from communication studies or social media studies, social science studies employing social sensors, or archival network studies with detailed information about times of relational actions between two nodes.</p>
+<p>Two major conceptual approaches co-exist in statistical network analysis. One approach conveives of the dyad as the unit analyis. The probability of a tie thus depends on its embedding in structures within the social space. The most prominent statistical model develops this idea is</p>
+<p>. The other approach conceives of ties as controlled by actors that create or propose ties</p>
+<p>These two approaches have also been put forward to studying time-stamped network data. The Relational Event Model by  is essentially in the tradition of tie-oriented models. Relational events</p>
+</div>
+<div id="dynamic-network-actor-models-dynams" class="section level1">
+<h1>Dynamic Network Actor Models (DyNAMs)</h1>
+
+<p>The actor-oriented models that the goldfish package implements has been called Dynamic Network Actor Models (DyNAMs). Is builds upon … Alternative actor-oriented event models have been proposed, e.g.</p>
+<div id="dynams-for-directed-relational-events" class="section level2">
+<h2>DyNAMs for directed relational events</h2>
+<p><span class="citation">(Stadtfeld and Block 2017)</span></p>
+</div>
+<div id="dynams-for-coordination-ties" class="section level2">
+<h2>DyNAMs for coordination ties</h2>
+<p><span class="citation">(Stadtfeld, Hollway, and Block 2017)</span></p>
+</div>
+<div id="comparing-dynams-to-the-relational-event-model-rem" class="section level2">
+<h2>Comparing DyNAMs to the Relational Event Model (REM)</h2>
+</div>
+</div>
+<div id="getting-started" class="section level1">
+<h1>Getting started</h1>
+<div id="step-0-load-the-goldfish-package-and-the-data" class="section level2">
+<h2>Step 0: Load the goldfish package and the data</h2>
+<p>Loading the goldfish package:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(goldfish)</code></pre></div>
+<p>Loading the data:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">data</span>(<span class="st">&quot;Social_Evolution&quot;</span>)</code></pre></div>
+<pre><code>## Warning in data(&quot;Social_Evolution&quot;): data set 'Social_Evolution' not found</code></pre>
+<div id="an-initial-look-at-the-data" class="section level3">
+<h3>An initial look at the data:</h3>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#head(calls)</span></code></pre></div>
+</div>
+</div>
+<div id="step-1-create-goldfish-objects" class="section level2">
+<h2>Step 1: Create Goldfish objects</h2>
+<div id="define-the-nodeset" class="section level3">
+<h3>Define the nodeset</h3>
+<p>The nodeset can be created using the following function:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">actors &lt;-<span class="st"> </span><span class="kw">defineNodes</span>(<span class="dt">nodes =</span> actors)  </code></pre></div>
+<p>The <code>defineNodes</code> function processes and checks the data.frame passed to <code>nodes</code> argument. The <code>nodes</code> argument requires a data.frame with information about the nodes that are present throughout the time window of interest. This data.frame must contain at least one vector, which is of the same length as the number of nodes. Other than that it can contain information about the nodes -<code>label</code> (e.g., Actor 1), whether the node is <code>present</code> at the start of the data collection as well as the the initial (at T0), or non-changing values for node attributes. For instance, this data.frame could look like this:</p>
+<pre><code>##     label present gender
+## 1 Actor 1    TRUE      1
+## 2 Actor 2    TRUE      2
+## 3 Actor 3    TRUE      2
+## 4 Actor 4    TRUE      2
+## 5 Actor 7    TRUE      1</code></pre>
+<p>Please note that <code>goldfish</code> uses the rownames of this data.frame as the internal node IDs. The <code>label</code> variable must be of character class.</p>
+<p>If you have changing node-attributes you can link <code>changeEvents</code> data.frames to the nodeset in the following way:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">actors &lt;-<span class="st"> </span><span class="kw">linkEvents</span>(<span class="dt">x =</span> actors, 
+                    <span class="dt">attribute =</span> <span class="st">&quot;present&quot;</span>,
+                    <span class="dt">changeEvents =</span> compositionChangeEvents)</code></pre></div>
+<p>The <code>linkEvents</code> function links events lists of changing attributes (e.g., present, gender) to the nodeset. The nodeset can be specified with the argument <code>x</code>, the attribute that is changed with the events list has to be defined in the <code>attribute</code> argument as a string. The <code>changeEvents</code> contains a data.frame that describes when and how the nodes attributes change. If no data is linked to an attribute, the attribute variables specified in the <code>nodes</code> arguments are assumed to stay constant (e.g., gender).</p>
+<p>Note that ‘present’, if given as a node attribute, must be true at a given time point for any node to be involved in an event. In the case of a friendship and phone call network with other dynamic actor attributes, someone losing their phone should not be specified as present = false, since then their friendships and individual attributes cannot change! A separate attribute and corresponding event list should be added in such situations that only one type of event cannot occur for a given actor.</p>
+<p>The <code>changeEvents</code> data.frames mentioned above must be in the following format:</p>
+<pre><code>##   time node replace
+## 1  3.5    1   FALSE
+## 2  4.5    1    TRUE</code></pre>
+<p>Here the <code>time</code> column in numeric or POSIXct format indicates when the change happens. The <code>node</code> column must correspond with either the row number of the nodes data.frame or the label string. The column <code>replace</code> contains boolean values indicating whether the node is present at that time. For instance, the example above shows that node 1 joins the network at timepoint 4.5.</p>
+<p>Other types of node attribute changes (e.g., on which floor an actor lives) are specified with the same data.frame type:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">moveEvents &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">time =</span> <span class="dv">7</span><span class="op">:</span><span class="dv">8</span>, <span class="dt">node =</span> <span class="dv">2</span>, <span class="dt">replace =</span> <span class="kw">c</span>(<span class="dv">3</span>,<span class="dv">5</span>))
+
+moveEvents</code></pre></div>
+<pre><code>##   time node replace
+## 1    7    2       3
+## 2    8    2       5</code></pre>
+<p>If the column indicating the change is called <code>replace</code>, goldfish expects values that replace the previous state of the node (e.g., actor 3 moves from floor 3 to floor 5: replace = 5). Alternatively, the increment can be specified (e.g., increment = 2). For this, the column must be named <code>increment</code>.</p>
+</div>
+<div id="define-the-independent-networks" class="section level3">
+<h3>Define the independent networks</h3>
+<p>Networks that function as independent variables can be defined with the following function:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">friendshipNetwork &lt;-<span class="st"> </span><span class="kw">defineNetwork</span>(<span class="dt">matrix =</span> friend.w1, <span class="dt">nodes =</span> actors, <span class="dt">directed =</span> T)</code></pre></div>
+<p>Here the <code>matrix</code> (friend.w1) describes the initial state of the network at T0. This matrix must contain the same nodeset as defined with the <code>defineNodes</code> function and the order of the rows must correspond. The matrix must be binary<em>(?)</em> and can be directed or undirected (as specified with the directed argument). If no matrix is provided, <code>goldfish</code> assumes the initial state to be empty (i.e., a matrix containing only 0s).</p>
+<p>If this network is updated over time (e.g., a new wave of friendship data is collected), these changes can be added with the <code>linkEvents</code> function - similar to link changing attribute events to a nodeset. This time, the user needs to provide the network and the associated nodeset.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">friendshipNetwork &lt;-<span class="st"> </span><span class="kw">linkEvents</span>(<span class="dt">x =</span> friendshipNetwork,
+                                <span class="dt">nodes =</span> actors,
+                                <span class="dt">changeEvents =</span> friendshipChange)</code></pre></div>
+<p>The data.frame passed to the <code>changeEvents</code> argument must be in the following format</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">friendshipChange &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">time =</span> <span class="kw">c</span>(<span class="dv">100</span>, <span class="dv">103</span>), 
+                               <span class="dt">sender =</span> <span class="kw">c</span>(<span class="st">&quot;Actor 4&quot;</span>, <span class="st">&quot;Actor 3&quot;</span>),
+                               <span class="dt">receiver =</span> <span class="kw">c</span>(<span class="st">&quot;Actor 7&quot;</span>, <span class="st">&quot;Actor 2&quot;</span>), <span class="dt">replace =</span> <span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">0</span>))
+
+friendshipChange</code></pre></div>
+<pre><code>##   time  sender receiver replace
+## 1  100 Actor 4  Actor 7       1
+## 2  103 Actor 3  Actor 2       0</code></pre>
+<p>Alternatively to the <code>replace</code> column, a column called <code>increment</code> can be used, as we mentioned earlier. For friendship networks, 1 = tie creation, -1 = tie dissolution. The columns <code>sender</code> and <code>receiver</code> can be in the format numeric or character. For the numeric case, the entries must correspond to the rownumbers of the nodes data.frame. When character strings are used, they must correspond to the labels in the nodes data.frame. In the example shown above, Actor 4 nominates actor 7 as a friend at timepoint 100 and at timepoint 103 Actor 3 drops the tie to Actor 2.</p>
+</div>
+<div id="global-attributes" class="section level3">
+<h3>Global attributes</h3>
+<p>Imagine that you want to include a variable that is identical for each node but changes over time. For instance, seasonal climate changes. Such a changing global attribute can be defined with the <code>defineGlobalAttribute</code> function</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">seasons &lt;-<span class="st"> </span><span class="kw">defineGlobalAttribute</span>(<span class="kw">data.frame</span>(<span class="dt">time =</span> <span class="dv">1</span><span class="op">:</span><span class="dv">12</span>, <span class="dt">value =</span> <span class="dv">1</span><span class="op">:</span><span class="dv">12</span>))</code></pre></div>
+</div>
+<div id="define-the-dependent-event-list" class="section level3">
+<h3>Define the dependent event list</h3>
+<p>The event list that is intended to be modeled by goldfish is specified with the <code>defineDependentEvents</code> function:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dependent.calls &lt;-<span class="st"> </span><span class="kw">defineDependentEvents</span>(<span class="dt">events =</span> calls, <span class="dt">nodes =</span> actors)</code></pre></div>
+<p>The nodes argument must be an object defined with the <code>defineNodes</code> function. The dependent events should be a data.frame containing the following columns:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">calls &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">time =</span> <span class="dv">1</span><span class="op">:</span><span class="dv">5</span>, <span class="dt">sender =</span> <span class="kw">c</span>(<span class="dv">1</span>, <span class="dv">1</span><span class="op">:</span><span class="dv">4</span>), <span class="dt">receiver =</span> <span class="kw">c</span>(<span class="dv">5</span><span class="op">:</span><span class="dv">1</span>))
+
+calls</code></pre></div>
+<pre><code>##   time sender receiver
+## 1    1      1        5
+## 2    2      1        4
+## 3    3      2        3
+## 4    4      3        2
+## 5    5      4        1</code></pre>
+</div>
+<div id="model-specification" class="section level3">
+<h3>Model specification</h3>
+<p>Now we move to our model specification. Here we first define our dependent network, in the example case this is the call network, then beyond the tilde we specify effects and the variables for which the effects are expected to occur. To see the possible effects, use the function <code>goldfishEffects</code>.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">formula &lt;-<span class="st"> </span>calls <span class="op">~</span><span class="st">  </span><span class="kw">out</span>(callNetwork) <span class="op">+</span><span class="st"> </span><span class="kw">recip</span>(callNetwork) <span class="op">+</span><span class="st"> </span><span class="kw">recip</span>(callNetwork, <span class="dt">window =</span> <span class="dv">3600</span>) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">mixedRecip</span>(callNetwork, distance, <span class="dt">window =</span> <span class="kw">c</span>(<span class="dv">3600</span>, <span class="ot">NA</span>)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">sameX</span>(floor) <span class="op">+</span><span class="st"> </span><span class="kw">effXYZ</span>(callNetwork, floor)</code></pre></div>
+</div>
+</div>
+<div id="step-2-estimation" class="section level2">
+<h2>Step 2: Estimation</h2>
+</div>
+<div id="step-3-interpreting-and-diagnosing-results" class="section level2">
+<h2>Step 3: Interpreting and diagnosing results</h2>
+</div>
+</div>
+<div id="extending-dynams-and-rems-with-own-effects" class="section level1">
+<h1>Extending DyNAMs and REMs with own effects</h1>
+</div>
+<div id="conclusions" class="section level1">
+<h1>Conclusions</h1>
+</div>
+<div id="references" class="section level1 unnumbered">
+<h1>References</h1>
+<div id="refs" class="references">
+<div id="ref-Stadtfeld2017b">
+<p>Stadtfeld, Christoph, and Per Block. 2017. “Interactions, Actors, and Time: Dynamic Network Actor Models for Relational Events.” <em>Sociological Science</em> 4 (1): 318–52.</p>
+</div>
+<div id="ref-Stadtfeld2017">
+<p>Stadtfeld, Christoph, James Hollway, and Per Block. 2017. “Dynamic Network Actor Models: Investigating Coordination Ties Through Time.” <em>Sociological Methodology</em> 47 (1).</p>
+</div>
+</div>
+</div>
+
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

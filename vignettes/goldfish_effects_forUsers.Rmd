@@ -1,0 +1,156 @@
+---
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Goldfish Effects}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: literature_goldfish_vignette.bib
+
+---
+
+# Goldfish Effects
+
+This vignette summarizes effects that are implemented for goldfish and are thus available to be used with actor-oriented DyNAM models \citep{Stadtfeld2017, Stadtfeld2017a} and tie-oriented Relational Event Model \citep{Butts2008, Stadtfeld2017a}.
+
+
+## Effect arguments
+Effect functions have the following 5 arguments:
+
+* **network/attribute**: Objects upon which the effect should be calculated.
+* **binary**: Identifies whether the effect recognizes actors to send additional ties beyond the first to receivers (FALSE means additional ties are taken into account). The default value is F. Only for structural effects and ego effect.
+* **window**: Identifies a window length within which changes should apply to events. The default value is Inf meaning that no windows are applied to the effect. Only for structural effects.
+* **weighted**: Identifies whether the effect relies on the presence or number of ties (TRUE means it relies also on the number of ties). The default value is FALSE. Only effective for tie, indeg and recip.
+* **parameter**: The exponent of number of ties (the defauly value is 1). Use this parameter to obtain transformed statistics. Only available for tie, indeg and recip and when weighted = T.
+
+The following table summaries whether the corresponding arguments can be used for the effects or not.
+
+|             | binary | window | weighted | paramter |
+|-------------|:------:|:------:|:--------:|:--------:|
+| inertia     | ×      | ×      | ×        | ×        |
+| tie         | √      | √      | √        | √        |
+| indeg       | √      | √      | √        | √        |
+| recip       | √      | √      | √        | √        |
+| trans       | √      | √      | ×        | ×        |
+| mixedTrans  | √      | √      | ×        | ×        |
+| four        | √      | √      | ×        | ×        |
+|-------------|--------|--------|----------|----------|
+| ego         | √      | ×      | ×        | ×        |
+| alter       | ×      | ×      | ×        | ×        |
+| same        | ×      | ×      | ×        | ×        |
+| sim         | ×      | ×      | ×        | ×        |
+| diff        | ×      | ×      | ×        | ×        |
+
+*Comment: the 'binary' argument can also be used for other attribute effects, but seems unreasonable to do so...*
+
+
+****************************************
+
+## Structural Effects
+| Notation | Name      | Two-mode | Choice | Rate |          Description           | 
+|----------|-----------|:--------:|:------:|:----:|--------------------------------|
+| $s_1$    | inertia   |  √       |  √     |  ×   | inertia                        | 
+| $s_2$    | tie       |  √       |  √     |  ×   | existing tie                   |           
+| $s_3$    | indeg     |  √       |  √     |  ×   | indegree                       |            
+| $s_4$    | recip     |  ×       |  √     |  ×   | reciprocity                    | 
+| $s_5$    | trans     |  ×       |  √     |  ×   | transitivity                   |          
+| $s_6$    | mixTrans  |  ×       |  √     |  ×   | transitivity within 2 networks |         
+| $s_7$    | four      |  √       |  √     |  ×   | four-cycle                     |          
+
+* $net(t)_{ij}$ below denotes the network value at time t for between actor $i$ and actor $j$ ( or actor $i$ in the first-mode and actor $j$ in the second-mode in the two-mode case)
+* $I(x>0)$ is an indicator function.
+
+### Inertia
+Usually used as the "intercept" for the choice function. It is similar to 'tie', but defined on the network to which the dependent events relate. It can be interpreted as the differential tendency to update existing ties rather than creating new ones. Inertia cannot be used with binary = T
+
+
+\begin{align}
+ s_1(i, j, t, net) &= I(net(t)_{ij} > 0) 
+\end{align}
+
+### Tie
+Effect of a tie i->j on an event i->j.
+\begin{align}
+ s_2(i, j, t, net, weighted = F) &= I(net(t)_{ij} > 0) \\
+ s_2(i, j, t, net, weighted = T, parameter = \alpha) &= net(t)_{ij}^{\alpha}
+\end{align}
+
+### Indegree (indeg)
+\begin{align}
+  s_3(j, t, net, weighted = F) &= \sum_{i:~i\neq j}{I(net(t)_{ij}>0)} \quad \text{for one-mode} \\
+  s_3(j, t, net, weighted = T, parameter = \alpha) &= (\sum_{i:~i\neq j}net(t)_{ij})^{\alpha} \quad \text{for one-mode} \\
+  
+  s_3(j, t, net, weighted = F) &= \sum_{i}{I(net(t)_{ij}>0)}  \quad \text{for two-mode}\\
+  s_3(j, t, net, weighted = T, parameter = \alpha) &= (\sum_{i}net(t)_{ij})^{\alpha}  \quad \text{for two-mode}
+\end{align}
+
+### Tie reciprocation (recip)
+Effect of a tie j->i on event i->j. Recip cannot be used with binary = T in undirected dependent network
+\begin{align}
+ s_4(i, j, t, net, weighted = F) &= I(net(t)_{ji} > 0) \\
+ s_4(i, j, t, net, weighted = T, parameter = \alpha) &= net(t)_{ji}^{\alpha}
+\end{align}
+
+### Transitivity (trans)
+Closure of two-paths (i->k->j) in the network through an event i->j.
+\begin{align}
+ s_5(i, j, t, net) &= \sum_{\tau = 0}^{t} \sum_{k:~k \neq i,j} I(net(t)_{ik} > 0) I(net(t)_{kj} > 0)
+\end{align}
+
+### Mixed Transitivity (mixedTrans)
+\begin{align}
+ s_6(i, j, t, net_1, net_2) &= \sum_{\tau = 0}^{t} \sum_{k:~k \neq i,j} I(net_1(t)_{kj} > 0) I(net_2(t)_{ik} > 0)
+\end{align}
+
+### Four cycle (four)
+Closure of three-paths (i->k<-j->l) in the network through an event i->l.
+\begin{align}
+ s_7(i, l, t, net) &= \sum_{\tau = 0}^{t} \sum_{k, j:~k,j\neq i,l~and~k\neq j} I(net(t)_{ik} > 0) I(net(t)_{jk} > 0) I(net(t)_{jl} > 0) \quad for~one-mode \\
+ s_7(i, l, t, net) &= \sum_{\tau = 0}^{t} \sum_{k, j:~i \neq j, k \neq l} I(net(t)_{ik} > 0) I(net(t)_{jk} > 0) I(net(t)_{jl} > 0) \quad for~two-mode
+\end{align}
+
+**************************
+
+## Attribute Effects 
+
+| Notation | Name   | Two-mode | Choice | Rate | Description                                                                 | 
+|----------|--------|:--------:|:------:|:----:|-----------------------------------------------------------------------------|
+| $r_1$    | ego    |  √       |  ×     |  √   |Effect of attribute z on sending ties                                        |             
+| $r_2$    | alter  |  √       |  √     |  ×   |Effect of attribute z on receiving ties                                      |             
+| $r_3$    | same   |  ×       |  √     |  ×   | Effect on ties of having the same attribute z                               |          
+| $r_4$    | sim    |  ×       |  √     |  ×   | Effect of ties of having similiar valued of attribute z                     |         
+| $r_5$    | diff   |  ×       |  √     |  ×   | Effect of the absolute difference of i's and j's attribute z on tie creation|                                   
+
+* $z_i$ below denotes an attribute of actor $i$.
+
+### ego
+Sender covariate effect. The tendency of actors to be more active when they score high on 'attribute'. Note: This effect cannot be used together with a DyNAM choice model in its basic form as the statistics do not vary between choices. It can be used with binary = T and can then be interpreted as the differential tendency of actors who score high on the attribute to create new ties rather than updating existing ones and can then be jointly interpreted with the out effect.
+\begin{align}
+  r_1(i,j) = z_i
+\end{align}
+
+### alter
+Receiver covariate effect. The tendency for events to receiver j where j has a larger value on 'attribute'.
+\begin{align}
+  r_2(i,j) = z_j
+\end{align}
+
+### same
+Homophily (same value). The tendency of an event i->j to happen if actors i and j have the same attribute.
+\begin{align}
+  r_3(i,j) = I(z_i = z_j)
+\end{align}
+
+### sim
+Homophily (similar value). The tendency for events i->j where both actors have low absolute differences regarding attribute.
+\begin{align}
+  r_4(i,j) = -|z_i - z_j|
+\end{align}
+
+### diff
+Heterophily. The tendency for events i->j where both actors have high absolute differences regarding attribute. This effect function expresses the same statistics with a different sign from the sim effect.
+\begin{align}
+  r_5(i,j) = |z_i - z_j|
+\end{align}
+
+
+

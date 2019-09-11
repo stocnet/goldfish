@@ -1,0 +1,109 @@
+---
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Developing Goldfish Effects}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: literature_goldfish_vignette.bib
+
+---
+
+# Developing Goldfish Effects
+
+This vignette summarizes important information for advanced users developing their own effects.
+
+## Available parameters
+
+The following parameters are available:
+
+1. **Data objects**
+
+At least one of the following needs to be specified. Parameters that are not necessary (e.g. an attribute in a structural network effect) *must not* be used. Networks are matrices, attributes are vectors.
+
+* network
+* network2
+* attribute
+* attribute2
+
+2. The **statistics** object
+
+A matrix of size nodeSet1 x nodeset2 (nodesets of the dependent variable). *Mandatory*. Set to NULL.
+
+* statistics = NULL
+
+3. The **update** calls
+
+One of the following two options is mandatory at minimum, but they can be combined for statistics that relate to both attributes and networks. 'sender', 'reveicer', 'node' are integers that define matrix or vector indeces. 'replace' relates to the type of the data object.
+
+For network updates:
+
+* sender   
+* receiver
+* replace
+
+For attribute updates:
+
+* node
+* replace
+
+4. **One-mode / Two-mode** for nodesets
+
+The following arguments relate to the one-mode / two-mode settings. In the case of one-mode network, 'n1' and 'n2' are equal and denotes number of actors in the network, and in the case of two-mode network, 'n1' and 'n2' denote numbers of actors in nodeSet1 and nodeSet2 respectively. The default value for 'isBipartite' is False (one-mode network), and should be set to True in two-mode cases.
+
+* n1
+* n2
+* isBipartite = F
+
+5. A **data object pointer**
+
+This is reserved for future use in effects with multiple network or multiple attributes. It is called with an integer that relates to the position of the data objects in the signature. in case of an effect with two networks a "2" would, for example, relate to network2.
+
+* replaceObject
+
+6. Specific **effect definitions**
+
+These parameter are only added to the signature if they are used within the effect. They should always be specified with a default value. The "default default" for weighted is FALSE; it should also only be added in a weighted option is implemented. The default value for parameter is 1; it should only be added if weight = T.
+
+* weighted = F
+* parameter = 1
+* parameter2
+
+## Allowed return formats:
+
+Parameters return numeric data frames with three columns that resemble event lists:
+
+* node1
+* node2
+* replace
+
+When there is nothing to change in the data object, the return value is NULL
+
+* NULL
+
+## Things to consider when implementing effects
+
+This is an unordered lists of issues that effect developers should ask themselves before adding an effect
+
+* copy objects to effects only if necessary. Effects are copied once they are changed.
+* Make sure that effect can handle NA's in the input object. This is particularly important for the initialization
+* What if 'replace' is zero?
+* What if the effect relates to a two-mode network?
+A check *if(sender == receiver) return(NULL)* could, for example, be wrong when an effect is used for two-mode networks
+* What if the current value (or the replace value) is NA?
+
+## Testing new effects
+
+The *testthat* package is used to perform unit tests on effect functions. Each effect is tested in a separate file in the "tests/testthat"" directory. The naming convention is 'test_effects_EFFECTNAME.R'. 
+Data for tests is specified in "tests/testthat/helper_effects.R".
+
+A test for network effects should check at minimum for the following:
+* the effect returns NULL if there is no change
+* a formally valid event list is returned
+* tie creation returns the expected event list
+* tie dissolution returns the expected event list
+* if applicable, tie updates work on weighted network
+
+A test for attribute effects should check at minimum:
+* a formally valid event list is returned if there is a change
+* the effect returns NULL if there is no change
+* an attribute update returns the expected event list
