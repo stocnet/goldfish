@@ -3,9 +3,7 @@ The Goldfish project
 
 ![Goldfish](http://www.about-goldfish.com/images/Fantail_Goldfish_sml.jpg "Goldfish")
 
-This project is a joint collaboration between **ETH Zürich** and the **Graduate Institute Geneva**.
-
-Collaborators include Christoph Stadtfeld, James Hollway, and Per Block.
+This project is a joint collaboration between the **Social Networks Lab at ETH Zürich** and the **Graduate Institute Geneva**.
 
 The objective of the project is to introduce, extend, and promote 
 the Dynamic Network Actor-Oriented Model (DyNAM)
