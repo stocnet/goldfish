@@ -16,7 +16,7 @@ political science, sociology, and other social scientific disciplines:
 2. ties reflect the opportunities and preferences of both actors involved, 
 3. that the creation of coordination ties is a two-sided process, 
 4. that data might be available in a time-stamped format, and 
-5. that processes typically differ between tie cre- ation and dissolution (valence of ties), 
+5. that processes typically differ between tie creation and dissolution (valence of ties), 
 between different time windows (salience of ties), and 
 between initial and repeated creation of ties (multiplicity of ties).
 
