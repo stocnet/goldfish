@@ -48,7 +48,6 @@
 #'    contigchanges$replace   \tab   New contiguity value                     \tab     numeric              \cr
 #'  }
 #'
-#' @source \url{}
 #' @references
 #' Hollway, James, and Johan Koskinen. 2016. Multilevel Embeddedness: The Case of the Global Fisheries Governance Complex. \emph{Social Networks}, 44: 281-94. doi:10.1016/j.socnet.2015.03.001.
 #'

@@ -37,9 +37,6 @@ See below for variables and formats.
    contigchanges$receiver  \tab   Second contiguity change node            \tab     integer              \cr
    contigchanges$replace   \tab   New contiguity value                     \tab     numeric              \cr
  }}
-\source{
-\url{}
-}
 \usage{
 data(Fisheries_Treaties_6070)
 }
