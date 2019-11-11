@@ -517,8 +517,7 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
         window <- gsub("\"", "", window)
         windowName <- gsub(" ", "", window)
 
-        # CHANGED ALVARO: check the format number unit is there
-        if (grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
+        if (!is.numeric(window) & !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
           stop(
             "The window effect specified with the effect ", rhsNames[[i]][[1]],
             " ", rhsNames[[i]][[2]], " is not in the form 'number unit'\n",
