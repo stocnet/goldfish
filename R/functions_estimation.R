@@ -639,7 +639,7 @@ estimate.formula <- function(x,
   )
   # prefer user-defined arguments
   argsEstimation <- append(
-    estimationInit,
+    estimationInit[!(names(estimationInit) %in% c("startTime", "endTime"))],
     additionalArgs[!(names(additionalArgs) %in% names(estimationInit))]
   )
 
