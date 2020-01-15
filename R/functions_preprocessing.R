@@ -198,7 +198,6 @@ preprocess <- function(
       
     }
     
-    # CHANGED WEIGUTIAN
     if(!isDependent){
       # 2. store statistic updates for RIGHT-CENSORED (non-dependent, positive) intervals
       if(rightCensored && interval > 0) {        
@@ -229,7 +228,8 @@ preprocess <- function(
           event_sender[[eventPos]] <- event$sender
           event_receiver[[eventPos]] <- event$receiver
         }  
-        pointerTempRightCensored <- pointerTempRightCensored + 1
+        ## CHANGE Christoph: pointer is updated below already
+        # pointerTempRightCensored <- pointerTempRightCensored + 1
       }
       
       # 3. update stats and data objects for OBJECT CHANGE EVENTS (all non-dependent events)
