@@ -22,27 +22,27 @@
 #'
 #' @noRd
 preprocess <- function(
-                       model,
-                       subModel,
-                       events,
-                       effects,
-                       windowParameters,
-                       eventsObjectsLink,
-                       eventsEffectsLink,
-                       objectsEffectsLink,
-                       # multipleParameter,
-                       nodes,
-                       nodes2 = nodes,
-                       isTwoMode,
-                       # add more parameters
-                       startTime = min(vapply(events, function(x) min(x$time), double(1))),
-                       endTime = max(vapply(events, function(x) max(x$time), double(1))),
-                       rightCensored = FALSE,
-                       verbose = TRUE,
-                       silent = FALSE) {
+  model,
+  subModel,
+  events,
+  effects,
+  windowParameters,
+  eventsObjectsLink,
+  eventsEffectsLink,
+  objectsEffectsLink,
+  # multipleParameter,
+  nodes,
+  nodes2 = nodes,
+  isTwoMode,
+  # add more parameters
+  startTime = min(vapply(events, function(x) min(x$time), double(1))),
+  endTime = max(vapply(events, function(x) max(x$time), double(1))),
+  rightCensored = FALSE,
+  verbose = TRUE,
+  silent = FALSE) {
   # TODO(cws):
   # - add a parameter rowOnly, columnOnly?
-
+  
   # For debugging
   if (identical(environment(), globalenv())) {
     startTime <- min(vapply(events, function(x) min(x$time), double(1)))
@@ -50,7 +50,7 @@ preprocess <- function(
     verbose <- TRUE
     silent <- TRUE
   }
-
+  
   prepEnvir <- environment()
   # print(match.call())
   # initialize statistics functions from data objects
@@ -60,19 +60,19 @@ preprocess <- function(
   nEffects <- length(effects)
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
-
+  
   if (!silent) cat("Initializing cache objects and statistical matrices.\n")
-
+  
   statCache <- initializeCacheStat(objectsEffectsLink, effects, windowParameters,
                                    n1, n2, model, subModel, envir = prepEnvir)
-
+  
   # We put the initial stats to the previous format of 3 dimensional array
   initialStats <- array(unlist(lapply(statCache, "[[", "stat")),
-    dim = c(n1, n2, nEffects)
+                        dim = c(n1, n2, nEffects)
   )
-
+  
   statCache <- lapply(statCache, "[[", "cache")
-
+  
   # initialize return objects
   # CHANGED ALVARO: preallocate objects sizes
   nDependentEvents <- nrow(events[[1]])
@@ -89,10 +89,10 @@ preprocess <- function(
   event_sender <- vector("list", nDependentEvents)
   event_receiver <- vector("list", nDependentEvents)
   finalStep <- FALSE
-
+  
   # # Remove dulicates of event lists!
   # # TODO CHRISTOPH: unhack (the dependent events shouldn't be added twice to the events object)
-
+  
   # check start time and end time are valid values, set flags
   hasEndTime <- FALSE
   eventsMin <- min(vapply(events, function(x) min(x$time), double(1)))
@@ -125,15 +125,15 @@ preprocess <- function(
   # updatesDependent/updatesIntervals: list of 6, each element if NULL
   updatesDependent <- lapply(statCache, function(x) NULL)
   updatesIntervals <- lapply(statCache, function(x) NULL)
-
+  
   # UPDATED ALVARO: logical values indicating the type of information in events
   isIncrementEvent <- vapply(events, function(x) "increment" %in% names(x), logical(1))
   isNodeEvent <- vapply(events, function(x) "node" %in% names(x), logical(1))
-
+  
   # initialize progressbar output, CHANGED ALVARO: add iterators
   showProgressBar <- FALSE
   progressEndReached <- FALSE
-
+  
   # iRightCensored <- 0
   iDependentEvents <- 0
   if (!silent) {
@@ -142,37 +142,37 @@ preprocess <- function(
     pb <- txtProgressBar(max = nDependentEvents, char = "*", style = 3)
     dotEvents <- ifelse(nDependentEvents > 50, ceiling(nDependentEvents / 50), 1) # # how often print, max 50 prints
   }
-
+  
   # iterate over all event lists
   while (any(validPointers)) {
     # times: the timepoint for next events to update in all event lists
     times <- mapply(function(e, p) e[p, ]$time, events, pointers)
     nextEvent <- which(validPointers)[head(which.min(times[validPointers]), 1)]
     interval <- if (hasEndTime) times[nextEvent] - min(time, endTime) else times[nextEvent] - time
-
+    
     time <- min(times[validPointers])
     if (hasEndTime && time == endTime) finalStep <- TRUE
-
+    
     isDependent <- nextEvent == 1
-
+    
     eventPos <- pointers[1] + pointerTempRightCensored - 1
     # # CHANGED ALVARO: progress bar
     if (showProgressBar && iDependentEvents %% dotEvents == 0) {
       setTxtProgressBar(pb, iDependentEvents)
     }
-
+    
     if (showProgressBar && iDependentEvents == nDependentEvents) {
       setTxtProgressBar(pb, iDependentEvents)
       close(pb)
     }
-
+    
     # Distinguish three cases
     #   1. Dependent events (store stats)
     #   2. right-censored events (store stats)
     #   3. update change events (including right-censored events of 2.)
     #      calculate statistics updates
     #      update objects
-
+    
     # 1. store statistic updates for DEPENDENT events
     if (isDependent) {
       iDependentEvents <- 1 + iDependentEvents # # CHANGED ALVARO: iterator
@@ -185,22 +185,62 @@ preprocess <- function(
       # CHANGED SIWEI: added time point of each event (dependent & right-censored)
       event_time[[eventPos]] <- time
       # CHANGED MARION: added sender and receiver
-      varsKeep <- c(switch(2 - isNodeEvent[nextEvent], "node", c("sender", "receiver")), "increment")
+      varsKeep <- c(if(isNodeEvent[nextEvent]) "node" else c("sender", "receiver"), 
+                    if (isIncrementEvent[nextEvent]) "increment" else "replace")
       event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
-      event_sender[[eventPos]] <- event$sender
-      event_receiver[[eventPos]] <- event$receiver
+      if (isNodeEvent[nextEvent]) {
+        event_sender[[eventPos]] <- event$node
+        event_receiver[[eventPos]] <- event$node
+      } else {
+        event_sender[[eventPos]] <- event$sender
+        event_receiver[[eventPos]] <- event$receiver
+      }
+      
     }
-
+    
     # CHANGED WEIGUTIAN
-    if (!isDependent) {
-      # 2. update stats and data objects for OBJECT CHANGE EVENTS (all non-dependent events)
-
-      # Three steps are performed for non-dependent events
+    if(!isDependent){
+      # 2. store statistic updates for RIGHT-CENSORED (non-dependent, positive) intervals
+      if(rightCensored && interval > 0) {        
+        # CHANGED MARION: the incremented index was incorrect
+        #rightCensoredStatistics[[ pointers[nextEvent] ]] <- updatesIntervals
+        #timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <- interval
+        rightCensoredStatistics <- append(rightCensoredStatistics, list(updatesIntervals))
+        timeIntervalsRightCensored <- append(timeIntervalsRightCensored, interval)
+        updatesIntervals <- lapply(effects, function(x) NULL)
+        
+        # CHANGED MARION: added orderEvents
+        orderEvents[[eventPos]] <- 2
+        event_time[[eventPos]] <- time
+        # CHANGED MARION: added sender and receiver
+        # CHANGED WEIGUTIAN: removed "increment" which results a bug
+        # TODO(WEIGUTIAN): check wether the following block is necessary for right censored event,
+        #                 Because in the right-censored events there's no sender and receiver.
+        varsKeep <- c(if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"))#,
+        #if (isIncrementEvent[nextEvent]) "increment" else "replace")
+        event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
+        if(isNodeEvent[nextEvent] & length(event) == 1) {
+          event_sender[[eventPos]] <- event
+          event_receiver[[eventPos]] <- event
+        } else if(isNodeEvent[nextEvent] & length(event) > 1) {
+          event_sender[[eventPos]] <- event$node
+          event_receiver[[eventPos]] <- event$node
+        } else {
+          event_sender[[eventPos]] <- event$sender
+          event_receiver[[eventPos]] <- event$receiver
+        }  
+        pointerTempRightCensored <- pointerTempRightCensored + 1
+      }
+      
+      # 3. update stats and data objects for OBJECT CHANGE EVENTS (all non-dependent events)
+      
+      
+      # Two steps are performed for non-dependent events
       #   (0. get objects and update increment columns)
       #   a. store statistics updates for RIGHT-CENSORED (non-dependent, positive) intervals
       #   a. Calculate statistic updates for each event that relates to the data update
       #   b. Update the data objects
-
+      
       objectNameTable <- eventsObjectsLink[nextEvent, -1]
       objectName <- objectNameTable$name
       object <- getElementFromDataObjectTable(objectNameTable, envir = prepEnvir)[[1]]
@@ -208,7 +248,7 @@ preprocess <- function(
       if ("network.goldfish" %in% class(object)) {
         isUndirectedNet <- !attr(object, "directed")
       }
-
+      
       # # CHANGED ALVARO: avoid dependence in variables position
       if (isIncrementEvent[nextEvent]) {
         varsKeep <- c(if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"), "increment")
@@ -239,11 +279,11 @@ preprocess <- function(
           event$replace <- 0
         }
       }
-
+      
       if (!isNodeEvent[nextEvent] && event$replace < 0) {
         warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
       }
-
+      
       # a. store statistic updates for RIGHT-CENSORED (non-dependent, positive) intervals
       if (rightCensored && interval > 0) {
         # CHANGED MARION: the incremented index was incorrect
@@ -252,7 +292,7 @@ preprocess <- function(
         rightCensoredStatistics <- append(rightCensoredStatistics, list(updatesIntervals))
         timeIntervalsRightCensored <- append(timeIntervalsRightCensored, interval)
         updatesIntervals <- lapply(effects, function(x) NULL)
-
+        
         # CHANGED MARION: added orderEvents
         orderEvents[[eventPos]] <- 2
         event_time[[eventPos]] <- time
@@ -260,14 +300,14 @@ preprocess <- function(
         # TODO(WEIGUTIAN): check wether the following block is necessary for right censored event,
         #                 Because in the right-censored events there's no sender and receiver.
         #                 Yes, it has in a REM model
-
+        
         if (!isNodeEvent[nextEvent]) {
           event_sender[[eventPos]] <- event$sender
           event_receiver[[eventPos]] <- event$receiver
         }
         pointerTempRightCensored <- pointerTempRightCensored + 1
       }
-
+      
       # b. calculate statistics changes
       effIds <- which(!is.na(eventsEffectsLink[nextEvent, ]))
       for (id in effIds) {
@@ -282,7 +322,7 @@ preprocess <- function(
                            what = c("numeric", "matrix"), which = TRUE) > 0
         attIDs <- which(objClass[1, ])
         netIDs <- which(objClass[2, ])
-
+        
         # call effects function with required arguments
         .argsFUN <- list(
           network = if (length(.objects[netIDs]) == 1) {
@@ -299,18 +339,18 @@ preprocess <- function(
           n1 = n1,
           n2 = n2
         )
-
+        
         effectUpdate <- callFUN(
           effects, id, "effect", c(.argsFUN, event), " cannot update \n",
           colnames(objectsEffectsLink)[id]
         )
-
+        
         updates <- effectUpdate$changes
         # if cache and changes are not null update cache
         if (!is.null(effectUpdate$cache) & !is.null(effectUpdate$changes)) {
           statCache[[id]] <- effectUpdate$cache
         }
-
+        
         if (isUndirectedNet) {
           event2 <- event
           event2$sender <- event$receiver
@@ -321,13 +361,13 @@ preprocess <- function(
             effects, id, "effect", c(.argsFUN, event2), " cannot update \n",
             colnames(objectsEffectsLink)[id]
           )
-
+          
           if (!is.null(effectUpdate2$cache) & !is.null(effectUpdate2$changes))
             statCache[[id]] <- effectUpdate2$cache
           updates2 <- effectUpdate2$changes
           updates <- rbind(updates, updates2)
         }
-
+        
         if (!is.null(updates)) {
           # CHANGED WEIGUTIAN: UPDATE THE STAT MAT AND IMPUTE THE MISSING VALUES
           # statCache[[id]][["stat"]][cbind(updates[, "node1"], updates[, "node2"])] <- updates[, "replace"]
@@ -341,7 +381,7 @@ preprocess <- function(
           updatesIntervals[[id]] <- rbind(updatesIntervals[[id]], updates)
         }
       }
-
+      
       # c. Update the data object
       if (!finalStep) {
         if (!is.null(event$node)) object[event$node] <- event$replace
@@ -356,16 +396,16 @@ preprocess <- function(
         eval(parse(text = paste(objectName, "<- object")), envir = prepEnvir)
       }
     } # end 3. (!dependent)
-
+    
     # update events pointers
     pointers[nextEvent] <- 1 + pointers[nextEvent]
     validPointers <- pointers <= vapply(events, nrow, integer(1)) & times <= endTime
   }
-
+  
   if (showProgressBar && getTxtProgressBar(pb) < nDependentEvents) {
     close(pb)
   }
-
+  
   return(structure(list(
     initialStats = initialStats,
     dependentStatsChange = dependentStatistics,
@@ -403,7 +443,7 @@ preprocess <- function(
 initializeCacheStat <- function(objectsEffectsLink, effects, windowParameters,
                                 n1, n2, model, subModel, envir = environment()) {
   objTable <- getDataObjects(list(rownames(objectsEffectsLink)),
-    removeFirst = FALSE
+                             removeFirst = FALSE
   )
   .objects <- getElementFromDataObjectTable(objTable, envir = envir)
   # list of 4, call matrix, friendship matrix, actor$gradetype vector, actor$floor vector
@@ -420,7 +460,7 @@ initializeCacheStat <- function(objectsEffectsLink, effects, windowParameters,
     },
     logical(1)
   )
-
+  
   # objects: list of 6, each element is a 84*84 matrix
   objectsRet <- lapply(
     seq_along(effects),
@@ -498,14 +538,14 @@ callFUN <- function(effects, effectPos, effectType, .argsFUN, textMss,
   tryCatch({
     withCallingHandlers( {
       callRes <- do.call(
-      effects[[effectPos]][[effectType]],
-      .argsFUN[na.omit(.argsKeep)]
-    )},
-    error = identity,
-    warning = function(w) {
-      warn <<- w
-      invokeRestart("muffleWarning")
-    }
+        effects[[effectPos]][[effectType]],
+        .argsFUN[na.omit(.argsKeep)]
+      )},
+      error = identity,
+      warning = function(w) {
+        warn <<- w
+        invokeRestart("muffleWarning")
+      }
     )
   },
   error = errorHandler
