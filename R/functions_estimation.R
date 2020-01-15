@@ -403,7 +403,7 @@ estimate.formula <- function(x,
         nodes2 = nodes2,
         isTwoMode = isTwoMode,
         startTime = preprocessingInit[["startTime"]],
-        endTime = preprocessingInit[["endtTime"]],
+        endTime = preprocessingInit[["endTime"]],
         rightCensored = rightCensored,
         verbose = verbose,
         silent = silent
