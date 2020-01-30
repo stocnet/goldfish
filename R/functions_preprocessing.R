@@ -337,7 +337,12 @@ preprocess <- function(
           },
           cache = statCache[[id]],
           n1 = n1,
-          n2 = n2
+          n2 = n2,
+          netUpdate = if (length(.objects[netIDs]) == 1) {
+            NULL
+          } else {
+            which(orderedNames == objectName)
+          }
         )
         
         effectUpdate <- callFUN(
