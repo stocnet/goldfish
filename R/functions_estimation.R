@@ -199,14 +199,19 @@ estimate.formula <- function(x,
     verbose <- FALSE
     silent <- FALSE
     model <- "DyNAM"
-    subModel <- "choice"
+    subModel <- "rate"
     estimationInit <- NULL
-    source("../../goldfish package/R/functions_effects.R")
-    source("../../goldfish package/R/functions_estimation_engine.R")
-    source("../../goldfish package/R/functions_preprocessing.R")
-    source("../../goldfish package/R/functions_estimation_old.R")
-    source("../../goldfish package/R/functions_parsing.R")
-    source("../../goldfish package/R/functions_utility.R")
+    preprocessingOnly <- FALSE
+    preprocessingInit <- NULL
+    source("R/functions_effects.R")
+    source("R/functions_effects_DyNAM_rate.R")
+    source("R/functions_effects_DyNAM_choice.R")
+    source("R/functions_estimation_engine.R")
+    source("R/functions_preprocessing.R")
+    source("R/functions_estimation_old.R")
+    source("R/functions_parsing.R")
+    source("R/functions_utility.R")
+    source("R/functions_utility.R")
     # x <- formula
   }
 
@@ -513,7 +518,7 @@ estimate.formula <- function(x,
       nodes2 = nodes2,
       isTwoMode = isTwoMode,
       startTime = estimationInit[["startTime"]],
-      endTime = estimationInit[["endtTime"]],
+      endTime = estimationInit[["endTime"]],
       rightCensored = rightCensored,
       verbose = verbose,
       silent = silent
