@@ -118,7 +118,7 @@ preprocess <- function(
   # pointers = [1,1,1](events have three elements: callDependent(439*4), calls(439*4), friendship(766*4))
   pointers <- rep(1, length(events))
   validPointers <- rep(TRUE, length(events))
-  if (hasEndTime) validPointers <- vapply(events, function(x) x$time[1], double()) <= endTime
+  if (hasEndTime) validPointers <- vapply(events, function(x) x$time[1], double(1)) <= endTime
   pointerTempRightCensored <- 1
   time <- startTime
   interval <- 0
@@ -228,16 +228,16 @@ preprocess <- function(
           event_sender[[eventPos]] <- event$sender
           event_receiver[[eventPos]] <- event$receiver
         }  
-        ## CHANGE Christoph: pointer is updated below already
-        # pointerTempRightCensored <- pointerTempRightCensored + 1
+        pointerTempRightCensored <- pointerTempRightCensored + 1
       }
+      
+      
       
       # 3. update stats and data objects for OBJECT CHANGE EVENTS (all non-dependent events)
       
       
       # Two steps are performed for non-dependent events
       #   (0. get objects and update increment columns)
-      #   a. store statistics updates for RIGHT-CENSORED (non-dependent, positive) intervals
       #   a. Calculate statistic updates for each event that relates to the data update
       #   b. Update the data objects
       
@@ -284,33 +284,11 @@ preprocess <- function(
         warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
       }
       
-      # a. store statistic updates for RIGHT-CENSORED (non-dependent, positive) intervals
-      if (rightCensored && interval > 0) {
-        # CHANGED MARION: the incremented index was incorrect
-        # rightCensoredStatistics[[ pointers[nextEvent] ]] <- updatesIntervals
-        # timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <- interval
-        rightCensoredStatistics <- append(rightCensoredStatistics, list(updatesIntervals))
-        timeIntervalsRightCensored <- append(timeIntervalsRightCensored, interval)
-        updatesIntervals <- lapply(effects, function(x) NULL)
-        
-        # CHANGED MARION: added orderEvents
-        orderEvents[[eventPos]] <- 2
-        event_time[[eventPos]] <- time
-        # CHANGED MARION: added sender and receiver
-        # TODO(WEIGUTIAN): check wether the following block is necessary for right censored event,
-        #                 Because in the right-censored events there's no sender and receiver.
-        #                 Yes, it has in a REM model
-        
-        if (!isNodeEvent[nextEvent]) {
-          event_sender[[eventPos]] <- event$sender
-          event_receiver[[eventPos]] <- event$receiver
-        }
-        pointerTempRightCensored <- pointerTempRightCensored + 1
-      }
       
-      # b. calculate statistics changes
-      effIds <- which(!is.na(eventsEffectsLink[nextEvent, ]))
-      for (id in effIds) {
+      ## 3a. calculate statistics changes
+      
+      if(!finalStep) effIds <- which(!is.na(eventsEffectsLink[nextEvent, ]))
+      if(!finalStep) for (id in effIds) {
         # create the ordered list for the objects
         objectsToPass <- objectsEffectsLink[, id][!is.na(objectsEffectsLink[, id])]
         names <- rownames(objectsEffectsLink)[!is.na(objectsEffectsLink[, id])]
@@ -387,7 +365,7 @@ preprocess <- function(
         }
       }
       
-      # c. Update the data object
+      # 3b. Update the data object
       if (!finalStep) {
         if (!is.null(event$node)) object[event$node] <- event$replace
         if (!is.null(event$sender)) {
