@@ -1,10 +1,10 @@
-########################
+##################### ###
 #
 # Goldfish package
 # Some utility functions useful in
 # various parts of the code
 #
-########################
+##################### ###
 
 
 #' get data objects
@@ -319,4 +319,54 @@ UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
 
   network[cbind(redEvents$sender, redEvents$receiver)] <- redEvents$replace
   return(network)
+}
+
+
+GetDetailPrint <- function(objectsEffectsLink, parsedFormula) {
+    # effect description table
+  orderedObjs <- apply(objectsEffectsLink, 2, function(x)
+    names(which(!is.na(x))[order(x[!is.na(x)])]))
+  # orderedObjs: each effect refers to which network or actor attribute
+  if (ncol(orderedObjs) == 1) {
+    maxParams <- nrow(orderedObjs)
+    orderedObjs2 <- orderedObjs
+    parameterOverview <- array(data = orderedObjs2, dim = c(1, maxParams))
+  } else {
+    maxParams <- max(vapply(orderedObjs, length, integer(1)))
+    orderedObjs2 <- lapply(orderedObjs, function(x) c(x, rep("", maxParams - length(x))))
+    parameterOverview <- Reduce(rbind, orderedObjs2)
+  }
+  
+  colnames(parameterOverview) <- NULL
+  effectDescription <- cbind(
+    name = colnames(objectsEffectsLink),
+    object = parameterOverview
+  )
+  if (any(unlist(parsedformula$ignoreRepParameter))) {
+    effectDescription <- cbind(effectDescription,
+      ignoreRep = unlist(ifelse(ignoreRepParameter, "B", ""))
+    )
+  }
+  if (sum(unlist(parsedformula$weightedParameter)) > 0) {
+    effectDescription <- cbind(effectDescription,
+      weighted = unlist(ifelse(weightedParameter, "W", ""))
+    )
+  }
+  if (sum(parsedformula$userSetParameter == "") < length(parsedformula$userSetParameter)) {
+    effectDescription <- cbind(effectDescription,
+      type = userSetParameter
+    )
+  }
+  hasWindows <- FALSE
+  if (!all(vapply(parsedformula$windowParameters, is.null, logical(1)))) {
+    hasWindows <- TRUE
+    effectDescription <- cbind(effectDescription,
+      window = vapply(
+        parsedformula$windowParameters,
+        function(x) ifelse(is.null(x), "", x),
+        character(1))
+    )
+  }
+  rownames(effectDescription) <- NULL
+
 }

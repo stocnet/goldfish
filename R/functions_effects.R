@@ -40,7 +40,7 @@
 #' Goldfish effects.
 #'
 #' This page catalogues the list of generic effects that are available in the goldfish package.
-#' \code{ignoreRep}, \code{weighted}, \code{windowed}, and transformed versions (\code{transformFun})
+#' \code{ignoreRep}, \code{weighted}, \code{window}, and transformed versions (\code{transformFun})
 #' can be included by adding these arguments.
 #'
 #' Note that the use of some effects (combinations) are ill-advised.

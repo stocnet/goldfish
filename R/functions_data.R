@@ -1,10 +1,10 @@
-#####################################
+################################## ###
 #
 # Goldfish package
 #
 # Functions related to the creation of data objects
 #
-#####################################
+################################## ###
 
 # TODO: (data team)
 # - It is much prettier do define two functions

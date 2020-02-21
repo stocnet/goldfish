@@ -152,8 +152,7 @@ estimate <- function(x,
                      preprocessingOnly = FALSE,
                      verbose = FALSE,
                      silent = FALSE,
-                     debug = FALSE,
-                     modelType = NULL)
+                     debug = FALSE)
   UseMethod("estimate")
 
 
@@ -167,8 +166,7 @@ estimate.formula <- function(x,
                              preprocessingOnly = FALSE,
                              verbose = FALSE,
                              silent = FALSE,
-                             debug = FALSE,
-                             modelType = NULL) {
+                             debug = FALSE) {
   # Steps:
   # 1. Parse the formula
   # 2. Initialize additional objects
@@ -212,11 +210,11 @@ estimate.formula <- function(x,
 
   ### 0. check parameters----
 
-  .calls_args_ <- names(lapply(match.call(), deparse))[-1]
-  if (any("modelType" %in% .calls_args_)) {
-    stop("use 'model' and 'subModel' instead of 'modelType'")
-  }
-  rm(.calls_args_)
+  # .calls_args_ <- names(lapply(match.call(), deparse))[-1]
+  # if (any("modelType" %in% .calls_args_)) {
+  #   stop("use 'model' and 'subModel' instead of 'modelType'")
+  # }
+  # rm(.calls_args_)
 
   #
   model <- match.arg(model)
@@ -224,10 +222,11 @@ estimate.formula <- function(x,
 
   ### check model and subModel
   checkModelPar(model, subModel,
-    modelList = c("DyNAM", "REM"),
+    modelList = c("DyNAM", "REM", "TriNAM"),
     subModelList = list(
       DyNAM = c("choice", "rate", "choice_coordination"),
-      REM = c("choice")
+      REM = c("choice"),
+      TriNAM = c("choice", "rate")
     )
   )
 
@@ -282,8 +281,8 @@ estimate.formula <- function(x,
   defaultNetworkName <- parsedformula$defaultNetworkName
   windowParameters <- parsedformula$windowParameters
   ignoreRepParameter <- parsedformula$ignoreRepParameter
-  weightedParameter <- parsedformula$weightedParameter
-  userSetParameter <- parsedformula$userSetParameter
+  # weightedParameter <- parsedformula$weightedParameter
+  # userSetParameter <- parsedformula$userSetParameter
 
   # # C implementation doesn't have ignoreRep option issue #105
   if (any(unlist(ignoreRepParameter)) && engine %in% c("default_c", "gather_compute")) {
@@ -292,7 +291,7 @@ estimate.formula <- function(x,
     engine <- "default"
   }
   # Model-specific preprocessing initialization
-  if (model %in% c("DyNAM") && subModel %in% c("choice", "choice_coordination") && hasIntercept) {
+  if (model %in% c("DyNAM", "TriNAM") && subModel %in% c("choice", "choice_coordination") && hasIntercept) {
     warning(paste("Model ", model, "subModel", subModel, "ignores the time intercept."),
             call. = FALSE, immediate. = TRUE)
     hasIntercept <- FALSE
@@ -513,7 +512,7 @@ estimate.formula <- function(x,
       nodes2 = nodes2,
       isTwoMode = isTwoMode,
       startTime = estimationInit[["startTime"]],
-      endTime = estimationInit[["endtTime"]],
+      endTime = estimationInit[["endTime"]],
       rightCensored = rightCensored,
       verbose = verbose,
       silent = silent
@@ -532,65 +531,29 @@ estimate.formula <- function(x,
 
 
   ### 4. PREPARE PRINTING----
-
-  # effect description table
-  orderedObjs <- apply(objectsEffectsLink, 2, function(x)
-    names(which(!is.na(x))[order(x[!is.na(x)])]))
-  # orderedObjs: each effect refers to which network or actor attribute
-  maxParams <- max(vapply(orderedObjs, length, integer(1)))
-  orderedObjs2 <- lapply(orderedObjs, function(x) c(x, rep("", maxParams - length(x))))
-  parameterOverview <- Reduce(rbind, orderedObjs2)
-  colnames(parameterOverview) <- NULL
-  effectDescription <- cbind(
-    name = colnames(objectsEffectsLink),
-    object = parameterOverview
-  )
-  if (any(unlist(ignoreRepParameter))) {
-    effectDescription <- cbind(effectDescription,
-      ignoreRep = unlist(ifelse(ignoreRepParameter, "B", ""))
-    )
-  }
-  if (sum(unlist(weightedParameter)) > 0) {
-    effectDescription <- cbind(effectDescription,
-      weighted = unlist(ifelse(weightedParameter, "W", ""))
-    )
-  }
-  if (sum(userSetParameter == "") < length(userSetParameter)) {
-    effectDescription <- cbind(effectDescription,
-      type = userSetParameter
-    )
-  }
-  hasWindows <- FALSE
-  if (!all(vapply(windowParameters, is.null, logical(1)))) {
-    hasWindows <- TRUE
-    effectDescription <- cbind(effectDescription,
-      window = vapply(
-        windowParameters,
-        function(x) ifelse(is.null(x), "", x),
-        character(1))
-    )
-  }
-  rownames(effectDescription) <- NULL
-
+  # functions_utility.R
+  effectDescription <- GetDetailPrint(objectsEffectsLink, parsedformula)
 
   ### 5. ESTIMATE----
   # CHANGED Alvaro: to match model and subModel new parameters
-  modelType <- ifelse(model == "REM", "REM",
-    switch(subModel,
-      choice = paste0(model, "-M"),
-      rate = paste0(model, "-M-Rate"),
-      choice_coordination = paste0(model, "-MM")
-    )
-  )
-  modelTypeCall <- modelType
-
-  if (model == "DyNAM" && subModel == "rate" && !hasIntercept) {
-    modelTypeCall <- "DyNAM-M-Rate-ordered"
+  if (model == "REM") {
+    if (!hasIntercept) {
+      modelTypeCall <- "REM-ordered"
+    } else {
+      modelTypeCall <- "REM"
+    }
+  } else if (model %in% c("DyNAM", "TriNAM")) {
+    if (subModel == "rate" && !hasIntercept) {
+      modelTypeCall <- "DyNAM-M-Rate-ordered"
+    } else if (subModel == "rate") {
+      modelTypeCall <- "DyNAM-M-Rate"
+    } else if (subModel == "choice_coordination") {
+      modelTypeCall <- "DyNAM-MM"
+    } else {
+      modelTypeCall <- "DyNAM-M"
+    }
   }
-  if (model == "REM" && !hasIntercept) {
-    modelTypeCall <- "REM-ordered"
-  }
-  if (!silent) cat("Estimating a ", modelTypeCall, " model.\n")
+  if (!silent) cat("Estimating a model:", model, ", subModel:", subModel, ".\n", sep = "")
 
   # Old estimation
   if (engine == "old") {

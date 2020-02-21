@@ -1,9 +1,9 @@
-############################
+######################### ###
 #
 # Print, summary and xtable functions
 # for classes in Goldfish
 #
-############################
+######################### ###
 
 #' Information criteria statistics
 #' @param object a goldfish results object
@@ -392,7 +392,7 @@ print.list <- function(x, substitute = NULL, dependents = NULL) {
 }
 
 
-print.preprocessed.goldfish <- function(x, digits = 2, ...) {
+print.preprocessed.goldfish <- function(x, digits = 2) {
   cat("**Preprocess object for the model:**\n")
   print(x$formula)
   cat(" dependent events processed: ", length(x$dependetStatsChange), "\n")

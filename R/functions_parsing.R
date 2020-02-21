@@ -1,38 +1,43 @@
-########################
+####################### #
 #
 # Goldfish package
 # Parsings (and checking) formulae
 #
-########################
+####################### #
 
-# A valid formula should have:
-# - on the left side a list of dependent events
-# - on the right side a list of names that correspond to effects we have in our pre-defined functions
-# - parameters for the effects that are coherent with the documentation
-# on top of this, we parse the formula to the right format for the rest of the estimation
-
+#' parse formula
+#' A valid formula should have:
+#' - on the left side a list of dependent events
+#' - on the right side a list of names that correspond to effects we have in our pre-defined functions
+#' - parameters for the effects that are coherent with the documentation
+#' on top of this, we parse the formula to the right format for the rest of the estimation
+#' @param formula a class \code{formula} object that defines the model 
+#'
+#' @return a list with parsed values needed in the next steps
+#' @noRd
+#'
+#' @examples
+#' \dontrun{
+#' parseFormula(calls ~ outdeg(call.Network, type="ego") + indeg(call.Network, type="alter"))
+#' }
 parseFormula <- function(formula) {
-
   # check left side
   depName <- getDependentName(formula)
   if (!"dependent.goldfish" %in% class(get(depName))) {
     stop("The left hand side of the formula should contain dependent events",
-         " (check the function defineDependentEvents).")
+         " (check the function defineDependentEvents).", call. = FALSE)
   }
-
   # check right side
   # TODO: replace interaction terms by main effects
   #       and add a representation of what is to interacted before estimation
   rhsNames <- getRHSNames(formula)
   if (length(rhsNames) == 0) {
-    stop("A model without effects cannot be estimated.")
+    stop("A model without effects cannot be estimated.", call. = FALSE)
   }
-
   # check right side: intercept
   int <- parseIntercept(rhsNames)
   rhsNames <- int[[1]]
   hasIntercept <- int[[2]]
-
   # check right side: default network
   defaultNetworkName <- attr(get(depName), "defaultNetwork")
   if (!is.null(defaultNetworkName)) {
@@ -41,23 +46,19 @@ parseFormula <- function(formula) {
       rhsNames[[i]][[2]] <- defaultNetworkName
     }
   }
-
   # check right side: all parameters
-  # CHANGED ALVARO: check against the arguments of the effect
+  # TODO: check against the arguments of the effect
   # internal_args <- c("network", "statistics", "sender", "receiver", "replace",
   #                "n1", "n2", "attribute", "node")
-
   for (i in seq_along(rhsNames)) {
     if ("binary" %in% names(rhsNames[[i]])) {
       stop("The use of the binary parameter is no longer available,
-                 please use ignoreRep.")
+                 please use ignoreRep.", call. = FALSE)
     }
-
     if ("isBipartite" %in% names(rhsNames[[i]])) {
       stop("The use of the isBipartite parameter is no longer available,
-           please use isTwoMode")
+           please use isTwoMode", call. = FALSE)
     }
-
     # args_effect <- names(formals(rhsNames[[i]][[1]]))
     # if(!all(names(rhsNames[[i]]) %in%
     #         c("", "ignoreRep", "window", "isTwoMode",
@@ -65,36 +66,39 @@ parseFormula <- function(formula) {
     #   stop("The parameters given for the effects are incorrect,
     #              please check the goldfishEffects documentation")
   }
-
   # check right side: windows
   windowParameters <- lapply(rhsNames, getElement, "window")
   rhsNames <- parseTimeWindows(rhsNames)
-
   # check right side: ignoreRep parameter
   mult <- parseMultipleEffects(rhsNames)
   rhsNames <- mult[[1]]
   ignoreRepParameter <- mult[[2]]
-
+    # check mismatch with default parameter
+  if (any(unlist(ignoreRepParameter)) && is.null(defaultNetworkName)) {
+    stop("No default network defined, thus ", sQuote('ignoreRep = TRUE'), " effects cannot be used.", call. = FALSE)
+  }
   # check right side: weighted parameter
   weightedParameter <- lapply(rhsNames, function(x) {
     v <- getElement(x, "weighted")
-    ifelse(!is.null(v) && v == "T", TRUE, FALSE)
+    ifelse(!is.null(v) && substr(v, 1, 1) == "T", TRUE, FALSE)
   })
-
-  # check right side: parameter parameter, deprecated!!
-  userSetParameter <- lapply(rhsNames, function(x) {
+  # check right side: type = c("ego", "alter")
+  typeParameter <- lapply(rhsNames, function(x) {
     v <- getElement(x, "type")
     ifelse(!is.null(v), v, "")
   })
-
-  # check mismatch with default parameter
-  if (any(unlist(ignoreRepParameter)) && is.null(defaultNetworkName)) {
-    stop("No default network defined, thus 'ignoreRep = TRUE' effects cannot be used.")
+  # check right side: transformFun & aggregateFun
+  getFunName <- function(x, which) {
+    v <- getElement(x, which)
+    v <- ifelse(!is.null(v), v, "")
+    v <- gsub("['\" ]", "", v)  # replace quotation marks 
+    v <- ifelse(
+      grepl("function.?\\(", v) || nchar(v) > 12,
+      "userDefined", v) # if it is a function, it is replace by short text
   }
-
-  # check coherence with documentation (just warnings)
-  # TODO
-
+  transParameter <- lapply(rhsNames, getFunName, "transformFun")
+  aggreParameter <- lapply(rhsNames, getFunName, "aggregateFun")
+  # TODO: check coherence with documentation (just warnings)
   # return all the results of the formula parsing
   res <- list(
     rhsNames = rhsNames,
@@ -104,7 +108,9 @@ parseFormula <- function(formula) {
     windowParameters = windowParameters,
     ignoreRepParameter = ignoreRepParameter,
     weightedParameter = weightedParameter,
-    userSetParameter = userSetParameter
+    typeParameter = typeParameter,
+    transParameter = transParameter,
+    aggreParameter = aggreParameter
   )
   return(res)
 }
@@ -125,7 +131,6 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
     stop("The default network in the formula is not the one used in",
          " the preprocessed object given in preprocessingInit.")
   }
-
   # test the right-censoring
   # for now it's easier to just reject inconsistent formulas, otherwise,
   # we would need go in the details of the RC intervals and updates
@@ -143,12 +148,10 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
     stop("The preprocessing for the object in preprocessingInit was done",
          " with right-censored intervals and this formula does not include those.")
   }
-
   # counters for remembering which of the old effects are found in the new formula
   sizeold <- length(oldparsedformula$rhsNames)
   sizenew <- length(newparsedformula$rhsNames)
   effectsindexes <- rep(0, sizenew)
-
   # go through all new effects to check whether they already existed in the old formula
   for (i in 1:sizenew) {
     effectname <- newparsedformula$rhsNames[[i]][[1]]
@@ -157,24 +160,19 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
     effectignorerep <- newparsedformula$ignoreRepParameter[[i]]
     effectweighted <- newparsedformula$weightedParameter[[i]]
     effectparameter <- newparsedformula$userSetParameter[[i]]
-
     for (j in 1:sizeold) {
-
       # 1 check name of the effect
       if (!identical(oldparsedformula$rhsNames[[j]][[1]], effectname)) {
         next
       }
-
       # 2 check object of the effect
       if (!identical(oldparsedformula$rhsNames[[j]][[2]], effectobject)) {
         next
       }
-
       # 3 check windows
       if (!identical(oldparsedformula$windowParameters[[j]], effectwindow)) {
         next
       }
-
       # 4 check other parameters
       if (!identical(oldparsedformula$ignoreRepParameter[[j]], effectignorerep)) {
         next
@@ -185,12 +183,10 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
       if (!identical(oldparsedformula$userSetParameter[[j]], effectparameter)) {
         next
       }
-
       # else it is the same effect
       effectsindexes[i] <- j
     }
   }
-
   return(effectsindexes)
 }
 
@@ -312,7 +308,7 @@ createWindowedEvents <- function(objectEvents, window) {
 }
 
 
-# inspired by the ergm package gunction parser
+# inspired by the ergm package function parser
 extractFormulaTerms <- function(rhs) {
   # most inner term reached
   if (is.symbol(rhs)) {
