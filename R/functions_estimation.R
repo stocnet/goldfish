@@ -72,17 +72,21 @@
 #'
 #' An object of class \code{"result.goldfish"} is a list including:
 #'   \item{parameters}{a matrix with the coefficients estimates.}
-#'   \item{standard.errors}{a vector with the standard errors of the coefficients.}
-#'   \item{log.likelihood}{the log likelihood of the estimate model}
-#'   \item{final.score}{a vector with the final score reach by the parameters during estimation.}
-#'   \item{final.informationMatrix}{a matrix with the final values of the negative Fisher information matrix. The inverse of this matrix gives the variance-covariance matrix for the parameters estimates.}
-#'   \item{convergence}{a list with two elements. The first element is a logical value that indicates the convergence of the model. The second element (\code{max.abs.score}) reports the final maximum absolute score in the final iteration.}
-#'   \item{n.iterations}{an integer with the total number of iterations performed during the estimation process.}
-#'   \item{n.events}{an integer reporting the number of events considered in the model.}
-#'   \item{model.type}{a character vector of the model type.}
-#'   \item{names}{a matrix with the names of the effects and the variable for which the effect was computed.}
+#'   \item{standardErrors}{a vector with the standard errors of the coefficients.}
+#'   \item{logLikelihood}{the log likelihood of the estimate model}
+#'   \item{finalScore}{a vector with the final score reach by the parameters during estimation.}
+#'   \item{finalInformationMatrix}{a matrix with the final values of the negative Fisher information matrix. 
+#'   The inverse of this matrix gives the variance-covariance matrix for the parameters estimates.}
+#'   \item{convergence}{a list with two elements. 
+#'   The first element (\code{isConverged}) is a logical value that indicates the convergence of the model. 
+#'   The second element (\code{maxAbsScore}) reports the final maximum absolute score in the final iteration.}
+#'   \item{nIterations}{an integer with the total number of iterations performed during the estimation process.}
+#'   \item{nEvents}{an integer reporting the number of events considered in the model.}
+#'   \item{names}{a matrix with a description of the effects used for model fitting. 
+#'   It includes the name of the object used to calculate the effects and additional parameter description.}
 #'   \item{formula}{a formula with the information of the model fitted.}
-#'   \item{right.censored}{a logical value indicating if the estimation process considered right censored events. Only it is considered when \code{model = "DyNAM"}, \code{subModel = "rate"} and the model includes intercept.}
+#'   \item{model}{a character vector of the model type.}
+#'   \item{rightCensored}{a logical value indicating if the estimation process considered right censored events. Only it is considered when \code{model = "DyNAM"}, \code{subModel = "rate"} and the model includes intercept.}
 #'
 #' @export
 #' @seealso \code{\link{defineDependentEvents}}, \code{\link{goldfishEffects}}, \code{\link{defineGlobalAttribute}}, \code{\link{defineNetwork}}, \code{\link{defineNodes}}, \code{\link{linkEvents}}
@@ -283,14 +287,14 @@ estimate.formula <- function(x,
   rhsNames <- parsedformula$rhsNames
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
-  defaultNetworkName <- parsedformula$defaultNetworkName
   windowParameters <- parsedformula$windowParameters
-  ignoreRepParameter <- parsedformula$ignoreRepParameter
+  # defaultNetworkName <- parsedformula$defaultNetworkName
+  # ignoreRepParameter <- parsedformula$ignoreRepParameter
   # weightedParameter <- parsedformula$weightedParameter
   # userSetParameter <- parsedformula$userSetParameter
 
   # # C implementation doesn't have ignoreRep option issue #105
-  if (any(unlist(ignoreRepParameter)) && engine %in% c("default_c", "gather_compute")) {
+  if (any(unlist(parsedformula$ignoreRepParameter)) && engine %in% c("default_c", "gather_compute")) {
     warning("engine: ", engine, " doesn't support ignoreRep effects. engine = 'default' is used instead.",
             call. = FALSE, immediate. = TRUE)
     engine <- "default"
@@ -537,8 +541,8 @@ estimate.formula <- function(x,
 
   ### 4. PREPARE PRINTING----
   # functions_utility.R
-  effectDescription <- GetDetailPrint(objectsEffectsLink, parsedformula)
-
+  effectDescription <- GetDetailPrint(objectsEffectsLink, parsedformula, estimationInit[["fixedParameters"]])
+  hasWindows <- attr(effectDescription, "hasWindows")
   ### 5. ESTIMATE----
   # CHANGED Alvaro: to match model and subModel new parameters
   if (model == "REM") {
@@ -558,10 +562,15 @@ estimate.formula <- function(x,
       modelTypeCall <- "DyNAM-M"
     }
   }
-  if (!silent) cat("Estimating a model:", model, ", subModel:", subModel, ".\n", sep = "")
+  if (!silent) cat("Estimating a model: ", dQuote(model), ", subModel: ", dQuote(subModel), ".\n", sep = "")
 
   # Old estimation
   if (engine == "old") {
+    if (!is.null(estimationInit[["fixedParameters"]])) {
+      stop("engine = ", dQuote("old"), " does not support ", 
+           dQuote("fixedParameters"), " argument", call. = FALSE)
+    }
+    
     # use of Marion's fast estimation routine by default
     rowOnly <- colOnly <- F
     if (modelType == "DyNAM-M-Rate") colOnly <- T
@@ -575,8 +584,8 @@ estimate.formula <- function(x,
       hasIntercept,
       modelType,
       hasWindows,
-      ignoreRepParameter,
-      defaultNetworkName,
+      parsedformula$ignoreRepParameter,
+      parsedformula$defaultNetworkName,
       colOnly,
       estimationInit,
       initialDamping = ifelse(hasWindows, 30, 10),
@@ -586,6 +595,7 @@ estimate.formula <- function(x,
       verbose,
       silent
     )
+    resold$call <- callT
     return(resold)
   }
 
@@ -594,7 +604,7 @@ estimate.formula <- function(x,
     statsList = prep,
     nodes = get(nodes),
     nodes2 = get(nodes2),
-    defaultNetworkName = defaultNetworkName,
+    defaultNetworkName = parsedformula$defaultNetworkName,
     addInterceptEffect = hasIntercept,
     modelType = modelTypeCall,
     initialDamping = ifelse(hasWindows, 30, 10),
@@ -602,7 +612,7 @@ estimate.formula <- function(x,
     cpus = 1,
     verbose = verbose,
     silent = silent,
-    ignoreRepParameter = ignoreRepParameter,
+    ignoreRepParameter = parsedformula$ignoreRepParameter,
     isTwoMode = isTwoMode
   )
   # prefer user-defined arguments
@@ -625,16 +635,17 @@ estimate.formula <- function(x,
   }
 
   ### 6. RESULTS----
-  result$names <- if (!hasIntercept) {
-    effectDescription
-  } else {
-    rbind(c("Intercept", rep("", ncol(effectDescription) - 1)), effectDescription)
-  }
+  result$names <- effectDescription
   result$formula <- formula
-  result$model.type <- modelType
-  result$right.censored <- hasIntercept
-
+  result$model <- model
+  result$subModel <- subModel
+  result$rightCensored <- hasIntercept
+  result$nParams <- if ("fixed" %in% colnames(effectDescription)) {
+    sum(!vapply(effectDescription[, "fixed"], function(x) eval(parse(text = x)), logical(1)))
+  } else  length(object$parameters)
+  
   if (!silent) if ("beepr" %in% rownames(installed.packages()) & result$convergence[[1]]) beepr::beep(3)
-
+  result$call <- match.call(call = sys.call(sys.parent(1L)),
+                            expand.dots = TRUE)
   return(result)
 }

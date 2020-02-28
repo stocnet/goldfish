@@ -57,11 +57,11 @@ estimate_old <- function(prep,
     return(stat)
   }
 
-  # IMPUTE missing statistics with current mean
-  imputeFun <- function(m) {
-    m[is.na(m)] <- mean(m, na.rm = TRUE)
-    m
-  }
+  # IMPUTE missing statistics with current mean; Now in preprocessing
+  # imputeFun <- function(m) {
+  #   m[is.na(m)] <- mean(m, na.rm = TRUE)
+  #   m
+  # }
 
   # we iterate among all events (dependent AND exogenous)
   for (i in 1:nEvents) {
@@ -92,9 +92,9 @@ estimate_old <- function(prep,
     }
 
     # IMPUTE missing statistics with current mean
-    for (j in 1:nParams) {
-      statsArray[, , j] <- imputeFun(statsArray[, , j])
-    }
+    # for (j in 1:nParams) {
+    #   statsArray[, , j] <- imputeFun(statsArray[, , j])
+    # }
 
     # fill in the old preprocessed object
     prepOld$dep[[i]] <- list(
@@ -216,11 +216,12 @@ estimate_old <- function(prep,
   )
 
   # old estimation
-  result$names <- if (!hasIntercept) {
-    effectDescription
-  } else {
-    rbind(c("Intercept", rep("", ncol(effectDescription) - 1)), effectDescription)
-  }
+  # result$names <- if (!hasIntercept) {
+  #   effectDescription
+  # } else {
+  #   rbind(c("Intercept", rep("", ncol(effectDescription) - 1)), effectDescription)
+  # }  # # utility GetDetailPrint does
+  result$names <- effectDescription
   result$formula <- formula
   result$model.type <- modelType
   result$right.censored <- hasIntercept
@@ -476,17 +477,16 @@ estimate_int_old <- function(statsList,
   # define, type and return result
   estimationResult <- list(
     parameters = parameters,
-    standard.errors = stdErrors,
-    log.likelihood = logLikelihood,
-    final.score = score,
-    final.informationMatrix = informationMatrix,
-    convergence = list(isConverged, max.abs.score = max(abs(score))),
-    n.iterations = iIteration,
-    n.events = nEvents,
-    model.type = modelType
+    standardErrors = stdErrors,
+    logLikelihood = logLikelihood,
+    finalScore = score,
+    finalInformationMatrix = informationMatrix,
+    convergence = list(isConverged = isConverged, maxAbsScore = max(abs(score))),
+    nIterations = iIteration,
+    nEvents = nEvents
   )
-  if (returnIntervalLogL) estimationResult$interval.logL <- intervalLogL
-  if (returnEventProbabilities) estimationResult$event.probabilities <- eventProbabilities
+  if (returnIntervalLogL) estimationResult$intervalLogL <- intervalLogL
+  if (returnEventProbabilities) estimationResult$eventProbabilities <- eventProbabilities
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
 }

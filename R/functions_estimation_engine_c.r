@@ -1,9 +1,9 @@
-########################
+##################### ###
 #
 # Goldfish package
 # Internal estimation routine
 #
-########################
+##################### ###
 
 # Estimation
 estimate_c_int <- function(statsList,
@@ -38,6 +38,7 @@ estimate_c_int <- function(statsList,
                            get_data_matrix = FALSE,
                            impute = FALSE,
                            engine = "default_c") {
+
   minDampingFactor <- initialDamping
   # CHANGED MARION
   # nParams: number of effects + 1 (if has intercept)
@@ -450,29 +451,28 @@ estimate_c_int <- function(statsList,
   # define, type and return result
   estimationResult <- list(
     parameters = parameters,
-    standard.errors = stdErrors,
-    log.likelihood = logLikelihood,
-    final.score = score,
-    final.informationMatrix = informationMatrix,
-    convergence = list(isConverged, max.abs.score = max(abs(score))),
-    n.iterations = iIteration,
-    n.events = nEvents,
-    model.type = modelTypeCall
+    standardErrors = stdErrors,
+    logLikelihood = logLikelihood,
+    finalScore = score,
+    finalInformationMatrix = informationMatrix,
+    convergence = list(isConverged = isConverged, maxAbsScore = max(abs(score))),
+    nIterations = iIteration,
+    nEvents = nEvents
   )
   if (engine == "gather_compute") {
-    estimationResult$size.intermediate <- size_gathered_data
+    estimationResult$sizeIntermediate <- size_gathered_data
     if (testing) estimationResult$intermediate <- gathered_data
   }
-  if (testing) estimationResult$intermediate_data <- DataMatrixAndId$intermediate_data
-  if (returnIntervalLogL) estimationResult$interval.logL <- intervalLogL
-  if (returnEventProbabilities) estimationResult$event.probabilities <- eventProbabilities
+  if (testing) estimationResult$intermediateData <- DataMatrixAndId$intermediate_data
+  if (returnIntervalLogL) estimationResult$intervalLogL <- intervalLogL
+  if (returnEventProbabilities) estimationResult$eventProbabilities <- eventProbabilities
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
 }
 
 
 
-##############################################################################################
+########################################################################################### ###
 # different implementation for different modelTypeCall
 
 

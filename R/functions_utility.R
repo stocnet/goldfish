@@ -322,51 +322,137 @@ UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
 }
 
 
-GetDetailPrint <- function(objectsEffectsLink, parsedFormula) {
-    # effect description table
-  orderedObjs <- apply(objectsEffectsLink, 2, function(x)
-    names(which(!is.na(x))[order(x[!is.na(x)])]))
-  # orderedObjs: each effect refers to which network or actor attribute
-  if (ncol(orderedObjs) == 1) {
-    maxParams <- nrow(orderedObjs)
-    orderedObjs2 <- orderedObjs
-    parameterOverview <- array(data = orderedObjs2, dim = c(1, maxParams))
-  } else {
-    maxParams <- max(vapply(orderedObjs, length, integer(1)))
-    orderedObjs2 <- lapply(orderedObjs, function(x) c(x, rep("", maxParams - length(x))))
-    parameterOverview <- Reduce(rbind, orderedObjs2)
+GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = NULL) {
+  # matrix with the effects in rows and objects in columns, which net or actor att
+  maxObjs <- max(objectsEffectsLink, na.rm = TRUE)
+  effectDescription <- matrix(t(
+    apply(
+      objectsEffectsLink, 2,
+      function(x) {
+        notNA <- !is.na(x)
+        objs <- x[notNA]
+        objs <- names(objs[order(objs)])
+        c(objs, rep("", maxObjs - length(objs)))
+      })
+  ),
+  nrow = ncol(objectsEffectsLink),
+  ncol = maxObjs
+  )
+  # # handle degenerate case one effect one object
+  dimnames(effectDescription) <-  list(
+    colnames(objectsEffectsLink),
+    if (ncol(effectDescription) == 1){
+      "Object"
+    } else sprintf("Object %d", seq(ncol(effectDescription)))
+  )
+  
+  objectsName <- colnames(effectDescription)
+  # adding other parameters: each effect refers to which network or actor attribute
+  
+  # effectDescription <- cbind(
+  #   effect = rownames(effectDescription),
+  #   effectDescription
+  # )
+  if (!is.null(fixedParameters)) {
+    effectDescription <- cbind(effectDescription,
+      fixed = !is.na(fixedParameters)
+    )
   }
   
-  colnames(parameterOverview) <- NULL
-  effectDescription <- cbind(
-    name = colnames(objectsEffectsLink),
-    object = parameterOverview
-  )
+  
   if (any(unlist(parsedformula$ignoreRepParameter))) {
     effectDescription <- cbind(effectDescription,
-      ignoreRep = unlist(ifelse(ignoreRepParameter, "B", ""))
+      ignoreRep = ifelse(parsedformula$ignoreRepParameter, "B", "")
     )
   }
-  if (sum(unlist(parsedformula$weightedParameter)) > 0) {
+  if (any(unlist(parsedformula$weightedParameter))) {
     effectDescription <- cbind(effectDescription,
-      weighted = unlist(ifelse(weightedParameter, "W", ""))
+      weighted = ifelse(parsedformula$weightedParameter, "W", "")
     )
   }
-  if (sum(parsedformula$userSetParameter == "") < length(parsedformula$userSetParameter)) {
+  if (any(parsedformula$typeParameter != "")) {
     effectDescription <- cbind(effectDescription,
-      type = userSetParameter
+      type = parsedformula$typeParameter
     )
   }
   hasWindows <- FALSE
   if (!all(vapply(parsedformula$windowParameters, is.null, logical(1)))) {
     hasWindows <- TRUE
-    effectDescription <- cbind(effectDescription,
+    effectDescription <- cbind(
+      effectDescription,
       window = vapply(
         parsedformula$windowParameters,
-        function(x) ifelse(is.null(x), "", x),
+        function(x) ifelse(is.null(x), "", gsub("['\"]", "", x)),
         character(1))
     )
+    # reduce object name
+    effectDescription[, objectsName] <- t(apply(
+      effectDescription,
+      1, 
+      function(x) gsub(paste0("^(.+)_", gsub(" ", "", x["window"]), "$"), "\\1", x[objectsName])
+    ))
   }
-  rownames(effectDescription) <- NULL
+  if (any(parsedformula$transParameter != "")) {
+    effectDescription <- cbind(effectDescription,
+      transformFun = parsedformula$transParameter
+    )
+  }
+  if (any(parsedformula$aggreParameter != "")) {
+    effectDescription <- cbind(effectDescription,
+      aggregateFun = parsedformula$aggreParameter
+    )
+  }
+  # rownames(effectDescription) <- NULL
+  attr(effectDescription, "hasWindows") <- hasWindows
+  
+  if (parsedformula$hasIntercept) {
+    effectDescription <- rbind("", effectDescription)
+    rownames(effectDescription)[1] <- "Intercept"
+  }
+  
+  return(effectDescription)
+}
 
+GetFixed <- function(object) {
+  if ("fixed" %in% colnames(object$names)) {
+    fixed <- vapply(object$names[, "fixed"], function(x) eval(parse(text = x)), logical(1))
+    
+  } else  fixed <- rep(FALSE, length(object$parameters))
+  fixed
+}
+
+OldNames <- function(object) {
+  if (inherits(object, "result.goldfish")) {
+    change <- c("standard.errors" = "standardErrors", "log.likelihood" = "logLikelihood", 
+                "final.score" = "finalScore",
+                "final.informationMatrix" = "finalInformationMatrix", 
+                "n.iterations" = "nIterations", "n.events" = "nEvents",
+                "right.censored" = "rightCensored")
+    objName <- names(object)
+    posChange <- match(newName, change)
+    if (anyNA(posChange)) stop("Sorry, smth wrong! Maybe old elements are missing")
+    names(object)[posChange] <- names(change)
+    model <- object$model
+    subModel <- object$subModel
+    hasIntercept <- object$right.censored
+    # maybe outdated if new models available
+    if (model == "REM") {
+      if (!hasIntercept) {
+        modelTypeCall <- "REM-ordered"
+      } else {
+        modelTypeCall <- "REM"
+      }
+    } else if (model %in% c("DyNAM", "TriNAM")) {
+      if (subModel == "rate" && !hasIntercept) {
+        modelTypeCall <- "DyNAM-M-Rate-ordered"
+      } else if (subModel == "rate") {
+        modelTypeCall <- "DyNAM-M-Rate"
+      } else if (subModel == "choice_coordination") {
+        modelTypeCall <- "DyNAM-MM"
+      } else {
+        modelTypeCall <- "DyNAM-M"
+      }
+    } 
+    object$model.type <- modelTypeCall
+  } else stop("not ", dQuote("result.goldfish"), " object")
 }

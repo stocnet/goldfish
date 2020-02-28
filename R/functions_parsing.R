@@ -444,7 +444,7 @@ getRHSNames <- function(formula) {
 
 
 parseIntercept <- function(rhsNames) {
-  intercept <- F
+  intercept <- FALSE
   v <- NA
   tryCatch(
     v <- as.numeric(rhsNames[[1]][[1]]),
@@ -452,7 +452,7 @@ parseIntercept <- function(rhsNames) {
       }
   )
   if (!is.na(v) && v == 1) {
-    intercept <- T
+    intercept <- TRUE
     rhsNames <- rhsNames[-1]
   }
 
