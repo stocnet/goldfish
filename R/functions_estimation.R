@@ -543,6 +543,7 @@ estimate.formula <- function(x,
   # functions_utility.R
   effectDescription <- GetDetailPrint(objectsEffectsLink, parsedformula, estimationInit[["fixedParameters"]])
   hasWindows <- attr(effectDescription, "hasWindows")
+  attr(effectDescription, "hasWindows") <- NULL
   ### 5. ESTIMATE----
   # CHANGED Alvaro: to match model and subModel new parameters
   if (model == "REM") {
@@ -642,7 +643,7 @@ estimate.formula <- function(x,
   result$rightCensored <- hasIntercept
   result$nParams <- if ("fixed" %in% colnames(effectDescription)) {
     sum(!vapply(effectDescription[, "fixed"], function(x) eval(parse(text = x)), logical(1)))
-  } else  length(object$parameters)
+  } else  length(result$parameters)
   
   if (!silent) if ("beepr" %in% rownames(installed.packages()) & result$convergence[[1]]) beepr::beep(3)
   result$call <- match.call(call = sys.call(sys.parent(1L)),

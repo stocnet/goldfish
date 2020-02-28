@@ -73,7 +73,7 @@ summary.result.goldfish <- function(object) {
 
 }
 
-print.summary.result.goldfish <- function(object, fixed = TRUE, 
+print.summary.result.goldfish <- function(object, fixed = FALSE, 
                                           digits = max(3, getOption("digits") - 2),
                                           width = getOption("width"), ...) {
   
@@ -86,8 +86,27 @@ print.summary.result.goldfish <- function(object, fixed = TRUE,
   # print(prop.table(x$freq), digits = digits)
   # cat("\n")
   # print(x$est.stat)
+  
+  
+  isFixed <- GetFixed(object)
+  
+  if (!fixed && any(isFixed)) {
+    names <- object$names[!isFixed, ]
+    coefMat <- object$coefMat[!isFixed, ]
+    isDetPrint <- !((ncol(names) == 2) && (length(unique(names[, "Object"])) == 1))
+  } else {
+    names <- object$names
+    coefMat <- object$coefMat
+    isDetPrint <- !((ncol(names) == 1) && (length(unique(names[, "Object"])) == 1))
+  }
+  
+  if (isDetPrint) {
+    cat("\nEffects details :\n")
+    print.default(names, quote = FALSE)
+  } 
+  
   cat("\nCoefficients :\n")
-  printCoefmat(object$coefMat, digits = digits)
+  printCoefmat(coefMat, digits = digits)
   cat("\n")
   cat(" ", paste(
     ifelse(object$convergence$isConverged, "Converged", "Not converged"), "with max abs. score of",
@@ -95,10 +114,10 @@ print.summary.result.goldfish <- function(object, fixed = TRUE,
   ), "\n")
   cat(" ", paste("Log-Likelihood: ", signif(object$logLikelihood, digits), "\n", sep = ""))
   cat(" ", 
-    "AIC ", signif(object$AIC, digits),
-    "\n  AICc", signif(aicc, digits),
-    "\n  BIC ", signif(object$BIC, digits), "\n")
-  cat("\tmodel:", dQuote(model), "subModel:", dQuote(subModel), "\n")
+    "AIC: ", signif(object$AIC, digits),
+    "\n  AICc:", signif(aicc, digits),
+    "\n  BIC: ", signif(object$BIC, digits), "\n")
+  cat("  model:", dQuote(model), "subModel:", dQuote(subModel), "\n")
   invisible(object)
 }
 
