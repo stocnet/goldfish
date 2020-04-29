@@ -252,7 +252,7 @@ createEffectsFunctions <- function(effectInit, model, subModel,
         # cat(x[[1]], is.null(parmsToSet[["isTwoMode"]]))
         isTwoMode <- length(attr(eval(.signature[["network"]], envir = envir), "nodes")) > 1
         if (!is.null(parmsToSet[["isTwoMode"]]) && eval(parmsToSet[["isTwoMode"]]) != isTwoMode) {
-          warning("The 'isTwoMode' parameter in effect ", x[[1]], " has a diferent value than",
+          warning("The 'isTwoMode' parameter in effect ", x[[1]], " has a different value than",
             " the attributes on network argument '", x[[2]], "'", call. = FALSE, immediate. = TRUE)
         } else if (isTwoMode && is.null(parmsToSet[["isTwoMode"]])) {
           .signature[["isTwoMode"]] <- isTwoMode
