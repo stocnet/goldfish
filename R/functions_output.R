@@ -122,7 +122,7 @@ print.summary.result.goldfish <- function(object, fixed = FALSE,
     "AIC: ", signif(object$AIC, digits),
     "\n  AICc:", signif(aicc, digits),
     "\n  BIC: ", signif(object$BIC, digits), "\n")
-  cat("  model:", dQuote(model), "subModel:", dQuote(subModel), "\n")
+  cat("  model:", dQuote(object$model), "subModel:", dQuote(object$subModel), "\n")
   invisible(object)
 }
 
@@ -631,7 +631,7 @@ print.list <- function(x, substitute = NULL, dependents = NULL) {
 print.preprocessed.goldfish <- function(x, digits = 2) {
   cat("**Preprocess object for the model:**\n")
   print(x$formula)
-  cat(" dependent events processed: ", length(x$dependetStatsChange), "\n")
+  cat(" dependent events processed: ", length(x$dependentStatsChange), "\n")
   # cat(" Model type:", result$model.type, "\n")
   cat("*The results are available in the following objects:*\n\n")
   

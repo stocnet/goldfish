@@ -115,12 +115,14 @@ considers the right-censored intervals in the estimation process.
 # A multinomial receiver choice model
 data("Social_Evolution")
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-callNetwork <- linkEvents(object = callNetwork, changeEvent = calls, nodes = actors)
+callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
 callsDependent <- defineDependentEvents(events = calls, nodes = actors, defaultNetwork = callNetwork)
 mod01 <- estimate(callsDependent ~ inertia + recip + trans, model = "DyNAM", subModel = "choice")
+summary(mod01)
 
 # A individual activity rates model
-mod02 <- estimate(callsDependent ~ 1 + trans + indeg + outdeg, model = "DyNAM", subModel = "rate")
+mod02 <- estimate(callsDependent ~ 1 + node_trans + indeg + outdeg, model = "DyNAM", subModel = "rate")
+summary(mod02)
 
 # A multinomial-multinomial choice model for coordination ties
 data("Fisheries_Treaties_6070")
@@ -147,7 +149,8 @@ partner.model <- estimate(createBilat ~
   alter(states$gdp, ignoreRep = TRUE) + diff(states$gdp, ignoreRep = TRUE),
 model = "DyNAM", subModel = "choice_coordination",
 estimationInit = list(initialDamping = 40, maxIterations = 30)
-)
+) 
+summary(partner.model)
 }
 \references{
 Butts C. (2008). A Relational Event Framework for Social Action.

@@ -114,12 +114,14 @@
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(object = callNetwork, changeEvent = calls, nodes = actors)
+#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
 #' callsDependent <- defineDependentEvents(events = calls, nodes = actors, defaultNetwork = callNetwork)
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans, model = "DyNAM", subModel = "choice")
+#' summary(mod01)
 #'
 #' # A individual activity rates model
-#' mod02 <- estimate(callsDependent ~ 1 + trans + indeg + outdeg, model = "DyNAM", subModel = "rate")
+#' mod02 <- estimate(callsDependent ~ 1 + node_trans + indeg + outdeg, model = "DyNAM", subModel = "rate")
+#' summary(mod02)
 #'
 #' # A multinomial-multinomial choice model for coordination ties
 #' data("Fisheries_Treaties_6070")
@@ -146,7 +148,8 @@
 #'   alter(states$gdp, ignoreRep = TRUE) + diff(states$gdp, ignoreRep = TRUE),
 #' model = "DyNAM", subModel = "choice_coordination",
 #' estimationInit = list(initialDamping = 40, maxIterations = 30)
-#' )
+#' ) 
+#' summary(partner.model)
 # \item{impute}{a boolean indicating whether it should impute the statistics for missing values. }
 estimate <- function(x,
                      model = c("DyNAM", "REM"),
@@ -626,12 +629,12 @@ estimate.formula <- function(x,
   if (engine %in% c("default_c", "gather_compute")) {
     tryCatch(
       result <- do.call("estimate_c_int", args = argsEstimation),
-      error = function(e) stop("Error in ", model, subModel, " estimation: ", e, call. = FALSE)
+      error = function(e) stop("Error in ", model, " ", subModel, " estimation: ", e, call. = FALSE)
     )
   } else {
     tryCatch(
       result <- do.call("estimate_int", args = argsEstimation),
-      error = function(e) stop("Error in ", model, subModel, " estimation: ", e, call. = FALSE)
+      error = function(e) stop("Error in ", model, " ", subModel, " estimation: ", e, call. = FALSE)
     )
   }
 
