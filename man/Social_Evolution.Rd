@@ -4,7 +4,8 @@
 \name{Social_Evolution}
 \alias{Social_Evolution}
 \title{Social evolution of a university dormitory cohort}
-\format{3 dataframes: actors (84 rows, 4 columns), calls (439 rows, 4 columns), friendship (766 rows, 4 columns). See below for variables and formats.
+\format{
+3 dataframes: actors (84 rows, 4 columns), calls (439 rows, 4 columns), friendship (766 rows, 4 columns). See below for variables and formats.
 
 \tabular{lll}{
    \strong{Object}      \tab  \strong{Description}                      \tab    \strong{Format}       \cr
@@ -20,7 +21,8 @@
    friendship$sender    \tab   Nominator of friendship                  \tab     character            \cr
    friendship$receiver  \tab   Nominee of friendship                    \tab     character            \cr
    friendship$replace   \tab   Indicates friendship value at $time      \tab     numeric              \cr
- }}
+ }
+}
 \source{
 \url{http://realitycommons.media.mit.edu/socialevolution.html}
 }

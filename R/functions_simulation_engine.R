@@ -36,7 +36,7 @@ getSenderWaitingTime_DyNAM_rate <- function(
   weightedParameter <- parsedformula$weightedParameter
   userSetParameter <- parsedformula$userSetParameter
 
-  if (verbose) cat(paste0(ifelse(hasIntercept, "T", "No time intercept added.\n")))
+  if (verbose) cat(ifelse(hasIntercept, "T", "No time intercept added.\n"))
   if (!silent && !all(sapply(windowParameters, is.null))) {
     cat("Creating window objects in global environment.\n")
   }
@@ -114,7 +114,7 @@ getReceiverProbability_DyNAM_choice <- function(
   weightedParameter <- parsedformula$weightedParameter
   userSetParameter <- parsedformula$userSetParameter
 
-  if (verbose) cat(paste0(ifelse(hasIntercept, "T", "No time intercept added.\n")))
+  if (verbose) cat(ifelse(hasIntercept, "T", "No time intercept added.\n"))
   if (!silent && !all(sapply(windowParameters, is.null))) {
     cat("Creating window objects in global environment.\n")
   }
@@ -148,7 +148,7 @@ getReceiverProbability_DyNAM_choice <- function(
 
   # Model-specific preprocessing initialization
   if (modelType %in% c("DyNAM-M", "DyNAM-MM") && hasIntercept) {
-    warning(paste("Model type", modelType, "ignores the time intercept."), call. = F)
+    warning("Model type ", modelType, " ignores the time intercept.", call. = FALSE, immediate. = TRUE)
     hasIntercept <- F
   }
   rightCensored <- hasIntercept

@@ -11,6 +11,7 @@ tie(network, weighted = FALSE, window = Inf, ignoreRep = FALSE, transformFun = i
 inertia(network, weighted = FALSE, window = Inf, transformFun = identity)
 recip(network, weighted = FALSE, window = Inf, ignoreRep = FALSE, transformFun = identity)
 trans(network, window = Inf, ignoreRep = FALSE, transformFun = identity)
+mixedTrans(list(network1, network2), window = Inf, ignoreRep = FALSE, transformFun = identity)
 four(network, isTwoMode = FALSE, window = Inf, ignoreRep = FALSE, transformFun = identity)
 # structural effects: node statistics
 indeg(network, isTwoMode = FALSE, weighted = FALSE, window = Inf, ignoreRep = FALSE,
@@ -54,10 +55,11 @@ or as a string stating the number of time units in the format "number unit",
 for example "30 seconds", "1 minute", "2 hours", "3 days", "4 weeks", "5 months", or "6 years".}
 
 \item{transformFun}{Use this parameter to obtain transformed statistics.
-The argument expected is a function or a character with the name of the function to use.}
+The argument expected is a function or the name of the function to use without quotation marks.}
 
 \item{aggregateFun}{Use this parameter to obtain an aggregated statistics for indirect effects like
-\code{tertius} and \code{tertius_diff}.}
+\code{tertius} and \code{tertius_diff}.
+The argument expected is a function or the name of the function to use without quotation marks.}
 
 \item{type}{Applies only to \code{indegree}, \code{outdegree} and \code{node_trans} in the case of the REM model.
 In the default case of \code{type = "alter"}, the effect returns statistics matrices according
@@ -73,7 +75,7 @@ List with the changes to a statistics matrix. It also can have an additional com
 }
 \description{
 This page catalogues the list of generic effects that are available in the goldfish package.
-\code{ignoreRep}, \code{weighted}, \code{windowed}, and transformed versions (\code{transformFun})
+\code{ignoreRep}, \code{weighted}, \code{window}, and transformed versions (\code{transformFun})
 can be included by adding these arguments.
 }
 \details{
@@ -105,6 +107,10 @@ Parameter \code{weighted} can be set to \code{TRUE} if the weight of j->i is to 
   This effect cannot be used for two-mode networks.}
   \item{\code{trans}}{Transitivity. It is the tendency to create an event i->j if it closes 
     a two-paths (i->k->j) in the past events \code{network}. It can be transformed by using \code{transformFun}.
+    This effect cannot be used for two-mode networks.}
+  \item{\code{mixedTrans}}{Transitivity within 2 networks. It is the tendency to create an event i->j if it closes 
+    a two-paths with events (i->k) in \code{network1} and (k->j) in \code{network2} in the past events. 
+    It can be transformed by using \code{transformFun}.
     This effect cannot be used for two-mode networks.}
   \item{\code{four}}{It describes the tendency to create an event i->j if there are many possible closures of three-paths (i->k<-l->j) in the past events network.}
 }

@@ -1,7 +1,7 @@
 # define methods ----------------------------------------------------------
 # init the statistical matrix
 init_DyNAM_rate <- function(effectFun, network, attribute, n1, n2, cache = NULL)
-  UseMethod("init_DyNAM_rate")
+  UseMethod("init_DyNAM_rate", effectFun)
 
 
 # default -----------------------------------------------------------------

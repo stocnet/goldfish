@@ -96,13 +96,13 @@ getTimeWindowData <- function(network, window, envir = NULL) {
 
 getParameterNameFromClass <- function(x) {
   # transform names of internal attributes to parameter names
-  if ("network.goldfish" %in% class(x)) {
+  if (inherits(x, "network.goldfish")) {
     return("network")
   }
-  if ("network.attribute" %in% class(x)) {
+  if (inherits(x, "network.attribute")) {
     return("attribute")
   }
-  stop(paste("Unknown dynamic object of type", class(x)))
+  stop("Unknown dynamic object of type", class(x))
 }
 
 # TODO: This is dangerous. What if a multipleParameter disappears?

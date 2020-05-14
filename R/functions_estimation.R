@@ -3,7 +3,7 @@
 #' Estimates parameters for a dynamic network model via maximum likelihood.
 #'
 #' Missing data is imputed during the preprocessing stage. For network data missing values
-#' are replaced by a zero value, it means that is assuming a not tie or event explicitly.
+#' are replaced by a zero value, it means that is assuming a not tie/event explicitly.
 #' For attributes missing values are replaced by the mean value, if missing values are 
 #' presented during events updates they are replace by the mean of the attribute in that moment of time. 
 #'
@@ -21,7 +21,7 @@
 #' It is important to add a time intercept to model the waiting times between events, in this way the model
 #' considers the right-censored intervals in the estimation process.
 #'
-#' @param model a character string defining the model type. Current options include "DyNAM" or "REM"
+#' @param model a character string defining the model type. Current options include \code{"DyNAM"} or \code{"REM"}
 #' \describe{
 #'  \item{DyNAM}{Dynamic Network Actor Models (Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
 #'  \item{REM}{Relational Event Model (Butts, 2008)}
@@ -72,17 +72,21 @@
 #'
 #' An object of class \code{"result.goldfish"} is a list including:
 #'   \item{parameters}{a matrix with the coefficients estimates.}
-#'   \item{standard.errors}{a vector with the standard errors of the coefficients.}
-#'   \item{log.likelihood}{the log likelihood of the estimate model}
-#'   \item{final.score}{a vector with the final score reach by the parameters during estimation.}
-#'   \item{final.informationMatrix}{a matrix with the final values of the negative Fisher information matrix. The inverse of this matrix gives the variance-covariance matrix for the parameters estimates.}
-#'   \item{convergence}{a list with two elements. The first element is a logical value that indicates the convergence of the model. The second element (\code{max.abs.score}) reports the final maximum absolute score in the final iteration.}
-#'   \item{n.iterations}{an integer with the total number of iterations performed during the estimation process.}
-#'   \item{n.events}{an integer reporting the number of events considered in the model.}
-#'   \item{model.type}{a character vector of the model type.}
-#'   \item{names}{a matrix with the names of the effects and the variable for which the effect was computed.}
+#'   \item{standardErrors}{a vector with the standard errors of the coefficients.}
+#'   \item{logLikelihood}{the log likelihood of the estimate model}
+#'   \item{finalScore}{a vector with the final score reach by the parameters during estimation.}
+#'   \item{finalInformationMatrix}{a matrix with the final values of the negative Fisher information matrix. 
+#'   The inverse of this matrix gives the variance-covariance matrix for the parameters estimates.}
+#'   \item{convergence}{a list with two elements. 
+#'   The first element (\code{isConverged}) is a logical value that indicates the convergence of the model. 
+#'   The second element (\code{maxAbsScore}) reports the final maximum absolute score in the final iteration.}
+#'   \item{nIterations}{an integer with the total number of iterations performed during the estimation process.}
+#'   \item{nEvents}{an integer reporting the number of events considered in the model.}
+#'   \item{names}{a matrix with a description of the effects used for model fitting. 
+#'   It includes the name of the object used to calculate the effects and additional parameter description.}
 #'   \item{formula}{a formula with the information of the model fitted.}
-#'   \item{right.censored}{a logical value indicating if the estimation process considered right censored events. Only it is considered when \code{model = "DyNAM"}, \code{subModel = "rate"} and the model includes intercept.}
+#'   \item{model}{a character vector of the model type.}
+#'   \item{rightCensored}{a logical value indicating if the estimation process considered right censored events. Only it is considered when \code{model = "DyNAM"}, \code{subModel = "rate"} and the model includes intercept.}
 #'
 #' @export
 #' @seealso \code{\link{defineDependentEvents}}, \code{\link{goldfishEffects}}, \code{\link{defineGlobalAttribute}}, \code{\link{defineNetwork}}, \code{\link{defineNodes}}, \code{\link{linkEvents}}
@@ -113,9 +117,11 @@
 #' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
 #' callsDependent <- defineDependentEvents(events = calls, nodes = actors, defaultNetwork = callNetwork)
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans, model = "DyNAM", subModel = "choice")
+#' summary(mod01)
 #'
 #' # A individual activity rates model
-#' mod02 <- estimate(callsDependent ~ 1 + trans + indeg + outdeg, model = "DyNAM", subModel = "rate")
+#' mod02 <- estimate(callsDependent ~ 1 + node_trans + indeg + outdeg, model = "DyNAM", subModel = "rate")
+#' summary(mod02)
 #'
 #' # A multinomial-multinomial choice model for coordination ties
 #' data("Fisheries_Treaties_6070")
@@ -142,7 +148,8 @@
 #'   alter(states$gdp, ignoreRep = TRUE) + diff(states$gdp, ignoreRep = TRUE),
 #' model = "DyNAM", subModel = "choice_coordination",
 #' estimationInit = list(initialDamping = 40, maxIterations = 30)
-#' )
+#' ) 
+#' summary(partner.model)
 # \item{impute}{a boolean indicating whether it should impute the statistics for missing values. }
 estimate <- function(x,
                      model = c("DyNAM", "REM"),
@@ -152,9 +159,8 @@ estimate <- function(x,
                      preprocessingOnly = FALSE,
                      verbose = FALSE,
                      silent = FALSE,
-                     debug = FALSE,
-                     modelType = NULL)
-  UseMethod("estimate")
+                     debug = FALSE)
+  UseMethod("estimate", x)
 
 
 # First estimation from a formula: can return either a preprocessed object or a result object
@@ -167,8 +173,7 @@ estimate.formula <- function(x,
                              preprocessingOnly = FALSE,
                              verbose = FALSE,
                              silent = FALSE,
-                             debug = FALSE,
-                             modelType = NULL) {
+                             debug = FALSE) {
   # Steps:
   # 1. Parse the formula
   # 2. Initialize additional objects
@@ -211,17 +216,17 @@ estimate.formula <- function(x,
     source("R/functions_estimation_old.R")
     source("R/functions_parsing.R")
     source("R/functions_utility.R")
-    source("R/functions_utility.R")
+    # source("R/functions_utility.R")
     # x <- formula
   }
 
   ### 0. check parameters----
 
-  .calls_args_ <- names(lapply(match.call(), deparse))[-1]
-  if (any("modelType" %in% .calls_args_)) {
-    stop("use 'model' and 'subModel' instead of 'modelType'")
-  }
-  rm(.calls_args_)
+  # .calls_args_ <- names(lapply(match.call(), deparse))[-1]
+  # if (any("modelType" %in% .calls_args_)) {
+  #   stop("use 'model' and 'subModel' instead of 'modelType'")
+  # }
+  # rm(.calls_args_)
 
   #
   model <- match.arg(model)
@@ -229,13 +234,15 @@ estimate.formula <- function(x,
 
   ### check model and subModel
   checkModelPar(model, subModel,
-    modelList = c("DyNAM", "REM"),
+    modelList = c("DyNAM", "REM", "TriNAM"),
     subModelList = list(
       DyNAM = c("choice", "rate", "choice_coordination"),
-      REM = c("choice")
+      REM = c("choice"),
+      TriNAM = c("choice", "rate")
     )
   )
 
+  # ToDo: more informative message for R>4.0.0
   stopifnot(
     inherits(preprocessingOnly, "logical"),
     inherits(verbose, "logical"),
@@ -284,22 +291,21 @@ estimate.formula <- function(x,
   rhsNames <- parsedformula$rhsNames
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
-  defaultNetworkName <- parsedformula$defaultNetworkName
   windowParameters <- parsedformula$windowParameters
-  ignoreRepParameter <- parsedformula$ignoreRepParameter
-  weightedParameter <- parsedformula$weightedParameter
-  userSetParameter <- parsedformula$userSetParameter
+  # defaultNetworkName <- parsedformula$defaultNetworkName
+  # ignoreRepParameter <- parsedformula$ignoreRepParameter
+  # weightedParameter <- parsedformula$weightedParameter
+  # userSetParameter <- parsedformula$userSetParameter
 
   # # C implementation doesn't have ignoreRep option issue #105
-  if (any(unlist(ignoreRepParameter)) && engine %in% c("default_c", "gather_compute")) {
+  if (any(unlist(parsedformula$ignoreRepParameter)) && engine %in% c("default_c", "gather_compute")) {
     warning("engine: ", engine, " doesn't support ignoreRep effects. engine = 'default' is used instead.",
             call. = FALSE, immediate. = TRUE)
     engine <- "default"
   }
   # Model-specific preprocessing initialization
-  if (model %in% c("DyNAM") && subModel %in% c("choice", "choice_coordination") && hasIntercept) {
-    warning(paste("Model ", model, "subModel", subModel, "ignores the time intercept."),
-            call. = FALSE, immediate. = TRUE)
+  if (model %in% c("DyNAM", "TriNAM") && subModel %in% c("choice", "choice_coordination") && hasIntercept) {
+    warning("Model ", model, " subModel ", subModel, " ignores the time intercept.", call. = FALSE, immediate. = TRUE)
     hasIntercept <- FALSE
   }
   rightCensored <- hasIntercept
@@ -309,10 +315,8 @@ estimate.formula <- function(x,
     cat("Creating window objects in global environment.\n")
   }
 
-
   ## 1.2 PARSE for preprocessingInit: check the formula consistency
   if (!is.null(preprocessingInit)) {
-
     # find the old and new effects indexes, do basic consistency checks
     oldparsedformula <- parseFormula(preprocessingInit$formula)
     effectsindexes <- compareFormulas(
@@ -322,22 +326,21 @@ estimate.formula <- function(x,
     )
   }
 
-
   ### 2. INITIALIZE OBJECTS: effects, nodes, and link objects----
 
   if (!silent) cat("Initializing objects.\n")
 
   ## 2.0 Set idTwoMode to define effects functions
   # get node sets of dependent variable
-  nodes <- attr(get(depName), "nodes")
+  .nodes <- attr(get(depName), "nodes")
   isTwoMode <- FALSE
   # two-mode networks(2 kinds of nodes)
-  if (length(nodes) == 2) {
-    nodes2 <- nodes[2]
-    nodes <- nodes[1]
+  if (length(.nodes) == 2) {
+    .nodes2 <- .nodes[2]
+    .nodes <- .nodes[1]
     isTwoMode <- TRUE
   } else {
-    nodes2 <- nodes
+    .nodes2 <- .nodes
   }
 
 
@@ -354,8 +357,8 @@ estimate.formula <- function(x,
 
 
     # Initialize events list and link to objects
-    events <- getEventsAndObjectsLink(depName, rhsNames, nodes, nodes2, envir = envir)[[1]]
-    eventsObjectsLink <- getEventsAndObjectsLink(depName, rhsNames, nodes, nodes2, envir = envir)[[2]]
+    events <- getEventsAndObjectsLink(depName, rhsNames, .nodes, .nodes2, envir = envir)[[1]]
+    eventsObjectsLink <- getEventsAndObjectsLink(depName, rhsNames, .nodes, .nodes2, envir = envir)[[2]]
     eventsEffectsLink <- getEventsEffectsLink(events, rhsNames, eventsObjectsLink)
   }
 
@@ -364,10 +367,10 @@ estimate.formula <- function(x,
   if (!is.null(preprocessingInit)) {
 
     # recover the nodesets
-    nodes <- preprocessingInit$nodes
-    nodes2 <- preprocessingInit$nodes2
+    .nodes  <- preprocessingInit$nodes
+    .nodes2 <- preprocessingInit$nodes2
     isTwoMode <- FALSE
-    if (!identical(nodes, nodes2)) isTwoMode <- TRUE
+    if (!identical(.nodes, .nodes2)) isTwoMode <- TRUE
 
     # find new effects
     if (min(effectsindexes) == 0) {
@@ -388,8 +391,8 @@ estimate.formula <- function(x,
       #       This is likely to affect statistics calculation. Please recalculate the preprocessed object.")
 
       # Retrieve again the events to calculate new statistics
-      newevents <- getEventsAndObjectsLink(depName, newrhsNames, nodes, nodes2, envir = envir)[[1]]
-      neweventsObjectsLink <- getEventsAndObjectsLink(depName, newrhsNames, nodes, nodes2, envir = envir)[[2]]
+      newevents <- getEventsAndObjectsLink(depName, newrhsNames, .nodes, .nodes2, envir = envir)[[1]]
+      neweventsObjectsLink <- getEventsAndObjectsLink(depName, newrhsNames, .nodes, .nodes2, envir = envir)[[2]]
       neweventsEffectsLink <- getEventsEffectsLink(newevents, newrhsNames, neweventsObjectsLink)
 
       # Preprocess the new effects
@@ -404,8 +407,8 @@ estimate.formula <- function(x,
         eventsEffectsLink = neweventsEffectsLink,
         objectsEffectsLink = newobjectsEffectsLink, # for parameterization
         # multipleParameter = multipleParameter,
-        nodes = nodes,
-        nodes2 = nodes2,
+        nodes = .nodes,
+        nodes2 = .nodes2,
         isTwoMode = isTwoMode,
         startTime = preprocessingInit[["startTime"]],
         endTime = preprocessingInit[["endTime"]],
@@ -430,7 +433,7 @@ estimate.formula <- function(x,
     allprep <- preprocessingInit
     allprep$initialStats <- array(0,
       dim = c(
-        nrow(get(nodes)), nrow(get(nodes2)),
+        nrow(get(.nodes)), nrow(get(.nodes2)),
         length(effectsindexes)
       )
     )
@@ -497,8 +500,8 @@ estimate.formula <- function(x,
 
     prep <- allprep
     prep$formula <- formula
-    prep$nodes <- nodes
-    prep$nodes2 <- nodes2
+    prep$nodes <- .nodes
+    prep$nodes2 <- .nodes2
   }
 
   ## 3.2 PREPROCESS when preprocessingInit == NULL
@@ -514,8 +517,8 @@ estimate.formula <- function(x,
       eventsEffectsLink = eventsEffectsLink,
       objectsEffectsLink = objectsEffectsLink, # for parameterization
       # multipleParameter = multipleParameter,
-      nodes = nodes,
-      nodes2 = nodes2,
+      nodes = .nodes,
+      nodes2 = .nodes2,
       isTwoMode = isTwoMode,
       startTime = estimationInit[["startTime"]],
       endTime = estimationInit[["endTime"]],
@@ -526,8 +529,8 @@ estimate.formula <- function(x,
     # The formula, nodes, nodes2 are added to the preprocessed object so that we can call
     # the estimation with preprocessingInit later (for parsing AND composition changes)
     prep$formula <- formula
-    prep$nodes <- nodes
-    prep$nodes2 <- nodes2
+    prep$nodes <- .nodes
+    prep$nodes2 <- .nodes2
   }
 
   ## 3.3 Stop here if preprocessingOnly == TRUE
@@ -537,83 +540,56 @@ estimate.formula <- function(x,
 
 
   ### 4. PREPARE PRINTING----
-
-  # effect description table
-  orderedObjs <- apply(objectsEffectsLink, 2, function(x)
-    names(which(!is.na(x))[order(x[!is.na(x)])]))
-  # orderedObjs: each effect refers to which network or actor attribute
-  maxParams <- max(vapply(orderedObjs, length, integer(1)))
-  orderedObjs2 <- lapply(orderedObjs, function(x) c(x, rep("", maxParams - length(x))))
-  parameterOverview <- Reduce(rbind, orderedObjs2)
-  colnames(parameterOverview) <- NULL
-  effectDescription <- cbind(
-    name = colnames(objectsEffectsLink),
-    object = parameterOverview
-  )
-  if (any(unlist(ignoreRepParameter))) {
-    effectDescription <- cbind(effectDescription,
-      ignoreRep = unlist(ifelse(ignoreRepParameter, "B", ""))
-    )
+  # functions_utility.R
+  effectDescription <- GetDetailPrint(objectsEffectsLink, parsedformula, estimationInit[["fixedParameters"]])
+  hasWindows <- attr(effectDescription, "hasWindows")
+  if (is.null(hasWindows)) {
+    hasWindows <- !all(vapply(windowParameters, is.null, logical(1)))
   }
-  if (sum(unlist(weightedParameter)) > 0) {
-    effectDescription <- cbind(effectDescription,
-      weighted = unlist(ifelse(weightedParameter, "W", ""))
-    )
-  }
-  if (sum(userSetParameter == "") < length(userSetParameter)) {
-    effectDescription <- cbind(effectDescription,
-      type = userSetParameter
-    )
-  }
-  hasWindows <- FALSE
-  if (!all(vapply(windowParameters, is.null, logical(1)))) {
-    hasWindows <- TRUE
-    effectDescription <- cbind(effectDescription,
-      window = vapply(
-        windowParameters,
-        function(x) ifelse(is.null(x), "", x),
-        character(1))
-    )
-  }
-  rownames(effectDescription) <- NULL
-
-
+  attr(effectDescription, "hasWindows") <- NULL
   ### 5. ESTIMATE----
   # CHANGED Alvaro: to match model and subModel new parameters
-  modelType <- ifelse(model == "REM", "REM",
-    switch(subModel,
-      choice = paste0(model, "-M"),
-      rate = paste0(model, "-M-Rate"),
-      choice_coordination = paste0(model, "-MM")
-    )
-  )
-  modelTypeCall <- modelType
-
-  if (model == "DyNAM" && subModel == "rate" && !hasIntercept) {
-    modelTypeCall <- "DyNAM-M-Rate-ordered"
+  if (model == "REM") {
+    if (!hasIntercept) {
+      modelTypeCall <- "REM-ordered"
+    } else {
+      modelTypeCall <- "REM"
+    }
+  } else if (model %in% c("DyNAM", "TriNAM")) {
+    if (subModel == "rate" && !hasIntercept) {
+      modelTypeCall <- "DyNAM-M-Rate-ordered"
+    } else if (subModel == "rate") {
+      modelTypeCall <- "DyNAM-M-Rate"
+    } else if (subModel == "choice_coordination") {
+      modelTypeCall <- "DyNAM-MM"
+    } else {
+      modelTypeCall <- "DyNAM-M"
+    }
   }
-  if (model == "REM" && !hasIntercept) {
-    modelTypeCall <- "REM-ordered"
-  }
-  if (!silent) cat("Estimating a ", modelTypeCall, " model.\n")
+  if (!silent) cat("Estimating a model: ", dQuote(model), ", subModel: ", dQuote(subModel), ".\n", sep = "")
 
   # Old estimation
   if (engine == "old") {
+    if (!is.null(estimationInit[["fixedParameters"]])) {
+      stop("engine = ", dQuote("old"), " does not support ", 
+           dQuote("fixedParameters"), " argument", call. = FALSE)
+    }
+    
     # use of Marion's fast estimation routine by default
     rowOnly <- colOnly <- F
     if (modelType == "DyNAM-M-Rate") colOnly <- T
     if (modelType == "DyNAM-M") rowOnly <- T
     resold <- estimate_old(prep,
       events,
-      nodes,
-      nodes2,
+      .nodes,
+      .nodes2,
       isTwoMode,
       rightCensored,
       hasIntercept,
       modelType,
       hasWindows,
-      ignoreRepParameter,
-      defaultNetworkName,
+      parsedformula$ignoreRepParameter,
+      parsedformula$defaultNetworkName,
       colOnly,
       estimationInit,
       initialDamping = ifelse(hasWindows, 30, 10),
@@ -623,15 +599,16 @@ estimate.formula <- function(x,
       verbose,
       silent
     )
+    resold$call <- callT
     return(resold)
   }
 
   # Normal estimation
   additionalArgs <- list(
     statsList = prep,
-    nodes = get(nodes),
-    nodes2 = get(nodes2),
-    defaultNetworkName = defaultNetworkName,
+    nodes = get(.nodes),
+    nodes2 = get(.nodes2),
+    defaultNetworkName = parsedformula$defaultNetworkName,
     addInterceptEffect = hasIntercept,
     modelType = modelTypeCall,
     initialDamping = ifelse(hasWindows, 30, 10),
@@ -639,7 +616,7 @@ estimate.formula <- function(x,
     cpus = 1,
     verbose = verbose,
     silent = silent,
-    ignoreRepParameter = ignoreRepParameter,
+    ignoreRepParameter = parsedformula$ignoreRepParameter,
     isTwoMode = isTwoMode
   )
   # prefer user-defined arguments
@@ -652,26 +629,28 @@ estimate.formula <- function(x,
   if (engine %in% c("default_c", "gather_compute")) {
     tryCatch(
       result <- do.call("estimate_c_int", args = argsEstimation),
-      error = function(e) stop(paste("Error in", modelType, "estimation:", e))
+      error = function(e) stop("Error in ", model, " ", subModel, " estimation: ", e, call. = FALSE)
     )
   } else {
     tryCatch(
       result <- do.call("estimate_int", args = argsEstimation),
-      error = function(e) stop(paste("Error in", modelType, "estimation:", e))
+      error = function(e) stop("Error in ", model, " ", subModel, " estimation: ", e, call. = FALSE)
     )
   }
 
   ### 6. RESULTS----
-  result$names <- if (!hasIntercept) {
-    effectDescription
-  } else {
-    rbind(c("Intercept", rep("", ncol(effectDescription) - 1)), effectDescription)
-  }
+  result$names <- effectDescription
   result$formula <- formula
-  result$model.type <- modelType
-  result$right.censored <- hasIntercept
+  result$model <- model
+  result$subModel <- subModel
+  result$rightCensored <- hasIntercept
+  result$nParams <- if ("fixed" %in% colnames(effectDescription)) {
+    sum(!vapply(effectDescription[, "fixed"], function(x) eval(parse(text = x)), logical(1)))
+  } else  length(result$parameters)
+  
+  if (!silent) if (requireNamespace("beepr", quietly = TRUE) & result$convergence[[1]]) beepr::beep(3)
 
-  if (!silent) if ("beepr" %in% rownames(installed.packages()) & result$convergence[[1]]) beepr::beep(3)
-
+  result$call <- match.call(call = sys.call(-1L),
+                            expand.dots = TRUE)
   return(result)
 }

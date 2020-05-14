@@ -57,11 +57,11 @@ estimate_old <- function(prep,
     return(stat)
   }
 
-  # IMPUTE missing statistics with current mean
-  imputeFun <- function(m) {
-    m[is.na(m)] <- mean(m, na.rm = TRUE)
-    m
-  }
+  # IMPUTE missing statistics with current mean; Now in preprocessing
+  # imputeFun <- function(m) {
+  #   m[is.na(m)] <- mean(m, na.rm = TRUE)
+  #   m
+  # }
 
   # we iterate among all events (dependent AND exogenous)
   for (i in 1:nEvents) {
@@ -92,9 +92,9 @@ estimate_old <- function(prep,
     }
 
     # IMPUTE missing statistics with current mean
-    for (j in 1:nParams) {
-      statsArray[, , j] <- imputeFun(statsArray[, , j])
-    }
+    # for (j in 1:nParams) {
+    #   statsArray[, , j] <- imputeFun(statsArray[, , j])
+    # }
 
     # fill in the old preprocessed object
     prepOld$dep[[i]] <- list(
@@ -212,15 +212,16 @@ estimate_old <- function(prep,
 
   tryCatch(
     result <- do.call("estimate_int_old", args = argsEstimation),
-    error = function(e) stop(paste("Error in", modelType, "estimation:", e))
+    error = function(e) stop("Error in ", modelType, " estimation: ", e)
   )
 
   # old estimation
-  result$names <- if (!hasIntercept) {
-    effectDescription
-  } else {
-    rbind(c("Intercept", rep("", ncol(effectDescription) - 1)), effectDescription)
-  }
+  # result$names <- if (!hasIntercept) {
+  #   effectDescription
+  # } else {
+  #   rbind(c("Intercept", rep("", ncol(effectDescription) - 1)), effectDescription)
+  # }  # # utility GetDetailPrint does
+  result$names <- effectDescription
   result$formula <- formula
   result$model.type <- modelType
   result$right.censored <- hasIntercept
@@ -265,19 +266,14 @@ estimate_int_old <- function(statsList,
 
   ## PARAMETER CHECKS
 
-  if (length(parameters) != nParams) {
-    stop(paste("Error in estimation. Wrong number of initial parameters passed to function:", length(parameters)))
-  }
-  if (!(length(minDampingFactor) %in% c(1, nParams))) {
-    stop(paste("Error in estimation. minDampingFactor has wrong length:", length(minDampingFactor)))
-  }
-  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1) {
-    stop(paste("Error in estimation. Damping increase / decrease factors cannot be smaller than one."))
-  }
-
+  if (length(parameters) != nParams)
+    stop("Error in estimation. Wrong number of initial parameters passed to function: ", length(parameters))
+  if (!(length(minDampingFactor) %in% c(1, nParams)))
+    stop("Error in estimation. minDampingFactor has wrong length: ", length(minDampingFactor))
+  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1)
+    stop("Error in estimation. Damping increase / decrease factors cannot be smaller than one.")
 
   ## REDUCE STATISTICS LIST
-
   if (verbose) cat("Reducing data\n")
   # exclude effects
   statsList <- modifyStatisticsList_old(statsList, excludeParameters = excludeParameters)
@@ -351,7 +347,7 @@ estimate_int_old <- function(statsList,
 
   ## ESTIMATION
 
-  if (verbose) cat(paste("Estimating model type", modelType, "\n"))
+  if (verbose) cat("Estimating model type ", modelType, "\n")
 
   iIteration <- 1
   informationMatrix <- matrix(0, nParams, nParams)
@@ -401,16 +397,14 @@ estimate_int_old <- function(statsList,
     }
 
     if (!verbose && !silent) {
-      cat(paste0(
-        "\rMax score: ",
-        round(max(abs(score)), round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
-        " (", iIteration, ").        "
-      ))
+      cat("\rMax score: ",
+          round(max(abs(score)), round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
+          " (", iIteration, ").        ", sep = "")
     }
     if (verbose) {
-      cat(paste("\n\nLikelihood:", logLikelihood, "in iteration", iIteration))
-      cat(paste("\nParameters:", toString(parameters)))
-      cat(paste("\nScore:", toString(score)))
+      cat("\n\nLikelihood:", logLikelihood, "in iteration", iIteration,
+          "\nParameters:", toString(parameters),
+          "\nScore:", toString(score))
       # print(informationMatrix)
     }
 
@@ -438,25 +432,25 @@ estimate_int_old <- function(statsList,
 
     # INVERT information matrix
     inverseInformation <- try(solve(informationMatrix), silent = TRUE)
-    if (class(inverseInformation) == "try-error") {
+    if (inherits(inverseInformation, "try-error")) {
       stop("Matrix cannot be inverted; probably due to collinearity between parameters.")
     }
     update <- (inverseInformation %*% score) / dampingFactor
 
     if (verbose) {
-      cat(paste("\nUpdate: ", toString(update)))
-      cat(paste("\nDamping factor:", toString(dampingFactor)))
+      cat("\nUpdate: ", toString(update), sep = "")
+      cat("\nDamping factor:", toString(dampingFactor), sep = "")
     }
 
     # check for stop criteria
     if (max(abs(score)) <= maxScoreStopCriterion) {
       isConverged <- TRUE
-      cat(paste("\nStopping as maximum absolute score is below", maxScoreStopCriterion, "."))
+      cat("\nStopping as maximum absolute score is below ", maxScoreStopCriterion, ".", sep = "")
       # (", max(abs(score)), ")"))
       break
     }
     if (iIteration > maxIterations) {
-      message(paste("\nStopping as maximum of", maxIterations, "iterations have been reached. No convergence."))
+      message("\nStopping as maximum of ", maxIterations, " iterations have been reached. No convergence.")
       break
     }
 
@@ -476,17 +470,16 @@ estimate_int_old <- function(statsList,
   # define, type and return result
   estimationResult <- list(
     parameters = parameters,
-    standard.errors = stdErrors,
-    log.likelihood = logLikelihood,
-    final.score = score,
-    final.informationMatrix = informationMatrix,
-    convergence = list(isConverged, max.abs.score = max(abs(score))),
-    n.iterations = iIteration,
-    n.events = nEvents,
-    model.type = modelType
+    standardErrors = stdErrors,
+    logLikelihood = logLikelihood,
+    finalScore = score,
+    finalInformationMatrix = informationMatrix,
+    convergence = list(isConverged = isConverged, maxAbsScore = max(abs(score))),
+    nIterations = iIteration,
+    nEvents = nEvents
   )
-  if (returnIntervalLogL) estimationResult$interval.logL <- intervalLogL
-  if (returnEventProbabilities) estimationResult$event.probabilities <- eventProbabilities
+  if (returnIntervalLogL) estimationResult$intervalLogL <- intervalLogL
+  if (returnEventProbabilities) estimationResult$eventProbabilities <- eventProbabilities
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
 }
@@ -813,7 +806,7 @@ modifyStatisticsList_old <- function(statsList,
   if (!is.null(excludeParameters)) {
     unknownIndexes <- setdiff(excludeParameters, 1:dim(statsList[[1]]$change.contributions)[3])
     if (length(unknownIndexes) > 0) {
-      stop(paste("Unknown parameter indexes in 'excludeIndexes':", paste(unknownIndexes, collapse = " ")))
+      stop("Unknown parameter indexes in 'excludeIndexes': ", paste(unknownIndexes, collapse = " "))
     }
 
     statsList <- lapply(statsList, function(v) {
@@ -858,7 +851,7 @@ removeNonPresent <- function(prep, nodes, nEvents, compChangeName, dim = 1) {
     if (prep[[iEvent]]$right.censored == FALSE) {
       position <- which(prep[[iEvent]]$actors[dim] == which(presence))
       if (length(position) == 0) {
-        stop(paste("Active node", prep[[iEvent]]$actors[dim], "not present in event", iEvent))
+        stop("Active node ", prep[[iEvent]]$actors[dim], " not present in event ", iEvent)
       }
       prep[[iEvent]]$actors[dim] <- which(prep[[iEvent]]$actors[dim] == which(presence))
     }

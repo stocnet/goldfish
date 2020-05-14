@@ -63,15 +63,12 @@ estimate_int <- function(statsList,
 
   ## PARAMETER CHECKS
 
-  if (length(parameters) != nParams) {
-    stop(paste("Error in estimation. Wrong number of initial parameters passed to function:", length(parameters)))
-  }
-  if (!(length(minDampingFactor) %in% c(1, nParams))) {
-    stop(paste("Error in estimation. minDampingFactor has wrong length:", length(minDampingFactor)))
-  }
-  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1) {
-    stop(paste("Error in estimation. Damping increase / decrease factors cannot be smaller than one."))
-  }
+  if (length(parameters) != nParams)
+    stop("Error in estimation. Wrong number of initial parameters passed to function: ", length(parameters))
+  if (!(length(minDampingFactor) %in% c(1, nParams)))
+    stop("Error in estimation. minDampingFactor has wrong length: ", length(minDampingFactor))
+  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1)
+    stop("Error in estimation. Damping increase / decrease factors cannot be smaller than one.")
 
   ## REDUCE STATISTICS LIST
 
@@ -159,7 +156,7 @@ estimate_int <- function(statsList,
 
   ## ESTIMATION: INITIALIZATION
 
-  if (verbose) cat(paste("Estimating model type with the super efficient new method", modelType, "\n"))
+  if (verbose) cat("Estimating model type with the super efficient new method", modelType, "\n")
 
   iIteration <- 1
   informationMatrix <- matrix(0, nParams, nParams)
@@ -234,16 +231,14 @@ estimate_int <- function(statsList,
     score[idFixedCompnents] <- 0
 
     if (!verbose && !silent) {
-      cat(paste0(
-        "\rMax score: ",
-        round(max(abs(score)), round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
-        " (", iIteration, ").        "
-      ))
+      cat("\rMax score: ",
+          round(max(abs(score)), round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
+          " (", iIteration, ").        ", sep = "")
     }
     if (verbose) {
-      cat(paste("\n\nLikelihood:", logLikelihood, "in iteration", iIteration))
-      cat(paste("\nParameters:", toString(parameters)))
-      cat(paste("\nScore:", toString(score)))
+      cat("\n\nLikelihood:", logLikelihood, "in iteration", iIteration,
+          "\nParameters:", toString(parameters),
+          "\nScore:", toString(score))
       # print(informationMatrix)
     }
 
@@ -274,26 +269,26 @@ estimate_int <- function(statsList,
     # It's for the fixing parameter feature.
     informationMatrixUnfixed <- informationMatrix[idUnfixedCompnents,idUnfixedCompnents]
     inverseInformationUnfixed <- try(solve(informationMatrixUnfixed), silent = TRUE)
-    if (class(inverseInformationUnfixed) == "try-error") {
+    if (inherits(inverseInformationUnfixed, "try-error")) {
       stop("Matrix cannot be inverted; probably due to collinearity between parameters.")
     }
     update <- rep(0,nParams)
     update[idUnfixedCompnents] <- (inverseInformationUnfixed %*% score[idUnfixedCompnents]) / dampingFactor
 
     if (verbose) {
-      cat(paste("\nUpdate: ", toString(update)))
-      cat(paste("\nDamping factor:", toString(dampingFactor)))
+      cat("\nUpdate: ", toString(update), sep = "")
+      cat("\nDamping factor: ", toString(dampingFactor), sep = "")
     }
 
     # check for stop criteria
     if (max(abs(score)) <= maxScoreStopCriterion) {
       isConverged <- TRUE
-      if (!silent) cat(paste("\nStopping as maximum absolute score is below", maxScoreStopCriterion, ".\n"))
+      if (!silent) cat("\nStopping as maximum absolute score is below ", maxScoreStopCriterion, ".\n", sep = "")
       break
     }
     if (iIteration > maxIterations) {
-      if (!silent) message(paste("\nStopping as maximum of", maxIterations,
-                                 "iterations have been reached. No convergence.\n"))
+      if (!silent)
+        message("\nStopping as maximum of ", maxIterations, " iterations have been reached. No convergence.\n")
       break
     }
 
@@ -316,17 +311,16 @@ estimate_int <- function(statsList,
   # define, type and return result
   estimationResult <- list(
     parameters = parameters,
-    standard.errors = stdErrors,
-    log.likelihood = logLikelihood,
-    final.score = score,
-    final.informationMatrix = informationMatrix,
-    convergence = list(isConverged, max.abs.score = max(abs(score))),
-    n.iterations = iIteration,
-    n.events = nEvents,
-    model.type = modelType
+    standardErrors = stdErrors,
+    logLikelihood = logLikelihood,
+    finalScore = score,
+    finalInformationMatrix = informationMatrix,
+    convergence = list(isConverged = isConverged, maxAbsScore = max(abs(score))),
+    nIterations = iIteration,
+    nEvents = nEvents
   )
-  if (returnIntervalLogL) estimationResult$interval.logL <- intervalLogL
-  if (returnEventProbabilities) estimationResult$event.probabilities <- eventProbabilities
+  if (returnIntervalLogL) estimationResult$intervalLogL <- intervalLogL
+  if (returnEventProbabilities) estimationResult$eventProbabilities <- eventProbabilities
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
 }
@@ -730,7 +724,7 @@ getIterationStepState <- function(statsList,
       if (statsList$orderEvents[[i]] == 1) {
         position <- which(activeDyad[1] == which(presence))
         if (length(position) == 0) {
-          stop(paste("Active node", activeDyad[1], "not present in event", i))
+          stop("Active node ", activeDyad[1], " not present in event ", i)
         }
         activeDyad[1] <- which(activeDyad[1] == which(presence))
       }
@@ -747,7 +741,7 @@ getIterationStepState <- function(statsList,
       if (statsList$orderEvents[[i]] == 1) {
         position <- which(activeDyad[2] == which(presence2))
         if (length(position) == 0) {
-          stop(paste("Active node", activeDyad[2], "not present in event", i))
+          stop("Active node ", activeDyad[2], " not present in event ", i)
         }
         activeDyad[2] <- which(activeDyad[2] == which(presence2))
       }
@@ -764,7 +758,7 @@ getIterationStepState <- function(statsList,
         dims <- dim(statsArrayComp) # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
         arr <- apply(statsArrayComp, 3, function(stat) {
           diag(stat) <- 0
-          if (verbose) cat(paste("Replacing effects statistics by row means\n"))
+          if (verbose) cat("Replacing effects statistics by row means\n")
           m <- stat
           stat <- rowMeans(m, na.rm = TRUE) * (dim(m)[1]) / (dim(m)[1] - 1)
           stat
@@ -773,7 +767,7 @@ getIterationStepState <- function(statsList,
       else {
         dims <- dim(statsArrayComp) # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
         arr <- apply(statsArrayComp, 3, function(stat) {
-          if (verbose) cat(paste("Replacing effects statistics by row means\n"))
+          if (verbose) cat("Replacing effects statistics by row means\n")
           m <- stat
           stat <- rowMeans(m, na.rm = TRUE)
           stat
@@ -943,7 +937,7 @@ modifyStatisticsList <- function(statsList, modelType,
   if (!is.null(excludeParameters)) {
     unknownIndexes <- setdiff(excludeParameters, 1:dim(statsList$initialStats)[3])
     if (length(unknownIndexes) > 0) {
-      stop(paste("Unknown parameter indexes in 'excludeIndexes':", paste(unknownIndexes, collapse = " ")))
+      stop("Unknown parameter indexes in 'excludeIndexes': ", paste(unknownIndexes, collapse = " "))
     }
     statsList$initialStats <- statsList$initialStats[, , -excludeParameters]
   }
