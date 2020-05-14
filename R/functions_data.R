@@ -130,56 +130,63 @@ as.matrix.network.goldfish <- function(x, time = -Inf, startTime = -Inf, ...) {
 goldfishObjects <- function(y = ls(envir = .GlobalEnv), envir = .GlobalEnv) {
   tryCatch({
     # identify goldfish objects
-    ClassFilter <- function(x) inherits(get(x), "nodes.goldfish") |
-        inherits(get(x), "network.goldfish") |
-        inherits(get(x), "dependent.goldfish") |
-        inherits(get(x), "global.goldfish")
+    classesToKeep <- c("nodes.goldfish", "network.goldfish", "dependent.goldfish",
+                       "global.goldfish")
+    ClassFilter <- function(x) any(checkClasses(get(x), classes = classesToKeep))
     object <- Filter(ClassFilter, y)
     # if(is.null(object)) stop("No goldfish objects defined.")
 
     # identify classes of these objects
-    classes <- t(sapply(object, function(x) class(get(x))))
-    classes[, 2] <- rownames(classes)
+    classes <- vapply(object,
+                      FUN = function(x) checkClasses(get(x), classes = classesToKeep),
+                      FUN.VALUE = logical(length(classesToKeep)))
 
-    if ("nodes.goldfish" %in% classes[, 1]) {
+    if (any(classes["nodes.goldfish", ])) {
       cat("Goldfish Nodes\n")
-      names <- classes[classes[, 1] == "nodes.goldfish", 2]
-      n <- t(sapply(names, function(x) dim(get(x))))[, 1]
-      attributes <- sapply(names, function(x) paste(names(get(x)), collapse = ", "))
-      events <- sapply(names, function(x) paste(attr(get(x), "dynamicAttributes"), collapse = ", "))
+      names <- object[classes["nodes.goldfish", ]]
+      n <- vapply(names, function(x) nrow(get(x)), integer(1))
+      attributes <- vapply(names, function(x) paste(names(get(x)), collapse = ", "), character(1))
+      events <- vapply(names,
+                       function(x) paste(attr(get(x), "dynamicAttributes"), collapse = ", "),
+                       character(1))
       print(data.frame(row.names = names, n, attributes, events))
       cat("\n")
     }
 
-    if ("network.goldfish" %in% classes[, 1]) {
+    if (any(classes["network.goldfish", ])) {
       cat("Goldfish Networks\n")
-      names <- classes[classes[, 1] == "network.goldfish", 2]
-      dimensions <- t(sapply(names, function(x) dim(get(x))))
-      dimensions <- paste(dimensions[, 1], dimensions[, 2], sep = " x ")
-      nodesets <- sapply(names, function(x) paste(attr(get(x), "nodes"), collapse = ", "))
-      events <- sapply(names, function(x) paste(attr(get(x), "events"), collapse = ", "))
+      names <- object[classes["network.goldfish", ]]
+      dimensions <- vapply(names,
+                           function(x) paste(dim(get(x)), collapse = " x "),
+                           character(1))
+      nodesets <- vapply(names,
+                         function(x) paste(attr(get(x), "nodes"), collapse = ", "),
+                         character(1))
+      events <- vapply(names,
+                       function(x) paste(attr(get(x), "events"), collapse = ", "),
+                       character(1))
       print(data.frame(row.names = names, dimensions, nodesets, events))
       cat("\n")
     }
 
-    if ("dependent.goldfish" %in% classes[, 1]) {
+    if (any(classes["dependent.goldfish", ])) {
       cat("Goldfish Dependent Events\n")
-      names <- classes[classes[, 1] == "dependent.goldfish", 2]
-      n <- t(sapply(names, function(x) dim(get(x))))[, 1]
-      network <- sapply(names, function(x) attr(get(x), "defaultNetwork"))
-      if (any(sapply(network, function(x) is.null(x)))) {
-        network[sapply(network, is.null)] <- ""
-        network <- unlist(network)
-      }
+      names <- object[classes["dependent.goldfish", ]]
+      n <- vapply(names, function(x) nrow(get(x)), integer(1))
+      network <- vapply(names,
+                        function(x) {
+                          net <- attr(get(x), "defaultNetwork")
+                          ifelse(is.null(net), "", net)
+                          },
+                        character(1))
       print(data.frame(row.names = names, n, network))
       cat("\n")
     }
 
-    if ("global.goldfish" %in% classes[, 1]) {
+    if (any(classes["global.goldfish", ])) {
       cat("Goldfish Global Attributes\n")
-      names <- classes[classes[, 1] == "global.goldfish", 2]
-      out <- t(sapply(names, function(x) dim(get(x))))
-      dimensions <- paste(out[, 1], out[, 2], sep = " x ")
+      names <- object[classes["global.goldfish", ]]
+      dimensions <- vapply(names, function(x) nrow(get(x)), integer(1))
       print(data.frame(row.names = names, dimensions))
       cat("\n")
     }
