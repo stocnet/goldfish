@@ -447,7 +447,7 @@ defineGlobalAttribute <- function(global) {
 }
 
 
-#' Attach dynamic events to a \code{nodeset} or a \code{network}
+#' Attach dynamic events to a nodeset or a network
 #' @param x Either a nodeset (nodes.goldfish object) or a network
 #'   (network.goldfish object)
 #' @param changeEvents The name of a dataframe that represents a valid events list

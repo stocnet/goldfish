@@ -5,7 +5,7 @@
 \alias{linkEvents.nodes.goldfish}
 \alias{linkEvents.network.goldfish}
 \alias{linkEvents.default}
-\title{Attach dynamic events to a \code{nodeset} or a \code{network}}
+\title{Attach dynamic events to a nodeset or a network}
 \usage{
 linkEvents(x, changeEvents, ...)
 
@@ -35,7 +35,7 @@ to the network (ONLY if object is a network)}
 an object of class nodes.goldfish or network.goldfish
 }
 \description{
-Attach dynamic events to a \code{nodeset} or a \code{network}
+Attach dynamic events to a nodeset or a network
 }
 \examples{
 actors <- data.frame(

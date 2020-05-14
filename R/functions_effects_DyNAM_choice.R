@@ -779,14 +779,14 @@ init_DyNAM_choice.mixedTrans <- function(effectFun, network, window, n1, n2) {
   params <- formals(effectFun)
   isTwoMode <- eval(params[["isTwoMode"]])
   funApply <- eval(params[["transformFun"]])
-  if (isTwoMode) {
-    stop("'trans' effect must not use when is a two-mode network (isTwoMode = TRUE)", call. = FALSE)
-  }
+  # if (isTwoMode) {
+  #   stop("'trans' effect must not use when is a two-mode network (isTwoMode = TRUE)", call. = FALSE)
+  # }
   # always weighted, detach networks
   network2 <- sign(network[[2]])
   network1 <- sign(network[[1]])
   # has window or is empty initialize empty
-  if ( (!is.null(window) && !is.infinite(window)) || all(network1 == 0)|| all(network2 == 0)) {
+  if ( (!is.null(window) && !is.infinite(window)) || all(network1 == 0) || all(network2 == 0)) {
     return(list(
       cache = matrix(0, nrow = n1, ncol = n2),
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
