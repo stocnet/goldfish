@@ -315,10 +315,8 @@ estimate.formula <- function(x,
     cat("Creating window objects in global environment.\n")
   }
 
-
   ## 1.2 PARSE for preprocessingInit: check the formula consistency
   if (!is.null(preprocessingInit)) {
-
     # find the old and new effects indexes, do basic consistency checks
     oldparsedformula <- parseFormula(preprocessingInit$formula)
     effectsindexes <- compareFormulas(
@@ -328,22 +326,21 @@ estimate.formula <- function(x,
     )
   }
 
-
   ### 2. INITIALIZE OBJECTS: effects, nodes, and link objects----
 
   if (!silent) cat("Initializing objects.\n")
 
   ## 2.0 Set idTwoMode to define effects functions
   # get node sets of dependent variable
-  nodes <- attr(get(depName), "nodes")
+  .nodes <- attr(get(depName), "nodes")
   isTwoMode <- FALSE
   # two-mode networks(2 kinds of nodes)
-  if (length(nodes) == 2) {
-    nodes2 <- nodes[2]
-    nodes <- nodes[1]
+  if (length(.nodes) == 2) {
+    .nodes2 <- .nodes[2]
+    .nodes <- .nodes[1]
     isTwoMode <- TRUE
   } else {
-    nodes2 <- nodes
+    .nodes2 <- .nodes
   }
 
 
@@ -360,8 +357,8 @@ estimate.formula <- function(x,
 
 
     # Initialize events list and link to objects
-    events <- getEventsAndObjectsLink(depName, rhsNames, nodes, nodes2, envir = envir)[[1]]
-    eventsObjectsLink <- getEventsAndObjectsLink(depName, rhsNames, nodes, nodes2, envir = envir)[[2]]
+    events <- getEventsAndObjectsLink(depName, rhsNames, .nodes, .nodes2, envir = envir)[[1]]
+    eventsObjectsLink <- getEventsAndObjectsLink(depName, rhsNames, .nodes, .nodes2, envir = envir)[[2]]
     eventsEffectsLink <- getEventsEffectsLink(events, rhsNames, eventsObjectsLink)
   }
 
@@ -370,10 +367,10 @@ estimate.formula <- function(x,
   if (!is.null(preprocessingInit)) {
 
     # recover the nodesets
-    nodes <- preprocessingInit$nodes
-    nodes2 <- preprocessingInit$nodes2
+    .nodes  <- preprocessingInit$nodes
+    .nodes2 <- preprocessingInit$nodes2
     isTwoMode <- FALSE
-    if (!identical(nodes, nodes2)) isTwoMode <- TRUE
+    if (!identical(.nodes, .nodes2)) isTwoMode <- TRUE
 
     # find new effects
     if (min(effectsindexes) == 0) {
@@ -394,8 +391,8 @@ estimate.formula <- function(x,
       #       This is likely to affect statistics calculation. Please recalculate the preprocessed object.")
 
       # Retrieve again the events to calculate new statistics
-      newevents <- getEventsAndObjectsLink(depName, newrhsNames, nodes, nodes2, envir = envir)[[1]]
-      neweventsObjectsLink <- getEventsAndObjectsLink(depName, newrhsNames, nodes, nodes2, envir = envir)[[2]]
+      newevents <- getEventsAndObjectsLink(depName, newrhsNames, .nodes, .nodes2, envir = envir)[[1]]
+      neweventsObjectsLink <- getEventsAndObjectsLink(depName, newrhsNames, .nodes, .nodes2, envir = envir)[[2]]
       neweventsEffectsLink <- getEventsEffectsLink(newevents, newrhsNames, neweventsObjectsLink)
 
       # Preprocess the new effects
@@ -410,8 +407,8 @@ estimate.formula <- function(x,
         eventsEffectsLink = neweventsEffectsLink,
         objectsEffectsLink = newobjectsEffectsLink, # for parameterization
         # multipleParameter = multipleParameter,
-        nodes = nodes,
-        nodes2 = nodes2,
+        nodes = .nodes,
+        nodes2 = .nodes2,
         isTwoMode = isTwoMode,
         startTime = preprocessingInit[["startTime"]],
         endTime = preprocessingInit[["endTime"]],
@@ -436,7 +433,7 @@ estimate.formula <- function(x,
     allprep <- preprocessingInit
     allprep$initialStats <- array(0,
       dim = c(
-        nrow(get(nodes)), nrow(get(nodes2)),
+        nrow(get(.nodes)), nrow(get(.nodes2)),
         length(effectsindexes)
       )
     )
@@ -503,8 +500,8 @@ estimate.formula <- function(x,
 
     prep <- allprep
     prep$formula <- formula
-    prep$nodes <- nodes
-    prep$nodes2 <- nodes2
+    prep$nodes <- .nodes
+    prep$nodes2 <- .nodes2
   }
 
   ## 3.2 PREPROCESS when preprocessingInit == NULL
@@ -520,8 +517,8 @@ estimate.formula <- function(x,
       eventsEffectsLink = eventsEffectsLink,
       objectsEffectsLink = objectsEffectsLink, # for parameterization
       # multipleParameter = multipleParameter,
-      nodes = nodes,
-      nodes2 = nodes2,
+      nodes = .nodes,
+      nodes2 = .nodes2,
       isTwoMode = isTwoMode,
       startTime = estimationInit[["startTime"]],
       endTime = estimationInit[["endTime"]],
@@ -532,8 +529,8 @@ estimate.formula <- function(x,
     # The formula, nodes, nodes2 are added to the preprocessed object so that we can call
     # the estimation with preprocessingInit later (for parsing AND composition changes)
     prep$formula <- formula
-    prep$nodes <- nodes
-    prep$nodes2 <- nodes2
+    prep$nodes <- .nodes
+    prep$nodes2 <- .nodes2
   }
 
   ## 3.3 Stop here if preprocessingOnly == TRUE
@@ -546,6 +543,9 @@ estimate.formula <- function(x,
   # functions_utility.R
   effectDescription <- GetDetailPrint(objectsEffectsLink, parsedformula, estimationInit[["fixedParameters"]])
   hasWindows <- attr(effectDescription, "hasWindows")
+  if (is.null(hasWindows)) {
+    hasWindows <- !all(vapply(windowParameters, is.null, logical(1)))
+  }
   attr(effectDescription, "hasWindows") <- NULL
   ### 5. ESTIMATE----
   # CHANGED Alvaro: to match model and subModel new parameters
@@ -581,8 +581,8 @@ estimate.formula <- function(x,
     if (modelType == "DyNAM-M") rowOnly <- T
     resold <- estimate_old(prep,
       events,
-      nodes,
-      nodes2,
+      .nodes,
+      .nodes2,
       isTwoMode,
       rightCensored,
       hasIntercept,
@@ -606,8 +606,8 @@ estimate.formula <- function(x,
   # Normal estimation
   additionalArgs <- list(
     statsList = prep,
-    nodes = get(nodes),
-    nodes2 = get(nodes2),
+    nodes = get(.nodes),
+    nodes2 = get(.nodes2),
     defaultNetworkName = parsedformula$defaultNetworkName,
     addInterceptEffect = hasIntercept,
     modelType = modelTypeCall,

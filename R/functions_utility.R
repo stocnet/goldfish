@@ -611,13 +611,12 @@ GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = 
     )
   }
   # rownames(effectDescription) <- NULL
-  attr(effectDescription, "hasWindows") <- hasWindows
-  
   if (parsedformula$hasIntercept) {
     effectDescription <- rbind("", effectDescription)
     rownames(effectDescription)[1] <- "Intercept"
   }
   
+  attr(effectDescription, "hasWindows") <- hasWindows
   return(effectDescription)
 }
 
