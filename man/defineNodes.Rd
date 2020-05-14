@@ -7,22 +7,38 @@
 defineNodes(nodes)
 }
 \arguments{
-\item{nodes}{Data frame with a character column 'label' containing the nodes labels (mandatory). It can also contains a column of
-type boolean or binary 'present', indicating if the respective node is present at the first timepoint, and columns containing the
-initial values of nodes attributes (of types 'numeric', 'character' or 'boolean').}
+\item{nodes}{\code{\link{data.frame}} that contains
+\describe{
+ \item{label}{\code{\link{character}} column containing the nodes labels (mandatory)}
+ \item{present}{\code{\link{logical}} column indicating if the respective node is present at the first timepoint (optional)}
+}}
 }
 \value{
-an object of class nodes.goldfish
+an object of class \code{nodes.goldfish}
 }
 \description{
-The defineNodes function processes and checks the data.frame passed to nodes argument. This is a necessary step before the definition of the network.
+The \code{defineNodes} function processes and checks the \code{\link{data.frame}} passed to \code{nodes} argument. 
+This is a necessary step before the definition of the network.
+}
+\details{
+Additional columns in the \code{nodes} argument are considered as the initial values of nodes attributes. 
+Those columns must be of class \code{\link{numeric}}, \code{\link{character}}, \code{\link{logical}}
 }
 \examples{
-actors <- data.frame(
-  actor = 1:5, label = paste("Actor", 1:5),
-  present = TRUE, gender = sample.int(2, 5, replace = TRUE)
-)
-actors <- defineNodes(nodes = actors)
+nodesAttr <- data.frame(
+  label = paste("Actor", 1:5),
+  present = c(TRUE, FALSE, TRUE, TRUE, FALSE),
+  gender = c(1, 2, 1, 1, 2)
+  )
+nodesAttr <- defineNodes(nodes = nodesAttr)
+
+# Social evolution nodes definition
+data("Social_Evolution")
+actors <- defineNodes(actors)
+
+# Fisheries treaties nodes definition
+data("Fisheries_Treaties_6070")
+states <- defineNodes(states)
 }
 \seealso{
 \link{defineNetwork}

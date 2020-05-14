@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions_data.R
 \name{defineGlobalAttribute}
 \alias{defineGlobalAttribute}
-\title{Define a global attribute}
+\title{Define a global time-varying attribute}
 \usage{
 defineGlobalAttribute(global)
 }

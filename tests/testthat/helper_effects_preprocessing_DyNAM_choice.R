@@ -37,7 +37,7 @@ networkState <- matrix(
 
 # defining objects
 networkState <- defineNetwork(matrix = networkState, nodes = actorsEx, directed = TRUE)
-networkState <- linkEvents(x = networkState, changeEvent = eventsIncrement, nodes = actorsEx)
+networkState <- linkEvents(x = networkState, changeEvents = eventsIncrement, nodes = actorsEx)
 depNetwork <- defineDependentEvents(events = eventsIncrement, nodes = actorsEx, defaultNetwork = networkState)
 
 # exogenous network

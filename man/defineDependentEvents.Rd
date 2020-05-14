@@ -4,8 +4,7 @@
 \alias{defineDependentEvents}
 \title{Define dependent events for a model}
 \usage{
-defineDependentEvents(events, nodes, nodes2 = NULL,
-  defaultNetwork = NULL)
+defineDependentEvents(events, nodes, nodes2 = NULL, defaultNetwork = NULL)
 }
 \arguments{
 \item{events}{a data frame containing the event list that should be considered as a dependent variable in models.}

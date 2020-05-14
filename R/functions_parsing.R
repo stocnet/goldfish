@@ -23,7 +23,7 @@
 parseFormula <- function(formula) {
   # check left side
   depName <- getDependentName(formula)
-  if (!"dependent.goldfish" %in% class(get(depName))) {
+  if (!inherits(get(depName), "dependent.goldfish")) {
     stop("The left hand side of the formula should contain dependent events",
          " (check the function defineDependentEvents).", call. = FALSE)
   }
@@ -208,7 +208,7 @@ createEffectsFunctions <- function(effectInit, model, subModel,
         tryCatch({
           FUN <- eval(parse(text = x[[1]]))
         },
-        error = function(e) stop(paste("Unknown effect", x[[1]])) # ,
+        error = function(e) stop("Unknown effect ", x[[1]]) # ,
         # finally = warning("Effect ")
         )
       }
@@ -248,7 +248,7 @@ createEffectsFunctions <- function(effectInit, model, subModel,
         # cat(x[[1]], is.null(parmsToSet[["isTwoMode"]]))
         isTwoMode <- length(attr(eval(.signature[["network"]], envir = envir), "nodes")) > 1
         if (!is.null(parmsToSet[["isTwoMode"]]) && eval(parmsToSet[["isTwoMode"]]) != isTwoMode) {
-          warning("The 'isTwoMode' parameter in effect ", x[[1]], " has a diferent value than",
+          warning("The \"isTwoMode\" parameter in effect ", x[[1]], " has a different value than",
             " the attributes on network argument '", x[[2]], "'", call. = FALSE, immediate. = TRUE)
         } else if (isTwoMode && is.null(parmsToSet[["isTwoMode"]])) {
           .signature[["isTwoMode"]] <- isTwoMode
@@ -266,7 +266,7 @@ createEffectsFunctions <- function(effectInit, model, subModel,
       #   } else if (isTwoMode) .signature[["isTwoMode"]] <- isTwoMode
       # }
 
-      # if(class(.signature) == "matrix") .signature <- apply(.signature, 2, invisible)
+      # if(inherits(.signature, "matrix")) .signature <- apply(.signature, 2, invisible)
 
       # Assign signatures with default values to generic functions
       formals(FUN) <- .signature
@@ -547,7 +547,7 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
 
       # check numeric type
       tryCatch(window <- strtoi(window), error = function(e) {
-        stop(paste("The window specified with the effect", rhsNames[[i]][[1]], rhsNames[[i]][[2]], "is not an integer"))
+        stop("The window specified with the effect ", rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]], " is not an integer")
       })
 
       # get initial object, check whether it's an attribute or a network

@@ -4,7 +4,8 @@
 \name{Fisheries_Treaties_6070}
 \alias{Fisheries_Treaties_6070}
 \title{International bilateral fisheries treaties (1960-1970)}
-\format{The data includes several dataframes:
+\format{
+The data includes several dataframes:
 states (154 rows, 4 columns, monadic),
 sovchanges (62 rows, 3 columns, monadic),
 regchanges (145 rows, 3 columns, monadic),
@@ -36,7 +37,8 @@ See below for variables and formats.
    contigchanges$sender    \tab   First contiguity change node             \tab     integer              \cr
    contigchanges$receiver  \tab   Second contiguity change node            \tab     integer              \cr
    contigchanges$replace   \tab   New contiguity value                     \tab     numeric              \cr
- }}
+ }
+}
 \usage{
 data(Fisheries_Treaties_6070)
 }

@@ -11,7 +11,7 @@ estimate(formula, model = c("DyNAM", "REM"),
          verbose = FALSE, silent = FALSE, debug = FALSE)
 }
 \arguments{
-\item{model}{a character string defining the model type. Current options include "DyNAM" or "REM"
+\item{model}{a character string defining the model type. Current options include \code{"DyNAM"} or \code{"REM"}
 \describe{
  \item{DyNAM}{Dynamic Network Actor Models (Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
  \item{REM}{Relational Event Model (Butts, 2008)}
@@ -70,24 +70,28 @@ returns an object of \code{\link{class}} \code{"result.goldfish"} when \code{pre
 
 An object of class \code{"result.goldfish"} is a list including:
   \item{parameters}{a matrix with the coefficients estimates.}
-  \item{standard.errors}{a vector with the standard errors of the coefficients.}
-  \item{log.likelihood}{the log likelihood of the estimate model}
-  \item{final.score}{a vector with the final score reach by the parameters during estimation.}
-  \item{final.informationMatrix}{a matrix with the final values of the negative Fisher information matrix. The inverse of this matrix gives the variance-covariance matrix for the parameters estimates.}
-  \item{convergence}{a list with two elements. The first element is a logical value that indicates the convergence of the model. The second element (\code{max.abs.score}) reports the final maximum absolute score in the final iteration.}
-  \item{n.iterations}{an integer with the total number of iterations performed during the estimation process.}
-  \item{n.events}{an integer reporting the number of events considered in the model.}
-  \item{model.type}{a character vector of the model type.}
-  \item{names}{a matrix with the names of the effects and the variable for which the effect was computed.}
+  \item{standardErrors}{a vector with the standard errors of the coefficients.}
+  \item{logLikelihood}{the log likelihood of the estimate model}
+  \item{finalScore}{a vector with the final score reach by the parameters during estimation.}
+  \item{finalInformationMatrix}{a matrix with the final values of the negative Fisher information matrix. 
+  The inverse of this matrix gives the variance-covariance matrix for the parameters estimates.}
+  \item{convergence}{a list with two elements. 
+  The first element (\code{isConverged}) is a logical value that indicates the convergence of the model. 
+  The second element (\code{maxAbsScore}) reports the final maximum absolute score in the final iteration.}
+  \item{nIterations}{an integer with the total number of iterations performed during the estimation process.}
+  \item{nEvents}{an integer reporting the number of events considered in the model.}
+  \item{names}{a matrix with a description of the effects used for model fitting. 
+  It includes the name of the object used to calculate the effects and additional parameter description.}
   \item{formula}{a formula with the information of the model fitted.}
-  \item{right.censored}{a logical value indicating if the estimation process considered right censored events. Only it is considered when \code{model = "DyNAM"}, \code{subModel = "rate"} and the model includes intercept.}
+  \item{model}{a character vector of the model type.}
+  \item{rightCensored}{a logical value indicating if the estimation process considered right censored events. Only it is considered when \code{model = "DyNAM"}, \code{subModel = "rate"} and the model includes intercept.}
 }
 \description{
 Estimates parameters for a dynamic network model via maximum likelihood.
 }
 \details{
 Missing data is imputed during the preprocessing stage. For network data missing values
-are replaced by a zero value, it means that is assuming a not tie or event explicitly.
+are replaced by a zero value, it means that is assuming a not tie/event explicitly.
 For attributes missing values are replaced by the mean value, if missing values are 
 presented during events updates they are replace by the mean of the attribute in that moment of time.
 }
@@ -111,7 +115,7 @@ considers the right-censored intervals in the estimation process.
 # A multinomial receiver choice model
 data("Social_Evolution")
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
+callNetwork <- linkEvents(object = callNetwork, changeEvent = calls, nodes = actors)
 callsDependent <- defineDependentEvents(events = calls, nodes = actors, defaultNetwork = callNetwork)
 mod01 <- estimate(callsDependent ~ inertia + recip + trans, model = "DyNAM", subModel = "choice")
 

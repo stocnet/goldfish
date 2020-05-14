@@ -2,33 +2,40 @@
 % Please edit documentation in R/functions_data.R
 \name{linkEvents}
 \alias{linkEvents}
-\title{Attach dynamic events to a nodeset or a network}
+\alias{linkEvents.nodes.goldfish}
+\alias{linkEvents.network.goldfish}
+\alias{linkEvents.default}
+\title{Attach dynamic events to a \code{nodeset} or a \code{network}}
 \usage{
-linkEvents(x, changeEvents, attribute = NULL, nodes = NULL,
-  nodes2 = NULL)
+linkEvents(x, changeEvents, ...)
+
+\method{linkEvents}{nodes.goldfish}(x, changeEvents, attribute)
+
+\method{linkEvents}{network.goldfish}(x, changeEvents, nodes = NULL, nodes2 = NULL)
+
+\method{linkEvents}{default}(x, ...)
 }
 \arguments{
 \item{x}{Either a nodeset (nodes.goldfish object) or a network
 (network.goldfish object)}
 
-\item{changeEvents}{The name of a dataframe that represents a valid events
-list}
+\item{changeEvents}{The name of a dataframe that represents a valid events list}
 
 \item{attribute}{a character vector indicating the names of the attributes
-that should be updated by the specified events (ONLY if the object x is a
+that should be updated by the specified events (ONLY if the object is a
 nodeset)}
 
 \item{nodes}{a nodeset (dataframe or nodes.goldfish object) related to the
-network (ONLY if x is a network)}
+network (ONLY if the object is a network)}
 
 \item{nodes2}{an optional nodest (dataframe or nodes.goldfish object) related
-to the network (ONLY if x is a network)}
+to the network (ONLY if object is a network)}
 }
 \value{
 an object of class nodes.goldfish or network.goldfish
 }
 \description{
-Attach dynamic events to a nodeset or a network
+Attach dynamic events to a \code{nodeset} or a \code{network}
 }
 \examples{
 actors <- data.frame(
@@ -50,5 +57,5 @@ calls <- data.frame(
 callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
 }
 \seealso{
-\link{defineNodes} \link{defineNetwork} \link{one-mode} \link{two-mode}
+\link{defineNodes} \link{defineNetwork}
 }

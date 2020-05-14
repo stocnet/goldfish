@@ -25,12 +25,11 @@ examine.outliers <- function(x, outliers = 10) {
 #' @export
 examine.changepoints <- function(x, moment = "mean", method = "PELT"){
 
-  if (!"changepoint" %in% installed.packages()[, "Package"]) {
-    install.packages("changepoint")
-    print("Installing changepoint package.")
-  }
+  if (!requireNamespace("changepoint", quietly = TRUE)) 
+    stop("Package \"changepoint\" needed for this function to work. Please install it.",
+         call. = FALSE)
 
-  if (!"result.goldfish" %in% attr(x, "class")) stop("Not a goldfish results object.")
+  if (!methods::is(x, "result.goldfish")) stop("Not a goldfish results object.", call. = FALSE)
   if (is.null(x$interval.logL))
     stop("Outlier identification only available when interval log likelihood returned in results object.")
   if (method == "SegNeigh") stop("Does not currently work with 'SegNeigh' method")

@@ -65,15 +65,12 @@ estimate_c_int <- function(statsList,
 
   ## PARAMETER CHECKS
 
-  if (length(parameters) != nParams) {
-    stop(paste("Error in estimation. Wrong number of initial parameters passed to function:", length(parameters)))
-  }
-  if (!(length(minDampingFactor) %in% c(1, nParams))) {
-    stop(paste("Error in estimation. minDampingFactor has wrong length:", length(minDampingFactor)))
-  }
-  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1) {
-    stop(paste("Error in estimation. Damping increase / decrease factors cannot be smaller than one."))
-  }
+  if (length(parameters) != nParams)
+    stop("Error in estimation. Wrong number of initial parameters passed to function: ", length(parameters))
+  if (!(length(minDampingFactor) %in% c(1, nParams)))
+    stop("Error in estimation. minDampingFactor has wrong length: ", length(minDampingFactor))
+  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1)
+    stop("Error in estimation. Damping increase / decrease factors cannot be smaller than one.")
 
   ## REDUCE STATISTICS LIST
 
@@ -245,7 +242,7 @@ estimate_c_int <- function(statsList,
 
   ## ESTIMATION: INITIALIZATION
 
-  if (verbose) cat(paste("Estimating model type with the super efficient new method", modelTypeCall, "\n"))
+  if (verbose) cat("Estimating model type with the super efficient new method", modelTypeCall, "\n")
 
   iIteration <- 1
   informationMatrix <- matrix(0, nParams, nParams)
@@ -368,16 +365,14 @@ estimate_c_int <- function(statsList,
     score[idFixedCompnents] <- 0
 
     if (!verbose && !silent) {
-      cat(paste0(
-        "\rMax score: ",
-        round(max(abs(score)), round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
-        " (", iIteration, ").        "
-      ))
+      cat("\rMax score: ",
+          round(max(abs(score)), round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
+          " (", iIteration, ").        ", sep = "")
     }
     if (verbose) {
-      cat(paste("\n\nLikelihood:", logLikelihood, "in iteration", iIteration))
-      cat(paste("\n_parameters:", toString(parameters)))
-      cat(paste("\nScore:", toString(score)))
+      cat("\n\nLikelihood:", logLikelihood, "in iteration", iIteration,
+          "\n_parameters:", toString(parameters),
+          "\nScore:", toString(score))
       # print(informationMatrix)
     }
 
@@ -408,32 +403,27 @@ estimate_c_int <- function(statsList,
     # It's for the fixing parameter feature.
     informationMatrixUnfixed <- informationMatrix[idUnfixedCompnents,idUnfixedCompnents]
     inverseInformationUnfixed <- try(solve(informationMatrixUnfixed), silent = TRUE)
-    if (class(inverseInformationUnfixed) == "try-error") {
+    if (inherits(inverseInformationUnfixed, "try-error"))
       stop("Matrix cannot be inverted; probably due to collinearity between parameters.")
-    }
 
       update <- rep(0,nParams)
       update[idUnfixedCompnents] <- (inverseInformationUnfixed %*% score[idUnfixedCompnents]) / dampingFactor
 
 
     if (verbose) {
-      cat(paste("\nUpdate: ", toString(update)))
-      cat(paste("\nDamping factor:", toString(dampingFactor)))
+      cat("\nUpdate: ", toString(update), sep = "")
+      cat("\nDamping factor:", toString(dampingFactor), sep = "")
     }
 
     # check for stop criteria
     if (max(abs(score)) <= maxScoreStopCriterion) {
       isConverged <- TRUE
-      if (!silent) cat(paste("\nStopping as maximum absolute score is below", maxScoreStopCriterion, ".\n"))
+      if (!silent) cat("\nStopping as maximum absolute score is below ", maxScoreStopCriterion, ".\n", sep = "")
       break
     }
     if (iIteration > maxIterations) {
-      if (!silent) {
-        message(paste(
-          "\nStopping as maximum of", maxIterations,
-          "iterations have been reached. No convergence.\n"
-        ))
-      }
+      if (!silent)
+        message("\nStopping as maximum of ", maxIterations, " iterations have been reached. No convergence.\n")
       break
     }
 

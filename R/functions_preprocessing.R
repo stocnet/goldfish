@@ -20,6 +20,7 @@
 #'
 #' @return a list of class preprocessed.goldfish
 #'
+#' @importFrom methods is
 #' @noRd
 preprocess <- function(
   model,
@@ -107,7 +108,7 @@ preprocess <- function(
     events <- c(events, endtime = list(endTimeEvent))
     hasEndTime <- TRUE
   }
-  if (is.null(startTime)){
+  if (is.null(startTime)) {
     startTime <- eventsMin
   } else if (startTime != eventsMin) {
     if (!is.numeric(startTime)) startTime <- as.numeric(startTime)
@@ -185,7 +186,7 @@ preprocess <- function(
       # CHANGED SIWEI: added time point of each event (dependent & right-censored)
       event_time[[eventPos]] <- time
       # CHANGED MARION: added sender and receiver
-      varsKeep <- c(if(isNodeEvent[nextEvent]) "node" else c("sender", "receiver"), 
+      varsKeep <- c(if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"), 
                     if (isIncrementEvent[nextEvent]) "increment" else "replace")
       event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
       if (isNodeEvent[nextEvent]) {
@@ -198,9 +199,9 @@ preprocess <- function(
       
     }
     
-    if(!isDependent){
+    if (!isDependent) {
       # 2. store statistic updates for RIGHT-CENSORED (non-dependent, positive) intervals
-      if(rightCensored && interval > 0) {        
+      if (rightCensored && interval > 0) {        
         # CHANGED MARION: the incremented index was incorrect
         #rightCensoredStatistics[[ pointers[nextEvent] ]] <- updatesIntervals
         #timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <- interval
@@ -218,10 +219,10 @@ preprocess <- function(
         varsKeep <- c(if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"))#,
         #if (isIncrementEvent[nextEvent]) "increment" else "replace")
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
-        if(isNodeEvent[nextEvent] & length(event) == 1) {
+        if (isNodeEvent[nextEvent] & length(event) == 1) {
           event_sender[[eventPos]] <- event
           event_receiver[[eventPos]] <- event
-        } else if(isNodeEvent[nextEvent] & length(event) > 1) {
+        } else if (isNodeEvent[nextEvent] & length(event) > 1) {
           event_sender[[eventPos]] <- event$node
           event_receiver[[eventPos]] <- event$node
         } else {
@@ -245,7 +246,7 @@ preprocess <- function(
       objectName <- objectNameTable$name
       object <- getElementFromDataObjectTable(objectNameTable, envir = prepEnvir)[[1]]
       isUndirectedNet <- FALSE
-      if ("network.goldfish" %in% class(object)) {
+      if (inherits(object, "network.goldfish")) {
         isUndirectedNet <- !attr(object, "directed")
       }
       
@@ -286,9 +287,7 @@ preprocess <- function(
       
       
       ## 3a. calculate statistics changes
-      
-      if(!finalStep) effIds <- which(!is.na(eventsEffectsLink[nextEvent, ]))
-      if(!finalStep) for (id in effIds) {
+      if (!finalStep) for (id in which(!is.na(eventsEffectsLink[nextEvent, ]))) {
         # create the ordered list for the objects
         objectsToPass <- objectsEffectsLink[, id][!is.na(objectsEffectsLink[, id])]
         names <- rownames(objectsEffectsLink)[!is.na(objectsEffectsLink[, id])]
@@ -296,10 +295,13 @@ preprocess <- function(
         orderedObjectTable <- getDataObjects(list(list("", orderedNames)))
         .objects <- getElementFromDataObjectTable(orderedObjectTable, envir = prepEnvir)
         # identify class to feed effects functions
-        objClass <- vapply(.objects, FUN = inherits, FUN.VALUE = integer(2),
-                           what = c("numeric", "matrix"), which = TRUE) > 0
-        attIDs <- which(objClass[1, ])
-        netIDs <- which(objClass[2, ])
+        objCat <- assignCatToObject(.objects)
+        attIDs <- which(objCat == "attribute")
+        netIDs <- which(objCat == "network")
+        if (attr(objCat, "noneClass"))
+          stop("An object is not assigned either as network or attibute",
+               paste(names[attr(objCat, "manyClasses") != 1], collapse = ", "),
+               "check the class of the object.", call. = FALSE)
         
         # call effects function with required arguments
         .argsFUN <- list(
@@ -430,27 +432,19 @@ initializeCacheStat <- function(objectsEffectsLink, effects, windowParameters,
   )
   .objects <- getElementFromDataObjectTable(objTable, envir = envir)
   # list of 4, call matrix, friendship matrix, actor$gradetype vector, actor$floor vector
-  isAttribute <- vapply(
-    .objects,
-    function(x) {
-      if (is.matrix(x)) {
-        return(FALSE)
-      }
-      if (is.vector(x)) {
-        return(TRUE)
-      }
-      return(FALSE)
-    },
-    logical(1)
-  )
+  objCat <- assignCatToObject(.objects)
+  if (attr(objCat, "noneClass"))
+    stop("An object is not assigned either as network or attibute",
+         paste(rownames(objectsEffectsLink)[attr(objCat, "manyClasses") != 1], collapse = ", "),
+         "check the class of the object.", call. = FALSE)
   
   # objects: list of 6, each element is a 84*84 matrix
   objectsRet <- lapply(
     seq_along(effects),
     function(iEff) {
       o <- objectsEffectsLink[, iEff]
-      attIDs <- which(!is.na(o) & isAttribute)
-      netIDs <- which(!is.na(o) & !isAttribute)
+      attIDs <- which(!is.na(o) & objCat == "attribute")
+      netIDs <- which(!is.na(o) & objCat == "network")
       attributes <- .objects[attIDs[order(o[attIDs])]]
       networks <- .objects[netIDs[order(o[netIDs])]]
       labelEffect <- colnames(objectsEffectsLink)[iEff]
@@ -515,7 +509,7 @@ callFUN <- function(effects, effectPos, effectType, .argsFUN, textMss,
   .argsNames <- formals(effects[[effectPos]][[effectType]])
   .argsKeep <- pmatch(names(.argsNames), names(.argsFUN)) # check for more than one net
   errorHandler <- function(e) {
-    erro <- simpleError(paste0("Effect '", effectLabel, "' (", effectPos, ") ", textMss, e$message))
+    erro <- simpleError(paste0("Effect ", sQuote(effectLabel), " (", effectPos, ") ", textMss, e$message))
     stop(erro)
   }
   tryCatch({

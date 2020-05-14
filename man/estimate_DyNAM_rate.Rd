@@ -4,12 +4,27 @@
 \alias{estimate_DyNAM_rate}
 \title{Calculation for estimating an DyNAM-rate model}
 \usage{
-estimate_DyNAM_rate(parameters, dep_event_mat, timespan, is_dependent,
-  stat_mat_init, stat_mat_update, stat_mat_update_pointer,
-  stat_mat_rightcensored_update, stat_mat_rightcensored_update_pointer,
-  presence1_init, presence1_update, presence1_update_pointer,
-  presence2_init, presence2_update, presence2_update_pointer, n_actors_1,
-  n_actors_2, twomode_or_reflexive, impute = TRUE)
+estimate_DyNAM_rate(
+  parameters,
+  dep_event_mat,
+  timespan,
+  is_dependent,
+  stat_mat_init,
+  stat_mat_update,
+  stat_mat_update_pointer,
+  stat_mat_rightcensored_update,
+  stat_mat_rightcensored_update_pointer,
+  presence1_init,
+  presence1_update,
+  presence1_update_pointer,
+  presence2_init,
+  presence2_update,
+  presence2_update_pointer,
+  n_actors_1,
+  n_actors_2,
+  twomode_or_reflexive,
+  impute = TRUE
+)
 }
 \arguments{
 \item{parameters}{An n_parameters by 1 matrix, which is the input parameter}
@@ -37,9 +52,8 @@ The following is an example.
 Each column represents an update. For example the first column means replacing the value of the (3+1)-th effect
 for the actor1-actor2 pair(0+1,2+1) by 1.2. The +1 is due to the difference between the numberings in R and C.}
 
-\item{stat_mat_update_pointer}{An n_events by 1 matrix that record which update belongs to which dependent event.
-Suppose that the first three elements are (10,11,15). Then the first 10 colums of stat_mat_update is the update for the first event,
-the 11th column is  the update for the second event, and the 12th to 15th columns are the updates for the third event.}
+\item{stat_mat_update_pointer}{An n_events by 1 matrix that record which update belongs to which rightcensored event.
+The structure is similar to stat_mat_update_pointer.}
 
 \item{stat_mat_rightcensored_update}{An matrix with four rows,
 which record the updates of the statistics matrix through all right-censored events.

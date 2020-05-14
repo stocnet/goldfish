@@ -3,7 +3,7 @@
 #' Estimates parameters for a dynamic network model via maximum likelihood.
 #'
 #' Missing data is imputed during the preprocessing stage. For network data missing values
-#' are replaced by a zero value, it means that is assuming a not tie or event explicitly.
+#' are replaced by a zero value, it means that is assuming a not tie/event explicitly.
 #' For attributes missing values are replaced by the mean value, if missing values are 
 #' presented during events updates they are replace by the mean of the attribute in that moment of time. 
 #'
@@ -21,7 +21,7 @@
 #' It is important to add a time intercept to model the waiting times between events, in this way the model
 #' considers the right-censored intervals in the estimation process.
 #'
-#' @param model a character string defining the model type. Current options include "DyNAM" or "REM"
+#' @param model a character string defining the model type. Current options include \code{"DyNAM"} or \code{"REM"}
 #' \describe{
 #'  \item{DyNAM}{Dynamic Network Actor Models (Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
 #'  \item{REM}{Relational Event Model (Butts, 2008)}
@@ -114,7 +114,7 @@
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
+#' callNetwork <- linkEvents(object = callNetwork, changeEvent = calls, nodes = actors)
 #' callsDependent <- defineDependentEvents(events = calls, nodes = actors, defaultNetwork = callNetwork)
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans, model = "DyNAM", subModel = "choice")
 #'
@@ -157,7 +157,7 @@ estimate <- function(x,
                      verbose = FALSE,
                      silent = FALSE,
                      debug = FALSE)
-  UseMethod("estimate")
+  UseMethod("estimate", x)
 
 
 # First estimation from a formula: can return either a preprocessed object or a result object
@@ -213,7 +213,7 @@ estimate.formula <- function(x,
     source("R/functions_estimation_old.R")
     source("R/functions_parsing.R")
     source("R/functions_utility.R")
-    source("R/functions_utility.R")
+    # source("R/functions_utility.R")
     # x <- formula
   }
 
@@ -239,6 +239,7 @@ estimate.formula <- function(x,
     )
   )
 
+  # ToDo: more informative message for R>4.0.0
   stopifnot(
     inherits(preprocessingOnly, "logical"),
     inherits(verbose, "logical"),
@@ -301,8 +302,7 @@ estimate.formula <- function(x,
   }
   # Model-specific preprocessing initialization
   if (model %in% c("DyNAM", "TriNAM") && subModel %in% c("choice", "choice_coordination") && hasIntercept) {
-    warning(paste("Model ", model, "subModel", subModel, "ignores the time intercept."),
-            call. = FALSE, immediate. = TRUE)
+    warning("Model ", model, " subModel ", subModel, " ignores the time intercept.", call. = FALSE, immediate. = TRUE)
     hasIntercept <- FALSE
   }
   rightCensored <- hasIntercept
@@ -626,12 +626,12 @@ estimate.formula <- function(x,
   if (engine %in% c("default_c", "gather_compute")) {
     tryCatch(
       result <- do.call("estimate_c_int", args = argsEstimation),
-      error = function(e) stop(paste("Error in", modelType, "estimation:", e))
+      error = function(e) stop("Error in ", model, subModel, " estimation: ", e, call. = FALSE)
     )
   } else {
     tryCatch(
       result <- do.call("estimate_int", args = argsEstimation),
-      error = function(e) stop(paste("Error in", modelType, "estimation:", e))
+      error = function(e) stop("Error in ", model, subModel, " estimation: ", e, call. = FALSE)
     )
   }
 
@@ -645,8 +645,9 @@ estimate.formula <- function(x,
     sum(!vapply(effectDescription[, "fixed"], function(x) eval(parse(text = x)), logical(1)))
   } else  length(result$parameters)
   
-  if (!silent) if ("beepr" %in% rownames(installed.packages()) & result$convergence[[1]]) beepr::beep(3)
-  result$call <- match.call(call = sys.call(sys.parent(1L)),
+  if (!silent) if (requireNamespace("beepr", quietly = TRUE) & result$convergence[[1]]) beepr::beep(3)
+
+  result$call <- match.call(call = sys.call(-1L),
                             expand.dots = TRUE)
   return(result)
 }

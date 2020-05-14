@@ -4,8 +4,7 @@
 \alias{as.matrix.network.goldfish}
 \title{Create a Matrix from a dynamic nodes object}
 \usage{
-\method{as.matrix}{network.goldfish}(x, time = -Inf, startTime = -Inf,
-  ...)
+\method{as.matrix}{network.goldfish}(x, time = -Inf, startTime = -Inf, ...)
 }
 \arguments{
 \item{x}{a dynamic goldfish network object}
