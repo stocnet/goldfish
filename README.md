@@ -1,9 +1,16 @@
-The Goldfish project
-====================
+# goldfish  <img src="inst/hexlogo_goldfish.png" align="right" width="150"/> 
 
-![Goldfish](http://www.about-goldfish.com/images/Fantail_Goldfish_sml.jpg "Goldfish")
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/snlab-ch/goldfish)
+![GitHub Release Date](https://img.shields.io/github/release-date/snlab-ch/goldfish)
+![GitHub issues](https://img.shields.io/github/issues-raw/snlab-ch/goldfish)
+![GitHub All Releases](https://img.shields.io/github/downloads/snlab-ch/goldfish/total)
 
-This project is a joint collaboration between the **Social Networks Lab at ETH Zürich** and the **Graduate Institute Geneva**.
+## About
+
+This project is a joint collaboration between the **Social Networks Lab at ETH Zürich** and the **Graduate Institute Geneva**,
+and incorporates and supports several sub-projects.
+
+## Aims
 
 The objective of the project is to introduce, extend, and promote 
 the Dynamic Network Actor-Oriented Model (DyNAM)
@@ -20,4 +27,12 @@ political science, sociology, and other social scientific disciplines:
 between different time windows (salience of ties), and 
 between initial and repeated creation of ties (multiplicity of ties).
 
-The project incorporates and supports several sub-projects.
+## Installation
+
+You can install the latest version of the `goldfish` package from source using `devtools`:
+
+```r
+devtools::install_github("snlab-ch/goldfish")
+```
+
+Or by downloading and install the latest binary from [the releases page](https://github.com/snlab-ch/goldfish/releases).
