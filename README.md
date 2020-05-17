@@ -36,3 +36,18 @@ devtools::install_github("snlab-ch/goldfish")
 ```
 
 Or by downloading and install the latest binary from [the releases page](https://github.com/snlab-ch/goldfish/releases).
+
+### Installing OpenMP on Mac OSX
+
+In some cases, you may get an error that does not allow installation of `goldfish`
+from source on Mac OSX versions, including under R 4.0.0.
+The error may relate to compiling the parts of `goldfish` that are written in C++,
+or whether OpenMP (for parallelisation) can be found.
+
+Some links that may be helpful include:
+- https://asieira.github.io/using-openmp-with-r-packages-in-os-x.html
+- https://thecoatlessprofessor.com/programming/openmp-in-r-on-os-x/
+- https://ryanhomer.github.io/posts/build-openmp-macos-catalina-complete
+
+Please share feedback on which of these work 
+and we will update the installation guide accordingly.
