@@ -12,7 +12,8 @@ examine.outliers(x, outliers = 10)
 \item{outliers}{the number of outliers to report}
 }
 \value{
-Plots the log-likelihood, identifying observations not well-fitted by the model with a small red circle, and prints a table of the top `outliers`
+Plots the log-likelihood, identifying observations not well-fitted by the model with a small red circle,
+and prints a table of the top `outliers`
 }
 \description{
 Examine outlier cases

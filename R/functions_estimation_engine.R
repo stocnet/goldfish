@@ -106,7 +106,7 @@ estimate_int <- function(statsList,
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
-  if ( (modelType == "REM" || modelType == "DyNAM-M-Rate") && addInterceptEffect) {
+  if ((modelType == "REM" || modelType == "DyNAM-M-Rate") && addInterceptEffect) {
     totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
       sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
     nEvents <- length(statsList$orderEvents)
@@ -379,7 +379,7 @@ getEventValues <- function(statsArray, activeDyad, parameters, modelType, isRigh
     score <- deviations[activeActor, ]
     # Fisher information matrix
     informationMatrix <- matrix(
-      rowSums(t(t(matrix(apply(deviations, 1, function(x) outer(x, x)),ncol = length(eventProbabilities) ))
+      rowSums(t(t(matrix(apply(deviations, 1, function(x) outer(x, x)),ncol = length(eventProbabilities)))
       * eventProbabilities)),
       length(parameters), length(parameters)
     )
@@ -402,7 +402,7 @@ getEventValues <- function(statsArray, activeDyad, parameters, modelType, isRigh
     # Don't consider self-connecting edge when both allowReflexive and  isTwoMode are false
     dontConsiderSelfConnecting <- (modelType == "REM") && !allowReflexive && !isTwoMode
     if (dontConsiderSelfConnecting) {
-      idEdgeNotConsidered <- ( (1:dimMatrix[1]) - 1) * dimMatrix[1] + 1:dimMatrix[1]
+      idEdgeNotConsidered <- ((1:dimMatrix[1]) - 1) * dimMatrix[1] + 1:dimMatrix[1]
     } else {
       idEdgeNotConsidered <- c()
     }
@@ -569,7 +569,7 @@ getIterationStepState <- function(statsList,
   # initialize progressbar output
   showProgressBar <- F
   progressEndReached <- F
-  # if(!silent){
+  # if(!silent) {
   #  showProgressBar <- T
   #  dotEvents <- seq(1, nEvents, round(nEvents/min(nEvents, 50)))
   # }
@@ -1019,8 +1019,8 @@ reduceStatisticsList <- function(statsList,
   # these reductions through the whole estimation. For now we reduce at each step
 
   # # reduce statistics matrix to a vector
-  # if(reduceMatrixToVector){
-  #   apply(statsList$initialStats, c(3,1), function(row){
+  # if(reduceMatrixToVector) {
+  #   apply(statsList$initialStats, c(3,1), function(row) {
   #     if(min(row, na.rm = TRUE) != max(row, na.rm = TRUE))
   #       stop("Rate variable varies within event senders.")
   #   })
@@ -1029,7 +1029,7 @@ reduceStatisticsList <- function(statsList,
   # }
   #
   # # reduce array to matrices
-  # if(reduceArrayToMatrix){
+  # if(reduceArrayToMatrix) {
   #   oldDim <- dim(statsList$initialStats)
   #   statsList$initialStats <- matrix(statsList$initialStats[1,,], oldDim[2], oldDim[3])
   # }

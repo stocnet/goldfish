@@ -67,7 +67,7 @@
 #'   or as a string stating the number of time units in the format "number unit",
 #'   for example "30 seconds", "1 minute", "2 hours", "3 days", "4 weeks", "5 months", or "6 years".
 #' @param transformFun Use this parameter to obtain transformed statistics.
-#'   The argument expected is a function or the name of the function to use without quotation marks. 
+#'   The argument expected is a function or the name of the function to use without quotation marks.
 #' @param aggregateFun Use this parameter to obtain an aggregated statistics for indirect effects like
 #'   \code{tertius} and \code{tertius_diff}.
 #'   The argument expected is a function or the name of the function to use without quotation marks.
@@ -76,9 +76,9 @@
 #'   to the potential receivers. In the case where \code{type = "ego"}, the effect returns
 #'   statistics matrices according to the sender.
 #'   This argument does not apply in the case of the DyNAM models: the DyNAM-choice model only considers
-#'   the "alter" value, while in the DyNAM-rate, the "ego" value is always to be considered 
-#'   for these three effects. 
-#' @return List with the changes to a statistics matrix. It also can have an additional componente
+#'   the "alter" value, while in the DyNAM-rate, the "ego" value is always to be considered
+#'   for these three effects.
+#' @return List with the changes to a statistics matrix. It also can have an additional component
 #'   with the cache object if the effect computation requires one.
 #' @aliases effects_DyNAM effects_REM
 #' @usage
@@ -103,11 +103,13 @@
 #' diff(attribute, transformFun = abs)
 #' sim(attribute, transformFun = abs)
 #' # structural + attribute effects
-#' tertius(network, attribute, isTwoMode = FALSE, weighted = FALSE, window = Inf, ignoreRep = FALSE,
-#'       type = c("alter", "ego"), transformFun = identity, aggregateFun = function(x) mean(x, na.rm = TRUE))
-#' tertius_diff(network, attribute, isTwoMode = FALSE, weighted = FALSE, window = Inf, ignoreRep = FALSE,
-#'       transformFun = abs, aggregateFun = function(x) mean(x, na.rm = TRUE))
-#' 
+#' tertius(network, attribute, isTwoMode = FALSE, weighted = FALSE, window = Inf,
+#'         ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity,
+#'         aggregateFun = function(x) mean(x, na.rm = TRUE))
+#' tertius_diff(network, attribute, isTwoMode = FALSE, weighted = FALSE, window = Inf,
+#'              ignoreRep = FALSE, transformFun = abs,
+#'              aggregateFun = function(x) mean(x, na.rm = TRUE))
+#'
 #' @section Functions:
 #' \strong{Structural effects (dyads statistics):} These effects cannot be used for the DyNAM-rate model
 #' (\code{model = "DyNAM"} and \code{subModel = "rate"}).
@@ -127,14 +129,15 @@
 #' Parameter \code{weighted} can be set to \code{TRUE} if the weight of j->i is to be taken as a statistic.
 #'   It can be transformed by using \code{transformFun} (This only makes sense with \code{weighted = TRUE}).
 #'   This effect cannot be used for two-mode networks.}
-#'   \item{\code{trans}}{Transitivity. It is the tendency to create an event i->j if it closes 
+#'   \item{\code{trans}}{Transitivity. It is the tendency to create an event i->j if it closes
 #'     a two-paths (i->k->j) in the past events \code{network}. It can be transformed by using \code{transformFun}.
 #'     This effect cannot be used for two-mode networks.}
-#'   \item{\code{mixedTrans}}{Transitivity within 2 networks. It is the tendency to create an event i->j if it closes 
-#'     a two-paths with events (i->k) in \code{network1} and (k->j) in \code{network2} in the past events. 
+#'   \item{\code{mixedTrans}}{Transitivity within 2 networks. It is the tendency to create an event i->j if it closes
+#'     a two-paths with events (i->k) in \code{network1} and (k->j) in \code{network2} in the past events.
 #'     It can be transformed by using \code{transformFun}.
 #'     This effect cannot be used for two-mode networks.}
-#'   \item{\code{four}}{It describes the tendency to create an event i->j if there are many possible closures of three-paths (i->k<-l->j) in the past events network.}
+#'   \item{\code{four}}{It describes the tendency to create an event i->j if there are many possible closures
+#'   of three-paths (i->k<-l->j) in the past events network.}
 #' }
 #' \strong{Structural effects (node statistics):}
 #' \describe{
@@ -154,7 +157,7 @@
 #'     degree in a covariate network. An argument type allows to choose whether we want to use the
 #'     outdegree effect for sender i (\code{type = "ego"}) or for receiver j (\code{type = "alter"}).
 #'   The degree can be transform with \code{transformFun}.}
-#'   \item{\code{node_trans}}{Embeddedness in transitive structures as a source node. 
+#'   \item{\code{node_trans}}{Embeddedness in transitive structures as a source node.
 #'    It is the tendency of actor i to send a tie when there are transitive triangles where
 #'    i is the source (i->k->j<-i) that are closed. The degree can be transform with \code{transformFun}.}
 #' }
@@ -185,11 +188,11 @@
 #' \strong{Structural + attribute effects (node or dyads statistics):}
 #' \describe{
 #'   \item{\code{tertius}}{For DyNAM-choice and REM is the tendency to create an event i->j when
-#'   j has a high aggregate (\code{aggregateFun}) value of its in-neighbors 
+#'   j has a high aggregate (\code{aggregateFun}) value of its in-neighbors
 #'   (all k with \code{network[k, j] > 0}).
 #'   For DyNAM-rate is the tendency of actors to be more active when they have a high aggregate
-#'   value of their in-neighbors. \emph{Note:} When the node does not have in-neighbors, 
-#'   the average of the aggregate values of nodes is used for the node. 
+#'   value of their in-neighbors. \emph{Note:} When the node does not have in-neighbors,
+#'   the average of the aggregate values of nodes is used for the node.
 #'   }
 #'   \item{\code{tertius_diff}}{The tendency to create an event i->j when i has a similar value as
 #'   j aggregate (\code{aggregateFun}) value of its in-neighbors (all k with \code{network[k, j] > 0}.
@@ -197,26 +200,29 @@
 #'    computed for the pairs i, k when k has in-neighbors is used for the node.
 #'   }
 #' }
-#' 
+#'
 #' @examples
 #' data("Social_Evolution")
-#' actors<-defineNodes(nodes = actors) 
-#' call.Network <- defineNetwork(nodes = actors, directed = T)
+#' actors<-defineNodes(nodes = actors)
+#' call.Network <- defineNetwork(nodes = actors, directed = TRUE)
 #' call.Network <- linkEvents(x = call.Network, changeEvent = calls, nodes = actors)
-#' calls<-defineDependentEvents(events=calls, nodes=actors, defaultNetwork = call.Network)
-#' 
-#' # Using a DyNAM-Rate model: 
-#' estimate(calls ~ ego(actors$gradeType) + indeg(call.Network),  model = "DyNAM", subModel = "rate")
-#' 
+#' calls<-defineDependentEvents(events=calls, nodes=actors,
+#'                              defaultNetwork = call.Network)
+#'
+#' # Using a DyNAM-Rate model:
+#' estimate(calls ~ ego(actors$gradeType) + indeg(call.Network),
+#'          model = "DyNAM", subModel = "rate")
+#'
 #' # Using a DyNAM-Choice model:
-#' estimate(calls ~ trans(call.Network, window=259200) + indeg(call.Network), model = "DyNAM", subModel = "choice")
-#' 
-#' # Using a REM model: 
-#' estimate(calls ~ outdeg(call.Network, type="ego") + indeg(call.Network, type="alter"), model = "REM")
-#' 
-#' 
+#' estimate(calls ~ trans(call.Network, window=259200) + indeg(call.Network),
+#'          model = "DyNAM", subModel = "choice")
+#'
+#' # Using a REM model:
+#' estimate(calls ~ outdeg(call.Network, type="ego") +
+#'                 indeg(call.Network, type="alter"), model = "REM")
+#'
+#'
 # depEvent ~ inertia + indeg(trade, ignoreRep = FALSE, weighted = TRUE) + four(membership, ignoreRep = TRUE)
-
 
 goldfishEffects <- function() {
   print("TODO: List of all available effects")
@@ -314,7 +320,7 @@ threePathDiffAttribute <- function(dep.var = 1, attribute.index, state, cache,
   #
   #   diffThreePaths <- cache[[dep.var]]$twoPaths %*% cache[[dep.var]]$binarizedNetwork * diffMat
   #
-  #   if(initialOnly){
+  #   if(initialOnly) {
   #     contributingTies <- getContributingTies( dep.var, state, update )
   #     net <- contributingTies * diffThreePaths
   #   } else
@@ -327,7 +333,7 @@ threePathDiffAttribute <- function(dep.var = 1, attribute.index, state, cache,
 mixedTransitivity <- function(first.var = 1, second.var, state, cache, update = 1,
                               initialOnly = FALSE, n1, n2, isTwoMode = FALSE) {
   #   mixedTwoPath <- cache[[first.var]]$binarizedNetwork %*% cache[[second.var]]$binarizedNetwork
-  #   if(initialOnly){
+  #   if(initialOnly) {
   #     contributingTies <- getContributingTies( dep.var, state, update )
   #     net <- contributingTies * mixedTwoPath
   #   } else
@@ -343,7 +349,7 @@ activeX <- function(dep.var = 1, state, cache, update = 1, attribute.index,
   #   outIsolates <- cache[[dep.var]]$outdegree
   #   att <- state[[attribute.index]]
   #   n <- nrow( cache[[dep.var]]$binarizedNetwork )
-  #   if (update > 0){
+  #   if (update > 0) {
   #     egoAttMatrix <- matrix(att, n, n, byrow = F) * outIsolates
   #     return(egoAttMatrix)
   #   } else
@@ -353,7 +359,7 @@ activeX <- function(dep.var = 1, state, cache, update = 1, attribute.index,
 
 egoXaltX <- function(dep.var = 1, state, cache, update = 1, attribute.index,
                      meanValue = NULL, initialOnly = FALSE, n1, n2, isTwoMode = FALSE) {
-  #   if(initialOnly){
+  #   if(initialOnly) {
   #     contributingTies <- getContributingTies( dep.var, state, update )
   #     net <- contributingTies
   #   } else
@@ -375,7 +381,7 @@ sumCovariateEffects <- function(dep.var = 1, state, cache, update = 1,
 
 outInAssortativity <- function(dep.var = 1, state, cache, update = 1, exponent = 0.5,
                                initialOnly = FALSE, n1, n2, isTwoMode = FALSE) {
-  #   if(initialOnly){
+  #   if(initialOnly) {
   #     contributingTies <- getContributingTies( dep.var, state, update )
   #     net <- contributingTies * outer( (cache[[dep.var]]$outdegree)^exponent,
   #                                     (cache[[dep.var]]$indegree)^exponent, "*" )
@@ -420,7 +426,7 @@ egoIsolate <- function(dep.var = 1, state, cache, update = 1, initialOnly = NULL
 
 outPop <- function(dep.var = 1, state, cache, update = 1, initialOnly = FALSE,
                    exponent = 1, n1, n2, isTwoMode = FALSE) {
-  #   if(initialOnly){
+  #   if(initialOnly) {
   #     contributingTies <- getContributingTies( dep.var, state, update ) # Get ties that are available to change
   #     net <- t( t(contributingTies) * cache[[dep.var]]$outdegree )
   #   } else

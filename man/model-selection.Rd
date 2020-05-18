@@ -11,7 +11,7 @@
 
 \method{BIC}{result.goldfish}(object, ...)
 
-logLik.result.goldfish(object, avgPerEvent = FALSE, ...)
+\method{logLik}{result.goldfish}(object, avgPerEvent = FALSE, ...)
 }
 \arguments{
 \item{object}{a goldfish results object}

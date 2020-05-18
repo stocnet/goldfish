@@ -11,7 +11,7 @@
 #' - on the right side a list of names that correspond to effects we have in our pre-defined functions
 #' - parameters for the effects that are coherent with the documentation
 #' on top of this, we parse the formula to the right format for the rest of the estimation
-#' @param formula a class \code{formula} object that defines the model 
+#' @param formula a class \code{formula} object that defines the model
 #'
 #' @return a list with parsed values needed in the next steps
 #' @noRd
@@ -75,7 +75,7 @@ parseFormula <- function(formula) {
   ignoreRepParameter <- mult[[2]]
     # check mismatch with default parameter
   if (any(unlist(ignoreRepParameter)) && is.null(defaultNetworkName)) {
-    stop("No default network defined, thus ", sQuote('ignoreRep = TRUE'), " effects cannot be used.", call. = FALSE)
+    stop("No default network defined, thus ", sQuote("ignoreRep = TRUE"), " effects cannot be used.", call. = FALSE)
   }
   # check right side: weighted parameter
   weightedParameter <- lapply(rhsNames, function(x) {
@@ -91,7 +91,7 @@ parseFormula <- function(formula) {
   getFunName <- function(x, which) {
     v <- getElement(x, which)
     v <- ifelse(!is.null(v), v, "")
-    v <- gsub("['\" ]", "", v)  # replace quotation marks 
+    v <- gsub("['\" ]", "", v)  # replace quotation marks
     v <- ifelse(
       grepl("function.?\\(", v) || nchar(v) > 12,
       "userDefined", v) # if it is a function, it is replace by short text
@@ -117,7 +117,8 @@ parseFormula <- function(formula) {
 
 
 # Comparison of two parsed formulas for preprocessingInit
-# throws errors when: dependent events or default network are not the same, when there is righ-censoring for one and not the other
+# throws errors when: dependent events or default network are not the same, when there is righ-censoring
+# for one and not the other
 # returns: a list of the size of the new formula, with zeros when the effects are new, and with the
 #          the index of the effect in the old formula if the effect was already there
 compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel) {
@@ -350,7 +351,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
 
   # replace dependent labels with ids
   events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2)
-  # if(is.character(events[[1]]$sender) && is.character(events[[1]]$receiver)){
+  # if(is.character(events[[1]]$sender) && is.character(events[[1]]$receiver)) {
   #   events[[1]]$sender <- match(events[[1]]$sender, get(nodes)$label)
   #   events[[1]]$receiver <- match(events[[1]]$receiver, get(nodes2)$label)
   # }
@@ -362,7 +363,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
     attributeName <- objectNames[i, ]$attribute
     dynamicAttributes <- attr(get(objectNames[i, ]$nodeset, envir = envir), "dynamicAttribute")
     eventListNames <- attr(get(objectNames[i, ]$nodeset, envir = envir), "events")
-    evName <- eventListNames[ which(dynamicAttributes == attributeName) ]
+    evName <- eventListNames[which(dynamicAttributes == attributeName)]
 
     if (length(evName) > 0) {
       eventsObjectsLink <- rbind(

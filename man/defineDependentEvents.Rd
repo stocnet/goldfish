@@ -22,7 +22,8 @@ an object of class dependent.goldfish
 The final step in defining the data objects is to identify the dependent events.
 }
 \details{
-Before this step is performed, we have to define: 1. the nodeset (defineNodes), the network (defineNetwork) and the eventlist of the network (linkEvents).
+Before this step is performed, we have to define: 1. the nodeset (defineNodes), the network (defineNetwork)
+ and the eventlist of the network (linkEvents).
 }
 \examples{
 actors <- data.frame(

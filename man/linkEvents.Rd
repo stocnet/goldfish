@@ -46,7 +46,7 @@ actors <- defineNodes(nodes = actors)
 callNetwork <- defineNetwork(nodes = actors)
 
 # Link events to a Nodeset
-compositionChangeEvents <- data.frame(time = c(14, 60), node = 4, replace = c(FALSE, TRUE))
+compositionChangeEvents <- data.frame(time = c(14, 60), node = "Actor 4", replace = c(FALSE, TRUE))
 actorsnew <- linkEvents(x = actors, attribute = "present", changeEvents = compositionChangeEvents)
 
 # Link events to a Network

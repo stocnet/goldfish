@@ -10,7 +10,8 @@
 #' @name Social_Evolution
 #' @docType data
 #' @usage data(Social_Evolution)
-#' @format 3 dataframes: actors (84 rows, 4 columns), calls (439 rows, 4 columns), friendship (766 rows, 4 columns). See below for variables and formats.
+#' @format 3 dataframes: actors (84 rows, 4 columns), calls (439 rows, 4 columns), friendship (766 rows, 4 columns).
+#' See below for variables and formats.
 #'
 #' \tabular{lll}{
 #'    \strong{Object}      \tab  \strong{Description}                      \tab    \strong{Format}       \cr
@@ -30,7 +31,8 @@
 #'
 #' @source \url{http://realitycommons.media.mit.edu/socialevolution.html}
 #' @references
-#' A. Madan, M. Cebrian, S. Moturu, K. Farrahi, A. Pentland (2012). Sensing the 'Health State' of a Community. \emph{Pervasive Computing. 11}, 4, pp. 36-45.
+#' A. Madan, M. Cebrian, S. Moturu, K. Farrahi, A. Pentland (2012). Sensing the 'Health State' of a Community.
+#' \emph{Pervasive Computing. 11}, 4, pp. 36-45.
 #'
 #' @keywords datasets social evolution network
 NULL

@@ -26,7 +26,7 @@ init_DyNAM_rate.default <- function(effectFun,
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
 #'
-#' @return list with named components: cache numeric vector size n2, stat matrix numeric n1*n2 
+#' @return list with named components: cache numeric vector size n2, stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples
@@ -57,7 +57,7 @@ init_DyNAM_rate.default <- function(effectFun,
 #' effectFUN <- function(weighted = TRUE, isTwoMode = FALSE, transformFun = identity)
 #'   NULL
 #' init_DyNAM_rate.indeg(effectFUN, network, NULL, 5, 5)
-#' 
+#'
 #' effectFUN <- function(weighted = TRUE, isTwoMode = FALSE, transformFun = identity, type = "alter")
 #'   NULL
 #' init_DyNAM_rate.indeg(effectFUN, network, NULL, 5, 5)
@@ -78,12 +78,12 @@ init_DyNAM_rate.indeg <- function(effectFun, network, window, n1, n2) {
 #' @param cache numeric vector size n2
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' @param isTwoMode logical 
+#' @param isTwoMode logical
 #' @param weighted logical
 #' @param transformFun function to apply to the stat
 #'
-#' @return list: 
-#'   cache numeric vector size n2, 
+#' @return list:
+#'   cache numeric vector size n2,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
 #'
@@ -100,11 +100,11 @@ init_DyNAM_rate.indeg <- function(effectFun, network, window, n1, n2) {
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
 #' cache <- c(2, 7, 0, 1, 7)
-#' update_DyNAM_rate_indeg(network, 
-#'                               1, 2, 3, 
-#'                               cache, 5, 5, 
-#'                               isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt)
-#' 
+#' update_DyNAM_rate_indeg(network,
+#'                         1, 2, 3,
+#'                         cache, 5, 5,
+#'                         isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt)
+#'
 #' }
 update_DyNAM_rate_indeg <- function(network,
                                     sender, receiver, replace, cache,

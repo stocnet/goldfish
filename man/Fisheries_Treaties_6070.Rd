@@ -55,9 +55,13 @@ Dyadic variables include bilateral fisheries agreements between states,
 and states' contiguity with one another over time.
 }
 \references{
-Hollway, James, and Johan Koskinen. 2016. Multilevel Embeddedness: The Case of the Global Fisheries Governance Complex. \emph{Social Networks}, 44: 281-94. doi:10.1016/j.socnet.2015.03.001.
+Hollway, James, and Johan Koskinen. 2016. Multilevel Embeddedness: The Case of the Global Fisheries
+Governance Complex. \emph{Social Networks}, 44: 281-94. doi:10.1016/j.socnet.2015.03.001.
 
-Hollway, James, and Johan H Koskinen. 2016. Multilevel Bilateralism and Multilateralism: States' Bilateral and Multilateral Fisheries Treaties and Their Secretariats. In \emph{Multilevel Network Analysis for the Social Sciences}, edited by Emmanuel Lazega and Tom A B Snijders, 315-32. Cham: Springer International Publishing. doi:10.1007/978-3-319-24520-1_13.
+Hollway, James, and Johan H Koskinen. 2016. Multilevel Bilateralism and Multilateralism: States' Bilateral and
+Multilateral Fisheries Treaties and Their Secretariats.
+In \emph{Multilevel Network Analysis for the Social Sciences}, edited by Emmanuel Lazega and Tom A B Snijders,
+315-32. Cham: Springer International Publishing. doi:10.1007/978-3-319-24520-1_13.
 }
 \keyword{datasets}
 \keyword{dynamic}

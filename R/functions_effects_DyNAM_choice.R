@@ -36,13 +36,13 @@ init_DyNAM_choice.default <- function(effectFun,
     # create a copy of the network to iterate over
     if (hasMultNets) {
       areEmpty <- vapply(network, function(x) all(x[!is.na(x)] == 0), logical(1))
-      if ( (!is.null(window) && !is.infinite(window)) || any(areEmpty)) {
+      if ((!is.null(window) && !is.infinite(window)) || any(areEmpty)) {
         if (is.null(cache)) return(list(stat =  stats))
         return(list(cache = cache, stat =  stats))
       }
       netIter <- network[[1]]
     } else {
-      if ( (!is.null(window) && !is.infinite(window)) || all(network[!is.na(network)] == 0)) {
+      if ((!is.null(window) && !is.infinite(window)) || all(network[!is.na(network)] == 0)) {
         if (is.null(cache)) return(list(stat =  stats))
         return(list(cache = cache, stat =  stats))
       }
@@ -156,7 +156,7 @@ init_DyNAM_choice.default <- function(effectFun,
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
 #'
-#' @return list: stat matrix numeric n1*n2 
+#' @return list: stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples
@@ -182,7 +182,7 @@ init_DyNAM_choice.tie <- function(effectFun, network, window, n1, n2) {
   funApply <- eval(params[["transformFun"]])
 
   # has window or is empty initialize empty
-  if ( (!is.null(window) && !is.infinite(window)) || all(network == 0)) {
+  if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     value <- if (weighted) forceAndCall(1, funApply, 0) else 0
     return(list(stat = matrix(value, nrow = n1, ncol = n2)))
   }
@@ -208,7 +208,7 @@ init_DyNAM_choice.tie <- function(effectFun, network, window, n1, n2) {
 #' @param weighted logical
 #' @param transformFun function to apply to the stat
 #'
-#' @return list: 
+#' @return list:
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
 #'
@@ -224,9 +224,9 @@ init_DyNAM_choice.tie <- function(effectFun, network, window, n1, n2) {
 #'   ),
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
-#' update_DyNAM_choice_tie(network, 
-#'                             1, 2, 3, 
-#'                             weighted = TRUE, transformFun = sqrt)
+#' update_DyNAM_choice_tie(network,
+#'                         1, 2, 3,
+#'                         weighted = TRUE, transformFun = sqrt)
 #' }
 update_DyNAM_choice_tie <- function(network,
                                     sender, receiver, replace,
@@ -289,7 +289,7 @@ update_DyNAM_choice_inertia <- function(network,
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
 #'
-#' @return list with named components: cache numeric vector size n2, stat matrix numeric n1*n2 
+#' @return list with named components: cache numeric vector size n2, stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples
@@ -325,12 +325,12 @@ init_DyNAM_choice.indeg <- function(effectFun, network, window, n1, n2) {
 #' @param cache numeric vector size n2
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' @param isTwoMode logical 
+#' @param isTwoMode logical
 #' @param weighted logical
 #' @param transformFun function to apply to the stat
 #'
-#' @return list: 
-#'   cache numeric vector size n2, 
+#' @return list:
+#'   cache numeric vector size n2,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
 #'
@@ -347,11 +347,11 @@ init_DyNAM_choice.indeg <- function(effectFun, network, window, n1, n2) {
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
 #' cache <- c(2, 7, 0, 1, 0, 7)
-#' update_DyNAM_choice_indeg(network, 
-#'                               1, 2, 3, 
-#'                               cache, 5, 6, 
-#'                               isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt)
-#' 
+#' update_DyNAM_choice_indeg(network,
+#'                           1, 2, 3,
+#'                           cache, 5, 6,
+#'                           isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt)
+#'
 #' }
 update_DyNAM_choice_indeg <- function(network,
                                       sender, receiver, replace,
@@ -374,7 +374,7 @@ update_DyNAM_choice_indeg <- function(network,
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
 #'
-#' @return list with named components: cache numeric vector size n1, stat matrix numeric n1*n2 
+#' @return list with named components: cache numeric vector size n1, stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples
@@ -410,12 +410,12 @@ init_DyNAM_choice.outdeg <- function(effectFun, network, window, n1, n2) {
 #' @param cache numeric vector size n1
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' @param isTwoMode logical 
+#' @param isTwoMode logical
 #' @param weighted logical
 #' @param transformFun function to apply to the stat
 #'
-#' @return list: 
-#'   cache numeric vector size n1, 
+#' @return list:
+#'   cache numeric vector size n1,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
 #'
@@ -432,11 +432,11 @@ init_DyNAM_choice.outdeg <- function(effectFun, network, window, n1, n2) {
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
 #' cache <- c(2, 7, 0, 1, 0, 7)
-#' update_DyNAM_choice_indeg(network, 
-#'                               1, 2, 3, 
-#'                               cache, 5, 6, 
-#'                               isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt)
-#' 
+#' update_DyNAM_choice_indeg(network,
+#'                           1, 2, 3,
+#'                           cache, 5, 6,
+#'                           isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt)
+#'
 #' }
 update_DyNAM_choice_outdeg <- function(network,
                                        sender, receiver, replace,
@@ -459,8 +459,8 @@ update_DyNAM_choice_outdeg <- function(network,
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' 
-#' @return list: stat matrix numeric n1*n2 
+#'
+#' @return list: stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples
@@ -477,7 +477,7 @@ update_DyNAM_choice_outdeg <- function(network,
 #' )
 #' effectFUN <- function(weighted = FALSE, isTwoMode = FALSE, transformFun = sqrt)
 #'   NULL
-#' 
+#'
 #' init_DyNAM_choice.recip(effectFUN, network, NULL, 5, 5)
 #' }
 init_DyNAM_choice.recip <- function(effectFun, network, window, n1, n2) {
@@ -491,7 +491,7 @@ init_DyNAM_choice.recip <- function(effectFun, network, window, n1, n2) {
   }
 
   # has window or is empty initialize empty
-  if ( (!is.null(window) && !is.infinite(window)) || all(network == 0)) {
+  if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     value <- if (weighted) forceAndCall(1, funApply, 0) else 0
     return(list(stat = matrix(value, nrow = n1, ncol = n2)))
   }
@@ -514,10 +514,10 @@ init_DyNAM_choice.recip <- function(effectFun, network, window, n1, n2) {
 #' @param receiver integer
 #' @param replace numeric
 #' @param weighted logical
-#' @param isTwoMode logical 
+#' @param isTwoMode logical
 #' @param transformFun function to apply to the stat
 #'
-#' @return list: 
+#' @return list:
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
 #'
@@ -533,9 +533,9 @@ init_DyNAM_choice.recip <- function(effectFun, network, window, n1, n2) {
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' update_DyNAM_choice_recip(network, 
-#'                               1, 2, 9, 
-#'                               weighted = TRUE, isTwoMode = FALSE, transformFun = sqrt)
+#' update_DyNAM_choice_recip(network,
+#'                           1, 2, 9,
+#'                           weighted = TRUE, isTwoMode = FALSE, transformFun = sqrt)
 #' }
 update_DyNAM_choice_recip <- function(network,
                                       sender, receiver, replace,
@@ -588,10 +588,10 @@ update_DyNAM_choice_recip <- function(network,
 #' @param window NULL||numeric(1) size of the window
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' 
+#'
 #' @return list
 #'   cache matrix numeric n1*n1
-#'   stat matrix numeric n1*n1 
+#'   stat matrix numeric n1*n1
 #' @noRd
 #'
 #' @examples
@@ -621,7 +621,7 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2) {
   }
 
   # has window or is empty initialize empty
-  if ( (!is.null(window) && !is.infinite(window)) || all(network == 0)) {
+  if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
       cache = matrix(0, nrow = n1, ncol = n2),
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
@@ -648,11 +648,11 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2) {
 #' @param receiver integer
 #' @param replace numeric
 #' @param cache stat matrix numeric n1 * n1
-#' @param isTwoMode logical 
+#' @param isTwoMode logical
 #' @param transformFun function to apply to the stat
 #'
-#' @return list: 
-#'   cache matrix size n1 * n1, 
+#' @return list:
+#'   cache matrix size n1 * n1,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
 #'
@@ -670,13 +670,13 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2) {
 #' )
 #' cache <- matrix(
 #'   c(
-#'     1, 0, 0, 0, 0, 
-#'     0, 0, 0, 0, 0, 
-#'     0, 0, 0, 0, 0, 
-#'     0, 0, 0, 1, 1, 
+#'     1, 0, 0, 0, 0,
+#'     0, 0, 0, 0, 0,
+#'     0, 0, 0, 0, 0,
+#'     0, 0, 0, 1, 1,
 #'     0, 0, 0, 0, 0),
 #'   nrow = 5, ncol = 5)
-#' 
+#'
 #' update_DyNAM_choice_trans(network, 4, 3, 5, cache, transformFun = sqrt)
 #' }
 update_DyNAM_choice_trans <- function(network,
@@ -739,10 +739,10 @@ update_DyNAM_choice_trans <- function(network,
 #' @param window NULL||numeric(1) size of the window
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' 
+#'
 #' @return list
 #'   cache matrix numeric n1*n1
-#'   stat matrix numeric n1*n1 
+#'   stat matrix numeric n1*n1
 #' @noRd
 #'
 #' @examples
@@ -786,7 +786,7 @@ init_DyNAM_choice.mixedTrans <- function(effectFun, network, window, n1, n2) {
   network2 <- sign(network[[2]])
   network1 <- sign(network[[1]])
   # has window or is empty initialize empty
-  if ( (!is.null(window) && !is.infinite(window)) || all(network1 == 0) || all(network2 == 0)) {
+  if ((!is.null(window) && !is.infinite(window)) || all(network1 == 0) || all(network2 == 0)) {
     return(list(
       cache = matrix(0, nrow = n1, ncol = n2),
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
@@ -797,7 +797,7 @@ init_DyNAM_choice.mixedTrans <- function(effectFun, network, window, n1, n2) {
 
   # # It do no harm if we consider chain i->k->j with i = j
   # if (!isTwoMode) diag(stats) <- 0
-  
+
   return(list(
     cache = cache,
     stat = forceAndCall(1, funApply, cache)
@@ -812,11 +812,11 @@ init_DyNAM_choice.mixedTrans <- function(effectFun, network, window, n1, n2) {
 #' @param replace numeric
 #' @param netUpdate integer, indicates if the first or second network is being updated
 #' @param cache stat matrix numeric n1 * n1
-#' @param isTwoMode logical 
+#' @param isTwoMode logical
 #' @param transformFun function to apply to the stat
 #'
-#' @return list: 
-#'   cache matrix size n1 * n1, 
+#' @return list:
+#'   cache matrix size n1 * n1,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
 #'
@@ -845,10 +845,10 @@ init_DyNAM_choice.mixedTrans <- function(effectFun, network, window, n1, n2) {
 #' networks <- list(net1, net2)
 #' cache <- matrix(
 #'       c(
-#'         1, 0, 0, 0, 0, 
-#'         0, 0, 0, 1, 0, 
-#'         1, 0, 0, 0, 0, 
-#'         0, 1, 0, 0, 0, 
+#'         1, 0, 0, 0, 0,
+#'         0, 0, 0, 1, 0,
+#'         1, 0, 0, 0, 0,
+#'         0, 1, 0, 0, 0,
 #'         1, 0, 0, 0, 0),
 #'       nrow = 5, ncol = 5, byrow = TRUE)
 #' update_DyNAM_choice_mixedTrans(networks, 4, 3, 5, 1, cache, transformFun = sqrt)
@@ -939,10 +939,10 @@ update_DyNAM_choice_mixedTrans <- function(network, sender, receiver, replace,
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' 
+#'
 #' @return list
 #'   cache matrix numeric n1*n1
-#'   stat matrix numeric n1*n2 
+#'   stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples
@@ -975,7 +975,7 @@ init_DyNAM_choice.four <- function(effectFun, network, window, n1, n2) {
 
   # if (anyNA(network)) network[is.na(network)] <- 0
   # has window or is empty initialize empty
-  if ( (!is.null(window) && !is.infinite(window)) || all(network == 0)) {
+  if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
       cache = matrix(0, nrow = n1, ncol = n2),
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
@@ -1016,13 +1016,14 @@ init_DyNAM_choice.four <- function(effectFun, network, window, n1, n2) {
 #' @param receiver integer
 #' @param replace numeric
 #' @param cache stat matrix numeric n1 * n2
-#' @param isTwoMode logical 
+#' @param isTwoMode logical
 #' @param transformFun function to apply to the stat
 #'
-#' @return list: 
-#'   cache matrix numeric size n1 * n2, 
+#' @return list:
+#'   cache matrix numeric size n1 * n2,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
+#' @importFrom stats aggregate
 #'
 #' @examples
 #' \dontrun{
@@ -1046,7 +1047,7 @@ init_DyNAM_choice.four <- function(effectFun, network, window, n1, n2) {
 #'   ),
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
-#' 
+#'
 #' update_DyNAM_choice_four(network,
 #'                              3, 5, 2,
 #'                              cache,
@@ -1136,7 +1137,7 @@ update_DyNAM_choice_four <- function(network,
   if (!is.null(changes)) {
     if (nrow(changes) > 1) {
       changes <- as.data.frame(changes)
-      changes <- aggregate(replace ~ ., changes, sum)
+      changes <- stats::aggregate(replace ~ ., changes, sum)
       changes <- as.matrix(changes)
     }
 
@@ -1192,10 +1193,10 @@ update_DyNAM_choice_tertius <- function(network,
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' 
+#'
 #' @return list
 #'   cache numeric vector n1
-#'   stat matrix numeric n1*n2 
+#'   stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples
@@ -1224,7 +1225,7 @@ init_DyNAM_choice.tertius_diff <- function(effectFun, network, attribute, window
   isTwoMode <- eval(params[["isTwoMode"]])
   # if (anyNA(network)) network[is.na(network)] <- 0
   # has window or is empty initialize empty
-  if ( (!is.null(window) && !is.infinite(window)) || all(network == 0)) {
+  if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
       cache = numeric(n2),
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
@@ -1265,16 +1266,16 @@ init_DyNAM_choice.tertius_diff <- function(effectFun, network, attribute, window
 #' @param attribute numeric vector n1
 #' @param sender integer||NULL if node is not NULL
 #' @param receiver integer||NULL if node is not NULL
-#' @param node integer||NULL if sender and receiver are not NULL 
+#' @param node integer||NULL if sender and receiver are not NULL
 #' @param replace numeric
-#' @param cache numeric vector n1 
+#' @param cache numeric vector n1
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
 #' @param transformFun function to apply to the difference
 #' @param aggregateFun function usa to aggregate in-neighbors attributes
 #'
-#' @return list: 
-#'   cache numeric vector size n1 
+#' @return list:
+#'   cache numeric vector size n1
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
 #'
@@ -1292,7 +1293,7 @@ init_DyNAM_choice.tertius_diff <- function(effectFun, network, attribute, window
 #' )
 #' attribute <- c(1, 0, 1, 3, 1)
 #' cache <- c(2, 1, 0, 1, 0, 2)
-#' 
+#'
 #' update_DyNAM_choice_tertius_diff(network, attribute,
 #'                                 sender = 2, receiver = 3,
 #'                                 node = NULL,
@@ -1301,7 +1302,7 @@ init_DyNAM_choice.tertius_diff <- function(effectFun, network, attribute, window
 #'                                 n1 = 5, n2 = 6,
 #'                                 transformFun = function(x) x ^ 2,
 #'                                 aggregateFun = function(x) median(x, na.rm = TRUE))
-#' 
+#'
 #' update_DyNAM_choice_tertius_diff(network, attribute,
 #'                                 sender = NULL, receiver = NULL,
 #'                                 node = 3,

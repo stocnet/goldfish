@@ -8,3 +8,5 @@ src/*.dll
 docs/
 *.Rproj
 .Rprofile
+.lintr
+review.txt

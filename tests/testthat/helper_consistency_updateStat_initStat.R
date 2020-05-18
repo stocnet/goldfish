@@ -24,12 +24,14 @@ prep <- estimate(formula,
 # preprocess data using the update network without the last event
 # preprocess only keep updates of events that had happen before and dependant event update
 finalNetwork <- UpdateNetwork(callNetwork, head(calls, -1), nodes = "actors")
+# friendNetwork2 <- UpdateNetwork(friendNetwork, subset(friendship, time < max(calls$time)))
 # finalNetwork <- UpdateNetwork(callNetwork, calls, nodes = "actors")
 
 callNetwork2 <- defineNetwork(finalNetwork, nodes = actors, directed = TRUE)
 newCalls <- tail(calls, 1)
 callNetwork2 <- linkEvents(x = callNetwork2, changeEvent = newCalls, nodes = actors)
 callsDependent <- defineDependentEvents(events = newCalls, nodes = actors, defaultNetwork = callNetwork2)
+
 prep_new <- estimate(formula,
   model = model, subModel = subModel,
   preprocessingOnly = TRUE, silent = TRUE

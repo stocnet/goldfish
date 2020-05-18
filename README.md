@@ -32,7 +32,7 @@ between initial and repeated creation of ties (multiplicity of ties).
 You can install the latest version of the `goldfish` package from source using `devtools`:
 
 ```r
-devtools::install_github("snlab-ch/goldfish")
+remotes::install_github("snlab-ch/goldfish")
 ```
 
 Or by downloading and install the latest binary from [the releases page](https://github.com/snlab-ch/goldfish/releases).
@@ -49,5 +49,4 @@ Some links that may be helpful include:
 - https://thecoatlessprofessor.com/programming/openmp-in-r-on-os-x/
 - https://ryanhomer.github.io/posts/build-openmp-macos-catalina-complete
 
-Please share feedback on which of these work 
-and we will update the installation guide accordingly.
+Please share feedback on which of these work and we will update the installation guide accordingly.

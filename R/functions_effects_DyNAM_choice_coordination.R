@@ -116,16 +116,16 @@ update_DyNAM_choice_coordination_tertius <- function(network,
 #' @param attribute numeric vector n1
 #' @param sender integer||NULL if node is not NULL
 #' @param receiver integer||NULL if node is not NULL
-#' @param node integer||NULL if sender and receiver are not NULL 
+#' @param node integer||NULL if sender and receiver are not NULL
 #' @param replace numeric
-#' @param cache numeric vector n1 
+#' @param cache numeric vector n1
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
 #' @param transformFun function to apply to the difference
 #' @param aggregateFun function usa to aggregate in-neighbors attributes
 #'
-#' @return list: 
-#'   cache numeric vector size n1 
+#' @return list:
+#'   cache numeric vector size n1
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
 #'
@@ -143,7 +143,7 @@ update_DyNAM_choice_coordination_tertius <- function(network,
 #' )
 #' attribute <- c(1, 0, 1, 3, 1)
 #' cache <- c(2, 1, 0, 1, 0, 2)
-#' 
+#'
 #' update_DyNAM_choice_coordination_tertius_diff(network, attribute,
 #'                                 sender = 2, receiver = 3,
 #'                                 node = NULL,
@@ -152,7 +152,7 @@ update_DyNAM_choice_coordination_tertius <- function(network,
 #'                                 n1 = 5, n2 = 6,
 #'                                 transformFun = function(x) x ^ 2,
 #'                                 aggregateFun = function(x) median(x, na.rm = TRUE))
-#' 
+#'
 #' update_DyNAM_choice_coordination_tertius_diff(network, attribute,
 #'                                 sender = NULL, receiver = NULL,
 #'                                 node = 3,

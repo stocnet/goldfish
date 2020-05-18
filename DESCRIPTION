@@ -1,3 +1,4 @@
+Encoding: UTF-8
 Package: goldfish
 Type: Package
 Title: Goldfish -- Statistical network models for dynamic network data
@@ -18,10 +19,12 @@ Authors@R: c(person("Christoph", "Stadtfeld", role = c("cre", "aut"), email = "c
 Description: The Goldfish Project is an R package that allows to fit statistical network models (such as DyNAM and REM) to dynamic network data.
 URL: www.social-networks.ethz.ch/research/goldfish.html
 BugReports: https://github.com/snlab-ch/goldfish/issues
-Suggests: testthat, knitr, beepr
+Suggests: testthat, knitr, devtools
 VignetteBuilder: knitr 
 License: GPL (>= 3)
 LazyData: true
 RoxygenNote: 7.1.0
-Imports: Rcpp (>= 1.0.1), changepoint
+Depends: R (>= 3.5.0)
+Imports: Rcpp (>= 1.0.1), changepoint, methods, utils, stats
 LinkingTo: Rcpp, RcppArmadillo
+NeedsCompilation: yes

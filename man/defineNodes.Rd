@@ -10,18 +10,19 @@ defineNodes(nodes)
 \item{nodes}{\code{\link{data.frame}} that contains
 \describe{
  \item{label}{\code{\link{character}} column containing the nodes labels (mandatory)}
- \item{present}{\code{\link{logical}} column indicating if the respective node is present at the first timepoint (optional)}
+ \item{present}{\code{\link{logical}} column indicating if the respective node is present at the
+ first timepoint (optional)}
 }}
 }
 \value{
 an object of class \code{nodes.goldfish}
 }
 \description{
-The \code{defineNodes} function processes and checks the \code{\link{data.frame}} passed to \code{nodes} argument. 
+The \code{defineNodes} function processes and checks the \code{\link{data.frame}} passed to \code{nodes} argument.
 This is a necessary step before the definition of the network.
 }
 \details{
-Additional columns in the \code{nodes} argument are considered as the initial values of nodes attributes. 
+Additional columns in the \code{nodes} argument are considered as the initial values of nodes attributes.
 Those columns must be of class \code{\link{numeric}}, \code{\link{character}}, \code{\link{logical}}
 }
 \examples{

@@ -59,7 +59,8 @@ test_that("Estimation for for DyNAM-rate with data Social Evolution", {
 
 # # REM----
 # test_that("Estimation for for REM with data from Social Evolution", {
-#   res_default_c <- estimate(callsDependent ~ 1 + inertia + recip + trans, model = "REM", subModel = "choice", silent = TRUE)
+#   res_default_c <- estimate(callsDependent ~ 1 + inertia + recip + trans, model = "REM",
+#   subModel = "choice", silent = TRUE)
 #   res_default_c <- estimate(callsDependent ~ 1 + inertia + recip + trans, model = "REM", subModel = "choice",
 #    estimationInit = list(engine = "default_c"), silent = TRUE)
 #   res_compute_gather <- estimate(callsDependent ~ 1 + inertia + recip + trans, model = "REM", subModel = "choice",
@@ -70,7 +71,8 @@ test_that("Estimation for for DyNAM-rate with data Social Evolution", {
 
 # # DyNAM-MM----
 # test_that("Estimation for for DyNAM-MM with data from Social Evolution", {
-#   res_default_c <- estimate(callsDependent ~ inertia +  trans, model = "DyNAM", subModel = "choice_coordination", silent = TRUE)
+#   res_default_c <- estimate(callsDependent ~ inertia +  trans, model = "DyNAM", subModel = "choice_coordination",
+#   silent = TRUE)
 #   res_default_c <- estimate(callsDependent ~ inertia +  trans, model = "DyNAM", subModel = "choice_coordination",
 #    estimationInit = list(engine = "default_c"), silent = TRUE)
 #   res_compute_gather <- estimate(callsDependent ~ inertia + trans, model = "DyNAM", subModel = "choice_coordination",
