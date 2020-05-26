@@ -117,7 +117,7 @@ print.summary.result.goldfish <- function(x, fixed = FALSE,
   cat("\n")
   cat(" ", paste(
     ifelse(x$convergence$isConverged, "Converged", "Not converged"), "with max abs. score of",
-    signif(x$convergence$maxAbsScore, digits)
+    round(x$convergence$maxAbsScore, digits)
   ), "\n")
   cat(" ", paste("Log-Likelihood: ", signif(x$logLikelihood, digits), "\n", sep = ""))
   cat(" ",
@@ -633,8 +633,7 @@ tail.dependent.goldfish <- function(x, n = 6L, keepnums = FALSE, addrownums = FA
 
 #' print preprocessed.goldfish
 #'
-#' @param x
-#' @param digits
+#' @param x a preprocessed.goldfish object
 #'
 #' @return
 #' @export
@@ -642,7 +641,7 @@ tail.dependent.goldfish <- function(x, n = 6L, keepnums = FALSE, addrownums = FA
 #'
 #' @examples print(structure(list(formula = dep ~ inertia, dependentStatistics = numeric(20)),
 #' class = "preprocessed.goldfish"))
-print.preprocessed.goldfish <- function(x, digits = 2) {
+print.preprocessed.goldfish <- function(x) {
   cat("**Preprocess object for the model:**\n")
   print(x$formula)
   cat(" dependent events processed: ", length(x$dependentStatsChange), "\n")

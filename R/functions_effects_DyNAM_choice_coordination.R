@@ -67,7 +67,18 @@ update_DyNAM_choice_coordination_trans <- function(network,
 
 
 # mixedTrans --------------------------------------------------------------
-
+update_DyNAM_choice_coordination_mixedTrans <- function(network,
+                                                   sender,
+                                                   receiver,
+                                                   replace, netUpdate, cache,
+                                                   isTwoMode = FALSE,
+                                                   transformFun = identity)
+  update_DyNAM_choice_mixedTrans(
+    network = network,
+    sender = sender, receiver = receiver, replace = replace,
+    netUpdate = netUpdate, cache = cache,
+    isTwoMode = isTwoMode, transformFun = transformFun
+  )
 
 # four --------------------------------------------------------------------
 update_DyNAM_choice_coordination_four <- function(

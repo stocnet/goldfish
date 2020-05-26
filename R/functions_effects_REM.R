@@ -434,7 +434,23 @@ update_REM_choice_trans <- function(network,
 
 
 # mixedTrans --------------------------------------------------------------
+init_REM_choice.mixedTrans <- function(effectFun, network, window, n1, n2)
+  init_DyNAM_choice.mixedTrans(effectFun = effectFun, network = network,
+                          window = window,
+                          n1 = n1, n2 = n2)
 
+update_REM_choice_mixedTrans <- function(network,
+                                         sender,
+                                         receiver,
+                                         replace, netUpdate, cache,
+                                         isTwoMode = FALSE,
+                                         transformFun = identity)
+  update_DyNAM_choice_mixedTrans(
+    network = network,
+    sender = sender, receiver = receiver, replace = replace,
+    netUpdate = netUpdate, cache = cache,
+    isTwoMode = isTwoMode, transformFun = transformFun
+  )
 
 # four --------------------------------------------------------------------
 init_REM_choice.four <- function(effectFun, network, window, n1, n2)
