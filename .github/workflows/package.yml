@@ -9,43 +9,8 @@ on:
 name: Binary creation
 
 jobs:
-  # createrelease:
-  #   name: createrelease
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout one
-  #       uses: actions/checkout@master
-  #       with:
-  #         fetch-depth: '0'
-  #     - name: Bump version and push tag
-  #       id: newtag
-  #       uses: anothrNick/github-tag-action@1.17.2
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #         WITH_V: true
-  #         DEFAULT_BUMP: patch
-  #     - name: Checkout two
-  #       uses: actions/checkout@v2
-  #     - name: Create Release
-  #       id: create_release
-  #       uses: actions/create-release@v1
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       with:
-  #         tag_name: ${{ steps.newtag.outputs.tag }}
-  #         release_name: Release ${{ steps.newtag.outputs.tag }}
-  #         draft: false
-  #         prerelease: false
-  #     - name: Output Release URL File
-  #       run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
-  #     - name: Save Release URL File for publish
-  #       uses: actions/upload-artifact@v1
-  #       with:
-  #         name: release_url
-  #         path: release_url.txt
 
   build:
-    # needs: [createrelease]
     name: Build for ${{ matrix.config.os }}
     runs-on: ${{ matrix.config.os }}
     strategy:
@@ -173,4 +138,64 @@ jobs:
       #     asset_path: build
       #     asset_name: ${{ matrix.config.asset_name }}
       #     asset_content_type: application/zip
+      
+  release:
+    name: Bump version and release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout one
+        uses: actions/checkout@master
+        with:
+          fetch-depth: '0'
+      - name: Bump version and push tag
+        id: newtag
+        uses: anothrNick/github-tag-action@1.17.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
+      - name: Checkout two
+        uses: actions/checkout@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.newtag.outputs.tag }}
+          release_name: Release ${{ steps.newtag.outputs.tag }}
+          draft: false
+          prerelease: false
+      - name: Download Mac binary
+        uses: actions/download-artifact@v1
+        with: 
+          name: macOS
+          path: build
+      - name: Upload Mac binary
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: build/macOS
+          asset_name: macOS
+          asset_content_type: application/tar.gz
+      - name: Download Windows binary
+        uses: actions/download-artifact@v1
+        with: 
+          name: winOS
+          path: build
+      - name: Upload Windows binary
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: build/winOS
+          asset_name: winOS
+          asset_content_type: application/zip
+      
         
