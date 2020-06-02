@@ -118,27 +118,6 @@ jobs:
           name: ${{ matrix.config.asset_name }}
           path: build
         
-      # - name: Load Release URL File from release job
-      #   uses: actions/download-artifact@v1
-      #   with:
-      #     name: release_url    
-      # - shell: bash
-      #   name: Get Release File Name & Upload URL
-      #   id: get_release_info
-      #   run: |
-      #     value=`cat release_url/release_url.txt`
-      #     echo ::set-output name=upload_url::$value
-      # - name: Upload binaries to release
-      #   id: upload-release-asset 
-      #   uses: actions/upload-release-asset@v1.0.1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-      #     asset_path: build
-      #     asset_name: ${{ matrix.config.asset_name }}
-      #     asset_content_type: application/zip
-      
   release:
     name: Bump version and release
     needs: build
@@ -173,7 +152,7 @@ jobs:
           name: macOS
           path: build
       - name: Upload Mac binary
-        id: upload-release-asset 
+        id: upload-mac-binary 
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -188,7 +167,7 @@ jobs:
           name: winOS
           path: build
       - name: Upload Windows binary
-        id: upload-release-asset 
+        id: upload-win-binary 
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
