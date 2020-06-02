@@ -146,35 +146,18 @@ jobs:
           release_name: Release ${{ steps.newtag.outputs.tag }}
           draft: false
           prerelease: false
-      - name: Download Mac binary
+      - name: Download binaries
         uses: actions/download-artifact@v1
         with: 
-          name: macOS
           path: build
-      - name: Upload Mac binary
-        id: upload-mac-binary 
+      - name: Upload binaries
+        id: upload-binaries
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: build/macOS
-          asset_name: macOS
-          asset_content_type: application/tar.gz
-      - name: Download Windows binary
-        uses: actions/download-artifact@v1
-        with: 
-          name: winOS
-          path: build
-      - name: Upload Windows binary
-        id: upload-win-binary 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: build/winOS
-          asset_name: winOS
+          asset_path: build/
           asset_content_type: application/zip
       
         
