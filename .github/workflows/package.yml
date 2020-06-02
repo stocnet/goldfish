@@ -116,7 +116,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: ${{ matrix.config.asset_name }}
-          path: build
+          path: build/
         
   release:
     name: Bump version and release
@@ -146,21 +146,6 @@ jobs:
           release_name: Release ${{ steps.newtag.outputs.tag }}
           draft: false
           prerelease: false
-      - name: Download Mac binary
-        uses: actions/download-artifact@v1
-        with: 
-          name: macOS
-          path: build
-      - name: Upload Mac binary
-        id: upload-mac-binary 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: build/goldfish_*.tgz
-          asset_name: macOS
-          asset_content_type: application/tgz
       - name: Download Windows binary
         uses: actions/download-artifact@v1
         with: 
@@ -176,5 +161,20 @@ jobs:
           asset_path: build/goldfish_*.zip
           asset_name: winOS
           asset_content_type: application/zip
+      - name: Download Mac binary
+        uses: actions/download-artifact@v1
+        with: 
+          name: macOS
+          path: build
+      - name: Upload Mac binary
+        id: upload-mac-binary 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: build/goldfish_*.tar.gz
+          asset_name: macOS
+          asset_content_type: application/tgz
       
         
