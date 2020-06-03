@@ -156,7 +156,7 @@ jobs:
       - name: Zip up
         uses: montudor/action-zip@v0.1.0
         with:
-          args: zip -qq -r goldfish.zip macOS/* winOS/*
+          args: zip -qq -r goldfish.zip . -i ./macOS/ ./winOS/
 
       - name: Display structure of downloaded files again
         run: ls -R
