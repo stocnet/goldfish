@@ -153,26 +153,34 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R
 
-      - name: Upload Windows binary
-        id: upload-win-binary 
-        uses: actions/upload-release-asset@v1
+      - name: Zip up
+        uses: montudor/action-zip@v0.1.0
+        with:
+          args: zip -qq -r goldfish.zip macOS/* winOS/*
+
+      - name: Display structure of downloaded files again
+        run: ls -R
+
+      - name: Upload binary
+        id: upload-binary 
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: winOS/*.zip
-          asset_name: winOS
+          asset_path: goldfish.zip
+          asset_name: goldfish.zip
           asset_content_type: application/zip
           
-      - name: Upload Mac binary
-        id: upload-mac-binary 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: macOS/*.tgz
-          asset_name: macOS
-          asset_content_type: application/zip
+#      - name: Upload Mac binary
+#        id: upload-mac-binary 
+#        uses: actions/upload-release-asset@v1.0.2
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+#          asset_path: macOS/*.tgz
+#          asset_name: macOS
+#          asset_content_type: application/zip
       
         
