@@ -147,11 +147,12 @@ jobs:
           draft: false
           prerelease: false
           
-      - name: Download Windows binary
+      - name: Download binaries
         uses: actions/download-artifact@v1
-        with: 
-          name: winOS
-          path: build/
+        
+      - name: Display structure of downloaded files
+        run: ls -R
+
       - name: Upload Windows binary
         id: upload-win-binary 
         uses: actions/upload-release-asset@v1
@@ -159,15 +160,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: build/winOS
+          asset_path: winOS
           asset_name: winOS
           asset_content_type: application/zip
           
-      - name: Download Mac binary
-        uses: actions/download-artifact@v1
-        with: 
-          name: macOS
-          path: build
       - name: Upload Mac binary
         id: upload-mac-binary 
         uses: actions/upload-release-asset@v1
@@ -175,7 +171,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: build/goldfish_*.tar.gz
+          asset_path: goldfish_*.tar.gz
           asset_name: macOS
           asset_content_type: application/tgz
       
