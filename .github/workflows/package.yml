@@ -156,7 +156,7 @@ jobs:
       - name: Zip up
         uses: montudor/action-zip@v0.1.0
         with:
-          args: zip -qq -r goldfish.zip . -i ./macOS/ ./winOS/
+          args: zip -qq -r goldfish_AllOS.zip . -i ./macOS/ ./winOS/
 
       - name: Display structure of downloaded files again
         run: ls -R
@@ -168,8 +168,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: goldfish.zip
-          asset_name: goldfish.zip
+          asset_path: macOS
+          asset_name: macOS
           asset_content_type: application/zip
           
 #      - name: Upload Mac binary
