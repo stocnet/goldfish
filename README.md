@@ -1,9 +1,12 @@
 # goldfish  <img src="inst/hexlogo_goldfish.png" align="right" width="150"/> 
 
+<!-- badges: start -->
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/snlab-ch/goldfish)
 ![GitHub Release Date](https://img.shields.io/github/release-date/snlab-ch/goldfish)
 ![GitHub issues](https://img.shields.io/github/issues-raw/snlab-ch/goldfish)
 ![GitHub All Releases](https://img.shields.io/github/downloads/snlab-ch/goldfish/total)
+[![Codecov test coverage](https://codecov.io/gh/snlab-ch/goldfish/branch/master/graph/badge.svg)](https://codecov.io/gh/snlab-ch/goldfish?branch=master)
+<!-- badges: end -->
 
 ## About
 
