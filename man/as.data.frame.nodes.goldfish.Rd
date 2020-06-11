@@ -4,7 +4,7 @@
 \alias{as.data.frame.nodes.goldfish}
 \title{Create a data frame from a dynamic nodes object}
 \usage{
-\method{as.data.frame}{nodes.goldfish}(x, time = -Inf, startTime = -Inf, ...)
+\method{as.data.frame}{nodes.goldfish}(x, time = -Inf, startTime = -Inf, envir = environment(), ...)
 }
 \arguments{
 \item{x}{a goldfish nodes object}

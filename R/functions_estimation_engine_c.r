@@ -37,7 +37,8 @@ estimate_c_int <- function(statsList,
                            testing = FALSE,
                            get_data_matrix = FALSE,
                            impute = FALSE,
-                           engine = "default_c") {
+                           engine = "default_c",
+                           envir = environment()) {
 
   minDampingFactor <- initialDamping
   # CHANGED MARION
@@ -100,8 +101,8 @@ estimate_c_int <- function(statsList,
   compChangeName2 <- attr(nodes2, "events")["present" == attr(nodes2, "dynamicAttribute")]
   compChange1 <- NULL
   compChange2 <- NULL
-  if (!is.null(compChangeName1) && length(compChangeName1) > 0) compChange1 <- get(compChangeName1)
-  if (!is.null(compChangeName2) && length(compChangeName2) > 0) compChange2 <- get(compChangeName2)
+  if (!is.null(compChangeName1) && length(compChangeName1) > 0) compChange1 <- get(compChangeName1, envir = envir)
+  if (!is.null(compChangeName2) && length(compChangeName2) > 0) compChange2 <- get(compChangeName2, envir = envir)
 
 
   ## ADD INTERCEPT
@@ -189,8 +190,8 @@ estimate_c_int <- function(statsList,
   compChangeName1 <- attr(nodes, "events")["present" == attr(nodes, "dynamicAttribute")]
   compChangeName2 <- attr(nodes2, "events")["present" == attr(nodes2, "dynamicAttribute")]
   if (!is.null(compChangeName1) && length(compChangeName1) > 0) {
-    temp <- get(compChangeName1)
-    temp <- sanitizeEvents(temp, nodes)
+    temp <- get(compChangeName1, envir = envir)
+    temp <- sanitizeEvents(temp, nodes, envir = envir)
     temp <- C_convert_composition_change(temp, unlist(statsList$eventTime))
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
@@ -200,8 +201,8 @@ estimate_c_int <- function(statsList,
   }
 
   if (!is.null(compChangeName2) && length(compChangeName2) > 0) {
-    temp <- get(compChangeName2)
-    temp <- sanitizeEvents(temp, nodes2)
+    temp <- get(compChangeName2, envir = envir)
+    temp <- sanitizeEvents(temp, nodes2, envir = envir)
     temp <- C_convert_composition_change(temp, unlist(statsList$eventTime))
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer

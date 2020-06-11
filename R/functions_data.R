@@ -6,12 +6,6 @@
 #
 ################################## ###
 
-# TODO: (data team)
-# - It is much prettier do define two functions
-#   1) linkEvents.goldfish.nodes and
-#   2) linkEvents.goldfish.network
-#   Checks that relate to both can be put somewhere else. This one is really hard to debug...
-
 ## INTERFACE objects
 
 #' Create a data frame from a dynamic nodes object
@@ -21,7 +15,7 @@
 #' @param ... additional arguments to be passed to or from methods
 #' @export
 #' @return a data frame
-as.data.frame.nodes.goldfish <- function(x, time = -Inf, startTime = -Inf, ...) {
+as.data.frame.nodes.goldfish <- function(x, time = -Inf, startTime = -Inf, envir = environment(), ...) {
   df <- x
   dynamicAttributes <- attr(df, "dynamicAttribute")
   eventNames <- attr(df, "events")
@@ -32,8 +26,8 @@ as.data.frame.nodes.goldfish <- function(x, time = -Inf, startTime = -Inf, ...) 
     return(df)
   }
   for (i in seq_along(eventNames)) {
-    events <- get(eventNames[i])
-    events <- sanitizeEvents(events, df)
+    events <- get(eventNames[i], envir = envir)
+    events <- sanitizeEvents(events, df, envir = envir)
     events <- events[events$time >= startTime & events$time < time, ]
 
     if (nrow(events) > 0 && !is.null(events$replace)) {
@@ -56,7 +50,7 @@ as.data.frame.nodes.goldfish <- function(x, time = -Inf, startTime = -Inf, ...) 
 #' @param ... additional arguments to be passed to or from methods
 #' @export
 #' @return a matrix
-as.matrix.network.goldfish <- function(x, time = -Inf, startTime = -Inf, ...) {
+as.matrix.network.goldfish <- function(x, time = -Inf, startTime = -Inf, envir = environment(),  ...) {
   net <- x
   if (is.character(time)) time <- as.POSIXct(time)
   time <- as.numeric(time)
@@ -74,9 +68,9 @@ as.matrix.network.goldfish <- function(x, time = -Inf, startTime = -Inf, ...) {
   if (is.null(eventNames)) {
     return(x[1:dim[1], 1:dim[2]])
   }
-  events <- lapply(lapply(eventNames, get),
+  events <- lapply(lapply(eventNames, get, envir = envir),
     sanitizeEvents,
-    nodes = nodes, nodes2 = nodes2
+    nodes = nodes, nodes2 = nodes2, envir = envir
   )
   # quick update for single event lists with replace
   if (length(events) == 1) {
@@ -132,22 +126,22 @@ goldfishObjects <- function(y = ls(envir = .GlobalEnv), envir = .GlobalEnv) {
     # identify goldfish objects
     classesToKeep <- c("nodes.goldfish", "network.goldfish", "dependent.goldfish",
                        "global.goldfish")
-    ClassFilter <- function(x) any(checkClasses(get(x), classes = classesToKeep))
+    ClassFilter <- function(x) any(checkClasses(get(x, envir = envir), classes = classesToKeep))
     object <- Filter(ClassFilter, y)
     # if(is.null(object)) stop("No goldfish objects defined.")
 
     # identify classes of these objects
     classes <- vapply(object,
-                      FUN = function(x) checkClasses(get(x), classes = classesToKeep),
+                      FUN = function(x) checkClasses(get(x, envir = envir), classes = classesToKeep),
                       FUN.VALUE = logical(length(classesToKeep)))
 
     if (any(classes["nodes.goldfish", ])) {
       cat("Goldfish Nodes\n")
       names <- object[classes["nodes.goldfish", ]]
-      n <- vapply(names, function(x) nrow(get(x)), integer(1))
-      attributes <- vapply(names, function(x) paste(names(get(x)), collapse = ", "), character(1))
+      n <- vapply(names, function(x) nrow(get(x, envir = envir)), integer(1))
+      attributes <- vapply(names, function(x) paste(names(get(x, envir = envir)), collapse = ", "), character(1))
       events <- vapply(names,
-                       function(x) paste(attr(get(x), "dynamicAttributes"), collapse = ", "),
+                       function(x) paste(attr(get(x, envir = envir), "dynamicAttributes"), collapse = ", "),
                        character(1))
       print(data.frame(row.names = names, n, attributes, events))
       cat("\n")
@@ -157,13 +151,13 @@ goldfishObjects <- function(y = ls(envir = .GlobalEnv), envir = .GlobalEnv) {
       cat("Goldfish Networks\n")
       names <- object[classes["network.goldfish", ]]
       dimensions <- vapply(names,
-                           function(x) paste(dim(get(x)), collapse = " x "),
+                           function(x) paste(dim(get(x, envir = envir)), collapse = " x "),
                            character(1))
       nodesets <- vapply(names,
-                         function(x) paste(attr(get(x), "nodes"), collapse = ", "),
+                         function(x) paste(attr(get(x, envir = envir), "nodes"), collapse = ", "),
                          character(1))
       events <- vapply(names,
-                       function(x) paste(attr(get(x), "events"), collapse = ", "),
+                       function(x) paste(attr(get(x, envir = envir), "events"), collapse = ", "),
                        character(1))
       print(data.frame(row.names = names, dimensions, nodesets, events))
       cat("\n")
@@ -172,10 +166,10 @@ goldfishObjects <- function(y = ls(envir = .GlobalEnv), envir = .GlobalEnv) {
     if (any(classes["dependent.goldfish", ])) {
       cat("Goldfish Dependent Events\n")
       names <- object[classes["dependent.goldfish", ]]
-      n <- vapply(names, function(x) nrow(get(x)), integer(1))
+      n <- vapply(names, function(x) nrow(get(x, envir = envir)), integer(1))
       network <- vapply(names,
                         function(x) {
-                          net <- attr(get(x), "defaultNetwork")
+                          net <- attr(get(x, envir = envir), "defaultNetwork")
                           ifelse(is.null(net), "", net)
                           },
                         character(1))
@@ -186,7 +180,7 @@ goldfishObjects <- function(y = ls(envir = .GlobalEnv), envir = .GlobalEnv) {
     if (any(classes["global.goldfish", ])) {
       cat("Goldfish Global Attributes\n")
       names <- object[classes["global.goldfish", ]]
-      dimensions <- vapply(names, function(x) nrow(get(x)), integer(1))
+      dimensions <- vapply(names, function(x) nrow(get(x, envir = envir)), integer(1))
       print(data.frame(row.names = names, dimensions))
       cat("\n")
     }
@@ -586,16 +580,16 @@ linkEvents.default <- function(x, ...)
     stop('Invalid argument object: this function expects either a "nodes.goldfish" or a "network.goldfish" object.')
 
 
-createDist2events <- function(network, nodes, nodes2, attribute, FUN) {
+createDist2events <- function(network, nodes, nodes2, attribute, FUN, envir = environment()) {
   times <- vector("character")
   if (attribute %in% attr(nodes, "dynamicAttributes")) {
     att.events <- attr(nodes, "events")[which(attr(nodes, "dynamicAttributes") == attribute)]
-    att.events <- get(att.events)
+    att.events <- get(att.events, envir = envir)
     times <- c(times, as.character(unique(att.events$time)))
   }
   if (length(attr(network, "events")) > 0) {
     net.events <- attr(network, "events")
-    net.events <- get(net.events)
+    net.events <- get(net.events, envir = envir)
     times <- c(times, as.character(unique(net.events$time)))
   }
   times <- as.POSIXct(times)

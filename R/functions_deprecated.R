@@ -52,7 +52,7 @@ imputeMissings <- function(processStateObject) {
 # given a network and a window, this function returns a list where:
 # - the first element is the dynamic window network
 # - the associated event lists
-getTimeWindowData <- function(network, window, envir = NULL) {
+getTimeWindowData <- function(network, window, envir = environment()) {
 
   # get initial network's name
   name <- as.character(substitute(network))
@@ -70,7 +70,7 @@ getTimeWindowData <- function(network, window, envir = NULL) {
 
   # create new windowed events lists, link them
   for (events in allEvents) {
-    objectEvents <- get(events, envir = environment())
+    objectEvents <- get(events, envir = envir)
     newEvents <- createWindowedEvents(objectEvents, window)
     allNewEvents <- c(allNewEvents, newEvents)
     nameNewEvents <- paste(events, window, sep = "_")
@@ -94,23 +94,12 @@ getTimeWindowData <- function(network, window, envir = NULL) {
   return(res)
 }
 
-getParameterNameFromClass <- function(x) {
-  # transform names of internal attributes to parameter names
-  if (inherits(x, "network.goldfish")) {
-    return("network")
-  }
-  if (inherits(x, "network.attribute")) {
-    return("attribute")
-  }
-  stop("Unknown dynamic object of type", class(x))
-}
-
 # TODO: This is dangerous. What if a multipleParameter disappears?
 # Should multiple ONLY work with a default network?
-removeMultipleEvents <- function(updates, multipleParameter) {
+removeMultipleEvents <- function(updates, multipleParameter, envir = environment()) {
   multIds <- which(!unlist(multipleParameter))
   for (i in multIds) {
-    net <- get(names(multipleParameter)[multIds])
+    net <- get(names(multipleParameter)[multIds], envir = envir)
     # append all forced zero events to the event list;
     # those will overwrite any positive updates and positive values in the statistics function
     addIds <- which(net > 0, arr.ind = TRUE)

@@ -29,14 +29,15 @@ estimate_old <- function(prep,
                          cpus,
                          effectDescription,
                          verbose,
-                         silent) {
+                         silent,
+                         envir = environment()) {
 
   # TRANSFORM to old data format
   prepOld <- list()
   prepOld$dep <- list()
   stats <- prep$initialStats
-  n1 <- nrow(get(nodes))
-  n2 <- nrow(get(nodes2))
+  n1 <- nrow(get(nodes, envir = envir))
+  n2 <- nrow(get(nodes2, envir = envir))
 
   # 4a. Update statististics WITH right-censored intervals (FIX)
 
@@ -111,7 +112,7 @@ estimate_old <- function(prep,
   # 4b. Handle the ignoreRep option
   if (any(unlist(ignoreRepParameter))) {
     if (!silent) cat("Setting events with ignoring repetitions.\n")
-    net <- get(defaultNetworkName)
+    net <- get(defaultNetworkName, envir = envir)
     ignoreRepIds <- which(unlist(ignoreRepParameter))
     startTime <- -Inf
     for (i in 1:nEvents) {
@@ -130,12 +131,12 @@ estimate_old <- function(prep,
 
   # 4c. Handle composition change: remove nonpresent actors
   dependentEvents <- events[[1]]
-  compChangeName1 <- attr(get(nodes), "events")["present" == attr(
-    get(nodes),
+  compChangeName1 <- attr(get(nodes, envir = envir), "events")["present" == attr(
+    get(nodes, envir = envir),
     "dynamicAttribute"
   )]
-  compChangeName2 <- attr(get(nodes2), "events")["present" == attr(
-    get(nodes2),
+  compChangeName2 <- attr(get(nodes2, envir = envir), "events")["present" == attr(
+    get(nodes2, envir = envir),
     "dynamicAttribute"
   )]
   # sovchanges indicates composition change, i.e., replace = TRUE indicates this node becomes present
@@ -821,15 +822,15 @@ modifyStatisticsList_old <- function(statsList,
 
 
 # CHANGED SIWEI: iterate over all dependent and right-cencored events for composition change
-removeNonPresent <- function(prep, nodes, nEvents, compChangeName, dim = 1) {
+removeNonPresent <- function(prep, nodes, nEvents, compChangeName, dim = 1, envir = environment()) {
   # TODO: check format agains
   if (length(compChangeName) == 0) {
     return(prep)
   }
 
-  compChange <- get(compChangeName)
-  compChange <- sanitizeEvents(compChange, nodes)
-  presence <- get(nodes)$present
+  compChange <- get(compChangeName, envir = envir)
+  compChange <- sanitizeEvents(compChange, nodes, envir = envir)
+  presence <- get(nodes, envir = envir)$present
   oldTime <- -Inf
 
   for (iEvent in 1:nEvents) {

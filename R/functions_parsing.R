@@ -20,10 +20,10 @@
 #' \dontrun{
 #' parseFormula(calls ~ outdeg(call.Network, type="ego") + indeg(call.Network, type="alter"))
 #' }
-parseFormula <- function(formula) {
+parseFormula <- function(formula, envir = environment()) {
   # check left side
   depName <- getDependentName(formula)
-  if (!inherits(get(depName), "dependent.goldfish")) {
+  if (!inherits(get(depName, envir = envir), "dependent.goldfish")) {
     stop("The left hand side of the formula should contain dependent events",
          " (check the function defineDependentEvents).", call. = FALSE)
   }
@@ -39,7 +39,7 @@ parseFormula <- function(formula) {
   rhsNames <- int[[1]]
   hasIntercept <- int[[2]]
   # check right side: default network
-  defaultNetworkName <- attr(get(depName), "defaultNetwork")
+  defaultNetworkName <- attr(get(depName, envir = envir), "defaultNetwork")
   if (!is.null(defaultNetworkName)) {
     noObjectIds <- which(1 == vapply(rhsNames, length, integer(1)))
     for (i in noObjectIds) {
@@ -68,9 +68,9 @@ parseFormula <- function(formula) {
   }
   # check right side: windows
   windowParameters <- lapply(rhsNames, getElement, "window")
-  rhsNames <- parseTimeWindows(rhsNames)
+  rhsNames <- parseTimeWindows(rhsNames, envir = envir)
   # check right side: ignoreRep parameter
-  mult <- parseMultipleEffects(rhsNames)
+  mult <- parseMultipleEffects(rhsNames, envir = envir)
   rhsNames <- mult[[1]]
   ignoreRepParameter <- mult[[2]]
     # check mismatch with default parameter
@@ -350,7 +350,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
   )
 
   # replace dependent labels with ids
-  events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2)
+  events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2, envir = envir)
   # if(is.character(events[[1]]$sender) && is.character(events[[1]]$receiver)) {
   #   events[[1]]$sender <- match(events[[1]]$sender, get(nodes)$label)
   #   events[[1]]$receiver <- match(events[[1]]$receiver, get(nodes2)$label)
@@ -370,7 +370,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
         eventsObjectsLink,
         cbind(events = evName, objectNames[i, ])
       )
-      evs <- lapply(evName, function(x) sanitizeEvents(get(x), nodeSet))
+      evs <- lapply(evName, function(x) sanitizeEvents(get(x, envir = envir), nodeSet, envir = envir))
 
       events <- append(events, evs)
       names(events)[(length(events) - length(evName) + 1):length(events)] <- evName
@@ -384,7 +384,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
     # replace labels with ids
     if (length(evNames) > 0) {
       for (j in seq_along(evs)) {
-        evs[[j]] <- sanitizeEvents(evs[[j]], nodes, nodes2)
+        evs[[j]] <- sanitizeEvents(evs[[j]], nodes, nodes2, envir = envir)
       }
       eventsObjectsLink <- rbind(
         eventsObjectsLink,
@@ -464,7 +464,7 @@ parseIntercept <- function(rhsNames) {
 # Figures out which effect is a multiple effect
 # then finds a network object from the other parameters that this is related to
 # unless a network name is passed to the multiple attribute
-parseMultipleEffects <- function(rhsNames, default = FALSE) {
+parseMultipleEffects <- function(rhsNames, default = FALSE, envir = environment()) {
   multiple <- list()
   multipleNames <- c()
   for (i in seq_along(rhsNames)) {
@@ -475,7 +475,7 @@ parseMultipleEffects <- function(rhsNames, default = FALSE) {
     if (multipleParam %in% c("T", "F", "TRUE", "FALSE")) multipleParam <- as.logical(multipleParam)
     if (!multipleParam) {
       table <- getDataObjects(rhsNames[i])
-      netIds <- vapply(getElementFromDataObjectTable(table),
+      netIds <- vapply(getElementFromDataObjectTable(table, envir = envir),
                        FUN = inherits,
                        FUN.VALUE = logical(1),
                        what = "network.goldfish")
