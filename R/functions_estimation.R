@@ -611,7 +611,7 @@ estimate.formula <- function(x,
       isTwoMode,
       rightCensored,
       hasIntercept,
-      modelType,
+      modelTypeCall,
       hasWindows,
       parsedformula$ignoreRepParameter,
       parsedformula$defaultNetworkName,
@@ -624,7 +624,8 @@ estimate.formula <- function(x,
       verbose,
       silent
     )
-    resold$call <- callT
+    resold$call <- match.call(call = sys.call(-1L),
+                              expand.dots = TRUE)
     return(resold)
   }
 

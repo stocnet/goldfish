@@ -278,7 +278,7 @@ altX <- function(attribute, node, replace, n1, n2, isTwoMode = FALSE) {
 sameX <- function(attribute, node, replace, isTwoMode = FALSE) {
   .Deprecated("same", package = "goldfish", old = "sameX")
   update_DyNAM_choice_same(attribute = attribute, node = node, replace = replace,
-                           n1 = n1, n2 = n2, isTwoMode = isTwoMode)
+                           isTwoMode = isTwoMode)
 }
 
 simX <- function(attribute, node, replace, n1, n2, isTwoMode = FALSE) {

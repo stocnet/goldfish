@@ -106,7 +106,7 @@ estimate_int <- function(statsList,
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
-  if (modelTypeCall %in% c("REM","DyNAM-M-Rate") && addInterceptEffect) {
+  if (modelType %in% c("REM","DyNAM-M-Rate") && addInterceptEffect) {
     totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
       sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
     nEvents <- length(statsList$orderEvents)

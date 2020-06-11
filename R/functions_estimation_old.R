@@ -445,7 +445,7 @@ estimate_int_old <- function(statsList,
     # check for stop criteria
     if (max(abs(score)) <= maxScoreStopCriterion) {
       isConverged <- TRUE
-      cat("\nStopping as maximum absolute score is below ", maxScoreStopCriterion, ".", sep = "")
+      cat("\nStopping as maximum absolute score is below ", maxScoreStopCriterion, ".\n", sep = "")
       # (", max(abs(score)), ")"))
       break
     }
@@ -661,7 +661,7 @@ getIterationStepState_old <- function(statsList, parameters,
   # check for parallelization
   # if (!parallelize || !require("snowfall", quietly = TRUE)) {
   #   # no parallelization
-  #   eventValues <- lapply(statsList, getEventValues, parameters = parameters)
+    eventValues <- lapply(statsList, getEventValues, parameters = parameters)
   # } else {
   #   eventValues <- snowfall::sfLapply(statsList, getEventValues, parameters = parameters)
   # }
