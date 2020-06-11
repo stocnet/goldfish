@@ -8,23 +8,34 @@ Authors@R: c(person("Christoph", "Stadtfeld", role = c("cre", "aut"), email = "c
               person("James", "Hollway", role = c("aut", "dtc")),
               person("Marion", "Hoffman", role = "ctb"),
               person("Alvaro", "Uzaheta", role = "ctb"),
+              person("Mirko", "Reul", role = "ctb"),
               person("Timon", "Elmer", role = "ctb"),
               person("Kieran", "Mepham", role = "ctb"),
               person("Per", "Block", role = "ctb"),
               person("Xiaolei", "Zhang", role = "ctb"),
-              person("Mirko", "Reul", role = "ctb"),
               person("Weigutian", "Ou", role = "ctb"),
               person("Emily", "Garvin", role = "ctb"),
               person("Siwei", "Zhang", role = "ctb"))
 Description: The Goldfish Project is an R package that allows to fit statistical network models (such as DyNAM and REM) to dynamic network data.
 URL: www.social-networks.ethz.ch/research/goldfish.html
 BugReports: https://github.com/snlab-ch/goldfish/issues
-Suggests: testthat, knitr, devtools
+Suggests: 
+    testthat,
+    knitr,
+    devtools,
+    covr
 VignetteBuilder: knitr 
 License: GPL (>= 3)
 LazyData: true
 RoxygenNote: 7.1.0
 Depends: R (>= 3.5.0)
-Imports: Rcpp (>= 1.0.1), changepoint, methods, utils, stats
-LinkingTo: Rcpp, RcppArmadillo
+Imports:
+    Rcpp (>= 1.0.1),
+    changepoint,
+    methods,
+    utils,
+    stats
+LinkingTo:
+    Rcpp,
+    RcppArmadillo
 NeedsCompilation: yes

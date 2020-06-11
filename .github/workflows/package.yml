@@ -9,43 +9,8 @@ on:
 name: Binary creation
 
 jobs:
-  # createrelease:
-  #   name: createrelease
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout one
-  #       uses: actions/checkout@master
-  #       with:
-  #         fetch-depth: '0'
-  #     - name: Bump version and push tag
-  #       id: newtag
-  #       uses: anothrNick/github-tag-action@1.17.2
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #         WITH_V: true
-  #         DEFAULT_BUMP: patch
-  #     - name: Checkout two
-  #       uses: actions/checkout@v2
-  #     - name: Create Release
-  #       id: create_release
-  #       uses: actions/create-release@v1
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       with:
-  #         tag_name: ${{ steps.newtag.outputs.tag }}
-  #         release_name: Release ${{ steps.newtag.outputs.tag }}
-  #         draft: false
-  #         prerelease: false
-  #     - name: Output Release URL File
-  #       run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
-  #     - name: Save Release URL File for publish
-  #       uses: actions/upload-artifact@v1
-  #       with:
-  #         name: release_url
-  #         path: release_url.txt
 
   build:
-    # needs: [createrelease]
     name: Build for ${{ matrix.config.os }}
     runs-on: ${{ matrix.config.os }}
     strategy:
@@ -54,7 +19,7 @@ jobs:
         config:
           - {os: macOS-latest,   r: 'release', artifact_name: '*.tar.gz', asset_name: macOS}
           - {os: windows-latest, r: 'release', artifact_name: '*.zip', asset_name: winOS}
-          - {os: ubuntu-18.04,   r: 'release', rspm: "https://packagemanager.rstudio.com/cran/__linux__/xenial/latest", artifact_name: '*.tar.gz', asset_name: linuxOS}
+          # - {os: ubuntu-18.04,   r: 'release', rspm: "https://packagemanager.rstudio.com/cran/__linux__/xenial/latest", artifact_name: '*.tar.gz', asset_name: linuxOS}
 
     env:
       R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
@@ -84,14 +49,14 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('.github/depends.Rds') }}
           restore-keys: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-
 
-      - name: Install system dependencies
-        if: runner.os == 'Linux'
-        env:
-          RHUB_PLATFORM: linux-x86_64-ubuntu-gcc
-        run: |
-          Rscript -e "remotes::install_github('r-hub/sysreqs')"
-          sysreqs=$(Rscript -e "cat(sysreqs::sysreq_commands('DESCRIPTION'))")
-          sudo -s eval "$sysreqs"
+      #- name: Install system dependencies
+      #  if: runner.os == 'Linux'
+      #  env:
+      #    RHUB_PLATFORM: linux-x86_64-ubuntu-gcc
+      #  run: |
+      #    Rscript -e "remotes::install_github('r-hub/sysreqs')"
+      #    sysreqs=$(Rscript -e "cat(sysreqs::sysreq_commands('DESCRIPTION'))")
+      #    sudo -s eval "$sysreqs"
 
       - name: Install dependencies
         run: |
@@ -151,36 +116,86 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: ${{ matrix.config.asset_name }}
-          path: build
+          path: build/
+          
+  coverage:
+    name: Code coverage and upload
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Calculate code coverage
+        run: Rscript -e "covr::codecov()"
+      - name: Upload code coverage
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+          file: ./coverage.xml # optional
+          flags: unittests # optional
+          name: codecov-umbrella # optional
+          fail_ci_if_error: true # optional (default = false)
         
-      # - name: Load Release URL File from release job
-      #   uses: actions/download-artifact@v1
-      #   with:
-      #     name: release_url    
-      # - shell: bash
-      #   name: Get Release File Name & Upload URL
-      #   id: get_release_info
-      #   run: |
-      #     value=`cat release_url/release_url.txt`
-      #     echo ::set-output name=upload_url::$value
-      # - name: Upload binaries to release
-      #   id: upload-release-asset 
-      #   uses: actions/upload-release-asset@v1.0.1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-      #     asset_path: build
-      #     asset_name: ${{ matrix.config.asset_name }}
-      #     asset_content_type: application/zip
-  
-      # - name: action-slack
-      #   uses: 8398a7/action-slack@v3.0.0
-      #   with:
-      #     status: ${{ job.status }}
-      #     author_name: "github action: pkgdown"
-      #     fields: repo, workflow, commit, message, author, action
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   if: failure()
+  release:
+    name: Bump version and release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout one
+        uses: actions/checkout@master
+        with:
+          fetch-depth: '0'
+      - name: Bump version and push tag
+        id: newtag
+        uses: anothrNick/github-tag-action@1.17.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
+      - name: Checkout two
+        uses: actions/checkout@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.newtag.outputs.tag }}
+          release_name: Release ${{ steps.newtag.outputs.tag }}
+          draft: false
+          prerelease: false
+          
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Zip up
+        uses: montudor/action-zip@v0.1.0
+        with:
+          args: zip -qq -r goldfish_AllOS.zip . -i ./macOS/* ./winOS/*
+
+      - name: Display structure of downloaded files again
+        run: ls -R
+
+      - name: Upload binary
+        id: upload-binary 
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: goldfish_AllOS.zip
+          asset_name: goldfish_AllOS.zip
+          asset_content_type: application/zip
+          
+#      - name: Upload Mac binary
+#        id: upload-mac-binary 
+#        uses: actions/upload-release-asset@v1.0.2
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+#          asset_path: macOS/*.tgz
+#          asset_name: macOS
+#          asset_content_type: application/zip        
