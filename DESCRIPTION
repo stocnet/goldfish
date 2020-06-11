@@ -2,17 +2,17 @@ Encoding: UTF-8
 Package: goldfish
 Type: Package
 Title: Goldfish -- Statistical network models for dynamic network data
-Version: 1.4.2
+Version: 1.4.3
 Date: 2020-05-17
 Authors@R: c(person("Christoph", "Stadtfeld", role = c("cre", "aut"), email = "c.stadtfeld@ethz.ch"),
               person("James", "Hollway", role = c("aut", "dtc")),
-              person("Timon", "Elmer", role = "ctb"),
               person("Marion", "Hoffman", role = "ctb"),
+              person("Alvaro", "Uzaheta", role = "ctb"),
+              person("Timon", "Elmer", role = "ctb"),
               person("Kieran", "Mepham", role = "ctb"),
               person("Per", "Block", role = "ctb"),
               person("Xiaolei", "Zhang", role = "ctb"),
               person("Mirko", "Reul", role = "ctb"),
-              person("Alvaro", "Uzaheta", role = "ctb"),
               person("Weigutian", "Ou", role = "ctb"),
               person("Emily", "Garvin", role = "ctb"),
               person("Siwei", "Zhang", role = "ctb"))

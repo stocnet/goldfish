@@ -519,10 +519,12 @@ estimate.formula <- function(x,
       }
     }
 
-    prep <- allprep
-    prep$formula <- formula
-    prep$nodes <- .nodes
-    prep$nodes2 <- .nodes2
+    prep          <- allprep
+    prep$formula  <- formula
+    prep$model    <- model
+    prep$subModel <- subModel
+    prep$nodes    <- .nodes
+    prep$nodes2   <- .nodes2
   }
 
   ## 3.2 PREPROCESS when preprocessingInit == NULL
@@ -549,9 +551,11 @@ estimate.formula <- function(x,
     )
     # The formula, nodes, nodes2 are added to the preprocessed object so that we can call
     # the estimation with preprocessingInit later (for parsing AND composition changes)
-    prep$formula <- formula
-    prep$nodes <- .nodes
-    prep$nodes2 <- .nodes2
+    prep$formula  <- formula
+    prep$model    <- model
+    prep$subModel <- subModel
+    prep$nodes    <- .nodes
+    prep$nodes2   <- .nodes2
   }
 
   ## 3.3 Stop here if preprocessingOnly == TRUE

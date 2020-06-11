@@ -6,12 +6,12 @@
 #' @export
 examine.outliers <- function(x, outliers = 10) {
   if (!"result.goldfish" %in% attr(x, "class")) stop("Not a goldfish results object.")
-  if (is.null(x$interval.logL))
+  if (is.null(x$intervalLogL))
     stop("Outlier identification only available when interval log likelihood returned in results object.")
 
-  plot(x$interval.logL, type = "l", lwd = 2, xlab = "Event index", ylab = "Interval log likelihood")
-  outlierIndexes <- order(x$interval.logL)[1:outliers]
-  points(x = outlierIndexes, y = x$interval.logL[outlierIndexes], col = "red", cex = 3, lwd = 3)
+  plot(x$intervalLogL, type = "l", lwd = 2, xlab = "Event index", ylab = "Interval log likelihood")
+  outlierIndexes <- order(x$intervalLogL)[1:outliers]
+  points(x = outlierIndexes, y = x$intervalLogL[outlierIndexes], col = "red", cex = 3, lwd = 3)
 
   dv <- get(strsplit(as.character(x$formula), " ~ ")[[2]][1])
   dv[outlierIndexes, ]
@@ -36,11 +36,11 @@ examine.changepoints <- function(x, moment = "mean", method = "PELT") {
   if (method == "SegNeigh") stop("Does not currently work with 'SegNeigh' method")
 
   if (moment == "mean") {
-    cpt <- changepoint::cpt.mean(x$interval.logL, method = method)
+    cpt <- changepoint::cpt.mean(x$intervalLogL, method = method)
     plot(cpt, type = "l", lwd = 2, xlab = "Event index", ylab = "Interval log likelihood", cpt.width = 3)
   }
   if (moment == "variance") {
-    cpt <- changepoint::cpt.var(x$interval.logL, method = method)
+    cpt <- changepoint::cpt.var(x$intervalLogL, method = method)
     plot(cpt, type = "l", lwd = 2, xlab = "Event index", ylab = "Interval log likelihood", cpt.width = 3)
   }
 

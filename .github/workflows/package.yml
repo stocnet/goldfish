@@ -173,4 +173,14 @@ jobs:
       #     asset_path: build
       #     asset_name: ${{ matrix.config.asset_name }}
       #     asset_content_type: application/zip
-        
+  
+      # - name: action-slack
+      #   uses: 8398a7/action-slack@v3.0.0
+      #   with:
+      #     status: ${{ job.status }}
+      #     author_name: "github action: pkgdown"
+      #     fields: repo, workflow, commit, message, author, action
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   if: failure()

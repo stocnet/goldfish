@@ -25,7 +25,7 @@
 #' @name goldfish-package
 #' @docType package
 #' @aliases goldfish goldfish-package
-#' @useDynLib goldfish, .registration = TRUE
+#' @useDynLib goldfish
 #' @importFrom Rcpp sourceCpp
 ## usethis namespace: end
 NULL

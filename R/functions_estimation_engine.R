@@ -1,9 +1,9 @@
-########################
+##################### ##
 #
 # Goldfish package
 # Internal estimation routine
 #
-########################
+#################### ###
 
 # Estimation
 estimate_int <- function(statsList,
@@ -106,7 +106,7 @@ estimate_int <- function(statsList,
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
-  if ((modelType == "REM" || modelType == "DyNAM-M-Rate") && addInterceptEffect) {
+  if (modelTypeCall %in% c("REM","DyNAM-M-Rate") && addInterceptEffect) {
     totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
       sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
     nEvents <- length(statsList$orderEvents)
@@ -758,7 +758,7 @@ getIterationStepState <- function(statsList,
         dims <- dim(statsArrayComp) # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
         arr <- apply(statsArrayComp, 3, function(stat) {
           diag(stat) <- 0
-          if (verbose) cat("Replacing effects statistics by row means\n")
+          if (verbose && i == 1) cat("Replacing effects statistics by row means\n")
           m <- stat
           stat <- rowMeans(m, na.rm = TRUE) * (dim(m)[1]) / (dim(m)[1] - 1)
           stat
@@ -767,7 +767,7 @@ getIterationStepState <- function(statsList,
       else {
         dims <- dim(statsArrayComp) # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
         arr <- apply(statsArrayComp, 3, function(stat) {
-          if (verbose) cat("Replacing effects statistics by row means\n")
+          if (verbose && i == 1) cat("Replacing effects statistics by row means\n")
           m <- stat
           stat <- rowMeans(m, na.rm = TRUE)
           stat

@@ -135,6 +135,7 @@ effectFUN_trans <- function(network,
     cache = cache,
     isTwoMode = isTwoMode, transformFun = transformFun
   )
+
 effectFUN_tertius <- function(network,
                       attribute,
                       sender = NULL,
@@ -166,6 +167,7 @@ effectFUN_REM_ego <- function(attribute,
                         node = node, replace = replace,
                         n1 = n1, n2 = n2,
                         isTwoMode = isTwoMode)
+
 effectFUN_REM_diff <- function(attribute, node, replace,
                       n1, n2,
                       isTwoMode = FALSE,
@@ -177,6 +179,7 @@ effectFUN_REM_diff <- function(attribute, node, replace,
     n1 = n1, n2 = n2,
     transformFun = transformFun
   )
+
 effectFUN_REM_sim <- function(attribute,
                       node, replace,
                       isTwoMode = FALSE)

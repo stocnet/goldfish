@@ -153,6 +153,7 @@ AIC.result.goldfish <- function(object, ..., k = 2) {
   if (k != 2) warning("implemented only for k = 2")
   # TODO check events / parameter ratio ad adjust k
   aic <- -2 * object$logLikelihood + 2 * object$nParams
+  return(aic)
   # aicc <- aic + 2*nParams*(nParams + 1)/(result$n.events - nParams - 1)
 }
 
@@ -165,6 +166,7 @@ AIC.result.goldfish <- function(object, ..., k = 2) {
 #' @method BIC result.goldfish
 BIC.result.goldfish <- function(object, ...) {
   bic <- -2 * object$logLikelihood + object$nParams * log(object$nEvents)
+  return(bic)
 }
 
 # Calculate log likelihood of Goldfish results

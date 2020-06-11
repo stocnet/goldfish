@@ -77,12 +77,12 @@ estimate_c_int <- function(statsList,
   if (verbose) cat("Reducing data\n")
 
   # CHANGED MARION: add colOnly and rowOnly in a smart way for the estimation
-  reduceMatrixToVector <- F
-  reduceArrayToMatrix <- F
+  reduceMatrixToVector <- FALSE
+  reduceArrayToMatrix <- FALSE
   if (modelTypeCall %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")) {
-    reduceMatrixToVector <- T
+    reduceMatrixToVector <- TRUE
   } else if (modelTypeCall == "DyNAM-M") {
-    reduceArrayToMatrix <- T
+    reduceArrayToMatrix <- TRUE
   }
 
   # CHANGED MARION: updated function
@@ -107,7 +107,7 @@ estimate_c_int <- function(statsList,
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
-  if ((modelTypeCall == "REM" || modelTypeCall == "DyNAM-M-Rate") && addInterceptEffect) {
+  if (modelTypeCall %in% c("REM","DyNAM-M-Rate") && addInterceptEffect) {
     totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
       sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
     nEvents <- length(statsList$orderEvents)
@@ -242,14 +242,14 @@ estimate_c_int <- function(statsList,
 
   ## ESTIMATION: INITIALIZATION
 
-  if (verbose) cat("Estimating model type with the super efficient new method", modelTypeCall, "\n")
+  if (verbose) cat("Estimating model type", modelTypeCall, "\n")
 
   iIteration <- 1
   informationMatrix <- matrix(0, nParams, nParams)
   score <- rep(0, nParams)
   logLikelihood <- 0
   isConverged <- FALSE
-  isInitialEstimation <- T
+  isInitialEstimation <- TRUE
   logLikelihood.old <- -Inf
   parameters.old <- initialParameters
   score.old <- NULL
