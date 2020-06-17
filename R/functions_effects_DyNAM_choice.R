@@ -735,7 +735,7 @@ update_DyNAM_choice_trans <- function(network,
   inSender <- which(temp > 0)
   # when sender = i and receiver = k,  the constraint that i != k has been satisfied.
   temp <- network[receiver, ]
-  temp[c(sender, receiver)] <- 0 # don't consider the cases with  k = j
+  #temp[c(sender, receiver)] <- 0 # don't consider the cases with  k = j
   temp[receiver] <- 0 # don't consider the cases with  k = j
   outReceiver <- which(temp > 0)
   ids <- rbind(
