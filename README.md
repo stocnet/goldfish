@@ -32,7 +32,7 @@ between initial and repeated creation of ties (multiplicity of ties).
 
 ## Installation
 
-You can install the latest version of the `goldfish` package from source using `devtools`:
+You can install the latest version of the `goldfish` package from source using `remotes`:
 
 ```r
 remotes::install_github("snlab-ch/goldfish")
