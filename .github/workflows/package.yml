@@ -118,12 +118,6 @@ jobs:
           name: ${{ matrix.config.asset_name }}
           path: build/
           
-  coverage:
-    name: Code coverage and upload
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
       - name: Calculate code coverage
         run: Rscript -e "covr::codecov()"
       - name: Upload code coverage
