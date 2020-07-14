@@ -2,11 +2,8 @@ on:
   push:
     branches: 
       - master
-  pull_request:
-    branches:
-      - master
-      
-name: Binary creation
+
+name: Check and release
 
 jobs:
 
