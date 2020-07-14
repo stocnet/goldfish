@@ -1,0 +1,119 @@
+on:
+  pull_request:
+    branches:
+      - master
+      
+name: Binary checks
+
+jobs:
+
+  build:
+    name: Build for ${{ matrix.config.os }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: macOS-latest,   r: 'release', artifact_name: '*.tar.gz', asset_name: macOS}
+          - {os: windows-latest, r: 'release', artifact_name: '*.zip', asset_name: winOS}
+          # - {os: ubuntu-18.04,   r: 'release', rspm: "https://packagemanager.rstudio.com/cran/__linux__/xenial/latest", artifact_name: '*.tar.gz', asset_name: linuxOS}
+
+    env:
+      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+      RSPM: ${{ matrix.config.rspm }}
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      
+    steps:
+      - uses: actions/checkout@v2
+        
+      - uses: r-lib/actions/setup-r@master
+        with:
+          r-version: ${{ matrix.config.r }}
+      - uses: r-lib/actions/setup-pandoc@master
+        
+      - name: Query dependencies
+        run: |
+          install.packages('remotes')
+          saveRDS(remotes::dev_package_deps(dependencies = TRUE), ".github/depends.Rds", version = 2)
+          writeLines(sprintf("R-%i.%i", getRversion()$major, getRversion()$minor), ".github/R-version")
+        shell: Rscript {0}
+
+      - name: Cache R packages
+        if: runner.os != 'Windows'
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('.github/depends.Rds') }}
+          restore-keys: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-
+
+      #- name: Install system dependencies
+      #  if: runner.os == 'Linux'
+      #  env:
+      #    RHUB_PLATFORM: linux-x86_64-ubuntu-gcc
+      #  run: |
+      #    Rscript -e "remotes::install_github('r-hub/sysreqs')"
+      #    sysreqs=$(Rscript -e "cat(sysreqs::sysreq_commands('DESCRIPTION'))")
+      #    sudo -s eval "$sysreqs"
+
+      - name: Install dependencies
+        run: |
+          remotes::install_deps(dependencies = TRUE)
+          remotes::install_cran("pkgbuild")
+        shell: Rscript {0}
+
+      - name: Session info
+        run: |
+          options(width = 100)
+          pkgs <- installed.packages()[, "Package"]
+          sessioninfo::session_info(pkgs, include_base = TRUE)
+        shell: Rscript {0}  
+      - name: Document
+        run: Rscript -e 'roxygen2::roxygenise()'
+      - name: Binary
+        run: |
+          pkgbuild::clean_dll()
+          binary <- pkgbuild::build(binary = TRUE, needs_compilation = TRUE, compile_attributes = TRUE)
+          dir.create("build")
+          file.copy(binary, "build")
+        shell: Rscript {0}
+    
+      # - name: test installation
+      #   run: |
+      #     pkgInst <- list.files("build", pattern = "goldfish.+(.zip)|(.tgz)|(.gz)$")
+      #     install.packages(file.path("build", pkgInst), repos = NULL)
+      #     library(goldfish)
+      #     data("Fisheries_Treaties_6070")
+      #     states <- defineNodes(states)
+      #     states <- linkEvents(states, sovchanges, attribute = "present")
+      #     states <- linkEvents(states, regchanges, attribute = "regime")
+      #     states <- linkEvents(states, gdpchanges, attribute = "gdp")
+      #     
+      #     bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
+      #     bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
+      #     
+      #     createBilat <- defineDependentEvents(
+      #       events = bilatchanges[bilatchanges$increment == 1, ],
+      #       nodes = states, defaultNetwork = bilatnet
+      #     )
+      #     
+      #     contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
+      #     contignet <- linkEvents(contignet, contigchanges, nodes = states)
+      #     partner.model <- estimate(createBilat ~ inertia(bilatnet) +
+      #        indeg(bilatnet) + trans(bilatnet) + tie(contignet) +
+      #        alter(states$regime) + diff(states$regime) + alter(states$gdp) + diff(states$gdp) +
+      #        tertius_diff(bilatnet, states$gdp) + mixedTrans(list(bilatnet, contignet)),
+      #      model = "DyNAM", subModel = "choice",
+      #      estimationInit = list(initialDamping = 40, maxIterations = 30, engine = "")
+      #      )
+      #     summary(partner.model)
+      #     ?estimate
+      #   shell: Rscript {0}
+        
+      - name: Save binary artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{ matrix.config.asset_name }}
+          path: build/
+          
+      - name: Calculate code coverage
+        run: Rscript -e "covr::codecov()"
