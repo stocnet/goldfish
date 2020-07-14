@@ -10,3 +10,6 @@ docs/
 .Rprofile
 .lintr
 review.txt
+*.status
+*.log
+*.tmp
