@@ -16,7 +16,7 @@ Authors@R: c(person("Christoph", "Stadtfeld", role = c("cre", "aut"), email = "c
               person("Weigutian", "Ou", role = "ctb"),
               person("Emily", "Garvin", role = "ctb"),
               person("Siwei", "Zhang", role = "ctb"))
-Description: The Goldfish Project is an R package that allows to fit statistical network models (such as DyNAM and REM) to dynamic network data.
+Description: Goldfish is an R package that enables fitting statistical network models (such as DyNAM and REM) to dynamic network data.
 URL: www.social-networks.ethz.ch/research/goldfish.html
 BugReports: https://github.com/snlab-ch/goldfish/issues
 Suggests: 
