@@ -1,12 +1,9 @@
 on:
-  push:
-    branches: 
-      - master
   pull_request:
     branches:
       - master
       
-name: Binary creation
+name: Binary checks
 
 jobs:
 
@@ -118,84 +115,5 @@ jobs:
           name: ${{ matrix.config.asset_name }}
           path: build/
           
-  coverage:
-    name: Code coverage and upload
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
       - name: Calculate code coverage
         run: Rscript -e "covr::codecov()"
-      - name: Upload code coverage
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
-          file: ./coverage.xml # optional
-          flags: unittests # optional
-          name: codecov-umbrella # optional
-          fail_ci_if_error: true # optional (default = false)
-        
-  release:
-    name: Bump version and release
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout one
-        uses: actions/checkout@master
-        with:
-          fetch-depth: '0'
-      - name: Bump version and push tag
-        id: newtag
-        uses: anothrNick/github-tag-action@1.17.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: true
-          DEFAULT_BUMP: patch
-      - name: Checkout two
-        uses: actions/checkout@v2
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.newtag.outputs.tag }}
-          release_name: Release ${{ steps.newtag.outputs.tag }}
-          draft: false
-          prerelease: false
-          
-      - name: Download binaries
-        uses: actions/download-artifact@v2
-        
-      - name: Display structure of downloaded files
-        run: ls -R
-
-      - name: Zip up
-        uses: montudor/action-zip@v0.1.0
-        with:
-          args: zip -qq -r goldfish_AllOS.zip . -i ./macOS/* ./winOS/*
-
-      - name: Display structure of downloaded files again
-        run: ls -R
-
-      - name: Upload binary
-        id: upload-binary 
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: goldfish_AllOS.zip
-          asset_name: goldfish_AllOS.zip
-          asset_content_type: application/zip
-          
-#      - name: Upload Mac binary
-#        id: upload-mac-binary 
-#        uses: actions/upload-release-asset@v1.0.2
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-#          asset_path: macOS/*.tgz
-#          asset_name: macOS
-#          asset_content_type: application/zip        
