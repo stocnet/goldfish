@@ -31,7 +31,7 @@ examine.changepoints <- function(x, moment = "mean", method = "PELT") {
          call. = FALSE)
 
   if (!methods::is(x, "result.goldfish")) stop("Not a goldfish results object.", call. = FALSE)
-  if (is.null(x$interval.logL))
+  if (is.null(x$intervalLogL))
     stop("Outlier identification only available when interval log likelihood returned in results object.")
   if (method == "SegNeigh") stop("Does not currently work with 'SegNeigh' method")
 
