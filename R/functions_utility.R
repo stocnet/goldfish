@@ -22,7 +22,7 @@
 #' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
 #' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
 #' callsDependent <- defineDependentEvents(events = calls, nodes = actors, defaultNetwork = callNetwork)
-#' parsedformula <- parseFormula(callsDependent ~ ego(actors$floor), envir = envir)
+#' parsedformula <- parseFormula(callsDependent ~ ego(actors$floor))
 #' objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames, 1L)
 #' getDataObjects(list(rownames(objectsEffectsLink)), removeFirst = FALSE)
 #' }
@@ -113,11 +113,11 @@ isReservedElementName <- function(x) {
 #' @examples
 #' \dontrun{
 #' data("Social_Evolution")
-#' afterSanitize <- sanitizeEvents(calls, "actors", envir = envir)
+#' afterSanitize <- sanitizeEvents(calls, "actors")
 #' }
-sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = environment()) {
-  if (is.character(nodes)) nodes <- get(nodes, envir = envir)
-  if (is.character(nodes2)) nodes2 <- get(nodes2, envir = envir)
+sanitizeEvents <- function(events, nodes, nodes2 = nodes) {
+  if (is.character(nodes)) nodes <- get(nodes)
+  if (is.character(nodes2)) nodes2 <- get(nodes2)
   if (is.character(events$node)) {
     events$node <- match(events$node, nodes$label)
   }
@@ -271,14 +271,14 @@ ReducePreprocess <- function(preproData, type = c("withTime", "withoutTime"), ef
 #' finalNet <- UpdateNetwork(callNetwork, calls, nodes = "actors")
 #' finalStat <- UpdateNetwork(prep$initialStats[, , 1], ReducePreprocess(prep, "withoutTime", 1L)[[1]])
 #' }
-UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes, envir = as.environment(-1)) {
+UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
   stopifnot(
     inherits(network, "matrix"),
     inherits(changeEvents, "data.frame") || inherits(changeEvents, "matrix")
   )
 
   if (!is.null(nodes)) {
-    changeEvents <- sanitizeEvents(changeEvents, nodes, nodes2, envir = envir)
+    changeEvents <- sanitizeEvents(changeEvents, nodes, nodes2)
   }
 
 

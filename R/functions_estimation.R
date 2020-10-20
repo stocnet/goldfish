@@ -252,10 +252,7 @@ estimate.formula <- function(x,
   #
   model <- match.arg(model)
   subModel <- match.arg(subModel)
-  
-  # enviroment from which get the objects
-  envir <- environment()
-  
+
   ### check model and subModel
   checkModelPar(model, subModel,
     modelList = c("DyNAM", "REM", "TriNAM"),
@@ -311,7 +308,7 @@ estimate.formula <- function(x,
   formula <- x
 
   ## 1.1 PARSE for all cases: preprocessingInit or not
-  parsedformula <- parseFormula(formula, envir = envir)
+  parsedformula <- parseFormula(formula)
   rhsNames <- parsedformula$rhsNames
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
@@ -342,7 +339,7 @@ estimate.formula <- function(x,
   ## 1.2 PARSE for preprocessingInit: check the formula consistency
   if (!is.null(preprocessingInit)) {
     # find the old and new effects indexes, do basic consistency checks
-    oldparsedformula <- parseFormula(preprocessingInit$formula, envir = envir)
+    oldparsedformula <- parseFormula(preprocessingInit$formula)
     effectsindexes <- compareFormulas(
       oldparsedformula = oldparsedformula,
       newparsedformula = parsedformula,
@@ -356,7 +353,7 @@ estimate.formula <- function(x,
 
   ## 2.0 Set idTwoMode to define effects functions
   # get node sets of dependent variable
-  .nodes <- attr(get(depName, envir = envir), "nodes")
+  .nodes <- attr(get(depName), "nodes")
   isTwoMode <- FALSE
   # two-mode networks(2 kinds of nodes)
   if (length(.nodes) == 2) {
@@ -369,6 +366,8 @@ estimate.formula <- function(x,
 
 
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
+  # enviroment from which get the objects
+  envir <- environment()
 
   effects <- createEffectsFunctions(rhsNames, model, subModel, envir = envir)
   # Get links between objects and effects for printing results
@@ -429,8 +428,8 @@ estimate.formula <- function(x,
         eventsEffectsLink = neweventsEffectsLink,
         objectsEffectsLink = newobjectsEffectsLink, # for parameterization
         # multipleParameter = multipleParameter,
-        .nodes = .nodes,
-        .nodes2 = .nodes2,
+        nodes = .nodes,
+        nodes2 = .nodes2,
         isTwoMode = isTwoMode,
         startTime = preprocessingInit[["startTime"]],
         endTime = preprocessingInit[["endTime"]],
@@ -455,7 +454,7 @@ estimate.formula <- function(x,
     allprep <- preprocessingInit
     allprep$initialStats <- array(0,
       dim = c(
-        nrow(get(.nodes, envir = envir)), nrow(get(.nodes2, envir = envir)),
+        nrow(get(.nodes)), nrow(get(.nodes2)),
         length(effectsindexes)
       )
     )
@@ -541,8 +540,8 @@ estimate.formula <- function(x,
       eventsEffectsLink = eventsEffectsLink,
       objectsEffectsLink = objectsEffectsLink, # for parameterization
       # multipleParameter = multipleParameter,
-      .nodes = .nodes,
-      .nodes2 = .nodes2,
+      nodes = .nodes,
+      nodes2 = .nodes2,
       isTwoMode = isTwoMode,
       startTime = estimationInit[["startTime"]],
       endTime = estimationInit[["endTime"]],
@@ -623,8 +622,7 @@ estimate.formula <- function(x,
       cpus = 1,
       effectDescription,
       verbose,
-      silent,
-      envir = envir
+      silent
     )
     resold$call <- match.call(call = sys.call(-1L),
                               expand.dots = TRUE)
@@ -642,8 +640,8 @@ estimate.formula <- function(x,
   # Normal estimation
   additionalArgs <- list(
     statsList = prep,
-    nodes = get(.nodes, envir = envir),
-    nodes2 = get(.nodes2, envir = envir),
+    nodes = get(.nodes),
+    nodes2 = get(.nodes2),
     defaultNetworkName = parsedformula$defaultNetworkName,
     addInterceptEffect = hasIntercept,
     modelType = modelTypeCall,
@@ -653,8 +651,7 @@ estimate.formula <- function(x,
     verbose = verbose,
     silent = silent,
     ignoreRepParameter = parsedformula$ignoreRepParameter,
-    isTwoMode = isTwoMode,
-    envir = envir
+    isTwoMode = isTwoMode
   )
   # prefer user-defined arguments
   argsEstimation <- append(
