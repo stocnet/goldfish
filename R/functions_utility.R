@@ -579,7 +579,6 @@ GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = 
     )
   }
 
-
   if (any(unlist(parsedformula$ignoreRepParameter))) {
     effectDescription <- cbind(effectDescription,
       ignoreRep = ifelse(parsedformula$ignoreRepParameter, "B", "")
@@ -620,6 +619,17 @@ GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = 
   if (any(parsedformula$aggreParameter != "")) {
     effectDescription <- cbind(effectDescription,
       aggregateFun = parsedformula$aggreParameter
+    )
+  }
+  # DyNAMi
+  if (any(parsedformula$joiningParameter != "")) {
+    effectDescription <- cbind(effectDescription,
+      joining = parsedformula$joiningParameter
+    )
+  }
+  if (any(parsedformula$subTypeParameter != "")) {
+    effectDescription <- cbind(effectDescription,
+      subType = parsedformula$subTypeParameter
     )
   }
   # rownames(effectDescription) <- NULL

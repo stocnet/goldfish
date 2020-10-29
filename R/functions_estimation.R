@@ -65,6 +65,7 @@
 #'  event that indicates the starting time to be considered during estimation.}
 #'  \item{endTime}{a numerical value or a date-time character with the same time-zone formatting as the times in
 #'  event that indicates the end time to be considered during estimation.}
+#'  \item{opportunitiesList}{a list containing for each dependent event the list of available nodes for the choice model, this list should be the same length as the dependent events list (ONLY for choice models).}
 #' }
 #' @param preprocessingOnly logical. Indicates whether only preprocessed statistics should be returned
 #' rather than a results object.
@@ -173,7 +174,7 @@
 #' summary(partner.model)
 # \item{impute}{a boolean indicating whether it should impute the statistics for missing values. }
 estimate <- function(x,
-                     model = c("DyNAM", "REM"),
+                     model = c("DyNAM", "REM", "DyNAMi"),
                      subModel = c("choice", "rate", "choice_coordination"),
                      estimationInit = NULL,
                      preprocessingInit = NULL,
@@ -187,7 +188,7 @@ estimate <- function(x,
 # First estimation from a formula: can return either a preprocessed object or a result object
 #' @export
 estimate.formula <- function(x,
-                             model = c("DyNAM", "REM"),
+                             model = c("DyNAM", "REM", "DyNAMi"),
                              subModel = c("choice", "rate", "choice_coordination"),
                              estimationInit = NULL,
                              preprocessingInit = NULL,
@@ -229,15 +230,19 @@ estimate.formula <- function(x,
     estimationInit <- NULL
     preprocessingOnly <- FALSE
     preprocessingInit <- NULL
+    source("R/functions_checks.R")
     source("R/functions_effects.R")
     source("R/functions_effects_DyNAM_rate.R")
     source("R/functions_effects_DyNAM_choice.R")
+    source("R/functions_effects_DyNAMi_rate.R")
+    source("R/functions_effects_DyNAMi_choice.R")
     source("R/functions_estimation_engine.R")
     source("R/functions_preprocessing.R")
+    source("R/functions_preprocessing_interaction.R")
     source("R/functions_estimation_old.R")
     source("R/functions_parsing.R")
     source("R/functions_utility.R")
-    # source("R/functions_utility.R")
+    source("R/functions_utility_interaction.R")
     # x <- formula
   }
 
@@ -255,10 +260,11 @@ estimate.formula <- function(x,
 
   ### check model and subModel
   checkModelPar(model, subModel,
-    modelList = c("DyNAM", "REM", "TriNAM"),
+    modelList = c("DyNAM", "REM", "DyNAMi", "TriNAM"),
     subModelList = list(
       DyNAM = c("choice", "rate", "choice_coordination"),
       REM = c("choice"),
+      DyNAMi = c("choice", "rate"),
       TriNAM = c("choice", "rate")
     )
   )
@@ -279,7 +285,7 @@ estimate.formula <- function(x,
         "maxIterations", "maxScoreStopCriterion", "initialDamping",
         "dampingIncreaseFactor", "dampingDecreaseFactor", "initialParameters", "fixedParameters",
         "returnEventProbabilities", "returnIntervalLogL", "impute", "engine",
-        "startTime", "endTime"
+        "startTime", "endTime", "opportunitiesList"
       )
 
 
@@ -295,12 +301,25 @@ estimate.formula <- function(x,
   engine <- match.arg(estimationInit[["engine"]], c("default", "old", "default_c", "gather_compute"))
   if (!is.null(estimationInit[["engine"]])) estimationInit[["engine"]] <- NULL
 
-  # gather_compute and default_c doesn't support returnEventProbabilities
+  # gather_compute and default_c don't support returnEventProbabilities
   if (!is.null(estimationInit) && "returnEventProbabilities" %in% names(estimationInit)) {
     if (estimationInit["returnEventProbabilities"] == TRUE && engine != "default") {
-      warning("Current estimation engine doesn't support returnEventProbabilities", call. = FALSE, immediate. = TRUE)
+      warning("engine = ", dQuote(engine), " doesn't support", dQuote("returnEventProbabilities"),
+              ". engine =", dQuote("default"), " is used instead.",
+              call. = FALSE, immediate. = TRUE)
+      engine <- "default"
     }
   }
+  # gather_compute and default_c don't support restrictions of opportunity sets
+  if (!is.null(estimationInit) && "opportunitiesList" %in% names(estimationInit)){
+    if (!is.null(estimationInit["opportunitiesList"]) && engine != "default") {
+      warning("engine = ", dQuote(engine), " doesn't support", dQuote("opportunitiesList"),
+              ". engine =", dQuote("default"), " is used instead.",
+              call. = FALSE, immediate. = TRUE)
+      engine <- "default"
+    }
+  }
+
 
   ### 1. PARSE the formula----
 
@@ -318,15 +337,20 @@ estimate.formula <- function(x,
   # weightedParameter <- parsedformula$weightedParameter
   # userSetParameter <- parsedformula$userSetParameter
 
+  # DyNAM-i ONLY: creates extra parameter to differentiate joining and leaving rates,
+  # and effect subtypes. Added directly to GetDetailPrint
+
   # # C implementation doesn't have ignoreRep option issue #105
   if (any(unlist(parsedformula$ignoreRepParameter)) && engine %in% c("default_c", "gather_compute")) {
-    warning("engine: ", engine, " doesn't support ignoreRep effects. engine = 'default' is used instead.",
+    warning("engine = ", dQuote(engine), " doesn't support ignoreRep effects. engine =",
+            dQuote("default"), " is used instead.",
             call. = FALSE, immediate. = TRUE)
     engine <- "default"
   }
   # Model-specific preprocessing initialization
-  if (model %in% c("DyNAM", "TriNAM") && subModel %in% c("choice", "choice_coordination") && hasIntercept) {
-    warning("Model ", model, " subModel ", subModel, " ignores the time intercept.", call. = FALSE, immediate. = TRUE)
+  if (model %in% c("DyNAM", "DyNAMi", "TriNAM") && subModel %in% c("choice", "choice_coordination") && hasIntercept) {
+    warning("Model ", dQuote(model), " subModel ", dQuote(subModel), " ignores the time intercept.",
+            call. = FALSE, immediate. = TRUE)
     hasIntercept <- FALSE
   }
   rightCensored <- hasIntercept
@@ -378,9 +402,17 @@ estimate.formula <- function(x,
 
 
     # Initialize events list and link to objects
-    events <- getEventsAndObjectsLink(depName, rhsNames, .nodes, .nodes2, envir = envir)[[1]]
+    events <- getEventsAndObjectsLink(depName, rhsNames, .nodes, .nodes2, envir = envir)[[1]] 
+        # moved cleanInteractionEvents in getEventsAndObjectsLink
     eventsObjectsLink <- getEventsAndObjectsLink(depName, rhsNames, .nodes, .nodes2, envir = envir)[[2]]
     eventsEffectsLink <- getEventsEffectsLink(events, rhsNames, eventsObjectsLink)
+  }
+
+  # DyNAM-i ONLY: extra cleaning step
+  # we assign an extra class to the windowed events, and remove leaving events for the choice estimation
+  if (model == "DyNAMi") {
+    events <- cleanInteractionEvents(events, eventsEffectsLink, windowParameters, subModel, depName,
+                                       eventsObjectsLink, envir = environment())
   }
 
   ### 3. PREPROCESS statistics----
@@ -530,25 +562,42 @@ estimate.formula <- function(x,
   ## 3.2 PREPROCESS when preprocessingInit == NULL
   if (is.null(preprocessingInit)) {
     if (!silent) cat("Starting preprocessing.\n")
-    prep <- preprocess(
-      model,
-      subModel,
-      events = events,
-      effects = effects,
-      windowParameters = windowParameters,
-      eventsObjectsLink = eventsObjectsLink, # for data update
-      eventsEffectsLink = eventsEffectsLink,
-      objectsEffectsLink = objectsEffectsLink, # for parameterization
-      # multipleParameter = multipleParameter,
-      nodes = .nodes,
-      nodes2 = .nodes2,
-      isTwoMode = isTwoMode,
-      startTime = estimationInit[["startTime"]],
-      endTime = estimationInit[["endTime"]],
-      rightCensored = rightCensored,
-      verbose = verbose,
-      silent = silent
-    )
+    if (model == "DyNAMi") {
+      prep <- preprocessInteraction(
+        subModel = subModel,
+        events = events,
+        effects = effects,
+        eventsObjectsLink = eventsObjectsLink,
+        eventsEffectsLink = eventsEffectsLink,
+        objectsEffectsLink = objectsEffectsLink,
+        # multipleParameter,
+        nodes = .nodes,
+        nodes2 = .nodes2,
+        rightCensored = rightCensored,
+        verbose = verbose,
+        silent = silent,
+        groups.network = defaultNetworkName)
+    } else {
+      prep <- preprocess(
+        model,
+        subModel,
+        events = events,
+        effects = effects,
+        windowParameters = windowParameters,
+        eventsObjectsLink = eventsObjectsLink, # for data update
+        eventsEffectsLink = eventsEffectsLink,
+        objectsEffectsLink = objectsEffectsLink, # for parameterization
+        # multipleParameter = multipleParameter,
+        nodes = .nodes,
+        nodes2 = .nodes2,
+        isTwoMode = isTwoMode,
+        startTime = estimationInit[["startTime"]],
+        endTime = estimationInit[["endTime"]],
+        rightCensored = rightCensored,
+        verbose = verbose,
+        silent = silent
+      )
+  }
     # The formula, nodes, nodes2 are added to the preprocessed object so that we can call
     # the estimation with preprocessingInit later (for parsing AND composition changes)
     prep$formula  <- formula
@@ -580,7 +629,7 @@ estimate.formula <- function(x,
     } else {
       modelTypeCall <- "REM"
     }
-  } else if (model %in% c("DyNAM", "TriNAM")) {
+  } else if (model %in% c("DyNAM", "TriNAM", "DyNAMi")) {
     if (subModel == "rate" && !hasIntercept) {
       modelTypeCall <- "DyNAM-M-Rate-ordered"
     } else if (subModel == "rate") {
@@ -602,8 +651,8 @@ estimate.formula <- function(x,
 
     # use of Marion's fast estimation routine by default
     rowOnly <- colOnly <- F
-    if (model %in% c("DyNAM") && subModel %in% c("rate")) colOnly <- T
-    if (model %in% c("DyNAM") && subModel %in% c("choice")) rowOnly <- T
+    if (modelTypeCall == "DyNAM-M-Rate") colOnly <- TRUE
+    if (modelTypeCall == "DyNAM-M") rowOnly <- TRUE
     resold <- estimate_old(prep,
       events,
       .nodes,
