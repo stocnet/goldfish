@@ -35,15 +35,17 @@ examine.changepoints <- function(x, moment = "mean", method = "PELT") {
     stop("Outlier identification only available when interval log likelihood returned in results object.")
   if (method == "SegNeigh") stop("Does not currently work with 'SegNeigh' method")
 
-  if (moment == "mean") {
+  if (moment == "mean")
     cpt <- changepoint::cpt.mean(x$intervalLogL, method = method)
-    plot(cpt, type = "l", lwd = 2, xlab = "Event index", ylab = "Interval log likelihood", cpt.width = 3)
-  }
-  if (moment == "variance") {
+  if (moment == "variance")
     cpt <- changepoint::cpt.var(x$intervalLogL, method = method)
-    plot(cpt, type = "l", lwd = 2, xlab = "Event index", ylab = "Interval log likelihood", cpt.width = 3)
-  }
 
+  tryCatch(
+    changepoint::plot(cpt, type = "l", lwd = 2, xlab = "Event index", ylab = "Interval log likelihood", cpt.width = 3),
+    error = function(e) warning("Plot funcionality from ", dQuote("changepoint"), " package is not working:",
+                             e, call. = FALSE)
+  )
+  
   if (length(cpt@cpts) > 1) {
     dv <- get(strsplit(as.character(x$formula), " ~ ")[[2]][1])
     dv[cpt@cpts[-length(cpt@cpts)], ]

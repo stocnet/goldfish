@@ -32,8 +32,7 @@ estimate_int <- function(statsList,
                          verbose = FALSE,
                          silent = FALSE,
                          impute = TRUE,
-                         ignoreRepParameter,
-                         envir = environment()) {
+                         ignoreRepParameter) {
 
   ## SET VARIABLES
 
@@ -101,8 +100,8 @@ estimate_int <- function(statsList,
   compChangeName2 <- attr(nodes2, "events")["present" == attr(nodes2, "dynamicAttribute")]
   compChange1 <- NULL
   compChange2 <- NULL
-  if (!is.null(compChangeName1) && length(compChangeName1) > 0) compChange1 <- get(compChangeName1, envir = envir)
-  if (!is.null(compChangeName2) && length(compChangeName2) > 0) compChange2 <- get(compChangeName2, envir = envir)
+  if (!is.null(compChangeName1) && length(compChangeName1) > 0) compChange1 <- get(compChangeName1)
+  if (!is.null(compChangeName2) && length(compChangeName2) > 0) compChange2 <- get(compChangeName2)
 
   ## ADD INTERCEPT
   # CHANGED MARION
@@ -549,8 +548,7 @@ getIterationStepState <- function(statsList,
                                   silent = TRUE,
                                   verbose = FALSE,
                                   ignoreRepParameter,
-                                  impute = TRUE,
-                                  envir = environment()) {
+                                  impute = TRUE) {
 
   # CHANGED MARION: changed dims
   nEvents <- length(statsList$orderEvents)
@@ -586,7 +584,7 @@ getIterationStepState <- function(statsList,
   irc <- 1
 
   if (any(unlist(ignoreRepParameter))) {
-    net <- get(defaultNetworkName, envir = envir)
+    net <- get(defaultNetworkName)
     ignoreRepIds <- which(unlist(ignoreRepParameter))
     if (modelType %in% c("DyNAM-M-Rate", "REM")) {
       ignoreRepIds <- ignoreRepIds + 1 # with intercept, the first effect is the intercept without ignoreRep option
@@ -715,7 +713,7 @@ getIterationStepState <- function(statsList,
     # CHANGED SIWEI: fixed errors for composition change update
     current_time <- statsList$eventTime[[i]]
     if (!is.null(compChange1)) {
-      compChange1 <- sanitizeEvents(compChange1, nodes, envir = envir)
+      compChange1 <- sanitizeEvents(compChange1, nodes)
       dims <- dim(statsArrayComp)
 
       update <- compChange1[compChange1$time <= current_time & compChange1$time > oldTime, ]
@@ -732,7 +730,7 @@ getIterationStepState <- function(statsList,
       }
     }
     if (!is.null(compChange2)) {
-      compChange2 <- sanitizeEvents(compChange2, nodes2, envir = envir)
+      compChange2 <- sanitizeEvents(compChange2, nodes2)
       dims <- dim(statsArrayComp)
 
       update2 <- compChange2[compChange2$time <= current_time & compChange2$time > oldTime, ]

@@ -23,7 +23,7 @@
 parseFormula <- function(formula, envir = globalenv()) {
   # check left side
   depName <- getDependentName(formula)
-  if (!inherits(get(depName, envir = envir), "dependent.goldfish")) {
+  if (!inherits(get(depName), "dependent.goldfish")) {
     stop("The left hand side of the formula should contain dependent events",
          " (check the function defineDependentEvents).", call. = FALSE)
   }
@@ -39,7 +39,7 @@ parseFormula <- function(formula, envir = globalenv()) {
   rhsNames <- int[[1]]
   hasIntercept <- int[[2]]
   # check right side: default network
-  defaultNetworkName <- attr(get(depName, envir = envir), "defaultNetwork")
+  defaultNetworkName <- attr(get(depName), "defaultNetwork")
   if (!is.null(defaultNetworkName)) {
     noObjectIds <- which(1 == vapply(rhsNames, length, integer(1)))
     for (i in noObjectIds) {
@@ -68,9 +68,9 @@ parseFormula <- function(formula, envir = globalenv()) {
   }
   # check right side: windows
   windowParameters <- lapply(rhsNames, getElement, "window")
-  rhsNames <- parseTimeWindows(rhsNames, envir = envir)
+  rhsNames <- parseTimeWindows(rhsNames)
   # check right side: ignoreRep parameter
-  mult <- parseMultipleEffects(rhsNames, envir = envir)
+  mult <- parseMultipleEffects(rhsNames)
   rhsNames <- mult[[1]]
   ignoreRepParameter <- mult[[2]]
     # check mismatch with default parameter
@@ -350,7 +350,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
   )
 
   # replace dependent labels with ids
-  events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2, envir = envir)
+  events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2)
   # if(is.character(events[[1]]$sender) && is.character(events[[1]]$receiver)) {
   #   events[[1]]$sender <- match(events[[1]]$sender, get(nodes)$label)
   #   events[[1]]$receiver <- match(events[[1]]$receiver, get(nodes2)$label)
@@ -370,7 +370,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
         eventsObjectsLink,
         cbind(events = evName, objectNames[i, ])
       )
-      evs <- lapply(evName, function(x) sanitizeEvents(get(x, envir = envir), nodeSet, envir = envir))
+      evs <- lapply(evName, function(x) sanitizeEvents(get(x), nodeSet))
 
       events <- append(events, evs)
       names(events)[(length(events) - length(evName) + 1):length(events)] <- evName
@@ -384,7 +384,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
     # replace labels with ids
     if (length(evNames) > 0) {
       for (j in seq_along(evs)) {
-        evs[[j]] <- sanitizeEvents(evs[[j]], nodes, nodes2, envir = envir)
+        evs[[j]] <- sanitizeEvents(evs[[j]], nodes, nodes2)
       }
       eventsObjectsLink <- rbind(
         eventsObjectsLink,
@@ -464,7 +464,7 @@ parseIntercept <- function(rhsNames) {
 # Figures out which effect is a multiple effect
 # then finds a network object from the other parameters that this is related to
 # unless a network name is passed to the multiple attribute
-parseMultipleEffects <- function(rhsNames, default = FALSE, envir = environment()) {
+parseMultipleEffects <- function(rhsNames, default = FALSE) {
   multiple <- list()
   multipleNames <- c()
   for (i in seq_along(rhsNames)) {
@@ -475,7 +475,7 @@ parseMultipleEffects <- function(rhsNames, default = FALSE, envir = environment(
     if (multipleParam %in% c("T", "F", "TRUE", "FALSE")) multipleParam <- as.logical(multipleParam)
     if (!multipleParam) {
       table <- getDataObjects(rhsNames[i])
-      netIds <- vapply(getElementFromDataObjectTable(table, envir = envir),
+      netIds <- vapply(getElementFromDataObjectTable(table),
                        FUN = inherits,
                        FUN.VALUE = logical(1),
                        what = "network.goldfish")
@@ -523,7 +523,7 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
     isValidName <- grepl("^[[:alpha:]][[:alnum:]_.]+$", windowName)
 
     # support for lubridate object classes for date operations
-    if (inherits(window, c("Period", "Duration")) & "lubridate" %in% attr(attr(window, "class"), "package")) { 
+    if (inherits(window, c("Period", "Duration")) & "lubridate" %in% attr(attr(window, "class"), "package")) {
       if (!isValidName) {
         windowName <- gsub("\\s", "", as.character(window))
         if (inherits(window, "Duration")) windowName <- gsub("^(\\d+s)\\s*(\\(.+\\))$", "\\1", as.character(window))
@@ -540,7 +540,7 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
           "seconds, minutes, hours, weeks, months, years"
         )
       }
-      
+
       if (grepl("sec", window)) {
         window <- as.numeric(strsplit(window, " ")[[1]][1]) * 1
       }
@@ -565,17 +565,17 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
     } else if (is.numeric(window)) { # check numeric type
 
       if (window < 0)
-        stop("The window specified with the effect ", rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]], 
+        stop("The window specified with the effect ", rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
              " is not a positive numeric value")
     }
-    
-    
-    
+
+
+
     # get initial object, check whether it's an attribute or a network
     name <- rhsNames[[i]][[2]]
     objects <- objectNames[objectNames$name == name, ]
     isAttribute <- !is.na(objects$attribute)
-    
+
     # add new RHS term for the windowed element
     # newRhs <- list()
     # newRhs[[1]] <- rhsNames[[i]][[1]]
@@ -585,55 +585,55 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
                                 windowName,
                                 sep = "_"
     )
-    
+
     if (isAttribute) {
-      
+
       # get nodes & attribute, add new windowed attribute, get related events to be windowed later
       nameNodes <- objects$nodeset
       nodes <- get(nameNodes, envir = envir)
       attribute <- objects$attribute
-      
+
       newAttribute <- paste(attribute, windowName, sep = "_")
       nodes[newAttribute] <- nodes[attribute]
-      
+
       allEvents <- attr(nodes, "events")
       allDynamicAttributes <- attr(nodes, "dynamicAttributes")
       allEvents <- allEvents[allDynamicAttributes == attribute]
     } else {
-      
+
       # get network, create windowed network, get related events to be windowed later
       network <- get(name, envir = envir)
-      
+
       newNetwork <- matrix(0, nrow = nrow(network), ncol = ncol(network))
       newName <- paste(name, windowName, sep = "_")
       attr(newNetwork, "events") <- NULL
-      
+
       allEvents <- attr(network, "events")
     }
-    
+
     # create new windowed events lists, link them, add them to the environment
     for (events in allEvents) {
       objectEvents <- get(events, envir = envir)
       newEvents <- createWindowedEvents(objectEvents, window)
       nameNewEvents <- paste(events, window, sep = "_")
-      
+
       if (isAttribute) {
         attr(nodes, "events") <- c(attr(nodes, "events"), nameNewEvents)
         attr(nodes, "dynamicAttributes") <- c(attr(nodes, "dynamicAttributes"), newAttribute)
       } else {
         attr(newNetwork, "events") <- c(attr(newNetwork, "events"), nameNewEvents)
       }
-      
+
       assign(nameNewEvents, newEvents, envir = envir)
     }
-    
+
     # Put nodes/networks elements back in the environments
     if (isAttribute) {
       assign(nameNodes, nodes, envir = envir)
     } else {
       assign(newName, newNetwork, envir = envir)
     }
-    
+
     # not sure about this: should we remove the window parts from the rhs names?
     # rhsNames[[i]]$window <- NULL
   }

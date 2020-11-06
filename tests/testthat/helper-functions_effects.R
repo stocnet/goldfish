@@ -74,7 +74,7 @@ mCache <- matrix(
 vCache <- c(0, 2, 3, 1, 0)
 
 # Attributes  --------------------------------
-attr <- data.frame(
+testAttr <- data.frame(
   label = as.factor(c("Christoph", "James", "Per", "Timon", "Marion", "Mepham", "Xiaolei", "Federica")),
   fishingSkill = c(10, NA, 5, 10, 8, 8, 3, NA),
   fishCaught = c(1, 99, 15, 12, 15, 8, 0, 2),

@@ -8,8 +8,8 @@
 #' @param eventsObjectsLink data.frame output of \code(getEventsAndObjectsLink)
 #' @param eventsEffectsLink data.frame output of \code(getEventsEffectsLink)
 #' @param objectsEffectsLink data.frame output of \code(getObjectsEffectsLink)
-#' @param .nodes character with the object that contains the nodes information
-#' @param .nodes2 character with the object that contains the nodes information,
+#' @param nodes character with the object that contains the nodes information
+#' @param nodes2 character with the object that contains the nodes information,
 #'   different from \codes(nodes) when \code(isTwoMode = TRUE).
 #' @param isTwoMode logical is it a two mode network?
 #' @param startTime numerical start time to preprocess the data
@@ -34,8 +34,8 @@ preprocess <- function(
   eventsEffectsLink,
   objectsEffectsLink,
   # multipleParameter,
-  .nodes,
-  .nodes2 = .nodes,
+  nodes,
+  nodes2 = nodes,
   isTwoMode,
   # add more parameters
   startTime = min(vapply(events, function(x) min(x$time), double(1))),
@@ -54,12 +54,12 @@ preprocess <- function(
     silent <- TRUE
   }
 
-  prepEnvir <- environment() 
+  prepEnvir <- environment()
   # print(match.call())
   # initialize statistics functions from data objects
   # number of actors
-  n1 <- nrow(get(.nodes, envir = prepEnvir))
-  n2 <- nrow(get(.nodes2, envir = prepEnvir))
+  n1 <- nrow(get(nodes))
+  n2 <- nrow(get(nodes2))
   nEffects <- length(effects)
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)

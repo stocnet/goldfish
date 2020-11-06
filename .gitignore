@@ -13,3 +13,4 @@ review.txt
 *.status
 *.log
 *.tmp
+*.code-workspace
