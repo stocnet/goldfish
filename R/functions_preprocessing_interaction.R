@@ -5,7 +5,7 @@
 #
 ########################
 
-preprocess_interaction <- function(
+preprocessInteraction <- function(
                                    subModel,
                                    events,
                                    effects,

@@ -781,7 +781,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
 
 ## For the estimation
 # Function that remove extra attributes to windowed events
-clean_interaction_events <- function(events, eventsEffectsLink, windowParameters,
+cleanInteractionEvents <- function(events, eventsEffectsLink, windowParameters,
                                      subModel, depName, eventsObjectsLink, envir) {
 
   # Windowed events: we remove the order of the events

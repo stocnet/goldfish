@@ -40,12 +40,11 @@ examine.changepoints <- function(x, moment = "mean", method = "PELT") {
   if (moment == "variance")
     cpt <- changepoint::cpt.var(x$intervalLogL, method = method)
 
-  tryCatch(
-    plot(cpt, type = "l", lwd = 2, xlab = "Event index", ylab = "Interval log likelihood", cpt.width = 3),
-    error = function(e) warning("Plot funcionality from ", dQuote("changepoint"), " package is not working:",
-                             e, call. = FALSE)
-  )
-  
+    changepoint::plot(
+      cpt, type = "l", lwd = 2,
+      xlab = "Event index", ylab = "Interval log likelihood",
+      cpt.width = 3)
+
   if (length(cpt@cpts) > 1) {
     dv <- get(strsplit(as.character(x$formula), " ~ ")[[2]][1])
     dv[cpt@cpts[-length(cpt@cpts)], ]

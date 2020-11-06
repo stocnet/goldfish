@@ -6,7 +6,7 @@ init_DyNAM_choice <- function(effectFun, network, attribute, n1, n2, cache = NUL
 # default -----------------------------------------------------------------
 init_DyNAM_choice.default <- function(effectFun,
                                       network = NULL, attribute = NULL,
-                                      window,
+                                      groupsNetworkObject, window,
                                       n1, n2) {
 
   # print(match.call())
@@ -92,7 +92,8 @@ init_DyNAM_choice.default <- function(effectFun,
           replace = netIter[i, j],
           n1 = if ("n1" %in% .argsNames) n1 else NULL,
           n2 = if ("n2" %in% .argsNames) n2 else NULL,
-          cache = cache
+          cache = cache,
+          groupsNetworkObject = groupsNetworkObject
         )
         .argsKeep <- pmatch(.argsNames, names(.argsFUN))
         # construct network objects step by step from empty objects
@@ -126,7 +127,8 @@ init_DyNAM_choice.default <- function(effectFun,
         replace = attIter[i],
         n1 = if ("n1" %in% .argsNames) n1 else NULL,
         n2 = if ("n2" %in% .argsNames) n2 else NULL,
-        cache = cache
+        cache = cache,
+        groupsNetworkObject = groupsNetworkObject
       )
       .argsKeep <- pmatch(.argsNames, names(.argsFUN))
       # construct network objects step by step from empty objects

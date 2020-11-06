@@ -427,8 +427,10 @@ preprocess <- function(
 #' @return a list of size length(effects): list with initial cache object and stat matrices
 #'
 #' @noRd
-initializeCacheStat <- function(objectsEffectsLink, effects, windowParameters,
-                                n1, n2, model, subModel, envir = environment()) {
+initializeCacheStat <- function(objectsEffectsLink, effects,
+                                n1, n2,
+                                groupsNetworkObject, windowParameters,
+                                model, subModel, envir = environment()) {
   objTable <- getDataObjects(list(rownames(objectsEffectsLink)),
                              removeFirst = FALSE
   )
@@ -460,6 +462,7 @@ initializeCacheStat <- function(objectsEffectsLink, effects, windowParameters,
         effectFun = effects[[iEff]][["effect"]],
         network = if (length(networks) == 1) networks[[1]] else networks,
         attribute = if (length(attributes) == 1) attributes[[1]] else attributes,
+        groupsNetworkObject = groupsNetworkObject,
         window = windowParameters[[iEff]],
         n1 = n1,
         n2 = n2
