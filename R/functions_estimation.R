@@ -65,7 +65,9 @@
 #'  event that indicates the starting time to be considered during estimation.}
 #'  \item{endTime}{a numerical value or a date-time character with the same time-zone formatting as the times in
 #'  event that indicates the end time to be considered during estimation.}
-#'  \item{opportunitiesList}{a list containing for each dependent event the list of available nodes for the choice model, this list should be the same length as the dependent events list (ONLY for choice models).}
+#'  \item{opportunitiesList}{a list containing for each dependent event
+#' the list of available nodes for the choice model, this list should be
+#' the same length as the dependent events list (ONLY for choice models).}
 #' }
 #' @param preprocessingOnly logical. Indicates whether only preprocessed statistics should be returned
 #' rather than a results object.
@@ -311,7 +313,7 @@ estimate.formula <- function(x,
     }
   }
   # gather_compute and default_c don't support restrictions of opportunity sets
-  if (!is.null(estimationInit) && "opportunitiesList" %in% names(estimationInit)){
+  if (!is.null(estimationInit) && "opportunitiesList" %in% names(estimationInit)) {
     if (!is.null(estimationInit["opportunitiesList"]) && engine != "default") {
       warning("engine = ", dQuote(engine), " doesn't support", dQuote("opportunitiesList"),
               ". engine =", dQuote("default"), " is used instead.",
@@ -402,7 +404,7 @@ estimate.formula <- function(x,
 
 
     # Initialize events list and link to objects
-    events <- getEventsAndObjectsLink(depName, rhsNames, .nodes, .nodes2, envir = envir)[[1]] 
+    events <- getEventsAndObjectsLink(depName, rhsNames, .nodes, .nodes2, envir = envir)[[1]]
         # moved cleanInteractionEvents in getEventsAndObjectsLink
     eventsObjectsLink <- getEventsAndObjectsLink(depName, rhsNames, .nodes, .nodes2, envir = envir)[[2]]
     eventsEffectsLink <- getEventsEffectsLink(events, rhsNames, eventsObjectsLink)
@@ -576,7 +578,7 @@ estimate.formula <- function(x,
         rightCensored = rightCensored,
         verbose = verbose,
         silent = silent,
-        groups.network = defaultNetworkName)
+        groupsNetwork = parsedformula$defaultNetworkName)
     } else {
       prep <- preprocess(
         model,
@@ -723,6 +725,7 @@ estimate.formula <- function(x,
 
   ### 6. RESULTS----
   result$names <- effectDescription
+  environment(formula) <- emptyenv() # avoids increase object size
   result$formula <- formula
   result$model <- model
   result$subModel <- subModel

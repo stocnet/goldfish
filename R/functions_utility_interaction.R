@@ -265,7 +265,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
     numgroups <- 0
     groups <- c()
     singletons <- c()
-    for (g in 1:max(groupassignment[, i])) {
+    for (g in seq.int(max(groupassignment[, i]))) {
       if (length(which(groupassignment[, i] == g)) > 1) {
         numgroups <- numgroups + 1
         groups <- c(groups, g)

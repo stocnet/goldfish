@@ -360,7 +360,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
     name = NA,
     object = NA,
     nodeset = NA,
-    attribute = NA, stringsAsFactors = F
+    attribute = NA, stringsAsFactors = FALSE
   )
 
   # replace dependent labels with ids
@@ -394,6 +394,12 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
   for (i in which(!isAttribute)) {
     evNames <- attr(get(objectNames[i, ]$object, envir = envir), "events")
     evs <- lapply(evNames, get, envir = envir)
+    nodesObject <- attr(get(objectNames[i, ]$object, envir = envir), "nodes")
+
+    if (length(nodesObject) > 1) {
+      nodes <- nodesObject[1]
+      nodes2 <- nodesObject[2]
+    } else nodes <- nodes2 <- nodesObject
 
     # replace labels with ids
     if (length(evNames) > 0) {
