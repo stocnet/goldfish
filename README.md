@@ -6,6 +6,8 @@
 ![GitHub issues](https://img.shields.io/github/issues-raw/snlab-ch/goldfish)
 ![GitHub All Releases](https://img.shields.io/github/downloads/snlab-ch/goldfish/total)
 [![Codecov test coverage](https://codecov.io/gh/snlab-ch/goldfish/branch/master/graph/badge.svg)](https://codecov.io/gh/snlab-ch/goldfish?branch=master)
+[![CodeFactor](https://www.codefactor.io/repository/github/snlab-ch/goldfish/badge)](https://www.codefactor.io/repository/github/snlab-ch/goldfish)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4563/badge)](https://bestpractices.coreinfrastructure.org/projects/4563)
 <!-- badges: end -->
 
 ## About
