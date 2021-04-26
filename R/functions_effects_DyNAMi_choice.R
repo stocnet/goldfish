@@ -4,8 +4,9 @@ init_DyNAMi_choice <- function(effectFun, network, attribute)
   UseMethod("init_DyNAMi_choice", effectFun)
 
 # default -----------------------------------------------------------------
-init_DyNAMi_choice.default <- function(effectFun, network, attribute)
-  NULL  # # effect without cache object
+
+#init_DyNAMi_choice.default <- function(effectFun, network, attribute)
+#  NULL  # # effect without cache object
 
 init_DyNAMi_choice.default <- function(effectFun,
                                        network = NULL, attribute = NULL,

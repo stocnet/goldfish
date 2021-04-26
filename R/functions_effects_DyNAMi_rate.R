@@ -1,14 +1,14 @@
 # define methods ----------------------------------------------------------
 # init cache data structure: vector or matrix
 init_DyNAMi_rate <- function(effectFun, network, attribute)
-  UseMethod("initCache_DyNAMi_rate", effectFun)
+  UseMethod("init_DyNAMi_rate", effectFun)
 
 # default -----------------------------------------------------------------
 init_DyNAMi_rate.default <- function(effectFun,
                                      network = NULL, attribute = NULL,
                                      groupsNetwork, window,
                                      n1, n2) {
-  init_DyNAM_choice.default(effectFun = effectFun,
+  init_DyNAMi_choice.default(effectFun = effectFun,
                             network = network, attribute = attribute,
                             groupsNetwork = groupsNetwork, window = window,
                             n1 = n1, n2 = n2)
