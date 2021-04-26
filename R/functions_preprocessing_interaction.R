@@ -160,6 +160,16 @@ preprocessInteraction <- function(
     deporder <- attr(events[[depindex]], "order")
     exoorder <- attr(events[[exoindex]], "order")
 
+    # sanitize events
+    nodesObject <- attr(groupsNetworkObject, "nodes")
+    
+    if (length(nodesObject) > 1) {
+      nodes <- nodesObject[1]
+      nodes2 <- nodesObject[2]
+    } else nodes <- nodes2 <- nodesObject
+    events[[depindex]] <- sanitizeEvents(events[[depindex]], nodes, nodes2)
+    events[[exoindex]] <- sanitizeEvents(events[[exoindex]], nodes, nodes2)
+    
     # augment the link objects
     eventsObjectsLink <- rbind(
       eventsObjectsLink,
@@ -254,7 +264,7 @@ preprocessInteraction <- function(
           if (length(cptindexes) > 1) cptorder <- cptorder - 1
         }
       }
-    } else { # otherwise we take the first next event
+    } else {# otherwise we take the first next event
       nextEvent <- currentpointers[1]
     }
     interval <- times[nextEvent] - time
@@ -405,7 +415,7 @@ preprocessInteraction <- function(
       # a. calculate statistics changes: if EXOGENOUS JOINING OR LEAVING, everything is recalculated
       if (isgroupupdate) {
         effIds <- seq.int(dim(eventsEffectsLink)[2])
-      } else { # OTHERWISE (PAST UPDATE or ATTRIBUTE UPDATE), only statistics related to the object
+      } else {# OTHERWISE (PAST UPDATE or ATTRIBUTE UPDATE), only statistics related to the object
         effIds <- which(!is.na(eventsEffectsLink[nextEvent + 1, ]))
       }
       groupsNetworkObject <- get(groupsNetwork)
