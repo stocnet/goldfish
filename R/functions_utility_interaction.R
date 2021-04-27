@@ -807,6 +807,16 @@ cleanInteractionEvents <- function(events, eventsEffectsLink, windowParameters,
 
         # reassign object
         assign(rownames(eventsEffectsLink)[e], eventsobject, pos = envir)
+        
+        # sanitize events
+        objPos <- which(eventsObjectsLink$events == rownames(eventsEffectsLink)[e])
+        nodesObject <- attr(get(eventsObjectsLink[objPos, ]$object, envir = envir), "nodes")
+        
+        if (length(nodesObject) > 1) {
+          nodes <- nodesObject[1]
+          nodes2 <- nodesObject[2]
+        } else nodes <- nodes2 <- nodesObject
+        eventsobject <- sanitizeEvents(eventsobject, nodes, nodes2)
         events[[e]] <- eventsobject
       }
     }

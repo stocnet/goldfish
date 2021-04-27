@@ -607,6 +607,9 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
         newNetwork <- matrix(0, nrow = nrow(network), ncol = ncol(network))
         newName <- paste(name, windowName, sep = "_")
         attr(newNetwork, "events") <- NULL
+        
+        # add nodes attribute
+        attr(newNetwork, "nodes") <- attr(network, "nodes")
 
         allEvents <- attr(network, "events")
       }
