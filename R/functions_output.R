@@ -268,8 +268,8 @@ print.nodes.goldfish <- function(x, full = FALSE, n = 6) {
   if (full) {
     print((x))
   } else {
-    cat("First", n, "rows\n")
-    print(head(x, n))
+    cat("First", min(nrow(x),n), "rows\n")
+    print(head(x, min(nrow(x),n)))
   }
   invisible(NULL)
 }
@@ -327,11 +327,11 @@ print.network.goldfish <- function(x, full = FALSE, n = 6) {
   if (full) {
     print(x)
   } else {
-    cat("First", n, "rows and columns\n")
+    cat("First", min(c(dim(x),n)), "rows and columns\n")
     if (R.version$major >= "4") {
-      print(head(x, c(n, n)))
+      print(head(x, c(min(c(dim(x),n)), min(c(dim(x),n)))))
     } else {
-      print(head(x[, seq(n)], n))
+      print(head(x[, seq(min(c(dim(x),n)))], min(c(dim(x),n))))
     }
   }
   invisible(NULL)
@@ -391,8 +391,8 @@ print.dependent.goldfish <- function(x, full = FALSE, n = 6) {
   if (full) {
     print((x))
   } else {
-    cat("First", n, "rows\n")
-    print(head(x, n))
+    cat("First", min(nrow(x),n), "rows\n")
+    print(head(x, min(nrow(x),n)))
   }
   invisible(NULL)
 }
