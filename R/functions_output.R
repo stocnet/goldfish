@@ -244,7 +244,7 @@ logLik.result.goldfish <- function(object, avgPerEvent = FALSE, ...) {
 #' @noRd
 #'
 #' @examples print(structure(data.frame(label = 1:5), class = c("nodes.goldfish", "data.frame")))
-print.nodes.goldfish <- function(x, full = FALSE, n = 6) {
+print.nodes.goldfish <- function(x, full = FALSE, n = min(6L, nrow(x))) {
   events <- attr(x, "events")
   dynamicAttr <- attr(x, "dynamicAttributes")
   cat("Number of nodes:", nrow(x), "\n")
@@ -276,7 +276,7 @@ print.nodes.goldfish <- function(x, full = FALSE, n = 6) {
 
 #' @export
 #' @importFrom utils head
-head.nodes.goldfish <- function(x, n = 6L) {
+head.nodes.goldfish <- function(x, n = min(6L, nrow(x))) {
   attributes(x)[c("events", "dynamicAttributes")] <- NULL
   class(x) <- "data.frame"
   print(head(x, n))
@@ -285,7 +285,7 @@ head.nodes.goldfish <- function(x, n = 6L) {
 
 #' @export
 #' @importFrom utils tail
-tail.nodes.goldfish <- function(x, n = 6L, keepnums = FALSE, addrownums = FALSE) {
+tail.nodes.goldfish <- function(x, n = min(6L, nrow(x)), keepnums = FALSE, addrownums = FALSE) {
   attributes(x)[c("events", "dynamicAttributes")] <- NULL
   class(x) <- "data.frame"
   if (R.version$major >= "4") {
@@ -308,7 +308,7 @@ tail.nodes.goldfish <- function(x, n = 6L, keepnums = FALSE, addrownums = FALSE)
 #' @noRd
 #'
 #' @examples print(structure(rep(0, 100), dim = c(10, 10), class = "network.goldfish"))
-print.network.goldfish <- function(x, full = FALSE, n = 6) {
+print.network.goldfish <- function(x, full = FALSE, n = min(6L, dim(x))) {
   nodes <- attr(x, "nodes")
   directed <- attr(x, "directed")
   ties <- if (directed) sum(x > 0) else sum(x > 0) / 2
@@ -327,11 +327,11 @@ print.network.goldfish <- function(x, full = FALSE, n = 6) {
   if (full) {
     print(x)
   } else {
-    cat("First", n, "rows and columns\n")
+    cat("First", min(c(dim(x),n)), "rows and columns\n")
     if (R.version$major >= "4") {
-      print(head(x, c(n, n)))
+      print(head(x, c(min(c(dim(x),n)), min(c(dim(x),n)))))
     } else {
-      print(head(x[, seq(n)], n))
+      print(head(x[, seq(min(c(dim(x),n)))], min(c(dim(x),n))))
     }
   }
   invisible(NULL)
@@ -339,7 +339,7 @@ print.network.goldfish <- function(x, full = FALSE, n = 6) {
 
 #' @export
 #' @importFrom utils head
-head.network.goldfish <- function(x, n = 6L) {
+head.network.goldfish <- function(x, n = min(6L, dim(x))) {
   attributes(x)[c("class", "events", "nodes", "directed")] <- NULL
   if (R.version$major >= "4") {
     print(head(x, c(n, n)))
@@ -351,7 +351,7 @@ head.network.goldfish <- function(x, n = 6L) {
 
 #' @export
 #' @importFrom utils tail
-tail.network.goldfish <- function(x, n = 6L, keepnums = TRUE, addrownums = TRUE) {
+tail.network.goldfish <- function(x, n = min(6L, dim(x)), keepnums = TRUE, addrownums = TRUE) {
   attributes(x)[c("class", "events", "nodes", "directed")] <- NULL
   if (R.version$major >= "4") {
     print(tail(x, c(n, n), keepnums = keepnums))
@@ -376,7 +376,7 @@ tail.network.goldfish <- function(x, n = 6L, keepnums = TRUE, addrownums = TRUE)
 #'    class = c("nodes.goldfish", "data.frame"), nodes = "nodes", defaultNetwork = "network"
 #'  )
 #' )
-print.dependent.goldfish <- function(x, full = FALSE, n = 6) {
+print.dependent.goldfish <- function(x, full = FALSE, n = min(6L, nrow(x))) {
   nodes <- attr(x, "nodes")
   defaultNetwork <- attr(x, "defaultNetwork")
   cat("Number of events:", nrow(x),
@@ -391,15 +391,15 @@ print.dependent.goldfish <- function(x, full = FALSE, n = 6) {
   if (full) {
     print((x))
   } else {
-    cat("First", n, "rows\n")
-    print(head(x, n))
+    cat("First", min(nrow(x),n), "rows\n")
+    print(head(x, min(nrow(x),n)))
   }
   invisible(NULL)
 }
 
 #' @export
 #' @importFrom utils head
-head.dependent.goldfish <- function(x, n = 6L) {
+head.dependent.goldfish <- function(x, n = min(6L, nrow(x))) {
   attributes(x)[c("nodes", "defaultNetwork", "type")] <- NULL
   class(x) <- "data.frame"
   print(head(x, n))
@@ -408,7 +408,7 @@ head.dependent.goldfish <- function(x, n = 6L) {
 
 #' @export
 #' @importFrom utils tail
-tail.dependent.goldfish <- function(x, n = 6L, keepnums = FALSE, addrownums = FALSE) {
+tail.dependent.goldfish <- function(x, n = min(6L, nrow(x)), keepnums = FALSE, addrownums = FALSE) {
   attributes(x)[c("nodes", "defaultNetwork", "type")] <- NULL
   class(x) <- "data.frame"
   if (R.version$major >= "4") {
