@@ -244,7 +244,7 @@ logLik.result.goldfish <- function(object, avgPerEvent = FALSE, ...) {
 #' @noRd
 #'
 #' @examples print(structure(data.frame(label = 1:5), class = c("nodes.goldfish", "data.frame")))
-print.nodes.goldfish <- function(x, full = FALSE, n = min(6L, nrow(x))) {
+print.nodes.goldfish <- function(x, full = FALSE, n = 6) {
   events <- attr(x, "events")
   dynamicAttr <- attr(x, "dynamicAttributes")
   cat("Number of nodes:", nrow(x), "\n")
@@ -268,8 +268,8 @@ print.nodes.goldfish <- function(x, full = FALSE, n = min(6L, nrow(x))) {
   if (full) {
     print((x))
   } else {
-    cat("First", n, "rows\n")
-    print(head(x, n))
+    cat("First", min(nrow(x),n), "rows\n")
+    print(head(x, min(nrow(x),n)))
   }
   invisible(NULL)
 }
@@ -308,7 +308,7 @@ tail.nodes.goldfish <- function(x, n = min(6L, nrow(x)), keepnums = FALSE, addro
 #' @noRd
 #'
 #' @examples print(structure(rep(0, 100), dim = c(10, 10), class = "network.goldfish"))
-print.network.goldfish <- function(x, full = FALSE, n = min(6L, dim(x))) {
+print.network.goldfish <- function(x, full = FALSE, n = 6) {
   nodes <- attr(x, "nodes")
   directed <- attr(x, "directed")
   ties <- if (directed) sum(x > 0) else sum(x > 0) / 2
@@ -376,7 +376,7 @@ tail.network.goldfish <- function(x, n = min(6L, dim(x)), keepnums = TRUE, addro
 #'    class = c("nodes.goldfish", "data.frame"), nodes = "nodes", defaultNetwork = "network"
 #'  )
 #' )
-print.dependent.goldfish <- function(x, full = FALSE, n = min(6L, nrow(x))) {
+print.dependent.goldfish <- function(x, full = FALSE, n = 6) {
   nodes <- attr(x, "nodes")
   defaultNetwork <- attr(x, "defaultNetwork")
   cat("Number of events:", nrow(x),
