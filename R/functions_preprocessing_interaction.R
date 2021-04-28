@@ -114,6 +114,11 @@ preprocessInteraction <- function(
   # added Marion: find index of the dependent, exogenous events on the groups
   # and of the past interaction updates
   dname <- eventsObjectsLink[1, 1]
+  # Patch Marion: the depdendent.depevents_DyNAMi is not sanitized yet
+  dnameObject <- get(dname)
+  dnameObject <- sanitizeEvents(get(dname),nodes,nodes2)
+  assign(dname, dnameObject)
+
   depindex <- 0
   deporder <- NULL
   exoindex <- 0
@@ -162,20 +167,21 @@ preprocessInteraction <- function(
 
     # sanitize events
     nodesObject <- attr(groupsNetworkObject, "nodes")
-    
+
     if (length(nodesObject) > 1) {
       nodes <- nodesObject[1]
       nodes2 <- nodesObject[2]
     } else nodes <- nodes2 <- nodesObject
     events[[depindex]] <- sanitizeEvents(events[[depindex]], nodes, nodes2)
     events[[exoindex]] <- sanitizeEvents(events[[exoindex]], nodes, nodes2)
-    
+
     # augment the link objects
     eventsObjectsLink <- rbind(
       eventsObjectsLink,
       c(depn, groupsNetwork, groupsNetwork, NA, NA),
       c(exon, groupsNetwork, groupsNetwork, NA, NA)
     )
+
     eventsEffectsLink <- rbind(
       eventsEffectsLink,
       rep(NA, dim(eventsEffectsLink)[2]),
@@ -183,12 +189,13 @@ preprocessInteraction <- function(
     )
     rownames(eventsEffectsLink)[dim(eventsEffectsLink)[1] - 1] <- depn
     rownames(eventsEffectsLink)[dim(eventsEffectsLink)[1]] <- exon
+
     objectsEffectsLink <- rbind(
       objectsEffectsLink,
       rep(NA, dim(objectsEffectsLink)[2])
     )
     rownames(objectsEffectsLink)[dim(objectsEffectsLink)[1]] <- groupsNetwork
-
+    
     # reset the pointers for ALL events
     pointers <- rep(1, length(events))
     validPointers <- rep(TRUE, length(events))
@@ -269,7 +276,10 @@ preprocessInteraction <- function(
     }
     interval <- times[nextEvent] - time
     time <- min(times[validPointers])
-
+    
+    #print("next event")
+    #print(nextEvent)
+    
     # changed Marion: for choice, only joining events are dependent events
     isDependent <- (subModel == "rate" && nextEvent == depindex) ||
       (subModel == "choice" && nextEvent == depindex && events[[depindex]][pointers[nextEvent], "increment"] > 0)
@@ -328,7 +338,10 @@ preprocessInteraction <- function(
       groupsNetworkObject[event$sender, event$receiver] <-
         groupsNetworkObject[event$sender, event$receiver] + event$increment
       assign(groupsNetwork, groupsNetworkObject)
-
+      
+      #print("dependent event")
+      #print(event)
+      
       pointerDependent <- pointerDependent + 1
     }
 
@@ -381,7 +394,7 @@ preprocessInteraction <- function(
       if (isIncrementEvent[nextEvent]) {
         varsKeep <- c(if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"), "increment")
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
-
+      
         if (isNodeEvent[nextEvent]) oldValue <- object[event$node]
         if (!isNodeEvent[nextEvent]) oldValue <- object[event$sender, event$receiver]
         event$replace <- oldValue + event$increment
@@ -391,9 +404,9 @@ preprocessInteraction <- function(
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
       }
 
-      if (!isNodeEvent[nextEvent] && event$replace < 0) {
-        warning(paste("You are dissolving a tie which doesn't exist!"))
-      }
+      #if (!isNodeEvent[nextEvent] && event$replace < 0) {
+      #  warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
+      #}
 
 
       # b. Update the data object
@@ -419,6 +432,9 @@ preprocessInteraction <- function(
         effIds <- which(!is.na(eventsEffectsLink[nextEvent + 1, ]))
       }
       groupsNetworkObject <- get(groupsNetwork)
+      
+      #print("non dependent event")
+      #print(event)
 
       for (id in effIds) {
         # create the ordered list for the objects
