@@ -114,6 +114,8 @@ init_DyNAMi_choice.default <- function(effectFun,
         attArg <- emptyObject
       }
       # set arguments values and only keep the ones in formals(effectFun)
+      # PATCH Marion
+      attArg <- attribute
       .argsFUN <- list(
         attribute = attArg,
         node = i,
