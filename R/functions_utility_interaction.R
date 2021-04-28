@@ -34,6 +34,9 @@
 #' to the groups nodeset to indicate when a group is present or not
 defineGroups_interaction <- function(records, actors, seed.randomization) {
 
+  # PATCH Marion: change actors labels to characters
+  actors$label <- as.character(actors$label)
+  
   # inititialization
   ngroups <- 0
   set.seed(seed.randomization)
@@ -763,6 +766,17 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
   attr(dependent.events, "class") <- c(attr(dependent.events, "class"), "interaction.groups.updates")
   attr(exogenous.events, "class") <- c(attr(exogenous.events, "class"), "interaction.groups.updates")
 
+  # PATCH Marion: remove factors in label columns
+  groups$label <- as.character(groups$label)
+  
+  # PATCH Marion: have the right names in the columns sender and receiver
+  interaction.updates$sender <- actors$label[interaction.updates$sender]
+  interaction.updates$receiver <- actors$label[interaction.updates$receiver]
+  dependent.events$sender <- actors$label[dependent.events$sender]
+  dependent.events$receiver <- groups$label[dependent.events$receiver]
+  exogenous.events$sender <- actors$label[exogenous.events$sender]
+  exogenous.events$receiver <- groups$label[exogenous.events$receiver]
+  
   groupsResult <- list(
     interaction.updates = interaction.updates,
     groups = groups,
