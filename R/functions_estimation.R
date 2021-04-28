@@ -232,7 +232,9 @@ estimate.formula <- function(x,
     estimationInit <- NULL
     preprocessingOnly <- FALSE
     preprocessingInit <- NULL
+    source("R/functions_estimation.R")
     source("R/functions_checks.R")
+    source("R/functions_data.R")
     source("R/functions_effects.R")
     source("R/functions_effects_DyNAM_rate.R")
     source("R/functions_effects_DyNAM_choice.R")
