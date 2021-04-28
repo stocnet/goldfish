@@ -114,8 +114,7 @@ preprocessInteraction <- function(
   # added Marion: find index of the dependent, exogenous events on the groups
   # and of the past interaction updates
   dname <- eventsObjectsLink[1, 1]
-  # Patch Marion: the depdendent.depevents_DyNAMi is not sanitized yet
-  dnameObject <- get(dname)
+  # PATCH Marion: the depdendent.depevents_DyNAMi is not sanitized yet
   dnameObject <- sanitizeEvents(get(dname),nodes,nodes2)
   assign(dname, dnameObject)
 
@@ -149,6 +148,13 @@ preprocessInteraction <- function(
 
     # find groups udates and add them to events
     groupsupdates <- attr(groupsNetworkObject, "events")
+    
+    # PATCH Marion: the groups update events were not sanitized
+    groupsupdates1Object <- sanitizeEvents(get(groupsupdates[1]),nodes,nodes2)
+    assign(groupsupdates[1], groupsupdates1Object)
+    groupsupdates2Object <- sanitizeEvents(get(groupsupdates[2]),nodes,nodes2)
+    assign(groupsupdates[2], groupsupdates2Object)
+ 
     if (all(get(dname) == get(groupsupdates[1]))) {
       depn <- groupsupdates[1]
       exon <- groupsupdates[2]
@@ -160,6 +166,10 @@ preprocessInteraction <- function(
     exoindex <- length(events) + 2
     events[[depindex]] <- get(depn)
     events[[exoindex]] <- get(exon)
+    print("dependent events")
+    print(depn)
+    print("exo events")
+    print(exon)
 
     # find orders
     deporder <- attr(events[[depindex]], "order")
@@ -339,8 +349,9 @@ preprocessInteraction <- function(
         groupsNetworkObject[event$sender, event$receiver] + event$increment
       assign(groupsNetwork, groupsNetworkObject)
       
-      #print("dependent event")
-      #print(event)
+      print("dependent event")
+      print(event)
+      #print(groupsNetworkObject)
       
       pointerDependent <- pointerDependent + 1
     }
@@ -433,9 +444,10 @@ preprocessInteraction <- function(
       }
       groupsNetworkObject <- get(groupsNetwork)
       
-      #print("non dependent event")
-      #print(event)
-
+      print("non dependent event (just before stat update)")
+      print(event)
+      #print(groupsNetworkObject)
+      
       for (id in effIds) {
         # create the ordered list for the objects
         objectsToPass <- objectsEffectsLink[, id][!is.na(objectsEffectsLink[, id])]
