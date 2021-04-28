@@ -99,7 +99,7 @@ preprocess <- function(
 
   statCache <- initializeCacheStat(
     objectsEffectsLink = objectsEffectsLink, effects = effects,
-    groupsNetworkObject = NULL, windowParameters = windowParameters,
+    groupsNetwork = NULL, windowParameters = windowParameters,
     n1 = n1, n2 = n2, model = model, subModel = subModel, envir = prepEnvir)
   # We put the initial stats to the previous format of 3 dimensional array
   initialStats <- array(unlist(lapply(statCache, "[[", "stat")),
