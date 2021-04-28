@@ -142,8 +142,8 @@ init_DyNAM_choice.default <- function(effectFun,
       emptyObject[i] <- attIter[i]
     }
   }
-  if (is.null(cache)) return(list(stat =  stats))
-  return(list(cache = cache, stat =  stats))
+  if (is.null(cache)) return(list(stat = stats))
+  return(list(cache = cache, stat = stats))
 }
 
 # Structural effects ------------------------------------------------------
@@ -1266,7 +1266,7 @@ init_DyNAM_choice.mixedTrans <- function(effectFun, network, window, n1, n2) {
          "\n\tnetwork 2: ", paste(dim(network1), collapse = ", "),
          "\n\tdependet network: ", n1, ", ", n2,
          "\n\trows of network 1 and cols of network 2 must be the same as the correspondent in dependent network,",
-         "cols of network 1 nust be the same as rows of network2")
+         "cols of network 1 must be the same as rows of network2")
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network1 == 0) || all(network2 == 0)) {
     return(list(

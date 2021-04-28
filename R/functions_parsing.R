@@ -99,6 +99,18 @@ parseFormula <- function(formula, envir = globalenv()) {
   transParameter <- lapply(rhsNames, getFunName, "transformFun")
   aggreParameter <- lapply(rhsNames, getFunName, "aggregateFun")
   # TODO: check coherence with documentation (just warnings)
+
+  # DyNAM-i ONLY: check right side: joining parameter
+  joiningParameter <- lapply(rhsNames, function(x) {
+    v <- getElement(x, "joining")
+    ifelse(!is.null(v), v, "")
+  })
+  # DyNAM-i ONLY: check right side: subtype parameter
+  subTypeParameter <- lapply(rhsNames, function(x) {
+    v <- getElement(x, "subType")
+    ifelse(!is.null(v), v, "")
+  })
+
   # return all the results of the formula parsing
   res <- list(
     rhsNames = rhsNames,
@@ -110,7 +122,9 @@ parseFormula <- function(formula, envir = globalenv()) {
     weightedParameter = weightedParameter,
     typeParameter = typeParameter,
     transParameter = transParameter,
-    aggreParameter = aggreParameter
+    aggreParameter = aggreParameter,
+    joiningParameter = joiningParameter,
+    subTypeParameter = subTypeParameter
   )
   return(res)
 }
@@ -154,14 +168,14 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
   sizenew <- length(newparsedformula$rhsNames)
   effectsindexes <- rep(0, sizenew)
   # go through all new effects to check whether they already existed in the old formula
-  for (i in 1:sizenew) {
+  for (i in seq.int(sizenew)) {
     effectname <- newparsedformula$rhsNames[[i]][[1]]
     effectobject <- newparsedformula$rhsNames[[i]][[2]]
     effectwindow <- newparsedformula$windowParameters[[i]]
     effectignorerep <- newparsedformula$ignoreRepParameter[[i]]
     effectweighted <- newparsedformula$weightedParameter[[i]]
     effectparameter <- newparsedformula$userSetParameter[[i]]
-    for (j in 1:sizeold) {
+    for (j in seq.int(sizeold)) {
       # 1 check name of the effect
       if (!identical(oldparsedformula$rhsNames[[j]][[1]], effectname)) {
         next
@@ -346,7 +360,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
     name = NA,
     object = NA,
     nodeset = NA,
-    attribute = NA, stringsAsFactors = F
+    attribute = NA, stringsAsFactors = FALSE
   )
 
   # replace dependent labels with ids
@@ -380,6 +394,12 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
   for (i in which(!isAttribute)) {
     evNames <- attr(get(objectNames[i, ]$object, envir = envir), "events")
     evs <- lapply(evNames, get, envir = envir)
+    nodesObject <- attr(get(objectNames[i, ]$object, envir = envir), "nodes")
+
+    if (length(nodesObject) > 1) {
+      nodes <- nodesObject[1]
+      nodes2 <- nodesObject[2]
+    } else nodes <- nodes2 <- nodesObject
 
     # replace labels with ids
     if (length(evNames) > 0) {
@@ -586,8 +606,8 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
                                 sep = "_"
     )
 
-    if (isAttribute) {
 
+    if (isAttribute) {
       # get nodes & attribute, add new windowed attribute, get related events to be windowed later
       nameNodes <- objects$nodeset
       nodes <- get(nameNodes, envir = envir)
@@ -607,6 +627,12 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
       newNetwork <- matrix(0, nrow = nrow(network), ncol = ncol(network))
       newName <- paste(name, windowName, sep = "_")
       attr(newNetwork, "events") <- NULL
+      
+      # add attribute
+      attr(newNetwork, "nodes") <- attr(network, "nodes")
+      attr(newNetwork, "directed") <- attr(network, "directed")
+      dimnames(newNetwork) <- dimnames(network)
+      class(newNetwork) <- class(network)
 
       allEvents <- attr(network, "events")
     }

@@ -6,7 +6,7 @@
 \usage{
 estimate(
   x,
-  model = c("DyNAM", "REM"),
+  model = c("DyNAM", "REM", "DyNAMi"),
   subModel = c("choice", "rate", "choice_coordination"),
   estimationInit = NULL,
   preprocessingInit = NULL,
@@ -66,6 +66,9 @@ any parameter. Note that it must be consistent with initialParameters. }
  event that indicates the starting time to be considered during estimation.}
  \item{endTime}{a numerical value or a date-time character with the same time-zone formatting as the times in
  event that indicates the end time to be considered during estimation.}
+ \item{opportunitiesList}{a list containing for each dependent event
+the list of available nodes for the choice model, this list should be
+the same length as the dependent events list (ONLY for choice models).}
 }}
 
 \item{preprocessingInit}{a preprocessed.goldfish object computed for the current formula,
