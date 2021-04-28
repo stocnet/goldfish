@@ -166,10 +166,6 @@ preprocessInteraction <- function(
     exoindex <- length(events) + 2
     events[[depindex]] <- get(depn)
     events[[exoindex]] <- get(exon)
-    print("dependent events")
-    print(depn)
-    print("exo events")
-    print(exon)
 
     # find orders
     deporder <- attr(events[[depindex]], "order")
@@ -210,7 +206,8 @@ preprocessInteraction <- function(
     pointers <- rep(1, length(events))
     validPointers <- rep(TRUE, length(events))
   }
-
+  
+  
   # Set the counter for the ordered events
   cptorder <- 0
 
@@ -236,7 +233,7 @@ preprocessInteraction <- function(
   # UPDATED ALVARO: logical values indicating the type of information in events
   isIncrementEvent <- vapply(events, function(x) "increment" %in% names(x), logical(1))
   isNodeEvent <- vapply(events, function(x) "node" %in% names(x), logical(1))
-
+  
   # iterate over all event lists
   while (any(validPointers)) {
 
@@ -287,8 +284,6 @@ preprocessInteraction <- function(
     interval <- times[nextEvent] - time
     time <- min(times[validPointers])
     
-    #print("next event")
-    #print(nextEvent)
     
     # changed Marion: for choice, only joining events are dependent events
     isDependent <- (subModel == "rate" && nextEvent == depindex) ||
@@ -349,9 +344,6 @@ preprocessInteraction <- function(
         groupsNetworkObject[event$sender, event$receiver] + event$increment
       assign(groupsNetwork, groupsNetworkObject)
       
-      print("dependent event")
-      print(event)
-      #print(groupsNetworkObject)
       
       pointerDependent <- pointerDependent + 1
     }
@@ -429,6 +421,7 @@ preprocessInteraction <- function(
           object[event$receiver, event$sender] <- event$replace
         }
       }
+      
       # Assign object
       eval(parse(text = paste(objectName, "<- object")), envir = prepEnvir)
 
@@ -443,10 +436,7 @@ preprocessInteraction <- function(
         effIds <- which(!is.na(eventsEffectsLink[nextEvent + 1, ]))
       }
       groupsNetworkObject <- get(groupsNetwork)
-      
-      print("non dependent event (just before stat update)")
-      print(event)
-      #print(groupsNetworkObject)
+ 
       
       for (id in effIds) {
         # create the ordered list for the objects
