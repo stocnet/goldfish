@@ -492,7 +492,6 @@ estimate.formula <- function(x,
     )
     allprep$dependentStatsChange <- list()
     allprep$rightCensoredStatsChange <- list()
-    cptold <- 1
     cptnew <- 1
 
     # initial stats
@@ -502,14 +501,12 @@ estimate.formula <- function(x,
         cptnew <- cptnew + 1
       }
       if (effectsindexes[e] > 0) {
-        allprep$initialStats[, , e] <- preprocessingInit$initialStats[, , cptold]
-        cptold <- cptold + 1
+        allprep$initialStats[, , e] <- preprocessingInit$initialStats[, , effectsindexes[e]]
       }
     }
 
     # dependent stats updates
     for (t in seq_along(allprep$intervals)) {
-      cptold <- 1
       cptnew <- 1
       allprep$dependentStatsChange[[t]] <- lapply(seq_along(effectsindexes), function(x) NULL)
       for (e in seq_along(effectsindexes)) {
@@ -520,10 +517,9 @@ estimate.formula <- function(x,
           cptnew <- cptnew + 1
         }
         if (effectsindexes[e] > 0) {
-          if (!is.null(preprocessingInit$dependentStatsChange[[t]][[cptold]])) {
-            allprep$dependentStatsChange[[t]][[e]] <- preprocessingInit$dependentStatsChange[[t]][[cptold]]
+          if (!is.null(preprocessingInit$dependentStatsChange[[t]][[effectsindexes[e]]])) {
+            allprep$dependentStatsChange[[t]][[e]] <- preprocessingInit$dependentStatsChange[[t]][[effectsindexes[e]]]
           }
-          cptold <- cptold + 1
         }
       }
     }
@@ -531,7 +527,6 @@ estimate.formula <- function(x,
     # right censored stats updates
     if (length(allprep$rightCensoredIntervals) > 0) {
       for (t in seq_along(allprep$rightCensoredIntervals)) {
-        cptold <- 1
         cptnew <- 1
         allprep$rightCensoredStatsChange[[t]] <- lapply(seq_along(effectsindexes), function(x) NULL)
         for (e in seq_along(effectsindexes)) {
@@ -542,10 +537,9 @@ estimate.formula <- function(x,
             cptnew <- cptnew + 1
           }
           if (effectsindexes[e] > 0) {
-            if (!is.null(preprocessingInit$rightCensoredStatsChange[[t]][[cptold]])) {
-              allprep$rightCensoredStatsChange[[t]][[e]] <- preprocessingInit$rightCensoredStatsChange[[t]][[cptold]]
+            if (!is.null(preprocessingInit$rightCensoredStatsChange[[t]][[effectsindexes[e]]])) {
+              allprep$rightCensoredStatsChange[[t]][[e]] <- preprocessingInit$rightCensoredStatsChange[[t]][[effectsindexes[e]]]
             }
-            cptold <- cptold + 1
           }
         }
       }
