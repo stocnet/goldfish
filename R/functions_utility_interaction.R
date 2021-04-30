@@ -798,10 +798,13 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
 cleanInteractionEvents <- function(events, eventsEffectsLink, windowParameters,
                                      subModel, depName, eventsObjectsLink, envir) {
 
+  done.events <- rep(F,dim(eventsEffectsLink)[1])
+  
   # Windowed events: we remove the order of the events
   for (e in seq.int(dim(eventsEffectsLink)[1])) {
     for (eff in seq.int(dim(eventsEffectsLink)[2])) {
-      if (!is.na(eventsEffectsLink[e, eff]) && !is.null(windowParameters[[eff]])) {
+      if (!done.events[e] && !is.na(eventsEffectsLink[e, eff]) && !is.null(windowParameters[[eff]])) {
+
         eventsobject <- get(rownames(eventsEffectsLink)[e], envir = envir)
 
         # correct the order of events
@@ -832,6 +835,9 @@ cleanInteractionEvents <- function(events, eventsEffectsLink, windowParameters,
         } else nodes <- nodes2 <- nodesObject
         eventsobject <- sanitizeEvents(eventsobject, nodes, nodes2)
         events[[e]] <- eventsobject
+        
+        # we don't go through this event again
+        done.events[e] <- T
       }
     }
   }
