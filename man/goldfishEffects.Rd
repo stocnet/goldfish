@@ -54,7 +54,8 @@ The interpretation depends on the specific effect. The default value is \code{FA
 The default value is \code{Inf} meaning that no windows are applied to the effect.
 Window size can be specified as a number in seconds (i.e. an hour is 3600 seconds),
 or as a string stating the number of time units in the format "number unit",
-for example "30 seconds", "1 minute", "2 hours", "3 days", "4 weeks", "5 months", or "6 years".}
+for example "30 seconds", "1 minute", "2 hours", "3 days", "4 weeks", "5 months", or "6 years".
+The time units are converted to seconds using their most common lengths in seconds.}
 
 \item{transformFun}{Use this parameter to obtain transformed statistics.
 The argument expected is a function or the name of the function to use without quotation marks.}

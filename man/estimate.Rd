@@ -4,11 +4,17 @@
 \alias{estimate}
 \title{Estimate a model}
 \usage{
-estimate(x, model = c("DyNAM", "REM"),
-         subModel = c("choice", "rate", "choice_coordination"),
-         estimationInit = NULL, preprocessingInit = NULL,
-         preprocessingOnly = FALSE,
-         verbose = FALSE, silent = FALSE, debug = FALSE)
+estimate(
+  x,
+  model = c("DyNAM", "REM", "DyNAMi"),
+  subModel = c("choice", "rate", "choice_coordination"),
+  estimationInit = NULL,
+  preprocessingInit = NULL,
+  preprocessingOnly = FALSE,
+  verbose = FALSE,
+  silent = FALSE,
+  debug = FALSE
+)
 }
 \arguments{
 \item{x}{a formula that defines at the left-hand side the dependent network

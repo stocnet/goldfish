@@ -3,7 +3,7 @@
   packageStartupMessage("  <\")))><  The Goldfish package in R\n")
   packageStartupMessage(
     pkgname, ": version ", utils::packageVersion("goldfish"),
-    ", \"Bristol Shubunkins\", created on ",
+    ", \"Bubble Eye\", created on ",
     utils::packageDescription("goldfish", fields = "Date"),
     "\n"
   )

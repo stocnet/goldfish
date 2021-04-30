@@ -1,8 +1,8 @@
-######################################
+#################################### #
 #
 # global utility functions for the TSS project
 #
-######################################
+#################################### #
 
 division <- function(a, b) a / b
 
@@ -43,11 +43,11 @@ imputeMissings <- function(processStateObject) {
   processStateObject
 }
 
-######################################
+#################################### #
 #
 # deprecated utility functions
 #
-######################################
+#################################### #
 
 # given a network and a window, this function returns a list where:
 # - the first element is the dynamic window network

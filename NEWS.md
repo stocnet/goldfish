@@ -1,3 +1,34 @@
+# goldfish 1.5.0
+
+## New features
+
+* New DyNAM-i model available to model face-to-face interaction data, collected through video or RFID badges.
+* Functions to transform interaction data into DyNAM-compatible objects
+
+  ```R
+  defineGroups_interaction(interactions_data, actors, seed.randomization)
+  ```
+* Estimation functions for the joining and leaving rates of a DyNAM-i model
+
+  ```R
+  estimate(dependent.events_interactions ~  1 + intercept(network_interactions, joining=1) +
+                                            ego(actors$age,joining=1,subType="centered") +
+                                            ego(actors$age,joining=-1,subType="centered"),
+           model = "DyNAMi", subModel = "rate")
+  ```
+  
+* Estimation functions for the choice part of a DyNAM-i model
+
+  ```R
+  estimate(dependent.events_interactions ~ diff(actors$age,subType="averaged_sum") ,
+           model = "DyNAMi", subModel = "choice", 
+           estimationInit = list(opportunitiesList = opportunities))
+  ```
+  
+## Minor improvements and fixes
+
+* Minor bugs in parsing and printing solved.
+
 # goldfish 1.4.3
 
 ## New features
