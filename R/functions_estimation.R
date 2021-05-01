@@ -173,6 +173,7 @@ estimate <- function(x,
                      estimationInit = NULL,
                      preprocessingInit = NULL,
                      preprocessingOnly = FALSE,
+                     inactivePeriods = NULL,
                      verbose = FALSE,
                      silent = FALSE,
                      debug = FALSE)
@@ -187,6 +188,7 @@ estimate.formula <- function(x,
                              estimationInit = NULL,
                              preprocessingInit = NULL,
                              preprocessingOnly = FALSE,
+                             inactivePeriods = NULL,
                              verbose = FALSE,
                              silent = FALSE,
                              debug = FALSE,
@@ -276,7 +278,8 @@ estimate.formula <- function(x,
     inherits(silent, "logical"),
     inherits(debug, "logical"),
     is.null(preprocessingInit) || inherits(preprocessingInit, "preprocessed.goldfish"),
-    is.null(estimationInit) || inherits(estimationInit, "list")
+    is.null(estimationInit) || inherits(estimationInit, "list"),
+    is.null(inactivePeriods) || inherits(inactivePeriods, "list")
   )
 
   if (!is.null(estimationInit)) {
@@ -415,6 +418,11 @@ estimate.formula <- function(x,
                                        eventsObjectsLink, envir = environment())
   }
 
+  # Inactive time periods: remove cut periods and updates windowed changes (only needed for rate models)
+  if(!is.null(inactivePeriods) && subModel == "rate"){
+    events <- cleanInactivePeriods(events, inactivePeriods, eventsEffectsLink, eventsObjectsLink, envir = environment())
+  }
+  
   ### 3. PREPROCESS statistics----
   ## 3.1 INITIALIZE OBJECTS for preprocessingInit: remove old effects, add new ones
   if (!is.null(preprocessingInit)) {
@@ -478,6 +486,16 @@ estimate.formula <- function(x,
       if (length(preprocessingInit$rightCensoredIntervals) != length(newprep$rightCensoredIntervals)) {
         stop("The numbers of right-censored events in the formula and in the preprocessed object are not consistent.\n
            Please check whether some windows have been changed.")
+      }
+      
+      # test the time intervals and RightCensoredIntervals (in case the first estimation was done with different inactive periods, or without)
+      if (!all(preprocessingInit$intervals == newprep$intervals)) {
+        stop("The time intervals between events have changed, possibly because of the treatment of inactive periods. \n
+             Please re-estimate without peprocessingInit.")
+      }
+      if (!all(preprocessingInit$RightCensoredIntervals == newprep$RightCensoredIntervals)) {
+        stop("The time intervals between right-censored events have changed, possibly because of the treatment of inactive periods. \n
+             Please re-estimate without peprocessingInit.")
       }
     }
 

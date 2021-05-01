@@ -685,3 +685,55 @@ OldNames <- function(object) {
     object$model.type <- modelTypeCall
   } else stop("not ", dQuote("result.goldfish"), " object", call. = FALSE)
 }
+
+
+
+# Function that change the timing of events when inactive periods are defined
+cleanInactivePeriods <- function(events, inactivePeriods, eventsEffectsLink, eventsObjectsLink, envir) {
+  
+  # go through all events
+  for (e in seq.int(dim(eventsEffectsLink)[1])){
+    
+    eventsobject <- get(rownames(eventsEffectsLink)[e], envir = envir)
+    translate <- rep(0,nrow(eventsobject))
+    
+    # go through all periods to cut
+    for(p in seq.int(length(inactivePeriods))){
+      
+      start <- inactivePeriods[[p]]$start
+      end <- inactivePeriods[[p]]$end
+      
+      if((end - start) > 2){
+        eventsduring <- which(eventsobject$time > start && eventsobject$time < end)
+        eventsafter <- which(eventsobject$time >= end)
+        
+        translate[eventsduring] <- translate[eventsduring] - (end-start) + 1
+        translate[eventsafter] <- translate[eventsafter] - (end-start) + 2
+          
+        if (e == 1 && length(eventsduring) > 0) {
+          stop("Dependent events shouls not occur during inactive periods.")
+        }
+      }
+      
+    }
+    
+    eventsobject$time <- eventsobject$time + translate
+    
+    # reassign object
+    assign(rownames(eventsEffectsLink)[e], eventsobject, pos = envir)
+    
+    # sanitize events
+    #objPos <- which(eventsObjectsLink$events == rownames(eventsEffectsLink)[e])
+    #nodesObject <- attr(get(eventsObjectsLink[objPos, ]$object, envir = envir), "nodes")
+    
+    #if (length(nodesObject) > 1) {
+    #  nodes <- nodesObject[1]
+    #  nodes2 <- nodesObject[2]
+    #} else nodes <- nodes2 <- nodesObject
+    #eventsobject <- sanitizeEvents(eventsobject, nodes, nodes2)
+    events[[e]] <- eventsobject
+  }
+
+  return(events)
+  
+}
