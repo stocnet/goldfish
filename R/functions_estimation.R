@@ -588,7 +588,8 @@ estimate.formula <- function(x,
         rightCensored = rightCensored,
         verbose = verbose,
         silent = silent,
-        groupsNetwork = parsedformula$defaultNetworkName)
+        groupsNetwork = parsedformula$defaultNetworkName,
+        inactivePeriods = inactivePeriods)
     } else {
       prep <- preprocess(
         model,

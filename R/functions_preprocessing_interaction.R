@@ -34,7 +34,8 @@ preprocessInteraction <- function(
   rightCensored = FALSE,
   verbose = TRUE,
   silent = FALSE,
-  groupsNetwork = groupsNetwork) {
+  groupsNetwork = groupsNetwork,
+  inactivePeriods = inactivePeriods) {
 
 # For debugging
   if (identical(environment(), globalenv())) {
@@ -114,8 +115,9 @@ preprocessInteraction <- function(
   # added Marion: find index of the dependent, exogenous events on the groups
   # and of the past interaction updates
   dname <- eventsObjectsLink[1, 1]
-  # PATCH Marion: the depdendent.depevents_DyNAMi is not sanitized yet
+  # PATCH Marion: the dependent.depevents_DyNAMi is not sanitized yet, and the inactive periods not removed yet
   dnameObject <- sanitizeEvents(get(dname),nodes,nodes2)
+  dnameObject <- translateEvents(dnameObject,inactivePeriods)
   assign(dname, dnameObject)
 
   depindex <- 0
@@ -149,10 +151,12 @@ preprocessInteraction <- function(
     # find groups udates and add them to events
     groupsupdates <- attr(groupsNetworkObject, "events")
     
-    # PATCH Marion: the groups update events were not sanitized
+    # PATCH Marion: the groups update events were not sanitized and inactive periods not removed
     groupsupdates1Object <- sanitizeEvents(get(groupsupdates[1]),nodes,nodes2)
+    groupsupdates1Object <- translateEvents(groupsupdates1Object,inactivePeriods)
     assign(groupsupdates[1], groupsupdates1Object)
     groupsupdates2Object <- sanitizeEvents(get(groupsupdates[2]),nodes,nodes2)
+    groupsupdates2Object <- translateEvents(groupsupdates2Object,inactivePeriods)
     assign(groupsupdates[2], groupsupdates2Object)
  
     if (all(get(dname) == get(groupsupdates[1]))) {
@@ -349,6 +353,7 @@ preprocessInteraction <- function(
     }
 
     if (!isDependent) {
+      
       # 2. store statistic updates for RIGHT-CENSORED (non-dependent, positive) intervals
       if (rightCensored && interval > 0) {
         # CHANGED MARION: the incremented index was incorrect

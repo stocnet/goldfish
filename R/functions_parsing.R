@@ -68,7 +68,7 @@ parseFormula <- function(formula, envir = globalenv()) {
   }
   # check right side: windows
   windowParameters <- lapply(rhsNames, getElement, "window")
-  rhsNames <- parseTimeWindows(rhsNames)
+  rhsNames <- parseTimeWindows(rhsNames, depName)
   # check right side: ignoreRep parameter
   mult <- parseMultipleEffects(rhsNames)
   rhsNames <- mult[[1]]
@@ -297,7 +297,7 @@ createEffectsFunctions <- function(effectInit, model, subModel,
 
 
 # create new events lists when a window should be applied
-createWindowedEvents <- function(objectEvents, window) {
+createWindowedEvents <- function(objectEvents, window, depName, envir = globalenv()) {
 
   # create dissolution events
   # - for increment, add the opposite increment
@@ -318,7 +318,13 @@ createWindowedEvents <- function(objectEvents, window) {
     name <- names(newEvents)[n]
     newEvents[[name]] <- newEvents[[name]][sort.order]
   }
-
+  
+  # remove extra events happening after the end of dependent events
+  depEvents <- get(depName)
+  endtime <- max(depEvents$time)
+  rowstokeep <- which(newEvents$time < endtime)
+  newEvents <- newEvents[rowstokeep,]
+  
   return(newEvents)
 }
 
@@ -523,7 +529,7 @@ parseMultipleEffects <- function(rhsNames, default = FALSE) {
 
 # Identify time windows objects, create new events and objects, link updates and
 # finally update rhs (and thus effectInit) accordingly
-parseTimeWindows <- function(rhsNames, envir = globalenv()) {
+parseTimeWindows <- function(rhsNames, depName, envir = globalenv()) {
   objectNames <- getDataObjects(rhsNames)
 
   hasWindows <- which(vapply(rhsNames, function(x) !is.null(getElement(x, "window")), logical(1)))
@@ -640,7 +646,7 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
     # create new windowed events lists, link them, add them to the environment
     for (events in allEvents) {
       objectEvents <- get(events, envir = envir)
-      newEvents <- createWindowedEvents(objectEvents, window)
+      newEvents <- createWindowedEvents(objectEvents, window, depName)
       nameNewEvents <- paste(events, window, sep = "_")
 
       if (isAttribute) {
