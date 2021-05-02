@@ -704,7 +704,7 @@ cleanInactivePeriods <- function(events, inactivePeriods, eventsEffectsLink, eve
       end <- inactivePeriods[[p]]$end
       
       if((end - start) > 2){
-        eventsduring <- which(eventsobject$time > start && eventsobject$time < end)
+        eventsduring <- which(eventsobject$time > start & eventsobject$time < end)
         eventsafter <- which(eventsobject$time >= end)
         
         translate[eventsduring] <- translate[eventsduring] - (end-start) + 1
