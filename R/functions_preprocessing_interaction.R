@@ -117,7 +117,7 @@ preprocessInteraction <- function(
   dname <- eventsObjectsLink[1, 1]
   # PATCH Marion: the dependent.depevents_DyNAMi is not sanitized yet, and the inactive periods not removed yet
   dnameObject <- sanitizeEvents(get(dname),nodes,nodes2)
-  dnameObject <- translateEvents(dnameObject,inactivePeriods)
+  if(!is.null(inactivePeriods)) dnameObject <- translateEvents(dnameObject,inactivePeriods)
   assign(dname, dnameObject)
 
   depindex <- 0
@@ -153,10 +153,10 @@ preprocessInteraction <- function(
     
     # PATCH Marion: the groups update events were not sanitized and inactive periods not removed
     groupsupdates1Object <- sanitizeEvents(get(groupsupdates[1]),nodes,nodes2)
-    groupsupdates1Object <- translateEvents(groupsupdates1Object,inactivePeriods)
+    if(!is.null(inactivePeriods)) groupsupdates1Object <- translateEvents(groupsupdates1Object,inactivePeriods)
     assign(groupsupdates[1], groupsupdates1Object)
     groupsupdates2Object <- sanitizeEvents(get(groupsupdates[2]),nodes,nodes2)
-    groupsupdates2Object <- translateEvents(groupsupdates2Object,inactivePeriods)
+    if(!is.null(inactivePeriods)) groupsupdates2Object <- translateEvents(groupsupdates2Object,inactivePeriods)
     assign(groupsupdates[2], groupsupdates2Object)
  
     if (all(get(dname) == get(groupsupdates[1]))) {

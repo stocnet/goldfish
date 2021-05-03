@@ -695,7 +695,7 @@ cleanInactivePeriods <- function(events, inactivePeriods, eventsEffectsLink, eve
   for (e in seq.int(dim(eventsEffectsLink)[1])){
     
     eventsobject <- get(rownames(eventsEffectsLink)[e], envir = envir)
-    eventsobject <- translateEvents(eventsobject,inactivePeriods) 
+    eventsobject <- translateEvents(eventsobject,inactivePeriods,isDependent = (e==1)) 
     
     # reassign object
     assign(rownames(eventsEffectsLink)[e], eventsobject, pos = envir)
@@ -716,7 +716,7 @@ cleanInactivePeriods <- function(events, inactivePeriods, eventsEffectsLink, eve
   
 }
 
-translateEvents <- function(eventsobject,inactivePeriods) {
+translateEvents <- function(eventsobject,inactivePeriods,isDependent=FALSE) {
   
   translate <- rep(0,nrow(eventsobject))
   
@@ -733,7 +733,7 @@ translateEvents <- function(eventsobject,inactivePeriods) {
       translate[eventsduring] <- translate[eventsduring] - (end-start) + 1
       translate[eventsafter] <- translate[eventsafter] - (end-start) + 2
       
-      if (e == 1 && length(eventsduring) > 0) {
+      if (isDependent && length(eventsduring) > 0) {
         stop("Dependent events shouls not occur during inactive periods.")
       }
     }
