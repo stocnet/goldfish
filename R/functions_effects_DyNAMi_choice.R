@@ -823,7 +823,7 @@ update_DyNAMi_choice_sizeXego <- function(attribute,
         rep <- snmembers * (attribute[i] - meanatt)
       }
       if (subType == "normalized") {
-        rep <- snmembers * (attribute[i] - meanatt) / sdatt else rep <- 0
+        if (sdatt > 0) rep <- snmembers * (attribute[i] - meanatt) / sdatt else rep <- 0
       }
       
       if (statistics[i, j] != rep) {
@@ -883,7 +883,7 @@ update_DyNAMi_choice_dyadXego <- function(attribute,
         rep <- m * (attribute[i] - meanatt)
       }
       if (subType == "normalized") {
-        rep <- m * (attribute[i] - meanatt) / sdatt else rep <- 0
+        if (sdatt > 0) rep <- m * (attribute[i] - meanatt) / sdatt else rep <- 0
       }
       
       if (statistics[i, j] != rep) {
