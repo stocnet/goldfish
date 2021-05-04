@@ -39,3 +39,4 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 NeedsCompilation: yes
+Config/testthat/edition: 3
