@@ -718,7 +718,7 @@ cleanInactivePeriods <- function(events, inactivePeriods, eventsEffectsLink, eve
 
 translateEvents <- function(eventsobject,inactivePeriods,isDependent=FALSE) {
   
-  translate <- rep(0,nrow(eventsobject))
+  newtimes <- eventsobject$time
   
   # go through all periods to cut
   for(p in seq.int(length(inactivePeriods))){
@@ -732,20 +732,22 @@ translateEvents <- function(eventsobject,inactivePeriods,isDependent=FALSE) {
       
       nduring <- length(eventsduring)
       if(nduring > 0){
-        eventsobject$time[eventsduring] <- start + 1
+        newtimes <- start + 1
       }
       
       nafter <- length(eventsafter)
       if(nafter > 0){
-        eventsobject$time[eventsafter] <- eventsobject$time[eventsafter] - (end-start) + 2
+        newtimes <- eventsobject$time[eventsafter] - (end-start) + 2
       }
       
       if (isDependent && length(eventsduring) > 0) {
-        stop("Dependent events shouls not occur during inactive periods.")
+        stop("Dependent events should not occur during inactive periods.")
       }
     }
     
   }
+  
+  eventsobject$time <- newtimes
   
   return(eventsobject)
 }
