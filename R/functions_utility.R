@@ -730,8 +730,15 @@ translateEvents <- function(eventsobject,inactivePeriods,isDependent=FALSE) {
       eventsduring <- which(eventsobject$time > start & eventsobject$time < end)
       eventsafter <- which(eventsobject$time >= end)
       
-      translate[eventsduring] <- translate[eventsduring] - (end-start) + 1
-      translate[eventsafter] <- translate[eventsafter] - (end-start) + 2
+      nduring <- length(eventsduring)
+      if(nduring > 0){
+        eventsobject$time[eventsduring] <- start + 1
+      }
+      
+      nafter <- length(eventsafter)
+      if(nafter > 0){
+        eventsobject$time[eventsafter] <- eventsobject$time[eventsafter] - (end-start) + 2
+      }
       
       if (isDependent && length(eventsduring) > 0) {
         stop("Dependent events shouls not occur during inactive periods.")
@@ -740,6 +747,5 @@ translateEvents <- function(eventsobject,inactivePeriods,isDependent=FALSE) {
     
   }
   
-  eventsobject$time <- eventsobject$time + translate
   return(eventsobject)
 }
