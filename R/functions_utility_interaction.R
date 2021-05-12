@@ -730,7 +730,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
 
   # RESULTS
   groups <- data.frame(
-    label = paste0("Group", 1:nactors),
+    label = as.character(1:nactors),
     present = TRUE
   )
 
@@ -767,15 +767,15 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
   attr(exogenous.events, "class") <- c(attr(exogenous.events, "class"), "interaction.groups.updates")
 
   # PATCH Marion: remove factors in label columns
-  groups$label <- as.character(groups$label)
+  #groups$label <- as.character(groups$label)
   
   # PATCH Marion: have the right names in the columns sender and receiver
-  interaction.updates$sender <- actors$label[interaction.updates$sender]
-  interaction.updates$receiver <- actors$label[interaction.updates$receiver]
-  dependent.events$sender <- actors$label[dependent.events$sender]
-  dependent.events$receiver <- groups$label[dependent.events$receiver]
-  exogenous.events$sender <- actors$label[exogenous.events$sender]
-  exogenous.events$receiver <- groups$label[exogenous.events$receiver]
+  #interaction.updates$sender <- actors$label[interaction.updates$sender]
+  #interaction.updates$receiver <- actors$label[interaction.updates$receiver]
+  #dependent.events$sender <- actors$label[dependent.events$sender]
+  #dependent.events$receiver <- groups$label[dependent.events$receiver]
+  #exogenous.events$sender <- actors$label[exogenous.events$sender]
+  #exogenous.events$receiver <- groups$label[exogenous.events$receiver]
   
   groupsResult <- list(
     interaction.updates = interaction.updates,
