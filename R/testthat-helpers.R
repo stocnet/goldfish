@@ -228,9 +228,17 @@ networkState <- matrix(
 )
 
 # defining objects
-networkState <- defineNetwork(matrix = networkState, nodes = actorsEx, directed = TRUE)
-networkState <- linkEvents(x = networkState, changeEvent = eventsIncrement, nodes = actorsEx)
-depNetwork <- defineDependentEvents(events = eventsIncrement, nodes = actorsEx, defaultNetwork = networkState)
+networkState <- defineNetwork(
+  matrix = networkState, nodes = actorsEx,
+  directed = TRUE)
+networkState <- linkEvents(
+  x = networkState,
+  changeEvent = eventsIncrement,
+  nodes = actorsEx)
+depNetwork <- defineDependentEvents(
+  events = eventsIncrement,
+  nodes = actorsEx,
+  defaultNetwork = networkState)
 
 # exogenous network
 eventsExogenous <- data.frame(
@@ -255,8 +263,13 @@ networkExog <- matrix(
 )
 
 # define goldfish objects
-networkExog <- defineNetwork(matrix = networkExog, nodes = actorsEx, directed = TRUE)
-networkExog <- linkEvents(x = networkExog, changeEvent = eventsExogenous, nodes = actorsEx)
+networkExog <- defineNetwork(
+  matrix = networkExog,
+  nodes = actorsEx, directed = TRUE)
+networkExog <- linkEvents(
+  x = networkExog,
+  changeEvent = eventsExogenous,
+  nodes = actorsEx)
 
 
 # DyNAM-i -----------------------------------------------------------

@@ -12,7 +12,7 @@
 AC_PREREQ(2.61)
 
 ## Process this file with autoconf to produce a configure script.
-AC_INIT([Goldfish],123)
+AC_INIT([Goldfish], @VERSION@)
 
 ## Set R_HOME, respecting an environment variable if one is set 
 : ${R_HOME=$(R RHOME)}

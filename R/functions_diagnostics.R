@@ -3,6 +3,7 @@
 #' @param outliers the number of outliers to report
 #' @return Plots the log-likelihood, identifying observations not well-fitted by the model with a small red circle,
 #' and prints a table of the top `outliers`
+#' @importFrom graphics points
 #' @export
 examine.outliers <- function(x, outliers = 10) {
   if (!"result.goldfish" %in% attr(x, "class")) stop("Not a goldfish results object.")

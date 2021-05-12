@@ -15,5 +15,5 @@
 # Whenever you use C++ code in your package, you need to clean up after yourself when your package is unloaded.
 # Do this by writing a .onUnload() function that unloads the DLL: (http://r-pkgs.had.co.nz/src.html)
 .onUnload <- function(libpath) {
-  library.dynam.unload("mypackage", libpath)
+  library.dynam.unload("goldfish", libpath)
 }

@@ -573,11 +573,6 @@ GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = 
   #   effect = rownames(effectDescription),
   #   effectDescription
   # )
-  if (!is.null(fixedParameters)) {
-    effectDescription <- cbind(effectDescription,
-      fixed = !is.na(fixedParameters)
-    )
-  }
 
   if (any(unlist(parsedformula$ignoreRepParameter))) {
     effectDescription <- cbind(effectDescription,
@@ -636,6 +631,12 @@ GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = 
   if (parsedformula$hasIntercept) {
     effectDescription <- rbind("", effectDescription)
     rownames(effectDescription)[1] <- "Intercept"
+  }
+  
+  if (!is.null(fixedParameters)) {
+    effectDescription <- cbind(effectDescription,
+                               fixed = !is.na(fixedParameters)
+    )
   }
 
   attr(effectDescription, "hasWindows") <- hasWindows

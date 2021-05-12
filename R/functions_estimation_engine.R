@@ -6,36 +6,37 @@
 #################### ###
 
 # Estimation
-estimate_int <- function(statsList,
-                         nodes, nodes2,
-                         defaultNetworkName,
-                         modelType = c("DyNAM-MM", "DyNAM-M", "REM-ordered",
-                                       "DyNAM-M-Rate", "REM", "DyNAM-M-Rate-ordered"),
-                         initialParameters = NULL,
-                         fixedParameters = NULL,
-                         excludeParameters = NULL,
-                         initialDamping = 1,
-                         maxIterations = 20,
-                         dampingIncreaseFactor = 2,
-                         dampingDecreaseFactor = 3,
-                         maxScoreStopCriterion = 0.001,
-                         # additional return objects
-                         returnEventProbabilities = FALSE,
-                         # additional parameter for DyNAM-MM
-                         allowReflexive = FALSE,
-                         isTwoMode = FALSE,
-                         # additional parameter for DyNAM-M-Rate
-                         addInterceptEffect = FALSE,
-                         returnIntervalLogL = FALSE,
-                         parallelize = FALSE,
-                         cpus = 6,
-                         verbose = FALSE,
-                         silent = FALSE,
-                         impute = TRUE,
-                         ignoreRepParameter,
-                         # restrictions of opportunity sets
-                         opportunitiesList = NULL) {
-
+estimate_int <- function(
+  statsList,
+  nodes, nodes2,
+  defaultNetworkName,
+  modelType = c("DyNAM-MM", "DyNAM-M", "REM-ordered",
+                "DyNAM-M-Rate", "REM", "DyNAM-M-Rate-ordered"),
+  initialParameters = NULL,
+  fixedParameters = NULL,
+  excludeParameters = NULL,
+  initialDamping = 1,
+  maxIterations = 20,
+  dampingIncreaseFactor = 2,
+  dampingDecreaseFactor = 3,
+  maxScoreStopCriterion = 0.001,
+  # additional return objects
+  returnEventProbabilities = FALSE,
+  # additional parameter for DyNAM-MM
+  allowReflexive = FALSE,
+  isTwoMode = FALSE,
+  # additional parameter for DyNAM-M-Rate
+  addInterceptEffect = FALSE,
+  returnIntervalLogL = FALSE,
+  parallelize = FALSE,
+  cpus = 6,
+  verbose = FALSE,
+  silent = FALSE,
+  impute = TRUE,
+  ignoreRepParameter,
+  # restrictions of opportunity sets
+  opportunitiesList = NULL) {
+  
   ## SET VARIABLES
 
   minDampingFactor <- initialDamping

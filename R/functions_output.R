@@ -20,6 +20,7 @@ NULL
 #' @param ... additional arguments to be passed
 #' @return prints a results overview table including names, estimates, standard errors, significance levels,
 #' AIC and likelihood.
+#' @importFrom stats coef
 #' @noRd
 #' @export
 print.result.goldfish <- function(x, digits = max(3, getOption("digits") - 2),

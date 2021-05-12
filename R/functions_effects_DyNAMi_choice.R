@@ -267,6 +267,9 @@ update_DyNAMi_choice_inertia <- function(network,
 # alterdeg -------------------------------------------------------------------
 # init_DyNAMi_choice_alterdeg <- function()
 
+#' alterdeg effects DyNAM-i choice
+#' @importFrom stats sd
+#' @noRd
 update_DyNAMi_choice_alterdeg <- function(network,
                                           groupsNetwork,
                                           sender, receiver, replace,

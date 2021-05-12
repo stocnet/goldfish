@@ -81,6 +81,8 @@
 #' (see \code{\link{defineDependentEvents}}) and at the right-hand side the effects and the variables for
 #' which the effects are expected to occur (see \code{\link{goldfishEffects}}).
 # or a preprocessed statistics object.
+#' @param envir an R \code{\link{environment}} where the objects used for the 
+#' estimation are available. The default value is \code{\link{globalenv()}}
 #'
 #' @return returns an object of \code{\link{class}} \code{"result.goldfish"} when \code{preprocessingOnly = FALSE} or
 #' a preprocessed statistics object of class \code{"preprocessed.goldfish"} when \code{preprocessingOnly = TRUE}.
@@ -175,7 +177,8 @@ estimate <- function(x,
                      preprocessingOnly = FALSE,
                      verbose = FALSE,
                      silent = FALSE,
-                     debug = FALSE)
+                     debug = FALSE,
+                     envir = globalenv())
   UseMethod("estimate", x)
 
 
