@@ -737,7 +737,7 @@ translateEvents <- function(eventsobject,inactivePeriods,isDependent=FALSE) {
       
       nafter <- length(eventsafter)
       if(nafter > 0){
-        newtimes <- eventsobject$time[eventsafter] - (end-start) + 2
+        newtimes <- newtimes - (end-start) + 2
       }
       
       if (isDependent && length(eventsduring) > 0) {
