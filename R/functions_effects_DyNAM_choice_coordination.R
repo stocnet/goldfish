@@ -44,18 +44,18 @@ update_DyNAM_choice_coordination_indeg <- function(
   )
 
 # outdeg -------------------------------------------------------------------
-update_DyNAM_choice_coordination_outdeg <- function(
-  network,
-  sender, receiver, replace,
-  cache, n1, n2,
-  isTwoMode = FALSE,
-  weighted = FALSE, transformFun = identity)
-  update_DyNAM_choice_outdeg(
-    network = network,
-    sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, isTwoMode = isTwoMode,
-    weighted = weighted, transformFun = transformFun
-  )
+# update_DyNAM_choice_coordination_outdeg <- function(
+#   network,
+#   sender, receiver, replace,
+#   cache, n1, n2,
+#   isTwoMode = FALSE,
+#   weighted = FALSE, transformFun = identity)
+#   update_DyNAM_choice_outdeg(
+#     network = network,
+#     sender = sender, receiver = receiver, replace = replace, cache = cache,
+#     n1 = n1, n2 = n2, isTwoMode = isTwoMode,
+#     weighted = weighted, transformFun = transformFun
+#   )
 
 # trans -------------------------------------------------------------------
 update_DyNAM_choice_coordination_trans <- function(
