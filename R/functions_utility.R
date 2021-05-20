@@ -691,6 +691,10 @@ OldNames <- function(object) {
 # Function that change the timing of events when inactive periods are defined
 cleanInactivePeriods <- function(events, inactivePeriods, eventsEffectsLink, eventsObjectsLink, envir) {
   
+  # order the inactive periods per start time
+  orders <- order(unlist(lapply(inactivePeriods, FUN = function(x){x$start})))
+  inactivePeriods <- inactivePeriods[orders]
+  
   # go through all events
   for (e in seq.int(dim(eventsEffectsLink)[1])){
     
@@ -719,6 +723,7 @@ cleanInactivePeriods <- function(events, inactivePeriods, eventsEffectsLink, eve
 translateEvents <- function(eventsobject,inactivePeriods,isDependent=FALSE) {
   
   newtimes <- eventsobject$time
+  cpt <- 0
   
   # go through all periods to cut
   for(p in seq.int(length(inactivePeriods))){
@@ -732,13 +737,15 @@ translateEvents <- function(eventsobject,inactivePeriods,isDependent=FALSE) {
       
       nduring <- length(eventsduring)
       if(nduring > 0){
-        newtimes[eventsduring] <- start + 1
+        newtimes[eventsduring] <- start + 1 - cpt
       }
       
       nafter <- length(eventsafter)
       if(nafter > 0){
         newtimes[eventsafter] <- newtimes[eventsafter] - (end-start) + 2
       }
+      
+      cpt <- (end-start) + 2
       
       if (isDependent && length(eventsduring) > 0) {
         stop("Dependent events should not occur during inactive periods.")
