@@ -96,6 +96,8 @@
 #'  \item{dampingDecreaseFactor}{a numeric value. Controls the factor that 
 #'  decreases the damping of the parameters when no improvements in the 
 #'  estimation are found.}
+#'  \item{returnIntervalLogL}{a logical value. Whether to keep the 
+#'  log-likelihood of each event from the final coefficients values.}
 #'  \item{engine}{a string indicating the estimation engine to be used.
 #'  Current options include "old", "default", "default_c",and "gather_compute".
 #'  The default value is "default", it is an estimation routine implemented in 
@@ -131,8 +133,6 @@
 #' effects and the variables for which the effects are expected to occur 
 #' (see \code{\link{goldfishEffects}}).
 # or a preprocessed statistics object.
-#' @param envir an R \code{\link{environment}} where the objects used for the 
-#' estimation are available. The default value is \code{\link{globalenv()}}
 #'
 #' @return returns an object of \code{\link{class}} \code{"result.goldfish"} 
 #' when \code{preprocessingOnly = FALSE} or
@@ -212,7 +212,7 @@
 #' summary(mod01)
 #'
 #' # A individual activity rates model
-#' mod02 <- estimate(callsDependent ~ 1 + node_trans + indeg + outdeg,
+#' mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
 #'                   model = "DyNAM", subModel = "rate")
 #' summary(mod02)
 #'
@@ -257,8 +257,7 @@ estimate <- function(
   preprocessingOnly = FALSE,
   verbose = FALSE,
   silent = FALSE,
-  debug = FALSE,
-  envir = globalenv())
+  debug = FALSE)
   UseMethod("estimate", x)
 
 
@@ -274,8 +273,7 @@ estimate.formula <- function(
   preprocessingOnly = FALSE,
   verbose = FALSE,
   silent = FALSE,
-  debug = FALSE,
-  envir = globalenv()) {
+  debug = FALSE) {
   # Steps:
   # 1. Parse the formula
   # 2. Initialize additional objects

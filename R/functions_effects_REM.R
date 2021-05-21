@@ -1,7 +1,7 @@
 # define methods ----------------------------------------------------------
 # init the statistical matrix
 init_REM_choice <- function(effectFun, network, attribute, n1, n2, cache = NULL)
-  UseMethod("init_REM_choice", efffectFun)
+  UseMethod("init_REM_choice", effectFun)
 
 
 # default -----------------------------------------------------------------
@@ -799,7 +799,7 @@ update_REM_choice_tertius <- function(
   }
   return(list(cache = cache, changes = changes))
 }
-# tertius_diff ----------------------------------------------------------------
+# tertiusDiff ----------------------------------------------------------------
 #' init stat matrix tertius-diff using cache
 #'
 #' @param effectFun function with additional parameters transformFun,
@@ -831,14 +831,15 @@ update_REM_choice_tertius <- function(
 #' effectFUN <- function(transformFun = abs,
 #'                       aggregateFun = function(x) median(x, na.rm = TRUE))
 #'   NULL
-#' init_REM_choice.tertius_diff(effectFUN, network, attribute)
+#' init_REM_choice.tertiusDiff(effectFUN, network, attribute)
 #' }
-init_REM_choice.tertius_diff <- function(
+init_REM_choice.tertiusDiff <- function(
   effectFun, network, attribute, window, n1, n2)
-  init_DyNAM_choice.tertius_diff(effectFun = effectFun,
+  init_DyNAM_choice.tertiusDiff(effectFun = effectFun,
                                  network = network, attribute = attribute,
                                  window = window,
                                  n1 = n1, n2 = n2)
+
 #' update stat transitivity using cache
 #'
 #' @param network matrix n1*n1
@@ -873,7 +874,7 @@ init_REM_choice.tertius_diff <- function(
 #' attribute <- c(1, 0, 1, 3, 1)
 #' cache <- c(2, 1, 0, 1, 0, 2)
 #'
-#' update_REM_choice_tertius(network, attribute,
+#' update_REM_choice_tertiusDiff(network, attribute,
 #'                           sender = 2, receiver = 3,
 #'                           node = NULL,
 #'                           3,
@@ -882,7 +883,7 @@ init_REM_choice.tertius_diff <- function(
 #'                           transformFun = function(x) x ^ 2,
 #'                           aggregateFun = function(x) median(x, na.rm = TRUE))
 #'
-#' update_REM_choice_tertius(network, attribute,
+#' update_REM_choice_tertiusDiff(network, attribute,
 #'                           sender = NULL, receiver = NULL,
 #'                           node = 3,
 #'                           3,
@@ -891,7 +892,7 @@ init_REM_choice.tertius_diff <- function(
 #'                           transformFun = function(x) x ^ 2,
 #'                           aggregateFun = function(x) median(x, na.rm = TRUE))
 #' }
-update_REM_choice_tertius_diff <- function(
+update_REM_choice_tertiusDiff <- function(
   network,
   attribute,
   sender = NULL,
@@ -903,7 +904,7 @@ update_REM_choice_tertius_diff <- function(
   n1 = n1, n2 = n2,
   transformFun = abs,
   aggregateFun = function(x) mean(x, na.rm = TRUE))
-  update_DyNAM_choice_tertius_diff(
+  update_DyNAM_choice_tertiusDiff(
     network = network,
     attribute = attribute,
     sender = sender,
@@ -917,7 +918,7 @@ update_REM_choice_tertius_diff <- function(
     aggregateFun = aggregateFun)
 
 
-# node_trans ------------------------------------------------------------------
+# nodeTrans ------------------------------------------------------------------
 
 #' node trans init
 #' number of transitive triangles i->j->k;i->k where node i is embedded. Source node
@@ -946,24 +947,24 @@ update_REM_choice_tertius_diff <- function(
 #' effectFUN <- function(
 #'   isTwoMode = TRUE, transformFun = identity, type = "ego")
 #'   NULL
-#' init_REM_choice.node_trans(effectFUN, network, NULL, 5, 5)
+#' init_REM_choice.nodeTrans(effectFUN, network, NULL, 5, 5)
 #'
 #' effectFUN <- function(
 #'   isTwoMode = FALSE, transformFun = identity, type = "ego")
 #'   NULL
-#' init_REM_choice.node_trans(effectFUN, network, NULL, 5, 5)
+#' init_REM_choice.nodeTrans(effectFUN, network, NULL, 5, 5)
 #'
 #' effectFUN <- function(
 #'   isTwoMode = FALSE, transformFun = identity, type = "alter")
 #'   NULL
-#' init_REM_choice.node_trans(effectFUN, network, NULL, 5, 5)
+#' init_REM_choice.nodeTrans(effectFUN, network, NULL, 5, 5)
 #'
 #' effectFUN <- function(
 #'   isTwoMode = FALSE, transformFun = identity, type = "alter")
 #'   NULL
-#' init_REM_choice.node_trans(effectFUN, network, 9, 5, 5)
+#' init_REM_choice.nodeTrans(effectFUN, network, 9, 5, 5)
 #' }
-init_REM_choice.node_trans <- function(effectFun, network, window, n1, n2) {
+init_REM_choice.nodeTrans <- function(effectFun, network, window, n1, n2) {
   # Get arguments
   params <- formals(effectFun)
   isTwoMode <- eval(params[["isTwoMode"]])
@@ -971,7 +972,7 @@ init_REM_choice.node_trans <- function(effectFun, network, window, n1, n2) {
   type <- eval(params[["type"]])
 
   if (isTwoMode) {
-    stop("'node_trans' effect must not use ",
+    stop("'nodeTrans' effect must not use ",
          "when is a two-mode network (isTwoMode = TRUE)", call. = FALSE)
   }
 
@@ -1021,11 +1022,11 @@ init_REM_choice.node_trans <- function(effectFun, network, window, n1, n2) {
 #' @examples
 #' \dontrun{
 #' cache <- c(0, 0, 1, 1, 0)
-#' update_REM_choice_node_trans(network, 1, 5, 1, cache, 5, 5, type = "alter")
-#' update_REM_choice_node_trans(network, 1, 5, 1, cache, 5, 5, type = "ego")
-#' update_REM_choice_node_trans(network, 3, 2, 0, cache, 5, 5, type = "ego")
+#' update_REM_choice_nodeTrans(network, 1, 5, 1, cache, 5, 5, type = "alter")
+#' update_REM_choice_nodeTrans(network, 1, 5, 1, cache, 5, 5, type = "ego")
+#' update_REM_choice_nodeTrans(network, 3, 2, 0, cache, 5, 5, type = "ego")
 #' }
-update_REM_choice_node_trans <- function(network,
+update_REM_choice_nodeTrans <- function(network,
                                          sender,
                                          receiver,
                                          replace,
@@ -1158,7 +1159,7 @@ update_REM_choice_ego <- function(attribute,
 
   if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
   # utility functions to return third nodes
-  third <- function(n, diff = c(sender, receiver)) {
+  third <- function(n, diff = c(node)) {
     setdiff(seq_len(n), diff)
   }
 

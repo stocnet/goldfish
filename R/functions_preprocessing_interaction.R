@@ -56,7 +56,7 @@ preprocessInteraction <- function(
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 
   if (!silent) cat("Initializing cache objects and statistical matrices.\n")
-
+  model <- "DyNAMi"
   stats <- initializeCacheStat(
     objectsEffectsLink = objectsEffectsLink, effects = effects,
     groupsNetwork = groupsNetworkObject, windowParameters = NULL,

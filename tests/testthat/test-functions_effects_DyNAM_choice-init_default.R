@@ -53,7 +53,7 @@ test_that("DyNAM default and trans init return the same result", {
 
 test_that("DyNAM default and tertius-diff init return the same result", {
   expect_equal(
-    init_DyNAM_choice.tertius_diff(
+    init_DyNAM_choice.tertiusDiff(
       effectFUN_tertius, m1, testAttr$fishingComplete[seq.int(5)],
       NULL, 5, 5
     )$stat,
@@ -64,7 +64,7 @@ test_that("DyNAM default and tertius-diff init return the same result", {
     label = "stat is equal"
   )
   expect_equal(
-    init_DyNAM_choice.tertius_diff(
+    init_DyNAM_choice.tertiusDiff(
       effectFUN_tertius, m1, testAttr$fishingComplete[seq.int(5)],
       NULL, 5, 5
     )$cache,

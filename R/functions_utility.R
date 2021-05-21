@@ -651,38 +651,38 @@ GetFixed <- function(object) {
   fixed
 }
 
-OldNames <- function(object) {
-  if (inherits(object, "result.goldfish")) {
-    change <- c("standard.errors" = "standardErrors", "log.likelihood" = "logLikelihood",
-                "final.score" = "finalScore",
-                "final.informationMatrix" = "finalInformationMatrix",
-                "n.iterations" = "nIterations", "n.events" = "nEvents",
-                "right.censored" = "rightCensored")
-    objName <- names(object)
-    posChange <- match(newName, change)
-    if (anyNA(posChange)) stop("Sorry, smth wrong! Maybe old elements are missing")
-    names(object)[posChange] <- names(change)
-    model <- object$model
-    subModel <- object$subModel
-    hasIntercept <- object$right.censored
-    # maybe outdated if new models available
-    if (model == "REM") {
-      if (!hasIntercept) {
-        modelTypeCall <- "REM-ordered"
-      } else {
-        modelTypeCall <- "REM"
-      }
-    } else if (model %in% c("DyNAM", "TriNAM")) {
-      if (subModel == "rate" && !hasIntercept) {
-        modelTypeCall <- "DyNAM-M-Rate-ordered"
-      } else if (subModel == "rate") {
-        modelTypeCall <- "DyNAM-M-Rate"
-      } else if (subModel == "choice_coordination") {
-        modelTypeCall <- "DyNAM-MM"
-      } else {
-        modelTypeCall <- "DyNAM-M"
-      }
-    }
-    object$model.type <- modelTypeCall
-  } else stop("not ", dQuote("result.goldfish"), " object", call. = FALSE)
-}
+# OldNames <- function(object) {
+#   if (inherits(object, "result.goldfish")) {
+#     change <- c("standard.errors" = "standardErrors", "log.likelihood" = "logLikelihood",
+#                 "final.score" = "finalScore",
+#                 "final.informationMatrix" = "finalInformationMatrix",
+#                 "n.iterations" = "nIterations", "n.events" = "nEvents",
+#                 "right.censored" = "rightCensored")
+#     objName <- names(object)
+#     posChange <- match(newName, change)
+#     if (anyNA(posChange)) stop("Sorry, smth wrong! Maybe old elements are missing")
+#     names(object)[posChange] <- names(change)
+#     model <- object$model
+#     subModel <- object$subModel
+#     hasIntercept <- object$right.censored
+#     # maybe outdated if new models available
+#     if (model == "REM") {
+#       if (!hasIntercept) {
+#         modelTypeCall <- "REM-ordered"
+#       } else {
+#         modelTypeCall <- "REM"
+#       }
+#     } else if (model %in% c("DyNAM", "TriNAM")) {
+#       if (subModel == "rate" && !hasIntercept) {
+#         modelTypeCall <- "DyNAM-M-Rate-ordered"
+#       } else if (subModel == "rate") {
+#         modelTypeCall <- "DyNAM-M-Rate"
+#       } else if (subModel == "choice_coordination") {
+#         modelTypeCall <- "DyNAM-MM"
+#       } else {
+#         modelTypeCall <- "DyNAM-M"
+#       }
+#     }
+#     object$model.type <- modelTypeCall
+#   } else stop("not ", dQuote("result.goldfish"), " object", call. = FALSE)
+# }

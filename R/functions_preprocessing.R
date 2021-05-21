@@ -604,7 +604,7 @@ callFUN <- function(effects, effectPos, effectType, .argsFUN, textMss,
 #'
 #' revisar <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 #' }
-imputeMissingData <- function(objectsEffectsLink, envir = prepEnvir) {
+imputeMissingData <- function(objectsEffectsLink, envir = .GlobalEnv) {
   # get data object table, row objects columns class (matrix, attribute)
   objTable <- getDataObjects(list(rownames(objectsEffectsLink)),
                              removeFirst = FALSE)

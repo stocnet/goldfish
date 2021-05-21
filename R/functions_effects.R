@@ -60,6 +60,10 @@
 #'   indication of the data frame containing the initial values of 
 #'   nodes attributes (\code{data.frame$attribute}),
 #'   see \code{\link{defineNodes}} for details.
+#' @param isTwoMode Identifies whether the effect assumes the network is 
+#'   originated from a two-mode network. 
+#'   The default value is \code{FALSE}, it means that updates involving 
+#'   self-ties are ignore during the statistics update.
 #' @param ignoreRep Identifies whether the effect recognizes actors to send
 #'   additional ties beyond the first to receivers 
 #'   (\code{FALSE} means additional ties are taken into account). 
@@ -79,10 +83,10 @@
 #' @param transformFun Use this parameter to obtain transformed statistics.
 #'   The argument expected is a function.
 #' @param aggregateFun Use this parameter to obtain an aggregated statistics 
-#'   for indirect effects like \code{tertius} and \code{tertius_diff}.
+#'   for indirect effects like \code{tertius} and \code{tertiusDiff}.
 #'   The argument expected is a function.
 #' @param type Applies only to \code{indegree}, \code{outdegree} and 
-#'   \code{node_trans} in the case of the REM model.
+#'   \code{nodeTrans} in the case of the REM model.
 #'   In the default case of \code{type = "alter"}, the effect returns 
 #'   statistics matrices according to the potential receivers. 
 #'   In the case where \code{type = "ego"}, the effect returns 
@@ -102,7 +106,7 @@
 #'       ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity)
 #' outdeg(network, isTwoMode = FALSE, weighted = FALSE, window = Inf,
 #'        ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity)
-#' node_trans(network, isTwoMode = FALSE, window = Inf, ignoreRep = FALSE,
+#' nodeTrans(network, isTwoMode = FALSE, window = Inf, ignoreRep = FALSE,
 #'       type = c("alter", "ego"), transformFun = identity) 
 #' ## Attribute effects
 #' ego(attribute)
@@ -124,7 +128,7 @@
 #' diff(attribute, transformFun = abs)
 #' sim(attribute, transformFun = abs)
 #' ## Structural + Attribute effects
-#' tertius_diff(network, attribute, isTwoMode = FALSE, weighted = FALSE,
+#' tertiusDiff(network, attribute, isTwoMode = FALSE, weighted = FALSE,
 #'              window = Inf, ignoreRep = FALSE, transformFun = abs,
 #'              aggregateFun = function(x) mean(x, na.rm = TRUE))
 #'
@@ -137,14 +141,14 @@
 #' four(network, isTwoMode = FALSE, window = Inf, ignoreRep = FALSE, 
 #'      transformFun = identity)
 #' ## Mixed networks
-#' mixedTrans(list(network1, network2), window = Inf, ignoreRep = FALSE, 
-#'            transformFun = identity)
-#' mixedCycle(list(network1, network2), window = Inf, ignoreRep = FALSE,
-#'            transformFun = identity)
-#' mixedClSender(list(network1, network2), window = Inf, ignoreRep = FALSE,
-#'               transformFun = identity)
-#' mixedClReceiver(list(network1, network2), window = Inf, ignoreRep = FALSE,
-#'                 transformFun = identity)
+#' mixedTrans(network = list(network1, network2), window = Inf,
+#'            ignoreRep = FALSE, transformFun = identity)
+#' mixedCycle(network = list(network1, network2), window = Inf,
+#'            ignoreRep = FALSE, transformFun = identity)
+#' mixedClSender(network = list(network1, network2), window = Inf,
+#'               ignoreRep = FALSE, transformFun = identity)
+#' mixedClReceiver(network = list(network1, network2), window = Inf,
+#'                 ignoreRep = FALSE, transformFun = identity)
 #'
 #' @section Effects:
 #' \subsection{Node/actor statistics:}{
@@ -174,7 +178,7 @@
 #'     (\code{type = "ego"}) or for receiver j (\code{type = "alter"}).
 #'     The degree can be transform with \code{transformFun}.
 #'     It's not available for DyNAM-choice_coordination}
-#'   \item{\code{node_trans}}{Embeddedness in transitive structures as a 
+#'   \item{\code{nodeTrans}}{Embeddedness in transitive structures as a 
 #'    source node.
 #'    It is the tendency of actor i to send a tie when there are transitive 
 #'    triangles where i is the source (i->k->j<-i) that are closed.
@@ -263,7 +267,7 @@
 #' }}
 #' \subsection{Structural and attribute:}{ 
 #' \describe{
-#'   \item{\code{tertius_diff}}{The tendency to create an event i->j when i has 
+#'   \item{\code{tertiusDiff}}{The tendency to create an event i->j when i has 
 #'     a similar value as j aggregate (\code{aggregateFun}) value of its 
 #'     in-neighbors (all k with \code{network[k, j] > 0}.
 #'    \emph{Note:} When the node j does not have in-neighbors, the average of 
@@ -339,11 +343,11 @@
 #'
 #' @examples
 #' data("Social_Evolution")
-#' actors<-defineNodes(nodes = actors)
+#' actors <- defineNodes(nodes = actors)
 #' call.Network <- defineNetwork(nodes = actors, directed = TRUE)
 #' call.Network <- linkEvents(x = call.Network, changeEvent = calls, 
 #'                            nodes = actors)
-#' calls<-defineDependentEvents(events=calls, nodes=actors,
+#' calls <- defineDependentEvents(events = calls, nodes = actors,
 #'                              defaultNetwork = call.Network)
 #'
 #' # Using a DyNAM-Rate model:

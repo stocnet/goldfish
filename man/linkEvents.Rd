@@ -7,7 +7,7 @@
 \alias{linkEvents.default}
 \title{Attach dynamic events to a nodeset or a network}
 \usage{
-linkEvents(x, changeEvents, ...)
+linkEvents(x, ...)
 
 \method{linkEvents}{nodes.goldfish}(x, changeEvents, attribute)
 
@@ -18,6 +18,8 @@ linkEvents(x, changeEvents, ...)
 \arguments{
 \item{x}{Either a nodeset (nodes.goldfish object) or a network
 (network.goldfish object)}
+
+\item{...}{additional arguments to be passed to the method.}
 
 \item{changeEvents}{The name of a dataframe that represents a valid events list}
 

@@ -736,6 +736,7 @@ update_DyNAMi_rate_sim <- function(attribute,
                                    sender, receiver, replace,
                                    n1, n2, statistics,
                                    subType = "averaged_sum",
+                                   joining = -1,
                                    node = 0) {
   reptotal <- NULL
 

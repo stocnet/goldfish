@@ -50,25 +50,9 @@ The error may relate to compiling the parts of `goldfish` that are written in C+
 or whether OpenMP (for parallelisation) can be found.
 
 Many installation woes can be solved by directing R to use [Homebrew](https://brew.sh) installed `gcc`.
-Once you have installed `gcc` using Homebrew in the Terminal,
-you will need to update your `/Library/Frameworks/R.framework/Resources/etc/Makeconf` file like so:
+An updated setting up instructions thanks to @timonelmer are available [here](.github/OpenMP_mac.md).
 
-```
-# Use Homebrew gcc for OpenMP support
-CC = gcc-8
-# CC = clang # Original setting
-...
-# Use Homebrew gcc for OpenMP support
-CXX = g++-8
-# CXX = clang++ # Original setting
-...
-# Ask R to find the Homebrew copy of gcc
-FLIBS = -L/usr/local/lib/gcc/8/gcc/x86_64-apple-darwin17.5.0/8.1.0 -L/usr/local/lib/gcc/8 -lgfortran -lquadmath -lm
-# The original one
-# FLIBS =  -L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin15/6.1.0 -L/usr/local/gfortran/lib -lgfortran -lquadmath -lm
-```
-
-More details can be found [here](https://medium.com/biosyntax/following-up-library-dependency-when-compiling-r-packages-89f191b9f227).^[Thank you @Knieps for identifying this.]
+More details can be found [here](https://medium.com/biosyntax/following-up-library-dependency-when-compiling-r-packages-89f191b9f227) (Thank you @Knieps for identifying this.).
 Other links that may be helpful include:
 - https://asieira.github.io/using-openmp-with-r-packages-in-os-x.html
 - https://thecoatlessprofessor.com/programming/openmp-in-r-on-os-x/

@@ -13,8 +13,7 @@ estimate(
   preprocessingOnly = FALSE,
   verbose = FALSE,
   silent = FALSE,
-  debug = FALSE,
-  envir = globalenv()
+  debug = FALSE
 )
 }
 \arguments{
@@ -79,6 +78,8 @@ any parameter. Note that it must be consistent with
  \item{dampingDecreaseFactor}{a numeric value. Controls the factor that 
  decreases the damping of the parameters when no improvements in the 
  estimation are found.}
+ \item{returnIntervalLogL}{a logical value. Whether to keep the 
+ log-likelihood of each event from the final coefficients values.}
  \item{engine}{a string indicating the estimation engine to be used.
  Current options include "old", "default", "default_c",and "gather_compute".
  The default value is "default", it is an estimation routine implemented in 
@@ -114,9 +115,6 @@ should be provided.}
 
 \item{debug}{logical indicating whether very detailed intermediate results 
 should be given; slows down the routine significantly.}
-
-\item{envir}{an R \code{\link{environment}} where the objects used for the 
-estimation are available. The default value is \code{\link{globalenv()}}}
 }
 \value{
 returns an object of \code{\link{class}} \code{"result.goldfish"} 
@@ -219,7 +217,7 @@ mod01 <- estimate(callsDependent ~ inertia + recip + trans,
 summary(mod01)
 
 # A individual activity rates model
-mod02 <- estimate(callsDependent ~ 1 + node_trans + indeg + outdeg,
+mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
                   model = "DyNAM", subModel = "rate")
 summary(mod02)
 

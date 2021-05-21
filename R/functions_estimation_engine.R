@@ -851,17 +851,17 @@ getIterationStepState <- function(statsList,
     informationMatrix <- informationMatrix + eventValues$informationMatrix
 
     # update progress bar
-    if (showProgressBar && !progressEndReached) {
-      if (i %in% dotEvents) {
-        pos <- which(i == dotEvents)
-        n <- length(dotEvents)
-        cat("\r[", rep(".", pos), rep(" ", n - pos), "]", sep = "")
-      }
-      if (i == nEvents) {
-        cat("\n")
-        progressEndReached <- T
-      }
-    }
+    # if (showProgressBar && !progressEndReached) {
+    #   if (i %in% dotEvents) {
+    #     pos <- which(i == dotEvents)
+    #     n <- length(dotEvents)
+    #     cat("\r[", rep(".", pos), rep(" ", n - pos), "]", sep = "")
+    #   }
+    #   if (i == nEvents) {
+    #     cat("\n")
+    #     progressEndReached <- T
+    #   }
+    # }
   }
 
   returnList <- list(

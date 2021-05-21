@@ -129,7 +129,7 @@ update_DyNAM_choice_tertius(
   aggregateFun = aggregateFun
 )
 
-# tertius_diff ----------------------------------------------------------------
+# tertiusDiff ----------------------------------------------------------------
 #' update stat transitivity using cache
 #'
 #' @param network matrix n1*n1
@@ -164,7 +164,7 @@ update_DyNAM_choice_tertius(
 #' attribute <- c(1, 0, 1, 3, 1)
 #' cache <- c(2, 1, 0, 1, 0, 2)
 #'
-#' update_DyNAM_choice_coordination_tertius_diff(
+#' update_DyNAM_choice_coordination_tertiusDiff(
 #'   network, attribute,
 #'   sender = 2, receiver = 3,
 #'   node = NULL,
@@ -174,7 +174,7 @@ update_DyNAM_choice_tertius(
 #'   transformFun = function(x) x ^ 2,
 #'   aggregateFun = function(x) median(x, na.rm = TRUE))
 #'
-#' update_DyNAM_choice_coordination_tertius_diff(
+#' update_DyNAM_choice_coordination_tertiusDiff(
 #'   network, attribute,
 #'   sender = NULL, receiver = NULL,
 #'   node = 3,
@@ -184,7 +184,7 @@ update_DyNAM_choice_tertius(
 #'   transformFun = function(x) x ^ 2,
 #'   aggregateFun = function(x) median(x, na.rm = TRUE))
 #' }
-update_DyNAM_choice_coordination_tertius_diff <- function(
+update_DyNAM_choice_coordination_tertiusDiff <- function(
   network,
   attribute,
   sender = NULL,
@@ -196,7 +196,7 @@ update_DyNAM_choice_coordination_tertius_diff <- function(
   n1 = n1, n2 = n2,
   transformFun = abs,
   aggregateFun = function(x) mean(x, na.rm = TRUE))
-update_DyNAM_choice_tertius_diff(network = network,
+update_DyNAM_choice_tertiusDiff(network = network,
                                  attribute = attribute,
                                  sender = sender,
                                  receiver = receiver,
@@ -208,8 +208,8 @@ update_DyNAM_choice_tertius_diff(network = network,
                                  transformFun = transformFun,
                                  aggregateFun = aggregateFun)
 
-# node_trans ------------------------------------------------------------------
-update_DyNAM_choice_coordination_node_trans <- function(
+# nodeTrans ------------------------------------------------------------------
+update_DyNAM_choice_coordination_nodeTrans <- function(
   network,
   sender,
   receiver,
@@ -218,7 +218,7 @@ update_DyNAM_choice_coordination_node_trans <- function(
   n1, n2,
   isTwoMode = FALSE,
   transformFun = identity)
-  update_DyNAM_choice_node_trans(
+  update_DyNAM_choice_nodeTrans(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
     n1 = n1, n2 = n2, isTwoMode = isTwoMode,
