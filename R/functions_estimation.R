@@ -55,16 +55,17 @@
 #'  Current options include \code{"choice"}, \code{"rate"} or 
 #'  \code{"choice_coordination"}
 #' \describe{
-#'  \item{choice}{a multinomial receiver choice model if \code{model = "DyNAM"} 
-#'  (Stadtfeld and Block, 2017), or the general Relational event model if 
+#'  \item{choice}{a multinomial receiver choice model \code{model = "DyNAM"} 
+#'  (Stadtfeld and Block, 2017), or the general Relational event model  
 #'  \code{model = "REM"} (Butts, 2008).
-#'  A multinomial group choice model if \code{model = "DyNAMi"} 
+#'  A multinomial group choice model \code{model = "DyNAMi"} 
 #'  (Hoffman et al., 2020)}
 #'  \item{choice_coordination}{a multinomial-multinomial model for coordination 
-#'  ties (Stadtfeld, Hollway and Block, 2017)}
-#'  \item{rate}{A individual activity rates model if \code{model = "DyNAM"} 
+#'  ties \code{model = "DyNAM"} (Stadtfeld, Hollway and Block, 2017)}
+#'  \item{rate}{A individual activity rates model \code{model = "DyNAM"} 
 #'  (Stadtfeld and Block, 2017).
-#'  A joining or leaving a group rates model if \code{model = "DyNAMi"} 
+#'  Two rate models, one for individuals joining groups and one for individuals 
+#'  leaving groups, jointly estimated \code{model = "DyNAMi"} 
 #'  (Hoffman et al., 2020)}
 #' }
 #' @param estimationInit a list containing lower level technical parameters 
