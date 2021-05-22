@@ -36,3 +36,10 @@
 #'
 #' @keywords datasets social evolution network
 NULL
+
+#' @rdname Social_Evolution
+"actors"
+#' @rdname Social_Evolution
+"calls"
+#' @rdname Social_Evolution
+"friendship"

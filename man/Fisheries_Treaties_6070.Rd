@@ -3,6 +3,14 @@
 \docType{data}
 \name{Fisheries_Treaties_6070}
 \alias{Fisheries_Treaties_6070}
+\alias{bilatchanges}
+\alias{bilatnet}
+\alias{contigchanges}
+\alias{contignet}
+\alias{gdpchanges}
+\alias{regchanges}
+\alias{sovchanges}
+\alias{states}
 \title{International bilateral fisheries treaties (1960-1970)}
 \format{
 The data includes several dataframes:
@@ -38,9 +46,41 @@ See below for variables and formats.
    contigchanges$receiver  \tab   Second contiguity change node            \tab     integer              \cr
    contigchanges$replace   \tab   New contiguity value                     \tab     numeric              \cr
  }
+
+An object of class \code{data.frame} with 77 rows and 4 columns.
+
+An object of class \code{matrix} (inherits from \code{array}) with 154 rows and 154 columns.
+
+An object of class \code{data.frame} with 139 rows and 4 columns.
+
+An object of class \code{matrix} (inherits from \code{array}) with 154 rows and 154 columns.
+
+An object of class \code{data.frame} with 979 rows and 3 columns.
+
+An object of class \code{data.frame} with 145 rows and 3 columns.
+
+An object of class \code{data.frame} with 62 rows and 3 columns.
+
+An object of class \code{data.frame} with 154 rows and 4 columns.
 }
 \usage{
 data(Fisheries_Treaties_6070)
+
+bilatchanges
+
+bilatnet
+
+contigchanges
+
+contignet
+
+gdpchanges
+
+regchanges
+
+sovchanges
+
+states
 }
 \description{
 An abbreviated version of the international fisheries agreements dataset,

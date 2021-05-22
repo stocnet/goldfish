@@ -106,6 +106,10 @@ test_that(
 test_that(
   "inertia compute correct preprocessing objects windowed and weighted",
   {
+    skip_on_ci()
+    skip_on_cran()
+    skip_on_covr()
+    skip_on_bioc()
     preproData <- estimate(depNetwork ~ inertia(networkState, weighted = TRUE, window = 2),
       model = "DyNAM", subModel = "choice",
       preprocessingOnly = TRUE, silent = TRUE

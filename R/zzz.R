@@ -1,5 +1,6 @@
 #' @importFrom utils packageVersion packageDescription
 .onAttach <- function(libname, pkgname) {
+  if (!interactive()) return()
   base::packageStartupMessage(
     "  <\")))><  The Goldfish package in R\n\n",
     pkgname, ": version ", utils::packageVersion("goldfish"),

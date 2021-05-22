@@ -321,11 +321,11 @@ and \code{subModel = "rate"}).
 
 \examples{
 data("Social_Evolution")
-actors<-defineNodes(nodes = actors)
+actors <- defineNodes(nodes = actors)
 call.Network <- defineNetwork(nodes = actors, directed = TRUE)
 call.Network <- linkEvents(x = call.Network, changeEvent = calls, 
                            nodes = actors)
-calls<-defineDependentEvents(events=calls, nodes=actors,
+calls <- defineDependentEvents(events = calls, nodes = actors,
                              defaultNetwork = call.Network)
 
 # Using a DyNAM-Rate model:

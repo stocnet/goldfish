@@ -59,3 +59,20 @@
 #'
 #' @keywords datasets dynamic political network states fisheries
 NULL
+
+#' @rdname Fisheries_Treaties_6070
+"bilatchanges"
+#' @rdname Fisheries_Treaties_6070
+"bilatnet"
+#' @rdname Fisheries_Treaties_6070
+"contigchanges"
+#' @rdname Fisheries_Treaties_6070
+"contignet"
+#' @rdname Fisheries_Treaties_6070
+"gdpchanges"
+#' @rdname Fisheries_Treaties_6070
+"regchanges"
+#' @rdname Fisheries_Treaties_6070
+"sovchanges"
+#' @rdname Fisheries_Treaties_6070
+"states"

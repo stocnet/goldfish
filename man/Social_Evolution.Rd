@@ -3,6 +3,9 @@
 \docType{data}
 \name{Social_Evolution}
 \alias{Social_Evolution}
+\alias{actors}
+\alias{calls}
+\alias{friendship}
 \title{Social evolution of a university dormitory cohort}
 \format{
 3 dataframes: actors (84 rows, 4 columns), calls (439 rows, 4 columns), friendship (766 rows, 4 columns).
@@ -23,12 +26,24 @@ See below for variables and formats.
    friendship$receiver  \tab   Nominee of friendship                    \tab     character            \cr
    friendship$replace   \tab   Indicates friendship value at $time      \tab     numeric              \cr
  }
+
+An object of class \code{data.frame} with 84 rows and 4 columns.
+
+An object of class \code{data.frame} with 439 rows and 4 columns.
+
+An object of class \code{data.frame} with 766 rows and 4 columns.
 }
 \source{
 \url{http://realitycommons.media.mit.edu/socialevolution.html}
 }
 \usage{
 data(Social_Evolution)
+
+actors
+
+calls
+
+friendship
 }
 \description{
 An abbreviated version of the MIT Reality Commons Social Evolution dataset,

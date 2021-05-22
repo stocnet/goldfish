@@ -524,7 +524,7 @@ linkEvents <- function(x, ...)
 
 #' @rdname linkEvents
 #' @export
-linkEvents.nodes.goldfish <- function(x, changeEvents, attribute) {
+linkEvents.nodes.goldfish <- function(x, changeEvents, attribute, ...) {
   # check input types
   if (!(is.character(attribute) && length(attribute) == 1))
     stop("Invalid argument attributes: this function expects a character attribute value.")
@@ -565,7 +565,8 @@ linkEvents.nodes.goldfish <- function(x, changeEvents, attribute) {
 
 #' @rdname linkEvents
 #' @export
-linkEvents.network.goldfish <- function(x, changeEvents, nodes = NULL, nodes2 = NULL) {
+linkEvents.network.goldfish <- function(x, changeEvents,
+                                        nodes = NULL, nodes2 = NULL, ...) {
   # check input types
   if (is.null(nodes)) stop("Invalid argument nodes: a network is specified, this function expects an argument nodes.")
   if (!is.data.frame(changeEvents)) stop("Invalid argument changeEvents: this function expects a data frame.")

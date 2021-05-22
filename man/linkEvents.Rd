@@ -9,9 +9,9 @@
 \usage{
 linkEvents(x, ...)
 
-\method{linkEvents}{nodes.goldfish}(x, changeEvents, attribute)
+\method{linkEvents}{nodes.goldfish}(x, changeEvents, attribute, ...)
 
-\method{linkEvents}{network.goldfish}(x, changeEvents, nodes = NULL, nodes2 = NULL)
+\method{linkEvents}{network.goldfish}(x, changeEvents, nodes = NULL, nodes2 = NULL, ...)
 
 \method{linkEvents}{default}(x, ...)
 }
