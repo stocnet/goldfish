@@ -412,9 +412,9 @@ update_DyNAMi_choice_dyad <- function(network,
                                       sender, receiver, replace,
                                       n1, n2, statistics,
                                       weighted = FALSE, subType = "identity") {
-  
+
   reptotal <- NULL
-  
+
   for (i in seq.int(n1)) {
     for (j in seq.int(n2)) {
       members <- which(groupsNetwork[, j] == 1)
@@ -425,21 +425,21 @@ update_DyNAMi_choice_dyad <- function(network,
         }
         next
       }
-      
+
       if (subType == "identity") {
-        if(nmembers == 1) {
+        if (nmembers == 1) {
           rep <- 1
         } else {
           rep <- 0
         }
       }
-      
+
       if (statistics[i, j] != rep) {
         reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = rep))
       }
     }
   }
-  
+
   return(reptotal)
 }
 
@@ -680,7 +680,7 @@ update_DyNAMi_choice_sizeXdiff <- function(attribute,
                                       subType = "averaged_sum",
                                       node = 0) {
   reptotal <- NULL
-  
+
   for (i in seq.int(n1)) {
     for (j in seq.int(n2)) {
       members <- which(groupsNetwork[, j] == 1)
@@ -691,7 +691,7 @@ update_DyNAMi_choice_sizeXdiff <- function(attribute,
         }
         next
       }
-      
+
       smembers <- members[members != i]
       snmembers <- length(smembers)
       if (snmembers == 0) {
@@ -700,7 +700,7 @@ update_DyNAMi_choice_sizeXdiff <- function(attribute,
         }
         next
       }
-      
+
       if (subType == "averaged_sum") {
         rep <- snmembers * sum(abs(attribute[smembers] - attribute[i])) / snmembers
       }
@@ -713,13 +713,13 @@ update_DyNAMi_choice_sizeXdiff <- function(attribute,
       if (subType == "max") {
         rep <- snmembers * abs(max(attribute[smembers]) - attribute[i])
       }
-      
+
       if (statistics[i, j] != rep) {
         reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = rep))
       }
     }
   }
-  
+
   return(reptotal)
 }
 
@@ -734,7 +734,7 @@ update_DyNAMi_choice_dyadXdiff <- function(attribute,
                                            subType = "averaged_sum",
                                            node = 0) {
   reptotal <- NULL
-  
+
   for (i in seq.int(n1)) {
     for (j in seq.int(n2)) {
       members <- which(groupsNetwork[, j] == 1)
@@ -745,7 +745,7 @@ update_DyNAMi_choice_dyadXdiff <- function(attribute,
         }
         next
       }
-      
+
       smembers <- members[members != i]
       snmembers <- length(smembers)
       if (snmembers == 0) {
@@ -754,13 +754,13 @@ update_DyNAMi_choice_dyadXdiff <- function(attribute,
         }
         next
       }
-      
-      if(snmembers == 1) {
+
+      if (snmembers == 1) {
         m <- 1
       } else {
         m <- 0
       }
-      
+
       if (subType == "averaged_sum") {
         rep <- m * sum(abs(attribute[smembers] - attribute[i])) / snmembers
       }
@@ -773,12 +773,12 @@ update_DyNAMi_choice_dyadXdiff <- function(attribute,
       if (subType == "max") {
         rep <- m * abs(max(attribute[smembers]) - attribute[i])
       }
-      
+
       if (statistics[i, j] != rep) {
         reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = rep))
       }
     }
   }
-  
+
   return(reptotal)
 }

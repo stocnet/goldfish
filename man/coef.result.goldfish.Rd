@@ -7,7 +7,7 @@
 \method{coef}{result.goldfish}(object, ..., fixed = TRUE)
 }
 \arguments{
-\item{object}{an object of class \code{result.goldfish} output from an 
+\item{object}{an object of class \code{result.goldfish} output from an
 \code{\link{estimate}} call.}
 
 \item{...}{additional arguments to be passed.}
@@ -19,7 +19,7 @@ fixed during estimation using `fixedParameters` should be printed.}
 A named vector.
 }
 \description{
-Return a named vector with the estimated coefficients. 
+Return a named vector with the estimated coefficients.
 The names just correspond to the effect name. For a comprehensive output use
 \code{\link{summary.result.goldfish}}.
 }

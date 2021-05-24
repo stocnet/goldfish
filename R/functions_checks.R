@@ -54,12 +54,6 @@ forcePresence <- function(compositionChanges, events, nodes) {
   }
   compositionChanges <- compositionChanges[order(compositionChanges$time), ]
 
-  # TODO: trim down to a TRUE FALSE sequence
-  # for (node in compositionChanges$node) {
-  #   trim <- rle(compositionChanges[compositionChanges$node==node,"replace"])
-  #   compositionChanges <- compositionChanges[cumsum(c(1, trim$lengths[-length(trim$lengths)])),]
-  # }
-
   return(compositionChanges)
 }
 

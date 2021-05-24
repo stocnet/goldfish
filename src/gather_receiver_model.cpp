@@ -46,7 +46,7 @@ List gather_receiver_model(const arma::mat& dep_event_mat,
     arma::mat hessian_current_event(n_parameters, n_parameters);
     int stat_mat_update_id = 0;
     int n_total = 0;
-    // todo(gutian): deal with composition change of actors1
+    // to check(gutian): deal with composition change of actors1
     // composition change
     bool has_composition_change = true;
     int presence2_update_id = 0;

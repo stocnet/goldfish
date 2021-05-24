@@ -16,25 +16,25 @@ examine.changepoints(
 )
 }
 \arguments{
-\item{x}{an object of class \code{result.goldfish} output from an 
+\item{x}{an object of class \code{result.goldfish} output from an
 \code{\link{estimate}} call.}
 
 \item{outliers}{the number of outliers to report}
 
-\item{moment}{character argument to choose between "mean" or "variance". 
+\item{moment}{character argument to choose between "mean" or "variance".
 See section \emph{Change point} for details.}
 
 \item{method}{Choice of \code{"AMOC"}, \code{"PELT"} or \code{"BinSeg"}.
 For a detail description see \code{\link[changepoint]{cpt.mean}} or
 \code{\link[changepoint]{cpt.var}}. The default value is \code{"PELT"}.}
 
-\item{...}{additional arguments to be passed to the functions in the 
+\item{...}{additional arguments to be passed to the functions in the
 \code{\link{changepoint}} package.}
 }
 \value{
 \code{NULL} if neither outliers nor change points are identified.
-A subset of the dependent event data frame 
-(see \code{\link{defineDependentEvents}}) with the events identified as 
+A subset of the dependent event data frame
+(see \code{\link{defineDependentEvents}}) with the events identified as
 outliers or change point inflections.
 }
 \description{
@@ -44,9 +44,9 @@ Provide diagnostic functions for an object of class \code{result.goldfish}.
 in the events sequence is presented using the log-likelihood.
 }
 \section{Outliers}{
- 
+
 \code{examine.outliers} creates a plot with the log-likelihood of the events
-in the y-axis and the event index in the x-axis, identifying observations 
+in the y-axis and the event index in the x-axis, identifying observations
 not well-fitted by the model with a small red circle,
 and prints a table of the top `outliers` events.
 }
@@ -56,18 +56,18 @@ and prints a table of the top `outliers` events.
 The parameter \code{moment} controls which method from the package
 \code{\link{changepoint}} is used:
 \describe{
-  \item{\code{"mean"}}{It uses the \code{\link[changepoint]{cpt.mean}} 
-  function to investigate optimal positioning and (potentially) number 
+  \item{\code{"mean"}}{It uses the \code{\link[changepoint]{cpt.mean}}
+  function to investigate optimal positioning and (potentially) number
   of change points for the log-likelihood of the events in mean.}
-  \item{\code{"variance"}}{It uses the 
-  \code{\link[changepoint]{cpt.var}} 
-  function to investigate optimal positioning and (potentially) number 
+  \item{\code{"variance"}}{It uses the
+  \code{\link[changepoint]{cpt.var}}
+  function to investigate optimal positioning and (potentially) number
   of change points for the log-likelihood of the events in variance}
 }
 The function call creates a plot with the log-likelihood of the events
-in the y-axis and the event index in the x-axis, highlighting the change 
+in the y-axis and the event index in the x-axis, highlighting the change
 point sections identified by the method.
-Also it prints a table of the change points events that are returned by the 
+Also it prints a table of the change points events that are returned by the
 method.
 }
 

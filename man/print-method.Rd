@@ -52,15 +52,15 @@
 \method{print}{preprocessed.goldfish}(x, ..., width = getOption("width"))
 }
 \arguments{
-\item{x}{an object of class \code{result.goldfish}, 
-\code{summary.result.goldfish}, \code{nodes.goldfish}, 
+\item{x}{an object of class \code{result.goldfish},
+\code{summary.result.goldfish}, \code{nodes.goldfish},
 \code{network.goldfish}, \code{dependent.goldfish}, or
 \code{preprocessed.goldfish}.}
 
 \item{...}{further arguments to be passed to the respective \code{default}
 method.}
 
-\item{digits}{minimal number of significant digits, 
+\item{digits}{minimal number of significant digits,
 see \code{\link{print.default}}.}
 
 \item{width}{only used when \code{max.levels} is \code{NULL},
@@ -73,11 +73,11 @@ fixed during estimation using `fixedParameters` should be printed.
 The default value is \code{TRUE}. \emph{Note:} applies for objects of class
 \code{result.goldfish} and \code{summary.result.goldfish}.}
 
-\item{full}{logical. Indicates whether the complete 
+\item{full}{logical. Indicates whether the complete
 \code{matrix}/\code{data.frame} should be printed.
 The default value \code{FALSE}.}
 
-\item{n}{number of rows for \code{data.frame}, and rows and columns for 
+\item{n}{number of rows for \code{data.frame}, and rows and columns for
 \code{matrix} to be printed.}
 
 \item{keepnums}{in each dimension, if no names in that dimension are

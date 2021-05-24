@@ -28,8 +28,6 @@ parseFormula <- function(formula, envir = globalenv()) {
          " (check the function defineDependentEvents).", call. = FALSE)
   }
   # check right side
-  # TODO: replace interaction terms by main effects
-  #       and add a representation of what is to interacted before estimation
   rhsNames <- getRHSNames(formula)
   if (length(rhsNames) == 0) {
     stop("A model without effects cannot be estimated.", call. = FALSE)
@@ -47,9 +45,6 @@ parseFormula <- function(formula, envir = globalenv()) {
     }
   }
   # check right side: all parameters
-  # TODO: check against the arguments of the effect
-  # internal_args <- c("network", "statistics", "sender", "receiver", "replace",
-  #                "n1", "n2", "attribute", "node")
   for (i in seq_along(rhsNames)) {
     if ("binary" %in% names(rhsNames[[i]])) {
       stop("The use of the binary parameter is no longer available,
@@ -59,12 +54,6 @@ parseFormula <- function(formula, envir = globalenv()) {
       stop("The use of the isBipartite parameter is no longer available,
            please use isTwoMode", call. = FALSE)
     }
-    # args_effect <- names(formals(rhsNames[[i]][[1]]))
-    # if(!all(names(rhsNames[[i]]) %in%
-    #         c("", "ignoreRep", "window", "isTwoMode",
-    #           args_effect[!args_effect %in% internal_args])))
-    #   stop("The parameters given for the effects are incorrect,
-    #              please check the goldfishEffects documentation")
   }
   # check right side: windows
   windowParameters <- lapply(rhsNames, getElement, "window")
@@ -98,7 +87,6 @@ parseFormula <- function(formula, envir = globalenv()) {
   }
   transParameter <- lapply(rhsNames, getFunName, "transformFun")
   aggreParameter <- lapply(rhsNames, getFunName, "aggregateFun")
-  # TODO: check coherence with documentation (just warnings)
 
   # DyNAM-i ONLY: check right side: joining parameter
   joiningParameter <- lapply(rhsNames, function(x) {
@@ -486,7 +474,7 @@ parseIntercept <- function(rhsNames) {
 # unless a network name is passed to the multiple attribute
 parseMultipleEffects <- function(rhsNames, default = FALSE) {
   multiple <- list()
-  multipleNames <- c()
+  multipleNames <- character(0)
   for (i in seq_along(rhsNames)) {
     name <- ""
     id <- which(names(rhsNames[[i]]) == "ignoreRep")
@@ -627,7 +615,7 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
       newNetwork <- matrix(0, nrow = nrow(network), ncol = ncol(network))
       newName <- paste(name, windowName, sep = "_")
       attr(newNetwork, "events") <- NULL
-      
+
       # add attribute
       attr(newNetwork, "nodes") <- attr(network, "nodes")
       attr(newNetwork, "directed") <- attr(network, "directed")

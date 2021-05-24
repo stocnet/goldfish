@@ -17,7 +17,7 @@ a class of models that is tailored to the study of actor-oriented network proces
 Goldfish also implements different versions of the tie-oriented Relational Event Model by Carter Butts.
 }
 \references{
-Hoffman, M., Block P., Elmer T., and Stadtfeld C. (2020). 
+Hoffman, M., Block P., Elmer T., and Stadtfeld C. (2020).
 A model for the dynamics of face-to-face interactions in social groups.
 \emph{Network Science}, 8(S1), S4-S25. \doi{10.1017/nws.2020.3}
 

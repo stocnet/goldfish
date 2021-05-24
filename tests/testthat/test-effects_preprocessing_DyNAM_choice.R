@@ -1,7 +1,3 @@
-# # ToDo: check output of estimation: ignoreRep
-# #       check decrements, delete not existing ties
-
-
 # # inertia/tie weighted ----
 test_that(
   "inertia/tie compute correct preprocessing objects weighted",

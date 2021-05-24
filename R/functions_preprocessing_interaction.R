@@ -122,7 +122,7 @@ preprocessInteraction <- function(
   deporder <- NULL
   exoindex <- 0
   exoorder <- NULL
-  pastindexes <- c()
+  pastindexes <- numeric()
   pastorders <- list()
   numpast <- 0
   if (length(events) > 0) {
@@ -148,13 +148,13 @@ preprocessInteraction <- function(
 
     # find groups udates and add them to events
     groupsupdates <- attr(groupsNetworkObject, "events")
-    
+
     # PATCH Marion: the groups update events were not sanitized
     groupsupdates1Object <- sanitizeEvents(get(groupsupdates[1]),nodes,nodes2)
     assign(groupsupdates[1], groupsupdates1Object)
     groupsupdates2Object <- sanitizeEvents(get(groupsupdates[2]),nodes,nodes2)
     assign(groupsupdates[2], groupsupdates2Object)
- 
+
     if (all(get(dname) == get(groupsupdates[1]))) {
       depn <- groupsupdates[1]
       exon <- groupsupdates[2]
@@ -201,13 +201,13 @@ preprocessInteraction <- function(
       rep(NA, dim(objectsEffectsLink)[2])
     )
     rownames(objectsEffectsLink)[dim(objectsEffectsLink)[1]] <- groupsNetwork
-    
+
     # reset the pointers for ALL events
     pointers <- rep(1, length(events))
     validPointers <- rep(TRUE, length(events))
   }
-  
-  
+
+
   # Set the counter for the ordered events
   cptorder <- 0
 
@@ -233,7 +233,7 @@ preprocessInteraction <- function(
   # UPDATED ALVARO: logical values indicating the type of information in events
   isIncrementEvent <- vapply(events, function(x) "increment" %in% names(x), logical(1))
   isNodeEvent <- vapply(events, function(x) "node" %in% names(x), logical(1))
-  
+
   # iterate over all event lists
   while (any(validPointers)) {
 
@@ -283,8 +283,8 @@ preprocessInteraction <- function(
     }
     interval <- times[nextEvent] - time
     time <- min(times[validPointers])
-    
-    
+
+
     # changed Marion: for choice, only joining events are dependent events
     isDependent <- (subModel == "rate" && nextEvent == depindex) ||
       (subModel == "choice" && nextEvent == depindex && events[[depindex]][pointers[nextEvent], "increment"] > 0)
@@ -343,8 +343,8 @@ preprocessInteraction <- function(
       groupsNetworkObject[event$sender, event$receiver] <-
         groupsNetworkObject[event$sender, event$receiver] + event$increment
       assign(groupsNetwork, groupsNetworkObject)
-      
-      
+
+
       pointerDependent <- pointerDependent + 1
     }
 
@@ -362,8 +362,6 @@ preprocessInteraction <- function(
         event_time[[(pointers[depindex] + pointerTempRightCensored - 1)]] <- time
         # CHANGED MARION: added sender and receiver
         # CHANGED WEIGUTIAN: removed "increment" which results a bug
-        # TODO(WEIGUTIAN): check wether the following block is necessary for right censored event,
-        #                 Because in the right-censored events there's no sender and receiver.
         event <- events[[nextEvent]][pointers[nextEvent], ]
         if (isNodeEvent[nextEvent] & length(event) == 1) {
           event_sender[[(pointers[depindex] + pointerTempRightCensored - 1)]] <- event
@@ -397,7 +395,7 @@ preprocessInteraction <- function(
       if (isIncrementEvent[nextEvent]) {
         varsKeep <- c(if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"), "increment")
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
-      
+
         if (isNodeEvent[nextEvent]) oldValue <- object[event$node]
         if (!isNodeEvent[nextEvent]) oldValue <- object[event$sender, event$receiver]
         event$replace <- oldValue + event$increment
@@ -421,7 +419,7 @@ preprocessInteraction <- function(
           object[event$receiver, event$sender] <- event$replace
         }
       }
-      
+
       # Assign object
       eval(parse(text = paste(objectName, "<- object")), envir = prepEnvir)
 
@@ -436,8 +434,8 @@ preprocessInteraction <- function(
         effIds <- which(!is.na(eventsEffectsLink[nextEvent + 1, ]))
       }
       groupsNetworkObject <- get(groupsNetwork)
- 
-      
+
+
       for (id in effIds) {
         # create the ordered list for the objects
         objectsToPass <- objectsEffectsLink[, id][!is.na(objectsEffectsLink[, id])]
@@ -544,7 +542,7 @@ getStatisticsFromObjects_interaction <- function(FUN,
       for (i in rowsIter) {
         # hack Marion: remove this because dimensions are not equal
         # colsIter <- (1:n2)[!is.na(objectList[[iObj]][i, ]) & objectList[[iObj]][i, ] != 0]
-        # for(j in colsIter) { #TODO: issue for two-mode networks
+        # for(j in colsIter) { #TO check: issue for two-mode networks
         for (j in 1:n2) {
           # hack Marion: add groups.network
           additionalParams <- list(
@@ -641,8 +639,7 @@ initializeStatsMatrices_interaction <- function(objectsEffectsLink, effects, n1,
   for (iEff in seq.int(length(effects))) {
     args <- c(list(FUN = effects[[iEff]]$effect), namedObjectList[[iEff]],
               list(n1 = n1, n2 = n2, groups.network = groups.network.object))
-    tryCatch(
-      {
+    tryCatch({
         stats[[iEff]] <- do.call(getStatisticsFromObjects_interaction, args)
       },
       error = function(e) {

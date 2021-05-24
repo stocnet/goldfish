@@ -18,22 +18,23 @@ and one network:\cr
 See below for variables and formats.\cr
 
 \tabular{lll}{
-  \strong{Object} \tab \strong{Description}                                                     \tab \strong{Format} \cr
-  participants$actor   \tab  Identifier of the actor                                                 \tab  integer        \cr
-  participants$label   \tab  (Anonymized) name                                                       \tab  Factor         \cr
-  participants$present \tab  Presence of the actor (all actors are present)                          \tab  logical        \cr
-  participants$age     \tab  Actor's age                                                             \tab  integer        \cr
-  participants$gender  \tab  Actor's gender (0: male, 1: female)                                     \tab  integer        \cr
-  participants$group   \tab  Actor's group affiliation (groups have distinct ids)                    \tab  integer        \cr
-  participants$level   \tab  Actor's seniority (1: MSc student, 2: PhD student, 3: PostDoc, 4: Prof) \tab  integer        \cr
-  rfid$NodeA      \tab  Identifier for the first actor                                          \tab  chr            \cr
-  rfid$NodeB      \tab  Identifier for the second actor                                         \tab  chr            \cr
-  rfid$Start      \tab  Time of the beginning of the dyadic interaction                         \tab  integer        \cr
-  rfid$End        \tab  Time of the end of the dyadic interaction                               \tab  integer        \cr
-  video$NodeA     \tab  Identifier for the first actor                                          \tab  chr            \cr
-  video$NodeB     \tab  Identifier for the second actor                                         \tab  chr            \cr
-  video$Start     \tab  Time of the beginning of the dyadic interaction                         \tab  integer        \cr
-  video$End       \tab  Time of the end of the dyadic interaction                               \tab  integer        \cr
+  \strong{Object} \tab \strong{Description} \tab \strong{Format} \cr
+  participants$actor   \tab  Identifier of the actor                      \tab  integer        \cr
+  participants$label   \tab  (Anonymized) name                            \tab  Factor         \cr
+  participants$present \tab  Presence of the actor (all actors are present) \tab  logical      \cr
+  participants$age     \tab  Actor's age                                  \tab  integer        \cr
+  participants$gender  \tab  Actor's gender (0: male, 1: female)          \tab  integer        \cr
+  participants$group   \tab  Actor's group affiliation (groups have distinct ids) \tab  integer \cr
+  participants$level   \tab  Actor's seniority (1: MSc student, 2: PhD student, 3: PostDoc, 4: Prof)
+                                                                          \tab  integer        \cr
+  rfid$NodeA      \tab  Identifier for the first actor                    \tab  chr            \cr
+  rfid$NodeB      \tab  Identifier for the second actor                   \tab  chr            \cr
+  rfid$Start      \tab  Time of the beginning of the dyadic interaction   \tab  integer        \cr
+  rfid$End        \tab  Time of the end of the dyadic interaction         \tab  integer        \cr
+  video$NodeA     \tab  Identifier for the first actor                    \tab  chr            \cr
+  video$NodeB     \tab  Identifier for the second actor                   \tab  chr            \cr
+  video$Start     \tab  Time of the beginning of the dyadic interaction   \tab  integer        \cr
+  video$End       \tab  Time of the end of the dyadic interaction         \tab  integer        \cr
  }
 
 An object of class \code{data.frame} with 1011 rows and 4 columns.
@@ -59,12 +60,15 @@ known.before
 participants
 }
 \description{
-Dataset collected at ETH Zürich by Timon Elmer and colleagues in order to test the accuracy of 
-Radio Frequency Identification (RFID) badges for measuring social interactions.
-Social interactions of 11 individuals (from the university staff) were recorded with RFID badges
-in an informal setting. They were then compared to the interactions observed by two confederates 
-who watched the video recording of the event. The RFID data went through the data processing procedure
-detailed in the original article. See Elmer et al, 2019 for more details, and the OSF platform for all details on the dataset.
+Dataset collected at ETH Zürich by Timon Elmer and colleagues in order to
+test the accuracy of Radio Frequency Identification (RFID) badges for
+measuring social interactions.
+Social interactions of 11 individuals (from the university staff) were
+recorded with RFID badges in an informal setting. They were then compared to
+the interactions observed by two confederates who watched the video recording
+of the event. The RFID data went through the data processing procedure
+detailed in the original article. See Elmer et al, 2019 for more details,
+and the OSF platform for all details on the dataset.
 }
 \references{
 Elmer, T., Chaitanya, K., Purwar, P., & Stadtfeld, C. (2019).

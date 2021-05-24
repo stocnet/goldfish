@@ -11,11 +11,11 @@
 #' Goldfish also implements different versions of the tie-oriented Relational Event Model by Carter Butts.
 #'
 #' @seealso \code{\link{estimate}}
-#' @references 
-#' Hoffman, M., Block P., Elmer T., and Stadtfeld C. (2020). 
+#' @references
+#' Hoffman, M., Block P., Elmer T., and Stadtfeld C. (2020).
 #' A model for the dynamics of face-to-face interactions in social groups.
 #' \emph{Network Science}, 8(S1), S4-S25. \doi{10.1017/nws.2020.3}
-#' 
+#'
 #' Stadtfeld, C. (2012). Events in Social Networks: A Stochastic
 #' Actor-oriented Framework for Dynamic Event Processes in Social Networks.
 #' \emph{KIT Scientific Publishing}. \doi{10.5445/KSP/1000025407}

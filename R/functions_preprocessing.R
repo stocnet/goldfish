@@ -43,8 +43,6 @@ preprocess <- function(
   rightCensored = FALSE,
   verbose = TRUE,
   silent = FALSE) {
-  # TODO(cws):
-  # - add a parameter rowOnly, columnOnly?
 
   # For debugging
   if (identical(environment(), globalenv())) {
@@ -74,7 +72,7 @@ preprocess <- function(
   } else if (endTime != eventsMax) {
     if (!is.numeric(endTime)) endTime <- as.numeric(endTime)
     if (eventsMin > endTime) stop("End time smaller than first event time.", call. = FALSE)
-      # ToDo: if endTime > eventsMax
+      # to solve: if endTime > eventsMax
       # should it produce censored events? warning?
     # add a fake event to the event list
     endTimeEvent <- data.frame(time = endTime, sender = NA, receiver = NA, replace = NA)
@@ -89,7 +87,7 @@ preprocess <- function(
       stop("Start time geater than last event time.", call. = FALSE)
     hasStartTime <- TRUE
     if (eventsMin < startTime) isValidEvent <- FALSE
-    # ToDo: if startTime < eventsMin should be a warning?
+    # To solve: if startTime < eventsMin should be a warning?
   }
 
   # impute missing data in objects: 0 for networks and mean for attributes
@@ -113,7 +111,6 @@ preprocess <- function(
   isNodeEvent <- vapply(events, function(x) "node" %in% names(x), logical(1))
 
   # initialize return objects
-    # ToDo: adjust for startTime and endTime period
 
   # calculate total of events
   time <- unique(events[[1]]$time)
@@ -142,12 +139,11 @@ preprocess <- function(
   event_receiver <- vector("integer", nDependentEvents + nRightCensoredEvents)
   finalStep <- FALSE
 
-  # # Remove dulicates of event lists!
-  # # TODO CHRISTOPH: unhack (the dependent events shouldn't be added twice to the events object); NOT POSSIBLE
-  # # Fisheries treaties the dependent events are a subset of events use to update stats
+  # # Remove duplicates of event lists!
 
   # initialize loop parameters
-  # pointers = [1,1,1](events have three elements: callDependent(439*4), calls(439*4), friendship(766*4))
+  # pointers = [1,1,1](events have three elements:
+  # callDependent(439*4), calls(439*4), friendship(766*4))
   pointers <- rep(1, length(events))
   validPointers <- rep(TRUE, length(events))
   if (hasEndTime) validPointers <- vapply(events, function(x) x$time[1], double(1)) <= endTime
@@ -168,8 +164,9 @@ preprocess <- function(
   if (!silent) {
     cat("Preprocessing events.\n", startTime, endTime, nTotalEvents)
     showProgressBar <- TRUE
+    # # how often print, max 50 prints
     pb <- utils::txtProgressBar(max = nTotalEvents, char = "*", style = 3)
-    dotEvents <- ifelse(nTotalEvents > 50, ceiling(nTotalEvents / 50), 1) # # how often print, max 50 prints
+    dotEvents <- ifelse(nTotalEvents > 50, ceiling(nTotalEvents / 50), 1)
   }
 
   # iterate over all event lists
@@ -249,8 +246,9 @@ preprocess <- function(
         event_time[[eventPos]] <- time
         # CHANGED MARION: added sender and receiver
         # CHANGED WEIGUTIAN: removed "increment" which results a bug
-        # TODO(WEIGUTIAN): check wether the following block is necessary for right censored event,
-        #                 Because in the right-censored events there's no sender and receiver.
+        # Check (WEIGUTIAN): check whether the following block is necessary for
+        #   right censored event,
+        #   Because in the right-censored events there's no sender and receiver.
         event <- events[[nextEvent]][pointers[nextEvent], ]
         if (isNodeEvent[nextEvent] & length(event) == 1) {
           event_sender[[eventPos]] <- event
@@ -287,7 +285,6 @@ preprocess <- function(
         # missing data imputation
         if (isNodeEvent[nextEvent]) {
           oldValue <- object[event$node]
-          # ToDo: check if is possible to define a attribute with changes in an increment fashion
           if (is.na(event$increment)) event$increment <- 0
         }
         if (!isNodeEvent[nextEvent]) {

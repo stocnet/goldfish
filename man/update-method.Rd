@@ -16,10 +16,10 @@ method or \code{network.goldfish} for \code{as.matrix} method.}
 
 \item{...}{Not further arguments are required.}
 
-\item{time}{a numeric or \code{as.Date} format value to update the state of 
+\item{time}{a numeric or \code{as.Date} format value to update the state of
 the  \code{x} object until this time value.}
 
-\item{startTime}{a numeric \code{as.Date} format value; prior events are 
+\item{startTime}{a numeric \code{as.Date} format value; prior events are
 disregarded.}
 }
 \value{

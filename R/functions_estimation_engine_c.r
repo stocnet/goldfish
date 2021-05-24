@@ -341,7 +341,7 @@ estimate_c_int <- function(
     informationMatrix <- res$fisher
     if (returnIntervalLogL) intervalLogL <- as.numeric(res$intervalLogL)
 
-    # TODO add a possibility to return the whole probability matrix
+
     if (returnEventProbabilities) {
       eventProbabilities <- if (is.null(res$pMatrix)) {
         paste("not implemented for model type", modelTypeCall)

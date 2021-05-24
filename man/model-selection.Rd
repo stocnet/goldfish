@@ -14,18 +14,18 @@
 \method{logLik}{result.goldfish}(object, ..., avgPerEvent = FALSE)
 }
 \arguments{
-\item{object}{an object of class \code{result.goldfish} output from an 
+\item{object}{an object of class \code{result.goldfish} output from an
 \code{\link{estimate}} call.}
 
 \item{...}{additional arguments to be passed}
 
 \item{k}{Penalty factor}
 
-\item{avgPerEvent}{a boolean indicating whether the average 
+\item{avgPerEvent}{a boolean indicating whether the average
 likelihood per event should be calculated}
 }
 \value{
-AIC, BIC, log likelihood of the model or the average 
+AIC, BIC, log likelihood of the model or the average
   log likelihood per event.
 }
 \description{

@@ -200,12 +200,14 @@ effectFUN_REM_sim <- function(attribute,
 # Preprocessing DyNAM ---------------------------------------------------------
 # direct network
 eventsIncrement <- data.frame(
-  time = cumsum(     c(1, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4)),
-  sender = sprintf("Actor %d", 
-                     c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)),
-  receiver = sprintf("Actor %d", 
-                     c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)),
-  increment =        c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
+  time = cumsum(
+    c(1, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4)),
+  sender = sprintf("Actor %d",
+    c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)),
+  receiver = sprintf("Actor %d",
+    c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)),
+  increment =
+    c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
   stringsAsFactors = FALSE
 )
 
@@ -221,7 +223,7 @@ networkState <- matrix(
     1, 0, 1, 1, 0,
     0, 0, 0, 1, 0,
     0, 0, 1, 0, 0,
-    0, 0, 0, 0, 0), 
+    0, 0, 0, 0, 0),
   nrow = 5, ncol = 5, byrow = TRUE,
   dimnames = list(sprintf("Actor %d", 1:5),
                   sprintf("Actor %d", 1:5))
@@ -242,12 +244,14 @@ depNetwork <- defineDependentEvents(
 
 # exogenous network
 eventsExogenous <- data.frame(
-  time =           c(7, 14, 15, 18, 18, 25, 25),
-  sender = sprintf("Actor %d",          
-                   c(4,  2,  5,  4,  4,  1,  3)),
-  receiver = sprintf("Actor %d",        
-                     c(2,  3,  1,  5,  2,  3,  5)),
-  increment =      c(1,  1,  3,  1, -1,   2, 3),
+  time =
+    c(7, 14, 15, 18, 18, 25, 25),
+  sender = sprintf("Actor %d",
+    c(4,  2,  5,  4,  4,  1,  3)),
+  receiver = sprintf("Actor %d",
+    c(2,  3,  1,  5,  2,  3,  5)),
+  increment =
+    c(1,  1,  3,  1, -1,   2, 3),
   stringsAsFactors = FALSE
 )
 
@@ -256,7 +260,7 @@ networkExog <- matrix(
     0, 0, 0, 0, 0,
     0, 2, 0, 0, 0,
     1, 0, 0, 0, 0,
-    1, 2, 0, 0, 0), 
+    1, 2, 0, 0, 0),
   nrow = 5, ncol = 5, byrow = TRUE,
   dimnames = list(sprintf("Actor %d", 1:5),
                   sprintf("Actor %d", 1:5))
@@ -291,16 +295,16 @@ groups_DyNAMi <- data.frame(
 compchanges_DyNAMi <- data.frame(
   time = c(6, 11, 11, 20, 25, 25),
   node = sprintf("Group %d", c(1, 3, 4, 1, 3, 4)),
-  replace = c(F, F, F, T, T, T),
+  replace = c(FALSE, FALSE, FALSE, TRUE, TRUE, TRUE),
   stringsAsFactors = FALSE
 )
 
 # Actor x Group matrix ----------------------------------------------
 covnetwork_DyNAMi <- matrix(
   c(0, 1, 1, 0,
-    1, 0, 1, 0, 
+    1, 0, 1, 0,
     1, 1, 0, 0,
-    0, 0, 0, 0), 
+    0, 0, 0, 0),
   nrow = 4, ncol = 4, byrow = TRUE,
   dimnames = list(sprintf("Actor %d", 1:4),
                   sprintf("Group %d", 1:4))
@@ -369,6 +373,3 @@ dependent.depevents_DyNAMi <- defineDependentEvents(
   events = depevents_DyNAMi,
   nodes = actors_DyNAMi, nodes2 = groups_DyNAMi,
   defaultNetwork = interaction_network_DyNAMi)
-
-
-

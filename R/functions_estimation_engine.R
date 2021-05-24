@@ -36,7 +36,7 @@ estimate_int <- function(
   ignoreRepParameter,
   # restrictions of opportunity sets
   opportunitiesList = NULL) {
-  
+
   ## SET VARIABLES
 
   minDampingFactor <- initialDamping
@@ -181,7 +181,7 @@ estimate_int <- function(
 
   ## ESTIMATION: ITERATIONS
   while (TRUE) {
-    # TODO MARION: update this function for the new stat list
+    # MARION to be make: update this function for the new stat list
     # calculate logL, score and information; pass parallel computing parameters
     res <- getIterationStepState(statsList,
       nodes,
@@ -210,7 +210,7 @@ estimate_int <- function(
     score <- res[[2]]
     informationMatrix <- res[[3]]
     if (returnIntervalLogL) intervalLogL <- res[[4]]
-    # TODO add a possibility to return the whole probability matrix
+    # add a possibility to return the whole probability matrix: to be make
     if (returnEventProbabilities) {
       eventProbabilities <- if (is.null(res$pMatrix)) {
         paste("not implemented for model type", modelType)
@@ -400,7 +400,7 @@ getEventValues <- function(statsArray, activeDyad, parameters, modelType, isRigh
 
     parameters <- as.numeric(parameters)
 
-    # TODO test if time interval is NA
+    # test if time interval is NA, to be make
     if (is.na(timespan)) timespan <- 0
 
     # Don't consider self-connecting edge when both allowReflexive and  isTwoMode are false
@@ -408,7 +408,7 @@ getEventValues <- function(statsArray, activeDyad, parameters, modelType, isRigh
     if (dontConsiderSelfConnecting) {
       idEdgeNotConsidered <- (seq.int(dimMatrix[1]) - 1) * dimMatrix[1] + seq.int(dimMatrix[1])
     } else {
-      idEdgeNotConsidered <- c()
+      idEdgeNotConsidered <- numeric(0)
     }
     # vector of rates
     objectiveFunctions <- rowSums(t(t(statsArray) * parameters)) # a vector
@@ -801,7 +801,7 @@ getIterationStepState <- function(statsList,
     # TEMPORARY: handle the reductions here for now
     # CHANGED SIWEI: reduce the matrix to vector for rate model here in each step seperately
     # CHANGED SIWEI: treat one-mode and two-mode cases seperately
-    # TODO: handle the reductions in one step outside the iteration loop
+    # handle the reductions in one step outside the iteration loop, to be make
     if (reduceMatrixToVector) {
       if (isTwoMode == FALSE) {
         dims <- dim(statsArrayComp) # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
@@ -943,7 +943,7 @@ getMultinomialInformationMatrixM <- function(eventProbabilities, firstDerivative
 getMultinomialProbabilities <- function(statsArray, activeDyad, parameters,
                                         actorNested = TRUE, allowReflexive = TRUE, isTwoMode = FALSE) {
 
-  # TODO: allow this for a two- OR a three-dimensional array provided as input
+  # allow this for a two- OR a three-dimensional array provided as input, to be make
   nDimensions <- length(dim(statsArray))
   if (!(nDimensions %in% c(2, 3)))
     stop("StatsArray in getMultinomialProbabilities has to be two- or three-dimensional.")

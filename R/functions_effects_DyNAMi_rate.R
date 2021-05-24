@@ -411,44 +411,44 @@ update_DyNAMi_rate_dyad <- function(network,
                                     n1, n2, statistics,
                                     weighted = FALSE, subType = "identity",
                                     joining = -1) {
-  
+
   reptotal <- NULL
-  
+
   # LEAVING MODEL
   if (joining == -1) {
-    
+
     reptotal <- NULL
-    
+
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
       if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
-      
+
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
           reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
         }
         next
       }
-      
+
       members <- which(groupsNetwork[, owngroup] == 1)
       nmembers <- length(members)
-      
+
       if (subType == "identity") {
-        if(nmembers == 2) {
+        if (nmembers == 2) {
           rep <- 1
         } else {
           rep <- 0
         }
       }
-      
+
       if (statistics[i, 1] != rep) {
         reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
       }
     }
-    
+
   }
-  
+
   return(reptotal)
 }
 
@@ -799,29 +799,29 @@ update_DyNAMi_rate_sizeXdiff <- function(attribute,
                                     joining = -1,
                                     node = 0) {
   reptotal <- NULL
-  
+
   # LEAVING MODEL
   if (joining == -1) {
-    
+
     reptotal <- NULL
-    
+
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
       if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
-      
+
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
           reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
         }
         next
       }
-      
+
       members <- which(groupsNetwork[, owngroup] == 1)
       nmembers <- length(members)
       smembers <- members[members != i]
       snmembers <- length(smembers)
-      
+
       if (subType == "averaged_sum") {
         rep <- nmembers * sum(abs(attribute[smembers] - attribute[i])) / snmembers
       }
@@ -834,14 +834,14 @@ update_DyNAMi_rate_sizeXdiff <- function(attribute,
       if (subType == "max") {
         rep <- nmembers * abs(max(attribute[smembers]) - attribute[i])
       }
-      
+
       if (statistics[i, 1] != rep) {
         reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
       }
     }
-    
+
   }
-  
+
   return(reptotal)
 }
 
@@ -857,35 +857,35 @@ update_DyNAMi_rate_dyadXdiff <- function(attribute,
                                          joining = -1,
                                          node = 0) {
   reptotal <- NULL
-  
+
   # LEAVING MODEL
   if (joining == -1) {
-    
+
     reptotal <- NULL
-    
+
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
       if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
-      
+
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
           reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
         }
         next
       }
-      
+
       members <- which(groupsNetwork[, owngroup] == 1)
       nmembers <- length(members)
       smembers <- members[members != i]
       snmembers <- length(smembers)
-      
-      if(nmembers == 2){
+
+      if (nmembers == 2) {
         m <- 1
       } else {
         m <- 0
       }
-      
+
       if (subType == "averaged_sum") {
         rep <- m * sum(abs(attribute[smembers] - attribute[i])) / snmembers
       }
@@ -898,13 +898,13 @@ update_DyNAMi_rate_dyadXdiff <- function(attribute,
       if (subType == "max") {
         rep <- m * abs(max(attribute[smembers]) - attribute[i])
       }
-      
+
       if (statistics[i, 1] != rep) {
         reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
       }
     }
-    
+
   }
-  
+
   return(reptotal)
 }
