@@ -82,12 +82,53 @@ update_DyNAMi_rate_inertia <- function(network,
                                        n1, n2, statistics,
                                        weighted = TRUE, subType = "proportion",
                                        joining = -1) {
-update_DyNAMi_rate_tie(network = network,
-                       groupsNetwork = groupsNetwork,
-                       sender = sender, receiver = receiver, replace = replace,
-                       n1 = n1, n2 = n2, statistics = statistics,
-                       weighted = weighted, subType = subType,
-                       joining = joining)
+  reptotal <- NULL
+  
+  # LEAVING MODEL
+  if (joining == -1) {
+    for (i in seq.int(n1)) {
+      owngroup <- which(groupsNetwork[i, ] == 1)
+      isingroup <- FALSE
+      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      
+      if (!isingroup) {
+        if (statistics[i, 1] != 0) {
+          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+        }
+        next
+      }
+      
+      members <- which(groupsNetwork[, owngroup] == 1)
+      nmembers <- length(members)
+      smembers <- members[members != i]
+      snmembers <- length(smembers)
+      
+      if (subType == "count") {
+        rep <- sum(network[i, smembers] > 1)
+      }
+      if (subType == "proportion") {
+        rep <- sum(network[i, smembers] > 1) / snmembers
+      }
+      if (subType == "presence") {
+        rep <- max(network[i, smembers] > 1)
+      }
+      if (subType == "min") {
+        rep <- min(network[i, smembers] - 1)
+      }
+      if (subType == "mean") {
+        rep <- mean(network[i, smembers] - 1)
+      }
+      if (subType == "max") {
+        rep <- max(network[i, smembers] - 1)
+      }
+      
+      if (statistics[i, 1] != rep) {
+        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+      }
+    }
+  }
+  
+  return(reptotal)
 }
 
 

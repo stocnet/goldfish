@@ -166,8 +166,8 @@ test_that(
     stat <- updFun(stat, change)
     expect_equivalent(stat,
                       matrix(c(
-                        1, 1, 1, 1,
-                        1, 1, 1, 1,
+                        0, 0, 0, 0,
+                        0, 0, 0, 0,
                         0, 0, 0, 0,
                         0, 0, 0, 0
                       ), 4, 4, TRUE),
@@ -177,9 +177,9 @@ test_that(
     stat <- updFun(stat, change)
     expect_equivalent(stat,
                       matrix(c(
-                        2, 2, 2, 2,
-                        2, 2, 2, 2,
-                        2, 2, 2, 2,
+                        0, 0, 0, 0,
+                        0, 0, 0, 0,
+                        0, 0, 0, 0,
                         0, 0, 0, 0
                       ), 4, 4, TRUE),
                       label = "update of the statistics matrix inertia (3/8)"
@@ -188,10 +188,10 @@ test_that(
     stat <- updFun(stat, change)
     expect_equivalent(stat,
                       matrix(c(
-                        3, 3, 3, 3,
-                        3, 3, 3, 3,
-                        3, 3, 3, 3,
-                        3, 3, 3, 3
+                        0, 0, 0, 0,
+                        0, 0, 0, 0,
+                        0, 0, 0, 0,
+                        0, 0, 0, 0
                       ), 4, 4, TRUE),
                       label = "update of the statistics matrix inertia (4/8)"
     )
@@ -200,9 +200,9 @@ test_that(
     expect_equivalent(stat,
                       matrix(c(
                         0, 0, 0, 0,
-                        2, 2, 2, 2,
-                        2, 2, 2, 2,
-                        2, 2, 2, 2
+                        0, 0, 0, 0,
+                        0, 0, 0, 0,
+                        0, 0, 0, 0
                       ), 4, 4, TRUE),
                       label = "update of the statistics matrix inertia (5/8)"
     )
@@ -211,9 +211,9 @@ test_that(
     expect_equivalent(stat,
                       matrix(c(
                         0, 0, 0, 0,
-                        1, 1, 1, 1,
                         0, 0, 0, 0,
-                        1, 1, 1, 1
+                        0, 0, 0, 0,
+                        0, 0, 0, 0
                       ), 4, 4, TRUE),
                       label = "update of the statistics matrix inertia (6/8)"
     )
@@ -222,9 +222,9 @@ test_that(
     expect_equivalent(stat,
                       matrix(c(
                         1, 1, 1, 1,
+                        0, 0, 0, 0,
                         1, 1, 1, 1,
-                        1, 1, 1, 1,
-                        1, 1, 1, 1
+                        0, 0, 0, 0
                       ), 4, 4, TRUE),
                       label = "update of the statistics matrix inertia (7/8)"
     )
@@ -233,9 +233,9 @@ test_that(
     expect_equivalent(stat,
                       matrix(c(
                         0, 0, 0, 0,
-                        1, 1, 1, 1,
                         0, 0, 0, 0,
-                        1, 1, 1, 1
+                        0, 0, 0, 0,
+                        0, 0, 0, 0
                       ), 4, 4, TRUE),
                       label = "update of the statistics matrix inertia (8/8)"
     )
@@ -332,9 +332,9 @@ test_that(
       expect_equivalent(stat,
                         matrix(c(
                           0, 0, 0, 0,
-                          1, 1, 1, 1,
                           0, 0, 0, 0,
-                          1, 1, 1, 1
+                          0, 0, 0, 0,
+                          0, 0, 0, 0
                         ), 4, 4, TRUE),
                         label = "update of the statistics matrix inertia all subtypes"
       )
