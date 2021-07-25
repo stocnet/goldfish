@@ -34,7 +34,8 @@ Imports:
     changepoint,
     methods,
     utils,
-    stats
+    stats,
+    generics
 LinkingTo:
     Rcpp,
     RcppArmadillo
