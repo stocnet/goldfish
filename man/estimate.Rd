@@ -4,131 +4,212 @@
 \alias{estimate}
 \title{Estimate a model}
 \usage{
-estimate(x, model = c("DyNAM", "REM"),
-         subModel = c("choice", "rate", "choice_coordination"),
-         estimationInit = NULL, preprocessingInit = NULL,
-         preprocessingOnly = FALSE,
-         verbose = FALSE, silent = FALSE, debug = FALSE)
+estimate(
+  x,
+  model = c("DyNAM", "REM", "DyNAMi"),
+  subModel = c("choice", "rate", "choice_coordination"),
+  estimationInit = NULL,
+  preprocessingInit = NULL,
+  preprocessingOnly = FALSE,
+  verbose = FALSE,
+  silent = FALSE,
+  debug = FALSE
+)
 }
 \arguments{
 \item{x}{a formula that defines at the left-hand side the dependent network
-(see \code{\link{defineDependentEvents}}) and at the right-hand side the effects and the variables for
-which the effects are expected to occur (see \code{\link{goldfishEffects}}).}
+(see \code{\link{defineDependentEvents}}) and at the right-hand side the
+effects and the variables for which the effects are expected to occur
+(see \code{\link{goldfishEffects}}).}
 
-\item{model}{a character string defining the model type. Current options include \code{"DyNAM"} or \code{"REM"}
+\item{model}{a character string defining the model type.
+Current options include \code{"DyNAM"}, \code{"DyNAMi"} or \code{"REM"}
 \describe{
- \item{DyNAM}{Dynamic Network Actor Models (Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
+ \item{DyNAM}{Dynamic Network Actor Models
+ (Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
+ \item{DyNAMi}{Dynamic Network Actor Models for interactions
+ (Hoffman et al., 2020)}
  \item{REM}{Relational Event Model (Butts, 2008)}
 }}
 
-\item{subModel}{a character string defining the submodel type. Current options include "choice", "rate" or
- "choice_coordination"
+\item{subModel}{a character string defining the submodel type.
+ Current options include \code{"choice"}, \code{"rate"} or
+ \code{"choice_coordination"}
 \describe{
- \item{choice}{a multinomial receiver choice model if \code{model = "DyNAM"} (Stadtfeld and Block, 2017),
- or the general Relational event model if \code{model = "REM"} (Butts, 2008).}
- \item{choice_coordination}{a multinomial-multinomial model for coordination ties
- (Stadtfeld, Hollway and Block, 2017)}
- \item{rate}{A individual activity rates model if \code{model = "DyNAM"} (Stadtfeld and Block, 2017)}
+ \item{choice}{a multinomial receiver choice model \code{model = "DyNAM"}
+ (Stadtfeld and Block, 2017), or the general Relational event model
+ \code{model = "REM"} (Butts, 2008).
+ A multinomial group choice model \code{model = "DyNAMi"}
+ (Hoffman et al., 2020)}
+ \item{choice_coordination}{a multinomial-multinomial model for coordination
+ ties \code{model = "DyNAM"} (Stadtfeld, Hollway and Block, 2017)}
+ \item{rate}{A individual activity rates model \code{model = "DyNAM"}
+ (Stadtfeld and Block, 2017).
+ Two rate models, one for individuals joining groups and one for individuals
+ leaving groups, jointly estimated \code{model = "DyNAMi"}
+ (Hoffman et al., 2020)}
 }}
 
-\item{estimationInit}{a list containing lower level technical parameters for estimation. May be:
+\item{estimationInit}{a list containing lower level technical parameters
+for estimation. It may contain:
 \describe{
- \item{initialParameters}{a numeric vector. It includes initial parameters of the estimation.
+ \item{initialParameters}{a numeric vector.
+ It includes initial parameters of the estimation.
  Default is set to NULL.}
-\item{fixedParameters}{a numeric vector. It specify which component of the parameter (intercept included) is fixed
-and what's the fixed values during the estimation. E.g. if the vector is c(2,NA). Then the first component of
-the parameter is fixed to 2 during the whole esitmation process. Default is set to NULL, i.e. we don't fixed
-any parameter. Note that it must be consistent with initialParameters. }
- \item{maxIterations}{maximum number of iterations of the Gauss/Fisher scoring method for the estimation.
- Default is set to 20.}
- \item{maxScoreStopCriterion}{maximum absolute score criteria for successful convergence. Default value is 0.001}
- \item{initialDamping}{a numeric vector used to declare the initial damping factor for each parameter.
- It controls the size of the update step during the iterative estimation process. The default is set
- to 30 when the formula has windowed effects or 10 in another case, see \code{\link{goldfishEffects}}.}
- \item{dampingIncreaseFactor}{a numeric value. It controls the factor that increases the damping of the parameters
- when improvements in the estimation are found.}
- \item{dampingDecreaseFactor}{a numeric value. Controls the factor that decreases the damping of the parameters
- when no improvements in the estimation are found.}
+\item{fixedParameters}{a numeric vector. It specify which component of
+the parameter (intercept included) is fixed and what's the fixed values
+during the estimation. E.g. if the vector is c(2,NA).
+Then the first component of the parameter is fixed to 2 during the whole
+estimation process. Default is set to NULL, i.e. we don't fixed
+any parameter. Note that it must be consistent with
+\code{initialParameters}.}
+ \item{maxIterations}{maximum number of iterations of the Gauss/Fisher
+ scoring method for the estimation. Default is set to 20.}
+ \item{maxScoreStopCriterion}{maximum absolute score criteria for successful
+ convergence. Default value is 0.001}
+ \item{initialDamping}{a numeric vector used to declare the initial damping
+ factor for each parameter.
+ It controls the size of the update step during the iterative estimation
+ process. The default is set to 30 when the formula has windowed effects or
+ 10 in another case, see \code{\link{goldfishEffects}}.}
+ \item{dampingIncreaseFactor}{a numeric value. It controls the factor that
+ increases the damping of the parameters when improvements in the estimation
+ are found.}
+ \item{dampingDecreaseFactor}{a numeric value. Controls the factor that
+ decreases the damping of the parameters when no improvements in the
+ estimation are found.}
+ \item{returnIntervalLogL}{a logical value. Whether to keep the
+ log-likelihood of each event from the final coefficients values.}
  \item{engine}{a string indicating the estimation engine to be used.
  Current options include "old", "default", "default_c",and "gather_compute".
- The default value is "default", it is an estimation routine implemented in pure \code{R} code.
- "old" uses an \code{R} estimation routine that uses an inefficient version of data structures.
+ The default value is "default", it is an estimation routine implemented in
+ pure \code{R} code.
+ "old" uses an \code{R} estimation routine that uses an inefficient
+ version of data structures.
  "default_c" uses a \code{C} implementation of the "default" routine.
- "gather_compute" uses a \code{C} implementation with a different data structure
- that reduces the time but it can increase the memory usage.}
- \item{startTime}{a numerical value or a date-time character with the same time-zone formatting as the times in
- event that indicates the starting time to be considered during estimation.}
- \item{endTime}{a numerical value or a date-time character with the same time-zone formatting as the times in
- event that indicates the end time to be considered during estimation.}
+ "gather_compute" uses a \code{C} implementation with a different data
+ structure that reduces the time but it can increase the memory usage.}
+ \item{startTime}{a numerical value or a date-time character with the same
+ time-zone formatting as the times in event that indicates the starting time
+ to be considered during estimation.
+ \emph{Note:} only use during preprocessing}
+ \item{endTime}{a numerical value or a date-time character with the same
+ time-zone formatting as the times in event that indicates the end time
+ to be considered during estimation.
+ \emph{Note:} only use during preprocessing}
+ \item{opportunitiesList}{a list containing for each dependent event
+  the list of available nodes for the choice model, this list should be
+  the same length as the dependent events list (ONLY for choice models).}
 }}
 
-\item{preprocessingInit}{a preprocessed.goldfish object computed for the current formula,
-allows skipping the preprocessing step.}
+\item{preprocessingInit}{a \code{preprocessed.goldfish} object computed for
+the current formula, allows skipping the preprocessing step.}
 
-\item{preprocessingOnly}{logical. Indicates whether only preprocessed statistics should be returned
-rather than a results object.}
+\item{preprocessingOnly}{logical. Indicates whether only preprocessed
+statistics should be returned rather than a results object.}
 
-\item{verbose}{logical indicating whether details of the estimation routine should be provided.}
+\item{verbose}{logical indicating whether details of the estimation routine
+should be provided.}
 
 \item{silent}{logical indicating whether a mimimal output should be given.}
 
-\item{debug}{logical indicating whether very detailed intermediate results should be given;
-slows down the routine significantly.}
+\item{debug}{logical indicating whether very detailed intermediate results
+should be given; slows down the routine significantly.}
 }
 \value{
-returns an object of \code{\link{class}} \code{"result.goldfish"} when \code{preprocessingOnly = FALSE} or
-a preprocessed statistics object of class \code{"preprocessed.goldfish"} when \code{preprocessingOnly = TRUE}.
+returns an object of \code{\link{class}} \code{"result.goldfish"}
+when \code{preprocessingOnly = FALSE} or
+a preprocessed statistics object of class \code{"preprocessed.goldfish"}
+when \code{preprocessingOnly = TRUE}.
 
 An object of class \code{"result.goldfish"} is a list including:
   \item{parameters}{a matrix with the coefficients estimates.}
-  \item{standardErrors}{a vector with the standard errors of the coefficients.}
+  \item{standardErrors}{
+   a vector with the standard errors of the coefficients.}
   \item{logLikelihood}{the log likelihood of the estimate model}
-  \item{finalScore}{a vector with the final score reach by the parameters during estimation.}
-  \item{finalInformationMatrix}{a matrix with the final values of the negative Fisher information matrix.
-  The inverse of this matrix gives the variance-covariance matrix for the parameters estimates.}
+  \item{finalScore}{
+   a vector with the final score reach by the parameters during estimation.}
+  \item{finalInformationMatrix}{
+   a matrix with the final values of the negative Fisher information matrix.
+   The inverse of this matrix gives the variance-covariance matrix for the
+   parameters estimates.}
   \item{convergence}{a list with two elements.
-  The first element (\code{isConverged}) is a logical value that indicates the convergence of the model.
-  The second element (\code{maxAbsScore}) reports the final maximum absolute score in the final iteration.}
-  \item{nIterations}{an integer with the total number of iterations performed during the estimation process.}
-  \item{nEvents}{an integer reporting the number of events considered in the model.}
-  \item{names}{a matrix with a description of the effects used for model fitting.
-  It includes the name of the object used to calculate the effects and additional parameter description.}
+   The first element (\code{isConverged}) is a logical value that indicates
+   the convergence of the model.
+   The second element (\code{maxAbsScore}) reports the final maximum absolute
+   score in the final iteration.}
+  \item{nIterations}{
+   an integer with the total number of iterations performed during the
+   estimation process.}
+  \item{nEvents}{
+   an integer reporting the number of events considered in the model.}
+  \item{names}{
+   a matrix with a description of the effects used for model fitting.
+   It includes the name of the object used to calculate the effects and
+   additional parameter description.}
   \item{formula}{a formula with the information of the model fitted.}
   \item{model}{a character vector of the model type.}
-  \item{rightCensored}{a logical value indicating if the estimation process considered right censored events.
-  Only it is considered when \code{model = "DyNAM"}, \code{subModel = "rate"} and the model includes intercept.}
+  \item{rightCensored}{
+  a logical value indicating if the estimation process considered right
+  censored events.
+  Only it is considered for DyNAM-rate (\code{model = "DyNAM"} and
+  \code{subModel = "rate"}) or REM (\code{model = "REM"}) models,
+  and when the model includes intercept.}
 }
 \description{
 Estimates parameters for a dynamic network model via maximum likelihood.
 }
 \details{
-Missing data is imputed during the preprocessing stage. For network data missing values
-are replaced by a zero value, it means that is assuming a not tie/event explicitly.
-For attributes missing values are replaced by the mean value, if missing values are
-presented during events updates they are replace by the mean of the attribute in that moment of time.
+Missing data is imputed during the preprocessing stage.
+For network data missing values are replaced by a zero value,
+it means that is assuming a not tie/event explicitly.
+For attributes missing values are replaced by the mean value,
+if missing values are presented during events updates they are replace by
+the mean of the attribute in that moment of time.
 }
 \section{DyNAM}{
 
 
-The actor-oriented models that the goldfish package implements have been called
-Dynamic Network Actor Models (DyNAMs).
-The model is a two-step process. In the first step, the waiting time until an actor \eqn{i}
-becomes active to send an event is modeled (\code{model = "DyNAM"} and \code{subModel = "rate"}). In the second step,
-the conditional probability of \eqn{i} choosing \eqn{j} as the event receiver is modeled
-(\code{model = "DyNAM"} and \code{subModel = "choice"}).
-These two-steps are assumed to be conditionally independent given the process state (Stadtfeld, 2012),
-due to this assumption is possible to estimate these components by different calls of the \code{estimate} function.
+The actor-oriented models that the goldfish package implements have been
+called Dynamic Network Actor Models (DyNAMs).
+The model is a two-step process. In the first step, the waiting time until
+an actor \eqn{i} initiates the next relational event is modeled
+(\code{model = "DyNAM"} and \code{subModel = "rate"}) by an exponential
+distribution depending on the actor activity rate.
+In the second step,
+the conditional probability of \eqn{i} choosing \eqn{j} as the event receiver
+is modeled (\code{model = "DyNAM"} and \code{subModel = "choice"}) by a
+multinomial probability distribution with a linear predictor.
+These two-steps are assumed to be conditionally independent given
+the process state (Stadtfeld, 2012),
+due to this assumption is possible to estimate these components by different
+calls of the \code{estimate} function.
+}
 
-When \code{model = "DyNAM"} and \code{subModel = "rate"} is used to estimate the first step component of the process.
-It is important to add a time intercept to model the waiting times between events, in this way the model
-considers the right-censored intervals in the estimation process.
+\section{Waiting times}{
+
+
+When DyNAM-rate (\code{model = "DyNAM"} and \code{subModel = "rate"}) model
+is used to estimate the first step component of the process, or the REM
+\code{model = "REM"} model is used.
+It is important to add a time intercept to model the waiting times between
+events, in this way the algorithm considers the right-censored intervals
+in the estimation process.
+
+In the case that the intercept is not included in the formula.
+The model reflects the likelihood of an event being the next in the sequence.
+This specification is useful for scenarios where the researcher doesn't have
+access to the exact interevent times.
+For this ordinal case the likelihood of an event is merely a
+multinomial probability (Butts, 2008).
 }
 
 \examples{
 # A multinomial receiver choice model
 data("Social_Evolution")
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
+callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
+                          nodes = actors)
 callsDependent <- defineDependentEvents(events = calls, nodes = actors,
                                         defaultNetwork = callNetwork)
 mod01 <- estimate(callsDependent ~ inertia + recip + trans,
@@ -136,7 +217,7 @@ mod01 <- estimate(callsDependent ~ inertia + recip + trans,
 summary(mod01)
 
 # A individual activity rates model
-mod02 <- estimate(callsDependent ~ 1 + node_trans + indeg + outdeg,
+mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
                   model = "DyNAM", subModel = "rate")
 summary(mod02)
 
@@ -158,33 +239,42 @@ createBilat <- defineDependentEvents(
 contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
 contignet <- linkEvents(contignet, contigchanges, nodes = states)
 partner.model <- estimate(createBilat ~
-  inertia(bilatnet) +
-  indeg(bilatnet, ignoreRep = TRUE) + trans(bilatnet, ignoreRep = TRUE) +
-  tie(contignet, ignoreRep = TRUE) +
-  alter(states$regime, ignoreRep = TRUE) + diff(states$regime, ignoreRep = TRUE) +
-  alter(states$gdp, ignoreRep = TRUE) + diff(states$gdp, ignoreRep = TRUE),
-model = "DyNAM", subModel = "choice_coordination",
-estimationInit = list(initialDamping = 40, maxIterations = 30)
+                           inertia(bilatnet) +
+                           indeg(bilatnet, ignoreRep = TRUE) +
+                           trans(bilatnet, ignoreRep = TRUE) +
+                           tie(contignet, ignoreRep = TRUE) +
+                           alter(states$regime, ignoreRep = TRUE) +
+                           diff(states$regime, ignoreRep = TRUE) +
+                           alter(states$gdp, ignoreRep = TRUE) +
+                           diff(states$gdp, ignoreRep = TRUE),
+  model = "DyNAM", subModel = "choice_coordination",
+  estimationInit = list(initialDamping = 40, maxIterations = 30)
 )
 summary(partner.model)
 }
 \references{
 Butts C. (2008). A Relational Event Framework for Social Action.
-\emph{Sociological Methodology 38 (1)}. \doi{10.1111/j.1467-9531.2008.00203.x}
+\emph{Sociological Methodology 38 (1)}.
+\doi{10.1111/j.1467-9531.2008.00203.x}
 
-Stadtfeld, C. (2012). Events in Social Networks: A Stochastic Actor-oriented Framework for Dynamic Event Processes
-in Social Networks.
+Hoffman, M., Block P., Elmer T., and Stadtfeld C. (2020).
+A model for the dynamics of face-to-face interactions in social groups.
+\emph{Network Science}, 8(S1), S4-S25. \doi{10.1017/nws.2020.3}
+
+Stadtfeld, C. (2012). Events in Social Networks: A Stochastic Actor-oriented
+Framework for Dynamic Event Processes in Social Networks.
 \emph{KIT Scientific Publishing}. \doi{10.5445/KSP/1000025407}
 
-Stadtfeld, C., and Block, P. (2017). Interactions, Actors, and Time: Dynamic Network Actor Models for
-Relational Events.
+Stadtfeld, C., and Block, P. (2017). Interactions, Actors, and Time:
+Dynamic Network Actor Models for Relational Events.
 \emph{Sociological Science 4 (1)}, 318-52. \doi{10.15195/v4.a14}
 
-Stadtfeld, C., Hollway, J., and Block, P. (2017). Dynamic Network Actor Models: Investigating Coordination Ties
-Through Time.
+Stadtfeld, C., Hollway, J., and Block, P. (2017).
+Dynamic Network Actor Models: Investigating Coordination Ties Through Time.
 \emph{Sociological Methodology 47 (1)}. \doi{10.1177/0081175017709295}
 }
 \seealso{
-\code{\link{defineDependentEvents}}, \code{\link{goldfishEffects}}, \code{\link{defineGlobalAttribute}},
- \code{\link{defineNetwork}}, \code{\link{defineNodes}}, \code{\link{linkEvents}}
+\code{\link{defineDependentEvents}}, \code{\link{goldfishEffects}},
+ \code{\link{defineGlobalAttribute}}, \code{\link{defineNetwork}},
+ \code{\link{defineNodes}}, \code{\link{linkEvents}}
 }

@@ -383,7 +383,7 @@ estimate_int_old <- function(statsList,
     score <- res[[2]]
     informationMatrix <- res[[3]]
     if (returnIntervalLogL) intervalLogL <- res[[4]]
-    # TODO add a possibility to return the whole probability matrix
+    #  add a possibility to return the whole probability matrix
     if (returnEventProbabilities) {
       eventProbabilities <- if (is.null(res$pMatrix)) {
         paste("not implemented for model type", modelType)
@@ -504,7 +504,7 @@ getIterationStepState_old <- function(statsList, parameters,
   score <- rep(0, nParams)
   logLikelihood <- 0
 
-  # TODO: Refactor this nasty case statement that overwrites function getEventValues
+  # Refactor this nasty case statement that overwrites function getEventValues
 
   if (modelType == "DyNAM-MM") {
     getEventValues <- function(eventStats, parameters) {
@@ -618,7 +618,7 @@ getIterationStepState_old <- function(statsList, parameters,
       timespan <- currentStats$timespan
       parameters <- as.numeric(parameters)
 
-      # TODO test if time interval is NA
+      # test if time interval is NA
       if (is.na(timespan)) timespan <- 0
 
       # vector of rates
@@ -688,7 +688,7 @@ getMultinomialProbabilities_old <- function(currentStats, parameters,
                                             actorNested = TRUE, allowReflexive = TRUE, isTwoMode = FALSE) {
   statsArray <- currentStats[[1]]
 
-  # TODO: allow this for a two- OR a three-dimensional array provided as input
+  # allow this for a two- OR a three-dimensional array provided as input
   nDimensions <- length(dim(statsArray))
   if (!(nDimensions %in% 2:3))
     stop("StatsArray in getMultinomialProbabilities_old has to be two- or three-dimensional.")
@@ -822,7 +822,7 @@ modifyStatisticsList_old <- function(statsList,
 
 # CHANGED SIWEI: iterate over all dependent and right-cencored events for composition change
 removeNonPresent <- function(prep, nodes, nEvents, compChangeName, dim = 1) {
-  # TODO: check format agains
+  # check format agains
   if (length(compChangeName) == 0) {
     return(prep)
   }

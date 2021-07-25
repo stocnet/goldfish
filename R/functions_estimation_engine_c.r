@@ -6,38 +6,39 @@
 ##################### ###
 
 # Estimation
-estimate_c_int <- function(statsList,
-                           nodes, nodes2,
-                           defaultNetworkName,
-                           modelTypeCall = c(
-                             "DyNAM-MM", "DyNAM-M", "REM-ordered",
-                             "DyNAM-M-Rate", "REM", "DyNAM-M-Rate-ordered"
-                           ),
-                           initialParameters = NULL,
-                           fixedParameters = NULL,
-                           excludeParameters = NULL,
-                           initialDamping = 1,
-                           maxIterations = 20,
-                           dampingIncreaseFactor = 2,
-                           dampingDecreaseFactor = 3,
-                           maxScoreStopCriterion = 0.001,
-                           # additional return objects
-                           returnEventProbabilities = FALSE,
-                           # additional parameter for DyNAM-MM
-                           allowReflexive = FALSE,
-                           isTwoMode = FALSE,
-                           # additional parameter for DyNAM-M-Rate
-                           addInterceptEffect = FALSE,
-                           returnIntervalLogL = FALSE,
-                           parallelize = FALSE,
-                           cpus = 6,
-                           verbose = FALSE,
-                           silent = FALSE,
-                           ignoreRepParameter = ignoreRepParameter,
-                           testing = FALSE,
-                           get_data_matrix = FALSE,
-                           impute = FALSE,
-                           engine = "default_c") {
+estimate_c_int <- function(
+  statsList,
+  nodes, nodes2,
+  defaultNetworkName,
+  modelTypeCall = c(
+    "DyNAM-MM", "DyNAM-M", "REM-ordered",
+    "DyNAM-M-Rate", "REM", "DyNAM-M-Rate-ordered"
+  ),
+  initialParameters = NULL,
+  fixedParameters = NULL,
+  excludeParameters = NULL,
+  initialDamping = 1,
+  maxIterations = 20,
+  dampingIncreaseFactor = 2,
+  dampingDecreaseFactor = 3,
+  maxScoreStopCriterion = 0.001,
+  # additional return objects
+  returnEventProbabilities = FALSE,
+  # additional parameter for DyNAM-MM
+  allowReflexive = FALSE,
+  isTwoMode = FALSE,
+  # additional parameter for DyNAM-M-Rate
+  addInterceptEffect = FALSE,
+  returnIntervalLogL = FALSE,
+  parallelize = FALSE,
+  cpus = 6,
+  verbose = FALSE,
+  silent = FALSE,
+  ignoreRepParameter = ignoreRepParameter,
+  testing = FALSE,
+  get_data_matrix = FALSE,
+  impute = FALSE,
+  engine = "default_c") {
 
   minDampingFactor <- initialDamping
   # CHANGED MARION
@@ -340,7 +341,7 @@ estimate_c_int <- function(statsList,
     informationMatrix <- res$fisher
     if (returnIntervalLogL) intervalLogL <- as.numeric(res$intervalLogL)
 
-    # TODO add a possibility to return the whole probability matrix
+
     if (returnEventProbabilities) {
       eventProbabilities <- if (is.null(res$pMatrix)) {
         paste("not implemented for model type", modelTypeCall)
@@ -453,7 +454,7 @@ estimate_c_int <- function(statsList,
     estimationResult$sizeIntermediate <- size_gathered_data
     if (testing) estimationResult$intermediate <- gathered_data
   }
-  if (testing) estimationResult$intermediateData <- DataMatrixAndId$intermediate_data
+  # if (testing) estimationResult$intermediateData <- DataMatrixAndId$intermediate_data
   if (returnIntervalLogL) estimationResult$intervalLogL <- intervalLogL
   if (returnEventProbabilities) estimationResult$eventProbabilities <- eventProbabilities
   attr(estimationResult, "class") <- "result.goldfish"

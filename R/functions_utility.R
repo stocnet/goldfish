@@ -174,7 +174,7 @@ ReducePreprocess <- function(preproData, type = c("withTime", "withoutTime"), ef
   stopifnot(is.null(effectPos) || !is.null(effectPos) && max(effectPos) <= nEffects)
 
   if (type == "withTime") {
-    addTime <- mapply(
+    addTime <- Map(
       function(x, y) {
         lapply(
           x,
@@ -196,8 +196,7 @@ ReducePreprocess <- function(preproData, type = c("withTime", "withoutTime"), ef
           }
         ) # multiple updates might be repeated, keep the last
       },
-      preproData$dependentStatsChange, preproData$eventTime,
-      SIMPLIFY = FALSE
+      preproData$dependentStatsChange, preproData$eventTime
     )
 
     outDependetStatChange <- lapply(
@@ -321,227 +320,6 @@ UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
   return(network)
 }
 
-# defineChoiceOptionObserv<-function(Actors, Events, model=c("DyNAM-rate","DyNAM-choice")) {
-#
-#   if (missing(model)) {
-#     warning("The model is not specified. DyNAM-rate is assumed by default.")
-#     model="DyNAM-rate"
-#   } else if(model %in% c("DyNAM-rate", "DyNAM-choice")==FALSE) {
-#     warning(paste(model, "is not a valid model option, DyNAM-rate is assumed instead."))
-#     model="DyNAM-rate"
-#   }
-#   ### Choice
-#   choice<-c()
-#   for (i in 1:nrow(Events)) {
-#     # Define sender and receiver's position
-#     receiver.temp<-as.numeric(gsub("Actor ", "",Events$receiver[i]))
-#     sender.temp<-as.numeric(gsub("Actor ", "",Events$sender[i]))
-#
-#     temp<-rep(0,each=length(Actors$label))
-#
-#
-#
-#
-#     if (model=="DyNAM-choice") {
-#       #Identify the receiver and give him a value of 1. He is the choice of the sender.
-#       temp[receiver.temp]<-1
-#       #now remove the sender from the choice vector. create a boolean which allows to
-#       #remove the corresponding position of the sender
-#       #       temp2<-1:length(Actors$label)
-#       temp3<-temp2==sender.temp
-#       choice.temp<-temp[!temp3]
-#     }else if (model=="DyNAM-rate") {
-#       #Identify the receiver and give him a value of 1. He is the choice of the sender.
-#       temp[sender.temp]<-1
-#       choice.temp<-temp
-#     }
-#
-#     choice<-c(choice, choice.temp)
-#   }
-#
-#
-#   ### Option
-#   option<-c()
-#   for (i in 1:nrow(Events)) {
-#     # Define sender and receiver's position
-#     receiver.temp<-as.numeric(gsub("Actor ", "",Events$receiver[i]))
-#     sender.temp<-as.numeric(gsub("Actor ", "",Events$sender[i]))
-#
-#     option.temp<-Actors$label
-#
-#     #now remove the sender from the choice vector. create a boolean which allows to
-#     #remove the corresponding position of the sender
-#     #
-#
-#
-#     if (model=="DyNAM-choice") {
-#       temp2<-1:length(Actors$label)
-#       temp3<-temp2==sender.temp
-#       option.temp<-option.temp[!temp3]
-#     } else if (model=="DyNAM-rate") {
-#       option.temp<-1:length(Actors$label)
-#     }
-#
-#     option<-c(option, option.temp)
-#
-#   }
-#
-#
-#   ### Observation number
-#   if (model=="DyNAM-choice") {
-#     observ<-rep(c(1:nrow(Events)), each=length(Actors$label)-1)
-#   } else if (model=="DyNAM-rate") {
-#     observ<-rep(c(1:nrow(Events)), each=length(Actors$label))
-#   }
-#
-#   out<-list()
-#   out$observ<-observ
-#   out$choice<-choice
-#   out$option<-option
-#
-#   return(out)
-# }
-
-
-
-# Define the statistics effects as a vector
-# Recover a vectors defining the effects statistics from the preprocessed objects.
-# The vector can then be used for an mlogit estimation.
-# (useful e.g. for mlogit estimation on a choice model)
-#
-# @param e The position in the preprocessing formula of the desired effect to vectorise. e.g if the
-# formula is as follows: out~trans+recip+inertia, e=1 for transitivity (first argument of the additive formula),
-#  e=2 for reciprocity and e=3 for inertia
-# @param preprocessingStat The preprocessing objects of a first goldfish estimation.
-# @param Actors  a data frame that represents the list of actors.
-# @param Events a dataframe that represents a valid events list
-# @param model a bi-optional variable in which the model used for estimation must be indicated as:
-#  "DyNAM-rate" or "DyNAM-choice". The default option is "DyNAM-rate".
-#
-# @return a statistic in the form of an effect vector
-# @noRd
-#
-# @examples
-# \dontrun{
-# DynamEstimData_prep<-estimate(outCalls ~ trans+recip+inertia
-# , model = "DyNAM", subModel = "choice", silent=T, preprocessingOnly = T)
-# trans0<-transstatisticEffectCalculation(1,DynamEstimData_prep, actors, calls, "DyNAM-choice")
-# recip0<-statisticEffectCalculation(2,DynamEstimData_prep, actors, calls, "DyNAM-choice")
-# ine0<-statisticEffectCalculation(3,DynamEstimData_prep, actors, calls, "DyNAM-choice")
-# dt<-data.frame(choice,observ,option, trans0, recip0, inertia0) #add effects vectors to the data set
-# mlogitData<-mlogit.data(dt, shape="long", choice = "choice", alt.var = "option", id.var="observ", chid.var ="observ")
-# mlogitEstim<-mlogit(choice ~ -1+trans0+recip0+inertia0, data=mlogitData)
-# }
-
-
-# statisticEffectCalculation<-function(e, preprocessingStat, Actors, Events, model=c("DyNAM-rate","DyNAM-choice")) {
-#
-#   if (missing(model)) {
-#     warning("The model is not specified. DyNAM-rate is assumed by default.")
-#     model="DyNAM-rate"
-#   } else if(model %in% c("DyNAM-rate", "DyNAM-choice")==FALSE) {
-#     warning(paste(model, "is not a valid model option, DyNAM-rate is assumed instead."))
-#     model="DyNAM-rate"
-#   }
-#
-#
-#
-#   nUpdates<-length(preprocessingStat$eventTime)
-#   updateMatrix<-initialMatrix<-preprocessingStat$initialStats[,,e] #84x84 matrix
-#
-#   initialMatrix[is.nan(initialMatrix)]<-NA # We want nan values on diagonal, hence replace all possible nan values
-#   by na values so that the function  does not mix up diagonal elements with off diagonal elements.
-#   diag(initialMatrix)<-NaN
-#
-#
-#   updatingEvents<-as.data.frame(goldfish:::ReducePreprocess(preprocessingStat, type="withTime")[[e]] )
-#
-#   effectObjects<-list()
-#   effectObjects[[1]]<-list()
-#   effectObjects[[1]]$updatedMatrix<-updateMatrix
-#   effectObjects[[1]]$timeUpdate<-0
-#
-#   effect<-c()
-#
-#
-#   for (i in 1:(nUpdates)) {  # For each event
-#
-#     if (nUpdates!=0) {
-#       nInnerUpdates<-nrow(as.data.frame(preprocessingStat$dependentStatsChange[[i]][[e]]))
-#       subsetUpdatingEvents<-as.data.frame(preprocessingStat$dependentStatsChange[[i]][[e]])
-#
-#       if (!is.null(nInnerUpdates)&&nInnerUpdates!=0) {
-#         for (j in 1:nInnerUpdates) {
-#           # For each new opportunity, define the sender and receiver and determine which matrix position
-#           # should be replaced
-#           sender<-subsetUpdatingEvents[j,"node1"]
-#           receiver<-subsetUpdatingEvents[j,"node2"]
-#           replacing<-subsetUpdatingEvents[j,"replace"]
-#           updateMatrix[sender,receiver]<-replacing      # replace the opportunity
-#         }
-#       }
-#
-#       if (i==1) {
-#         timeEv<-max(1,preprocessingStat$eventTime[[i]])
-#         #if it is the first event, we take the event time happening before the first dependent stats change
-#       } else {
-#         timeEv<-preprocessingStat$eventTime[[i]]
-#       }
-#
-#
-#       if (model=="DyNAM-rate") {
-#         updateMatrix[is.nan(updateMatrix)]<-NA # We want nan values on diagonal, hence replace all possible nan
-#         #values by na values so that the function  does not mix up diagonal elements with off diagonal elements.
-#         diag(updateMatrix)<-NaN
-#         diag(updateMatrix)<-cbind(updateMatrix,updateMatrix[,1])[which(updateMatrix%in%diag(updateMatrix)) +
-#           nrow(updateMatrix)] # (at each iteration, search same guy next column and use his value)
-#       }
-#
-#       effectObjects[[i+1]]<-list()
-#       effectObjects[[i+1]]$updatedMatrix<-matrix_to_use<-updateMatrix  # Update the matrix of opportunities
-#       effectObjects[[i+1]]$timeUpdate<-timeEv
-#
-#       colnames(matrix_to_use)<-Actors$label
-#       rownames(matrix_to_use)<-Actors$label
-#       effect0sender<-Events$sender[i]
-#
-#       # if the effect is not an attribute
-#       if (model=="DyNAM-choice") {
-#         col.names.remove<-paste0(effect0sender)
-#         matrix_to_use<-matrix_to_use[,!(row.names(matrix_to_use) %in% col.names.remove)]
-#         effect0<-as.vector(matrix_to_use[paste0(effect0sender),])
-#
-#       } else if (model=="DyNAM-rate") {
-#         effect0<-as.vector(matrix_to_use[,paste0(effect0sender)])
-#       }
-#
-#
-#
-#     } else { #if n updates =0 -> unchanging effect (attribute)
-#       if (model=="DyNAM-rate") {
-#         # If we are using a rate model, fill the diagonal with attribute values
-#         diag(initialMatrix)<-cbind(initialMatrix,initialMatrix[,1])[which(initialMatrix%in%diag(initialMatrix)) +
-#         nrow(initialMatrix)] #(search same guy next column and use his value)
-#         effect0sender<-Events$sender[i]
-#           # Because we want to evaluate the attribute of all the senders so we work with the columns
-#         colnames(initialMatrix)<-Actors$label
-#         rownames(initialMatrix)<-Actors$label
-#         effect0<-as.vector(initialMatrix[,paste0(effect0sender)])
-#
-#       } else if (model=="DyNAM-choice")
-#         effect0sender<-Events$sender[i]
-#       colnames(initialMatrix)<-Actors$label
-#       rownames(initialMatrix)<-Actors$label
-#       effect_vect<-as.vector(initialMatrix[paste0(effect0sender),])
-#       effect0<-effect_vect[!is.nan(effect_vect)]
-#     }
-#     effect<-c(effect, effect0)
-#   }
-#
-#   return(effect)
-# }
-
-
 GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = NULL) {
   # matrix with the effects in rows and objects in columns, which net or actor att
   maxObjs <- max(objectsEffectsLink, na.rm = TRUE)
@@ -573,12 +351,6 @@ GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = 
   #   effect = rownames(effectDescription),
   #   effectDescription
   # )
-  if (!is.null(fixedParameters)) {
-    effectDescription <- cbind(effectDescription,
-      fixed = !is.na(fixedParameters)
-    )
-  }
-
 
   if (any(unlist(parsedformula$ignoreRepParameter))) {
     effectDescription <- cbind(effectDescription,
@@ -622,10 +394,27 @@ GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = 
       aggregateFun = parsedformula$aggreParameter
     )
   }
+  # DyNAMi
+  if (any(parsedformula$joiningParameter != "")) {
+    effectDescription <- cbind(effectDescription,
+      joining = parsedformula$joiningParameter
+    )
+  }
+  if (any(parsedformula$subTypeParameter != "")) {
+    effectDescription <- cbind(effectDescription,
+      subType = parsedformula$subTypeParameter
+    )
+  }
   # rownames(effectDescription) <- NULL
   if (parsedformula$hasIntercept) {
     effectDescription <- rbind("", effectDescription)
     rownames(effectDescription)[1] <- "Intercept"
+  }
+
+  if (!is.null(fixedParameters)) {
+    effectDescription <- cbind(effectDescription,
+                               fixed = !is.na(fixedParameters)
+    )
   }
 
   attr(effectDescription, "hasWindows") <- hasWindows
@@ -638,40 +427,4 @@ GetFixed <- function(object) {
 
   } else  fixed <- rep(FALSE, length(object$parameters))
   fixed
-}
-
-OldNames <- function(object) {
-  if (inherits(object, "result.goldfish")) {
-    change <- c("standard.errors" = "standardErrors", "log.likelihood" = "logLikelihood",
-                "final.score" = "finalScore",
-                "final.informationMatrix" = "finalInformationMatrix",
-                "n.iterations" = "nIterations", "n.events" = "nEvents",
-                "right.censored" = "rightCensored")
-    objName <- names(object)
-    posChange <- match(newName, change)
-    if (anyNA(posChange)) stop("Sorry, smth wrong! Maybe old elements are missing")
-    names(object)[posChange] <- names(change)
-    model <- object$model
-    subModel <- object$subModel
-    hasIntercept <- object$right.censored
-    # maybe outdated if new models available
-    if (model == "REM") {
-      if (!hasIntercept) {
-        modelTypeCall <- "REM-ordered"
-      } else {
-        modelTypeCall <- "REM"
-      }
-    } else if (model %in% c("DyNAM", "TriNAM")) {
-      if (subModel == "rate" && !hasIntercept) {
-        modelTypeCall <- "DyNAM-M-Rate-ordered"
-      } else if (subModel == "rate") {
-        modelTypeCall <- "DyNAM-M-Rate"
-      } else if (subModel == "choice_coordination") {
-        modelTypeCall <- "DyNAM-MM"
-      } else {
-        modelTypeCall <- "DyNAM-M"
-      }
-    }
-    object$model.type <- modelTypeCall
-  } else stop("not ", dQuote("result.goldfish"), " object", call. = FALSE)
 }

@@ -119,7 +119,7 @@ List gather_sender_model(const arma::mat& dep_event_mat,
             }
         }
 
-        // TODO(gutian): handle ignorant
+        // TO check(gutian): handle ignorant
 
 
         // In the following part, we take out the rows corresponding to pairs of present senders and receiver in this event.

@@ -6,3 +6,4 @@
 ^\.github$
 ^.lintr
 ^codecov\.yml$
+^.*\.code-workspace$

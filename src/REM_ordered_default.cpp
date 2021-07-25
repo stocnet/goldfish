@@ -88,7 +88,7 @@ List estimate_REM_ordered(const arma::vec& parameters,
             }
         }
 
-        // TODO(gutian): handle ignorant
+        // TO check(gutian): handle ignorant
 
 
         // We calculate the derivative, logLikelihood, and fisher information matrix of a current event according to the paper.

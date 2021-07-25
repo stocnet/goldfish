@@ -1,7 +1,7 @@
 # define methods ----------------------------------------------------------
 # init the statistical matrix
 init_REM_choice <- function(effectFun, network, attribute, n1, n2, cache = NULL)
-  UseMethod("init_REM_choice")
+  UseMethod("init_REM_choice", effectFun)
 
 
 # default -----------------------------------------------------------------
@@ -18,7 +18,8 @@ init_REM_choice.default <- function(effectFun,
 # Structural effects ------------------------------------------------------
 # tie ---------------------------------------------------------------------
 init_REM_choice.tie <- function(effectFun, network, window, n1, n2)
-  init_DyNAM_choice.tie(effectFun = effectFun, network = network, window = window, n1 = n1, n2 = n2)
+  init_DyNAM_choice.tie(effectFun = effectFun, network = network,
+                        window = window, n1 = n1, n2 = n2)
 
 update_REM_choice_tie <- function(network,
                                   sender, receiver, replace,
@@ -32,7 +33,8 @@ update_REM_choice_tie <- function(network,
 
 # inertia -----------------------------------------------------------------
 init_REM_choice.inertia <- function(effectFun, network, window, n1, n2)
-  init_REM_choice.tie(effectFun = effectFun, network = network, window = window, n1 = n1, n2 = n2)
+  init_REM_choice.tie(effectFun = effectFun, network = network,
+                      window = window, n1 = n1, n2 = n2)
 
 
 update_REM_choice_inertia <- function(network,
@@ -66,13 +68,15 @@ update_REM_choice_recip <- function(network,
 # indeg -------------------------------------------------------------------
 #' init stat matrix indegree using cache
 #'
-#' @param effectFun function with additional parameters weighted, isTwoMode, transformFun, type
+#' @param effectFun function with additional parameters weighted, isTwoMode,
+#'   transformFun, type
 #' @param network matrix n1*n2
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
 #'
-#' @return list with named components: cache numeric vector size n2, stat matrix numeric n1*n2
+#' @return list with named components: cache numeric vector size n2,
+#'   stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples
@@ -87,7 +91,8 @@ update_REM_choice_recip <- function(network,
 #'   ),
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
-#' effectFUN <- function(weighted = TRUE, isTwoMode = TRUE, transformFun = identity)
+#' effectFUN <- function(
+#'   weighted = TRUE, isTwoMode = TRUE, transformFun = identity)
 #'   NULL
 #' init_REM_choice.indeg(effectFUN, network, 5, 6)
 #' network <- matrix(
@@ -100,11 +105,15 @@ update_REM_choice_recip <- function(network,
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' effectFUN <- function(weighted = TRUE, isTwoMode = FALSE, transformFun = identity, type = "ego")
+#' effectFUN <- function(
+#'   weighted = TRUE, isTwoMode = FALSE, transformFun = identity,
+#'   type = "ego")
 #'   NULL
 #' init_REM_choice.indeg(effectFUN, network, NULL, 5, 5)
 #'
-#' effectFUN <- function(weighted = TRUE, isTwoMode = FALSE, transformFun = identity, type = "alter")
+#' effectFUN <- function(
+#'   weighted = TRUE, isTwoMode = FALSE, transformFun = identity,
+#'   type = "alter")
 #'   NULL
 #' init_REM_choice.indeg(effectFUN, network, NULL, 5, 5)
 #' }
@@ -129,7 +138,8 @@ init_REM_choice.indeg <- function(effectFun, network, window, n1, n2) {
   }
 
   # indeg as colsums
-  cache <- .colSums(if (weighted) network else network > 0, n1, n2, na.rm = TRUE)
+  cache <- .colSums(if (weighted) network else network > 0, n1, n2,
+                    na.rm = TRUE)
 
   # applied transformFun instead
   stat <- forceAndCall(1, funApply, cache)
@@ -176,15 +186,17 @@ init_REM_choice.indeg <- function(effectFun, network, window, n1, n2) {
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
 #' cache <- c(2, 7, 0, 1, 0, 7)
-#' update_REM_choice_indeg(network,
-#'                         1, 2, 3,
-#'                         cache, 5, 6,
-#'                         isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt, type = "ego")
+#' update_REM_choice_indeg(
+#'   network,
+#'   1, 2, 3,
+#'   cache, 5, 6,
+#'   isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt, type = "ego")
 #'
-#' update_REM_choice_indeg(network,
-#'                         1, 2, 3,
-#'                         cache, 5, 6,
-#'                         isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt, type = "al")
+#' update_REM_choice_indeg(
+#'   network,
+#'   1, 2, 3,
+#'   cache, 5, 6,
+#'   isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt, type = "al")
 #' }
 update_REM_choice_indeg <- function(network,
                                     sender, receiver, replace, cache,
@@ -218,7 +230,8 @@ update_REM_choice_indeg <- function(network,
 
   if (type == "alter") {
     # when the cache had change
-    if (isTwoMode) other <- seq_len(n1) else other <- setdiff(seq_len(n1), receiver)
+    if (isTwoMode) other <- seq_len(n1) else
+       other <- setdiff(seq_len(n1), receiver)
 
     changes <- cbind(
       node1 = other,
@@ -227,7 +240,8 @@ update_REM_choice_indeg <- function(network,
     )
   } else if (type == "ego") {
     # when the cache had change
-    if (isTwoMode) other <- seq_len(n2) else other <- setdiff(seq_len(n2), receiver)
+    if (isTwoMode) other <- seq_len(n2) else
+       other <- setdiff(seq_len(n2), receiver)
 
     changes <- cbind(
       node1 = receiver,
@@ -241,13 +255,16 @@ update_REM_choice_indeg <- function(network,
 # outdeg -------------------------------------------------------------------
 #' init stat matrix outdegree using cache
 #'
-#' @param effectFun function with additional parameters weighted, isTwoMode, transformFun, type
+#' @param effectFun function with additional parameters weighted, isTwoMode,
+#'   transformFun, type
 #' @param network matrix n1*n2
-#' @param window NULL||numeric(1) size of the window, if not null and not Inf return empty stat and cache
+#' @param window NULL||numeric(1) size of the window,
+#'   if not null and not Inf return empty stat and cache
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
 #'
-#' @return list with named components: cache numeric vector size n2, stat matrix numeric n1*n2
+#' @return list with named components: cache numeric vector size n2,
+#'   stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples
@@ -262,7 +279,8 @@ update_REM_choice_indeg <- function(network,
 #'   ),
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
-#' effectFUN <- function(weighted = TRUE, isTwoMode = TRUE, transformFun = identity)
+#' effectFUN <- function(
+#'   weighted = TRUE, isTwoMode = TRUE, transformFun = identity)
 #'   NULL
 #' init_REM_choice.outdeg(effectFUN, network, NULL, 5, 6)
 #' network <- matrix(
@@ -275,11 +293,15 @@ update_REM_choice_indeg <- function(network,
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' effectFUN <- function(weighted = TRUE, isTwoMode = FALSE, transformFun = identity, type = "ego")
+#' effectFUN <- function(
+#'   weighted = TRUE, isTwoMode = FALSE, transformFun = identity,
+#'   type = "ego")
 #'   NULL
 #' init_REM_choice.outdeg(effectFUN, network, 1, 5, 5)
 #'
-#' effectFUN <- function(weighted = TRUE, isTwoMode = FALSE, transformFun = identity, type = "alter")
+#' effectFUN <- function(
+#'   weighted = TRUE, isTwoMode = FALSE, transformFun = identity,
+#'   type = "alter")
 #'   NULL
 #' init_REM_choice.outdeg(effectFUN, network, NULL, 5, 5)
 #' }
@@ -292,8 +314,9 @@ init_REM_choice.outdeg <- function(effectFun, network, window, n1, n2) {
   type <- eval(params[["type"]])
 
   if (isTwoMode && type == "alter") {
-    stop("'indeg' effect must not use for type 'alter' (type = 'alter') when is ",
-         "a two-mode network (isTwoMode = TRUE) ", call. = FALSE)
+    stop(
+      "'indeg' effect must not use for type 'alter' (type = 'alter') when is ",
+      "a two-mode network (isTwoMode = TRUE) ", call. = FALSE)
   }
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
@@ -303,7 +326,8 @@ init_REM_choice.outdeg <- function(effectFun, network, window, n1, n2) {
     ))
   }
   # indeg as colsums
-  cache <- .rowSums(if (weighted) network else network > 0, n1, n2, na.rm = TRUE)
+  cache <- .rowSums(if (weighted) network else network > 0, n1, n2,
+                    na.rm = TRUE)
 
   # applied transformFun instead
   stat <- forceAndCall(1, funApply, cache)
@@ -350,15 +374,17 @@ init_REM_choice.outdeg <- function(effectFun, network, window, n1, n2) {
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
 #' cache <- c(2, 7, 0, 1, 0, 7)
-#' update_REM_choice_outdeg(network,
-#'                          1, 2, 3,
-#'                          cache, 5, 6,
-#'                          isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt, type = "ego")
+#' update_REM_choice_outdeg(
+#'   network,
+#'   1, 2, 3,
+#'   cache, 5, 6,
+#'   isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt, type = "ego")
 #'
-#' update_REM_choice_outdeg(network,
-#'                          1, 2, 3,
-#'                          cache, 5, 6,
-#'                          isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt, type = "al")
+#' update_REM_choice_outdeg(
+#'   network,
+#'   1, 2, 3,
+#'   cache, 5, 6,
+#'   isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt, type = "al")
 #' }
 update_REM_choice_outdeg <- function(network,
                                      sender, receiver, replace, cache,
@@ -393,7 +419,8 @@ update_REM_choice_outdeg <- function(network,
 
   if (type == "alter") {
     # when the cache had change
-    if (isTwoMode) other <- seq_len(n1) else other <- setdiff(seq_len(n1), sender)
+    if (isTwoMode) other <- seq_len(n1) else
+      other <- setdiff(seq_len(n1), sender)
 
     changes <- cbind(
       node1 = other,
@@ -402,7 +429,8 @@ update_REM_choice_outdeg <- function(network,
     )
   } else if (type == "ego") {
     # when the cache had change
-    if (isTwoMode) other <- seq_len(n2) else other <- setdiff(seq_len(n2), sender)
+    if (isTwoMode) other <- seq_len(n2) else
+      other <- setdiff(seq_len(n2), sender)
 
     changes <- cbind(
       node1 = sender,
@@ -473,7 +501,8 @@ update_REM_choice_four <- function(network,
 # tertius ----------------------------------------------------------------
 #' init stat matrix tertius using cache
 #'
-#' @param effectFun function with additional parameters transformFun, aggregateFun
+#' @param effectFun function with additional parameters transformFun,
+#'   aggregateFun
 #' @param network matrix n1*n2
 #' @param attribute numeric vector n1
 #' @param window NULL|numeric size of the window
@@ -498,12 +527,14 @@ update_REM_choice_four <- function(network,
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
 #' attribute <- c(1, 0, 1, 3, 1)
-#' effectFUN <- function(type = "alter", isTwoMode = TRUE,
-#'                       transformFun = abs, aggregateFun = function(x) median(x, na.rm = TRUE))
+#' effectFUN <- function(
+#'   type = "alter", isTwoMode = TRUE,
+#'   transformFun = abs, aggregateFun = function(x) median(x, na.rm = TRUE))
 #'   NULL
 #' init_REM_choice.tertius(effectFUN, network, attribute)
 #' }
-init_REM_choice.tertius <- function(effectFun, network, attribute, window, n1, n2) {
+init_REM_choice.tertius <- function(
+  effectFun, network, attribute, window, n1, n2) {
   # Get arguments
   params <- formals(effectFun)
   aggFun <- eval(params[["aggregateFun"]])
@@ -604,18 +635,19 @@ init_REM_choice.tertius <- function(effectFun, network, attribute, window, n1, n
 #'                           transformFun = function(x) x ^ 2,
 #'                           aggregateFun = function(x) median(x, na.rm = TRUE))
 #' }
-update_REM_choice_tertius <- function(network,
-                                             attribute,
-                                             sender = NULL,
-                                             receiver = NULL,
-                                             node = NULL,
-                                             replace,
-                                             cache,
-                                             n1 = n1, n2 = n2,
-                                             isTwoMode = FALSE,
-                                             type = c("alter", "ego"),
-                                             transformFun = identity,
-                                             aggregateFun = function(x) mean(x, na.rm = TRUE)) {
+update_REM_choice_tertius <- function(
+  network,
+  attribute,
+  sender = NULL,
+  receiver = NULL,
+  node = NULL,
+  replace,
+  cache,
+  n1 = n1, n2 = n2,
+  isTwoMode = FALSE,
+  type = c("alter", "ego"),
+  transformFun = identity,
+  aggregateFun = function(x) mean(x, na.rm = TRUE)) {
   type <- match.arg(type)
   # utility functions to return third nodes
   third <- function(n, diff = c(node)) {
@@ -653,8 +685,9 @@ update_REM_choice_tertius <- function(network,
     }
 
     # change stat
-    valChangeCache <- forceAndCall(1, aggregateFun,
-                                   if (length(inReceiver) > 0) attribute[inReceiver] else NA)
+    valChangeCache <- forceAndCall(
+      1, aggregateFun,
+      if (length(inReceiver) > 0) attribute[inReceiver] else NA)
     # changes case 1: all nodes needs to be update the att[i] - cache[j] values
     # if (isTwoMode) seq_len(n2) else third(n1, receiver)
     nodesChange <- if (!is.na(valChangeCache)) receiver else numeric()
@@ -689,7 +722,8 @@ update_REM_choice_tertius <- function(network,
              },
              FUN.VALUE = double(1))
 
-    # changes case 2: is an update value for node, then its update is done separately
+    # changes case 2: is an update value for node,
+    #   then its update is done separately
     nodesChange <- outNode
   }
   # changes depending isTwoMode
@@ -765,10 +799,11 @@ update_REM_choice_tertius <- function(network,
   }
   return(list(cache = cache, changes = changes))
 }
-# tertius_diff ----------------------------------------------------------------
+# tertiusDiff ----------------------------------------------------------------
 #' init stat matrix tertius-diff using cache
 #'
-#' @param effectFun function with additional parameters transformFun, aggregateFun
+#' @param effectFun function with additional parameters transformFun,
+#'   aggregateFun
 #' @param network matrix n1*n2
 #' @param attribute numeric vector n1
 #' @param window NULL|numeric size of the window
@@ -796,13 +831,15 @@ update_REM_choice_tertius <- function(network,
 #' effectFUN <- function(transformFun = abs,
 #'                       aggregateFun = function(x) median(x, na.rm = TRUE))
 #'   NULL
-#' init_REM_choice.tertius_diff(effectFUN, network, attribute)
+#' init_REM_choice.tertiusDiff(effectFUN, network, attribute)
 #' }
-init_REM_choice.tertius_diff <- function(effectFun, network, attribute, window, n1, n2)
-  init_DyNAM_choice.tertius_diff(effectFun = effectFun,
+init_REM_choice.tertiusDiff <- function(
+  effectFun, network, attribute, window, n1, n2)
+  init_DyNAM_choice.tertiusDiff(effectFun = effectFun,
                                  network = network, attribute = attribute,
                                  window = window,
                                  n1 = n1, n2 = n2)
+
 #' update stat transitivity using cache
 #'
 #' @param network matrix n1*n1
@@ -837,7 +874,7 @@ init_REM_choice.tertius_diff <- function(effectFun, network, attribute, window, 
 #' attribute <- c(1, 0, 1, 3, 1)
 #' cache <- c(2, 1, 0, 1, 0, 2)
 #'
-#' update_REM_choice_tertius(network, attribute,
+#' update_REM_choice_tertiusDiff(network, attribute,
 #'                           sender = 2, receiver = 3,
 #'                           node = NULL,
 #'                           3,
@@ -846,7 +883,7 @@ init_REM_choice.tertius_diff <- function(effectFun, network, attribute, window, 
 #'                           transformFun = function(x) x ^ 2,
 #'                           aggregateFun = function(x) median(x, na.rm = TRUE))
 #'
-#' update_REM_choice_tertius(network, attribute,
+#' update_REM_choice_tertiusDiff(network, attribute,
 #'                           sender = NULL, receiver = NULL,
 #'                           node = 3,
 #'                           3,
@@ -855,31 +892,33 @@ init_REM_choice.tertius_diff <- function(effectFun, network, attribute, window, 
 #'                           transformFun = function(x) x ^ 2,
 #'                           aggregateFun = function(x) median(x, na.rm = TRUE))
 #' }
-update_REM_choice_tertius_diff <- function(network,
-                                      attribute,
-                                      sender = NULL,
-                                      receiver = NULL,
-                                      node = NULL,
-                                      replace,
-                                      cache,
-                                      isTwoMode = FALSE,
-                                      n1 = n1, n2 = n2,
-                                      transformFun = abs,
-                                      aggregateFun = function(x) mean(x, na.rm = TRUE))
-  update_DyNAM_choice_tertius_diff(network = network,
-                              attribute = attribute,
-                              sender = sender,
-                              receiver = receiver,
-                              node = node,
-                              replace = replace,
-                              cache = cache,
-                              isTwoMode = isTwoMode,
-                              n1 = n1, n2 = n2,
-                              transformFun = transformFun,
-                              aggregateFun = aggregateFun)
+update_REM_choice_tertiusDiff <- function(
+  network,
+  attribute,
+  sender = NULL,
+  receiver = NULL,
+  node = NULL,
+  replace,
+  cache,
+  isTwoMode = FALSE,
+  n1 = n1, n2 = n2,
+  transformFun = abs,
+  aggregateFun = function(x) mean(x, na.rm = TRUE))
+  update_DyNAM_choice_tertiusDiff(
+    network = network,
+    attribute = attribute,
+    sender = sender,
+    receiver = receiver,
+    node = node,
+    replace = replace,
+    cache = cache,
+    isTwoMode = isTwoMode,
+    n1 = n1, n2 = n2,
+    transformFun = transformFun,
+    aggregateFun = aggregateFun)
 
 
-# node_trans ------------------------------------------------------------------
+# nodeTrans ------------------------------------------------------------------
 
 #' node trans init
 #' number of transitive triangles i->j->k;i->k where node i is embedded. Source node
@@ -905,23 +944,27 @@ update_REM_choice_tertius_diff <- function(network,
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' effectFUN <- function(isTwoMode = TRUE, transformFun = identity, type = "ego")
+#' effectFUN <- function(
+#'   isTwoMode = TRUE, transformFun = identity, type = "ego")
 #'   NULL
-#' init_REM_choice.node_trans(effectFUN, network, NULL, 5, 5)
+#' init_REM_choice.nodeTrans(effectFUN, network, NULL, 5, 5)
 #'
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = identity, type = "ego")
+#' effectFUN <- function(
+#'   isTwoMode = FALSE, transformFun = identity, type = "ego")
 #'   NULL
-#' init_REM_choice.node_trans(effectFUN, network, NULL, 5, 5)
+#' init_REM_choice.nodeTrans(effectFUN, network, NULL, 5, 5)
 #'
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = identity, type = "alter")
+#' effectFUN <- function(
+#'   isTwoMode = FALSE, transformFun = identity, type = "alter")
 #'   NULL
-#' init_REM_choice.node_trans(effectFUN, network, NULL, 5, 5)
+#' init_REM_choice.nodeTrans(effectFUN, network, NULL, 5, 5)
 #'
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = identity, type = "alter")
+#' effectFUN <- function(
+#'   isTwoMode = FALSE, transformFun = identity, type = "alter")
 #'   NULL
-#' init_REM_choice.node_trans(effectFUN, network, 9, 5, 5)
+#' init_REM_choice.nodeTrans(effectFUN, network, 9, 5, 5)
 #' }
-init_REM_choice.node_trans <- function(effectFun, network, window, n1, n2) {
+init_REM_choice.nodeTrans <- function(effectFun, network, window, n1, n2) {
   # Get arguments
   params <- formals(effectFun)
   isTwoMode <- eval(params[["isTwoMode"]])
@@ -929,7 +972,7 @@ init_REM_choice.node_trans <- function(effectFun, network, window, n1, n2) {
   type <- eval(params[["type"]])
 
   if (isTwoMode) {
-    stop("'node_trans' effect must not use ",
+    stop("'nodeTrans' effect must not use ",
          "when is a two-mode network (isTwoMode = TRUE)", call. = FALSE)
   }
 
@@ -945,7 +988,8 @@ init_REM_choice.node_trans <- function(effectFun, network, window, n1, n2) {
 
   # compute stat: number of triangles i->j->k, i->k from i perspective
   # stat <- diag(tcrossprod(network %*% network, network))
-  cache <- .rowSums((network %*% network) * network, m = n1, n = n2, na.rm = TRUE)
+  cache <- .rowSums((network %*% network) * network, m = n1, n = n2,
+                    na.rm = TRUE)
 
   stat <- matrix(forceAndCall(1, funApply, cache),
                  nrow = n1, ncol = n2, byrow = (type == "alter")
@@ -957,7 +1001,8 @@ init_REM_choice.node_trans <- function(effectFun, network, window, n1, n2) {
 }
 
 #' update node trans
-#' number of transitive triangles i->j->k;i->k where node i is embedded. Source node
+#' number of transitive triangles i->j->k;i->k where node i is embedded as
+#'  a source node
 #' @param network matrix n1*n2
 #' @param sender integer
 #' @param receiver integer
@@ -977,11 +1022,11 @@ init_REM_choice.node_trans <- function(effectFun, network, window, n1, n2) {
 #' @examples
 #' \dontrun{
 #' cache <- c(0, 0, 1, 1, 0)
-#' update_REM_choice_node_trans(network, 1, 5, 1, cache, 5, 5, type = "alter")
-#' update_REM_choice_node_trans(network, 1, 5, 1, cache, 5, 5, type = "ego")
-#' update_REM_choice_node_trans(network, 3, 2, 0, cache, 5, 5, type = "ego")
+#' update_REM_choice_nodeTrans(network, 1, 5, 1, cache, 5, 5, type = "alter")
+#' update_REM_choice_nodeTrans(network, 1, 5, 1, cache, 5, 5, type = "ego")
+#' update_REM_choice_nodeTrans(network, 3, 2, 0, cache, 5, 5, type = "ego")
 #' }
-update_REM_choice_node_trans <- function(network,
+update_REM_choice_nodeTrans <- function(network,
                                          sender,
                                          receiver,
                                          replace,
@@ -1039,9 +1084,11 @@ update_REM_choice_node_trans <- function(network,
   if (senderChanges > 0) {
     replaceValues <- (replace - oldValue) * senderChanges + cache[sender]
     if (type == "ego") {
-      changes <- cbind(node1 = sender, node2 = third(n1, sender), replace = replaceValues)
+      changes <- cbind(
+        node1 = sender, node2 = third(n1, sender), replace = replaceValues)
     } else {
-      changes <- cbind(node1 = third(n1, sender), node2 = sender, replace = replaceValues)
+      changes <- cbind(
+        node1 = third(n1, sender), node2 = sender, replace = replaceValues)
     }
     cache[sender] <- replaceValues
   }
@@ -1112,7 +1159,7 @@ update_REM_choice_ego <- function(attribute,
 
   if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
   # utility functions to return third nodes
-  third <- function(n, diff = c(sender, receiver)) {
+  third <- function(n, diff = c(node)) {
     setdiff(seq_len(n), diff)
   }
 
@@ -1125,12 +1172,14 @@ update_REM_choice_ego <- function(attribute,
 
 # alter -------------------------------------------------------------------
 init_REM_choice.alter <- function(effectFun, attribute, n1, n2)
-  init_DyNAM_choice.alter(effectFun = effectFun, attribute = attribute, n1 = n2, n2 = n2)
+  init_DyNAM_choice.alter(
+    effectFun = effectFun, attribute = attribute, n1 = n2, n2 = n2)
 
-update_REM_choice_alter <- function(attribute,
-                                    node, replace,
-                                    n1, n2,
-                                    isTwoMode = FALSE)
+update_REM_choice_alter <- function(
+  attribute,
+  node, replace,
+  n1, n2,
+  isTwoMode = FALSE)
   update_DyNAM_choice_alter(
     attribute = attribute,
     node = node, replace = replace,

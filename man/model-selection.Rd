@@ -11,21 +11,22 @@
 
 \method{BIC}{result.goldfish}(object, ...)
 
-\method{logLik}{result.goldfish}(object, avgPerEvent = FALSE, ...)
+\method{logLik}{result.goldfish}(object, ..., avgPerEvent = FALSE)
 }
 \arguments{
-\item{object}{a goldfish results object}
+\item{object}{an object of class \code{result.goldfish} output from an
+\code{\link{estimate}} call.}
 
 \item{...}{additional arguments to be passed}
 
 \item{k}{Penalty factor}
 
-\item{avgPerEvent}{a boolean indicating whether the everage likelihood per event should be calculated}
-
-\item{digits}{number of decimal places to be printed}
+\item{avgPerEvent}{a boolean indicating whether the average
+likelihood per event should be calculated}
 }
 \value{
-AIC, BIC, log likelihood of the model or the average log likelihood per event.
+AIC, BIC, log likelihood of the model or the average
+  log likelihood per event.
 }
 \description{
 Information criteria statistics

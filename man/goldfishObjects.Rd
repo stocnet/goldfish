@@ -8,6 +8,9 @@ goldfishObjects(y = ls(envir = .GlobalEnv), envir = .GlobalEnv)
 }
 \arguments{
 \item{y}{a list of objects. Leave blank to capture the global environment.}
+
+\item{envir}{an R \code{\link{environment}} where the goldfish objects are
+searched. The default value is \code{\link{.GlobalEnv}}}
 }
 \value{
 classes, dimensions, and any related nodesets or events

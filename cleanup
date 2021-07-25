@@ -1,3 +1,12 @@
 #!/bin/sh
 
-rm -f config.* src/Makevars
+# autoconf
+rm -rf autom4te.cache
+rm -f config.log
+rm -f config.status
+rm -f src/Makevars
+rm -f src/symbols.rds
+# binaries
+rm -f src/*.so
+rm -f src/*.o
+rm -f src/*.dll

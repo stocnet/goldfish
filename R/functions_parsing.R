@@ -20,7 +20,7 @@
 #' \dontrun{
 #' parseFormula(calls ~ outdeg(call.Network, type="ego") + indeg(call.Network, type="alter"))
 #' }
-parseFormula <- function(formula) {
+parseFormula <- function(formula, envir = globalenv()) {
   # check left side
   depName <- getDependentName(formula)
   if (!inherits(get(depName), "dependent.goldfish")) {
@@ -28,8 +28,6 @@ parseFormula <- function(formula) {
          " (check the function defineDependentEvents).", call. = FALSE)
   }
   # check right side
-  # TODO: replace interaction terms by main effects
-  #       and add a representation of what is to interacted before estimation
   rhsNames <- getRHSNames(formula)
   if (length(rhsNames) == 0) {
     stop("A model without effects cannot be estimated.", call. = FALSE)
@@ -47,9 +45,6 @@ parseFormula <- function(formula) {
     }
   }
   # check right side: all parameters
-  # TODO: check against the arguments of the effect
-  # internal_args <- c("network", "statistics", "sender", "receiver", "replace",
-  #                "n1", "n2", "attribute", "node")
   for (i in seq_along(rhsNames)) {
     if ("binary" %in% names(rhsNames[[i]])) {
       stop("The use of the binary parameter is no longer available,
@@ -59,12 +54,6 @@ parseFormula <- function(formula) {
       stop("The use of the isBipartite parameter is no longer available,
            please use isTwoMode", call. = FALSE)
     }
-    # args_effect <- names(formals(rhsNames[[i]][[1]]))
-    # if(!all(names(rhsNames[[i]]) %in%
-    #         c("", "ignoreRep", "window", "isTwoMode",
-    #           args_effect[!args_effect %in% internal_args])))
-    #   stop("The parameters given for the effects are incorrect,
-    #              please check the goldfishEffects documentation")
   }
   # check right side: windows
   windowParameters <- lapply(rhsNames, getElement, "window")
@@ -98,7 +87,18 @@ parseFormula <- function(formula) {
   }
   transParameter <- lapply(rhsNames, getFunName, "transformFun")
   aggreParameter <- lapply(rhsNames, getFunName, "aggregateFun")
-  # TODO: check coherence with documentation (just warnings)
+
+  # DyNAM-i ONLY: check right side: joining parameter
+  joiningParameter <- lapply(rhsNames, function(x) {
+    v <- getElement(x, "joining")
+    ifelse(!is.null(v), v, "")
+  })
+  # DyNAM-i ONLY: check right side: subtype parameter
+  subTypeParameter <- lapply(rhsNames, function(x) {
+    v <- getElement(x, "subType")
+    ifelse(!is.null(v), v, "")
+  })
+
   # return all the results of the formula parsing
   res <- list(
     rhsNames = rhsNames,
@@ -110,7 +110,9 @@ parseFormula <- function(formula) {
     weightedParameter = weightedParameter,
     typeParameter = typeParameter,
     transParameter = transParameter,
-    aggreParameter = aggreParameter
+    aggreParameter = aggreParameter,
+    joiningParameter = joiningParameter,
+    subTypeParameter = subTypeParameter
   )
   return(res)
 }
@@ -154,14 +156,14 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
   sizenew <- length(newparsedformula$rhsNames)
   effectsindexes <- rep(0, sizenew)
   # go through all new effects to check whether they already existed in the old formula
-  for (i in 1:sizenew) {
+  for (i in seq.int(sizenew)) {
     effectname <- newparsedformula$rhsNames[[i]][[1]]
     effectobject <- newparsedformula$rhsNames[[i]][[2]]
     effectwindow <- newparsedformula$windowParameters[[i]]
     effectignorerep <- newparsedformula$ignoreRepParameter[[i]]
     effectweighted <- newparsedformula$weightedParameter[[i]]
     effectparameter <- newparsedformula$userSetParameter[[i]]
-    for (j in 1:sizeold) {
+    for (j in seq.int(sizeold)) {
       # 1 check name of the effect
       if (!identical(oldparsedformula$rhsNames[[j]][[1]], effectname)) {
         next
@@ -346,7 +348,7 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
     name = NA,
     object = NA,
     nodeset = NA,
-    attribute = NA, stringsAsFactors = F
+    attribute = NA, stringsAsFactors = FALSE
   )
 
   # replace dependent labels with ids
@@ -380,6 +382,12 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
   for (i in which(!isAttribute)) {
     evNames <- attr(get(objectNames[i, ]$object, envir = envir), "events")
     evs <- lapply(evNames, get, envir = envir)
+    nodesObject <- attr(get(objectNames[i, ]$object, envir = envir), "nodes")
+
+    if (length(nodesObject) > 1) {
+      nodes <- nodesObject[1]
+      nodes2 <- nodesObject[2]
+    } else nodes <- nodes2 <- nodesObject
 
     # replace labels with ids
     if (length(evNames) > 0) {
@@ -466,7 +474,7 @@ parseIntercept <- function(rhsNames) {
 # unless a network name is passed to the multiple attribute
 parseMultipleEffects <- function(rhsNames, default = FALSE) {
   multiple <- list()
-  multipleNames <- c()
+  multipleNames <- character(0)
   for (i in seq_along(rhsNames)) {
     name <- ""
     id <- which(names(rhsNames[[i]]) == "ignoreRep")
@@ -506,117 +514,142 @@ parseMultipleEffects <- function(rhsNames, default = FALSE) {
 parseTimeWindows <- function(rhsNames, envir = globalenv()) {
   objectNames <- getDataObjects(rhsNames)
 
-  for (i in seq_along(rhsNames)) {
-    window <- rhsNames[[i]]$window
-    windowName <- window
-    if (!is.null(window)) {
-      if (grepl("\"", window)) {
-        window <- gsub("\"", "", window)
-        windowName <- gsub(" ", "", window)
+  hasWindows <- which(vapply(rhsNames, function(x) !is.null(getElement(x, "window")), logical(1)))
 
-        if (!is.numeric(window) & !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
-          stop(
-            "The window effect specified with the effect ", rhsNames[[i]][[1]],
-            " ", rhsNames[[i]][[2]], " is not in the form 'number unit'\n",
-            " or the unit is not between the accepted options:\n\t",
-            "seconds, minutes, hours, weeks, months, years"
-          )
-        }
+  for (i in hasWindows) {
+    windowName <- rhsNames[[i]]$window
+    window <- tryCatch(
+      eval(parse(text = windowName), envir = envir),
+      error = function(e) {
+        e$message <- paste("Invalid window parameter for effect ", rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
+                           ":\n", e$message)
+        stop(e)
+      }
+    )
 
-        if (grepl("sec", window)) {
-          window <- as.numeric(strsplit(window, " ")[[1]][1]) * 1
+    # # in the case windows is provided as an object name, it should start with alphabetic character
+    isValidName <- grepl("^[[:alpha:]][[:alnum:]_.]+$", windowName)
+
+    # support for lubridate object classes for date operations
+    if (inherits(window, c("Period", "Duration")) & "lubridate" %in% attr(attr(window, "class"), "package")) {
+      if (!isValidName) {
+        windowName <- gsub("\\s", "", as.character(window))
+        if (inherits(window, "Duration")) windowName <- gsub("^(\\d+s)\\s*(\\(.+\\))$", "\\1", as.character(window))
         }
-        if (grepl("min", window)) {
-          window <- as.numeric(strsplit(window, " ")[[1]][1]) * 60
-        }
-        if (grepl("hour", window)) {
-          window <- as.numeric(strsplit(window, " ")[[1]][1]) * 3600
-        }
-        if (grepl("day", window)) {
-          window <- as.numeric(strsplit(window, " ")[[1]][1]) * 86400
-        }
-        if (grepl("week", window)) {
-          window <- as.numeric(strsplit(window, " ")[[1]][1]) * 604800
-        }
-        if (grepl("month", window)) {
-          window <- as.numeric(strsplit(window, " ")[[1]][1]) * 2629743 # average
-        }
-        if (grepl("year", window)) {
-          window <- as.numeric(strsplit(window, " ")[[1]][1]) * 31556926 # average
-        }
+    } else if (inherits(window, "character")) {
+      if (!isValidName) windowName <- gsub(" ", "", window)
+
+      if (!is.numeric(window) & !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
+        stop(
+          "The window effect specified with the effect ", rhsNames[[i]][[1]],
+          " ", rhsNames[[i]][[2]], " is not in the form 'number unit'\n",
+          " or the number is not an integer number\n",
+          " or the unit is not between the accepted options:\n\t",
+          "seconds, minutes, hours, weeks, months, years"
+        )
       }
 
-      # check numeric type
-      tryCatch(window <- strtoi(window), error = function(e) {
-        stop("The window specified with the effect ", rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]], " is not an integer")
-      })
-
-      # get initial object, check whether it's an attribute or a network
-      name <- rhsNames[[i]][[2]]
-      objects <- objectNames[objectNames$name == name, ]
-      isAttribute <- !is.na(objects$attribute)
-
-      # add new RHS term for the windowed element
-      # newRhs <- list()
-      # newRhs[[1]] <- rhsNames[[i]][[1]]
-      # newRhs[[2]] <- paste(rhsNames[[i]][[2]], window, sep="_")
-      # rhsNames[[length(rhsNames)+1]] <- newRhs
-      rhsNames[[i]][[2]] <- paste(rhsNames[[i]][[2]],
-        windowName,
-        sep = "_"
-      )
-
-      if (isAttribute) {
-
-        # get nodes & attribute, add new windowed attribute, get related events to be windowed later
-        nameNodes <- objects$nodeset
-        nodes <- get(nameNodes, envir = envir)
-        attribute <- objects$attribute
-
-        newAttribute <- paste(attribute, windowName, sep = "_")
-        nodes[newAttribute] <- nodes[attribute]
-
-        allEvents <- attr(nodes, "events")
-        allDynamicAttributes <- attr(nodes, "dynamicAttributes")
-        allEvents <- allEvents[allDynamicAttributes == attribute]
-      } else {
-
-        # get network, create windowed network, get related events to be windowed later
-        network <- get(name, envir = envir)
-
-        newNetwork <- matrix(0, nrow = nrow(network), ncol = ncol(network))
-        newName <- paste(name, windowName, sep = "_")
-        attr(newNetwork, "events") <- NULL
-
-        allEvents <- attr(network, "events")
+      if (grepl("sec", window)) {
+        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 1
       }
-
-      # create new windowed events lists, link them, add them to the environment
-      for (events in allEvents) {
-        objectEvents <- get(events, envir = envir)
-        newEvents <- createWindowedEvents(objectEvents, window)
-        nameNewEvents <- paste(events, window, sep = "_")
-
-        if (isAttribute) {
-          attr(nodes, "events") <- c(attr(nodes, "events"), nameNewEvents)
-          attr(nodes, "dynamicAttributes") <- c(attr(nodes, "dynamicAttributes"), newAttribute)
-        } else {
-          attr(newNetwork, "events") <- c(attr(newNetwork, "events"), nameNewEvents)
-        }
-
-        assign(nameNewEvents, newEvents, pos = envir)
+      if (grepl("min", window)) {
+        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 60
       }
-
-      # Put nodes/networks elements back in the environments
-      if (isAttribute) {
-        assign(nameNodes, nodes, pos = envir)
-      } else {
-        assign(newName, newNetwork, pos = envir)
+      if (grepl("hour", window)) {
+        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 3600
       }
+      if (grepl("day", window)) {
+        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 86400
+      }
+      if (grepl("week", window)) {
+        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 604800
+      }
+      if (grepl("month", window)) {
+        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 2629800 # lubridate approximation
+      }
+      if (grepl("year", window)) {
+        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 31557600 # lubridate approximation
+      }
+    } else if (is.numeric(window)) { # check numeric type
 
-      # not sure about this: should we remove the window parts from the rhs names?
-      # rhsNames[[i]]$window <- NULL
+      if (window < 0)
+        stop("The window specified with the effect ", rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
+             " is not a positive numeric value")
     }
+
+
+
+    # get initial object, check whether it's an attribute or a network
+    name <- rhsNames[[i]][[2]]
+    objects <- objectNames[objectNames$name == name, ]
+    isAttribute <- !is.na(objects$attribute)
+
+    # add new RHS term for the windowed element
+    # newRhs <- list()
+    # newRhs[[1]] <- rhsNames[[i]][[1]]
+    # newRhs[[2]] <- paste(rhsNames[[i]][[2]], window, sep="_")
+    # rhsNames[[length(rhsNames)+1]] <- newRhs
+    rhsNames[[i]][[2]] <- paste(rhsNames[[i]][[2]],
+                                windowName,
+                                sep = "_"
+    )
+
+
+    if (isAttribute) {
+      # get nodes & attribute, add new windowed attribute, get related events to be windowed later
+      nameNodes <- objects$nodeset
+      nodes <- get(nameNodes, envir = envir)
+      attribute <- objects$attribute
+
+      newAttribute <- paste(attribute, windowName, sep = "_")
+      nodes[newAttribute] <- nodes[attribute]
+
+      allEvents <- attr(nodes, "events")
+      allDynamicAttributes <- attr(nodes, "dynamicAttributes")
+      allEvents <- allEvents[allDynamicAttributes == attribute]
+    } else {
+
+      # get network, create windowed network, get related events to be windowed later
+      network <- get(name, envir = envir)
+
+      newNetwork <- matrix(0, nrow = nrow(network), ncol = ncol(network))
+      newName <- paste(name, windowName, sep = "_")
+      attr(newNetwork, "events") <- NULL
+
+      # add attribute
+      attr(newNetwork, "nodes") <- attr(network, "nodes")
+      attr(newNetwork, "directed") <- attr(network, "directed")
+      dimnames(newNetwork) <- dimnames(network)
+      class(newNetwork) <- class(network)
+
+      allEvents <- attr(network, "events")
+    }
+
+    # create new windowed events lists, link them, add them to the environment
+    for (events in allEvents) {
+      objectEvents <- get(events, envir = envir)
+      newEvents <- createWindowedEvents(objectEvents, window)
+      nameNewEvents <- paste(events, window, sep = "_")
+
+      if (isAttribute) {
+        attr(nodes, "events") <- c(attr(nodes, "events"), nameNewEvents)
+        attr(nodes, "dynamicAttributes") <- c(attr(nodes, "dynamicAttributes"), newAttribute)
+      } else {
+        attr(newNetwork, "events") <- c(attr(newNetwork, "events"), nameNewEvents)
+      }
+
+      assign(nameNewEvents, newEvents, envir = envir)
+    }
+
+    # Put nodes/networks elements back in the environments
+    if (isAttribute) {
+      assign(nameNodes, nodes, envir = envir)
+    } else {
+      assign(newName, newNetwork, envir = envir)
+    }
+
+    # not sure about this: should we remove the window parts from the rhs names?
+    # rhsNames[[i]]$window <- NULL
   }
   return(rhsNames)
 }

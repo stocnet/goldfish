@@ -17,6 +17,10 @@ a class of models that is tailored to the study of actor-oriented network proces
 Goldfish also implements different versions of the tie-oriented Relational Event Model by Carter Butts.
 }
 \references{
+Hoffman, M., Block P., Elmer T., and Stadtfeld C. (2020).
+A model for the dynamics of face-to-face interactions in social groups.
+\emph{Network Science}, 8(S1), S4-S25. \doi{10.1017/nws.2020.3}
+
 Stadtfeld, C. (2012). Events in Social Networks: A Stochastic
 Actor-oriented Framework for Dynamic Event Processes in Social Networks.
 \emph{KIT Scientific Publishing}. \doi{10.5445/KSP/1000025407}
@@ -28,4 +32,7 @@ Dynamic Network Actor Models for Relational Events.
 Stadtfeld, C., Hollway, J., and Block, P. (2017).
 Dynamic Network Actor Models: Investigating Coordination Ties Through Time.
 \emph{Sociological Methodology 47 (1)}. \doi{10.1177/0081175017709295}
+}
+\seealso{
+\code{\link{estimate}}
 }

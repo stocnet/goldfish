@@ -6,22 +6,48 @@
 #
 ################################## ###
 
-# TODO: (data team)
-# - It is much prettier do define two functions
-#   1) linkEvents.goldfish.nodes and
-#   2) linkEvents.goldfish.network
-#   Checks that relate to both can be put somewhere else. This one is really hard to debug...
-
 ## INTERFACE objects
 
-#' Create a data frame from a dynamic nodes object
-#' @param x a goldfish nodes object
-#' @param time a numeric or time format to define the state of the nodes object at time - epsiolon
-#' @param startTime a numeric or time format; prior events are disregarded
-#' @param ... additional arguments to be passed to or from methods
+#' Methods to update the nodes or the network objects
+#'
+#' Methods to create a data frame from an object of class \code{nodes.goldfish}
+#' (see \code{\link{defineNodes}}) or a matrix from an object of class
+#' \code{network.goldfish} (see \code{\link{defineNetwork}}) with the attributes
+#' or the network ties updated according with the events links to the object
+#' using the \code{\link{linkEvents}}) function.
+#' @param x an object of class \code{nodes.goldfish} for \code{as.data.frame}
+#' method or \code{network.goldfish} for \code{as.matrix} method.
+#' @param time a numeric or \code{as.Date} format value to update the state of
+#' the  \code{x} object until this time value.
+#' @param startTime a numeric \code{as.Date} format value; prior events are
+#' disregarded.
+#' @param ... Not further arguments are required.
+#' @return The respective object updated accordingly to the events link to it.
+#' @examples
+#' \donttest{
+#' data("Fisheries_Treaties_6070")
+#' states <- defineNodes(states)
+#' states <- linkEvents(states, sovchanges, attribute = "present")
+#' states <- linkEvents(states, regchanges, attribute = "regime")
+#' states <- linkEvents(states, gdpchanges, attribute = "gdp")
+#'
+#' bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
+#' bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
+#'
+#' updateStates <- as.data.frame(states,
+#'                               time = as.numeric(as.POSIXct("1965-12-31")))
+#'
+#'
+#' updateNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1965-12-31")))
+#' }
+#'
+#' @name update-method
+NULL
+
+# Create a data frame from a dynamic nodes object
 #' @export
-#' @return a data frame
-as.data.frame.nodes.goldfish <- function(x, time = -Inf, startTime = -Inf, ...) {
+#' @rdname update-method
+as.data.frame.nodes.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
   df <- x
   dynamicAttributes <- attr(df, "dynamicAttribute")
   eventNames <- attr(df, "events")
@@ -49,14 +75,13 @@ as.data.frame.nodes.goldfish <- function(x, time = -Inf, startTime = -Inf, ...) 
   df
 }
 
-#' Create a Matrix from a dynamic nodes object
-#' @param x a dynamic goldfish network object
-#' @param time a numeric or time format to define the state of the nodes object at time - epsiolon
-#' @param startTime a numeric or time format; prior events are disregarded
-#' @param ... additional arguments to be passed to or from methods
+# Create a Matrix from a dynamic nodes object
+# @param x a dynamic goldfish network object
+# @param time a numeric or time format to define the state of the nodes object at time - epsiolon
+# @param startTime a numeric or time format; prior events are disregarded
 #' @export
-#' @return a matrix
-as.matrix.network.goldfish <- function(x, time = -Inf, startTime = -Inf, ...) {
+#' @rdname update-method
+as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
   net <- x
   if (is.character(time)) time <- as.POSIXct(time)
   time <- as.numeric(time)
@@ -122,6 +147,8 @@ as.matrix.network.goldfish <- function(x, time = -Inf, startTime = -Inf, ...) {
 
 #' Return details about any goldfish objects in a given list
 #' @param y a list of objects. Leave blank to capture the global environment.
+#' @param envir an R \code{\link{environment}} where the goldfish objects are
+#' searched. The default value is \code{\link{.GlobalEnv}}
 #' @return classes, dimensions, and any related nodesets or events
 #' for any goldfish objects in a given list.
 #' @export
@@ -302,7 +329,6 @@ defineNetwork <- function(matrix = NULL, nodes, nodes2 = NULL, directed = TRUE) 
   }
 
   # Create empty matrix if needed
-  # TODO: Consider a sparse representation
   if (is.null(matrix)) {
       matrix <- matrix(0, nRow, nCol,
                        dimnames = list(sender = nodes$label,
@@ -407,7 +433,6 @@ defineDependentEvents <- function(events, nodes, nodes2 = NULL, defaultNetwork =
   } else attr(events, "type") <- "monadic"
 
   # check format
-  # TODO: removed defaultNetwork from check
   tryCatch(
     checkDependentEvents(
       events = events, eventsName = objEvents,
@@ -462,6 +487,7 @@ defineGlobalAttribute <- function(global) {
 #' Attach dynamic events to a nodeset or a network
 #' @param x Either a nodeset (nodes.goldfish object) or a network
 #'   (network.goldfish object)
+#' @param ... additional arguments to be passed to the method.
 #' @param changeEvents The name of a dataframe that represents a valid events list
 #' @param attribute a character vector indicating the names of the attributes
 #'   that should be updated by the specified events (ONLY if the object is a
@@ -491,12 +517,12 @@ defineGlobalAttribute <- function(global) {
 #'   receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)), increment = rep(1, 7)
 #' )
 #' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
-linkEvents <- function(x, changeEvents, ...)
+linkEvents <- function(x, ...)
   UseMethod("linkEvents", x)
 
 #' @rdname linkEvents
 #' @export
-linkEvents.nodes.goldfish <- function(x, changeEvents, attribute) {
+linkEvents.nodes.goldfish <- function(x, changeEvents, attribute, ...) {
   # check input types
   if (!(is.character(attribute) && length(attribute) == 1))
     stop("Invalid argument attributes: this function expects a character attribute value.")
@@ -537,7 +563,8 @@ linkEvents.nodes.goldfish <- function(x, changeEvents, attribute) {
 
 #' @rdname linkEvents
 #' @export
-linkEvents.network.goldfish <- function(x, changeEvents, nodes = NULL, nodes2 = NULL) {
+linkEvents.network.goldfish <- function(x, changeEvents,
+                                        nodes = NULL, nodes2 = NULL, ...) {
   # check input types
   if (is.null(nodes)) stop("Invalid argument nodes: a network is specified, this function expects an argument nodes.")
   if (!is.data.frame(changeEvents)) stop("Invalid argument changeEvents: this function expects a data frame.")
@@ -584,72 +611,3 @@ linkEvents.network.goldfish <- function(x, changeEvents, nodes = NULL, nodes2 = 
 linkEvents.default <- function(x, ...)
   if (!any(checkClasses(x, c("nodes.goldfish", "network.goldfish"))))
     stop('Invalid argument object: this function expects either a "nodes.goldfish" or a "network.goldfish" object.')
-
-
-createDist2events <- function(network, nodes, nodes2, attribute, FUN) {
-  times <- vector("character")
-  if (attribute %in% attr(nodes, "dynamicAttributes")) {
-    att.events <- attr(nodes, "events")[which(attr(nodes, "dynamicAttributes") == attribute)]
-    att.events <- get(att.events)
-    times <- c(times, as.character(unique(att.events$time)))
-  }
-  if (length(attr(network, "events")) > 0) {
-    net.events <- attr(network, "events")
-    net.events <- get(net.events)
-    times <- c(times, as.character(unique(net.events$time)))
-  }
-  times <- as.POSIXct(times)
-
-  mat <- vector()
-  for (t in times) {
-    net <- as.matrix(network, time = t)
-    raw <- as.data.frame(nodes, time = t)[, attribute]
-    val <- apply(net, 2, function(x) FUN(raw[which(x == 1)], na.rm = TRUE))
-    val[is.nan(val)] <- NA
-    val[val == -Inf] <- NA
-    mat <- rbind(mat, val)
-  }
-
-  row.names(mat) <- as.character(times)
-
-  out <- vector()
-  for (o in as.character(times)[2:length(times)]) {
-    if (!all(mapply(identical, mat[match(o, row.names(mat)), ], mat[match(o, row.names(mat)) - 1, ]))) {
-      out <- rbind(
-        out,
-        data.frame(
-          time = o,
-          node = nodes2$label[which(!mapply(
-            identical,
-            mat[match(o, row.names(mat)), ],
-            mat[match(o, row.names(mat)) - 1, ]
-          ))],
-          replace = mat[o, which(!mapply(
-            identical,
-            mat[match(o, row.names(mat)), ],
-            mat[match(o, row.names(mat)) - 1, ]
-          ))]
-        )
-      )
-    }
-  }
-  row.names(out) <- NULL
-  out$time <- as.POSIXct(as.character(out$time))
-  out$node <- as.character(out$node)
-  return(out)
-}
-
-# create an initial network for an event list (and node list) and a specific date
-createStart <- function(eventlist, nodelist, d) {
-  nodes <- nodelist$label
-  pre <- eventlist %>%
-    filter(sender %in% nodes & receiver %in% nodes) %>%
-    filter(time <= d)
-  extras <- nodes[(!nodes %in% pre$sender) | (!nodes %in% pre$receiver)]
-  pre <- rbind(pre, data.frame(sender = extras, receiver = extras,
-                               time = d, increment = 0))
-  pre <- as.matrix(table(pre$sender, pre$receiver))
-  pre <- pre + t(pre)
-  diag(pre) <- 0
-  pre
-}
