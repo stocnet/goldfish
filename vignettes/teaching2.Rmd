@@ -1,0 +1,348 @@
+---
+title: "The Coordination Model and Extensions"
+author: James Hollway
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{teaching2}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Step 0: Load package and data
+
+First, let's make sure we're starting with a clean slate and take the goldfish out of the bowl:
+
+```{r setup}
+rm(list=ls())
+library(goldfish)
+```
+
+This lazy loads several datasets, including the one we will now use:
+
+```{r load-data}
+data("Fisheries_Treaties_6070")
+?Fisheries_Treaties_6070
+```
+
+Note that these objects are only 'promised' for the moment,
+but are available in the environment to be used,
+and more information will appear as you use them.
+You can find out more about this dataset, its format,
+and its origins in a couple of ERGM papers by calling its documentation.
+
+# Step 1: Create data objects ####
+
+## Step 1a: Define node set(s) and attributes ####
+
+We've loaded a dataset that defines its nodes and their attributes as a data frame.
+
+```{r examine-states}
+tail(states)
+class(states)
+```
+
+We need to define them as nodes so that goldfish knows what to do with them.
+
+```{r defineNodes}
+states <- defineNodes(states)
+head(states)
+class(states)
+```
+
+As you can see, the structure is the same, but the added class helps goldfish
+interpret the data frame correctly.
+
+Next we want to link events to this nodeset to indicate how the attributes change.
+There are three attributes associated with this node set, and they all change:
+
+```{r examine-node-changes}
+head(sovchanges)
+head(regchanges)
+head(gdpchanges)
+```
+
+The first attribute, in the second column of the data frame, is special.
+It holds the (reserved) "present" variable that indicates whether nodes
+are available to send or receive ties.
+
+```{r present}
+states$present # or states[,2]
+```
+
+Some state nodes are not present (do not hold sovereign status) 
+at the start of our study period. 
+But we do have an additional list of events detailing how these states gain
+(and some lose) sovereign status during the study period.
+To make sure goldfish recognises these changes at the appropriate point,
+we "link" these events to the node set and attribute we have defined.
+
+```{r}
+states <- linkEvents(states, sovchanges, attribute = "present")
+# If you call the object now, what happens?
+states
+```
+
+That's because the event list is only linked to the node set,
+to update it when necessary. You can see what is linked to which attribute here:
+
+```{r}
+str(states)
+```
+
+We can continue on with our other two dynamic monadic variables.
+Try this for yourself now.
+
+```{r}
+states <- linkEvents(states, regchanges, attribute = "regime")
+states <- linkEvents(states, gdpchanges, attribute = "gdp")
+str(states)
+```
+
+Let's check whether we have everything linked up correctly:
+
+```{r}
+goldfishObjects()
+```
+
+## Step 1b: Define networks ####
+
+Next we want to define the dyadic or network elements: 
+the bilateral fisheries agreements and contiguity between the state nodes.
+
+Since international fisheries management began before 1960,
+there were already several bilateral fisheries agreements in place 
+at the start of our time period. This is shown in the matrix 
+
+```{r}
+colnames(bilatnet) <- rownames(bilatnet) <- states$label
+bilatnet[1:12,1:12]
+```
+
+Two things can be observed here. What are they?
+
+So that goldfish knows how to handle this network, we define it so:
+
+```{r}
+bilatnet <- defineNetwork(bilatnet, nodes = states, directed = F)
+```
+
+We specify the nodes so that goldfish can check for consistency,
+and relate the network to that nodeset when needed.
+
+```{r}
+class(bilatnet)
+str(bilatnet)
+```
+
+By stating that this is an undirected network, 
+any updates will be forced to be symmetric.
+
+Now that goldfish recognises the matrix as a network, 
+we can also associate an event list that updates it.
+We use precisely the same function as before
+(since we have defined our objects, 
+goldfish knows what to do and how to check it).
+
+```{r}
+bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
+str(bilatnet)
+```
+
+TASK: You should now be able to do the same with the 
+initial contiguity network and the event list changing it.
+
+```{r}
+contignet <- defineNetwork(contignet, nodes = states, directed = F)
+contignet <- linkEvents(contignet, contigchanges, nodes = states)
+class(contignet)
+str(contignet)
+```
+
+Quick check to see whether everything is linked up correctly:
+
+```{r}
+goldfishObjects()
+```
+
+## Step 1c: Define dependent events ####
+
+The final step in defining the data objects is 
+to identify the dependent events.
+Since treaty dissolution is a rarer, more complex, and idiosyncratic process,
+we will only look at those events that create a treaty tie between countries.
+
+```{r}
+createBilat <- defineDependentEvents(events = bilatchanges[bilatchanges$increment==1,], 
+                                     nodes = states, 
+                                     defaultNetwork = bilatnet)
+```
+
+Note that we define the default network to which this dependent event list applies, 
+as well as the node set, so that structural effects can be interpreted correctly.
+
+```{r}
+class(createBilat)
+```
+
+So what goldfish related objects do we have now?
+
+```{r}
+goldfishObjects()
+```
+
+# Intermediate step: Visualisation ####
+
+While not a required part of the modelling process,
+we highly recommend the visualisation of your data
+for analytic and diagnostic purposes.
+
+goldfish includes wrappers for base R commands
+to help extract monadic and dyadic information
+for certain time points.
+
+```{r}
+?as.data.frame.nodes.goldfish
+?as.matrix.network.goldfish
+```
+
+We can use these functions to visually compare our network
+at two (or more) different time periods using igraph.
+
+```{r}
+library(igraph)
+startnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
+colnames(startnet) <- states$label
+startnet <- graph.adjacency(startnet, mode = "undirected", weighted = T)
+V(startnet)$present <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))$present
+V(startnet)$regime <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))$regime
+V(startnet)$gdp <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))$gdp
+startnet <- delete_vertices(startnet, V(startnet)$present==F)
+isos <- sum(degree(startnet)==0)
+startnet <- delete_vertices(startnet, degree(startnet)==0)
+
+endnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
+colnames(endnet) <- states$label
+endnet <- graph.adjacency(endnet, mode = "undirected", weighted = T)
+V(endnet)$present <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))$present
+V(endnet)$regime <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))$regime
+V(endnet)$gdp <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))$gdp
+endnet <- delete_vertices(endnet, V(endnet)$present==F)
+isoe <- sum(degree(endnet)==0)
+endnet <- delete_vertices(endnet, degree(endnet)==0)
+
+colfunc <- colorRampPalette(c("red","green"))
+par(mfrow = c(1,2))
+plot(startnet,
+     edge.width = E(startnet)$weight,
+     vertex.color = colfunc(20)[V(startnet)$regime+10], vertex.frame.color=NA,
+     vertex.size = (4 + ifelse(is.na(V(startnet)$gdp),1,1+V(startnet)$gdp))*2,
+     main = "1960-01-02", sub = paste("Plus", isos, "isolates"))
+plot(endnet, 
+     edge.width = E(endnet)$weight,
+     vertex.color = colfunc(20)[V(endnet)$regime+10], vertex.frame.color=NA,
+     vertex.size = (4 + ifelse(is.na(V(endnet)$gdp),1,1+V(endnet)$gdp))*2,
+     main = "1970-01-01", sub = paste("Plus", isoe, "isolates"))
+
+# Try also...
+startnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
+endnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
+migraph::plot_evolution(startnet, endnet, based_on = "last")
+# you will need the development version for this...
+
+```
+
+What can we observe?
+
+# Step 2: Specify and estimate model ####
+
+The second step is to specify and fit a model to this data.
+This step can be broken up into several stages:
+
+- Step 2a. Specify a model formula from the effects and variables available
+- Step 2b. Calculate the change statistics associated with these effects
+- Step 2c. Fit an appropriate model to these statistics
+
+However, in goldfish we also have the option of accelerating this process
+and using memory more efficiently by combining these three sub-steps in one.
+Nonetheless, it can be helpful to think of 2a separately, 
+and recognise steps 2b and 2c as goldfish does them.
+
+Let us first see how to specify the effects and which are currently available:
+
+```{r}
+?goldfishEffects
+```
+
+The data and model specification is similar (though not the same as)
+Stadtfeld, Hollway, and Block 2017a
+
+```{r}
+formula1 <- createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignoreRep=T) + trans(bilatnet, ignoreRep=T) +  tie(contignet, ignoreRep=T) + alter(states$regime, ignoreRep=T) + diff(states$regime, ignoreRep=T) +  alter(states$gdp, ignoreRep=T) + diff(states$gdp, ignoreRep=T)
+estPrefs <- list(returnIntervalLogL = T, initialDamping = 40, maxIterations = 30, engine = "default_c", impute = T)
+system.time(
+  partner.model <- estimate(formula1, model = "DyNAM",subModel="choice_coordination",
+                              estimationInit = estPrefs)
+)
+```
+
+Did the model converge? If not, you can restart the estimation process using
+the same formula and current parameter estimates:
+
+```{r}
+partner.model <- estimate(formula1, model = "DyNAM",subModel="choice_coordination",
+                          estimationInit = estPrefs)
+partner.model
+```
+
+Let's interpret...
+Do states prefer partners with more partners?
+Do states prefer partners that are contiguous?
+Does transitivity matter?
+Do states prefer rich or democratic partners?
+Do states prefer similarly rich or democratic partners?
+
+```{r}
+formula2 <- createBilat ~ inertia(bilatnet, weighted = T, parameter=2) + indeg(bilatnet) + trans(bilatnet) + tie(contignet) + alter(states$regime) + diff(states$regime) + alter(states$gdp) + diff(states$gdp)
+system.time(
+  tie.model <- estimate(formula2, model = "DyNAM",subModel="choice_coordination",
+                                estimationInit = estPrefs)
+)
+```
+
+# Extensions...
+
+In the most recent version of `{goldfish}`, 
+you will find some functions still under development.
+
+One set of functions is to help integrate the results of `{goldfish}` models
+with the wider world of statistical modelling.
+
+We have implemented some "tidymodels" (or rather `{broom}`) functions
+for extracting and printing the key results from goldfish results objects.
+Here is an example on the current results object:
+
+```{r}
+library(broom)
+library(pixiedust)
+dust(tidy(tie.model)) %>% 
+  sprinkle(col = 2:4, round = 3) %>% 
+  sprinkle(col = 5, fn = quote(pvalString(value)))
+glance(tie.model)
+```
+
+Lastly, we have begun implementing further diagnostic functions that can
+help users identify areas for improving their model specification.
+
+```{r}
+examine.outliers(tie.model)
+examine.changepoints(tie.model)
+```
+
+For more, please see Hollway (2020) Network Embeddedness and the Rate of Water Cooperation and Conflict.
