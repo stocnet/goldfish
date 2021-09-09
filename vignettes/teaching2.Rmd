@@ -121,7 +121,6 @@ there were already several bilateral fisheries agreements in place
 at the start of our time period. This is shown in the matrix 
 
 ```{r}
-colnames(bilatnet) <- rownames(bilatnet) <- states$label
 bilatnet[1:12,1:12]
 ```
 
@@ -251,9 +250,9 @@ plot(endnet,
      main = "1970-01-01", sub = paste("Plus", isoe, "isolates"))
 
 # Try also...
-startnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
-endnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
-migraph::plot_evolution(startnet, endnet, based_on = "last")
+# startnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
+# endnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
+# migraph::plot_evolution(startnet, endnet, based_on = "last")
 # you will need the development version for this...
 
 ```
