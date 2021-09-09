@@ -14,3 +14,4 @@ review.txt
 *.log
 *.tmp
 *.code-workspace
+inst/doc

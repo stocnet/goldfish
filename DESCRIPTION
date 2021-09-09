@@ -23,7 +23,8 @@ Suggests:
     testthat,
     knitr,
     devtools,
-    covr
+    covr,
+    rmarkdown
 VignetteBuilder: knitr 
 License: GPL (>= 3) | file LICENSE
 LazyData: true
@@ -36,7 +37,8 @@ Imports:
     utils,
     stats,
     generics,
-    ggplot2
+    ggplot2,
+    migraph
 LinkingTo:
     Rcpp,
     RcppArmadillo
