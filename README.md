@@ -37,8 +37,7 @@ between initial and repeated creation of ties (multiplicity of ties).
 You can install the latest version of the `goldfish` package from source using `remotes`:
 
 ```r
-install.packages(c("Rcpp","RcppArmadillo", "changepoint"))
-remotes::install_github("snlab-ch/goldfish")
+remotes::install_github("snlab-ch/goldfish", build_vignettes = TRUE)
 ```
 
 Or by downloading and install the latest binary from [the releases page](https://github.com/snlab-ch/goldfish/releases).

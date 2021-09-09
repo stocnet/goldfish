@@ -94,7 +94,7 @@ update_REM_choice_recip <- function(network,
 #' effectFUN <- function(
 #'   weighted = TRUE, isTwoMode = TRUE, transformFun = identity)
 #'   NULL
-#' init_REM_choice.indeg(effectFUN, network, 5, 6)
+#' init_REM_choice.indeg(effectFUN, network, NULL, 5, 6)
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,

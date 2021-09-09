@@ -2,8 +2,8 @@ Encoding: UTF-8
 Package: goldfish
 Type: Package
 Title: Goldfish -- Statistical network models for dynamic network data
-Version: 1.5.0
-Date: 2021-07-24
+Version: 1.5.1
+Date: 2021-09-09
 Authors@R: c(person("Christoph", "Stadtfeld", role = c("cre", "aut"), email = "c.stadtfeld@ethz.ch"),
               person("James", "Hollway", role = c("aut", "dtc")),
               person("Marion", "Hoffman", role = "ctb"),
@@ -23,7 +23,9 @@ Suggests:
     testthat,
     knitr,
     devtools,
-    covr
+    covr,
+    rmarkdown,
+    pixiedust
 VignetteBuilder: knitr 
 License: GPL (>= 3) | file LICENSE
 LazyData: true
@@ -34,7 +36,11 @@ Imports:
     changepoint,
     methods,
     utils,
-    stats
+    stats,
+    generics,
+    ggplot2,
+    migraph,
+    broom
 LinkingTo:
     Rcpp,
     RcppArmadillo

@@ -888,8 +888,8 @@ getIterationStepState <- function(statsList,
 getLikelihoodMM <- function(multinomialProbabilities) {
   symP <- multinomialProbabilities * t(multinomialProbabilities)
   diag(symP) <- 0
-  denomiator <- sum(symP) / 2
-  return(symP / denomiator)
+  denominator <- sum(symP) / 2
+  return(symP / denominator)
 }
 # likelihoods <- symP / denominator
 

@@ -427,7 +427,7 @@ estimate.formula <- function(
 
   if (!silent) cat("Initializing objects.\n")
 
-  ## 2.0 Set idTwoMode to define effects functions
+  ## 2.0 Set isTwoMode to define effects functions
   # get node sets of dependent variable
   .nodes <- attr(get(depName), "nodes")
   isTwoMode <- FALSE
@@ -458,7 +458,7 @@ estimate.formula <- function(
       depName, rhsNames, .nodes, .nodes2, envir = envir)[[1]]
         # moved cleanInteractionEvents in getEventsAndObjectsLink
     eventsObjectsLink <- getEventsAndObjectsLink(
-      depName, rhsNames,.nodes, .nodes2, envir = envir)[[2]]
+      depName, rhsNames, .nodes, .nodes2, envir = envir)[[2]]
     eventsEffectsLink <- getEventsEffectsLink(
       events, rhsNames, eventsObjectsLink)
   }
@@ -656,8 +656,8 @@ estimate.formula <- function(
         groupsNetwork = parsedformula$defaultNetworkName)
     } else {
       prep <- preprocess(
-        model,
-        subModel,
+        model = model,
+        subModel = subModel,
         events = events,
         effects = effects,
         windowParameters = windowParameters,
@@ -790,7 +790,8 @@ estimate.formula <- function(
   )
   # prefer user-defined arguments
   argsEstimation <- append(
-    estimationInit[!(names(estimationInit) %in% c("startTime", "endTime"))],
+    estimationInit[!(names(estimationInit) %in%
+                       c("startTime", "endTime", "opportunitiesList"))],
     additionalArgs[!(names(additionalArgs) %in% names(estimationInit))]
   )
 

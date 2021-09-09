@@ -6,12 +6,13 @@
 \alias{examine.changepoints}
 \title{Diagnostic functions}
 \usage{
-examine.outliers(x, outliers = 10)
+examine.outliers(x, outliers = 3)
 
 examine.changepoints(
   x,
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
+  minseglen = 3,
   ...
 )
 }
@@ -19,7 +20,9 @@ examine.changepoints(
 \item{x}{an object of class \code{result.goldfish} output from an
 \code{\link{estimate}} call.}
 
-\item{outliers}{the number of outliers to report}
+\item{outliers}{either an integer for the number of outliers to report,
+or "IQR" if instead those events with log likelihoods greater than 1.5*IQR
+in absolute value should be identified.}
 
 \item{moment}{character argument to choose between "mean" or "variance".
 See section \emph{Change point} for details.}
@@ -27,6 +30,9 @@ See section \emph{Change point} for details.}
 \item{method}{Choice of \code{"AMOC"}, \code{"PELT"} or \code{"BinSeg"}.
 For a detail description see \code{\link[changepoint]{cpt.mean}} or
 \code{\link[changepoint]{cpt.var}}. The default value is \code{"PELT"}.}
+
+\item{minseglen}{Positive integer giving the minimum segment length 
+(no. of observations between changes), default is 3.}
 
 \item{...}{additional arguments to be passed to the functions in the
 \code{\link{changepoint}} package.}
@@ -47,8 +53,7 @@ in the events sequence is presented using the log-likelihood.
 
 \code{examine.outliers} creates a plot with the log-likelihood of the events
 in the y-axis and the event index in the x-axis, identifying observations
-not well-fitted by the model with a small red circle,
-and prints a table of the top `outliers` events.
+with labels indicating the sender and recipient.
 }
 
 \section{Change point}{
