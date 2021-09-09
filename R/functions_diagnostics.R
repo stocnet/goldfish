@@ -31,30 +31,40 @@
 NULL
 
 # Examine outlier cases
-#' @param outliers the number of outliers to report
+#' @param outliers either an integer for the number of outliers to report,
+#' or "IQR" if instead those events with log likelihoods greater than 1.5*IQR
+#' in absolute value should be identified.
 #' @section Outliers:
 #' \code{examine.outliers} creates a plot with the log-likelihood of the events
 #' in the y-axis and the event index in the x-axis, identifying observations
-#' not well-fitted by the model with a small red circle,
-#' and prints a table of the top `outliers` events.
+#' with labels indicating the sender and recipient.
 #' @importFrom graphics points
+#' @importFrom ggplot2 ggplot aes geom_line geom_point geom_text theme_minimal xlab ylab
 #' @export
 #' @rdname examine
-examine.outliers <- function(x, outliers = 10) {
+examine.outliers <- function(x, outliers = 3) {
   if (!"result.goldfish" %in% attr(x, "class"))
     stop("Not a goldfish results object.")
   if (is.null(x$intervalLogL))
     stop("Outlier identification only available when interval log likelihood",
          " returned in results object.")
-
-  plot(x$intervalLogL, type = "l", lwd = 2, xlab = "Event index",
-       ylab = "Interval log likelihood")
-  outlierIndexes <- order(x$intervalLogL)[1:outliers]
-  points(x = outlierIndexes, y = x$intervalLogL[outlierIndexes], col = "red",
-         cex = 3, lwd = 3)
-
-  dv <- get(strsplit(as.character(x$formula), " ~ ")[[2]][1])
-  dv[outlierIndexes, ]
+  
+  data <- get(as.character(x$formula[2]))
+  data$intervalLogL <- x$intervalLogL
+  
+  data$label <- ""
+  if(is.integer(outliers)){
+    outlierIndexes <- order(data$intervalLogL)[1:outliers]
+    data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
+  } else if (outliers == "IQR"){
+    outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL)-1.5*IQR(data$intervalLogL))
+    if(length(outlierIndexes > 0)) data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
+  }
+  
+  ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) + 
+    ggplot2::geom_line() + ggplot2::geom_point() +
+    ggplot2::geom_text(ggplot2::aes(label=label)) +
+    ggplot2::theme_minimal() + ggplot2::xlab("") + ggplot2::ylab("Interval log likelihood")
 }
 
 # Examine change point
