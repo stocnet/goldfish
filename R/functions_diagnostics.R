@@ -16,13 +16,18 @@
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
-#'                           nodes = actors)
-#' callsDependent <- defineDependentEvents(events = calls, nodes = actors,
-#'                                         defaultNetwork = callNetwork)
+#' callNetwork <- linkEvents(
+#'   x = callNetwork, changeEvent = calls,
+#'   nodes = actors
+#' )
+#' callsDependent <- defineDependentEvents(
+#'   events = calls, nodes = actors,
+#'   defaultNetwork = callNetwork
+#' )
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-#'                   model = "DyNAM", subModel = "choice",
-#'                   estimationInit = list(returnIntervalLogL = TRUE))
+#'   model = "DyNAM", subModel = "choice",
+#'   estimationInit = list(returnIntervalLogL = TRUE)
+#' )
 #'
 #' examine.outliers(mod01)
 #'
@@ -62,6 +67,7 @@ examine.outliers <- function(x, outliers = 3) {
     data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
   } else if (outliers == "IQR") {
     outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL) - 1.5 * IQR(data$intervalLogL))
+
     if (length(outlierIndexes > 0))
       data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
   }
@@ -81,7 +87,7 @@ examine.outliers <- function(x, outliers = 3) {
 #' @param method Choice of \code{"AMOC"}, \code{"PELT"} or \code{"BinSeg"}.
 #' For a detail description see \code{\link[changepoint]{cpt.mean}} or
 #' \code{\link[changepoint]{cpt.var}}. The default value is \code{"PELT"}.
-#' @param minseglen Positive integer giving the minimum segment length 
+#' @param minseglen Positive integer giving the minimum segment length
 #' (no. of observations between changes), default is 3.
 #' @param ... additional arguments to be passed to the functions in the
 #' \code{\link{changepoint}} package.
@@ -153,4 +159,3 @@ examine.changepoints <- function(x, moment = c("mean", "variance"),
     ggplot2::scale_x_continuous(breaks = data$time[cpt.pts], labels = data$time[cpt.pts]) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 }
-
