@@ -1,3 +1,10 @@
+# goldfish 1.5.1
+
+* Re #3 added `{broom}`-related functions `tidy()` and `glance()`
+* Updated `examine.outliers()` and `examine.changepoints()` to plot more informative plots (with `{ggplot2}`)
+  - These functions no longer print to the console
+* Added vignette `teaching2.Rmd` that also indicates these extensions
+
 # goldfish 1.5.0
 
 ## New features
