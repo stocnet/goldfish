@@ -43,28 +43,36 @@ NULL
 #' @export
 #' @rdname examine
 examine.outliers <- function(x, outliers = 3) {
-  if (!"result.goldfish" %in% attr(x, "class"))
+  if (!"result.goldfish" %in% attr(x, "class")) {
     stop("Not a goldfish results object.")
-  if (is.null(x$intervalLogL))
-    stop("Outlier identification only available when interval log likelihood",
-         " returned in results object.")
-  
+  }
+  if (is.null(x$intervalLogL)) {
+    stop(
+      "Outlier identification only available when interval log likelihood",
+      " returned in results object."
+    )
+  }
+
   data <- get(as.character(x$formula[2]))
   data$intervalLogL <- x$intervalLogL
-  
+
   data$label <- ""
-  if(is.integer(outliers)){
+  if (is.integer(outliers)) {
     outlierIndexes <- order(data$intervalLogL)[1:outliers]
     data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
-  } else if (outliers == "IQR"){
-    outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL)-1.5*IQR(data$intervalLogL))
-    if(length(outlierIndexes > 0)) data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
+  } else if (outliers == "IQR") {
+    outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL) - 1.5 * IQR(data$intervalLogL))
+    if (length(outlierIndexes > 0))
+      data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
   }
-  
-  ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) + 
-    ggplot2::geom_line() + ggplot2::geom_point() +
-    ggplot2::geom_text(ggplot2::aes(label=label)) +
-    ggplot2::theme_minimal() + ggplot2::xlab("") + ggplot2::ylab("Interval log likelihood")
+
+  ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
+    ggplot2::geom_line() +
+    ggplot2::geom_point() +
+    ggplot2::geom_text(ggplot2::aes(label = label)) +
+    ggplot2::theme_minimal() +
+    ggplot2::xlab("") +
+    ggplot2::ylab("Interval log likelihood")
 }
 
 # Examine change point
@@ -102,38 +110,47 @@ examine.changepoints <- function(x, moment = c("mean", "variance"),
                                  method = c("PELT", "AMOC", "BinSeg"),
                                  minseglen = 3,
                                  ...) {
-  
-  if (!requireNamespace("changepoint", quietly = TRUE))
+  if (!requireNamespace("changepoint", quietly = TRUE)) {
     stop("Package \"changepoint\" needed for this function to work. ",
-         "Please install it.",
-         call. = FALSE)
-  
-  if (!methods::is(x, "result.goldfish"))
+      "Please install it.",
+      call. = FALSE
+    )
+  }
+
+  if (!methods::is(x, "result.goldfish")) {
     stop("Not a goldfish results object.", call. = FALSE)
-  if (is.null(x$intervalLogL))
-    stop("Outlier identification only available when interval log likelihood",
-         " returned in results object.")
-  
+  }
+  if (is.null(x$intervalLogL)) {
+    stop(
+      "Outlier identification only available when interval log likelihood",
+      " returned in results object."
+    )
+  }
+
   moment <- match.arg(moment)
   method <- match.arg(method)
-  
+
   data <- get(as.character(x$formula[2]))
   data$intervalLogL <- x$intervalLogL
-  
-  if (moment == "mean")
+
+  if (moment == "mean") {
     cpt <- changepoint::cpt.mean(x$intervalLogL, method = method, minseglen = minseglen, ...)
-  if (moment == "variance")
+  }
+  if (moment == "variance") {
     cpt <- changepoint::cpt.var(x$intervalLogL, method = method, minseglen = minseglen, ...)
-  
+  }
+
   cpt.pts <- attributes(cpt)$cpts
-  cpt.mean<- attributes(cpt)$param.est$mean
-  
-  ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) + 
-    ggplot2::geom_line() + ggplot2::geom_point() +
-    ggplot2::geom_vline(xintercept = data$time[cpt.pts], color='red') +
-    ggplot2::theme_minimal() + ggplot2::xlab("") + ggplot2::ylab("Interval log likelihood") +
+  cpt.mean <- attributes(cpt)$param.est$mean
+
+  ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
+    ggplot2::geom_line() +
+    ggplot2::geom_point() +
+    ggplot2::geom_vline(xintercept = data$time[cpt.pts], color = "red") +
+    ggplot2::theme_minimal() +
+    ggplot2::xlab("") +
+    ggplot2::ylab("Interval log likelihood") +
     ggplot2::scale_x_continuous(breaks = data$time[cpt.pts], labels = data$time[cpt.pts]) +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust=1))
-  
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 }
 

@@ -3,9 +3,11 @@
 generics::tidy
 # tidy <- function(x) UseMethod("tidy") # just for testing, don't use because overwrites use in other packages
 
+#' @method tidy result.goldfish
+#' @export
 tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
   
-  if(x$model == "DyNAM" & x$subModel == "rate"){
+  if (x$model == "DyNAM" & x$subModel == "rate") {
     terms <- paste(rownames(x$names), x$names[,1])
   } else {
     terms <- paste(x$names[,1], rownames(x$names), x$names[,2])
@@ -32,6 +34,8 @@ tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
 generics::glance
 # glance <- function(x) UseMethod("glance") # just for testing, don't use because overwrites use in other packages
 
+#' @method glance result.goldfish
+#' @export
 glance.result.goldfish <- function(x, ...) {
   with(
     summary(x),

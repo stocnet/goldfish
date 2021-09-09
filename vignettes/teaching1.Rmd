@@ -1,0 +1,357 @@
+---
+title: "DyNAM: How to start"
+subtitle: "Dynamic Network Actor Models using the goldfish package"
+author: "Christoph Stadtfeld, James Hollway, Marion Hoffman, Alvaro Uzaheta, Kieran Mepham, Timon Elmer, Mirko Reul"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{DyNAM: How to start}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+Example script analyzing the MIT Social Evolution data with the `R` `goldfish` package. Models inspired by section 7 of:
+
+> Stadtfeld & Block (2017), "Interactions, Actors and Time: Dynamic Network Actor Models for Relational Events", Sociological Science, 2017, 4(1): 318-352. DOI: [10.15195/v4.a14](https://doi.org/10.15195/v4.a14 "Stadtfeld & Block (2017)")
+
+# Step 0: Load package and data
+
+First, we load the `goldfish` package and load the data. The data is loaded using lazy loading, i.e., the objects are only 'promised' for the moment, but are available in the environment to be used, and more information will appear as you use them. You can find out more about this dataset, its format, and its origins in a couple of ERGM papers by callings its documentation:
+
+```{r}
+library(goldfish)
+data("Social_Evolution")
+
+head(calls)
+head(actors)
+```
+
+```{r}
+?Social_Evolution
+```
+
+# Preamble: Run a quick DyNAM in five lines
+
+```{r}
+# 1
+callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
+
+# 2
+callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
+
+# 3
+callsDependent <- defineDependentEvents(events = calls, nodes = actors,
+                                        defaultNetwork = callNetwork)
+
+# 4
+mod00_rate <- estimate(callsDependent ~ indeg + outdeg,
+                       model = "DyNAM", subModel = "rate")
+
+summary(mod00_rate)
+
+mod00_choice <- estimate(callsDependent ~ inertia + recip + trans,
+                         model = "DyNAM", subModel = "choice")
+
+summary(mod00_choice)
+```
+
+# Step 1: Create data objects
+
+## Step 1a: Define node set(s) and attributes
+
+We've loaded a dataset that defines its nodes and their attributes as a data frame. Let's check what we have first.
+
+```{r}
+class(actors)
+head(actors)
+```
+
+Note that there are four column variables: `label` the identifier, `present`, the `floor` of residence, and `gradeType` their educational level (1 = freshmen to 5 = graduate). All of these columns will be recognized as individual attributes by goldfish.
+
+We need to define them as nodes so that `goldfish` knows what to do with them.
+
+```{r}
+actors <- defineNodes(actors)
+actors
+```
+
+As you can see, the structure is the same, so we can still treat it like a data frame, but the added class helps goldfish interpret the data frame correctly.
+
+At any time, we can also check what goldfish-defined objects we have in our environment using the following function:
+
+```{r}
+goldfishObjects()
+```
+
+## Step 1b: Define networks
+
+Next we want to define the dyadic or network elements: calls between our actors.
+
+```{r}
+head(calls)
+```
+
+Note there are columns for `time`, `sender`, and `receiver`. `increment` is a reserved column.
+
+To tell goldfish this is a network, we must define it as such:
+
+```{r}
+?defineNetwork
+```
+
+```{r}
+callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
+```
+
+The argument `directed` is `TRUE` by default, but we need to specify the nodes so that `goldfish` can check for consistency and relate it to that nodeset as needed.
+
+```{r}
+callNetwork
+```
+
+Note that we have not added any network data yet. By default, `defineNetwork()` just constructs an empty matrix with dimensions defined by the length of the nodeset(s). So we have an empty network as a starting state.
+
+Now that goldfish recognizes the matrix as a network, we can also associate an event list that updates it. To do this we use the `linkEvents()` function, which requires us to identify a goldfish object to be updated, the events that update it and, in this case, also the nodes that the events should relate to. `goldfish` checks the consistency of all this information and relates these objects to one another so that information can be called as needed.
+
+```{r}
+?linkEvents
+```
+
+```{r}
+callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
+callNetwork
+```
+
+### Task
+
+You should now be able to do the same with the friendship nomination network/event list. See the familiar columns `time`, `sender`, and `receiver`. The new column, `replace`, is an alternative treatment to `increment`. When an event occurs, goldfish will replace the value in the relevant cell with the value in this column instead of incrementing it. Friendship is thus a binary network.
+
+```{r}
+head(friendship)
+friendshipNetwork <- defineNetwork(nodes = actors, directed = TRUE)
+friendshipNetwork <- linkEvents(x = friendshipNetwork, 
+                                changeEvents = friendship, 
+                                nodes = actors)
+friendshipNetwork
+```
+
+## Step 1c: Define dependent events
+
+The final step in defining the data objects is to identify the dependent events. Here we would like to model as the dependent variable the calls between individuals. We specify the event list and the node list.
+
+```{r}
+?defineDependentEvents
+```
+
+```{r}
+callsDependent <- defineDependentEvents(events = calls, nodes = actors,
+                                        defaultNetwork = callNetwork)
+callsDependent
+```
+
+### Intermediate step: Visualization
+
+While not a required part of the modeling process, we highly recommend the visualization of your data for analytic and diagnostic purposes. `goldfish` includes wrappers for base `R` commands to help extract monadic and dyadic information for certain time points. `?as.data.frame.nodes.goldfish` and `?as.matrix.network.goldfish` .
+
+We can use these functions to visually compare our network at two (or more) different time periods using `sna`.
+
+```{r}
+library(sna, quietly = TRUE)
+# The network at the beginning
+gplot(as.matrix(callNetwork))
+# The network at the end
+gplot(as.matrix(callNetwork, time = max(calls$time) + 1))
+gplot(as.matrix(callNetwork, time = max(calls$time) + 1),
+      vertex.col = actors$floor)
+# The network at half time
+gplot(as.matrix(callNetwork, time = calls$time[floor(nrow(calls) / 2)]),
+      vertex.col = actors$floor)
+# The tie strength at the end
+table(as.matrix(callNetwork, time = max(calls$time) + 1))
+```
+
+# Step 2: Specify and estimate model
+
+The second step is to specify and fit a model to this data. This step can be broken up into several stages:
+
+-   **Step 2a**. *Formula*: Specify a model formula from the effects and variables available
+
+-   **Step 2b**. *Preprocessing*: Calculate the change statistics associated with these effects
+
+-   **Step 2c**. *Estimation*: Fit an appropriate model to these statistics
+
+However, in goldfish we also have the option of accelerating this process and using memory more efficiently by combining these three sub-steps in one. Nonetheless, it can be helpful to think of 2a separately, and recognize steps 2b and 2c as goldfish does them.
+
+## Step 2a. Formula
+
+We specify our model using the standard R formula format like:
+
+`goldfish_dependent ~ effects(process_state_element)`
+
+We can see which effects are currently available and how to specify them here: `?goldfishEffects` Let's start with the simplest model we can imagine:
+
+```{r}
+simple_formula_choice <- callsDependent ~ tie(friendshipNetwork)
+```
+
+What are we testing here? Do individuals call their friends more than non-friends?
+
+## Step 2b and 2c. Preprocessing and Estimation
+
+Now to estimate this model, we use the `?estimate` function. For now, only need to worry about the `formula` and the `model`, `subModel` type (DyNAM-choice).
+
+```{r}
+mod01_choice <- estimate(simple_formula_choice,
+                        model = "DyNAM", subModel = "choice")
+summary(mod01_choice)
+```
+
+Ok, as fascinating as that was, perhaps we can test how robust this finding is in the presence of plausible controls.
+
+```{r  complexChoice}
+complex_formula_choice <-
+  callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
+                   tie(friendshipNetwork) + recip(friendshipNetwork) +
+                   same(actors$gradeType) + same(actors$floor)
+
+mod02_choice <- estimate(complex_formula_choice,
+                         model = "DyNAM", subModel = "choice")
+summary(mod02_choice)
+```
+
+### Rate model
+
+How do individual properties affect the rate of action of individuals? (Step 1 of the model)
+
+Let us again define a simple formula that only depends on individuals' degree in the friendship network
+
+```{r}
+simple_formula_rate <- callsDependent ~ indeg(friendshipNetwork)
+mod01_rate <- estimate(simple_formula_rate,
+                       model = "DyNAM", subModel = "rate")
+```
+
+#### Remark:
+
+Sometimes, the default values for the algorithm are not enough to reach convergence. We can remedy this by increasing the number of iterations:
+
+```{r}
+mod01_rate <- estimate(simple_formula_rate, 
+                       model = "DyNAM", subModel = "rate",
+                       estimationInit = list(maxIterations = 40))
+summary(mod01_rate)
+```
+
+What if we include additional structural effects? Let us add the in and out degree of the nodes in the call network
+
+```{r}
+complex_formula_rate <- 
+  callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) + 
+                   indeg(friendshipNetwork) 
+
+mod02_rate <- estimate(complex_formula_rate, model = "DyNAM", subModel = "rate")
+summary(mod02_rate)
+```
+
+#### Right-censored intervals
+
+Recall that it is important to add a time intercept when estimating models with right-censored intervals (as discussed in Stadtfeld & Block, 2017). Adding an intercept is as easy as including a 1 to the formula:
+
+```{r}
+intercept_formula_rate <-
+  callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
+                   indeg(friendshipNetwork)
+
+mod03_rate <- estimate(intercept_formula_rate, model = "DyNAM", subModel = "rate")
+summary(mod03_rate)
+```
+
+Note that $1 / \exp({\beta_{intercept}})$ is the waiting time without any covariates, or how long it takes to make the next phone call if everything else is set to 0. Therefore, the larger the intercept the shorter the waiting time. For example, an intercept of -14 means a waiting time of $1 / e^{-14} = 334$ hours. The baseline waiting time between two events in hours:
+
+```{r}
+mod03_rate_coef <- coef(mod03_rate)
+1 / exp(mod03_rate_coef[[1]]) / 3600
+# or days:
+1 / exp(mod03_rate_coef[[1]]) / 86400
+
+# But what if it is not just a random call?
+# Expected waiting time of those who have five outgoing call ties (five different actors)
+1 / exp(mod03_rate_coef[[1]] + mod03_rate_coef[[3]] * 5) / 3600
+# Expected waiting time of those who have five outgoing and incoming call ties (five different actors)
+1 / exp(mod03_rate_coef[[1]] + mod03_rate_coef[[2]] * 5 + mod03_rate_coef[[3]] * 5) / 3600
+```
+
+### Windows
+
+Remember our `callNetwork` process state accumulates actions in time, but some older actions may no longer be relevant to current action. Let's see whether it is really just recent partners that matter by adding extra effects with a window of... how long? Let us try 5 minutes $= 5 * 60 = 300s$
+
+```{r}
+window_formula_rate <-
+  callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
+                   indeg(callNetwork, window = 300) +
+                   outdeg(callNetwork, window = 300) +
+                   indeg(friendshipNetwork)
+
+mod04_rate <- estimate(window_formula_rate, model = "DyNAM", subModel = "rate")
+summary(mod04_rate)
+```
+
+Of course, you can also add windows to the choice formula!
+
+```{r}
+window_formula_choice <-
+  callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
+                   inertia(callNetwork, window = 300) +
+                   recip(callNetwork, window = 300) +
+                   tie(friendshipNetwork) + recip(friendshipNetwork) +
+                   same(actors$gradeType) + same(actors$floor)
+
+mod03_choice <- estimate(window_formula_choice,
+                         model = "DyNAM", subModel = "choice")
+summary(mod03_choice)
+```
+
+All this shows you that you can specify different formula for the rate and choice components of the model. This is a key advantage of the DyNAM!
+
+When comparing the information criteria (AIC / BIC) of the different model, we see that the time windows explain a lot
+
+```{r}
+AIC(mod02_choice)
+AIC(mod03_choice)
+AIC(mod03_rate)
+AIC(mod04_rate)
+```
+
+Using windowed effects actually initializes new data objects.
+
+```{r}
+goldfishObjects()
+head(calls_300)
+tail(calls_300)
+```
+
+### REM with `goldfish`
+
+`goldfish` does not only run DyNAMs; it also runs REMs [(Butts, 2008)](https://journals.sagepub.com/doi/10.1111/j.1467-9531.2008.00203.x "REM"). We can now also run REMs using the right-censored intervals as introduced in Stadtfeld & Block (2017).
+
+```{r}
+all_formula_rem <- callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) +
+  inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) +
+  tie(friendshipNetwork) + recip(friendshipNetwork) +
+  same(actors$gradeType) + same(actors$floor)
+
+# And we can estimate, to speedup estimation with can use any of the two possible engines
+mod01_rem <- estimate(all_formula_rem, model = "REM",
+                      estimationInit = list(engine = "gather_compute"))
+
+mod01_rem <- estimate(all_formula_rem, model = "REM",
+                     estimationInit = list(initialDamping = 40, engine = "default_c"))
+
+summary(mod01_rem)
+```

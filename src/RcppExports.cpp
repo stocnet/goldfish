@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // estimate_DyNAM_MM
 List estimate_DyNAM_MM(const arma::vec& parameters, const arma::mat& dep_event_mat, const arma::mat& stat_mat_init, const arma::mat& stat_mat_update, const arma::vec& stat_mat_update_pointer, const arma::vec& presence1_init, const arma::mat& presence1_update, const arma::vec& presence1_update_pointer, const arma::vec& presence2_init, const arma::mat& presence2_update, const arma::vec& presence2_update_pointer, const int n_actors_1, const int n_actors_2, const bool twomode_or_reflexive, bool impute);
 RcppExport SEXP _goldfish_estimate_DyNAM_MM(SEXP parametersSEXP, SEXP dep_event_matSEXP, SEXP stat_mat_initSEXP, SEXP stat_mat_updateSEXP, SEXP stat_mat_update_pointerSEXP, SEXP presence1_initSEXP, SEXP presence1_updateSEXP, SEXP presence1_update_pointerSEXP, SEXP presence2_initSEXP, SEXP presence2_updateSEXP, SEXP presence2_update_pointerSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP twomode_or_reflexiveSEXP, SEXP imputeSEXP) {

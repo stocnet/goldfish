@@ -24,7 +24,8 @@ Suggests:
     knitr,
     devtools,
     covr,
-    rmarkdown
+    rmarkdown,
+    pixiedust
 VignetteBuilder: knitr 
 License: GPL (>= 3) | file LICENSE
 LazyData: true
@@ -38,7 +39,8 @@ Imports:
     stats,
     generics,
     ggplot2,
-    migraph
+    migraph,
+    broom
 LinkingTo:
     Rcpp,
     RcppArmadillo

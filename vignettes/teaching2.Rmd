@@ -3,10 +3,11 @@ title: "The Coordination Model and Extensions"
 author: James Hollway
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{teaching2}
+  %\VignetteIndexEntry{The Coordination Model and Extensions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
+
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
@@ -15,12 +16,18 @@ knitr::opts_chunk$set(
 )
 ```
 
+Example script prepared analyzing the Fisheries Agreements data with the `R` `goldfish` package. Models inspired by section 7 of:
+
+> Stadtfeld, Hollway & Block (2017), "Dynamic Network Actor Models: Investigating Coordination Ties through Time", Sociological Methodology, 2017, 47(1): 1-40. DOI: [10.1177/0081175017709295](https://journals.sagepub.com/doi/10.1177/0081175017709295 "Stadtfeld et al. (2017)")
+
+
+
 # Step 0: Load package and data
 
 First, let's make sure we're starting with a clean slate and take the goldfish out of the bowl:
 
 ```{r setup}
-rm(list=ls())
+rm(list = ls())
 library(goldfish)
 ```
 
@@ -73,7 +80,7 @@ It holds the (reserved) "present" variable that indicates whether nodes
 are available to send or receive ties.
 
 ```{r present}
-states$present # or states[,2]
+head(states$present) # or states[,2]
 ```
 
 Some state nodes are not present (do not hold sovereign status) 
@@ -121,8 +128,7 @@ there were already several bilateral fisheries agreements in place
 at the start of our time period. This is shown in the matrix 
 
 ```{r}
-colnames(bilatnet) <- rownames(bilatnet) <- states$label
-bilatnet[1:12,1:12]
+bilatnet[1:12, 1:12]  # head(bilatnet, n = c(12, 12))
 ```
 
 Two things can be observed here. What are they?
@@ -130,7 +136,7 @@ Two things can be observed here. What are they?
 So that goldfish knows how to handle this network, we define it so:
 
 ```{r}
-bilatnet <- defineNetwork(bilatnet, nodes = states, directed = F)
+bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
 ```
 
 We specify the nodes so that goldfish can check for consistency,
@@ -139,6 +145,7 @@ and relate the network to that nodeset when needed.
 ```{r}
 class(bilatnet)
 str(bilatnet)
+bilatnet
 ```
 
 By stating that this is an undirected network, 
@@ -152,7 +159,7 @@ goldfish knows what to do and how to check it).
 
 ```{r}
 bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
-str(bilatnet)
+bilatnet
 ```
 
 TASK: You should now be able to do the same with the 
@@ -162,7 +169,7 @@ initial contiguity network and the event list changing it.
 contignet <- defineNetwork(contignet, nodes = states, directed = F)
 contignet <- linkEvents(contignet, contigchanges, nodes = states)
 class(contignet)
-str(contignet)
+contignet
 ```
 
 Quick check to see whether everything is linked up correctly:
@@ -179,7 +186,7 @@ Since treaty dissolution is a rarer, more complex, and idiosyncratic process,
 we will only look at those events that create a treaty tie between countries.
 
 ```{r}
-createBilat <- defineDependentEvents(events = bilatchanges[bilatchanges$increment==1,], 
+createBilat <- defineDependentEvents(events = bilatchanges[bilatchanges$increment == 1,], 
                                      nodes = states, 
                                      defaultNetwork = bilatnet)
 ```
@@ -189,6 +196,7 @@ as well as the node set, so that structural effects can be interpreted correctly
 
 ```{r}
 class(createBilat)
+createBilat
 ```
 
 So what goldfish related objects do we have now?
@@ -218,42 +226,42 @@ at two (or more) different time periods using igraph.
 ```{r}
 library(igraph)
 startnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
-colnames(startnet) <- states$label
+startstates <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))
 startnet <- graph.adjacency(startnet, mode = "undirected", weighted = T)
-V(startnet)$present <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))$present
-V(startnet)$regime <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))$regime
-V(startnet)$gdp <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))$gdp
-startnet <- delete_vertices(startnet, V(startnet)$present==F)
-isos <- sum(degree(startnet)==0)
-startnet <- delete_vertices(startnet, degree(startnet)==0)
+V(startnet)$present <- startstates$present
+V(startnet)$regime <- startstates$regime
+V(startnet)$gdp <- startstates$gdp
+startnet <- delete_vertices(startnet, V(startnet)$present == FALSE)
+isos <- sum(degree(startnet) == 0)
+startnet <- delete_vertices(startnet, degree(startnet) == 0)
 
 endnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
-colnames(endnet) <- states$label
+endstates <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))
 endnet <- graph.adjacency(endnet, mode = "undirected", weighted = T)
-V(endnet)$present <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))$present
-V(endnet)$regime <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))$regime
-V(endnet)$gdp <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))$gdp
-endnet <- delete_vertices(endnet, V(endnet)$present==F)
-isoe <- sum(degree(endnet)==0)
-endnet <- delete_vertices(endnet, degree(endnet)==0)
+V(endnet)$present <- endstates$present
+V(endnet)$regime <- endstates$regime
+V(endnet)$gdp <- endstates$gdp
+endnet <- delete_vertices(endnet, V(endnet)$present == FALSE)
+isoe <- sum(degree(endnet) == 0)
+endnet <- delete_vertices(endnet, degree(endnet) == 0)
 
 colfunc <- colorRampPalette(c("red","green"))
 par(mfrow = c(1,2))
 plot(startnet,
      edge.width = E(startnet)$weight,
-     vertex.color = colfunc(20)[V(startnet)$regime+10], vertex.frame.color=NA,
-     vertex.size = (4 + ifelse(is.na(V(startnet)$gdp),1,1+V(startnet)$gdp))*2,
+     vertex.color = colfunc(20)[V(startnet)$regime + 10], vertex.frame.color = NA,
+     vertex.size = (4 + ifelse(is.na(V(startnet)$gdp), 1, 1 + V(startnet)$gdp)) * 2,
      main = "1960-01-02", sub = paste("Plus", isos, "isolates"))
 plot(endnet, 
      edge.width = E(endnet)$weight,
-     vertex.color = colfunc(20)[V(endnet)$regime+10], vertex.frame.color=NA,
-     vertex.size = (4 + ifelse(is.na(V(endnet)$gdp),1,1+V(endnet)$gdp))*2,
+     vertex.color = colfunc(20)[V(endnet)$regime + 10], vertex.frame.color = NA,
+     vertex.size = (4 + ifelse(is.na(V(endnet)$gdp), 1, 1 + V(endnet)$gdp)) * 2,
      main = "1970-01-01", sub = paste("Plus", isoe, "isolates"))
 
 # Try also...
 startnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
 endnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
-migraph::plot_evolution(startnet, endnet, based_on = "last")
+# migraph::plot_evolution(startnet, endnet, based_on = "last")
 # you will need the development version for this...
 
 ```
@@ -284,11 +292,22 @@ The data and model specification is similar (though not the same as)
 Stadtfeld, Hollway, and Block 2017a
 
 ```{r}
-formula1 <- createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignoreRep=T) + trans(bilatnet, ignoreRep=T) +  tie(contignet, ignoreRep=T) + alter(states$regime, ignoreRep=T) + diff(states$regime, ignoreRep=T) +  alter(states$gdp, ignoreRep=T) + diff(states$gdp, ignoreRep=T)
-estPrefs <- list(returnIntervalLogL = T, initialDamping = 40, maxIterations = 30, engine = "default_c", impute = T)
+formula1 <-
+  createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignoreRep = TRUE) +
+    trans(bilatnet, ignoreRep = TRUE) +
+    tie(contignet) +
+    alter(states$regime) + diff(states$regime) +
+    alter(states$gdp) + diff(states$gdp)
+estPrefs <- list(
+  returnIntervalLogL = TRUE,
+  initialDamping = 40,
+  maxIterations = 30)
+
 system.time(
-  partner.model <- estimate(formula1, model = "DyNAM",subModel="choice_coordination",
-                              estimationInit = estPrefs)
+  partner.model <- estimate(
+    formula1,
+    model = "DyNAM", subModel = "choice_coordination",
+    estimationInit = estPrefs)
 )
 ```
 
@@ -296,9 +315,17 @@ Did the model converge? If not, you can restart the estimation process using
 the same formula and current parameter estimates:
 
 ```{r}
-partner.model <- estimate(formula1, model = "DyNAM",subModel="choice_coordination",
-                          estimationInit = estPrefs)
-partner.model
+estPrefs <- list(
+  returnIntervalLogL = TRUE,
+  initialDamping = 40,
+  maxIterations = 30,
+  initialParameters = coef(partner.model))
+
+partner.model <- estimate(
+  formula1,
+  model = "DyNAM", subModel = "choice_coordination",
+  estimationInit = estPrefs)
+summary(partner.model)
 ```
 
 Let's interpret...
@@ -309,10 +336,23 @@ Do states prefer rich or democratic partners?
 Do states prefer similarly rich or democratic partners?
 
 ```{r}
-formula2 <- createBilat ~ inertia(bilatnet, weighted = T, parameter=2) + indeg(bilatnet) + trans(bilatnet) + tie(contignet) + alter(states$regime) + diff(states$regime) + alter(states$gdp) + diff(states$gdp)
+formula2 <-
+  createBilat ~ inertia(bilatnet, weighted = TRUE) +
+  indeg(bilatnet) + trans(bilatnet) +
+  tie(contignet) + alter(states$regime) +
+  diff(states$regime) + alter(states$gdp) + diff(states$gdp)
+
+estPrefs <- list(
+  returnIntervalLogL = TRUE,
+  initialDamping = 40,
+  maxIterations = 30,
+  engine = "default_c")
+
 system.time(
-  tie.model <- estimate(formula2, model = "DyNAM",subModel="choice_coordination",
-                                estimationInit = estPrefs)
+  tie.model <- estimate(
+    formula2,
+    model = "DyNAM", subModel = "choice_coordination",
+    estimationInit = estPrefs)
 )
 ```
 
