@@ -1,5 +1,5 @@
 ---
-title: "The Coordination Model and Extensions"
+title: "teaching2"
 author: James Hollway
 output: rmarkdown::html_vignette
 vignette: >
