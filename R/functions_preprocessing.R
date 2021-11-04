@@ -349,6 +349,11 @@ preprocess <- function(
             NULL
           } else {
             which(orderedNames == objectName)
+          },
+          attUpdate = if (length(.objects[attIDs]) == 1) {
+            NULL
+          } else {
+            which(orderedNames == objectName)
           }
         )
 

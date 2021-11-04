@@ -2747,3 +2747,84 @@ update_DyNAM_choice_sim <- function(attribute, node, replace,
                            transformFun = function(x) (-1) * transformFun(x)
   )
 }
+
+# ego alter interaction ---------------------------------------------------
+
+#'
+init_DyNAM_choice.egoAlterInt <- function(effectFun, attribute) {
+  # Get arguments
+  params <- formals(effectFun)
+  isTwoMode <- eval(params[["isTwoMode"]])
+  funApply <- eval(params[["transformFun"]]) # applied FUN instead
+  if (isTwoMode) stop("effect 'diff' doesn't work in two mode networks ('isTwoMode = TRUE')")
+  if (length(attribute) != 2) stop("Interaction ego alter is just define for two attributes")
+  
+  attr1 <- attribute[[1]]
+  attr2 <- attribute[[2]]
+  return(list(stat = forceAndCall(1, funApply, outer(attr1, attr2, "*"))))
+}
+
+#' ego alter interaction
+#' attribute = list(attr1, attr2) attr1 is ego and attr2 is alter
+#' @noRd
+update_DyNAM_choice_egoAlterInt <- function(attribute, node, replace,
+                                            attUpdate,
+                                            n1, n2,
+                                            isTwoMode = FALSE,
+                                            transformFun = identity) {
+  
+  if (length(attribute) != 2) stop("Interaction ego alter is just define for two attributes")
+  
+  attr1 <- attribute[[1]]
+  attr2 <- attribute[[2]]
+  
+  res <- list(changes = NULL)
+  # utility functions to return third nodes
+  third <- function(n, diff = c(node)) {
+    setdiff(seq_len(n), diff)
+  }
+  
+  if (attUpdate == 1) {
+    # Get old value
+    oldValue <- attr1[node]
+    
+    # Check if old value has changed
+    if (is.na(oldValue) & is.na(replace)) {
+      return(res)
+    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+      return(res)
+    }
+    
+    if (is.na(replace)) replace <- mean(attr1[-node], na.rm = TRUE)
+    
+    # compute change stat
+    newDiff <- forceAndCall(1, transformFun, replace * attr2[-node])
+    
+    res$changes <- rbind(
+      cbind(node1 = node, node2 = third(n1), replace = newDiff)
+    )
+    return(res)
+  } else if (attUpdate == 2) {
+    # Get old value
+    oldValue <- attr2[node]
+    
+    # Check if old value has changed
+    if (is.na(oldValue) & is.na(replace)) {
+      return(res)
+    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+      return(res)
+    }
+    
+    if (is.na(replace)) replace <- mean(attr2[-node], na.rm = TRUE)
+    
+    # compute change stat
+    newDiff <- forceAndCall(1, transformFun, attr1[-node] * replace)
+    
+    res$changes <- rbind(
+      cbind(node1 = third(n1), node2 = node, replace = newDiff)
+    )
+    return(res)
+  }
+  
+}
+
