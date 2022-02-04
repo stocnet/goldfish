@@ -489,14 +489,23 @@ update_DyNAMi_choice_alter <- function(attribute,
       if (subType == "mean_centered") {
         rep <- mean(attribute[smembers]) - meanatt
       }
+      if (subType == "mean_centered_squared") {
+        rep <- (mean(attribute[smembers]) - meanatt)^2
+      }
       if (subType == "mean_normalized") {
         if (sdatt > 0) rep <- (mean(attribute[smembers]) - meanatt) / sdatt else rep <- 0
       }
       if (subType == "min") {
         rep <- min(attribute[smembers])
       }
+      if (subType == "min_squared") {
+        rep <- min(attribute[smembers])^2
+      }
       if (subType == "max") {
         rep <- max(attribute[smembers])
+      }
+      if (subType == "max_squared") {
+        rep <- max(attribute[smembers])^2
       }
       if (subType == "range") {
         rep <- max(attribute[smembers]) - min(attribute[smembers])
@@ -598,11 +607,20 @@ update_DyNAMi_choice_diff <- function(attribute,
       if (subType == "mean") {
         rep <- abs(mean(attribute[smembers]) - attribute[i])
       }
+      if (subType == "mean_squared") {
+        rep <- (mean(attribute[smembers]) - attribute[i])^2
+      }
       if (subType == "min") {
         rep <- abs(min(attribute[smembers]) - attribute[i])
       }
+      if (subType == "min_squared") {
+        rep <- abs(min(attribute[smembers]) - attribute[i])^2
+      }
       if (subType == "max") {
         rep <- abs(max(attribute[smembers]) - attribute[i])
+      }
+      if (subType == "max_squared") {
+        rep <- abs(max(attribute[smembers]) - attribute[i])^2 
       }
 
       if (statistics[i, j] != rep) {
