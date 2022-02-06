@@ -501,11 +501,23 @@ update_DyNAMi_choice_alter <- function(attribute,
       if (subType == "min_squared") {
         rep <- min(attribute[smembers])^2
       }
+      if (subType == "min_centered") {
+        rep <- min(attribute[smembers]- meanatt)
+      }
+      if (subType == "min_centered_squared") {
+        rep <- min(attribute[smembers]- meanatt)^2
+      }
       if (subType == "max") {
         rep <- max(attribute[smembers])
       }
       if (subType == "max_squared") {
         rep <- max(attribute[smembers])^2
+      }
+      if (subType == "max_centered") {
+        rep <- max(attribute[smembers]- meanatt)
+      }
+      if (subType == "max_centered_squared") {
+        rep <- max(attribute[smembers]- meanatt)^2
       }
       if (subType == "range") {
         rep <- max(attribute[smembers]) - min(attribute[smembers])
