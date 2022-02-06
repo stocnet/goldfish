@@ -614,13 +614,13 @@ update_DyNAMi_choice_diff <- function(attribute,
         rep <- abs(min(attribute[smembers]) - attribute[i])
       }
       if (subType == "min_squared") {
-        rep <- abs(min(attribute[smembers]) - attribute[i])^2
+        rep <- (min(attribute[smembers]) - attribute[i])^2
       }
       if (subType == "max") {
         rep <- abs(max(attribute[smembers]) - attribute[i])
       }
       if (subType == "max_squared") {
-        rep <- abs(max(attribute[smembers]) - attribute[i])^2 
+        rep <- (max(attribute[smembers]) - attribute[i])^2 
       }
 
       if (statistics[i, j] != rep) {
@@ -798,5 +798,120 @@ update_DyNAMi_choice_dyadXdiff <- function(attribute,
     }
   }
 
+  return(reptotal)
+}
+
+# sizeXego ---------------------------------------------------------------
+# init_DyNAMi_choice_sizeXego <- function()
+
+update_DyNAMi_choice_sizeXego <- function(attribute,
+                                          groupsNetwork,
+                                          sender, receiver, replace,
+                                          n1, n2, statistics,
+                                          subType = "identity",
+                                          node = 0) {
+  reptotal <- NULL
+  meanatt <- mean(attribute)
+  sdatt <- sd(attribute)
+  
+  for (i in seq.int(n1)) {
+    for (j in seq.int(n2)) {
+      members <- which(groupsNetwork[, j] == 1)
+      nmembers <- length(members)
+      if (nmembers == 0) {
+        if (statistics[i, j] != 0) {
+          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = 0))
+        }
+        next
+      }
+      
+      smembers <- members[members != i]
+      snmembers <- length(smembers)
+      if (snmembers == 0) {
+        if (statistics[i, j] != 0) {
+          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = 0))
+        }
+        next
+      }
+      
+      if (subType == "identity") {
+        rep <- snmembers * attribute[i]
+      }
+      if (subType == "squared") {
+        rep <- snmembers * attribute[i]^2
+      }
+      if (subType == "centered") {
+        rep <- snmembers * (attribute[i] - meanatt)
+      }
+      if (subType == "normalized") {
+        if (sdatt > 0) rep <- snmembers * (attribute[i] - meanatt) / sdatt else rep <- 0
+      }
+      
+      if (statistics[i, j] != rep) {
+        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = rep))
+      }
+    }
+  }
+  
+  return(reptotal)
+}
+# dyadXego ---------------------------------------------------------------
+# init_DyNAMi_choice_dyadXego <- function()
+
+update_DyNAMi_choice_dyadXego <- function(attribute,
+                                          groupsNetwork,
+                                          sender, receiver, replace,
+                                          n1, n2, statistics,
+                                          subType = "identity",
+                                          node = 0) {
+  reptotal <- NULL
+  meanatt <- mean(attribute)
+  sdatt <- sd(attribute)
+  
+  for (i in seq.int(n1)) {
+    for (j in seq.int(n2)) {
+      members <- which(groupsNetwork[, j] == 1)
+      nmembers <- length(members)
+      if (nmembers == 0) {
+        if (statistics[i, j] != 0) {
+          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = 0))
+        }
+        next
+      }
+      
+      smembers <- members[members != i]
+      snmembers <- length(smembers)
+      if (snmembers == 0) {
+        if (statistics[i, j] != 0) {
+          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = 0))
+        }
+        next
+      }
+      
+      if(snmembers == 1) {
+        m <- 1
+      } else {
+        m <- 0
+      }
+      
+      if (subType == "identity") {
+        rep <- m * attribute[i]
+      }
+      if (subType == "squared") {
+        rep <- m * attribute[i]^2
+      }
+      if (subType == "centered") {
+        rep <- m * (attribute[i] - meanatt)
+      }
+      if (subType == "normalized") {
+        if (sdatt > 0) rep <- m * (attribute[i] - meanatt) / sdatt else rep <- 0
+      }
+      
+      if (statistics[i, j] != rep) {
+        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = rep))
+      }
+    }
+  }
+  
   return(reptotal)
 }
