@@ -912,10 +912,12 @@ update_DyNAM_choice_cycle <- function(network,
   return(res)
 }
 
-# sender closure ---------------------------------------------------------------
+
+# closure common receiver  ------------------------------------------------
 #' init stat matrix using cache: Closure of two-paths (i -> k <- j)
 #'
-#' two out start closure effect in Rsiena manual, but it's two shared popularity
+#' two out start closure effect in Rsiena manual (transTrip2),
+#' but it's two shared popularity (sharedPop)
 #' a version that consider the values is balance
 #'
 #' @param effectFun function with additional parameters transformFun, isTwoMode
@@ -943,16 +945,34 @@ update_DyNAM_choice_cycle <- function(network,
 #' )
 #' effectFUN <- function(isTwoMode = FALSE, transformFun = sqrt)
 #'   NULL
-#' init_DyNAM_choice.clSender(effectFUN, network, NULL, 5, 5)
+#' init_DyNAM_choice.commonReceiver(effectFUN, network, NULL, 5, 5)
 #' }
-init_DyNAM_choice.clSender <- function(effectFun, network, window, n1, n2) {
+init_DyNAM_choice.commonReceiver <- function(effectFun, network, window, n1, n2) {
   # Get arguments
   params <- formals(effectFun)
   isTwoMode <- eval(params[["isTwoMode"]])
   funApply <- eval(params[["transformFun"]])
 
+  if (n1 != n2) {
+    stop(
+      "'commonReceiver' effect requeries that the dependent network",
+      " is a one-mode network",
+      call. = FALSE)
+  } else {
+    warning(
+      " (isTwoMode = TRUE) \n has conformable dimensions with the",
+      " dependent network, i.e.,\n the first mode nodes set is the same",
+      " as the nodes set of the one-mode dependet network.",
+      call. = FALSE, immediate. = TRUE)
+  }
+  
   if (isTwoMode) {
-    stop("'trans' effect must not use when is a two-mode network (isTwoMode = TRUE)", call. = FALSE)
+    warning(
+      "Check that the 'commonReceiver' effect used in a two-mode network",
+      " (isTwoMode = TRUE) \n has conformable dimensions with the",
+      " dependent network, i.e.,\n the first mode nodes set is the same",
+      " as the nodes set of the one-mode dependet network.",
+            call. = FALSE, immediate. = TRUE)
   }
 
   # has window or is empty initialize empty
@@ -1102,10 +1122,8 @@ init_DyNAM_choice.clReceiver <- function(effectFun, network, window, n1, n2) {
   isTwoMode <- eval(params[["isTwoMode"]])
   funApply <- eval(params[["transformFun"]])
 
-  if (isTwoMode) {
-    stop("'trans' effect must not use when is a two-mode network (isTwoMode = TRUE)", call. = FALSE)
-  }
-
+  n1 <- nrow(network)
+  n2 <- ncol(network)
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
@@ -1190,7 +1208,7 @@ update_DyNAM_choice_clReceiver <- function(
 
   if (is.na(oldValue)) oldValue <- 0
   if (is.na(replace)) replace <- 0
-  # get in-neighbors of receiver
+  # get out-neighbors of sender
   # consider i <- k -> j,
   # when sender = k and receiver = j
   temp <- network[sender, ]

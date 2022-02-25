@@ -16,13 +16,12 @@
 #' @param subModel `goldfish::estimate`. `c('choice_coordination', 'choice')`
 #' @param preprocessArgs Additional preprocess arguments like `startTime`, 
 #'   `endTime` and `opportunitiesList`.
-#' @param customEffects Helper to change effects names. Use `stringr`.
-#' @param customObjects Helper to change objects names. Use `stringr`.
 #' @param verbose Default `FALSE`.
 #' @param silent Default `FALSE`.
 #'
 #' @return a list with the data and relevant information.
 #' @noRD
+#' @export
 #'
 #' @examples
 #' library(goldfish)
@@ -49,10 +48,8 @@
 GatherPreprocessing <- function(
   formula,
   model = c("DyNAM", "REM"),
-  subModel = c("choice_coordination", "choice", "rate"),
+  subModel = c("choice", "choice_coordination", "rate"),
   preprocessArgs = NULL,
-  customEffects = c("mixed" = "mx"),
-  customObjects = c("states.regime" = "regime", "states.gdp" = "gdp"),
   verbose = FALSE,
   silent = FALSE) {
   
@@ -79,7 +76,7 @@ GatherPreprocessing <- function(
   
   
   ### 1. PARSE the formula----
-  parsedformula <- goldfish:::parseFormula(formula) # envir = as.environment(-1)
+  parsedformula <- parseFormula(formula) # envir = as.environment(-1)
   rhsNames <- parsedformula$rhsNames
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
@@ -122,26 +119,26 @@ GatherPreprocessing <- function(
   # enviroment from which get the objects
   envir <- environment()
   
-  effects <- goldfish:::createEffectsFunctions(
+  effects <- createEffectsFunctions(
     parsedformula$rhsNames, model, subModel, envir = envir)
   # Get links between objects and effects for printing results
-  objectsEffectsLink <- goldfish:::getObjectsEffectsLink(parsedformula$rhsNames)
+  objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames)
   
   ## 2.2 INITIALIZE OBJECTS for preprocessingInit == NULL
   
   # Initialize events list and link to objects
-  events <- goldfish:::getEventsAndObjectsLink(
+  events <- getEventsAndObjectsLink(
     parsedformula$depName, parsedformula$rhsNames,
     .nodes, .nodes2, envir = envir)[[1]]
   # moved cleanInteractionEvents in getEventsAndObjectsLink
-  eventsObjectsLink <- goldfish:::getEventsAndObjectsLink(
+  eventsObjectsLink <- getEventsAndObjectsLink(
     parsedformula$depName, parsedformula$rhsNames, 
     .nodes, .nodes2, envir = envir)[[2]]
-  eventsEffectsLink <- goldfish:::getEventsEffectsLink(
+  eventsEffectsLink <- getEventsEffectsLink(
     events, parsedformula$rhsNames, eventsObjectsLink)
   
   ## 3.2 PREPROCESS when preprocessingInit == NULL
-  preprocessingStat <- goldfish:::preprocess(
+  preprocessingStat <- preprocess(
     model = model,
     subModel = subModel,
     events = events,
@@ -193,8 +190,10 @@ GatherPreprocessing <- function(
     }
   }
   
+  if (modelTypeCall == "NON-VALID") stop("Invalid model", modelTypeCall)
+  
   # from estimate_c_init
-  preprocessingStat <- goldfish:::modifyStatisticsList(
+  preprocessingStat <- modifyStatisticsList(
     preprocessingStat, modelTypeCall,
     reduceMatrixToVector = reduceMatrixToVector,
     reduceArrayToMatrix = reduceArrayToMatrix,
@@ -215,7 +214,7 @@ GatherPreprocessing <- function(
   
   
   ## CONVERT UPDATES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  temp <- goldfish:::convert_change(preprocessingStat$dependentStatsChange)
+  temp <- convert_change(preprocessingStat$dependentStatsChange)
   stat_mat_update <- temp$statMatUpdate
   stat_mat_update_pointer <- temp$statMatUpdatePointer
   if (parsedformula$hasIntercept) {
@@ -227,7 +226,7 @@ GatherPreprocessing <- function(
     stat_mat_rightcensored_update <- matrix(0, 4, 1)
     stat_mat_rightcensored_update_pointer <- c(0)
   } else {
-    temp <- goldfish:::convert_change(preprocessingStat$rightCensoredStatsChange)
+    temp <- convert_change(preprocessingStat$rightCensoredStatsChange)
     stat_mat_rightcensored_update <- temp$statMatUpdate
     stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
     if (parsedformula$hasIntercept) {
@@ -240,8 +239,8 @@ GatherPreprocessing <- function(
   compChangeName2 <- attr(nodes2, "events")["present" == attr(nodes2, "dynamicAttribute")]
   if (!is.null(compChangeName1) && length(compChangeName1) > 0) {
     temp <- get(compChangeName1)
-    temp <- goldfish:::sanitizeEvents(temp, nodes)
-    temp <- goldfish:::C_convert_composition_change(temp, unlist(preprocessingStat$eventTime))
+    temp <- sanitizeEvents(temp, nodes)
+    temp <- C_convert_composition_change(temp, unlist(preprocessingStat$eventTime))
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -251,8 +250,8 @@ GatherPreprocessing <- function(
   
   if (!is.null(compChangeName2) && length(compChangeName2) > 0) {
     temp <- get(compChangeName2)
-    temp <- goldfish:::sanitizeEvents(temp, nodes2)
-    temp <- goldfish:::C_convert_composition_change(temp, unlist(preprocessingStat$eventTime))
+    temp <- sanitizeEvents(temp, nodes2)
+    temp <- C_convert_composition_change(temp, unlist(preprocessingStat$eventTime))
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -287,7 +286,7 @@ GatherPreprocessing <- function(
     stat_mat_init[, i] <- t(preprocessingStat$initialStats[, , i])
   }
   
-  gatheredData <- goldfish:::gather_(
+  gatheredData <- gather_(
     modelTypeCall = modelTypeCall,
     event_mat = event_mat,
     timespan = timespan,
@@ -313,47 +312,28 @@ GatherPreprocessing <- function(
   ### 4. PREPARE PRINTING----
   # functions_utility.R
   effectDescription <-
-    goldfish:::GetDetailPrint(objectsEffectsLink, parsedformula)
+    GetDetailPrint(objectsEffectsLink, parsedformula)
   hasWindows <- attr(effectDescription, "hasWindows")
   
   
-  namesEffects <- CreateNames(effectDescription, sep = "_", joiner = "_",
-                              customEffects = customEffects,
-                              customObjects = customObjects)
+  namesEffects <- CreateNames(effectDescription, sep = "_", joiner = "_")
   
+  gatheredData$namesEffects <- namesEffects
   colnames(gatheredData$stat_all_events) <- namesEffects
   
-  # output
-  stanData <- list(
-    N = nrow(gatheredData$stat_all_events),
-    E = nrow(gatheredData$n_candidates),
-    MxAct = max(gatheredData$n_candidates1[, 1]),
-    P = ncol(gatheredData$stat_all_events),
-    X = gatheredData$stat_all_events,
-    nA = as.integer(gatheredData$n_candidates1[, 1]),
-    rowOE = as.integer(gatheredData$selected_actor1[, 1]) + 1L,
-    colOE = as.integer(gatheredData$selected_actor2[, 1]) + 1L,
-    isTwoMode = isTwoMode,
-    formula = formula,
-    model = model,
-    subModel = subModel
-  ) 
-  return(stanData)
+  
+  return(gatheredData)
 }
 
 
-#' Generate names for statistics effects
+#' Generate names for statistics effects 
 #' 
 #' Using the names data frame from `goldfish` generate compact names to the
-#' columns
+#' columns for data frame or matrix
 #'
 #' @param names data frame from `goldfish`
 #' @param sep string. Separator between different arguments and objects
 #' @param joiner string. Separator to join multiple object names
-#' @param customEffects string vector. Regular expressions to modify names
-#'   of effects 
-#' @param customObjects string vector. Regular expressions to modify objects
-#'  names
 #'
 #' @return a string vector with the names.
 #' @noRd
@@ -362,21 +342,18 @@ GatherPreprocessing <- function(
 #' names <- cbind(Object = c("bilatnet", "bilatnet", "contignet"),
 #'                Weighted = c("W", "", "W"))
 #' rownames(names) <- c("inertia", "trans", "tie")
-#' CreateNames(names, sep = "|", customEffects = c("trans" = "Transitivity"))
+#' CreateNames(names, sep = "|")
 CreateNames <- function(
-  names, sep = " ", joiner = ", ",
-  customEffects = c("mixed" = "mx"),
-  customObjects = c("states.regime" = "regime", "states.gdp" = "gdp")) {
-  
-  if (!require(stringr)) stop("Package ", dQuote("stringr"), " required")
+  names, sep = " ", joiner = ", ") {
   
   isObjectD <- grepl("Object \\d+", colnames(names))
   if (any(isObjectD)) {
     object <- apply(names[, isObjectD], 1, 
-                    function(z) Filter(function(w) !is.na(w) & w != "", z) %>%
-                      str_replace("Net", "") %>% 
-                      paste(collapse = joiner) %>% 
-                      str_trim())
+                    function(z) {
+                      ret <- Filter(function(w) !is.na(w) & w != "", z) 
+                      ret <- paste(ret, collapse = joiner)
+                      return(ret)
+                      })
     newNames <- c("Object", colnames(names)[!isObjectD])
     names <- cbind(object, names[, !isObjectD])
     colnames(names) <- newNames
@@ -387,13 +364,12 @@ CreateNames <- function(
   }
   
   names <- cbind(effect = rownames(names), names)
-  names[, "effect"] <- str_replace_all(names[, "effect"], customEffects)
-  names[, "Object"] <- str_replace_all(names[, "Object"], customObjects)
   nombres <- apply(names, 1, 
-                   function(z)
-                     Filter(function(w) !is.na(w) & w != "", z) %>% 
-                     paste(collapse = sep) %>% 
-                     str_trim())
+                   function(z) {
+                     ret <- Filter(function(w) !is.na(w) & w != "", z)
+                     ret <- paste(ret, collapse = sep)
+                     return(ret)
+                     })
   names(nombres) <- NULL
   
   return(nombres)
