@@ -94,7 +94,7 @@ List estimate_DyNAM_MM(const arma::vec& parameters,
 
         // We calculate the derivative, logLikelihood, and fisher information matrix of a current event according to the paper
         // and add to the variables to be return in the end.
-        // Reset auxilliary variables
+        // Reset auxiliary variables
         fisher_current_event.zeros();
         // declare the ids of the sender and the receiver,
         const int id_sender = dep_event_mat(0, id_event) - 1;

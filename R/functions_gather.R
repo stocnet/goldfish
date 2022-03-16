@@ -66,12 +66,16 @@ GatherPreprocessing <- function(
     if (any(!parInit)) {
       warning(
         "The parameter: ",
-        paste(names(estimationInit)[!parInit], collapse = ", "),
-        " is not recognized. ",
+        paste(names(preprocessArgs)[!parInit], collapse = ", "),
+        " is not recognized for the preprocessing. ",
         "See the documentation for the list of available parameters",
         call. = FALSE, immediate. = TRUE
       )
     }
+    
+    if (!is.null(preprocessArgs["opportunitiesList"]))
+      warning(dQuote("GatherPreprocessing"), " doesn't implement yet the ",
+              dQuote("opportunitiesList"), " functionality")
   }
   
   
@@ -81,6 +85,12 @@ GatherPreprocessing <- function(
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
   windowParameters <- parsedformula$windowParameters
+  
+  # # C implementation doesn't have ignoreRep option issue #105
+  if (any(unlist(parsedformula$ignoreRepParameter)))
+    stop("gatherPreprocessing ", 
+         " doesn't support ignoreRep effects (GH issue #105)!",
+         call. = FALSE, immediate. = TRUE)
   
   # Model-specific preprocessing initialization
   if (model %in% c("DyNAM", "DyNAMi") &&
@@ -262,13 +272,13 @@ GatherPreprocessing <- function(
   if (!is.null(nodes$present)) {
     presence1_init <- nodes$present
   } else {
-    presence1_init <- rep(TRUE, length(nodes))
+    presence1_init <- rep(TRUE, nrow(nodes))
   }
   
   if (!is.null(nodes2$present)) {
     presence2_init <- nodes2$present
   } else {
-    presence2_init <- rep(TRUE, length(nodes2))
+    presence2_init <- rep(TRUE, nrow(nodes2))
   }
   
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
@@ -305,7 +315,7 @@ GatherPreprocessing <- function(
     n_actors1 = n_actors1,
     n_actors2 = n_actors2,
     twomode_or_reflexive = twomode_or_reflexive,
-    silent = TRUE, # If not silent, output the progress of data gathering
+    silent = verbose, # If not silent, output the progress of data gathering
     impute = FALSE
   )
   

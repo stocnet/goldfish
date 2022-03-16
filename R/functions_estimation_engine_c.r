@@ -214,13 +214,13 @@ estimate_c_int <- function(
   if (!is.null(nodes$present)) {
     presence1_init <- nodes$present
   } else {
-    presence1_init <- rep(TRUE, length(nodes))
+    presence1_init <- rep(TRUE, nrow(nodes))
   }
 
   if (!is.null(nodes2$present)) {
     presence2_init <- nodes2$present
   } else {
-    presence2_init <- rep(TRUE, length(nodes2))
+    presence2_init <- rep(TRUE, nrow(nodes2))
   }
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
