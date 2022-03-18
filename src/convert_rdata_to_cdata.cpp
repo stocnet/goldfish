@@ -92,8 +92,13 @@ List convert_change(const List& changeList) {
       change_idx(i) = total;
     }
   }
+ 
+  // not adjust in case there are no changes
+  if (total > 0) {
+    total -= 1;
+  } 
 
-  return List::create(Named("statMatUpdate") = change_mat.cols(0, total - 1),
+  return List::create(Named("statMatUpdate") = change_mat.cols(0, total),
                       Named("statMatUpdatePointer") = change_idx);
 }
 
