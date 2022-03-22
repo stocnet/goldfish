@@ -29,7 +29,7 @@ Suggests:
 VignetteBuilder: knitr 
 License: GPL (>= 3) | file LICENSE
 LazyData: true
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 Depends: R (>= 3.5.0)
 Imports:
     Rcpp (>= 1.0.1),

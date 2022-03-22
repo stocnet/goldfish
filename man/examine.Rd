@@ -31,7 +31,7 @@ See section \emph{Change point} for details.}
 For a detail description see \code{\link[changepoint]{cpt.mean}} or
 \code{\link[changepoint]{cpt.var}}. The default value is \code{"PELT"}.}
 
-\item{minseglen}{Positive integer giving the minimum segment length 
+\item{minseglen}{Positive integer giving the minimum segment length
 (no. of observations between changes), default is 3.}
 
 \item{...}{additional arguments to be passed to the functions in the
@@ -81,13 +81,18 @@ method.
 # A multinomial receiver choice model
 data("Social_Evolution")
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
-                          nodes = actors)
-callsDependent <- defineDependentEvents(events = calls, nodes = actors,
-                                        defaultNetwork = callNetwork)
+callNetwork <- linkEvents(
+  x = callNetwork, changeEvent = calls,
+  nodes = actors
+)
+callsDependent <- defineDependentEvents(
+  events = calls, nodes = actors,
+  defaultNetwork = callNetwork
+)
 mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-                  model = "DyNAM", subModel = "choice",
-                  estimationInit = list(returnIntervalLogL = TRUE))
+  model = "DyNAM", subModel = "choice",
+  estimationInit = list(returnIntervalLogL = TRUE)
+)
 
 examine.outliers(mod01)
 
