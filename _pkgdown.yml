@@ -1,1 +1,59 @@
 destination: docs
+url: https://snlab-ch.github.io/goldfish/
+development:
+    mode: auto
+template:
+  bootswatch: united
+authors:
+  James Hollway:
+    href: https://jameshollway.com
+  Christoph Stadtfeld:
+    href: https://sn.ethz.ch/profile.html?persid=210738
+navbar:
+  structure:
+    left:
+    - home
+    - intro
+    - reference
+    - articles
+    - news
+    right:
+    - search
+    - github
+  components:
+    home:
+      icon: fa-home fa-lg
+      href: index.html
+    reference:
+      text: Reference
+      href: reference/index.html
+    news:
+      text: News
+      href: news/index.html
+    github:
+      icon: "fab fa-github fa-lg"
+      href: https://github.com/snlab-ch/goldfish
+reference:
+  - title: "Define"
+    contents:
+      - starts_with("define")
+      - starts_with("link")
+      - goldfishObjects
+  - title: "Effects"
+    contents:
+      - goldfishEffects
+  - title: "Estimate"
+    contents:
+      - starts_with("estimate")
+  - title: "Diagnostics"
+    contents:
+      - model-selection
+      - starts_with("examine")
+  - title: "Data"
+    desc: |
+      The package contains several datasets that are used in vignettes 
+      to demonstrate features of goldfish.
+    contents:
+      - starts_with("Fisheries_")
+      - starts_with("RFID_")
+      - starts_with("Social_")
