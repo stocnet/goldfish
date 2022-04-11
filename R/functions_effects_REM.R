@@ -460,6 +460,67 @@ update_REM_choice_trans <- function(network,
     isTwoMode = isTwoMode, transformFun = transformFun
   )
 
+# cycle -------------------------------------------------------------------
+init_REM_choice.cycle <- function(effectFun, network, window, n1, n2)
+  init_DyNAM_choice.cycle(effectFun = effectFun, network = network,
+                          window = window,
+                          n1 = n1, n2 = n2)
+
+update_REM_choice_cycle <- function(network,
+                                    sender,
+                                    receiver,
+                                    replace, cache,
+                                    isTwoMode = FALSE,
+                                    transformFun = identity)
+  update_DyNAM_choice_cycle(
+    network = network,
+    sender = sender, receiver = receiver, replace = replace,
+    cache = cache,
+    isTwoMode = isTwoMode, transformFun = transformFun
+  )
+
+# common receiver ---------------------------------------------------------
+init_REM_choice.commonReceiver <- function(effectFun, network, window, n1, n2)
+  init_DyNAM_choice.commonReceiver(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2)
+
+update_REM_choice_commonReceiver <- function(
+    network,
+    sender,
+    receiver,
+    replace, cache,
+    isTwoMode = FALSE,
+    transformFun = identity)
+  update_DyNAM_choice_commonReceiver(
+    network = network,
+    sender = sender, receiver = receiver, replace = replace,
+    cache = cache,
+    isTwoMode = isTwoMode, transformFun = transformFun
+  )
+
+# common sender -----------------------------------------------------------
+init_REM_choice.commonSender <- function(effectFun, network, window, n1, n2)
+  init_DyNAM_choice.commonSender(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2)
+
+update_REM_choice_commonSender <- function(
+    network,
+    sender,
+    receiver,
+    replace, cache,
+    isTwoMode = FALSE,
+    transformFun = identity)
+  update_DyNAM_choice_commonSender(
+    network = network,
+    sender = sender, receiver = receiver, replace = replace,
+    cache = cache,
+    isTwoMode = isTwoMode, transformFun = transformFun
+  )
+
 
 # mixedTrans --------------------------------------------------------------
 init_REM_choice.mixedTrans <- function(effectFun, network, window, n1, n2)
@@ -474,6 +535,67 @@ update_REM_choice_mixedTrans <- function(network,
                                          isTwoMode = FALSE,
                                          transformFun = identity)
   update_DyNAM_choice_mixedTrans(
+    network = network,
+    sender = sender, receiver = receiver, replace = replace,
+    netUpdate = netUpdate, cache = cache,
+    isTwoMode = isTwoMode, transformFun = transformFun
+  )
+
+# mixedCycle --------------------------------------------------------------
+init_REM_choice.mixedCycle <- function(effectFun, network, window, n1, n2)
+  init_DyNAM_choice.mixedCycle(effectFun = effectFun, network = network,
+                               window = window,
+                               n1 = n1, n2 = n2)
+
+update_REM_choice_mixedCycle <- function(network,
+                                         sender,
+                                         receiver,
+                                         replace, netUpdate, cache,
+                                         isTwoMode = FALSE,
+                                         transformFun = identity)
+  update_DyNAM_choice_mixedCycle(
+    network = network,
+    sender = sender, receiver = receiver, replace = replace,
+    netUpdate = netUpdate, cache = cache,
+    isTwoMode = isTwoMode, transformFun = transformFun
+  )
+
+# mixed common receiver ---------------------------------------------------
+init_REM_choice.mixedCommonReceiver <- function(effectFun, network, window, n1, n2)
+  init_DyNAM_choice.mixedCommonReceiver(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2)
+
+update_REM_choice_mixedCommonReceiver <- function(
+    network,
+    sender,
+    receiver,
+    replace, netUpdate, cache,
+    isTwoMode = FALSE,
+    transformFun = identity)
+  update_DyNAM_choice_mixedCommonReceiver(
+    network = network,
+    sender = sender, receiver = receiver, replace = replace,
+    netUpdate = netUpdate, cache = cache,
+    isTwoMode = isTwoMode, transformFun = transformFun
+  )
+
+# mixed common sender -----------------------------------------------------
+init_REM_choice.mixedCommonSender <- function(effectFun, network, window, n1, n2)
+  init_DyNAM_choice.mixedCommonSender(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2)
+
+update_REM_choice_mixedCommonSender <- function(
+    network,
+    sender,
+    receiver,
+    replace, netUpdate, cache,
+    isTwoMode = FALSE,
+    transformFun = identity)
+  update_DyNAM_choice_mixedCommonSender(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     netUpdate = netUpdate, cache = cache,
