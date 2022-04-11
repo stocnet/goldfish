@@ -21,7 +21,6 @@
 #'
 #' @return a list with the data and relevant information.
 #' @noRD
-#' @export
 #'
 #' @examples
 #' library(goldfish)
