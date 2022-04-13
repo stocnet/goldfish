@@ -139,7 +139,7 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
   # we would need go in the details of the RC intervals and updates
   oldhasIntercept <- oldparsedformula$hasIntercept
   newhasIntercept <- newparsedformula$hasIntercept
-  if (model %in% c("DyNAM") && subModel %in% c("choice", "choice_coordination") && oldhasIntercept) {
+  if (model %in% "DyNAM" && subModel %in% c("choice", "choice_coordination") && oldhasIntercept) {
     oldhasIntercept <- FALSE
     newhasIntercept <- FALSE
   }

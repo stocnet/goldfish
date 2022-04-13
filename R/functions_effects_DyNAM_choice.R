@@ -965,7 +965,7 @@ init_DyNAM_choice.commonReceiver <- function(effectFun, network, window, n1, n2)
       " as the nodes set of the one-mode dependet network.",
       call. = FALSE, immediate. = TRUE)
   }
-  
+
   if (isTwoMode) {
     warning(
       "Check that the 'commonReceiver' effect used in a two-mode network",
@@ -1086,7 +1086,7 @@ update_DyNAM_choice_commonReceiver <- function(
 #' init stat matrix using cache: Closure of two-paths (i <- k ->j)
 #'
 #' two out start closure effect in Rsiena manual
-#' an weighted version could be inStructEq structural equivalence effect 
+#' an weighted version could be inStructEq structural equivalence effect
 #' with respect to incoming ties
 #'
 #' @param effectFun function with additional parameters transformFun, isTwoMode
@@ -2779,7 +2779,7 @@ init_DyNAM_choice.egoAlterInt <- function(effectFun, attribute) {
   funApply <- eval(params[["transformFun"]]) # applied FUN instead
   if (isTwoMode) stop("effect 'diff' doesn't work in two mode networks ('isTwoMode = TRUE')")
   if (length(attribute) != 2) stop("Interaction ego alter is just define for two attributes")
-  
+
   attr1 <- attribute[[1]]
   attr2 <- attribute[[2]]
   return(list(stat = forceAndCall(1, funApply, outer(attr1, attr2, "*"))))
@@ -2793,34 +2793,34 @@ update_DyNAM_choice_egoAlterInt <- function(attribute, node, replace,
                                             n1, n2,
                                             isTwoMode = FALSE,
                                             transformFun = identity) {
-  
+
   if (length(attribute) != 2) stop("Interaction ego alter is just define for two attributes")
-  
+
   attr1 <- attribute[[1]]
   attr2 <- attribute[[2]]
-  
+
   res <- list(changes = NULL)
   # utility functions to return third nodes
   third <- function(n, diff = c(node)) {
     setdiff(seq_len(n), diff)
   }
-  
+
   if (attUpdate == 1) {
     # Get old value
     oldValue <- attr1[node]
-    
+
     # Check if old value has changed
     if (is.na(oldValue) & is.na(replace)) {
       return(res)
     } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
       return(res)
     }
-    
+
     if (is.na(replace)) replace <- mean(attr1[-node], na.rm = TRUE)
-    
+
     # compute change stat
     newDiff <- forceAndCall(1, transformFun, replace * attr2[-node])
-    
+
     res$changes <- rbind(
       cbind(node1 = node, node2 = third(n1), replace = newDiff)
     )
@@ -2828,24 +2828,22 @@ update_DyNAM_choice_egoAlterInt <- function(attribute, node, replace,
   } else if (attUpdate == 2) {
     # Get old value
     oldValue <- attr2[node]
-    
+
     # Check if old value has changed
     if (is.na(oldValue) & is.na(replace)) {
       return(res)
     } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
       return(res)
     }
-    
+
     if (is.na(replace)) replace <- mean(attr2[-node], na.rm = TRUE)
-    
+
     # compute change stat
     newDiff <- forceAndCall(1, transformFun, attr1[-node] * replace)
-    
+
     res$changes <- rbind(
       cbind(node1 = third(n1), node2 = node, replace = newDiff)
     )
     return(res)
   }
-  
 }
-

@@ -300,7 +300,7 @@ estimate.formula <- function(
     modelList = c("DyNAM", "REM", "DyNAMi", "TriNAM"),
     subModelList = list(
       DyNAM = c("choice", "rate", "choice_coordination"),
-      REM = c("choice"),
+      REM = "choice",
       DyNAMi = c("choice", "rate"),
       TriNAM = c("choice", "rate")
     )

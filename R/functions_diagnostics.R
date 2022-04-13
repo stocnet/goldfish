@@ -66,7 +66,8 @@ examine.outliers <- function(x, outliers = 3) {
     outlierIndexes <- order(data$intervalLogL)[1:outliers]
     data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
   } else if (outliers == "IQR") {
-    outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL) - 1.5 * IQR(data$intervalLogL))
+    outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL) -
+                              1.5 * IQR(data$intervalLogL))
 
     if (length(outlierIndexes > 0))
       data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
@@ -109,7 +110,8 @@ examine.outliers <- function(x, outliers = 3) {
 #' Also it prints a table of the change points events that are returned by the
 #' method.
 #' @importFrom changepoint cpt.mean cpt.var
-#' @importFrom ggplot2 ggplot aes geom_line geom_point theme_minimal xlab ylab geom_vline scale_x_continuous theme element_text
+#' @importFrom ggplot2 ggplot aes geom_line geom_point theme_minimal xlab ylab
+#'  geom_vline scale_x_continuous theme element_text
 #' @export
 #' @rdname examine
 examine.changepoints <- function(x, moment = c("mean", "variance"),

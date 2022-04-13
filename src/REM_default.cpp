@@ -202,7 +202,6 @@ List estimate_REM(const arma::vec& parameters,
                                                  ((current_data_matrix.row(j).t()) * (current_data_matrix.row(j)));
                     }
                 }
-
             }
         }
         // add the quantities of a current event to the variables to be returned

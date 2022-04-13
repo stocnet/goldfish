@@ -499,7 +499,7 @@ generics::tidy
 #' @method tidy result.goldfish
 #' @export
 tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
-  
+
   if (x$model == "DyNAM" & x$subModel == "rate") {
     terms <- paste(rownames(x$names), x$names[,1])
   } else {
@@ -507,18 +507,18 @@ tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
   }
   terms <- trimws(terms)
   terms <- gsub("\\$"," ",terms)
-  
+
   result <- tibble::tibble(term = terms,
                            estimate = x$parameters,
                            std.error = x$standardErrors,
-                           statistic = x$parameters/x$standardErrors,
-                           p.value = 2 * (1 - pnorm(abs(x$parameters/x$standardErrors))))
-  
+                           statistic = x$parameters / x$standardErrors,
+                           p.value = 2 * (1 - pnorm(abs(x$parameters / x$standardErrors))))
+
   # if (conf.int) {
   #   ci <- confint(x, level = conf.level)
   #   result <- dplyr::left_join(result, ci, by = "term")
   # }
-  
+
   result
 }
 

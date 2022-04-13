@@ -502,10 +502,10 @@ update_DyNAMi_choice_alter <- function(attribute,
         rep <- min(attribute[smembers])^2
       }
       if (subType == "min_centered") {
-        rep <- min(attribute[smembers]- meanatt)
+        rep <- min(attribute[smembers] - meanatt)
       }
       if (subType == "min_centered_squared") {
-        rep <- min(attribute[smembers]- meanatt)^2
+        rep <- min(attribute[smembers] - meanatt)^2
       }
       if (subType == "max") {
         rep <- max(attribute[smembers])
@@ -514,10 +514,10 @@ update_DyNAMi_choice_alter <- function(attribute,
         rep <- max(attribute[smembers])^2
       }
       if (subType == "max_centered") {
-        rep <- max(attribute[smembers]- meanatt)
+        rep <- max(attribute[smembers] - meanatt)
       }
       if (subType == "max_centered_squared") {
-        rep <- max(attribute[smembers]- meanatt)^2
+        rep <- max(attribute[smembers] - meanatt)^2
       }
       if (subType == "range") {
         rep <- max(attribute[smembers]) - min(attribute[smembers])
@@ -632,7 +632,7 @@ update_DyNAMi_choice_diff <- function(attribute,
         rep <- abs(max(attribute[smembers]) - attribute[i])
       }
       if (subType == "max_squared") {
-        rep <- (max(attribute[smembers]) - attribute[i])^2 
+        rep <- (max(attribute[smembers]) - attribute[i])^2
       }
 
       if (statistics[i, j] != rep) {
@@ -825,7 +825,7 @@ update_DyNAMi_choice_sizeXego <- function(attribute,
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
-  
+
   for (i in seq.int(n1)) {
     for (j in seq.int(n2)) {
       members <- which(groupsNetwork[, j] == 1)
@@ -836,7 +836,7 @@ update_DyNAMi_choice_sizeXego <- function(attribute,
         }
         next
       }
-      
+
       smembers <- members[members != i]
       snmembers <- length(smembers)
       if (snmembers == 0) {
@@ -845,7 +845,7 @@ update_DyNAMi_choice_sizeXego <- function(attribute,
         }
         next
       }
-      
+
       if (subType == "identity") {
         rep <- snmembers * attribute[i]
       }
@@ -858,13 +858,13 @@ update_DyNAMi_choice_sizeXego <- function(attribute,
       if (subType == "normalized") {
         if (sdatt > 0) rep <- snmembers * (attribute[i] - meanatt) / sdatt else rep <- 0
       }
-      
+
       if (statistics[i, j] != rep) {
         reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = rep))
       }
     }
   }
-  
+
   return(reptotal)
 }
 # dyadXego ---------------------------------------------------------------
@@ -879,7 +879,7 @@ update_DyNAMi_choice_dyadXego <- function(attribute,
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
-  
+
   for (i in seq.int(n1)) {
     for (j in seq.int(n2)) {
       members <- which(groupsNetwork[, j] == 1)
@@ -890,7 +890,7 @@ update_DyNAMi_choice_dyadXego <- function(attribute,
         }
         next
       }
-      
+
       smembers <- members[members != i]
       snmembers <- length(smembers)
       if (snmembers == 0) {
@@ -899,13 +899,13 @@ update_DyNAMi_choice_dyadXego <- function(attribute,
         }
         next
       }
-      
-      if(snmembers == 1) {
+
+      if (snmembers == 1) {
         m <- 1
       } else {
         m <- 0
       }
-      
+
       if (subType == "identity") {
         rep <- m * attribute[i]
       }
@@ -918,12 +918,12 @@ update_DyNAMi_choice_dyadXego <- function(attribute,
       if (subType == "normalized") {
         if (sdatt > 0) rep <- m * (attribute[i] - meanatt) / sdatt else rep <- 0
       }
-      
+
       if (statistics[i, j] != rep) {
         reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = rep))
       }
     }
   }
-  
+
   return(reptotal)
 }
