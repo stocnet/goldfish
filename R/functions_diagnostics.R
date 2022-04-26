@@ -85,6 +85,8 @@ examineOutliers <- function(x, outliers = 3) {
       data$label[outlierIndexes] <- paste(data$sender, 
                                           data$receiver, sep = "-")[outlierIndexes]
   }
+  
+  data$time <- as.POSIXct(data$time)
 
   ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
     ggplot2::geom_line() +
@@ -169,6 +171,8 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
 
   cpt.pts <- attributes(cpt)$cpts
   cpt.mean <- attributes(cpt)$param.est$mean
+
+  data$time <- as.POSIXct(data$time)
 
   ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
     ggplot2::geom_line() +
