@@ -40,14 +40,15 @@ NULL
 #' or "IQR" if instead those events with log likelihoods greater than 1.5*IQR
 #' in absolute value should be identified.
 #' @section Outliers:
-#' \code{examine.outliers} creates a plot with the log-likelihood of the events
+#' \code{examineOutliers} creates a plot with the log-likelihood of the events
 #' in the y-axis and the event index in the x-axis, identifying observations
 #' with labels indicating the sender and recipient.
 #' @importFrom graphics points
 #' @importFrom ggplot2 ggplot aes geom_line geom_point geom_text theme_minimal xlab ylab
 #' @export
 #' @rdname examine
-examine.outliers <- function(x, outliers = 3) {
+examineOutliers <- function(x, outliers = 3) {
+  
   if (!"result.goldfish" %in% attr(x, "class")) {
     stop("Not a goldfish results object.")
   }
@@ -64,13 +65,15 @@ examine.outliers <- function(x, outliers = 3) {
   data$label <- ""
   if (is.integer(outliers)) {
     outlierIndexes <- order(data$intervalLogL)[1:outliers]
-    data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
+    data$label[outlierIndexes] <- paste(data$sender, 
+                                        data$receiver, sep = "-")[outlierIndexes]
   } else if (outliers == "IQR") {
     outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL) -
                               1.5 * IQR(data$intervalLogL))
 
     if (length(outlierIndexes > 0))
-      data$label[outlierIndexes] <- paste(data$sender, data$receiver, sep = "-")[outlierIndexes]
+      data$label[outlierIndexes] <- paste(data$sender, 
+                                          data$receiver, sep = "-")[outlierIndexes]
   }
 
   ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
@@ -114,16 +117,10 @@ examine.outliers <- function(x, outliers = 3) {
 #'  geom_vline scale_x_continuous theme element_text
 #' @export
 #' @rdname examine
-examine.changepoints <- function(x, moment = c("mean", "variance"),
+examineChangepoints <- function(x, moment = c("mean", "variance"),
                                  method = c("PELT", "AMOC", "BinSeg"),
                                  minseglen = 3,
                                  ...) {
-  if (!requireNamespace("changepoint", quietly = TRUE)) {
-    stop("Package \"changepoint\" needed for this function to work. ",
-      "Please install it.",
-      call. = FALSE
-    )
-  }
 
   if (!methods::is(x, "result.goldfish")) {
     stop("Not a goldfish results object.", call. = FALSE)
@@ -142,10 +139,12 @@ examine.changepoints <- function(x, moment = c("mean", "variance"),
   data$intervalLogL <- x$intervalLogL
 
   if (moment == "mean") {
-    cpt <- changepoint::cpt.mean(x$intervalLogL, method = method, minseglen = minseglen, ...)
+    cpt <- changepoint::cpt.mean(x$intervalLogL, 
+                                 method = method, minseglen = minseglen, ...)
   }
   if (moment == "variance") {
-    cpt <- changepoint::cpt.var(x$intervalLogL, method = method, minseglen = minseglen, ...)
+    cpt <- changepoint::cpt.var(x$intervalLogL, 
+                                method = method, minseglen = minseglen, ...)
   }
 
   cpt.pts <- attributes(cpt)$cpts

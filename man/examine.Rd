@@ -2,13 +2,13 @@
 % Please edit documentation in R/functions_diagnostics.R
 \name{examine}
 \alias{examine}
-\alias{examine.outliers}
-\alias{examine.changepoints}
+\alias{examineOutliers}
+\alias{examineChangepoints}
 \title{Diagnostic functions}
 \usage{
-examine.outliers(x, outliers = 3)
+examineOutliers(x, outliers = 3)
 
-examine.changepoints(
+examineChangepoints(
   x,
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
@@ -51,7 +51,7 @@ in the events sequence is presented using the log-likelihood.
 }
 \section{Outliers}{
 
-\code{examine.outliers} creates a plot with the log-likelihood of the events
+\code{examineOutliers} creates a plot with the log-likelihood of the events
 in the y-axis and the event index in the x-axis, identifying observations
 with labels indicating the sender and recipient.
 }
