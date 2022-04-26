@@ -20,7 +20,7 @@ GatherPreprocessing(
 
 \item{subModel}{`goldfish::estimate`. `c('choice_coordination', 'choice')`}
 
-\item{preprocessArgs}{Additional preprocess arguments like `startTime`, 
+\item{preprocessArgs}{Additional preprocess arguments like `startTime`,
 `endTime` and `opportunitiesList`.}
 
 \item{verbose}{Default `FALSE`.}
@@ -34,8 +34,6 @@ a list with the data and relevant information.
 Preprocess is made with goldfish.
 }
 \examples{
-library(goldfish)
-library(stringr)
 data("Fisheries_Treaties_6070")
 states <- defineNodes(states)
 states <- linkEvents(states, sovchanges, attribute = "present")
