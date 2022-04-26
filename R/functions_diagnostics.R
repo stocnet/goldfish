@@ -60,7 +60,17 @@ examineOutliers <- function(x, outliers = 3) {
   }
 
   data <- get(as.character(x$formula[2]))
-  data$intervalLogL <- x$intervalLogL
+  if(length(data$time != x$intervalLogL)){
+    calls <- as.list(x$call)
+    calls[[1]] <- NULL
+    calls$preprocessingOnly <- TRUE
+    calls$preprocessingInit <- NULL
+    calls$silent <- TRUE
+    calls$debug <- FALSE
+    calls$verbose <- FALSE
+    prep <- do.call(estimate, calls)
+    data$intervalLogL <- x$intervalLogL[prep$orderEvents==1]
+  } else data$intervalLogL <- x$intervalLogL
 
   data$label <- ""
   if (is.integer(outliers)) {
@@ -136,7 +146,17 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
   method <- match.arg(method)
 
   data <- get(as.character(x$formula[2]))
-  data$intervalLogL <- x$intervalLogL
+  if(length(data$time != x$intervalLogL)){
+    calls <- as.list(x$call)
+    calls[[1]] <- NULL
+    calls$preprocessingOnly <- TRUE
+    calls$preprocessingInit <- NULL
+    calls$silent <- TRUE
+    calls$debug <- FALSE
+    calls$verbose <- FALSE
+    prep <- do.call(estimate, calls)
+    data$intervalLogL <- x$intervalLogL[prep$orderEvents==1]
+  } else data$intervalLogL <- x$intervalLogL
 
   if (moment == "mean") {
     cpt <- changepoint::cpt.mean(x$intervalLogL, 
