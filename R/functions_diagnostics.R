@@ -68,7 +68,7 @@ examineOutliers <- function(x, outliers = 3) {
     calls$silent <- TRUE
     calls$debug <- FALSE
     calls$verbose <- FALSE
-    prep <- do.call(estimate, calls)
+    prep <- suppressWarnings(do.call(estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents==1]
   } else data$intervalLogL <- x$intervalLogL
 
@@ -156,7 +156,7 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
     calls$silent <- TRUE
     calls$debug <- FALSE
     calls$verbose <- FALSE
-    prep <- do.call(estimate, calls)
+    prep <- suppressWarnings(do.call(estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents==1]
   } else data$intervalLogL <- x$intervalLogL
 
