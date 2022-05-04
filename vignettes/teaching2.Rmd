@@ -16,11 +16,10 @@ knitr::opts_chunk$set(
 )
 ```
 
-Example script prepared analyzing the Fisheries Agreements data with the `R` `goldfish` package. Models inspired by section 7 of:
+Example script prepared analyzing the Fisheries Agreements data with the `R` `goldfish` package. 
+Models inspired by section 7 of:
 
 > Stadtfeld, Hollway & Block (2017), "Dynamic Network Actor Models: Investigating Coordination Ties through Time", Sociological Methodology, 2017, 47(1): 1-40. DOI: [10.1177/0081175017709295](https://journals.sagepub.com/doi/10.1177/0081175017709295 "Stadtfeld et al. (2017)")
-
-
 
 # Step 0: Load package and data
 
@@ -63,11 +62,12 @@ head(states)
 class(states)
 ```
 
-As you can see, the structure is the same, but the added class helps goldfish
-interpret the data frame correctly.
+As you can see, the structure is the same, 
+but the added class helps goldfish interpret the data frame correctly.
 
 Next we want to link events to this nodeset to indicate how the attributes change.
-There are three attributes associated with this node set, and they all change:
+There are three attributes associated with this node set, 
+and they all change:
 
 ```{r examine-node-changes}
 head(sovchanges)
@@ -97,7 +97,8 @@ states
 ```
 
 That's because the event list is only linked to the node set,
-to update it when necessary. You can see what is linked to which attribute here:
+to update it when necessary. 
+You can see what is linked to which attribute here:
 
 ```{r}
 str(states)
@@ -125,7 +126,8 @@ the bilateral fisheries agreements and contiguity between the state nodes.
 
 Since international fisheries management began before 1960,
 there were already several bilateral fisheries agreements in place 
-at the start of our time period. This is shown in the matrix 
+at the start of our time period. 
+This is shown in the matrix 
 
 ```{r}
 bilatnet[1:12, 1:12]  # head(bilatnet, n = c(12, 12))
@@ -329,11 +331,11 @@ summary(partner.model)
 ```
 
 Let's interpret...
-Do states prefer partners with more partners?
-Do states prefer partners that are contiguous?
-Does transitivity matter?
-Do states prefer rich or democratic partners?
-Do states prefer similarly rich or democratic partners?
+- Do states prefer partners with more partners?
+- Do states prefer partners that are contiguous?
+- Does transitivity matter?
+- Do states prefer rich or democratic partners?
+- Do states prefer similarly rich or democratic partners?
 
 ```{r}
 formula2 <-
