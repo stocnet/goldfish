@@ -119,7 +119,7 @@ To do this we use the `linkEvents()` function, which requires us to identify a g
 `goldfish` checks the consistency of all this information and relates these objects to one another so that information can be called as needed.
 
 ```{r}
-?linkEvents
+# ?linkEvents
 ```
 
 ```{r}
@@ -151,7 +151,7 @@ Here we would like to model as the dependent variable the calls between individu
 We specify the event list and the node list.
 
 ```{r}
-?defineDependentEvents
+# ?defineDependentEvents
 ```
 
 ```{r}
@@ -209,7 +209,8 @@ Let's start with the simplest model we can imagine:
 simple_formula_choice <- callsDependent ~ tie(friendshipNetwork)
 ```
 
-What are we testing here? Do individuals call their friends more than non-friends?
+What are we testing here? 
+Do individuals call their friends more than non-friends?
 
 ## Step 2b and 2c. Preprocessing and Estimation
 

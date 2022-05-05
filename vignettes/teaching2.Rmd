@@ -34,7 +34,7 @@ This lazy loads several datasets, including the one we will now use:
 
 ```{r load-data}
 data("Fisheries_Treaties_6070")
-?Fisheries_Treaties_6070
+# ?Fisheries_Treaties_6070
 ```
 
 Note that these objects are only 'promised' for the moment,
@@ -287,7 +287,7 @@ and recognise steps 2b and 2c as goldfish does them.
 Let us first see how to specify the effects and which are currently available:
 
 ```{r}
-?goldfishEffects
+# ?goldfishEffects
 ```
 
 The data and model specification is similar (though not the same as)
@@ -383,8 +383,8 @@ Lastly, we have begun implementing further diagnostic functions that can
 help users identify areas for improving their model specification.
 
 ```{r}
-examine.outliers(tie.model)
-examine.changepoints(tie.model)
+examineOutliers(tie.model)
+examineChangepoints(tie.model)
 ```
 
 For more, please see Hollway (2020) Network Embeddedness and the Rate of Water Cooperation and Conflict.
