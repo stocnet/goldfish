@@ -20,7 +20,7 @@
 #' @param silent Default `FALSE`.
 #'
 #' @return a list with the data and relevant information.
-#' @noRD
+#' @noRd
 #'
 #' @examples
 #' data("Fisheries_Treaties_6070")
