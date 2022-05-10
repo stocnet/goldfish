@@ -36,9 +36,15 @@
 NULL
 
 # Examine outlier cases
-#' @param outliers either an integer for the number of outliers to report,
-#' or "IQR" if instead those events with log likelihoods greater than 1.5*IQR
-#' in absolute value should be identified.
+#' @param method A method for identifying outliers.
+#'   The current options are "Hampel" for a Hampel filter/identifier,
+#'   "IQR" for identifying outliers on the basis of lying outside the interquartile range,
+#'   and "Top" which returns the `parameter` number of outliers.
+#' @param parameter An integer that represents the number of absolute outliers
+#'   to identify, the threshold for the Hampel filter, i.e. `parameter * MAD`,
+#'   or the threshold beyond the interquartile range halved, i.e. `parameter/2 * IQR`.
+#' @param window The window half-width for the Hampel filter.
+#'   By default it is half the width of the event sequence.
 #' @section Outliers:
 #' \code{examineOutliers} creates a plot with the log-likelihood of the events
 #' in the y-axis and the event index in the x-axis, identifying observations
@@ -47,7 +53,10 @@ NULL
 #' @importFrom ggplot2 ggplot aes geom_line geom_point geom_text theme_minimal xlab ylab
 #' @export
 #' @rdname examine
-examineOutliers <- function(x, outliers = 3) {
+examineOutliers <- function(x, 
+                            method = c("Hampel", "IQR", "Top"),
+                            parameter = 3,
+                            window = NULL) {
   
   if (!"result.goldfish" %in% attr(x, "class")) {
     stop("Not a goldfish results object.")
@@ -58,9 +67,10 @@ examineOutliers <- function(x, outliers = 3) {
       " returned in results object."
     )
   }
-
+  method <- match.arg(method)
+  
   data <- get(as.character(x$formula[2]))
-  if(length(data$time != x$intervalLogL)){
+  if(length(data$time) != length(x$intervalLogL)){
     calls <- as.list(x$call)
     calls[[1]] <- NULL
     calls$preprocessingOnly <- TRUE
@@ -68,31 +78,52 @@ examineOutliers <- function(x, outliers = 3) {
     calls$silent <- TRUE
     calls$debug <- FALSE
     calls$verbose <- FALSE
-    prep <- suppressWarnings(do.call(estimate, calls))
+    prep <- suppressWarnings(do.call(goldfish::estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents==1]
   } else data$intervalLogL <- x$intervalLogL
-
-  data$label <- ""
-  if (is.integer(outliers)) {
-    outlierIndexes <- order(data$intervalLogL)[1:outliers]
-    data$label[outlierIndexes] <- paste(data$sender, 
-                                        data$receiver, sep = "-")[outlierIndexes]
-  } else if (outliers == "IQR") {
-    outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL) -
-                              1.5 * IQR(data$intervalLogL))
-
-    if (length(outlierIndexes > 0))
-      data$label[outlierIndexes] <- paste(data$sender, 
-                                          data$receiver, sep = "-")[outlierIndexes]
-  }
   
   data$time <- as.POSIXct(data$time)
-
+  data$label <- ""
+  data$outlier <- "NO"
+  if (method == "Top") {
+    outlierIndexes <- order(data$intervalLogL)[1:parameter]
+  } else if (method == "IQR") {
+    outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL) -
+                              (parameter/2) * IQR(data$intervalLogL))
+  } else if (method == "Hampel") {
+    if(is.null(window)) window <- (nrow(data)/2)-1
+    n <- length(data$intervalLogL)
+    L <- 1.4826
+    # which(vapply((window + 1):(n - window), function(i){
+    #   x0 <- median(data$intervalLogL[(i - window):(i + window)])
+    #   S0 <- L * median(abs(data$intervalLogL[(i - window):(i + window)] - x0))
+    #   if (abs(data$intervalLogL[i] - x0) > parameter * S0) TRUE else FALSE
+    # }, FUN.VALUE = logical(1)))
+    outlierIndexes <- c()
+    for (i in (window + 1):(n - window)) {
+      x0 <- median(data$intervalLogL[(i - window):(i + window)])
+      S0 <- L * median(abs(data$intervalLogL[(i - window):(i + window)] - x0))
+      if (abs(data$intervalLogL[i] - x0) > parameter * S0) {
+        outlierIndexes <- c(outlierIndexes, i)
+      }
+    }
+  }
+  
+  if (length(outlierIndexes > 0)){
+    data$outlier[outlierIndexes] <- "YES"
+    data$label[outlierIndexes] <- paste(data$sender, 
+                                        data$receiver, sep = "-")[outlierIndexes]
+  } else stop("No outliers were found.")
+  
   ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
     ggplot2::geom_line() +
-    ggplot2::geom_point() +
-    ggplot2::geom_text(ggplot2::aes(label = label)) +
+    ggplot2::geom_point(ggplot2::aes(color = outlier)) +
+    ggplot2::geom_text(ggplot2::aes(label = label), 
+                       angle = 270, size = 2, 
+                       hjust = "outward", color = "red") +
     ggplot2::theme_minimal() +
+    ggplot2::scale_colour_manual(values = c("black","red"),
+                                 guide = "none") +
     ggplot2::xlab("") +
     ggplot2::ylab("Interval log likelihood")
 }
