@@ -113,7 +113,7 @@ examineOutliers <- function(x,
     data$outlier[outlierIndexes] <- "YES"
     data$label[outlierIndexes] <- paste(data$sender, 
                                         data$receiver, sep = "-")[outlierIndexes]
-  } else stop("No outliers were found.")
+  } else return(cat("No outliers found."))
   
   ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
     ggplot2::geom_line() +
@@ -179,7 +179,7 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
   method <- match.arg(method)
   
   data <- get(as.character(x$formula[2]))
-  if(length(data$time != x$intervalLogL)){
+  if(length(data$time) != length(x$intervalLogL)){
     calls <- as.list(x$call)
     calls[[1]] <- NULL
     calls$preprocessingOnly <- TRUE
@@ -187,7 +187,7 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
     calls$silent <- TRUE
     calls$debug <- FALSE
     calls$verbose <- FALSE
-    prep <- suppressWarnings(do.call(estimate, calls))
+    prep <- suppressWarnings(do.call(goldfish::estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents==1]
   } else data$intervalLogL <- x$intervalLogL
   
@@ -205,13 +205,22 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
   
   cpt.pts <- attributes(cpt)$cpts
   cpt.mean <- attributes(cpt)$param.est$mean
+  
+  if(anyDuplicated(data$time[cpt.pts])) 
+    cpt.pts <- cpt.pts[!duplicated(data$time[cpt.pts], 
+                                   fromLast = TRUE)]
+  if(length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time)) 
+    return(cat("No regime changes found."))
+  
   ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
-    ggplot2::geom_vline(xintercept = data$time[cpt.pts], color = "red") +
+    ggplot2::geom_vline(xintercept = na.exclude(data$time[cpt.pts]), 
+                        color = "red") +
     ggplot2::theme_minimal() +
     ggplot2::xlab("") +
     ggplot2::ylab("Interval log likelihood") +
-    ggplot2::scale_x_continuous(breaks = data$time[cpt.pts], labels = data$time[cpt.pts]) +
+    ggplot2::scale_x_continuous(breaks = data$time[cpt.pts], 
+                                labels = data$time[cpt.pts]) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 }
