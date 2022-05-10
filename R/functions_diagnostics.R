@@ -161,10 +161,10 @@ examineOutliers <- function(x,
 #' @export
 #' @rdname examine
 examineChangepoints <- function(x, moment = c("mean", "variance"),
-                                 method = c("PELT", "AMOC", "BinSeg"),
-                                 minseglen = 3,
-                                 ...) {
-
+                                method = c("PELT", "AMOC", "BinSeg"),
+                                window = NULL,
+                                ...) {
+  
   if (!methods::is(x, "result.goldfish")) {
     stop("Not a goldfish results object.", call. = FALSE)
   }
@@ -174,10 +174,10 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
       " returned in results object."
     )
   }
-
+  
   moment <- match.arg(moment)
   method <- match.arg(method)
-
+  
   data <- get(as.character(x$formula[2]))
   if(length(data$time != x$intervalLogL)){
     calls <- as.list(x$call)
@@ -190,21 +190,21 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
     prep <- suppressWarnings(do.call(estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents==1]
   } else data$intervalLogL <- x$intervalLogL
-
+  
+  data$time <- as.POSIXct(data$time)
+  if(is.null(window)) window <- max(table(data$time))
+  
   if (moment == "mean") {
-    cpt <- changepoint::cpt.mean(x$intervalLogL, 
-                                 method = method, minseglen = minseglen, ...)
+    cpt <- changepoint::cpt.mean(data$intervalLogL, 
+                                 method = method, minseglen = window, ...)
   }
   if (moment == "variance") {
-    cpt <- changepoint::cpt.var(x$intervalLogL, 
-                                method = method, minseglen = minseglen, ...)
+    cpt <- changepoint::cpt.var(data$intervalLogL, 
+                                method = method, minseglen = window, ...)
   }
-
+  
   cpt.pts <- attributes(cpt)$cpts
   cpt.mean <- attributes(cpt)$param.est$mean
-
-  data$time <- as.POSIXct(data$time)
-
   ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
