@@ -1,3 +1,26 @@
+# goldfish 1.5.2
+
+* Fix minor bugs on `opportunityList`
+* New effect ego alter interaction `egoAlterInt(list(egoAttr, alterAttr))`
+* Cleaning vignettes and changing networks visualization to use `migraph` package
+
+## Breaking changes
+
+* Closure effects renaming. 
+  
+  ```R
+  clSender(net) -> commonSender(net)
+  clReceiver(net) -> commonReceiver(net)
+  mixedClSender(list(net1, net2)) -> mixedCommonSender(list(net1, net2))
+  mixedClReceiver(list(net1, net2)) -> mixedCommonReceiver(list(net1, net2))
+  ```
+  
+* Updated `examine.outliers()` and `examine.changepoints()` to plot more informative plots (with `{ggplot2}`)
+  - These functions no longer print to the console
+* Added vignette `teaching2.Rmd` that also indicates these extensions
+* Added vignette `teaching1.Rmd` with the "How to start"
+
+
 # goldfish 1.5.1
 
 * Re #3 added `{broom}`-related functions `tidy()` and `glance()`
@@ -38,9 +61,9 @@
   Documentation is updated accordingly. 
   
   ```R
-  cycle(list(bilatnet, contignet))
-  clSender(list(bilatnet, contignet))
-  clReceiver(list(bilatnet, contignet))
+  cycle(bilatnet)
+  clSender(bilatnet)
+  clReceiver(bilatnet)
   mixedCycle(list(bilatnet, contignet))
   mixedClSender(list(bilatnet, contignet))
   mixedClReceiver(list(bilatnet, contignet))

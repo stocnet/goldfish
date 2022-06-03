@@ -196,17 +196,18 @@ update_DyNAM_choice_coordination_tertiusDiff <- function(
   n1 = n1, n2 = n2,
   transformFun = abs,
   aggregateFun = function(x) mean(x, na.rm = TRUE))
-update_DyNAM_choice_tertiusDiff(network = network,
-                                 attribute = attribute,
-                                 sender = sender,
-                                 receiver = receiver,
-                                 node = node,
-                                 replace = replace,
-                                 cache = cache,
-                                 isTwoMode = isTwoMode,
-                                 n1 = n1, n2 = n2,
-                                 transformFun = transformFun,
-                                 aggregateFun = aggregateFun)
+update_DyNAM_choice_tertiusDiff(
+  network = network,
+  attribute = attribute,
+  sender = sender,
+  receiver = receiver,
+  node = node,
+  replace = replace,
+  cache = cache,
+  isTwoMode = isTwoMode,
+  n1 = n1, n2 = n2,
+  transformFun = transformFun,
+  aggregateFun = aggregateFun)
 
 # nodeTrans ------------------------------------------------------------------
 update_DyNAM_choice_coordination_nodeTrans <- function(
@@ -277,6 +278,22 @@ update_DyNAM_choice_coordination_sim <- function(
   update_DyNAM_choice_sim(
     attribute = attribute,
     node = node, replace = replace,
+    n1 = n1, n2 = n2,
+    isTwoMode = isTwoMode,
+    transformFun = transformFun
+  )
+
+# ego alter interaction ---------------------------------------------------
+update_DyNAM_choice_coordination_egoAlterInt <- function(
+    attribute, node, replace,
+    attUpdate,        
+    n1, n2,
+    isTwoMode = FALSE,
+    transformFun = identity)
+  update_DyNAM_choice_egoAlterInt(
+    attribute = attribute,
+    node = node, replace = replace,
+    attUpdate = attUpdate,
     n1 = n1, n2 = n2,
     isTwoMode = isTwoMode,
     transformFun = transformFun

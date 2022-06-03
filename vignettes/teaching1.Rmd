@@ -35,6 +35,31 @@ head(calls)
 head(actors)
 ```
 
+```{r echo=FALSE}
+estimate <- function(
+    x,
+    model = c("DyNAM", "REM", "DyNAMi"),
+    subModel = c("choice", "rate", "choice_coordination"),
+    estimationInit = NULL,
+    preprocessingInit = NULL,
+    preprocessingOnly = FALSE,
+    verbose = FALSE,
+    silent = TRUE,
+    debug = FALSE)
+  goldfish::estimate(
+    x = x,
+    model = model,
+    subModel = subModel,
+    estimationInit = estimationInit,
+    preprocessingInit = preprocessingInit,
+    preprocessingOnly = preprocessingOnly,
+    verbose = verbose,
+    silent = silent,
+    debug = debug
+  )
+```
+
+
 # Preamble: Run a quick DyNAM in five lines
 
 ```{r}
@@ -165,19 +190,29 @@ callsDependent
 While not a required part of the modeling process, we highly recommend the visualization of your data for analytic and diagnostic purposes. 
 `goldfish` includes wrappers for base `R` commands to help extract monadic and dyadic information for certain time points, `?as.data.frame.nodes.goldfish` and `?as.matrix.network.goldfish` .
 
-We can use these functions to visually compare our network at two (or more) different time periods using `sna`.
+We can use these functions to visually compare our network at two (or more) different time periods using `migraph`. See the `migraph` package documentation for additional information about network visualization. 
 
-```{r}
-library(sna, quietly = TRUE)
+```{r plot, fig.width=7, fig.retina=3}
+library(ggraph)
+library(migraph)
 # The network at the beginning
-gplot(as.matrix(callNetwork))
+callNetworkBgn <- as.matrix(callNetwork)
+autographr(callNetworkBgn, labels = FALSE, layout = "fr")
 # The network at the end
-gplot(as.matrix(callNetwork, time = max(calls$time) + 1))
-gplot(as.matrix(callNetwork, time = max(calls$time) + 1),
-      vertex.col = actors$floor)
+callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1)
+autographr(callNetworkEnd, labels = FALSE, layout = "fr")
+
+callNetworkEnd <- add_node_attributes(callNetworkEnd, "floor", actors$floor)
+autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
+  geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
+
 # The network at half time
-gplot(as.matrix(callNetwork, time = calls$time[floor(nrow(calls) / 2)]),
-      vertex.col = actors$floor)
+callNetworkHlf <- as.matrix(callNetwork,
+                            time = calls$time[floor(nrow(calls) / 2)])
+callNetworkHlf <- add_node_attributes(callNetworkHlf, "floor", actors$floor)
+autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
+  geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
+
 # The tie strength at the end
 table(as.matrix(callNetwork, time = max(calls$time) + 1))
 ```

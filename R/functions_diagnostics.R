@@ -29,9 +29,9 @@
 #'   estimationInit = list(returnIntervalLogL = TRUE)
 #' )
 #'
-#' examine.outliers(mod01)
+#' examineOutliers(mod01)
 #'
-#' examine.changepoints(mod01)
+#' examineChangepoints(mod01)
 #' }
 NULL
 
@@ -50,7 +50,8 @@ NULL
 #' in the y-axis and the event index in the x-axis, identifying observations
 #' with labels indicating the sender and recipient.
 #' @importFrom graphics points
-#' @importFrom ggplot2 ggplot aes geom_line geom_point geom_text theme_minimal xlab ylab
+#' @importFrom stats IQR median na.exclude
+#' @importFrom ggplot2 ggplot aes_string geom_line geom_point geom_text theme_minimal xlab ylab
 #' @export
 #' @rdname examine
 examineOutliers <- function(x, 
@@ -70,7 +71,7 @@ examineOutliers <- function(x,
   method <- match.arg(method)
   
   data <- get(as.character(x$formula[2]))
-  if(length(data$time) != length(x$intervalLogL)){
+  if (length(data$time) != length(x$intervalLogL)) {
     calls <- as.list(x$call)
     calls[[1]] <- NULL
     calls$preprocessingOnly <- TRUE
@@ -79,10 +80,13 @@ examineOutliers <- function(x,
     calls$debug <- FALSE
     calls$verbose <- FALSE
     prep <- suppressWarnings(do.call(goldfish::estimate, calls))
-    data$intervalLogL <- x$intervalLogL[prep$orderEvents==1]
+    data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
   } else data$intervalLogL <- x$intervalLogL
-  
-  data$time <- as.POSIXct(data$time)
+
+  if (!is.numeric(data$time)) {
+    data$time <- as.POSIXct(data$time)  
+  }
+
   data$label <- ""
   data$outlier <- "NO"
   if (method == "Top") {
@@ -91,7 +95,7 @@ examineOutliers <- function(x,
     outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL) -
                               (parameter/2) * IQR(data$intervalLogL))
   } else if (method == "Hampel") {
-    if(is.null(window)) window <- (nrow(data)/2)-1
+    if (is.null(window)) window <- (nrow(data) / 2) - 1
     n <- length(data$intervalLogL)
     L <- 1.4826
     # which(vapply((window + 1):(n - window), function(i){
@@ -109,16 +113,16 @@ examineOutliers <- function(x,
     }
   }
   
-  if (length(outlierIndexes > 0)){
+  if (length(outlierIndexes > 0)) {
     data$outlier[outlierIndexes] <- "YES"
     data$label[outlierIndexes] <- paste(data$sender, 
                                         data$receiver, sep = "-")[outlierIndexes]
   } else return(cat("No outliers found."))
   
-  ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
+  ggplot2::ggplot(data, ggplot2::aes_string(x = "time", y = "intervalLogL")) +
     ggplot2::geom_line() +
-    ggplot2::geom_point(ggplot2::aes(color = outlier)) +
-    ggplot2::geom_text(ggplot2::aes(label = label), 
+    ggplot2::geom_point(ggplot2::aes_string(color = "outlier")) +
+    ggplot2::geom_text(ggplot2::aes_string(label = "label"), 
                        angle = 270, size = 2, 
                        hjust = "outward", color = "red") +
     ggplot2::theme_minimal() +
@@ -179,7 +183,7 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
   method <- match.arg(method)
   
   data <- get(as.character(x$formula[2]))
-  if(length(data$time) != length(x$intervalLogL)){
+  if (length(data$time) != length(x$intervalLogL)) {
     calls <- as.list(x$call)
     calls[[1]] <- NULL
     calls$preprocessingOnly <- TRUE
@@ -188,11 +192,14 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
     calls$debug <- FALSE
     calls$verbose <- FALSE
     prep <- suppressWarnings(do.call(goldfish::estimate, calls))
-    data$intervalLogL <- x$intervalLogL[prep$orderEvents==1]
+    data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
   } else data$intervalLogL <- x$intervalLogL
   
-  data$time <- as.POSIXct(data$time)
-  if(is.null(window)) window <- max(table(data$time))
+  if (!is.numeric(data$time)) {
+    data$time <- as.POSIXct(data$time)  
+  }
+
+  if (is.null(window)) window <- max(table(data$time))
   
   if (moment == "mean") {
     cpt <- changepoint::cpt.mean(data$intervalLogL, 
@@ -204,15 +211,15 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
   }
   
   cpt.pts <- attributes(cpt)$cpts
-  cpt.mean <- attributes(cpt)$param.est$mean
+  # cpt.mean <- attributes(cpt)$param.est$mean
   
-  if(anyDuplicated(data$time[cpt.pts])) 
+  if (anyDuplicated(data$time[cpt.pts])) 
     cpt.pts <- cpt.pts[!duplicated(data$time[cpt.pts], 
                                    fromLast = TRUE)]
-  if(length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time)) 
+  if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time)) 
     return(cat("No regime changes found."))
   
-  ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
+  ggplot2::ggplot(data, ggplot2::aes_string(x = "time", y = "intervalLogL")) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
     ggplot2::geom_vline(xintercept = na.exclude(data$time[cpt.pts]), 

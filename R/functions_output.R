@@ -491,6 +491,7 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   invisible(NULL)
 }
 
+#' @importFrom tibble tibble
 #' @importFrom generics tidy
 #' @export
 generics::tidy

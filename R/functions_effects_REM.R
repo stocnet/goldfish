@@ -1353,3 +1353,22 @@ update_REM_choice_sim <- function(attribute, node, replace,
     isTwoMode = isTwoMode,
     transformFun = transformFun
   )
+
+
+# ego alter interaction ---------------------------------------------------
+init_REM_choice.egoAlterInt <- function(effectFun, attribute)
+  init_DyNAM_choice.sim(effectFun = effectFun, attribute = attribute)
+
+update_REM_choice_egoAlterInt <- function(attribute, node, replace,
+                                          attUpdate,        
+                                          n1, n2,
+                                          isTwoMode = FALSE,
+                                          transformFun = identity)
+  update_DyNAM_choice_egoAlterInt(
+    attribute = attribute,
+    node = node, replace = replace,
+    attUpdate = attUpdate,
+    n1 = n1, n2 = n2,
+    isTwoMode = isTwoMode,
+    transformFun = transformFun
+  )

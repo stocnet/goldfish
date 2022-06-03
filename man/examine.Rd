@@ -6,13 +6,18 @@
 \alias{examineChangepoints}
 \title{Diagnostic functions}
 \usage{
-examineOutliers(x, outliers = 3)
+examineOutliers(
+  x,
+  method = c("Hampel", "IQR", "Top"),
+  parameter = 3,
+  window = NULL
+)
 
 examineChangepoints(
   x,
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
-  minseglen = 3,
+  window = NULL,
   ...
 )
 }
@@ -20,22 +25,25 @@ examineChangepoints(
 \item{x}{an object of class \code{result.goldfish} output from an
 \code{\link{estimate}} call.}
 
-\item{outliers}{either an integer for the number of outliers to report,
-or "IQR" if instead those events with log likelihoods greater than 1.5*IQR
-in absolute value should be identified.}
-
-\item{moment}{character argument to choose between "mean" or "variance".
-See section \emph{Change point} for details.}
-
 \item{method}{Choice of \code{"AMOC"}, \code{"PELT"} or \code{"BinSeg"}.
 For a detail description see \code{\link[changepoint]{cpt.mean}} or
 \code{\link[changepoint]{cpt.var}}. The default value is \code{"PELT"}.}
 
-\item{minseglen}{Positive integer giving the minimum segment length
-(no. of observations between changes), default is 3.}
+\item{parameter}{An integer that represents the number of absolute outliers
+to identify, the threshold for the Hampel filter, i.e. `parameter * MAD`,
+or the threshold beyond the interquartile range halved, i.e. `parameter/2 * IQR`.}
+
+\item{window}{The window half-width for the Hampel filter.
+By default it is half the width of the event sequence.}
+
+\item{moment}{character argument to choose between "mean" or "variance".
+See section \emph{Change point} for details.}
 
 \item{...}{additional arguments to be passed to the functions in the
 \code{\link{changepoint}} package.}
+
+\item{minseglen}{Positive integer giving the minimum segment length
+(no. of observations between changes), default is 3.}
 }
 \value{
 \code{NULL} if neither outliers nor change points are identified.
@@ -94,8 +102,8 @@ mod01 <- estimate(callsDependent ~ inertia + recip + trans,
   estimationInit = list(returnIntervalLogL = TRUE)
 )
 
-examine.outliers(mod01)
+examineOutliers(mod01)
 
-examine.changepoints(mod01)
+examineChangepoints(mod01)
 }
 }

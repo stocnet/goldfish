@@ -30,6 +30,30 @@ rm(list = ls())
 library(goldfish)
 ```
 
+```{r echo=FALSE}
+estimate <- function(
+    x,
+    model = c("DyNAM", "REM", "DyNAMi"),
+    subModel = c("choice", "rate", "choice_coordination"),
+    estimationInit = NULL,
+    preprocessingInit = NULL,
+    preprocessingOnly = FALSE,
+    verbose = FALSE,
+    silent = TRUE,
+    debug = FALSE)
+  goldfish::estimate(
+    x = x,
+    model = model,
+    subModel = subModel,
+    estimationInit = estimationInit,
+    preprocessingInit = preprocessingInit,
+    preprocessingOnly = preprocessingOnly,
+    verbose = verbose,
+    silent = silent,
+    debug = debug
+  )
+```
+
 This lazy loads several datasets, including the one we will now use:
 
 ```{r load-data}
@@ -168,7 +192,7 @@ TASK: You should now be able to do the same with the
 initial contiguity network and the event list changing it.
 
 ```{r}
-contignet <- defineNetwork(contignet, nodes = states, directed = F)
+contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
 contignet <- linkEvents(contignet, contigchanges, nodes = states)
 class(contignet)
 contignet
@@ -217,7 +241,7 @@ goldfish includes wrappers for base R commands
 to help extract monadic and dyadic information
 for certain time points.
 
-```{r}
+```{r, eval = FALSE}
 ?as.data.frame.nodes.goldfish
 ?as.matrix.network.goldfish
 ```
@@ -225,47 +249,34 @@ for certain time points.
 We can use these functions to visually compare our network
 at two (or more) different time periods using igraph.
 
-```{r}
+```{r plot, message=FALSE, warning=FALSE, fig.width=7, fig.height=4, fig.align='center', fig.retina=3}
 library(igraph)
-startnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
-startstates <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))
-startnet <- graph.adjacency(startnet, mode = "undirected", weighted = T)
-V(startnet)$present <- startstates$present
-V(startnet)$regime <- startstates$regime
-V(startnet)$gdp <- startstates$gdp
-startnet <- delete_vertices(startnet, V(startnet)$present == FALSE)
-isos <- sum(degree(startnet) == 0)
-startnet <- delete_vertices(startnet, degree(startnet) == 0)
+library(migraph)
 
-endnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
-endstates <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))
-endnet <- graph.adjacency(endnet, mode = "undirected", weighted = T)
-V(endnet)$present <- endstates$present
-V(endnet)$regime <- endstates$regime
-V(endnet)$gdp <- endstates$gdp
-endnet <- delete_vertices(endnet, V(endnet)$present == FALSE)
-isoe <- sum(degree(endnet) == 0)
-endnet <- delete_vertices(endnet, degree(endnet) == 0)
+# network at the beginning of the event sequence
+startStates <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))
+startNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
+startNet <- add_node_attributes(startNet, "present", startStates$present)
+startNet <- add_node_attributes(startNet, "regime", startStates$regime)
+startNet <- add_node_attributes(startNet, "gdp", startStates$gdp)
 
-colfunc <- colorRampPalette(c("red","green"))
-par(mfrow = c(1,2))
-plot(startnet,
-     edge.width = E(startnet)$weight,
-     vertex.color = colfunc(20)[V(startnet)$regime + 10], vertex.frame.color = NA,
-     vertex.size = (4 + ifelse(is.na(V(startnet)$gdp), 1, 1 + V(startnet)$gdp)) * 2,
-     main = "1960-01-02", sub = paste("Plus", isos, "isolates"))
-plot(endnet, 
-     edge.width = E(endnet)$weight,
-     vertex.color = colfunc(20)[V(endnet)$regime + 10], vertex.frame.color = NA,
-     vertex.size = (4 + ifelse(is.na(V(endnet)$gdp), 1, 1 + V(endnet)$gdp)) * 2,
-     main = "1970-01-01", sub = paste("Plus", isoe, "isolates"))
+# network at the end of the event sequence
+endStates <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))
+endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
+endNet <- add_node_attributes(endNet, "present", endStates$present)
+endNet <- add_node_attributes(endNet, "regime", endStates$regime)
+endNet <- add_node_attributes(endNet, "gdp", endStates$gdp)
 
-# Try also...
-# startnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
-# endnet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
-# migraph::plot_evolution(startnet, endnet, based_on = "last")
-# you will need the development version for this...
+# logical value indicating if states where present and with agreements
+isStateActiveStart <- startStates$present & node_degree(startNet) > 0
+isStateActiveEnd <- endStates$present & node_degree(endNet) > 0
+isStateActive <- isStateActiveStart | isStateActiveEnd
 
+# subset networks to active states
+startNet <- delete_vertices(startNet, !isStateActive)
+endNet <- delete_vertices(endNet, !isStateActive)
+
+ggevolution(startNet, endNet, layout = "fr", based_on = "last")
 ```
 
 What can we observe?
@@ -286,8 +297,8 @@ and recognise steps 2b and 2c as goldfish does them.
 
 Let us first see how to specify the effects and which are currently available:
 
-```{r}
-# ?goldfishEffects
+```{r, eval=FALSE}
+?goldfishEffects
 ```
 
 The data and model specification is similar (though not the same as)
@@ -370,19 +381,23 @@ We have implemented some "tidymodels" (or rather `{broom}`) functions
 for extracting and printing the key results from goldfish results objects.
 Here is an example on the current results object:
 
-```{r}
+```{r broom}
 library(broom)
 library(pixiedust)
 dust(tidy(tie.model)) %>% 
   sprinkle(col = 2:4, round = 3) %>% 
   sprinkle(col = 5, fn = quote(pvalString(value)))
+```
+
+```{r glance}
 glance(tie.model)
 ```
+
 
 Lastly, we have begun implementing further diagnostic functions that can
 help users identify areas for improving their model specification.
 
-```{r}
+```{r examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3}
 examineOutliers(tie.model)
 examineChangepoints(tie.model)
 ```
