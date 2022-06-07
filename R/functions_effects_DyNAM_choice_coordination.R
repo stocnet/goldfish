@@ -286,7 +286,7 @@ update_DyNAM_choice_coordination_sim <- function(
 # ego alter interaction ---------------------------------------------------
 update_DyNAM_choice_coordination_egoAlterInt <- function(
     attribute, node, replace,
-    attUpdate,        
+    attUpdate,
     n1, n2,
     isTwoMode = FALSE,
     transformFun = identity)

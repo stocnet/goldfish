@@ -5,14 +5,16 @@ init_REM_choice <- function(effectFun, network, attribute, n1, n2, cache = NULL)
 
 
 # default -----------------------------------------------------------------
-init_REM_choice.default <- function(effectFun,
-                                    network = NULL, attribute = NULL,
-                                    window,
-                                    n1, n2) {
-  init_DyNAM_choice.default(effectFun = effectFun,
-                            network = network, attribute = attribute,
-                            window = window,
-                            n1 = n1, n2 = n2)
+init_REM_choice.default <- function(
+    effectFun,
+    network = NULL, attribute = NULL,
+    window,
+    n1, n2) {
+  init_DyNAM_choice.default(
+    effectFun = effectFun,
+    network = network, attribute = attribute,
+    window = window,
+    n1 = n1, n2 = n2)
 }
 
 # Structural effects ------------------------------------------------------
@@ -21,9 +23,10 @@ init_REM_choice.tie <- function(effectFun, network, window, n1, n2)
   init_DyNAM_choice.tie(effectFun = effectFun, network = network,
                         window = window, n1 = n1, n2 = n2)
 
-update_REM_choice_tie <- function(network,
-                                  sender, receiver, replace,
-                                  weighted = FALSE, transformFun = identity)
+update_REM_choice_tie <- function(
+    network,
+    sender, receiver, replace,
+    weighted = FALSE, transformFun = identity)
   update_DyNAM_choice_tie(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -37,9 +40,10 @@ init_REM_choice.inertia <- function(effectFun, network, window, n1, n2)
                       window = window, n1 = n1, n2 = n2)
 
 
-update_REM_choice_inertia <- function(network,
-                                      sender, receiver, replace,
-                                      weighted = FALSE, transformFun = identity)
+update_REM_choice_inertia <- function(
+    network,
+    sender, receiver, replace,
+    weighted = FALSE, transformFun = identity)
   update_REM_choice_tie(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -48,15 +52,17 @@ update_REM_choice_inertia <- function(network,
 
 # recip -------------------------------------------------------------------
 init_REM_choice.recip <- function(effectFun, network, window, n1, n2)
-  init_DyNAM_choice.recip(effectFun = effectFun, network = network,
-                          window = window,
-                          n1 = n1, n2 = n2)
+  init_DyNAM_choice.recip(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2)
 
-update_REM_choice_recip <- function(network,
-                                    sender, receiver, replace,
-                                    isTwoMode = FALSE,
-                                    weighted = FALSE,
-                                    transformFun = identity)
+update_REM_choice_recip <- function(
+    network,
+    sender, receiver, replace,
+    isTwoMode = FALSE,
+    weighted = FALSE,
+    transformFun = identity)
   update_DyNAM_choice_recip(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -126,7 +132,8 @@ init_REM_choice.indeg <- function(effectFun, network, window, n1, n2) {
   type <- eval(params[["type"]])
 
   if (isTwoMode && type == "ego") {
-    stop("'indeg' effect must not use for type 'ego' (type = 'ego') when is ",
+    stop(dQuote("indeg"),
+         "effect must not use for type 'ego' (type = 'ego') when is ",
          "a two-mode network (isTwoMode = TRUE) ", call. = FALSE)
   }
   # has window or is empty initialize empty
@@ -198,11 +205,12 @@ init_REM_choice.indeg <- function(effectFun, network, window, n1, n2) {
 #'   cache, 5, 6,
 #'   isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt, type = "al")
 #' }
-update_REM_choice_indeg <- function(network,
-                                    sender, receiver, replace, cache,
-                                    n1, n2, isTwoMode = FALSE,
-                                    weighted = FALSE, transformFun = identity,
-                                    type = c("alter", "ego")) {
+update_REM_choice_indeg <- function(
+    network,
+    sender, receiver, replace, cache,
+    n1, n2, isTwoMode = FALSE,
+    weighted = FALSE, transformFun = identity,
+    type = c("alter", "ego")) {
   type <- match.arg(type)
   # init res: changes NULL if not changes
   res <- list(cache = NULL, changes = NULL)
@@ -315,7 +323,8 @@ init_REM_choice.outdeg <- function(effectFun, network, window, n1, n2) {
 
   if (isTwoMode && type == "alter") {
     stop(
-      "'indeg' effect must not use for type 'alter' (type = 'alter') when is ",
+      dQuote("outdeg"),
+      "effect must not use for type 'alter' (type = 'alter') when is ",
       "a two-mode network (isTwoMode = TRUE) ", call. = FALSE)
   }
   # has window or is empty initialize empty
@@ -386,11 +395,12 @@ init_REM_choice.outdeg <- function(effectFun, network, window, n1, n2) {
 #'   cache, 5, 6,
 #'   isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt, type = "al")
 #' }
-update_REM_choice_outdeg <- function(network,
-                                     sender, receiver, replace, cache,
-                                     n1, n2, isTwoMode = FALSE,
-                                     weighted = FALSE, transformFun = identity,
-                                     type = c("alter", "ego")) {
+update_REM_choice_outdeg <- function(
+    network,
+    sender, receiver, replace, cache,
+    n1, n2, isTwoMode = FALSE,
+    weighted = FALSE, transformFun = identity,
+    type = c("alter", "ego")) {
   type <- match.arg(type)
   # init res: changes NULL if not changes
   res <- list(cache = NULL, changes = NULL)
@@ -443,16 +453,18 @@ update_REM_choice_outdeg <- function(network,
 
 # trans -------------------------------------------------------------------
 init_REM_choice.trans <- function(effectFun, network, window, n1, n2)
-  init_DyNAM_choice.trans(effectFun = effectFun, network = network,
-                          window = window,
-                          n1 = n1, n2 = n2)
+  init_DyNAM_choice.trans(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2)
 
-update_REM_choice_trans <- function(network,
-                                    sender,
-                                    receiver,
-                                    replace, cache,
-                                    isTwoMode = FALSE,
-                                    transformFun = identity)
+update_REM_choice_trans <- function(
+    network,
+    sender,
+    receiver,
+    replace, cache,
+    isTwoMode = FALSE,
+    transformFun = identity)
   update_DyNAM_choice_trans(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -462,16 +474,18 @@ update_REM_choice_trans <- function(network,
 
 # cycle -------------------------------------------------------------------
 init_REM_choice.cycle <- function(effectFun, network, window, n1, n2)
-  init_DyNAM_choice.cycle(effectFun = effectFun, network = network,
-                          window = window,
-                          n1 = n1, n2 = n2)
+  init_DyNAM_choice.cycle(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2)
 
-update_REM_choice_cycle <- function(network,
-                                    sender,
-                                    receiver,
-                                    replace, cache,
-                                    isTwoMode = FALSE,
-                                    transformFun = identity)
+update_REM_choice_cycle <- function(
+    network,
+    sender,
+    receiver,
+    replace, cache,
+    isTwoMode = FALSE,
+    transformFun = identity)
   update_DyNAM_choice_cycle(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -524,16 +538,18 @@ update_REM_choice_commonSender <- function(
 
 # mixedTrans --------------------------------------------------------------
 init_REM_choice.mixedTrans <- function(effectFun, network, window, n1, n2)
-  init_DyNAM_choice.mixedTrans(effectFun = effectFun, network = network,
-                          window = window,
-                          n1 = n1, n2 = n2)
+  init_DyNAM_choice.mixedTrans(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2)
 
-update_REM_choice_mixedTrans <- function(network,
-                                         sender,
-                                         receiver,
-                                         replace, netUpdate, cache,
-                                         isTwoMode = FALSE,
-                                         transformFun = identity)
+update_REM_choice_mixedTrans <- function(
+    network,
+    sender,
+    receiver,
+    replace, netUpdate, cache,
+    isTwoMode = FALSE,
+    transformFun = identity)
   update_DyNAM_choice_mixedTrans(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -543,16 +559,18 @@ update_REM_choice_mixedTrans <- function(network,
 
 # mixedCycle --------------------------------------------------------------
 init_REM_choice.mixedCycle <- function(effectFun, network, window, n1, n2)
-  init_DyNAM_choice.mixedCycle(effectFun = effectFun, network = network,
-                               window = window,
-                               n1 = n1, n2 = n2)
+  init_DyNAM_choice.mixedCycle(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2)
 
-update_REM_choice_mixedCycle <- function(network,
-                                         sender,
-                                         receiver,
-                                         replace, netUpdate, cache,
-                                         isTwoMode = FALSE,
-                                         transformFun = identity)
+update_REM_choice_mixedCycle <- function(
+    network,
+    sender,
+    receiver,
+    replace, netUpdate, cache,
+    isTwoMode = FALSE,
+    transformFun = identity)
   update_DyNAM_choice_mixedCycle(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -561,7 +579,8 @@ update_REM_choice_mixedCycle <- function(network,
   )
 
 # mixed common receiver ---------------------------------------------------
-init_REM_choice.mixedCommonReceiver <- function(effectFun, network, window, n1, n2)
+init_REM_choice.mixedCommonReceiver <- function(effectFun, network,
+                                                window, n1, n2)
   init_DyNAM_choice.mixedCommonReceiver(
     effectFun = effectFun, network = network,
     window = window,
@@ -582,7 +601,8 @@ update_REM_choice_mixedCommonReceiver <- function(
   )
 
 # mixed common sender -----------------------------------------------------
-init_REM_choice.mixedCommonSender <- function(effectFun, network, window, n1, n2)
+init_REM_choice.mixedCommonSender <- function(effectFun, network,
+                                              window, n1, n2)
   init_DyNAM_choice.mixedCommonSender(
     effectFun = effectFun, network = network,
     window = window,
@@ -604,15 +624,17 @@ update_REM_choice_mixedCommonSender <- function(
 
 # four --------------------------------------------------------------------
 init_REM_choice.four <- function(effectFun, network, window, n1, n2)
-  init_DyNAM_choice.four(effectFun = effectFun, network = network,
-                         window = window,
-                         n1 = n1, n2 = n2)
+  init_DyNAM_choice.four(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2)
 
-update_REM_choice_four <- function(network,
-                                   sender, receiver, replace,
-                                   cache,
-                                   isTwoMode = FALSE,
-                                   transformFun = identity)
+update_REM_choice_four <- function(
+    network,
+    sender, receiver, replace,
+    cache,
+    isTwoMode = FALSE,
+    transformFun = identity)
   update_DyNAM_choice_four(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -655,8 +677,8 @@ update_REM_choice_four <- function(network,
 #'   NULL
 #' init_REM_choice.tertius(effectFUN, network, attribute)
 #' }
-init_REM_choice.tertius <- function(
-  effectFun, network, attribute, window, n1, n2) {
+init_REM_choice.tertius <- function(effectFun, network, attribute,
+                                    window, n1, n2) {
   # Get arguments
   params <- formals(effectFun)
   aggFun <- eval(params[["aggregateFun"]])
@@ -955,12 +977,13 @@ update_REM_choice_tertius <- function(
 #'   NULL
 #' init_REM_choice.tertiusDiff(effectFUN, network, attribute)
 #' }
-init_REM_choice.tertiusDiff <- function(
-  effectFun, network, attribute, window, n1, n2)
-  init_DyNAM_choice.tertiusDiff(effectFun = effectFun,
-                                 network = network, attribute = attribute,
-                                 window = window,
-                                 n1 = n1, n2 = n2)
+init_REM_choice.tertiusDiff <- function(effectFun, network, attribute,
+                                        window, n1, n2)
+  init_DyNAM_choice.tertiusDiff(
+    effectFun = effectFun,
+    network = network, attribute = attribute,
+    window = window,
+    n1 = n1, n2 = n2)
 
 #' update stat transitivity using cache
 #'
@@ -996,23 +1019,25 @@ init_REM_choice.tertiusDiff <- function(
 #' attribute <- c(1, 0, 1, 3, 1)
 #' cache <- c(2, 1, 0, 1, 0, 2)
 #'
-#' update_REM_choice_tertiusDiff(network, attribute,
-#'                           sender = 2, receiver = 3,
-#'                           node = NULL,
-#'                           3,
-#'                           cache,
-#'                           n1 = 5, n2 = 6,
-#'                           transformFun = function(x) x ^ 2,
-#'                           aggregateFun = function(x) median(x, na.rm = TRUE))
+#' update_REM_choice_tertiusDiff(
+#'   network, attribute,
+#'   sender = 2, receiver = 3,
+#'   node = NULL,
+#'   3,
+#'   cache,
+#'   n1 = 5, n2 = 6,
+#'   transformFun = function(x) x ^ 2,
+#'   aggregateFun = function(x) median(x, na.rm = TRUE))
 #'
-#' update_REM_choice_tertiusDiff(network, attribute,
-#'                           sender = NULL, receiver = NULL,
-#'                           node = 3,
-#'                           3,
-#'                           cache,
-#'                           n1 = 5, n2 = 6,
-#'                           transformFun = function(x) x ^ 2,
-#'                           aggregateFun = function(x) median(x, na.rm = TRUE))
+#' update_REM_choice_tertiusDiff(
+#'   network, attribute,
+#'   sender = NULL, receiver = NULL,
+#'   node = 3,
+#'   3,
+#'   cache,
+#'   n1 = 5, n2 = 6,
+#'   transformFun = function(x) x ^ 2,
+#'   aggregateFun = function(x) median(x, na.rm = TRUE))
 #' }
 update_REM_choice_tertiusDiff <- function(
   network,
@@ -1148,15 +1173,16 @@ init_REM_choice.nodeTrans <- function(effectFun, network, window, n1, n2) {
 #' update_REM_choice_nodeTrans(network, 1, 5, 1, cache, 5, 5, type = "ego")
 #' update_REM_choice_nodeTrans(network, 3, 2, 0, cache, 5, 5, type = "ego")
 #' }
-update_REM_choice_nodeTrans <- function(network,
-                                         sender,
-                                         receiver,
-                                         replace,
-                                         cache,
-                                         n1, n2,
-                                         isTwoMode = FALSE,
-                                         transformFun = identity,
-                                         type = c("alter", "ego")) {
+update_REM_choice_nodeTrans <- function(
+    network,
+    sender,
+    receiver,
+    replace,
+    cache,
+    n1, n2,
+    isTwoMode = FALSE,
+    transformFun = identity,
+    type = c("alter", "ego")) {
   type <- match.arg(type)
   res <- list(cache = NULL, changes = NULL)
 
@@ -1183,7 +1209,8 @@ update_REM_choice_nodeTrans <- function(network,
     setdiff(seq_len(n), diff)
   }
 
-  # compute neighbourhoods for sender and receivers, (i = sender, j = receiver)
+  # compute neighbourhoods for sender and receivers,
+  #   (i = sender, j = receiver)
   outNeighSender <- which(network[sender, ] > 0) # N^+(i)
   inNeighReceiver <- which(network[, receiver] > 0) # N^-(j)
 
@@ -1264,10 +1291,11 @@ init_REM_choice.ego <- function(effectFun, attribute, n1, n2) {
   return(list(stat = stats))
 }
 
-update_REM_choice_ego <- function(attribute,
-                                  node, replace,
-                                  n1, n2,
-                                  isTwoMode = FALSE) {
+update_REM_choice_ego <- function(
+    attribute,
+    node, replace,
+    n1, n2,
+    isTwoMode = FALSE) {
   res <- list(changes = NULL)
   # Get old value
   oldValue <- attribute[node]
@@ -1313,9 +1341,10 @@ update_REM_choice_alter <- function(
 init_REM_choice.same <- function(effectFun, attribute)
   init_DyNAM_choice.same(effectFun = effectFun, attribute = attribute)
 
-update_REM_choice_same <- function(attribute,
-                                   node, replace,
-                                   isTwoMode = FALSE)
+update_REM_choice_same <- function(
+    attribute,
+    node, replace,
+    isTwoMode = FALSE)
   update_DyNAM_choice_same(
     attribute = attribute,
     node = node, replace = replace,
@@ -1326,10 +1355,11 @@ update_REM_choice_same <- function(attribute,
 init_REM_choice.diff <- function(effectFun, attribute)
   init_DyNAM_choice.diff(effectFun = effectFun, attribute = attribute)
 
-update_REM_choice_diff <- function(attribute, node, replace,
-                                   n1, n2,
-                                   isTwoMode = FALSE,
-                                   transformFun = abs)
+update_REM_choice_diff <- function(
+    attribute, node, replace,
+    n1, n2,
+    isTwoMode = FALSE,
+    transformFun = abs)
   update_DyNAM_choice_diff(
     attribute = attribute,
     node = node, replace = replace,
@@ -1342,10 +1372,11 @@ update_REM_choice_diff <- function(attribute, node, replace,
 init_REM_choice.sim <- function(effectFun, attribute)
   init_DyNAM_choice.sim(effectFun = effectFun, attribute = attribute)
 
-update_REM_choice_sim <- function(attribute, node, replace,
-                                  n1, n2,
-                                  isTwoMode = FALSE,
-                                  transformFun = abs)
+update_REM_choice_sim <- function(
+    attribute, node, replace,
+    n1, n2,
+    isTwoMode = FALSE,
+    transformFun = abs)
   update_DyNAM_choice_sim(
     attribute = attribute,
     node = node, replace = replace,
@@ -1359,11 +1390,12 @@ update_REM_choice_sim <- function(attribute, node, replace,
 init_REM_choice.egoAlterInt <- function(effectFun, attribute)
   init_DyNAM_choice.sim(effectFun = effectFun, attribute = attribute)
 
-update_REM_choice_egoAlterInt <- function(attribute, node, replace,
-                                          attUpdate,        
-                                          n1, n2,
-                                          isTwoMode = FALSE,
-                                          transformFun = identity)
+update_REM_choice_egoAlterInt <- function(
+    attribute, node, replace,
+    attUpdate,
+    n1, n2,
+    isTwoMode = FALSE,
+    transformFun = identity)
   update_DyNAM_choice_egoAlterInt(
     attribute = attribute,
     node = node, replace = replace,

@@ -54,11 +54,11 @@ NULL
 #' @importFrom ggplot2 ggplot aes_string geom_line geom_point geom_text theme_minimal xlab ylab
 #' @export
 #' @rdname examine
-examineOutliers <- function(x, 
+examineOutliers <- function(x,
                             method = c("Hampel", "IQR", "Top"),
                             parameter = 3,
                             window = NULL) {
-  
+
   if (!"result.goldfish" %in% attr(x, "class")) {
     stop("Not a goldfish results object.")
   }
@@ -69,7 +69,7 @@ examineOutliers <- function(x,
     )
   }
   method <- match.arg(method)
-  
+
   data <- get(as.character(x$formula[2]))
   if (length(data$time) != length(x$intervalLogL)) {
     calls <- as.list(x$call)
@@ -84,7 +84,7 @@ examineOutliers <- function(x,
   } else data$intervalLogL <- x$intervalLogL
 
   if (!is.numeric(data$time)) {
-    data$time <- as.POSIXct(data$time)  
+    data$time <- as.POSIXct(data$time)
   }
 
   data$label <- ""
@@ -93,12 +93,12 @@ examineOutliers <- function(x,
     outlierIndexes <- order(data$intervalLogL)[1:parameter]
   } else if (method == "IQR") {
     outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL) -
-                              (parameter/2) * IQR(data$intervalLogL))
+                              (parameter / 2) * IQR(data$intervalLogL))
   } else if (method == "Hampel") {
     if (is.null(window)) window <- (nrow(data) / 2) - 1
     n <- length(data$intervalLogL)
     L <- 1.4826
-    # which(vapply((window + 1):(n - window), function(i){
+    # which(vapply((window + 1):(n - window), function(i) {
     #   x0 <- median(data$intervalLogL[(i - window):(i + window)])
     #   S0 <- L * median(abs(data$intervalLogL[(i - window):(i + window)] - x0))
     #   if (abs(data$intervalLogL[i] - x0) > parameter * S0) TRUE else FALSE
@@ -112,18 +112,18 @@ examineOutliers <- function(x,
       }
     }
   }
-  
+
   if (length(outlierIndexes > 0)) {
     data$outlier[outlierIndexes] <- "YES"
-    data$label[outlierIndexes] <- paste(data$sender, 
+    data$label[outlierIndexes] <- paste(data$sender,
                                         data$receiver, sep = "-")[outlierIndexes]
   } else return(cat("No outliers found."))
-  
+
   ggplot2::ggplot(data, ggplot2::aes_string(x = "time", y = "intervalLogL")) +
     ggplot2::geom_line() +
     ggplot2::geom_point(ggplot2::aes_string(color = "outlier")) +
-    ggplot2::geom_text(ggplot2::aes_string(label = "label"), 
-                       angle = 270, size = 2, 
+    ggplot2::geom_text(ggplot2::aes_string(label = "label"),
+                       angle = 270, size = 2,
                        hjust = "outward", color = "red") +
     ggplot2::theme_minimal() +
     ggplot2::scale_colour_manual(values = c("black","red"),
@@ -168,7 +168,7 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
                                 method = c("PELT", "AMOC", "BinSeg"),
                                 window = NULL,
                                 ...) {
-  
+
   if (!methods::is(x, "result.goldfish")) {
     stop("Not a goldfish results object.", call. = FALSE)
   }
@@ -178,10 +178,10 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
       " returned in results object."
     )
   }
-  
+
   moment <- match.arg(moment)
   method <- match.arg(method)
-  
+
   data <- get(as.character(x$formula[2]))
   if (length(data$time) != length(x$intervalLogL)) {
     calls <- as.list(x$call)
@@ -194,40 +194,40 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
     prep <- suppressWarnings(do.call(goldfish::estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
   } else data$intervalLogL <- x$intervalLogL
-  
+
   if (!is.numeric(data$time)) {
-    data$time <- as.POSIXct(data$time)  
+    data$time <- as.POSIXct(data$time)
   }
 
   if (is.null(window)) window <- max(table(data$time))
-  
+
   if (moment == "mean") {
-    cpt <- changepoint::cpt.mean(data$intervalLogL, 
+    cpt <- changepoint::cpt.mean(data$intervalLogL,
                                  method = method, minseglen = window, ...)
   }
   if (moment == "variance") {
-    cpt <- changepoint::cpt.var(data$intervalLogL, 
+    cpt <- changepoint::cpt.var(data$intervalLogL,
                                 method = method, minseglen = window, ...)
   }
-  
+
   cpt.pts <- attributes(cpt)$cpts
   # cpt.mean <- attributes(cpt)$param.est$mean
-  
-  if (anyDuplicated(data$time[cpt.pts])) 
-    cpt.pts <- cpt.pts[!duplicated(data$time[cpt.pts], 
+
+  if (anyDuplicated(data$time[cpt.pts]))
+    cpt.pts <- cpt.pts[!duplicated(data$time[cpt.pts],
                                    fromLast = TRUE)]
-  if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time)) 
+  if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time))
     return(cat("No regime changes found."))
-  
+
   ggplot2::ggplot(data, ggplot2::aes_string(x = "time", y = "intervalLogL")) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
-    ggplot2::geom_vline(xintercept = na.exclude(data$time[cpt.pts]), 
+    ggplot2::geom_vline(xintercept = na.exclude(data$time[cpt.pts]),
                         color = "red") +
     ggplot2::theme_minimal() +
     ggplot2::xlab("") +
     ggplot2::ylab("Interval log likelihood") +
-    ggplot2::scale_x_continuous(breaks = data$time[cpt.pts], 
+    ggplot2::scale_x_continuous(breaks = data$time[cpt.pts],
                                 labels = data$time[cpt.pts]) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 }
