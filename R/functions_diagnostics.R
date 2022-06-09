@@ -103,7 +103,7 @@ examineOutliers <- function(x,
     #   S0 <- L * median(abs(data$intervalLogL[(i - window):(i + window)] - x0))
     #   if (abs(data$intervalLogL[i] - x0) > parameter * S0) TRUE else FALSE
     # }, FUN.VALUE = logical(1)))
-    outlierIndexes <- c()
+    outlierIndexes <- numeric(0)
     for (i in (window + 1):(n - window)) {
       x0 <- median(data$intervalLogL[(i - window):(i + window)])
       S0 <- L * median(abs(data$intervalLogL[(i - window):(i + window)] - x0))

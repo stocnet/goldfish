@@ -51,7 +51,7 @@ reference:
       - starts_with("examine")
   - title: "Data"
     desc: |
-      The package contains several datasets that are used in vignettes 
+      The package contains several datasets that are used in vignettes
       to demonstrate features of goldfish.
     contents:
       - starts_with("Fisheries_")
