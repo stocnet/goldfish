@@ -60,12 +60,14 @@ The structure is similar to stat_mat_update_pointer.}
 \item{twomode_or_reflexive}{An boolean variable. If it's true, then the model is two-model
 or we consider the reflexive effect (that's the value in the diagonal entries of the statistics matrix).}
 
-\item{verbose}{An boolean variable. It it's true, the function print the progress to the screen.}
+\item{verbose}{An boolean variable. It it's true, the function print
+the progress to the screen.}
 
 \item{impute}{An boolean variable. If it true, the function does the imputation for missing values.}
 }
 \value{
-Return a list with elements as follows. The meaning of the argument can be found in corresponding computation codes,
+Return a list with elements as follows. The meaning of the argument
+can be found in corresponding computation codes,
 e.g. compute_coordination_selection.cpp.
 \describe{
   \item{stat_all_events}{}
@@ -78,8 +80,10 @@ e.g. compute_coordination_selection.cpp.
 }
 }
 \description{
-Gathering data for model that for choosing an receiver given a sender, i.e. DyNAM-choice model.
-     Only the useful information are recorded: Consider a actor1-actor2 pair,
-     if the actor1 is not the sender of the current event or the actor2 is not present, then the information is not collected.
+Gathering data for model that for choosing an receiver given a sender,
+i.e. DyNAM-choice model.
+Only the useful information are recorded: Consider a actor1-actor2 pair,
+if the actor1 is not the sender of the current event
+or the actor2 is not present, then the information is not collected.
 }
 \keyword{internal}

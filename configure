@@ -2734,11 +2734,11 @@ EOF
 ## Execute R CMD SHLIB.
 "${R_HOME}/bin/R" CMD SHLIB test-omp.cpp >/dev/null 2>&1
 if test x"$?" = x"0"; then
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-openmp_already_works="yes"
+    openmp_already_works="yes"
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
 
@@ -2750,103 +2750,103 @@ rm -rf "${BUILDDIR}"
 ## based on the compiler version, etc.
 if test x"${openmp_already_works}" = x"no"; then
 
-## Check the C++ compiler using the CXX value set
+    ## Check the C++ compiler using the CXX value set
 
-## If it is g++, we have GXX set so let's examine it
-if test "${GXX}" = yes; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether g++ version is sufficient" >&5
+    ## If it is g++, we have GXX set so let's examine it
+    if test "${GXX}" = yes; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether g++ version is sufficient" >&5
 $as_echo_n "checking whether g++ version is sufficient... " >&6; }
-    gxx_version=$(${CXX} -v 2>&1 | awk '/^.*g.. version/ {print $3}')
-    case ${gxx_version} in
-        1.*|2.*|3.*|4.0.*|4.1.*|4.2.*|4.3.*|4.4.*|4.5.*|4.6.*|4.7.0|4.7.1)
-             { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        gxx_version=$(${CXX} -v 2>&1 | awk '/^.*g.. version/ {print $3}')
+        case ${gxx_version} in
+            1.*|2.*|3.*|4.0.*|4.1.*|4.2.*|4.3.*|4.4.*|4.5.*|4.6.*|4.7.0|4.7.1)
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-             { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Only g++ version 4.7.2 or greater can be used with RcppArmadillo." >&5
+                { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Only g++ version 4.7.2 or greater can be used with RcppArmadillo." >&5
 $as_echo "$as_me: WARNING: Only g++ version 4.7.2 or greater can be used with RcppArmadillo." >&2;}
-             as_fn_error $? "Please use a different compiler." "$LINENO" 5
-        ;;
-        4.7.*|4.8.*|4.9.*|5.0*|5.1*|5.2*|5.3*)
-             { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, but without OpenMP as version ${gxx_version} (Armadillo constraint)" >&5
+                as_fn_error $? "Please use a different compiler." "$LINENO" 5
+            ;;
+            4.7.*|4.8.*|4.9.*|5.0*|5.1*|5.2*|5.3*)
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, but without OpenMP as version ${gxx_version} (Armadillo constraint)" >&5
 $as_echo "yes, but without OpenMP as version ${gxx_version} (Armadillo constraint)" >&6; }
-             ## we know this one is bad
-             can_use_openmp="no"
-        ;;
-        5.4*|5.5*|5.6*|5.7*|5.8*|5.9*|6.*|7.*|8.*|9.*|10.*|11.*|12.*)
-             { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, with OpenMP as version ${gxx_version}" >&5
+                ## we know this one is bad
+                can_use_openmp="no"
+            ;;
+            5.4*|5.5*|5.6*|5.7*|5.8*|5.9*|6.*|7.*|8.*|9.*|10.*|11.*|12.*)
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, with OpenMP as version ${gxx_version}" >&5
 $as_echo "yes, with OpenMP as version ${gxx_version}" >&6; }
-             ## we know this one is good, yay
-             can_use_openmp="yes"
-        ;;
-        *)
-             { $as_echo "$as_me:${as_lineno-$LINENO}: result: almost" >&5
+                ## we know this one is good, yay
+                can_use_openmp="yes"
+            ;;
+            *)
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: almost" >&5
 $as_echo "almost" >&6; }
-             { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Compiler self-identifies as being compliant with GNUC extensions but is not g++." >&5
+                { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Compiler self-identifies as being compliant with GNUC extensions but is not g++." >&5
 $as_echo "$as_me: WARNING: Compiler self-identifies as being compliant with GNUC extensions but is not g++." >&2;}
-             ## we know nothing, so no
-             can_use_openmp="no"
-        ;;
-    esac
-fi
+                ## we know nothing, so no
+                can_use_openmp="no"
+            ;;
+        esac
+    fi
 
-## Check for Apple LLVM
+    ## Check for Apple LLVM
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for macOS" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for macOS" >&5
 $as_echo_n "checking for macOS... " >&6; }
-RSysinfoName=$("${R_HOME}/bin/Rscript" --vanilla -e 'cat(Sys.info()["sysname"])')
+    RSysinfoName=$("${R_HOME}/bin/Rscript" --vanilla -e 'cat(Sys.info()["sysname"])')
 
-if test x"${RSysinfoName}" == x"Darwin"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: found" >&5
-$as_echo "found" >&6; }
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for macOS Apple compiler" >&5
-$as_echo_n "checking for macOS Apple compiler... " >&6; }
-
-    apple_compiler=$($CXX --version 2>&1 | grep -i -c -e 'apple llvm')
-
-    if test x"${apple_compiler}" = x"1"; then
+    if test x"${RSysinfoName}" = x"Darwin"; then
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: found" >&5
 $as_echo "found" >&6; }
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: OpenMP unavailable and turned off." >&5
-$as_echo "$as_me: WARNING: OpenMP unavailable and turned off." >&2;}
-        can_use_openmp="no"
-    else
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
-$as_echo "not found" >&6; }
-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for clang compiler" >&5
-$as_echo_n "checking for clang compiler... " >&6; }
-        clang_compiler=$($CXX --version 2>&1 | grep -i -c -e 'clang ')
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for macOS Apple compiler" >&5
+$as_echo_n "checking for macOS Apple compiler... " >&6; }
 
-        if test x"${clang_compiler}" = x"1"; then
+        apple_compiler=$($CXX --version 2>&1 | grep -i -c -e 'apple llvm')
+
+        if test x"${apple_compiler}" = x"1"; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: result: found" >&5
 $as_echo "found" >&6; }
-            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for OpenMP compatible version of clang" >&5
-$as_echo_n "checking for OpenMP compatible version of clang... " >&6; }
-            clang_version=$(${CXX} -v 2>&1 | awk '/^.*clang version/ {print $3}')
-
-            case ${clang_version} in
-                4.*|5.*|6.*|7.*|8.*|9.*|10.*|11.*)
-                    { $as_echo "$as_me:${as_lineno-$LINENO}: result: found and suitable" >&5
-$as_echo "found and suitable" >&6; }
-                    can_use_openmp="yes"
-                ;;
-                *)
-                    { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
-$as_echo "not found" >&6; }
-                    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: OpenMP unavailable and turned off." >&5
+            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: OpenMP unavailable and turned off." >&5
 $as_echo "$as_me: WARNING: OpenMP unavailable and turned off." >&2;}
-                    can_use_openmp="no"
-                ;;
-            esac
+            can_use_openmp="no"
         else
             { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
 $as_echo "not found" >&6; }
-            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: unsupported macOS build detected; if anything breaks, you keep the pieces." >&5
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for clang compiler" >&5
+$as_echo_n "checking for clang compiler... " >&6; }
+            clang_compiler=$($CXX --version 2>&1 | grep -i -c -e 'clang ')
+
+            if test x"${clang_compiler}" = x"1"; then
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: found" >&5
+$as_echo "found" >&6; }
+                { $as_echo "$as_me:${as_lineno-$LINENO}: checking for OpenMP compatible version of clang" >&5
+$as_echo_n "checking for OpenMP compatible version of clang... " >&6; }
+                clang_version=$(${CXX} -v 2>&1 | awk '/^.*clang version/ {print $3}')
+
+                case ${clang_version} in
+                    4.*|5.*|6.*|7.*|8.*|9.*|10.*|11.*)
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: result: found and suitable" >&5
+$as_echo "found and suitable" >&6; }
+                        can_use_openmp="yes"
+                    ;;
+                    *)
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: OpenMP unavailable and turned off." >&5
+$as_echo "$as_me: WARNING: OpenMP unavailable and turned off." >&2;}
+                        can_use_openmp="no"
+                    ;;
+                esac
+            else
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+                { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: unsupported macOS build detected; if anything breaks, you keep the pieces." >&5
 $as_echo "$as_me: WARNING: unsupported macOS build detected; if anything breaks, you keep the pieces." >&2;}
+            fi
         fi
-    fi
     else
-	    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-fi
+    fi
 
 fi # if test x"${openmp_already_works}" = x"no"
 
@@ -2884,7 +2884,7 @@ openmp_flag=""
 arma_have_openmp="#define ARMA_DONT_USE_OPENMP 1"
 
 if test x"${openmp_already_works}" = x"yes"; then
-arma_have_openmp="#define ARMA_USE_OPENMP 1"
+    arma_have_openmp="#define ARMA_USE_OPENMP 1"
 fi
 
 if test x"${can_use_openmp}" = x"yes"; then

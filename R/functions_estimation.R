@@ -237,11 +237,11 @@
 #'                            inertia(bilatnet) +
 #'                            indeg(bilatnet, ignoreRep = TRUE) +
 #'                            trans(bilatnet, ignoreRep = TRUE) +
-#'                            tie(contignet, ignoreRep = TRUE) +
-#'                            alter(states$regime, ignoreRep = TRUE) +
-#'                            diff(states$regime, ignoreRep = TRUE) +
-#'                            alter(states$gdp, ignoreRep = TRUE) +
-#'                            diff(states$gdp, ignoreRep = TRUE),
+#'                            tie(contignet) +
+#'                            alter(states$regime) +
+#'                            diff(states$regime) +
+#'                            alter(states$gdp) +
+#'                            diff(states$gdp),
 #'   model = "DyNAM", subModel = "choice_coordination",
 #'   estimationInit = list(initialDamping = 40, maxIterations = 30)
 #' )
@@ -300,7 +300,7 @@ estimate.formula <- function(
     modelList = c("DyNAM", "REM", "DyNAMi", "TriNAM"),
     subModelList = list(
       DyNAM = c("choice", "rate", "choice_coordination"),
-      REM = c("choice"),
+      REM = "choice",
       DyNAMi = c("choice", "rate"),
       TriNAM = c("choice", "rate")
     )
@@ -791,7 +791,7 @@ estimate.formula <- function(
   # prefer user-defined arguments
   argsEstimation <- append(
     estimationInit[!(names(estimationInit) %in%
-                       c("startTime", "endTime", "opportunitiesList"))],
+                       c("startTime", "endTime"))],
     additionalArgs[!(names(additionalArgs) %in% names(estimationInit))]
   )
 

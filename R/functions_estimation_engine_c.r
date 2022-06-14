@@ -176,7 +176,7 @@ estimate_c_int <- function(
   # which will be a zero matrice and a zero vector if there's no right-censored event
   if (length(statsList$rightCensoredIntervals) == 0) {
     stat_mat_rightcensored_update <- matrix(0, 4, 1)
-    stat_mat_rightcensored_update_pointer <- c(0)
+    stat_mat_rightcensored_update_pointer <- numeric(1)
   } else {
     temp <- convert_change(statsList$rightCensoredStatsChange)
     stat_mat_rightcensored_update <- temp$statMatUpdate
@@ -197,7 +197,7 @@ estimate_c_int <- function(
     presence1_update_pointer <- temp$presenceUpdatePointer
   } else {
     presence1_update <- matrix(0, 0, 0)
-    presence1_update_pointer <- c(0)
+    presence1_update_pointer <- numeric(1)
   }
 
   if (!is.null(compChangeName2) && length(compChangeName2) > 0) {
@@ -208,19 +208,19 @@ estimate_c_int <- function(
     presence2_update_pointer <- temp$presenceUpdatePointer
   } else {
     presence2_update <- matrix(0, 0, 0)
-    presence2_update_pointer <- c(0)
+    presence2_update_pointer <- numeric(1)
   }
 
   if (!is.null(nodes$present)) {
     presence1_init <- nodes$present
   } else {
-    presence1_init <- rep(TRUE, length(nodes))
+    presence1_init <- rep(TRUE, nrow(nodes))
   }
 
   if (!is.null(nodes2$present)) {
     presence2_init <- nodes2$present
   } else {
-    presence2_init <- rep(TRUE, length(nodes2))
+    presence2_init <- rep(TRUE, nrow(nodes2))
   }
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED BY C FUNCTIONS

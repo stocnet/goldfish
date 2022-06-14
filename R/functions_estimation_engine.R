@@ -841,7 +841,7 @@ getIterationStepState <- function(statsList,
     # update return list
     if (i == 1) {
       eventLogL <- eventValues$logLikelihood
-    } else {
+    } else if (returnIntervalLogL) {
       eventLogL <- c(eventLogL, eventValues$logLikelihood)
     }
     if (returnEventProbabilities) EventProbabilities[[i]] <- eventValues$pMatrix

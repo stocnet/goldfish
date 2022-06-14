@@ -30,8 +30,8 @@ Dynamic Network Actor Models: Investigating Coordination Ties Through Time.
 \emph{Sociological Methodology 47 (1)}. \doi{10.1177/0081175017709295}
 
 Hollway, J. (2020).
-Network embeddedness and the rate of international water cooperation and conflict. 
-In \emph{Networks in Water Governance}, edited by Manuel Fischer and Karin Ingold. 
+Network embeddedness and the rate of international water cooperation and conflict.
+In \emph{Networks in Water Governance}, edited by Manuel Fischer and Karin Ingold.
 London: Palgrave, pp. 87-113.
 
 Hoffman, M., Block P., Elmer T., and Stadtfeld C. (2020).

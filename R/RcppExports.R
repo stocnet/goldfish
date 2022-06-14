@@ -231,12 +231,16 @@ convert_change <- function(changeList) {
 
 #' Gathering data for sender receiver model
 #'
-#' Gathering data for model that for choosing an receiver given a sender, i.e. DyNAM-choice model.
-#'      Only the useful information are recorded: Consider a actor1-actor2 pair,
-#'      if the actor1 is not the sender of the current event or the actor2 is not present, then the information is not collected.
+#' Gathering data for model that for choosing an receiver given a sender,
+#' i.e. DyNAM-choice model.
+#' Only the useful information are recorded: Consider a actor1-actor2 pair,
+#' if the actor1 is not the sender of the current event
+#' or the actor2 is not present, then the information is not collected.
 #' @inherit estimate_REM params
-#' @param verbose An boolean variable. It it's true, the function print the progress to the screen.
-#' @return Return a list with elements as follows. The meaning of the argument can be found in corresponding computation codes,
+#' @param verbose An boolean variable. It it's true, the function print
+#' the progress to the screen.
+#' @return Return a list with elements as follows. The meaning of the argument
+#' can be found in corresponding computation codes,
 #' e.g. compute_coordination_selection.cpp.
 #' \describe{
 #'   \item{stat_all_events}{}

@@ -7,12 +7,16 @@ using namespace arma;
 
 //' Gathering data for sender receiver model
 //'
-//' Gathering data for model that for choosing an receiver given a sender, i.e. DyNAM-choice model.
-//'      Only the useful information are recorded: Consider a actor1-actor2 pair,
-//'      if the actor1 is not the sender of the current event or the actor2 is not present, then the information is not collected.
+//' Gathering data for model that for choosing an receiver given a sender,
+//' i.e. DyNAM-choice model.
+//' Only the useful information are recorded: Consider a actor1-actor2 pair,
+//' if the actor1 is not the sender of the current event
+//' or the actor2 is not present, then the information is not collected.
 //' @inherit estimate_REM params
-//' @param verbose An boolean variable. It it's true, the function print the progress to the screen.
-//' @return Return a list with elements as follows. The meaning of the argument can be found in corresponding computation codes,
+//' @param verbose An boolean variable. It it's true, the function print
+//' the progress to the screen.
+//' @return Return a list with elements as follows. The meaning of the argument
+//' can be found in corresponding computation codes,
 //' e.g. compute_coordination_selection.cpp.
 //' \describe{
 //'   \item{stat_all_events}{}
@@ -72,8 +76,10 @@ List gather_receiver_model(const arma::mat& dep_event_mat,
         // update stat mat
         int n_present = 0;
         while (stat_mat_update_id < stat_mat_update_pointer(id_event)) {
-            stat_mat(stat_mat_update(0, stat_mat_update_id)*n_actor2 + stat_mat_update(1, stat_mat_update_id), stat_mat_update(2, stat_mat_update_id)) =
-                stat_mat_update(3, stat_mat_update_id);
+            stat_mat(stat_mat_update(0, stat_mat_update_id) * n_actor2 +
+                     stat_mat_update(1, stat_mat_update_id),
+                     stat_mat_update(2, stat_mat_update_id)) =
+              stat_mat_update(3, stat_mat_update_id);
             stat_mat_update_id++;
         }
 
@@ -82,23 +88,28 @@ List gather_receiver_model(const arma::mat& dep_event_mat,
             for (int i = 0; i < n_parameters; i++) {
                 // Construct a view for the i-th column of the stat_matrix and do the impute
                 arma::vec current_col(stat_mat.colptr(i), n_actor1 * n_actor2, false);
-                current_col.elem(find_nonfinite(current_col)).fill(mean(current_col.elem(find_finite(current_col))));
+                current_col.elem(find_nonfinite(current_col)).fill(\
+                    mean(current_col.elem(find_finite(current_col))));
             }
         }
 
         // composition change
         if (has_composition_change) {
             while (presence2_update_id < presence2_update_pointer(id_event)) {
-                presence2(presence2_update(0, presence2_update_id) - 1) = presence2_update(1, presence2_update_id);
+                presence2(presence2_update(0, presence2_update_id) - 1) =
+                  presence2_update(1, presence2_update_id);
                 presence2_update_id++;
             }
         }
 
-        // In the following part, we take out the rows corresponding to pairs of present senders and receiver in this event.
-        // declare the ids of the sender and the receiver, and subviews the stat mat corresponding to this event.
+        // In the following part, we take out the rows corresponding to
+        // pairs of present senders and receiver in this event.
+        // declare the ids of the sender and the receiver, and subviews
+        // the stat mat corresponding to this event.
         const int id_sender = dep_event_mat(0, id_event) - 1;
         const int id_receiver = dep_event_mat(1, id_event) - 1;
-        const arma::mat& stat_mat_current_event = stat_mat.rows(id_sender * n_actor2, (id_sender + 1) * n_actor2 - 1);
+        const arma::mat& stat_mat_current_event =
+          stat_mat.rows(id_sender * n_actor2, (id_sender + 1) * n_actor2 - 1);
         // deal with twomode and allow reflexive
         int not_allowed_receiver = -1;
         if (!twomode_or_reflexive) not_allowed_receiver = id_sender;
@@ -118,8 +129,9 @@ List gather_receiver_model(const arma::mat& dep_event_mat,
     // clear the screen(console)
     if (verbose) gather_progress_terminate();
 
-    return List::create(Named("stat_all_events") = stat_all_events.rows(0, n_total - 1),
-                        Named("n_candidates") = n_presence2,
-                        Named("selected") = receivers);
+    return List::create(
+      Named("stat_all_events") = stat_all_events.rows(0, n_total - 1),
+      Named("n_candidates") = n_presence2,
+      Named("selected") = receivers);
 }
 
