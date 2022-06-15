@@ -138,8 +138,6 @@ examineOutliers <- function(x,
 #' @param method Choice of \code{"AMOC"}, \code{"PELT"} or \code{"BinSeg"}.
 #' For a detail description see \code{\link[changepoint]{cpt.mean}} or
 #' \code{\link[changepoint]{cpt.var}}. The default value is \code{"PELT"}.
-#' @param minseglen Positive integer giving the minimum segment length
-#' (no. of observations between changes), default is 3.
 #' @param ... additional arguments to be passed to the functions in the
 #' \code{\link{changepoint}} package.
 #' @section Change point:
