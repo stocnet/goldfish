@@ -132,7 +132,6 @@
 #' (see \code{\link{defineDependentEvents}}) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
 #' (see \code{\link{goldfishEffects}}).
-# or a preprocessed statistics object.
 #'
 #' @return returns an object of \code{\link{class}} \code{"result.goldfish"}
 #' when \code{preprocessingOnly = FALSE} or
