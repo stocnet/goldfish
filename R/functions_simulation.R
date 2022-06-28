@@ -12,12 +12,12 @@
 #' @inheritParams estimate
 #' @param formulaRate a formula as define in \code{\link{estimate}} with the
 #' effects for the rate sub-model \code{subModel = "rate"}.
-#' @param parameterRate a numeric vector with the numerical values that
+#' @param parametersRate a numeric vector with the numerical values that
 #' effects parameters on \code{formulaRate} should take during simulation.
 #' @param formulaChoice a formula as define in \code{\link{estimate}} with the
 #' effects for the choice sub-model \code{subModel = "choice"}.
 #' When \code{model = "REM"} this formula is not required.
-#' @param parameterChoice a numeric vector with the numerical values that
+#' @param parametersChoice a numeric vector with the numerical values that
 #' effects parameters on \code{formulaChoice} should take during simulation.
 #' @param nEvents integer with the number of events to simulate from
 #' the given formulas and parameter vectors. Default to \code{100}.
@@ -29,9 +29,9 @@
 #' 
 #' 
 simulate <- function(formulaRate,
-                     parameterRate,
+                     parametersRate,
                      formulaChoice = NULL,
-                     parameterChoice = NULL,
+                     parametersChoice = NULL,
                      model = c("DyNAM", "REM"),
                      subModel = c("choice", "choice_coordination"),
                      # estimationInit = NULL,
@@ -39,7 +39,6 @@ simulate <- function(formulaRate,
                      # preprocessingOnly = FALSE,
                      verbose = FALSE,
                      silent = FALSE,
-                     debug = FALSE,
                      nEvents = 100) {
   UseMethod("simulate", formulaRate)
 }
@@ -49,42 +48,62 @@ simulate <- function(formulaRate,
 # a preprocessed object or a result object
 #' @export
 simulate.formula <- function(formulaRate,
-                             parameterRate,
+                             parametersRate,
                              formulaChoice = NULL,
-                             parameterChoice = NULL,
-                             model,
-                             subModel,
+                             parametersChoice = NULL,
+                             model = c("DyNAM", "REM"),
+                             subModel = c("choice", "rate"),
                              # estimationInit = NULL,
                              # preprocessingInit = NULL,
                              # preprocessingOnly = FALSE,
                              verbose = FALSE,
                              silent = FALSE,
-                             debug = FALSE,
                              nEvents = 100) {
 
-  # CHECK THE INPUT
+  # CHECK INPUT
+  model <- match.arg(model)
+  subModel <- match.arg(subModel)
+
+  ### check model and subModel
+  checkModelPar(model, subModel,
+                modelList = c("DyNAM", "REM", "DyNAMi", "TriNAM"),
+                subModelList = list(
+                  DyNAM = c("choice", "rate", "choice_coordination"),
+                  REM = "choice",
+                  DyNAMi = c("choice", "rate"),
+                  TriNAM = c("choice", "rate")
+                )
+  )
+
   if (subModel == "choice_coordination")
     stop(
       "It doesn't support simulating a DyNAM choice coordination model.\n",
       "Since the generating process for the waiting time is not specified",
       call. = FALSE)
+  
+  stopifnot(
+    inherits(formulaRate, "formula"),
+    inherits(formulaChoice, "formula"),
+    inherits(parametersRate, "numeric"),
+    inherits(parametersChoice, "numeric"),
+    inherits(verbose, "logical"),
+    inherits(silent, "logical"),
+    inherits(nEvents, "numeric") && nEvents > 0
+  )
 
-  # PARSE THE FORMULA
-
-  ## 1.1 PARSE for all cases: preprocessingInit or not
-  parsedformulaRate <- parseFormula(formulaRate, model, subModel)
-  rhsNamesRate <- parsedformulaRate$rhsNames
-  depNameRate <- parsedformulaRate$depName
-  hasInterceptRate <- parsedformulaRate$hasIntercept
-  defaultNetworkNameRate <- parsedformulaRate$defaultNetworkName
+  ## 1.1 Preparing
+  parsedformulaRate <- parseFormula(formulaRate)
+  
   # The number of the independent variables should be the length 
   # of the input parameter vector
-  if (length(rhsNamesRate) + hasInterceptRate != length(parameterRate))
+  if (length(parsedformulaRate$rhsNames) +
+      parsedformulaRate$hasIntercept !=
+      length(parametersRate))
     stop(
       "The number of independent effects should be the same",
       " as the length of the input parameter vector:",
       format(formulaRate), " with parameter ",
-      paste(parameterRate, collapse = ",", sep = ""),
+      paste(parametersRate, collapse = ",", sep = ""),
       call. = FALSE
     )
 
@@ -96,92 +115,55 @@ simulate.formula <- function(formulaRate,
         call. = FALSE)
 
     ## 1.1 PARSE for all cases: preprocessingInit or not
-    parsedformulaChoice <- parseFormula(formulaChoice, model, subModel)
-    rhsNamesChoice <- parsedformulaChoice$rhsNames
-    # depNameChoice <- parsedformulaChoice$depName
-    # defaultNetworkNameChoice <- parsedformulaChoice$defaultNetworkName
+    parsedformulaChoice <- parseFormula(formulaChoice)
     if (parsedformulaChoice$hasIntercept)
       # In the DyNAM choice model,
       # the intercept will be cancelled and hence useless.
       stop("Intercept in the choice subModel model will be ignored.",
            " Please remove the intercep and run again.", call. = FALSE)
 
-    if (length(rhsNamesChoice) != length(parameterChoice))
+    if (length(parsedformulaChoice$rhsNames) !=
+        length(parametersChoice))
       stop(
         "The number of the independent effects should be the same",
         " as the length of the input parameter:",
         format(formulaChoice), " with parameter ",
-        paste(parameterChoice, collapse = ","),
+        paste(parametersChoice, collapse = ","),
         call. = FALSE
       )
+    
+    if (parsedformulaRate$depName != parsedformulaChoice$depName)
+      stop("formula for rate and choice submodels",
+           " must be defined over the same dependent event object",
+           call. = FALSE)
+  } else {
+    parsedformulaChoice <- NULL
   }
 
   # CHECK THE INPUT FORMULA
-  # If there's no intercept in the formula for the waiting-time generating process (For example, DyNAM choice, or REM),
-  # we take the coefficient of the intercept as 0.
-  if (!hasInterceptRate) {
-    cat("\n", "You didn't specify an intercept in the first formula so we take the intercept as 0.", "\n")
-    parameterRate <- c(0, parameterRate)
-  }
-
-
-
-  # get node sets of dependent variable
-  nodes <- attr(get(depNameRate), "nodes")
-  isTwoMode <- FALSE
-
-  # two-mode networks(2 kinds of nodes)
-  if (length(nodes) == 2) {
-    nodes2 <- nodes[2]
-    nodes <- nodes[1]
-    isTwoMode <- TRUE
-  } else {
-    nodes2 <- nodes
-  }
-
-
-
-  ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
-
-  # enviroment from which get the objects
-  envir <- environment()
-
-  # effect and objectsEffectsLink for sender-deciding process
-  effectsRate <- createEffectsFunctions(rhsNamesRate,
-                                        model, subModel, envir = envir)
-  objectsEffectsLinkRate <- getObjectsEffectsLink(rhsNamesRate)
-
-  # effect and objectsEffectsLink for receiver-deciding process
-  effectsChoice <- NULL
-  objectsEffectsLinkChoice <- NULL
-  if (!is.null(formulaChoice)) {
-    effectsChoice <- createEffectsFunctions(rhsNamesChoice,
-                                            model, subModel, envir = envir)
-    objectsEffectsLinkChoice <- getObjectsEffectsLink(rhsNamesChoice)
-  }
-
-
-
-
+  # There must exist the intercept in the formula for the waiting-time
+  # generating process (For example, DyNAM rate, or REM),
+  if (!parsedformulaRate$hasIntercept)
+    stop("You didn't specify an intercept in the rate formula.",
+         "\n\tCurrent implementation requires intercept and",
+         " a positive parameter value for it.",
+         call. = FALSE)
 
   # Simulating!
   if (!silent) cat("Starting simulation\n")
   events <- simulate_engine(
-    model,
-    subModel,
-    parameter = parameterRate,
-    effects = effectsRate,
-    objectsEffectsLink = objectsEffectsLinkRate, # for parameterization
-    parameterChoice = parameterChoice,
-    effectsChoice = effectsChoice,
-    objectsEffectsLinkChoice = objectsEffectsLinkChoice,
-    nodes = nodes,
-    nodes2 = nodes2,
-    isTwoMode = isTwoMode,
+    model = model,
+    subModel = subModel,
+    parametersRate = parametersRate,
+    parsedformulaRate = parsedformulaRate,
+    parametersChoice = parametersChoice,
+    parsedformulaChoice = parsedformulaChoice,
+    nEvents = nEvents,
+    startTime = 0,
+    endTime = NULL,
     rightCensored = FALSE, # ToDo: check
     verbose = verbose,
-    silent = silent,
-    nEvents = nEvents
+    silent = silent
   )
 
   # Styling the result

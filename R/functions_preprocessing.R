@@ -326,9 +326,9 @@ preprocess <- function(
         attIDs <- which(objCat == "attribute")
         netIDs <- which(objCat == "network")
         if (attr(objCat, "noneClass"))
-          stop("An object is not assigned either as network or attibute",
+          stop("An object is not assigned either as network or attibute\n\t",
                paste(names[attr(objCat, "manyClasses") != 1], collapse = ", "),
-               "check the class of the object.", call. = FALSE)
+               "\n\tcheck the class of the object.", call. = FALSE)
 
         # call effects function with required arguments
         .argsFUN <- list(
@@ -468,9 +468,9 @@ initializeCacheStat <- function(
   # list of 4, call matrix, friendship matrix, actor$gradetype vector, actor$floor vector
   objCat <- assignCatToObject(.objects)
   if (attr(objCat, "noneClass"))
-    stop("An object is not assigned either as network or attibute",
+    stop("An object is not assigned either as network or attibute\n\t",
          paste(rownames(objectsEffectsLink)[attr(objCat, "manyClasses") != 1], collapse = ", "),
-         "check the class of the object.", call. = FALSE)
+         "\n\tcheck the class of the object.", call. = FALSE)
 
   # objects: list of 6, each element is a 84*84 matrix
   objectsRet <- lapply(
