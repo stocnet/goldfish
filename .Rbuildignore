@@ -7,3 +7,5 @@
 ^.lintr
 ^codecov\.yml$
 ^.*\.code-workspace$
+vignettes/*\.Rmd\.orig
+vignettes/precompile\.R

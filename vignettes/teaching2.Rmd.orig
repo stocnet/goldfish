@@ -9,7 +9,12 @@ vignette: >
 ---
 
 
-
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
 
 Example script prepared analyzing the Fisheries Agreements data with the `R` `goldfish` package. 
 Models inspired by section 7 of:
@@ -20,18 +25,38 @@ Models inspired by section 7 of:
 
 First, let's make sure we're starting with a clean slate and take the goldfish out of the bowl:
 
-
-```r
+```{r setup}
 rm(list = ls())
 library(goldfish)
 ```
 
-
+```{r mask, echo=FALSE}
+estimate <- function(
+    x,
+    model = c("DyNAM", "REM", "DyNAMi"),
+    subModel = c("choice", "rate", "choice_coordination"),
+    estimationInit = NULL,
+    preprocessingInit = NULL,
+    preprocessingOnly = FALSE,
+    verbose = FALSE,
+    silent = TRUE,
+    debug = FALSE)
+  goldfish::estimate(
+    x = x,
+    model = model,
+    subModel = subModel,
+    estimationInit = estimationInit,
+    preprocessingInit = preprocessingInit,
+    preprocessingOnly = preprocessingOnly,
+    verbose = verbose,
+    silent = silent,
+    debug = debug
+  )
+```
 
 This lazy loads several datasets, including the one we will now use:
 
-
-```r
+```{r load-data}
 data("Fisheries_Treaties_6070")
 # ?Fisheries_Treaties_6070
 ```
@@ -48,35 +73,17 @@ and its origins in a couple of ERGM papers by calling its documentation.
 
 We've loaded a dataset that defines its nodes and their attributes as a data frame.
 
-
-```r
+```{r examine-states}
 tail(states)
-#>     label present regime          gdp
-#> 162   SLB   FALSE     NA           NA
-#> 165   VCT    TRUE     NA 1.306663e-05
-#> 167   BLZ    TRUE     NA 2.807250e-05
-#> 169   KNA    TRUE     NA 1.236664e-05
-#> 170   BRN   FALSE     NA           NA
-#> 193   KIR   FALSE     NA           NA
 class(states)
-#> [1] "data.frame"
 ```
 
 We need to define them as nodes so that goldfish knows what to do with them.
 
-
-```r
+```{r defineNodes}
 states <- defineNodes(states)
 head(states)
-#>   label present regime         gdp
-#> 1   AND    TRUE     NA          NA
-#> 2   DNK    TRUE     10 0.006248947
-#> 3   FRA    TRUE      5 0.062651475
-#> 4   DEU    TRUE     -9          NA
-#> 5   ITA    TRUE     10 0.040385288
-#> 6   LIE    TRUE     NA          NA
 class(states)
-#> [1] "nodes.goldfish" "data.frame"
 ```
 
 As you can see, the structure is the same, 
@@ -86,42 +93,18 @@ Next we want to link events to this nodeset to indicate how the attributes chang
 There are three attributes associated with this node set, 
 and they all change:
 
-
-```r
+```{r examine-node-changes}
 head(sovchanges)
-#>                     time node replace
-#> 1165 1960-04-03 01:00:00  SEN    TRUE
-#> 99   1960-04-27 00:00:00  TGO    TRUE
-#> 1317 1960-05-31 01:00:00  COD    TRUE
-#> 1316 1960-05-31 01:00:00  MLI    TRUE
-#> 100  1960-06-20 00:00:00  MLI    TRUE
-#> 101  1960-06-26 00:00:00  MDG    TRUE
 head(regchanges)
-#>            time node replace
-#> 814  1960-01-02  LAO      -1
-#> 361  1960-01-16  CUB      NA
-#> 410  1960-01-16  VNM      -8
-#> 1269 1960-04-04  SEN      -1
-#> 1185 1960-04-16  KOR      NA
-#> 1449 1960-04-27  TGO      -6
 head(gdpchanges)
-#>           time node     replace
-#> 202 1961-01-01  DNK 0.006933842
-#> 203 1961-01-01  FRA 0.068346742
-#> 205 1961-01-01  ITA 0.044842760
-#> 207 1961-01-01  NLD 0.013493834
-#> 208 1961-01-01  PRT 0.003417517
-#> 211 1961-01-01  ESP 0.013834301
 ```
 
 The first attribute, in the second column of the data frame, is special.
 It holds the (reserved) "present" variable that indicates whether nodes
 are available to send or receive ties.
 
-
-```r
+```{r present}
 head(states$present) # or states[,2]
-#> [1] TRUE TRUE TRUE TRUE TRUE TRUE
 ```
 
 Some state nodes are not present (do not hold sovereign status) 
@@ -131,67 +114,33 @@ But we do have an additional list of events detailing how these states gain
 To make sure goldfish recognises these changes at the appropriate point,
 we "link" these events to the node set and attribute we have defined.
 
-
-```r
+```{r link-present}
 states <- linkEvents(states, sovchanges, attribute = "present")
 # If you call the object now, what happens?
 states
-#> Number of nodes: 154 
-#> Number of present nodes: 137 
-#> Dynamic attribute(s):    Linked events
-#>    present                  sovchanges 
-#> 
-#> First 6 rows
-#>   label present regime         gdp
-#> 1   AND    TRUE     NA          NA
-#> 2   DNK    TRUE     10 0.006248947
-#> 3   FRA    TRUE      5 0.062651475
-#> 4   DEU    TRUE     -9          NA
-#> 5   ITA    TRUE     10 0.040385288
-#> 6   LIE    TRUE     NA          NA
 ```
 
 That's because the event list is only linked to the node set,
 to update it when necessary. 
 You can see what is linked to which attribute here:
 
-
-```r
+```{r states}
 str(states)
-#> Classes 'nodes.goldfish' and 'data.frame':	154 obs. of  4 variables:
-#>  $ label  : chr  "AND" "DNK" "FRA" "DEU" ...
-#>  $ present: logi  TRUE TRUE TRUE TRUE TRUE TRUE ...
-#>  $ regime : num  NA 10 5 -9 10 NA 10 -9 -1 NA ...
-#>  $ gdp    : num  NA 0.00625 0.06265 NA 0.04039 ...
-#>  - attr(*, "events")= chr "sovchanges"
-#>  - attr(*, "dynamicAttributes")= chr "present"
 ```
 
 We can continue on with our other two dynamic monadic variables.
 Try this for yourself now.
 
-
-```r
+```{r link-states-vars}
 states <- linkEvents(states, regchanges, attribute = "regime")
 states <- linkEvents(states, gdpchanges, attribute = "gdp")
 str(states)
-#> Classes 'nodes.goldfish' and 'data.frame':	154 obs. of  4 variables:
-#>  $ label  : chr  "AND" "DNK" "FRA" "DEU" ...
-#>  $ present: logi  TRUE TRUE TRUE TRUE TRUE TRUE ...
-#>  $ regime : num  NA 10 5 -9 10 NA 10 -9 -1 NA ...
-#>  $ gdp    : num  NA 0.00625 0.06265 NA 0.04039 ...
-#>  - attr(*, "events")= chr [1:3] "sovchanges" "regchanges" "gdpchanges"
-#>  - attr(*, "dynamicAttributes")= chr [1:3] "present" "regime" "gdp"
 ```
 
 Let's check whether we have everything linked up correctly:
 
-
-```r
+```{r objs}
 goldfishObjects()
-#> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
 ```
 
 ## Step 1b: Define networks ####
@@ -204,62 +153,25 @@ there were already several bilateral fisheries agreements in place
 at the start of our time period. 
 This is shown in the matrix 
 
-
-```r
+```{r examine-bilat-mat}
 bilatnet[1:12, 1:12]  # head(bilatnet, n = c(12, 12))
-#>     AND DNK FRA DEU ITA LIE NLD PRT RUS SMR ESP SWE
-#> AND   0   0   0   0   0   0   0   0   0   0   0   0
-#> DNK   0   0   0   1   0   0   0   0   0   0   0   0
-#> FRA   0   0   0   0   0   0   0   0   0   0   2   0
-#> DEU   0   1   0   0   0   0   0   0   0   0   0   0
-#> ITA   0   0   0   0   0   0   0   0   0   0   0   0
-#> LIE   0   0   0   0   0   0   0   0   0   0   0   0
-#> NLD   0   0   0   0   0   0   0   0   0   0   0   0
-#> PRT   0   0   0   0   0   0   0   0   0   0   0   0
-#> RUS   0   0   0   0   0   0   0   0   0   0   0   0
-#> SMR   0   0   0   0   0   0   0   0   0   0   0   0
-#> ESP   0   0   2   0   0   0   0   0   0   0   0   0
-#> SWE   0   0   0   0   0   0   0   0   0   0   0   0
 ```
 
 Two things can be observed here. What are they?
 
 So that goldfish knows how to handle this network, we define it so:
 
-
-```r
+```{r define-bilat-net}
 bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
 ```
 
 We specify the nodes so that goldfish can check for consistency,
 and relate the network to that nodeset when needed.
 
-
-```r
+```{r examine-bilat-net}
 class(bilatnet)
-#> [1] "network.goldfish" "matrix"           "array"
 str(bilatnet)
-#>  'network.goldfish' num [1:154, 1:154] 0 0 0 0 0 0 0 0 0 0 ...
-#>  - attr(*, "dimnames")=List of 2
-#>   ..$ : chr [1:154] "AND" "DNK" "FRA" "DEU" ...
-#>   ..$ : chr [1:154] "AND" "DNK" "FRA" "DEU" ...
-#>  - attr(*, "events")= chr(0) 
-#>  - attr(*, "nodes")= chr "states"
-#>  - attr(*, "directed")= logi FALSE
 bilatnet
-#> Dimensions: 154 154 
-#> Number of ties (no weighted): 22 
-#> Nodes set(s): states 
-#> It is a one-mode and undirected network
-#> 
-#> First 6 rows and columns
-#>     AND DNK FRA DEU ITA LIE
-#> AND   0   0   0   0   0   0
-#> DNK   0   0   0   1   0   0
-#> FRA   0   0   0   0   0   0
-#> DEU   0   1   0   0   0   0
-#> ITA   0   0   0   0   0   0
-#> LIE   0   0   0   0   0   0
 ```
 
 By stating that this is an undirected network, 
@@ -271,65 +183,25 @@ We use precisely the same function as before
 (since we have defined our objects, 
 goldfish knows what to do and how to check it).
 
-
-```r
+```{r link-bilat-net}
 bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
 bilatnet
-#> Dimensions: 154 154 
-#> Number of ties (no weighted): 22 
-#> Nodes set(s): states 
-#> It is a one-mode and undirected network
-#> Linked events: bilatchanges 
-#> 
-#> First 6 rows and columns
-#>     AND DNK FRA DEU ITA LIE
-#> AND   0   0   0   0   0   0
-#> DNK   0   0   0   1   0   0
-#> FRA   0   0   0   0   0   0
-#> DEU   0   1   0   0   0   0
-#> ITA   0   0   0   0   0   0
-#> LIE   0   0   0   0   0   0
 ```
 
 TASK: You should now be able to do the same with the 
 initial contiguity network and the event list changing it.
 
-
-```r
+```{r contig-net}
 contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
 contignet <- linkEvents(contignet, contigchanges, nodes = states)
 class(contignet)
-#> [1] "network.goldfish" "matrix"           "array"
 contignet
-#> Dimensions: 154 154 
-#> Number of ties (no weighted): 175 
-#> Nodes set(s): states 
-#> It is a one-mode and undirected network
-#> Linked events: contigchanges 
-#> 
-#> First 6 rows and columns
-#>     AND DNK FRA DEU ITA LIE
-#> AND   0   0   0   0   0   0
-#> DNK   0   0   1   0   0   0
-#> FRA   0   1   0   0   1   0
-#> DEU   0   0   0   0   0   0
-#> ITA   0   0   1   0   0   0
-#> LIE   0   0   0   0   0   0
 ```
 
 Quick check to see whether everything is linked up correctly:
 
-
-```r
+```{r objs2}
 goldfishObjects()
-#> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
-#> 
-#> Goldfish Networks
-#>           dimensions nodesets        events
-#> bilatnet   154 x 154   states  bilatchanges
-#> contignet  154 x 154   states contigchanges
 ```
 
 ## Step 1c: Define dependent events ####
@@ -339,8 +211,7 @@ to identify the dependent events.
 Since treaty dissolution is a rarer, more complex, and idiosyncratic process,
 we will only look at those events that create a treaty tie between countries.
 
-
-```r
+```{r define-dep-events}
 createBilat <- defineDependentEvents(
   events = bilatchanges[bilatchanges$increment == 1,], 
   nodes = states, 
@@ -351,42 +222,15 @@ createBilat <- defineDependentEvents(
 Note that we define the default network to which this dependent event list applies, 
 as well as the node set, so that structural effects can be interpreted correctly.
 
-
-```r
+```{r examine-dep-events}
 class(createBilat)
-#> [1] "dependent.goldfish" "data.frame"
 createBilat
-#> Number of events: 69 
-#> Nodes set(s): states 
-#> Default network: bilatnet 
-#> 
-#> First 6 rows
-#>          time sender receiver increment
-#> 36 1960-03-19    FIN      SWE         1
-#> 37 1960-06-23    FIN      RUS         1
-#> 38 1960-11-15    FIN      NOR         1
-#> 39 1960-11-17    GBR      NOR         1
-#> 40 1961-03-11    GBR      ISL         1
-#> 41 1961-07-19    DEU      ISL         1
 ```
 
 So what goldfish related objects do we have now?
 
-
-```r
+```{r objs3}
 goldfishObjects()
-#> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
-#> 
-#> Goldfish Networks
-#>           dimensions nodesets        events
-#> bilatnet   154 x 154   states  bilatchanges
-#> contignet  154 x 154   states contigchanges
-#> 
-#> Goldfish Dependent Events
-#>              n  network
-#> createBilat 69 bilatnet
 ```
 
 # Intermediate step: Visualisation ####
@@ -399,8 +243,7 @@ goldfish includes wrappers for base R commands
 to help extract monadic and dyadic information
 for certain time points.
 
-
-```r
+```{r hlp, eval = FALSE}
 ?as.data.frame.nodes.goldfish
 ?as.matrix.network.goldfish
 ```
@@ -408,8 +251,7 @@ for certain time points.
 We can use these functions to visually compare our network
 at two (or more) different time periods using igraph.
 
-
-```r
+```{r plot-teaching2, message=FALSE, warning=FALSE, fig.width=7, fig.height=4, fig.align='center', fig.retina=3}
 library(igraph)
 library(migraph)
 
@@ -439,8 +281,6 @@ endNet <- delete_vertices(endNet, !isStateActive)
 ggevolution(startNet, endNet, layout = "fr", based_on = "last")
 ```
 
-<img src="figure/plot-teaching2-1.png" title="plot of chunk plot-teaching2" alt="plot of chunk plot-teaching2" width="504" style="display: block; margin: auto;" />
-
 What can we observe?
 
 # Step 2: Specify and estimate model ####
@@ -459,16 +299,14 @@ and recognise steps 2b and 2c as goldfish does them.
 
 Let us first see how to specify the effects and which are currently available:
 
-
-```r
+```{r hlp-effects, eval=FALSE}
 ?goldfishEffects
 ```
 
 The data and model specification is similar (though not the same as)
 Stadtfeld, Hollway, and Block 2017a
 
-
-```r
+```{r estimate-init}
 formula1 <-
   createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignoreRep = TRUE) +
     trans(bilatnet, ignoreRep = TRUE) +
@@ -489,15 +327,12 @@ system.time(
     estimationInit = estPrefs
     )
 )
-#>    user  system elapsed 
-#>   84.12    4.85   89.55
 ```
 
 Did the model converge? If not, you can restart the estimation process using
 the same formula and current parameter estimates:
 
-
-```r
+```{r estimate-rerun}
 estPrefs <- list(
   returnIntervalLogL = TRUE,
   initialDamping = 40,
@@ -511,44 +346,6 @@ partner.model <- estimate(
   estimationInit = estPrefs
   )
 summary(partner.model)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Effects details :
-#>         Object        ignoreRep
-#> inertia bilatnet               
-#> indeg   bilatnet      B        
-#> trans   bilatnet      B        
-#> tie     contignet              
-#> alter   states$regime          
-#> diff    states$regime          
-#> alter   states$gdp             
-#> diff    states$gdp             
-#> 
-#> Coefficients :
-#>           Estimate Std. Error z-value  Pr(>|z|)    
-#> inertia  2.8687399  0.2724550 10.5292 < 2.2e-16 ***
-#> indeg    0.5058902  0.0661896  7.6430 2.132e-14 ***
-#> trans    0.3128331  0.2140819  1.4613  0.143939    
-#> tie      1.0951108  0.2224272  4.9235 8.503e-07 ***
-#> alter    0.0046804  0.0144157  0.3247  0.745429    
-#> diff     0.0013902  0.0117902  0.1179  0.906140    
-#> alter    5.0528318  1.5487636  3.2625  0.001104 ** 
-#> diff    -3.0977424  1.5990442 -1.9372  0.052715 .  
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 0.00024 
-#>   Log-Likelihood: -387.86
-#>   AIC:  791.72 
-#>   AICc: 794.12 
-#>   BIC:  809.59 
-#>   model: "DyNAM" subModel: "choice_coordination"
 ```
 
 Let's interpret...
@@ -558,8 +355,7 @@ Let's interpret...
 - Do states prefer rich or democratic partners?
 - Do states prefer similarly rich or democratic partners?
 
-
-```r
+```{r estimate-c}
 formula2 <-
   createBilat ~ inertia(bilatnet, weighted = TRUE) +
   indeg(bilatnet) + trans(bilatnet) +
@@ -580,8 +376,6 @@ system.time(
     estimationInit = estPrefs
     )
 )
-#>    user  system elapsed 
-#>    9.19    0.41    8.04
 ```
 
 # Extensions...
@@ -596,44 +390,25 @@ We have implemented some "tidymodels" (or rather `{broom}`) functions
 for extracting and printing the key results from goldfish results objects.
 Here is an example on the current results object:
 
-
-```r
+```{r broom}
 library(broom)
 library(pixiedust)
 dust(tidy(tie.model)) %>% 
   sprinkle(col = 2:4, round = 3) %>% 
   sprinkle(col = 5, fn = quote(pvalString(value)))
-#>                  term estimate std.error statistic p.value
-#> 1  bilatnet inertia W    0.134     0.048     2.816   0.005
-#> 2      bilatnet indeg    0.568     0.058     9.854 < 0.001
-#> 3      bilatnet trans    0.289     0.146      1.98   0.048
-#> 4       contignet tie    1.648     0.184     8.956 < 0.001
-#> 5 states regime alter   -0.015     0.016    -0.957    0.34
-#> 6  states regime diff    0.008     0.013     0.651    0.52
-#> 7    states gdp alter    6.089     1.516     4.015 < 0.001
-#> 8     states gdp diff   -4.601     1.582    -2.908   0.004
 ```
 
-
-```r
+```{r glance}
 glance(tie.model)
-#> # A tibble: 1 × 4
-#>   logLik   AIC   BIC  nobs
-#>    <dbl> <dbl> <dbl> <int>
-#> 1  -359.  733.  751.    69
 ```
 
 
 Lastly, we have begun implementing further diagnostic functions that can
 help users identify areas for improving their model specification.
 
-
-```r
+```{r examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3}
 examineOutliers(tie.model)
-#> No outliers found.
 examineChangepoints(tie.model)
 ```
-
-<img src="figure/examine-1.png" title="plot of chunk examine" alt="plot of chunk examine" width="432" style="display: block; margin: auto;" />
 
 For more, please see Hollway (2020) Network Embeddedness and the Rate of Water Cooperation and Conflict.
