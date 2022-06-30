@@ -9,10 +9,12 @@ vignette: >
 ---
 
 
-```{r, include = FALSE}
+```{r knitr-setup, include = FALSE}
+#| purl = FALSE
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  fig.path = "teaching/"
 )
 ```
 
@@ -31,6 +33,7 @@ library(goldfish)
 ```
 
 ```{r mask, echo=FALSE}
+#| purl = FALSE
 estimate <- function(
     x,
     model = c("DyNAM", "REM", "DyNAMi"),
@@ -309,10 +312,10 @@ Stadtfeld, Hollway, and Block 2017a
 ```{r estimate-init}
 formula1 <-
   createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignoreRep = TRUE) +
-    trans(bilatnet, ignoreRep = TRUE) +
-    tie(contignet) +
-    alter(states$regime) + diff(states$regime) +
-    alter(states$gdp) + diff(states$gdp)
+                trans(bilatnet, ignoreRep = TRUE) +
+                tie(contignet) +
+                alter(states$regime) + diff(states$regime) +
+                alter(states$gdp) + diff(states$gdp)
 
 estPrefs <- list(
   returnIntervalLogL = TRUE,
@@ -321,7 +324,7 @@ estPrefs <- list(
   )
 
 system.time(
-  partner.model <- estimate(
+  partnerModel <- estimate(
     formula1,
     model = "DyNAM", subModel = "choice_coordination",
     estimationInit = estPrefs
@@ -337,15 +340,15 @@ estPrefs <- list(
   returnIntervalLogL = TRUE,
   initialDamping = 40,
   maxIterations = 30,
-  initialParameters = coef(partner.model)
+  initialParameters = coef(partnerModel)
   )
 
-partner.model <- estimate(
+partnerModel <- estimate(
   formula1,
   model = "DyNAM", subModel = "choice_coordination",
   estimationInit = estPrefs
   )
-summary(partner.model)
+summary(partnerModel)
 ```
 
 Let's interpret...
@@ -358,9 +361,9 @@ Let's interpret...
 ```{r estimate-c}
 formula2 <-
   createBilat ~ inertia(bilatnet, weighted = TRUE) +
-  indeg(bilatnet) + trans(bilatnet) +
-  tie(contignet) + alter(states$regime) +
-  diff(states$regime) + alter(states$gdp) + diff(states$gdp)
+                indeg(bilatnet) + trans(bilatnet) +
+                tie(contignet) + alter(states$regime) +
+                diff(states$regime) + alter(states$gdp) + diff(states$gdp)
 
 estPrefs <- list(
   returnIntervalLogL = TRUE,
@@ -370,7 +373,7 @@ estPrefs <- list(
   )
 
 system.time(
-  tie.model <- estimate(
+  tieModel <- estimate(
     formula2,
     model = "DyNAM", subModel = "choice_coordination",
     estimationInit = estPrefs
@@ -393,13 +396,13 @@ Here is an example on the current results object:
 ```{r broom}
 library(broom)
 library(pixiedust)
-dust(tidy(tie.model)) %>% 
+dust(tidy(tieModel)) %>% 
   sprinkle(col = 2:4, round = 3) %>% 
   sprinkle(col = 5, fn = quote(pvalString(value)))
 ```
 
 ```{r glance}
-glance(tie.model)
+glance(tieModel)
 ```
 
 
@@ -407,8 +410,8 @@ Lastly, we have begun implementing further diagnostic functions that can
 help users identify areas for improving their model specification.
 
 ```{r examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3}
-examineOutliers(tie.model)
-examineChangepoints(tie.model)
+examineOutliers(tieModel)
+examineChangepoints(tieModel)
 ```
 
 For more, please see Hollway (2020) Network Embeddedness and the Rate of Water Cooperation and Conflict.

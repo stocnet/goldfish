@@ -242,11 +242,11 @@ partner.model <- estimate(createBilat ~
                            inertia(bilatnet) +
                            indeg(bilatnet, ignoreRep = TRUE) +
                            trans(bilatnet, ignoreRep = TRUE) +
-                           tie(contignet, ignoreRep = TRUE) +
-                           alter(states$regime, ignoreRep = TRUE) +
-                           diff(states$regime, ignoreRep = TRUE) +
-                           alter(states$gdp, ignoreRep = TRUE) +
-                           diff(states$gdp, ignoreRep = TRUE),
+                           tie(contignet) +
+                           alter(states$regime) +
+                           diff(states$regime) +
+                           alter(states$gdp) +
+                           diff(states$gdp),
   model = "DyNAM", subModel = "choice_coordination",
   estimationInit = list(initialDamping = 40, maxIterations = 30)
 )

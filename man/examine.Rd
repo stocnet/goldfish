@@ -41,9 +41,6 @@ See section \emph{Change point} for details.}
 
 \item{...}{additional arguments to be passed to the functions in the
 \code{\link{changepoint}} package.}
-
-\item{minseglen}{Positive integer giving the minimum segment length
-(no. of observations between changes), default is 3.}
 }
 \value{
 \code{NULL} if neither outliers nor change points are identified.

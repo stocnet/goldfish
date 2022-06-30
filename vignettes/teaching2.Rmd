@@ -439,7 +439,7 @@ endNet <- delete_vertices(endNet, !isStateActive)
 ggevolution(startNet, endNet, layout = "fr", based_on = "last")
 ```
 
-<img src="figure/plot-teaching2-1.png" title="plot of chunk plot-teaching2" alt="plot of chunk plot-teaching2" width="504" style="display: block; margin: auto;" />
+<img src="teaching/plot-teaching2-1.png" title="plot of chunk plot-teaching2" alt="plot of chunk plot-teaching2" width="504" style="display: block; margin: auto;" />
 
 What can we observe?
 
@@ -471,10 +471,10 @@ Stadtfeld, Hollway, and Block 2017a
 ```r
 formula1 <-
   createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignoreRep = TRUE) +
-    trans(bilatnet, ignoreRep = TRUE) +
-    tie(contignet) +
-    alter(states$regime) + diff(states$regime) +
-    alter(states$gdp) + diff(states$gdp)
+                trans(bilatnet, ignoreRep = TRUE) +
+                tie(contignet) +
+                alter(states$regime) + diff(states$regime) +
+                alter(states$gdp) + diff(states$gdp)
 
 estPrefs <- list(
   returnIntervalLogL = TRUE,
@@ -483,14 +483,14 @@ estPrefs <- list(
   )
 
 system.time(
-  partner.model <- estimate(
+  partnerModel <- estimate(
     formula1,
     model = "DyNAM", subModel = "choice_coordination",
     estimationInit = estPrefs
     )
 )
 #>    user  system elapsed 
-#>   84.12    4.85   89.55
+#>   84.46    4.11   89.35
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -502,15 +502,15 @@ estPrefs <- list(
   returnIntervalLogL = TRUE,
   initialDamping = 40,
   maxIterations = 30,
-  initialParameters = coef(partner.model)
+  initialParameters = coef(partnerModel)
   )
 
-partner.model <- estimate(
+partnerModel <- estimate(
   formula1,
   model = "DyNAM", subModel = "choice_coordination",
   estimationInit = estPrefs
   )
-summary(partner.model)
+summary(partnerModel)
 #> 
 #> Call:
 #> goldfish::estimate(x = x, model = model, subModel = subModel, 
@@ -562,9 +562,9 @@ Let's interpret...
 ```r
 formula2 <-
   createBilat ~ inertia(bilatnet, weighted = TRUE) +
-  indeg(bilatnet) + trans(bilatnet) +
-  tie(contignet) + alter(states$regime) +
-  diff(states$regime) + alter(states$gdp) + diff(states$gdp)
+                indeg(bilatnet) + trans(bilatnet) +
+                tie(contignet) + alter(states$regime) +
+                diff(states$regime) + alter(states$gdp) + diff(states$gdp)
 
 estPrefs <- list(
   returnIntervalLogL = TRUE,
@@ -574,14 +574,14 @@ estPrefs <- list(
   )
 
 system.time(
-  tie.model <- estimate(
+  tieModel <- estimate(
     formula2,
     model = "DyNAM", subModel = "choice_coordination",
     estimationInit = estPrefs
     )
 )
 #>    user  system elapsed 
-#>    9.19    0.41    8.04
+#>    8.83    0.36    7.91
 ```
 
 # Extensions...
@@ -600,7 +600,7 @@ Here is an example on the current results object:
 ```r
 library(broom)
 library(pixiedust)
-dust(tidy(tie.model)) %>% 
+dust(tidy(tieModel)) %>% 
   sprinkle(col = 2:4, round = 3) %>% 
   sprinkle(col = 5, fn = quote(pvalString(value)))
 #>                  term estimate std.error statistic p.value
@@ -616,7 +616,7 @@ dust(tidy(tie.model)) %>%
 
 
 ```r
-glance(tie.model)
+glance(tieModel)
 #> # A tibble: 1 × 4
 #>   logLik   AIC   BIC  nobs
 #>    <dbl> <dbl> <dbl> <int>
@@ -629,11 +629,11 @@ help users identify areas for improving their model specification.
 
 
 ```r
-examineOutliers(tie.model)
+examineOutliers(tieModel)
 #> No outliers found.
-examineChangepoints(tie.model)
+examineChangepoints(tieModel)
 ```
 
-<img src="figure/examine-1.png" title="plot of chunk examine" alt="plot of chunk examine" width="432" style="display: block; margin: auto;" />
+<img src="teaching/examine-1.png" title="plot of chunk examine" alt="plot of chunk examine" width="432" style="display: block; margin: auto;" />
 
 For more, please see Hollway (2020) Network Embeddedness and the Rate of Water Cooperation and Conflict.

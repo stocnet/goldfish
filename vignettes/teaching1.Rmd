@@ -322,7 +322,7 @@ We specify the event list and the node list.
 
 
 ```r
-# ?defineDependentEvents
+?defineDependentEvents
 ```
 
 
@@ -362,38 +362,35 @@ callNetworkBgn <- as.matrix(callNetwork)
 autographr(callNetworkBgn, labels = FALSE, layout = "fr")
 ```
 
-<img src="figure/plot-teaching1-1.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
-
-```r
-# The network at the end
-callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1)
-autographr(callNetworkEnd, labels = FALSE, layout = "fr")
-```
-
-<img src="figure/plot-teaching1-2.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
-
-```r
-
-callNetworkEnd <- add_node_attributes(callNetworkEnd, "floor", actors$floor)
-autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
-  geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
-```
-
-<img src="figure/plot-teaching1-3.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
+<img src="teaching/plot-teaching1-1.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
 
 ```r
 
 # The network at half time
 callNetworkHlf <- as.matrix(callNetwork,
-                            time = calls$time[floor(nrow(calls) / 2)])
-callNetworkHlf <- add_node_attributes(callNetworkHlf, "floor", actors$floor)
+                            time = calls$time[floor(nrow(calls) / 2)]) |> 
+  add_node_attributes("floor", actors$floor)
+
 autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
 ```
 
-<img src="figure/plot-teaching1-4.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
+<img src="teaching/plot-teaching1-2.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
 
 ```r
+
+# The network at the end
+callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |> 
+  add_node_attributes("floor", actors$floor)
+
+autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
+  geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
+```
+
+<img src="teaching/plot-teaching1-3.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
+
+```r
+
 
 # The tie strength at the end
 table(as.matrix(callNetwork, time = max(calls$time) + 1))
@@ -861,10 +858,12 @@ We can now also run REMs using the right-censored intervals as introduced in Sta
 
 
 ```r
-allFormulaREM <- callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) +
-  inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) +
-  tie(friendshipNetwork) + recip(friendshipNetwork) +
-  same(actors$gradeType) + same(actors$floor)
+allFormulaREM <-
+  callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) +
+                   inertia(callNetwork, window = 300) +
+                   recip(callNetwork, window = 300) +
+                   tie(friendshipNetwork) + recip(friendshipNetwork) +
+                   same(actors$gradeType) + same(actors$floor)
 ```
 
 And we can estimate this model, to speed up estimation, we can use any of the two `C` implementations of the estimation algorithm.
