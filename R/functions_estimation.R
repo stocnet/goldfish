@@ -175,7 +175,7 @@
 #'
 #' @importFrom stats formula na.omit end filter
 #' @export
-#' @seealso \code{\link{defineDependentEvents}}, \code{\link{goldfishEffects}},
+#' @seealso \code{\link{defineDependentEvents}},
 #'  \code{\link{defineGlobalAttribute}}, \code{\link{defineNetwork}},
 #'  \code{\link{defineNodes}}, \code{\link{linkEvents}}
 #'
@@ -207,12 +207,14 @@
 #'                           nodes = actors)
 #' callsDependent <- defineDependentEvents(events = calls, nodes = actors,
 #'                                         defaultNetwork = callNetwork)
+#'
 #' \dontshow{
 #' callsDependent <- callsDependent[1:50, ]
 #' }
+#' 
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
 #'                   model = "DyNAM", subModel = "choice",
-#'                   estimationInit = list(engine = "default_c))
+#'                   estimationInit = list(engine = "default_c"))
 #' summary(mod01)
 #'
 #' # A individual activity rates model
@@ -252,6 +254,7 @@
 #' )
 #' summary(partner.model)
 #' }
+#' 
 # \item{impute}{a boolean indicating whether it should impute the statistics
 # for missing values. }
 estimate <- function(
