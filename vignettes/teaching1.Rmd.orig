@@ -262,7 +262,7 @@ We specify our model using the standard R formula format like:
 We can see which effects are currently available and how to specify them here:
 
 ```{r effects, eval=FALSE}
-?goldfishEffects
+vignette("goldfishEffects")
 ```
 
 Let's start with the simplest model we can imagine:

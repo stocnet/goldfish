@@ -303,7 +303,7 @@ and recognise steps 2b and 2c as goldfish does them.
 Let us first see how to specify the effects and which are currently available:
 
 ```{r hlp-effects, eval=FALSE}
-?goldfishEffects
+vignette("goldfishEffects")
 ```
 
 The data and model specification is similar (though not the same as)

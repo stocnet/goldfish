@@ -207,8 +207,12 @@
 #'                           nodes = actors)
 #' callsDependent <- defineDependentEvents(events = calls, nodes = actors,
 #'                                         defaultNetwork = callNetwork)
+#' \dontshow{
+#' callsDependent <- callsDependent[1:50, ]
+#' }
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-#'                   model = "DyNAM", subModel = "choice")
+#'                   model = "DyNAM", subModel = "choice",
+#'                   estimationInit = list(engine = "default_c))
 #' summary(mod01)
 #'
 #' # A individual activity rates model
@@ -216,6 +220,7 @@
 #'                   model = "DyNAM", subModel = "rate")
 #' summary(mod02)
 #'
+#' \dontrun{
 #' # A multinomial-multinomial choice model for coordination ties
 #' data("Fisheries_Treaties_6070")
 #' states <- defineNodes(states)
@@ -246,6 +251,7 @@
 #'   estimationInit = list(initialDamping = 40, maxIterations = 30)
 #' )
 #' summary(partner.model)
+#' }
 # \item{impute}{a boolean indicating whether it should impute the statistics
 # for missing values. }
 estimate <- function(

@@ -461,7 +461,7 @@ Let us first see how to specify the effects and which are currently available:
 
 
 ```r
-?goldfishEffects
+vignette("goldfishEffects")
 ```
 
 The data and model specification is similar (though not the same as)
@@ -490,7 +490,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>   84.46    4.11   89.35
+#>   85.89    5.64   92.58
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -581,7 +581,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>    8.83    0.36    7.91
+#>    8.78    0.57    8.76
 ```
 
 # Extensions...

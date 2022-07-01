@@ -12,7 +12,6 @@
 #' outliers or change point inflections.
 #' @name examine
 #' @examples
-#' \donttest{
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
@@ -24,15 +23,18 @@
 #'   events = calls, nodes = actors,
 #'   defaultNetwork = callNetwork
 #' )
+#' \dontshow{
+#' callsDependent <- callsDependent[1:50, ]
+#' }
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
 #'   model = "DyNAM", subModel = "choice",
-#'   estimationInit = list(returnIntervalLogL = TRUE)
+#'   estimationInit = list(returnIntervalLogL = TRUE,
+#'                         engine = "default_c")
 #' )
 #'
 #' examineOutliers(mod01)
 #'
 #' examineChangepoints(mod01)
-#' }
 NULL
 
 # Examine outlier cases

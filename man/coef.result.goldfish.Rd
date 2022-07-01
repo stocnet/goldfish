@@ -24,7 +24,6 @@ The names just correspond to the effect name. For a comprehensive output use
 \code{\link{summary.result.goldfish}}.
 }
 \examples{
-\donttest{
 # A multinomial receiver choice model
 data("Social_Evolution")
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
@@ -32,8 +31,10 @@ callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
                           nodes = actors)
 callsDependent <- defineDependentEvents(events = calls, nodes = actors,
                                         defaultNetwork = callNetwork)
+\dontshow{
+callsDependent <- callsDependent[1:50, ]
+}
 mod01 <- estimate(callsDependent ~ inertia + recip + trans,
                   model = "DyNAM", subModel = "choice")
 coef(mod01)
-}
 }
