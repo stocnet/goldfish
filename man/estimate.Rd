@@ -20,7 +20,7 @@ estimate(
 \item{x}{a formula that defines at the left-hand side the dependent network
 (see \code{\link{defineDependentEvents}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
-(see \code{\link{goldfishEffects}}).}
+(see \code{vignette("goldfishEffects")}).}
 
 \item{model}{a character string defining the model type.
 Current options include \code{"DyNAM"}, \code{"DyNAMi"} or \code{"REM"}
@@ -71,7 +71,7 @@ any parameter. Note that it must be consistent with
  factor for each parameter.
  It controls the size of the update step during the iterative estimation
  process. The default is set to 30 when the formula has windowed effects or
- 10 in another case, see \code{\link{goldfishEffects}}.}
+ 10 in another case, see \code{vignette("goldfishEffects")}.}
  \item{dampingIncreaseFactor}{a numeric value. It controls the factor that
  increases the damping of the parameters when improvements in the estimation
  are found.}
