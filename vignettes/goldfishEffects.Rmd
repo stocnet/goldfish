@@ -21,9 +21,7 @@ knitr::opts_chunk$set(
 ```
 
 This vignette summarizes effects that are implemented in `goldfish` and
-are thus available to be used with actor-oriented DyNAM models
-\citep{Stadtfeld2017, Stadtfeld2017a} and tie-oriented
-Relational Event Models \citep{Butts2008}.
+are thus available to be used with actor-oriented DyNAM models and tie-oriented Relational Event Models.
 
 
 # Effect arguments

@@ -24,7 +24,12 @@ Suggests:
     knitr,
     devtools,
     covr,
-    rmarkdown
+    rmarkdown,
+    pixiedust,
+    igraph,
+    ggraph,
+    migraph,
+    broom
 VignetteBuilder: knitr 
 License: GPL (>= 3) | file LICENSE
 LazyData: true
