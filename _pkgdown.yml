@@ -36,12 +36,16 @@ navbar:
 reference:
   - title: "Define"
     contents:
+      - goldfish-package
       - starts_with("define")
       - starts_with("link")
       - goldfishObjects
   - title: "Estimate"
     contents:
       - starts_with("estimate")
+      - update-method
+      - coef.result.goldfish
+      - print-method
   - title: "Diagnostics"
     contents:
       - model-selection

@@ -1,4 +1,4 @@
-# goldfish  <img src="inst/hexlogo_goldfish.png" align="right" width="150"/> 
+# goldfish  <img src="man/figures/logo.png" align="right" width="150"/> 
 
 <!-- badges: start -->
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/snlab-ch/goldfish)
