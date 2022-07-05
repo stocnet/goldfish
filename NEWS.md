@@ -1,3 +1,7 @@
+# goldfish 1.6.2
+
+* Fix additional URL on Vignette "How to start"
+
 # goldfish 1.6.1
 
 * Fix URLs. 
