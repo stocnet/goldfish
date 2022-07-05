@@ -1,9 +1,9 @@
 Encoding: UTF-8
 Package: goldfish
 Type: Package
-Title: Goldfish -- Statistical network models for dynamic network data
-Version: 1.6.0
-Date: 2022-07-02
+Title: Statistical Network Models for Dynamic Network Data
+Version: 1.6.1
+Date: 2022-07-05
 Authors@R: c(person("James", "Hollway", role = c("cre", "aut", "dtc"), 
              email = "james.hollway@graduateinstitute.ch",
              comment = c("IHEID", ORCID = "0000-0002-8361-9647")),
@@ -18,7 +18,9 @@ Authors@R: c(person("James", "Hollway", role = c("cre", "aut", "dtc"),
               person("Weigutian", "Ou", role = "ctb"),
               person("Emily", "Garvin", role = "ctb"),
               person("Siwei", "Zhang", role = "ctb"))
-Description: Goldfish is an R package that enables fitting statistical network models (such as DyNAM and REM) to dynamic network data.
+Description: Tools for fitting statistical network models to dynamic network data.
+   Can be used for fitting both dynamic network actor models ('DyNAMs') and
+   relational event models ('REMs').
 URL: www.social-networks.ethz.ch/research/goldfish.html
 BugReports: https://github.com/snlab-ch/goldfish/issues
 Suggests: 
