@@ -39,9 +39,6 @@ reference:
       - starts_with("define")
       - starts_with("link")
       - goldfishObjects
-  - title: "Effects"
-    contents:
-      - goldfishEffects
   - title: "Estimate"
     contents:
       - starts_with("estimate")

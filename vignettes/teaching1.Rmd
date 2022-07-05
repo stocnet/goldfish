@@ -845,7 +845,7 @@ tail(calls_300)
 
 ### REM with `goldfish`
 
-`goldfish` does not only run DyNAMs; it also runs REMs [(Butts, 2008)](https://journals.sagepub.com/doi/10.1111/j.1467-9531.2008.00203.x "REM"). 
+`goldfish` does not only run DyNAMs; it also runs REMs (Butts, 2008).
 We can now also run REMs using the right-censored intervals as introduced in Stadtfeld & Block (2017).
 
 
