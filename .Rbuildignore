@@ -12,3 +12,4 @@ vignettes/precompile\.R
 ^inst/image.imageformat.text50percent.1133283\.png$
 ^inst/goldfish_logo\.R$
 ^inst/hexlogo_goldfish\.tif$
+^cran-comments\.md$
