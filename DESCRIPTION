@@ -4,8 +4,10 @@ Type: Package
 Title: Goldfish -- Statistical network models for dynamic network data
 Version: 1.5.3
 Date: 2022-07-02
-Authors@R: c(person("Christoph", "Stadtfeld", role = c("cre", "aut"), email = "c.stadtfeld@ethz.ch"),
-              person("James", "Hollway", role = c("aut", "dtc")),
+Authors@R: c(person("James", "Hollway", role = c("cre", "aut", "dtc"), 
+             email = "james.hollway@graduateinstitute.ch",
+             comment = c("IHEID", ORCID = "0000-0002-8361-9647")),
+              person("Christoph", "Stadtfeld", role = c("aut"), email = "c.stadtfeld@ethz.ch"),
               person("Marion", "Hoffman", role = "ctb"),
               person("Alvaro", "Uzaheta", role = "ctb"),
               person("Mirko", "Reul", role = "ctb"),
