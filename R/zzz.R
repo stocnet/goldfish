@@ -2,7 +2,7 @@
 .onAttach <- function(libname, pkgname) {
   if (!interactive()) return()
   base::packageStartupMessage(
-    "  <\")))><  The Goldfish package in R\n\n",
+    "  <\")))><  The goldfish package in R\n\n",
     pkgname, ": version ", utils::packageVersion("goldfish"),
     ", \"Butterfly Tail\", created on ",
     utils::packageDescription("goldfish", fields = "Date"),

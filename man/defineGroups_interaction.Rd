@@ -8,7 +8,7 @@ defineGroups_interaction(records, actors, seed.randomization)
 }
 \arguments{
 \item{records}{a dataframe that is a list of rows of type node A, nodeB, Start, End,
-where nodeA and nodeB indicate the actors invovlved in a dyadic interaction, and Start and End
+where nodeA and nodeB indicate the actors involved in a dyadic interaction, and Start and End
 indicating the starting and ending time of their interaction}
 
 \item{actors}{a goldfish nodes objects that defines the actors interactind
@@ -19,7 +19,7 @@ indicating the starting and ending time of their interaction}
 \value{
 a list with a dataframe "interaction.updates" containing all joining and leaving events,
 a data.frame "groups" containing the nodeset corresponding to interaction groups (the second mode of the network),
-a dataframe "dependent.events" for the events that should be modeled and "exogeneous.events" that are not modeled
+a dataframe "dependent.events" for the events that should be modeled and "exogenous.events" that are not modeled
 (for example when an actor leaves a group and joins its own singleton group, only the leaving event is modeled
 but not the joining event), and a dataframe "composition.changes" that is an events list that should be attached
 to the groups nodeset to indicate when a group is present or not
@@ -31,9 +31,9 @@ of the interaction network that will be modeled, i.e. the interaction groups set
 and an event list that indicates when groups are present or not through time.
 It then creates a list of interaction events, between actors and groups, in which an actor either
 joins or leaves a group. It is decomposed in an list of dependent events (that should
-be modeled) and a list of exogeneous events (that sould not be modeled).
+be modeled) and a list of exogenous events (that should not be modeled).
 For example when an actor leaves a group and joins her own singleton group,
-only the leaving event is modeled but not the joining one, and vive versa when an actor
+only the leaving event is modeled but not the joining one, and vice versa when an actor
 belonging to a singleton group joins another group.
 }
 \details{

@@ -111,7 +111,7 @@ statistics should be returned rather than a results object.}
 \item{verbose}{logical indicating whether details of the estimation routine
 should be provided.}
 
-\item{silent}{logical indicating whether a mimimal output should be given.}
+\item{silent}{logical indicating whether a minimal output should be given.}
 
 \item{debug}{logical indicating whether very detailed intermediate results
 should be given; slows down the routine significantly.}
@@ -224,7 +224,8 @@ summary(mod01)
 
 # A individual activity rates model
 mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
-                  model = "DyNAM", subModel = "rate")
+                  model = "DyNAM", subModel = "rate",
+                  estimationInit = list(engine = "default_c"))
 summary(mod02)
 
 \dontrun{

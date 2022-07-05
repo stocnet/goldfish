@@ -56,7 +56,7 @@ the structure is similar to stat_mat_update.}
 
 \item{presence1_init}{An n_actor1 by 1 matrix, which records the initial presence of each actor1.
 If the i-th actor1 is not present in the
- begining then the i-th entry of presence1_init is 0, otherwise it's 1.}
+ beginning then the i-th entry of presence1_init is 0, otherwise it's 1.}
 
 \item{presence1_update}{An matrix with two rows, which record the updates of the presence of actor1 through all events.
 The following is an example.
@@ -69,7 +69,7 @@ And the second column means the
 the 3+1 th actor1 becomes absent. The +1 is due to the difference between the numberings in R and C.}
 
 \item{presence2_init}{An n_actors2 by 1 matrix, which records the initial presence of each actor2.
-If the i-th actor2 is not present in the begining then the i-th entry of presence2_init is 0, otherwise it's 1.}
+If the i-th actor2 is not present in the beginning then the i-th entry of presence2_init is 0, otherwise it's 1.}
 
 \item{presence2_update}{An matrix with two rows, which record the updates of the presence of actor2 through all events.
 The following is an example.

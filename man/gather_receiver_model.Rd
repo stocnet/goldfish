@@ -42,7 +42,7 @@ for the actor1-actor2 pair(0+1,2+1) by 1.2. The +1 is due to the difference betw
 The structure is similar to stat_mat_update_pointer.}
 
 \item{presence2_init}{An n_actors2 by 1 matrix, which records the initial presence of each actor2.
-If the i-th actor2 is not present in the begining then the i-th entry of presence2_init is 0, otherwise it's 1.}
+If the i-th actor2 is not present in the beginning then the i-th entry of presence2_init is 0, otherwise it's 1.}
 
 \item{presence2_update}{An matrix with two rows, which record the updates of the presence of actor2 through all events.
 The following is an example.

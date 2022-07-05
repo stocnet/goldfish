@@ -14,7 +14,7 @@ vignette: >
 Example script analyzing the MIT Social Evolution data with `R`'s `goldfish` package. 
 Models inspired by section 7 of:
 
-> Stadtfeld & Block (2017), "Interactions, Actors and Time: Dynamic Network Actor Models for Relational Events", Sociological Science, 2017, 4(1): 318-352. DOI: [10.15195/v4.a14](https://doi.org/10.15195/v4.a14 "Stadtfeld & Block (2017)")
+> Stadtfeld & Block (2017), "Interactions, Actors and Time: Dynamic Network Actor Models for Relational Events", Sociological Science, 2017, 4(1): 318-352. DOI: 10.15195/v4.a14
 
 # Step 0: Load package and data
 
@@ -25,6 +25,9 @@ You can find out more about this dataset, its format, and its origins in a coupl
 
 ```r
 library(goldfish)
+#>   <")))><  The Goldfish package in R
+#> 
+#> goldfish: version 1.5.3, "Bubble Eye", created on 2022-07-02
 data("Social_Evolution")
 # ?Social_Evolution
 head(calls)

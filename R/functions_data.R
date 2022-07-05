@@ -290,7 +290,7 @@ defineNodes <- function(nodes) {
 #' @return an object of class network.goldfish
 #' @details If a sociomatrix is used as input, \code{defineNetwork} returns a static Network.
 #' This matrix must contain the same nodeset as defined with the \code{defineNodes} function
-#' and the order of the rows and columns must correspond to the order of node lables in the node-set.
+#' and the order of the rows and columns must correspond to the order of node labels in the node-set.
 #' The matrix must be binary (if unweighted?) and
 #' can be directed or undirected (as specified with the directed argument).
 #' If this network is updated over time (e.g., a new wave of friendship data is collected),
@@ -494,7 +494,7 @@ defineGlobalAttribute <- function(global) {
 #'   nodeset)
 #' @param nodes a nodeset (dataframe or nodes.goldfish object) related to the
 #'   network (ONLY if the object is a network)
-#' @param nodes2 an optional nodest (dataframe or nodes.goldfish object) related
+#' @param nodes2 an optional nodeset (dataframe or nodes.goldfish object) related
 #'   to the network (ONLY if object is a network)
 #' @return an object of class nodes.goldfish or network.goldfish
 #' @export linkEvents
