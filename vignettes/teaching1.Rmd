@@ -9,12 +9,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-```
+
 
 Example script analyzing the MIT Social Evolution data with `R`'s `goldfish` package. 
 Models inspired by section 7 of:
@@ -27,62 +22,104 @@ First, we load the `goldfish` package and load the data.
 The data is loaded using lazy loading, i.e., the objects are only 'promised' for the moment, but are available in the environment to be used, and more information will appear as you use them. 
 You can find out more about this dataset, its format, and its origins in a couple of ERGM papers by callings its documentation:
 
-```{r}
+
+```r
 library(goldfish)
 data("Social_Evolution")
 # ?Social_Evolution
 head(calls)
+#>         time   sender receiver increment
+#> 1 1220733470 Actor 72 Actor 50         1
+#> 2 1221102974 Actor 43 Actor 51         1
+#> 3 1221784293 Actor 43 Actor 51         1
+#> 4 1221785882 Actor 43 Actor 22         1
+#> 5 1221787264 Actor 43 Actor 55         1
+#> 6 1221848443 Actor 43 Actor 51         1
 head(actors)
+#>     label present floor gradeType
+#> 1 Actor 1    TRUE     3         5
+#> 2 Actor 2    TRUE     5         1
+#> 3 Actor 3    TRUE     5         2
+#> 4 Actor 4    TRUE     2         2
+#> 5 Actor 5    TRUE     4         1
+#> 6 Actor 6    TRUE     4         2
 ```
 
-```{r echo=FALSE}
-estimate <- function(
-    x,
-    model = c("DyNAM", "REM", "DyNAMi"),
-    subModel = c("choice", "rate", "choice_coordination"),
-    estimationInit = NULL,
-    preprocessingInit = NULL,
-    preprocessingOnly = FALSE,
-    verbose = FALSE,
-    silent = TRUE,
-    debug = FALSE)
-  goldfish::estimate(
-    x = x,
-    model = model,
-    subModel = subModel,
-    estimationInit = estimationInit,
-    preprocessingInit = preprocessingInit,
-    preprocessingOnly = preprocessingOnly,
-    verbose = verbose,
-    silent = silent,
-    debug = debug
-  )
-```
+
 
 
 # Preamble: Run a quick DyNAM in five lines
+We use `R` version 4.2.0 to compile the vignettes.
+The native pipe operator is available in `R` from version 4.1.0.
 
-```{r}
-# 1
-callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
 
-# 2
-callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
+```r
+callNetwork <- defineNetwork(nodes = actors, directed = TRUE) |> # 1
+  linkEvents(changeEvent = calls, nodes = actors) # 2
 
 # 3
-callsDependent <- defineDependentEvents(events = calls, nodes = actors,
-                                        defaultNetwork = callNetwork)
+callsDependent <- defineDependentEvents(
+  events = calls, nodes = actors,
+  defaultNetwork = callNetwork
+  )
 
 # 4
-mod00_rate <- estimate(callsDependent ~ indeg + outdeg,
-                       model = "DyNAM", subModel = "rate")
+mod00Rate <- estimate(
+  callsDependent ~ indeg + outdeg,
+  model = "DyNAM", subModel = "rate"
+  )
 
-summary(mod00_rate)
+summary(mod00Rate)
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Coefficients :
+#>        Estimate Std. Error z-value  Pr(>|z|)    
+#> indeg  0.551445   0.066344  8.3119 < 2.2e-16 ***
+#> outdeg 0.263784   0.028386  9.2927 < 2.2e-16 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 2e-05 
+#>   Log-Likelihood: -1750.9
+#>   AIC:  3505.8 
+#>   AICc: 3505.9 
+#>   BIC:  3514 
+#>   model: "DyNAM" subModel: "rate"
 
-mod00_choice <- estimate(callsDependent ~ inertia + recip + trans,
-                         model = "DyNAM", subModel = "choice")
+mod00Choice <- estimate(
+  callsDependent ~ inertia + recip + trans,
+  model = "DyNAM", subModel = "choice"
+  )
 
-summary(mod00_choice)
+summary(mod00Choice)
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Coefficients :
+#>         Estimate Std. Error z-value  Pr(>|z|)    
+#> inertia  5.19690    0.17397 29.8725 < 2.2e-16 ***
+#> recip    1.39802    0.17300  8.0812 6.661e-16 ***
+#> trans   -0.23036    0.21554 -1.0687    0.2852    
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 7e-05 
+#>   Log-Likelihood: -696.72
+#>   AIC:  1399.4 
+#>   AICc: 1399.5 
+#>   BIC:  1411.7 
+#>   model: "DyNAM" subModel: "choice"
 ```
 
 # Step 1: Create data objects
@@ -91,49 +128,109 @@ summary(mod00_choice)
 
 We've loaded a dataset that defines its nodes and their attributes as a data frame. Let's check what we have first.
 
-```{r}
+
+```r
 class(actors)
+#> [1] "data.frame"
 head(actors)
+#>     label present floor gradeType
+#> 1 Actor 1    TRUE     3         5
+#> 2 Actor 2    TRUE     5         1
+#> 3 Actor 3    TRUE     5         2
+#> 4 Actor 4    TRUE     2         2
+#> 5 Actor 5    TRUE     4         1
+#> 6 Actor 6    TRUE     4         2
 ```
 
 Note that there are four column variables: `label` the identifier, `present`, the `floor` of residence, and `gradeType` their educational level (1 = freshmen to 5 = graduate). All of these columns will be recognized as individual attributes by goldfish.
 
 We need to define them as nodes so that `goldfish` knows what to do with them.
 
-```{r}
+
+```r
 actors <- defineNodes(actors)
 actors
+#> Number of nodes: 84 
+#> Number of present nodes: 84 
+#> 
+#> First 6 rows
+#>     label present floor gradeType
+#> 1 Actor 1    TRUE     3         5
+#> 2 Actor 2    TRUE     5         1
+#> 3 Actor 3    TRUE     5         2
+#> 4 Actor 4    TRUE     2         2
+#> 5 Actor 5    TRUE     4         1
+#> 6 Actor 6    TRUE     4         2
 ```
 
 As you can see, the structure is the same, so we can still treat it like a data frame, but the added class helps goldfish interpret the data frame correctly.
 
 At any time, we can also check what goldfish-defined objects we have in our environment using the following function:
 
-```{r}
+
+```r
 goldfishObjects()
+#> Goldfish Nodes
+#>         n                       attributes events
+#> actors 84 label, present, floor, gradeType       
+#> 
+#> Goldfish Networks
+#>             dimensions nodesets events
+#> callNetwork    84 x 84   actors  calls
+#> 
+#> Goldfish Dependent Events
+#>                  n     network
+#> callsDependent 439 callNetwork
 ```
 
 ## Step 1b: Define networks
 
 Next we want to define the dyadic or network elements: calls between our actors.
 
-```{r}
+
+```r
 head(calls)
+#>         time   sender receiver increment
+#> 1 1220733470 Actor 72 Actor 50         1
+#> 2 1221102974 Actor 43 Actor 51         1
+#> 3 1221784293 Actor 43 Actor 51         1
+#> 4 1221785882 Actor 43 Actor 22         1
+#> 5 1221787264 Actor 43 Actor 55         1
+#> 6 1221848443 Actor 43 Actor 51         1
 ```
 
 Note there are columns for `time`, `sender`, and `receiver`. `increment` is a reserved column.
 
 To tell goldfish this is a network, we must define it as such:
 
-```{r}
-# ?defineNetwork
+```r
+?defineNetwork
+```
+
+
+```r
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
 ```
 
 The argument `directed` is `TRUE` by default, but we need to specify the nodes so that `goldfish` can check for consistency and relate it to that nodeset as needed.
 
-```{r}
+
+```r
 callNetwork
+#> Dimensions: 84 84 
+#> Number of ties (no weighted): 0 
+#> Nodes set(s): actors 
+#> It is a one-mode and directed network
+#> 
+#> First 6 rows and columns
+#>          receiver
+#> sender    Actor 1 Actor 2 Actor 3 Actor 4 Actor 5 Actor 6
+#>   Actor 1       0       0       0       0       0       0
+#>   Actor 2       0       0       0       0       0       0
+#>   Actor 3       0       0       0       0       0       0
+#>   Actor 4       0       0       0       0       0       0
+#>   Actor 5       0       0       0       0       0       0
+#>   Actor 6       0       0       0       0       0       0
 ```
 
 Note that we have not added any network data yet. By default, `defineNetwork()` just constructs an empty matrix with dimensions defined by the length of the nodeset(s). 
@@ -143,13 +240,30 @@ Now that goldfish recognizes the matrix as a network, we can also associate an e
 To do this we use the `linkEvents()` function, which requires us to identify a goldfish object to be updated, the events that update it and, in this case, also the nodes that the events should relate to. 
 `goldfish` checks the consistency of all this information and relates these objects to one another so that information can be called as needed.
 
-```{r}
-# ?linkEvents
+
+```r
+?linkEvents
 ```
 
-```{r}
+
+```r
 callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
 callNetwork
+#> Dimensions: 84 84 
+#> Number of ties (no weighted): 0 
+#> Nodes set(s): actors 
+#> It is a one-mode and directed network
+#> Linked events: calls 
+#> 
+#> First 6 rows and columns
+#>          receiver
+#> sender    Actor 1 Actor 2 Actor 3 Actor 4 Actor 5 Actor 6
+#>   Actor 1       0       0       0       0       0       0
+#>   Actor 2       0       0       0       0       0       0
+#>   Actor 3       0       0       0       0       0       0
+#>   Actor 4       0       0       0       0       0       0
+#>   Actor 5       0       0       0       0       0       0
+#>   Actor 6       0       0       0       0       0       0
 ```
 
 ### Task
@@ -160,13 +274,38 @@ The new column, `replace`, is an alternative treatment to `increment`.
 When an event occurs, goldfish will replace the value in the relevant cell with the value in this column instead of incrementing it. 
 Friendship is thus a binary network.
 
-```{r}
+
+```r
 head(friendship)
+#>         time   sender receiver replace
+#> 1 1220918400 Actor 47  Actor 2       1
+#> 3 1220918400 Actor 57  Actor 2       1
+#> 4 1220918400  Actor 9 Actor 38       1
+#> 5 1220918400 Actor 68 Actor 40       1
+#> 6 1220918400 Actor 23 Actor 40       1
+#> 7 1220918400 Actor 49 Actor 40       1
 friendshipNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-friendshipNetwork <- linkEvents(x = friendshipNetwork, 
-                                changeEvents = friendship, 
-                                nodes = actors)
+friendshipNetwork <- linkEvents(
+  x = friendshipNetwork, 
+  changeEvents = friendship, 
+  nodes = actors
+  )
 friendshipNetwork
+#> Dimensions: 84 84 
+#> Number of ties (no weighted): 0 
+#> Nodes set(s): actors 
+#> It is a one-mode and directed network
+#> Linked events: friendship 
+#> 
+#> First 6 rows and columns
+#>          receiver
+#> sender    Actor 1 Actor 2 Actor 3 Actor 4 Actor 5 Actor 6
+#>   Actor 1       0       0       0       0       0       0
+#>   Actor 2       0       0       0       0       0       0
+#>   Actor 3       0       0       0       0       0       0
+#>   Actor 4       0       0       0       0       0       0
+#>   Actor 5       0       0       0       0       0       0
+#>   Actor 6       0       0       0       0       0       0
 ```
 
 ## Step 1c: Define dependent events
@@ -175,14 +314,30 @@ The final step in defining the data objects is to identify the dependent events.
 Here we would like to model as the dependent variable the calls between individuals. 
 We specify the event list and the node list.
 
-```{r}
-# ?defineDependentEvents
+
+```r
+?defineDependentEvents
 ```
 
-```{r}
-callsDependent <- defineDependentEvents(events = calls, nodes = actors,
-                                        defaultNetwork = callNetwork)
+
+```r
+callsDependent <- defineDependentEvents(
+  events = calls, nodes = actors,
+  defaultNetwork = callNetwork
+  )
 callsDependent
+#> Number of events: 439 
+#> Nodes set(s): actors 
+#> Default network: callNetwork 
+#> 
+#> First 6 rows
+#>         time   sender receiver increment
+#> 1 1220733470 Actor 72 Actor 50         1
+#> 2 1221102974 Actor 43 Actor 51         1
+#> 3 1221784293 Actor 43 Actor 51         1
+#> 4 1221785882 Actor 43 Actor 22         1
+#> 5 1221787264 Actor 43 Actor 55         1
+#> 6 1221848443 Actor 43 Actor 51         1
 ```
 
 ### Intermediate step: Visualization
@@ -192,29 +347,51 @@ While not a required part of the modeling process, we highly recommend the visua
 
 We can use these functions to visually compare our network at two (or more) different time periods using `migraph`. See the `migraph` package documentation for additional information about network visualization. 
 
-```{r plot, fig.width=7, fig.retina=3}
+
+```r
 library(ggraph)
+#> Loading required package: ggplot2
 library(migraph)
 # The network at the beginning
 callNetworkBgn <- as.matrix(callNetwork)
 autographr(callNetworkBgn, labels = FALSE, layout = "fr")
-# The network at the end
-callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1)
-autographr(callNetworkEnd, labels = FALSE, layout = "fr")
+```
 
-callNetworkEnd <- add_node_attributes(callNetworkEnd, "floor", actors$floor)
-autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
-  geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
+<img src="teaching/plot-teaching1-1.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
+
+```r
 
 # The network at half time
 callNetworkHlf <- as.matrix(callNetwork,
-                            time = calls$time[floor(nrow(calls) / 2)])
-callNetworkHlf <- add_node_attributes(callNetworkHlf, "floor", actors$floor)
+                            time = calls$time[floor(nrow(calls) / 2)]) |> 
+  add_node_attributes("floor", actors$floor)
+
 autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
+```
+
+<img src="teaching/plot-teaching1-2.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
+
+```r
+
+# The network at the end
+callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |> 
+  add_node_attributes("floor", actors$floor)
+
+autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
+  geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
+```
+
+<img src="teaching/plot-teaching1-3.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
+
+```r
+
 
 # The tie strength at the end
 table(as.matrix(callNetwork, time = max(calls$time) + 1))
+#> 
+#>    0    1    2    3    4    6    7    8    9   10   11   13   15   64  115 
+#> 6972   36   13   10    8    1    5    3    1    1    1    2    1    1    1
 ```
 
 # Step 2: Specify and estimate model
@@ -237,11 +414,18 @@ We specify our model using the standard R formula format like:
 
 `goldfish_dependent ~ effects(process_state_element)`
 
-We can see which effects are currently available and how to specify them here: `?goldfishEffects`. 
+We can see which effects are currently available and how to specify them here:
+
+
+```r
+vignette("goldfishEffects")
+```
+
 Let's start with the simplest model we can imagine:
 
-```{r}
-simple_formula_choice <- callsDependent ~ tie(friendshipNetwork)
+
+```r
+simpleFormulaChoice <- callsDependent ~ tie(friendshipNetwork)
 ```
 
 What are we testing here? 
@@ -252,23 +436,83 @@ Do individuals call their friends more than non-friends?
 Now to estimate this model, we use the `?estimate` function. 
 For now, only need to worry about the `formula` and the `model`, `subModel` type (DyNAM-choice).
 
-```{r}
-mod01_choice <- estimate(simple_formula_choice,
-                        model = "DyNAM", subModel = "choice")
-summary(mod01_choice)
+
+```r
+mod01Choice <- estimate(
+  simpleFormulaChoice,
+  model = "DyNAM", subModel = "choice"
+  )
+summary(mod01Choice)
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Coefficients :
+#>     Estimate Std. Error z-value  Pr(>|z|)    
+#> tie  4.02538    0.12513   32.17 < 2.2e-16 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 0 
+#>   Log-Likelihood: -1288.7
+#>   AIC:  2579.4 
+#>   AICc: 2579.4 
+#>   BIC:  2583.5 
+#>   model: "DyNAM" subModel: "choice"
 ```
 
 Ok, as fascinating as that was, perhaps we can test how robust this finding is in the presence of plausible controls.
 
-```{r  complexChoice}
-complex_formula_choice <-
+
+```r
+complexFormulaChoice <-
   callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
                    tie(friendshipNetwork) + recip(friendshipNetwork) +
                    same(actors$gradeType) + same(actors$floor)
 
-mod02_choice <- estimate(complex_formula_choice,
-                         model = "DyNAM", subModel = "choice")
-summary(mod02_choice)
+mod02Choice <- estimate(
+  complexFormulaChoice,
+  model = "DyNAM", subModel = "choice"
+  )
+summary(mod02Choice)
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Effects details :
+#>         Object           
+#> inertia callNetwork      
+#> recip   callNetwork      
+#> tie     friendshipNetwork
+#> recip   friendshipNetwork
+#> same    actors$gradeType 
+#> same    actors$floor     
+#> 
+#> Coefficients :
+#>         Estimate Std. Error z-value  Pr(>|z|)    
+#> inertia  4.42057    0.19225 22.9936 < 2.2e-16 ***
+#> recip    0.27151    0.19735  1.3758  0.168895    
+#> tie      1.28779    0.25673  5.0160 5.275e-07 ***
+#> recip    0.68625    0.22930  2.9928  0.002765 ** 
+#> same     0.69847    0.17607  3.9670 7.279e-05 ***
+#> same    -0.28700    0.16618 -1.7271  0.084155 .  
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 0 
+#>   Log-Likelihood: -637.96
+#>   AIC:  1287.9 
+#>   AICc: 1288.1 
+#>   BIC:  1312.4 
+#>   model: "DyNAM" subModel: "choice"
 ```
 
 ### Rate model
@@ -277,10 +521,13 @@ How do individual properties affect the rate of action of individuals? (Step 1 o
 
 Let us again define a simple formula that only depends on individuals' degree in the friendship network
 
-```{r}
-simple_formula_rate <- callsDependent ~ indeg(friendshipNetwork)
-mod01_rate <- estimate(simple_formula_rate,
-                       model = "DyNAM", subModel = "rate")
+
+```r
+simpleFormulaRate <- callsDependent ~ indeg(friendshipNetwork)
+mod01Rate <- estimate(
+  simpleFormulaRate,
+  model = "DyNAM", subModel = "rate"
+  )
 ```
 
 #### Remark:
@@ -288,37 +535,121 @@ mod01_rate <- estimate(simple_formula_rate,
 Sometimes, the default values for the algorithm are not enough to reach convergence. 
 We can remedy this by increasing the number of iterations:
 
-```{r}
-mod01_rate <- estimate(simple_formula_rate, 
-                       model = "DyNAM", subModel = "rate",
-                       estimationInit = list(maxIterations = 40))
-summary(mod01_rate)
+
+```r
+mod01Rate <- estimate(
+  simpleFormulaRate, 
+  model = "DyNAM", subModel = "rate",
+  estimationInit = list(maxIterations = 40)
+  )
+summary(mod01Rate)
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Coefficients :
+#>       Estimate Std. Error z-value  Pr(>|z|)    
+#> indeg 0.157370   0.012699  12.392 < 2.2e-16 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 0 
+#>   Log-Likelihood: -1868.1
+#>   AIC:  3738.3 
+#>   AICc: 3738.3 
+#>   BIC:  3742.3 
+#>   model: "DyNAM" subModel: "rate"
 ```
 
 What if we include additional structural effects? 
 Let us add the in and out degree of the nodes in the call network
 
-```{r}
-complex_formula_rate <- 
+
+```r
+complexFormulaRate <- 
   callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) + 
                    indeg(friendshipNetwork) 
 
-mod02_rate <- estimate(complex_formula_rate, model = "DyNAM", subModel = "rate")
-summary(mod02_rate)
+mod02Rate <- estimate(complexFormulaRate, model = "DyNAM", subModel = "rate")
+summary(mod02Rate)
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Effects details :
+#>        Object           
+#> indeg  callNetwork      
+#> outdeg callNetwork      
+#> indeg  friendshipNetwork
+#> 
+#> Coefficients :
+#>        Estimate Std. Error z-value  Pr(>|z|)    
+#> indeg  0.454676   0.070918  6.4113 1.443e-10 ***
+#> outdeg 0.240231   0.029494  8.1452 4.441e-16 ***
+#> indeg  0.060809   0.015464  3.9324 8.409e-05 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 2e-05 
+#>   Log-Likelihood: -1743.2
+#>   AIC:  3492.5 
+#>   AICc: 3492.5 
+#>   BIC:  3504.7 
+#>   model: "DyNAM" subModel: "rate"
 ```
 
 #### Right-censored intervals
 
-Recall that it is important to add a time intercept when estimating models with right-censored intervals (as discussed in Stadtfeld & Block, 2017). 
+Recall that it is important to add a time intercept when estimating models with
+right-censored intervals (as discussed in Stadtfeld & Block, 2017). 
 Adding an intercept is as easy as including a 1 to the formula:
 
-```{r}
-intercept_formula_rate <-
+
+```r
+interceptFormulaRate <-
   callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(friendshipNetwork)
 
-mod03_rate <- estimate(intercept_formula_rate, model = "DyNAM", subModel = "rate")
-summary(mod03_rate)
+mod03Rate <- estimate(interceptFormulaRate, model = "DyNAM", subModel = "rate")
+summary(mod03Rate)
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Effects details :
+#>           Object           
+#> Intercept                  
+#> indeg     callNetwork      
+#> outdeg    callNetwork      
+#> indeg     friendshipNetwork
+#> 
+#> Coefficients :
+#>             Estimate Std. Error   z-value  Pr(>|z|)    
+#> Intercept -14.335641   0.094257 -152.0912 < 2.2e-16 ***
+#> indeg       0.568475   0.067244    8.4540 < 2.2e-16 ***
+#> outdeg      0.314266   0.030898   10.1712 < 2.2e-16 ***
+#> indeg       0.047770   0.015148    3.1535  0.001613 ** 
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 0 
+#>   Log-Likelihood: -5984.3
+#>   AIC:  11977 
+#>   AICc: 11977 
+#>   BIC:  11993 
+#>   model: "DyNAM" subModel: "rate"
 ```
 
 Note that $1 / \exp({\beta_{intercept}})$ is the waiting time without any covariates, or how long it takes to make the next phone call if everything else is set to 0. 
@@ -326,17 +657,28 @@ Therefore, the larger the intercept the shorter the waiting time.
 For example, an intercept of -14 means a waiting time of $1 / e^{-14} = 334$ hours. 
 The baseline waiting time between two events in hours:
 
-```{r}
-mod03_rate_coef <- coef(mod03_rate)
-1 / exp(mod03_rate_coef[[1]]) / 3600
+
+```r
+mod03RateCoef <- coef(mod03Rate)
+1 / exp(mod03RateCoef[["Intercept"]]) / 3600
+#> [1] 467.291
 # or days:
-1 / exp(mod03_rate_coef[[1]]) / 86400
+1 / exp(mod03RateCoef[["Intercept"]]) / 86400
+#> [1] 19.47046
 
 # But what if it is not just a random call?
 # Expected waiting time of those who have five outgoing call ties (five different actors)
-1 / exp(mod03_rate_coef[[1]] + mod03_rate_coef[[3]] * 5) / 3600
+1 / exp(
+  mod03RateCoef[["Intercept"]] + mod03RateCoef[["outdeg"]] * 5
+  ) / 3600
+#> [1] 97.08854
 # Expected waiting time of those who have five outgoing and incoming call ties (five different actors)
-1 / exp(mod03_rate_coef[[1]] + mod03_rate_coef[[2]] * 5 + mod03_rate_coef[[3]] * 5) / 3600
+1 / exp(
+  mod03RateCoef[["Intercept"]] +
+    mod03RateCoef[["outdeg"]] * 5 +
+    mod03RateCoef[["indeg"]] * 5
+  ) / 3600
+#> [1] 5.658994
 ```
 
 ### Windows
@@ -345,30 +687,104 @@ Remember our `callNetwork` process state accumulates actions in time, but some o
 Let's see whether it is really just recent partners that matter by adding extra effects with a window of... how long? 
 Let us try 5 minutes $= 5 * 60 = 300s$
 
-```{r}
-window_formula_rate <-
+
+```r
+windowFormulaRate <-
   callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(callNetwork, window = 300) +
                    outdeg(callNetwork, window = 300) +
                    indeg(friendshipNetwork)
 
-mod04_rate <- estimate(window_formula_rate, model = "DyNAM", subModel = "rate")
-summary(mod04_rate)
+mod04Rate <- estimate(windowFormulaRate, model = "DyNAM", subModel = "rate")
+summary(mod04Rate)
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Effects details :
+#>           Object            window
+#> Intercept                         
+#> indeg     callNetwork             
+#> outdeg    callNetwork             
+#> indeg     callNetwork       300   
+#> outdeg    callNetwork       300   
+#> indeg     friendshipNetwork       
+#> 
+#> Coefficients :
+#>              Estimate  Std. Error   z-value  Pr(>|z|)    
+#> Intercept -14.1665102   0.0880817 -160.8337 < 2.2e-16 ***
+#> indeg       0.1910828   0.0781305    2.4457   0.01446 *  
+#> outdeg      0.5283974   0.0332725   15.8809 < 2.2e-16 ***
+#> indeg       3.1942574   0.4135005    7.7249  1.11e-14 ***
+#> outdeg      0.1404188   0.2860436    0.4909   0.62350    
+#> indeg       0.0098856   0.0154430    0.6401   0.52209    
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 0.00081 
+#>   Log-Likelihood: -5854.6
+#>   AIC:  11721 
+#>   AICc: 11721 
+#>   BIC:  11750 
+#>   model: "DyNAM" subModel: "rate"
 ```
 
 Of course, you can also add windows to the choice formula!
 
-```{r}
-window_formula_choice <-
+
+```r
+windowFormulaChoice <-
   callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
                    inertia(callNetwork, window = 300) +
                    recip(callNetwork, window = 300) +
                    tie(friendshipNetwork) + recip(friendshipNetwork) +
                    same(actors$gradeType) + same(actors$floor)
 
-mod03_choice <- estimate(window_formula_choice,
+mod03Choice <- estimate(windowFormulaChoice,
                          model = "DyNAM", subModel = "choice")
-summary(mod03_choice)
+summary(mod03Choice)
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Effects details :
+#>         Object            window
+#> inertia callNetwork             
+#> recip   callNetwork             
+#> inertia callNetwork       300   
+#> recip   callNetwork       300   
+#> tie     friendshipNetwork       
+#> recip   friendshipNetwork       
+#> same    actors$gradeType        
+#> same    actors$floor            
+#> 
+#> Coefficients :
+#>         Estimate Std. Error z-value  Pr(>|z|)    
+#> inertia  4.29828    0.20193 21.2863 < 2.2e-16 ***
+#> recip   -0.48574    0.23205 -2.0932 0.0363293 *  
+#> inertia  1.39628    0.36093  3.8685 0.0001095 ***
+#> recip    5.02256    0.73879  6.7983 1.058e-11 ***
+#> tie      1.50593    0.27206  5.5354 3.105e-08 ***
+#> recip    0.62314    0.24975  2.4951 0.0125930 *  
+#> same     0.44865    0.19815  2.2641 0.0235659 *  
+#> same    -0.20953    0.18139 -1.1551 0.2480445    
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 9e-05 
+#>   Log-Likelihood: -565.9
+#>   AIC:  1147.8 
+#>   AICc: 1148.1 
+#>   BIC:  1180.5 
+#>   model: "DyNAM" subModel: "choice"
 ```
 
 All this shows you that you can specify different formula for the rate and choice components of the model. 
@@ -376,19 +792,52 @@ This is a key advantage of the DyNAM!
 
 When comparing the information criteria (AIC / BIC) of the different model, we see that the time windows explain a lot
 
-```{r}
-AIC(mod02_choice)
-AIC(mod03_choice)
-AIC(mod03_rate)
-AIC(mod04_rate)
+
+```r
+AIC(mod02Choice)
+#> [1] 1287.912
+AIC(mod03Choice)
+#> [1] 1147.804
+AIC(mod03Rate)
+#> [1] 11976.58
+AIC(mod04Rate)
+#> [1] 11721.24
 ```
 
 Using windowed effects actually initializes new data objects.
 
-```{r}
+
+```r
 goldfishObjects()
+#> Goldfish Nodes
+#>         n                       attributes events
+#> actors 84 label, present, floor, gradeType       
+#> 
+#> Goldfish Networks
+#>                   dimensions nodesets     events
+#> callNetwork          84 x 84   actors      calls
+#> callNetwork_300      84 x 84   actors  calls_300
+#> friendshipNetwork    84 x 84   actors friendship
+#> 
+#> Goldfish Dependent Events
+#>                  n     network
+#> callsDependent 439 callNetwork
 head(calls_300)
+#>         time   sender receiver increment
+#> 1 1220733470 Actor 72 Actor 50         1
+#> 2 1220733770 Actor 72 Actor 50        -1
+#> 3 1221102974 Actor 43 Actor 51         1
+#> 4 1221103274 Actor 43 Actor 51        -1
+#> 5 1221784293 Actor 43 Actor 51         1
+#> 6 1221784593 Actor 43 Actor 51        -1
 tail(calls_300)
+#>           time   sender receiver increment
+#> 873 1224371225 Actor 23 Actor 44        -1
+#> 874 1224371243 Actor 44 Actor 23        -1
+#> 875 1224373128 Actor 20 Actor 23         1
+#> 876 1224373152 Actor 23 Actor 20         1
+#> 877 1224373428 Actor 20 Actor 23        -1
+#> 878 1224373452 Actor 23 Actor 20        -1
 ```
 
 ### REM with `goldfish`
@@ -396,18 +845,77 @@ tail(calls_300)
 `goldfish` does not only run DyNAMs; it also runs REMs [(Butts, 2008)](https://journals.sagepub.com/doi/10.1111/j.1467-9531.2008.00203.x "REM"). 
 We can now also run REMs using the right-censored intervals as introduced in Stadtfeld & Block (2017).
 
-```{r}
-all_formula_rem <- callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) +
-  inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) +
-  tie(friendshipNetwork) + recip(friendshipNetwork) +
-  same(actors$gradeType) + same(actors$floor)
 
-# And we can estimate, to speedup estimation with can use any of the two possible engines
-mod01_rem <- estimate(all_formula_rem, model = "REM",
-                      estimationInit = list(engine = "gather_compute"))
-
-mod01_rem <- estimate(all_formula_rem, model = "REM",
-                     estimationInit = list(initialDamping = 40, engine = "default_c"))
-
-summary(mod01_rem)
+```r
+allFormulaREM <-
+  callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) +
+                   inertia(callNetwork, window = 300) +
+                   recip(callNetwork, window = 300) +
+                   tie(friendshipNetwork) + recip(friendshipNetwork) +
+                   same(actors$gradeType) + same(actors$floor)
 ```
+
+And we can estimate this model, to speed up estimation, we can use any of the two `C` implementations of the estimation algorithm.
+Setting the option `engine` on the `estimationInit` argument, we can choose which version of the `C` code to use.
+`"default_c"` implements the same algorithm as the default one implemented in plain `R` code that reduces the memory use by exploiting the sparsity of the dyads that change the effects' statistics after each event.
+`"gather_compute"` implements a version with an overhead of memory use, representing the data in a more usual tabular way but reducing time estimation.
+
+
+```r
+mod01REM <- estimate(
+  allFormulaREM, model = "REM",
+  estimationInit = list(engine = "gather_compute")
+  )
+
+```
+
+
+```r
+mod01REM <- estimate(
+  allFormulaREM, model = "REM",
+  estimationInit = list(initialDamping = 40, engine = "default_c")
+  )
+
+summary(mod01REM)
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Effects details :
+#>           Object            window
+#> Intercept                         
+#> inertia   callNetwork             
+#> recip     callNetwork             
+#> inertia   callNetwork       300   
+#> recip     callNetwork       300   
+#> tie       friendshipNetwork       
+#> recip     friendshipNetwork       
+#> same      actors$gradeType        
+#> same      actors$floor            
+#> 
+#> Coefficients :
+#>            Estimate Std. Error   z-value  Pr(>|z|)    
+#> Intercept -19.71673    0.11613 -169.7865 < 2.2e-16 ***
+#> inertia     5.69399    0.16967   33.5596 < 2.2e-16 ***
+#> recip      -0.23048    0.14452   -1.5948    0.1108    
+#> inertia    -1.54005    0.17862   -8.6221 < 2.2e-16 ***
+#> recip       7.18721    0.16779   42.8342 < 2.2e-16 ***
+#> tie         0.94057    0.20797    4.5226 6.107e-06 ***
+#> recip       0.92988    0.19070    4.8761 1.082e-06 ***
+#> same        0.31116    0.13364    2.3283    0.0199 *  
+#> same       -0.60389    0.12207   -4.9470 7.538e-07 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 0 
+#>   Log-Likelihood: -5657.2
+#>   AIC:  11332 
+#>   AICc: 11333 
+#>   BIC:  11375 
+#>   model: "REM" subModel: "choice"
+```
+

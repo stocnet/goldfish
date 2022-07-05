@@ -41,9 +41,6 @@ See section \emph{Change point} for details.}
 
 \item{...}{additional arguments to be passed to the functions in the
 \code{\link{changepoint}} package.}
-
-\item{minseglen}{Positive integer giving the minimum segment length
-(no. of observations between changes), default is 3.}
 }
 \value{
 \code{NULL} if neither outliers nor change points are identified.
@@ -85,7 +82,6 @@ method.
 }
 
 \examples{
-\donttest{
 # A multinomial receiver choice model
 data("Social_Evolution")
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
@@ -97,13 +93,16 @@ callsDependent <- defineDependentEvents(
   events = calls, nodes = actors,
   defaultNetwork = callNetwork
 )
+\dontshow{
+callsDependent <- callsDependent[1:50, ]
+}
 mod01 <- estimate(callsDependent ~ inertia + recip + trans,
   model = "DyNAM", subModel = "choice",
-  estimationInit = list(returnIntervalLogL = TRUE)
+  estimationInit = list(returnIntervalLogL = TRUE,
+                        engine = "default_c")
 )
 
 examineOutliers(mod01)
 
 examineChangepoints(mod01)
-}
 }

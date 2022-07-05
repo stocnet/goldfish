@@ -1,3 +1,8 @@
+# goldfish 1.5.3
+
+* Effects documentation migrated to a vignette.
+* Precompile vignettes with long-run time for compilation.
+
 # goldfish 1.5.2
 
 * Fix minor bugs on `opportunityList`

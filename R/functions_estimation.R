@@ -89,7 +89,7 @@
 #'  factor for each parameter.
 #'  It controls the size of the update step during the iterative estimation
 #'  process. The default is set to 30 when the formula has windowed effects or
-#'  10 in another case, see \code{\link{goldfishEffects}}.}
+#'  10 in another case, see \code{vignette("goldfishEffects")}.}
 #'  \item{dampingIncreaseFactor}{a numeric value. It controls the factor that
 #'  increases the damping of the parameters when improvements in the estimation
 #'  are found.}
@@ -131,7 +131,7 @@
 #' @param x a formula that defines at the left-hand side the dependent network
 #' (see \code{\link{defineDependentEvents}}) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
-#' (see \code{\link{goldfishEffects}}).
+#' (see \code{vignette("goldfishEffects")}).
 # or a preprocessed statistics object.
 #'
 #' @return returns an object of \code{\link{class}} \code{"result.goldfish"}
@@ -175,7 +175,7 @@
 #'
 #' @importFrom stats formula na.omit end filter
 #' @export
-#' @seealso \code{\link{defineDependentEvents}}, \code{\link{goldfishEffects}},
+#' @seealso \code{\link{defineDependentEvents}},
 #'  \code{\link{defineGlobalAttribute}}, \code{\link{defineNetwork}},
 #'  \code{\link{defineNodes}}, \code{\link{linkEvents}}
 #'
@@ -207,8 +207,14 @@
 #'                           nodes = actors)
 #' callsDependent <- defineDependentEvents(events = calls, nodes = actors,
 #'                                         defaultNetwork = callNetwork)
+#'
+#' \dontshow{
+#' callsDependent <- callsDependent[1:50, ]
+#' }
+#' 
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-#'                   model = "DyNAM", subModel = "choice")
+#'                   model = "DyNAM", subModel = "choice",
+#'                   estimationInit = list(engine = "default_c"))
 #' summary(mod01)
 #'
 #' # A individual activity rates model
@@ -216,6 +222,7 @@
 #'                   model = "DyNAM", subModel = "rate")
 #' summary(mod02)
 #'
+#' \dontrun{
 #' # A multinomial-multinomial choice model for coordination ties
 #' data("Fisheries_Treaties_6070")
 #' states <- defineNodes(states)
@@ -246,6 +253,8 @@
 #'   estimationInit = list(initialDamping = 40, maxIterations = 30)
 #' )
 #' summary(partner.model)
+#' }
+#' 
 # \item{impute}{a boolean indicating whether it should impute the statistics
 # for missing values. }
 estimate <- function(

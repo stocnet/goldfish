@@ -20,7 +20,7 @@ estimate(
 \item{x}{a formula that defines at the left-hand side the dependent network
 (see \code{\link{defineDependentEvents}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
-(see \code{\link{goldfishEffects}}).}
+(see \code{vignette("goldfishEffects")}).}
 
 \item{model}{a character string defining the model type.
 Current options include \code{"DyNAM"}, \code{"DyNAMi"} or \code{"REM"}
@@ -71,7 +71,7 @@ any parameter. Note that it must be consistent with
  factor for each parameter.
  It controls the size of the update step during the iterative estimation
  process. The default is set to 30 when the formula has windowed effects or
- 10 in another case, see \code{\link{goldfishEffects}}.}
+ 10 in another case, see \code{vignette("goldfishEffects")}.}
  \item{dampingIncreaseFactor}{a numeric value. It controls the factor that
  increases the damping of the parameters when improvements in the estimation
  are found.}
@@ -212,8 +212,14 @@ callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
                           nodes = actors)
 callsDependent <- defineDependentEvents(events = calls, nodes = actors,
                                         defaultNetwork = callNetwork)
+
+\dontshow{
+callsDependent <- callsDependent[1:50, ]
+}
+
 mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-                  model = "DyNAM", subModel = "choice")
+                  model = "DyNAM", subModel = "choice",
+                  estimationInit = list(engine = "default_c"))
 summary(mod01)
 
 # A individual activity rates model
@@ -221,6 +227,7 @@ mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
                   model = "DyNAM", subModel = "rate")
 summary(mod02)
 
+\dontrun{
 # A multinomial-multinomial choice model for coordination ties
 data("Fisheries_Treaties_6070")
 states <- defineNodes(states)
@@ -242,15 +249,17 @@ partner.model <- estimate(createBilat ~
                            inertia(bilatnet) +
                            indeg(bilatnet, ignoreRep = TRUE) +
                            trans(bilatnet, ignoreRep = TRUE) +
-                           tie(contignet, ignoreRep = TRUE) +
-                           alter(states$regime, ignoreRep = TRUE) +
-                           diff(states$regime, ignoreRep = TRUE) +
-                           alter(states$gdp, ignoreRep = TRUE) +
-                           diff(states$gdp, ignoreRep = TRUE),
+                           tie(contignet) +
+                           alter(states$regime) +
+                           diff(states$regime) +
+                           alter(states$gdp) +
+                           diff(states$gdp),
   model = "DyNAM", subModel = "choice_coordination",
   estimationInit = list(initialDamping = 40, maxIterations = 30)
 )
 summary(partner.model)
+}
+
 }
 \references{
 Butts C. (2008). A Relational Event Framework for Social Action.
@@ -274,7 +283,7 @@ Dynamic Network Actor Models: Investigating Coordination Ties Through Time.
 \emph{Sociological Methodology 47 (1)}. \doi{10.1177/0081175017709295}
 }
 \seealso{
-\code{\link{defineDependentEvents}}, \code{\link{goldfishEffects}},
+\code{\link{defineDependentEvents}},
  \code{\link{defineGlobalAttribute}}, \code{\link{defineNetwork}},
  \code{\link{defineNodes}}, \code{\link{linkEvents}}
 }
