@@ -69,7 +69,7 @@ estimate_DyNAM_rate_ordered <- function(parameters, dep_event_mat, stat_mat_init
 #'     The structure is similar to stat_mat_update_pointer.
 #' @param presence1_init An n_actor1 by 1 matrix, which records the initial presence of each actor1.
 #'     If the i-th actor1 is not present in the
-#'      begining then the i-th entry of presence1_init is 0, otherwise it's 1.
+#'      beginning then the i-th entry of presence1_init is 0, otherwise it's 1.
 #' @param presence1_update An matrix with two rows, which record the updates of the presence of actor1 through all events.
 #'     The following is an example.
 #'     \tabular{rrrrr}{
@@ -82,7 +82,7 @@ estimate_DyNAM_rate_ordered <- function(parameters, dep_event_mat, stat_mat_init
 #' @param presence2_update_pointer An n_events by 1 matrix that record which update belongs to which (dependent+ rightcensored) event.
 #'     The structure is similar to stat_mat_update_pointer.
 #' @param presence2_init An n_actors2 by 1 matrix, which records the initial presence of each actor2.
-#'     If the i-th actor2 is not present in the begining then the i-th entry of presence2_init is 0, otherwise it's 1.
+#'     If the i-th actor2 is not present in the beginning then the i-th entry of presence2_init is 0, otherwise it's 1.
 #' @param presence2_update An matrix with two rows, which record the updates of the presence of actor2 through all events.
 #'     The following is an example.
 #'     \tabular{rrrrr}{

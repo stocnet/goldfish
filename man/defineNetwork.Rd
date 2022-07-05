@@ -28,7 +28,7 @@ linking dynamic events to the network object.
 \details{
 If a sociomatrix is used as input, \code{defineNetwork} returns a static Network.
 This matrix must contain the same nodeset as defined with the \code{defineNodes} function
-and the order of the rows and columns must correspond to the order of node lables in the node-set.
+and the order of the rows and columns must correspond to the order of node labels in the node-set.
 The matrix must be binary (if unweighted?) and
 can be directed or undirected (as specified with the directed argument).
 If this network is updated over time (e.g., a new wave of friendship data is collected),

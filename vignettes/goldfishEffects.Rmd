@@ -118,7 +118,7 @@ and thus cannot be used.
   `weighted = TRUE`, similarly we refer as the unweighted statistics when
   `weighted = FALSE`.
 * We omit the difference in the computation of the statistics when the 
-  argument `isTwoMode` is used. In the default case whe 
+  argument `isTwoMode` is used. In the default case when 
   `isTwoMode = FALSE` self ties are excluded in the calculation of the
   change statistics. 
   
@@ -489,7 +489,7 @@ s(i,j, t, x, z) = |z(t)_i - \sum_{k:~x(t)_{kj} > 0}{z(t)_k} / \sum_{k}{I(x(t)_{k
 The tendency to create an event $i\rightarrow j$ when $i$ has
 a similar value as $j$ aggregate (`aggregateFun`) value of its
 in-neighbors ($\forall j:~ x[j, i] > 0$).
-\emph{Note:} When the node $j$ does not have in-neighbors, its value is
+_Note:_ When the node $j$ does not have in-neighbors, its value is
 imputed by the average of the similarities computed for the pairs $i$, $k$ for
 all $k$ that has at least one in-neighbor.
 

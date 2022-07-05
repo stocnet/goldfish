@@ -21,7 +21,7 @@ knitr::opts_chunk$set(
 Example script prepared analyzing the Fisheries Agreements data with the `R` `goldfish` package. 
 Models inspired by section 7 of:
 
-> Stadtfeld, Hollway & Block (2017), "Dynamic Network Actor Models: Investigating Coordination Ties through Time", Sociological Methodology, 2017, 47(1): 1-40. DOI: [10.1177/0081175017709295](https://journals.sagepub.com/doi/10.1177/0081175017709295 "Stadtfeld et al. (2017)")
+> Stadtfeld, Hollway & Block (2017), "Dynamic Network Actor Models: Investigating Coordination Ties through Time", Sociological Methodology, 2017, 47(1): 1-40. DOI: 10.1177/0081175017709295
 
 # Step 0: Load package and data
 
@@ -238,7 +238,7 @@ goldfishObjects()
 
 # Intermediate step: Visualisation ####
 
-While not a required part of the modelling process,
+While not a required part of the modeling process,
 we highly recommend the visualisation of your data
 for analytic and diagnostic purposes.
 
@@ -387,7 +387,7 @@ In the most recent version of `{goldfish}`,
 you will find some functions still under development.
 
 One set of functions is to help integrate the results of `{goldfish}` models
-with the wider world of statistical modelling.
+with the wider world of statistical modeling.
 
 We have implemented some "tidymodels" (or rather `{broom}`) functions
 for extracting and printing the key results from goldfish results objects.

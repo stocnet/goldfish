@@ -5,7 +5,7 @@
 ![GitHub Release Date](https://img.shields.io/github/release-date/snlab-ch/goldfish)
 ![GitHub issues](https://img.shields.io/github/issues-raw/snlab-ch/goldfish)
 ![GitHub All Releases](https://img.shields.io/github/downloads/snlab-ch/goldfish/total)
-[![Codecov test coverage](https://codecov.io/gh/snlab-ch/goldfish/branch/master/graph/badge.svg)](https://codecov.io/gh/snlab-ch/goldfish?branch=master)
+[![Codecov test coverage](https://codecov.io/gh/snlab-ch/goldfish/branch/master/graph/badge.svg)](https://app.codecov.io/gh/snlab-ch/goldfish?branch=master)
 [![CodeFactor](https://www.codefactor.io/repository/github/snlab-ch/goldfish/badge)](https://www.codefactor.io/repository/github/snlab-ch/goldfish)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4563/badge)](https://bestpractices.coreinfrastructure.org/projects/4563)
 <!-- badges: end -->
@@ -50,7 +50,7 @@ The error may relate to compiling the parts of `goldfish` that are written in C+
 or whether OpenMP (for parallelisation) can be found.
 
 Many installation woes can be solved by directing R to use [Homebrew](https://brew.sh) installed `gcc`.
-An updated setting up instructions thanks to @timonelmer are available [here](.github/OpenMP_mac.md).
+An updated setting up instructions thanks to @timonelmer are available [here](https://github.com/snlab-ch/goldfish/blob/main/.github/OpenMP_mac.md).
 
 More details can be found [here](https://medium.com/biosyntax/following-up-library-dependency-when-compiling-r-packages-89f191b9f227) (Thank you @Knieps for identifying this.).
 Other links that may be helpful include:

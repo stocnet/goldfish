@@ -30,7 +30,7 @@ nodeset)}
 \item{nodes}{a nodeset (dataframe or nodes.goldfish object) related to the
 network (ONLY if the object is a network)}
 
-\item{nodes2}{an optional nodest (dataframe or nodes.goldfish object) related
+\item{nodes2}{an optional nodeset (dataframe or nodes.goldfish object) related
 to the network (ONLY if object is a network)}
 }
 \value{

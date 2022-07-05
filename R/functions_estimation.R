@@ -123,7 +123,7 @@
 #' statistics should be returned rather than a results object.
 #' @param preprocessingInit a \code{preprocessed.goldfish} object computed for
 #' the current formula, allows skipping the preprocessing step.
-#' @param silent logical indicating whether a mimimal output should be given.
+#' @param silent logical indicating whether a minimal output should be given.
 #' @param debug logical indicating whether very detailed intermediate results
 #' should be given; slows down the routine significantly.
 #' @param verbose logical indicating whether details of the estimation routine
@@ -219,7 +219,8 @@
 #'
 #' # A individual activity rates model
 #' mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
-#'                   model = "DyNAM", subModel = "rate")
+#'                   model = "DyNAM", subModel = "rate",
+#'                   estimationInit = list(engine = "default_c"))
 #' summary(mod02)
 #'
 #' \dontrun{

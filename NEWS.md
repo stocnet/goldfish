@@ -1,3 +1,12 @@
+# goldfish 1.6.1
+
+* Fix URLs. 
+* Estimate examples now use the `C` engine.
+
+# goldfish 1.6.0
+
+* Cleaning submission to CRAN.
+
 # goldfish 1.5.3
 
 * Effects documentation migrated to a vignette.
@@ -119,7 +128,7 @@
   tertius(bilatnet, states$gdp)
   ```
 
-# golfish 1.3.1
+# goldfish 1.3.1
 
 ## New features
 
@@ -148,7 +157,7 @@
 
 ## Breaking changes
 
-* `modelType` argument in `estimate()` have been deprecated in favour of `model` 
+* `modelType` argument in `estimate()` have been deprecated in favor of `model` 
    and `submodel`.
    
 ## Internal changes
