@@ -7,7 +7,7 @@ Date: 2022-07-05
 Authors@R: c(person("James", "Hollway", role = c("cre", "aut", "dtc"), 
              email = "james.hollway@graduateinstitute.ch",
              comment = c("IHEID", ORCID = "0000-0002-8361-9647")),
-              person("Christoph", "Stadtfeld", role = c("aut"), email = "c.stadtfeld@ethz.ch"),
+              person("Christoph", "Stadtfeld", role = c("aut", "dtc"), email = "c.stadtfeld@ethz.ch"),
               person("Marion", "Hoffman", role = "ctb"),
               person("Alvaro", "Uzaheta", role = "ctb"),
               person("Mirko", "Reul", role = "ctb"),
@@ -18,26 +18,13 @@ Authors@R: c(person("James", "Hollway", role = c("cre", "aut", "dtc"),
               person("Weigutian", "Ou", role = "ctb"),
               person("Emily", "Garvin", role = "ctb"),
               person("Siwei", "Zhang", role = "ctb"))
+License: GPL (>= 3)
 Description: Tools for fitting statistical network models to dynamic network data.
    Can be used for fitting both dynamic network actor models ('DyNAMs') and
    relational event models ('REMs').
-URL: www.social-networks.ethz.ch/research/goldfish.html
+   Stadtfeld, Hollway, and Block (2017) <doi:10.1177/0081175017709295>
+URL: https://snlab-ch.github.io/goldfish/
 BugReports: https://github.com/snlab-ch/goldfish/issues
-Suggests: 
-    testthat,
-    knitr,
-    devtools,
-    covr,
-    rmarkdown,
-    pixiedust,
-    igraph,
-    ggraph,
-    migraph,
-    broom
-VignetteBuilder: knitr 
-License: GPL (>= 3) | file LICENSE
-LazyData: true
-RoxygenNote: 7.2.0
 Depends: R (>= 3.5.0)
 Imports:
     Rcpp (>= 1.0.1),
@@ -51,5 +38,19 @@ Imports:
 LinkingTo:
     Rcpp,
     RcppArmadillo
+Suggests: 
+    testthat,
+    knitr,
+    devtools,
+    covr,
+    rmarkdown,
+    pixiedust,
+    igraph,
+    ggraph,
+    migraph,
+    broom
+VignetteBuilder: knitr 
+LazyData: true
+RoxygenNote: 7.2.0
 NeedsCompilation: yes
 Config/testthat/edition: 3
