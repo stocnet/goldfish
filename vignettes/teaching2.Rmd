@@ -22,7 +22,6 @@ First, let's make sure we're starting with a clean slate and take the goldfish o
 
 
 ```r
-rm(list = ls())
 library(goldfish)
 ```
 
