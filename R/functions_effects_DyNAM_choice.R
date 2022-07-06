@@ -167,7 +167,7 @@ init_DyNAM_choice.default <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -217,7 +217,7 @@ init_DyNAM_choice.tie <- function(effectFun, network, window, n1, n2) {
 #' @aliases tie
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -304,7 +304,7 @@ update_DyNAM_choice_inertia <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -347,7 +347,7 @@ init_DyNAM_choice.indeg <- function(effectFun, network, window, n1, n2) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -395,7 +395,7 @@ update_DyNAM_choice_indeg <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -438,7 +438,7 @@ init_DyNAM_choice.outdeg <- function(effectFun, network, window, n1, n2) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -485,7 +485,7 @@ update_DyNAM_choice_outdeg <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -548,7 +548,7 @@ init_DyNAM_choice.recip <- function(effectFun, network, window, n1, n2) {
 #' @aliases recip
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -648,7 +648,7 @@ update_DyNAM_choice_nodeTrans <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -711,7 +711,7 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2) {
 #' @aliases trans
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -805,7 +805,7 @@ update_DyNAM_choice_trans <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -868,7 +868,7 @@ init_DyNAM_choice.cycle <- function(effectFun, network, window, n1, n2) {
 #' @aliases cycle
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -965,7 +965,7 @@ update_DyNAM_choice_cycle <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -1043,7 +1043,7 @@ init_DyNAM_choice.commonReceiver <- function(effectFun, network,
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -1138,7 +1138,7 @@ update_DyNAM_choice_commonReceiver <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -1195,7 +1195,7 @@ init_DyNAM_choice.commonSender <- function(effectFun, network, window, n1, n2) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -1284,7 +1284,7 @@ update_DyNAM_choice_commonSender <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' net1 <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -1371,7 +1371,7 @@ init_DyNAM_choice.mixedTrans <- function(effectFun, network, window, n1, n2) {
 #' @aliases mixedTrans
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' net1 <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -1506,7 +1506,7 @@ update_DyNAM_choice_mixedTrans <- function(network, sender, receiver, replace,
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' net1 <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -1592,7 +1592,7 @@ init_DyNAM_choice.mixedCycle <- function(effectFun, network, window, n1, n2) {
 #' @aliases mixedCycle
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' net1 <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -1726,7 +1726,7 @@ update_DyNAM_choice_mixedCycle <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' net1 <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -1808,7 +1808,7 @@ init_DyNAM_choice.mixedCommonReceiver <- function(effectFun, network,
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' net1 <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -1946,7 +1946,7 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' net1 <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -2028,7 +2028,7 @@ init_DyNAM_choice.mixedCommonSender <- function(effectFun, network,
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' net1 <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -2166,7 +2166,7 @@ update_DyNAM_choice_mixedCommonSender <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,
@@ -2245,7 +2245,7 @@ init_DyNAM_choice.four <- function(effectFun, network, window, n1, n2) {
 #' @aliases four
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -2435,7 +2435,7 @@ update_DyNAM_choice_tertius <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -2517,7 +2517,7 @@ init_DyNAM_choice.tertiusDiff <- function(effectFun, network, attribute,
 #' @aliases tertiusDiff
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,

@@ -17,8 +17,16 @@
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
-#' parseFormula(calls ~ outdeg(call.Network, type="ego") + indeg(call.Network, type="alter"))
+#' \donttest{
+#' calls <- structure(
+#'            list(time = 1, sender = "a", receiver = "b", replace = 1),
+#'            class = "dependent.goldfish"
+#'          )
+#' callNetwork <- structure(matrix(0, 3, 3), class = "network.goldfish")
+#' 
+#' parseFormula(
+#'   calls ~ outdeg(callNetwork, type="ego") + indeg(callNetwork, type="alter")
+#' )
 #' }
 parseFormula <- function(formula, envir = globalenv()) {
   # check left side

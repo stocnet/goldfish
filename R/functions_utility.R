@@ -17,7 +17,7 @@
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
 #' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
@@ -111,7 +111,7 @@ isReservedElementName <- function(x) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' data("Social_Evolution")
 #' afterSanitize <- sanitizeEvents(calls, "actors")
 #' }
@@ -150,7 +150,7 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = T)
 #' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
@@ -258,7 +258,7 @@ ReducePreprocess <- function(preproData, type = c("withTime", "withoutTime"), ef
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = T)
 #' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)

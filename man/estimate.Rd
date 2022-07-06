@@ -228,7 +228,7 @@ mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
                   estimationInit = list(engine = "default_c"))
 summary(mod02)
 
-\dontrun{
+\donttest{
 # A multinomial-multinomial choice model for coordination ties
 data("Fisheries_Treaties_6070")
 states <- defineNodes(states)

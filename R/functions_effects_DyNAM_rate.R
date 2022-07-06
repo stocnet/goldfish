@@ -30,7 +30,7 @@ init_DyNAM_rate.default <- function(effectFun,
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -88,7 +88,7 @@ init_DyNAM_rate.indeg <- function(effectFun, network, window, n1, n2) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0,

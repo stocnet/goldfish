@@ -521,7 +521,7 @@ initializeCacheStat <- function(
 #'         \code(.argsFUN) in the case if not errors.
 #' @noRd
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' .argsFUN <- list(network = m, n1 = 5, n2 = 5, sender = 1, receiver = 5, replace = 0)
 #' effects <- list(list(effect = out))
 #'
@@ -576,7 +576,7 @@ callFUN <- function(effects, effectPos, effectType, .argsFUN, textMss,
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' actorsEx <- data.frame(
 #'   label = sprintf("Actor %d", 1:5),
 #'   present = rep(TRUE, 5),
@@ -604,7 +604,7 @@ callFUN <- function(effects, effectPos, effectType, .argsFUN, textMss,
 #'                                              c("inertia", "alter")))
 #' prepEnvir <- environment()
 #'
-#' revisar <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
+#' check <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 #' }
 imputeMissingData <- function(objectsEffectsLink, envir = .GlobalEnv) {
   # get data object table, row objects columns class (matrix, attribute)
