@@ -25,9 +25,6 @@ You can find out more about this dataset, its format, and its origins in a coupl
 
 ```r
 library(goldfish)
-#>   <")))><  The Goldfish package in R
-#> 
-#> goldfish: version 1.5.3, "Bubble Eye", created on 2022-07-02
 data("Social_Evolution")
 # ?Social_Evolution
 head(calls)
@@ -174,16 +171,27 @@ At any time, we can also check what goldfish-defined objects we have in our envi
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>         n                       attributes events
-#> actors 84 label, present, floor, gradeType       
+#>               n                       attributes               events
+#> actors       84 label, present, floor, gradeType                     
+#> endStates   154      label, present, regime, gdp present, regime, gdp
+#> startStates 154      label, present, regime, gdp present, regime, gdp
+#> states      154      label, present, regime, gdp present, regime, gdp
 #> 
 #> Goldfish Networks
-#>             dimensions nodesets events
-#> callNetwork    84 x 84   actors  calls
+#>                      dimensions nodesets        events
+#> bilatnet              154 x 154   states  bilatchanges
+#> callNetwork             84 x 84   actors         calls
+#> callNetwork_300         84 x 84   actors     calls_300
+#> callNetwork_5minutes    84 x 84   actors     calls_300
+#> contignet             154 x 154   states contigchanges
+#> friendshipNetwork       84 x 84   actors    friendship
+#> networkMM                 5 x 5 actorsMM      eventsMM
 #> 
 #> Goldfish Dependent Events
 #>                  n     network
 #> callsDependent 439 callNetwork
+#> createBilat     69    bilatnet
+#> depNetMM         5   networkMM
 ```
 
 ## Step 1b: Define networks
@@ -353,7 +361,6 @@ We can use these functions to visually compare our network at two (or more) diff
 
 ```r
 library(ggraph)
-#> Loading required package: ggplot2
 library(migraph)
 # The network at the beginning
 callNetworkBgn <- as.matrix(callNetwork)
@@ -367,7 +374,7 @@ autographr(callNetworkBgn, labels = FALSE, layout = "fr")
 # The network at half time
 callNetworkHlf <- as.matrix(callNetwork,
                             time = calls$time[floor(nrow(calls) / 2)]) |> 
-  add_node_attributes("floor", actors$floor)
+  add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
@@ -379,7 +386,7 @@ autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
 
 # The network at the end
 callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |> 
-  add_node_attributes("floor", actors$floor)
+  add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
@@ -813,18 +820,27 @@ Using windowed effects actually initializes new data objects.
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>         n                       attributes events
-#> actors 84 label, present, floor, gradeType       
+#>               n                       attributes               events
+#> actors       84 label, present, floor, gradeType                     
+#> endStates   154      label, present, regime, gdp present, regime, gdp
+#> startStates 154      label, present, regime, gdp present, regime, gdp
+#> states      154      label, present, regime, gdp present, regime, gdp
 #> 
 #> Goldfish Networks
-#>                   dimensions nodesets     events
-#> callNetwork          84 x 84   actors      calls
-#> callNetwork_300      84 x 84   actors  calls_300
-#> friendshipNetwork    84 x 84   actors friendship
+#>                      dimensions nodesets        events
+#> bilatnet              154 x 154   states  bilatchanges
+#> callNetwork             84 x 84   actors         calls
+#> callNetwork_300         84 x 84   actors     calls_300
+#> callNetwork_5minutes    84 x 84   actors     calls_300
+#> contignet             154 x 154   states contigchanges
+#> friendshipNetwork       84 x 84   actors    friendship
+#> networkMM                 5 x 5 actorsMM      eventsMM
 #> 
 #> Goldfish Dependent Events
 #>                  n     network
 #> callsDependent 439 callNetwork
+#> createBilat     69    bilatnet
+#> depNetMM         5   networkMM
 head(calls_300)
 #>         time   sender receiver increment
 #> 1 1220733470 Actor 72 Actor 50         1

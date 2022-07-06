@@ -22,7 +22,6 @@ First, let's make sure we're starting with a clean slate and take the goldfish o
 
 
 ```r
-rm(list = ls())
 library(goldfish)
 ```
 
@@ -172,8 +171,8 @@ Try this for yourself now.
 
 
 ```r
-states <- linkEvents(states, regchanges, attribute = "regime")
-states <- linkEvents(states, gdpchanges, attribute = "gdp")
+states <- linkEvents(states, regchanges, attribute = "regime") |> 
+  linkEvents(gdpchanges, attribute = "gdp")
 str(states)
 #> Classes 'nodes.goldfish' and 'data.frame':	154 obs. of  4 variables:
 #>  $ label  : chr  "AND" "DNK" "FRA" "DEU" ...
@@ -190,8 +189,25 @@ Let's check whether we have everything linked up correctly:
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
+#>               n                       attributes               events
+#> actors       84 label, present, floor, gradeType                     
+#> endStates   154      label, present, regime, gdp present, regime, gdp
+#> startStates 154      label, present, regime, gdp present, regime, gdp
+#> states      154      label, present, regime, gdp present, regime, gdp
+#> 
+#> Goldfish Networks
+#>                      dimensions nodesets     events
+#> callNetwork             84 x 84   actors      calls
+#> callNetwork_300         84 x 84   actors  calls_300
+#> callNetwork_5minutes    84 x 84   actors  calls_300
+#> friendshipNetwork       84 x 84   actors friendship
+#> networkMM                 5 x 5 actorsMM   eventsMM
+#> 
+#> Goldfish Dependent Events
+#>                  n     network
+#> callsDependent 439 callNetwork
+#> createBilat     69    bilatnet
+#> depNetMM         5   networkMM
 ```
 
 ## Step 1b: Define networks ####
@@ -296,8 +312,8 @@ initial contiguity network and the event list changing it.
 
 
 ```r
-contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
-contignet <- linkEvents(contignet, contigchanges, nodes = states)
+contignet <- defineNetwork(contignet, nodes = states, directed = FALSE) |> 
+  linkEvents(contigchanges, nodes = states)
 class(contignet)
 #> [1] "network.goldfish" "matrix"           "array"
 contignet
@@ -323,13 +339,27 @@ Quick check to see whether everything is linked up correctly:
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
+#>               n                       attributes               events
+#> actors       84 label, present, floor, gradeType                     
+#> endStates   154      label, present, regime, gdp present, regime, gdp
+#> startStates 154      label, present, regime, gdp present, regime, gdp
+#> states      154      label, present, regime, gdp present, regime, gdp
 #> 
 #> Goldfish Networks
-#>           dimensions nodesets        events
-#> bilatnet   154 x 154   states  bilatchanges
-#> contignet  154 x 154   states contigchanges
+#>                      dimensions nodesets        events
+#> bilatnet              154 x 154   states  bilatchanges
+#> callNetwork             84 x 84   actors         calls
+#> callNetwork_300         84 x 84   actors     calls_300
+#> callNetwork_5minutes    84 x 84   actors     calls_300
+#> contignet             154 x 154   states contigchanges
+#> friendshipNetwork       84 x 84   actors    friendship
+#> networkMM                 5 x 5 actorsMM      eventsMM
+#> 
+#> Goldfish Dependent Events
+#>                  n     network
+#> callsDependent 439 callNetwork
+#> createBilat     69    bilatnet
+#> depNetMM         5   networkMM
 ```
 
 ## Step 1c: Define dependent events ####
@@ -376,17 +406,27 @@ So what goldfish related objects do we have now?
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
+#>               n                       attributes               events
+#> actors       84 label, present, floor, gradeType                     
+#> endStates   154      label, present, regime, gdp present, regime, gdp
+#> startStates 154      label, present, regime, gdp present, regime, gdp
+#> states      154      label, present, regime, gdp present, regime, gdp
 #> 
 #> Goldfish Networks
-#>           dimensions nodesets        events
-#> bilatnet   154 x 154   states  bilatchanges
-#> contignet  154 x 154   states contigchanges
+#>                      dimensions nodesets        events
+#> bilatnet              154 x 154   states  bilatchanges
+#> callNetwork             84 x 84   actors         calls
+#> callNetwork_300         84 x 84   actors     calls_300
+#> callNetwork_5minutes    84 x 84   actors     calls_300
+#> contignet             154 x 154   states contigchanges
+#> friendshipNetwork       84 x 84   actors    friendship
+#> networkMM                 5 x 5 actorsMM      eventsMM
 #> 
 #> Goldfish Dependent Events
-#>              n  network
-#> createBilat 69 bilatnet
+#>                  n     network
+#> callsDependent 439 callNetwork
+#> createBilat     69    bilatnet
+#> depNetMM         5   networkMM
 ```
 
 # Intermediate step: Visualisation ####
@@ -415,17 +455,17 @@ library(migraph)
 
 # network at the beginning of the event sequence
 startStates <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))
-startNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
-startNet <- add_node_attributes(startNet, "present", startStates$present)
-startNet <- add_node_attributes(startNet, "regime", startStates$regime)
-startNet <- add_node_attributes(startNet, "gdp", startStates$gdp)
+startNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02"))) |>
+  add_node_attribute("present", startStates$present) |> 
+  add_node_attribute("regime", startStates$regime) |> 
+  add_node_attribute("gdp", startStates$gdp)
 
 # network at the end of the event sequence
 endStates <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))
-endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
-endNet <- add_node_attributes(endNet, "present", endStates$present)
-endNet <- add_node_attributes(endNet, "regime", endStates$regime)
-endNet <- add_node_attributes(endNet, "gdp", endStates$gdp)
+endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01"))) |> 
+  add_node_attribute("present", endStates$present) |> 
+  add_node_attribute("regime", endStates$regime) |> 
+  add_node_attribute("gdp", endStates$gdp)
 
 # logical value indicating if states where present and with agreements
 isStateActiveStart <- startStates$present & node_degree(startNet) > 0
@@ -490,7 +530,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>   68.35    5.18   73.75
+#>   78.23    3.61   81.96
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -581,7 +621,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>    7.78    0.40    7.01
+#>    9.58    0.59    9.19
 ```
 
 # Extensions...
