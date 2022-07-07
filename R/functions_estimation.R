@@ -735,7 +735,7 @@ estimate.formula <- function(
 
   # Reduce size formula, drop environment
   # formula <- as.formula(formula, env = emptyenv())
-  attr(formula, ".Environment") <- NULL
+  # attr(formula, ".Environment") <- NULL
 
   # Old estimation
   if (engine == "old") {
@@ -822,7 +822,9 @@ estimate.formula <- function(
 
   ### 6. RESULTS----
   result$names <- effectDescription
-  environment(formula) <- emptyenv() # avoids increase object size
+  formula <- as.formula(Reduce(paste, deparse(formula)),
+                        env = new.env(parent = emptyenv()))
+  # environment(formula) <- emptyenv() # avoids increase object size
   result$formula <- formula
   result$model <- model
   result$subModel <- subModel

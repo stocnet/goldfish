@@ -517,11 +517,6 @@ trans(network, window = Inf, ignoreRep = FALSE, transformFun = identity)
 s(i,j, t, x) = \sum_{k}{I(x(t)_{ik}>0)I(x(t)_{kj}>0)}
 \end{equation}
 
-Closure of two-paths (i->k->j) in the network through an event $i\rightarrow j$.
-\begin{align}
- s_5(i, j, t, net) &= \sum_{\tau = 0}^{t} \sum_{k:~k \neq i,j} I(net(t)_{ik} > 0) I(net(t)_{kj} > 0)
-\end{align}
-
 It is the tendency to create an event $i\rightarrow j$ when it closes 
 more two-paths ($i\rightarrow k\rightarrow j$) observed in the past events in a
 covariate `network`.
