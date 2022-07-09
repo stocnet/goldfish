@@ -42,7 +42,8 @@ preprocess <- function(
   endTime = max(vapply(events, function(x) max(x$time), double(1))),
   rightCensored = FALSE,
   verbose = TRUE,
-  silent = FALSE) {
+  silent = FALSE,
+  prepEnvir = globalenv()) {
 
   # For debugging
   if (identical(environment(), globalenv())) {
@@ -52,12 +53,11 @@ preprocess <- function(
     silent <- TRUE
   }
 
-  prepEnvir <- environment()
   # print(match.call())
   # initialize statistics functions from data objects
   # number of actors
-  n1 <- nrow(get(nodes))
-  n2 <- nrow(get(nodes2))
+  n1 <- nrow(get(nodes, envir = prepEnvir))
+  n2 <- nrow(get(nodes2, envir = prepEnvir))
   nEffects <- length(effects)
 
   # check start time and end time are valid values, set flags

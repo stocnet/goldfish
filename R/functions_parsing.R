@@ -31,7 +31,7 @@
 parseFormula <- function(formula, envir = globalenv()) {
   # check left side
   depName <- getDependentName(formula)
-  if (!inherits(get(depName), "dependent.goldfish")) {
+  if (!inherits(get(depName, envir = envir), "dependent.goldfish")) {
     stop("The left hand side of the formula should contain dependent events",
          " (check the function defineDependentEvents).", call. = FALSE)
   }
@@ -45,7 +45,7 @@ parseFormula <- function(formula, envir = globalenv()) {
   rhsNames <- int[[1]]
   hasIntercept <- int[[2]]
   # check right side: default network
-  defaultNetworkName <- attr(get(depName), "defaultNetwork")
+  defaultNetworkName <- attr(get(depName, envir = envir), "defaultNetwork")
   if (!is.null(defaultNetworkName)) {
     noObjectIds <- which(1 == vapply(rhsNames, length, integer(1)))
     for (i in noObjectIds) {
@@ -65,9 +65,10 @@ parseFormula <- function(formula, envir = globalenv()) {
   }
   # check right side: windows
   windowParameters <- lapply(rhsNames, getElement, "window")
-  rhsNames <- parseTimeWindows(rhsNames)
+  rhsNames <- parseTimeWindows(rhsNames, envir = envir)
+  cat(ls(envir), "\n")
   # check right side: ignoreRep parameter
-  mult <- parseMultipleEffects(rhsNames)
+  mult <- parseMultipleEffects(rhsNames, envir = envir)
   rhsNames <- mult[[1]]
   ignoreRepParameter <- mult[[2]]
     # check mismatch with default parameter
@@ -213,11 +214,14 @@ createEffectsFunctions <- function(effectInit, model, subModel,
   effects <- lapply(
     effectInit, function(x, model, subModel) {
       funText <- paste("update", model, subModel, x[[1]], sep = "_")
-      FUN <- tryCatch(eval(parse(text = funText)), error = function(e) NULL)
+      FUN <- tryCatch(
+        eval(parse(text = funText), envir = envir),
+        error = function(e) NULL
+        )
       # FUN <- NULL
       if (is.null(FUN)) {
         tryCatch({
-          FUN <- eval(parse(text = x[[1]]))
+          FUN <- eval(parse(text = x[[1]]), envir = envir)
         },
         error = function(e) stop("Unknown effect ", x[[1]]) # ,
         # finally = warning("Effect ")
@@ -258,9 +262,13 @@ createEffectsFunctions <- function(effectInit, model, subModel,
       if ("network" %in% .argsNames && "isTwoMode" %in% .argsNames) {
         # cat(x[[1]], is.null(parmsToSet[["isTwoMode"]]))
         isTwoMode <- length(attr(eval(.signature[["network"]], envir = envir), "nodes")) > 1
-        if (!is.null(parmsToSet[["isTwoMode"]]) && eval(parmsToSet[["isTwoMode"]]) != isTwoMode) {
-          warning("The \"isTwoMode\" parameter in effect ", x[[1]], " has a different value than",
-            " the attributes on network argument '", x[[2]], "'", call. = FALSE, immediate. = TRUE)
+        if (!is.null(parmsToSet[["isTwoMode"]]) &&
+            eval(parmsToSet[["isTwoMode"]], envir = envir) != isTwoMode) {
+          warning(
+            "The \"isTwoMode\" parameter in effect ",
+            x[[1]], " has a different value than",
+            " the attributes on network argument '",
+            x[[2]], "'", call. = FALSE, immediate. = TRUE)
         } else if (isTwoMode && is.null(parmsToSet[["isTwoMode"]])) {
           .signature[["isTwoMode"]] <- isTwoMode
           warning("Setting 'isTwoMode' parameter in effect ", x[[1]],
@@ -480,7 +488,7 @@ parseIntercept <- function(rhsNames) {
 # Figures out which effect is a multiple effect
 # then finds a network object from the other parameters that this is related to
 # unless a network name is passed to the multiple attribute
-parseMultipleEffects <- function(rhsNames, default = FALSE) {
+parseMultipleEffects <- function(rhsNames, default = FALSE, envir = environment()) {
   multiple <- list()
   multipleNames <- character(0)
   for (i in seq_along(rhsNames)) {
@@ -488,10 +496,11 @@ parseMultipleEffects <- function(rhsNames, default = FALSE) {
     id <- which(names(rhsNames[[i]]) == "ignoreRep")
     multipleParam <- ifelse(length(id) == 1, rhsNames[[i]][[id]], default)
 
-    if (multipleParam %in% c("T", "F", "TRUE", "FALSE")) multipleParam <- as.logical(multipleParam)
+    if (multipleParam %in% c("T", "F", "TRUE", "FALSE"))
+      multipleParam <- as.logical(multipleParam)
     if (!multipleParam) {
       table <- getDataObjects(rhsNames[i])
-      netIds <- vapply(getElementFromDataObjectTable(table),
+      netIds <- vapply(getElementFromDataObjectTable(table, envir = envir),
                        FUN = inherits,
                        FUN.VALUE = logical(1),
                        what = "network.goldfish")
@@ -522,32 +531,41 @@ parseMultipleEffects <- function(rhsNames, default = FALSE) {
 parseTimeWindows <- function(rhsNames, envir = globalenv()) {
   objectNames <- getDataObjects(rhsNames)
 
-  hasWindows <- which(vapply(rhsNames, function(x) !is.null(getElement(x, "window")), logical(1)))
+  hasWindows <- which(
+    vapply(rhsNames, function(x) !is.null(getElement(x, "window")), logical(1))
+    )
 
   for (i in hasWindows) {
     windowName <- rhsNames[[i]]$window
     window <- tryCatch(
       eval(parse(text = windowName), envir = envir),
       error = function(e) {
-        e$message <- paste("Invalid window parameter for effect ", rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
-                           ":\n", e$message)
+        e$message <- paste(
+          "Invalid window parameter for effect ",
+          rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
+          ":\n", e$message)
         stop(e)
       }
     )
 
-    # # in the case windows is provided as an object name, it should start with alphabetic character
+    # # in the case windows is provided as an object name,
+    # it should start with alphabetic character
     isValidName <- grepl("^[[:alpha:]][[:alnum:]_.]+$", windowName)
 
     # support for lubridate object classes for date operations
-    if (inherits(window, c("Period", "Duration")) & "lubridate" %in% attr(attr(window, "class"), "package")) {
+    if (inherits(window, c("Period", "Duration")) &
+        "lubridate" %in% attr(attr(window, "class"), "package")) {
       if (!isValidName) {
         windowName <- gsub("\\s", "", as.character(window))
-        if (inherits(window, "Duration")) windowName <- gsub("^(\\d+s)\\s*(\\(.+\\))$", "\\1", as.character(window))
+        if (inherits(window, "Duration"))
+          windowName <- gsub("^(\\d+s)\\s*(\\(.+\\))$", "\\1",
+                             as.character(window))
         }
     } else if (inherits(window, "character")) {
       if (!isValidName) windowName <- gsub(" ", "", window)
 
-      if (!is.numeric(window) & !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
+      if (!is.numeric(window) &
+          !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
         stop(
           "The window effect specified with the effect ", rhsNames[[i]][[1]],
           " ", rhsNames[[i]][[2]], " is not in the form 'number unit'\n",
@@ -581,8 +599,10 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
     } else if (is.numeric(window)) { # check numeric type
 
       if (window < 0)
-        stop("The window specified with the effect ", rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
-             " is not a positive numeric value")
+        stop(
+          "The window specified with the effect ",
+          rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
+          " is not a positive numeric value")
     }
 
 
@@ -641,9 +661,11 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
 
       if (isAttribute) {
         attr(nodes, "events") <- c(attr(nodes, "events"), nameNewEvents)
-        attr(nodes, "dynamicAttributes") <- c(attr(nodes, "dynamicAttributes"), newAttribute)
+        attr(nodes, "dynamicAttributes") <-
+          c(attr(nodes, "dynamicAttributes"), newAttribute)
       } else {
-        attr(newNetwork, "events") <- c(attr(newNetwork, "events"), nameNewEvents)
+        attr(newNetwork, "events") <-
+          c(attr(newNetwork, "events"), nameNewEvents)
       }
 
       assign(nameNewEvents, newEvents, envir = envir)

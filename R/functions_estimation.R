@@ -379,12 +379,14 @@ estimate.formula <- function(
 
 
   ### 1. PARSE the formula----
-
+  PreprocessEnvir <- new.env(parent = globalenv())
+  
   if (!silent) cat("Parsing formula.\n")
   formula <- x
 
+  cat(ls(PreprocessEnvir), "\n")
   ## 1.1 PARSE for all cases: preprocessingInit or not
-  parsedformula <- parseFormula(formula)
+  parsedformula <- parseFormula(formula, envir = PreprocessEnvir)
   rhsNames <- parsedformula$rhsNames
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
@@ -439,7 +441,7 @@ estimate.formula <- function(
 
   ## 2.0 Set isTwoMode to define effects functions
   # get node sets of dependent variable
-  .nodes <- attr(get(depName), "nodes")
+  .nodes <- attr(get(depName, envir = PreprocessEnvir), "nodes")
   isTwoMode <- FALSE
   # two-mode networks(2 kinds of nodes)
   if (length(.nodes) == 2) {
@@ -453,9 +455,9 @@ estimate.formula <- function(
 
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
   # enviroment from which get the objects
-  envir <- environment()
 
-  effects <- createEffectsFunctions(rhsNames, model, subModel, envir = envir)
+  effects <- createEffectsFunctions(rhsNames, model, subModel,
+                                    envir = PreprocessEnvir)
   # Get links between objects and effects for printing results
   objectsEffectsLink <- getObjectsEffectsLink(rhsNames)
 
@@ -465,10 +467,10 @@ estimate.formula <- function(
 
     # Initialize events list and link to objects
     events <- getEventsAndObjectsLink(
-      depName, rhsNames, .nodes, .nodes2, envir = envir)[[1]]
+      depName, rhsNames, .nodes, .nodes2, envir = PreprocessEnvir)[[1]]
         # moved cleanInteractionEvents in getEventsAndObjectsLink
     eventsObjectsLink <- getEventsAndObjectsLink(
-      depName, rhsNames, .nodes, .nodes2, envir = envir)[[2]]
+      depName, rhsNames, .nodes, .nodes2, envir = PreprocessEnvir)[[2]]
     eventsEffectsLink <- getEventsEffectsLink(
       events, rhsNames, eventsObjectsLink)
   }
@@ -479,7 +481,7 @@ estimate.formula <- function(
   if (model == "DyNAMi") {
     events <- cleanInteractionEvents(
       events, eventsEffectsLink, windowParameters, subModel, depName,
-      eventsObjectsLink, envir = environment())
+      eventsObjectsLink, envir = PreprocessEnvir)
   }
 
   ### 3. PREPROCESS statistics----
@@ -499,7 +501,7 @@ estimate.formula <- function(
       newrhsNames <- rhsNames[which(effectsindexes == 0)]
       newWindowParameters <- windowParameters[which(effectsindexes == 0)]
       neweffects <- createEffectsFunctions(
-        newrhsNames, model, subModel, envir = environment())
+        newrhsNames, model, subModel, envir = PreprocessEnvir)
       # Get links between objects and effects for printing results
       newobjectsEffectsLink <- getObjectsEffectsLink(newrhsNames)
 
@@ -518,9 +520,9 @@ estimate.formula <- function(
 
       # Retrieve again the events to calculate new statistics
       newevents <- getEventsAndObjectsLink(
-        depName, newrhsNames, .nodes, .nodes2, envir = envir)[[1]]
+        depName, newrhsNames, .nodes, .nodes2, envir = PreprocessEnvir)[[1]]
       neweventsObjectsLink <- getEventsAndObjectsLink(
-        depName, newrhsNames, .nodes, .nodes2, envir = envir)[[2]]
+        depName, newrhsNames, .nodes, .nodes2, envir = PreprocessEnvir)[[2]]
       neweventsEffectsLink <- getEventsEffectsLink(
         newevents, newrhsNames, neweventsObjectsLink)
 
@@ -543,7 +545,8 @@ estimate.formula <- function(
         endTime = preprocessingInit[["endTime"]],
         rightCensored = rightCensored,
         verbose = verbose,
-        silent = silent
+        silent = silent,
+        prepEnvir = PreprocessEnvir
       )
 
       # test the length of the dependent and RC updates (in case the events
@@ -568,7 +571,8 @@ estimate.formula <- function(
     allprep <- preprocessingInit
     allprep$initialStats <- array(0,
       dim = c(
-        nrow(get(.nodes)), nrow(get(.nodes2)),
+        nrow(get(.nodes, envir = PreprocessEnvir)),
+        nrow(get(.nodes2, envir = PreprocessEnvir)),
         length(effectsindexes)
       )
     )
@@ -663,7 +667,8 @@ estimate.formula <- function(
         rightCensored = rightCensored,
         verbose = verbose,
         silent = silent,
-        groupsNetwork = parsedformula$defaultNetworkName)
+        groupsNetwork = parsedformula$defaultNetworkName,
+        prepEnvir = PreprocessEnvir)
     } else {
       prep <- preprocess(
         model = model,
@@ -682,7 +687,8 @@ estimate.formula <- function(
         endTime = estimationInit[["endTime"]],
         rightCensored = rightCensored,
         verbose = verbose,
-        silent = silent
+        silent = silent,
+        prepEnvir = PreprocessEnvir
       )
   }
     # The formula, nodes, nodes2 are added to the preprocessed object so that
@@ -777,7 +783,8 @@ estimate.formula <- function(
     resold$rightCensored <- hasIntercept
     resold$nParams <- if ("fixed" %in% colnames(effectDescription)) {
       sum(!vapply(effectDescription[, "fixed"],
-                  function(x) eval(parse(text = x)), logical(1)))
+                  function(x) eval(parse(text = x), envir = PreprocessEnvir),
+                  logical(1)))
     } else  length(resold$parameters)
     return(resold)
   }
@@ -785,8 +792,8 @@ estimate.formula <- function(
   # Normal estimation
   additionalArgs <- list(
     statsList = prep,
-    nodes = get(.nodes),
-    nodes2 = get(.nodes2),
+    nodes = get(.nodes, envir = PreprocessEnvir),
+    nodes2 = get(.nodes2, envir = PreprocessEnvir),
     defaultNetworkName = parsedformula$defaultNetworkName,
     addInterceptEffect = hasIntercept,
     modelType = modelTypeCall,
@@ -831,7 +838,8 @@ estimate.formula <- function(
   result$rightCensored <- hasIntercept
   result$nParams <- if ("fixed" %in% colnames(effectDescription)) {
     sum(!vapply(effectDescription[, "fixed"],
-                function(x) eval(parse(text = x)), logical(1)))
+                function(x) eval(parse(text = x), envir = PreprocessEnvir),
+                logical(1)))
   } else  length(result$parameters)
 
   # if (!silent) if (requireNamespace("beepr", quietly = TRUE) &

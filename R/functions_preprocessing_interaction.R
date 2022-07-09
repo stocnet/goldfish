@@ -34,7 +34,8 @@ preprocessInteraction <- function(
   rightCensored = FALSE,
   verbose = TRUE,
   silent = FALSE,
-  groupsNetwork = groupsNetwork) {
+  groupsNetwork = groupsNetwork,
+  prepEnvir = environment()) {
 
 # For debugging
   if (identical(environment(), globalenv())) {
@@ -44,14 +45,14 @@ preprocessInteraction <- function(
     silent <- TRUE
   }
 
-  prepEnvir <- environment()
+  # prepEnvir <- environment()
   # initialize statistics functions from data objects
   # number of actors
-  n1 <- nrow(get(nodes))
-  n2 <- nrow(get(nodes2))
+  n1 <- nrow(get(nodes, envir = prepEnvir))
+  n2 <- nrow(get(nodes2, envir = prepEnvir))
   nEffects <- length(effects)
   # changed Marion
-  groupsNetworkObject <- get(groupsNetwork)
+  groupsNetworkObject <- get(groupsNetwork, envir = prepEnvir)
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 
@@ -115,8 +116,8 @@ preprocessInteraction <- function(
   # and of the past interaction updates
   dname <- eventsObjectsLink[1, 1]
   # PATCH Marion: the depdendent.depevents_DyNAMi is not sanitized yet
-  dnameObject <- sanitizeEvents(get(dname),nodes,nodes2)
-  assign(dname, dnameObject)
+  dnameObject <- sanitizeEvents(get(dname, envir = prepEnvir), nodes, nodes2)
+  assign(dname, dnameObject, envir = prepEnvir)
 
   depindex <- 0
   deporder <- NULL
@@ -128,10 +129,12 @@ preprocessInteraction <- function(
   if (length(events) > 0) {
     for (e in seq.int(length(events))) {
       ev <- events[[e]]
-      if (inherits(ev, "interaction.groups.updates") && all(get(dname) == ev)) {
+      if (inherits(ev, "interaction.groups.updates") &&
+          all(get(dname, envir = prepEnvir) == ev)) {
         depindex <- e
         deporder <- attr(ev, "order")
-      } else if (inherits(ev, "interaction.groups.updates") && !all(get(dname) == ev)) {
+      } else if (inherits(ev, "interaction.groups.updates") &&
+                 !all(get(dname, envir = prepEnvir) == ev)) {
         exoindex <- e
         exoorder <- attr(ev, "order")
       } else if (inherits(ev, "interaction.network.updates") && !is.null(attr(ev, "order"))) {
@@ -150,12 +153,15 @@ preprocessInteraction <- function(
     groupsupdates <- attr(groupsNetworkObject, "events")
 
     # PATCH Marion: the groups update events were not sanitized
-    groupsupdates1Object <- sanitizeEvents(get(groupsupdates[1]),nodes,nodes2)
-    assign(groupsupdates[1], groupsupdates1Object)
-    groupsupdates2Object <- sanitizeEvents(get(groupsupdates[2]),nodes,nodes2)
-    assign(groupsupdates[2], groupsupdates2Object)
+    groupsupdates1Object <- sanitizeEvents(
+      get(groupsupdates[1], envir = prepEnvir), nodes, nodes2)
+    assign(groupsupdates[1], groupsupdates1Object, envir = prepEnvir)
+    groupsupdates2Object <- sanitizeEvents(
+      get(groupsupdates[2], envir = prepEnvir),nodes,nodes2)
+    assign(groupsupdates[2], groupsupdates2Object, envir = prepEnvir)
 
-    if (all(get(dname) == get(groupsupdates[1]))) {
+    if (all(get(dname, envir = prepEnvir) ==
+            get(groupsupdates[1], envir = prepEnvir))) {
       depn <- groupsupdates[1]
       exon <- groupsupdates[2]
     } else {
@@ -164,8 +170,8 @@ preprocessInteraction <- function(
     }
     depindex <- length(events) + 1
     exoindex <- length(events) + 2
-    events[[depindex]] <- get(depn)
-    events[[exoindex]] <- get(exon)
+    events[[depindex]] <- get(depn, envir = prepEnvir)
+    events[[exoindex]] <- get(exon, envir = prepEnvir)
 
     # find orders
     deporder <- attr(events[[depindex]], "order")
@@ -342,7 +348,7 @@ preprocessInteraction <- function(
 
       groupsNetworkObject[event$sender, event$receiver] <-
         groupsNetworkObject[event$sender, event$receiver] + event$increment
-      assign(groupsNetwork, groupsNetworkObject)
+      assign(groupsNetwork, groupsNetworkObject, envir = prepEnvir)
 
 
       pointerDependent <- pointerDependent + 1
@@ -433,7 +439,7 @@ preprocessInteraction <- function(
       } else {# OTHERWISE (PAST UPDATE or ATTRIBUTE UPDATE), only statistics related to the object
         effIds <- which(!is.na(eventsEffectsLink[nextEvent + 1, ]))
       }
-      groupsNetworkObject <- get(groupsNetwork)
+      groupsNetworkObject <- get(groupsNetwork, envir = prepEnvir)
 
 
       for (id in effIds) {

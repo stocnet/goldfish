@@ -67,7 +67,7 @@ getDataObjects <- function(namedList, keepOrder = FALSE, removeFirst = TRUE) {
 }
 
 
-getElementFromDataObjectTable <- function(x, envir = as.environment(-1)) {
+getElementFromDataObjectTable <- function(x, envir = environment()) {
   elements <- list()
   if (nrow(x) == 0) {
     return(elements)
