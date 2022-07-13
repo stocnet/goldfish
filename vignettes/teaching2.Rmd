@@ -189,21 +189,8 @@ Let's check whether we have everything linked up correctly:
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>               n                       attributes               events
-#> actors       84 label, present, floor, gradeType                     
-#> endStates   154      label, present, regime, gdp present, regime, gdp
-#> startStates 154      label, present, regime, gdp present, regime, gdp
-#> states      154      label, present, regime, gdp present, regime, gdp
-#> 
-#> Goldfish Networks
-#>                   dimensions nodesets     events
-#> callNetwork          84 x 84   actors      calls
-#> friendshipNetwork    84 x 84   actors friendship
-#> 
-#> Goldfish Dependent Events
-#>                  n     network
-#> callsDependent 439 callNetwork
-#> createBilat     69    bilatnet
+#>          n                  attributes               events
+#> states 154 label, present, regime, gdp present, regime, gdp
 ```
 
 ## Step 1b: Define networks ####
@@ -335,23 +322,13 @@ Quick check to see whether everything is linked up correctly:
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>               n                       attributes               events
-#> actors       84 label, present, floor, gradeType                     
-#> endStates   154      label, present, regime, gdp present, regime, gdp
-#> startStates 154      label, present, regime, gdp present, regime, gdp
-#> states      154      label, present, regime, gdp present, regime, gdp
+#>          n                  attributes               events
+#> states 154 label, present, regime, gdp present, regime, gdp
 #> 
 #> Goldfish Networks
-#>                   dimensions nodesets        events
-#> bilatnet           154 x 154   states  bilatchanges
-#> callNetwork          84 x 84   actors         calls
-#> contignet          154 x 154   states contigchanges
-#> friendshipNetwork    84 x 84   actors    friendship
-#> 
-#> Goldfish Dependent Events
-#>                  n     network
-#> callsDependent 439 callNetwork
-#> createBilat     69    bilatnet
+#>           dimensions nodesets        events
+#> bilatnet   154 x 154   states  bilatchanges
+#> contignet  154 x 154   states contigchanges
 ```
 
 ## Step 1c: Define dependent events ####
@@ -398,23 +375,17 @@ So what goldfish related objects do we have now?
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>               n                       attributes               events
-#> actors       84 label, present, floor, gradeType                     
-#> endStates   154      label, present, regime, gdp present, regime, gdp
-#> startStates 154      label, present, regime, gdp present, regime, gdp
-#> states      154      label, present, regime, gdp present, regime, gdp
+#>          n                  attributes               events
+#> states 154 label, present, regime, gdp present, regime, gdp
 #> 
 #> Goldfish Networks
-#>                   dimensions nodesets        events
-#> bilatnet           154 x 154   states  bilatchanges
-#> callNetwork          84 x 84   actors         calls
-#> contignet          154 x 154   states contigchanges
-#> friendshipNetwork    84 x 84   actors    friendship
+#>           dimensions nodesets        events
+#> bilatnet   154 x 154   states  bilatchanges
+#> contignet  154 x 154   states contigchanges
 #> 
 #> Goldfish Dependent Events
-#>                  n     network
-#> callsDependent 439 callNetwork
-#> createBilat     69    bilatnet
+#>              n  network
+#> createBilat 69 bilatnet
 ```
 
 # Intermediate step: Visualisation ####
@@ -518,7 +489,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>   90.70    5.11   96.50
+#>   73.17    4.60   77.81
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -609,7 +580,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>    9.61    0.59    9.40
+#>    7.71    0.50    7.37
 ```
 
 # Extensions...
@@ -627,6 +598,7 @@ Here is an example on the current results object:
 
 ```r
 library(broom)
+#> Warning: package 'broom' was built under R version 4.2.1
 library(pixiedust)
 dust(tidy(tieModel)) %>% 
   sprinkle(col = 2:4, round = 3) %>% 

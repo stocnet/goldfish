@@ -175,9 +175,8 @@ goldfishObjects()
 #> actors 84 label, present, floor, gradeType       
 #> 
 #> Goldfish Networks
-#>                   dimensions nodesets     events
-#> callNetwork          84 x 84   actors      calls
-#> friendshipNetwork    84 x 84   actors friendship
+#>             dimensions nodesets events
+#> callNetwork    84 x 84   actors  calls
 #> 
 #> Goldfish Dependent Events
 #>                  n     network
