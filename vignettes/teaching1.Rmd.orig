@@ -425,14 +425,6 @@ AIC(mod03Rate)
 AIC(mod04Rate)
 ```
 
-Using windowed effects actually initializes new data objects.
-
-```{r objs2}
-goldfishObjects()
-head(calls_300)
-tail(calls_300)
-```
-
 ### REM with `goldfish`
 
 `goldfish` does not only run DyNAMs; it also runs REMs (Butts, 2008).

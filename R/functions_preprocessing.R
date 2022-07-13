@@ -169,6 +169,8 @@ preprocess <- function(
     dotEvents <- ifelse(nTotalEvents > 50, ceiling(nTotalEvents / 50), 1)
   }
 
+  cat(ls(prepEnvir), "\n")
+  
   # iterate over all event lists
   while (any(validPointers)) {
     iTotalEvents <- iTotalEvents + 1L
@@ -410,7 +412,9 @@ preprocess <- function(
           }
         }
         # Assign object
-        eval(parse(text = paste(objectName, "<- object")), envir = prepEnvir)
+        assign("object", object, envir = prepEnvir)
+        eval(parse(text = paste(objectName, "<- object")),
+             envir = prepEnvir, enclos = parent.frame())
       }
     } # end 3. (!dependent)
 
@@ -630,7 +634,8 @@ imputeMissingData <- function(objectsEffectsLink, envir = .GlobalEnv) {
       # cat("vector\n")
       # Assign object
       assign("object", object, envir = envir)
-      eval(parse(text = paste(objectName, "<- object")), envir = envir)
+      eval(parse(text = paste(objectName, "<- object")),
+           envir = envir, enclos = parent.frame())
     }
   }
   return(done)

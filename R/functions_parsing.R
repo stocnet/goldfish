@@ -66,7 +66,6 @@ parseFormula <- function(formula, envir = globalenv()) {
   # check right side: windows
   windowParameters <- lapply(rhsNames, getElement, "window")
   rhsNames <- parseTimeWindows(rhsNames, envir = envir)
-  cat(ls(envir), "\n")
   # check right side: ignoreRep parameter
   mult <- parseMultipleEffects(rhsNames, envir = envir)
   rhsNames <- mult[[1]]
@@ -514,7 +513,7 @@ parseMultipleEffects <- function(rhsNames, default = FALSE, envir = environment(
       multipleParam <- FALSE
     }
 
-    if (!is.na(name) && name != "" && !exists(name))
+    if (!is.na(name) && name != "" && !exists(name, envir = envir))
       stop("Unknown object in 'ignoreRep' parameter: ", name, call. = FALSE)
 
     multiple <- append(multiple, multipleParam)

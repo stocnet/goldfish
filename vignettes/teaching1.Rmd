@@ -68,58 +68,29 @@ mod00Rate <- estimate(
   callsDependent ~ indeg + outdeg,
   model = "DyNAM", subModel = "rate"
   )
+```
+
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect indeg
 
 summary(mod00Rate)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Coefficients :
-#>        Estimate Std. Error z-value  Pr(>|z|)    
-#> indeg  0.551445   0.066344  8.3119 < 2.2e-16 ***
-#> outdeg 0.263784   0.028386  9.2927 < 2.2e-16 ***
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 2e-05 
-#>   Log-Likelihood: -1750.9
-#>   AIC:  3505.8 
-#>   AICc: 3505.9 
-#>   BIC:  3514 
-#>   model: "DyNAM" subModel: "rate"
+#> Error in summary(mod00Rate): object 'mod00Rate' not found
 
 mod00Choice <- estimate(
   callsDependent ~ inertia + recip + trans,
   model = "DyNAM", subModel = "choice"
   )
+```
+
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect inertia
 
 summary(mod00Choice)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Coefficients :
-#>         Estimate Std. Error z-value  Pr(>|z|)    
-#> inertia  5.19690    0.17397 29.8725 < 2.2e-16 ***
-#> recip    1.39802    0.17300  8.0812 6.661e-16 ***
-#> trans   -0.23036    0.21554 -1.0687    0.2852    
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 7e-05 
-#>   Log-Likelihood: -696.72
-#>   AIC:  1399.4 
-#>   AICc: 1399.5 
-#>   BIC:  1411.7 
-#>   model: "DyNAM" subModel: "choice"
+#> Error in summary(mod00Choice): object 'mod00Choice' not found
 ```
 
 # Step 1: Create data objects
@@ -178,20 +149,16 @@ goldfishObjects()
 #> states      154      label, present, regime, gdp present, regime, gdp
 #> 
 #> Goldfish Networks
-#>                      dimensions nodesets        events
-#> bilatnet              154 x 154   states  bilatchanges
-#> callNetwork             84 x 84   actors         calls
-#> callNetwork_300         84 x 84   actors     calls_300
-#> callNetwork_5minutes    84 x 84   actors     calls_300
-#> contignet             154 x 154   states contigchanges
-#> friendshipNetwork       84 x 84   actors    friendship
-#> networkMM                 5 x 5 actorsMM      eventsMM
+#>                   dimensions nodesets        events
+#> bilatnet           154 x 154   states  bilatchanges
+#> callNetwork          84 x 84   actors         calls
+#> contignet          154 x 154   states contigchanges
+#> friendshipNetwork    84 x 84   actors    friendship
 #> 
 #> Goldfish Dependent Events
 #>                  n     network
 #> callsDependent 439 callNetwork
 #> createBilat     69    bilatnet
-#> depNetMM         5   networkMM
 ```
 
 ## Step 1b: Define networks
@@ -452,27 +419,14 @@ mod01Choice <- estimate(
   simpleFormulaChoice,
   model = "DyNAM", subModel = "choice"
   )
+```
+
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect tie
 summary(mod01Choice)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Coefficients :
-#>     Estimate Std. Error z-value  Pr(>|z|)    
-#> tie  4.02538    0.12513   32.17 < 2.2e-16 ***
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 0 
-#>   Log-Likelihood: -1288.7
-#>   AIC:  2579.4 
-#>   AICc: 2579.4 
-#>   BIC:  2583.5 
-#>   model: "DyNAM" subModel: "choice"
+#> Error in summary(mod01Choice): object 'mod01Choice' not found
 ```
 
 Ok, as fascinating as that was, perhaps we can test how robust this finding is in the presence of plausible controls.
@@ -488,41 +442,14 @@ mod02Choice <- estimate(
   complexFormulaChoice,
   model = "DyNAM", subModel = "choice"
   )
+```
+
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect inertia
 summary(mod02Choice)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Effects details :
-#>         Object           
-#> inertia callNetwork      
-#> recip   callNetwork      
-#> tie     friendshipNetwork
-#> recip   friendshipNetwork
-#> same    actors$gradeType 
-#> same    actors$floor     
-#> 
-#> Coefficients :
-#>         Estimate Std. Error z-value  Pr(>|z|)    
-#> inertia  4.42057    0.19225 22.9936 < 2.2e-16 ***
-#> recip    0.27151    0.19735  1.3758  0.168895    
-#> tie      1.28779    0.25673  5.0160 5.275e-07 ***
-#> recip    0.68625    0.22930  2.9928  0.002765 ** 
-#> same     0.69847    0.17607  3.9670 7.279e-05 ***
-#> same    -0.28700    0.16618 -1.7271  0.084155 .  
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 0 
-#>   Log-Likelihood: -637.96
-#>   AIC:  1287.9 
-#>   AICc: 1288.1 
-#>   BIC:  1312.4 
-#>   model: "DyNAM" subModel: "choice"
+#> Error in summary(mod02Choice): object 'mod02Choice' not found
 ```
 
 ### Rate model
@@ -540,6 +467,12 @@ mod01Rate <- estimate(
   )
 ```
 
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect indeg
+```
+
 #### Remark:
 
 Sometimes, the default values for the algorithm are not enough to reach convergence. 
@@ -552,27 +485,14 @@ mod01Rate <- estimate(
   model = "DyNAM", subModel = "rate",
   estimationInit = list(maxIterations = 40)
   )
+```
+
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect indeg
 summary(mod01Rate)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Coefficients :
-#>       Estimate Std. Error z-value  Pr(>|z|)    
-#> indeg 0.157370   0.012699  12.392 < 2.2e-16 ***
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 0 
-#>   Log-Likelihood: -1868.1
-#>   AIC:  3738.3 
-#>   AICc: 3738.3 
-#>   BIC:  3742.3 
-#>   model: "DyNAM" subModel: "rate"
+#> Error in summary(mod01Rate): object 'mod01Rate' not found
 ```
 
 What if we include additional structural effects? 
@@ -585,35 +505,14 @@ complexFormulaRate <-
                    indeg(friendshipNetwork) 
 
 mod02Rate <- estimate(complexFormulaRate, model = "DyNAM", subModel = "rate")
+```
+
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect indeg
 summary(mod02Rate)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Effects details :
-#>        Object           
-#> indeg  callNetwork      
-#> outdeg callNetwork      
-#> indeg  friendshipNetwork
-#> 
-#> Coefficients :
-#>        Estimate Std. Error z-value  Pr(>|z|)    
-#> indeg  0.454676   0.070918  6.4113 1.443e-10 ***
-#> outdeg 0.240231   0.029494  8.1452 4.441e-16 ***
-#> indeg  0.060809   0.015464  3.9324 8.409e-05 ***
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 2e-05 
-#>   Log-Likelihood: -1743.2
-#>   AIC:  3492.5 
-#>   AICc: 3492.5 
-#>   BIC:  3504.7 
-#>   model: "DyNAM" subModel: "rate"
+#> Error in summary(mod02Rate): object 'mod02Rate' not found
 ```
 
 #### Right-censored intervals
@@ -629,37 +528,14 @@ interceptFormulaRate <-
                    indeg(friendshipNetwork)
 
 mod03Rate <- estimate(interceptFormulaRate, model = "DyNAM", subModel = "rate")
+```
+
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect indeg
 summary(mod03Rate)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Effects details :
-#>           Object           
-#> Intercept                  
-#> indeg     callNetwork      
-#> outdeg    callNetwork      
-#> indeg     friendshipNetwork
-#> 
-#> Coefficients :
-#>             Estimate Std. Error   z-value  Pr(>|z|)    
-#> Intercept -14.335641   0.094257 -152.0912 < 2.2e-16 ***
-#> indeg       0.568475   0.067244    8.4540 < 2.2e-16 ***
-#> outdeg      0.314266   0.030898   10.1712 < 2.2e-16 ***
-#> indeg       0.047770   0.015148    3.1535  0.001613 ** 
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 0 
-#>   Log-Likelihood: -5984.3
-#>   AIC:  11977 
-#>   AICc: 11977 
-#>   BIC:  11993 
-#>   model: "DyNAM" subModel: "rate"
+#> Error in summary(mod03Rate): object 'mod03Rate' not found
 ```
 
 Note that $1 / \exp({\beta_{intercept}})$ is the waiting time without any covariates, or how long it takes to make the next phone call if everything else is set to 0. 
@@ -670,25 +546,26 @@ The baseline waiting time between two events in hours:
 
 ```r
 mod03RateCoef <- coef(mod03Rate)
+#> Error in coef(mod03Rate): object 'mod03Rate' not found
 1 / exp(mod03RateCoef[["Intercept"]]) / 3600
-#> [1] 467.291
+#> Error in eval(expr, envir, enclos): object 'mod03RateCoef' not found
 # or days:
 1 / exp(mod03RateCoef[["Intercept"]]) / 86400
-#> [1] 19.47046
+#> Error in eval(expr, envir, enclos): object 'mod03RateCoef' not found
 
 # But what if it is not just a random call?
 # Expected waiting time of those who have five outgoing call ties (five different actors)
 1 / exp(
   mod03RateCoef[["Intercept"]] + mod03RateCoef[["outdeg"]] * 5
   ) / 3600
-#> [1] 97.08854
+#> Error in eval(expr, envir, enclos): object 'mod03RateCoef' not found
 # Expected waiting time of those who have five outgoing and incoming call ties (five different actors)
 1 / exp(
   mod03RateCoef[["Intercept"]] +
     mod03RateCoef[["outdeg"]] * 5 +
     mod03RateCoef[["indeg"]] * 5
   ) / 3600
-#> [1] 5.658994
+#> Error in eval(expr, envir, enclos): object 'mod03RateCoef' not found
 ```
 
 ### Windows
@@ -706,41 +583,14 @@ windowFormulaRate <-
                    indeg(friendshipNetwork)
 
 mod04Rate <- estimate(windowFormulaRate, model = "DyNAM", subModel = "rate")
+```
+
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect indeg
 summary(mod04Rate)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Effects details :
-#>           Object            window
-#> Intercept                         
-#> indeg     callNetwork             
-#> outdeg    callNetwork             
-#> indeg     callNetwork       300   
-#> outdeg    callNetwork       300   
-#> indeg     friendshipNetwork       
-#> 
-#> Coefficients :
-#>              Estimate  Std. Error   z-value  Pr(>|z|)    
-#> Intercept -14.1665102   0.0880817 -160.8337 < 2.2e-16 ***
-#> indeg       0.1910828   0.0781305    2.4457   0.01446 *  
-#> outdeg      0.5283974   0.0332725   15.8809 < 2.2e-16 ***
-#> indeg       3.1942574   0.4135005    7.7249  1.11e-14 ***
-#> outdeg      0.1404188   0.2860436    0.4909   0.62350    
-#> indeg       0.0098856   0.0154430    0.6401   0.52209    
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 0.00081 
-#>   Log-Likelihood: -5854.6
-#>   AIC:  11721 
-#>   AICc: 11721 
-#>   BIC:  11750 
-#>   model: "DyNAM" subModel: "rate"
+#> Error in summary(mod04Rate): object 'mod04Rate' not found
 ```
 
 Of course, you can also add windows to the choice formula!
@@ -756,45 +606,14 @@ windowFormulaChoice <-
 
 mod03Choice <- estimate(windowFormulaChoice,
                          model = "DyNAM", subModel = "choice")
+```
+
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect inertia
 summary(mod03Choice)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Effects details :
-#>         Object            window
-#> inertia callNetwork             
-#> recip   callNetwork             
-#> inertia callNetwork       300   
-#> recip   callNetwork       300   
-#> tie     friendshipNetwork       
-#> recip   friendshipNetwork       
-#> same    actors$gradeType        
-#> same    actors$floor            
-#> 
-#> Coefficients :
-#>         Estimate Std. Error z-value  Pr(>|z|)    
-#> inertia  4.29828    0.20193 21.2863 < 2.2e-16 ***
-#> recip   -0.48574    0.23205 -2.0932 0.0363293 *  
-#> inertia  1.39628    0.36093  3.8685 0.0001095 ***
-#> recip    5.02256    0.73879  6.7983 1.058e-11 ***
-#> tie      1.50593    0.27206  5.5354 3.105e-08 ***
-#> recip    0.62314    0.24975  2.4951 0.0125930 *  
-#> same     0.44865    0.19815  2.2641 0.0235659 *  
-#> same    -0.20953    0.18139 -1.1551 0.2480445    
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 9e-05 
-#>   Log-Likelihood: -565.9
-#>   AIC:  1147.8 
-#>   AICc: 1148.1 
-#>   BIC:  1180.5 
-#>   model: "DyNAM" subModel: "choice"
+#> Error in summary(mod03Choice): object 'mod03Choice' not found
 ```
 
 All this shows you that you can specify different formula for the rate and choice components of the model. 
@@ -805,58 +624,13 @@ When comparing the information criteria (AIC / BIC) of the different model, we s
 
 ```r
 AIC(mod02Choice)
-#> [1] 1287.912
+#> Error in AIC(mod02Choice): object 'mod02Choice' not found
 AIC(mod03Choice)
-#> [1] 1147.804
+#> Error in AIC(mod03Choice): object 'mod03Choice' not found
 AIC(mod03Rate)
-#> [1] 11976.58
+#> Error in AIC(mod03Rate): object 'mod03Rate' not found
 AIC(mod04Rate)
-#> [1] 11721.24
-```
-
-Using windowed effects actually initializes new data objects.
-
-
-```r
-goldfishObjects()
-#> Goldfish Nodes
-#>               n                       attributes               events
-#> actors       84 label, present, floor, gradeType                     
-#> endStates   154      label, present, regime, gdp present, regime, gdp
-#> startStates 154      label, present, regime, gdp present, regime, gdp
-#> states      154      label, present, regime, gdp present, regime, gdp
-#> 
-#> Goldfish Networks
-#>                      dimensions nodesets        events
-#> bilatnet              154 x 154   states  bilatchanges
-#> callNetwork             84 x 84   actors         calls
-#> callNetwork_300         84 x 84   actors     calls_300
-#> callNetwork_5minutes    84 x 84   actors     calls_300
-#> contignet             154 x 154   states contigchanges
-#> friendshipNetwork       84 x 84   actors    friendship
-#> networkMM                 5 x 5 actorsMM      eventsMM
-#> 
-#> Goldfish Dependent Events
-#>                  n     network
-#> callsDependent 439 callNetwork
-#> createBilat     69    bilatnet
-#> depNetMM         5   networkMM
-head(calls_300)
-#>         time   sender receiver increment
-#> 1 1220733470 Actor 72 Actor 50         1
-#> 2 1220733770 Actor 72 Actor 50        -1
-#> 3 1221102974 Actor 43 Actor 51         1
-#> 4 1221103274 Actor 43 Actor 51        -1
-#> 5 1221784293 Actor 43 Actor 51         1
-#> 6 1221784593 Actor 43 Actor 51        -1
-tail(calls_300)
-#>           time   sender receiver increment
-#> 873 1224371225 Actor 23 Actor 44        -1
-#> 874 1224371243 Actor 44 Actor 23        -1
-#> 875 1224373128 Actor 20 Actor 23         1
-#> 876 1224373152 Actor 23 Actor 20         1
-#> 877 1224373428 Actor 20 Actor 23        -1
-#> 878 1224373452 Actor 23 Actor 20        -1
+#> Error in AIC(mod04Rate): object 'mod04Rate' not found
 ```
 
 ### REM with `goldfish`
@@ -894,47 +668,14 @@ mod01REM <- estimate(
   allFormulaREM, model = "REM",
   estimationInit = list(initialDamping = 40, engine = "default_c")
   )
+```
+
+ 
+
+```
+#> Error in value[[3L]](cond): Unknown effect inertia
 
 summary(mod01REM)
-#> 
-#> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
-#> 
-#> 
-#> Effects details :
-#>           Object            window
-#> Intercept                         
-#> inertia   callNetwork             
-#> recip     callNetwork             
-#> inertia   callNetwork       300   
-#> recip     callNetwork       300   
-#> tie       friendshipNetwork       
-#> recip     friendshipNetwork       
-#> same      actors$gradeType        
-#> same      actors$floor            
-#> 
-#> Coefficients :
-#>            Estimate Std. Error   z-value  Pr(>|z|)    
-#> Intercept -19.71673    0.11613 -169.7865 < 2.2e-16 ***
-#> inertia     5.69399    0.16967   33.5596 < 2.2e-16 ***
-#> recip      -0.23048    0.14452   -1.5948    0.1108    
-#> inertia    -1.54005    0.17862   -8.6221 < 2.2e-16 ***
-#> recip       7.18721    0.16779   42.8342 < 2.2e-16 ***
-#> tie         0.94057    0.20797    4.5226 6.107e-06 ***
-#> recip       0.92988    0.19070    4.8761 1.082e-06 ***
-#> same        0.31116    0.13364    2.3283    0.0199 *  
-#> same       -0.60389    0.12207   -4.9470 7.538e-07 ***
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 0 
-#>   Log-Likelihood: -5657.2
-#>   AIC:  11332 
-#>   AICc: 11333 
-#>   BIC:  11375 
-#>   model: "REM" subModel: "choice"
+#> Error in summary(mod01REM): object 'mod01REM' not found
 ```
 
