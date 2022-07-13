@@ -68,12 +68,6 @@ mod00Rate <- estimate(
   callsDependent ~ indeg + outdeg,
   model = "DyNAM", subModel = "rate"
   )
-```
-
- 
- 
-
-```r
 
 summary(mod00Rate)
 #> 
@@ -102,12 +96,6 @@ mod00Choice <- estimate(
   callsDependent ~ inertia + recip + trans,
   model = "DyNAM", subModel = "choice"
   )
-```
-
- 
- 
-
-```r
 
 summary(mod00Choice)
 #> 
@@ -456,12 +444,6 @@ mod01Choice <- estimate(
   simpleFormulaChoice,
   model = "DyNAM", subModel = "choice"
   )
-```
-
- 
- 
-
-```r
 summary(mod01Choice)
 #> 
 #> Call:
@@ -498,8 +480,6 @@ mod02Choice <- estimate(
   complexFormulaChoice,
   model = "DyNAM", subModel = "choice"
   )
-#>  
-#> actors object
 summary(mod02Choice)
 #> 
 #> Call:
@@ -552,9 +532,6 @@ mod01Rate <- estimate(
   )
 ```
 
- 
- 
-
 #### Remark:
 
 Sometimes, the default values for the algorithm are not enough to reach convergence. 
@@ -567,12 +544,6 @@ mod01Rate <- estimate(
   model = "DyNAM", subModel = "rate",
   estimationInit = list(maxIterations = 40)
   )
-```
-
- 
- 
-
-```r
 summary(mod01Rate)
 #> 
 #> Call:
@@ -606,12 +577,6 @@ complexFormulaRate <-
                    indeg(friendshipNetwork) 
 
 mod02Rate <- estimate(complexFormulaRate, model = "DyNAM", subModel = "rate")
-```
-
- 
- 
-
-```r
 summary(mod02Rate)
 #> 
 #> Call:
@@ -656,12 +621,6 @@ interceptFormulaRate <-
                    indeg(friendshipNetwork)
 
 mod03Rate <- estimate(interceptFormulaRate, model = "DyNAM", subModel = "rate")
-```
-
- 
- 
-
-```r
 summary(mod03Rate)
 #> 
 #> Call:
@@ -739,9 +698,11 @@ windowFormulaRate <-
                    indeg(friendshipNetwork)
 
 mod04Rate <- estimate(windowFormulaRate, model = "DyNAM", subModel = "rate")
-#>  
-#> callNetwork_300 calls_300
 summary(mod04Rate)
+```
+
+
+```
 #> 
 #> Call:
 #> goldfish::estimate(x = x, model = model, subModel = subModel, 
@@ -760,21 +721,21 @@ summary(mod04Rate)
 #> indeg     friendshipNetwork       
 #> 
 #> Coefficients :
-#>              Estimate  Std. Error   z-value  Pr(>|z|)    
-#> Intercept -14.1665102   0.0880817 -160.8337 < 2.2e-16 ***
-#> indeg       0.1910828   0.0781305    2.4457   0.01446 *  
-#> outdeg      0.5283974   0.0332725   15.8809 < 2.2e-16 ***
-#> indeg       3.1942574   0.4135005    7.7249  1.11e-14 ***
-#> outdeg      0.1404188   0.2860436    0.4909   0.62350    
-#> indeg       0.0098856   0.0154430    0.6401   0.52209    
+#>             Estimate Std. Error   z-value  Pr(>|z|)    
+#> Intercept -14.530750   0.101676 -142.9125 < 2.2e-16 ***
+#> indeg       0.245045   0.070682    3.4669 0.0005266 ***
+#> outdeg      0.364576   0.032556   11.1985 < 2.2e-16 ***
+#> indeg       5.295709   0.139463   37.9722 < 2.2e-16 ***
+#> outdeg     -0.767499   0.116642   -6.5800 4.706e-11 ***
+#> indeg       0.083772   0.015289    5.4794 4.268e-08 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#>   Converged with max abs. score of 0.00081 
-#>   Log-Likelihood: -5854.6
-#>   AIC:  11721 
-#>   AICc: 11721 
-#>   BIC:  11750 
+#>   Converged with max abs. score of 1e-05 
+#>   Log-Likelihood: -5475.9
+#>   AIC:  10964 
+#>   AICc: 10964 
+#>   BIC:  10992 
 #>   model: "DyNAM" subModel: "rate"
 ```
 
@@ -791,8 +752,6 @@ windowFormulaChoice <-
 
 mod03Choice <- estimate(windowFormulaChoice,
                          model = "DyNAM", subModel = "choice")
-#>  
-#> actors callNetwork_300 calls_300 object
 summary(mod03Choice)
 #> 
 #> Call:
@@ -848,7 +807,7 @@ AIC(mod03Choice)
 AIC(mod03Rate)
 #> [1] 11976.58
 AIC(mod04Rate)
-#> [1] 11721.24
+#> [1] 10963.75
 ```
 
 ### REM with `goldfish`
@@ -886,8 +845,6 @@ mod01REM <- estimate(
   allFormulaREM, model = "REM",
   estimationInit = list(initialDamping = 40, engine = "default_c")
   )
-#>  
-#> actors callNetwork_300 calls_300 object
 
 summary(mod01REM)
 #> 

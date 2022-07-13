@@ -517,10 +517,8 @@ system.time(
     estimationInit = estPrefs
     )
 )
-#>  
-#> object states
 #>    user  system elapsed 
-#>   71.03    4.53   75.64
+#>   90.70    5.11   96.50
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -540,8 +538,6 @@ partnerModel <- estimate(
   model = "DyNAM", subModel = "choice_coordination",
   estimationInit = estPrefs
   )
-#>  
-#> object states
 summary(partnerModel)
 #> 
 #> Call:
@@ -612,10 +608,8 @@ system.time(
     estimationInit = estPrefs
     )
 )
-#>  
-#> object states
 #>    user  system elapsed 
-#>    7.09    0.73    7.35
+#>    9.61    0.59    9.40
 ```
 
 # Extensions...

@@ -387,7 +387,7 @@ Remember our `callNetwork` process state accumulates actions in time, but some o
 Let's see whether it is really just recent partners that matter by adding extra effects with a window of... how long? 
 Let us try 5 minutes $= 5 * 60 = 300s$
 
-```{r windows-rate}
+```{r windows-rate, eval=FALSE}
 windowFormulaRate <-
   callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(callNetwork, window = 300) +
@@ -398,9 +398,21 @@ mod04Rate <- estimate(windowFormulaRate, model = "DyNAM", subModel = "rate")
 summary(mod04Rate)
 ```
 
+```{r windows-rateR, echo=FALSE}
+windowFormulaRate <-
+  callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
+                   indeg(callNetwork, window = 300) +
+                   outdeg(callNetwork, window = 300) +
+                   indeg(friendshipNetwork)
+
+mod04Rate <- estimate(windowFormulaRate, model = "DyNAM", subModel = "rate",
+                      estimationInit = list(engine = "default"))
+summary(mod04Rate)
+```
+
 Of course, you can also add windows to the choice formula!
 
-```{r windows-choice, eval = FALSE}
+```{r windows-choice}
 windowFormulaChoice <-
   callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
                    inertia(callNetwork, window = 300) +
@@ -413,19 +425,6 @@ mod03Choice <- estimate(windowFormulaChoice,
 summary(mod03Choice)
 ```
 
-```{r windows-choice, echo = FALSE}
-windowFormulaChoice <-
-  callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
-                   inertia(callNetwork, window = 300) +
-                   recip(callNetwork, window = 300) +
-                   tie(friendshipNetwork) + recip(friendshipNetwork) +
-                   same(actors$gradeType) + same(actors$floor)
-
-mod03Choice <- estimate(windowFormulaChoice,
-                         model = "DyNAM", subModel = "choice",
-                         estimationInit = list(engine = "default"))
-summary(mod03Choice)
-```
 All this shows you that you can specify different formula for the rate and choice components of the model. 
 This is a key advantage of the DyNAM!
 
