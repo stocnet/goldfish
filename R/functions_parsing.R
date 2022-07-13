@@ -214,7 +214,7 @@ createEffectsFunctions <- function(effectInit, model, subModel,
     effectInit, function(x, model, subModel) {
       funText <- paste("update", model, subModel, x[[1]], sep = "_")
       FUN <- tryCatch(
-        eval(parse(text = funText), envir = envir),
+        eval(parse(text = funText), envir = environment()),
         error = function(e) NULL
         )
       # FUN <- NULL
@@ -228,10 +228,12 @@ createEffectsFunctions <- function(effectInit, model, subModel,
       }
 
       # collect update functions for stat
-      .FUNStat <- utils::getS3method(.statMethod, x[[1]], optional = TRUE) # , envir = envir)
+      .FUNStat <- utils::getS3method(.statMethod, x[[1]], optional = TRUE,
+                                     envir = environment())
       if (is.null(.FUNStat)) {
-        .FUNStat <- utils::getS3method(.statMethod, "default", optional = TRUE)
-      } # , envir = envir)
+        .FUNStat <- utils::getS3method(.statMethod, "default", optional = TRUE,
+                                       envir = envir)
+      }
 
       # Update signatures of the effects based on default parameters and above specified parameters
       .signature <- formals(FUN)

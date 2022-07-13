@@ -400,7 +400,7 @@ summary(mod04Rate)
 
 Of course, you can also add windows to the choice formula!
 
-```{r windows-choice}
+```{r windows-choice, eval = FALSE}
 windowFormulaChoice <-
   callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
                    inertia(callNetwork, window = 300) +
@@ -413,6 +413,19 @@ mod03Choice <- estimate(windowFormulaChoice,
 summary(mod03Choice)
 ```
 
+```{r windows-choice, echo = FALSE}
+windowFormulaChoice <-
+  callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
+                   inertia(callNetwork, window = 300) +
+                   recip(callNetwork, window = 300) +
+                   tie(friendshipNetwork) + recip(friendshipNetwork) +
+                   same(actors$gradeType) + same(actors$floor)
+
+mod03Choice <- estimate(windowFormulaChoice,
+                         model = "DyNAM", subModel = "choice",
+                         estimationInit = list(engine = "default"))
+summary(mod03Choice)
+```
 All this shows you that you can specify different formula for the rate and choice components of the model. 
 This is a key advantage of the DyNAM!
 

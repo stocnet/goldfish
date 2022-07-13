@@ -384,7 +384,6 @@ estimate.formula <- function(
   if (!silent) cat("Parsing formula.\n")
   formula <- x
 
-  cat(ls(PreprocessEnvir), "\n")
   ## 1.1 PARSE for all cases: preprocessingInit or not
   parsedformula <- parseFormula(formula, envir = PreprocessEnvir)
   rhsNames <- parsedformula$rhsNames

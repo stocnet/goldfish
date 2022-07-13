@@ -169,8 +169,6 @@ preprocess <- function(
     dotEvents <- ifelse(nTotalEvents > 50, ceiling(nTotalEvents / 50), 1)
   }
 
-  cat(ls(prepEnvir), "\n")
-  
   # iterate over all event lists
   while (any(validPointers)) {
     iTotalEvents <- iTotalEvents + 1L

@@ -517,13 +517,10 @@ system.time(
     estimationInit = estPrefs
     )
 )
-```
-
- 
-
-```
-#> Error in value[[3L]](cond): Unknown effect inertia
-#> Timing stopped at: 0.01 0 0.01
+#>  
+#> object states
+#>    user  system elapsed 
+#>   71.03    4.53   75.64
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -537,21 +534,53 @@ estPrefs <- list(
   maxIterations = 30,
   initialParameters = coef(partnerModel)
   )
-#> Error in coef(partnerModel): object 'partnerModel' not found
 
 partnerModel <- estimate(
   formula1,
   model = "DyNAM", subModel = "choice_coordination",
   estimationInit = estPrefs
   )
-```
-
- 
-
-```
-#> Error in value[[3L]](cond): Unknown effect inertia
+#>  
+#> object states
 summary(partnerModel)
-#> Error in summary(partnerModel): object 'partnerModel' not found
+#> 
+#> Call:
+#> goldfish::estimate(x = x, model = model, subModel = subModel, 
+#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
+#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
+#>     silent = silent, debug = debug)
+#> 
+#> 
+#> Effects details :
+#>         Object        ignoreRep
+#> inertia bilatnet               
+#> indeg   bilatnet      B        
+#> trans   bilatnet      B        
+#> tie     contignet              
+#> alter   states$regime          
+#> diff    states$regime          
+#> alter   states$gdp             
+#> diff    states$gdp             
+#> 
+#> Coefficients :
+#>           Estimate Std. Error z-value  Pr(>|z|)    
+#> inertia  2.8687399  0.2724550 10.5292 < 2.2e-16 ***
+#> indeg    0.5058902  0.0661896  7.6430 2.132e-14 ***
+#> trans    0.3128331  0.2140819  1.4613  0.143939    
+#> tie      1.0951108  0.2224272  4.9235 8.503e-07 ***
+#> alter    0.0046804  0.0144157  0.3247  0.745429    
+#> diff     0.0013902  0.0117902  0.1179  0.906140    
+#> alter    5.0528318  1.5487636  3.2625  0.001104 ** 
+#> diff    -3.0977424  1.5990442 -1.9372  0.052715 .  
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#>   Converged with max abs. score of 0.00024 
+#>   Log-Likelihood: -387.86
+#>   AIC:  791.72 
+#>   AICc: 794.12 
+#>   BIC:  809.59 
+#>   model: "DyNAM" subModel: "choice_coordination"
 ```
 
 Let's interpret...
@@ -583,13 +612,10 @@ system.time(
     estimationInit = estPrefs
     )
 )
-```
-
- 
-
-```
-#> Error in value[[3L]](cond): Unknown effect inertia
-#> Timing stopped at: 0.02 0 0.04
+#>  
+#> object states
+#>    user  system elapsed 
+#>    7.09    0.73    7.35
 ```
 
 # Extensions...
@@ -611,13 +637,24 @@ library(pixiedust)
 dust(tidy(tieModel)) %>% 
   sprinkle(col = 2:4, round = 3) %>% 
   sprinkle(col = 5, fn = quote(pvalString(value)))
-#> Error in tidy(tieModel): object 'tieModel' not found
+#>                  term estimate std.error statistic p.value
+#> 1  bilatnet inertia W    0.134     0.048     2.816   0.005
+#> 2      bilatnet indeg    0.568     0.058     9.854 < 0.001
+#> 3      bilatnet trans    0.289     0.146      1.98   0.048
+#> 4       contignet tie    1.648     0.184     8.956 < 0.001
+#> 5 states regime alter   -0.015     0.016    -0.957    0.34
+#> 6  states regime diff    0.008     0.013     0.651    0.52
+#> 7    states gdp alter    6.089     1.516     4.015 < 0.001
+#> 8     states gdp diff   -4.601     1.582    -2.908   0.004
 ```
 
 
 ```r
 glance(tieModel)
-#> Error in glance(tieModel): object 'tieModel' not found
+#> # A tibble: 1 × 4
+#>   logLik   AIC   BIC  nobs
+#>    <dbl> <dbl> <dbl> <int>
+#> 1  -359.  733.  751.    69
 ```
 
 
@@ -627,9 +664,10 @@ help users identify areas for improving their model specification.
 
 ```r
 examineOutliers(tieModel)
-#> Error in "result.goldfish" %in% attr(x, "class"): object 'tieModel' not found
+#> No outliers found.
 examineChangepoints(tieModel)
-#> Error in methods::is(x, "result.goldfish"): object 'tieModel' not found
 ```
+
+<img src="teaching/examine-1.png" title="plot of chunk examine" alt="plot of chunk examine" width="432" style="display: block; margin: auto;" />
 
 For more, please see Hollway (2020) Network Embeddedness and the Rate of Water Cooperation and Conflict.
