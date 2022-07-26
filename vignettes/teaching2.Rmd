@@ -189,8 +189,14 @@ Let's check whether we have everything linked up correctly:
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
+#>               n                  attributes               events
+#> endStates   154 label, present, regime, gdp present, regime, gdp
+#> startStates 154 label, present, regime, gdp present, regime, gdp
+#> states      154 label, present, regime, gdp present, regime, gdp
+#> 
+#> Goldfish Dependent Events
+#>              n  network
+#> createBilat 69 bilatnet
 ```
 
 ## Step 1b: Define networks ####
@@ -322,13 +328,19 @@ Quick check to see whether everything is linked up correctly:
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
+#>               n                  attributes               events
+#> endStates   154 label, present, regime, gdp present, regime, gdp
+#> startStates 154 label, present, regime, gdp present, regime, gdp
+#> states      154 label, present, regime, gdp present, regime, gdp
 #> 
 #> Goldfish Networks
 #>           dimensions nodesets        events
 #> bilatnet   154 x 154   states  bilatchanges
 #> contignet  154 x 154   states contigchanges
+#> 
+#> Goldfish Dependent Events
+#>              n  network
+#> createBilat 69 bilatnet
 ```
 
 ## Step 1c: Define dependent events ####
@@ -375,8 +387,10 @@ So what goldfish related objects do we have now?
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
+#>               n                  attributes               events
+#> endStates   154 label, present, regime, gdp present, regime, gdp
+#> startStates 154 label, present, regime, gdp present, regime, gdp
+#> states      154 label, present, regime, gdp present, regime, gdp
 #> 
 #> Goldfish Networks
 #>           dimensions nodesets        events
@@ -489,7 +503,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>   73.17    4.60   77.81
+#>   75.34    4.26   79.73
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -512,10 +526,11 @@ partnerModel <- estimate(
 summary(partnerModel)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = createBilat ~ inertia(bilatnet) + indeg(bilatnet, 
+#>     ignoreRep = TRUE) + trans(bilatnet, ignoreRep = TRUE) + tie(contignet) + 
+#>     alter(states$regime) + diff(states$regime) + alter(states$gdp) + 
+#>     diff(states$gdp), model = "DyNAM", subModel = "choice_coordination", 
+#>     estimationInit = estPrefs)
 #> 
 #> 
 #> Effects details :
@@ -580,7 +595,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>    7.71    0.50    7.37
+#>    8.33    0.44    7.68
 ```
 
 # Extensions...
@@ -598,7 +613,6 @@ Here is an example on the current results object:
 
 ```r
 library(broom)
-#> Warning: package 'broom' was built under R version 4.2.1
 library(pixiedust)
 dust(tidy(tieModel)) %>% 
   sprinkle(col = 2:4, round = 3) %>% 

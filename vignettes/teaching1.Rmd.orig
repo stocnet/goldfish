@@ -50,11 +50,13 @@ estimate <- function(
     silent = TRUE,
     debug = FALSE) {
   
+  call <- match.call(expand.dots = TRUE)
+  
   if (is.null(estimationInit$engine)) {
     estimationInit <- c(estimationInit, list(engine = "gather_compute"))
   }
   
-  goldfish::estimate(
+  res <- goldfish::estimate(
     x = x,
     model = model,
     subModel = subModel,
@@ -65,6 +67,11 @@ estimate <- function(
     silent = silent,
     debug = debug
   )
+  
+  res$call <- call 
+  res$call[["x"]] <- res$formula
+
+  return(res)
 }
 ```
 

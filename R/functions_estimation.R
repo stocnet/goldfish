@@ -828,10 +828,10 @@ estimate.formula <- function(
 
   ### 6. RESULTS----
   result$names <- effectDescription
-  formula <- as.formula(Reduce(paste, deparse(formula)),
+  formulaKeep <- as.formula(Reduce(paste, deparse(formula)),
                         env = new.env(parent = emptyenv()))
   # environment(formula) <- emptyenv() # avoids increase object size
-  result$formula <- formula
+  result$formula <- formulaKeep
   result$model <- model
   result$subModel <- subModel
   result$rightCensored <- hasIntercept
@@ -846,5 +846,7 @@ estimate.formula <- function(
 
   result$call <- match.call(call = sys.call(-1L),
                             expand.dots = TRUE)
+  result$call[[2]] <- formulaKeep
+  
   return(result)
 }

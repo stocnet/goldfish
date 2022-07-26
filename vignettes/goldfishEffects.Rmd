@@ -287,10 +287,12 @@ tertius(network, attribute, isTwoMode = FALSE, window = Inf,
 ```
 
 \begin{align}
-  r(i, t, x, z) &= 
-  \sum_{j:~x(t)_{ji} > 0}{z(t)_j} / \sum_{j}{I(x(t)_{ji} > 0)}  && \text{ego type}\\
+  r(i, t, x, z) &=
+    \frac{\sum_{j:~x(t)_{ji} > 0}{z(t)_j}}{\sum_{j}{I(x(t)_{ji} > 0)}}
+    && \text{ego type}\\
   s(i,j, t, x, z) &= 
-    \sum_{k:~x(t)_{kj} > 0}{z(t)_k} / \sum_{k}{I(x(t)_{kj} > 0)} && \text{alter type}  
+    \frac{\sum_{k:~x(t)_{kj} > 0}{z(t)_k}}{\sum_{k}{I(x(t)_{kj} > 0)}}
+    && \text{alter type}  
 \end{align}
 
 
@@ -483,7 +485,7 @@ tertiusDiff(network, attribute, isTwoMode = FALSE, weighted = FALSE,
 ```
 
 \begin{equation}
-s(i,j, t, x, z) = |z(t)_i - \sum_{k:~x(t)_{kj} > 0}{z(t)_k} / \sum_{k}{I(x(t)_{kj} > 0)}|
+s(i,j, t, x, z) = \left|\frac{z(t)_i - \sum_{k:~x(t)_{kj} > 0}{z(t)_k}}{ \sum_{k}{I(x(t)_{kj} > 0)}}\right|
 \end{equation}
 
 The tendency to create an event $i\rightarrow j$ when $i$ has

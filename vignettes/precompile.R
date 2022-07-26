@@ -6,8 +6,6 @@ unlink("vignettes/teaching", recursive = TRUE)
 # install packages when GitHub action
 
 # compile vignette and generate R files
-oldWD <- getwd()
-
 setwd("vignettes/")
 
 library(knitr)
@@ -20,4 +18,4 @@ rm(list = ls())
 knit("teaching2.Rmd.orig", "teaching2.Rmd")
 purl("teaching2.Rmd.orig", "teaching2.R")
 
-setwd(oldWD)
+setwd("..")

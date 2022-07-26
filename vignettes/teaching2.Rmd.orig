@@ -42,8 +42,11 @@ estimate <- function(
     preprocessingOnly = FALSE,
     verbose = FALSE,
     silent = TRUE,
-    debug = FALSE)
-  goldfish::estimate(
+    debug = FALSE) {
+
+  call <- match.call(expand.dots = TRUE)
+  
+  res <- goldfish::estimate(
     x = x,
     model = model,
     subModel = subModel,
@@ -54,6 +57,11 @@ estimate <- function(
     silent = silent,
     debug = debug
   )
+  
+  res$call <- call 
+  res$call[["x"]] <- res$formula
+  return(res)
+}
 ```
 
 This lazy loads several datasets, including the one we will now use:
