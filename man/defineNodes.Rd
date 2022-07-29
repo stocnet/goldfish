@@ -9,9 +9,9 @@ defineNodes(nodes)
 \arguments{
 \item{nodes}{\code{\link{data.frame}} that contains
 \describe{
- \item{label}{\code{\link{character}} column containing the nodes labels (mandatory)}
- \item{present}{\code{\link{logical}} column indicating if the respective node is present at the
- first timepoint (optional)}
+\item{label}{\code{\link{character}} column containing the nodes labels (mandatory)}
+\item{present}{\code{\link{logical}} column indicating if the respective node is present at the
+first timepoint (optional)}
 }}
 }
 \value{

@@ -39,10 +39,10 @@ the ((i-1)*n_actor2 + j,k) entry of stat_mat_init.}
 \item{stat_mat_update}{An matrix with four rows, which records the updates of the statistics matrix through all dependent events.
 The following is an example.
 \tabular{rrrrr}{
-  0 \tab 2 \tab 0 \tab 9 \tab 9\cr
-  2 \tab 1 \tab 5 \tab 4 \tab 3\cr
-  3 \tab 5 \tab 5 \tab  0 \tab 5\cr
-  1.2 \tab 3.5 \tab 2.5 \tab 9.23 \tab 2.8\cr
+0 \tab 2 \tab 0 \tab 9 \tab 9\cr
+2 \tab 1 \tab 5 \tab 4 \tab 3\cr
+3 \tab 5 \tab 5 \tab  0 \tab 5\cr
+1.2 \tab 3.5 \tab 2.5 \tab 9.23 \tab 2.8\cr
 }
 Each column represents an update. For example the first column means replacing the value of the (3+1)-th effect
 for the actor1-actor2 pair(0+1,2+1) by 1.2. The +1 is due to the difference between the numberings in R and C.}
@@ -56,13 +56,13 @@ the structure is similar to stat_mat_update.}
 
 \item{presence1_init}{An n_actor1 by 1 matrix, which records the initial presence of each actor1.
 If the i-th actor1 is not present in the
- beginning then the i-th entry of presence1_init is 0, otherwise it's 1.}
+beginning then the i-th entry of presence1_init is 0, otherwise it's 1.}
 
 \item{presence1_update}{An matrix with two rows, which record the updates of the presence of actor1 through all events.
 The following is an example.
 \tabular{rrrrr}{
-  0 \tab 3 \tab 4 \tab 9 \tab 20\cr
-  1 \tab 0 \tab 1 \tab 0 \tab 0\cr
+0 \tab 3 \tab 4 \tab 9 \tab 20\cr
+1 \tab 0 \tab 1 \tab 0 \tab 0\cr
 }
 Each column represents an update. For example the first column means the 0+1-th actor1 becomes present.
 And the second column means the
@@ -74,8 +74,8 @@ If the i-th actor2 is not present in the beginning then the i-th entry of presen
 \item{presence2_update}{An matrix with two rows, which record the updates of the presence of actor2 through all events.
 The following is an example.
 \tabular{rrrrr}{
-  0 \tab 3 \tab 4 \tab 9 \tab 20\cr
-  1 \tab 0 \tab 1 \tab 0 \tab 0\cr
+0 \tab 3 \tab 4 \tab 9 \tab 20\cr
+1 \tab 0 \tab 1 \tab 0 \tab 0\cr
 }
 Each column represents an update. For example the first column means the 0+1-th actor2 becomes present.
 And the second column means the
@@ -98,17 +98,17 @@ or we consider the reflexive effect (that's the value in the diagonal entries of
 \value{
 Return a list with elements as follows. The meaning of the argument can be found in corresponding computation codes, e.g. compute_multinomial_selection.cpp.
 \describe{
-  \item{stat_all_events}{}
-  \item{n_candidates}{}
-  \item{n_candidates1}{}
-  \item{n_candidates2}{}
-  \item{selected}{}
-  \item{selected_actor1}{}
-  \item{selected_actor2}{}
+\item{stat_all_events}{}
+\item{n_candidates}{}
+\item{n_candidates1}{}
+\item{n_candidates2}{}
+\item{selected}{}
+\item{selected_actor1}{}
+\item{selected_actor2}{}
 }
 }
 \description{
 Gathering data for models for choosing an sender, i.e. DyNAM-rate and DyNAM-rate-ordered models.
-     Only the useful information are recorded, e.g. if a actor1 is not present then its information is not collected.
+Only the useful information are recorded, e.g. if a actor1 is not present then its information is not collected.
 }
 \keyword{internal}

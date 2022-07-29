@@ -7,7 +7,7 @@
 defineGroups_interaction(records, actors, seed.randomization)
 }
 \arguments{
-\item{records}{a `data.frame` that is a list of rows of type node A,
+\item{records}{a \code{data.frame} that is a list of rows of type node A,
 nodeB, Start, End, where nodeA and nodeB indicate the actors involved in
 a dyadic interaction, and Start and End indicating the starting and
 ending time of their interaction}
@@ -21,7 +21,7 @@ random choice to be made}
 \value{
 a list with a dataframe "interaction.updates" containing all
 joining and leaving events, a data.frame "groups" containing the nodeset
-corresponding to interaction groups (the second mode of the network), 
+corresponding to interaction groups (the second mode of the network),
 a dataframe "dependent.events" for the events that should be modeled and
 "exogenous.events" that are not modeled (for example when an actor leaves
 a group and joins its own singleton group, only the leaving event is modeled
@@ -33,7 +33,7 @@ indicate when a group is present or not
 This function create all objects necessary to the estimation of a DyNAM-i
 model from dyadic interaction records and an actor set. It first creates
 a nodeset for the second mode of the interaction network that will be
-modeled, i.e. the interaction groups set, 
+modeled, i.e. the interaction groups set,
 and an event list that indicates when groups are present or not through time.
 It then creates a list of interaction events, between actors and groups,
 in which an actor either joins or leaves a group. It is decomposed in

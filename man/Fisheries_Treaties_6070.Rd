@@ -23,29 +23,29 @@ contigchanges (139 rows, 4 columns, dyadic).
 See below for variables and formats.
 
 \tabular{lll}{
-   \strong{Object}      \tab  \strong{Description}                      \tab    \strong{Format}       \cr
-   states$label         \tab   Node identifier labels                   \tab     character            \cr
-   states$present       \tab   Node present in dataset                  \tab     boolean              \cr
-   states$regime        \tab   Placeholder for regime variable          \tab     numeric (NA)         \cr
-   states$gdp           \tab   Placeholder for GDP variable             \tab     numeric (NA)         \cr
-   sovchanges$time     \tab   Date of state sovereignty update         \tab     POSIXct              \cr
-   sovchanges$node     \tab   Node for state sovereignty update        \tab     integer              \cr
-   sovchanges$replace  \tab   State sovereignty update                 \tab     boolean              \cr
-   regchanges$time          \tab   Date of regime update                    \tab     POSIXct              \cr
-   regchanges$node          \tab   Node for regime update                   \tab     integer              \cr
-   regchanges$replace       \tab   Regime update                            \tab     integer (-10--10)    \cr
-   gdpchanges$time             \tab   Date of GDP update                       \tab     POSIXct              \cr
-   gdpchanges$node             \tab   Node for GDP update                      \tab     integer              \cr
-   gdpchanges$replace          \tab   GDP update                               \tab     numeric              \cr
-   bilatchanges$time    \tab   Date of bilateral change                 \tab     POSIXct              \cr
-   bilatchanges$sender  \tab   First bilateral change node              \tab     integer              \cr
-   bilatchanges$receiver \tab   Second bilateral change node            \tab     integer              \cr
-   bilatchanges$increment \tab   Create or dissolve action              \tab     numeric (-1 or 1)    \cr
-   contigchanges$time      \tab   Date of contiguity change                \tab     POSIXct              \cr
-   contigchanges$sender    \tab   First contiguity change node             \tab     integer              \cr
-   contigchanges$receiver  \tab   Second contiguity change node            \tab     integer              \cr
-   contigchanges$replace   \tab   New contiguity value                     \tab     numeric              \cr
- }
+\strong{Object}      \tab  \strong{Description}                      \tab    \strong{Format}       \cr
+states$label         \tab   Node identifier labels                   \tab     character            \cr
+states$present       \tab   Node present in dataset                  \tab     boolean              \cr
+states$regime        \tab   Placeholder for regime variable          \tab     numeric (NA)         \cr
+states$gdp           \tab   Placeholder for GDP variable             \tab     numeric (NA)         \cr
+sovchanges$time     \tab   Date of state sovereignty update         \tab     POSIXct              \cr
+sovchanges$node     \tab   Node for state sovereignty update        \tab     integer              \cr
+sovchanges$replace  \tab   State sovereignty update                 \tab     boolean              \cr
+regchanges$time          \tab   Date of regime update                    \tab     POSIXct              \cr
+regchanges$node          \tab   Node for regime update                   \tab     integer              \cr
+regchanges$replace       \tab   Regime update                            \tab     integer (-10--10)    \cr
+gdpchanges$time             \tab   Date of GDP update                       \tab     POSIXct              \cr
+gdpchanges$node             \tab   Node for GDP update                      \tab     integer              \cr
+gdpchanges$replace          \tab   GDP update                               \tab     numeric              \cr
+bilatchanges$time    \tab   Date of bilateral change                 \tab     POSIXct              \cr
+bilatchanges$sender  \tab   First bilateral change node              \tab     integer              \cr
+bilatchanges$receiver \tab   Second bilateral change node            \tab     integer              \cr
+bilatchanges$increment \tab   Create or dissolve action              \tab     numeric (-1 or 1)    \cr
+contigchanges$time      \tab   Date of contiguity change                \tab     POSIXct              \cr
+contigchanges$sender    \tab   First contiguity change node             \tab     integer              \cr
+contigchanges$receiver  \tab   Second contiguity change node            \tab     integer              \cr
+contigchanges$replace   \tab   New contiguity value                     \tab     numeric              \cr
+}
 
 An object of class \code{data.frame} with 77 rows and 4 columns.
 

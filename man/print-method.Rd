@@ -14,7 +14,7 @@
 \alias{print.dependent.goldfish}
 \alias{head.dependent.goldfish}
 \alias{print.preprocessed.goldfish}
-\title{Printing functions for `goldfish` objects.}
+\title{Printing functions for \code{goldfish} objects.}
 \usage{
 \method{print}{result.goldfish}(
   x,
@@ -69,7 +69,7 @@ see  \code{\link{print}}.}
 \item{object}{an object of class \code{result.goldfish}.}
 
 \item{fixed}{logical. Indicates whether the parameter coefficients of effects
-fixed during estimation using `fixedParameters` should be printed.
+fixed during estimation using \code{fixedParameters} should be printed.
 The default value is \code{TRUE}. \emph{Note:} applies for objects of class
 \code{result.goldfish} and \code{summary.result.goldfish}.}
 
@@ -89,5 +89,5 @@ The default value \code{FALSE}.}
     set when \code{keepnums} is not.}
 }
 \description{
-Printing functions for `goldfish` objects.
+Printing functions for \code{goldfish} objects.
 }

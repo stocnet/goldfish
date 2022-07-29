@@ -30,8 +30,8 @@ For a detail description see \code{\link[changepoint]{cpt.mean}} or
 \code{\link[changepoint]{cpt.var}}. The default value is \code{"PELT"}.}
 
 \item{parameter}{An integer that represents the number of absolute outliers
-to identify, the threshold for the Hampel filter, i.e. `parameter * MAD`,
-or the threshold beyond the interquartile range halved, i.e. `parameter/2 * IQR`.}
+to identify, the threshold for the Hampel filter, i.e. \code{parameter * MAD},
+or the threshold beyond the interquartile range halved, i.e. \code{parameter/2 * IQR}.}
 
 \item{window}{The window half-width for the Hampel filter.
 By default it is half the width of the event sequence.}
@@ -66,13 +66,13 @@ with labels indicating the sender and recipient.
 The parameter \code{moment} controls which method from the package
 \code{\link{changepoint}} is used:
 \describe{
-  \item{\code{"mean"}}{It uses the \code{\link[changepoint]{cpt.mean}}
-  function to investigate optimal positioning and (potentially) number
-  of change points for the log-likelihood of the events in mean.}
-  \item{\code{"variance"}}{It uses the
-  \code{\link[changepoint]{cpt.var}}
-  function to investigate optimal positioning and (potentially) number
-  of change points for the log-likelihood of the events in variance}
+\item{\code{"mean"}}{It uses the \code{\link[changepoint]{cpt.mean}}
+function to investigate optimal positioning and (potentially) number
+of change points for the log-likelihood of the events in mean.}
+\item{\code{"variance"}}{It uses the
+\code{\link[changepoint]{cpt.var}}
+function to investigate optimal positioning and (potentially) number
+of change points for the log-likelihood of the events in variance}
 }
 The function call creates a plot with the log-likelihood of the events
 in the y-axis and the event index in the x-axis, highlighting the change

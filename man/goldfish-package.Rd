@@ -39,5 +39,5 @@ A model for the dynamics of face-to-face interactions in social groups.
 \emph{Network Science}, 8(S1), S4-S25. \doi{10.1017/nws.2020.3}
 }
 \seealso{
-\code{\link{estimate}}
+\code{\link[=estimate]{estimate()}}
 }

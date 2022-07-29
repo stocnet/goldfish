@@ -32,10 +32,10 @@ the ((i-1)*n_actor2 + j,k) entry of stat_mat_init.}
 \item{stat_mat_update}{An matrix with four rows, which records the updates of the statistics matrix through all dependent events.
 The following is an example.
 \tabular{rrrrr}{
-  0 \tab 2 \tab 0 \tab 9 \tab 9\cr
-  2 \tab 1 \tab 5 \tab 4 \tab 3\cr
-  3 \tab 5 \tab 5 \tab  0 \tab 5\cr
-  1.2 \tab 3.5 \tab 2.5 \tab 9.23 \tab 2.8\cr
+0 \tab 2 \tab 0 \tab 9 \tab 9\cr
+2 \tab 1 \tab 5 \tab 4 \tab 3\cr
+3 \tab 5 \tab 5 \tab  0 \tab 5\cr
+1.2 \tab 3.5 \tab 2.5 \tab 9.23 \tab 2.8\cr
 }
 Each column represents an update. For example the first column means replacing the value of the (3+1)-th effect
 for the actor1-actor2 pair(0+1,2+1) by 1.2. The +1 is due to the difference between the numberings in R and C.}
@@ -49,8 +49,8 @@ If the i-th actor2 is not present in the beginning then the i-th entry of presen
 \item{presence2_update}{An matrix with two rows, which record the updates of the presence of actor2 through all events.
 The following is an example.
 \tabular{rrrrr}{
-  0 \tab 3 \tab 4 \tab 9 \tab 20\cr
-  1 \tab 0 \tab 1 \tab 0 \tab 0\cr
+0 \tab 3 \tab 4 \tab 9 \tab 20\cr
+1 \tab 0 \tab 1 \tab 0 \tab 0\cr
 }
 Each column represents an update. For example the first column means the 0+1-th actor2 becomes present.
 And the second column means the
@@ -71,15 +71,15 @@ or we consider the reflexive effect (that's the value in the diagonal entries of
 \value{
 Return a list with elements as follows.
 \describe{
-  \item{derivative}{An 1 by n_parameters matrix, which is the derivative of loglikelihood given the input parameter and data.}
-  \item{fisher}{An n_parameters by n_parameters matrix, which is the fisher information matrix given the input parameter and data.}
-  \item{logLikelihood}{An scalar, which is the loglikelihood given the input parameter and data.}
-  \item{intervalLogL}{An n_events by 1 matrix,
-        of which the i-th entry is the loglikelihood of the i-th event given the input parameter and data.}
+\item{derivative}{An 1 by n_parameters matrix, which is the derivative of loglikelihood given the input parameter and data.}
+\item{fisher}{An n_parameters by n_parameters matrix, which is the fisher information matrix given the input parameter and data.}
+\item{logLikelihood}{An scalar, which is the loglikelihood given the input parameter and data.}
+\item{intervalLogL}{An n_events by 1 matrix,
+of which the i-th entry is the loglikelihood of the i-th event given the input parameter and data.}
 }
 }
 \description{
 Given input data, it output the derivative of the loglikelihood, the Fisher information matrix, the logLikelihood,
-    and the loglikelihood of each event
+and the loglikelihood of each event
 }
 \keyword{internal}

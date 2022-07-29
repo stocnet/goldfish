@@ -435,13 +435,14 @@ summary(mod03Choice)
 All this shows you that you can specify different formula for the rate and choice components of the model. 
 This is a key advantage of the DyNAM!
 
-When comparing the information criteria (AIC / BIC) of the different model, we see that the time windows explain a lot
+When comparing the information criteria (AIC / BIC) of the different models, we see that the time windows explain a lot
 
 ```{r aic}
-AIC(mod02Choice)
-AIC(mod03Choice)
-AIC(mod03Rate)
-AIC(mod04Rate)
+# Compare different specifications of the subModel = "choice"
+AIC(mod02Choice, mod03Choice)
+
+# Compare different specifications of the subModel = "rate"
+AIC(mod03Rate, mod04Rate)
 ```
 
 ### REM with `goldfish`

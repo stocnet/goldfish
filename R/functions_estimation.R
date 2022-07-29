@@ -1,6 +1,8 @@
 #' Estimate a model
 #'
-#' Estimates parameters for a dynamic network model via maximum likelihood.
+#' Estimates parameters for a dynamic network model via maximum likelihood
+#'  implementing the iterative Newton-Raphson procedure as describe in
+#'  Stadtfeld and Block (2017).
 #'
 #' Missing data is imputed during the preprocessing stage.
 #' For network data missing values are replaced by a zero value,
@@ -15,22 +17,22 @@
 #' called Dynamic Network Actor Models (DyNAMs).
 #' The model is a two-step process. In the first step, the waiting time until
 #' an actor \eqn{i} initiates the next relational event is modeled
-#' (\code{model = "DyNAM"} and \code{subModel = "rate"}) by an exponential
+#' (`model = "DyNAM"` and `subModel = "rate"`) by an exponential
 #' distribution depending on the actor activity rate.
-#' In the second step,
-#' the conditional probability of \eqn{i} choosing \eqn{j} as the event receiver
-#' is modeled (\code{model = "DyNAM"} and \code{subModel = "choice"}) by a
-#' multinomial probability distribution with a linear predictor.
+#' In the second step, the conditional probability of \eqn{i} choosing
+#'  \eqn{j} as the event receiver is modeled (`model = "DyNAM"` and
+#'  `subModel = "choice"`) by a multinomial probability distribution
+#'  with a linear predictor.
 #' These two-steps are assumed to be conditionally independent given
 #' the process state (Stadtfeld, 2012),
-#' due to this assumption is possible to estimate these components by different
-#' calls of the \code{estimate} function.
+#' due to this assumption is possible to estimate these components by
+#' different calls of the `estimate` function.
 #'
 #' @section Waiting times:
 #'
-#' When DyNAM-rate (\code{model = "DyNAM"} and \code{subModel = "rate"}) model
+#' When DyNAM-rate (`model = "DyNAM"` and `subModel = "rate"`) model
 #' is used to estimate the first step component of the process, or the REM
-#' \code{model = "REM"} model is used.
+#' `model = "REM"` model is used.
 #' It is important to add a time intercept to model the waiting times between
 #' events, in this way the algorithm considers the right-censored intervals
 #' in the estimation process.
@@ -43,7 +45,7 @@
 #' multinomial probability (Butts, 2008).
 #'
 #' @param model a character string defining the model type.
-#' Current options include \code{"DyNAM"}, \code{"DyNAMi"} or \code{"REM"}
+#' Current options include `"DyNAM"`, `"DyNAMi"` or `"REM"`
 #' \describe{
 #'  \item{DyNAM}{Dynamic Network Actor Models
 #'  (Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
@@ -52,21 +54,19 @@
 #'  \item{REM}{Relational Event Model (Butts, 2008)}
 #' }
 #' @param subModel a character string defining the submodel type.
-#'  Current options include \code{"choice"}, \code{"rate"} or
-#'  \code{"choice_coordination"}
+#'  Current options include `"choice"`, `"rate"` or
+#'  `"choice_coordination"`
 #' \describe{
-#'  \item{choice}{a multinomial receiver choice model \code{model = "DyNAM"}
+#'  \item{choice}{a multinomial receiver choice model `model = "DyNAM"`
 #'  (Stadtfeld and Block, 2017), or the general Relational event model
-#'  \code{model = "REM"} (Butts, 2008).
-#'  A multinomial group choice model \code{model = "DyNAMi"}
-#'  (Hoffman et al., 2020)}
+#'  `model = "REM"` (Butts, 2008).
+#'  A multinomial group choice model `model = "DyNAMi"` (Hoffman et al., 2020)}
 #'  \item{choice_coordination}{a multinomial-multinomial model for coordination
-#'  ties \code{model = "DyNAM"} (Stadtfeld, Hollway and Block, 2017)}
-#'  \item{rate}{A individual activity rates model \code{model = "DyNAM"}
+#'  ties `model = "DyNAM"` (Stadtfeld, Hollway and Block, 2017)}
+#'  \item{rate}{A individual activity rates model `model = "DyNAM"`
 #'  (Stadtfeld and Block, 2017).
 #'  Two rate models, one for individuals joining groups and one for individuals
-#'  leaving groups, jointly estimated \code{model = "DyNAMi"}
-#'  (Hoffman et al., 2020)}
+#'  leaving groups, jointly estimated `model = "DyNAMi"`(Hoffman et al., 2020)}
 #' }
 #' @param estimationInit a list containing lower level technical parameters
 #' for estimation. It may contain:
@@ -74,13 +74,12 @@
 #'  \item{initialParameters}{a numeric vector.
 #'  It includes initial parameters of the estimation.
 #'  Default is set to NULL.}
-#'	\item{fixedParameters}{a numeric vector. It specify which component of
-#'	the parameter (intercept included) is fixed and what's the fixed values
-#'	during the estimation. E.g. if the vector is c(2,NA).
-#'	Then the first component of the parameter is fixed to 2 during the whole
-#'	estimation process. Default is set to NULL, i.e. we don't fixed
-#'	any parameter. Note that it must be consistent with
-#'	\code{initialParameters}.}
+#'	\item{fixedParameters}{a numeric vector. It specifies which component of
+#'	the coefficient parameters (intercept included) is fixed and the value
+#'	it takes during estimation, e.g., if the vector is `c(2, NA)` then
+#'	the first component of the parameter is fixed to 2 during the
+#'	estimation process. Default is set to `NULL`, i.e. all parameters are
+#'	estimated. Note that it must be consistent with `initialParameters`.}
 #'  \item{maxIterations}{maximum number of iterations of the Gauss/Fisher
 #'  scoring method for the estimation. Default is set to 20.}
 #'  \item{maxScoreStopCriterion}{maximum absolute score criteria for successful
@@ -89,7 +88,7 @@
 #'  factor for each parameter.
 #'  It controls the size of the update step during the iterative estimation
 #'  process. The default is set to 30 when the formula has windowed effects or
-#'  10 in another case, see \code{vignette("goldfishEffects")}.}
+#'  10 in another case, see `vignette("goldfishEffects")`.}
 #'  \item{dampingIncreaseFactor}{a numeric value. It controls the factor that
 #'  increases the damping of the parameters when improvements in the estimation
 #'  are found.}
@@ -97,53 +96,52 @@
 #'  decreases the damping of the parameters when no improvements in the
 #'  estimation are found.}
 #'  \item{returnIntervalLogL}{a logical value. Whether to keep the
-#'  log-likelihood of each event from the final coefficients values.}
+#'  log-likelihood of each event from the final iteration of the Gauss/Fisher
+#'  estimation method.}
 #'  \item{engine}{a string indicating the estimation engine to be used.
-#'  Current options include "old", "default", "default_c",and "gather_compute".
-#'  The default value is "default", it is an estimation routine implemented in
-#'  pure \code{R} code.
-#'  "old" uses an \code{R} estimation routine that uses an inefficient
-#'  version of data structures.
-#'  "default_c" uses a \code{C} implementation of the "default" routine.
-#'  "gather_compute" uses a \code{C} implementation with a different data
+#'  Current options include `"default"`, `"default_c"`, and `"gather_compute"`.
+#'  The default value is `"default"`, it is an estimation routine implemented in
+#'  pure `R` code.
+#'  `"default_c"` uses a `C` implementation of the `"default"` routine.
+#'  `"gather_compute"` uses a `C` implementation with a different data
 #'  structure that reduces the time but it can increase the memory usage.}
 #'  \item{startTime}{a numerical value or a date-time character with the same
 #'  time-zone formatting as the times in event that indicates the starting time
 #'  to be considered during estimation.
-#'  \emph{Note:} only use during preprocessing}
+#'  \emph{Note:} it is only use during preprocessing}
 #'  \item{endTime}{a numerical value or a date-time character with the same
 #'  time-zone formatting as the times in event that indicates the end time
 #'  to be considered during estimation.
-#'  \emph{Note:} only use during preprocessing}
+#'  \emph{Note:} it is only use during preprocessing}
 #'  \item{opportunitiesList}{a list containing for each dependent event
 #'   the list of available nodes for the choice model, this list should be
 #'   the same length as the dependent events list (ONLY for choice models).}
 #' }
-#' @param preprocessingOnly logical. Indicates whether only preprocessed
-#' statistics should be returned rather than a results object.
-#' @param preprocessingInit a \code{preprocessed.goldfish} object computed for
+#' @param preprocessingOnly logical indicating whether only preprocessed
+#' statistics should be returned rather than a `result.goldfish` object
+#' with the estimated coefficients.
+#' @param preprocessingInit a `preprocessed.goldfish` object computed for
 #' the current formula, allows skipping the preprocessing step.
 #' @param silent logical indicating whether a minimal output should be given.
 #' @param debug logical indicating whether very detailed intermediate results
 #' should be given; slows down the routine significantly.
-#' @param verbose logical indicating whether details of the estimation routine
-#' should be provided.
-#' @param x a formula that defines at the left-hand side the dependent network
-#' (see \code{\link{defineDependentEvents}}) and at the right-hand side the
+#' @param verbose logical indicating whether details of the estimation
+#'  routine should be provided.
+#' @param x a formula that defines at the left-hand side the dependent
+#' network (see [defineDependentEvents()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
-#' (see \code{vignette("goldfishEffects")}).
-# or a preprocessed statistics object.
+#' (see `vignette("goldfishEffects")`).
 #'
-#' @return returns an object of \code{\link{class}} \code{"result.goldfish"}
-#' when \code{preprocessingOnly = FALSE} or
-#' a preprocessed statistics object of class \code{"preprocessed.goldfish"}
-#' when \code{preprocessingOnly = TRUE}.
+#' @return returns an object of [class()] `"result.goldfish"`
+#' when `preprocessingOnly = FALSE` or
+#' a preprocessed statistics object of class `"preprocessed.goldfish"`
+#' when `preprocessingOnly = TRUE`.
 #'
-#' An object of class \code{"result.goldfish"} is a list including:
-#'   \item{parameters}{a matrix with the coefficients estimates.}
+#' An object of class `"result.goldfish"` is a list including:
+#'   \item{parameters}{a numeric vector with the coefficients estimates.}
 #'   \item{standardErrors}{
-#'    a vector with the standard errors of the coefficients.}
-#'   \item{logLikelihood}{the log likelihood of the estimate model}
+#'    a numeric vector with the standard errors of the coefficients estimates.}
+#'   \item{logLikelihood}{the log-likelihood of the estimated model}
 #'   \item{finalScore}{
 #'    a vector with the final score reach by the parameters during estimation.}
 #'   \item{finalInformationMatrix}{
@@ -165,19 +163,19 @@
 #'    It includes the name of the object used to calculate the effects and
 #'    additional parameter description.}
 #'   \item{formula}{a formula with the information of the model fitted.}
-#'   \item{model}{a character vector of the model type.}
+#'   \item{model}{a character value of the model type.}
+#'   \item{subModel}{a character value of the subModel type.}
 #'   \item{rightCensored}{
-#'   a logical value indicating if the estimation process considered right
-#'   censored events.
-#'   Only it is considered for DyNAM-rate (\code{model = "DyNAM"} and
-#'   \code{subModel = "rate"}) or REM (\code{model = "REM"}) models,
-#'   and when the model includes intercept.}
+#'   a logical value indicating if the estimation process considered
+#'   right-censored events.
+#'   Only it is considered for DyNAM-rate (`model = "DyNAM"` and
+#'   `subModel = "rate"`) or REM (`model = "REM"`) models,
+#'   and when the model includes the intercept.}
 #'
 #' @importFrom stats formula na.omit end filter
 #' @export
-#' @seealso \code{\link{defineDependentEvents}},
-#'  \code{\link{defineGlobalAttribute}}, \code{\link{defineNetwork}},
-#'  \code{\link{defineNodes}}, \code{\link{linkEvents}}
+#' @seealso [defineDependentEvents()], [defineGlobalAttribute()],
+#'  [defineNetwork()], [defineNodes()], [linkEvents()]
 #'
 #' @references Butts C. (2008). A Relational Event Framework for Social Action.
 #' \emph{Sociological Methodology 38 (1)}.
@@ -234,13 +232,14 @@
 #' bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
 #' bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
 #'
+#' contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
+#' contignet <- linkEvents(contignet, contigchanges, nodes = states)
+#'
 #' createBilat <- defineDependentEvents(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, defaultNetwork = bilatnet
 #' )
-#'
-#' contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
-#' contignet <- linkEvents(contignet, contigchanges, nodes = states)
+#'  
 #' partner.model <- estimate(createBilat ~
 #'                            inertia(bilatnet) +
 #'                            indeg(bilatnet, ignoreRep = TRUE) +
@@ -256,8 +255,6 @@
 #' summary(partner.model)
 #' }
 #' 
-# \item{impute}{a boolean indicating whether it should impute the statistics
-# for missing values. }
 estimate <- function(
   x,
   model = c("DyNAM", "REM", "DyNAMi"),
@@ -266,7 +263,7 @@ estimate <- function(
   preprocessingInit = NULL,
   preprocessingOnly = FALSE,
   verbose = FALSE,
-  silent = FALSE,
+  silent = !getOption("verbose"),
   debug = FALSE)
   UseMethod("estimate", x)
 
@@ -282,7 +279,7 @@ estimate.formula <- function(
   preprocessingInit = NULL,
   preprocessingOnly = FALSE,
   verbose = FALSE,
-  silent = FALSE,
+  silent = !getOption("verbose"),
   debug = FALSE) {
   # Steps:
   # 1. Parse the formula
@@ -291,14 +288,6 @@ estimate.formula <- function(
   # 4. Estimate model (old estimation still available as an option)
 
   ### 0. check parameters----
-
-  # .calls_args_ <- names(lapply(match.call(), deparse))[-1]
-  # if (any("modelType" %in% .calls_args_)) {
-  #   stop("use 'model' and 'subModel' instead of 'modelType'")
-  # }
-  # rm(.calls_args_)
-
-  #
   model <- match.arg(model)
   subModel <- match.arg(subModel)
 
@@ -307,12 +296,11 @@ estimate.formula <- function(
 
   ### check model and subModel
   checkModelPar(model, subModel,
-    modelList = c("DyNAM", "REM", "DyNAMi", "TriNAM"),
+    modelList = c("DyNAM", "REM", "DyNAMi"),
     subModelList = list(
       DyNAM = c("choice", "rate", "choice_coordination"),
       REM = "choice",
-      DyNAMi = c("choice", "rate"),
-      TriNAM = c("choice", "rate")
+      DyNAMi = c("choice", "rate")
     )
   )
 
@@ -350,7 +338,7 @@ estimate.formula <- function(
 
   # Decide the type of engine
   engine <- match.arg(estimationInit[["engine"]],
-                      c("default", "old", "default_c", "gather_compute"))
+                      c("default", "default_c", "gather_compute"))
   if (!is.null(estimationInit[["engine"]])) estimationInit[["engine"]] <- NULL
 
   # gather_compute and default_c don't support returnEventProbabilities
@@ -390,10 +378,6 @@ estimate.formula <- function(
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
   windowParameters <- parsedformula$windowParameters
-  # defaultNetworkName <- parsedformula$defaultNetworkName
-  # ignoreRepParameter <- parsedformula$ignoreRepParameter
-  # weightedParameter <- parsedformula$weightedParameter
-  # userSetParameter <- parsedformula$userSetParameter
 
   # DyNAM-i ONLY: creates extra parameter to differentiate joining and
   # leaving rates, and effect subtypes. Added directly to GetDetailPrint
@@ -462,8 +446,6 @@ estimate.formula <- function(
 
   ## 2.2 INITIALIZE OBJECTS for preprocessingInit == NULL
   if (is.null(preprocessingInit)) {
-
-
     # Initialize events list and link to objects
     events <- getEventsAndObjectsLink(
       depName, rhsNames, .nodes, .nodes2, envir = PreprocessEnvir)[[1]]
@@ -487,7 +469,6 @@ estimate.formula <- function(
   ## 3.1 INITIALIZE OBJECTS for preprocessingInit: remove old effects,
   ## add new ones
   if (!is.null(preprocessingInit)) {
-
     # recover the nodesets
     .nodes  <- preprocessingInit$nodes
     .nodes2 <- preprocessingInit$nodes2
@@ -735,60 +716,11 @@ estimate.formula <- function(
       modelTypeCall <- "DyNAM-M"
     }
   }
-  if (!silent) cat("Estimating a model: ", dQuote(model), ", subModel: ",
-                   dQuote(subModel), ".\n", sep = "")
+  if (!silent)
+    cat("Estimating a model: ", dQuote(model), ", subModel: ",
+        dQuote(subModel), ".\n", sep = "")
 
-  # Reduce size formula, drop environment
-  # formula <- as.formula(formula, env = emptyenv())
-  # attr(formula, ".Environment") <- NULL
-
-  # Old estimation
-  if (engine == "old") {
-    if (!is.null(estimationInit[["fixedParameters"]])) {
-      stop("engine = ", dQuote("old"), " does not support ",
-           dQuote("fixedParameters"), " argument", call. = FALSE)
-    }
-
-    # use of Marion's fast estimation routine by default
-    rowOnly <- colOnly <- F
-    if (modelTypeCall == "DyNAM-M-Rate") colOnly <- TRUE
-    if (modelTypeCall == "DyNAM-M") rowOnly <- TRUE
-    resold <- estimate_old(prep,
-      events,
-      .nodes,
-      .nodes2,
-      isTwoMode,
-      rightCensored,
-      hasIntercept,
-      modelTypeCall,
-      hasWindows,
-      parsedformula$ignoreRepParameter,
-      parsedformula$defaultNetworkName,
-      colOnly,
-      estimationInit,
-      initialDamping = ifelse(hasWindows, 30, 10),
-      parallelize = FALSE,
-      cpus = 1,
-      effectDescription,
-      verbose,
-      silent
-    )
-    resold$call <- match.call(call = sys.call(-1L),
-                              expand.dots = TRUE)
-    resold$names <- effectDescription
-    resold$formula <- formula
-    resold$model <- model
-    resold$subModel <- subModel
-    resold$rightCensored <- hasIntercept
-    resold$nParams <- if ("fixed" %in% colnames(effectDescription)) {
-      sum(!vapply(effectDescription[, "fixed"],
-                  function(x) eval(parse(text = x), envir = PreprocessEnvir),
-                  logical(1)))
-    } else  length(resold$parameters)
-    return(resold)
-  }
-
-  # Normal estimation
+  # Default estimation
   additionalArgs <- list(
     statsList = prep,
     nodes = get(.nodes, envir = PreprocessEnvir),
@@ -830,7 +762,6 @@ estimate.formula <- function(
   result$names <- effectDescription
   formulaKeep <- as.formula(Reduce(paste, deparse(formula)),
                         env = new.env(parent = emptyenv()))
-  # environment(formula) <- emptyenv() # avoids increase object size
   result$formula <- formulaKeep
   result$model <- model
   result$subModel <- subModel
@@ -840,9 +771,6 @@ estimate.formula <- function(
                 function(x) eval(parse(text = x), envir = PreprocessEnvir),
                 logical(1)))
   } else  length(result$parameters)
-
-  # if (!silent) if (requireNamespace("beepr", quietly = TRUE) &
-  #                  result$convergence[[1]]) beepr::beep(3)
 
   result$call <- match.call(call = sys.call(-1L),
                             expand.dots = TRUE)
