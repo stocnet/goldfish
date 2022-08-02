@@ -36,13 +36,12 @@
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
 #'                   model = "DyNAM", subModel = "choice")
 #' coef(mod01)
-coef.result.goldfish <- function(object, ..., complete = TRUE) {
+coef.result.goldfish <- function(object, ..., complete = FALSE) {
   result <- object$parameters
   names(result) <- rownames(object$names)
-  if (!complete && "fixed" %in% colnames(object$names)) {
-    fixed <- vapply(object$names[, "fixed"],
-                    function(x) eval(parse(text = x)), logical(1))
-    result <- result[!fixed]
+  isFixed <- GetFixed(object)
+  if (complete && any(isFixed)) {
+    result <- result[!isFixed]
   }
   result
 }
@@ -101,26 +100,28 @@ logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
   return(val)
 }
 
+#' Methods for `goldfish` objects.
+#' 
 #' Printing functions for `goldfish` objects.
-#' @param x an object of class \code{result.goldfish},
-#' \code{summary.result.goldfish}, \code{nodes.goldfish},
-#' \code{network.goldfish}, \code{dependent.goldfish}, or
-#' \code{preprocessed.goldfish}.
-#' @param object an object of class \code{result.goldfish}.
-#' @param digits minimal number of significant digits,
-#'   see \code{\link{print.default}}.
-#' @param width only used when \code{max.levels} is \code{NULL},
-#'   see  \code{\link{print}}.
-#' @param fixed logical. Indicates whether the parameter coefficients of effects
-#' fixed during estimation using `fixedParameters` should be printed.
-#' The default value is \code{TRUE}. \emph{Note:} applies for objects of class
-#' \code{result.goldfish} and \code{summary.result.goldfish}.
-#' @param full logical. Indicates whether the complete
-#' \code{matrix}/\code{data.frame} should be printed.
-#' The default value \code{FALSE}.
-#' @param ... further arguments to be passed to the respective \code{default}
+#' 
+#' @param x an object of class `result.goldfish`, `summary.result.goldfish`,
+#' `nodes.goldfish`, `network.goldfish`, `dependent.goldfish`, or
+#' `preprocessed.goldfish`.
+#' @param object an object of class `result.goldfish`.
+#' @param digits minimal number of significant digits, see [print.default()].
+#' @param width controls the maximum number of columns on a line used in
+#' printing `summary.result.goldfish` and `preprocessed.goldfish`,
+#' see  [print.default()].
+#' @param complete logical. Indicates whether the parameter coefficients
+#' of effects fixed during estimation using `fixedParameters` should be printed.
+#' The default value is `FALSE`. _Note:_ applies for objects of class
+#' `result.goldfish` and `summary.result.goldfish`.
+#' @param full logical. Indicates whether the complete `matrix`/`data.frame`
+#' should be printed. The default value `FALSE`.
+#' @param ... further arguments to be passed to the respective `default`
 #' method.
 #' @name print-method
+#' @return Not value, called for printing side effect.
 NULL
 
 # Print Goldfish results
@@ -133,14 +134,14 @@ NULL
 #' @method print result.goldfish
 print.result.goldfish <- function(
   x, ..., digits = max(3, getOption("digits") - 2),
-  width = getOption("width")) {
+  width = getOption("width"), complete = FALSE) {
   cat("\nCall:\n")
   print(x$call)
   cat("\n\n")
-  if (length(coef(x))) {
+  if (length(coef(x, complete = complete))) {
     cat("Coefficients:\n")
-    print.default(format(coef(x), digits = digits),
-                  print.gap = 2, quote = FALSE, ...)
+    print.default(format(coef(x, complete = complete), digits = digits),
+                  print.gap = 2, quote = FALSE, width = width, ...)
   } else cat("No coefficients\n")
   cat("\n")
   invisible(x)
@@ -149,16 +150,26 @@ print.result.goldfish <- function(
 #' @method summary result.goldfish
 #' @export
 #' @importFrom stats AIC BIC
-#' @rdname print-method
+#' @noRd
 summary.result.goldfish <- function(object, ...) {
   nParams <- object$nParams
 
   if (is.null(object$names)) object$names <- seq_len(nParams)
-  names <- object$names
+  # names <- object$names
+  
+  # 
   est <- object$parameters
   std.err <- object$standardErrors
   z <- est / std.err
   p <- 2 * (1 - pnorm(abs(z)))
+  
+  isFixed <- GetFixed(object)
+  
+  if (any(isFixed)) {
+    std.err[isFixed] <- NA_real_
+    z[isFixed] <- NA_real_
+    p[isFixed] <- NA_real_ 
+  }
   # sig <- rep("", nparams)
   # sig[abs(z) > qnorm(1 - 0.05 / 2)] <- "*"
   # sig[abs(z) > qnorm(1 - 0.01 / 2)] <- "**"
@@ -181,23 +192,38 @@ summary.result.goldfish <- function(object, ...) {
   class(object) <- "summary.result.goldfish"
   return(object)
   # format.pval()
-  #
-  # cat(" ", paste("Log likelihood", round(object$log.likelihood, 4), "\n"))
-
 }
 
 #' @export
 #' @importFrom stats printCoefmat pnorm qnorm
 #' @rdname print-method
+#' @return For objects of class `result.goldfish` and `summary.result.goldfish`
+#'  print the estimated coefficients when `complete = FALSE`, otherwise it
+#'  includes also the fixed coefficients.
+#' For `summary.result.goldfish` print:
+#' \item{Effect details:}{a table with additional information of the effects.
+#' The information corresponds to the  values of the effects arguments when
+#' they are modified and if they where fixed during estimation, see 
+#' `vignette("goldfishEffects")` for the complete list of arguments, and
+#' [estimate()] on how to fix coefficients during estimation.}
+#' \item{Coefficients:}{a table with the estimated coefficients, their 
+#'   approximate standard error obtain from the inverse of the negative Fisher
+#'   information matrix, z-value and the p-value of the univariate two-tailed
+#'   Wald test to test the hypothesis that the parameter is 0.}
+#' \item{Convergence and Information Criteria:}{Information about the
+#'   convergence of the iterative Newton-Raphson procedure and the score value
+#'   in the last iteration. Information criteria as the AIC, BIC and the AIC
+#'   corrected for small sample size AICc are reported.}
+#' \item{Model and subModel:}{the values set during estimation.}
 print.summary.result.goldfish <- function(
   x, ...,
   digits = max(3, getOption("digits") - 2),
-  width = getOption("width"), fixed = FALSE) {
+  width = getOption("width"), complete = FALSE) {
 
   nParams <- x$nParams
   aicc <- x$AIC + 2 * nParams * (nParams + 1) / (x$nEvents - nParams - 1)
   cat("\nCall:\n")
-  print(x$call)
+  print(x$call, width = width, ...)
   cat("\n")
   # cat("Frequencies of alternatives:")
   # print(prop.table(x$freq), digits = digits)
@@ -207,7 +233,7 @@ print.summary.result.goldfish <- function(
 
   isFixed <- GetFixed(x)
 
-  if (!fixed && any(isFixed)) {
+  if (complete && any(isFixed)) {
     names <- x$names[!isFixed, ]
     coefMat <- x$coefMat[!isFixed, ]
     isDetPrint <- !((ncol(names) == 2) &&
@@ -221,11 +247,11 @@ print.summary.result.goldfish <- function(
 
   if (isDetPrint) {
     cat("\nEffects details :\n")
-    print.default(names, quote = FALSE)
+    print.default(names, quote = FALSE, width = width, ...)
   }
 
   cat("\nCoefficients :\n")
-  stats::printCoefmat(coefMat, digits = digits)
+  stats::printCoefmat(coefMat, digits = digits, width = width, ...)
   cat("\n")
   cat(" ", paste(
     ifelse(x$convergence$isConverged, "Converged", "Not converged"),
@@ -248,6 +274,11 @@ print.summary.result.goldfish <- function(
 #' @export
 #' @method print nodes.goldfish
 #' @rdname print-method
+#' @return For objects of class `nodes.goldfish` print information of the total
+#' number of nodes in the object, the number of nodes present at the beginning
+#' of preprocessing, a table with the linked attributes with their respective
+#' events data frame and a printing of the first rows in the nodes data frame.
+#' See [defineNodes()].
 # @examples print(structure(data.frame(label = 1:5),
 #                 class = c("nodes.goldfish", "data.frame")))
 print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
@@ -282,31 +313,6 @@ print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
   invisible(NULL)
 }
 
-#' @export
-#' @importFrom utils head
-#' @rdname print-method
-head.nodes.goldfish <- function(x, ..., n = 6L) {
-  attributes(x)[c("events", "dynamicAttributes")] <- NULL
-  class(x) <- "data.frame"
-  print(head(x, min(n, nrow(x)), ...))
-  invisible(NULL)
-}
-
-#' @inheritParams utils::tail
-#' @export
-#' @importFrom utils tail
-#' @rdname print-method
-tail.nodes.goldfish <- function(x, ..., n = 6L,
-                                keepnums = FALSE, addrownums = FALSE) {
-  attributes(x)[c("events", "dynamicAttributes")] <- NULL
-  class(x) <- "data.frame"
-  if (R.version$major >= "4") {
-    print(tail(x, min(n, nrow(x)), keepnums = keepnums))
-  } else {
-    print(tail(x, min(n, nrow(x)), addrownums = addrownums))
-  }
-  invisible(NULL)
-}
 
 
 # stylize print network.goldfish object
@@ -316,6 +322,12 @@ tail.nodes.goldfish <- function(x, ..., n = 6L,
 #' \code{matrix} to be printed.
 #' @export
 #' @rdname print-method
+#' @return For objects of class `network.goldfish` print information of the
+#' dimensions of the network, number of ties presented at the beginning of the
+#' preprocessing, the nodes data frames linked to it, information about their
+#' definition as a one-mode and directed network, linked events data frame to it
+#' and a printing of the first rows and columns in the array.
+#' See [defineNetwork()].
 # @examples print(structure(rep(0, 100), dim = c(10, 10),
 #                 class = "network.goldfish"))
 print.network.goldfish <- function(x, ..., full = FALSE, n = 6L) {
@@ -339,48 +351,22 @@ print.network.goldfish <- function(x, ..., full = FALSE, n = 6L) {
   } else {
     cat("First", min(c(dim(x), n)), "rows and columns\n")
     if (R.version$major >= "4") {
-      print(head(x, c(min(c(nrow(x), n)), min(c(ncol(x), n)))))
+      print(head(x, c(min(c(nrow(x), n)), min(c(ncol(x), n)))), ...)
     } else {
-      print(head(x[, seq(min(c(nrow(x), n)))], min(c(ncol(x), n))))
+      print(head(x[, seq(min(c(nrow(x), n)))], min(c(ncol(x), n))), ...)
     }
   }
   invisible(NULL)
 }
 
-#' @export
-#' @importFrom utils head
-#' @rdname print-method
-head.network.goldfish <- function(x, ..., n = 6L) {
-  attributes(x)[c("class", "events", "nodes", "directed")] <- NULL
-  if (R.version$major >= "4") {
-    print(head(x, c(min(c(nrow(x), n)), min(c(ncol(x), n)))))
-  } else {
-    print(head(x[, seq(min(c(nrow(x), n)))], min(c(ncol(x), n))))
-  }
-  invisible(NULL)
-}
 
 #' @export
-#' @importFrom utils tail
 #' @rdname print-method
-tail.network.goldfish <- function(x, ..., n = 6L,
-                                  keepnums = TRUE, addrownums = TRUE) {
-  attributes(x)[c("class", "events", "nodes", "directed")] <- NULL
-  if (R.version$major >= "4") {
-    print(tail(x, c(min(c(nrow(x), n)), min(c(ncol(x), n))),
-               keepnums = keepnums))
-  } else {
-    print(tail(x[, seq(ncol(x) - min(c(nrow(x), n)), ncol(x))],
-               min(c(ncol(x), n)), addrownums = addrownums))
-  }
-  invisible(NULL)
-}
-
-# print dependent.goldfish object
-#
-# @param x a dependent.goldfish object
-#' @export
-#' @rdname print-method
+#' @return For objects of class `dependent.goldfish` print information of the
+#'  total number of events in the object, linked nodes set(s),
+#'  linked default network 
+#' and a printing of the first rows in the events data frame.
+#' See [defineDependentEvents()].
 #
 # @examples
 # print(
@@ -402,38 +388,13 @@ print.dependent.goldfish <- function(x, ..., full = FALSE, n = 6) {
   class(x) <- "data.frame"
   # x <- as.data.frame(x)
   if (full) {
-    print((x))
+    print((x), ...)
   } else {
     cat("First", min(nrow(x), n), "rows\n")
-    print(head(x, min(nrow(x), n)))
+    print(head(x, min(nrow(x), n)), ...)
   }
   invisible(NULL)
 }
-
-#' @export
-#' @importFrom utils head
-#' @rdname print-method
-head.dependent.goldfish <- function(x, ..., n = 6L) {
-  attributes(x)[c("nodes", "defaultNetwork", "type")] <- NULL
-  class(x) <- "data.frame"
-  print(head(x, min(nrow(x), n)))
-  invisible(NULL)
-}
-
-#' @export
-#' @importFrom utils tail
-tail.dependent.goldfish <- function(x, ..., n = 6L,
-                                    keepnums = FALSE, addrownums = FALSE) {
-  attributes(x)[c("nodes", "defaultNetwork", "type")] <- NULL
-  class(x) <- "data.frame"
-  if (R.version$major >= "4") {
-    print(tail(x, min(nrow(x), n), keepnums = keepnums))
-  } else {
-    print(tail(x, min(nrow(x), n), addrownums = addrownums))
-  }
-  invisible(NULL)
-}
-
 
 # print preprocessed.goldfish
 #
@@ -544,7 +505,7 @@ glance.result.goldfish <- function(x, ...) {
       #   lower.tail = FALSE
       # ),
       # df = fstatistic["numdf"],
-      logLik = as.numeric(stats::logLik(x)),
+      logLik = as.numeric(logLik(x)),
       AIC = stats::AIC(x),
       BIC = stats::BIC(x),
       # deviance = stats::deviance(x),
