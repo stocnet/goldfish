@@ -270,6 +270,7 @@ estimate <- function(
 
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
+#' @importFrom stats as.formula
 #' @export
 estimate.formula <- function(
   x,
@@ -367,7 +368,7 @@ estimate.formula <- function(
 
 
   ### 1. PARSE the formula----
-  PreprocessEnvir <- new.env(parent = globalenv())
+  PreprocessEnvir <- new.env()
   
   if (!silent) cat("Parsing formula.\n")
   formula <- x

@@ -427,7 +427,8 @@ preprocessInteraction <- function(
       }
 
       # Assign object
-      eval(parse(text = paste(objectName, "<- object")), envir = prepEnvir)
+      assign("object", object, envir = prepEnvir)
+      eval(parse(text = paste(objectName, "<- object")), envir = prepEnvir, enclos = parent.frame())
 
       # added Marion: for interaction model, check whether this is an exogenous event or past update
       isinteractionupdate <- inherits(events[[nextEvent]], "interaction.network.updates")
