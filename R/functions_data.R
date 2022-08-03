@@ -10,16 +10,16 @@
 
 #' Methods to update the nodes or the network objects
 #'
-#' Methods to create a data frame from an object of class \code{nodes.goldfish}
-#' (see \code{\link{defineNodes}}) or a matrix from an object of class
-#' \code{network.goldfish} (see \code{\link{defineNetwork}}) with the attributes
+#' Methods to create a data frame from an object of class `nodes.goldfish`
+#' (see [defineNodes()]) or a matrix from an object of class
+#' `network.goldfish` (see [defineNetwork()]) with the attributes
 #' or the network ties updated according with the events links to the object
-#' using the \code{\link{linkEvents}}) function.
-#' @param x an object of class \code{nodes.goldfish} for \code{as.data.frame}
-#' method or \code{network.goldfish} for \code{as.matrix} method.
-#' @param time a numeric or \code{as.Date} format value to update the state of
-#' the  \code{x} object until this time value.
-#' @param startTime a numeric \code{as.Date} format value; prior events are
+#' using the [linkEvents()]) function.
+#' @param x an object of class `nodes.goldfish` for `as.data.frame()`
+#' method or `network.goldfish` for `as.matrix()` method.
+#' @param time a numeric value or a calendar date value (see [as.Date()])
+#' to update the state of the object `x` until this time value.
+#' @param startTime a numeric `as.Date` format value; prior events are
 #' disregarded.
 #' @param ... Not further arguments are required.
 #' @return The respective object updated accordingly to the events link to it.
@@ -239,7 +239,7 @@ goldfishObjects <- function(y = ls(envir = .GlobalEnv), envir = .GlobalEnv) {
 #'
 #' @return an object of class \code{nodes.goldfish}
 #' @export
-#' @seealso \link{defineNetwork}
+#' @seealso [defineNetwork()]
 #' @examples
 #' nodesAttr <- data.frame(
 #'   label = paste("Actor", 1:5),

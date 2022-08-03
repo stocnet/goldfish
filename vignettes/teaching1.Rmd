@@ -346,7 +346,14 @@ We can use these functions to visually compare our network at two (or more) diff
 
 ```r
 library(ggraph)
+#> Loading required package: ggplot2
 library(migraph)
+#> Warning: package 'migraph' was built under R version 4.2.1
+#> 
+#> Attaching package: 'migraph'
+#> The following object is masked from 'package:rlang':
+#> 
+#>     is_complex
 # The network at the beginning
 callNetworkBgn <- as.matrix(callNetwork)
 autographr(callNetworkBgn, labels = FALSE, layout = "fr")

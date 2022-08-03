@@ -1,104 +1,11 @@
 ######################### ###
 #
-# Print, summary and xtable functions
+# Print and summary functions
 # for classes in Goldfish
 #
 ######################### ###
 
 
-#' Extract model coefficients from estimate output
-#'
-#' Return a named vector with the estimated coefficients returned by `estimate`.
-#' The names just correspond to the short effect name. For a comprehensive output use
-#' \code{\link{summary.result.goldfish}}.
-#' Note that while the output to the console is rounded, the returned vector
-#' is not.
-#' @param object an object of class \code{result.goldfish} output from an
-#' \code{\link{estimate}} call.
-#' @param complete logical. Indicates whether the parameter coefficients of effects
-#' fixed during estimation using `fixedParameters` should be printed.
-#' @param ... additional arguments to be passed.
-#' @method coef result.goldfish
-#' @export
-#' @noRd
-#' @return A named numeric vector with the extracted coefficients from the output of `estimate`.
-#' @examples
-#' # A multinomial receiver choice model
-#' data("Social_Evolution")
-#' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
-#'                           nodes = actors)
-#' callsDependent <- defineDependentEvents(events = calls, nodes = actors,
-#'                                         defaultNetwork = callNetwork)
-#' \dontshow{
-#' callsDependent <- callsDependent[1:50, ]
-#' }
-#' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-#'                   model = "DyNAM", subModel = "choice")
-#' coef(mod01)
-coef.result.goldfish <- function(object, ..., complete = FALSE) {
-  result <- object$parameters
-  names(result) <- rownames(object$names)
-  isFixed <- GetFixed(object)
-  if (complete && any(isFixed)) {
-    result <- result[!isFixed]
-  }
-  result
-}
-
-#' Extract log-likelihood from a fitted model object
-#' 
-#' This function extract the log-likelihood from the output of a
-#' `estimate` call.
-#' The extracted log-likelihood correspond to the value in the last
-#' iteration of the `estimate` call, users should check convergence of 
-#' the Gauss/Fisher scoring method before using the log-likelihood statistic
-#' to compare models.
-#' 
-#' Users might use [stats::AIC()] and [stats::BIC()] to compute the Information
-#' Criteria from one or several fitted model objects.
-#' An information criterion could be used to compare models
-#' with respect to their predictive power.
-#' 
-#' Alternatively, [lmtest::lrtest()] can be used to compare models via
-#' asymptotic likelihood ratio tests. The test is designed to compare nested
-#' models. i.e., models where the model specification of one contains a subset
-#' of the predictor variables that define the other. 
-#' 
-#' @param object an object of class \code{result.goldfish} output from an
-#' \code{\link{estimate}} call with a fitted model.
-#' @param avgPerEvent a logical value indicating whether the average
-#' likelihood per event should be calculated.
-#' @param ... additional arguments to be passed.
-#' @return Returns an object of class `logLik` when `avgPerEvent = FALSE`.
-#' This is a number with the extracted log-likelihood from the fitted model,
-#' and with the following attributes:
-#'   \item{df}{degrees of freedom with the number of estimated parameters in
-#'     the model}
-#'   \item{nobs}{the number of observations used in estimation.
-#'     In general, it corresponds to the number of dependent events used in
-#'     estimation. For a `subModel = "rate"` or `model = "REM"` with intercept,
-#'     it corresponds to the number of dependent events plus right-censored
-#'     events due to exogenous or endogenous changes.}
-#' 
-#' When `avgPerEvent = TRUE`, the function returns a number with the average
-#' log-likelihood per event. The total number of events depends on the presence
-#' of right-censored events in a similar way that the attribute `nobs`
-#' is computed when `avgPerEvent = FALSE`. 
-#' @export
-#' @method logLik result.goldfish
-logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
-  if (avgPerEvent) {
-    return(object$logLikelihood / object$nEvents)
-  }
-  
-  val <- object$logLikelihood
-  # attr(val, "nall") <- object$nEvents
-  attr(val, "nobs") <- object$nEvents
-  attr(val, "df") <- object$nParams
-  class(val) <- "logLik"
-  return(val)
-}
 
 #' Methods for `goldfish` objects.
 #' 
@@ -233,7 +140,7 @@ print.summary.result.goldfish <- function(
 
   isFixed <- GetFixed(x)
 
-  if (complete && any(isFixed)) {
+  if (!complete && any(isFixed)) {
     names <- x$names[!isFixed, ]
     coefMat <- x$coefMat[!isFixed, ]
     isDetPrint <- !((ncol(names) == 2) &&
@@ -451,36 +358,68 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   invisible(NULL)
 }
 
-#' @importFrom tibble tibble
+#' @importFrom tibble as_tibble
 #' @importFrom generics tidy
 #' @export
 generics::tidy
 # tidy <- function(x) UseMethod("tidy") # just for testing, don't use because overwrites use in other packages
 
 #' @method tidy result.goldfish
+#' @importFrom stats confint
 #' @export
-tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95, ...) {
+tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95, 
+                                 compact = TRUE, complete = FALSE, ...) {
 
-  if (x$model == "DyNAM" & x$subModel == "rate") {
-    terms <- paste(rownames(x$names), x$names[,1])
-  } else {
-    terms <- paste(x$names[,1], rownames(x$names), x$names[,2])
+  isFixed <- GetFixed(x)
+  coefMat <- summary.result.goldfish(x)$coefMat
+  colnames(coefMat) <- c("estimate", "std.error", "statistic", "p.value")
+    
+  if (conf.int) {
+    confInterval <- confint(x, level = conf.level)
+    colnames(confInterval) <- c("conf.low", "conf.high")
   }
-  terms <- trimws(terms)
-  terms <- gsub("\\$"," ",terms)
+  
+  if (compact) {
+    terms <- paste(
+      x$names[, 1],
+      rownames(x$names),
+      if (ncol(x$names) > 2) apply(x$names[, -1], 1, paste, collapse = " ") else
+        x$names[, -1]
+      )
+    terms <- trimws(terms)
+    terms <- gsub("\\$"," ", terms)
+    
+    if (!complete) terms <- terms[!isFixed]
+    
+    terms <- cbind(term = terms)
+  } else {
+    terms <- cbind(term = rownames(x$names), x$names)
+    
+    if (!complete) terms <- terms[!isFixed, ]
+  }  
 
-  result <- tibble::tibble(term = terms,
-                           estimate = x$parameters,
-                           std.error = x$standardErrors,
-                           statistic = x$parameters / x$standardErrors,
-                           p.value = 2 * (1 - pnorm(abs(x$parameters / x$standardErrors))))
+  if (complete) {
+    result <- cbind(tibble::as_tibble(terms), tibble::as_tibble(coefMat))
+    
+    if (conf.int) {
+      confIntervalComplete <- matrix(
+        NA_real_,
+        nrow = length(isFixed),
+        ncol = ncol(confInterval),
+        dimnames = list(NULL, colnames(confInterval))
+                                     )
+      confIntervalComplete[!isFixed, ] <- confInterval
+      
+      result <- cbind(result, tibble::as_tibble(confIntervalComplete))
+    }
+  } else {
+    coefMat <- coefMat[!isFixed, ]
+    result <- cbind(tibble::as_tibble(terms), tibble::as_tibble(coefMat))
+    
+    if (conf.int) result <- cbind(result, tibble::as_tibble(confInterval))
+  }
 
-  # if (conf.int) {
-  #   ci <- confint(x, level = conf.level)
-  #   result <- dplyr::left_join(result, ci, by = "term")
-  # }
-
-  result
+  return(tibble::as_tibble(result))
 }
 
 #' @importFrom generics glance
@@ -504,12 +443,12 @@ glance.result.goldfish <- function(x, ...) {
       #   fstatistic["dendf"],
       #   lower.tail = FALSE
       # ),
-      # df = fstatistic["numdf"],
       logLik = as.numeric(logLik(x)),
       AIC = stats::AIC(x),
       BIC = stats::BIC(x),
       # deviance = stats::deviance(x),
       # df.residual = df.residual(x),
+      df = x$nParams,
       nobs = x$nEvents
     )
   )

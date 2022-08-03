@@ -400,7 +400,7 @@ We have implemented some "tidymodels" (or rather `{broom}`) functions
 for extracting and printing the key results from goldfish results objects.
 Here is an example on the current results object:
 
-```{r broom}
+```{r broom, message=FALSE}
 library(broom)
 library(pixiedust)
 dust(tidy(tieModel)) %>% 
