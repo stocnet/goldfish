@@ -4,26 +4,49 @@
 \alias{defineDependentEvents}
 \title{Define dependent events for a model}
 \usage{
-defineDependentEvents(events, nodes, nodes2 = NULL, defaultNetwork = NULL)
+defineDependentEvents(
+  events,
+  nodes,
+  nodes2 = NULL,
+  defaultNetwork = NULL,
+  envir = environment()
+)
 }
 \arguments{
-\item{events}{a data frame containing the event list that should be considered as a dependent variable in models.}
+\item{events}{a data frame containing the event list that should be
+considered as a dependent variable in models.}
 
-\item{nodes}{a data frame or a nodes.goldfish object containing the nodes used in the event list}
+\item{nodes}{a data frame or a \code{nodes.goldfish} object containing the nodes
+used in the event list.}
 
-\item{nodes2}{a second nodeset in the case of two mode events}
+\item{nodes2}{a second nodeset in the case that the events occurs in a
+two-mode network.}
 
-\item{defaultNetwork}{the name of a goldfish network object}
+\item{defaultNetwork}{the name of a \code{network.goldfish} object.}
+
+\item{envir}{An \linkS4class{environment} object where the nodes-set
+and default network objects are defined. The default value is
+\code{\link[=environment]{environment()}}.}
 }
 \value{
-an object of class dependent.goldfish
+an object with additional class \code{dependent.goldfish} with attributes:
+\item{nodes}{a character vector with the names of the nodes set that define
+the dimensions of the \code{defaultNetwork}. \code{nodes} and \code{nodes2} arguments.}
+\item{defaultNetwork}{A character value with the name of the network object
+when this is present. \code{defaultNetwork} argument.}
+\item{type}{A character value that can take values monadic or dyadic
+depending on the arguments used during the definition.}
+
+The object can be modified using methods for data frames.
 }
 \description{
-The final step in defining the data objects is to identify the dependent events.
+The final step in defining the data objects is to identify
+the dependent events.
 }
 \details{
-Before this step is performed, we have to define: 1. the nodeset (defineNodes), the network (defineNetwork)
-and the eventlist of the network (linkEvents).
+Before this step is performed, we have to define:
+the nodeset (\code{\link[=defineNodes]{defineNodes()}}), the network (\code{\link[=defineNetwork]{defineNetwork()}})
+and the link the event list to the network (\code{\link[=linkEvents]{linkEvents()}}).
 }
 \examples{
 actors <- data.frame(
@@ -32,15 +55,20 @@ actors <- data.frame(
 )
 actors <- defineNodes(nodes = actors)
 calls <- data.frame(
-  time = c(12, 27, 45, 56, 66, 68, 87), sender = paste("Actor", c(1, 3, 5, 2, 3, 4, 2)),
+  time = c(12, 27, 45, 56, 66, 68, 87),
+  sender = paste("Actor", c(1, 3, 5, 2, 3, 4, 2)),
   receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)), increment = rep(1, 7)
 )
 callNetwork <- defineNetwork(nodes = actors)
-callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
+callNetwork <- linkEvents(
+  x = callNetwork, changeEvent = calls, nodes = actors
+)
 
 # Defining the dependent events:
-callDependent <- defineDependentEvents(events = calls, nodes = actors, defaultNetwork = callNetwork)
+callDependent <- defineDependentEvents(
+  events = calls, nodes = actors, defaultNetwork = callNetwork
+)
 }
 \seealso{
-\link{defineNodes} \link{defineNetwork} \link{linkEvents}
+\code{\link[=defineNodes]{defineNodes()}}, \code{\link[=defineNetwork]{defineNetwork()}}, \code{\link[=linkEvents]{linkEvents()}}
 }

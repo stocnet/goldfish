@@ -394,6 +394,7 @@ tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95,
     terms <- cbind(term = terms)
   } else {
     terms <- cbind(term = rownames(x$names), x$names)
+    terms[, "Object"] <- gsub("\\$"," ", terms[, "Object"])
     
     if (!complete) terms <- terms[!isFixed, ]
   }  

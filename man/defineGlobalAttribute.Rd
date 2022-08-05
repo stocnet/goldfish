@@ -7,18 +7,21 @@
 defineGlobalAttribute(global)
 }
 \arguments{
-\item{global}{a data frame containing all the values this global attribute takes along time}
+\item{global}{a data frame containing all the values this global attribute
+takes along time.}
 }
 \value{
-an object of class global.goldfish
+an object of class \code{global.goldfish}
 }
 \description{
-This function allows to define a global attribute of the nodeset (i.e a variable that is identical for each node
-but changes over time).
+This function allows to define a global attribute of the nodeset
+(i.e a variable that is identical for each node but changes over time).
 }
 \details{
-For instance, seasonal climate changes could be defined as a changing global attribute. Then,
-this global attribute can be linked to the nodeset by using \link{linkEvents}
+For instance, seasonal climate changes could be defined as a
+changing global attribute.
+Then, this global attribute can be linked to the nodeset by using
+\link{linkEvents()}
 }
 \examples{
 seasons <- defineGlobalAttribute(data.frame(time = 1:12, replace = 1:12))
