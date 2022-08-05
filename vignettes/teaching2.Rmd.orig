@@ -261,7 +261,7 @@ for certain time points.
 We can use these functions to visually compare our network
 at two (or more) different time periods using igraph.
 
-```{r plot-teaching2, message=FALSE, warning=FALSE, fig.width=7, fig.height=4, fig.align='center', fig.retina=3}
+```{r plot-teaching2, message=FALSE, warning=FALSE, fig.align='center'}
 library(igraph)
 library(migraph)
 
@@ -403,8 +403,8 @@ Here is an example on the current results object:
 ```{r broom, message=FALSE}
 library(broom)
 library(pixiedust)
-dust(tidy(tieModel)) %>% 
-  sprinkle(col = 2:4, round = 3) %>% 
+dust(tidy(tieModel, conf.int = TRUE)) %>% 
+  sprinkle(col = c(2:4, 6, 7), round = 3) %>% 
   sprinkle(col = 5, fn = quote(pvalString(value)))
 ```
 

@@ -7,33 +7,36 @@
 defineGroups_interaction(records, actors, seed.randomization)
 }
 \arguments{
-\item{records}{a \code{data.frame} that is a list of rows of type node A,
-nodeB, Start, End, where nodeA and nodeB indicate the actors involved in
-a dyadic interaction, and Start and End indicating the starting and
-ending time of their interaction}
+\item{records}{an object of class \code{data.frame} that is a list of rows of type
+node A, nodeB, Start, End, where nodeA and nodeB indicate the actors
+involved in a dyadic interaction, and Start and End indicating the starting
+and ending time of their interaction.}
 
-\item{actors}{a goldfish nodes objects that defines the actors interactind
-(labels in records and actors should be identical)}
+\item{actors}{a object of class \code{nodes.goldfish} that defines the actors
+interacting (labels in records and actors should be identical).}
 
-\item{seed.randomization}{an integer used whenever there should be some
-random choice to be made}
+\item{seed.randomization}{an \code{interger} used whenever there should
+be some random choice to be made.}
 }
 \value{
-a list with a dataframe "interaction.updates" containing all
-joining and leaving events, a data.frame "groups" containing the nodeset
-corresponding to interaction groups (the second mode of the network),
-a dataframe "dependent.events" for the events that should be modeled and
-"exogenous.events" that are not modeled (for example when an actor leaves
-a group and joins its own singleton group, only the leaving event is modeled
-but not the joining event), and a dataframe "composition.changes"
-that is an events list that should be attached to the groups nodeset to
-indicate when a group is present or not
+a \code{list} with the following data frames
+\describe{
+\item{interaction.updates}{containing all joining and leaving events}
+\item{groups}{containing the nodeset corresponding to interaction groups
+(the second mode of the network)}
+\item{dependent.events}{for the events that should be modeled}
+\item{exogenous.events}{that are not modeled (for example when an actor
+leaves a group and joins its own singleton group, only the leaving event
+is modeled but not the joining event)}
+\item{composition.changes}{that is an events list that should be attached
+to the groups nodeset to indicate when a group is present or not}
+}
 }
 \description{
 This function create all objects necessary to the estimation of a DyNAM-i
-model from dyadic interaction records and an actor set. It first creates
-a nodeset for the second mode of the interaction network that will be
-modeled, i.e. the interaction groups set,
+model \code{model = "DyNAMi"} from dyadic interaction records and an actor set.
+It first creates a nodeset for the second mode of the interaction network
+that will be modeled, i.e. the interaction groups set,
 and an event list that indicates when groups are present or not through time.
 It then creates a list of interaction events, between actors and groups,
 in which an actor either joins or leaves a group. It is decomposed in

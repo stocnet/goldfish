@@ -58,8 +58,6 @@ should be printed. The default value \code{FALSE}.}
 
 \item{n}{number of rows for \code{data.frame}, and rows and columns for
 \code{matrix} to be printed.}
-
-\item{object}{an object of class \code{result.goldfish}.}
 }
 \value{
 Not value, called for printing side effect.

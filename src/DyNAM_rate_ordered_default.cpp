@@ -9,11 +9,10 @@ inline arma::mat reduce_mat_to_vector(const arma::mat& stat_mat,
                                       const int& n_actors_2,
                                       const bool& twomode_or_reflexive);
 
+// @inherit estimate_REM params return description
 
 //' Calculation for estimating an DyNAM-rate-ordered model
-//'
-//' @inherit estimate_REM params return description
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export]]
 List estimate_DyNAM_rate_ordered(const arma::vec& parameters,
                                  const arma::mat& dep_event_mat,

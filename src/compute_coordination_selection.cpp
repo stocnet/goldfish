@@ -3,6 +3,8 @@
 using namespace Rcpp;
 using namespace arma;
 
+// @inherit estimate_REM return
+
 //' Estimate a DyNAM-coordination model with gathered data
 //'
 //' Given the gathered and distilled data, it outputs the derivative of the loglikelihood, the Fisher information matrix, the logLikelihood,
@@ -61,7 +63,6 @@ using namespace arma;
 //'         It records the index of the selected candidate sender among all candidate sender in each event.
 //' @param selected_actor2 An n_events by 1 matrix.
 //'         It records the index of the selected candidate receiver among all candidate receiver in each event.
-//' @inherit estimate_REM return
 //' @noRd
 // [[Rcpp::export]]
 List compute_coordination_selection(arma::colvec& parameters,

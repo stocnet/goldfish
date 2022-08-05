@@ -14,7 +14,6 @@
 #' @param x an object of class `result.goldfish`, `summary.result.goldfish`,
 #' `nodes.goldfish`, `network.goldfish`, `dependent.goldfish`, or
 #' `preprocessed.goldfish`.
-#' @param object an object of class `result.goldfish`.
 #' @param digits minimal number of significant digits, see [print.default()].
 #' @param width controls the maximum number of columns on a line used in
 #' printing `summary.result.goldfish` and `preprocessed.goldfish`,
@@ -180,6 +179,7 @@ print.summary.result.goldfish <- function(
 # @param x a nodes.goldfish object
 #' @export
 #' @method print nodes.goldfish
+#' @importFrom utils head
 #' @rdname print-method
 #' @return For objects of class `nodes.goldfish` print information of the total
 #' number of nodes in the object, the number of nodes present at the beginning

@@ -3,10 +3,10 @@
 using namespace Rcpp;
 using namespace arma;
 
+// @inherit estimate_REM params return description
+
 //' Calculation for estimating an DyNAM choice model
-//'
-//' @inherit estimate_REM params return description
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export]]
 List estimate_DyNAM_choice(const arma::vec& parameters,
                            const arma::mat& dep_event_mat,

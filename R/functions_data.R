@@ -288,8 +288,7 @@ goldfishObjects <- function(envir = .GlobalEnv) {
 #'
 #' Additional variables in the `nodes` data frame object are considered as the
 #' initial values of the nodes attributes.
-#' Those variables must be of class [numeric-class], [character-class],
-#' [logical-class.]
+#' Those variables must be of class `numeric`, `character`, `logical`.
 #' 
 #' It is important that the initial definition of the node set contain all the
 #' nodes that could be potential senders or receivers of events.
@@ -307,18 +306,18 @@ goldfishObjects <- function(envir = .GlobalEnv) {
 #' A new call of `linkEvents()` is required for each attribute that is dynamic.
 #' 
 #' Objects of class [tbl_df] from the tibble package frequently use in the
-#' tidyverse ecosystem and objects of class [data.table-class] will produce
+#' tidyverse ecosystem and objects of class `data.table` will produce
 #' errors in later steps for goldfish.
 #' Current implementation of goldfish relies on the subsetting behavior of
 #' data frames objects. The previous mentioned objects classes change this
 #' behavior producing errors.
 #'
-#' @param nodes a [data.frame-class] object with the nodes attributes with the
+#' @param nodes a `data.frame` object with the nodes attributes with the
 #' following reserved names
 #' \describe{
-#'  \item{label}{[character-class] variable containing the nodes labels
+#'  \item{label}{`character` variable containing the nodes labels
 #'    (mandatory)}
-#'  \item{present}{[logical-class] variable indicating if the respective node
+#'  \item{present}{`logical` variable indicating if the respective node
 #'  is present at the first time-point (optional)}
 #' }
 #'
@@ -380,8 +379,7 @@ defineNodes <- function(nodes) {
 #' From there, a dynamic network can be constructed by linking dynamic events
 #' to the network object using [linkEvents()].
 #'
-#' @param matrix An initial matrix (optional), and object of class 
-#'   [matrix-class].
+#' @param matrix An initial matrix (optional), and object of class `matrix`.
 #' @param nodes A node-set (see [defineNodes()]).
 #' @param nodes2 A second optional node-set for the definition of
 #'   two-mode networks.
@@ -522,6 +520,21 @@ defineNetwork <- function(
 #' @details Before this step is performed, we have to define:
 #' the nodeset ([defineNodes()]), the network ([defineNetwork()])
 #'  and the link the event list to the network ([linkEvents()]).
+#'  
+#' During the definition as a dependent event, some checks are done to ensure
+#' consistency with the default network and the nodeset.
+#' In particular, consistency of the labels of nodes in the events with the
+#' nodes' labels in the network and the nodeset is done.
+#'
+#' It is possible to define as a dependent event a different set of events to
+#' the ones link to the default network.
+#' This is useful to model different type of events where the event dynamic is
+#' driven by different effects or its weight differs.
+#' [Fisheries_Treaties_6070] has an example of it, the relational event modeled
+#' are fisheries treaties between countries. The `bilatchanges` data frame
+#' contains information of creation and dissolution of treaties.
+#' `vignette(teaching2)` shows how to model just the creation of treaties
+#' conditional on creation and dissolution.
 #' @seealso [defineNodes()], [defineNetwork()], [linkEvents()]
 #' @examples
 #' actors <- data.frame(
@@ -631,7 +644,7 @@ defineDependentEvents <- function(events, nodes, nodes2 = NULL,
 #' @details  For instance, seasonal climate changes could be defined as a
 #' changing global attribute.
 #' Then, this global attribute can be linked to the nodeset by using
-#' \link{linkEvents()}
+#' [linkEvents()]
 #' @examples
 #' seasons <- defineGlobalAttribute(data.frame(time = 1:12, replace = 1:12))
 defineGlobalAttribute <- function(global) {
@@ -670,11 +683,11 @@ defineGlobalAttribute <- function(global) {
 #' `changeEvents` data frame must contain the following variables:
 #'
 #' \describe{
-#' \item{time}{[numeric-class] or [POSIXct-class] variable containing the
-#' time-stamps when the event happen.}
-#' \item{sender}{[character-class] variable indicating the label of the sender
+#' \item{time}{`numeric` or `POSIXct` (see [base::as.Date()]) variable
+#' containing the time-stamps when the event happen.}
+#' \item{sender}{`character` variable indicating the label of the sender
 #' of the event.}
-#' \item{receiver}{[character-class] variable indicating the label of the receiver
+#' \item{receiver}{`character` variable indicating the label of the receiver
 #' of the event.}
 #' }
 #' 
@@ -686,9 +699,9 @@ defineGlobalAttribute <- function(global) {
 #' `changeEvents` data frame must contain the following variables:
 #' 
 #' \describe{
-#' \item{time}{[numeric-class] or [POSIXct-class] variable containing the
-#' time-stamps when the event happen.}
-#' \item{label}{[character-class] variable indicating the label of the node
+#' \item{time}{`numeric` or `POSIXct` (see [base::as.Date()]) variable
+#' containing the time-stamps when the event happen.}
+#' \item{label}{`character` variable indicating the label of the node
 #' for which the attribute changes.}
 #' }
 #' 
@@ -700,8 +713,8 @@ defineGlobalAttribute <- function(global) {
 #' the ties or attributes.
 #' The class of this variable must be the same as the tie value or attribute
 #' value that will be updated, i.e., when the `present` variable is dynamic the 
-#' updating values must be [logical-class] (see [defineNodes()] for a
-#' description of this variable.
+#' updating values must be `logical` (see [defineNodes()] for a description
+#' of this variable.
 #' There is two possibilities on how to specify those
 #' changes but only one can be used at a time:
 #' \describe{

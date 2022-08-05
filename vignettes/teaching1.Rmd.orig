@@ -219,7 +219,7 @@ While not a required part of the modeling process, we highly recommend the visua
 
 We can use these functions to visually compare our network at two (or more) different time periods using `migraph`. See the `migraph` package documentation for additional information about network visualization. 
 
-```{r plot-teaching1, fig.width=7, fig.retina=3}
+```{r plot-teaching1, message=FALSE, warning=FALSE}
 library(ggraph)
 library(migraph)
 # The network at the beginning

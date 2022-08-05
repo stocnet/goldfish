@@ -47,6 +47,21 @@ the dependent events.
 Before this step is performed, we have to define:
 the nodeset (\code{\link[=defineNodes]{defineNodes()}}), the network (\code{\link[=defineNetwork]{defineNetwork()}})
 and the link the event list to the network (\code{\link[=linkEvents]{linkEvents()}}).
+
+During the definition as a dependent event, some checks are done to ensure
+consistency with the default network and the nodeset.
+In particular, consistency of the labels of nodes in the events with the
+nodes' labels in the network and the nodeset is done.
+
+It is possible to define as a dependent event a different set of events to
+the ones link to the default network.
+This is useful to model different type of events where the event dynamic is
+driven by different effects or its weight differs.
+\link{Fisheries_Treaties_6070} has an example of it, the relational event modeled
+are fisheries treaties between countries. The \code{bilatchanges} data frame
+contains information of creation and dissolution of treaties.
+\code{vignette(teaching2)} shows how to model just the creation of treaties
+conditional on creation and dissolution.
 }
 \examples{
 actors <- data.frame(

@@ -76,7 +76,7 @@ using namespace arma;
 //'   \item{intervalLogL}{An n_events by 1 matrix,
 //'         of which the i-th entry is the loglikelihood of the i-th event given the input parameter and data.}
 //' }
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export]]
 List estimate_REM(const arma::vec& parameters,
                   const arma::mat& dep_event_mat,

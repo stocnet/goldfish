@@ -21,7 +21,7 @@ This function allows to define a global attribute of the nodeset
 For instance, seasonal climate changes could be defined as a
 changing global attribute.
 Then, this global attribute can be linked to the nodeset by using
-\link{linkEvents()}
+\code{\link[=linkEvents]{linkEvents()}}
 }
 \examples{
 seasons <- defineGlobalAttribute(data.frame(time = 1:12, replace = 1:12))

@@ -44,9 +44,8 @@ See section \emph{Change point} for details.}
 }
 \value{
 \code{NULL} if neither outliers nor change points are identified.
-A subset of the dependent event data frame
-(see \code{\link{defineDependentEvents}}) with the events identified as
-outliers or change point inflections.
+An object of class \code{ggplot} object from a call of \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}}.
+It can be modified using the \code{ggplot2} syntax.
 }
 \description{
 Provide diagnostic functions for an object of class \code{result.goldfish}.
@@ -77,8 +76,6 @@ of change points for the log-likelihood of the events in variance}
 The function call creates a plot with the log-likelihood of the events
 in the y-axis and the event index in the x-axis, highlighting the change
 point sections identified by the method.
-Also it prints a table of the change points events that are returned by the
-method.
 }
 
 \examples{

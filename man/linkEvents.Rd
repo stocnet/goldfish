@@ -54,11 +54,11 @@ For dynamic networks stored in object of class \code{network.goldfish} the
 \code{changeEvents} data frame must contain the following variables:
 
 \describe{
-\item{time}{\linkS4class{numeric} or \linkS4class{POSIXct} variable containing the
-time-stamps when the event happen.}
-\item{sender}{\linkS4class{character} variable indicating the label of the sender
+\item{time}{\code{numeric} or \code{POSIXct} (see \code{\link[base:as.Date]{base::as.Date()}}) variable
+containing the time-stamps when the event happen.}
+\item{sender}{\code{character} variable indicating the label of the sender
 of the event.}
-\item{receiver}{\linkS4class{character} variable indicating the label of the receiver
+\item{receiver}{\code{character} variable indicating the label of the receiver
 of the event.}
 }
 
@@ -70,9 +70,9 @@ For dynamic attributes stored in object of class \code{nodes.goldfish} the
 \code{changeEvents} data frame must contain the following variables:
 
 \describe{
-\item{time}{\linkS4class{numeric} or \linkS4class{POSIXct} variable containing the
-time-stamps when the event happen.}
-\item{label}{\linkS4class{character} variable indicating the label of the node
+\item{time}{\code{numeric} or \code{POSIXct} (see \code{\link[base:as.Date]{base::as.Date()}}) variable
+containing the time-stamps when the event happen.}
+\item{label}{\code{character} variable indicating the label of the node
 for which the attribute changes.}
 }
 
@@ -84,8 +84,8 @@ For both cases an additional variable indicates the change in value of either
 the ties or attributes.
 The class of this variable must be the same as the tie value or attribute
 value that will be updated, i.e., when the \code{present} variable is dynamic the
-updating values must be \linkS4class{logical} (see \code{\link[=defineNodes]{defineNodes()}} for a
-description of this variable.
+updating values must be \code{logical} (see \code{\link[=defineNodes]{defineNodes()}} for a description
+of this variable.
 There is two possibilities on how to specify those
 changes but only one can be used at a time:
 \describe{

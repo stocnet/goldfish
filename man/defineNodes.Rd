@@ -7,12 +7,12 @@
 defineNodes(nodes)
 }
 \arguments{
-\item{nodes}{a \linkS4class{data.frame} object with the nodes attributes with the
+\item{nodes}{a \code{data.frame} object with the nodes attributes with the
 following reserved names
 \describe{
-\item{label}{\linkS4class{character} variable containing the nodes labels
+\item{label}{\code{character} variable containing the nodes labels
 (mandatory)}
-\item{present}{\linkS4class{logical} variable indicating if the respective node
+\item{present}{\code{logical} variable indicating if the respective node
 is present at the first time-point (optional)}
 }}
 }
@@ -33,8 +33,7 @@ This is a recommended step before the definition of the network.
 \details{
 Additional variables in the \code{nodes} data frame object are considered as the
 initial values of the nodes attributes.
-Those variables must be of class \linkS4class{numeric}, \linkS4class{character},
-\link{logical-class.}
+Those variables must be of class \code{numeric}, \code{character}, \code{logical}.
 
 It is important that the initial definition of the node set contain all the
 nodes that could be potential senders or receivers of events.
@@ -52,7 +51,7 @@ object by using the \code{\link[=linkEvents]{linkEvents()}}.
 A new call of \code{linkEvents()} is required for each attribute that is dynamic.
 
 Objects of class \link{tbl_df} from the tibble package frequently use in the
-tidyverse ecosystem and objects of class \linkS4class{data.table} will produce
+tidyverse ecosystem and objects of class \code{data.table} will produce
 errors in later steps for goldfish.
 Current implementation of goldfish relies on the subsetting behavior of
 data frames objects. The previous mentioned objects classes change this

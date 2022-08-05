@@ -4,6 +4,7 @@ using namespace Rcpp;
 using namespace arma;
 #include "gather_progress.hpp"
 
+// @inherit estimate_REM params
 
 //' Gathering data for sender receiver model
 //'
@@ -12,22 +13,12 @@ using namespace arma;
 //' Only the useful information are recorded: Consider a actor1-actor2 pair,
 //' if the actor1 is not the sender of the current event
 //' or the actor2 is not present, then the information is not collected.
-//' @inherit estimate_REM params
 //' @param verbose An boolean variable. It it's true, the function print
 //' the progress to the screen.
 //' @return Return a list with elements as follows. The meaning of the argument
 //' can be found in corresponding computation codes,
 //' e.g. compute_coordination_selection.cpp.
-//' \describe{
-//'   \item{stat_all_events}{}
-//'   \item{n_candidates}{}
-//'   \item{n_candidates1}{}
-//'   \item{n_candidates2}{}
-//'   \item{selected}{}
-//'   \item{selected_actor1}{}
-//'   \item{selected_actor2}{}
-//' }
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export]]
 List gather_receiver_model(const arma::mat& dep_event_mat,
                            const arma::mat& stat_mat_init,

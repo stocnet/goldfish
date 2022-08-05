@@ -13,8 +13,7 @@ defineNetwork(
 )
 }
 \arguments{
-\item{matrix}{An initial matrix (optional), and object of class
-\linkS4class{matrix}.}
+\item{matrix}{An initial matrix (optional), and object of class \code{matrix}.}
 
 \item{nodes}{A node-set (see \code{\link[=defineNodes]{defineNodes()}}).}
 
