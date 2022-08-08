@@ -30,6 +30,8 @@
 #' interacting (labels in records and actors should be identical).
 #' @param seed.randomization an `interger` used whenever there should
 #' be some random choice to be made.
+#' @param verbose logical weather detailed information of intermediate steps
+#' should be printed in the console.
 #' @export
 #' @return a `list` with the following data frames
 #' \describe{
@@ -43,7 +45,8 @@
 #'   \item{composition.changes}{that is an events list that should be attached
 #'     to the groups nodeset to indicate when a group is present or not}
 #' }
-defineGroups_interaction <- function(records, actors, seed.randomization) {
+defineGroups_interaction <- function(records, actors, seed.randomization,
+                                     verbose = getOption("verbose")) {
 
   # PATCH Marion: change actors labels to characters
   actors$label <- as.character(actors$label)
@@ -368,7 +371,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
                     cptorder <- cptorder + 1
                     deporder_temp <- c(deporder_temp, cptorder)
 
-                    cat(paste("leaving event: ", previousgroupactors[a2], "to", previousgroup, "\n"))
+                    if (verbose)
+                      cat(paste(
+                        "leaving event: ", previousgroupactors[a2],
+                        "to", previousgroup, "\n"
+                      ))
 
                     # We create a fake intermediary singleton!
                     newg <- min(allactors[!allactors %in% currentgroups])
@@ -383,7 +390,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
                     # update current groups
                     currentgroups[previousgroupactors[a2]] <- newg
 
-                    cat(paste("(exo) joining event: ", previousgroupactors[a2], "to", newg, "\n"))
+                    if (verbose)
+                      cat(paste(
+                        "(exo) joining event: ", previousgroupactors[a2],
+                        "to", newg, "\n"
+                      ))
                   }
 
                   # dependent joining events for everyone
@@ -395,12 +406,19 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
                   # store the information on which groups were available at the time of the joining
                   cptopp <- cptopp + 1
                   opportunities[[cptopp]] <- unique(currentgroups)
-                  cat(paste("opportunities: ", t(unique(currentgroups)), "\n"))
+                  if (verbose) 
+                    cat(paste(
+                      "opportunities: ", t(unique(currentgroups)), "\n"
+                    ))
 
                   cptorder <- cptorder + 1
                   deporder_temp <- c(deporder_temp, cptorder)
 
-                  cat(paste("joining event: ", previousgroupactors[a2], " to ", keptg, "\n"))
+                  if (verbose)
+                    cat(paste(
+                      "joining event: ", previousgroupactors[a2],
+                      " to ", keptg, "\n"
+                    ))
 
                   # update past interaction network
                   othersingroups <- which(currentgroups == keptg)
@@ -428,7 +446,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
                     cptorder <- cptorder + 1
                     exoorder_temp <- c(exoorder_temp, cptorder)
 
-                    cat(paste("(exo) leaving event: ", previousgroupactors[a2], "to", newg, "\n"))
+                    if (verbose)
+                      cat(paste(
+                        "(exo) leaving event: ", previousgroupactors[a2],
+                        "to", newg, "\n"
+                      ))
                   } else {
                     # if it was a singleton, it just leaves the singleton
                     exotimeevents_temp <- c(exotimeevents_temp, time)
@@ -439,7 +461,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
                     cptorder <- cptorder + 1
                     exoorder_temp <- c(exoorder_temp, cptorder)
 
-                    cat(paste("(exo) leaving event: ", previousgroupactors[a2], "to", previousgroup, "\n"))
+                    if (verbose)
+                      cat(paste(
+                        "(exo) leaving event: ", previousgroupactors[a2],
+                        "to", previousgroup, "\n"
+                      ))
                   }
                 }
               }
@@ -470,7 +496,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
                     cptorder <- cptorder + 1
                     deporder_temp <- c(deporder_temp, cptorder)
 
-                    cat(paste("leaving event: ", previousgroupactors[a2], "to", previousgroup, "\n"))
+                    if (verbose)
+                      cat(paste(
+                        "leaving event: ", previousgroupactors[a2],
+                        "to", previousgroup, "\n"
+                      ))
 
                     # We create a fake intermediary singleton!
                     newg <- min(allactors[!allactors %in% currentgroups])
@@ -485,7 +515,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
                     # update current groups
                     currentgroups[previousgroupactors[a2]] <- newg
 
-                    cat(paste("(exo) joining event: ", previousgroupactors[a2], "to", newg, "\n"))
+                    if (verbose)
+                      cat(paste(
+                        "(exo) joining event: ", previousgroupactors[a2],
+                        "to", newg, "\n"
+                      ))
                   }
 
                   # dependent joining events for everyone
@@ -497,12 +531,19 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
                   # store the information on which groups were available at the time of the joining
                   cptopp <- cptopp + 1
                   opportunities[[cptopp]] <- unique(currentgroups)
-                  cat(paste("opportunities: ", t(unique(currentgroups)), "\n"))
+                  if (verbose)
+                    cat(paste(
+                      "opportunities: ", t(unique(currentgroups)), "\n"
+                    ))
 
                   cptorder <- cptorder + 1
                   deporder_temp <- c(deporder_temp, cptorder)
 
-                  cat(paste("joining event: ", previousgroupactors[a2], " to ", keptg, "\n"))
+                  if (verbose)
+                    cat(paste(
+                      "joining event: ", previousgroupactors[a2],
+                      " to ", keptg, "\n"
+                    ))
 
                   # update past interaction network
                   othersingroups <- which(currentgroups == keptg)
@@ -530,7 +571,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
                     cptorder <- cptorder + 1
                     exoorder_temp <- c(exoorder_temp, cptorder)
 
-                    cat(paste("(exo) leaving event: ", previousgroupactors[a2], "to", newg, "\n"))
+                    if (verbose)
+                      cat(paste(
+                        "(exo) leaving event: ", previousgroupactors[a2],
+                        "to", newg, "\n"
+                      ))
                   } else {
                     # if it was a singleton, it just leaves the singleton
                     exotimeevents_temp <- c(exotimeevents_temp, time)
@@ -541,7 +586,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
                     cptorder <- cptorder + 1
                     exoorder_temp <- c(exoorder_temp, cptorder)
 
-                    cat(paste("(exo) leaving event: ", previousgroupactors[a2], "to", previousgroup, "\n"))
+                    if (verbose)
+                      cat(paste(
+                        "(exo) leaving event: ", previousgroupactors[a2],
+                        "to", previousgroup, "\n"
+                      ))
                   }
                 }
               }
@@ -613,7 +662,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
               cptorder <- cptorder + 1
               deporder_temp <- c(deporder_temp, cptorder)
 
-              cat(paste("leaving event: ", groupactors[a2], " to ", previousgroup, "\n"))
+              if (verbose)
+                cat(paste(
+                  "leaving event: ", groupactors[a2],
+                  " to ", previousgroup, "\n"
+                ))
 
               # update current groups
               currentg <- min(allactors[-unique(currentgroups)])
@@ -632,7 +685,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
               cptorder <- cptorder + 1
               exoorder_temp <- c(exoorder_temp, cptorder)
 
-              cat(paste("(exo) joining event: ", groupactors[a2], " to ", currentg, "\n"))
+              if (verbose)
+                cat(paste(
+                  "(exo) joining event: ", groupactors[a2],
+                  " to ", currentg, "\n"
+                ))
             }
           }
         }
@@ -653,7 +710,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
             cptorder <- cptorder + 1
             deporder_temp <- c(deporder_temp, cptorder)
 
-            cat(paste("leaving event: ", groupactors[a2], " to ", previousgroup, "\n"))
+            if (verbose)
+              cat(paste(
+                "leaving event: ", groupactors[a2],
+                " to ", previousgroup, "\n"
+              ))
 
             # update current groups
             currentg <- min(allactors[-unique(currentgroups)])
@@ -672,7 +733,11 @@ defineGroups_interaction <- function(records, actors, seed.randomization) {
             cptorder <- cptorder + 1
             exoorder_temp <- c(exoorder_temp, cptorder)
 
-            cat(paste("(exo) joining event: ", groupactors[a2], " to ", currentg, "\n"))
+            if (verbose)
+              cat(paste(
+                "(exo) joining event: ", groupactors[a2],
+                " to ", currentg, "\n"
+              ))
           }
         }
       }

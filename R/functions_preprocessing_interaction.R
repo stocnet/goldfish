@@ -5,17 +5,20 @@
 #
 ###################### ##
 
-#' preprocess event and related objects describe in the formula estimate for DyNAM-i
+#' preprocess event and related objects describe in the formula estimate
+#' for DyNAM-i
 #'
 #' Create a preprocess.goldfish class object for estimation
 #'
 #' @inheritParams preprocess
-#' @param groupsNetwork a character with the object that contains the groups network information
+#' @param groupsNetwork a character with the object that contains the
+#' groups network information
 #'
 #' @return a list of class preprocessed.goldfish
 #'
 #' @importFrom methods is
-#' @importFrom utils setTxtProgressBar getTxtProgressBar object.size txtProgressBar
+#' @importFrom utils setTxtProgressBar getTxtProgressBar object.size
+#' @importFrom utils txtProgressBar
 #' @importFrom stats time
 #' @noRd
 preprocessInteraction <- function(
@@ -32,8 +35,7 @@ preprocessInteraction <- function(
   startTime = min(vapply(events, function(x) min(x$time), double(1))),
   endTime = max(vapply(events, function(x) max(x$time), double(1))),
   rightCensored = FALSE,
-  verbose = TRUE,
-  silent = FALSE,
+  verbose = FALSE,
   groupsNetwork = groupsNetwork,
   prepEnvir = environment()) {
 
@@ -41,8 +43,7 @@ preprocessInteraction <- function(
   if (identical(environment(), globalenv())) {
     startTime <- min(vapply(events, function(x) min(x$time), double(1)))
     endTime <- max(vapply(events, function(x) max(x$time), double(1)))
-    verbose <- TRUE
-    silent <- TRUE
+    verbose <- FALSE
   }
 
   # prepEnvir <- environment()
@@ -56,7 +57,7 @@ preprocessInteraction <- function(
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 
-  if (!silent) cat("Initializing cache objects and statistical matrices.\n")
+  if (verbose) cat("Initializing cache objects and statistical matrices.\n")
   model <- "DyNAMi"
   stats <- initializeCacheStat(
     objectsEffectsLink = objectsEffectsLink, effects = effects,
@@ -73,7 +74,8 @@ preprocessInteraction <- function(
   # initialize return objects
   # CHANGED MARION: for choice model, only joining events
   if (rightCensored) {
-    nDependentEvents <- length(unique(unlist(lapply(events, function(x) x$time))))
+    nDependentEvents <-
+      length(unique(unlist(lapply(events, function(x) x$time))))
   } else {
     nDependentEvents <- sum(events[[1]]$increment == -1)
   }
@@ -81,7 +83,8 @@ preprocessInteraction <- function(
   rightCensoredStatistics <- list()
   timeIntervals <- list()
   timeIntervalsRightCensored <- list()
-  # CHANGED MARION: added a list that tracks the chronological(ordered by time) order of events
+  # CHANGED MARION: added a list that tracks the chronological(ordered by time)
+  #  order of events
   # between dependent and right-censored events
   # 1 is for dependent and 2 if for right-censored
   orderEvents <- list()
@@ -93,12 +96,21 @@ preprocessInteraction <- function(
   hasEndTime <- FALSE
   eventsMin <- min(vapply(events, function(x) min(x$time), double(1)))
   eventsMax <- max(vapply(events, function(x) max(x$time), double(1)))
-  if (!is.null(endTime) && endTime != eventsMax) {
-    stop(dQuote("DyNAMi"), " doesn't support setting the ", dQuote("endTime"), "parameter", call. = FALSE)
-  }
-  if (!is.null(startTime) && startTime != eventsMin) {
-    stop(dQuote("DyNAMi"), " doesn't support setting the ", dQuote("StartTime"), "parameter", call. = FALSE)
-  }
+  if (!is.null(endTime) && endTime != eventsMax)
+    stop(
+      dQuote("DyNAMi"),
+      " doesn't support setting the ",
+      dQuote("endTime"), "parameter",
+      call. = FALSE
+    )
+
+  if (!is.null(startTime) && startTime != eventsMin)
+    stop(
+      dQuote("DyNAMi"),
+      " doesn't support setting the ",
+      dQuote("StartTime"), "parameter",
+      call. = FALSE
+    )
 
   # initialize loop parameters
   events[[1]] <- NULL
@@ -137,7 +149,8 @@ preprocessInteraction <- function(
                  !all(get(dname, envir = prepEnvir) == ev)) {
         exoindex <- e
         exoorder <- attr(ev, "order")
-      } else if (inherits(ev, "interaction.network.updates") && !is.null(attr(ev, "order"))) {
+      } else if (inherits(ev, "interaction.network.updates") &&
+                 !is.null(attr(ev, "order"))) {
         numpast <- numpast + 1
         pastindexes[numpast] <- e
         pastorders[[numpast]] <- attr(ev, "order")
@@ -145,7 +158,8 @@ preprocessInteraction <- function(
     }
   }
 
-  # If depindex and exoindex not there (because there was no effect with the default network)
+  # If depindex and exoindex not there
+  # (because there was no effect with the default network)
   # we need to find them anyway!
   if (depindex == 0) {
 
@@ -219,25 +233,31 @@ preprocessInteraction <- function(
 
   # added Marion: updates of statistics
   updFun <- function(stat, change) {
-    if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+    if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <-
+        change[, "replace"]
     return(stat)
   }
 
   # initialize progressbar output, CHANGED ALVARO: add iterators
-  showProgressBar <- FALSE
-  progressEndReached <- FALSE
 
   # iRightCensored <- 0
   iDependentEvents <- 0
-  if (!silent) {
+  if (verbose) {
     cat("Preprocessing events.\n")
-    showProgressBar <- TRUE
     pb <- utils::txtProgressBar(max = nDependentEvents, char = "*", style = 3)
-    dotEvents <- ifelse(nDependentEvents > 50, ceiling(nDependentEvents / 50), 1) # # how often print, max 50 prints
+    dotEvents <- ifelse(
+      nDependentEvents > 50,
+      ceiling(nDependentEvents / 50),
+      1
+    ) # # how often print, max 50 prints
   }
 
   # UPDATED ALVARO: logical values indicating the type of information in events
-  isIncrementEvent <- vapply(events, function(x) "increment" %in% names(x), logical(1))
+  isIncrementEvent <- vapply(
+    events,
+    function(x) "increment" %in% names(x),
+    logical(1)
+  )
   isNodeEvent <- vapply(events, function(x) "node" %in% names(x), logical(1))
 
   # iterate over all event lists
@@ -253,12 +273,17 @@ preprocessInteraction <- function(
       }
     }, events, pointers)
 
-    # added Marion: we set priority to dependent, exogenous and past updates before anything else
-    # and between those 3 (or the 2 first if the 3rd is not needed), the order is decided
+    # added Marion: we set priority to dependent,
+    # exogenous and past updates before anything else
+    # and between those 3 (or the 2 first if the 3rd is not needed),
+    # the order is decided
     # note: when it's a windowed past update, the value of the cpt is 0
     mintime <- min(times, na.rm = TRUE)
     currentpointers <- which(validPointers & times == mintime)
-    prioritypointers <- intersect(currentpointers, c(depindex, exoindex, pastindexes))
+    prioritypointers <- intersect(
+      currentpointers,
+      c(depindex, exoindex, pastindexes)
+    )
     if (length(prioritypointers) > 0) {
       cpts <- mapply(function(p) {
         if (p == depindex) {
@@ -293,14 +318,15 @@ preprocessInteraction <- function(
 
     # changed Marion: for choice, only joining events are dependent events
     isDependent <- (subModel == "rate" && nextEvent == depindex) ||
-      (subModel == "choice" && nextEvent == depindex && events[[depindex]][pointers[nextEvent], "increment"] > 0)
+      (subModel == "choice" && nextEvent == depindex &&
+         events[[depindex]][pointers[nextEvent], "increment"] > 0)
 
     # # CHANGED ALVARO: progress bar
-    if (showProgressBar && iDependentEvents %% dotEvents == 0) {
+    if (verbose && iDependentEvents %% dotEvents == 0) {
       utils::setTxtProgressBar(pb, iDependentEvents)
     }
 
-    if (showProgressBar && iDependentEvents == nDependentEvents) {
+    if (verbose && iDependentEvents == nDependentEvents) {
       utils::setTxtProgressBar(pb, iDependentEvents)
       close(pb)
     }
@@ -323,23 +349,34 @@ preprocessInteraction <- function(
       updatesIntervals <- vector("list", nEffects)
       # CHANGED MARION: added orderEvents
       orderEvents[[(pointerDependent + pointerTempRightCensored - 1)]] <- 1
-      # CHANGDE SIWEI: added time point of each event (dependent & right-censorde)
+      # CHANGDE SIWEI: added time point of each event
+      # (dependent & right-censorde)
       event_time[[(pointerDependent + pointerTempRightCensored - 1)]] <- time
       # CHANGED MARION: added sender and receiver
-      varsKeep <- c(if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"), "increment")
+      varsKeep <- c(
+        if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"),
+        "increment"
+      )
       event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
-      event_sender[[(pointerDependent + pointerTempRightCensored - 1)]] <- event$sender
-      event_receiver[[(pointerDependent + pointerTempRightCensored - 1)]] <- event$receiver
+      event_sender[[(pointerDependent + pointerTempRightCensored - 1)]] <-
+        event$sender
+      event_receiver[[(pointerDependent + pointerTempRightCensored - 1)]] <-
+        event$receiver
 
-      # second update the network (no need to calculate the stats there because they will be updated
-      # with the following exogenous event of leaving the previous group or joining an isolate)
+      # second update the network (no need to calculate the stats there
+      #  because they will be updated
+      # with the following exogenous event of leaving the previous group or
+      #  joining an isolate)
 
-      ## FOR TESTING: SEE AVAILABLE GROUPS>2 FOR EACH EVENT (TO COUNT THE PROPORTION OF GROUPS IN THE EVENTS)
+      ## FOR TESTING: SEE AVAILABLE GROUPS>2 FOR EACH EVENT (TO COUNT THE
+      ##  PROPORTION OF GROUPS IN THE EVENTS)
       # if (max(colSums(groups.network.object)) > 2) {
       #   print(paste("event", iDependentEvents))
       #   grinds <- which(colSums(groups.network.object) > 2)
       #   for (grind in 1:length(grinds)) {
-      #     print(paste("group present with actors: ",which(groups.network.object[, grinds[grind]]==1)))
+      #     print(
+      #       paste("group present with actors: ",
+      #         which(groups.network.object[, grinds[grind]]==1)))
       #   }
       #   if (event$increment == -1 && event$receiver %in% grinds) {
       #     print("this is a group leaving event!")
@@ -355,59 +392,78 @@ preprocessInteraction <- function(
     }
 
     if (!isDependent) {
-      # 2. store statistic updates for RIGHT-CENSORED (non-dependent, positive) intervals
+      # 2. store statistic updates for RIGHT-CENSORED
+      # (non-dependent, positive) intervals
       if (rightCensored && interval > 0) {
         # CHANGED MARION: the incremented index was incorrect
         # rightCensoredStatistics[[ pointers[nextEvent] ]] <- updatesIntervals
-        # timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <- interval
-        rightCensoredStatistics <- append(rightCensoredStatistics, list(updatesIntervals))
-        timeIntervalsRightCensored <- append(timeIntervalsRightCensored, interval)
+        # timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <-
+        #  interval
+        rightCensoredStatistics <- append(
+          rightCensoredStatistics,
+          list(updatesIntervals)
+        )
+        timeIntervalsRightCensored <- append(
+          timeIntervalsRightCensored,
+          interval
+        )
         updatesIntervals <- vector("list", nEffects)
         # CHANGED MARION: added orderEvents
-        orderEvents[[(pointers[depindex] + pointerTempRightCensored - 1)]] <- 2
-        event_time[[(pointers[depindex] + pointerTempRightCensored - 1)]] <- time
+        nextPointer <- (pointers[depindex] + pointerTempRightCensored - 1)
+        orderEvents[[nextPointer]] <- 2
+        event_time[[nextPointer]] <- time
         # CHANGED MARION: added sender and receiver
         # CHANGED WEIGUTIAN: removed "increment" which results a bug
         event <- events[[nextEvent]][pointers[nextEvent], ]
         if (isNodeEvent[nextEvent] & length(event) == 1) {
-          event_sender[[(pointers[depindex] + pointerTempRightCensored - 1)]] <- event
-          event_receiver[[(pointers[depindex] + pointerTempRightCensored - 1)]] <- event
+          event_sender[[nextPointer]] <- event
+          event_receiver[[nextPointer]] <- event
         } else if (isNodeEvent[nextEvent] & length(event) > 1) {
-          event_sender[[(pointers[depindex] + pointerTempRightCensored - 1)]] <- event$node
-          event_receiver[[(pointers[depindex] + pointerTempRightCensored - 1)]] <- event$node
+          event_sender[[nextPointer]] <- event$node
+          event_receiver[[nextPointer]] <- event$node
         } else {
-          event_sender[[(pointers[depindex] + pointerTempRightCensored - 1)]] <- event$sender
-          event_receiver[[(pointers[depindex] + pointerTempRightCensored - 1)]] <- event$receiver
+          event_sender[[nextPointer]] <- event$sender
+          event_receiver[[nextPointer]] <- event$receiver
         }
         pointerTempRightCensored <- pointerTempRightCensored + 1
       }
 
-    # 3. update stats and data objects for OBJECT CHANGE EVENTS (all non-dependent events)
+    # 3. update stats and data objects for OBJECT CHANGE EVENTS
+    # (all non-dependent events)
 
       # Two steps are performed for non-dependent events
       #   (0. get objects and update increment columns)
-      #   a. Calculate statistic updates for each event that relates to the data update
+      #   a. Calculate statistic updates for each event that relates
+      #    to the data update
       #   b. Update the data objects
 
       objectNameTable <- eventsObjectsLink[nextEvent + 1, -1]
       objectName <- objectNameTable$name
-      object <- getElementFromDataObjectTable(objectNameTable, envir = prepEnvir)[[1]]
+      object <- getElementFromDataObjectTable(
+        objectNameTable, envir = prepEnvir
+        )[[1]]
       isUndirectedNet <- FALSE
-      if (inherits(object, "network.goldfish")) {
+      if (inherits(object, "network.goldfish"))
         isUndirectedNet <- !attr(object, "directed")
-      }
 
       # # CHANGED ALVARO: avoid dependence in variables position
       if (isIncrementEvent[nextEvent]) {
-        varsKeep <- c(if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"), "increment")
+        varsKeep <- c(
+          if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"),
+          "increment"
+        )
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
 
         if (isNodeEvent[nextEvent]) oldValue <- object[event$node]
-        if (!isNodeEvent[nextEvent]) oldValue <- object[event$sender, event$receiver]
+        if (!isNodeEvent[nextEvent])
+          oldValue <- object[event$sender, event$receiver]
         event$replace <- oldValue + event$increment
         event$increment <- NULL
       } else {
-        varsKeep <- c(if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"), "replace")
+        varsKeep <- c(
+          if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"),
+          "replace"
+        )
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
       }
 
@@ -428,16 +484,29 @@ preprocessInteraction <- function(
 
       # Assign object
       assign("object", object, envir = prepEnvir)
-      eval(parse(text = paste(objectName, "<- object")), envir = prepEnvir, enclos = parent.frame())
+      eval(
+        parse(text = paste(objectName, "<- object")),
+        envir = prepEnvir,
+        enclos = parent.frame()
+      )
 
-      # added Marion: for interaction model, check whether this is an exogenous event or past update
-      isinteractionupdate <- inherits(events[[nextEvent]], "interaction.network.updates")
-      isgroupupdate <- inherits(events[[nextEvent]], "interaction.groups.updates")
+      # added Marion: for interaction model, check whether this is
+      # an exogenous event or past update
+      isinteractionupdate <- inherits(
+        events[[nextEvent]],
+        "interaction.network.updates"
+      )
+      isgroupupdate <- inherits(
+        events[[nextEvent]],
+        "interaction.groups.updates"
+      )
 
-      # a. calculate statistics changes: if EXOGENOUS JOINING OR LEAVING, everything is recalculated
+      # a. calculate statistics changes:
+      # if EXOGENOUS JOINING OR LEAVING, everything is recalculated
       if (isgroupupdate) {
         effIds <- seq.int(dim(eventsEffectsLink)[2])
-      } else {# OTHERWISE (PAST UPDATE or ATTRIBUTE UPDATE), only statistics related to the object
+      } else {# OTHERWISE (PAST UPDATE or ATTRIBUTE UPDATE),
+          # only statistics related to the object
         effIds <- which(!is.na(eventsEffectsLink[nextEvent + 1, ]))
       }
       groupsNetworkObject <- get(groupsNetwork, envir = prepEnvir)
@@ -445,13 +514,18 @@ preprocessInteraction <- function(
 
       for (id in effIds) {
         # create the ordered list for the objects
-        objectsToPass <- objectsEffectsLink[, id][!is.na(objectsEffectsLink[, id])]
+        objectsToPass <-
+          objectsEffectsLink[, id][!is.na(objectsEffectsLink[, id])]
         names <- rownames(objectsEffectsLink)[!is.na(objectsEffectsLink[, id])]
         orderedNames <- names[order(objectsToPass)]
         orderedObjectTable <- getDataObjects(list(list("", orderedNames)))
-        unnamedOrderedParameters <- getElementFromDataObjectTable(orderedObjectTable, envir = prepEnvir)
+        unnamedOrderedParameters <- getElementFromDataObjectTable(
+          orderedObjectTable,
+          envir = prepEnvir
+        )
 
-        # # CHANGED ALVARO: check if statistics is an argument of the effects function
+        # # CHANGED ALVARO: check if statistics is an argument of
+        # the effects function
         isStatPar <- "statistics" %in% names(formals(effects[[id]]$effect))
         updates <- do.call(
           effects[[id]]$effect,
@@ -469,10 +543,13 @@ preprocessInteraction <- function(
         #   event2 <- event
         #   event2$sender <- event$receiver
         #   event2$receiver <- event$sender
-        #   updates2 <- do.call(effects[[id]]$effect,
-        #                        c(unnamedOrderedParameters,
-        #                          switch(isStatPar, list(statistics = stats[[id]]), NULL),
-        #                          event2, list(n1 = n1, n2 = n2, groups.network = groups.network.object))
+        #   updates2 <- do.call(
+        #     effects[[id]]$effect,
+        #     c(unnamedOrderedParameters,
+        #       switch(isStatPar, list(statistics = stats[[id]]), NULL),
+        #       event2,
+        #       list(n1 = n1, n2 = n2, groups.network = groups.network.object)
+        #     )
         #   )
         #   updates <- rbind(updates, updates2)
         # }
@@ -489,7 +566,7 @@ preprocessInteraction <- function(
     validPointers <- pointers <= sapply(events, nrow)
   }
 
-  if (showProgressBar && utils::getTxtProgressBar(pb) < nDependentEvents) {
+  if (verbose && utils::getTxtProgressBar(pb) < nDependentEvents) {
     close(pb)
   }
 
@@ -512,15 +589,20 @@ preprocessInteraction <- function(
 }
 
 
-getStatisticsFromObjects_interaction <- function(FUN,
-                                                 network = NULL, network2 = NULL,
-                                                 attribute = NULL, attribute2 = NULL,
-                                                 n1, n2, groups.network.object = groups.network.object) {
+getStatisticsFromObjects_interaction <- function(
+    FUN,
+    network = NULL, network2 = NULL,
+    attribute = NULL, attribute2 = NULL,
+    n1, n2, groups.network.object = groups.network.object) {
   objectList <- list()
-  if (!is.null(network)) objectList <- append(objectList, list(network = network))
-  if (!is.null(network2)) objectList <- append(objectList, list(network2 = network2))
-  if (!is.null(attribute)) objectList <- append(objectList, list(attribute = attribute))
-  if (!is.null(attribute2)) objectList <- append(objectList, list(attribute2 = attribute2))
+  if (!is.null(network))
+    objectList <- append(objectList, list(network = network))
+  if (!is.null(network2))
+    objectList <- append(objectList, list(network2 = network2))
+  if (!is.null(attribute))
+    objectList <- append(objectList, list(attribute = attribute))
+  if (!is.null(attribute2))
+    objectList <- append(objectList, list(attribute2 = attribute2))
 
   # # CHANGED ALVARO: preallocate for real values
   # emptyObjects <- lapply(objectList, function(obj) {
@@ -528,7 +610,8 @@ getStatisticsFromObjects_interaction <- function(FUN,
   #  if(is.vector(obj)) obj[1:length(obj)] <- NA_real_
   #  obj
   # })
-  # changed Marion: there are some stats that should be filled in from the beginning
+  # changed Marion: there are some stats that should be 
+  # filled in from the beginning
   emptyObjects <- objectList
 
   isStatPar <- "statistics" %in% names(formals(FUN))
@@ -544,11 +627,13 @@ getStatisticsFromObjects_interaction <- function(FUN,
       # }
 
       # # CHANGED ALVARO: not iterate over all the entries, O(m)
-      # Marion: problem when there is a network for an effect that is not the same size as the dependent network
+      # Marion: problem when there is a network for an effect that is
+      # not the same size as the dependent network
       rowsIter <- (1:n1)[rowSums(objectList[[iObj]] != 0, na.rm = TRUE) > 0]
       for (i in rowsIter) {
         # hack Marion: remove this because dimensions are not equal
-        # colsIter <- (1:n2)[!is.na(objectList[[iObj]][i, ]) & objectList[[iObj]][i, ] != 0]
+        # colsIter <- (1:n2)[!is.na(objectList[[iObj]][i, ]) &
+        #    objectList[[iObj]][i, ] != 0]
         # for(j in colsIter) { #TO check: issue for two-mode networks
         for (j in 1:n2) {
           # hack Marion: add groups.network
@@ -570,17 +655,20 @@ getStatisticsFromObjects_interaction <- function(FUN,
             stats[cbind(res[, 1], res[, 2])] <- res[, 3]
           }
           # update networks
-          # hack: if it's not the same dimension, the network shouldn't be updated
-          if (dim(objectList[[iObj]])[1] == n1 && dim(objectList[[iObj]])[2] == n2) {
+          # hack: if it's not the same dimension,
+          # the network shouldn't be updated
+          if (dim(objectList[[iObj]])[1] == n1 &&
+              dim(objectList[[iObj]])[2] == n2)
             emptyObjects[[iObj]][i, j] <- objectList[[iObj]][i, j]
-          }
+
         }
       }
     } # matrix
 
     if (is.vector(objectList[[iObj]])) {
       for (i in seq.int(length(objectList[[iObj]]))) {
-        # hack Marion: add groups.network, put everything to sender, receiver (=1, doesn't mattter for now)
+        # hack Marion: add groups.network, put everything to
+        # sender, receiver (=1, doesn't mattter for now)
         additionalParams <- list(
           sender = i,
           receiver = 1,
@@ -607,8 +695,15 @@ getStatisticsFromObjects_interaction <- function(FUN,
 }
 
 
-initializeStatsMatrices_interaction <- function(objectsEffectsLink, effects, n1, n2, groups.network.object) {
-  objTable <- getDataObjects(list(rownames(objectsEffectsLink)), removeFirst = F)
+initializeStatsMatrices_interaction <- function(
+    objectsEffectsLink,
+    effects,
+    n1, n2,
+    groups.network.object) {
+  objTable <- getDataObjects(
+    list(rownames(objectsEffectsLink)),
+    removeFirst = FALSE
+  )
   isAttribute <- sapply(
     getElementFromDataObjectTable(objTable),
     function(x) {
@@ -622,7 +717,8 @@ initializeStatsMatrices_interaction <- function(objectsEffectsLink, effects, n1,
     }
   )
   objects <- getElementFromDataObjectTable(objTable)
-  # list of 4, call matrix, friendship matrix, actor$gradetype vector, actor$floor vector
+  # list of 4, call matrix, friendship matrix, actor$gradetype vector,
+  #  actor$floor vector
   namedObjectList <- list()
   for (i in seq.int(ncol(objectsEffectsLink))) {
     o <- objectsEffectsLink[, i]
@@ -630,10 +726,12 @@ initializeStatsMatrices_interaction <- function(objectsEffectsLink, effects, n1,
     netIDs <- which(!is.na(o) & !isAttribute)
     attributes <- objects[attIDs[order(o[attIDs])]]
     networks <- objects[netIDs[order(o[netIDs])]]
-    # namedObjectList: list of 6, each element is a list of 4: network, network2, attribute, attribute2
+    # namedObjectList: list of 6, each element is a list of 4:
+    # network, network2, attribute, attribute2
     # in this case, the element in the list of 4 is
     # 1: network: 84*84 matrix, 2: network: 84*84 matrix
-    # 3: network: 84*84 matrix, 4: network: 84*84 matrix, 5: attribute: 84 vector, 6: attribute: 84 vector
+    # 3: network: 84*84 matrix, 4: network: 84*84 matrix, 5: attribute:
+    # 84 vector, 6: attribute: 84 vector
     namedObjectList[[i]] <- list(
       network = if (length(networks) > 0) networks[[1]] else NULL,
       network2 = if (length(networks) > 1) networks[[2]] else NULL,

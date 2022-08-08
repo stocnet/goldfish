@@ -122,11 +122,9 @@
 #' with the estimated coefficients.
 #' @param preprocessingInit a `preprocessed.goldfish` object computed for
 #' the current formula, allows skipping the preprocessing step.
-#' @param silent logical indicating whether a minimal output should be given.
 #' @param debug logical indicating whether very detailed intermediate results
 #' should be given; slows down the routine significantly.
-#' @param verbose logical indicating whether details of the estimation
-#'  routine should be provided.
+#' @param verbose logical indicating whether a minimal output should be given.
 #' @param x a formula that defines at the left-hand side the dependent
 #' network (see [defineDependentEvents()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
@@ -262,8 +260,7 @@ estimate <- function(
   estimationInit = NULL,
   preprocessingInit = NULL,
   preprocessingOnly = FALSE,
-  verbose = FALSE,
-  silent = !getOption("verbose"),
+  verbose = getOption("verbose"),
   debug = FALSE)
   UseMethod("estimate", x)
 
@@ -279,8 +276,7 @@ estimate.formula <- function(
   estimationInit = NULL,
   preprocessingInit = NULL,
   preprocessingOnly = FALSE,
-  verbose = FALSE,
-  silent = !getOption("verbose"),
+  verbose = getOption("verbose"),
   debug = FALSE) {
   # Steps:
   # 1. Parse the formula
@@ -308,7 +304,6 @@ estimate.formula <- function(
   stopifnot(
     inherits(preprocessingOnly, "logical"),
     inherits(verbose, "logical"),
-    inherits(silent, "logical"),
     inherits(debug, "logical"),
     is.null(preprocessingInit) ||
       inherits(preprocessingInit, "preprocessed.goldfish"),
@@ -370,7 +365,7 @@ estimate.formula <- function(
   ### 1. PARSE the formula----
   PreprocessEnvir <- new.env()
   
-  if (!silent) cat("Parsing formula.\n")
+  if (verbose) cat("Parsing formula.\n")
   formula <- x
 
   ## 1.1 PARSE for all cases: preprocessingInit or not
@@ -393,7 +388,7 @@ estimate.formula <- function(
     engine <- "default"
   }
   # Model-specific preprocessing initialization
-  if (model %in% c("DyNAM", "DyNAMi", "TriNAM") &&
+  if (model %in% c("DyNAM", "DyNAMi") &&
       subModel %in% c("choice", "choice_coordination") && hasIntercept) {
     warning("Model ", dQuote(model), " subModel ", dQuote(subModel),
             " ignores the time intercept.",
@@ -402,11 +397,14 @@ estimate.formula <- function(
   }
   rightCensored <- hasIntercept
 
-  if (verbose) cat(ifelse(hasIntercept, "T", "No t"), "ime intercept added.\n",
-                   sep = "")
-  if (!silent && !all(vapply(windowParameters, is.null, logical(1)))) {
-    cat("Creating window objects in global environment.\n")
-  }
+  if (verbose & 
+      !(model %in% c("DyNAM", "DyNAMi") &&
+      subModel %in% c("choice", "choice_coordination")))
+    cat(
+      ifelse(hasIntercept, "T", "No t"), "ime intercept added.\n", sep = ""
+    )
+  # if (verbose && !all(vapply(windowParameters, is.null, logical(1))))
+  #   cat("Creating window objects in global environment.")
 
   ## 1.2 PARSE for preprocessingInit: check the formula consistency
   if (!is.null(preprocessingInit)) {
@@ -421,7 +419,7 @@ estimate.formula <- function(
 
   ### 2. INITIALIZE OBJECTS: effects, nodes, and link objects----
 
-  if (!silent) cat("Initializing objects.\n")
+  if (verbose) cat("Initializing objects.\n")
 
   ## 2.0 Set isTwoMode to define effects functions
   # get node sets of dependent variable
@@ -478,7 +476,7 @@ estimate.formula <- function(
 
     # find new effects
     if (min(effectsindexes) == 0) {
-      if (!silent) cat("Calculating newly added effects.\n")
+      if (verbose) cat("Calculating newly added effects.\n")
       newrhsNames <- rhsNames[which(effectsindexes == 0)]
       newWindowParameters <- windowParameters[which(effectsindexes == 0)]
       neweffects <- createEffectsFunctions(
@@ -508,7 +506,7 @@ estimate.formula <- function(
         newevents, newrhsNames, neweventsObjectsLink)
 
       # Preprocess the new effects
-      if (!silent) cat("Pre-processing additional effects.\n")
+      if (verbose) cat("Pre-processing additional effects.\n")
       newprep <- preprocess(
         model,
         subModel,
@@ -526,29 +524,32 @@ estimate.formula <- function(
         endTime = preprocessingInit[["endTime"]],
         rightCensored = rightCensored,
         verbose = verbose,
-        silent = silent,
         prepEnvir = PreprocessEnvir
       )
 
       # test the length of the dependent and RC updates (in case the events
       #   objects was changed in the environment)
-      if (length(preprocessingInit$intervals) != length(newprep$intervals)) {
+      if (length(preprocessingInit$intervals) != length(newprep$intervals))
         stop(
           "The numbers of dependent events in the formula and in the ",
           "preprocessed object are not consistent.\n",
-           "\tPlease check whether these events have changed.")
-      }
+          "\tPlease check whether these events have changed.",
+          call. = FALSE
+        )
+
       if (length(preprocessingInit$rightCensoredIntervals) !=
-          length(newprep$rightCensoredIntervals)) {
+          length(newprep$rightCensoredIntervals))
         stop(
           "The numbers of right-censored events in the formula and in the ",
           "preprocessed object are not consistent.\n",
-           "\tPlease check whether some windows have been changed.")
-      }
+           "\tPlease check whether some windows have been changed.",
+          call. = FALSE  
+        )
+
     }
 
     # combine old and new preprocessed objects
-    if (!silent) cat("Removing no longer required effects.\n")
+    if (verbose) cat("Removing no longer required effects.\n")
     allprep <- preprocessingInit
     allprep$initialStats <- array(0,
       dim = c(
@@ -633,7 +634,7 @@ estimate.formula <- function(
 
   ## 3.2 PREPROCESS when preprocessingInit == NULL
   if (is.null(preprocessingInit)) {
-    if (!silent) cat("Starting preprocessing.\n")
+    if (verbose) cat("Starting preprocessing.\n")
     if (model == "DyNAMi") {
       prep <- preprocessInteraction(
         subModel = subModel,
@@ -647,7 +648,6 @@ estimate.formula <- function(
         nodes2 = .nodes2,
         rightCensored = rightCensored,
         verbose = verbose,
-        silent = silent,
         groupsNetwork = parsedformula$defaultNetworkName,
         prepEnvir = PreprocessEnvir)
     } else {
@@ -668,7 +668,6 @@ estimate.formula <- function(
         endTime = estimationInit[["endTime"]],
         rightCensored = rightCensored,
         verbose = verbose,
-        silent = silent,
         prepEnvir = PreprocessEnvir
       )
   }
@@ -717,9 +716,10 @@ estimate.formula <- function(
       modelTypeCall <- "DyNAM-M"
     }
   }
-  if (!silent)
-    cat("Estimating a model: ", dQuote(model), ", subModel: ",
-        dQuote(subModel), ".\n", sep = "")
+  if (verbose)
+    cat(
+      "Estimating a model: ", dQuote(model), ", subModel: ",
+      dQuote(subModel), ".\n", sep = "")
 
   # Default estimation
   additionalArgs <- list(
@@ -733,7 +733,7 @@ estimate.formula <- function(
     parallelize = FALSE,
     cpus = 1,
     verbose = verbose,
-    silent = silent,
+    debug = debug,
     ignoreRepParameter = parsedformula$ignoreRepParameter,
     isTwoMode = isTwoMode
   )

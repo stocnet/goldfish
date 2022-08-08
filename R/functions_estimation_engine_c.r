@@ -33,7 +33,7 @@ estimate_c_int <- function(
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
-  silent = FALSE,
+  debug = FALSE,
   ignoreRepParameter = ignoreRepParameter,
   testing = FALSE,
   get_data_matrix = FALSE,
@@ -43,7 +43,8 @@ estimate_c_int <- function(
   minDampingFactor <- initialDamping
   # CHANGED MARION
   # nParams: number of effects + 1 (if has intercept)
-  nParams <- dim(statsList$initialStats)[3] - length(excludeParameters) + addInterceptEffect
+  nParams <- dim(statsList$initialStats)[3] - length(excludeParameters) +
+    addInterceptEffect
   #
   parameters <- initialParameters
   if (is.null(initialParameters)) parameters <- rep(0, nParams)
@@ -52,12 +53,18 @@ estimate_c_int <- function(
   idFixedCompnents <- NULL
   likelihoodOnly <- FALSE
   if (!is.null(fixedParameters)) {
-    if (length(fixedParameters) != nParams) {
-      stop("The length of fixedParameters is inconsistent with the length of the parameters, which is ",
-           nParams, ".", call. = FALSE)
-    }
+    if (length(fixedParameters) != nParams)
+      stop(
+        "The length of fixedParameters is inconsistent with",
+        "the number of the parameters.",
+        "\n\tLength ", dQuote("fixedParameters"), " vector:",
+        length(fixedParameters), "\n\tNumber of parameters:", nParams,
+        call. = FALSE
+      )
+
     if (all(!is.na(fixedParameters))) likelihoodOnly <- TRUE
-    parameters[!is.na(fixedParameters)] <- fixedParameters[!is.na(fixedParameters)]
+    parameters[!is.na(fixedParameters)] <-
+      fixedParameters[!is.na(fixedParameters)]
     idUnfixedCompnents <- which(is.na(fixedParameters))
     idFixedCompnents <- which(!is.na(fixedParameters))
   }
@@ -67,15 +74,31 @@ estimate_c_int <- function(
   ## PARAMETER CHECKS
 
   if (length(parameters) != nParams)
-    stop("Error in estimation. Wrong number of initial parameters passed to function: ", length(parameters))
+    stop(
+      " Wrong number of initial parameters passed to function.",
+      "\n\tLength ", dQuote("parameters"), " vector:",
+      length(parameters), "\n\tNumber of parameters:", nParams,
+      call. = FALSE  
+    )
+  
   if (!(length(minDampingFactor) %in% c(1, nParams)))
-    stop("Error in estimation. minDampingFactor has wrong length: ", length(minDampingFactor))
+    stop(
+      "minDampingFactor has wrong length:",
+      "\n\tLength ", dQuote("minDampingFactor"), " vector:",
+      length(minDampingFactor), "\n\tNumber of parameters:", nParams,
+      "\nIt should be length 1 or same as number of parameters.",
+      call. = FALSE
+    )
+  
   if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1)
-    stop("Error in estimation. Damping increase / decrease factors cannot be smaller than one.")
+    stop(
+      "Damping increase / decrease factors cannot be smaller than one.",
+      call. = FALSE
+    )
 
   ## REDUCE STATISTICS LIST
 
-  if (verbose) cat("Reducing data\n")
+  if (debug) cat("Reducing data\n")
 
   # CHANGED MARION: add colOnly and rowOnly in a smart way for the estimation
   reduceMatrixToVector <- FALSE
@@ -87,7 +110,8 @@ estimate_c_int <- function(
   }
 
   # CHANGED MARION: updated function
-  # for rate model with intercept, add a table of all 1 to the statsList$initStats
+  # for rate model with intercept, add a table of all 1 to the
+  #  statsList$initStats
   statsList <- modifyStatisticsList(statsList, modelTypeCall,
     reduceMatrixToVector = reduceMatrixToVector,
     reduceArrayToMatrix = reduceArrayToMatrix,
@@ -95,14 +119,21 @@ estimate_c_int <- function(
     addInterceptEffect = addInterceptEffect
   )
 
-  # CHANGED MARION: handle composition changes for counting average number of actors
+  # CHANGED MARION: handle composition changes
+  #  for counting average number of actors
   # and remove absent actors for each estimation step
-  compChangeName1 <- attr(nodes, "events")["present" == attr(nodes, "dynamicAttribute")]
-  compChangeName2 <- attr(nodes2, "events")["present" == attr(nodes2, "dynamicAttribute")]
+  compChangeName1 <- attr(nodes, "events")[
+    "present" == attr(nodes, "dynamicAttribute")
+  ]
+  compChangeName2 <- attr(nodes2, "events")[
+    "present" == attr(nodes2, "dynamicAttribute")
+  ]
   compChange1 <- NULL
   compChange2 <- NULL
-  if (!is.null(compChangeName1) && length(compChangeName1) > 0) compChange1 <- get(compChangeName1)
-  if (!is.null(compChangeName2) && length(compChangeName2) > 0) compChange2 <- get(compChangeName2)
+  if (!is.null(compChangeName1) && length(compChangeName1) > 0)
+    compChange1 <- get(compChangeName1)
+  if (!is.null(compChangeName2) && length(compChangeName2) > 0)
+    compChange2 <- get(compChangeName2)
 
 
   ## ADD INTERCEPT
@@ -133,18 +164,25 @@ estimate_c_int <- function(
         currentRCInterval <- currentRCInterval + 1
       }
       nplus <- intersect(
-        intersect(which(compChange1$time > previoustime), which(compChange1$time <= time)),
+        intersect(
+          which(compChange1$time > previoustime),
+          which(compChange1$time <= time)
+        ),
         which(compChange1$replace == TRUE)
       )
       nminus <- intersect(
-        intersect(which(compChange1$time > previoustime), which(compChange1$time <= time)),
+        intersect(
+          which(compChange1$time > previoustime),
+          which(compChange1$time <= time)
+        ),
         which(compChange1$replace == FALSE)
       )
       nActors <- nActors + length(nplus) - length(nminus)
       nAvgActors <- nAvgActors + nActors
     }
     nAvgActors <- nAvgActors / length(statsList$orderEvents)
-    if (is.null(initialParameters) && (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
+    if (is.null(initialParameters) &&
+        (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
       initialInterceptEstimate <- log(nEvents / totalTime / nAvgActors)
       parameters[1] <- initialInterceptEstimate
     }
@@ -173,7 +211,8 @@ estimate_c_int <- function(
     stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
   }
   # Convert the right-censored events
-  # which will be a zero matrice and a zero vector if there's no right-censored event
+  # which will be a zero matrice and a zero vector
+  #  if there's no right-censored event
   if (length(statsList$rightCensoredIntervals) == 0) {
     stat_mat_rightcensored_update <- matrix(0, 4, 1)
     stat_mat_rightcensored_update_pointer <- numeric(1)
@@ -182,13 +221,18 @@ estimate_c_int <- function(
     stat_mat_rightcensored_update <- temp$statMatUpdate
     stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
     if (addInterceptEffect) {
-      stat_mat_rightcensored_update[3, ] <- stat_mat_rightcensored_update[3, ] + 1
+      stat_mat_rightcensored_update[3, ] <-
+        stat_mat_rightcensored_update[3, ] + 1
     }
   }
 
   ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  compChangeName1 <- attr(nodes, "events")["present" == attr(nodes, "dynamicAttribute")]
-  compChangeName2 <- attr(nodes2, "events")["present" == attr(nodes2, "dynamicAttribute")]
+  compChangeName1 <- attr(nodes, "events")[
+    "present" == attr(nodes, "dynamicAttribute")
+  ]
+  compChangeName2 <- attr(nodes2, "events")[
+    "present" == attr(nodes2, "dynamicAttribute")
+  ]
   if (!is.null(compChangeName1) && length(compChangeName1) > 0) {
     temp <- get(compChangeName1)
     temp <- sanitizeEvents(temp, nodes)
@@ -223,18 +267,29 @@ estimate_c_int <- function(
     presence2_init <- rep(TRUE, nrow(nodes2))
   }
 
-  ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
+  ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED
+  ## BY C FUNCTIONS
   is_dependent <- (as.numeric(unlist(statsList$orderEvents)) == 1)
   timespan <- numeric(length(is_dependent))
   timespan[is_dependent] <- as.numeric(unlist(statsList$intervals))
-  timespan[(!is_dependent)] <- as.numeric(unlist(statsList$rightCensoredIntervals))
+  timespan[(!is_dependent)] <- as.numeric(
+    unlist(statsList$rightCensoredIntervals)
+  )
 
 
 
-  ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  event_mat <- t(matrix(c(unlist(statsList$eventSender), unlist(statsList$eventReceiver)), ncol = 2))
+  ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED
+  ##  BY C FUNCTIONS
+  event_mat <- t(matrix(
+    c(
+      unlist(statsList$eventSender),
+      unlist(statsList$eventReceiver)
+    ),
+    ncol = 2
+  ))
 
-  ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED BY C FUNCTIONS
+  ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED
+  ##  BY C FUNCTIONS
   stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
   for (i in 1:n_parameters) {
     stat_mat_init[, i] <- t(statsList$initialStats[, , i])
@@ -243,7 +298,7 @@ estimate_c_int <- function(
 
   ## ESTIMATION: INITIALIZATION
 
-  if (verbose) cat("Estimating model type", modelTypeCall, "\n")
+  if (debug) cat("Estimating model type", modelTypeCall, ".\n")
 
   iIteration <- 1
   informationMatrix <- matrix(0, nParams, nParams)
@@ -268,7 +323,8 @@ estimate_c_int <- function(
       stat_mat_update = stat_mat_update,
       stat_mat_update_pointer = stat_mat_update_pointer,
       stat_mat_rightcensored_update = stat_mat_rightcensored_update,
-      stat_mat_rightcensored_update_pointer = stat_mat_rightcensored_update_pointer,
+      stat_mat_rightcensored_update_pointer =
+        stat_mat_rightcensored_update_pointer,
       presence1_init = presence1_init,
       presence1_update = presence1_update,
       presence1_update_pointer = presence1_update_pointer,
@@ -278,7 +334,7 @@ estimate_c_int <- function(
       n_actors1 = n_actors1,
       n_actors2 = n_actors2,
       twomode_or_reflexive = twomode_or_reflexive,
-      silent = silent, # If not silent, output the progress of data gathering
+      verbose = verbose, # If not silent, output the progress of data gathering
       impute = impute
     )
     size_gathered_data <- object.size(gathered_data)
@@ -287,7 +343,8 @@ estimate_c_int <- function(
 
 
   while (TRUE) {
-    ## CALCULATE THE LOGLIKELIHOOD, THE FISHER INFORMATION MATRIX, AND THE DERIVATIVE
+    ## CALCULATE THE LOGLIKELIHOOD,
+    ## THE FISHER INFORMATION MATRIX, AND THE DERIVATIVE
 
     ## GATHER-COMPUTE ENGINE
     if (engine == "gather_compute") {
@@ -322,7 +379,8 @@ estimate_c_int <- function(
         presence1_update = presence1_update,
         presence1_update_pointer = presence1_update_pointer,
         stat_mat_rightcensored_update = stat_mat_rightcensored_update,
-        stat_mat_rightcensored_update_pointer = stat_mat_rightcensored_update_pointer,
+        stat_mat_rightcensored_update_pointer =
+          stat_mat_rightcensored_update_pointer,
         presence2_init = presence2_init,
         presence2_update = presence2_update,
         presence2_update_pointer = presence2_update_pointer,
@@ -350,9 +408,13 @@ estimate_c_int <- function(
       }
     }
 
-    if (isInitialEstimation && any(is.na(unlist(res))) && !all(parameters[-1] == 0)) {
-      stop("Estimation not possible with initial parameters. Try using zeros instead.")
-    }
+    if (isInitialEstimation && any(is.na(unlist(res))) &&
+        !all(parameters[-1] == 0))
+      stop(
+        "Estimation not possible with initial parameters.",
+        " Try using zeros instead.",
+        call. = FALSE
+      )
 
     # If we only want the likelihood break here
     if (likelihoodOnly) {
@@ -362,23 +424,32 @@ estimate_c_int <- function(
       break
     }
 
-    # we don't consider the fixed components of the score. It's for the fixing parameter feature. \
+    # we don't consider the fixed components of the score.
+    #  It's for the fixing parameter feature. \
     score[idFixedCompnents] <- 0
 
-    if (!verbose && !silent) {
-      cat("\rMax score: ",
-          round(max(abs(score)), round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
-          " (", iIteration, ").        ", sep = "")
+    if (!debug && verbose) {
+      cat(
+        "\rMax score: ",
+        round(max(abs(score)), round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
+          " (", iIteration, ").        "
+        )
     }
-    if (verbose) {
-      cat("\n\nLikelihood:", logLikelihood, "in iteration", iIteration,
-          "\n_parameters:", toString(parameters),
-          "\nScore:", toString(score))
+    if (debug) {
+      cat(
+        "\n\nLikelihood: ", logLikelihood, " in iteration ", iIteration,
+        "\n_parameters: ", toString(parameters),
+        "\nScore: ", toString(score)
+      )
       # print(informationMatrix)
     }
 
     if (logLikelihood <= logLikelihood.old || any(is.na(unlist(res)))) {
-      if (verbose) message("\nNo improvement in estimation. Resetting values and adjusting damping.")
+      if (debug)
+        cat(
+          "\nNo improvement in estimation.",
+          " Resetting values and adjusting damping."
+        )
       # reset values
       logLikelihood <- logLikelihood.old
       parameters <- parameters.old
@@ -390,41 +461,65 @@ estimate_c_int <- function(
       parameters.old <- parameters
       score.old <- score
       informationMatrix.old <- informationMatrix
-      minDampingFactor <- max(1, minDampingFactor / ifelse(isInitialEstimation, 1, dampingDecreaseFactor))
+      minDampingFactor <- max(
+        1,
+        minDampingFactor /
+          ifelse(isInitialEstimation, 1, dampingDecreaseFactor)
+      )
     }
 
     # end of initial estimation
-    isInitialEstimation <- F
+    isInitialEstimation <- FALSE
 
     # Calculate the UPDATE distance taking into account the DAMPING
     dampingFactor <- minDampingFactor
 
     # INVERT information matrix
-    # We only invert the unfixed part of the parameter. The fixed components of the score have already be set to be 0.
+    # We only invert the unfixed part of the parameter.
+    # The fixed components of the score have already be set to be 0.
     # It's for the fixing parameter feature.
-    informationMatrixUnfixed <- informationMatrix[idUnfixedCompnents,idUnfixedCompnents]
-    inverseInformationUnfixed <- try(solve(informationMatrixUnfixed), silent = TRUE)
+    informationMatrixUnfixed <-
+      informationMatrix[idUnfixedCompnents,idUnfixedCompnents]
+    inverseInformationUnfixed <- try(
+      solve(informationMatrixUnfixed),
+      silent = TRUE
+    )
     if (inherits(inverseInformationUnfixed, "try-error"))
-      stop("Matrix cannot be inverted; probably due to collinearity between parameters.")
+      stop(
+        "Matrix cannot be inverted;",
+        " probably due to collinearity between parameters.",
+        call. = FALSE
+      )
 
       update <- rep(0,nParams)
-      update[idUnfixedCompnents] <- (inverseInformationUnfixed %*% score[idUnfixedCompnents]) / dampingFactor
+      update[idUnfixedCompnents] <-
+        (inverseInformationUnfixed %*% score[idUnfixedCompnents]) /
+          dampingFactor
 
 
-    if (verbose) {
-      cat("\nUpdate: ", toString(update), sep = "")
-      cat("\nDamping factor:", toString(dampingFactor), sep = "")
-    }
+    if (debug)
+      cat(
+        "\nUpdate: ", toString(update),
+        "\nDamping factor:", toString(dampingFactor)
+      )
 
     # check for stop criteria
     if (max(abs(score)) <= maxScoreStopCriterion) {
       isConverged <- TRUE
-      if (!silent) cat("\nStopping as maximum absolute score is below ", maxScoreStopCriterion, ".\n", sep = "")
+      if (verbose)
+        cat(
+          "\nStopping as maximum absolute score is below ",
+          maxScoreStopCriterion, ".\n", sep = ""
+        )
       break
     }
     if (iIteration > maxIterations) {
-      if (!silent)
-        message("\nStopping as maximum of ", maxIterations, " iterations have been reached. No convergence.\n")
+      if (verbose)
+        cat(
+          "\nStopping as maximum of ",
+          maxIterations,
+          " iterations have been reached. No convergence.\n"
+        )
       break
     }
 
@@ -446,7 +541,10 @@ estimate_c_int <- function(
     logLikelihood = logLikelihood,
     finalScore = score,
     finalInformationMatrix = informationMatrix,
-    convergence = list(isConverged = isConverged, maxAbsScore = max(abs(score))),
+    convergence = list(
+      isConverged = isConverged,
+      maxAbsScore = max(abs(score))
+    ),
     nIterations = iIteration,
     nEvents = nEvents
   )
@@ -454,9 +552,11 @@ estimate_c_int <- function(
     estimationResult$sizeIntermediate <- size_gathered_data
     if (testing) estimationResult$intermediate <- gathered_data
   }
-  # if (testing) estimationResult$intermediateData <- DataMatrixAndId$intermediate_data
+  # if (testing) estimationResult$intermediateData <-
+  #  DataMatrixAndId$intermediate_data
   if (returnIntervalLogL) estimationResult$intervalLogL <- intervalLogL
-  if (returnEventProbabilities) estimationResult$eventProbabilities <- eventProbabilities
+  if (returnEventProbabilities)
+    estimationResult$eventProbabilities <- eventProbabilities
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
 }
@@ -640,12 +740,12 @@ gather_ <- function(modelTypeCall,
                     n_actors1,
                     n_actors2,
                     twomode_or_reflexive,
-                    silent,
+                    verbose,
                     impute) {
 
-  if (modelTypeCall == "REM-ordered" || modelTypeCall == "REM" || modelTypeCall == "REM" ||
-      modelTypeCall == "DyNAM-MM") {
-    # For DyNAM-MM, we deal with twomode_or_reflexive in the estimation for convenience.
+  if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
+    # For DyNAM-MM, we deal with twomode_or_reflexive in the estimation
+    # for convenience.
     if (modelTypeCall == "DyNAM-MM") twomode_or_reflexive <- TRUE
     gathered_data <- gather_sender_receiver_model(
       event_mat,
@@ -664,7 +764,7 @@ gather_ <- function(modelTypeCall,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      !silent, # verbose
+      verbose,
       impute
     )
   }
@@ -681,13 +781,13 @@ gather_ <- function(modelTypeCall,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      !silent, # output the progress of data gathering
+      verbose, # output the progress of data gathering
       impute
     )
   }
 
 
-  if (modelTypeCall == "DyNAM-M-Rate-ordered" || modelTypeCall == "DyNAM-M-Rate") {
+  if (modelTypeCall %in% c("DyNAM-M-Rate-ordered", "DyNAM-M-Rate")) {
     gathered_data <- gather_sender_model(
       event_mat,
       is_dependent,
@@ -705,7 +805,7 @@ gather_ <- function(modelTypeCall,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      !silent, # verbose
+      verbose, # verbose
       impute
     )
   }
@@ -727,17 +827,15 @@ compute_ <- function(modelTypeCall,
                      timespan,
                      is_dependent,
                      twomode_or_reflexive) {
-  if (modelTypeCall == "DyNAM-M" || modelTypeCall == "REM-ordered" || modelTypeCall == "DyNAM-M-Rate-ordered") {
+  if (modelTypeCall %in% c("DyNAM-M", "REM-ordered", "DyNAM-M-Rate-ordered"))
     res <- compute_multinomial_selection(
       parameters,
       stat_all_events,
       n_candidates,
       selected
     )
-  }
 
-
-  if (modelTypeCall == "DyNAM-M-Rate" || modelTypeCall == "REM") {
+  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM"))
     res <- compute_poisson_selection(
       parameters,
       stat_all_events,
@@ -746,9 +844,8 @@ compute_ <- function(modelTypeCall,
       timespan,
       is_dependent
     )
-  }
 
-  if (modelTypeCall == "DyNAM-MM") {
+  if (modelTypeCall == "DyNAM-MM")
     res <- compute_coordination_selection(
       parameters,
       stat_all_events,
@@ -760,7 +857,6 @@ compute_ <- function(modelTypeCall,
       selected_actor2,
       twomode_or_reflexive
     )
-  }
 
   return(res)
 }

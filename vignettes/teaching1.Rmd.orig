@@ -47,7 +47,6 @@ estimate <- function(
     preprocessingInit = NULL,
     preprocessingOnly = FALSE,
     verbose = FALSE,
-    silent = TRUE,
     debug = FALSE) {
   
   call <- match.call(expand.dots = TRUE)
@@ -64,7 +63,6 @@ estimate <- function(
     preprocessingInit = preprocessingInit,
     preprocessingOnly = preprocessingOnly,
     verbose = verbose,
-    silent = silent,
     debug = debug
   )
   

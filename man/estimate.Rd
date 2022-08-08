@@ -11,8 +11,7 @@ estimate(
   estimationInit = NULL,
   preprocessingInit = NULL,
   preprocessingOnly = FALSE,
-  verbose = FALSE,
-  silent = !getOption("verbose"),
+  verbose = getOption("verbose"),
   debug = FALSE
 )
 }
@@ -105,10 +104,7 @@ the current formula, allows skipping the preprocessing step.}
 statistics should be returned rather than a \code{result.goldfish} object
 with the estimated coefficients.}
 
-\item{verbose}{logical indicating whether details of the estimation
-routine should be provided.}
-
-\item{silent}{logical indicating whether a minimal output should be given.}
+\item{verbose}{logical indicating whether a minimal output should be given.}
 
 \item{debug}{logical indicating whether very detailed intermediate results
 should be given; slows down the routine significantly.}

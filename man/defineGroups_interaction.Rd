@@ -4,7 +4,12 @@
 \alias{defineGroups_interaction}
 \title{To define the second mode of a DyNAM-i model}
 \usage{
-defineGroups_interaction(records, actors, seed.randomization)
+defineGroups_interaction(
+  records,
+  actors,
+  seed.randomization,
+  verbose = getOption("verbose")
+)
 }
 \arguments{
 \item{records}{an object of class \code{data.frame} that is a list of rows of type
@@ -17,6 +22,9 @@ interacting (labels in records and actors should be identical).}
 
 \item{seed.randomization}{an \code{interger} used whenever there should
 be some random choice to be made.}
+
+\item{verbose}{logical weather detailed information of intermediate steps
+should be printed in the console.}
 }
 \value{
 a \code{list} with the following data frames

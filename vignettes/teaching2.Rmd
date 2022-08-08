@@ -25,8 +25,6 @@ First, let's make sure we're starting with a clean slate and take the goldfish o
 library(goldfish)
 ```
 
-
-
 This lazy loads several datasets, including the one we will now use:
 
 
@@ -493,7 +491,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>   73.33    3.72   77.06
+#>   83.47    5.81   89.91
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -585,7 +583,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>    7.92    0.39    7.33
+#>    7.69    0.42    7.42
 ```
 
 # Extensions...

@@ -3,10 +3,8 @@
   if (!interactive()) return()
   base::packageStartupMessage(
     "  <\")))><  The goldfish package in R\n\n",
-    pkgname, ": version ", utils::packageVersion("goldfish"),
-    ", \"Butterfly Tail\", created on ",
-    utils::packageDescription("goldfish", fields = "Date"),
-    "\n"
+    pkgname, ": version ", utils::packageVersion("goldfish"), " ",
+    dQuote("Butterfly Tail"), "\n"
   )
 
   # packageStartupMessage(

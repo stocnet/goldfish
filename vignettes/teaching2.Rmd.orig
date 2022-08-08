@@ -31,39 +31,6 @@ First, let's make sure we're starting with a clean slate and take the goldfish o
 library(goldfish)
 ```
 
-```{r mask, echo=FALSE}
-#| purl = FALSE
-estimate <- function(
-    x,
-    model = c("DyNAM", "REM", "DyNAMi"),
-    subModel = c("choice", "rate", "choice_coordination"),
-    estimationInit = NULL,
-    preprocessingInit = NULL,
-    preprocessingOnly = FALSE,
-    verbose = FALSE,
-    silent = TRUE,
-    debug = FALSE) {
-
-  call <- match.call(expand.dots = TRUE)
-  
-  res <- goldfish::estimate(
-    x = x,
-    model = model,
-    subModel = subModel,
-    estimationInit = estimationInit,
-    preprocessingInit = preprocessingInit,
-    preprocessingOnly = preprocessingOnly,
-    verbose = verbose,
-    silent = silent,
-    debug = debug
-  )
-  
-  res$call <- call 
-  res$call[["x"]] <- res$formula
-  return(res)
-}
-```
-
 This lazy loads several datasets, including the one we will now use:
 
 ```{r load-data}
