@@ -6,7 +6,7 @@
 #
 ################################## ###
 
-#' Methods to update a nodes or a network object
+#' Methods to update a nodes or network object
 #'
 #' Methods to create a data frame from an object of class `nodes.goldfish`
 #' (see [defineNodes()]) or a matrix from an object of class
