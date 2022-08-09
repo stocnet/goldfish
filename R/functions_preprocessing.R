@@ -262,10 +262,10 @@ preprocess <- function(
         #   right censored event,
         #   Because in the right-censored events there's no sender and receiver.
         event <- events[[nextEvent]][pointers[nextEvent], ]
-        if (isNodeEvent[nextEvent] & length(event) == 1) {
+        if (isNodeEvent[nextEvent] && length(event) == 1) {
           event_sender[[eventPos]] <- event
           event_receiver[[eventPos]] <- event
-        } else if (isNodeEvent[nextEvent] & length(event) > 1) {
+        } else if (isNodeEvent[nextEvent] && length(event) > 1) {
           event_sender[[eventPos]] <- event$node
           event_receiver[[eventPos]] <- event$node
         } else {
@@ -391,7 +391,7 @@ preprocess <- function(
 
         updates <- effectUpdate$changes
         # if cache and changes are not null update cache
-        if (!is.null(effectUpdate$cache) & !is.null(effectUpdate$changes)) {
+        if (!is.null(effectUpdate$cache) && !is.null(effectUpdate$changes)) {
           statCache[[id]] <- effectUpdate$cache
         }
 
@@ -399,14 +399,14 @@ preprocess <- function(
           event2 <- event
           event2$sender <- event$receiver
           event2$receiver <- event$sender
-          if (!is.null(effectUpdate$cache) & !is.null(effectUpdate$changes))
+          if (!is.null(effectUpdate$cache) && !is.null(effectUpdate$changes))
             .argsFUN$cache <- statCache[[id]]
           effectUpdate2 <- callFUN(
             effects, id, "effect", c(.argsFUN, event2), " cannot update \n",
             colnames(objectsEffectsLink)[id]
           )
 
-          if (!is.null(effectUpdate2$cache) & !is.null(effectUpdate2$changes))
+          if (!is.null(effectUpdate2$cache) && !is.null(effectUpdate2$changes))
             statCache[[id]] <- effectUpdate2$cache
           updates2 <- effectUpdate2$changes
           updates <- rbind(updates, updates2)

@@ -415,10 +415,10 @@ preprocessInteraction <- function(
         # CHANGED MARION: added sender and receiver
         # CHANGED WEIGUTIAN: removed "increment" which results a bug
         event <- events[[nextEvent]][pointers[nextEvent], ]
-        if (isNodeEvent[nextEvent] & length(event) == 1) {
+        if (isNodeEvent[nextEvent] && length(event) == 1) {
           event_sender[[nextPointer]] <- event
           event_receiver[[nextPointer]] <- event
-        } else if (isNodeEvent[nextEvent] & length(event) > 1) {
+        } else if (isNodeEvent[nextEvent] && length(event) > 1) {
           event_sender[[nextPointer]] <- event$node
           event_receiver[[nextPointer]] <- event$node
         } else {

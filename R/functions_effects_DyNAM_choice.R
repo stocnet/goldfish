@@ -253,9 +253,9 @@ update_DyNAM_choice_tie <- function(
   }
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -589,9 +589,9 @@ update_DyNAM_choice_recip <- function(
   }
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -752,9 +752,9 @@ update_DyNAM_choice_trans <- function(
   oldValue <- sign(network[sender, receiver])
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -909,9 +909,9 @@ update_DyNAM_choice_cycle <- function(
   oldValue <- sign(network[sender, receiver])
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -1087,9 +1087,9 @@ update_DyNAM_choice_commonReceiver <- function(
   oldValue <- sign(network[sender, receiver])
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -1236,9 +1236,9 @@ update_DyNAM_choice_commonSender <- function(
   oldValue <- sign(network[sender, receiver])
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -1429,9 +1429,9 @@ update_DyNAM_choice_mixedTrans <- function(network, sender, receiver, replace,
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
     if (is.na(oldValue)) {
@@ -1459,9 +1459,9 @@ update_DyNAM_choice_mixedTrans <- function(network, sender, receiver, replace,
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
     if (is.na(oldValue)) {
@@ -1650,9 +1650,9 @@ update_DyNAM_choice_mixedCycle <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
     if (is.na(oldValue)) {
@@ -1680,9 +1680,9 @@ update_DyNAM_choice_mixedCycle <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
     if (is.na(oldValue)) {
@@ -1868,9 +1868,9 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
     if (is.na(oldValue)) {
@@ -1899,9 +1899,9 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
     if (is.na(oldValue)) {
@@ -2088,9 +2088,9 @@ update_DyNAM_choice_mixedCommonSender <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
     if (is.na(oldValue)) {
@@ -2119,9 +2119,9 @@ update_DyNAM_choice_mixedCommonSender <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
     if (is.na(oldValue)) {
@@ -2287,14 +2287,14 @@ update_DyNAM_choice_four <- function(
   oldValue <- sign(network[sender, receiver])
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace2)) {
+  if (is.na(oldValue) && is.na(replace2)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace2) & oldValue == replace2) {
+  } else if (!is.na(oldValue) && !is.na(replace2) && oldValue == replace2) {
     return(res)
   }
   if (is.na(oldValue)) oldValue <- 0
   if (is.na(replace)) replace <- 0
-  if (!isTwoMode & sender == receiver) return(res)
+  if (!isTwoMode && sender == receiver) return(res)
   # CALCULATE CHANGE
 
   # If isIncrease is 1, then the number of edges just from zero to nonzero,
@@ -2579,9 +2579,9 @@ update_DyNAM_choice_tertiusDiff <- function(
     oldValue <- sign(network[sender, receiver])
 
     # Check if old value has changed
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
 
@@ -2607,7 +2607,7 @@ update_DyNAM_choice_tertiusDiff <- function(
     # changes case 1: all nodes needs to be update the att[i] - cache[j] values
     # if (isTwoMode) seq_len(n2) else third(n1, receiver)
     nodesChange <- if (!is.na(valChangeCache)) receiver else numeric()
-    isImpute <- ifelse(!isImpute & is.na(valChangeCache), TRUE, isImpute)
+    isImpute <- ifelse(!isImpute && is.na(valChangeCache), TRUE, isImpute)
     cache[receiver] <- valChangeCache
     changes <- NULL
   }
@@ -2618,9 +2618,9 @@ update_DyNAM_choice_tertiusDiff <- function(
     oldValue <- attribute[node]
 
     # Check if old value has changed
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
 
@@ -2723,9 +2723,9 @@ update_DyNAM_choice_alter <- function(
   oldValue <- attribute[node]
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -2765,9 +2765,9 @@ update_DyNAM_choice_same <- function(attribute,
   oldValue <- attribute[node]
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -2834,9 +2834,9 @@ update_DyNAM_choice_diff <- function(attribute, node, replace,
   oldValue <- attribute[node]
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -2928,9 +2928,9 @@ update_DyNAM_choice_egoAlterInt <- function(
     oldValue <- attr1[node]
 
     # Check if old value has changed
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
 
@@ -2948,9 +2948,9 @@ update_DyNAM_choice_egoAlterInt <- function(
     oldValue <- attr2[node]
 
     # Check if old value has changed
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
 

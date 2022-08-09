@@ -225,9 +225,9 @@ update_REM_choice_indeg <- function(
   }
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -415,9 +415,9 @@ update_REM_choice_outdeg <- function(
   }
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -809,9 +809,9 @@ update_REM_choice_tertius <- function(
     oldValue <- sign(network[sender, receiver])
 
     # Check if old value has changed
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
 
@@ -835,7 +835,7 @@ update_REM_choice_tertius <- function(
     # changes case 1: all nodes needs to be update the att[i] - cache[j] values
     # if (isTwoMode) seq_len(n2) else third(n1, receiver)
     nodesChange <- if (!is.na(valChangeCache)) receiver else numeric()
-    isImpute <- ifelse(!isImpute & is.na(valChangeCache), TRUE, isImpute)
+    isImpute <- ifelse(!isImpute && is.na(valChangeCache), TRUE, isImpute)
     cache[receiver] <- valChangeCache
   }
 
@@ -845,9 +845,9 @@ update_REM_choice_tertius <- function(
     oldValue <- attribute[node]
 
     # Check if old value has changed
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
 
@@ -1196,9 +1196,9 @@ update_REM_choice_nodeTrans <- function(
   oldValue <- sign(network[sender, receiver])
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -1301,9 +1301,9 @@ update_REM_choice_ego <- function(
   oldValue <- attribute[node]
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 

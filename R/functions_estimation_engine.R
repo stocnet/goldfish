@@ -885,7 +885,7 @@ getIterationStepState <- function(
       presence[update$node] <- update$replace
 #
 #       # add the opportunity sets restrictions
-#       if (!is.null(opportunitiesList) & !isTwoMode)
+#       if (!is.null(opportunitiesList) && !isTwoMode)
 #         presence <- presence & opportunities
 #
 #
@@ -1155,7 +1155,7 @@ getMultinomialProbabilities <- function(
     weightedStatsArray <- statsArray * rep(parameters, each = matrixSize)
     # get utility = exp( value of objective function )
     utility <- exp(apply(weightedStatsArray, c(1, 2), sum))
-    if (!allowReflexive & !isTwoMode) diag(utility) <- 0
+    if (!allowReflexive && !isTwoMode) diag(utility) <- 0
     if (actorNested) {
       denominators <- rowSums(utility)
     } else {
@@ -1167,7 +1167,7 @@ getMultinomialProbabilities <- function(
     weightedStatsArray <- sweep(statsArray, MARGIN = 2, parameters, "*")
     utility <- exp(rowSums(weightedStatsArray))
     # allow reflexive?
-    if (!allowReflexive & !isTwoMode) utility[activeDyad[1]] <- 0
+    if (!allowReflexive && !isTwoMode) utility[activeDyad[1]] <- 0
     denominators <- sum(utility)
   }
   utility / denominators

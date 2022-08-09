@@ -554,7 +554,7 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
     isValidName <- grepl("^[[:alpha:]][[:alnum:]_.]+$", windowName)
 
     # support for lubridate object classes for date operations
-    if (inherits(window, c("Period", "Duration")) &
+    if (inherits(window, c("Period", "Duration")) &&
         "lubridate" %in% attr(attr(window, "class"), "package")) {
       if (!isValidName) {
         windowName <- gsub("\\s", "", as.character(window))
@@ -565,7 +565,7 @@ parseTimeWindows <- function(rhsNames, envir = globalenv()) {
     } else if (inherits(window, "character")) {
       if (!isValidName) windowName <- gsub(" ", "", window)
 
-      if (!is.numeric(window) &
+      if (!is.numeric(window) &&
           !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
         stop(
           "The window effect specified with the effect ", rhsNames[[i]][[1]],

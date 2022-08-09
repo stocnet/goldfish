@@ -401,7 +401,7 @@ estimate.formula <- function(
   }
   rightCensored <- hasIntercept
 
-  if (progress & 
+  if (progress && 
       !(model %in% c("DyNAM", "DyNAMi") &&
       subModel %in% c("choice", "choice_coordination")))
     cat(
