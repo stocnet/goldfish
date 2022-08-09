@@ -4,7 +4,8 @@
   base::packageStartupMessage(
     "  <\")))><  The goldfish package in R\n\n",
     pkgname, ": version ", utils::packageVersion("goldfish"), " ",
-    dQuote("Butterfly Tail"), "\n"
+    dQuote("Butterfly Tail"), " created on ",
+    utils::packageDescription("goldfish", fields = "Date"), "\n"
   )
 
   # packageStartupMessage(

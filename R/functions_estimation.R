@@ -122,9 +122,11 @@
 #' with the estimated coefficients.
 #' @param preprocessingInit a `preprocessed.goldfish` object computed for
 #' the current formula, allows skipping the preprocessing step.
-#' @param debug logical indicating whether very detailed intermediate results
-#' should be given; slows down the routine significantly.
-#' @param verbose logical indicating whether a minimal output should be given.
+#' @param verbose logical indicating whether should print
+#' very detailed intermediate results of the iterative Newton-Raphson procedure;
+#' slows down the routine significantly.
+#' @param progress logical indicating whether should print a minimal output
+#' to the console of the progress of the preprocessing and estimation processes.
 #' @param x a formula that defines at the left-hand side the dependent
 #' network (see [defineDependentEvents()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
@@ -260,8 +262,8 @@ estimate <- function(
   estimationInit = NULL,
   preprocessingInit = NULL,
   preprocessingOnly = FALSE,
-  verbose = getOption("verbose"),
-  debug = FALSE)
+  progress = getOption("progress"),
+  verbose = getOption("verbose"))
   UseMethod("estimate", x)
 
 
@@ -276,8 +278,8 @@ estimate.formula <- function(
   estimationInit = NULL,
   preprocessingInit = NULL,
   preprocessingOnly = FALSE,
-  verbose = getOption("verbose"),
-  debug = FALSE) {
+  progress = getOption("progress"),
+  verbose = getOption("verbose")) {
   # Steps:
   # 1. Parse the formula
   # 2. Initialize additional objects
@@ -304,12 +306,14 @@ estimate.formula <- function(
   stopifnot(
     inherits(preprocessingOnly, "logical"),
     inherits(verbose, "logical"),
-    inherits(debug, "logical"),
+    is.null(progress) || inherits(progress, "logical"),
     is.null(preprocessingInit) ||
       inherits(preprocessingInit, "preprocessed.goldfish"),
     is.null(estimationInit) ||
       inherits(estimationInit, "list")
   )
+
+  if (is.null(progress)) progress <- FALSE
 
   if (!is.null(estimationInit)) {
     parInit <- names(estimationInit) %in%
@@ -365,7 +369,7 @@ estimate.formula <- function(
   ### 1. PARSE the formula----
   PreprocessEnvir <- new.env()
   
-  if (verbose) cat("Parsing formula.\n")
+  if (progress) cat("Parsing formula.\n")
   formula <- x
 
   ## 1.1 PARSE for all cases: preprocessingInit or not
@@ -397,13 +401,13 @@ estimate.formula <- function(
   }
   rightCensored <- hasIntercept
 
-  if (verbose & 
+  if (progress & 
       !(model %in% c("DyNAM", "DyNAMi") &&
       subModel %in% c("choice", "choice_coordination")))
     cat(
       ifelse(hasIntercept, "T", "No t"), "ime intercept added.\n", sep = ""
     )
-  # if (verbose && !all(vapply(windowParameters, is.null, logical(1))))
+  # if (progress && !all(vapply(windowParameters, is.null, logical(1))))
   #   cat("Creating window objects in global environment.")
 
   ## 1.2 PARSE for preprocessingInit: check the formula consistency
@@ -419,7 +423,7 @@ estimate.formula <- function(
 
   ### 2. INITIALIZE OBJECTS: effects, nodes, and link objects----
 
-  if (verbose) cat("Initializing objects.\n")
+  if (progress) cat("Initializing objects.\n")
 
   ## 2.0 Set isTwoMode to define effects functions
   # get node sets of dependent variable
@@ -476,7 +480,7 @@ estimate.formula <- function(
 
     # find new effects
     if (min(effectsindexes) == 0) {
-      if (verbose) cat("Calculating newly added effects.\n")
+      if (progress) cat("Calculating newly added effects.\n")
       newrhsNames <- rhsNames[which(effectsindexes == 0)]
       newWindowParameters <- windowParameters[which(effectsindexes == 0)]
       neweffects <- createEffectsFunctions(
@@ -506,7 +510,7 @@ estimate.formula <- function(
         newevents, newrhsNames, neweventsObjectsLink)
 
       # Preprocess the new effects
-      if (verbose) cat("Pre-processing additional effects.\n")
+      if (progress) cat("Pre-processing additional effects.\n")
       newprep <- preprocess(
         model,
         subModel,
@@ -523,7 +527,7 @@ estimate.formula <- function(
         startTime = preprocessingInit[["startTime"]],
         endTime = preprocessingInit[["endTime"]],
         rightCensored = rightCensored,
-        verbose = verbose,
+        progress = progress,
         prepEnvir = PreprocessEnvir
       )
 
@@ -549,7 +553,7 @@ estimate.formula <- function(
     }
 
     # combine old and new preprocessed objects
-    if (verbose) cat("Removing no longer required effects.\n")
+    if (progress) cat("Removing no longer required effects.\n")
     allprep <- preprocessingInit
     allprep$initialStats <- array(0,
       dim = c(
@@ -634,7 +638,7 @@ estimate.formula <- function(
 
   ## 3.2 PREPROCESS when preprocessingInit == NULL
   if (is.null(preprocessingInit)) {
-    if (verbose) cat("Starting preprocessing.\n")
+    if (progress) cat("Starting preprocessing.\n")
     if (model == "DyNAMi") {
       prep <- preprocessInteraction(
         subModel = subModel,
@@ -647,7 +651,7 @@ estimate.formula <- function(
         nodes = .nodes,
         nodes2 = .nodes2,
         rightCensored = rightCensored,
-        verbose = verbose,
+        progress = progress,
         groupsNetwork = parsedformula$defaultNetworkName,
         prepEnvir = PreprocessEnvir)
     } else {
@@ -667,7 +671,7 @@ estimate.formula <- function(
         startTime = estimationInit[["startTime"]],
         endTime = estimationInit[["endTime"]],
         rightCensored = rightCensored,
-        verbose = verbose,
+        progress = progress,
         prepEnvir = PreprocessEnvir
       )
   }
@@ -716,7 +720,7 @@ estimate.formula <- function(
       modelTypeCall <- "DyNAM-M"
     }
   }
-  if (verbose)
+  if (progress)
     cat(
       "Estimating a model: ", dQuote(model), ", subModel: ",
       dQuote(subModel), ".\n", sep = "")
@@ -733,7 +737,7 @@ estimate.formula <- function(
     parallelize = FALSE,
     cpus = 1,
     verbose = verbose,
-    debug = debug,
+    progress = progress,
     ignoreRepParameter = parsedformula$ignoreRepParameter,
     isTwoMode = isTwoMode
   )

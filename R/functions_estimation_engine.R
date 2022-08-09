@@ -31,7 +31,7 @@ estimate_int <- function(
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
-  debug = FALSE,
+  progress = FALSE,
   impute = TRUE,
   ignoreRepParameter,
   # restrictions of opportunity sets
@@ -98,7 +98,7 @@ estimate_int <- function(
 
   ## REDUCE STATISTICS LIST
 
-  if (debug) cat("Reducing data\n")
+  if (verbose) cat("Reducing data\n")
 
   # CHANGED MARION: add colOnly and rowOnly in a smart way for the estimation
   reduceMatrixToVector <- FALSE
@@ -203,7 +203,7 @@ estimate_int <- function(
 
   ## ESTIMATION: INITIALIZATION
 
-  if (debug) cat("Estimating model type: ", modelType)
+  if (verbose) cat("Estimating model type: ", modelType)
 
   iIteration <- 1
   informationMatrix <- matrix(0, nParams, nParams)
@@ -245,8 +245,6 @@ estimate_int <- function(
       isTwoMode = isTwoMode,
       reduceMatrixToVector = reduceMatrixToVector,
       reduceArrayToMatrix = reduceArrayToMatrix,
-      debug = debug,
-      verbose = verbose,
       ignoreRepParameter = ignoreRepParameter,
       impute = impute,
       opportunitiesList = opportunitiesList
@@ -285,7 +283,7 @@ estimate_int <- function(
     # It's for the fixing parameter feature. \
     score[idFixedCompnents] <- 0
 
-    if (!debug && verbose)
+    if (!verbose && progress)
       cat(
         "\rMax score: ",
         round(max(abs(score)),
@@ -293,7 +291,7 @@ estimate_int <- function(
         " (", iIteration, ").        "
       )
 
-    if (debug) {
+    if (verbose) {
       cat(
         "\n\nLikelihood:", logLikelihood, "in iteration", iIteration,
           "\nParameters:", toString(parameters),
@@ -303,7 +301,7 @@ estimate_int <- function(
     }
 
     if (logLikelihood <= logLikelihood.old || any(is.na(unlist(res)))) {
-      if (debug)
+      if (verbose)
         cat("\nNo improvement in estimation.",
                 " Resetting values and adjusting damping.")
       # reset values
@@ -349,7 +347,7 @@ estimate_int <- function(
     update[idUnfixedCompnents] <-
       (inverseInformationUnfixed %*% score[idUnfixedCompnents]) / dampingFactor
 
-    if (debug)
+    if (verbose)
       cat(
         "\nUpdate: ", toString(update),
         "\nDamping factor: ", toString(dampingFactor)
@@ -358,7 +356,7 @@ estimate_int <- function(
     # check for stop criteria
     if (max(abs(score)) <= maxScoreStopCriterion) {
       isConverged <- TRUE
-      if (verbose)
+      if (progress)
         cat(
           "\nStopping as maximum absolute score is below ",
           maxScoreStopCriterion, ".\n", sep = ""
@@ -367,7 +365,7 @@ estimate_int <- function(
       break
     }
     if (iIteration > maxIterations) {
-      if (verbose)
+      if (progress)
         cat(
           "\nStopping as maximum of ",
           maxIterations,
@@ -680,8 +678,6 @@ getIterationStepState <- function(
     isTwoMode = FALSE,
     reduceMatrixToVector = FALSE,
     reduceArrayToMatrix = FALSE,
-    debug = FALSE,
-    verbose = FALSE,
     ignoreRepParameter = NULL,
     impute = TRUE,
     opportunitiesList = NULL) {
@@ -970,7 +966,7 @@ getIterationStepState <- function(
           # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
         arr <- apply(statsArrayComp, 3, function(stat) {
           diag(stat) <- 0
-          if (debug && i == 1)
+          if (verbose && i == 1)
             cat("\nReplacing effects statistics by row means")
           m <- stat
           stat <- rowMeans(m, na.rm = TRUE) * (dim(m)[1]) / (dim(m)[1] - 1)
@@ -981,7 +977,7 @@ getIterationStepState <- function(
         dims <- dim(statsArrayComp)
           # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
         arr <- apply(statsArrayComp, 3, function(stat) {
-          if (debug && i == 1)
+          if (verbose && i == 1)
             cat("\nReplacing effects statistics by row means")
           m <- stat
           stat <- rowMeans(m, na.rm = TRUE)

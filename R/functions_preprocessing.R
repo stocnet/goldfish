@@ -17,7 +17,7 @@
 #' @param startTime numerical start time to preprocess the data
 #' @param endTime numerical end time to preprocess the data
 #' @param rightCensored logical does it consider right censored events?
-#' @param verbose logical verbose
+#' @param progress logical should print progress
 #'
 #' @return a list of class preprocessed.goldfish
 #'
@@ -43,14 +43,14 @@ preprocess <- function(
   startTime = min(vapply(events, function(x) min(x$time), double(1))),
   endTime = max(vapply(events, function(x) max(x$time), double(1))),
   rightCensored = FALSE,
-  verbose = FALSE,
+  progress = FALSE,
   prepEnvir = globalenv()) {
 
   # For debugging
   if (identical(environment(), globalenv())) {
     startTime <- min(vapply(events, function(x) min(x$time), double(1)))
     endTime <- max(vapply(events, function(x) max(x$time), double(1)))
-    verbose <- FALSE
+    progress <- FALSE
   }
 
   # print(match.call())
@@ -99,7 +99,7 @@ preprocess <- function(
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 
-  if (verbose) cat("Initializing cache objects and statistical matrices.\n")
+  if (progress) cat("Initializing cache objects and statistical matrices.\n")
 
   statCache <- initializeCacheStat(
     objectsEffectsLink = objectsEffectsLink, effects = effects,
@@ -171,7 +171,7 @@ preprocess <- function(
   # iRightCensored <- 0
   iDependentEvents <- 0L
   iTotalEvents <- 0L
-  if (verbose) {
+  if (progress) {
     cat("Preprocessing events.\n", startTime, endTime, nTotalEvents)
     # # how often print, max 50 prints
     pb <- utils::txtProgressBar(max = nTotalEvents, char = "*", style = 3)
@@ -203,11 +203,11 @@ preprocess <- function(
 
     eventPos <- pointers[1] + pointerTempRightCensored - 1
     # # CHANGED ALVARO: progress bar
-    if (verbose && iTotalEvents %% dotEvents == 0) {
+    if (progress && iTotalEvents %% dotEvents == 0) {
       utils::setTxtProgressBar(pb, iTotalEvents)
     }
 
-    if (verbose && iTotalEvents == nTotalEvents) {
+    if (progress && iTotalEvents == nTotalEvents) {
       utils::setTxtProgressBar(pb, iTotalEvents)
       close(pb)
     }
@@ -454,7 +454,7 @@ preprocess <- function(
       times <= endTime
   }
 
-  if (verbose && utils::getTxtProgressBar(pb) < nTotalEvents) {
+  if (progress && utils::getTxtProgressBar(pb) < nTotalEvents) {
     close(pb)
   }
 

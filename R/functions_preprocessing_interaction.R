@@ -35,7 +35,7 @@ preprocessInteraction <- function(
   startTime = min(vapply(events, function(x) min(x$time), double(1))),
   endTime = max(vapply(events, function(x) max(x$time), double(1))),
   rightCensored = FALSE,
-  verbose = FALSE,
+  progress = FALSE,
   groupsNetwork = groupsNetwork,
   prepEnvir = environment()) {
 
@@ -43,7 +43,7 @@ preprocessInteraction <- function(
   if (identical(environment(), globalenv())) {
     startTime <- min(vapply(events, function(x) min(x$time), double(1)))
     endTime <- max(vapply(events, function(x) max(x$time), double(1)))
-    verbose <- FALSE
+    progress <- FALSE
   }
 
   # prepEnvir <- environment()
@@ -57,7 +57,7 @@ preprocessInteraction <- function(
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 
-  if (verbose) cat("Initializing cache objects and statistical matrices.\n")
+  if (progress) cat("Initializing cache objects and statistical matrices.\n")
   model <- "DyNAMi"
   stats <- initializeCacheStat(
     objectsEffectsLink = objectsEffectsLink, effects = effects,
@@ -242,7 +242,7 @@ preprocessInteraction <- function(
 
   # iRightCensored <- 0
   iDependentEvents <- 0
-  if (verbose) {
+  if (progress) {
     cat("Preprocessing events.\n")
     pb <- utils::txtProgressBar(max = nDependentEvents, char = "*", style = 3)
     dotEvents <- ifelse(
@@ -322,11 +322,11 @@ preprocessInteraction <- function(
          events[[depindex]][pointers[nextEvent], "increment"] > 0)
 
     # # CHANGED ALVARO: progress bar
-    if (verbose && iDependentEvents %% dotEvents == 0) {
+    if (progress && iDependentEvents %% dotEvents == 0) {
       utils::setTxtProgressBar(pb, iDependentEvents)
     }
 
-    if (verbose && iDependentEvents == nDependentEvents) {
+    if (progress && iDependentEvents == nDependentEvents) {
       utils::setTxtProgressBar(pb, iDependentEvents)
       close(pb)
     }
@@ -566,7 +566,7 @@ preprocessInteraction <- function(
     validPointers <- pointers <= sapply(events, nrow)
   }
 
-  if (verbose && utils::getTxtProgressBar(pb) < nDependentEvents) {
+  if (progress && utils::getTxtProgressBar(pb) < nDependentEvents) {
     close(pb)
   }
 

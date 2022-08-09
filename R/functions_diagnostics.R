@@ -80,8 +80,7 @@ examineOutliers <- function(x,
     calls[[1]] <- NULL
     calls$preprocessingOnly <- TRUE
     calls$preprocessingInit <- NULL
-    calls$silent <- TRUE
-    calls$debug <- FALSE
+    calls$progress <- FALSE
     calls$verbose <- FALSE
     prep <- suppressWarnings(do.call(goldfish::estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
@@ -190,8 +189,7 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
     calls[[1]] <- NULL
     calls$preprocessingOnly <- TRUE
     calls$preprocessingInit <- NULL
-    calls$silent <- TRUE
-    calls$debug <- FALSE
+    calls$progress <- FALSE
     calls$verbose <- FALSE
     prep <- suppressWarnings(do.call(goldfish::estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
