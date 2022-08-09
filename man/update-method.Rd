@@ -4,7 +4,7 @@
 \alias{update-method}
 \alias{as.data.frame.nodes.goldfish}
 \alias{as.matrix.network.goldfish}
-\title{Methods to update a nodes or a network object}
+\title{Methods to update a nodes or network object}
 \usage{
 \method{as.data.frame}{nodes.goldfish}(x, ..., time = -Inf, startTime = -Inf)
 

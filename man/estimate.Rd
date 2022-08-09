@@ -11,8 +11,8 @@ estimate(
   estimationInit = NULL,
   preprocessingInit = NULL,
   preprocessingOnly = FALSE,
-  verbose = getOption("verbose"),
-  debug = FALSE
+  progress = getOption("progress"),
+  verbose = getOption("verbose")
 )
 }
 \arguments{
@@ -104,10 +104,12 @@ the current formula, allows skipping the preprocessing step.}
 statistics should be returned rather than a \code{result.goldfish} object
 with the estimated coefficients.}
 
-\item{verbose}{logical indicating whether a minimal output should be given.}
+\item{progress}{logical indicating whether should print a minimal output
+to the console of the progress of the preprocessing and estimation processes.}
 
-\item{debug}{logical indicating whether very detailed intermediate results
-should be given; slows down the routine significantly.}
+\item{verbose}{logical indicating whether should print
+very detailed intermediate results of the iterative Newton-Raphson procedure;
+slows down the routine significantly.}
 }
 \value{
 returns an object of \code{\link[=class]{class()}} \code{"result.goldfish"}

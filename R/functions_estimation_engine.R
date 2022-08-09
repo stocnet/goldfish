@@ -247,6 +247,7 @@ estimate_int <- function(
       reduceArrayToMatrix = reduceArrayToMatrix,
       ignoreRepParameter = ignoreRepParameter,
       impute = impute,
+      verbose = verbose,
       opportunitiesList = opportunitiesList
     )
 
@@ -680,6 +681,7 @@ getIterationStepState <- function(
     reduceArrayToMatrix = FALSE,
     ignoreRepParameter = NULL,
     impute = TRUE,
+    verbose = FALSE,
     opportunitiesList = NULL) {
   
   # CHANGED MARION: changed dims

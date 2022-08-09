@@ -47,7 +47,7 @@ estimate <- function(
     preprocessingInit = NULL,
     preprocessingOnly = FALSE,
     verbose = FALSE,
-    debug = FALSE) {
+    progress = FALSE) {
   
   call <- match.call(expand.dots = TRUE)
   
@@ -63,7 +63,7 @@ estimate <- function(
     preprocessingInit = preprocessingInit,
     preprocessingOnly = preprocessingOnly,
     verbose = verbose,
-    debug = debug
+    progress = progress
   )
   
   res$call <- call 
