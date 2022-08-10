@@ -14,7 +14,8 @@
   unsilent the messages during estimation.
 * Window effects doesn't create new object on the global environment.
 * Add references in description.
-* `silent` parameter replace by `verbose` and `verbose` by `debug`.
+* `silent` parameter replace by `progress`.
+  `progress` and `verbose` can be set with global options with the same name.
 
 # goldfish 1.6.2
 
