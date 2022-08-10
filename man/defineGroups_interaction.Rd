@@ -8,7 +8,7 @@ defineGroups_interaction(
   records,
   actors,
   seed.randomization,
-  verbose = getOption("verbose")
+  progress = getOption("progress")
 )
 }
 \arguments{
@@ -23,7 +23,7 @@ interacting (labels in records and actors should be identical).}
 \item{seed.randomization}{an \code{interger} used whenever there should
 be some random choice to be made.}
 
-\item{verbose}{logical weather detailed information of intermediate steps
+\item{progress}{logical weather detailed information of intermediate steps
 should be printed in the console.}
 }
 \value{

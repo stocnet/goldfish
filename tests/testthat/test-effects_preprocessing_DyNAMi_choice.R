@@ -278,10 +278,6 @@ test_that(
 test_that(
   "inertia computes correct preprocessing objects with window",
   {
-    skip_on_ci()
-    skip_on_cran()
-    skip_on_covr()
-    skip_on_bioc()
     preproData <- estimate(
       dependent.depevents_DyNAMi ~ inertia(past_network_DyNAMi, weighted = TRUE) +
         inertia(past_network_DyNAMi, window = 2, weighted = TRUE) +
