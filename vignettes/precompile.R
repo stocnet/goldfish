@@ -18,4 +18,9 @@ rm(list = ls())
 knit("teaching2.Rmd.orig", "teaching2.Rmd")
 purl("teaching2.Rmd.orig", "teaching2.R")
 
+rm(list = ls())
+
+knit("dynami-example.Rmd.orig", "dynami-example.Rmd")
+purl("dynami-example.Rmd.orig", "dynami-example.R")
+
 setwd("..")
