@@ -28,7 +28,7 @@
 #' and ending time of their interaction.
 #' @param actors a object of class `nodes.goldfish` that defines the actors
 #' interacting (labels in records and actors should be identical).
-#' @param seed.randomization an `interger` used whenever there should
+#' @param seed.randomization an `integer` used whenever there should
 #' be some random choice to be made.
 #' @param progress logical weather detailed information of intermediate steps
 #' should be printed in the console.
@@ -821,6 +821,13 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
   exogenous.events$sender <- actors$label[exogenous.events$sender]
   exogenous.events$receiver <- groups$label[exogenous.events$receiver]
 
+  # Inform about the number of events
+  if(progress) {
+    cat("Data preparation for DyNAM-i model:\n")
+    cat(paste(nrow(dependent.events), "dependent events created"))
+    cat(paste(nrow(exogenous.events), "exogenous events created (group composition updates"))
+  }
+  
   groupsResult <- list(
     interaction.updates = interaction.updates,
     groups = groups,
