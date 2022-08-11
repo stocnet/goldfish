@@ -81,11 +81,7 @@ as.data.frame.nodes.goldfish <- function(x, ..., time = -Inf,
   df
 }
 
-# Create a Matrix from a dynamic nodes object
-# @param x a dynamic goldfish network object
-# @param time a numeric or time format to define the state of the nodes object
-# at time - epsiolon
-# @param startTime a numeric or time format; prior events are disregarded
+#' Create a Matrix from a dynamic nodes object
 #' @export
 #' @rdname update-method
 as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
@@ -370,14 +366,15 @@ defineNodes <- function(nodes) {
 
 #' Defining a network with dynamic events
 #'
-#' The function defines a network object either from a node-set or
-#' from a sociomatrix. If a sociomatrix or adjacency matrix is used as input,
-#' `defineNetwork()` returns a static Network.
-#' 
-#' If the node-set is the only argument, `defineNetwork()` returns an
-#' empty network.
-#' From there, a dynamic network can be constructed by linking dynamic events
-#' to the network object using [linkEvents()].
+#' The function defines a network object either from a nodeset or
+#' from a matrix (sociomatrix or adjacency matrix). If a matrix is used as 
+#' input, `defineNetwork()` returns a network filled with the same values
+#' as the ones present in the provided network.
+#' If the nodeset is the only argument, `defineNetwork()` returns an
+#' empty network with the number of columns and rows corresponding to the
+#' size of the nodeset.
+#' These networks are static, but they can be turned into dynamic networks
+#' by linking dynamic events to the network objectw using [linkEvents()].
 #'
 #' @param matrix An initial matrix (optional), and object of class `matrix`.
 #' @param nodes A node-set (see [defineNodes()]).
@@ -397,11 +394,10 @@ defineNodes <- function(nodes) {
 #' 
 #' The object can be modified using methods for matrix.
 #' @details 
-#' If a sociomatrix is used as input, `defineNetwork()` returns a
-#' static Network.
-#' This matrix dimension names must be a subset of the nodes in the nodeset
-#' as defined with the [defineNodes()] and the order of the labels in rows and
-#' columns must correspond to the order of node labels in the node-set.
+#' If a matrix is used as input, its dimension names must be a subset of the 
+#' nodes in the nodeset as defined with the [defineNodes()] and the order of 
+#' the labels in rows and columns must correspond to the order of node labels
+#' in the nodeset.
 #' The matrix can be directed or undirected (as specified with the 
 #' `directed` argument).
 #' 
@@ -715,7 +711,7 @@ defineGlobalAttribute <- function(global) {
 #' value that will be updated, i.e., when the `present` variable is dynamic the 
 #' updating values must be `logical` (see [defineNodes()] for a description
 #' of this variable.
-#' There is two possibilities on how to specify those
+#' There are two possibilities on how to specify those
 #' changes but only one can be used at a time:
 #' \describe{
 #' \item{increment}{with a numerical value that represent the increment
@@ -727,9 +723,10 @@ defineGlobalAttribute <- function(global) {
 #' the calling events between students where the increment represent a new call.
 #' With every new call the dyad (sender-receiver) increase the count of calls
 #' that had happen in the past.}
+#' 
 #' \item{replace}{contains the value that would replace at point-time `time`
-#' the dynamic element. It is usually the way to represent changes in node
-#' attributes.
+#' the attribute or tie value. It is usually the way to represent changes in 
+#' node attributes.
 #' 
 #' In the [Fisheries_Treaties_6070] dataset the `sovchanges`,
 #' `regchanges` and `gdpchanges`data frames are examples where the `replace`
