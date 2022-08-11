@@ -5,10 +5,8 @@
 #
 ###################### ##
 
-#' preprocess event and related objects describe in the formula estimate
-#' for DyNAM-i
-#'
-#' Create a preprocess.goldfish class object for estimation
+#' Create a preprocess.goldfish class object with the update statistics
+#' for estimation of a DyNAM-i model.
 #'
 #' @inheritParams preprocess
 #' @param groupsNetwork a character with the object that contains the
