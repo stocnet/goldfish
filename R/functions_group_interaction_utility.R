@@ -79,11 +79,10 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
   timesevents <- rep(0, 2 * nrecords) # times events
   typesevents <- rep(0, 2 * nrecords) # 1 for start 0 for end
 
-  # TODO: remove non significant events when noisy data
-
   # STEP 1: order all events (start and end)
   # if some events occur at the same time, we randomize the order
-  # TODO: if events are close enough (<delta t), we also randomize when
+  # For now, we follow the exact time of the date, but if events were close enough 
+  # (<delta t), we could also randomize when we know that we have
   # unperfect data
   while (i <= (2 * nrecords)) {
     if (length(timestarts[timestarts > time]) > 0) {
@@ -748,29 +747,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     pastorder <- c(pastorder, pastorder_temp)
 
   }
-
-
-  # # re-order composition changes
-  # o <- order(grouptimeevents)
-  # grouptimeevents <- grouptimeevents[o]
-  # groupnodeevents <- groupnodeevents[o]
-  # groupreplaceevents <- groupreplaceevents[o]
-
-  # # TODO: correct this
-  #
-  # # check whether there is a weird event
-  # # with a group created and deleted at the same time
-  # for(i in 1:length(grouptimeevents)) {
-  #   time <- grouptimeevents[i]
-  #   for(j in 1:nactors) {
-  #     indexesactortrue <- which(grouptimeevents == time & groupnodeevents == j & groupreplaceevents == TRUE)
-  #     indexesactorfalse <- which(grouptimeevents == time & groupnodeevents == j & groupreplaceevents == FALSE)
-  #     if(length(indexesactorfalse)>0 && length(indexesactortrue)>0) {
-  #       grouptimeevents <- grouptimeevents[-indexesactorfalse]
-  #     }
-  #   }
-  # }
-
 
   # RESULTS
   groups <- data.frame(
