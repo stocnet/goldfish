@@ -35,7 +35,8 @@ estimate_int <- function(
   impute = TRUE,
   ignoreRepParameter,
   # restrictions of opportunity sets
-  opportunitiesList = NULL) {
+  opportunitiesList = NULL,
+  prepEnvir = globalenv()) {
 
   ## SET VARIABLES
 
@@ -136,10 +137,10 @@ estimate_int <- function(
   compChange1 <- NULL
   compChange2 <- NULL
   if (!is.null(compChangeName1) && length(compChangeName1) > 0)
-    compChange1 <- get(compChangeName1) # add prepEnvir
+    compChange1 <- get(compChangeName1, envir = prepEnvir) # add prepEnvir
 
   if (!is.null(compChangeName2) && length(compChangeName2) > 0)
-    compChange2 <- get(compChangeName2) # add prepEnvir
+    compChange2 <- get(compChangeName2, envir = prepEnvir) # add prepEnvir
 
   ## ADD INTERCEPT
   # CHANGED MARION
@@ -248,7 +249,8 @@ estimate_int <- function(
       ignoreRepParameter = ignoreRepParameter,
       impute = impute,
       verbose = verbose,
-      opportunitiesList = opportunitiesList
+      opportunitiesList = opportunitiesList,
+      prepEnvir = prepEnvir
     )
 
     logLikelihood <- res[[1]]
@@ -682,7 +684,8 @@ getIterationStepState <- function(
     ignoreRepParameter = NULL,
     impute = TRUE,
     verbose = FALSE,
-    opportunitiesList = NULL) {
+    opportunitiesList = NULL,
+    prepEnvir = globalenv()) {
   
   # CHANGED MARION: changed dims
   nEvents <- length(statsList$orderEvents)
@@ -718,7 +721,7 @@ getIterationStepState <- function(
   irc <- 1
 
   if (any(unlist(ignoreRepParameter))) {
-    net <- get(defaultNetworkName) # add prepEnvir
+    net <- get(defaultNetworkName, envir = prepEnvir) # add prepEnvir
     ignoreRepIds <- which(unlist(ignoreRepParameter))
     if (modelType %in% c("DyNAM-M-Rate", "REM")) {
       ignoreRepIds <- ignoreRepIds + 1
