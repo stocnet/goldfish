@@ -739,7 +739,8 @@ estimate.formula <- function(
     verbose = verbose,
     progress = progress,
     ignoreRepParameter = parsedformula$ignoreRepParameter,
-    isTwoMode = isTwoMode
+    isTwoMode = isTwoMode,
+    prepEnvir = PreprocessEnvir
   )
   # prefer user-defined arguments
   argsEstimation <- append(
