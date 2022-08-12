@@ -136,10 +136,10 @@ estimate_int <- function(
   compChange1 <- NULL
   compChange2 <- NULL
   if (!is.null(compChangeName1) && length(compChangeName1) > 0)
-    compChange1 <- get(compChangeName1)
+    compChange1 <- get(compChangeName1) # add prepEnvir
 
   if (!is.null(compChangeName2) && length(compChangeName2) > 0)
-    compChange2 <- get(compChangeName2)
+    compChange2 <- get(compChangeName2) # add prepEnvir
 
   ## ADD INTERCEPT
   # CHANGED MARION
@@ -718,7 +718,7 @@ getIterationStepState <- function(
   irc <- 1
 
   if (any(unlist(ignoreRepParameter))) {
-    net <- get(defaultNetworkName)
+    net <- get(defaultNetworkName) # add prepEnvir
     ignoreRepIds <- which(unlist(ignoreRepParameter))
     if (modelType %in% c("DyNAM-M-Rate", "REM")) {
       ignoreRepIds <- ignoreRepIds + 1
