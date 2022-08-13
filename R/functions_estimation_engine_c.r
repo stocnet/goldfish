@@ -38,7 +38,9 @@ estimate_c_int <- function(
   testing = FALSE,
   get_data_matrix = FALSE,
   impute = FALSE,
-  engine = "default_c") {
+  engine = "default_c",
+  prepEnvir = globalenv()
+  ) {
 
   minDampingFactor <- initialDamping
   # CHANGED MARION
@@ -131,9 +133,9 @@ estimate_c_int <- function(
   compChange1 <- NULL
   compChange2 <- NULL
   if (!is.null(compChangeName1) && length(compChangeName1) > 0)
-    compChange1 <- get(compChangeName1)
+    compChange1 <- get(compChangeName1, envir = prepEnvir) # add prepEnvir
   if (!is.null(compChangeName2) && length(compChangeName2) > 0)
-    compChange2 <- get(compChangeName2)
+    compChange2 <- get(compChangeName2, envir = prepEnvir) # add prepEnvir
 
 
   ## ADD INTERCEPT
@@ -234,7 +236,7 @@ estimate_c_int <- function(
     "present" == attr(nodes2, "dynamicAttribute")
   ]
   if (!is.null(compChangeName1) && length(compChangeName1) > 0) {
-    temp <- get(compChangeName1)
+    temp <- get(compChangeName1, envir = prepEnvir) # add prepEnvir
     temp <- sanitizeEvents(temp, nodes)
     temp <- C_convert_composition_change(temp, unlist(statsList$eventTime))
     presence1_update <- temp$presenceUpdate
@@ -245,7 +247,7 @@ estimate_c_int <- function(
   }
 
   if (!is.null(compChangeName2) && length(compChangeName2) > 0) {
-    temp <- get(compChangeName2)
+    temp <- get(compChangeName2, envir = prepEnvir) # add prepEnvir
     temp <- sanitizeEvents(temp, nodes2)
     temp <- C_convert_composition_change(temp, unlist(statsList$eventTime))
     presence2_update <- temp$presenceUpdate
