@@ -37,21 +37,21 @@ link event data frames.}
 The object can be modified using methods for matrix.
 }
 \description{
-The function defines a network object either from a node-set or
-from a sociomatrix. If a sociomatrix or adjacency matrix is used as input,
-\code{defineNetwork()} returns a static Network.
+The function defines a network object either from a nodeset or
+from a matrix (sociomatrix or adjacency matrix). If a matrix is used as
+input, \code{defineNetwork()} returns a network filled with the same values
+as the ones present in the provided network.
+If the nodeset is the only argument, \code{defineNetwork()} returns an
+empty network with the number of columns and rows corresponding to the
+size of the nodeset.
+These networks are static, but they can be turned into dynamic networks
+by linking dynamic events to the network objectw using \code{\link[=linkEvents]{linkEvents()}}.
 }
 \details{
-If the node-set is the only argument, \code{defineNetwork()} returns an
-empty network.
-From there, a dynamic network can be constructed by linking dynamic events
-to the network object using \code{\link[=linkEvents]{linkEvents()}}.
-
-If a sociomatrix is used as input, \code{defineNetwork()} returns a
-static Network.
-This matrix dimension names must be a subset of the nodes in the nodeset
-as defined with the \code{\link[=defineNodes]{defineNodes()}} and the order of the labels in rows and
-columns must correspond to the order of node labels in the node-set.
+If a matrix is used as input, its dimension names must be a subset of the
+nodes in the nodeset as defined with the \code{\link[=defineNodes]{defineNodes()}} and the order of
+the labels in rows and columns must correspond to the order of node labels
+in the nodeset.
 The matrix can be directed or undirected (as specified with the
 \code{directed} argument).
 

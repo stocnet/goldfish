@@ -3,7 +3,11 @@ title: 'DyNAM-i: an example script'
 subtitle: "Dynamic Network Actor Models for face-to-face interaction data"
 author: "Marion Hoffman"
 date: '2022-08-11'
-output: html_document
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{DyNAM-i: an example script}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}

@@ -20,7 +20,7 @@ and ending time of their interaction.}
 \item{actors}{a object of class \code{nodes.goldfish} that defines the actors
 interacting (labels in records and actors should be identical).}
 
-\item{seed.randomization}{an \code{interger} used whenever there should
+\item{seed.randomization}{an \code{integer} used whenever there should
 be some random choice to be made.}
 
 \item{progress}{logical weather detailed information of intermediate steps

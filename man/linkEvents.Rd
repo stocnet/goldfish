@@ -86,7 +86,7 @@ The class of this variable must be the same as the tie value or attribute
 value that will be updated, i.e., when the \code{present} variable is dynamic the
 updating values must be \code{logical} (see \code{\link[=defineNodes]{defineNodes()}} for a description
 of this variable.
-There is two possibilities on how to specify those
+There are two possibilities on how to specify those
 changes but only one can be used at a time:
 \describe{
 \item{increment}{with a numerical value that represent the increment
@@ -98,9 +98,10 @@ In the \link{Social_Evolution} dataset the \code{calls} data frame contains
 the calling events between students where the increment represent a new call.
 With every new call the dyad (sender-receiver) increase the count of calls
 that had happen in the past.}
+
 \item{replace}{contains the value that would replace at point-time \code{time}
-the dynamic element. It is usually the way to represent changes in node
-attributes.
+the attribute or tie value. It is usually the way to represent changes in
+node attributes.
 
 In the \link{Fisheries_Treaties_6070} dataset the \code{sovchanges},
 \code{regchanges} and \code{gdpchanges}data frames are examples where the \code{replace}
