@@ -874,36 +874,23 @@ getIterationStepState <- function(
 
     # update composition
     # CHANGED SIWEI: fixed errors for composition change update
-    presence <- rep(TRUE, nrow(nodes))
-    presence2 <- rep(TRUE, nrow(nodes2))
+    # CHANGED MARION: fixed wrong initialization of compositions, removed next lines
+    # presence <- rep(0,nrow(nodes))
+    # presence2 <- rep(0,nrow(nodes2))
     updatepresence <- !is.null(compChange1)
     updatepresence2 <- !is.null(compChange2)
-
+    
     current_time <- statsList$eventTime[[i]]
     if (updatepresence) {
       compChange1 <- sanitizeEvents(compChange1, nodes)
       dims <- dim(statsArrayComp)
-
+      
       update <-
         compChange1[compChange1$time <= current_time &
                       compChange1$time > oldTime, ]
       presence[update$node] <- update$replace
-#
-#       # add the opportunity sets restrictions
-#       if (!is.null(opportunitiesList) && !isTwoMode)
-#         presence <- presence & opportunities
-#
-#
-#      statsArrayComp <- statsArrayComp[presence, , ]
-#      dim(statsArrayComp) <- c(sum(presence), dims[2], dims[3])
-#      if (statsList$orderEvents[[i]] == 1) {
-#        position <- which(activeDyad[1] == which(presence))
-#        if (length(position) == 0) {
-#          stop("Active node ", activeDyad[1], " not present in event ", i)
-#        }
-#        activeDyad[1] <- which(activeDyad[1] == which(presence))
-#      }
     }
+    
     if (updatepresence2) {
       compChange2 <- sanitizeEvents(compChange2, nodes2)
       dims <- dim(statsArrayComp)
@@ -912,20 +899,6 @@ getIterationStepState <- function(
         compChange2[compChange2$time <= current_time &
                       compChange2$time > oldTime, ]
       presence2[update2$node] <- update2$replace
-      #
-      # # add the opportunity sets restrictions
-      # if (!is.null(opportunitiesList))
-      #   presence2 <- presence2 & opportunities
-      #
-      # statsArrayComp <- statsArrayComp[, presence2, ]
-      # dim(statsArrayComp) <- c(dims[1], sum(presence2), dims[3])
-      # if (statsList$orderEvents[[i]] == 1) {
-      #   position <- which(activeDyad[2] == which(presence2))
-      #   if (length(position) == 0) {
-      #     stop("Active node ", activeDyad[2], " not present in event ", i)
-      #   }
-      #   activeDyad[2] <- which(activeDyad[2] == which(presence2))
-      # }
     }
     oldTime <- current_time
 
