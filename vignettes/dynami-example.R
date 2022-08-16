@@ -142,10 +142,9 @@ summary(est.choice.M2)
 
 
 ## -----------------------------------------------------------------------------------------------------------
-inf.matrix <- est.rate.M2$finalInformationMatrix
-cov.matrix <- solve(inf.matrix)
+cov.matrix <- vcov(est.rate.M2)
 
-est.interceptjoining <- est.rate$parameters[1] + est.rate$parameters[2]
-se.interceptjoining <- sqrt(cov.matrix[1,1] + cov.matrix[2,2] + 2*cov.matrix[1,2])
+est.interceptjoining <- coef(est.rate.M2)[1] + coef(est.rate.M2)[2]
+se.interceptjoining <- sqrt(cov.matrix[1, 1] + cov.matrix[2, 2] + 2 * cov.matrix[1, 2])
 t.interceptjoining <- est.interceptjoining / se.interceptjoining
 

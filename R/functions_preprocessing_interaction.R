@@ -169,7 +169,7 @@ preprocessInteraction <- function(
       get(groupsupdates[1], envir = prepEnvir), nodes, nodes2)
     assign(groupsupdates[1], groupsupdates1Object, envir = prepEnvir)
     groupsupdates2Object <- sanitizeEvents(
-      get(groupsupdates[2], envir = prepEnvir),nodes,nodes2)
+      get(groupsupdates[2], envir = prepEnvir), nodes, nodes2)
     assign(groupsupdates[2], groupsupdates2Object, envir = prepEnvir)
 
     if (all(get(dname, envir = prepEnvir) ==

@@ -20,8 +20,12 @@
 #' \donttest{
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
-#' callsDependent <- defineDependentEvents(events = calls, nodes = actors, defaultNetwork = callNetwork)
+#' callNetwork <- linkEvents(
+#'   x = callNetwork, changeEvent = calls, nodes = actors
+#' )
+#' callsDependent <- defineDependentEvents(
+#'   events = calls, nodes = actors, defaultNetwork = callNetwork
+#' )
 #' parsedformula <- parseFormula(callsDependent ~ ego(actors$floor))
 #' objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames, 1L)
 #' getDataObjects(list(rownames(objectsEffectsLink)), removeFirst = FALSE)
@@ -56,9 +60,19 @@ getDataObjects <- function(namedList, keepOrder = FALSE, removeFirst = TRUE) {
     lapply(
       split,
       function(v) if (length(v) == 1) {
-          data.frame(object = v, nodeset = NA, attribute = NA, stringsAsFactors = FALSE)
+          data.frame(
+            object = v,
+            nodeset = NA,
+            attribute = NA,
+            stringsAsFactors = FALSE
+          )
         } else {
-          data.frame(object = NA, nodeset = v[1], attribute = v[2], stringsAsFactors = FALSE)
+          data.frame(
+            object = NA,
+            nodeset = v[1],
+            attribute = v[2],
+            stringsAsFactors = FALSE
+          )
         }
     )
   )
@@ -79,7 +93,10 @@ getElementFromDataObjectTable <- function(x, envir = environment()) {
       elements[[i]] <- get(row$object, envir = envir)
     }
     if (!is.na(row$nodeset) && !is.na(row$attribute)) {
-      elements[[i]] <- getElement(get(row$nodeset, envir = envir), row$attribute)
+      elements[[i]] <- getElement(
+        get(row$nodeset, envir = envir),
+        row$attribute
+      )
     }
   }
   return(elements)
@@ -138,12 +155,14 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes) {
 
 #' Reduce preprocess output
 #'
-#' It took a preprocess object and return a matrix with all the change statistics
-#' together for each effect. A subset of effects can be return using the effectPos parameter,
+#' It took a preprocess object and return a matrix with all the
+#' change statistics together for each effect.
+#' `effectPos` argument allows to reduce just for a subset of effects,
 #' it won't reduce the time or memory space used.
 #'
 #' @param preproData a preprocess data object from preprocess.
-#' @param type a character. "withTime" returns the dependent stats changes with the time where they occur.
+#' @param type a character. `"withTime"` returns the dependent stats changes
+#' with the time where they occur.
 #' @param effectPos a vector of integers of the effects to keep.
 #'
 #' @return a list with a matrix for each effect.
@@ -153,8 +172,12 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes) {
 #' \donttest{
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = T)
-#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
-#' callsDependent <- defineDependentEvents(events = calls, nodes = actors, defaultNetwork = callNetwork)
+#' callNetwork <- linkEvents(
+#'   x = callNetwork, changeEvent = calls, nodes = actors
+#' )
+#' callsDependent <- defineDependentEvents(
+#'   events = calls, nodes = actors, defaultNetwork = callNetwork
+#' )
 #' prep <- estimate(callsDependent ~ inertia + trans,
 #'   model = "DyNAM", subModel = "choice",
 #'   preprocessingOnly = TRUE, silent = TRUE
@@ -163,7 +186,10 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes) {
 #' v01 <- ReducePreprocess(prep, "withTime", c(1L, 3L))
 #' v03 <- ReducePreprocess(prep, "withoutTime")
 #' }
-ReducePreprocess <- function(preproData, type = c("withTime", "withoutTime"), effectPos = NULL) {
+ReducePreprocess <- function(
+    preproData,
+    type = c("withTime", "withoutTime"),
+    effectPos = NULL) {
   stopifnot(
     is.null(effectPos) || !is.null(effectPos) && inherits(effectPos, "integer")
   )
@@ -171,7 +197,9 @@ ReducePreprocess <- function(preproData, type = c("withTime", "withoutTime"), ef
 
   nEffects <- dim(preproData$initialStats)[3]
 
-  stopifnot(is.null(effectPos) || !is.null(effectPos) && max(effectPos) <= nEffects)
+  stopifnot(
+    is.null(effectPos) || !is.null(effectPos) && max(effectPos) <= nEffects
+  )
 
   if (type == "withTime") {
     addTime <- Map(
@@ -187,7 +215,10 @@ ReducePreprocess <- function(preproData, type = c("withTime", "withoutTime"), ef
             } # just one update, no problem
 
             discard <- duplicated(z[, c("node1", "node2")], fromLast = TRUE)
-            changes <- cbind(time = rep(y, sum(!discard)), z[!discard, , drop = FALSE])
+            changes <- cbind(
+              time = rep(y, sum(!discard)),
+              z[!discard, , drop = FALSE]
+            )
             if (nrow(changes) == 1) {
               return(changes)
             }
@@ -260,15 +291,21 @@ ReducePreprocess <- function(preproData, type = c("withTime", "withoutTime"), ef
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- defineNetwork(nodes = actors, directed = T)
-#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
-#' callsDependent <- defineDependentEvents(events = calls, nodes = actors, defaultNetwork = callNetwork)
+#' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
+#' callNetwork <- linkEvents(
+#'   x = callNetwork, changeEvent = calls, nodes = actors
+#' )
+#' callsDependent <- defineDependentEvents(
+#'   events = calls, nodes = actors, defaultNetwork = callNetwork
+#' )
 #' prep <- estimate(callsDependent ~ inertia + trans,
 #'   model = "DyNAM", subModel = "choice",
 #'   preprocessingOnly = TRUE, silent = TRUE
 #' )
 #' finalNet <- UpdateNetwork(callNetwork, calls, nodes = "actors")
-#' finalStat <- UpdateNetwork(prep$initialStats[, , 1], ReducePreprocess(prep, "withoutTime", 1L)[[1]])
+#' finalStat <- UpdateNetwork(
+#'   prep$initialStats[, , 1], ReducePreprocess(prep, "withoutTime", 1L)[[1]]
+#' )
 #' }
 UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
   stopifnot(
@@ -281,7 +318,8 @@ UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
   }
 
 
-  if (inherits(changeEvents, "matrix") && all(c("node1", "node2", "replace") %in% colnames(changeEvents))) {
+  if (inherits(changeEvents, "matrix") &&
+      all(c("node1", "node2", "replace") %in% colnames(changeEvents))) {
     changeEvents <- data.frame(changeEvents)
     names(changeEvents)[match(c("node1", "node2"), names(changeEvents))] <-
       c("sender", "receiver")
@@ -312,16 +350,25 @@ UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
     chIncrement <- match("increment", names(redEvents))
     names(redEvents)[chIncrement] <- "replace"
   } else if ("replace" %in% names(changeEvents)) {
-    discard <- duplicated(changeEvents[, c("sender", "receiver")], fromLast = TRUE)
-    redEvents <- changeEvents[!discard, c("sender", "receiver", "replace"), drop = FALSE]
+    discard <- duplicated(changeEvents[, c("sender", "receiver")],
+                          fromLast = TRUE)
+    redEvents <- changeEvents[
+      !discard,
+      c("sender", "receiver", "replace"),
+      drop = FALSE
+    ]
   }
 
   network[cbind(redEvents$sender, redEvents$receiver)] <- redEvents$replace
   return(network)
 }
 
-GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = NULL) {
-  # matrix with the effects in rows and objects in columns, which net or actor att
+GetDetailPrint <- function(
+    objectsEffectsLink,
+    parsedformula,
+    fixedParameters = NULL) {
+  # matrix with the effects in rows and objects in columns,
+  # which net or actor att
   maxObjs <- max(objectsEffectsLink, na.rm = TRUE)
   effectDescription <- matrix(t(
     apply(
@@ -345,7 +392,8 @@ GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = 
   )
 
   objectsName <- colnames(effectDescription)
-  # adding other parameters: each effect refers to which network or actor attribute
+  # adding other parameters: each effect refers to which network
+  # or actor attribute
 
   # effectDescription <- cbind(
   #   effect = rownames(effectDescription),
@@ -381,7 +429,12 @@ GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = 
     effectDescription[, objectsName] <- t(apply(
       effectDescription,
       1,
-      function(x) gsub(paste0("^(.+)_", gsub(" ", "", x["window"]), "$"), "\\1", x[objectsName])
+      function(x)
+        gsub(
+          paste0("^(.+)_", gsub(" ", "", x["window"]), "$"),
+          "\\1",
+          x[objectsName]
+        )
     ))
   }
   if (any(parsedformula$transParameter != "")) {
@@ -423,7 +476,11 @@ GetDetailPrint <- function(objectsEffectsLink, parsedformula, fixedParameters = 
 
 GetFixed <- function(object) {
   if ("fixed" %in% colnames(object$names)) {
-    fixed <- vapply(object$names[, "fixed"], function(x) eval(parse(text = x)), logical(1))
+    fixed <- vapply(
+      object$names[, "fixed"],
+      function(x) eval(parse(text = x)),
+      logical(1)
+    )
 
   } else  fixed <- rep(FALSE, length(object$parameters))
   fixed

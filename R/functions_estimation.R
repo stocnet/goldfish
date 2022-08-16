@@ -240,19 +240,20 @@
 #'   nodes = states, defaultNetwork = bilatnet
 #' )
 #'  
-#' partner.model <- estimate(createBilat ~
-#'                            inertia(bilatnet) +
-#'                            indeg(bilatnet, ignoreRep = TRUE) +
-#'                            trans(bilatnet, ignoreRep = TRUE) +
-#'                            tie(contignet) +
-#'                            alter(states$regime) +
-#'                            diff(states$regime) +
-#'                            alter(states$gdp) +
-#'                            diff(states$gdp),
+#' partnerModel <- estimate(
+#'   createBilat ~
+#'     inertia(bilatnet) +
+#'     indeg(bilatnet, ignoreRep = TRUE) +
+#'     trans(bilatnet, ignoreRep = TRUE) +
+#'     tie(contignet) +
+#'     alter(states$regime) +
+#'     diff(states$regime) +
+#'     alter(states$gdp) +
+#'     diff(states$gdp),
 #'   model = "DyNAM", subModel = "choice_coordination",
 #'   estimationInit = list(initialDamping = 40, maxIterations = 30)
 #' )
-#' summary(partner.model)
+#' summary(partnerModel)
 #' }
 #' 
 estimate <- function(
@@ -725,6 +726,7 @@ estimate.formula <- function(
       "Estimating a model: ", dQuote(model), ", subModel: ",
       dQuote(subModel), ".\n", sep = "")
 
+  EstimateEnvir <- new.env()
   # Default estimation
   additionalArgs <- list(
     statsList = prep,
@@ -740,7 +742,7 @@ estimate.formula <- function(
     progress = progress,
     ignoreRepParameter = parsedformula$ignoreRepParameter,
     isTwoMode = isTwoMode,
-    prepEnvir = PreprocessEnvir
+    prepEnvir = EstimateEnvir
   )
   # prefer user-defined arguments
   argsEstimation <- append(
@@ -767,17 +769,12 @@ estimate.formula <- function(
   ### 6. RESULTS----
   result$names <- effectDescription
   formulaKeep <- as.formula(Reduce(paste, deparse(formula)),
-                        env = new.env(parent = emptyenv()))
+                            env = new.env(parent = emptyenv()))
   result$formula <- formulaKeep
   result$model <- model
   result$subModel <- subModel
   result$rightCensored <- hasIntercept
-  result$nParams <- if ("fixed" %in% colnames(effectDescription)) {
-    sum(!vapply(effectDescription[, "fixed"],
-                function(x) eval(parse(text = x), envir = PreprocessEnvir),
-                logical(1)))
-  } else  length(result$parameters)
-
+  result$nParams <- sum(!GetFixed(result))
   result$call <- match.call(call = sys.call(-1L),
                             expand.dots = TRUE)
   result$call[[2]] <- formulaKeep

@@ -40,7 +40,8 @@
 #' contignet <- linkEvents(contignet, contigchanges, nodes = states)
 #'
 #' gatheredData <- GatherPreprocessing(
-#'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet))
+#'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet)
+#' )
 GatherPreprocessing <- function(
   formula,
   model = c("DyNAM", "REM"),

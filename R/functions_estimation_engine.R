@@ -825,7 +825,7 @@ getIterationStepState <- function(
         idep <- idep + 1
       } else {
         # right-censored
-        isDependent <- F
+        isDependent <- FALSE
         for (j in seq.int(nParams)) {
           statsArray[, , j] <-
             updFun(
@@ -939,7 +939,7 @@ getIterationStepState <- function(
     # CHANGED SIWEI: treat one-mode and two-mode cases seperately
     # handle the reductions in one step outside the iteration loop, to be make
     if (reduceMatrixToVector) {
-      if (isTwoMode == FALSE) {
+      if (!isTwoMode) {
         dims <- dim(statsArrayComp) 
           # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
         arr <- apply(statsArrayComp, 3, function(stat) {

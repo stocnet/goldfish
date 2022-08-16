@@ -380,8 +380,14 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
   for (i in which(isAttribute)) {
     nodeSet <- objectNames[i, ]$nodeset
     attributeName <- objectNames[i, ]$attribute
-    dynamicAttributes <- attr(get(objectNames[i, ]$nodeset, envir = envir), "dynamicAttribute")
-    eventListNames <- attr(get(objectNames[i, ]$nodeset, envir = envir), "events")
+    dynamicAttributes <- attr(
+      get(objectNames[i, ]$nodeset, envir = envir),
+      "dynamicAttribute"
+    )
+    eventListNames <- attr(
+      get(objectNames[i, ]$nodeset, envir = envir),
+      "events"
+    )
     evName <- eventListNames[which(dynamicAttributes == attributeName)]
 
     if (length(evName) > 0) {
@@ -389,10 +395,14 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
         eventsObjectsLink,
         cbind(events = evName, objectNames[i, ])
       )
-      evs <- lapply(evName, function(x) sanitizeEvents(get(x), nodeSet))
+      evs <- lapply(
+        evName,
+        function(x) sanitizeEvents(get(x), nodeSet)
+      )
 
       events <- append(events, evs)
-      names(events)[(length(events) - length(evName) + 1):length(events)] <- evName
+      names(events)[(length(events) - length(evName) + 1):length(events)] <-
+        evName
     }
   }
   # Link networks to events
@@ -416,7 +426,8 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
         cbind(events = evNames, objectNames[i, ], row.names = NULL)
       )
       events <- append(events, evs)
-      names(events)[(length(events) - length(evs) + 1):length(events)] <- evNames
+      names(events)[(length(events) - length(evs) + 1):length(events)] <-
+        evNames
     }
   }
 

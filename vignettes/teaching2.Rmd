@@ -491,7 +491,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>   75.98    5.97   82.28
+#>   67.74    3.81   71.58
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -534,22 +534,22 @@ summary(partnerModel)
 #> 
 #> Coefficients :
 #>           Estimate Std. Error z-value  Pr(>|z|)    
-#> inertia  2.8687399  0.2724550 10.5292 < 2.2e-16 ***
-#> indeg    0.5058902  0.0661896  7.6430 2.132e-14 ***
-#> trans    0.3128331  0.2140819  1.4613  0.143939    
-#> tie      1.0951108  0.2224272  4.9235 8.503e-07 ***
-#> alter    0.0046804  0.0144157  0.3247  0.745429    
-#> diff     0.0013902  0.0117902  0.1179  0.906140    
-#> alter    5.0528318  1.5487636  3.2625  0.001104 ** 
-#> diff    -3.0977424  1.5990442 -1.9372  0.052715 .  
+#> inertia  2.8318525  0.2698244 10.4952 < 2.2e-16 ***
+#> indeg    0.4975580  0.0662465  7.5107 5.884e-14 ***
+#> trans    0.3083405  0.2138535  1.4418  0.149350    
+#> tie      1.0821380  0.2195159  4.9297 8.237e-07 ***
+#> alter    0.0047377  0.0143109  0.3311  0.740602    
+#> diff     0.0010369  0.0116815  0.0888  0.929268    
+#> alter    5.0326922  1.5429641  3.2617  0.001107 ** 
+#> diff    -3.0780228  1.5940179 -1.9310  0.053485 .  
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#>   Converged with max abs. score of 0.00024 
-#>   Log-Likelihood: -387.86
-#>   AIC:  791.72 
-#>   AICc: 794.12 
-#>   BIC:  809.59 
+#>   Converged with max abs. score of 0.00029 
+#>   Log-Likelihood: -386.36
+#>   AIC:  788.72 
+#>   AICc: 791.12 
+#>   BIC:  806.6 
 #>   model: "DyNAM" subModel: "choice_coordination"
 ```
 
@@ -583,7 +583,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>    7.95    0.51    7.45
+#>    7.45    0.36    7.06
 ```
 
 # Extensions...

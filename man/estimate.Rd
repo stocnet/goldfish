@@ -245,19 +245,20 @@ createBilat <- defineDependentEvents(
   nodes = states, defaultNetwork = bilatnet
 )
  
-partner.model <- estimate(createBilat ~
-                           inertia(bilatnet) +
-                           indeg(bilatnet, ignoreRep = TRUE) +
-                           trans(bilatnet, ignoreRep = TRUE) +
-                           tie(contignet) +
-                           alter(states$regime) +
-                           diff(states$regime) +
-                           alter(states$gdp) +
-                           diff(states$gdp),
+partnerModel <- estimate(
+  createBilat ~
+    inertia(bilatnet) +
+    indeg(bilatnet, ignoreRep = TRUE) +
+    trans(bilatnet, ignoreRep = TRUE) +
+    tie(contignet) +
+    alter(states$regime) +
+    diff(states$regime) +
+    alter(states$gdp) +
+    diff(states$gdp),
   model = "DyNAM", subModel = "choice_coordination",
   estimationInit = list(initialDamping = 40, maxIterations = 30)
 )
-summary(partner.model)
+summary(partnerModel)
 }
 
 }

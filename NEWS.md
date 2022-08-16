@@ -1,5 +1,6 @@
 # goldfish 1.6.3
 
+* Add DyNAM-i vignette.
 * Reimplement method `logLik()`, now is possible to use `AIC()` and `BIC()`
   from `stats` package and make likelihood ratio test of nested models using
   `lmtest::lrtest()`.
@@ -16,6 +17,8 @@
 * Add references in description.
 * `silent` parameter replace by `progress`.
   `progress` and `verbose` can be set with global options with the same name.
+* Fix bug composition change on estimation routines.
+* Includes environment argument on estimation routines.
 
 # goldfish 1.6.2
 
