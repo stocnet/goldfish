@@ -5,7 +5,7 @@
 \alias{linkEvents.nodes.goldfish}
 \alias{linkEvents.network.goldfish}
 \alias{linkEvents.default}
-\title{Attach dynamic events to a nodeset or a network}
+\title{Link dynamic events to a nodeset or a network}
 \usage{
 linkEvents(x, ...)
 
@@ -16,28 +16,103 @@ linkEvents(x, ...)
 \method{linkEvents}{default}(x, ...)
 }
 \arguments{
-\item{x}{Either a nodeset (nodes.goldfish object) or a network
-(network.goldfish object)}
+\item{x}{Either a nodeset (\code{nodes.goldfish} object) or a network
+(\code{network.goldfish} object)}
 
 \item{...}{additional arguments to be passed to the method.}
 
-\item{changeEvents}{The name of a dataframe that represents a valid events list}
+\item{changeEvents}{The name of a data frame that represents a
+valid events list.}
 
 \item{attribute}{a character vector indicating the names of the attributes
 that should be updated by the specified events (ONLY if the object is a
-nodeset)}
+nodeset).}
 
-\item{nodes}{a nodeset (dataframe or nodes.goldfish object) related to the
-network (ONLY if the object is a network)}
+\item{nodes}{a nodeset (\code{data.frame} or \code{nodes.goldfish} object)
+related to the network (ONLY if \code{x} is a network)}
 
-\item{nodes2}{an optional nodeset (dataframe or nodes.goldfish object) related
-to the network (ONLY if object is a network)}
+\item{nodes2}{an optional nodeset (\code{data.frame} or \code{nodes.goldfish} object)
+related to the network (ONLY if \code{x} is a network)}
 }
 \value{
-an object of class nodes.goldfish or network.goldfish
+an object with the same class as the object \code{x}.
+For objects of class \code{network.goldfish} the attribute \code{events} with the name
+of the event data frame passed through with the argument \code{changeEvents}.
+For objects of class \code{nodes.goldfish} attibutes \code{events} and
+\code{dynamicAttribute} are modified with name of the objects passed through with
+the arguments \code{changeEvents} and \code{attribute} respectively.
 }
 \description{
-Attach dynamic events to a nodeset or a network
+Link events stored in data frames that modify attributes of the nodeset or
+modify ties in a network.
+}
+\details{
+The data frame that contains the events must contain variables with specific
+names depending if they refer to dynamic attributes or dynamic networks.
+
+For dynamic networks stored in object of class \code{network.goldfish} the
+\code{changeEvents} data frame must contain the following variables:
+
+\describe{
+\item{time}{\code{numeric} or \code{POSIXct} (see \code{\link[base:as.Date]{base::as.Date()}}) variable
+containing the time-stamps when the event happen.}
+\item{sender}{\code{character} variable indicating the label of the sender
+of the event.}
+\item{receiver}{\code{character} variable indicating the label of the receiver
+of the event.}
+}
+
+See the \code{bilatchanges} and \code{contigchanges} data frames in the
+\link{Fisheries_Treaties_6070} datasets for examples of event data frames that
+relate with dynamic networks.
+
+For dynamic attributes stored in object of class \code{nodes.goldfish} the
+\code{changeEvents} data frame must contain the following variables:
+
+\describe{
+\item{time}{\code{numeric} or \code{POSIXct} (see \code{\link[base:as.Date]{base::as.Date()}}) variable
+containing the time-stamps when the event happen.}
+\item{label}{\code{character} variable indicating the label of the node
+for which the attribute changes.}
+}
+
+See \code{sovchanges}, \code{regchanges} and \code{gdpchanges} data frames in the
+\link{Fisheries_Treaties_6070} datasets for examples of event data frames that
+relate with dynamic attributes
+
+For both cases an additional variable indicates the change in value of either
+the ties or attributes.
+The class of this variable must be the same as the tie value or attribute
+value that will be updated, i.e., when the \code{present} variable is dynamic the
+updating values must be \code{logical} (see \code{\link[=defineNodes]{defineNodes()}} for a description
+of this variable.
+There are two possibilities on how to specify those
+changes but only one can be used at a time:
+\describe{
+\item{increment}{with a numerical value that represent the increment
+(when it's positive value) or the decrement (when it's a negative value)
+of the dynamic element from their past value (with respect to the \code{time}
+value).
+
+In the \link{Social_Evolution} dataset the \code{calls} data frame contains
+the calling events between students where the increment represent a new call.
+With every new call the dyad (sender-receiver) increase the count of calls
+that had happen in the past.}
+
+\item{replace}{contains the value that would replace at point-time \code{time}
+the attribute or tie value. It is usually the way to represent changes in
+node attributes.
+
+In the \link{Fisheries_Treaties_6070} dataset the \code{sovchanges},
+\code{regchanges} and \code{gdpchanges}data frames are examples where the \code{replace}
+variable is used to specify attribute changes and their class match with the
+variable in the node set.
+
+Dynamic network attributes can be also defined using the \code{replace} variable.
+The \code{contigchanges} data frame in the \link{Fisheries_Treaties_6070} dataset, and
+\code{friendship} data frame in the \link{Social_Evolution} are examples of this.
+}
+}
 }
 \examples{
 actors <- data.frame(
@@ -47,17 +122,27 @@ actors <- data.frame(
 actors <- defineNodes(nodes = actors)
 callNetwork <- defineNetwork(nodes = actors)
 
-# Link events to a Nodeset
-compositionChangeEvents <- data.frame(time = c(14, 60), node = "Actor 4", replace = c(FALSE, TRUE))
-actorsnew <- linkEvents(x = actors, attribute = "present", changeEvents = compositionChangeEvents)
+# Link events to a nodeset
+compositionChangeEvents <- data.frame(
+  time = c(14, 60),
+  node = "Actor 4",
+  replace = c(FALSE, TRUE)
+)
+actorsnew <- linkEvents(
+  x = actors, attribute = "present", changeEvents = compositionChangeEvents
+)
 
 # Link events to a Network
 calls <- data.frame(
-  time = c(12, 27, 45, 56, 66, 68, 87), sender = paste("Actor", c(1, 3, 5, 2, 3, 4, 2)),
-  receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)), increment = rep(1, 7)
+  time = c(12, 27, 45, 56, 66, 68, 87),
+  sender = paste("Actor", c(1, 3, 5, 2, 3, 4, 2)),
+  receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)),
+  increment = rep(1, 7)
 )
-callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
+callNetwork <- linkEvents(
+  x = callNetwork, changeEvent = calls, nodes = actors
+)
 }
 \seealso{
-\link{defineNodes} \link{defineNetwork}
+\code{\link[=defineNodes]{defineNodes()}}, \code{\link[=defineNetwork]{defineNetwork()}}
 }

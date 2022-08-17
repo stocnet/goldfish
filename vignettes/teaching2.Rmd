@@ -22,11 +22,8 @@ First, let's make sure we're starting with a clean slate and take the goldfish o
 
 
 ```r
-rm(list = ls())
 library(goldfish)
 ```
-
-
 
 This lazy loads several datasets, including the one we will now use:
 
@@ -68,6 +65,10 @@ We need to define them as nodes so that goldfish knows what to do with them.
 ```r
 states <- defineNodes(states)
 head(states)
+#> Number of nodes: 6 
+#> Number of present nodes: 6 
+#> 
+#> First 6 rows
 #>   label present regime         gdp
 #> 1   AND    TRUE     NA          NA
 #> 2   DNK    TRUE     10 0.006248947
@@ -172,8 +173,8 @@ Try this for yourself now.
 
 
 ```r
-states <- linkEvents(states, regchanges, attribute = "regime")
-states <- linkEvents(states, gdpchanges, attribute = "gdp")
+states <- linkEvents(states, regchanges, attribute = "regime") |> 
+  linkEvents(gdpchanges, attribute = "gdp")
 str(states)
 #> Classes 'nodes.goldfish' and 'data.frame':	154 obs. of  4 variables:
 #>  $ label  : chr  "AND" "DNK" "FRA" "DEU" ...
@@ -296,8 +297,8 @@ initial contiguity network and the event list changing it.
 
 
 ```r
-contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
-contignet <- linkEvents(contignet, contigchanges, nodes = states)
+contignet <- defineNetwork(contignet, nodes = states, directed = FALSE) |> 
+  linkEvents(contigchanges, nodes = states)
 class(contignet)
 #> [1] "network.goldfish" "matrix"           "array"
 contignet
@@ -415,17 +416,17 @@ library(migraph)
 
 # network at the beginning of the event sequence
 startStates <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))
-startNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02")))
-startNet <- add_node_attributes(startNet, "present", startStates$present)
-startNet <- add_node_attributes(startNet, "regime", startStates$regime)
-startNet <- add_node_attributes(startNet, "gdp", startStates$gdp)
+startNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02"))) |>
+  add_node_attribute("present", startStates$present) |> 
+  add_node_attribute("regime", startStates$regime) |> 
+  add_node_attribute("gdp", startStates$gdp)
 
 # network at the end of the event sequence
 endStates <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))
-endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01")))
-endNet <- add_node_attributes(endNet, "present", endStates$present)
-endNet <- add_node_attributes(endNet, "regime", endStates$regime)
-endNet <- add_node_attributes(endNet, "gdp", endStates$gdp)
+endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01"))) |> 
+  add_node_attribute("present", endStates$present) |> 
+  add_node_attribute("regime", endStates$regime) |> 
+  add_node_attribute("gdp", endStates$gdp)
 
 # logical value indicating if states where present and with agreements
 isStateActiveStart <- startStates$present & node_degree(startNet) > 0
@@ -439,7 +440,7 @@ endNet <- delete_vertices(endNet, !isStateActive)
 ggevolution(startNet, endNet, layout = "fr", based_on = "last")
 ```
 
-<img src="teaching/plot-teaching2-1.png" title="plot of chunk plot-teaching2" alt="plot of chunk plot-teaching2" width="504" style="display: block; margin: auto;" />
+<img src="teaching/plot-teaching2-1.png" title="plot of chunk plot-teaching2" alt="plot of chunk plot-teaching2" style="display: block; margin: auto;" />
 
 What can we observe?
 
@@ -490,7 +491,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>   68.35    5.18   73.75
+#>   67.74    3.81   71.58
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -513,10 +514,11 @@ partnerModel <- estimate(
 summary(partnerModel)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = createBilat ~ inertia(bilatnet) + indeg(bilatnet, 
+#>     ignoreRep = TRUE) + trans(bilatnet, ignoreRep = TRUE) + tie(contignet) + 
+#>     alter(states$regime) + diff(states$regime) + alter(states$gdp) + 
+#>     diff(states$gdp), model = "DyNAM", subModel = "choice_coordination", 
+#>     estimationInit = estPrefs)
 #> 
 #> 
 #> Effects details :
@@ -532,22 +534,22 @@ summary(partnerModel)
 #> 
 #> Coefficients :
 #>           Estimate Std. Error z-value  Pr(>|z|)    
-#> inertia  2.8687399  0.2724550 10.5292 < 2.2e-16 ***
-#> indeg    0.5058902  0.0661896  7.6430 2.132e-14 ***
-#> trans    0.3128331  0.2140819  1.4613  0.143939    
-#> tie      1.0951108  0.2224272  4.9235 8.503e-07 ***
-#> alter    0.0046804  0.0144157  0.3247  0.745429    
-#> diff     0.0013902  0.0117902  0.1179  0.906140    
-#> alter    5.0528318  1.5487636  3.2625  0.001104 ** 
-#> diff    -3.0977424  1.5990442 -1.9372  0.052715 .  
+#> inertia  2.8318525  0.2698244 10.4952 < 2.2e-16 ***
+#> indeg    0.4975580  0.0662465  7.5107 5.884e-14 ***
+#> trans    0.3083405  0.2138535  1.4418  0.149350    
+#> tie      1.0821380  0.2195159  4.9297 8.237e-07 ***
+#> alter    0.0047377  0.0143109  0.3311  0.740602    
+#> diff     0.0010369  0.0116815  0.0888  0.929268    
+#> alter    5.0326922  1.5429641  3.2617  0.001107 ** 
+#> diff    -3.0780228  1.5940179 -1.9310  0.053485 .  
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#>   Converged with max abs. score of 0.00024 
-#>   Log-Likelihood: -387.86
-#>   AIC:  791.72 
-#>   AICc: 794.12 
-#>   BIC:  809.59 
+#>   Converged with max abs. score of 0.00029 
+#>   Log-Likelihood: -386.36
+#>   AIC:  788.72 
+#>   AICc: 791.12 
+#>   BIC:  806.6 
 #>   model: "DyNAM" subModel: "choice_coordination"
 ```
 
@@ -581,7 +583,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>    7.78    0.40    7.01
+#>    7.45    0.36    7.06
 ```
 
 # Extensions...
@@ -599,28 +601,29 @@ Here is an example on the current results object:
 
 ```r
 library(broom)
+#> Warning: package 'broom' was built under R version 4.2.1
 library(pixiedust)
-dust(tidy(tieModel)) %>% 
-  sprinkle(col = 2:4, round = 3) %>% 
+dust(tidy(tieModel, conf.int = TRUE)) %>% 
+  sprinkle(col = c(2:4, 6, 7), round = 3) %>% 
   sprinkle(col = 5, fn = quote(pvalString(value)))
-#>                  term estimate std.error statistic p.value
-#> 1  bilatnet inertia W    0.134     0.048     2.816   0.005
-#> 2      bilatnet indeg    0.568     0.058     9.854 < 0.001
-#> 3      bilatnet trans    0.289     0.146      1.98   0.048
-#> 4       contignet tie    1.648     0.184     8.956 < 0.001
-#> 5 states regime alter   -0.015     0.016    -0.957    0.34
-#> 6  states regime diff    0.008     0.013     0.651    0.52
-#> 7    states gdp alter    6.089     1.516     4.015 < 0.001
-#> 8     states gdp diff   -4.601     1.582    -2.908   0.004
+#>                  term estimate std.error statistic p.value conf.low conf.high
+#> 1  bilatnet inertia W    0.134     0.048     2.816   0.005    0.041     0.227
+#> 2      bilatnet indeg    0.568     0.058     9.854 < 0.001    0.455     0.681
+#> 3      bilatnet trans    0.289     0.146      1.98   0.048    0.003     0.575
+#> 4       contignet tie    1.648     0.184     8.956 < 0.001    1.288     2.009
+#> 5 states regime alter   -0.015     0.016    -0.957    0.34   -0.047     0.016
+#> 6  states regime diff    0.008     0.013     0.651    0.52   -0.017     0.033
+#> 7    states gdp alter    6.089     1.516     4.015 < 0.001   -0.047     0.016
+#> 8     states gdp diff   -4.601     1.582    -2.908   0.004   -0.017     0.033
 ```
 
 
 ```r
 glance(tieModel)
-#> # A tibble: 1 × 4
-#>   logLik   AIC   BIC  nobs
-#>    <dbl> <dbl> <dbl> <int>
-#> 1  -359.  733.  751.    69
+#> # A tibble: 1 × 5
+#>   logLik   AIC   BIC    df  nobs
+#>    <dbl> <dbl> <dbl> <int> <int>
+#> 1  -359.  733.  751.     8    69
 ```
 
 

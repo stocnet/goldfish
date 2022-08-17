@@ -3,91 +3,103 @@
 \name{print-method}
 \alias{print-method}
 \alias{print.result.goldfish}
-\alias{summary.result.goldfish}
 \alias{print.summary.result.goldfish}
 \alias{print.nodes.goldfish}
-\alias{head.nodes.goldfish}
-\alias{tail.nodes.goldfish}
 \alias{print.network.goldfish}
-\alias{head.network.goldfish}
-\alias{tail.network.goldfish}
 \alias{print.dependent.goldfish}
-\alias{head.dependent.goldfish}
 \alias{print.preprocessed.goldfish}
-\title{Printing functions for `goldfish` objects.}
+\title{Methods for \code{goldfish} objects.}
 \usage{
 \method{print}{result.goldfish}(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
-  width = getOption("width")
+  width = getOption("width"),
+  complete = FALSE
 )
-
-\method{summary}{result.goldfish}(object, ...)
 
 \method{print}{summary.result.goldfish}(
   x,
   ...,
   digits = max(3, getOption("digits") - 2),
   width = getOption("width"),
-  fixed = FALSE
+  complete = FALSE
 )
 
 \method{print}{nodes.goldfish}(x, ..., full = FALSE, n = 6)
 
-\method{head}{nodes.goldfish}(x, ..., n = 6L)
-
-\method{tail}{nodes.goldfish}(x, ..., n = 6L, keepnums = FALSE, addrownums = FALSE)
-
 \method{print}{network.goldfish}(x, ..., full = FALSE, n = 6L)
 
-\method{head}{network.goldfish}(x, ..., n = 6L)
-
-\method{tail}{network.goldfish}(x, ..., n = 6L, keepnums = TRUE, addrownums = TRUE)
-
 \method{print}{dependent.goldfish}(x, ..., full = FALSE, n = 6)
-
-\method{head}{dependent.goldfish}(x, ..., n = 6L)
 
 \method{print}{preprocessed.goldfish}(x, ..., width = getOption("width"))
 }
 \arguments{
-\item{x}{an object of class \code{result.goldfish},
-\code{summary.result.goldfish}, \code{nodes.goldfish},
-\code{network.goldfish}, \code{dependent.goldfish}, or
+\item{x}{an object of class \code{result.goldfish}, \code{summary.result.goldfish},
+\code{nodes.goldfish}, \code{network.goldfish}, \code{dependent.goldfish}, or
 \code{preprocessed.goldfish}.}
 
 \item{...}{further arguments to be passed to the respective \code{default}
 method.}
 
-\item{digits}{minimal number of significant digits,
-see \code{\link{print.default}}.}
+\item{digits}{minimal number of significant digits, see \code{\link[=print.default]{print.default()}}.}
 
-\item{width}{only used when \code{max.levels} is \code{NULL},
-see  \code{\link{print}}.}
+\item{width}{controls the maximum number of columns on a line used in
+printing \code{summary.result.goldfish} and \code{preprocessed.goldfish},
+see  \code{\link[=print.default]{print.default()}}.}
 
-\item{object}{an object of class \code{result.goldfish}.}
-
-\item{fixed}{logical. Indicates whether the parameter coefficients of effects
-fixed during estimation using `fixedParameters` should be printed.
-The default value is \code{TRUE}. \emph{Note:} applies for objects of class
+\item{complete}{logical. Indicates whether the parameter coefficients
+of effects fixed during estimation using \code{fixedParameters} should be printed.
+The default value is \code{FALSE}. \emph{Note:} applies for objects of class
 \code{result.goldfish} and \code{summary.result.goldfish}.}
 
-\item{full}{logical. Indicates whether the complete
-\code{matrix}/\code{data.frame} should be printed.
-The default value \code{FALSE}.}
+\item{full}{logical. Indicates whether the complete \code{matrix}/\code{data.frame}
+should be printed. The default value \code{FALSE}.}
 
 \item{n}{number of rows for \code{data.frame}, and rows and columns for
 \code{matrix} to be printed.}
+}
+\value{
+Not value, called for printing side effect.
 
-\item{keepnums}{in each dimension, if no names in that dimension are
-    present, create them using the indices included in that dimension.
-    Ignored if \code{dim(x)} is \code{NULL} or its length 1.}
+For objects of class \code{result.goldfish} and \code{summary.result.goldfish}
+print the estimated coefficients when \code{complete = FALSE}, otherwise it
+includes also the fixed coefficients.
+For \code{summary.result.goldfish} print:
+\item{Effect details:}{a table with additional information of the effects.
+The information corresponds to the  values of the effects arguments when
+they are modified and if they where fixed during estimation, see
+\code{vignette("goldfishEffects")} for the complete list of arguments, and
+\code{\link[=estimate]{estimate()}} on how to fix coefficients during estimation.}
+\item{Coefficients:}{a table with the estimated coefficients, their
+approximate standard error obtain from the inverse of the negative Fisher
+information matrix, z-value and the p-value of the univariate two-tailed
+Wald test to test the hypothesis that the parameter is 0.}
+\item{Convergence and Information Criteria:}{Information about the
+convergence of the iterative Newton-Raphson procedure and the score value
+in the last iteration. Information criteria as the AIC, BIC and the AIC
+corrected for small sample size AICc are reported.}
+\item{Model and subModel:}{the values set during estimation.}
 
-\item{addrownums}{deprecated - \code{keepnums} should be used
-    instead. Taken as the value of \code{keepnums} if it is explicitly
-    set when \code{keepnums} is not.}
+For objects of class \code{nodes.goldfish} print information of the total
+number of nodes in the object, the number of nodes present at the beginning
+of preprocessing, a table with the linked attributes with their respective
+events data frame and a printing of the first rows in the nodes data frame.
+See \code{\link[=defineNodes]{defineNodes()}}.
+
+For objects of class \code{network.goldfish} print information of the
+dimensions of the network, number of ties presented at the beginning of the
+preprocessing, the nodes data frames linked to it, information about their
+definition as a one-mode and directed network, linked events data frame to it
+and a printing of the first rows and columns in the array.
+See \code{\link[=defineNetwork]{defineNetwork()}}.
+
+For objects of class \code{dependent.goldfish} print information of the
+total number of events in the object, linked nodes set(s),
+linked default network
+and a printing of the first rows in the events data frame.
+See \code{\link[=defineDependentEvents]{defineDependentEvents()}}.
 }
 \description{
-Printing functions for `goldfish` objects.
+Printing functions for \code{goldfish} objects.
 }

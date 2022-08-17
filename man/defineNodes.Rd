@@ -7,23 +7,55 @@
 defineNodes(nodes)
 }
 \arguments{
-\item{nodes}{\code{\link{data.frame}} that contains
+\item{nodes}{a \code{data.frame} object with the nodes attributes with the
+following reserved names
 \describe{
- \item{label}{\code{\link{character}} column containing the nodes labels (mandatory)}
- \item{present}{\code{\link{logical}} column indicating if the respective node is present at the
- first timepoint (optional)}
+\item{label}{\code{character} variable containing the nodes labels
+(mandatory)}
+\item{present}{\code{logical} variable indicating if the respective node
+is present at the first time-point (optional)}
 }}
 }
 \value{
-an object of class \code{nodes.goldfish}
+an object with an additional class \code{nodes.goldfish} with attributes:
+\item{events}{An empty character vector. \code{\link[=linkEvents]{linkEvents()}} is used to
+link event data frames.}
+\item{dynamicAttributes}{An empty character vector. \code{\link[=linkEvents]{linkEvents()}} is used to
+link event data frames and their related attribute.}
+
+The object can be modified using methods for data frames.
 }
 \description{
-The \code{defineNodes} function processes and checks the \code{\link{data.frame}} passed to \code{nodes} argument.
-This is a necessary step before the definition of the network.
+The \code{defineNodes()} function processes and checks the \code{data.frame} passed to
+the \code{nodes} argument.
+This is a recommended step before the definition of the network.
 }
 \details{
-Additional columns in the \code{nodes} argument are considered as the initial values of nodes attributes.
-Those columns must be of class \code{\link{numeric}}, \code{\link{character}}, \code{\link{logical}}
+Additional variables in the \code{nodes} data frame object are considered as the
+initial values of the nodes attributes.
+Those variables must be of class \code{numeric}, \code{character}, \code{logical}.
+
+It is important that the initial definition of the node set contain all the
+nodes that could be potential senders or receivers of events.
+In case that all the nodes are not available at all times, the \code{present}
+variable can be used to define compositional changes.
+Therefore, the initial node set would contain all the potential senders and
+receivers nodes and the variable \code{present} will indicate all the nodes
+present at the beginning as senders or receivers.
+Using \code{\link[=linkEvents]{linkEvents()}} is possible to link events where the composition of
+available nodes changes over time, see \code{vignette("teaching2")}.
+
+For the attributes in the nodeset to become dynamic, them
+can be linked to a dynamic event-list data frames in the initial state
+object by using the \code{\link[=linkEvents]{linkEvents()}}.
+A new call of \code{linkEvents()} is required for each attribute that is dynamic.
+
+Objects of class \link{tbl_df} from the tibble package frequently use in the
+tidyverse ecosystem and objects of class \code{data.table} will produce
+errors in later steps for goldfish.
+Current implementation of goldfish relies on the subsetting behavior of
+data frames objects. The previous mentioned objects classes change this
+behavior producing errors.
 }
 \examples{
 nodesAttr <- data.frame(
@@ -42,5 +74,5 @@ data("Fisheries_Treaties_6070")
 states <- defineNodes(states)
 }
 \seealso{
-\link{defineNetwork}
+\code{\link[=defineNetwork]{defineNetwork()}}, \code{\link[=linkEvents]{linkEvents()}}
 }

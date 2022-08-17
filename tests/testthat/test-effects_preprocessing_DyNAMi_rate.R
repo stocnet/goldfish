@@ -8,7 +8,7 @@ test_that(
     preproData <- estimate(
       dependent.depevents_DyNAMi ~ 1 + intercept(interaction_network_DyNAMi, joining = -1),
       model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -129,7 +129,7 @@ test_that(
         inertia(past_network_DyNAMi, weighted = TRUE, subType = "max", joining = -1) +
         tie(covnetwork_DyNAMi, weighted = TRUE, subType = "max", joining = -1),
       model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -366,17 +366,13 @@ test_that(
 test_that(
   "inertia computes correct preprocessing objects with window",
   {
-    skip_on_ci()
-    skip_on_cran()
-    skip_on_covr()
-    skip_on_bioc()
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
       inertia(past_network_DyNAMi, weighted = TRUE, subType = "count", joining = -1)
       + inertia(past_network_DyNAMi, weighted = TRUE, subType = "count", joining = -1, window = 2)
         + inertia(past_network_DyNAMi, weighted = TRUE, subType = "count", joining = -1, window = 7),
       model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -659,7 +655,7 @@ test_that(
         egopop(past_network_DyNAMi, weighted = TRUE, subType = "centered", joining = -1) +
         egodeg(covnetwork_DyNAMi, weighted = TRUE, subType = "centered", joining = -1),
       model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -1100,7 +1096,7 @@ test_that(
         alterpop(past_network_DyNAMi, weighted = TRUE, subType = "mean_centered", joining = -1) +
         alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "mean_centered", joining = -1),
       model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -1435,7 +1431,7 @@ test_that(
         ego(actors_DyNAMi$attr1, subType = "centered", joining = 1) +
         ego(actors_DyNAMi$attr1, subType = "centered", joining = -1),
       model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -1772,7 +1768,7 @@ test_that(
         alter(actors_DyNAMi$attr1, subType = "max", joining = -1) +
         alter(actors_DyNAMi$attr1, subType = "mean_centered", joining = -1),
       model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -1981,7 +1977,7 @@ test_that(
         same(actors_DyNAMi$attr2, subType = "proportion", joining = -1) +
         same(actors_DyNAMi$attr2, subType = "presence", joining = -1),
       model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -2127,7 +2123,7 @@ test_that(
         diff(actors_DyNAMi$attr1, subType = "min", joining = -1) +
         diff(actors_DyNAMi$attr1, subType = "max", joining = -1),
       model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {

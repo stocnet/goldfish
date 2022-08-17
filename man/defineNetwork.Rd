@@ -4,50 +4,73 @@
 \alias{defineNetwork}
 \title{Defining a network with dynamic events}
 \usage{
-defineNetwork(matrix = NULL, nodes, nodes2 = NULL, directed = TRUE)
+defineNetwork(
+  matrix = NULL,
+  nodes,
+  nodes2 = NULL,
+  directed = TRUE,
+  envir = environment()
+)
 }
 \arguments{
-\item{matrix}{An initial matrix (optional)}
+\item{matrix}{An initial matrix (optional), and object of class \code{matrix}.}
 
-\item{nodes}{A node-set (\code{nodes.goldfish} object)}
+\item{nodes}{A node-set (see \code{\link[=defineNodes]{defineNodes()}}).}
 
-\item{nodes2}{A second optional node-set for the definition of two-mode networks}
+\item{nodes2}{A second optional node-set for the definition of
+two-mode networks.}
 
-\item{directed}{A logical value indicating whether the network is directed}
+\item{directed}{A logical value indicating whether the network is directed.}
+
+\item{envir}{An \linkS4class{environment} object where the nodes-set objects are
+defined. The default value is \code{\link[=environment]{environment()}}.}
 }
 \value{
-an object of class network.goldfish
+an object with additional class \code{network.goldfish} with attributes:
+\item{nodes}{a character vector with the names of the nodes set objects used
+during the definition. \code{nodes} and \code{nodes2} arguments.}
+\item{directed}{Logical value indicating whether the network is directed.
+\code{directed} argument}
+\item{events}{An empty character vector. \code{\link[=linkEvents]{linkEvents()}} is used to
+link event data frames.}
+
+The object can be modified using methods for matrix.
 }
 \description{
-Once the \code{nodeset} is defined, the \code{defineNetwork} function defines a network object either from
-a node-set or from a sociomatrix. If a sociomatrix or adjacency matrix is used as input,
-\code{defineNetwork} returns a static Network. If the node-set only is used as input,
-\code{defineNetwork} returns an empty network. From there, a dynamic network can be constructed by
-linking dynamic events to the network object.
+The function defines a network object either from a nodeset or
+from a matrix (sociomatrix or adjacency matrix). If a matrix is used as
+input, \code{defineNetwork()} returns a network filled with the same values
+as the ones present in the provided network.
+If the nodeset is the only argument, \code{defineNetwork()} returns an
+empty network with the number of columns and rows corresponding to the
+size of the nodeset.
+These networks are static, but they can be turned into dynamic networks
+by linking dynamic events to the network objectw using \code{\link[=linkEvents]{linkEvents()}}.
 }
 \details{
-If a sociomatrix is used as input, \code{defineNetwork} returns a static Network.
-This matrix must contain the same nodeset as defined with the \code{defineNodes} function
-and the order of the rows and columns must correspond to the order of node labels in the node-set.
-The matrix must be binary (if unweighted?) and
-can be directed or undirected (as specified with the directed argument).
-If this network is updated over time (e.g., a new wave of friendship data is collected),
-these changes can be added with the \link{linkEvents} function - similar to link changing
-attribute events to a nodeset. This time, the user needs to provide the network and the associated nodeset.
+If a matrix is used as input, its dimension names must be a subset of the
+nodes in the nodeset as defined with the \code{\link[=defineNodes]{defineNodes()}} and the order of
+the labels in rows and columns must correspond to the order of node labels
+in the nodeset.
+The matrix can be directed or undirected (as specified with the
+\code{directed} argument).
+
+If the network is updated over time (e.g., a new wave of friendship data is
+collected), these changes can be added with the \code{\link[=linkEvents]{linkEvents()}} - similar to
+link changing attribute events to a nodeset.
+This time, the user needs to provide the network and the associated nodeset.
 If no matrix is provided, goldfish only considers the nodeset and assumes
-the initial state to be empty (i.e., a matrix containing only 0s). For the network to become dynamic,
-the adjacency matrix or the nodeset can be linked to a dynamic event-list data.frame in the initial state or
-empty network object by using the function \link{linkEvents}.
+the initial state to be empty (i.e., a matrix containing only 0s).
 }
 \examples{
-# If no matrix is provided
+# If no intial matrix is provided
 data("Social_Evolution")
 callNetwork <- defineNetwork(nodes = actors)
 
-# If a sociomatrix is provided
+# If a initial matrix is provided
 data("Fisheries_Treaties_6070")
 bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
 }
 \seealso{
-\link{defineNodes} \link{linkEvents}
+\code{\link[=defineNodes]{defineNodes()}}, \code{\link[=linkEvents]{linkEvents()}}
 }

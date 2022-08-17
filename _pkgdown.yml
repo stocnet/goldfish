@@ -44,11 +44,10 @@ reference:
     contents:
       - starts_with("estimate")
       - update-method
-      - coef.result.goldfish
       - print-method
   - title: "Diagnostics"
     contents:
-      - model-selection
+      - logLik.result.goldfish
       - starts_with("examine")
   - title: "Data"
     desc: |
@@ -58,3 +57,20 @@ reference:
       - starts_with("Fisheries_")
       - starts_with("RFID_")
       - starts_with("Social_")
+articles:
+  - title: "goldfish effects"
+    navbar: "goldfish effects"
+    contents:
+      - goldfishEffects
+  - title: "How to start"
+    navbar: "How to start"
+    contents:
+      - teaching1
+  - title: "The coordination model and extensions"
+    navbar: "choice coordination"
+    contents:
+      - teaching2
+  - title: "DyNAM-i for face to face interaction data"
+    navbar: "DyNAM-i"
+    contents:
+      - dynami-example

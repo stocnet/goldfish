@@ -7,9 +7,11 @@
 #' @param x an object of class \code{result.goldfish} output from an
 #' \code{\link{estimate}} call.
 #' @return \code{NULL} if neither outliers nor change points are identified.
-#' A subset of the dependent event data frame
-#' (see \code{\link{defineDependentEvents}}) with the events identified as
-#' outliers or change point inflections.
+# A subset of the dependent event data frame
+# (see \code{\link{defineDependentEvents}}) with the events identified as
+# outliers or change point inflections.
+#' An object of class `ggplot` object from a call of [ggplot2::ggplot()].
+#' It can be modified using the `ggplot2` syntax. 
 #' @name examine
 #' @examples
 #' # A multinomial receiver choice model
@@ -78,8 +80,7 @@ examineOutliers <- function(x,
     calls[[1]] <- NULL
     calls$preprocessingOnly <- TRUE
     calls$preprocessingInit <- NULL
-    calls$silent <- TRUE
-    calls$debug <- FALSE
+    calls$progress <- FALSE
     calls$verbose <- FALSE
     prep <- suppressWarnings(do.call(goldfish::estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
@@ -157,8 +158,8 @@ examineOutliers <- function(x,
 #' The function call creates a plot with the log-likelihood of the events
 #' in the y-axis and the event index in the x-axis, highlighting the change
 #' point sections identified by the method.
-#' Also it prints a table of the change points events that are returned by the
-#' method.
+# Also it prints a table of the change points events that are returned by the
+# method.
 #' @importFrom changepoint cpt.mean cpt.var
 #' @importFrom ggplot2 ggplot aes geom_line geom_point theme_minimal xlab ylab
 #'  geom_vline scale_x_continuous theme element_text
@@ -188,8 +189,7 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
     calls[[1]] <- NULL
     calls$preprocessingOnly <- TRUE
     calls$preprocessingInit <- NULL
-    calls$silent <- TRUE
-    calls$debug <- FALSE
+    calls$progress <- FALSE
     calls$verbose <- FALSE
     prep <- suppressWarnings(do.call(goldfish::estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]

@@ -2,23 +2,46 @@
 % Please edit documentation in R/functions_data.R
 \name{goldfishObjects}
 \alias{goldfishObjects}
-\title{Return details about any goldfish objects in a given list}
+\title{A report of goldfish objects in an environment}
 \usage{
-goldfishObjects(y = ls(envir = .GlobalEnv), envir = .GlobalEnv)
+goldfishObjects(envir = .GlobalEnv)
 }
 \arguments{
-\item{y}{a list of objects. Leave blank to capture the global environment.}
-
-\item{envir}{an R \code{\link{environment}} where the goldfish objects are
-searched. The default value is \code{\link{.GlobalEnv}}}
+\item{envir}{an \code{R} \linkS4class{environment} where the goldfish objects are
+searched. The default value is \link{.GlobalEnv}.}
 }
 \value{
-classes, dimensions, and any related nodesets or events
-for any goldfish objects in a given list.
+Not value, called for printing side effect.
+
+Print detail information of the goldfish object in the environment where the
+function is call.
+For \code{nodes.goldfish} objects prints the total number of nodes, the attributes
+and the linked events to the attributes in the object.
+For \code{network.goldfish} objects prints the dimensions of the network, the
+nodes sets and events linked to them.
+For \code{dependent.goldfish} objects prints the number of events and the default
+network linked to them.
 }
 \description{
-Return details about any goldfish objects in a given list
+Return details about any goldfish objects in a given environment.
 }
 \examples{
+data("Fisheries_Treaties_6070")
+states <- defineNodes(states)
+states <- linkEvents(states, sovchanges, attribute = "present")
+states <- linkEvents(states, regchanges, attribute = "regime")
+states <- linkEvents(states, gdpchanges, attribute = "gdp")
+
+bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
+bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
+
+contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
+contignet <- linkEvents(contignet, contigchanges, nodes = states)
+
+createBilat <- defineDependentEvents(
+  events = bilatchanges[bilatchanges$increment == 1, ],
+  nodes = states, defaultNetwork = bilatnet
+)
+
 goldfishObjects()
 }

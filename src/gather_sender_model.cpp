@@ -9,24 +9,15 @@ inline arma::mat reduce_mat_to_vector(const arma::mat& stat_mat,
                                       const int& n_actors_2,
                                       const bool& twomode_or_reflexive);
 
+// @inherit estimate_REM params
 
 //' Gathering data for sender receiver model
 //'
 //' Gathering data for models for choosing an sender, i.e. DyNAM-rate and DyNAM-rate-ordered models.
 //'      Only the useful information are recorded, e.g. if a actor1 is not present then its information is not collected.
-//' @inherit estimate_REM params
 //' @param verbose An boolean variable. It it's true, the function prints the progress to the screen.
 //' @return Return a list with elements as follows. The meaning of the argument can be found in corresponding computation codes, e.g. compute_multinomial_selection.cpp.
-//' \describe{
-//'   \item{stat_all_events}{}
-//'   \item{n_candidates}{}
-//'   \item{n_candidates1}{}
-//'   \item{n_candidates2}{}
-//'   \item{selected}{}
-//'   \item{selected_actor1}{}
-//'   \item{selected_actor2}{}
-//' }
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export]]
 List gather_sender_model(const arma::mat& dep_event_mat,
                          const arma::vec& is_dependent,

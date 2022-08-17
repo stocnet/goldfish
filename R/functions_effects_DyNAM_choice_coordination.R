@@ -150,7 +150,7 @@ update_DyNAM_choice_tertius(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,

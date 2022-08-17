@@ -25,9 +25,6 @@ You can find out more about this dataset, its format, and its origins in a coupl
 
 ```r
 library(goldfish)
-#>   <")))><  The Goldfish package in R
-#> 
-#> goldfish: version 1.5.3, "Bubble Eye", created on 2022-07-02
 data("Social_Evolution")
 # ?Social_Evolution
 head(calls)
@@ -75,10 +72,8 @@ mod00Rate <- estimate(
 summary(mod00Rate)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = callsDependent ~ indeg + outdeg, model = "DyNAM", 
+#>     subModel = "rate")
 #> 
 #> 
 #> Coefficients :
@@ -103,10 +98,8 @@ mod00Choice <- estimate(
 summary(mod00Choice)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = callsDependent ~ inertia + recip + trans, model = "DyNAM", 
+#>     subModel = "choice")
 #> 
 #> 
 #> Coefficients :
@@ -174,16 +167,20 @@ At any time, we can also check what goldfish-defined objects we have in our envi
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>         n                       attributes events
-#> actors 84 label, present, floor, gradeType       
+#>          n                       attributes               events
+#> actors  84 label, present, floor, gradeType                     
+#> states 154      label, present, regime, gdp present, regime, gdp
 #> 
 #> Goldfish Networks
-#>             dimensions nodesets events
-#> callNetwork    84 x 84   actors  calls
+#>             dimensions nodesets        events
+#> bilatnet     154 x 154   states  bilatchanges
+#> callNetwork    84 x 84   actors         calls
+#> contignet    154 x 154   states contigchanges
 #> 
 #> Goldfish Dependent Events
 #>                  n     network
 #> callsDependent 439 callNetwork
+#> createBilat     69    bilatnet
 ```
 
 ## Step 1b: Define networks
@@ -353,39 +350,38 @@ We can use these functions to visually compare our network at two (or more) diff
 
 ```r
 library(ggraph)
-#> Loading required package: ggplot2
 library(migraph)
 # The network at the beginning
 callNetworkBgn <- as.matrix(callNetwork)
 autographr(callNetworkBgn, labels = FALSE, layout = "fr")
 ```
 
-<img src="teaching/plot-teaching1-1.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
+![plot of chunk plot-teaching1](teaching/plot-teaching1-1.png)
 
 ```r
 
 # The network at half time
 callNetworkHlf <- as.matrix(callNetwork,
                             time = calls$time[floor(nrow(calls) / 2)]) |> 
-  add_node_attributes("floor", actors$floor)
+  add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
 ```
 
-<img src="teaching/plot-teaching1-2.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
+![plot of chunk plot-teaching1](teaching/plot-teaching1-2.png)
 
 ```r
 
 # The network at the end
 callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |> 
-  add_node_attributes("floor", actors$floor)
+  add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
 ```
 
-<img src="teaching/plot-teaching1-3.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504" />
+![plot of chunk plot-teaching1](teaching/plot-teaching1-3.png)
 
 ```r
 
@@ -448,10 +444,8 @@ mod01Choice <- estimate(
 summary(mod01Choice)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = callsDependent ~ tie(friendshipNetwork), model = "DyNAM", 
+#>     subModel = "choice")
 #> 
 #> 
 #> Coefficients :
@@ -484,10 +478,9 @@ mod02Choice <- estimate(
 summary(mod02Choice)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = callsDependent ~ inertia(callNetwork) + recip(callNetwork) + 
+#>     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + 
+#>     same(actors$floor), model = "DyNAM", subModel = "choice")
 #> 
 #> 
 #> Effects details :
@@ -548,10 +541,8 @@ mod01Rate <- estimate(
 summary(mod01Rate)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = callsDependent ~ indeg(friendshipNetwork), model = "DyNAM", 
+#>     subModel = "rate", estimationInit = list(maxIterations = 40))
 #> 
 #> 
 #> Coefficients :
@@ -581,10 +572,8 @@ mod02Rate <- estimate(complexFormulaRate, model = "DyNAM", subModel = "rate")
 summary(mod02Rate)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) + 
+#>     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")
 #> 
 #> 
 #> Effects details :
@@ -625,10 +614,8 @@ mod03Rate <- estimate(interceptFormulaRate, model = "DyNAM", subModel = "rate")
 summary(mod03Rate)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) + 
+#>     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")
 #> 
 #> 
 #> Effects details :
@@ -700,12 +687,16 @@ windowFormulaRate <-
 
 mod04Rate <- estimate(windowFormulaRate, model = "DyNAM", subModel = "rate")
 summary(mod04Rate)
+```
+
+
+```
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) + 
+#>     indeg(callNetwork, window = 300) + outdeg(callNetwork, window = 300) + 
+#>     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate", 
+#>     estimationInit = list(engine = "default"))
 #> 
 #> 
 #> Effects details :
@@ -718,21 +709,21 @@ summary(mod04Rate)
 #> indeg     friendshipNetwork       
 #> 
 #> Coefficients :
-#>              Estimate  Std. Error   z-value  Pr(>|z|)    
-#> Intercept -14.1665102   0.0880817 -160.8337 < 2.2e-16 ***
-#> indeg       0.1910828   0.0781305    2.4457   0.01446 *  
-#> outdeg      0.5283974   0.0332725   15.8809 < 2.2e-16 ***
-#> indeg       3.1942574   0.4135005    7.7249  1.11e-14 ***
-#> outdeg      0.1404188   0.2860436    0.4909   0.62350    
-#> indeg       0.0098856   0.0154430    0.6401   0.52209    
+#>             Estimate Std. Error   z-value  Pr(>|z|)    
+#> Intercept -14.530750   0.101676 -142.9125 < 2.2e-16 ***
+#> indeg       0.245045   0.070682    3.4669 0.0005266 ***
+#> outdeg      0.364576   0.032556   11.1985 < 2.2e-16 ***
+#> indeg       5.295709   0.139463   37.9722 < 2.2e-16 ***
+#> outdeg     -0.767499   0.116642   -6.5800 4.706e-11 ***
+#> indeg       0.083772   0.015289    5.4794 4.268e-08 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#>   Converged with max abs. score of 0.00081 
-#>   Log-Likelihood: -5854.6
-#>   AIC:  11721 
-#>   AICc: 11721 
-#>   BIC:  11750 
+#>   Converged with max abs. score of 1e-05 
+#>   Log-Likelihood: -5475.9
+#>   AIC:  10964 
+#>   AICc: 10964 
+#>   BIC:  10992 
 #>   model: "DyNAM" subModel: "rate"
 ```
 
@@ -752,10 +743,10 @@ mod03Choice <- estimate(windowFormulaChoice,
 summary(mod03Choice)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = callsDependent ~ inertia(callNetwork) + recip(callNetwork) + 
+#>     inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) + 
+#>     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + 
+#>     same(actors$floor), model = "DyNAM", subModel = "choice")
 #> 
 #> 
 #> Effects details :
@@ -793,54 +784,22 @@ summary(mod03Choice)
 All this shows you that you can specify different formula for the rate and choice components of the model. 
 This is a key advantage of the DyNAM!
 
-When comparing the information criteria (AIC / BIC) of the different model, we see that the time windows explain a lot
+When comparing the information criteria (AIC / BIC) of the different models, we see that the time windows explain a lot
 
 
 ```r
-AIC(mod02Choice)
-#> [1] 1287.912
-AIC(mod03Choice)
-#> [1] 1147.804
-AIC(mod03Rate)
-#> [1] 11976.58
-AIC(mod04Rate)
-#> [1] 11721.24
-```
+# Compare different specifications of the subModel = "choice"
+AIC(mod02Choice, mod03Choice)
+#>             df      AIC
+#> mod02Choice  6 1287.912
+#> mod03Choice  8 1147.804
 
-Using windowed effects actually initializes new data objects.
-
-
-```r
-goldfishObjects()
-#> Goldfish Nodes
-#>         n                       attributes events
-#> actors 84 label, present, floor, gradeType       
-#> 
-#> Goldfish Networks
-#>                   dimensions nodesets     events
-#> callNetwork          84 x 84   actors      calls
-#> callNetwork_300      84 x 84   actors  calls_300
-#> friendshipNetwork    84 x 84   actors friendship
-#> 
-#> Goldfish Dependent Events
-#>                  n     network
-#> callsDependent 439 callNetwork
-head(calls_300)
-#>         time   sender receiver increment
-#> 1 1220733470 Actor 72 Actor 50         1
-#> 2 1220733770 Actor 72 Actor 50        -1
-#> 3 1221102974 Actor 43 Actor 51         1
-#> 4 1221103274 Actor 43 Actor 51        -1
-#> 5 1221784293 Actor 43 Actor 51         1
-#> 6 1221784593 Actor 43 Actor 51        -1
-tail(calls_300)
-#>           time   sender receiver increment
-#> 873 1224371225 Actor 23 Actor 44        -1
-#> 874 1224371243 Actor 44 Actor 23        -1
-#> 875 1224373128 Actor 20 Actor 23         1
-#> 876 1224373152 Actor 23 Actor 20         1
-#> 877 1224373428 Actor 20 Actor 23        -1
-#> 878 1224373452 Actor 23 Actor 20        -1
+# Compare different specifications of the subModel = "rate"
+AIC(mod03Rate, mod04Rate)
+#> Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the same number of observations
+#>           df      AIC
+#> mod03Rate  4 11976.58
+#> mod04Rate  6 10963.75
 ```
 
 ### REM with `goldfish`
@@ -882,10 +841,11 @@ mod01REM <- estimate(
 summary(mod01REM)
 #> 
 #> Call:
-#> goldfish::estimate(x = x, model = model, subModel = subModel, 
-#>     estimationInit = estimationInit, preprocessingInit = preprocessingInit, 
-#>     preprocessingOnly = preprocessingOnly, verbose = verbose, 
-#>     silent = silent, debug = debug)
+#> estimate(x = callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) + 
+#>     inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) + 
+#>     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + 
+#>     same(actors$floor), model = "REM", estimationInit = list(initialDamping = 40, 
+#>     engine = "default_c"))
 #> 
 #> 
 #> Effects details :

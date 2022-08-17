@@ -29,7 +29,7 @@ First, we load the `goldfish` package and load the data.
 The data is loaded using lazy loading, i.e., the objects are only 'promised' for the moment, but are available in the environment to be used, and more information will appear as you use them. 
 You can find out more about this dataset, its format, and its origins in a couple of ERGM papers by callings its documentation:
 
-```{r load}
+```{r load, message=FALSE}
 library(goldfish)
 data("Social_Evolution")
 # ?Social_Evolution
@@ -47,14 +47,15 @@ estimate <- function(
     preprocessingInit = NULL,
     preprocessingOnly = FALSE,
     verbose = FALSE,
-    silent = TRUE,
-    debug = FALSE) {
+    progress = FALSE) {
+  
+  call <- match.call(expand.dots = TRUE)
   
   if (is.null(estimationInit$engine)) {
     estimationInit <- c(estimationInit, list(engine = "gather_compute"))
   }
   
-  goldfish::estimate(
+  res <- goldfish::estimate(
     x = x,
     model = model,
     subModel = subModel,
@@ -62,9 +63,13 @@ estimate <- function(
     preprocessingInit = preprocessingInit,
     preprocessingOnly = preprocessingOnly,
     verbose = verbose,
-    silent = silent,
-    debug = debug
+    progress = progress
   )
+  
+  res$call <- call 
+  res$call[["x"]] <- res$formula
+
+  return(res)
 }
 ```
 
@@ -212,7 +217,7 @@ While not a required part of the modeling process, we highly recommend the visua
 
 We can use these functions to visually compare our network at two (or more) different time periods using `migraph`. See the `migraph` package documentation for additional information about network visualization. 
 
-```{r plot-teaching1, fig.width=7, fig.retina=3}
+```{r plot-teaching1, message=FALSE, warning=FALSE}
 library(ggraph)
 library(migraph)
 # The network at the beginning
@@ -222,14 +227,14 @@ autographr(callNetworkBgn, labels = FALSE, layout = "fr")
 # The network at half time
 callNetworkHlf <- as.matrix(callNetwork,
                             time = calls$time[floor(nrow(calls) / 2)]) |> 
-  add_node_attributes("floor", actors$floor)
+  add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
 
 # The network at the end
 callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |> 
-  add_node_attributes("floor", actors$floor)
+  add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
@@ -387,7 +392,7 @@ Remember our `callNetwork` process state accumulates actions in time, but some o
 Let's see whether it is really just recent partners that matter by adding extra effects with a window of... how long? 
 Let us try 5 minutes $= 5 * 60 = 300s$
 
-```{r windows-rate}
+```{r windows-rate, eval=FALSE}
 windowFormulaRate <-
   callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(callNetwork, window = 300) +
@@ -395,6 +400,18 @@ windowFormulaRate <-
                    indeg(friendshipNetwork)
 
 mod04Rate <- estimate(windowFormulaRate, model = "DyNAM", subModel = "rate")
+summary(mod04Rate)
+```
+
+```{r windows-rateR, echo=FALSE}
+windowFormulaRate <-
+  callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
+                   indeg(callNetwork, window = 300) +
+                   outdeg(callNetwork, window = 300) +
+                   indeg(friendshipNetwork)
+
+mod04Rate <- estimate(windowFormulaRate, model = "DyNAM", subModel = "rate",
+                      estimationInit = list(engine = "default"))
 summary(mod04Rate)
 ```
 
@@ -416,21 +433,14 @@ summary(mod03Choice)
 All this shows you that you can specify different formula for the rate and choice components of the model. 
 This is a key advantage of the DyNAM!
 
-When comparing the information criteria (AIC / BIC) of the different model, we see that the time windows explain a lot
+When comparing the information criteria (AIC / BIC) of the different models, we see that the time windows explain a lot
 
 ```{r aic}
-AIC(mod02Choice)
-AIC(mod03Choice)
-AIC(mod03Rate)
-AIC(mod04Rate)
-```
+# Compare different specifications of the subModel = "choice"
+AIC(mod02Choice, mod03Choice)
 
-Using windowed effects actually initializes new data objects.
-
-```{r objs2}
-goldfishObjects()
-head(calls_300)
-tail(calls_300)
+# Compare different specifications of the subModel = "rate"
+AIC(mod03Rate, mod04Rate)
 ```
 
 ### REM with `goldfish`

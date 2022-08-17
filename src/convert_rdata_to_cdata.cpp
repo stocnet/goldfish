@@ -3,17 +3,13 @@
 
 using namespace Rcpp;
 
-
-
-
-
 //' a function to extract the update of composition change from an events and transform the data into a matrix
 //' and a vector.
 //'
 //' @param event an event objects with the information on composition change
 //' @param reference_event_time a vector of time stamps that separate updates different time spans.
 //' @return A list with two element: changeMat and change_idx. For the structure of these two object see, e.g., the documentation of estimate_DyNAM_choice, in which they are used for stat_mat_update, and stat_mat_update_pointer.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export]]
 List C_convert_composition_change(const DataFrame& event, const arma::vec& reference_event_time) {
   const arma::vec& event_time = event["time"];
@@ -58,7 +54,7 @@ List convert_composition_change (const DataFrame& event, const DataFrame referen
 
 //' a function to transform a list of updates into a matrix
 //' and a vector.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export]]
 List convert_change(const List& changeList) {
   int n_events = changeList.size();

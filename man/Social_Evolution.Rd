@@ -12,20 +12,20 @@
 See below for variables and formats.
 
 \tabular{lll}{
-   \strong{Object}      \tab  \strong{Description}                      \tab    \strong{Format}       \cr
-   actors$label         \tab   Actor identifier labels                  \tab     character            \cr
-   actors$present       \tab   Actor present in dataset                 \tab     boolean              \cr
-   actors$floor         \tab   Floor of residence actor lives on        \tab     numeric (1-9)        \cr
-   actors$gradeType     \tab   Degree level                             \tab     numeric (1-5)        \cr
-   calls$time           \tab   Time and date of call                    \tab     numeric from POSIXct \cr
-   calls$sender         \tab   Initiator of phone call                  \tab     character            \cr
-   calls$receiver       \tab   Recipient of phone call                  \tab     character            \cr
-   calls$increment      \tab   Indicates call number increment (all 1s) \tab     numeric (1)          \cr
-   friendship$time      \tab   Time and date of friend nomination       \tab     numeric from POSIXct \cr
-   friendship$sender    \tab   Nominator of friendship                  \tab     character            \cr
-   friendship$receiver  \tab   Nominee of friendship                    \tab     character            \cr
-   friendship$replace   \tab   Indicates friendship value at $time      \tab     numeric              \cr
- }
+\strong{Object}      \tab  \strong{Description}                      \tab    \strong{Format}       \cr
+actors$label         \tab   Actor identifier labels                  \tab     character            \cr
+actors$present       \tab   Actor present in dataset                 \tab     boolean              \cr
+actors$floor         \tab   Floor of residence actor lives on        \tab     numeric (1-9)        \cr
+actors$gradeType     \tab   Degree level                             \tab     numeric (1-5)        \cr
+calls$time           \tab   Time and date of call                    \tab     numeric from POSIXct \cr
+calls$sender         \tab   Initiator of phone call                  \tab     character            \cr
+calls$receiver       \tab   Recipient of phone call                  \tab     character            \cr
+calls$increment      \tab   Indicates call number increment (all 1s) \tab     numeric (1)          \cr
+friendship$time      \tab   Time and date of friend nomination       \tab     numeric from POSIXct \cr
+friendship$sender    \tab   Nominator of friendship                  \tab     character            \cr
+friendship$receiver  \tab   Nominee of friendship                    \tab     character            \cr
+friendship$replace   \tab   Indicates friendship value at $time      \tab     numeric              \cr
+}
 
 An object of class \code{data.frame} with 84 rows and 4 columns.
 
