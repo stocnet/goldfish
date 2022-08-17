@@ -152,11 +152,11 @@ estimate_c_int <- function(
     currentRCInterval <- 1
     nAvgActors <- 0
     if (!is.null(nodes$present)) {
-      nActors <- length(which(nodes$present == TRUE))
+      nActors <- sum(nodes$present)
     } else {
-      nActors <- dim(nodes)[1]
+      nActors <- nrow(nodes)
     }
-    for (i in 1:nEvents) {
+    for (i in seq.int(nEvents)) {
       previoustime <- time
       if (statsList$orderEvents[[i]] == 1) {
         time <- time + statsList$intervals[[currentInterval]]
@@ -165,21 +165,11 @@ estimate_c_int <- function(
         time <- time + statsList$rightCensoredIntervals[[currentRCInterval]]
         currentRCInterval <- currentRCInterval + 1
       }
-      nplus <- intersect(
-        intersect(
-          which(compChange1$time > previoustime),
-          which(compChange1$time <= time)
-        ),
-        which(compChange1$replace == TRUE)
-      )
-      nminus <- intersect(
-        intersect(
-          which(compChange1$time > previoustime),
-          which(compChange1$time <= time)
-        ),
-        which(compChange1$replace == FALSE)
-      )
-      nActors <- nActors + length(nplus) - length(nminus)
+      nplus <- compChange1$time > previoustime & compChange1$time <= time &
+        compChange1$replace
+      nminus <- compChange1$time > previoustime & compChange1$time <= time &
+        !compChange1$replace
+      nActors <- nActors + sum(nplus) - sum(nminus)
       nAvgActors <- nAvgActors + nActors
     }
     nAvgActors <- nAvgActors / length(statsList$orderEvents)
