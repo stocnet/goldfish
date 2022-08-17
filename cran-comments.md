@@ -10,4 +10,7 @@
 0 errors | 0 warnings | 1 note
 
 * This is a new release.
-* Fixed DESCRIPTION and comments from the previous submission.
+* Fixed various DESCRIPTION references
+* Replaced `dontrun` with `donttest`
+* Messages to the console are suppressed by default
+* Global environment is in no longer modified
