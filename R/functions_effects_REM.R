@@ -86,7 +86,7 @@ update_REM_choice_recip <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -181,7 +181,7 @@ init_REM_choice.indeg <- function(effectFun, network, window, n1, n2) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -225,9 +225,9 @@ update_REM_choice_indeg <- function(
   }
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -276,7 +276,7 @@ update_REM_choice_indeg <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -371,7 +371,7 @@ init_REM_choice.outdeg <- function(effectFun, network, window, n1, n2) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -415,9 +415,9 @@ update_REM_choice_outdeg <- function(
   }
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -659,7 +659,7 @@ update_REM_choice_four <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -747,7 +747,7 @@ init_REM_choice.tertius <- function(effectFun, network, attribute,
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -809,9 +809,9 @@ update_REM_choice_tertius <- function(
     oldValue <- sign(network[sender, receiver])
 
     # Check if old value has changed
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
 
@@ -835,7 +835,7 @@ update_REM_choice_tertius <- function(
     # changes case 1: all nodes needs to be update the att[i] - cache[j] values
     # if (isTwoMode) seq_len(n2) else third(n1, receiver)
     nodesChange <- if (!is.na(valChangeCache)) receiver else numeric()
-    isImpute <- ifelse(!isImpute & is.na(valChangeCache), TRUE, isImpute)
+    isImpute <- ifelse(!isImpute && is.na(valChangeCache), TRUE, isImpute)
     cache[receiver] <- valChangeCache
   }
 
@@ -845,9 +845,9 @@ update_REM_choice_tertius <- function(
     oldValue <- attribute[node]
 
     # Check if old value has changed
-    if (is.na(oldValue) & is.na(replace)) {
+    if (is.na(oldValue) && is.na(replace)) {
       return(res)
-    } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
       return(res)
     }
 
@@ -960,7 +960,7 @@ update_REM_choice_tertius <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -1005,7 +1005,7 @@ init_REM_choice.tertiusDiff <- function(effectFun, network, attribute,
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' network <- matrix(
 #'   c(
 #'     0, 0, 0, 1, 0, 0,
@@ -1079,7 +1079,7 @@ update_REM_choice_tertiusDiff <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #'
 #' network <- matrix(
 #'   c(
@@ -1167,7 +1167,7 @@ init_REM_choice.nodeTrans <- function(effectFun, network, window, n1, n2) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' cache <- c(0, 0, 1, 1, 0)
 #' update_REM_choice_nodeTrans(network, 1, 5, 1, cache, 5, 5, type = "alter")
 #' update_REM_choice_nodeTrans(network, 1, 5, 1, cache, 5, 5, type = "ego")
@@ -1196,9 +1196,9 @@ update_REM_choice_nodeTrans <- function(
   oldValue <- sign(network[sender, receiver])
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 
@@ -1301,9 +1301,9 @@ update_REM_choice_ego <- function(
   oldValue <- attribute[node]
 
   # Check if old value has changed
-  if (is.na(oldValue) & is.na(replace)) {
+  if (is.na(oldValue) && is.na(replace)) {
     return(res)
-  } else if (!is.na(oldValue) & !is.na(replace) & oldValue == replace) {
+  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
     return(res)
   }
 

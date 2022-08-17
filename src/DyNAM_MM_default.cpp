@@ -3,12 +3,13 @@
 using namespace Rcpp;
 using namespace arma;
 
+// @inheritParams estimate_REM
+
 //' Calculation for estimating an DyNAM-coordination model
 //'
 //' Output the derivative of loglikelihood, the Fisher information matrix, the logLikelihood, and the loglikelihood of each event given input data
 //'
-//' @inheritParams estimate_REM
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export]]
 List estimate_DyNAM_MM(const arma::vec& parameters,
                        const arma::mat& dep_event_mat,

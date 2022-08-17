@@ -5,7 +5,7 @@ test_that(
     preproData <- estimate(
       depNetwork ~ inertia(networkState, weighted = TRUE) + tie(networkExog, weighted = TRUE),
       model = "DyNAM", subModel = "choice", # modelType = "DyNAM-M"
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
     outDependetStatChange <- Reduce(rbind, mapply(
       function(x, y, effectPos) {
@@ -75,7 +75,7 @@ test_that(
     preproData <- estimate(
       depNetwork ~ inertia,
       model = "DyNAM", subModel = "choice",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
     expect_equal(preproData$initialStats[, , 1],
       matrix(c(
@@ -108,7 +108,7 @@ test_that(
     skip_on_bioc()
     preproData <- estimate(depNetwork ~ inertia(networkState, weighted = TRUE, window = 2),
       model = "DyNAM", subModel = "choice",
-      preprocessingOnly = TRUE, silent = TRUE
+      preprocessingOnly = TRUE
     )
 
     outDependetStatChange <- Reduce(rbind, mapply(

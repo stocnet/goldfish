@@ -4,26 +4,17 @@ using namespace Rcpp;
 using namespace arma;
 #include "gather_progress.hpp"
 
+// @inherit estimate_REM params
 
 //' Gathering data for sender receiver model
 //'
 //' Gathering data for model that considers all present sender-receiver pairs, i.e. REM, REM-ordered, and DyNAM-coordination models.
 //'      Only the useful information are recorded, 
 //'      e.g. if a actor1-actor2 pair is not present in an event, then its information is  not gathered by this function.
-//' @inherit estimate_REM params
 //' @param verbose An boolean variable. It it's true, the function print the progress to the screen.
 //' @return Return a list with elements as follows. The meaning of the argument can be found in corresponding computation codes,
 //' e.g. compute_coordination_selection.cpp.
-//' \describe{
-//'   \item{stat_all_events}{}
-//'   \item{n_candidates}{}
-//'   \item{n_candidates1}{}
-//'   \item{n_candidates2}{}
-//'   \item{selected}{}
-//'   \item{selected_actor1}{}
-//'   \item{selected_actor2}{}
-//' }
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export]]
 List gather_sender_receiver_model(const arma::mat& dep_event_mat,
                                   const arma::vec& is_dependent,
@@ -98,7 +89,7 @@ List gather_sender_receiver_model(const arma::mat& dep_event_mat,
             }
         } else {
             while (stat_mat_rightcensored_update_id < stat_mat_rightcensored_update_pointer(id_event - id_dep_event)) {
-                stat_mat(stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id)*n_actors_2 \
+                stat_mat(stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id) * n_actors_2 \
                          + stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id), \
                          stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id)) \
                     = stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);

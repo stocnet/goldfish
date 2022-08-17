@@ -4,33 +4,38 @@
 \alias{update-method}
 \alias{as.data.frame.nodes.goldfish}
 \alias{as.matrix.network.goldfish}
-\title{Methods to update the nodes or the network objects}
+\title{Methods to update a nodes or network object}
 \usage{
 \method{as.data.frame}{nodes.goldfish}(x, ..., time = -Inf, startTime = -Inf)
 
 \method{as.matrix}{network.goldfish}(x, ..., time = -Inf, startTime = -Inf)
 }
 \arguments{
-\item{x}{an object of class \code{nodes.goldfish} for \code{as.data.frame}
-method or \code{network.goldfish} for \code{as.matrix} method.}
+\item{x}{an object of class \code{nodes.goldfish} for \code{as.data.frame()}
+method or \code{network.goldfish} for \code{as.matrix()} method.}
 
 \item{...}{Not further arguments are required.}
 
-\item{time}{a numeric or \code{as.Date} format value to update the state of
-the  \code{x} object until this time value.}
+\item{time}{a numeric value or a calendar date value (see \code{\link[=as.Date]{as.Date()}})
+to update the state of the object \code{x} until this time value
+(event time < time).}
 
 \item{startTime}{a numeric \code{as.Date} format value; prior events are
 disregarded.}
 }
 \value{
 The respective object updated accordingly to the events link to it.
+For \code{nodes.goldfish} object the attributes are updated according to the
+events linked to them.
+For \code{network.goldfish} object the network ties are updated according to the
+events linked to it.
 }
 \description{
 Methods to create a data frame from an object of class \code{nodes.goldfish}
-(see \code{\link{defineNodes}}) or a matrix from an object of class
-\code{network.goldfish} (see \code{\link{defineNetwork}}) with the attributes
-or the network ties updated according with the events links to the object
-using the \code{\link{linkEvents}}) function.
+(see \code{\link[=defineNodes]{defineNodes()}}) or a matrix from an object of class
+\code{network.goldfish} (see \code{\link[=defineNetwork]{defineNetwork()}}) with the attributes
+or the network ties updated according with the events linked to the object
+using the \code{\link[=linkEvents]{linkEvents()}}) function.
 }
 \examples{
 \donttest{
@@ -50,4 +55,7 @@ updateStates <- as.data.frame(states,
 updateNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1965-12-31")))
 }
 
+}
+\seealso{
+\code{\link[=defineNetwork]{defineNetwork()}}, \code{\link[=defineNodes]{defineNodes()}}, \code{\link[=linkEvents]{linkEvents()}}
 }

@@ -373,3 +373,42 @@ dependent.depevents_DyNAMi <- defineDependentEvents(
   events = depevents_DyNAMi,
   nodes = actors_DyNAMi, nodes2 = groups_DyNAMi,
   defaultNetwork = interaction_network_DyNAMi)
+
+# result goldfish object --------------------------------------------------
+resModObject <- structure(
+  list(
+    parameters = c(5.3751, 1, -0.0816),
+    standardErrors = c(0.155388602931316, 0, 0.197511081339697),
+    logLikelihood = -699.4532,
+    finalScore = c(0.000200290995642893, 0, 1.49135840820103e-05),
+    finalInformationMatrix = matrix(
+      c(41.6502772825771, 20.354755811421, 2.46078347465864, 20.354755811421,
+        49.9909036131337, 10.6250978238344, 2.46078347465864, 10.6250978238344,
+        25.7794286431431), ncol = 3, nrow = 3
+    ),
+    convergence = list(isConverged = TRUE, maxAbsScore = 0.000200291),
+    nIterations = 7L,
+    nEvents = 439L,
+    names = matrix(
+      c(rep("callNetwork", 3), c("FALSE", "TRUE", "FALSE")),
+      ncol = 2, nrow = 3,
+      dimnames = list(c("inertia", "recip", "trans"), c("Object", "fixed"))
+    ),
+    formula = as.formula("callsDependent ~ inertia + recip + trans",
+                         env = new.env(parent = emptyenv())),
+    model = "DyNAM",
+    subModel = "choice",
+    rightCensored = FALSE,
+    nParams = 3L,
+    call = str2lang(
+      "estimate(x = callsDependent ~ inertia + recip + trans,
+       estimationInit = list(fixedParameters = c(NA, 1, NA)))"
+    )
+  ),
+  class = "result.goldfish"
+)
+
+
+
+
+

@@ -4,13 +4,13 @@
 \name{goldfish-package}
 \alias{goldfish-package}
 \alias{goldfish}
-\title{`goldfish` package}
+\title{goldfish package}
 \description{
-The Goldfish Project is an R package that allows to fit statistical network models
+The goldfish Project is an R package that allows to fit statistical network models
 (such as DyNAM and REM) to dynamic network data.
 }
 \details{
-The \href{www.social-networks.ethz.ch/research/goldfish.html}{Goldfish}
+The \href{https://sn.ethz.ch/research/goldfish.html}{goldfish}
 package in R allows the study of time-stamped network data using a variety of models.
 In particular, it implements different types of Dynamic Network Actor Models (DyNAMs),
 a class of models that is tailored to the study of actor-oriented network processess through time.
@@ -39,5 +39,5 @@ A model for the dynamics of face-to-face interactions in social groups.
 \emph{Network Science}, 8(S1), S4-S25. \doi{10.1017/nws.2020.3}
 }
 \seealso{
-\code{\link{estimate}}
+\code{\link[=estimate]{estimate()}}
 }

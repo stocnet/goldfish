@@ -30,8 +30,8 @@ For a detail description see \code{\link[changepoint]{cpt.mean}} or
 \code{\link[changepoint]{cpt.var}}. The default value is \code{"PELT"}.}
 
 \item{parameter}{An integer that represents the number of absolute outliers
-to identify, the threshold for the Hampel filter, i.e. `parameter * MAD`,
-or the threshold beyond the interquartile range halved, i.e. `parameter/2 * IQR`.}
+to identify, the threshold for the Hampel filter, i.e. \code{parameter * MAD},
+or the threshold beyond the interquartile range halved, i.e. \code{parameter/2 * IQR}.}
 
 \item{window}{The window half-width for the Hampel filter.
 By default it is half the width of the event sequence.}
@@ -41,15 +41,11 @@ See section \emph{Change point} for details.}
 
 \item{...}{additional arguments to be passed to the functions in the
 \code{\link{changepoint}} package.}
-
-\item{minseglen}{Positive integer giving the minimum segment length
-(no. of observations between changes), default is 3.}
 }
 \value{
 \code{NULL} if neither outliers nor change points are identified.
-A subset of the dependent event data frame
-(see \code{\link{defineDependentEvents}}) with the events identified as
-outliers or change point inflections.
+An object of class \code{ggplot} object from a call of \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}}.
+It can be modified using the \code{ggplot2} syntax.
 }
 \description{
 Provide diagnostic functions for an object of class \code{result.goldfish}.
@@ -69,23 +65,20 @@ with labels indicating the sender and recipient.
 The parameter \code{moment} controls which method from the package
 \code{\link{changepoint}} is used:
 \describe{
-  \item{\code{"mean"}}{It uses the \code{\link[changepoint]{cpt.mean}}
-  function to investigate optimal positioning and (potentially) number
-  of change points for the log-likelihood of the events in mean.}
-  \item{\code{"variance"}}{It uses the
-  \code{\link[changepoint]{cpt.var}}
-  function to investigate optimal positioning and (potentially) number
-  of change points for the log-likelihood of the events in variance}
+\item{\code{"mean"}}{It uses the \code{\link[changepoint]{cpt.mean}}
+function to investigate optimal positioning and (potentially) number
+of change points for the log-likelihood of the events in mean.}
+\item{\code{"variance"}}{It uses the
+\code{\link[changepoint]{cpt.var}}
+function to investigate optimal positioning and (potentially) number
+of change points for the log-likelihood of the events in variance}
 }
 The function call creates a plot with the log-likelihood of the events
 in the y-axis and the event index in the x-axis, highlighting the change
 point sections identified by the method.
-Also it prints a table of the change points events that are returned by the
-method.
 }
 
 \examples{
-\donttest{
 # A multinomial receiver choice model
 data("Social_Evolution")
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
@@ -97,13 +90,16 @@ callsDependent <- defineDependentEvents(
   events = calls, nodes = actors,
   defaultNetwork = callNetwork
 )
+\dontshow{
+callsDependent <- callsDependent[1:50, ]
+}
 mod01 <- estimate(callsDependent ~ inertia + recip + trans,
   model = "DyNAM", subModel = "choice",
-  estimationInit = list(returnIntervalLogL = TRUE)
+  estimationInit = list(returnIntervalLogL = TRUE,
+                        engine = "default_c")
 )
 
 examineOutliers(mod01)
 
 examineChangepoints(mod01)
-}
 }

@@ -3,13 +3,13 @@
 using namespace Rcpp;
 using namespace arma;
 
+// @inherit compute_coordination_selection params
+// @inherit estimate_REM params return
 
 //' Estimate a poisson selection model with gathered data
 //'
 //' Given the gathered and distilled data, it outputs the derivative of the loglikelihood, the Fisher information matrix, the logLikelihood,
 //' and the loglikelihood of each event  for models with poisson selection processes, e.g. DyNAM-rate and REM-choice models.
-//' @inherit compute_coordination_selection params
-//' @inherit estimate_REM params return
 //' @noRd
 // [[Rcpp::export]]
 List compute_poisson_selection(arma::colvec& parameters,

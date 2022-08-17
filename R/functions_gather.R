@@ -16,8 +16,7 @@
 #' @param subModel `goldfish::estimate`. `c('choice_coordination', 'choice')`
 #' @param preprocessArgs Additional preprocess arguments like `startTime`,
 #'   `endTime` and `opportunitiesList`.
-#' @param verbose Default `FALSE`.
-#' @param silent Default `FALSE`.
+#' @param progress Default `FALSE`.
 #'
 #' @return a list with the data and relevant information.
 #' @noRd
@@ -41,14 +40,14 @@
 #' contignet <- linkEvents(contignet, contigchanges, nodes = states)
 #'
 #' gatheredData <- GatherPreprocessing(
-#'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet))
+#'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet)
+#' )
 GatherPreprocessing <- function(
   formula,
   model = c("DyNAM", "REM"),
   subModel = c("choice", "choice_coordination", "rate"),
   preprocessArgs = NULL,
-  verbose = FALSE,
-  silent = FALSE) {
+  progress = getOption("progress")) {
 
   model <- match.arg(model)
   subModel <- match.arg(subModel)
@@ -98,13 +97,13 @@ GatherPreprocessing <- function(
   }
   rightCensored <- parsedformula$hasIntercept
 
-  if (!silent && !all(vapply(windowParameters, is.null, logical(1)))) {
-    cat("Creating window objects in global environment.\n")
-  }
+  # if (progress && !all(vapply(windowParameters, is.null, logical(1)))) {
+  #   cat("Creating window objects in global environment.\n")
+  # }
 
   ### 2. INITIALIZE OBJECTS: effects, nodes, and link objects----
 
-  if (!silent) cat("Initializing objects.\n")
+  if (progress) cat("Initializing objects.\n")
 
   ## 2.0 Set isTwoMode to define effects functions
   # get node sets of dependent variable
@@ -159,8 +158,7 @@ GatherPreprocessing <- function(
     startTime = preprocessArgs[["startTime"]],
     endTime = preprocessArgs[["endTime"]],
     rightCensored = rightCensored,
-    verbose = verbose,
-    silent = silent
+    progress = progress
   )
 
   # # 3.3 additional processing to flat array objects
@@ -308,7 +306,7 @@ GatherPreprocessing <- function(
     n_actors1 = n_actors1,
     n_actors2 = n_actors2,
     twomode_or_reflexive = twomode_or_reflexive,
-    silent = verbose, # If not silent, output the progress of data gathering
+    verbose = progress, # If not silent, output the progress of data gathering
     impute = FALSE
   )
 

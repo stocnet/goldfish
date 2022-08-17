@@ -1,3 +1,43 @@
+# goldfish 1.6.3
+
+* Add DyNAM-i vignette.
+* Reimplement method `logLik()`, now is possible to use `AIC()` and `BIC()`
+  from `stats` package and make likelihood ratio test of nested models using
+  `lmtest::lrtest()`.
+* Implement method `vcov()`, now is possible to use `stats::confint()` to obtain
+  confidence interval for parameters estimates under asymptotic normality, and
+  also get them from a `tidy()` call.
+* Improve documentation of `define` functions, `linkEvents()` and `print` methods.
+  The reserved names and expected variables are explained.
+* Drop `fig.retina` from figures in vignettes and keeps default size.
+* Update `vignette("goldfishEffects")` documentation for closure effects.
+* Silent `estimate` function output. Setting the global option `verbose` allows
+  unsilent the messages during estimation.
+* Window effects doesn't create new object on the global environment.
+* Add references in description.
+* `silent` parameter replace by `progress`.
+  `progress` and `verbose` can be set with global options with the same name.
+* Fix bug composition change on estimation routines.
+* Includes environment argument on estimation routines.
+
+# goldfish 1.6.2
+
+* Fix additional URL on Vignette "How to start".
+
+# goldfish 1.6.1
+
+* Fix URLs. 
+* Estimate examples now use the `C` engine.
+
+# goldfish 1.6.0
+
+* Cleaning submission to CRAN.
+
+# goldfish 1.5.3
+
+* Effects documentation migrated to a vignette.
+* Precompile vignettes with long-run time for compilation.
+
 # goldfish 1.5.2
 
 * Fix minor bugs on `opportunityList`
@@ -114,7 +154,7 @@
   tertius(bilatnet, states$gdp)
   ```
 
-# golfish 1.3.1
+# goldfish 1.3.1
 
 ## New features
 
@@ -143,7 +183,7 @@
 
 ## Breaking changes
 
-* `modelType` argument in `estimate()` have been deprecated in favour of `model` 
+* `modelType` argument in `estimate()` have been deprecated in favor of `model` 
    and `submodel`.
    
 ## Internal changes

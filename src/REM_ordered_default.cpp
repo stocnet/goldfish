@@ -3,11 +3,10 @@
 using namespace Rcpp;
 using namespace arma;
 
+// @inherit estimate_REM params return description
 
 //' Calculation for estimating an REM-choice-ordered model
-//'
-//' @inherit estimate_REM params return description
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export]]
 List estimate_REM_ordered(const arma::vec& parameters,
                           const arma::mat& dep_event_mat,

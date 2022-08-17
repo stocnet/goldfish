@@ -1,0 +1,246 @@
+---
+title: 'DyNAM-i: an example script'
+subtitle: "Dynamic Network Actor Models for face-to-face interaction data"
+author: "Marion Hoffman"
+date: '2022-08-11'
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{DyNAM-i: an example script}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Example script analyzing the RFID validity study data (Elmer et al, 2019) with the DyNAM-i model of the `goldfish` package. 
+Data received from:
+
+> Elmer, T., Chaitanya, K., Purwar, P., & Stadtfeld, C. (2019). The validity of RFID badges measuring face-to-face interactions. Behavior research methods, 51(5), 2120-2138.
+
+Analyses inspired from:
+
+> Hoffman, M., Block, P., Elmer, T., & Stadtfeld, C. (2020). A model for the dynamics of face-to-face interactions in social groups. Network Science, 8(S1), S4-S25.
+
+# Step 0: Load package and data
+
+First, we load the `goldfish` package and load the data. . 
+You can find out more about this dataset and its format by callings its documentation.
+
+```{r}
+library(goldfish)
+data("RFID_Validity_Study")
+#?RFID_Validity_Study
+```
+
+The `participants` object contains the nodeset of actors interacting together. The available attributes are their age, their gender, their organizational unit (group), and their seniority level:
+```{r}
+head(participants)
+```
+
+The `rfid` object contains the list of dyadic interactions collected via RFID badges. Each interaction is characterized by two actors (`NodeA` and `NodeB`) and two time points (`Start` and `End`):
+```{r}
+head(rfid)
+```
+
+The `video` object contains the list of dyadic interactions collected via video recordings and has the same format as the `rfid` object. We know that these measures should be more reliable, so we will work with those data in this script!
+```{r}
+head(video)
+```
+
+Finally, the `known.before` matrix indicates which actors knew each other before the event.
+
+
+### Step 1: Create groups and interaction events
+
+Before specifying the model, we need to set the data in the right format for DyNAM-i: We had a list of dyadic interactions, but DyNAM-i is specifically meant for group interactions. More specifically, the model is designed for events of actors joining or leavin interaction groups. We can use this function to create these group events (please note we need to use the right labels in the dataframe: `NodeA`, `NodeB`,`Start`, and `End`):
+```{r}
+#?defineGroups_interaction
+prepdata <- defineGroups_interaction(video, participants, seed.randomization = 1)
+```
+
+This functions to creates 5 objects:
+1. `groups`: a goldfish nodeset containing the interaction groups (initially there are as many groups as actors and they are all present, meaning available)
+```{r}
+groups <- prepdata$groups 
+head(groups)
+```
+
+2. `dependent.events`: goldfish events specifying the events that we want to model, when an actor (in the dataframe, the `sender` column) joins or leaves (`increment` = 1 or -1) a group (`receiver`) at a particular point in time (`time`)
+```{r}
+dependent.events <- prepdata$dependent.events
+head(dependent.events)
+```
+
+3. `exogenous.events`: goldfish events specifying the events that need to happen but are not modeled (for example, when an actor leaves a group, a dependent event is created for this leaving but an exogenous event is also created because the actor "joins" a new group, its own isolated group)
+```{r}
+exogenous.events <- prepdata$exogenous.events 
+head(exogenous.events)
+```
+
+4. `interaction.updates`: goldfish events that are used to update the number of past interactions between participants: 
+```{r}
+interaction.updates <- prepdata$interaction.updates 
+head(interaction.updates)
+```
+
+5. `opportunities`: list containing the interaction groups available at each decision time (this will vary when groups are being joined or left)
+```{r}
+opportunities <- prepdata$opportunities
+head(opportunities)
+```
+
+### Step 2: Set up goldfish objects
+
+Now that we have all the data we need, we need to define the link between our objects in a way that goldfish understands what is going on.
+
+First, we define the first mode nodeset, the actors:
+```{r}
+participants$label <- as.character(participants$label) # goldfish requires character names
+actors <- defineNodes(participants)
+```
+
+Then we define the second mode nodeset, the groups:
+```{r}
+groups <- defineNodes(groups)
+```
+
+Then we create the dynamic interaction network between the actors and the groups, updated by the previously created events in `dependent.events` and `exogenous.events`
+```{r warning=FALSE}
+init.network <- diag(x=1,nrow(actors),nrow(groups))
+network.interactions <- defineNetwork(matrix = init.network, nodes = actors, nodes2 = groups, directed = T) # don't worry about the warnings
+network.interactions <- linkEvents(x = network.interactions, changeEvent = dependent.events, nodes = actors, nodes2 = groups)
+network.interactions <- linkEvents(x = network.interactions, changeEvent = exogenous.events, nodes = actors, nodes2 = groups)
+```
+
+Then we create the dynamic network between the actors that records past interactions, updated by the previously created events in `interaction.updates`
+```{r warning=FALSE}
+network.past <- defineNetwork(nodes = actors, directed = F)
+network.past <- linkEvents(x = network.past, changeEvents = interaction.updates, nodes = actors) # don't worry about the warnings
+```
+Finally, we define the events that we want to model: `dependent.events`:
+```{r}
+dependent.events <- defineDependentEvents(events = dependent.events, nodes = actors, nodes2 = groups, defaultNetwork = network.interactions)
+```
+
+### Step 4: Estimate a model with attribute effects
+
+Let us define some models we could estimate (we try not to put too many effects because we have little data).
+
+We first have a model only with effects related to individual attributes (M1). 
+
+For the rate, we have the following effects:
+1. general intercept (joining and leaving events) + dummy interaction for the intercept of joining events specifically
+2. ego age (joining): tendency for older individuals to join groups faster
+3. ego age (leaving): tendency for older individuals to leave groups faster
+4. diff age (leaving): tendency for individuals to leave groups faster if the average sum of age difference to the group are high
+5. diff level (leaving): tendency for individuals to leave groups faster if the average sum of level difference to the group are high
+6. same gender (leaving): tendency for individuals to leave groups faster if the proportion of same gender in the group is high
+7. same group (leaving): tendency for individuals to leave groups faster if the proportion of same group in the group is high
+8. tie known before (leaving): tendency for individuals to leave groups faster if the proportion of previous friends in the group is high
+```{r}
+formula.rate.M1 <- dependent.events ~  1 + intercept(network.interactions, joining=1) +
+                                          ego(actors$age,joining=1,subType="centered") +
+                                          ego(actors$age,joining=-1,subType="centered") +
+                                          diff(actors$age,joining=-1,subType="averaged_sum") + 
+                                          diff(actors$level,joining=-1,subType="averaged_sum") + 
+                                          same(actors$gender,joining=-1,subType="proportion") + 
+                                          same(actors$group,joining=-1,subType="proportion") +
+                                          tie(known.before,joining=-1,subType="proportion")
+```
+
+and for the choice model:
+9. diff age: tendency for individuals to join groups if the average sum of age difference to the group are high
+10. diff level: tendency for individuals to join groups if the average sum of level difference to the group are high
+11. same gender: tendency for individuals to join groups if the proportion of same gender in the group is high
+12. same group: tendency for individuals to join groups if the proportion of same group in the group is high
+13. tie known before: tendency for individuals to join groups if the proportion of previous friends in the group is high
+```{r}
+formula.choice.M1 <- dependent.events ~  diff(actors$age,subType="averaged_sum") + 
+                                            diff(actors$level,subType="averaged_sum") + 
+                                            same(actors$gender,subType="proportion") + 
+                                            same(actors$group,subType="proportion") +
+                                            tie(known.before,subType="proportion")
+```
+
+Note that effects in the choice model can mirror the ones in the leaving model: The first model explains who people want to join (or not join), the second explains who people want to leave (or stay with). 
+
+Now let us run goldfish estimation!
+```{r}
+est.rate.M1 <- estimate(formula.rate.M1, model = "DyNAMi", subModel = "rate")
+summary(est.rate.M1)
+```
+
+```{r}
+est.choice.M1 <- estimate(formula.choice.M1, model = "DyNAMi", subModel = "choice", estimationInit = list(opportunitiesList = opportunities))
+summary(est.choice.M1)
+```
+### Step 5: Estimate a model with structural and time effects
+
+Now let's add effects related to group sizes and past interactions. We add to the rate model the effects of:
+1. size (leaving): tendency for individuals to leave large groups faster
+2. egopop (joining): tendency for individuals who had more interactions in the past to join groups faster
+3. egopop (leaving): tendency for individuals who had more interactions in the past to leave groups faster
+```{r}
+formula.rate.M2 <- dependent.events ~  1 + intercept(network.interactions, joining=1) +
+                                          ego(actors$age,joining=1,subType="centered") +
+                                          ego(actors$age,joining=-1,subType="centered") +
+                                          diff(actors$age,joining=-1,subType="averaged_sum") + 
+                                          diff(actors$level,joining=-1,subType="averaged_sum") + 
+                                          same(actors$gender,joining=-1,subType="proportion") + 
+                                          same(actors$group,joining=-1,subType="proportion") +
+                                          tie(known.before,joining=-1,subType="proportion") +
+                                          size(network.interactions,joining=-1,subType="identity") +
+                                          egopop(network.past,joining=1,subType="normalized") +
+                                          egopop(network.past,joining=-1,subType="normalized") 
+```
+
+We add to the choice model:
+1. size: tendency for individuals to join large groups
+2. alterpop: tendency for individuals to join groups with individuals who had more interactions in the past
+3. inertia, window = 60s: tendency for individuals to join groups with a high average number of previous interactions with the group members within the last minute
+3. inertia, window = 300s: same as above, for 5 minutes
+```{r}
+formula.choice.M2 <- dependent.events ~  diff(actors$age,subType="averaged_sum") + 
+                                            diff(actors$level,subType="averaged_sum") + 
+                                            same(actors$gender,subType="proportion") + 
+                                            same(actors$group,subType="proportion") +
+                                            alter(actors$age,subType="mean")+
+                                            tie(known.before,subType="proportion") +
+                                            size(network.interactions,subType="identity") +
+                                            alterpop(network.past,subType="mean_normalized") + 
+                                            inertia(network.past, window=60,subType="mean") +
+                                            inertia(network.past, window=300,subType="mean")
+```
+
+One can note that we have normalized (using the option `subType="mean"`) the effects related to previous interactions, because we want to avoid time heterogeneity issues (in the beginning no interaction has happened, at the end, a lot happened).
+
+All effects can have different subTypes, please look at the goldfish documentation to learn more.
+
+Now we can run again
+```{r}
+est.rate.M2 <- estimate(formula.rate.M2, model = "DyNAMi", subModel = "rate")
+summary(est.rate.M2)
+```
+and:
+```{r}
+est.choice.M2 <- estimate(formula.choice.M2, model = "DyNAMi", subModel = "choice", estimationInit = list(opportunitiesList = opportunities))
+summary(est.choice.M2)
+```
+
+Of course these models ask a bit much from our data, so ideally we would a bit more reasonable with the number of effects we include, or do some model selection.
+
+### Step 6: Extra steps
+
+We now have for each rate model a general intercept and a dummy interaction between the intercept and the joining events. If we want to report the actual intercept for joining, we can calculate the following (for M2 for example):
+```{r}
+cov.matrix <- vcov(est.rate.M2)
+
+est.interceptjoining <- coef(est.rate.M2)[1] + coef(est.rate.M2)[2]
+se.interceptjoining <- sqrt(cov.matrix[1, 1] + cov.matrix[2, 2] + 2 * cov.matrix[1, 2])
+t.interceptjoining <- est.interceptjoining / se.interceptjoining
+```
+
+This script can be continued by looking at better model specifications than the ones provided, or trying to model the interaction data collected from RFID badges rather than video recordings, and maybe compare both.
+ 
