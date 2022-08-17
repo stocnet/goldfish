@@ -40,7 +40,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.3</span>
       </span>
     </div>
 
@@ -62,14 +62,29 @@
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu">
-<li>
+<li class="divider">
+    </li>
+<li class="dropdown-header">goldfish effects</li>
+    <li>
       <a href="../articles/goldfishEffects.html">goldfish Effects</a>
     </li>
+    <li class="divider">
+    </li>
+<li class="dropdown-header">How to start</li>
     <li>
       <a href="../articles/teaching1.html">DyNAM: How to start</a>
     </li>
+    <li class="divider">
+    </li>
+<li class="dropdown-header">choice coordination</li>
     <li>
       <a href="../articles/teaching2.html">The Coordination Model and Extensions</a>
+    </li>
+    <li class="divider">
+    </li>
+<li class="dropdown-header">DyNAM-i</li>
+    <li>
+      <a href="../articles/dynami-example.html">DyNAM-i: an example script</a>
     </li>
   </ul>
 </li>
@@ -118,10 +133,7 @@
 </h2>
 <p>First, we load the <code>goldfish</code> package and load the data. The data is loaded using lazy loading, i.e., the objects are only ‘promised’ for the moment, but are available in the environment to be used, and more information will appear as you use them. You can find out more about this dataset, its format, and its origins in a couple of ERGM papers by callings its documentation:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">goldfish</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   &lt;")))&gt;&lt;  The Goldfish package in R</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; goldfish: version 1.5.3, "Bubble Eye", created on 2022-07-02</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://snlab-ch.github.io/goldfish/">goldfish</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"Social_Evolution"</span><span class="op">)</span></span>
 <span><span class="co"># ?Social_Evolution</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">calls</span><span class="op">)</span></span>
@@ -164,10 +176,8 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod00Rate</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = callsDependent ~ indeg + outdeg, model = "DyNAM", </span></span>
+<span><span class="co">#&gt;     subModel = "rate")</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients :</span></span>
@@ -192,10 +202,8 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod00Choice</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = callsDependent ~ inertia + recip + trans, model = "DyNAM", </span></span>
+<span><span class="co">#&gt;     subModel = "choice")</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients :</span></span>
@@ -252,16 +260,20 @@
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/goldfishObjects.html">goldfishObjects</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Goldfish Nodes</span></span>
-<span><span class="co">#&gt;         n                       attributes events</span></span>
-<span><span class="co">#&gt; actors 84 label, present, floor, gradeType       </span></span>
+<span><span class="co">#&gt;          n                       attributes               events</span></span>
+<span><span class="co">#&gt; actors  84 label, present, floor, gradeType                     </span></span>
+<span><span class="co">#&gt; states 154      label, present, regime, gdp present, regime, gdp</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Goldfish Networks</span></span>
-<span><span class="co">#&gt;             dimensions nodesets events</span></span>
-<span><span class="co">#&gt; callNetwork    84 x 84   actors  calls</span></span>
+<span><span class="co">#&gt;             dimensions nodesets        events</span></span>
+<span><span class="co">#&gt; bilatnet     154 x 154   states  bilatchanges</span></span>
+<span><span class="co">#&gt; callNetwork    84 x 84   actors         calls</span></span>
+<span><span class="co">#&gt; contignet    154 x 154   states contigchanges</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Goldfish Dependent Events</span></span>
 <span><span class="co">#&gt;                  n     network</span></span>
-<span><span class="co">#&gt; callsDependent 439 callNetwork</span></span></code></pre></div>
+<span><span class="co">#&gt; callsDependent 439 callNetwork</span></span>
+<span><span class="co">#&gt; createBilat     69    bilatnet</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="step-1b-define-networks">Step 1b: Define networks<a class="anchor" aria-label="anchor" href="#step-1b-define-networks"></a>
@@ -389,31 +401,36 @@
 <p>We can use these functions to visually compare our network at two (or more) different time periods using <code>migraph</code>. See the <code>migraph</code> package documentation for additional information about network visualization.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggraph.data-imaginist.com" class="external-link">ggraph</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; Loading required package: ggplot2</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/snlab-ch/migraph" class="external-link">migraph</a></span><span class="op">)</span></span>
 <span><span class="co"># The network at the beginning</span></span>
 <span><span class="va">callNetworkBgn</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/migraph/man/autographr.html" class="external-link">autographr</a></span><span class="op">(</span><span class="va">callNetworkBgn</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="teaching/plot-teaching1-1.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504"></p>
+<div class="figure">
+<img src="teaching/plot-teaching1-1.png" alt=""><p class="caption">plot of chunk plot-teaching1</p>
+</div>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># The network at half time</span></span>
 <span><span class="va">callNetworkHlf</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">callNetwork</span>,</span>
 <span>                            time <span class="op">=</span> <span class="va">calls</span><span class="op">$</span><span class="va">time</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">calls</span><span class="op">)</span> <span class="op">/</span> <span class="fl">2</span><span class="op">)</span><span class="op">]</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
-<span>  <span class="fu">add_node_attributes</span><span class="op">(</span><span class="st">"floor"</span>, <span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"floor"</span>, <span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/migraph/man/autographr.html" class="external-link">autographr</a></span><span class="op">(</span><span class="va">callNetworkHlf</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggraph.data-imaginist.com/reference/geom_node_point.html" class="external-link">geom_node_point</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">floor</span><span class="op">)</span><span class="op">)</span>, size <span class="op">=</span> <span class="fl">2</span>, show.legend <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
-<p><img src="teaching/plot-teaching1-2.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504"></p>
+<div class="figure">
+<img src="teaching/plot-teaching1-2.png" alt=""><p class="caption">plot of chunk plot-teaching1</p>
+</div>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># The network at the end</span></span>
 <span><span class="va">callNetworkEnd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">callNetwork</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">calls</span><span class="op">$</span><span class="va">time</span><span class="op">)</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
-<span>  <span class="fu">add_node_attributes</span><span class="op">(</span><span class="st">"floor"</span>, <span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"floor"</span>, <span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/migraph/man/autographr.html" class="external-link">autographr</a></span><span class="op">(</span><span class="va">callNetworkEnd</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggraph.data-imaginist.com/reference/geom_node_point.html" class="external-link">geom_node_point</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">floor</span><span class="op">)</span><span class="op">)</span>, size <span class="op">=</span> <span class="fl">2</span>, show.legend <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
-<p><img src="teaching/plot-teaching1-3.png" title="plot of chunk plot-teaching1" alt="plot of chunk plot-teaching1" width="504"></p>
+<div class="figure">
+<img src="teaching/plot-teaching1-3.png" alt=""><p class="caption">plot of chunk plot-teaching1</p>
+</div>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span></span>
@@ -460,10 +477,8 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod01Choice</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = callsDependent ~ tie(friendshipNetwork), model = "DyNAM", </span></span>
+<span><span class="co">#&gt;     subModel = "choice")</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients :</span></span>
@@ -492,10 +507,9 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod02Choice</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = callsDependent ~ inertia(callNetwork) + recip(callNetwork) + </span></span>
+<span><span class="co">#&gt;     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + </span></span>
+<span><span class="co">#&gt;     same(actors$floor), model = "DyNAM", subModel = "choice")</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details :</span></span>
@@ -548,10 +562,8 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod01Rate</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = callsDependent ~ indeg(friendshipNetwork), model = "DyNAM", </span></span>
+<span><span class="co">#&gt;     subModel = "rate", estimationInit = list(maxIterations = 40))</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients :</span></span>
@@ -576,10 +588,8 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod02Rate</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) + </span></span>
+<span><span class="co">#&gt;     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details :</span></span>
@@ -616,10 +626,8 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod03Rate</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) + </span></span>
+<span><span class="co">#&gt;     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details :</span></span>
@@ -680,13 +688,13 @@
 <span>                   <span class="fu">indeg</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">mod04Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">windowFormulaRate</span>, model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod04Rate</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod04Rate</span><span class="op">)</span></span></code></pre></div>
+<pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) + </span></span>
+<span><span class="co">#&gt;     indeg(callNetwork, window = 300) + outdeg(callNetwork, window = 300) + </span></span>
+<span><span class="co">#&gt;     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate", </span></span>
+<span><span class="co">#&gt;     estimationInit = list(engine = "default"))</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details :</span></span>
@@ -699,24 +707,24 @@
 <span><span class="co">#&gt; indeg     friendshipNetwork       </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients :</span></span>
-<span><span class="co">#&gt;              Estimate  Std. Error   z-value  Pr(&gt;|z|)    </span></span>
-<span><span class="co">#&gt; Intercept -14.1665102   0.0880817 -160.8337 &lt; 2.2e-16 ***</span></span>
-<span><span class="co">#&gt; indeg       0.1910828   0.0781305    2.4457   0.01446 *  </span></span>
-<span><span class="co">#&gt; outdeg      0.5283974   0.0332725   15.8809 &lt; 2.2e-16 ***</span></span>
-<span><span class="co">#&gt; indeg       3.1942574   0.4135005    7.7249  1.11e-14 ***</span></span>
-<span><span class="co">#&gt; outdeg      0.1404188   0.2860436    0.4909   0.62350    </span></span>
-<span><span class="co">#&gt; indeg       0.0098856   0.0154430    0.6401   0.52209    </span></span>
+<span><span class="co">#&gt;             Estimate Std. Error   z-value  Pr(&gt;|z|)    </span></span>
+<span><span class="co">#&gt; Intercept -14.530750   0.101676 -142.9125 &lt; 2.2e-16 ***</span></span>
+<span><span class="co">#&gt; indeg       0.245045   0.070682    3.4669 0.0005266 ***</span></span>
+<span><span class="co">#&gt; outdeg      0.364576   0.032556   11.1985 &lt; 2.2e-16 ***</span></span>
+<span><span class="co">#&gt; indeg       5.295709   0.139463   37.9722 &lt; 2.2e-16 ***</span></span>
+<span><span class="co">#&gt; outdeg     -0.767499   0.116642   -6.5800 4.706e-11 ***</span></span>
+<span><span class="co">#&gt; indeg       0.083772   0.015289    5.4794 4.268e-08 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;   Converged with max abs. score of 0.00081 </span></span>
-<span><span class="co">#&gt;   Log-Likelihood: -5854.6</span></span>
-<span><span class="co">#&gt;   AIC:  11721 </span></span>
-<span><span class="co">#&gt;   AICc: 11721 </span></span>
-<span><span class="co">#&gt;   BIC:  11750 </span></span>
-<span><span class="co">#&gt;   model: "DyNAM" subModel: "rate"</span></span></code></pre></div>
+<span><span class="co">#&gt;   Converged with max abs. score of 1e-05 </span></span>
+<span><span class="co">#&gt;   Log-Likelihood: -5475.9</span></span>
+<span><span class="co">#&gt;   AIC:  10964 </span></span>
+<span><span class="co">#&gt;   AICc: 10964 </span></span>
+<span><span class="co">#&gt;   BIC:  10992 </span></span>
+<span><span class="co">#&gt;   model: "DyNAM" subModel: "rate"</span></span></code></pre>
 <p>Of course, you can also add windows to the choice formula!</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">windowFormulaChoice</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">inertia</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">recip</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">inertia</span><span class="op">(</span><span class="va">callNetwork</span>, window <span class="op">=</span> <span class="fl">300</span><span class="op">)</span> <span class="op">+</span></span>
@@ -729,10 +737,10 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod03Choice</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = callsDependent ~ inertia(callNetwork) + recip(callNetwork) + </span></span>
+<span><span class="co">#&gt;     inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) + </span></span>
+<span><span class="co">#&gt;     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + </span></span>
+<span><span class="co">#&gt;     same(actors$floor), model = "DyNAM", subModel = "choice")</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details :</span></span>
@@ -766,48 +774,20 @@
 <span><span class="co">#&gt;   BIC:  1180.5 </span></span>
 <span><span class="co">#&gt;   model: "DyNAM" subModel: "choice"</span></span></code></pre></div>
 <p>All this shows you that you can specify different formula for the rate and choice components of the model. This is a key advantage of the DyNAM!</p>
-<p>When comparing the information criteria (AIC / BIC) of the different model, we see that the time windows explain a lot</p>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">mod02Choice</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1287.912</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">mod03Choice</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1147.804</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">mod03Rate</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 11976.58</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">mod04Rate</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 11721.24</span></span></code></pre></div>
-<p>Using windowed effects actually initializes new data objects.</p>
+<p>When comparing the information criteria (AIC / BIC) of the different models, we see that the time windows explain a lot</p>
 <div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/goldfishObjects.html">goldfishObjects</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Goldfish Nodes</span></span>
-<span><span class="co">#&gt;         n                       attributes events</span></span>
-<span><span class="co">#&gt; actors 84 label, present, floor, gradeType       </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Goldfish Networks</span></span>
-<span><span class="co">#&gt;                   dimensions nodesets     events</span></span>
-<span><span class="co">#&gt; callNetwork          84 x 84   actors      calls</span></span>
-<span><span class="co">#&gt; callNetwork_300      84 x 84   actors  calls_300</span></span>
-<span><span class="co">#&gt; friendshipNetwork    84 x 84   actors friendship</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Goldfish Dependent Events</span></span>
-<span><span class="co">#&gt;                  n     network</span></span>
-<span><span class="co">#&gt; callsDependent 439 callNetwork</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">calls_300</span><span class="op">)</span></span>
-<span><span class="co">#&gt;         time   sender receiver increment</span></span>
-<span><span class="co">#&gt; 1 1220733470 Actor 72 Actor 50         1</span></span>
-<span><span class="co">#&gt; 2 1220733770 Actor 72 Actor 50        -1</span></span>
-<span><span class="co">#&gt; 3 1221102974 Actor 43 Actor 51         1</span></span>
-<span><span class="co">#&gt; 4 1221103274 Actor 43 Actor 51        -1</span></span>
-<span><span class="co">#&gt; 5 1221784293 Actor 43 Actor 51         1</span></span>
-<span><span class="co">#&gt; 6 1221784593 Actor 43 Actor 51        -1</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">tail</a></span><span class="op">(</span><span class="va">calls_300</span><span class="op">)</span></span>
-<span><span class="co">#&gt;           time   sender receiver increment</span></span>
-<span><span class="co">#&gt; 873 1224371225 Actor 23 Actor 44        -1</span></span>
-<span><span class="co">#&gt; 874 1224371243 Actor 44 Actor 23        -1</span></span>
-<span><span class="co">#&gt; 875 1224373128 Actor 20 Actor 23         1</span></span>
-<span><span class="co">#&gt; 876 1224373152 Actor 23 Actor 20         1</span></span>
-<span><span class="co">#&gt; 877 1224373428 Actor 20 Actor 23        -1</span></span>
-<span><span class="co">#&gt; 878 1224373452 Actor 23 Actor 20        -1</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="co"># Compare different specifications of the subModel = "choice"</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">mod02Choice</span>, <span class="va">mod03Choice</span><span class="op">)</span></span>
+<span><span class="co">#&gt;             df      AIC</span></span>
+<span><span class="co">#&gt; mod02Choice  6 1287.912</span></span>
+<span><span class="co">#&gt; mod03Choice  8 1147.804</span></span>
+<span></span>
+<span><span class="co"># Compare different specifications of the subModel = "rate"</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">mod03Rate</span>, <span class="va">mod04Rate</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the same number of observations</span></span>
+<span><span class="co">#&gt;           df      AIC</span></span>
+<span><span class="co">#&gt; mod03Rate  4 11976.58</span></span>
+<span><span class="co">#&gt; mod04Rate  6 10963.75</span></span></code></pre></div>
 </div>
 <div class="section level4">
 <h4 id="rem-with-goldfish">REM with <code>goldfish</code><a class="anchor" aria-label="anchor" href="#rem-with-goldfish"></a>
@@ -835,10 +815,11 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod01REM</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) + </span></span>
+<span><span class="co">#&gt;     inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) + </span></span>
+<span><span class="co">#&gt;     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + </span></span>
+<span><span class="co">#&gt;     same(actors$floor), model = "REM", estimationInit = list(initialDamping = 40, </span></span>
+<span><span class="co">#&gt;     engine = "default_c"))</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details :</span></span>
@@ -895,7 +876,7 @@
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.5.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
 </div>
 
       </footer>

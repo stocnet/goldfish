@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.3</span>
       </span>
     </div>
 
@@ -37,14 +37,25 @@
      
     <span class="caret"></span>
   </a>
-  <ul class="dropdown-menu" role="menu"><li>
+  <ul class="dropdown-menu" role="menu"><li class="divider">
+    <li class="dropdown-header">goldfish effects</li>
+    <li>
       <a href="../articles/goldfishEffects.html">goldfish Effects</a>
     </li>
+    <li class="divider">
+    <li class="dropdown-header">How to start</li>
     <li>
       <a href="../articles/teaching1.html">DyNAM: How to start</a>
     </li>
+    <li class="divider">
+    <li class="dropdown-header">choice coordination</li>
     <li>
       <a href="../articles/teaching2.html">The Coordination Model and Extensions</a>
+    </li>
+    <li class="divider">
+    <li class="dropdown-header">DyNAM-i</li>
+    <li>
+      <a href="../articles/dynami-example.html">DyNAM-i: an example script</a>
     </li>
   </ul></li>
 <li>
@@ -73,7 +84,7 @@
           <p class="section-desc"></p>
         </th>
       </tr></tbody><tbody><tr><td>
-          <p><code><a href="goldfish-package.html">goldfish-package</a></code> </p>
+          <p><code><a href="goldfish-package.html">goldfish-package</a></code> <code><a href="goldfish-package.html">goldfish</a></code> </p>
         </td>
         <td><p>goldfish package</p></td>
       </tr><tr><td>
@@ -99,11 +110,11 @@
       </tr><tr><td>
           <p><code><a href="linkEvents.html">linkEvents()</a></code> </p>
         </td>
-        <td><p>Attach dynamic events to a nodeset or a network</p></td>
+        <td><p>Link dynamic events to a nodeset or a network</p></td>
       </tr><tr><td>
           <p><code><a href="goldfishObjects.html">goldfishObjects()</a></code> </p>
         </td>
-        <td><p>Return details about any goldfish objects in a given list</p></td>
+        <td><p>A report of goldfish objects in an environment</p></td>
       </tr></tbody><tbody><tr><th colspan="2">
           <h2 id="estimate">Estimate <a href="#estimate" class="anchor" aria-hidden="true"></a></h2>
           <p class="section-desc"></p>
@@ -115,23 +126,19 @@
       </tr><tr><td>
           <p><code><a href="update-method.html">as.data.frame(<i>&lt;nodes.goldfish&gt;</i>)</a></code> <code><a href="update-method.html">as.matrix(<i>&lt;network.goldfish&gt;</i>)</a></code> </p>
         </td>
-        <td><p>Methods to update the nodes or the network objects</p></td>
+        <td><p>Methods to update a nodes or network object</p></td>
       </tr><tr><td>
-          <p><code><a href="coef.result.goldfish.html">coef(<i>&lt;result.goldfish&gt;</i>)</a></code> </p>
+          <p><code><a href="print-method.html">print(<i>&lt;result.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">print(<i>&lt;summary.result.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">print(<i>&lt;nodes.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">print(<i>&lt;network.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">print(<i>&lt;dependent.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">print(<i>&lt;preprocessed.goldfish&gt;</i>)</a></code> </p>
         </td>
-        <td><p>Extract coefs from result goldfish object</p></td>
-      </tr><tr><td>
-          <p><code><a href="print-method.html">print(<i>&lt;result.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">summary(<i>&lt;result.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">print(<i>&lt;summary.result.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">print(<i>&lt;nodes.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">head(<i>&lt;nodes.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">tail(<i>&lt;nodes.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">print(<i>&lt;network.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">head(<i>&lt;network.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">tail(<i>&lt;network.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">print(<i>&lt;dependent.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">head(<i>&lt;dependent.goldfish&gt;</i>)</a></code> <code><a href="print-method.html">print(<i>&lt;preprocessed.goldfish&gt;</i>)</a></code> </p>
-        </td>
-        <td><p>Printing functions for `goldfish` objects.</p></td>
+        <td><p>Methods for <code>goldfish</code> objects.</p></td>
       </tr></tbody><tbody><tr><th colspan="2">
           <h2 id="diagnostics">Diagnostics <a href="#diagnostics" class="anchor" aria-hidden="true"></a></h2>
           <p class="section-desc"></p>
         </th>
       </tr></tbody><tbody><tr><td>
-          <p><code><a href="model-selection.html">AIC(<i>&lt;result.goldfish&gt;</i>)</a></code> <code><a href="model-selection.html">BIC(<i>&lt;result.goldfish&gt;</i>)</a></code> <code><a href="model-selection.html">logLik(<i>&lt;result.goldfish&gt;</i>)</a></code> </p>
+          <p><code><a href="logLik.result.goldfish.html">logLik(<i>&lt;result.goldfish&gt;</i>)</a></code> </p>
         </td>
-        <td><p>Information criteria statistics</p></td>
+        <td><p>Extract log-likelihood from a fitted model object</p></td>
       </tr><tr><td>
           <p><code><a href="examine.html">examineOutliers()</a></code> <code><a href="examine.html">examineChangepoints()</a></code> </p>
         </td>
@@ -165,7 +172,7 @@
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.5.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
 </div>
 
       </footer></div>

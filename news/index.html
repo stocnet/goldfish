@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.3</span>
       </span>
     </div>
 
@@ -37,14 +37,25 @@
      
     <span class="caret"></span>
   </a>
-  <ul class="dropdown-menu" role="menu"><li>
+  <ul class="dropdown-menu" role="menu"><li class="divider">
+    <li class="dropdown-header">goldfish effects</li>
+    <li>
       <a href="../articles/goldfishEffects.html">goldfish Effects</a>
     </li>
+    <li class="divider">
+    <li class="dropdown-header">How to start</li>
     <li>
       <a href="../articles/teaching1.html">DyNAM: How to start</a>
     </li>
+    <li class="divider">
+    <li class="dropdown-header">choice coordination</li>
     <li>
       <a href="../articles/teaching2.html">The Coordination Model and Extensions</a>
+    </li>
+    <li class="divider">
+    <li class="dropdown-header">DyNAM-i</li>
+    <li>
+      <a href="../articles/dynami-example.html">DyNAM-i: an example script</a>
     </li>
   </ul></li>
 <li>
@@ -70,8 +81,24 @@
     </div>
 
     <div class="section level2">
+<h2 class="page-header" data-toc-text="1.6.3" id="goldfish-163">goldfish 1.6.3<a class="anchor" aria-label="anchor" href="#goldfish-163"></a></h2>
+<ul><li>Add DyNAM-i vignette.</li>
+<li>Reimplement method <code><a href="https://rdrr.io/r/stats/logLik.html" class="external-link">logLik()</a></code>, now is possible to use <code><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC()</a></code> and <code><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">BIC()</a></code> from <code>stats</code> package and make likelihood ratio test of nested models using <code><a href="https://rdrr.io/pkg/lmtest/man/lrtest.html" class="external-link">lmtest::lrtest()</a></code>.</li>
+<li>Implement method <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>, now is possible to use <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">stats::confint()</a></code> to obtain confidence interval for parameters estimates under asymptotic normality, and also get them from a <code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy()</a></code> call.</li>
+<li>Improve documentation of <code>define</code> functions, <code><a href="../reference/linkEvents.html">linkEvents()</a></code> and <code>print</code> methods. The reserved names and expected variables are explained.</li>
+<li>Drop <code>fig.retina</code> from figures in vignettes and keeps default size.</li>
+<li>Update <code><a href="../articles/goldfishEffects.html">vignette("goldfishEffects")</a></code> documentation for closure effects.</li>
+<li>Silent <code>estimate</code> function output. Setting the global option <code>verbose</code> allows unsilent the messages during estimation.</li>
+<li>Window effects doesn’t create new object on the global environment.</li>
+<li>Add references in description.</li>
+<li>
+<code>silent</code> parameter replace by <code>progress</code>. <code>progress</code> and <code>verbose</code> can be set with global options with the same name.</li>
+<li>Fix bug composition change on estimation routines.</li>
+<li>Includes environment argument on estimation routines.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="page-header" data-toc-text="1.6.2" id="goldfish-162">goldfish 1.6.2<a class="anchor" aria-label="anchor" href="#goldfish-162"></a></h2>
-<ul><li>Fix additional URL on Vignette “How to start”</li></ul></div>
+<ul><li>Fix additional URL on Vignette “How to start”.</li></ul></div>
     <div class="section level2">
 <h2 class="page-header" data-toc-text="1.6.1" id="goldfish-161">goldfish 1.6.1<a class="anchor" aria-label="anchor" href="#goldfish-161"></a></h2>
 <ul><li>Fix URLs.</li>
@@ -262,7 +289,7 @@
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.5.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
 </div>
 
       </footer></div>

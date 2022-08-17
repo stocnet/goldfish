@@ -10,10 +10,10 @@
     <loc>https://snlab-ch.github.io/goldfish/CONTRIBUTING.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/LICENSE-text.html</loc>
+    <loc>https://snlab-ch.github.io/goldfish/OpenMP_mac.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/OpenMP_mac.html</loc>
+    <loc>https://snlab-ch.github.io/goldfish/articles/dynami-example.html</loc>
   </url>
   <url>
     <loc>https://snlab-ch.github.io/goldfish/articles/goldfishEffects.html</loc>
@@ -40,9 +40,6 @@
     <loc>https://snlab-ch.github.io/goldfish/pull_request_template.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/C_convert_composition_change.html</loc>
-  </url>
-  <url>
     <loc>https://snlab-ch.github.io/goldfish/reference/Fisheries_Treaties_6070.html</loc>
   </url>
   <url>
@@ -50,12 +47,6 @@
   </url>
   <url>
     <loc>https://snlab-ch.github.io/goldfish/reference/Social_Evolution.html</loc>
-  </url>
-  <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/coef.result.goldfish.html</loc>
-  </url>
-  <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/convert_change.html</loc>
   </url>
   <url>
     <loc>https://snlab-ch.github.io/goldfish/reference/defineDependentEvents.html</loc>
@@ -76,34 +67,7 @@
     <loc>https://snlab-ch.github.io/goldfish/reference/estimate.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/estimate_DyNAM_MM.html</loc>
-  </url>
-  <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/estimate_DyNAM_choice.html</loc>
-  </url>
-  <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/estimate_DyNAM_rate.html</loc>
-  </url>
-  <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/estimate_DyNAM_rate_ordered.html</loc>
-  </url>
-  <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/estimate_REM.html</loc>
-  </url>
-  <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/estimate_REM_ordered.html</loc>
-  </url>
-  <url>
     <loc>https://snlab-ch.github.io/goldfish/reference/examine.html</loc>
-  </url>
-  <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/gather_receiver_model.html</loc>
-  </url>
-  <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/gather_sender_model.html</loc>
-  </url>
-  <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/gather_sender_receiver_model.html</loc>
   </url>
   <url>
     <loc>https://snlab-ch.github.io/goldfish/reference/goldfish-package.html</loc>
@@ -118,7 +82,7 @@
     <loc>https://snlab-ch.github.io/goldfish/reference/linkEvents.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/model-selection.html</loc>
+    <loc>https://snlab-ch.github.io/goldfish/reference/logLik.result.goldfish.html</loc>
   </url>
   <url>
     <loc>https://snlab-ch.github.io/goldfish/reference/print-method.html</loc>

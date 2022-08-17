@@ -40,7 +40,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.3</span>
       </span>
     </div>
 
@@ -62,14 +62,29 @@
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu">
-<li>
+<li class="divider">
+    </li>
+<li class="dropdown-header">goldfish effects</li>
+    <li>
       <a href="../articles/goldfishEffects.html">goldfish Effects</a>
     </li>
+    <li class="divider">
+    </li>
+<li class="dropdown-header">How to start</li>
     <li>
       <a href="../articles/teaching1.html">DyNAM: How to start</a>
     </li>
+    <li class="divider">
+    </li>
+<li class="dropdown-header">choice coordination</li>
     <li>
       <a href="../articles/teaching2.html">The Coordination Model and Extensions</a>
+    </li>
+    <li class="divider">
+    </li>
+<li class="dropdown-header">DyNAM-i</li>
+    <li>
+      <a href="../articles/dynami-example.html">DyNAM-i: an example script</a>
     </li>
   </ul>
 </li>
@@ -117,8 +132,7 @@
 </h2>
 <p>First, let’s make sure we’re starting with a clean slate and take the goldfish out of the bowl:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/rm.html" class="external-link">rm</a></span><span class="op">(</span>list <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ls.html" class="external-link">ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">goldfish</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://snlab-ch.github.io/goldfish/">goldfish</a></span><span class="op">)</span></span></code></pre></div>
 <p>This lazy loads several datasets, including the one we will now use:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"Fisheries_Treaties_6070"</span><span class="op">)</span></span>
@@ -147,6 +161,10 @@
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNodes.html">defineNodes</a></span><span class="op">(</span><span class="va">states</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">states</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Number of nodes: 6 </span></span>
+<span><span class="co">#&gt; Number of present nodes: 6 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; First 6 rows</span></span>
 <span><span class="co">#&gt;   label present regime         gdp</span></span>
 <span><span class="co">#&gt; 1   AND    TRUE     NA          NA</span></span>
 <span><span class="co">#&gt; 2   DNK    TRUE     10 0.006248947</span></span>
@@ -217,8 +235,8 @@
 <span><span class="co">#&gt;  - attr(*, "dynamicAttributes")= chr "present"</span></span></code></pre></div>
 <p>We can continue on with our other two dynamic monadic variables. Try this for yourself now.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">states</span>, <span class="va">regchanges</span>, attribute <span class="op">=</span> <span class="st">"regime"</span><span class="op">)</span></span>
-<span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">states</span>, <span class="va">gdpchanges</span>, attribute <span class="op">=</span> <span class="st">"gdp"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">states</span>, <span class="va">regchanges</span>, attribute <span class="op">=</span> <span class="st">"regime"</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
+<span>  <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">gdpchanges</span>, attribute <span class="op">=</span> <span class="st">"gdp"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">states</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Classes 'nodes.goldfish' and 'data.frame':   154 obs. of  4 variables:</span></span>
 <span><span class="co">#&gt;  $ label  : chr  "AND" "DNK" "FRA" "DEU" ...</span></span>
@@ -305,8 +323,8 @@
 <span><span class="co">#&gt; LIE   0   0   0   0   0   0</span></span></code></pre></div>
 <p>TASK: You should now be able to do the same with the initial contiguity network and the event list changing it.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">contignet</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span><span class="va">contignet</span>, nodes <span class="op">=</span> <span class="va">states</span>, directed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span><span class="va">contignet</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">contignet</span>, <span class="va">contigchanges</span>, nodes <span class="op">=</span> <span class="va">states</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">contignet</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span><span class="va">contignet</span>, nodes <span class="op">=</span> <span class="va">states</span>, directed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
+<span>  <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">contigchanges</span>, nodes <span class="op">=</span> <span class="va">states</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="va">contignet</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "network.goldfish" "matrix"           "array"</span></span>
 <span><span class="va">contignet</span></span>
@@ -395,17 +413,17 @@
 <span></span>
 <span><span class="co"># network at the beginning of the event sequence</span></span>
 <span><span class="va">startStates</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">states</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"1960-01-02"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">startNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">bilatnet</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"1960-01-02"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">startNet</span> <span class="op">&lt;-</span> <span class="fu">add_node_attributes</span><span class="op">(</span><span class="va">startNet</span>, <span class="st">"present"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">present</span><span class="op">)</span></span>
-<span><span class="va">startNet</span> <span class="op">&lt;-</span> <span class="fu">add_node_attributes</span><span class="op">(</span><span class="va">startNet</span>, <span class="st">"regime"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span></span>
-<span><span class="va">startNet</span> <span class="op">&lt;-</span> <span class="fu">add_node_attributes</span><span class="op">(</span><span class="va">startNet</span>, <span class="st">"gdp"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
+<span><span class="va">startNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">bilatnet</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"1960-01-02"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"present"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">present</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"regime"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"gdp"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># network at the end of the event sequence</span></span>
 <span><span class="va">endStates</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">states</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"1970-01-01"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">endNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">bilatnet</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"1970-01-01"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">endNet</span> <span class="op">&lt;-</span> <span class="fu">add_node_attributes</span><span class="op">(</span><span class="va">endNet</span>, <span class="st">"present"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">present</span><span class="op">)</span></span>
-<span><span class="va">endNet</span> <span class="op">&lt;-</span> <span class="fu">add_node_attributes</span><span class="op">(</span><span class="va">endNet</span>, <span class="st">"regime"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span></span>
-<span><span class="va">endNet</span> <span class="op">&lt;-</span> <span class="fu">add_node_attributes</span><span class="op">(</span><span class="va">endNet</span>, <span class="st">"gdp"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
+<span><span class="va">endNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">bilatnet</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"1970-01-01"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"present"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">present</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"regime"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"gdp"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># logical value indicating if states where present and with agreements</span></span>
 <span><span class="va">isStateActiveStart</span> <span class="op">&lt;-</span> <span class="va">startStates</span><span class="op">$</span><span class="va">present</span> <span class="op">&amp;</span> <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/centrality.html" class="external-link">node_degree</a></span><span class="op">(</span><span class="va">startNet</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span></span>
@@ -417,7 +435,7 @@
 <span><span class="va">endNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/igraph/man/delete_vertices.html" class="external-link">delete_vertices</a></span><span class="op">(</span><span class="va">endNet</span>, <span class="op">!</span><span class="va">isStateActive</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/migraph/man/ggevolution.html" class="external-link">ggevolution</a></span><span class="op">(</span><span class="va">startNet</span>, <span class="va">endNet</span>, layout <span class="op">=</span> <span class="st">"fr"</span>, based_on <span class="op">=</span> <span class="st">"last"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="teaching/plot-teaching2-1.png" title="plot of chunk plot-teaching2" alt="plot of chunk plot-teaching2" width="504" style="display: block; margin: auto;"></p>
+<p><img src="teaching/plot-teaching2-1.png" title="plot of chunk plot-teaching2" alt="plot of chunk plot-teaching2" style="display: block; margin: auto;"></p>
 <p>What can we observe?</p>
 </div>
 <div class="section level2">
@@ -456,7 +474,7 @@
 <span>    <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   68.35    5.18   73.75</span></span></code></pre></div>
+<span><span class="co">#&gt;   67.74    3.81   71.58</span></span></code></pre></div>
 <p>Did the model converge? If not, you can restart the estimation process using the same formula and current parameter estimates:</p>
 <div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">estPrefs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -474,10 +492,11 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">partnerModel</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; goldfish::estimate(x = x, model = model, subModel = subModel, </span></span>
-<span><span class="co">#&gt;     estimationInit = estimationInit, preprocessingInit = preprocessingInit, </span></span>
-<span><span class="co">#&gt;     preprocessingOnly = preprocessingOnly, verbose = verbose, </span></span>
-<span><span class="co">#&gt;     silent = silent, debug = debug)</span></span>
+<span><span class="co">#&gt; estimate(x = createBilat ~ inertia(bilatnet) + indeg(bilatnet, </span></span>
+<span><span class="co">#&gt;     ignoreRep = TRUE) + trans(bilatnet, ignoreRep = TRUE) + tie(contignet) + </span></span>
+<span><span class="co">#&gt;     alter(states$regime) + diff(states$regime) + alter(states$gdp) + </span></span>
+<span><span class="co">#&gt;     diff(states$gdp), model = "DyNAM", subModel = "choice_coordination", </span></span>
+<span><span class="co">#&gt;     estimationInit = estPrefs)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details :</span></span>
@@ -493,22 +512,22 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients :</span></span>
 <span><span class="co">#&gt;           Estimate Std. Error z-value  Pr(&gt;|z|)    </span></span>
-<span><span class="co">#&gt; inertia  2.8687399  0.2724550 10.5292 &lt; 2.2e-16 ***</span></span>
-<span><span class="co">#&gt; indeg    0.5058902  0.0661896  7.6430 2.132e-14 ***</span></span>
-<span><span class="co">#&gt; trans    0.3128331  0.2140819  1.4613  0.143939    </span></span>
-<span><span class="co">#&gt; tie      1.0951108  0.2224272  4.9235 8.503e-07 ***</span></span>
-<span><span class="co">#&gt; alter    0.0046804  0.0144157  0.3247  0.745429    </span></span>
-<span><span class="co">#&gt; diff     0.0013902  0.0117902  0.1179  0.906140    </span></span>
-<span><span class="co">#&gt; alter    5.0528318  1.5487636  3.2625  0.001104 ** </span></span>
-<span><span class="co">#&gt; diff    -3.0977424  1.5990442 -1.9372  0.052715 .  </span></span>
+<span><span class="co">#&gt; inertia  2.8318525  0.2698244 10.4952 &lt; 2.2e-16 ***</span></span>
+<span><span class="co">#&gt; indeg    0.4975580  0.0662465  7.5107 5.884e-14 ***</span></span>
+<span><span class="co">#&gt; trans    0.3083405  0.2138535  1.4418  0.149350    </span></span>
+<span><span class="co">#&gt; tie      1.0821380  0.2195159  4.9297 8.237e-07 ***</span></span>
+<span><span class="co">#&gt; alter    0.0047377  0.0143109  0.3311  0.740602    </span></span>
+<span><span class="co">#&gt; diff     0.0010369  0.0116815  0.0888  0.929268    </span></span>
+<span><span class="co">#&gt; alter    5.0326922  1.5429641  3.2617  0.001107 ** </span></span>
+<span><span class="co">#&gt; diff    -3.0780228  1.5940179 -1.9310  0.053485 .  </span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;   Converged with max abs. score of 0.00024 </span></span>
-<span><span class="co">#&gt;   Log-Likelihood: -387.86</span></span>
-<span><span class="co">#&gt;   AIC:  791.72 </span></span>
-<span><span class="co">#&gt;   AICc: 794.12 </span></span>
-<span><span class="co">#&gt;   BIC:  809.59 </span></span>
+<span><span class="co">#&gt;   Converged with max abs. score of 0.00029 </span></span>
+<span><span class="co">#&gt;   Log-Likelihood: -386.36</span></span>
+<span><span class="co">#&gt;   AIC:  788.72 </span></span>
+<span><span class="co">#&gt;   AICc: 791.12 </span></span>
+<span><span class="co">#&gt;   BIC:  806.6 </span></span>
 <span><span class="co">#&gt;   model: "DyNAM" subModel: "choice_coordination"</span></span></code></pre></div>
 <p>Let’s interpret… - Do states prefer partners with more partners? - Do states prefer partners that are contiguous? - Does transitivity matter? - Do states prefer rich or democratic partners? - Do states prefer similarly rich or democratic partners?</p>
 <div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
@@ -533,35 +552,36 @@
 <span>    <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;    7.78    0.40    7.01</span></span></code></pre></div>
+<span><span class="co">#&gt;    7.45    0.36    7.06</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="extensions">Extensions…<a class="anchor" aria-label="anchor" href="#extensions"></a>
 </h2>
-<p>In the most recent version of <code>{goldfish}</code>, you will find some functions still under development.</p>
-<p>One set of functions is to help integrate the results of <code>{goldfish}</code> models with the wider world of statistical modeling.</p>
+<p>In the most recent version of <a href="https://snlab-ch.github.io/goldfish/">goldfish</a>, you will find some functions still under development.</p>
+<p>One set of functions is to help integrate the results of <a href="https://snlab-ch.github.io/goldfish/">goldfish</a> models with the wider world of statistical modeling.</p>
 <p>We have implemented some “tidymodels” (or rather <a href="https://broom.tidymodels.org/" class="external-link">broom</a>) functions for extracting and printing the key results from goldfish results objects. Here is an example on the current results object:</p>
 <div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://broom.tidymodels.org/" class="external-link">broom</a></span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: package 'broom' was built under R version 4.2.1</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/nutterb/pixiedust" class="external-link">pixiedust</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/pixiedust/man/dust.html" class="external-link">dust</a></span><span class="op">(</span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">tieModel</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> </span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/pixiedust/man/sprinkle.html" class="external-link">sprinkle</a></span><span class="op">(</span>col <span class="op">=</span> <span class="fl">2</span><span class="op">:</span><span class="fl">4</span>, round <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> </span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/pixiedust/man/dust.html" class="external-link">dust</a></span><span class="op">(</span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">tieModel</span>, conf.int <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> </span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/pixiedust/man/sprinkle.html" class="external-link">sprinkle</a></span><span class="op">(</span>col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span><span class="op">:</span><span class="fl">4</span>, <span class="fl">6</span>, <span class="fl">7</span><span class="op">)</span>, round <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> </span>
 <span>  <span class="fu"><a href="https://rdrr.io/pkg/pixiedust/man/sprinkle.html" class="external-link">sprinkle</a></span><span class="op">(</span>col <span class="op">=</span> <span class="fl">5</span>, fn <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/substitute.html" class="external-link">quote</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/pixiedust/man/pval_string.html" class="external-link">pvalString</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                  term estimate std.error statistic p.value</span></span>
-<span><span class="co">#&gt; 1  bilatnet inertia W    0.134     0.048     2.816   0.005</span></span>
-<span><span class="co">#&gt; 2      bilatnet indeg    0.568     0.058     9.854 &lt; 0.001</span></span>
-<span><span class="co">#&gt; 3      bilatnet trans    0.289     0.146      1.98   0.048</span></span>
-<span><span class="co">#&gt; 4       contignet tie    1.648     0.184     8.956 &lt; 0.001</span></span>
-<span><span class="co">#&gt; 5 states regime alter   -0.015     0.016    -0.957    0.34</span></span>
-<span><span class="co">#&gt; 6  states regime diff    0.008     0.013     0.651    0.52</span></span>
-<span><span class="co">#&gt; 7    states gdp alter    6.089     1.516     4.015 &lt; 0.001</span></span>
-<span><span class="co">#&gt; 8     states gdp diff   -4.601     1.582    -2.908   0.004</span></span></code></pre></div>
+<span><span class="co">#&gt;                  term estimate std.error statistic p.value conf.low conf.high</span></span>
+<span><span class="co">#&gt; 1  bilatnet inertia W    0.134     0.048     2.816   0.005    0.041     0.227</span></span>
+<span><span class="co">#&gt; 2      bilatnet indeg    0.568     0.058     9.854 &lt; 0.001    0.455     0.681</span></span>
+<span><span class="co">#&gt; 3      bilatnet trans    0.289     0.146      1.98   0.048    0.003     0.575</span></span>
+<span><span class="co">#&gt; 4       contignet tie    1.648     0.184     8.956 &lt; 0.001    1.288     2.009</span></span>
+<span><span class="co">#&gt; 5 states regime alter   -0.015     0.016    -0.957    0.34   -0.047     0.016</span></span>
+<span><span class="co">#&gt; 6  states regime diff    0.008     0.013     0.651    0.52   -0.017     0.033</span></span>
+<span><span class="co">#&gt; 7    states gdp alter    6.089     1.516     4.015 &lt; 0.001   -0.047     0.016</span></span>
+<span><span class="co">#&gt; 8     states gdp diff   -4.601     1.582    -2.908   0.004   -0.017     0.033</span></span></code></pre></div>
 <div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance</a></span><span class="op">(</span><span class="va">tieModel</span><span class="op">)</span></span>
-<span><span class="co">#&gt; # A tibble: 1 × 4</span></span>
-<span><span class="co">#&gt;   logLik   AIC   BIC  nobs</span></span>
-<span><span class="co">#&gt;    &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1  -359.  733.  751.    69</span></span></code></pre></div>
+<span><span class="co">#&gt; # A tibble: 1 × 5</span></span>
+<span><span class="co">#&gt;   logLik   AIC   BIC    df  nobs</span></span>
+<span><span class="co">#&gt;    &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;int&gt; &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1  -359.  733.  751.     8    69</span></span></code></pre></div>
 <p>Lastly, we have begun implementing further diagnostic functions that can help users identify areas for improving their model specification.</p>
 <div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/examine.html">examineOutliers</a></span><span class="op">(</span><span class="va">tieModel</span><span class="op">)</span></span>
@@ -589,7 +609,7 @@
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.5.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
 </div>
 
       </footer>

@@ -25,7 +25,7 @@ and the OSF platform for all details on the dataset."><meta property="og:image" 
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.3</span>
       </span>
     </div>
 
@@ -45,14 +45,25 @@ and the OSF platform for all details on the dataset."><meta property="og:image" 
      
     <span class="caret"></span>
   </a>
-  <ul class="dropdown-menu" role="menu"><li>
+  <ul class="dropdown-menu" role="menu"><li class="divider">
+    <li class="dropdown-header">goldfish effects</li>
+    <li>
       <a href="../articles/goldfishEffects.html">goldfish Effects</a>
     </li>
+    <li class="divider">
+    <li class="dropdown-header">How to start</li>
     <li>
       <a href="../articles/teaching1.html">DyNAM: How to start</a>
     </li>
+    <li class="divider">
+    <li class="dropdown-header">choice coordination</li>
     <li>
       <a href="../articles/teaching2.html">The Coordination Model and Extensions</a>
+    </li>
+    <li class="divider">
+    <li class="dropdown-header">DyNAM-i</li>
+    <li>
+      <a href="../articles/dynami-example.html">DyNAM-i: an example script</a>
     </li>
   </ul></li>
 <li>
@@ -104,14 +115,13 @@ and the OSF platform for all details on the dataset.</p>
 
     <div id="format">
     <h2>Format</h2>
-    <p>3 dataframes: <br>
-- participants (11 rows, 7 columns): attributes of the experiment's participants<br>
-- rfid (1011 rows, 4 columns): dyadic interactions detected by the RFID badges (after data processing)<br>
-- video (219 rows, 4 columns): dyadic interactions detected by the video rating<br>
-and one network:<br>
-- known.before (11 rows, 11 columns): network of previous acquaintances<br>
-See below for variables and formats.<br></p>
-<table class="table table"><tr><td><strong>Object</strong></td><td><strong>Description</strong></td><td><strong>Format</strong></td></tr><tr><td>participants$actor</td><td>Identifier of the actor</td><td>integer</td></tr><tr><td>participants$label</td><td>(Anonymized) name</td><td>Factor</td></tr><tr><td>participants$present</td><td>Presence of the actor (all actors are present)</td><td>logical</td></tr><tr><td>participants$age</td><td>Actor's age</td><td>integer</td></tr><tr><td>participants$gender</td><td>Actor's gender (0: male, 1: female)</td><td>integer</td></tr><tr><td>participants$group</td><td>Actor's group affiliation (groups have distinct ids)</td><td>integer</td></tr><tr><td>participants$level</td><td>Actor's seniority (1: MSc student, 2: PhD student, 3: PostDoc, 4: Prof)</td><td>integer</td></tr><tr><td>rfid$NodeA</td><td>Identifier for the first actor</td><td>chr</td></tr><tr><td>rfid$NodeB</td><td>Identifier for the second actor</td><td>chr</td></tr><tr><td>rfid$Start</td><td>Time of the beginning of the dyadic interaction</td><td>integer</td></tr><tr><td>rfid$End</td><td>Time of the end of the dyadic interaction</td><td>integer</td></tr><tr><td>video$NodeA</td><td>Identifier for the first actor</td><td>chr</td></tr><tr><td>video$NodeB</td><td>Identifier for the second actor</td><td>chr</td></tr><tr><td>video$Start</td><td>Time of the beginning of the dyadic interaction</td><td>integer</td></tr><tr><td>video$End</td><td>Time of the end of the dyadic interaction</td><td>integer</td></tr></table><p>An object of class <code>data.frame</code> with 1011 rows and 4 columns.</p>
+    <p>3 dataframes: <br></p><ul><li><p>participants (11 rows, 7 columns): attributes of the experiment's participants<br></p></li>
+<li><p>rfid (1011 rows, 4 columns): dyadic interactions detected by the RFID badges (after data processing)<br></p></li>
+<li><p>video (219 rows, 4 columns): dyadic interactions detected by the video rating<br>
+and one network:<br></p></li>
+<li><p>known.before (11 rows, 11 columns): network of previous acquaintances<br>
+See below for variables and formats.<br></p></li>
+</ul><table class="table table"><tr><td><strong>Object</strong></td><td><strong>Description</strong></td><td><strong>Format</strong></td></tr><tr><td>participants$actor</td><td>Identifier of the actor</td><td>integer</td></tr><tr><td>participants$label</td><td>(Anonymized) name</td><td>Factor</td></tr><tr><td>participants$present</td><td>Presence of the actor (all actors are present)</td><td>logical</td></tr><tr><td>participants$age</td><td>Actor's age</td><td>integer</td></tr><tr><td>participants$gender</td><td>Actor's gender (0: male, 1: female)</td><td>integer</td></tr><tr><td>participants$group</td><td>Actor's group affiliation (groups have distinct ids)</td><td>integer</td></tr><tr><td>participants$level</td><td>Actor's seniority (1: MSc student, 2: PhD student, 3: PostDoc, 4: Prof)</td><td>integer</td></tr><tr><td>rfid$NodeA</td><td>Identifier for the first actor</td><td>chr</td></tr><tr><td>rfid$NodeB</td><td>Identifier for the second actor</td><td>chr</td></tr><tr><td>rfid$Start</td><td>Time of the beginning of the dyadic interaction</td><td>integer</td></tr><tr><td>rfid$End</td><td>Time of the end of the dyadic interaction</td><td>integer</td></tr><tr><td>video$NodeA</td><td>Identifier for the first actor</td><td>chr</td></tr><tr><td>video$NodeB</td><td>Identifier for the second actor</td><td>chr</td></tr><tr><td>video$Start</td><td>Time of the beginning of the dyadic interaction</td><td>integer</td></tr><tr><td>video$End</td><td>Time of the end of the dyadic interaction</td><td>integer</td></tr></table><p>An object of class <code>data.frame</code> with 1011 rows and 4 columns.</p>
 <p>An object of class <code>data.frame</code> with 219 rows and 4 columns.</p>
 <p>An object of class <code>matrix</code> (inherits from <code>array</code>) with 11 rows and 11 columns.</p>
 <p>An object of class <code>data.frame</code> with 11 rows and 7 columns.</p>
@@ -139,7 +149,7 @@ Behavior research methods, 1-19. <a href="https://doi.org/10.3758/s13428-018-118
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.5.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
 </div>
 
       </footer></div>

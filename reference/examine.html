@@ -20,7 +20,7 @@ in the events sequence is presented using the log-likelihood."><meta property="o
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.3</span>
       </span>
     </div>
 
@@ -40,14 +40,25 @@ in the events sequence is presented using the log-likelihood."><meta property="o
      
     <span class="caret"></span>
   </a>
-  <ul class="dropdown-menu" role="menu"><li>
+  <ul class="dropdown-menu" role="menu"><li class="divider">
+    <li class="dropdown-header">goldfish effects</li>
+    <li>
       <a href="../articles/goldfishEffects.html">goldfish Effects</a>
     </li>
+    <li class="divider">
+    <li class="dropdown-header">How to start</li>
     <li>
       <a href="../articles/teaching1.html">DyNAM: How to start</a>
     </li>
+    <li class="divider">
+    <li class="dropdown-header">choice coordination</li>
     <li>
       <a href="../articles/teaching2.html">The Coordination Model and Extensions</a>
+    </li>
+    <li class="divider">
+    <li class="dropdown-header">DyNAM-i</li>
+    <li>
+      <a href="../articles/dynami-example.html">DyNAM-i: an example script</a>
     </li>
   </ul></li>
 <li>
@@ -112,8 +123,8 @@ For a detail description see <code><a href="https://rdrr.io/pkg/changepoint/man/
 
 <dt>parameter</dt>
 <dd><p>An integer that represents the number of absolute outliers
-to identify, the threshold for the Hampel filter, i.e. `parameter * MAD`,
-or the threshold beyond the interquartile range halved, i.e. `parameter/2 * IQR`.</p></dd>
+to identify, the threshold for the Hampel filter, i.e. <code>parameter * MAD</code>,
+or the threshold beyond the interquartile range halved, i.e. <code>parameter/2 * IQR</code>.</p></dd>
 
 
 <dt>window</dt>
@@ -136,9 +147,8 @@ See section <em>Change point</em> for details.</p></dd>
     
 
 <p><code>NULL</code> if neither outliers nor change points are identified.
-A subset of the dependent event data frame
-(see <code><a href="defineDependentEvents.html">defineDependentEvents</a></code>) with the events identified as
-outliers or change point inflections.</p>
+An object of class <code>ggplot</code> object from a call of <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot2::ggplot()</a></code>.
+It can be modified using the <code>ggplot2</code> syntax.</p>
     </div>
     <div id="outliers">
     <h2>Outliers</h2>
@@ -155,53 +165,46 @@ with labels indicating the sender and recipient.</p>
 <p>The parameter <code>moment</code> controls which method from the package
 <code>changepoint</code> is used:</p><dl><dt><code>"mean"</code></dt>
 <dd><p>It uses the <code><a href="https://rdrr.io/pkg/changepoint/man/cpt.mean.html" class="external-link">cpt.mean</a></code>
-  function to investigate optimal positioning and (potentially) number
-  of change points for the log-likelihood of the events in mean.</p></dd>
+function to investigate optimal positioning and (potentially) number
+of change points for the log-likelihood of the events in mean.</p></dd>
 
-  <dt><code>"variance"</code></dt>
+<dt><code>"variance"</code></dt>
 <dd><p>It uses the
-  <code><a href="https://rdrr.io/pkg/changepoint/man/cpt.var.html" class="external-link">cpt.var</a></code>
-  function to investigate optimal positioning and (potentially) number
-  of change points for the log-likelihood of the events in variance</p></dd>
+<code><a href="https://rdrr.io/pkg/changepoint/man/cpt.var.html" class="external-link">cpt.var</a></code>
+function to investigate optimal positioning and (potentially) number
+of change points for the log-likelihood of the events in variance</p></dd>
 
 
 </dl><p>The function call creates a plot with the log-likelihood of the events
 in the y-axis and the event index in the x-axis, highlighting the change
-point sections identified by the method.
-Also it prints a table of the change points events that are returned by the
-method.</p>
+point sections identified by the method.</p>
     </div>
 
     <div id="ref-examples">
     <h2>Examples</h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># A multinomial receiver choice model</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"Social_Evolution"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="linkEvents.html">linkEvents</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  x <span class="op">=</span> <span class="va">callNetwork</span>, changeEvent <span class="op">=</span> <span class="va">calls</span>,</span></span>
-<span class="r-in"><span>  nodes <span class="op">=</span> <span class="va">actors</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">callsDependent</span> <span class="op">&lt;-</span> <span class="fu"><a href="defineDependentEvents.html">defineDependentEvents</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  events <span class="op">=</span> <span class="va">calls</span>, nodes <span class="op">=</span> <span class="va">actors</span>,</span></span>
-<span class="r-in"><span>  defaultNetwork <span class="op">=</span> <span class="va">callNetwork</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="co"># \dontshow{</span></span></span>
-<span class="r-in"><span><span class="va">callsDependent</span> <span class="op">&lt;-</span> <span class="va">callsDependent</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">50</span>, <span class="op">]</span></span></span>
-<span class="r-in"><span><span class="co"># }</span></span></span>
-<span class="r-in"><span><span class="va">mod01</span> <span class="op">&lt;-</span> <span class="fu"><a href="estimate.html">estimate</a></span><span class="op">(</span><span class="va">callsDependent</span> <span class="op">~</span> <span class="va">inertia</span> <span class="op">+</span> <span class="va">recip</span> <span class="op">+</span> <span class="va">trans</span>,</span></span>
-<span class="r-in"><span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span>,</span></span>
-<span class="r-in"><span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>returnIntervalLogL <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
-<span class="r-in"><span>                        engine <span class="op">=</span> <span class="st">"default_c"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Parsing formula.</span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in get(depName):</span> object 'callsDependent' not found</span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="fu">examineOutliers</span><span class="op">(</span><span class="va">mod01</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in "result.goldfish" %in% attr(x, "class"):</span> object 'mod01' not found</span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="fu">examineChangepoints</span><span class="op">(</span><span class="va">mod01</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in methods::is(x, "result.goldfish"):</span> object 'mod01' not found</span>
-</code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="co"># A multinomial receiver choice model</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"Social_Evolution"</span><span class="op">)</span></span>
+<span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="linkEvents.html">linkEvents</a></span><span class="op">(</span></span>
+<span>  x <span class="op">=</span> <span class="va">callNetwork</span>, changeEvent <span class="op">=</span> <span class="va">calls</span>,</span>
+<span>  nodes <span class="op">=</span> <span class="va">actors</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">callsDependent</span> <span class="op">&lt;-</span> <span class="fu"><a href="defineDependentEvents.html">defineDependentEvents</a></span><span class="op">(</span></span>
+<span>  events <span class="op">=</span> <span class="va">calls</span>, nodes <span class="op">=</span> <span class="va">actors</span>,</span>
+<span>  defaultNetwork <span class="op">=</span> <span class="va">callNetwork</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co"># \dontshow{</span></span>
+<span><span class="va">callsDependent</span> <span class="op">&lt;-</span> <span class="va">callsDependent</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">50</span>, <span class="op">]</span></span>
+<span><span class="co"># }</span></span>
+<span><span class="va">mod01</span> <span class="op">&lt;-</span> <span class="fu"><a href="estimate.html">estimate</a></span><span class="op">(</span><span class="va">callsDependent</span> <span class="op">~</span> <span class="va">inertia</span> <span class="op">+</span> <span class="va">recip</span> <span class="op">+</span> <span class="va">trans</span>,</span>
+<span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span>,</span>
+<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>returnIntervalLogL <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>                        engine <span class="op">=</span> <span class="st">"default_c"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">examineOutliers</span><span class="op">(</span><span class="va">mod01</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">examineChangepoints</span><span class="op">(</span><span class="va">mod01</span><span class="op">)</span></span></code></pre></div>
     </div>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
@@ -215,7 +218,7 @@ method.</p>
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.5.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
 </div>
 
       </footer></div>
