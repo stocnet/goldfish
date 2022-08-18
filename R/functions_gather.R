@@ -11,15 +11,18 @@
 #'
 #' Preprocess is made with goldfish.
 #'
-#' @param formula accepted by goldfish. Left side a dependent events object
-#' @param model Look to `goldfish::estimate` documentation. `c('DyNAM', 'REM')`
-#' @param subModel `goldfish::estimate`. `c('choice_coordination', 'choice')`
+#' @param formula See [estimate()]. Left side a dependent events object defined
+#' with [defineDependentEvents()] and right side effect parameters as described
+#' in `vignette("goldfishEffects")`.
+#' @param model See [estimate()].  Current version of gather works for
+#'  `c('DyNAM')`
+#' @param subModel Current version supports `c('choice_coordination', 'choice')`
 #' @param preprocessArgs Additional preprocess arguments like `startTime`,
-#'   `endTime` and `opportunitiesList`.
+#'   `endTime` and `opportunitiesList`. See [estimate()].
 #' @param progress Default `FALSE`.
 #'
 #' @return a list with the data and relevant information.
-#' @noRd
+#' @export
 #'
 #' @examples
 #' data("Fisheries_Treaties_6070")
@@ -42,6 +45,7 @@
 #' gatheredData <- GatherPreprocessing(
 #'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet)
 #' )
+#' 
 GatherPreprocessing <- function(
   formula,
   model = c("DyNAM", "REM"),
@@ -72,6 +76,8 @@ GatherPreprocessing <- function(
       warning(dQuote("GatherPreprocessing"), " doesn't implement yet the ",
               dQuote("opportunitiesList"), " functionality")
   }
+  
+  if (is.null(progress)) progress <- FALSE
 
   ### 1. PARSE the formula----
   parsedformula <- parseFormula(formula) # envir = as.environment(-1)

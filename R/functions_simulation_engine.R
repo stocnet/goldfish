@@ -9,7 +9,6 @@
 #'
 #' @return an array with simulated events
 #'
-#' @keywords internal
 #' @noRd
 simulate_engine <- function(
     model,
@@ -27,26 +26,7 @@ simulate_engine <- function(
     startTime = 0,
     endTime = NULL,
     rightCensored = FALSE,
-    verbose = TRUE,
-    silent = FALSE) {
-  
-  prepEnvir <- environment()
-
-
-
-
-  # get node sets of dependent variable
-  nodes <- attr(get(parsedformulaRate$depName), "nodes")
-  isTwoMode <- FALSE
-  
-  # two-mode networks(2 kinds of nodes)
-  if (length(nodes) == 2) {
-    nodes2 <- nodes[2]
-    nodes <- nodes[1]
-    isTwoMode <- TRUE
-  } else {
-    nodes2 <- nodes
-  }
+    progress = FALSE) {
   
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
   
@@ -75,7 +55,7 @@ simulate_engine <- function(
   nEffectsRate <- length(effectsRate)
   nEffectsChoice <- length(effectsChoice)
   
-  if (!silent) cat("Initializing cache objects and statistical matrices.\n")
+  if (progress) cat("Initializing cache objects and statistical matrices.\n")
   # ToDo: Impute misssing data
   #   startTime and endTime handling
   
@@ -87,7 +67,7 @@ simulate_engine <- function(
     windowParameters = parsedformulaRate$windowParameters,
     n1 = n1, n2 = n2,
     model = model, subModel = "rate",
-    envir = prepEnvir
+    envir = envir
   )
 
   # Initialize stat matrix for the choice model
@@ -99,7 +79,7 @@ simulate_engine <- function(
       windowParameters = parsedformulaChoice$windowParameters,
       n1 = n1, n2 = n2,
       model, "choice",
-      envir = prepEnvir
+      envir = envir
     )
     # the variable subModel is for the sender-deciding process.  ToDo: check
     subModel <- "rate"
@@ -130,7 +110,7 @@ simulate_engine <- function(
   showProgressBar <- FALSE
   # progressEndReached <- FALSE
   
-  if (!silent) {
+  if (progress) {
     cat("Simulating events.\n")
     showProgressBar <- TRUE
     # # how often print, max 50 prints
@@ -156,7 +136,7 @@ simulate_engine <- function(
       removeFirst = FALSE)
     objectNameRate <- objTableRate$name
     objectRate <- getElementFromDataObjectTable(
-      objTableRate, envir = prepEnvir)[[1]]
+      objTableRate, envir = envir)[[1]]
 
     #### GENERATING EVENT
     # We consider only two types of model, REM and DyNAM, and don't consider DyNAM-MM
@@ -193,7 +173,7 @@ simulate_engine <- function(
     updatesList <- getUpdates(
       event, effectsRate, effIdsRate,
       objectsEffectsLinkRate, isUndirectedNet, n1, n2,
-      isTwoMode, prepEnvir, "statCacheRate")
+      isTwoMode, envir, "statCacheRate")
     ### APPLYING UPDATES TO statMatRate
     # For sender
     for (id in effIdsRate) {
@@ -209,7 +189,7 @@ simulate_engine <- function(
       updatesList <- getUpdates(
         event, effectsChoice, effIdsChoice,
         objectsEffectsLinkChoice, isUndirectedNet, n1, n2,
-        isTwoMode, prepEnvir, "statCacheChoice")
+        isTwoMode, envir, "statCacheChoice")
       ### APPLYING UPDATES TO statMatRate
       # For receiver
       for (id in effIdsChoice) {
@@ -226,13 +206,13 @@ simulate_engine <- function(
     objectRate[simulatedSender, simulatedReceiver] <-
       objectRate[simulatedSender, simulatedReceiver] + 1
     eval(parse(text = paste(objectNameRate, "<- objectRate")),
-         envir = prepEnvir)
+         envir = envir)
   }
 
   return(events)
 }
 
-
+#' @importFrom stats rexp
 generationREM <- function(statMatRate, parametersRate, n1, n2, isTwoMode) {
   n_parameters <- dim(statMatRate)[3]
   # +1 for intercept
@@ -319,11 +299,11 @@ generationDyNAMChoice <- function(
 getUpdates <- function(
     event, effects, effIds,
     objectsEffectsLink, isUndirectedNet, n1, n2,
-    isTwoMode, prepEnvir, cacheName) {
-  # get the statCache from the prepEnvir
+    isTwoMode, envir, cacheName) {
+  # get the statCache from the envir
   # We does it in this way because we have to update the statCache in
   # the parent enviroment later.
-  statCache = get(cacheName, envir = prepEnvir)
+  statCache = get(cacheName, envir = envir)
   # define the return variable
   updatesList = list()
   
@@ -334,7 +314,7 @@ getUpdates <- function(
     orderedNames <- names[order(objectsToPass)]
     orderedObjectTable <- getDataObjects(list(list("", orderedNames)))
     .objects <- getElementFromDataObjectTable(
-      orderedObjectTable, envir = prepEnvir)
+      orderedObjectTable, envir = envir)
     # identify class to feed effects functions
     objClass <- vapply(.objects, FUN = inherits, FUN.VALUE = integer(2),
                        what = c("numeric", "matrix"), which = TRUE) > 0
@@ -390,7 +370,7 @@ getUpdates <- function(
   }
   
   #update the statCache
-  assign(cacheName, statCache, envir = prepEnvir)
+  assign(cacheName, statCache, envir = envir)
   #return updatesList
   return(updatesList)
   

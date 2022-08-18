@@ -485,3 +485,7 @@ GetFixed <- function(object) {
   } else  fixed <- rep(FALSE, length(object$parameters))
   fixed
 }
+
+checkArgsEstimation <- function(variables) {
+  
+}

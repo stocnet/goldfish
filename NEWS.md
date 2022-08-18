@@ -1,3 +1,8 @@
+# goldfish 1.6.4
+
+* Export `GatherPreprocessing()`. Experimental functionality.
+* Introduces experimental functionality `simulation()`.
+
 # goldfish 1.6.3
 
 * Add DyNAM-i vignette.

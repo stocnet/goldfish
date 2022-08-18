@@ -142,65 +142,60 @@ estimate_int <- function(
   if (!is.null(compChangeName2) && length(compChangeName2) > 0)
     compChange2 <- get(compChangeName2, envir = prepEnvir) # add prepEnvir
 
+  nEvents <- length(statsList$orderEvents)
+  
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
-  if (modelType %in% c("REM", "DyNAM-M-Rate") && addInterceptEffect) {
+  if (modelType %in% c("REM", "DyNAM-M-Rate") && addInterceptEffect &&
+      is.null(initialParameters) &&
+      (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
+    
     totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
       sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
-    nEvents <- length(statsList$orderEvents)
-    # CHANGED MARION: remove the use of the events object
-    time <- statsList$eventTime[[1]]
-    previoustime <- time
-    currentInterval <- 1
-    currentRCInterval <- 1
-    nAvgActors <- 0
-
+    
     if (!is.null(nodes$present)) {
-      nActors <- length(which(nodes$present == TRUE))
+      nActors <- sum(nodes$present)
     } else {
-      nActors <- dim(nodes)[1]
+      nActors <- nrow(nodes)
     }
-
-    for (i in seq.int(nEvents)) {
+    
+    if (is.null(compChange1)) {
+      nAvgActors <- nActors
+    } else {
+      # CHANGED MARION: remove the use of the events object
+      time <- statsList$eventTime[[1]]
       previoustime <- time
-      if (statsList$orderEvents[[i]] == 1) {
-        time <- time + statsList$intervals[[currentInterval]]
-        currentInterval <- currentInterval + 1
-      } else {
-        time <- time + statsList$rightCensoredIntervals[[currentRCInterval]]
-        currentRCInterval <- currentRCInterval + 1
+      currentInterval <- 1
+      currentRCInterval <- 1
+      nAvgActors <- 0
+      for (i in seq.int(nEvents)) {
+        previoustime <- time
+        if (statsList$orderEvents[[i]] == 1) {
+          time <- time + statsList$intervals[[currentInterval]]
+          currentInterval <- currentInterval + 1
+        } else {
+          time <- time + statsList$rightCensoredIntervals[[currentRCInterval]]
+          currentRCInterval <- currentRCInterval + 1
+        }
+        nplus <- compChange1$time > previoustime & compChange1$time <= time &
+          compChange1$replace
+        nminus <- compChange1$time > previoustime & compChange1$time <= time &
+          !compChange1$replace
+        nActors <- nActors + sum(nplus) - sum(nminus)
+        nAvgActors <- nAvgActors + nActors
       }
-      nplus <- intersect(
-        intersect(
-          which(compChange1$time > previoustime),
-          which(compChange1$time <= time)
-        ),
-        which(compChange1$replace == TRUE)
-      )
-      nminus <- intersect(
-        intersect(
-          which(compChange1$time > previoustime),
-          which(compChange1$time <= time)
-        ),
-        which(compChange1$replace == FALSE)
-      )
-      nActors <- nActors + length(nplus) - length(nminus)
-      nAvgActors <- nAvgActors + nActors
+      nAvgActors <- nAvgActors / length(statsList$orderEvents)
     }
-    nAvgActors <- nAvgActors / length(statsList$orderEvents)
-    if (is.null(initialParameters) &&
-        (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
-      initialInterceptEstimate <- log(nEvents / totalTime / nAvgActors)
-      parameters[1] <- initialInterceptEstimate
-    }
+    
+    initialInterceptEstimate <- log(nEvents / totalTime / nAvgActors)
+    parameters[1] <- initialInterceptEstimate
   }
   #
 
   ## SET VARIABLES BASED ON STATSLIST
 
   # CHANGED MARION
-  nEvents <- length(statsList$orderEvents) # number of events
 
   ## ESTIMATION: INITIALIZATION
 

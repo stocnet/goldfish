@@ -23,10 +23,24 @@
 #' the given formulas and parameter vectors. Default to \code{100}.
 #' 
 #' @export
+#' @importFrom lifecycle badge
 #' 
 #' @examples
+#' data("Social_Evolution")
+#' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
+#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
+#'                           nodes = actors)
+#' callsDependent <- defineDependentEvents(events = calls, nodes = actors,
+#'                                         defaultNetwork = callNetwork)
 #' 
-#' 
+#' simulateEvents <- simulate(
+#'   formulaRate = callsDependent ~ 1 + indeg + outdeg,
+#'   parametersRate = c(-14, 0.76, 0.25),
+#'   formulaChoice = callsDependent ~ inertia + trans + recip + indeg,
+#'   parametersChoice = c(5.3, -0.05, 1.4, -0.16),
+#'   model = "DyNAM", subModel = "choice",
+#'   nEvents = 100
+#' )
 #' 
 simulate <- function(formulaRate,
                      parametersRate,
@@ -34,11 +48,7 @@ simulate <- function(formulaRate,
                      parametersChoice = NULL,
                      model = c("DyNAM", "REM"),
                      subModel = c("choice", "choice_coordination"),
-                     # estimationInit = NULL,
-                     # preprocessingInit = NULL,
-                     # preprocessingOnly = FALSE,
-                     verbose = FALSE,
-                     silent = FALSE,
+                     progress = getOption("progress"),
                      nEvents = 100) {
   UseMethod("simulate", formulaRate)
 }
@@ -53,11 +63,7 @@ simulate.formula <- function(formulaRate,
                              parametersChoice = NULL,
                              model = c("DyNAM", "REM"),
                              subModel = c("choice", "rate"),
-                             # estimationInit = NULL,
-                             # preprocessingInit = NULL,
-                             # preprocessingOnly = FALSE,
-                             verbose = FALSE,
-                             silent = FALSE,
+                             progress = getOption("progress"),
                              nEvents = 100) {
 
   # CHECK INPUT
@@ -83,13 +89,14 @@ simulate.formula <- function(formulaRate,
   
   stopifnot(
     inherits(formulaRate, "formula"),
-    inherits(formulaChoice, "formula"),
+    is.null(formulaChoice) || inherits(formulaChoice, "formula"),
     inherits(parametersRate, "numeric"),
-    inherits(parametersChoice, "numeric"),
-    inherits(verbose, "logical"),
-    inherits(silent, "logical"),
+    is.null(parametersChoice) || inherits(parametersChoice, "numeric"),
+    is.null(progress) || inherits(progress, "logical"),
     inherits(nEvents, "numeric") && nEvents > 0
   )
+  
+  if (is.null(progress)) progress <- FALSE
 
   ## 1.1 Preparing
   parsedformulaRate <- parseFormula(formulaRate)
@@ -149,8 +156,20 @@ simulate.formula <- function(formulaRate,
          " a positive parameter value for it.",
          call. = FALSE)
 
+  # get node sets of dependent variable
+  nodes <- attr(get(parsedformulaRate$depName), "nodes")
+  isTwoMode <- FALSE
+  
+  # two-mode networks(2 kinds of nodes)
+  if (length(nodes) == 2) {
+    nodes2 <- nodes[2]
+    nodes <- nodes[1]
+    isTwoMode <- TRUE
+  } else {
+    nodes2 <- nodes
+  }
   # Simulating!
-  if (!silent) cat("Starting simulation\n")
+  if (progress) cat("Starting simulation\n")
   events <- simulate_engine(
     model = model,
     subModel = subModel,
@@ -159,15 +178,25 @@ simulate.formula <- function(formulaRate,
     parametersChoice = parametersChoice,
     parsedformulaChoice = parsedformulaChoice,
     nEvents = nEvents,
+    nodes = nodes,
+    nodes2 = nodes2,
+    isTwoMode = isTwoMode,
     startTime = 0,
     endTime = NULL,
     rightCensored = FALSE, # ToDo: check
-    verbose = verbose,
-    silent = silent
+    progress = progress
   )
 
+  nodes <- get(nodes, envir = environment())
+  nodes2 <- get(nodes2, envir = environment())
   # Styling the result
-  events <- data.frame(time = events[, 1], sender = as.character(actors$label[events[, 2]]), receiver = as.character(actors$label[events[, 3]]), increment = events[, 4], stringsAsFactors = FALSE)
+  events <- data.frame(
+    time = events[, 1],
+    sender = as.character(nodes$label[events[, 2]]),
+    receiver = as.character(nodes$label[events[, 3]]),
+    increment = events[, 4],
+    stringsAsFactors = FALSE
+  )
 
   return(events)
 }

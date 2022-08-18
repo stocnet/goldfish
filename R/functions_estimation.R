@@ -345,7 +345,7 @@ estimate.formula <- function(
   # gather_compute and default_c don't support returnEventProbabilities
   if (!is.null(estimationInit) &&
       "returnEventProbabilities" %in% names(estimationInit)) {
-    if (estimationInit["returnEventProbabilities"] == TRUE &&
+    if (estimationInit["returnEventProbabilities"] &&
         engine != "default") {
       warning("engine = ", dQuote(engine), " doesn't support",
               dQuote("returnEventProbabilities"),
@@ -710,7 +710,7 @@ estimate.formula <- function(
     } else {
       modelTypeCall <- "REM"
     }
-  } else if (model %in% c("DyNAM", "TriNAM", "DyNAMi")) {
+  } else if (model %in% c("DyNAM", "DyNAMi")) {
     if (subModel == "rate" && !hasIntercept) {
       modelTypeCall <- "DyNAM-M-Rate-ordered"
     } else if (subModel == "rate") {

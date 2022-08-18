@@ -3,7 +3,8 @@ test_that(
   "inertia/tie compute correct preprocessing objects weighted",
   {
     preproData <- estimate(
-      depNetwork ~ inertia(networkState, weighted = TRUE) + tie(networkExog, weighted = TRUE),
+      depNetwork ~ inertia(networkState, weighted = TRUE) +
+        tie(networkExog, weighted = TRUE),
       model = "DyNAM", subModel = "choice", # modelType = "DyNAM-M"
       preprocessingOnly = TRUE
     )
