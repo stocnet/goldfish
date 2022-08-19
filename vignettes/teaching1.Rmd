@@ -167,20 +167,16 @@ At any time, we can also check what goldfish-defined objects we have in our envi
 ```r
 goldfishObjects()
 #> Goldfish Nodes
-#>          n                       attributes               events
-#> actors  84 label, present, floor, gradeType                     
-#> states 154      label, present, regime, gdp present, regime, gdp
+#>         n                       attributes events
+#> actors 84 label, present, floor, gradeType       
 #> 
 #> Goldfish Networks
-#>             dimensions nodesets        events
-#> bilatnet     154 x 154   states  bilatchanges
-#> callNetwork    84 x 84   actors         calls
-#> contignet    154 x 154   states contigchanges
+#>             dimensions nodesets events
+#> callNetwork    84 x 84   actors  calls
 #> 
 #> Goldfish Dependent Events
 #>                  n     network
 #> callsDependent 439 callNetwork
-#> createBilat     69    bilatnet
 ```
 
 ## Step 1b: Define networks

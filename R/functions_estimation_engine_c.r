@@ -39,7 +39,7 @@ estimate_c_int <- function(
   get_data_matrix = FALSE,
   impute = FALSE,
   engine = "default_c",
-  prepEnvir = globalenv()
+  prepEnvir = new.env()
   ) {
 
   minDampingFactor <- initialDamping
