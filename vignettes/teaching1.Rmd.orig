@@ -126,11 +126,6 @@ actors
 
 As you can see, the structure is the same, so we can still treat it like a data frame, but the added class helps goldfish interpret the data frame correctly.
 
-At any time, we can also check what goldfish-defined objects we have in our environment using the following function:
-
-```{r objs}
-goldfishObjects()
-```
 
 ## Step 1b: Define networks
 
