@@ -38,11 +38,11 @@ preprocessInteraction <- function(
   prepEnvir = environment()) {
 
 # For debugging
-  if (identical(environment(), globalenv())) {
-    startTime <- min(vapply(events, function(x) min(x$time), double(1)))
-    endTime <- max(vapply(events, function(x) max(x$time), double(1)))
-    progress <- FALSE
-  }
+  # if (identical(environment(), globalenv())) {
+  #   startTime <- min(vapply(events, function(x) min(x$time), double(1)))
+  #   endTime <- max(vapply(events, function(x) max(x$time), double(1)))
+  #   progress <- FALSE
+  # }
 
   # prepEnvir <- environment()
   # initialize statistics functions from data objects

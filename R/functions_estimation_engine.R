@@ -36,7 +36,7 @@ estimate_int <- function(
   ignoreRepParameter,
   # restrictions of opportunity sets
   opportunitiesList = NULL,
-  prepEnvir = globalenv()) {
+  prepEnvir = new.env()) {
 
   ## SET VARIABLES
 
@@ -685,7 +685,7 @@ getIterationStepState <- function(
     impute = TRUE,
     verbose = FALSE,
     opportunitiesList = NULL,
-    prepEnvir = globalenv()) {
+    prepEnvir = new.env()) {
   
   # CHANGED MARION: changed dims
   nEvents <- length(statsList$orderEvents)

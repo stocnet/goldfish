@@ -44,14 +44,14 @@ preprocess <- function(
   endTime = max(vapply(events, function(x) max(x$time), double(1))),
   rightCensored = FALSE,
   progress = FALSE,
-  prepEnvir = globalenv()) {
+  prepEnvir = new.env()) {
 
   # For debugging
-  if (identical(environment(), globalenv())) {
-    startTime <- min(vapply(events, function(x) min(x$time), double(1)))
-    endTime <- max(vapply(events, function(x) max(x$time), double(1)))
-    progress <- FALSE
-  }
+  # if (identical(environment(), globalenv())) {
+  #   startTime <- min(vapply(events, function(x) min(x$time), double(1)))
+  #   endTime <- max(vapply(events, function(x) max(x$time), double(1)))
+  #   progress <- FALSE
+  # }
 
   # print(match.call())
   # initialize statistics functions from data objects
@@ -671,7 +671,7 @@ callFUN <- function(
 #'
 #' check <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 #' }
-imputeMissingData <- function(objectsEffectsLink, envir = .GlobalEnv) {
+imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
   # get data object table, row objects columns class (matrix, attribute)
   objTable <- getDataObjects(list(rownames(objectsEffectsLink)),
                              removeFirst = FALSE)

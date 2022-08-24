@@ -114,11 +114,6 @@ states <- linkEvents(states, regchanges, attribute = "regime") |>
 str(states)
 ```
 
-Let's check whether we have everything linked up correctly:
-
-```{r objs}
-goldfishObjects()
-```
 
 ## Step 1b: Define networks ####
 
@@ -175,12 +170,6 @@ class(contignet)
 contignet
 ```
 
-Quick check to see whether everything is linked up correctly:
-
-```{r objs2}
-goldfishObjects()
-```
-
 ## Step 1c: Define dependent events ####
 
 The final step in defining the data objects is 
@@ -202,12 +191,6 @@ as well as the node set, so that structural effects can be interpreted correctly
 ```{r examine-dep-events}
 class(createBilat)
 createBilat
-```
-
-So what goldfish related objects do we have now?
-
-```{r objs3}
-goldfishObjects()
 ```
 
 # Intermediate step: Visualisation ####

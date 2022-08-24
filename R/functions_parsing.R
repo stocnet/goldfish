@@ -28,7 +28,7 @@
 #'   calls ~ outdeg(callNetwork, type="ego") + indeg(callNetwork, type="alter")
 #' )
 #' }
-parseFormula <- function(formula, envir = globalenv()) {
+parseFormula <- function(formula, envir = new.env()) {
   # check left side
   depName <- getDependentName(formula)
   if (!inherits(get(depName, envir = envir), "dependent.goldfish")) {
@@ -540,7 +540,7 @@ parseMultipleEffects <- function(rhsNames, default = FALSE, envir = environment(
 
 # Identify time windows objects, create new events and objects, link updates and
 # finally update rhs (and thus effectInit) accordingly
-parseTimeWindows <- function(rhsNames, envir = globalenv()) {
+parseTimeWindows <- function(rhsNames, envir = new.env()) {
   objectNames <- getDataObjects(rhsNames)
 
   hasWindows <- which(
