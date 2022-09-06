@@ -95,7 +95,8 @@ preprocess <- function(
     if (eventsMin < startTime) isValidEvent <- FALSE
     # To solve: if startTime < eventsMin should be a warning?
   }
-
+  ignoreEvents <- 1L # eventPos should be correct for initialization
+  
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 
@@ -124,16 +125,18 @@ preprocess <- function(
 
   # calculate total of events
   time <- unique(events[[1]]$time)
-  nRightCensoredEvents <- unique(unlist(lapply(events, function(x) x$time)))
-  nTotalEvents  <- as.integer(sum(nRightCensoredEvents <= endTime))
-  nRightCensoredEvents <- setdiff(nRightCensoredEvents, time)
-  if (length(nRightCensoredEvents) > 1) {
-    nRightCensoredEvents <- as.integer(sum(
-      nRightCensoredEvents >= startTime &
-      nRightCensoredEvents <= endTime) - 1)
-  } else nRightCensoredEvents <- 0
+  if (rightCensored) {
+    nRightCensoredEvents <- unique(unlist(lapply(events, function(x) x$time)))
+    nTotalEvents  <- as.integer(sum(nRightCensoredEvents <= endTime))
+    nRightCensoredEvents <- setdiff(nRightCensoredEvents, time)
+    if (length(nRightCensoredEvents) > 1) {
+      nRightCensoredEvents <- as.integer(sum(
+        nRightCensoredEvents >= startTime &
+          nRightCensoredEvents <= endTime) - 1)
+    } else nRightCensoredEvents <- 0L    
+  } else nRightCensoredEvents <- 0L
+
   nDependentEvents <- as.integer(sum(time >= startTime & time <= endTime))
-  if (!rightCensored) nRightCensoredEvents <- 0L
   # CHANGED ALVARO: preallocate objects sizes
   dependentStatistics <- vector("list", nDependentEvents)
   timeIntervals <- vector("numeric", nDependentEvents)
@@ -190,10 +193,10 @@ preprocess <- function(
          interval <- nextEventTime - time
       } else if (isValidEvent && nextEventTime >= endTime) {
         interval <- nextEventTime - endTime
+        finalStep <- TRUE
       } else if (!isValidEvent && nextEventTime > startTime) {
         interval <- startTime - nextEventTime
         isValidEvent <- TRUE
-        finalStep <- TRUE
       }
     } else interval <- nextEventTime - time
 
@@ -201,7 +204,10 @@ preprocess <- function(
 
     isDependent <- nextEvent == 1
 
-    eventPos <- pointers[1] + pointerTempRightCensored - 1
+    if (isValidEvent) {
+      eventPos <- pointers[1] + pointerTempRightCensored - ignoreEvents
+    } else if (isDependent && !isValidEvent) ignoreEvents <- ignoreEvents + 1L
+    
     # # CHANGED ALVARO: progress bar
     if (progress && iTotalEvents %% dotEvents == 0) {
       utils::setTxtProgressBar(pb, iTotalEvents)
@@ -241,7 +247,7 @@ preprocess <- function(
         event_receiver[[eventPos]] <- event$receiver
       }
 
-    } else {
+    } else if (!isDependent) {
       # 2. store statistic updates for RIGHT-CENSORED
       # (non-dependent, positive) intervals
       if (isValidEvent && rightCensored && interval > 0) {
@@ -413,21 +419,24 @@ preprocess <- function(
         }
 
         if (!is.null(updates)) {
-          # CHANGED WEIGUTIAN: UPDATE THE STAT MAT AND IMPUTE THE MISSING VALUES
-          # statCache[[id]][["stat"]][
-          #   cbind(updates[, "node1"], updates[, "node2"])] <-
-          #     updates[, "replace"]
-          # if (anyNA(statCache[[id]][["stat"]])) {
-          #   position_NA <- which(
-          #     is.na(statCache[[id]][["stat"]]),
-          #     arr.ind  = TRUE
-          #   )
-          #   average <- mean(statCache[[id]][["stat"]], na.rm = TRUE)
-          #   updates[is.na(updates[, "replace"]), "replace"] <- average
-          #   statCache[[id]][["stat"]][position_NA] <- average
-          # }
-          updatesDependent[[id]] <- rbind(updatesDependent[[id]], updates)
-          updatesIntervals[[id]] <- rbind(updatesIntervals[[id]], updates)
+          if (hasStartTime && nextEventTime <= startTime) {
+            initialStats[cbind(updates[, "node1"], updates[, "node2"], id)] <-
+              updates[, "replace"]
+          } else {
+            # CHANGED WEIGUTIAN: UPDATE THE STAT MAT
+            # AND IMPUTE THE MISSING VALUES
+            # if (anyNA(statCache[[id]][["stat"]])) {
+            #   position_NA <- which(
+            #     is.na(statCache[[id]][["stat"]]),
+            #     arr.ind  = TRUE
+            #   )
+            #   average <- mean(statCache[[id]][["stat"]], na.rm = TRUE)
+            #   updates[is.na(updates[, "replace"]), "replace"] <- average
+            #   statCache[[id]][["stat"]][position_NA] <- average
+            # }
+            updatesDependent[[id]] <- rbind(updatesDependent[[id]], updates)
+            updatesIntervals[[id]] <- rbind(updatesIntervals[[id]], updates)
+          }
         }
       }
 
