@@ -65,10 +65,24 @@ preprocess <- function(
   hasStartTime <- FALSE
   isValidEvent <- TRUE
 
-  eventsMin <- min(vapply(events, function(x) min(x$time), double(1)))
-  eventsMax <- max(vapply(events, function(x) max(x$time), double(1)))
+  isWindowEffect <- !vapply(windowParameters, is.null, logical(1))
+  whichEventNoWindowEffect <- eventsEffectsLink[, !isWindowEffect, drop = FALSE]
+  whichEventNoWindowEffect <- rowSums(!is.na(whichEventNoWindowEffect))
+  whichEventNoWindowEffect <- c(1, which(whichEventNoWindowEffect > 0))
+  
+  eventsMin <- min(vapply(
+    events[whichEventNoWindowEffect],
+    function(x) min(x$time),
+    double(1)
+  ))
+  eventsMax <- max(vapply(
+    events[whichEventNoWindowEffect],
+    function(x) max(x$time),
+    double(1)
+  ))
   if (is.null(endTime)) {
     endTime <- eventsMax
+    if (any(isWindowEffect)) hasEndTime <- TRUE
   } else if (endTime != eventsMax) {
     if (!is.numeric(endTime)) endTime <- as.numeric(endTime)
     if (eventsMin > endTime)
@@ -76,13 +90,13 @@ preprocess <- function(
       # to solve: if endTime > eventsMax
       # should it produce censored events? warning?
     # add a fake event to the event list
-    endTimeEvent <- data.frame(
-      time = endTime,
-      sender = NA,
-      receiver = NA,
-      replace = NA
-    )
-    events <- c(events, endtime = list(endTimeEvent))
+    # endTimeEvent <- data.frame(
+    #   time = endTime,
+    #   sender = NA,
+    #   receiver = NA,
+    #   replace = NA
+    # )
+    # events <- c(events, endtime = list(endTimeEvent))
     hasEndTime <- TRUE
   }
   if (is.null(startTime)) {
@@ -93,6 +107,7 @@ preprocess <- function(
       stop("Start time geater than last event time.", call. = FALSE)
     hasStartTime <- TRUE
     if (eventsMin < startTime) isValidEvent <- FALSE
+    # if (eventsMin > startTime) isValidEvent <- TRUE
     # To solve: if startTime < eventsMin should be a warning?
   }
   ignoreEvents <- 1L # eventPos should be correct for initialization
@@ -107,8 +122,9 @@ preprocess <- function(
     groupsNetwork = NULL, windowParameters = windowParameters,
     n1 = n1, n2 = n2, model = model, subModel = subModel, envir = prepEnvir)
   # We put the initial stats to the previous format of 3 dimensional array
-  initialStats <- array(unlist(lapply(statCache, "[[", "stat")),
-                        dim = c(n1, n2, nEffects)
+  initialStats <- array(
+    unlist(lapply(statCache, "[[", "stat")),
+    dim = c(n1, n2, nEffects)
   )
 
   statCache <- lapply(statCache, "[[", "cache")
@@ -134,12 +150,18 @@ preprocess <- function(
         nRightCensoredEvents >= startTime &
           nRightCensoredEvents <= endTime) - 1)
     } else nRightCensoredEvents <- 0L    
-  } else nRightCensoredEvents <- 0L
+  } else {
+    nRightCensoredEvents <- 0L
+    nTotalEvents <- as.integer(nrow(events[[1]]))
+  }
 
-  nDependentEvents <- as.integer(sum(time >= startTime & time <= endTime))
+  nDependentEvents <- ifelse(
+    hasStartTime || hasEndTime,
+    as.integer(sum(time >= startTime & time <= endTime)),
+    as.integer(length(time)))
   # CHANGED ALVARO: preallocate objects sizes
   dependentStatistics <- vector("list", nDependentEvents)
-  timeIntervals <- vector("numeric", nDependentEvents)
+  timeIntervals <- vector("numeric", ifelse(rightCensored, nDependentEvents, 0))
   rightCensoredStatistics <- vector("list", nRightCensoredEvents)
   timeIntervalsRightCensored <- vector("numeric", nRightCensoredEvents)
   # CHANGED MARION: added a list that tracks the chronological(ordered by time)
@@ -189,24 +211,28 @@ preprocess <- function(
     nextEvent <- which(validPointers)[head(which.min(times[validPointers]), 1)]
     nextEventTime <- times[nextEvent]
     if (hasStartTime || hasEndTime) {
-      if (isValidEvent && nextEventTime < endTime) {
+      if (isValidEvent && nextEventTime <= endTime) {
          interval <- nextEventTime - time
-      } else if (isValidEvent && nextEventTime >= endTime) {
-        interval <- nextEventTime - endTime
+      } else if (isValidEvent && nextEventTime > endTime) {
+        interval <- endTime - time
+        nextEventTime <- endTime
         finalStep <- TRUE
-      } else if (!isValidEvent && nextEventTime > startTime) {
-        interval <- startTime - nextEventTime
+      } else if (!isValidEvent && nextEventTime >= startTime) {
+        interval <- nextEventTime - startTime
         isValidEvent <- TRUE
       }
     } else interval <- nextEventTime - time
 
     time <- nextEventTime
 
-    isDependent <- nextEvent == 1
+    isDependent <- nextEvent == 1 && !finalStep
 
     if (isValidEvent) {
       eventPos <- pointers[1] + pointerTempRightCensored - ignoreEvents
-    } else if (isDependent && !isValidEvent) ignoreEvents <- ignoreEvents + 1L
+    } else if (isDependent && !isValidEvent) {
+      ignoreEvents <- ignoreEvents + 1L
+      eventPos <- 0
+    }
     
     # # CHANGED ALVARO: progress bar
     if (progress && iTotalEvents %% dotEvents == 0) {
@@ -229,7 +255,8 @@ preprocess <- function(
     if (isValidEvent && isDependent) {
       iDependentEvents <- 1L + iDependentEvents
       dependentStatistics[[iDependentEvents]] <- updatesDependent
-      timeIntervals[[iDependentEvents]] <- interval
+      if (rightCensored) timeIntervals[[iDependentEvents]] <- interval
+        # timeIntervals[[iDependentEvents]] # correct it for not rate models
       updatesDependent <- vector("list", nEffects)
       updatesIntervals <- vector("list", nEffects)
       # CHANGED MARION: added orderEvents
@@ -279,7 +306,10 @@ preprocess <- function(
           event_receiver[[eventPos]] <- event$receiver
         }
         pointerTempRightCensored <- pointerTempRightCensored + 1
-      }
+      } # else if (isValidEvent && !finalStep && interval > 0) {
+      #   timeIntervals[[iDependentEvents + 1]] <- interval +
+      #     timeIntervals[[iDependentEvents + 1]]
+      # }
 
       # 3. update stats and data objects for OBJECT CHANGE EVENTS
       # (all non-dependent events)
@@ -419,7 +449,7 @@ preprocess <- function(
         }
 
         if (!is.null(updates)) {
-          if (hasStartTime && nextEventTime <= startTime) {
+          if (hasStartTime && nextEventTime < startTime) {
             initialStats[cbind(updates[, "node1"], updates[, "node2"], id)] <-
               updates[, "replace"]
           } else {

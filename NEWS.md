@@ -1,3 +1,8 @@
+# goldfish 1.6.5
+
+* Solves `startTime` and `endTime` bug on `DyNAM` and `REM` models
+  preprocessing.
+
 # goldfish 1.6.4
 
 * Change mentioning of `.GlobalEnv` and drop `goldfishObjects()`.
