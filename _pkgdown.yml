@@ -39,7 +39,6 @@ reference:
       - goldfish-package
       - starts_with("define")
       - starts_with("link")
-      - goldfishObjects
   - title: "Estimate"
     contents:
       - starts_with("estimate")

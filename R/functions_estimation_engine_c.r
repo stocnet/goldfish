@@ -39,7 +39,7 @@ estimate_c_int <- function(
   get_data_matrix = FALSE,
   impute = FALSE,
   engine = "default_c",
-  prepEnvir = globalenv()
+  prepEnvir = new.env()
   ) {
 
   minDampingFactor <- initialDamping
@@ -266,15 +266,15 @@ estimate_c_int <- function(
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED
   ## BY C FUNCTIONS
-  is_dependent <- (as.numeric(unlist(statsList$orderEvents)) == 1)
-  timespan <- numeric(length(is_dependent))
-  timespan[is_dependent] <- as.numeric(unlist(statsList$intervals))
-  timespan[(!is_dependent)] <- as.numeric(
-    unlist(statsList$rightCensoredIntervals)
-  )
-
-
-
+  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
+    is_dependent <- statsList$orderEvents == 1
+    timespan <- length(is_dependent)
+    timespan[is_dependent] <- statsList$intervals
+    timespan[(!is_dependent)] <- statsList$rightCensoredIntervals
+  } else {
+    timespan <- NA
+  }
+  
   ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED
   ##  BY C FUNCTIONS
   event_mat <- t(matrix(

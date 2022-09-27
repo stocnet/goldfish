@@ -279,11 +279,15 @@ GatherPreprocessing <- function(
   }
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  is_dependent <- (as.numeric(unlist(preprocessingStat$orderEvents)) == 1)
-  timespan <- numeric(length(is_dependent))
-  timespan[is_dependent] <- as.numeric(unlist(preprocessingStat$intervals))
-  timespan[(!is_dependent)] <- as.numeric(unlist(preprocessingStat$rightCensoredIntervals))
-
+  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
+    is_dependent <- preprocessingStat$orderEvents == 1
+    timespan <- length(is_dependent)
+    timespan[is_dependent] <- preprocessingStat$intervals
+    timespan[(!is_dependent)] <- preprocessingStat$rightCensoredIntervals
+  } else {
+    timespan <- NA
+  }
+  
   ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
   event_mat <- t(matrix(c(unlist(preprocessingStat$eventSender), unlist(preprocessingStat$eventReceiver)), ncol = 2))
 

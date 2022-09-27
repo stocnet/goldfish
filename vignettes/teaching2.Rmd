@@ -185,15 +185,6 @@ str(states)
 #>  - attr(*, "dynamicAttributes")= chr [1:3] "present" "regime" "gdp"
 ```
 
-Let's check whether we have everything linked up correctly:
-
-
-```r
-goldfishObjects()
-#> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
-```
 
 ## Step 1b: Define networks ####
 
@@ -318,21 +309,6 @@ contignet
 #> LIE   0   0   0   0   0   0
 ```
 
-Quick check to see whether everything is linked up correctly:
-
-
-```r
-goldfishObjects()
-#> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
-#> 
-#> Goldfish Networks
-#>           dimensions nodesets        events
-#> bilatnet   154 x 154   states  bilatchanges
-#> contignet  154 x 154   states contigchanges
-```
-
 ## Step 1c: Define dependent events ####
 
 The final step in defining the data objects is 
@@ -369,25 +345,6 @@ createBilat
 #> 39 1960-11-17    GBR      NOR         1
 #> 40 1961-03-11    GBR      ISL         1
 #> 41 1961-07-19    DEU      ISL         1
-```
-
-So what goldfish related objects do we have now?
-
-
-```r
-goldfishObjects()
-#> Goldfish Nodes
-#>          n                  attributes               events
-#> states 154 label, present, regime, gdp present, regime, gdp
-#> 
-#> Goldfish Networks
-#>           dimensions nodesets        events
-#> bilatnet   154 x 154   states  bilatchanges
-#> contignet  154 x 154   states contigchanges
-#> 
-#> Goldfish Dependent Events
-#>              n  network
-#> createBilat 69 bilatnet
 ```
 
 # Intermediate step: Visualisation ####
@@ -491,7 +448,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>   67.74    3.81   71.58
+#>   91.61    5.39   98.06
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -583,7 +540,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>    7.45    0.36    7.06
+#>   10.01    0.45    9.42
 ```
 
 # Extensions...

@@ -36,7 +36,7 @@ estimate_int <- function(
   ignoreRepParameter,
   # restrictions of opportunity sets
   opportunitiesList = NULL,
-  prepEnvir = globalenv()) {
+  prepEnvir = new.env()) {
 
   ## SET VARIABLES
 
@@ -680,7 +680,7 @@ getIterationStepState <- function(
     impute = TRUE,
     verbose = FALSE,
     opportunitiesList = NULL,
-    prepEnvir = globalenv()) {
+    prepEnvir = new.env()) {
   
   # CHANGED MARION: changed dims
   nEvents <- length(statsList$orderEvents)
@@ -711,6 +711,7 @@ getIterationStepState <- function(
   statsArray <- statsList$initialStats # 84*84*6
   # CHANGED Marion: remove the use of events object
   time <- statsList$eventTime[[1]]
+  timespan <- ifelse(modelType %in% c("DyNAM-M-Rate", "REM"), NA, 0) 
   previoustime <- time
   idep <- 1
   irc <- 1
@@ -764,7 +765,7 @@ getIterationStepState <- function(
       # with intercept in the model
       if (statsList$orderEvents[[i]] == 1) {
         # dependent event
-        isDependent <- T
+        isDependent <- TRUE
         for (j in seq.int(nParams - 1))
           statsArray[, , j + 1] <-
             updFun(
@@ -810,8 +811,8 @@ getIterationStepState <- function(
               reduceArrayToMatrix, reduceMatrixToVector
             )
         }
-        time <- time + statsList$intervals[[idep]]
-        timespan <- statsList$intervals[[idep]]
+        # time <- time + statsList$intervals[[idep]]
+        # timespan <- statsList$intervals[[idep]]
         # CHANGED Marion: remove the use of events object
         activeDyad <- c(
           statsList$eventSender[[i]],
@@ -829,8 +830,8 @@ getIterationStepState <- function(
               reduceArrayToMatrix, reduceMatrixToVector
             )
         }
-        time <- time + statsList$rightCensoredIntervals[[irc]]
-        timespan <- statsList$rightCensoredIntervals[[irc]]
+        # time <- time + statsList$rightCensoredIntervals[[irc]]
+        # timespan <- statsList$rightCensoredIntervals[[irc]]
         activeDyad <- NULL
         irc <- irc + 1
       }
@@ -1183,7 +1184,7 @@ modifyStatisticsList <- function(
   if (modelType == "DyNAM-M-Rate-ordered") {
     statsList <- reduceStatisticsList(statsList,
       reduceMatrixToVector = TRUE,
-      dropRightCensored = TRUE
+      dropRightCensored = FALSE
     )
   }
 
@@ -1200,14 +1201,14 @@ modifyStatisticsList <- function(
     # drop the diagonal elements??
     statsList <- reduceStatisticsList(statsList,
       reduceArrayToMatrix = TRUE,
-      dropRightCensored = TRUE
+      dropRightCensored = FALSE
     )
   }
 
   # reduce for ORDERED REM
   if (modelType == "REM-ordered") {
     statsList <- reduceStatisticsList(statsList,
-      dropRightCensored = TRUE
+      dropRightCensored = FALSE
     )
   }
 

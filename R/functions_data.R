@@ -148,133 +148,133 @@ as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
   return(net[1:dim[1], 1:dim[2]])
 }
 
-#' A report of goldfish objects in an environment
-#' 
-#' Return details about any goldfish objects in a given environment.
-#' @param envir an `R` [environment-class] where the goldfish objects are
-#' searched. The default value is [.GlobalEnv].
-#' @return Not value, called for printing side effect.
-#' 
-#' Print detail information of the goldfish object in the environment where the
-#' function is call.
-#' For `nodes.goldfish` objects prints the total number of nodes, the attributes
-#' and the linked events to the attributes in the object.
-#' For `network.goldfish` objects prints the dimensions of the network, the 
-#' nodes sets and events linked to them.
-#' For `dependent.goldfish` objects prints the number of events and the default
-#' network linked to them.
-#' @export
-#' @examples
-#' data("Fisheries_Treaties_6070")
-#' states <- defineNodes(states)
-#' states <- linkEvents(states, sovchanges, attribute = "present")
-#' states <- linkEvents(states, regchanges, attribute = "regime")
-#' states <- linkEvents(states, gdpchanges, attribute = "gdp")
-#'
-#' bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
-#' bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
-#'
-#' contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
-#' contignet <- linkEvents(contignet, contigchanges, nodes = states)
-#'
-#' createBilat <- defineDependentEvents(
-#'   events = bilatchanges[bilatchanges$increment == 1, ],
-#'   nodes = states, defaultNetwork = bilatnet
-#' )
-#' 
-#' goldfishObjects()
-goldfishObjects <- function(envir = .GlobalEnv) {
-  y = ls(envir = envir)
-  tryCatch({
-    # identify goldfish objects
-    classesToKeep <- c(
-      "nodes.goldfish", "network.goldfish", "dependent.goldfish",
-      "global.goldfish"
-    )
-    ClassFilter <- function(x)
-      any(checkClasses(get(x, envir = envir), classes = classesToKeep))
-    
-    object <- Filter(ClassFilter, y)
-    # if(is.null(object)) stop("No goldfish objects defined.")
-    
-    # identify classes of these objects
-    classes <- vapply(
-      object,
-      FUN = function(x)
-        checkClasses(get(x, envir = envir), classes = classesToKeep),
-      FUN.VALUE = logical(length(classesToKeep))
-    )
-    
-    if (any(classes["nodes.goldfish", ])) {
-      cat("Goldfish Nodes\n")
-      names <- object[classes["nodes.goldfish", ]]
-      n <- vapply(names, function(x) nrow(get(x, envir = envir)), integer(1))
-      attributes <- vapply(
-        names,
-        function(x) paste(names(get(x, envir = envir)), collapse = ", "),
-        character(1)
-      )
-      events <- vapply(
-        names,
-        function(x) paste(attr(get(x, envir = envir), "dynamicAttributes"),
-                          collapse = ", "),
-        character(1)
-      )
-      print(data.frame(row.names = names, n, attributes, events))
-      cat("\n")
-    }
-    
-    if (any(classes["network.goldfish", ])) {
-      cat("Goldfish Networks\n")
-      names <- object[classes["network.goldfish", ]]
-      dimensions <- vapply(
-        names,
-        function(x) paste(dim(get(x, envir = envir)), collapse = " x "),
-        character(1)
-      )
-      nodesets <- vapply(
-        names,
-        function(x) paste(attr(get(x, envir = envir), "nodes"),
-                          collapse = ", "),
-        character(1)
-      )
-      events <- vapply(
-        names,
-        function(x) paste(attr(get(x, envir = envir), "events"),
-                          collapse = ", "),
-        character(1)
-      )
-      print(data.frame(row.names = names, dimensions, nodesets, events))
-      cat("\n")
-    }
-    
-    if (any(classes["dependent.goldfish", ])) {
-      cat("Goldfish Dependent Events\n")
-      names <- object[classes["dependent.goldfish", ]]
-      n <- vapply(names, function(x) nrow(get(x, envir = envir)), integer(1))
-      network <- vapply(names,
-                        function(x) {
-                          net <- attr(get(x, envir = envir), "defaultNetwork")
-                          ifelse(is.null(net), "", net)
-                        },
-                        character(1))
-      print(data.frame(row.names = names, n, network))
-      cat("\n")
-    }
-    
-    if (any(classes["global.goldfish", ])) {
-      cat("Goldfish Global Attributes\n")
-      names <- object[classes["global.goldfish", ]]
-      dimensions <- vapply(
-        names,
-        function(x) nrow(get(x, envir = envir)),
-        integer(1)
-      )
-      print(data.frame(row.names = names, dimensions))
-      cat("\n")
-    }
-  }, error = function(e) return(NULL))
-}
+# A report of goldfish objects in an environment
+# 
+# Return details about any goldfish objects in a given environment.
+# @param envir an `R` [environment-class] where the goldfish objects are
+# searched. The default value is [.GlobalEnv].
+# @return Not value, called for printing side effect.
+# 
+# Print detail information of the goldfish object in the environment where the
+# function is call.
+# For `nodes.goldfish` objects prints the total number of nodes, the attributes
+# and the linked events to the attributes in the object.
+# For `network.goldfish` objects prints the dimensions of the network, the 
+# nodes sets and events linked to them.
+# For `dependent.goldfish` objects prints the number of events and the default
+# network linked to them.
+# @export
+# @examples
+# data("Fisheries_Treaties_6070")
+# states <- defineNodes(states)
+# states <- linkEvents(states, sovchanges, attribute = "present")
+# states <- linkEvents(states, regchanges, attribute = "regime")
+# states <- linkEvents(states, gdpchanges, attribute = "gdp")
+#
+# bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
+# bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
+#
+# contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
+# contignet <- linkEvents(contignet, contigchanges, nodes = states)
+#
+# createBilat <- defineDependentEvents(
+#   events = bilatchanges[bilatchanges$increment == 1, ],
+#   nodes = states, defaultNetwork = bilatnet
+# )
+# 
+# goldfishObjects()
+# goldfishObjects <- function(envir = .GlobalEnv) {
+#   y = ls(envir = envir)
+#   tryCatch({
+#     # identify goldfish objects
+#     classesToKeep <- c(
+#       "nodes.goldfish", "network.goldfish", "dependent.goldfish",
+#       "global.goldfish"
+#     )
+#     ClassFilter <- function(x)
+#       any(checkClasses(get(x, envir = envir), classes = classesToKeep))
+#     
+#     object <- Filter(ClassFilter, y)
+#     # if(is.null(object)) stop("No goldfish objects defined.")
+#     
+#     # identify classes of these objects
+#     classes <- vapply(
+#       object,
+#       FUN = function(x)
+#         checkClasses(get(x, envir = envir), classes = classesToKeep),
+#       FUN.VALUE = logical(length(classesToKeep))
+#     )
+#     
+#     if (any(classes["nodes.goldfish", ])) {
+#       cat("Goldfish Nodes\n")
+#       names <- object[classes["nodes.goldfish", ]]
+#       n <- vapply(names, function(x) nrow(get(x, envir = envir)), integer(1))
+#       attributes <- vapply(
+#         names,
+#         function(x) paste(names(get(x, envir = envir)), collapse = ", "),
+#         character(1)
+#       )
+#       events <- vapply(
+#         names,
+#         function(x) paste(attr(get(x, envir = envir), "dynamicAttributes"),
+#                           collapse = ", "),
+#         character(1)
+#       )
+#       print(data.frame(row.names = names, n, attributes, events))
+#       cat("\n")
+#     }
+#     
+#     if (any(classes["network.goldfish", ])) {
+#       cat("Goldfish Networks\n")
+#       names <- object[classes["network.goldfish", ]]
+#       dimensions <- vapply(
+#         names,
+#         function(x) paste(dim(get(x, envir = envir)), collapse = " x "),
+#         character(1)
+#       )
+#       nodesets <- vapply(
+#         names,
+#         function(x) paste(attr(get(x, envir = envir), "nodes"),
+#                           collapse = ", "),
+#         character(1)
+#       )
+#       events <- vapply(
+#         names,
+#         function(x) paste(attr(get(x, envir = envir), "events"),
+#                           collapse = ", "),
+#         character(1)
+#       )
+#       print(data.frame(row.names = names, dimensions, nodesets, events))
+#       cat("\n")
+#     }
+#     
+#     if (any(classes["dependent.goldfish", ])) {
+#       cat("Goldfish Dependent Events\n")
+#       names <- object[classes["dependent.goldfish", ]]
+#       n <- vapply(names, function(x) nrow(get(x, envir = envir)), integer(1))
+#       network <- vapply(names,
+#                         function(x) {
+#                           net <- attr(get(x, envir = envir), "defaultNetwork")
+#                           ifelse(is.null(net), "", net)
+#                         },
+#                         character(1))
+#       print(data.frame(row.names = names, n, network))
+#       cat("\n")
+#     }
+#     
+#     if (any(classes["global.goldfish", ])) {
+#       cat("Goldfish Global Attributes\n")
+#       names <- object[classes["global.goldfish", ]]
+#       dimensions <- vapply(
+#         names,
+#         function(x) nrow(get(x, envir = envir)),
+#         integer(1)
+#       )
+#       print(data.frame(row.names = names, dimensions))
+#       cat("\n")
+#     }
+#   }, error = function(e) return(NULL))
+# }
 
 #' Defining a node set with (dynamic) node attributes.
 #'

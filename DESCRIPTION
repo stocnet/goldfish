@@ -2,8 +2,8 @@ Encoding: UTF-8
 Package: goldfish
 Type: Package
 Title: Statistical Network Models for Dynamic Network Data
-Version: 1.6.4
-Date: 2022-08-18
+Version: 1.6.6
+Date: 2022-09-27
 Authors@R: c(person("James", "Hollway", role = c("cre", "aut", "dtc"), 
                     email = "james.hollway@graduateinstitute.ch",
                     comment = c("IHEID", ORCID = "0000-0002-8361-9647")),

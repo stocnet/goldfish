@@ -1,27 +1,43 @@
-# goldfish 1.6.4
+# goldfish 1.6.5
 
+* Debugging `GatherPreprocessing()`.
+
+# goldfish 1.6.5
+
+* Solves `startTime` and `endTime` bug on `DyNAM` and `REM` models
+  preprocessing.
 * Export `GatherPreprocessing()`. Experimental functionality.
 * Introduces experimental functionality `simulation()`.
 
+# goldfish 1.6.4
+
+* Change mentioning of `.GlobalEnv` and drop `goldfishObjects()`.
+
 # goldfish 1.6.3
 
+## New features
+
 * Add DyNAM-i vignette.
-* Reimplement method `logLik()`, now is possible to use `AIC()` and `BIC()`
-  from `stats` package and make likelihood ratio test of nested models using
-  `lmtest::lrtest()`.
 * Implement method `vcov()`, now is possible to use `stats::confint()` to obtain
   confidence interval for parameters estimates under asymptotic normality, and
   also get them from a `tidy()` call.
+
+## Breaking changes
+
+* `silent` parameter replace by `progress`.
+  `progress` and `verbose` can be set with global options with the same name.
+
+## Minor improvements and fixes
+
+* Reimplement method `logLik()`, now is possible to use `AIC()` and `BIC()`
+  from `stats` package and make likelihood ratio test of nested models using
+  `lmtest::lrtest()`.
 * Improve documentation of `define` functions, `linkEvents()` and `print` methods.
   The reserved names and expected variables are explained.
 * Drop `fig.retina` from figures in vignettes and keeps default size.
 * Update `vignette("goldfishEffects")` documentation for closure effects.
-* Silent `estimate` function output. Setting the global option `verbose` allows
-  unsilent the messages during estimation.
 * Window effects doesn't create new object on the global environment.
 * Add references in description.
-* `silent` parameter replace by `progress`.
-  `progress` and `verbose` can be set with global options with the same name.
 * Fix bug composition change on estimation routines.
 * Includes environment argument on estimation routines.
 
