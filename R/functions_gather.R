@@ -53,7 +53,10 @@ GatherPreprocessing <- function(
   preprocessArgs = NULL,
   progress = getOption("progress")) {
 
-  model <- match.arg(model)
+  model <- match.arg(
+    arg = if (length(model) > 1) model[1] else model,
+    choices = c("DyNAM", "REM", "DyNAMRE")
+  )
   subModel <- match.arg(subModel)
 
   if (!is.null(preprocessArgs)) {
@@ -62,7 +65,7 @@ GatherPreprocessing <- function(
         "startTime", "endTime", "opportunitiesList"
       )
 
-    if (any(!parInit)) {
+    if (any(!parInit))
       warning(
         "The parameter: ",
         paste(names(preprocessArgs)[!parInit], collapse = ", "),
@@ -70,17 +73,17 @@ GatherPreprocessing <- function(
         "See the documentation for the list of available parameters",
         call. = FALSE, immediate. = TRUE
       )
-    }
 
-    if (!is.null(preprocessArgs["opportunitiesList"]))
+    if (!is.null(preprocessArgs[["opportunitiesList"]]))
       warning(dQuote("GatherPreprocessing"), " doesn't implement yet the ",
               dQuote("opportunitiesList"), " functionality")
   }
   
   if (is.null(progress)) progress <- FALSE
 
+  envir <- new.env()
   ### 1. PARSE the formula----
-  parsedformula <- parseFormula(formula) # envir = as.environment(-1)
+  parsedformula <- parseFormula(formula, envir = envir)
   rhsNames <- parsedformula$rhsNames
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
@@ -93,6 +96,11 @@ GatherPreprocessing <- function(
          call. = FALSE, immediate. = TRUE)
 
   # Model-specific preprocessing initialization
+  if (model == "DyNAMRE") {
+    if (subModel == "choice") model <- "REM" else model <- "DyNAM"
+    altModel <- "DyNAMRE"
+  } else altModel <- NULL
+
   if (model %in% c("DyNAM", "DyNAMi") &&
       subModel %in% c("choice", "choice_coordination") &&
       parsedformula$hasIntercept) {
@@ -127,8 +135,6 @@ GatherPreprocessing <- function(
 
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
   # enviroment from which get the objects
-  envir <- environment()
-
   effects <- createEffectsFunctions(
     parsedformula$rhsNames, model, subModel, envir = envir)
   # Get links between objects and effects for printing results
@@ -164,7 +170,8 @@ GatherPreprocessing <- function(
     startTime = preprocessArgs[["startTime"]],
     endTime = preprocessArgs[["endTime"]],
     rightCensored = rightCensored,
-    progress = progress
+    progress = progress,
+    prepEnvir = envir
   )
 
   # # 3.3 additional processing to flat array objects
@@ -175,7 +182,8 @@ GatherPreprocessing <- function(
 
   reduceMatrixToVector <- FALSE
   reduceArrayToMatrix <- FALSE
-  modelTypeCall <- "NON-VALID"
+
+  if (!is.null(altModel) & subModel == "choice") model <- "DyNAM"
 
   if (model == "REM") {
     if (!parsedformula$hasIntercept) {
@@ -197,8 +205,6 @@ GatherPreprocessing <- function(
       reduceArrayToMatrix <- TRUE
     }
   }
-
-  if (modelTypeCall == "NON-VALID") stop("Invalid model", modelTypeCall)
 
   # from estimate_c_init
   preprocessingStat <- modifyStatisticsList(
@@ -320,6 +326,14 @@ GatherPreprocessing <- function(
     impute = FALSE
   )
 
+  ## Add additional information
+  gatheredData$sender <- nodes$label[preprocessingStat$eventSender]
+  if (model == "REM" || (model == "DyNAM" & subModel != "rate")) {
+    gatheredData$receiver <- nodes2$label[preprocessingStat$eventReceiver]
+  }
+  
+  gatheredData$selected <- gatheredData$selected + 1
+  
   ### 4. PREPARE PRINTING----
   # functions_utility.R
   effectDescription <-
@@ -330,6 +344,7 @@ GatherPreprocessing <- function(
 
   gatheredData$namesEffects <- namesEffects
   colnames(gatheredData$stat_all_events) <- namesEffects
+  gatheredData$effectDescription <- effectDescription
 
   return(gatheredData)
 }

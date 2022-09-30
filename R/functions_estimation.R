@@ -295,7 +295,8 @@ estimate.formula <- function(
   # envir <- environment()
 
   ### check model and subModel
-  checkModelPar(model, subModel,
+  checkModelPar(
+    model, subModel,
     modelList = c("DyNAM", "REM", "DyNAMi"),
     subModelList = list(
       DyNAM = c("choice", "rate", "choice_coordination"),

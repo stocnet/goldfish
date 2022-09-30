@@ -82,7 +82,7 @@ parseFormula <- function(formula, envir = new.env()) {
   # check right side: type = c("ego", "alter")
   typeParameter <- lapply(rhsNames, function(x) {
     v <- getElement(x, "type")
-    ifelse(!is.null(v), v, "")
+    ifelse(!is.null(v), eval(parse(text = v), envir = envir), "")
   })
   # check right side: transformFun & aggregateFun
   getFunName <- function(x, which) {
