@@ -9,7 +9,8 @@ GatherPreprocessing(
   model = c("DyNAM", "REM"),
   subModel = c("choice", "choice_coordination", "rate"),
   preprocessArgs = NULL,
-  progress = getOption("progress")
+  progress = getOption("progress"),
+  envir = new.env()
 )
 }
 \arguments{
@@ -26,6 +27,8 @@ in \code{vignette("goldfishEffects")}.}
 \code{endTime} and \code{opportunitiesList}. See \code{\link[=estimate]{estimate()}}.}
 
 \item{progress}{Default \code{FALSE}.}
+
+\item{envir}{an \code{environment} where \code{formula} objects are available.}
 }
 \value{
 a list with the data and relevant information.

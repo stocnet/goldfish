@@ -20,6 +20,7 @@
 #' @param preprocessArgs Additional preprocess arguments like `startTime`,
 #'   `endTime` and `opportunitiesList`. See [estimate()].
 #' @param progress Default `FALSE`.
+#' @param envir an `environment` where `formula` objects are available.
 #'
 #' @return a list with the data and relevant information.
 #' @export
@@ -51,13 +52,24 @@ GatherPreprocessing <- function(
   model = c("DyNAM", "REM"),
   subModel = c("choice", "choice_coordination", "rate"),
   preprocessArgs = NULL,
-  progress = getOption("progress")) {
+  progress = getOption("progress"),
+  envir = new.env()) {
 
   model <- match.arg(
     arg = if (length(model) > 1) model[1] else model,
     choices = c("DyNAM", "REM", "DyNAMRE")
   )
   subModel <- match.arg(subModel)
+  
+  checkModelPar(
+    model = model, subModel = subModel,
+    modelList = c("DyNAM", "REM", "DyNAMRE"),
+    subModelList = list(
+      DyNAM = c("choice", "rate", "choice_coordination"),
+      REM = "choice",
+      DyNAMRE = c("choice", "choice_coordination")
+    )
+  )
 
   if (!is.null(preprocessArgs)) {
     parInit <- names(preprocessArgs) %in%
@@ -81,7 +93,6 @@ GatherPreprocessing <- function(
   
   if (is.null(progress)) progress <- FALSE
 
-  envir <- new.env()
   ### 1. PARSE the formula----
   parsedformula <- parseFormula(formula, envir = envir)
   rhsNames <- parsedformula$rhsNames
