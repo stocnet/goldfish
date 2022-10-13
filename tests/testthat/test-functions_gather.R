@@ -33,7 +33,7 @@ test_that("Printing", {
 test_that("Output", {
   out <- GatherPreprocessing(depNetwork ~ inertia(networkState))
   expect_type(out, "list")
-  expect_length(out, 7)
+  expect_length(out, 8)
   
   
 })

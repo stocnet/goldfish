@@ -114,7 +114,8 @@ estimate_c_int <- function(
   # CHANGED MARION: updated function
   # for rate model with intercept, add a table of all 1 to the
   #  statsList$initStats
-  statsList <- modifyStatisticsList(statsList, modelTypeCall,
+  statsList <- modifyStatisticsList(
+    statsList, modelTypeCall,
     reduceMatrixToVector = reduceMatrixToVector,
     reduceArrayToMatrix = reduceArrayToMatrix,
     excludeParameters = excludeParameters,
@@ -524,7 +525,7 @@ estimate_c_int <- function(
 
   ## ESTIMATION: END
   # calculate standard errors
-  # the variance for the fixed compenents should be 0
+  # the variance for the fixed components should be 0
   stdErrors <- rep(0,nParams)
   stdErrors[idUnfixedCompnents] <- sqrt(diag(inverseInformationUnfixed))
 

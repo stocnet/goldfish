@@ -187,9 +187,6 @@ GatherPreprocessing <- function(
 
   # # 3.3 additional processing to flat array objects
   allowReflexive <- isTwoMode
-  dimensions <- dim(preprocessingStat$initialStats)
-
-  nParams <- dimensions[3] + parsedformula$hasIntercept
 
   reduceMatrixToVector <- FALSE
   reduceArrayToMatrix <- FALSE
@@ -226,16 +223,17 @@ GatherPreprocessing <- function(
     addInterceptEffect = parsedformula$hasIntercept
   )
 
-  nEvents <- length(preprocessingStat$orderEvents) # number of events
+  # nEvents <- length(preprocessingStat$orderEvents)# number of events
   nodes <- get(.nodes)
   nodes2 <- get(.nodes2)
 
   ## SET VARIABLES BASED ON STATSLIST
   twomode_or_reflexive <- (allowReflexive || isTwoMode)
-  n_events <- length(preprocessingStat$orderEvents)
+  # n_events <- length(preprocessingStat$orderEvents)
+  dimensions <- dim(preprocessingStat$initialStats)
   n_parameters <- dimensions[3]
   n_actors1 <- dimensions[1]
-  n_actors2 <- nActors <- dimensions[2]
+  n_actors2 <- dimensions[2]
 
   ## CONVERT UPDATES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
   temp <- convert_change(preprocessingStat$dependentStatsChange)
@@ -245,7 +243,8 @@ GatherPreprocessing <- function(
     stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
   }
   # Convert the right-censored events
-  # which will be a zero matrice and a zero vector if there's no right-censored event
+  # which will be a zero matrice and a zero vector
+  #  if there's no right-censored event
   if (length(preprocessingStat$rightCensoredIntervals) == 0) {
     stat_mat_rightcensored_update <- matrix(0, 4, 1)
     stat_mat_rightcensored_update_pointer <- numeric(1)
@@ -254,13 +253,18 @@ GatherPreprocessing <- function(
     stat_mat_rightcensored_update <- temp$statMatUpdate
     stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
     if (parsedformula$hasIntercept) {
-      stat_mat_rightcensored_update[3, ] <- stat_mat_rightcensored_update[3, ] + 1
+      stat_mat_rightcensored_update[3, ] <-
+        stat_mat_rightcensored_update[3, ] + 1
     }
   }
 
   ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  compChangeName1 <- attr(nodes, "events")["present" == attr(nodes, "dynamicAttribute")]
-  compChangeName2 <- attr(nodes2, "events")["present" == attr(nodes2, "dynamicAttribute")]
+  compChangeName1 <- attr(nodes, "events")[
+    "present" == attr(nodes, "dynamicAttribute")
+  ]
+  compChangeName2 <- attr(nodes2, "events")[
+    "present" == attr(nodes2, "dynamicAttribute")
+  ]
   if (!is.null(compChangeName1) && length(compChangeName1) > 0) {
     temp <- get(compChangeName1)
     temp <- sanitizeEvents(temp, nodes)
@@ -296,8 +300,8 @@ GatherPreprocessing <- function(
   }
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
+  is_dependent <- preprocessingStat$orderEvents == 1
   if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
-    is_dependent <- preprocessingStat$orderEvents == 1
     timespan <- length(is_dependent)
     timespan[is_dependent] <- preprocessingStat$intervals
     timespan[(!is_dependent)] <- preprocessingStat$rightCensoredIntervals
@@ -306,7 +310,13 @@ GatherPreprocessing <- function(
   }
   
   ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  event_mat <- t(matrix(c(unlist(preprocessingStat$eventSender), unlist(preprocessingStat$eventReceiver)), ncol = 2))
+  event_mat <- t(matrix(
+    c(
+      unlist(preprocessingStat$eventSender),
+      unlist(preprocessingStat$eventReceiver)
+    ),
+    ncol = 2
+  ))
 
   ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED BY C FUNCTIONS
   stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
@@ -339,11 +349,18 @@ GatherPreprocessing <- function(
 
   ## Add additional information
   gatheredData$sender <- nodes$label[preprocessingStat$eventSender]
-  if (model == "REM" || (model == "DyNAM" & subModel != "rate")) {
-    gatheredData$receiver <- nodes2$label[preprocessingStat$eventReceiver]
+  if (model == "REM" || (model == "DyNAM" && subModel != "rate")) {
+    gatheredData$receiver <-
+      nodes2$label[preprocessingStat$eventReceiver]
+  } else if (model == "DyNAM" && subModel == "rate" &&
+             parsedformula$hasIntercept) {
+    gatheredData$timespan <- timespan 
+    gatheredData$isDependent <- is_dependent
   }
+  gatheredData$hasIntercept <- parsedformula$hasIntercept
   
-  gatheredData$selected <- gatheredData$selected + 1
+  gatheredData$selected <- gatheredData$selected +
+    if (parsedformula$hasIntercept) (1 * is_dependent) else 1
   
   ### 4. PREPARE PRINTING----
   # functions_utility.R
