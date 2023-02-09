@@ -1,10 +1,3 @@
-##################### ##
-#
-# Goldfish package
-# Helper data testing -----------------------------------------------
-#
-#################### ###
-
 # DyNAM -------------------------------------------------------------
 
 # Networks  ---------------------------------------------------------
@@ -198,19 +191,7 @@ effectFUN_REM_sim <- function(attribute,
   )
 
 # Preprocessing DyNAM ---------------------------------------------------------
-# direct network
-eventsIncrement <- data.frame(
-  time = cumsum(
-    c(1, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4)),
-  sender = sprintf("Actor %d",
-    c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)),
-  receiver = sprintf("Actor %d",
-    c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)),
-  increment =
-    c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
-  stringsAsFactors = FALSE
-)
-
+# nodes data frame
 actorsEx <- data.frame(
   label = sprintf("Actor %d", 1:5),
   present = c(rep(TRUE, 4), FALSE),
@@ -224,6 +205,34 @@ compChange <- data.frame(
   replace = c(TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE)
 )
 
+actorsEx <- defineNodes(actorsEx) 
+actorsEx <- linkEvents(
+  x = actorsEx,
+  changeEvent = compChange,
+  attribute = "present")
+
+  # two-mode
+clubsEx <- data.frame(
+  label = sprintf("Club %d", 1:3),
+  present = c(rep(TRUE, 2), FALSE),
+  clubSize = c(7, 9, 2),
+  stringsAsFactors = FALSE
+)
+
+clubsChange <- data.frame(
+  node = sprintf("Club %d", c(3, 1, 1)),
+  time = c(14, 17, 19),
+  replace = c(TRUE, FALSE, TRUE)
+)
+
+clubsEx <- defineNodes(clubsEx) 
+clubsEx <- linkEvents(
+  x = clubsEx,
+  changeEvent = clubsChange,
+  attribute = "present")
+
+
+# direct network
 networkState <- matrix(
   c(0, 3, 0, 0, 0,
     1, 0, 1, 1, 0,
@@ -235,12 +244,17 @@ networkState <- matrix(
                   sprintf("Actor %d", 1:5))
 )
 
-# defining objects
-actorsEx <- defineNodes(actorsEx) 
-actorsEx <- linkEvents(
-  x = actorsEx,
-  changeEvent = compChange,
-  attribute = "present")
+eventsIncrement <- data.frame(
+  time = cumsum(
+    c(1, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4)),
+  sender = sprintf("Actor %d",
+    c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)),
+  receiver = sprintf("Actor %d",
+    c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)),
+  increment =
+    c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
+  stringsAsFactors = FALSE
+)
 
 networkState <- defineNetwork(
   matrix = networkState, nodes = actorsEx,
@@ -255,6 +269,17 @@ depNetwork <- defineDependentEvents(
   defaultNetwork = networkState)
 
 # exogenous network
+networkExog <- matrix(
+  c(0, 0, 0, 1, 0,
+    0, 0, 0, 0, 0,
+    0, 2, 0, 0, 0,
+    1, 0, 0, 0, 0,
+    1, 2, 0, 0, 0),
+  nrow = 5, ncol = 5, byrow = TRUE,
+  dimnames = list(sprintf("Actor %d", 1:5),
+                  sprintf("Actor %d", 1:5))
+)
+
 eventsExogenous <- data.frame(
   time =
     c(7, 14, 15, 18, 18, 25, 25),
@@ -267,18 +292,6 @@ eventsExogenous <- data.frame(
   stringsAsFactors = FALSE
 )
 
-networkExog <- matrix(
-  c(0, 0, 0, 1, 0,
-    0, 0, 0, 0, 0,
-    0, 2, 0, 0, 0,
-    1, 0, 0, 0, 0,
-    1, 2, 0, 0, 0),
-  nrow = 5, ncol = 5, byrow = TRUE,
-  dimnames = list(sprintf("Actor %d", 1:5),
-                  sprintf("Actor %d", 1:5))
-)
-
-# define goldfish objects
 networkExog <- defineNetwork(
   matrix = networkExog,
   nodes = actorsEx, directed = TRUE)

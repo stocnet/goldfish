@@ -29,16 +29,13 @@
 preprocess <- function(
   model,
   subModel,
-  events,
-  effects,
-  windowParameters,
-  eventsObjectsLink,
-  eventsEffectsLink,
-  objectsEffectsLink,
-  # multipleParameter,
-  nodes,
-  nodes2 = nodes,
-  isTwoMode,
+  parsedformula,
+  nodesInfo,
+  opportunitiesList = NULL,
+  # simulation parameters,
+  simulate = FALSE,
+  nEventMax = NULL,
+  simulateFunction = NULL,
   # add more parameters
   startTime = min(vapply(events, function(x) min(x$time), double(1))),
   endTime = max(vapply(events, function(x) max(x$time), double(1))),
@@ -56,10 +53,28 @@ preprocess <- function(
   # print(match.call())
   # initialize statistics functions from data objects
   # number of actors
-  n1 <- nrow(get(nodes, envir = prepEnvir))
-  n2 <- nrow(get(nodes2, envir = prepEnvir))
-  nEffects <- length(effects)
+  n1 <- nrow(get(nodesInfo[["nodes"]], envir = prepEnvir))
+  n2 <- nrow(get(nodesInfo[["nodes2"]], envir = prepEnvir))
 
+  # effects info
+  effects <- createEffectsFunctions(
+    parsedformula[["rhsNames"]], model, subModel,
+    envir = prepEnvir
+  )
+  nEffects <- length(effects)
+  
+  objectsEffectsLink <- getObjectsEffectsLink(parsedformula[["rhsNames"]])
+  events <- getEventsAndObjectsLink(
+    parsedformula[["depName"]], parsedformula[["rhsNames"]],
+    nodesInfo[["nodes"]], nodesInfo[["nodes2"]], envir = prepEnvir
+  )
+  eventsObjectsLink <- events[[2]]
+  events <- events[[1]]
+  
+  eventsEffectsLink <- getEventsEffectsLink(
+    events, parsedformula[["rhsNames"]], eventsObjectsLink
+  )
+  
   # check start time and end time are valid values, set flags
   hasEndTime <- FALSE
   hasStartTime <- FALSE
@@ -68,24 +83,23 @@ preprocess <- function(
   isWindowEffect <- !vapply(windowParameters, is.null, logical(1))
   whichEventNoWindowEffect <- eventsEffectsLink[, !isWindowEffect, drop = FALSE]
   whichEventNoWindowEffect <- rowSums(!is.na(whichEventNoWindowEffect))
+  # include always dependent events for start and end time
   whichEventNoWindowEffect <- c(1, which(whichEventNoWindowEffect > 0))
   
-  eventsMin <- min(vapply(
-    events[whichEventNoWindowEffect],
-    function(x) min(x$time),
-    double(1)
-  ))
-  eventsMax <- max(vapply(
-    events[whichEventNoWindowEffect],
-    function(x) max(x$time),
-    double(1)
-  ))
+  # windowed effects modified the events object,
+  # therefore not useful for defining start and end time
+  eventsRange <- range(vapply(
+      events[whichEventNoWindowEffect],
+      function(x) range(x$time),
+      double(2)
+    ))
   if (is.null(endTime)) {
-    endTime <- eventsMax
+    endTime <- eventsRange[2]
+    # avoid preprocess events created by window decreasing events
     if (any(isWindowEffect)) hasEndTime <- TRUE
-  } else if (endTime != eventsMax) {
+  } else if (endTime != eventsRange[2]) {
     if (!is.numeric(endTime)) endTime <- as.numeric(endTime)
-    if (eventsMin > endTime)
+    if (eventsRange[1] > endTime)
       stop("End time smaller than first event time.", call. = FALSE)
       # to solve: if endTime > eventsMax
       # should it produce censored events? warning?
@@ -96,17 +110,17 @@ preprocess <- function(
     #   receiver = NA,
     #   replace = NA
     # )
-    # events <- c(events, endtime = list(endTimeEvent))
+    # events <- append(events, list(endtime = endTimeEvent))
     hasEndTime <- TRUE
   }
   if (is.null(startTime)) {
-    startTime <- eventsMin
-  } else if (startTime != eventsMin) {
+    startTime <- eventsRange[1]
+  } else if (startTime != eventsRange[1]) {
     if (!is.numeric(startTime)) startTime <- as.numeric(startTime)
-    if (eventsMax < startTime)
+    if (eventsRange[2] < startTime)
       stop("Start time geater than last event time.", call. = FALSE)
     hasStartTime <- TRUE
-    if (eventsMin < startTime) isValidEvent <- FALSE
+    if (eventsRange[1] < startTime) isValidEvent <- FALSE
     # if (eventsMin > startTime) isValidEvent <- TRUE
     # To solve: if startTime < eventsMin should be a warning?
   }
@@ -149,7 +163,7 @@ preprocess <- function(
       nRightCensoredEvents <- as.integer(sum(
         nRightCensoredEvents >= startTime &
           nRightCensoredEvents <= endTime) - 1)
-    } else nRightCensoredEvents <- 0L    
+    } else nRightCensoredEvents <- 0L
   } else {
     nRightCensoredEvents <- 0L
     nTotalEvents <- as.integer(nrow(events[[1]]))
@@ -158,7 +172,8 @@ preprocess <- function(
   nDependentEvents <- ifelse(
     hasStartTime || hasEndTime,
     as.integer(sum(time >= startTime & time <= endTime)),
-    as.integer(length(time)))
+    as.integer(length(time))
+  )
   # CHANGED ALVARO: preallocate objects sizes
   dependentStatistics <- vector("list", nDependentEvents)
   timeIntervals <- vector("numeric", ifelse(rightCensored, nDependentEvents, 0))

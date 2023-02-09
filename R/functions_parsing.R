@@ -1,16 +1,11 @@
-####################### #
-#
-# Goldfish package
-# Parsings (and checking) formulae
-#
-####################### #
-
 #' parse formula
 #' A valid formula should have:
 #' - on the left side a list of dependent events
-#' - on the right side a list of names that correspond to effects we have in our pre-defined functions
+#' - on the right side a list of names that correspond to effects
+#'  we have in our pre-defined functions
 #' - parameters for the effects that are coherent with the documentation
-#' on top of this, we parse the formula to the right format for the rest of the estimation
+#'  on top of this, we parse the formula to the right format
+#'  for the rest of the estimation
 #' @param formula a class \code{formula} object that defines the model
 #'
 #' @return a list with parsed values needed in the next steps
@@ -72,7 +67,8 @@ parseFormula <- function(formula, envir = new.env()) {
   ignoreRepParameter <- mult[[2]]
     # check mismatch with default parameter
   if (any(unlist(ignoreRepParameter)) && is.null(defaultNetworkName)) {
-    stop("No default network defined, thus ", sQuote("ignoreRep = TRUE"), " effects cannot be used.", call. = FALSE)
+    stop("No default network defined, thus ", sQuote("ignoreRep = TRUE"),
+         " effects cannot be used.", call. = FALSE)
   }
   # check right side: weighted parameter
   weightedParameter <- lapply(rhsNames, function(x) {
@@ -127,27 +123,34 @@ parseFormula <- function(formula, envir = new.env()) {
 
 
 # Comparison of two parsed formulas for preprocessingInit
-# throws errors when: dependent events or default network are not the same, when there is righ-censoring
-# for one and not the other
-# returns: a list of the size of the new formula, with zeros when the effects are new, and with the
-#          the index of the effect in the old formula if the effect was already there
-compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel) {
+# throws errors when: dependent events or default network are not the same,
+# when there is righ-censoring for one and not the other
+# returns: a list of the size of the new formula,
+#  with zeros when the effects are new,
+#  and with the index of the effect in the old formula
+#  if the effect was already there
+compareFormulas <- function(
+    oldparsedformula, newparsedformula, model, subModel
+) {
 
   # test dependent events and default network
-  if (oldparsedformula$depName != newparsedformula$depName) {
+  if (oldparsedformula$depName != newparsedformula$depName)
     stop("The dependent events in the formula are not the ones used in",
          " the preprocessed object given in preprocessingInit.")
-  }
-  if (!identical(oldparsedformula$defaultNetworkName, newparsedformula$defaultNetworkName)) {
+  
+  if (!identical(
+    oldparsedformula$defaultNetworkName, newparsedformula$defaultNetworkName
+  ))
     stop("The default network in the formula is not the one used in",
          " the preprocessed object given in preprocessingInit.")
-  }
+
   # test the right-censoring
   # for now it's easier to just reject inconsistent formulas, otherwise,
   # we would need go in the details of the RC intervals and updates
   oldhasIntercept <- oldparsedformula$hasIntercept
   newhasIntercept <- newparsedformula$hasIntercept
-  if (model %in% "DyNAM" && subModel %in% c("choice", "choice_coordination") && oldhasIntercept) {
+  if (model %in% "DyNAM" && subModel %in% c("choice", "choice_coordination") &&
+      oldhasIntercept) {
     oldhasIntercept <- FALSE
     newhasIntercept <- FALSE
   }
@@ -156,22 +159,26 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
          " with the right-censored intervals that this formula requires.")
   }
   if (!oldhasIntercept && newhasIntercept) {
-    stop("The preprocessing for the object in preprocessingInit was done",
-         " with right-censored intervals and this formula does not include those.")
+    stop(
+      "The preprocessing for the object in preprocessingInit was done",
+      " with right-censored intervals and this formula does not include those."
+    )
   }
-  # counters for remembering which of the old effects are found in the new formula
+  # counters for remembering which of the old effects are
+  # found in the new formula
   sizeold <- length(oldparsedformula$rhsNames)
   sizenew <- length(newparsedformula$rhsNames)
   effectsindexes <- rep(0, sizenew)
-  # go through all new effects to check whether they already existed in the old formula
-  for (i in seq.int(sizenew)) {
+  # go through all new effects to check whether they already existed
+  # in the old formula
+  for (i in seq_len(sizenew)) {
     effectname <- newparsedformula$rhsNames[[i]][[1]]
     effectobject <- newparsedformula$rhsNames[[i]][[2]]
     effectwindow <- newparsedformula$windowParameters[[i]]
     effectignorerep <- newparsedformula$ignoreRepParameter[[i]]
     effectweighted <- newparsedformula$weightedParameter[[i]]
     effectparameter <- newparsedformula$userSetParameter[[i]]
-    for (j in seq.int(sizeold)) {
+    for (j in seq_len(sizeold)) {
       # 1 check name of the effect
       if (!identical(oldparsedformula$rhsNames[[j]][[1]], effectname)) {
         next
@@ -185,9 +192,9 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
         next
       }
       # 4 check other parameters
-      if (!identical(oldparsedformula$ignoreRepParameter[[j]], effectignorerep)) {
+      if (!identical(oldparsedformula$ignoreRepParameter[[j]], effectignorerep))
         next
-      }
+
       if (!identical(oldparsedformula$weightedParameter[[j]], effectweighted)) {
         next
       }
@@ -203,7 +210,8 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
 
 
 # Creation of the different effects with the right parameters
-# in which the first empty parameters are replaced with the ones found in effectInit
+# in which the first empty parameters are replaced with the ones found
+# in effectInit
 # ignores parameters that are not used in the updates computation (parmsIgnore)
 createEffectsFunctions <- function(effectInit, model, subModel,
                                    envir = environment()) {

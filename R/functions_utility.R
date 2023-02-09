@@ -383,12 +383,32 @@ UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
   return(network)
 }
 
+
+#' get the details to print
+#'
+#' @param parsedformula an object output from [parseFormula()]
+#' @param fixedParameters a numeric vector with the values used to
+#' fix parameters
+#'
+#' @return a matrix with effects in rows a columns with additional information
+#' about them.
+#' @noRd
+#'
+#' @examples
+#' GetDetailPrint(
+#'   parseFormula(
+#'     depNetwork ~ inertia(networkState, window = 300, transformFun = sqrt) +
+#'     recip
+#'   ),
+#'   c(NA, 1)
+#' )
 GetDetailPrint <- function(
-    objectsEffectsLink,
     parsedformula,
-    fixedParameters = NULL) {
+    fixedParameters = NULL
+) {
   # matrix with the effects in rows and objects in columns,
   # which net or actor att
+  objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames)
   maxObjs <- max(objectsEffectsLink, na.rm = TRUE)
   effectDescription <- matrix(t(
     apply(
@@ -494,6 +514,14 @@ GetDetailPrint <- function(
   return(effectDescription)
 }
 
+#' Get the fixed parameters
+#'
+#' @param object a matrix output from [GetDetailPrint()]
+#'
+#' @return
+#' @export
+#'
+#' @examples
 GetFixed <- function(object) {
   if ("fixed" %in% colnames(object$names)) {
     fixed <- vapply(
@@ -506,6 +534,32 @@ GetFixed <- function(object) {
   fixed
 }
 
-checkArgsEstimation <- function(variables) {
-  
+#' check a list contains allowed names
+#'
+#' @param object a list object with the arguments to be passed to a function
+#' @param allowNames a character vector with the set of available names
+#'
+#' @return `NULL`. Print a warning if an element of the list is not allowed.
+#' @noRd
+#'
+#' @examples
+#' checkArgs(list(mxIter = 50), c("maxIterations"))
+checkArgs <- function(object, allowNames) {
+  if (!is.null(object)) {
+    parInit <- names(object) %in% allowNames
+    
+    nameObject <- deparse(substitute(object))
+    if (any(!parInit)) {
+      warning(
+        "The parameter/argument:\n ",
+        paste(names(object)[!parInit], collapse = ", "),
+        "\n\tin ", dQuote(nameObject), " is not recognized.\n",
+        "See the documentation for the list of available parameters/arguments",
+        call. = FALSE, immediate. = TRUE
+      )
+    }
+  }
+  invisible(NULL)
 }
+
+

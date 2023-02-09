@@ -836,19 +836,25 @@ linkEvents.nodes.goldfish <- function(x, changeEvents, attribute, ...) {
 linkEvents.network.goldfish <- function(x, changeEvents,
                                         nodes = NULL, nodes2 = NULL, ...) {
   # check input types
-  if (is.null(nodes)) stop("Invalid argument nodes: a network is specified, this function expects an argument nodes.")
-  if (!is.data.frame(changeEvents)) stop("Invalid argument changeEvents: this function expects a data frame.")
+  if (is.null(nodes))
+    stop("Invalid argument nodes: a network is specified,",
+         " this function expects an argument nodes.")
+  if (!is.data.frame(changeEvents))
+    stop("Invalid argument changeEvents: this function expects a data frame.")
 
   isTwoMode <- !is.null(nodes2)
   if (!is.data.frame(nodes))
-    stop("Invalid argument nodes: this function expects a nodeset (data frame or nodes.goldfish object).")
+    stop("Invalid argument nodes: this function expects a nodeset",
+         " (data frame or nodes.goldfish object).")
   if (isTwoMode && !is.data.frame(nodes2))
-    stop("Invalid argument nodes2: this function expects a nodeset (data frame or nodes.goldfish object).")
+    stop("Invalid argument nodes2: this function expects a nodeset",
+         " (data frame or nodes.goldfish object).")
 
   # data frame has to be passed as a variable name
   linkEnvir <- environment()
   if (!is.name(substitute(changeEvents, linkEnvir)))
-    stop("Parameter change events has to be the name of a data frame (rather than a data frame)")
+    stop("Parameter change events has to be the name of a data frame",
+         " (rather than a data frame)")
 
   # link data
   # initial <- x
@@ -856,7 +862,10 @@ linkEvents.network.goldfish <- function(x, changeEvents,
   objEventCurr <- as.character(substitute(changeEvents, linkEnvir))
 
   if (length(objEventsPrev) > 0 && objEventCurr %in% objEventsPrev) {
-      warning("The event ", sQuote(objEventCurr), " were already linked to this object.")
+      warning(
+        "The event ", sQuote(objEventCurr),
+        " were already linked to this object."
+      )
       return(x)
   }
   attr(x, "events") <- c(objEventsPrev, objEventCurr)

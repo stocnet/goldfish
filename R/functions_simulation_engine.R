@@ -7,101 +7,73 @@
 #' @inheritParams simulate
 #' @inheritParams preprocess
 #'
-#' @return an array with simulated events
+#' @return an array with simulated events or a list
 #'
 #' @noRd
-simulate_engine <- function(
+simulateEngine <- function(
     model,
     subModel,
-    parametersRate,
+    parameters,
     parsedformulaRate,
-    parametersChoice,
     parsedformulaChoice,
     nEvents,
-    # multipleParameter,
-    nodes,
-    nodes2 = nodes,
-    isTwoMode,
-    # add more parameters
-    startTime = 0,
+    nodesInfo,
+    startTime = NULL,
     endTime = NULL,
-    rightCensored = FALSE,
-    progress = FALSE) {
+    keepPreprocess = FALSE,
+    progress = FALSE,
+    envir = new.env()) {
   
+  # rightCensored and multiparameter
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
   
-  # enviroment from which get the objects
-  envir <- environment()
+  parsedformula <- JoinParsedFormulas(parsedformulaRate, parsedformulaChoice)
   
   # effect and objectsEffectsLink for sender-deciding process
-  effectsRate <- createEffectsFunctions(parsedformulaRate$rhsNames,
-                                        model, subModel, envir = envir)
-  objectsEffectsLinkRate <- getObjectsEffectsLink(
-    parsedformulaRate$rhsNames)
-  
-  # effect and objectsEffectsLink for receiver-deciding process
-  effectsChoice <- NULL
-  objectsEffectsLinkChoice <- NULL
-  if (!is.null(parametersChoice)) {
-    effectsChoice <- createEffectsFunctions(parsedformulaChoice$rhsNames,
-                                            model, subModel, envir = envir)
-    objectsEffectsLinkChoice <- getObjectsEffectsLink(
-      parsedformulaChoice$rhsNames)
+  if (model = "DyNAM") {
+    # check effect are defined for each submodel
+    effects <- createEffectsFunctions( # checks effects are defined for submodel
+      parsedformulaRate$rhsNames, model, "rate", envir = envir
+    )
+    effects <- createEffectsFunctions( # checks effects are defined for submodel
+      parsedformulaChoice$rhsNames, model, "choice", envir = envir
+    )
   }
+   
+  effects <- createEffectsFunctions(
+    parsedformula$rhsNames, "REM", "choice", envir = envir
+  )
+  objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames)
   
   # 
-  n1 <- nrow(get(nodes))
-  n2 <- nrow(get(nodes2))
-  nEffectsRate <- length(effectsRate)
-  nEffectsChoice <- length(effectsChoice)
+  n1 <- nrow(get(nodesInfo[["nodes"]]))
+  n2 <- nrow(get(nodesInfo[["nodes2"]]))
+  nEffectsRate <- length(parametersRate)
+  nEffectsChoice <- length(parametersChoice)
+  nEffects <- length(effects) + 
   
   if (progress) cat("Initializing cache objects and statistical matrices.\n")
   # ToDo: Impute misssing data
   #   startTime and endTime handling
   
   # Initialize stat matrix for rate model
-  statCacheRate <- initializeCacheStat(
-    objectsEffectsLink = objectsEffectsLinkRate,
-    effects = effectsRate,
+  statCache <- initializeCacheStat(
+    objectsEffectsLink = objectsEffectsLink,
+    effects = effects,
     groupsNetwork = NULL, 
-    windowParameters = parsedformulaRate$windowParameters,
+    windowParameters = parsedformula$windowParameters,
     n1 = n1, n2 = n2,
-    model = model, subModel = "rate",
+    model = "REM", subModel = "choice",
     envir = envir
   )
 
-  # Initialize stat matrix for the choice model
-  if (!is.null(parametersChoice)) {
-    statCacheChoice <- initializeCacheStat(
-      objectsEffectsLink = objectsEffectsLinkChoice,
-      effects = effectsChoice,
-      groupsNetwork = NULL,
-      windowParameters = parsedformulaChoice$windowParameters,
-      n1 = n1, n2 = n2,
-      model, "choice",
-      envir = envir
-    )
-    # the variable subModel is for the sender-deciding process.  ToDo: check
-    subModel <- "rate"
-  }
-
   # We put the initial stats to the previous format of 3 dimensional array
-  initialStatsRate <- array(
-    unlist(lapply(statCacheRate, "[[", "stat")),
-    dim = c(n1, n2, nEffectsRate)
+  initialStats <- array(
+    unlist(lapply(statCache, "[[", "stat")),
+    dim = c(n1, n2, nEffects)
   )
-  statMatRate <- initialStatsRate
-  statCacheRate <- lapply(statCacheRate, "[[", "cache")
-  # for receiver-deciding process if it's necessary
-  if (!is.null(parametersChoice)) {
-    initialStatsChoice <- array(
-      unlist(lapply(statCacheChoice, "[[", "stat")),
-      dim = c(n1, n2, nEffectsChoice)
-    )
-    statMatChoice <- initialStatsChoice
-    statCacheChoice <- lapply(statCacheChoice, "[[", "cache")
-  }
-
+  statCache <- lapply(statCache, "[[", "cache")
+  
   # ToDo: change to startTime
   currentTime <- 0
   events <- matrix(0, nEvents, 4)
@@ -111,7 +83,9 @@ simulate_engine <- function(
   # progressEndReached <- FALSE
   
   if (progress) {
-    cat("Simulating events.\n")
+    cat("Simulating events.\n",
+        "\t a maximum of ", prettyNum(nEvents, big.mark = ","),
+        "events will be simulated.\n")
     showProgressBar <- TRUE
     # # how often print, max 50 prints
     pb <- utils::txtProgressBar(max = nEvents, char = "*", style = 3)
@@ -119,7 +93,8 @@ simulate_engine <- function(
   }
   
   # Simulation each event
-  for (i in 1:nEvents) {
+  while (i < nEvents || currentTime <= endTime) {
+    i <- i + 1
     # # progress bar
     if (showProgressBar && i %% dotEvents == 0) {
       utils::setTxtProgressBar(pb, i)
@@ -142,17 +117,17 @@ simulate_engine <- function(
     # We consider only two types of model, REM and DyNAM, and don't consider DyNAM-MM
     if (model == "REM") {
       simulatedEvent <- generationREM(
-        statMatRate, parametersRate, n1, n2, isTwoMode)
+        statMat, parametersRate, n1, n2, isTwoMode)
       waitingTime <- simulatedEvent$waitingTime
       simulatedSender <- simulatedEvent$simulatedSender
       simulatedReceiver <- simulatedEvent$simulatedReceiver
     } else if (model == "DyNAM" && subModel == "rate") {
       simulatedSenderEvent <- generationDyNAMRate(
-        statMatRate, parametersRate, n1, n2, isTwoMode)
+        statMat, parametersRate, n1, n2, isTwoMode)
       waitingTime <- simulatedSenderEvent$waitingTime
       simulatedSender <- simulatedSenderEvent$simulatedSender
       simulatedReceiverEvent <- generationDyNAMChoice(
-        statMatChoice, parametersChoice, simulatedSender, n1, n2, isTwoMode)
+        statMat, parametersChoice, simulatedSender, n1, n2, isTwoMode)
       simulatedReceiver <- simulatedReceiverEvent$simulatedReceiver
     }
 
@@ -255,7 +230,7 @@ generationDyNAMRate <- function(statMatRate, parametersRate, n1, n2, isTwoMode) 
     stat_mat <- apply(statMatRate, 3, function(stat) {
       diag(stat) <- 0
       m <- stat
-      stat <- rowMeans(m, na.rm = T) * (dim(m)[1]) / (dim(m)[1] - 1)
+      stat <- rowMeans(m, na.rm = TRUE) * (dim(m)[1]) / (dim(m)[1] - 1)
       stat
     })
   } else {
@@ -263,7 +238,7 @@ generationDyNAMRate <- function(statMatRate, parametersRate, n1, n2, isTwoMode) 
     # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
     stat_mat <- apply(statMatRate, 3, function(stat) {
       m <- stat
-      stat <- rowMeans(m, na.rm = T)
+      stat <- rowMeans(m, na.rm = TRUE)
       stat
     })
   }
