@@ -3,20 +3,20 @@
 #' Get compositional events
 #'
 #' 
-#' @param isTwoMode 
-#' @param nodes 
-#' @param nodes2 
-#' @param envir 
+#' @param nodesInfo an object output from [setNodesInfo()]
+#' @param envir environment where to look objects up
 #'
 #' @return a list of length two. The events data frames with the compositional
 #' changes 
 #' @noRd
 #'
 #' @examples
-#' GetCompositionChange(FALSE, "actorsEx")
-#' GetCompositionChange(TRUE, "actorsEx", "clubsEx")
-GetCompositionChange <- function(isTwoMode, nodes, nodes2 = NULL, envir = new.env()) {
-  attributesNodes <- attributes(get(nodes, envir = envir))
+#' getCompositionChange(list(isTwoMode = FALSE, nodes = "actorsEx"))
+#' getCompositionChange(list(
+#'   isTwoMode = TRUE, nodes = "actorsEx", nodes2 = "clubsEx"
+#' ))
+getCompositionChange <- function(nodesInfo, envir = new.env()) {
+  attributesNodes <- attributes(get(nodesInfo[["nodes"]], envir = envir))
   if ("present" %in% attributesNodes[["dynamicAttributes"]]) {
     compChangeName1 <-  attributesNodes[["events"]][
       "present" == attributesNodes[["dynamicAttributes"]]
@@ -26,15 +26,15 @@ GetCompositionChange <- function(isTwoMode, nodes, nodes2 = NULL, envir = new.en
     compChange1 <- NULL  
   }
   
-  if (isTwoMode) {
-    attributesNodes <- attributes(get(nodes2, envir = envir))
+  if (nodesInfo[["isTwoMode"]]) {
+    attributesNodes <- attributes(get(nodesInfo[["nodes2"]], envir = envir))
     if ("present" %in% attributesNodes[["dynamicAttributes"]]) {
       compChangeName2 <-  attributesNodes[["events"]][
         "present" == attributesNodes[["dynamicAttributes"]]
       ]
       compChange2 <- get(compChangeName2, envir = envir)
     } else {
-      compChange1 <- NULL  
+      compChange2 <- NULL  
     }  
   } else {
     compChange2 <- NULL
@@ -43,6 +43,26 @@ GetCompositionChange <- function(isTwoMode, nodes, nodes2 = NULL, envir = new.en
   return(list(compChange1 = compChange1, compChange2 = compChange2))
 }
 
+
+listCompositionChange <- function(nodesInfo, envir = new.env()) {
+  attributesNodes <- attributes(get(nodesInfo[["nodes"]], envir = envir))
+  listRet <- NULL
+  if ("present" %in% attributesNodes[["dynamicAttributes"]])
+    listRet <- paste0(nodesInfo[["nodes"]], "$present")
+
+  if (nodesInfo[["isTwoMode"]]) {
+    attributesNodes <- attributes(get(nodesInfo[["nodes2"]], envir = envir))
+    if ("present" %in% attributesNodes[["dynamicAttributes"]])
+      listRet <- c(listRet, paste0(nodesInfo[["nodes2"]], "$present"))
+  }
+  
+  # if (is.null(listRet)) return(listRet)
+  # 
+  # objRet <- as.list(rep.int("", length(listRet)))
+  # names(objRet) <- listRet
+
+  return(listRet)
+}
 
 #' Define nodes info from dependent event object
 #' 
@@ -87,11 +107,11 @@ setNodesInfo <- function(depName, envir = new.env()) {
 #' @noRd
 #'
 #' @examples
-#' JoinParsedFormulas(
+#' joinParsedFormulas(
 #'   parseFormula(depNetwork ~ 1 + indeg),
 #'   parseFormula(depNetwork ~ inertia + recip)
 #' )
-JoinParsedFormulas <- function(parsedRate, parsedChoice = NULL) {
+joinParsedFormulas <- function(parsedRate, parsedChoice = NULL) {
   if (is.null(parsedChoice)) return(parsedRate)
   
   parsedFormula <- parsedRate
@@ -117,7 +137,7 @@ JoinParsedFormulas <- function(parsedRate, parsedChoice = NULL) {
 }
 
 
-AdjustPrepInit <- function(
+adjustPrepInit <- function(
     preprocessingInit, x, parsedformula,
     model, subModel, progress,
     envir = new.env()
@@ -277,4 +297,136 @@ AdjustPrepInit <- function(
   prep$nodesInfo <- nodesInfo
   
   return(prep)
+}
+
+#' setting preprocessing objects
+#'
+#' @param parsedFormula an output from [parseFormula()]
+#' @param model a character string 
+#' @param subModel a character string
+#' @param envir the envirronment where the object will be created
+#'
+#' @return logical `TRUE` is everything is set
+#' @noRd
+#'
+#' @examples
+#' initializePreprocessing(parseFormula(depNetwork ~ inertia),
+#'                         "DyNAM", "choice")
+initializePreprocessing <- function(
+    parsedFormula, model, subModel, envir = parent.frame()
+) {
+  # initialize statistics functions from data objects
+  # number of actors
+  nodesInfo <- setNodesInfo(parsedFormula$depName, envir = envir)
+  
+  assign("nodesInfo", nodesInfo, envir = envir)
+  assign(
+    "n1",
+    nrow(get(nodesInfo[["nodes"]], envir = envir)),
+    envir = envir
+  )
+  assign(
+    "n2",
+    nrow(get(nodesInfo[["nodes2"]], envir = envir)),
+    envir = envir
+  )
+  ## INITIALIZE OBJECTS
+  # effects info
+  effects <- createEffectsFunctions(
+    parsedFormula[["rhsNames"]], model, subModel,
+    envir = envir
+  )
+  assign("effects", effects, envir = envir)
+  assign("nEffects", length(effects), envir = envir)
+  
+  assign(
+    "objectsEffectsLink",
+    getObjectsEffectsLink(parsedFormula[["rhsNames"]]),
+    envir = envir
+  )
+  events <- getEventsAndObjectsLink(
+    parsedFormula[["depName"]], parsedFormula[["rhsNames"]],
+    envir = envir
+  )
+  assign("eventsObjectsLink", events[["eventsObjectsLink"]], envir = envir)
+  assign("hasCompChange", events[["hasCompChange"]], envir = envir)
+  assign("events", events[["events"]], envir = envir)
+  
+  
+  assign(
+    "eventsEffectsLink",
+    getEventsEffectsLink(
+      events[["events"]], parsedFormula[["rhsNames"]],
+      events[["eventsObjectsLink"]]
+    ),
+    envir = envir
+  )
+  
+  return(TRUE)
+}
+
+setStartEndTime <- function(
+    startTime, endTime, parsedFormula, envir = parent.frame()
+) {
+  # check start time and end time are valid values, set flags
+  hasEndTime <- FALSE
+  hasStartTime <- FALSE
+  isValidEvent <- TRUE
+  
+  isWindowEffect <- !vapply(parsedformula$windowParameters, is.null, logical(1))
+  whichEventNoWindowEffect <- eventsEffectsLink[, !isWindowEffect, drop = FALSE]
+  whichEventNoWindowEffect <- rowSums(!is.na(whichEventNoWindowEffect))
+  # include always dependent events for start and end time
+  whichEventNoWindowEffect <- c(1, which(whichEventNoWindowEffect > 0))
+  
+  # windowed effects modified the events object,
+  # therefore not useful for defining start and end time
+  eventsRange <- range(vapply(
+    events[whichEventNoWindowEffect],
+    function(x) range(x$time),
+    double(2)
+  ))
+
+  if (is.null(endTime)) {
+    endTime <- eventsRange[2]
+    # avoid preprocess events created by window decreasing events
+    if (any(isWindowEffect)) hasEndTime <- TRUE
+  } else if (endTime != eventsRange[2]) {
+    if (!is.numeric(endTime)) endTime <- as.numeric(endTime)
+    if (eventsRange[1] > endTime)
+      stop("End time smaller than first event time.", call. = FALSE)
+    # to solve: if endTime > eventsMax
+    # should it produce censored events? warning?
+    # add a fake event to the event list
+    # endTimeEvent <- data.frame(
+    #   time = endTime,
+    #   sender = NA,
+    #   receiver = NA,
+    #   replace = NA
+    # )
+    # events <- append(events, list(endtime = endTimeEvent))
+    hasEndTime <- TRUE
+  }
+
+  if (is.null(startTime)) {
+    startTime <- eventsRange[1]
+  } else if (startTime != eventsRange[1]) {
+    if (!is.numeric(startTime)) startTime <- as.numeric(startTime)
+    if (eventsRange[2] < startTime)
+      stop("Start time geater than last event time.", call. = FALSE)
+    hasStartTime <- TRUE
+    if (eventsRange[1] < startTime) isValidEvent <- FALSE
+    # if (eventsMin > startTime) isValidEvent <- TRUE
+    # To solve: if startTime < eventsMin should be a warning?
+  }
+
+  # assign to environment
+  assign("startTime", startTime, envir = envir)
+  assign("endTime", endTime, envir = envir)
+  assign("isValidEvent", isValidEvent, envir = envir)
+  assign("hasStartTime", hasStartTime, envir = envir)
+  assign("hasEndTime", hasEndTime, envir = envir)
+  # eventPos should be correct for initialization
+  assign("ignoreEvents", 1L, envir = envir)
+  return(TRUE)
 }

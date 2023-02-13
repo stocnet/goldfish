@@ -30,7 +30,7 @@ simulateEngine <- function(
   parsedformula <- JoinParsedFormulas(parsedformulaRate, parsedformulaChoice)
   
   # effect and objectsEffectsLink for sender-deciding process
-  if (model = "DyNAM") {
+  if (model == "DyNAM") {
     # check effect are defined for each submodel
     effects <- createEffectsFunctions( # checks effects are defined for submodel
       parsedformulaRate$rhsNames, model, "rate", envir = envir

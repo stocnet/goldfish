@@ -103,7 +103,7 @@ simulate <- function(
                 )
   )
 
-  if (subModel == "choice_coordination" || model = "DyNAMi")
+  if (subModel == "choice_coordination" || model == "DyNAMi")
     stop(
       "It doesn't support yet simulating a DyNAM choice coordination or",
       "DyNAMi model.\n",

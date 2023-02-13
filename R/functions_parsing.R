@@ -359,14 +359,43 @@ getDependentName <- function(formula) {
 }
 
 
-getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NULL,
-                                    envir = environment()) {
+#' get events' data frames, events-objects link and compositional change flag
+#'
+#' @param depName character with name of the dependent event
+#' @param rhsNames list with the parsing of the effects from the formula
+#' @param compChange logical, whether compositional events should be added.
+#' @param envir environment where look objects up
+#'
+#' @return a list with three components.
+#'  A list with the events data frames,
+#'  a matrix with the objects events link,
+#'  and a logical value indicating whether compositional changes are present.
+#' @noRd
+#'
+#' @examples
+#' getEventsAndObjectsLink("depNetwork", list(list("inertia", "networkState")))
+getEventsAndObjectsLink <- function(
+    depName, rhsNames, envir = environment()
+) {
+  nodesInfo <- setNodesInfo(depName, envir)
   # Find objects (irrespective of where they occur)
   objectNames <- getDataObjects(rhsNames)
+  
+  # Add compositional changes if any
+  hasCompChange <- listCompositionChange(nodesInfo)
+  if (!is.null(hasCompChange)) {
+    hasCompChange <- getDataObjects(as.list(hasCompChange), removeFirst = FALSE)
+    objectNames <- rbind(objectNames, hasCompChange)
+    hasCompChange <- TRUE
+  } else hasCompChange <- FALSE
+  
 
   # Find event lists of objects and link
   events <- list()
-  events[[1]] <- get(depName, envir = envir)
+  events[[1]] <- sanitizeEvents(
+    get(depName, envir = envir),
+    nodesInfo[["nodes"]], nodesInfo[["nodes2"]]
+  )
   names(events) <- depName
   eventsObjectsLink <- data.frame(
     events = depName,
@@ -375,13 +404,6 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
     nodeset = NA,
     attribute = NA, stringsAsFactors = FALSE
   )
-
-  # replace dependent labels with ids
-  events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2)
-  # if(is.character(events[[1]]$sender) && is.character(events[[1]]$receiver)) {
-  #   events[[1]]$sender <- match(events[[1]]$sender, get(nodes)$label)
-  #   events[[1]]$receiver <- match(events[[1]]$receiver, get(nodes2)$label)
-  # }
 
   isAttribute <- is.na(objectNames$object)
   # Link attributes to events
@@ -440,8 +462,9 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
   }
 
   return(list(
-    events,
-    eventsObjectsLink
+    events = events,
+    eventsObjectsLink = eventsObjectsLink,
+    hasCompChange = hasCompChange
   ))
 }
 

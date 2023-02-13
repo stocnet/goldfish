@@ -9,8 +9,9 @@ estimate(
   model = c("DyNAM", "REM", "DyNAMi"),
   subModel = c("choice", "rate", "choice_coordination"),
   estimationInit = NULL,
-  preprocessingInit = NULL,
   preprocessingOnly = FALSE,
+  preprocessingArgs = NULL,
+  preprocessingInit = NULL,
   progress = getOption("progress"),
   verbose = getOption("verbose")
 )
@@ -79,11 +80,20 @@ log-likelihood of each event from the final iteration of the Gauss/Fisher
 estimation method.}
 \item{engine}{a string indicating the estimation engine to be used.
 Current options include \code{"default"}, \code{"default_c"}, and \code{"gather_compute"}.
-The default value is \code{"default"}, it is an estimation routine implemented in
-pure \code{R} code.
+The default value is \code{"default"}, it is an estimation routine
+implemented in pure \code{R} code.
 \code{"default_c"} uses a \code{C} implementation of the \code{"default"} routine.
 \code{"gather_compute"} uses a \code{C} implementation with a different data
 structure that reduces the time but it can increase the memory usage.}
+}}
+
+\item{preprocessingOnly}{logical indicating whether only preprocessed
+statistics should be returned rather than a \code{result.goldfish} object
+with the estimated coefficients.}
+
+\item{preprocessingArgs}{a list or arguments to be passed to the
+pre-processing function. It may contain:
+\describe{
 \item{startTime}{a numerical value or a date-time character with the same
 time-zone formatting as the times in event that indicates the starting time
 to be considered during estimation.
@@ -100,16 +110,13 @@ the same length as the dependent events list (ONLY for choice models).}
 \item{preprocessingInit}{a \code{preprocessed.goldfish} object computed for
 the current formula, allows skipping the preprocessing step.}
 
-\item{preprocessingOnly}{logical indicating whether only preprocessed
-statistics should be returned rather than a \code{result.goldfish} object
-with the estimated coefficients.}
-
 \item{progress}{logical indicating whether should print a minimal output
-to the console of the progress of the preprocessing and estimation processes.}
+to the console of the progress of the preprocessing and
+estimation processes.}
 
 \item{verbose}{logical indicating whether should print
-very detailed intermediate results of the iterative Newton-Raphson procedure;
-slows down the routine significantly.}
+very detailed intermediate results of the iterative Newton-Raphson
+procedure; slows down the routine significantly.}
 }
 \value{
 returns an object of \code{\link[=class]{class()}} \code{"result.goldfish"}
@@ -131,8 +138,8 @@ parameters estimates.}
 \item{convergence}{a list with two elements.
 The first element (\code{isConverged}) is a logical value that indicates
 the convergence of the model.
-The second element (\code{maxAbsScore}) reports the final maximum absolute
-score in the final iteration.}
+The second element (\code{maxAbsScore}) reports the final maximum
+absolute score in the final iteration.}
 \item{nIterations}{
 an integer with the total number of iterations performed during the
 estimation process.}
@@ -195,7 +202,8 @@ events, in this way the algorithm considers the right-censored intervals
 in the estimation process.
 
 In the case that the intercept is not included in the formula.
-The model reflects the likelihood of an event being the next in the sequence.
+The model reflects the likelihood of an event being the next
+in the sequence.
 This specification is useful for scenarios where the researcher doesn't have
 access to the exact interevent times.
 For this ordinal case the likelihood of an event is merely a

@@ -268,8 +268,8 @@ estimate <- function(
   subModel = c("choice", "rate", "choice_coordination"),
   estimationInit = NULL,
   preprocessingOnly = FALSE,
-  preprocessingInit = NULL,
   preprocessingArgs = NULL,
+  preprocessingInit = NULL,
   progress = getOption("progress"),
   verbose = getOption("verbose"))
   UseMethod("estimate", x)
@@ -285,8 +285,8 @@ estimate.formula <- function(
   subModel = c("choice", "rate", "choice_coordination"),
   estimationInit = NULL,
   preprocessingOnly = FALSE,
-  preprocessingInit = NULL,
   preprocessingArgs = NULL,
+  preprocessingInit = NULL,
   progress = getOption("progress"),
   verbose = getOption("verbose")) {
   # Steps:
@@ -345,35 +345,34 @@ estimate.formula <- function(
 
   # gather_compute and default_c don't support returnEventProbabilities
   if (!is.null(estimationInit) &&
-      "returnEventProbabilities" %in% names(estimationInit)) {
-    if (estimationInit["returnEventProbabilities"] &&
-        engine != "default") {
-      warning("engine = ", dQuote(engine), " doesn't support",
-              dQuote("returnEventProbabilities"),
-              ". engine =", dQuote("default"), " is used instead.",
-              call. = FALSE, immediate. = TRUE)
-      engine <- "default"
-    }
+      "returnEventProbabilities" %in% names(estimationInit) &&
+      engine != "default") {
+    warning("engine = ", dQuote(engine), " doesn't support",
+            dQuote("returnEventProbabilities"),
+            ". engine =", dQuote("default"), " is used instead.",
+            call. = FALSE, immediate. = TRUE)
+    engine <- "default"
   }
+  
   # gather_compute and default_c don't support restrictions of opportunity sets
-  if (!is.null(estimationInit) &&
-      "opportunitiesList" %in% names(estimationInit)) {
-    if (!is.null(estimationInit["opportunitiesList"]) && engine != "default") {
-      warning("engine = ", dQuote(engine), " doesn't support",
-              dQuote("opportunitiesList"),
-              ". engine =", dQuote("default"), " is used instead.",
-              call. = FALSE, immediate. = TRUE)
-      engine <- "default"
-    }
+  if (!is.null(preprocessingArgs) &&
+      "opportunitiesList" %in% names(preprocessingArgs) &&
+      engine != "default") {
+    warning("engine = ", dQuote(engine), " doesn't support",
+            dQuote("opportunitiesList"),
+            ". engine =", dQuote("default"), " is used instead.",
+            call. = FALSE, immediate. = TRUE)
+    engine <- "default"
   }
+
 
 
   ### 1. PARSE the formula----
-  PreprocessEnvir <- new.env()
+  prepEnvir <- new.env()
   
   if (progress) cat("Parsing formula.\n")
   ## 1.1 PARSE for all cases: preprocessingInit or not
-  parsedformula <- parseFormula(x, envir = PreprocessEnvir)
+  parsedformula <- parseFormula(x, envir = prepEnvir)
 
   # DyNAM-i ONLY: creates extra parameter to differentiate joining and
   # leaving rates, and effect subtypes. Added directly to GetDetailPrint
@@ -406,19 +405,11 @@ estimate.formula <- function(
       "ime intercept added.\n", sep = ""
     )
 
-  ### 2. INITIALIZE OBJECTS: effects, nodes, and link objects----
-
-  if (progress) cat("Initializing objects.\n")
+  # if (progress) cat("Initializing objects.\n")
 
   ## 2.0 get nodes info: isTwoMode to define effects functions
   # get node sets of dependent variable
-  nodesInfo <- setNodesInfo(parsedformula$depName, envir = envir)
-
-  ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
-  # enviroment from which get the objects
-
-  
-  
+  nodesInfo <- setNodesInfo(parsedformula$depName, envir = prepEnvir)
 
   ### 3. PREPROCESS statistics----
   ## 3.2 PREPROCESS when preprocessingInit == NULL
@@ -428,23 +419,22 @@ estimate.formula <- function(
       prep <- preprocessInteraction(
         subModel = subModel,
         # multipleParameter,
-        nodesInfo = nodesInfo,
         rightCensored = rightCensored,
         progress = progress,
         groupsNetwork = parsedformula$defaultNetworkName,
-        prepEnvir = PreprocessEnvir)
+        prepEnvir = prepEnvir)
     } else {
       prep <- preprocess(
         model = model,
         subModel = subModel,
+        parsedformula = parsedformula,
         # multipleParameter = multipleParameter,
-        nodesInfo = nodesInfo,
         opportunitiesList = opportunitiesList,
         startTime = estimationInit[["startTime"]],
         endTime = estimationInit[["endTime"]],
         rightCensored = rightCensored,
         progress = progress,
-        prepEnvir = PreprocessEnvir
+        prepEnvir = prepEnvir
       )
   }
     # The formula, nodes, nodes2 are added to the preprocessed object so that
@@ -456,11 +446,11 @@ estimate.formula <- function(
     prep$nodesInfo <- nodesInfo
   } else if (!is.null(preprocessingInit) &&
        !isTRUE(all.equal(x, preprocessingInit$formula))) {
-    prep <- AdjustPrepInit(
+    prep <- adjustPrepInit(
       preprocessingInit = preprocessingInit, x = x, 
       parsedformula = parsedformula,
       model = model, subModel = subModel, progress = progress,
-      envir = PreprocessEnvir
+      envir = prepEnvir
     )
   }
 
@@ -509,8 +499,8 @@ estimate.formula <- function(
   # Default estimation
   additionalArgs <- list(
     statsList = prep,
-    nodes = get(nodesInfo[["nodes"]], envir = PreprocessEnvir),
-    nodes2 = get(nodesInfo[["nodes2"]], envir = PreprocessEnvir),
+    nodes = get(nodesInfo[["nodes"]], envir = prepEnvir),
+    nodes2 = get(nodesInfo[["nodes2"]], envir = prepEnvir),
     defaultNetworkName = parsedformula$defaultNetworkName,
     addInterceptEffect = parsedformula$hasIntercept,
     modelType = modelTypeCall,

@@ -211,6 +211,17 @@ actorsEx <- linkEvents(
   changeEvent = compChange,
   attribute = "present")
 
+  # changing attribute
+attrChange <- data.frame(
+  node = sprintf("Actor %d", c(5, 4, 3, 1, 2, 3, 4)),
+  time = c(11, 18, 23, 31, 32, 33, 35),
+  replace = c(1.2, 1.67, 2.46, 7.89, 3.32, 2.32, 3.44)
+)
+actorsEx <- linkEvents(
+  x = actorsEx,
+  changeEvent = attrChange,
+  attribute = "attr1")
+
   # two-mode
 clubsEx <- data.frame(
   label = sprintf("Club %d", 1:3),
@@ -300,6 +311,42 @@ networkExog <- linkEvents(
   changeEvent = eventsExogenous,
   nodes = actorsEx)
 
+# two-mode network
+
+networkActorClub <- matrix(
+  c(1, 0, 0,
+    1, 0, 1,
+    0, 0, 0,
+    0, 1, 0,
+    0, 1, 0
+  ),
+  nrow = 5, ncol = 3, byrow = TRUE,
+  dimnames = list(
+    sprintf("Actor %d", 1:5),
+    sprintf("Club %d", 1:3)
+  )
+)
+
+eventsActorClub <- data.frame(
+  time =
+    c(3,  8, 12, 17, 20, 30, 35),
+  sender = sprintf(
+    "Actor %d",
+    c(1,  4,  5,  2,  3,  1,  3)),
+  receiver = sprintf(
+    "Club %d",
+    c(2,  1,  2,  2,  1,  1,  3)),
+  replace =
+    c(1,  1,  0,  1,  1,  0,  1)
+)
+
+networkActorClub <- defineNetwork(
+  matrix = networkActorClub,
+  nodes = actorsEx, nodes2 = clubsEx, directed = TRUE)
+networkActorClub <- linkEvents(
+  x = networkActorClub,
+  changeEvent = eventsActorClub,
+  nodes = actorsEx, nodes2 = clubsEx)
 
 # DyNAM-i -----------------------------------------------------------
 # Attributes --------------------------------------------------------

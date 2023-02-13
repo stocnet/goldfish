@@ -11,8 +11,11 @@ simulate(
   parametersChoice = NULL,
   model = c("DyNAM", "REM"),
   subModel = c("choice", "choice_coordination"),
-  progress = getOption("progress"),
-  nEvents = 100
+  nEventsMax = 1000,
+  startTime = NULL,
+  endTime = NULL,
+  keepPreprocess = FALSE,
+  progress = getOption("progress")
 )
 }
 \arguments{
@@ -55,11 +58,41 @@ Two rate models, one for individuals joining groups and one for individuals
 leaving groups, jointly estimated \code{model = "DyNAMi"}(Hoffman et al., 2020)}
 }}
 
-\item{progress}{logical indicating whether should print a minimal output
-to the console of the progress of the preprocessing and estimation processes.}
+\item{nEventsMax}{integer with the maximum number of events to simulate from
+the given formulas and parameter vectors. Default to \code{1e3}.
+It ensures the simulation call finishes even in the case when the model
+specification and parameter values leads to a process explosion in finite
+interval.}
 
-\item{nEvents}{integer with the number of events to simulate from
-the given formulas and parameter vectors. Default to \code{100}.}
+\item{startTime}{a numerical value or a date-time character.
+It indicates the starting time for the simulation of the relational events.
+The default value is \code{NULL}.}
+
+\item{endTime}{a numerical value or a date-time character.
+It indicates the ending time for the simulation of the relational events.
+The default value is \code{NULL}.}
+
+\item{keepPreprocess}{a logical value indicating whether should
+preprocessed statistics be returned.}
+
+\item{progress}{logical indicating whether should print a minimal output
+to the console of the progress of the preprocessing and
+estimation processes.}
+}
+\value{
+when \code{keepPreprocess = FALSE} a data frame with the simulated
+relational events that contains the following variables.
+\describe{
+\item{time}{\code{numeric} variable
+containing the time-stamps when the event happen.}
+\item{sender}{\code{character} variable indicating the label of the sender
+of the event.}
+\item{receiver}{\code{character} variable indicating the label of the receiver
+of the event.}
+}
+when \code{keepPreprocess = TRUE}, and depending on the values of the arguments
+\code{model} and \code{subModel}, is an object of class \code{preprocessed.goldfish}
+or a list of objects of that class.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
@@ -69,6 +102,14 @@ Current version \strong{only} simulate endogenous events for a DyNAM model
 with rate and choice submodel specifications.
 It's restricted to simulate a fix length sequence,
 oppose to the general case of simulate events until end time is reached.
+}
+\details{
+If arguments \code{startTime} and \code{endTime} use the default \code{NULL} value,
+they would be set to the time of the first and last event respectively,
+found on the dependent events and linked events objects that define
+the formula(s) (\code{formulaRate} and \code{formulaChoice}).
+If a date-time character is used, it is transformed to a numeric value
+using \code{as.numeric()}.
 }
 \examples{
 data("Social_Evolution")

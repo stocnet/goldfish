@@ -30,15 +30,15 @@ preprocess <- function(
   model,
   subModel,
   parsedformula,
-  nodesInfo,
   opportunitiesList = NULL,
   # simulation parameters,
   simulate = FALSE,
   nEventMax = NULL,
   simulateFunction = NULL,
+  simulateParams = NULL,
   # add more parameters
-  startTime = min(vapply(events, function(x) min(x$time), double(1))),
-  endTime = max(vapply(events, function(x) max(x$time), double(1))),
+  startTime = NULL,
+  endTime = NULL,
   rightCensored = FALSE,
   progress = FALSE,
   prepEnvir = new.env()) {
@@ -52,35 +52,22 @@ preprocess <- function(
 
   # print(match.call())
   # initialize statistics functions from data objects
-  # number of actors
-  n1 <- nrow(get(nodesInfo[["nodes"]], envir = prepEnvir))
-  n2 <- nrow(get(nodesInfo[["nodes2"]], envir = prepEnvir))
-
-  # effects info
-  effects <- createEffectsFunctions(
-    parsedformula[["rhsNames"]], model, subModel,
-    envir = prepEnvir
-  )
-  nEffects <- length(effects)
-  
-  objectsEffectsLink <- getObjectsEffectsLink(parsedformula[["rhsNames"]])
-  events <- getEventsAndObjectsLink(
-    parsedformula[["depName"]], parsedformula[["rhsNames"]],
-    nodesInfo[["nodes"]], nodesInfo[["nodes2"]], envir = prepEnvir
-  )
-  eventsObjectsLink <- events[[2]]
-  events <- events[[1]]
-  
-  eventsEffectsLink <- getEventsEffectsLink(
-    events, parsedformula[["rhsNames"]], eventsObjectsLink
-  )
+  initializePreprocessing(parsedformula, model, subModel, prepEnvir)
   
   # check start time and end time are valid values, set flags
+  evalq(
+    setStartEndTime(
+      startTime = startTime, endTime = endTime,
+      parsedFormula = parsedformula, envir = prepEnvir
+    ),
+    envir = parent.frame(), enclos = prepEnvir
+  )
+  setStartEndTime(startTime, endTime, )
   hasEndTime <- FALSE
   hasStartTime <- FALSE
   isValidEvent <- TRUE
 
-  isWindowEffect <- !vapply(windowParameters, is.null, logical(1))
+  isWindowEffect <- !vapply(parsedformula$windowParameters, is.null, logical(1))
   whichEventNoWindowEffect <- eventsEffectsLink[, !isWindowEffect, drop = FALSE]
   whichEventNoWindowEffect <- rowSums(!is.na(whichEventNoWindowEffect))
   # include always dependent events for start and end time
@@ -133,7 +120,7 @@ preprocess <- function(
 
   statCache <- initializeCacheStat(
     objectsEffectsLink = objectsEffectsLink, effects = effects,
-    groupsNetwork = NULL, windowParameters = windowParameters,
+    groupsNetwork = NULL, windowParameters = parsedformula$windowParameters,
     n1 = n1, n2 = n2, model = model, subModel = subModel, envir = prepEnvir)
   # We put the initial stats to the previous format of 3 dimensional array
   initialStats <- array(
@@ -517,7 +504,6 @@ preprocess <- function(
     dependentStatsChange = dependentStatistics,
     rightCensoredStatsChange = rightCensoredStatistics,
     intervals = timeIntervals,
-    # CHANGED MARION
     rightCensoredIntervals = timeIntervalsRightCensored,
     orderEvents = orderEvents,
     eventTime = event_time,
