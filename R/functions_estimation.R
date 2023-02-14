@@ -544,8 +544,7 @@ estimate.formula <- function(
   result$subModel <- subModel
   result$rightCensored <- rightCensored
   result$nParams <- sum(!GetFixed(result))
-  result$call <- match.call(call = sys.call(-1L),
-                            expand.dots = TRUE)
+  result$call <- match.call(call = sys.call(-1L), expand.dots = TRUE)
   result$call[[2]] <- formulaKeep
   
   return(result)

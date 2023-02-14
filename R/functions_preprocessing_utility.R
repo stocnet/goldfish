@@ -313,8 +313,21 @@ adjustPrepInit <- function(
 #' initializePreprocessing(parseFormula(depNetwork ~ inertia),
 #'                         "DyNAM", "choice")
 initializePreprocessing <- function(
-    parsedFormula, model, subModel, envir = parent.frame()
+    parsedFormula, model, subModel, rightCensored, progress,
+    startTime = NULL, endTime = NULL,
+    opportunitiesList = NULL,
+    groupsNetwork = NULL, envir = parent.frame()
 ) {
+  
+  assign("parsedFormula", parsedFormula, envir = envir)
+  assign("model", model, envir = envir)
+  assign("subModel", subModel, envir = envir)
+  assign("startTime", startTime, envir = envir)
+  assign("endTime", endTime, envir = envir)
+  assign("rightCensored", rightCensored, envir = envir)
+  assign("progress", progress, envir = envir)
+  assign("opportunitiesList", opportunitiesList, envir = envir)
+  assign("groupsNetwork", groupsNetwork, envir = envir)
   # initialize statistics functions from data objects
   # number of actors
   nodesInfo <- setNodesInfo(parsedFormula$depName, envir = envir)
@@ -362,71 +375,233 @@ initializePreprocessing <- function(
     envir = envir
   )
   
+  # DyNAMi
+  assign(
+    "groupsNetworkObject",
+    if (!is.null(groupsNetwork)) get0(groupsNetwork, envir = envir) else NULL
+  )
+  
   return(TRUE)
 }
 
-setStartEndTime <- function(
-    startTime, endTime, parsedFormula, envir = parent.frame()
-) {
-  # check start time and end time are valid values, set flags
-  hasEndTime <- FALSE
-  hasStartTime <- FALSE
-  isValidEvent <- TRUE
-  
-  isWindowEffect <- !vapply(parsedformula$windowParameters, is.null, logical(1))
-  whichEventNoWindowEffect <- eventsEffectsLink[, !isWindowEffect, drop = FALSE]
-  whichEventNoWindowEffect <- rowSums(!is.na(whichEventNoWindowEffect))
-  # include always dependent events for start and end time
-  whichEventNoWindowEffect <- c(1, which(whichEventNoWindowEffect > 0))
-  
-  # windowed effects modified the events object,
-  # therefore not useful for defining start and end time
-  eventsRange <- range(vapply(
-    events[whichEventNoWindowEffect],
-    function(x) range(x$time),
-    double(2)
-  ))
-
-  if (is.null(endTime)) {
-    endTime <- eventsRange[2]
-    # avoid preprocess events created by window decreasing events
-    if (any(isWindowEffect)) hasEndTime <- TRUE
-  } else if (endTime != eventsRange[2]) {
-    if (!is.numeric(endTime)) endTime <- as.numeric(endTime)
-    if (eventsRange[1] > endTime)
-      stop("End time smaller than first event time.", call. = FALSE)
-    # to solve: if endTime > eventsMax
-    # should it produce censored events? warning?
-    # add a fake event to the event list
-    # endTimeEvent <- data.frame(
-    #   time = endTime,
-    #   sender = NA,
-    #   receiver = NA,
-    #   replace = NA
-    # )
-    # events <- append(events, list(endtime = endTimeEvent))
-    hasEndTime <- TRUE
-  }
-
-  if (is.null(startTime)) {
-    startTime <- eventsRange[1]
-  } else if (startTime != eventsRange[1]) {
-    if (!is.numeric(startTime)) startTime <- as.numeric(startTime)
-    if (eventsRange[2] < startTime)
-      stop("Start time geater than last event time.", call. = FALSE)
-    hasStartTime <- TRUE
-    if (eventsRange[1] < startTime) isValidEvent <- FALSE
-    # if (eventsMin > startTime) isValidEvent <- TRUE
-    # To solve: if startTime < eventsMin should be a warning?
-  }
-
-  # assign to environment
-  assign("startTime", startTime, envir = envir)
-  assign("endTime", endTime, envir = envir)
-  assign("isValidEvent", isValidEvent, envir = envir)
-  assign("hasStartTime", hasStartTime, envir = envir)
-  assign("hasEndTime", hasEndTime, envir = envir)
-  # eventPos should be correct for initialization
-  assign("ignoreEvents", 1L, envir = envir)
+#' set or check start and end time values
+#'
+#'   
+#' @param envir environment where to eval the expressions and set new variables
+#'
+#' @return set values in envir
+#' @noRd
+#'
+#' @examples
+#' # see preprocessing
+setStartEndTime <- function(envir = parent.frame()) {
+  local({
+    # check start time and end time are valid values, set flags
+    hasEndTime <- FALSE
+    hasStartTime <- FALSE
+    isValidEvent <- TRUE
+    
+    isWindowEffect <- !vapply(parsedFormula$windowParameters, is.null, logical(1))
+    whichEventNoWindowEffect <- eventsEffectsLink[, !isWindowEffect, drop = FALSE]
+    whichEventNoWindowEffect <- rowSums(!is.na(whichEventNoWindowEffect))
+    # include always dependent events for start and end time
+    whichEventNoWindowEffect <- c(1, which(whichEventNoWindowEffect > 0))
+    
+    # windowed effects modified the events object,
+    # therefore not useful for defining start and end time
+    eventsRange <- range(vapply(
+      events[whichEventNoWindowEffect],
+      function(x) range(x$time),
+      double(2)
+    ))
+    
+    if (is.null(endTime)) {
+      endTime <- eventsRange[2]
+      # avoid preprocess events created by window decreasing events
+      if (any(isWindowEffect)) hasEndTime <- TRUE
+    } else if (endTime != eventsRange[2]) {
+      if (!is.numeric(endTime)) endTime <- as.numeric(endTime)
+      if (eventsRange[1] > endTime)
+        stop("End time smaller than first event time.", call. = FALSE)
+      # to solve: if endTime > eventsMax
+      # should it produce censored events? warning?
+      # add a fake event to the event list
+      # endTimeEvent <- data.frame(
+      #   time = endTime,
+      #   sender = NA,
+      #   receiver = NA,
+      #   replace = NA
+      # )
+      # events <- append(events, list(endtime = endTimeEvent))
+      hasEndTime <- TRUE
+    }
+    
+    if (is.null(startTime)) {
+      startTime <- eventsRange[1]
+    } else if (startTime != eventsRange[1]) {
+      if (!is.numeric(startTime)) startTime <- as.numeric(startTime)
+      if (eventsRange[2] < startTime)
+        stop("Start time geater than last event time.", call. = FALSE)
+      hasStartTime <- TRUE
+      if (eventsRange[1] < startTime) isValidEvent <- FALSE
+      # if (eventsMin > startTime) isValidEvent <- TRUE
+      # To solve: if startTime < eventsMin should be a warning?
+    }
+    
+    ignoreEvents <- 1L # eventPos should be correct for initialization
+  },
+  envir = envir
+  )
   return(TRUE)
+}
+
+#' initialize cache and stat objects
+#'
+#' @param envir where to eval the code and assign objects
+#'
+#' @return assign new objects to the environment
+#' @noRd
+#'
+#' @examples
+#' # see preprocessing
+initStatPrep <- function(envir) {
+  local({
+    statCache <- initializeCacheStat(
+      objectsEffectsLink = objectsEffectsLink,
+      effects = effects,
+      groupsNetwork = groupsNetworkObject,
+      windowParameters = parsedFormula$windowParameters, # Q: DyNAMi
+      n1 = n1, n2 = n2,
+      model = model, subModel = subModel,
+      envir = environment()
+    )
+    # We put the initial stats to the previous format of 3 dimensional array
+    initialStats <- array(
+      unlist(lapply(statCache, "[[", "stat")),
+      dim = c(n1, n2, nEffects)
+    )
+    
+    statCache <- lapply(statCache, "[[", "cache")
+  },
+   envir = envir
+  )
+  return(TRUE)
+}
+
+initStoreObj <- function(envir) {
+  local({
+    # logical values indicating the type of information in events
+    isIncrementEvent <- vapply(
+      events,
+      function(x) "increment" %in% names(x),
+      logical(1)
+    )
+    isNodeEvent <- vapply(events, function(x) "node" %in% names(x), logical(1))
+    isCompChange <- isNodeEvent & 
+      "present" == eventsObjectsLink$attribute 
+    isNodeEvent <- isNodeEvent & !isCompChange
+    
+    # calculate total of events
+    time <- unique(events[[1]]$time)
+    if (rightCensored) {
+      nRightCensoredEvents <- unique(unlist(
+        lapply(events[!isCompChange], function(x) x$time)
+      ))
+      nTotalEvents  <- as.integer(sum(nRightCensoredEvents <= endTime))
+      nRightCensoredEvents <- setdiff(nRightCensoredEvents, time)
+      if (length(nRightCensoredEvents) > 1) {
+        nRightCensoredEvents <- as.integer(sum(
+          nRightCensoredEvents >= startTime &
+            nRightCensoredEvents <= endTime) - 1)
+      } else nRightCensoredEvents <- 0L
+    } else {
+      nRightCensoredEvents <- 0L
+      nTotalEvents <- as.integer(nrow(events[[1]]))
+    }
+    
+    nDependentEvents <- ifelse(
+      hasStartTime || hasEndTime,
+      as.integer(sum(time >= startTime & time <= endTime)),
+      as.integer(length(time))
+    )
+    # CHANGED ALVARO: preallocate objects sizes
+    dependentStatistics <- vector("list", nDependentEvents)
+    timeIntervals <- vector("numeric",
+                            ifelse(rightCensored, nDependentEvents, 0))
+    rightCensoredStatistics <- vector("list", nRightCensoredEvents)
+    timeIntervalsRightCensored <- vector("numeric", nRightCensoredEvents)
+    # added a list that tracks the chronological(ordered by time)
+    #   order of events between dependent and right-censored events
+    # 1 is for dependent and 2 if for right-censored
+    # Also a list of the senders and receivers to allow
+    # the preprocessingInit routine
+    orderEvents <- vector("integer", nDependentEvents + nRightCensoredEvents)
+    event_time <- vector("numeric", nDependentEvents + nRightCensoredEvents)
+    event_sender <- vector("integer", nDependentEvents + nRightCensoredEvents)
+    event_receiver <- vector("integer", nDependentEvents + nRightCensoredEvents)
+    finalStep <- FALSE
+    
+    # # Remove duplicates of event lists!
+    
+    # initialize loop parameters
+    # pointers = [1,1,1](events have three elements:
+    # callDependent(439*4), calls(439*4), friendship(766*4))
+    pointers <- rep(1, length(events))
+    validPointers <- rep(TRUE, length(events))
+    if (hasEndTime)
+      validPointers <- vapply(
+        events, function(x) x$time[1], double(1)
+      ) <= endTime
+    pointerTempRightCensored <- 1L
+    time <- startTime
+    interval <- 0L
+    # updatesDependent/updatesIntervals: list of 6, each element if NULL
+    updatesDependent <- vector("list", nEffects)
+    updatesIntervals <- vector("list", nEffects)
+    
+    # iRightCensored <- 0
+    iDependentEvents <- 0L
+    iTotalEvents <- 0L
+    
+  },
+  envir = envir)
+}
+
+initProgressBar <- function(envir) {
+  local({
+    if (progress) {
+      cat("Preprocessing events.\n", startTime, endTime, nTotalEvents)
+      # # how often print, max 50 prints
+      pb <- utils::txtProgressBar(max = nTotalEvents, char = "*", style = 3)
+      dotEvents <- ifelse(nTotalEvents > 50, ceiling(nTotalEvents / 50), 1)
+    }
+  },
+  envir = envir)
+}
+
+getNextEvent <- function(envir) {
+  local({
+    
+  },
+  envir = envir)
+}
+
+#' update a network from a change array
+#'
+#' @param stat a matrix with the effect statistics from a network
+#' @param change an array with three columns: node1, node2 and replace.
+#' Indicating the changes to stat.
+#'
+#' @return stat after update
+#' @noRd
+#'
+#' @examples
+#' updFun(
+#'  matrix(0, 5, 5),
+#'  cbind(node1 = c(1, 3, 4), node2 = c(2, 1, 5), replace = rep(1, 3))
+#' )
+updFun <- function(stat, change) {
+  if (!is.null(change))
+    stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+  return(stat)
 }

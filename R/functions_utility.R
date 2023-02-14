@@ -518,10 +518,17 @@ GetDetailPrint <- function(
 #'
 #' @param object a matrix output from [GetDetailPrint()]
 #'
-#' @return
-#' @export
+#' @return a logical vector whether a parameter is fixed or not
+#' during estimation
+#' @noRd
 #'
 #' @examples
+#' parseFormula(
+#'   depNetwork ~ inertia(networkState, window = 300, transformFun = sqrt) +
+#'   recip
+#' ) |> 
+#' GetDetailPrint(c(NA, 1)) |> 
+#' GetFixed()
 GetFixed <- function(object) {
   if ("fixed" %in% colnames(object$names)) {
     fixed <- vapply(
