@@ -185,7 +185,7 @@ estimate_int <- function(
         nActors <- nActors + sum(nplus) - sum(nminus)
         nAvgActors <- nAvgActors + nActors
       }
-      nAvgActors <- nAvgActors / length(statsList$orderEvents)
+      nAvgActors <- nAvgActors / nEvents
     }
     
     initialInterceptEstimate <- log(nEvents / totalTime / nAvgActors)

@@ -378,7 +378,8 @@ initializePreprocessing <- function(
   # DyNAMi
   assign(
     "groupsNetworkObject",
-    if (!is.null(groupsNetwork)) get0(groupsNetwork, envir = envir) else NULL
+    if (!is.null(groupsNetwork)) get0(groupsNetwork, envir = envir) else NULL,
+    envir = envir
   )
   
   return(TRUE)
