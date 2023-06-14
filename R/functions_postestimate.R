@@ -104,14 +104,13 @@ logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
 }
 
 #' @export
-#' @importFrom stats .vcov.aliased
 #' @method vcov result.goldfish
 vcov.result.goldfish <- function(object, complete = FALSE, ...) {
   isFixed <- GetFixed(object)
   namesCoef <- rownames(object$names)
   
   vc <- solve(object$finalInformationMatrix[!isFixed, !isFixed])
-  vc <- .vcov.aliased(isFixed, vc, complete = complete)  
+  vc <- stats::.vcov.aliased(isFixed, vc, complete = complete)  
   if (!complete) {
     namesCoef <- namesCoef[!isFixed]
   }

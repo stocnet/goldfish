@@ -172,7 +172,7 @@
 #'   `subModel = "rate"`) or REM (`model = "REM"`) models,
 #'   and when the model includes the intercept.}
 #'
-#' @importFrom stats formula na.omit end filter
+#' @importFrom stats formula na.omit
 #' @export
 #' @seealso [defineDependentEvents()], [defineGlobalAttribute()],
 #'  [defineNetwork()], [defineNodes()], [linkEvents()]

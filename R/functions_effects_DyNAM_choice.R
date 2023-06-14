@@ -2241,7 +2241,6 @@ init_DyNAM_choice.four <- function(effectFun, network, window, n1, n2) {
 #'   cache matrix numeric size n1 * n2,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
-#' @importFrom stats aggregate
 #' @aliases four
 #'
 #' @examples

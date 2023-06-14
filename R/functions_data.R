@@ -409,7 +409,6 @@ defineNodes <- function(nodes) {
 #' the initial state to be empty (i.e., a matrix containing only 0s).
 #'
 #' @seealso [defineNodes()], [linkEvents()]
-#' @importFrom methods is
 #' @examples
 #' # If no intial matrix is provided
 #' data("Social_Evolution")

@@ -366,7 +366,7 @@ UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
       )
     }
 
-    redEvents <- aggregate(increment ~ sender + receiver, changeEvents, sum)
+    redEvents <- stats::aggregate(increment ~ sender + receiver, changeEvents, sum)
     chIncrement <- match("increment", names(redEvents))
     names(redEvents)[chIncrement] <- "replace"
   } else if ("replace" %in% names(changeEvents)) {

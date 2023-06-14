@@ -55,7 +55,6 @@ print.result.goldfish <- function(
 
 #' @method summary result.goldfish
 #' @export
-#' @importFrom stats AIC BIC
 #' @noRd
 summary.result.goldfish <- function(object, ...) {
   nParams <- object$nParams
@@ -67,7 +66,7 @@ summary.result.goldfish <- function(object, ...) {
   est <- object$parameters
   std.err <- object$standardErrors
   z <- est / std.err
-  p <- 2 * (1 - pnorm(abs(z)))
+  p <- 2 * (1 - stats::pnorm(abs(z)))
   
   isFixed <- GetFixed(object)
   
@@ -77,9 +76,9 @@ summary.result.goldfish <- function(object, ...) {
     p[isFixed] <- NA_real_ 
   }
   # sig <- rep("", nparams)
-  # sig[abs(z) > qnorm(1 - 0.05 / 2)] <- "*"
-  # sig[abs(z) > qnorm(1 - 0.01 / 2)] <- "**"
-  # sig[abs(z) > qnorm(1 - 0.001 / 2)] <- "***"
+  # sig[abs(z) > stats::qnorm(1 - 0.05 / 2)] <- "*"
+  # sig[abs(z) > stats::qnorm(1 - 0.01 / 2)] <- "**"
+  # sig[abs(z) > stats::qnorm(1 - 0.001 / 2)] <- "***"
 
   # signif <- symnum(pv, corr = false, na = false,
   #                  cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
@@ -101,7 +100,6 @@ summary.result.goldfish <- function(object, ...) {
 }
 
 #' @export
-#' @importFrom stats printCoefmat pnorm qnorm
 #' @rdname print-method
 #' @return For objects of class `result.goldfish` and `summary.result.goldfish`
 #'  print the estimated coefficients when `complete = FALSE`, otherwise it
@@ -358,14 +356,12 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   invisible(NULL)
 }
 
-#' @importFrom tibble as_tibble
 #' @importFrom generics tidy
 #' @export
 generics::tidy
 # tidy <- function(x) UseMethod("tidy") # just for testing, don't use because overwrites use in other packages
 
 #' @method tidy result.goldfish
-#' @importFrom stats confint
 #' @export
 tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95, 
                                  compact = TRUE, complete = FALSE, ...) {
@@ -375,7 +371,7 @@ tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95,
   colnames(coefMat) <- c("estimate", "std.error", "statistic", "p.value")
     
   if (conf.int) {
-    confInterval <- confint(x, level = conf.level)
+    confInterval <- stats::confint(x, level = conf.level)
     colnames(confInterval) <- c("conf.low", "conf.high")
   }
   

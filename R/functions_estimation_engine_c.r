@@ -339,7 +339,7 @@ estimate_c_int <- function(
       verbose = progress, # output the progress of data gathering
       impute = impute
     )
-    size_gathered_data <- object.size(gathered_data)
+    size_gathered_data <- utils::object.size(gathered_data)
   }
 
 

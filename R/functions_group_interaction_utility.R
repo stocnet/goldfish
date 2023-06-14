@@ -33,7 +33,6 @@
 #' @param progress logical weather detailed information of intermediate steps
 #' should be printed in the console.
 #' @export
-#' @importFrom methods is
 #' @return a `list` with the following data frames
 #' \describe{
 #'   \item{interaction.updates}{containing all joining and leaving events}
@@ -52,7 +51,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
   stopifnot(
     inherits(records, "data.frame"),
     inherits(actors, "data.frame"),
-    is(seed.randomization, "numeric"),
+    methods::is(seed.randomization, "numeric"),
     is.null(progress) || inherits(progress, "logical")
   )
 

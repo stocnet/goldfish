@@ -128,7 +128,6 @@ findLastPresence <- function(node, time, nodes, compositionChanges) {
 #' @param classes character vector with the set of classes to check agains
 #'
 #' @return logical vector, \code{TRUE} if object is from the specific class
-#' @importFrom methods is
 #' @noRd
 #'
 #' @examples checkClasses(c(1L, 2L), c("numeric", "integer", "character"))

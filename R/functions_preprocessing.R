@@ -21,10 +21,6 @@
 #'
 #' @return a list of class preprocessed.goldfish
 #'
-#' @importFrom methods is
-#' @importFrom utils setTxtProgressBar getTxtProgressBar object.size
-#' @importFrom utils txtProgressBar
-#' @importFrom stats time
 #' @noRd
 preprocess <- function(
   model,
