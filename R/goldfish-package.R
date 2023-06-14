@@ -37,5 +37,6 @@
 #' @aliases goldfish goldfish-package
 #' @useDynLib goldfish
 #' @importFrom Rcpp sourceCpp
+#' @importFrom rlang .data
 ## usethis namespace: end
 NULL

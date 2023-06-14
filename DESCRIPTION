@@ -39,6 +39,7 @@ Imports:
     stats,
     generics,
     ggplot2,
+    rlang,
     tibble
 LinkingTo:
     Rcpp,
@@ -57,7 +58,7 @@ Suggests:
     lmtest
 VignetteBuilder: knitr 
 LazyData: true
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Roxygen: list(markdown = TRUE)
 NeedsCompilation: yes
 Config/testthat/edition: 3
