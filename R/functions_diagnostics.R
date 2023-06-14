@@ -55,7 +55,7 @@ NULL
 #' with labels indicating the sender and recipient.
 #' @importFrom graphics points
 #' @importFrom stats IQR median na.exclude
-#' @importFrom ggplot2 ggplot aes_string geom_line geom_point geom_text theme_minimal xlab ylab
+#' @importFrom ggplot2 ggplot aes geom_line geom_point geom_text theme_minimal xlab ylab
 #' @export
 #' @rdname examine
 examineOutliers <- function(x,
@@ -122,10 +122,11 @@ examineOutliers <- function(x,
                                         data$receiver, sep = "-")[outlierIndexes]
   } else return(cat("No outliers found."))
 
-  ggplot2::ggplot(data, ggplot2::aes_string(x = "time", y = "intervalLogL")) +
+  time <- intervalLogL <- outlier <- label <- NULL
+  ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
     ggplot2::geom_line() +
-    ggplot2::geom_point(ggplot2::aes_string(color = "outlier")) +
-    ggplot2::geom_text(ggplot2::aes_string(label = "label"),
+    ggplot2::geom_point(ggplot2::aes(color = outlier)) +
+    ggplot2::geom_text(ggplot2::aes(label = label),
                        angle = 270, size = 2,
                        hjust = "outward", color = "red") +
     ggplot2::theme_minimal() +
@@ -219,7 +220,8 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
   if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time))
     return(cat("No regime changes found."))
 
-  ggplot2::ggplot(data, ggplot2::aes_string(x = "time", y = "intervalLogL")) +
+  time <- intervalLogL <- NULL
+  ggplot2::ggplot(data, ggplot2::aes(x = time, y = intervalLogL)) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
     ggplot2::geom_vline(xintercept = na.exclude(data$time[cpt.pts]),

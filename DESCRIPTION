@@ -57,7 +57,7 @@ Suggests:
     lmtest
 VignetteBuilder: knitr 
 LazyData: true
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Roxygen: list(markdown = TRUE)
 NeedsCompilation: yes
 Config/testthat/edition: 3
