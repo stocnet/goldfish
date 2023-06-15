@@ -460,8 +460,20 @@ preprocess <- function(
             #   updates[is.na(updates[, "replace"]), "replace"] <- average
             #   statCache[[id]][["stat"]][position_NA] <- average
             # }
-            updatesDependent[[id]] <- rbind(updatesDependent[[id]], updates)
-            updatesIntervals[[id]] <- rbind(updatesIntervals[[id]], updates)
+            if (!is.null(updatesDependent[[id]])) {
+              updatesAppend <- rbind(updatesDependent[[id]], updates)
+              keep <- duplicated(updatesAppend[, c("node1", "node2")],
+                                    fromLast = TRUE)
+              
+              updatesDependent[[id]] <- updatesAppend[!keep, ]
+            } else updatesDependent[[id]] <- updates
+            if (!is.null(updatesIntervals[[id]])) {
+              updatesAppend <- rbind(updatesIntervals[[id]], updates)
+              keep <- duplicated(updatesAppend[, c("node1", "node2")],
+                                 fromLast = TRUE)
+              
+              updatesIntervals[[id]] <- updatesAppend[!keep, ]
+            } else updatesIntervals[[id]] <- updates            
           }
         }
       }
