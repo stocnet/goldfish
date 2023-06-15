@@ -56,10 +56,6 @@ NULL
 #' in the y-axis and the event index in the x-axis, identifying observations
 #' with labels indicating the sender and recipient.
 #' @importFrom stats IQR median na.exclude
-<<<<<<< HEAD
-=======
-#' @importFrom ggplot2 ggplot aes geom_line geom_point geom_text theme_minimal xlab ylab
->>>>>>> 2b45b0fd96f118ceb3c43bcdd624927baafe632a
 #' @export
 #' @rdname examine
 examineOutliers <- function(x,
