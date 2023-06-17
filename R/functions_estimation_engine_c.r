@@ -38,7 +38,7 @@ estimate_c_int <- function(
   testing = FALSE,
   get_data_matrix = FALSE,
   impute = FALSE,
-  engine = "default_c",
+  engine = c("default_c", "gather_compute"),
   prepEnvir = new.env()
   ) {
 
@@ -71,6 +71,7 @@ estimate_c_int <- function(
     idFixedCompnents <- which(!is.na(fixedParameters))
   }
   modelTypeCall <- match.arg(modelTypeCall)
+  engine <- match.arg(engine)
   # modelTypeCall <- modelType
 
   ## PARAMETER CHECKS
@@ -127,16 +128,19 @@ estimate_c_int <- function(
   compChangeName1 <- attr(nodes, "events")[
     "present" == attr(nodes, "dynamicAttribute")
   ]
+  hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
+
   compChangeName2 <- attr(nodes2, "events")[
     "present" == attr(nodes2, "dynamicAttribute")
   ]
+  hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
+
   compChange1 <- NULL
   compChange2 <- NULL
-  if (!is.null(compChangeName1) && length(compChangeName1) > 0)
-    compChange1 <- get(compChangeName1, envir = prepEnvir) # add prepEnvir
-  if (!is.null(compChangeName2) && length(compChangeName2) > 0)
-    compChange2 <- get(compChangeName2, envir = prepEnvir) # add prepEnvir
+  if (hasCompChange1) compChange1 <- get(compChangeName1, envir = prepEnvir)
+  if (hasCompChange2) compChange2 <- get(compChangeName2, envir = prepEnvir)
 
+  nEvents <- length(statsList$orderEvents)
 
   ## ADD INTERCEPT
   # CHANGED MARION
@@ -144,18 +148,21 @@ estimate_c_int <- function(
   if (modelTypeCall %in% c("REM","DyNAM-M-Rate") && addInterceptEffect) {
     totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
       sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
-    nEvents <- length(statsList$orderEvents)
+    
+    if (!is.null(nodes$present)) {
+      nActors <- length(which(nodes$present == TRUE))
+    } else {
+      nActors <- dim(nodes)[1]
+    }
+    
+    if (hasCompChange1) {
     # CHANGED MARION: remove the use of the events object
     time <- statsList$eventTime[[1]]
     previoustime <- time
     currentInterval <- 1
     currentRCInterval <- 1
     nAvgActors <- 0
-    if (!is.null(nodes$present)) {
-      nActors <- length(which(nodes$present == TRUE))
-    } else {
-      nActors <- dim(nodes)[1]
-    }
+    
     for (i in 1:nEvents) {
       previoustime <- time
       if (statsList$orderEvents[[i]] == 1) {
@@ -165,41 +172,31 @@ estimate_c_int <- function(
         time <- time + statsList$rightCensoredIntervals[[currentRCInterval]]
         currentRCInterval <- currentRCInterval + 1
       }
-      nplus <- intersect(
+      
+      changesAtTime <- compChange1$replace[
         intersect(
           which(compChange1$time > previoustime),
           which(compChange1$time <= time)
-        ),
-        which(compChange1$replace == TRUE)
-      )
-      nminus <- intersect(
-        intersect(
-          which(compChange1$time > previoustime),
-          which(compChange1$time <= time)
-        ),
-        which(compChange1$replace == FALSE)
-      )
-      nActors <- nActors + length(nplus) - length(nminus)
+        )
+      ]
+      
+      # add new present actors and substract non-present
+      nActors <- nActors + sum(changesAtTime) - sum(!changesAtTime)
       nAvgActors <- nAvgActors + nActors
     }
-    nAvgActors <- nAvgActors / length(statsList$orderEvents)
+    nAvgActors <- nAvgActors / nEvents
+    } else nAvgActors <- nActors
+    
     if (is.null(initialParameters) &&
         (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
+      # log crude rate event, estimate when not covariates
       initialInterceptEstimate <- log(nEvents / totalTime / nAvgActors)
       parameters[1] <- initialInterceptEstimate
     }
   }
-  #
-
-  ## SET VARIABLES BASED ON STATSLIST
-
-  # CHANGED MARION
-  nEvents <- length(statsList$orderEvents) # number of events
-
 
   ## SET VARIABLES BASED ON STATSLIST
   twomode_or_reflexive <- (allowReflexive || isTwoMode)
-  n_events <- length(statsList$orderEvents)
   n_parameters <- dim(statsList$initialStats)[3]
   n_actors1 <- dim(statsList$initialStats)[1]
   n_actors2 <- nActors <- dim(statsList$initialStats)[2]
@@ -213,7 +210,7 @@ estimate_c_int <- function(
     stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
   }
   # Convert the right-censored events
-  # which will be a zero matrice and a zero vector
+  # which will be a zero matrices and a zero vector
   #  if there's no right-censored event
   if (length(statsList$rightCensoredIntervals) == 0) {
     stat_mat_rightcensored_update <- matrix(0, 4, 1)
@@ -229,16 +226,9 @@ estimate_c_int <- function(
   }
 
   ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  compChangeName1 <- attr(nodes, "events")[
-    "present" == attr(nodes, "dynamicAttribute")
-  ]
-  compChangeName2 <- attr(nodes2, "events")[
-    "present" == attr(nodes2, "dynamicAttribute")
-  ]
-  if (!is.null(compChangeName1) && length(compChangeName1) > 0) {
-    temp <- get(compChangeName1, envir = prepEnvir) # add prepEnvir
-    temp <- sanitizeEvents(temp, nodes)
-    temp <- C_convert_composition_change(temp, unlist(statsList$eventTime))
+  if (hasCompChange1) {
+    compChange1 <- sanitizeEvents(compChange1, nodes)
+    temp <- C_convert_composition_change(compChange1, statsList$eventTime)
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -246,10 +236,9 @@ estimate_c_int <- function(
     presence1_update_pointer <- numeric(1)
   }
 
-  if (!is.null(compChangeName2) && length(compChangeName2) > 0) {
-    temp <- get(compChangeName2, envir = prepEnvir) # add prepEnvir
-    temp <- sanitizeEvents(temp, nodes2)
-    temp <- C_convert_composition_change(temp, unlist(statsList$eventTime))
+  if (hasCompChange1) {
+    compChange2 <- sanitizeEvents(compChange2, nodes2)
+    temp <- C_convert_composition_change(compChange2, statsList$eventTime)
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -273,27 +262,21 @@ estimate_c_int <- function(
   ## BY C FUNCTIONS
   if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
     is_dependent <- statsList$orderEvents == 1
-    timespan <- length(is_dependent)
+    timespan <- numeric(length(is_dependent))
     timespan[is_dependent] <- statsList$intervals
-    timespan[(!is_dependent)] <- statsList$rightCensoredIntervals
+    timespan[!is_dependent] <- statsList$rightCensoredIntervals
   } else {
     timespan <- NA
   }
   
   ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED
   ##  BY C FUNCTIONS
-  event_mat <- t(matrix(
-    c(
-      unlist(statsList$eventSender),
-      unlist(statsList$eventReceiver)
-    ),
-    ncol = 2
-  ))
+  event_mat <- rbind(statsList$eventSender, statsList$eventReceiver)
 
   ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED
   ##  BY C FUNCTIONS
   stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
-  for (i in 1:n_parameters) {
+  for (i in seq_len(n_parameters)) {
     stat_mat_init[, i] <- t(statsList$initialStats[, , i])
   }
 
@@ -377,12 +360,12 @@ estimate_c_int <- function(
         stat_mat_init = stat_mat_init,
         stat_mat_update = stat_mat_update,
         stat_mat_update_pointer = stat_mat_update_pointer,
-        presence1_init = presence1_init,
-        presence1_update = presence1_update,
-        presence1_update_pointer = presence1_update_pointer,
         stat_mat_rightcensored_update = stat_mat_rightcensored_update,
         stat_mat_rightcensored_update_pointer =
           stat_mat_rightcensored_update_pointer,
+        presence1_init = presence1_init,
+        presence1_update = presence1_update,
+        presence1_update_pointer = presence1_update_pointer,
         presence2_init = presence2_init,
         presence2_update = presence2_update,
         presence2_update_pointer = presence2_update_pointer,
@@ -568,26 +551,28 @@ estimate_c_int <- function(
 
 
 ## ESTIMATE FOR DIFFERENT MODELS
-estimate_ <- function(modelTypeCall,
-                      parameters,
-                      event_mat,
-                      timespan,
-                      is_dependent,
-                      stat_mat_init,
-                      stat_mat_update,
-                      stat_mat_update_pointer,
-                      stat_mat_rightcensored_update,
-                      stat_mat_rightcensored_update_pointer,
-                      presence1_init,
-                      presence1_update,
-                      presence1_update_pointer,
-                      presence2_init,
-                      presence2_update,
-                      presence2_update_pointer,
-                      n_actors1,
-                      n_actors2,
-                      twomode_or_reflexive,
-                      impute) {
+estimate_ <- function(
+    modelTypeCall,
+    parameters,
+    event_mat,
+    timespan,
+    is_dependent,
+    stat_mat_init,
+    stat_mat_update,
+    stat_mat_update_pointer,
+    stat_mat_rightcensored_update,
+    stat_mat_rightcensored_update_pointer,
+    presence1_init,
+    presence1_update,
+    presence1_update_pointer,
+    presence2_init,
+    presence2_update,
+    presence2_update_pointer,
+    n_actors1,
+    n_actors2,
+    twomode_or_reflexive,
+    impute
+) {
   if (modelTypeCall == "DyNAM-MM") {
     res <- estimate_DyNAM_MM(
       parameters,
@@ -721,27 +706,29 @@ estimate_ <- function(modelTypeCall,
 
 
 ## GATHER FOR DIFFERENT MODELS
-gather_ <- function(modelTypeCall,
-                    event_mat,
-                    timespan,
-                    is_dependent,
-                    stat_mat_init,
-                    stat_mat_update,
-                    stat_mat_update_pointer,
-                    presence1_init,
-                    presence1_update,
-                    presence1_update_pointer,
-                    stat_mat_rightcensored_update,
-                    stat_mat_rightcensored_update_pointer,
-                    presence2_init,
-                    presence2_update,
-                    presence2_update_pointer,
-                    n_actors1,
-                    n_actors2,
-                    twomode_or_reflexive,
-                    verbose,
-                    impute) {
-
+gather_ <- function(
+    modelTypeCall,
+    event_mat,
+    timespan,
+    is_dependent,
+    stat_mat_init,
+    stat_mat_update,
+    stat_mat_update_pointer,
+    presence1_init,
+    presence1_update,
+    presence1_update_pointer,
+    stat_mat_rightcensored_update,
+    stat_mat_rightcensored_update_pointer,
+    presence2_init,
+    presence2_update,
+    presence2_update_pointer,
+    n_actors1,
+    n_actors2,
+    twomode_or_reflexive,
+    verbose,
+    impute
+) {
+  
   if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
     # For DyNAM-MM, we deal with twomode_or_reflexive in the estimation
     # for convenience.
@@ -814,18 +801,20 @@ gather_ <- function(modelTypeCall,
 
 
 ## COMPUTE FOR DIFFERENT MODELS
-compute_ <- function(modelTypeCall,
-                     parameters,
-                     stat_all_events,
-                     selected,
-                     selected_actor1,
-                     selected_actor2,
-                     n_candidates,
-                     n_candidates1,
-                     n_candidates2,
-                     timespan,
-                     is_dependent,
-                     twomode_or_reflexive) {
+compute_ <- function(
+    modelTypeCall,
+    parameters,
+    stat_all_events,
+    selected,
+    selected_actor1,
+    selected_actor2,
+    n_candidates,
+    n_candidates1,
+    n_candidates2,
+    timespan,
+    is_dependent,
+    twomode_or_reflexive
+) {
   if (modelTypeCall %in% c("DyNAM-M", "REM-ordered", "DyNAM-M-Rate-ordered"))
     res <- compute_multinomial_selection(
       parameters,

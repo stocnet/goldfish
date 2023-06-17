@@ -222,7 +222,8 @@ GatherPreprocessing <- function(
     stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
   }
   # Convert the right-censored events
-  # which will be a zero matrice and a zero vector if there's no right-censored event
+  # which will be a zero matrice and a zero vector
+  # if there's no right-censored event
   if (length(preprocessingStat$rightCensoredIntervals) == 0) {
     stat_mat_rightcensored_update <- matrix(0, 4, 1)
     stat_mat_rightcensored_update_pointer <- numeric(1)
@@ -231,17 +232,27 @@ GatherPreprocessing <- function(
     stat_mat_rightcensored_update <- temp$statMatUpdate
     stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
     if (parsedformula$hasIntercept) {
-      stat_mat_rightcensored_update[3, ] <- stat_mat_rightcensored_update[3, ] + 1
+      stat_mat_rightcensored_update[3, ] <-
+        stat_mat_rightcensored_update[3, ] + 1
     }
   }
 
   ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  compChangeName1 <- attr(nodes, "events")["present" == attr(nodes, "dynamicAttribute")]
-  compChangeName2 <- attr(nodes2, "events")["present" == attr(nodes2, "dynamicAttribute")]
-  if (!is.null(compChangeName1) && length(compChangeName1) > 0) {
+  compChangeName1 <- attr(nodes, "events")[
+    "present" == attr(nodes, "dynamicAttribute")
+  ]
+  hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
+  
+  compChangeName2 <- attr(nodes2, "events")[
+    "present" == attr(nodes2, "dynamicAttribute")
+  ]
+  hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
+  
+  
+  if (hasCompChange1) {
     temp <- get(compChangeName1)
     temp <- sanitizeEvents(temp, nodes)
-    temp <- C_convert_composition_change(temp, unlist(preprocessingStat$eventTime))
+    temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -249,10 +260,10 @@ GatherPreprocessing <- function(
     presence1_update_pointer <- numeric(1)
   }
 
-  if (!is.null(compChangeName2) && length(compChangeName2) > 0) {
+  if (hasCompChange2) {
     temp <- get(compChangeName2)
     temp <- sanitizeEvents(temp, nodes2)
-    temp <- C_convert_composition_change(temp, unlist(preprocessingStat$eventTime))
+    temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -272,20 +283,25 @@ GatherPreprocessing <- function(
     presence2_init <- rep(TRUE, nrow(nodes2))
   }
 
-  ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
+  ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED 
+  ## BY C FUNCTIONS
   if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
     is_dependent <- preprocessingStat$orderEvents == 1
-    timespan <- length(is_dependent)
+    timespan <- numeric(length(is_dependent))
     timespan[is_dependent] <- preprocessingStat$intervals
     timespan[(!is_dependent)] <- preprocessingStat$rightCensoredIntervals
   } else {
     timespan <- NA
   }
   
-  ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  event_mat <- t(matrix(c(unlist(preprocessingStat$eventSender), unlist(preprocessingStat$eventReceiver)), ncol = 2))
+  ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED
+  ## BY C FUNCTIONS
+  event_mat <- rbind(
+    preprocessingStat$eventSender, preprocessingStat$eventReceiver
+  )
 
-  ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED BY C FUNCTIONS
+  ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED
+  ## BY C FUNCTIONS
   stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
   for (i in 1:n_parameters) {
     stat_mat_init[, i] <- t(preprocessingStat$initialStats[, , i])
@@ -300,7 +316,8 @@ GatherPreprocessing <- function(
     stat_mat_update = stat_mat_update,
     stat_mat_update_pointer = stat_mat_update_pointer,
     stat_mat_rightcensored_update = stat_mat_rightcensored_update,
-    stat_mat_rightcensored_update_pointer = stat_mat_rightcensored_update_pointer,
+    stat_mat_rightcensored_update_pointer =
+      stat_mat_rightcensored_update_pointer,
     presence1_init = presence1_init,
     presence1_update = presence1_update,
     presence1_update_pointer = presence1_update_pointer,

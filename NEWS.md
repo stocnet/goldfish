@@ -2,6 +2,9 @@
 
 * Solves `startTime` and `endTime` bug on `DyNAM` and `REM` models
   preprocessing.
+* Clean unnecessary functions imports.
+* Solves `aes_string()` deprecation.
+* Solves issue on `C++` engine on DyNAM-rate
 
 # goldfish 1.6.4
 

@@ -754,7 +754,7 @@ estimate.formula <- function(
   # use different engine depends on the variable "engine"
   if (engine %in% c("default_c", "gather_compute")) {
     tryCatch(
-      result <- do.call("estimate_c_int", args = argsEstimation),
+      result <- do.call("estimate_c_int", args = c(argsEstimation, list(engine = engine))),
       error = function(e) stop("Error in ", model, " ", subModel,
                                " estimation: ", e, call. = FALSE)
     )

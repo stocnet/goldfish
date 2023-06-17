@@ -789,7 +789,7 @@ getIterationStepState <- function(
         idep <- idep + 1
       } else {
         # right-censored
-        isDependent <- F
+        isDependent <- FALSE
         for (j in seq.int(nParams - 1)) {
           statsArray[, , j + 1] <-
             updFun(
