@@ -108,7 +108,7 @@ List gather_sender_receiver_model(const arma::mat& dep_event_mat,
         // composition change
         if (has_composition_change1) {
             while (presence1_update_id < presence1_update_pointer(id_event)) {
-                presence1(presence2_update(0, presence1_update_id) - 1) = presence1_update(1, presence1_update_id);
+                presence1(presence1_update(0, presence1_update_id) - 1) = presence1_update(1, presence1_update_id);
                 presence1_update_id++;
             }
         }

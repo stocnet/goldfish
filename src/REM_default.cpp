@@ -197,7 +197,7 @@ using namespace arma;
      // update presence
      if (has_composition_change1) {
        while (presence1_update_id < presence1_update_pointer(id_event)) {
-         presence1(presence2_update(0, presence1_update_id) - 1) \
+         presence1(presence1_update(0, presence1_update_id) - 1) \
          = presence1_update(1, presence1_update_id);
          presence1_update_id++;
        }
