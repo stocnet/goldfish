@@ -81,7 +81,7 @@ inline arma::mat reduce_mat_to_vector(
          stat_mat_update_id++;
        }
      } else {
-       while (stat_mat_rightcensored_update_id <  \
+       while (stat_mat_rightcensored_update_id <
          stat_mat_rightcensored_update_pointer(id_event - id_dep_event)) {
          stat_mat(
            stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id)
@@ -99,9 +99,11 @@ inline arma::mat reduce_mat_to_vector(
        for (int i = 0; i < n_parameters; i++) {
          // Construct a view for the i-th column of the stat_matrix and
          // do the impute
-         arma::vec current_col(stat_mat.colptr(i),
-                               n_actors_1 * n_actors_2,
-                               false);
+         arma::vec current_col(
+             stat_mat.colptr(i),
+             n_actors_1 * n_actors_2,
+             false
+         );
          current_col.elem(find_nonfinite(current_col)).fill(
              mean(current_col.elem(find_finite(current_col))));
        }
@@ -110,15 +112,15 @@ inline arma::mat reduce_mat_to_vector(
      // update presence
      if (has_composition_change1) {
        while (presence1_update_id < presence1_update_pointer(id_event)) {
-         presence1(presence1_update(0, presence1_update_id) - 1)
-         = presence1_update(1, presence1_update_id);
+         presence1(presence1_update(0, presence1_update_id) - 1) =
+           presence1_update(1, presence1_update_id);
          presence1_update_id++;
        }
      }
      if (has_composition_change2) {
        while (presence2_update_id < presence2_update_pointer(id_event)) {
-         presence2(presence2_update(0, presence2_update_id) - 1)
-         = presence2_update(1, presence2_update_id);
+         presence2(presence2_update(0, presence2_update_id) - 1) =
+           presence2_update(1, presence2_update_id);
          presence2_update_id++;
        }
      }
@@ -139,11 +141,11 @@ inline arma::mat reduce_mat_to_vector(
      for (int i = 0; i < n_actors_1; ++i) {
        if (presence1(i) == 1) {
          // exp_current_sender is \exp(\beta^T s)
-         double exp_current_sender
-         = std::exp(dot(reduce_stat_mat.row(i), parameters));
+         double exp_current_sender =
+           std::exp(dot(reduce_stat_mat.row(i), parameters));
          normalizer += exp_current_sender;
-         weighted_sum_current_event
-         += exp_current_sender * (reduce_stat_mat.row(i));
+         weighted_sum_current_event +=
+           exp_current_sender * (reduce_stat_mat.row(i));
          fisher_current_event += exp_current_sender *
          ((reduce_stat_mat.row(i).t()) * (reduce_stat_mat.row(i)));
        }
@@ -158,8 +160,8 @@ inline arma::mat reduce_mat_to_vector(
      intervalLogL(id_event) = - timespan_current_event * normalizer;
      // update id_dep_event
      if (is_dependent(id_event)) {
-       intervalLogL(id_event) \
-       += dot(reduce_stat_mat.row(id_sender), parameters);
+       intervalLogL(id_event) +=
+         dot(reduce_stat_mat.row(id_sender), parameters);
        derivative += reduce_stat_mat.row(id_sender);
        id_dep_event++;
      }
@@ -171,7 +173,8 @@ inline arma::mat reduce_mat_to_vector(
      Named("derivative") = derivative,
      Named("fisher") = fisher,
      Named("intervalLogL") = intervalLogL,
-     Named("logLikelihood") = logLikelihood);
+     Named("logLikelihood") = logLikelihood
+   );
  }
  
  

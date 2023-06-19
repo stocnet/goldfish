@@ -4,10 +4,12 @@ using namespace Rcpp;
 using namespace arma;
 #include "gather_progress.hpp"
 
-inline arma::mat reduce_mat_to_vector(const arma::mat& stat_mat,
-                                      const int& n_actors_1,
-                                      const int& n_actors_2,
-                                      const bool& twomode_or_reflexive);
+inline arma::mat reduce_mat_to_vector(
+    const arma::mat& stat_mat,
+    const int& n_actors_1,
+    const int& n_actors_2,
+    const bool& twomode_or_reflexive
+);
 
 // @inherit estimate_REM params
 
@@ -88,21 +90,22 @@ inline arma::mat reduce_mat_to_vector(const arma::mat& stat_mat,
      // stat_mat_update
      if (is_dependent(id_event)) {
        while (stat_mat_update_id < stat_mat_update_pointer(id_dep_event)) {
-         stat_mat(stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
-           stat_mat_update(1, stat_mat_update_id),
-           stat_mat_update(2, stat_mat_update_id))
-         = stat_mat_update(3, stat_mat_update_id);
+         stat_mat(
+           stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
+             stat_mat_update(1, stat_mat_update_id),
+           stat_mat_update(2, stat_mat_update_id)) =
+           stat_mat_update(3, stat_mat_update_id);
          stat_mat_update_id++;
        }
      } else {
        while (stat_mat_rightcensored_update_id <
          stat_mat_rightcensored_update_pointer(id_event - id_dep_event)) {
          stat_mat(
-           stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id)
-         * n_actors_2 +
-           stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id),
-           stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id))
-         = stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);
+           stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id) *
+            n_actors_2 +
+            stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id),
+           stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id)) =
+           stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);
          stat_mat_rightcensored_update_id++;
        }
      }
@@ -111,9 +114,11 @@ inline arma::mat reduce_mat_to_vector(const arma::mat& stat_mat,
        for (int i = 0; i < n_parameters; i++) {
          // Construct a view for the i-th column of the stat_matrix and
          // do the impute
-         arma::vec current_col(stat_mat.colptr(i),
-                               n_actors_1 * n_actors_2,
-                               false);
+         arma::vec current_col(
+             stat_mat.colptr(i),
+             n_actors_1 * n_actors_2,
+             false
+         );
          current_col.elem(find_nonfinite(current_col)).fill(
              mean(current_col.elem(find_finite(current_col))));
        }
@@ -121,15 +126,15 @@ inline arma::mat reduce_mat_to_vector(const arma::mat& stat_mat,
      // composition change
      if (has_composition_change1) {
        while (presence1_update_id < presence1_update_pointer(id_event)) {
-         presence1(presence1_update(0, presence1_update_id) - 1)
-         = presence1_update(1, presence1_update_id);
+         presence1(presence1_update(0, presence1_update_id) - 1) =
+           presence1_update(1, presence1_update_id);
          presence1_update_id++;
        }
      }
      if (has_composition_change2) {
        while (presence2_update_id < presence2_update_pointer(id_event)) {
-         presence2(presence2_update(0, presence2_update_id) - 1)
-         = presence2_update(1, presence2_update_id);
+         presence2(presence2_update(0, presence2_update_id) - 1) =
+           presence2_update(1, presence2_update_id);
          presence2_update_id++;
        }
      }
@@ -172,7 +177,8 @@ inline arma::mat reduce_mat_to_vector(const arma::mat& stat_mat,
    return List::create(
      Named("stat_all_events") = stat_all_events.rows(0, n_total - 1),
      Named("n_candidates") = n_presence,
-     Named("selected") = chosens);
+     Named("selected") = chosens
+   );
  }
  
  

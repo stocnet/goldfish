@@ -3,7 +3,8 @@
 
 #' Calculation for estimating an DyNAM-coordination model
 #'
-#' Output the derivative of loglikelihood, the Fisher information matrix, the logLikelihood, and the loglikelihood of each event given input data
+#' Output the derivative of log-likelihood, the Fisher information matrix,
+#'   the log-Likelihood, and the log-likelihood of each event given input data
 #'
 #' @noRd
 estimate_DyNAM_MM <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE) {
@@ -144,62 +145,79 @@ estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_
 
 #' Estimate a DyNAM-coordination model with gathered data
 #'
-#' Given the gathered and distilled data, it outputs the derivative of the loglikelihood, the Fisher information matrix, the logLikelihood,
+#' Given the gathered and distilled data, it outputs the derivative of
+#'     the loglikelihood, the Fisher information matrix, the logLikelihood,
 #'     and the loglikelihood of each event  for DyNAM-coordination models.
 #'
 #' @param parameters An n_effects by 1 matrix, which is the input parameter
 #' @param stat_all_events An matrix with n_effects columns.
-#'         Each row represent the values of all effects of a sender-receiver pair in an event. For example, for a model with 2 effects,
-#'         stat_all_events might looks like this.
-#'         \tabular{rr}{
-#'           3.2 \tab 1.9\cr
-#'           3.2 \tab 4.5\cr
-#'           1.2 \tab 5.2\cr
-#'           4.3 \tab 3.1\cr
-#'           2.4 \tab 4.7\cr
-#'           9.2 \tab 5.6\cr
-#'           2.9 \tab 8.9\cr
-#'           ... \tab ...\cr
-#'         }
-#'     The first row means in a event, the values of the two effects of a candidate pair is (3.2,1.9).
-#' @param n_candidates An n_events by 1 matrix. It record how many candidate sender-receiver pairs are in each event.
-#'         From this, we can know which row in stat_all_events belongs to which event. For example if the first two element of
-#'         n_candidates are (2, 4), then the first 2 rows of stat_all_events correspond to  the candidate pairs in the first event,
-#'         which is
-#'         \tabular{rr}{
-#'           3.2 \tab 1.9\cr
-#'           3.2 \tab 4.5\cr
-#'         }
-#'         And the 3rd-6th rows correspond to the candidate pairs in the  second event, which is
-#'         \tabular{rr}{
-#'           1.2 \tab 5.2\cr
-#'           4.3 \tab 3.1\cr
-#'           2.4 \tab 4.7\cr
-#'           9.2 \tab 5.6\cr
-#'         }
-#' @param n_candidates1 An n_events by 1 matrix, which is only used for estimating the DyNAM-coordination model.
-#'         it record how many candidate sender are in each event. And we have n_candidates1 * n_candidates2 = n_candidates.
-#' @param n_candidates2 An n_events by 1 matrix, which is ddonly used for estimating the DyNAM-coordination model.
-#'         it record how many candidate receiver are in each event. And we have n_candidates1 * n_candidates2 = n_candidates.
+#'     Each row represent the values of all effects of
+#'     a sender-receiver pair in an event.
+#'     For example, for a model with 2 effects, stat_all_events 
+#'     might looks like this.
+#'     \tabular{rr}{
+#'       3.2 \tab 1.9\cr
+#'       3.2 \tab 4.5\cr
+#'       1.2 \tab 5.2\cr
+#'       4.3 \tab 3.1\cr
+#'       2.4 \tab 4.7\cr
+#'       9.2 \tab 5.6\cr
+#'       2.9 \tab 8.9\cr
+#'       ... \tab ...\cr
+#'     }
+#'     The first row means in a event, the values of the two effects of
+#'     a candidate pair is (3.2,1.9).
+#' @param n_candidates An n_events by 1 matrix.
+#'     It record how many candidate sender-receiver pairs are in each event.
+#'     It indicates which row in stat_all_events belongs to which event.
+#'     For example if the first two element of n_candidates are (2, 4),
+#'     then the first 2 rows of stat_all_events correspond to
+#'     the candidate pairs in the first event, which is
+#'     \tabular{rr}{
+#'       3.2 \tab 1.9\cr
+#'       3.2 \tab 4.5\cr
+#'     }
+#'     And the 3rd-6th rows correspond to the candidate pairs in
+#'     the second event, which is
+#'     \tabular{rr}{
+#'       1.2 \tab 5.2\cr
+#'       4.3 \tab 3.1\cr
+#'       2.4 \tab 4.7\cr
+#'       9.2 \tab 5.6\cr
+#'     }
+#' @param n_candidates1 An n_events by 1 matrix, which is only used
+#'     for estimating the DyNAM-coordination model.
+#'     It record how many candidate sender are in each event.
+#'     And we have n_candidates1 * n_candidates2 = n_candidates.
+#' @param n_candidates2 An n_events by 1 matrix, which is only used
+#'     for estimating the DyNAM-coordination model.
+#'     It record how many candidate receiver are in each event.
+#'     And we have n_candidates1 * n_candidates2 = n_candidates.
 #' @param selected An n_events by 1 matrix.
-#'         It records the position of the selected candidate sender-receiver pair in each event.
-#'         For example  if the first two element of n_candidates are 2, 4, and the first two elements of selected is (0,2). Then the
-#'         value of the effects of the pair selected in the first event is (3.2,1.9), which is the 1st(=0+1) row of
-#'         \tabular{rr}{
-#'           3.2 \tab 1.9\cr
-#'           3.2 \tab 4.5\cr
-#'         }
-#'         And the value of the effects of the pair selected in the second event is (2.4, 4.7), which is the 3rd(=2+1) row of
-#'         \tabular{rr}{
-#'           1.2 \tab 5.2\cr
-#'           4.3 \tab 3.1\cr
-#'           2.4 \tab 4.7\cr
-#'           9.2 \tab 5.6\cr
-#'         }
+#'     It records the position of the selected candidate sender-receiver pair
+#'     in each event.
+#'     For example  if the first two element of n_candidates are 2, 4,
+#'     and the first two elements of selected is (0,2).
+#'     Then the value of the effects of the pair selected in the first event is
+#'     (3.2,1.9), which is the 1st(=0+1) row of
+#'     \tabular{rr}{
+#'       3.2 \tab 1.9\cr
+#'       3.2 \tab 4.5\cr
+#'     }
+#'     And the value of the effects of the pair selected in the second event is
+#'     (2.4, 4.7), which is the 3rd(=2+1) row of
+#'     \tabular{rr}{
+#'       1.2 \tab 5.2\cr
+#'       4.3 \tab 3.1\cr
+#'       2.4 \tab 4.7\cr
+#'       9.2 \tab 5.6\cr
+#'     }
 #' @param selected_actor1 An n_events by 1 matrix.
-#'         It records the index of the selected candidate sender among all candidate sender in each event.
+#'     It records the index of the selected candidate sender among
+#'     all candidate sender in each event.
 #' @param selected_actor2 An n_events by 1 matrix.
-#'         It records the index of the selected candidate receiver among all candidate receiver in each event.
+#'     It records the index of the selected candidate receiver among
+#'     all candidate receiver in each event.
 #' @noRd
 compute_coordination_selection <- function(parameters, stat_all_events, n_candidates, n_candidates1, n_candidates2, selected, selected_actor1, selected_actor2, twomode_or_reflexive) {
     .Call('_goldfish_compute_coordination_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, n_candidates1, n_candidates2, selected, selected_actor1, selected_actor2, twomode_or_reflexive)
@@ -207,8 +225,11 @@ compute_coordination_selection <- function(parameters, stat_all_events, n_candid
 
 #' Estimate a multinomial selection model with gathered data
 #'
-#' Given the gathered and distilled data, it outputs the derivative of the loglikelihood, the Fisher information matrix, the logLikelihood,
-#' and the loglikelihood of each event  for models with multinomial selection processes, e.g. DyNAM-rate-ordered, DyNAM-choice, and REM-choice models.
+#' Given the gathered and distilled data, it outputs the derivative of
+#'   the log-likelihood, the Fisher information matrix, the log-Likelihood,
+#'   and the log-likelihood of each event for models with
+#'   multinomial selection processes, e.g. DyNAM-rate-ordered, DyNAM-choice,
+#'   and REM-choice models.
 #' @noRd
 compute_multinomial_selection <- function(parameters, stat_all_events, n_candidates, selected) {
     .Call('_goldfish_compute_multinomial_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected)
@@ -227,12 +248,17 @@ compute_poisson_selection <- function(parameters, stat_all_events, n_candidates,
     .Call('_goldfish_compute_poisson_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, timespan, is_dependent)
 }
 
-#' a function to extract the update of composition change from an events and transform the data into a matrix
-#' and a vector.
+#' a function to extract the update of composition change
+#'   from an events and transform the data into a matrix
+#'   and a vector.
 #'
 #' @param event an event objects with the information on composition change
-#' @param reference_event_time a vector of time stamps that separate updates different time spans.
-#' @return A list with two element: changeMat and change_idx. For the structure of these two object see, e.g., the documentation of estimate_DyNAM_choice, in which they are used for stat_mat_update, and stat_mat_update_pointer.
+#' @param reference_event_time a vector of time stamps that separate updates
+#'   different time spans.
+#' @return A list with two element: changeMat and change_idx.
+#' For the structure of these two object see, e.g.,
+#'   the documentation of estimate_DyNAM_choice,
+#'   in which they are used for stat_mat_update, and stat_mat_update_pointer.
 #' @noRd
 C_convert_composition_change <- function(event, reference_event_time) {
     .Call('_goldfish_C_convert_composition_change', PACKAGE = 'goldfish', event, reference_event_time)
@@ -284,11 +310,15 @@ gather_sender_model <- function(dep_event_mat, is_dependent, stat_mat_init, stat
 
 #' Gathering data for sender receiver model
 #'
-#' Gathering data for model that considers all present sender-receiver pairs, i.e. REM, REM-ordered, and DyNAM-coordination models.
-#'      Only the useful information are recorded, 
-#'      e.g. if a actor1-actor2 pair is not present in an event, then its information is  not gathered by this function.
-#' @param verbose An boolean variable. It it's true, the function print the progress to the screen.
-#' @return Return a list with elements as follows. The meaning of the argument can be found in corresponding computation codes,
+#' Gathering data for model that considers all present sender-receiver pairs,
+#'   i.e. REM, REM-ordered, and DyNAM-coordination models.
+#'   Only the useful information are recorded, 
+#'   e.g. if a actor1-actor2 pair is not present in an event,
+#'   then its information is  not gathered by this function.
+#' @param verbose An boolean variable.
+#'   It it's true, the function print the progress to the screen.
+#' @return Return a list with elements as follows.
+#' The meaning of the argument can be found in corresponding computation codes,
 #' e.g. compute_coordination_selection.cpp.
 #' @noRd
 gather_sender_receiver_model <- function(dep_event_mat, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_rightcensored_update, stat_mat_rightcensored_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, verbose, impute) {

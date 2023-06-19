@@ -460,20 +460,15 @@ preprocess <- function(
             #   updates[is.na(updates[, "replace"]), "replace"] <- average
             #   statCache[[id]][["stat"]][position_NA] <- average
             # }
-            if (!is.null(updatesDependent[[id]])) {
-              updatesAppend <- rbind(updatesDependent[[id]], updates)
-              keep <- duplicated(updatesAppend[, c("node1", "node2")],
-                                    fromLast = TRUE)
-              
-              updatesDependent[[id]] <- updatesAppend[!keep, ]
-            } else updatesDependent[[id]] <- updates
-            if (!is.null(updatesIntervals[[id]])) {
-              updatesAppend <- rbind(updatesIntervals[[id]], updates)
-              keep <- duplicated(updatesAppend[, c("node1", "node2")],
-                                 fromLast = TRUE)
-              
-              updatesIntervals[[id]] <- updatesAppend[!keep, ]
-            } else updatesIntervals[[id]] <- updates            
+             
+            updatesDependent[[id]] <- ReduceUpdateNonDuplicates(
+              updatesDependent[[id]],
+              updates
+            )
+            updatesIntervals[[id]] <- ReduceUpdateNonDuplicates(
+              updatesIntervals[[id]],
+              updates
+            )
           }
         }
       }
@@ -747,4 +742,19 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
     }
   }
   return(done)
+}
+
+
+ReduceUpdateNonDuplicates <- function(oldUpdates, newUpdates) {
+  if (is.null(newUpdates)) {
+    return(oldUpdates)
+  } else if (!is.null(oldUpdates)) {
+    idsOld <- paste(oldUpdates[, "node1"], oldUpdates[, "node2"], sep = "_")
+    idsNew <- paste(newUpdates[, "node1"], newUpdates[, "node2"], sep = "_")
+    
+    return(rbind(
+      oldUpdates[!idsOld %in% idsNew, , drop = FALSE],
+      newUpdates
+    ))
+  } else return(newUpdates)
 }

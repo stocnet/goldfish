@@ -108,26 +108,27 @@ using namespace arma;
 //' }
 //' @noRd
 // [[Rcpp::export]]
- List estimate_REM(
-     const arma::vec& parameters,
-     const arma::mat& dep_event_mat,
-     const arma::vec& timespan,
-     const arma::vec& is_dependent,
-     const arma::mat& stat_mat_init,
-     const arma::mat& stat_mat_update,
-     const arma::vec& stat_mat_update_pointer,
-     const arma::mat& stat_mat_rightcensored_update,
-     const arma::vec& stat_mat_rightcensored_update_pointer,
-     const arma::vec& presence1_init,
-     const arma::mat& presence1_update,
-     const arma::vec& presence1_update_pointer,
-     const arma::vec& presence2_init,
-     const arma::mat& presence2_update,
-     const arma::vec& presence2_update_pointer,
-     const int n_actors_1,
-     const int n_actors_2,
-     const bool twomode_or_reflexive,
-     bool impute) {
+List estimate_REM(
+    const arma::vec& parameters,
+    const arma::mat& dep_event_mat,
+    const arma::vec& timespan,
+    const arma::vec& is_dependent,
+    const arma::mat& stat_mat_init,
+    const arma::mat& stat_mat_update,
+    const arma::vec& stat_mat_update_pointer,
+    const arma::mat& stat_mat_rightcensored_update,
+    const arma::vec& stat_mat_rightcensored_update_pointer,
+    const arma::vec& presence1_init,
+    const arma::mat& presence1_update,
+    const arma::vec& presence1_update_pointer,
+    const arma::vec& presence2_init,
+    const arma::mat& presence2_update,
+    const arma::vec& presence2_update_pointer,
+    const int n_actors_1,
+    const int n_actors_2,
+    const bool twomode_or_reflexive,
+    bool impute
+) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
    int n_events = is_dependent.n_elem;
@@ -166,21 +167,22 @@ using namespace arma;
      // update stat_mat
      if (is_dependent(id_event)) {
        while (stat_mat_update_id < stat_mat_update_pointer(id_dep_event)) {
-         stat_mat(stat_mat_update(0, stat_mat_update_id) * n_actors_2 + \
-           stat_mat_update(1, stat_mat_update_id),                      \
-           stat_mat_update(2, stat_mat_update_id))                      \
-         = stat_mat_update(3, stat_mat_update_id);
+         stat_mat(
+           stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
+            stat_mat_update(1, stat_mat_update_id),
+           stat_mat_update(2, stat_mat_update_id)) =
+           stat_mat_update(3, stat_mat_update_id);
          stat_mat_update_id++;
        }
      } else {
        while (stat_mat_rightcensored_update_id < \
          stat_mat_rightcensored_update_pointer(id_event - id_dep_event)) {
          stat_mat(
-           stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id)  \
-         * n_actors_2 +                                                        \
-           stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id), \
-           stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id)) \
-         = stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);
+           stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id) *
+             n_actors_2 +
+            stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id),
+           stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id)) =
+           stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);
          stat_mat_rightcensored_update_id++;
        }
      }
@@ -188,9 +190,15 @@ using namespace arma;
      // impute the missing statistics if necessary
      if (impute) {
        for (int i = 0; i < n_parameters; i++) {
-         // Construct a view for the i-th column of the stat_matrix and do the impute
-         arma::vec current_col(stat_mat.colptr(i), n_actors_1 * n_actors_2, false);
-         current_col.elem(find_nonfinite(current_col)).fill(mean(current_col.elem(find_finite(current_col))));
+         // Construct a view for the i-th column of the stat_matrix
+         //   and do the impute
+         arma::vec current_col(
+             stat_mat.colptr(i),
+             n_actors_1 * n_actors_2,
+             false
+         );
+         current_col.elem(find_nonfinite(current_col)).fill(
+             mean(current_col.elem(find_finite(current_col))));
        }
      }
      
@@ -212,7 +220,8 @@ using namespace arma;
      
      
      
-     // We calculate the derivative, logLikelihood, and fisher matrix of a current event according to the paper.
+     // We calculate the derivative, log-Likelihood,
+     //   and fisher matrix of a current event according to the paper.
      // Reset auxilliary variables
      weighted_sum_current_event.zeros();
      fisher_current_event.zeros();
@@ -224,7 +233,8 @@ using namespace arma;
      // Go through all actor1-actor2 pairs
      for (int i = 0; i < n_actors_1; ++i) {
        if (presence1(i) == 1) {
-         // declare the subviews of th stat mat corresponding to the first sender
+         // declare the subviews of th stat mat corresponding
+         //   to the first sender
          const arma::mat& current_data_matrix \
          = stat_mat.rows(i * n_actors_2, (i + 1) * n_actors_2 - 1);
          // deal with twomode and allow reflexive
@@ -240,7 +250,8 @@ using namespace arma;
              weighted_sum_current_event \
              += exp_current_receiver * (current_data_matrix.row(j));
              fisher_current_event += exp_current_receiver *
-               ((current_data_matrix.row(j).t()) * (current_data_matrix.row(j)));
+               ((current_data_matrix.row(j).t()) *
+               (current_data_matrix.row(j)));
            }
          }
        }
@@ -263,11 +274,10 @@ using namespace arma;
      logLikelihood += intervalLogL(id_event);
    }
    
-   return List::create(Named("derivative") = derivative,
-                       Named("fisher") = fisher,
-                       Named("intervalLogL") = intervalLogL,
-                       Named("logLikelihood") = logLikelihood);
+   return List::create(
+     Named("derivative") = derivative,
+     Named("fisher") = fisher,
+     Named("intervalLogL") = intervalLogL,
+     Named("logLikelihood") = logLikelihood
+   );
  }
- 
- 
- 

@@ -203,10 +203,10 @@ ReducePreprocess <- function(
 
   ReduceEffUpdates <- function(statsChange, eventTime) {
     reduce <- Map(
-      function(x, y) {
+      \(x, y) {
         lapply(
           x,
-          function(z) {
+          \(z) {
             if (is.null(z)) {
               return(NULL)
             } # no changes, no problem

@@ -88,8 +88,10 @@ List compute_poisson_selection(
         id_start = id_end;
     }
 
-    return List::create(Named("derivative") = derivative,
-                        Named("fisher") = fisher,
-                        Named("intervalLogL") = intervalLogL,
-                        Named("logLikelihood") = logLikelihood);
+    return List::create(
+      Named("derivative") = derivative,
+      Named("fisher") = fisher,
+      Named("intervalLogL") = intervalLogL,
+      Named("logLikelihood") = logLikelihood
+    );
 }
