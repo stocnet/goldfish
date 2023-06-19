@@ -79,7 +79,7 @@ estimate_int <- function(
       " Wrong number of initial parameters passed to function.",
       "\n\tLength ", dQuote("parameters"), " vector:",
       length(parameters), "\n\tNumber of parameters:", nParams,
-      call. = FALSE  
+      call. = FALSE
     )
 
   if (!(length(minDampingFactor) %in% c(1, nParams)))
@@ -364,7 +364,7 @@ estimate_int <- function(
           "\nStopping as maximum absolute score is below ",
           maxScoreStopCriterion, ".\n", sep = ""
         )
-      
+
       break
     }
     if (iIteration > maxIterations) {
@@ -544,10 +544,10 @@ getEventValues <- function(
 
     logL <- -timespan * ratesSum +
       if (!isRightCensored) objectiveFunctionOfSender else 0
-    
+
     score <- -timespan * ratesStatsSum +
       if (!isRightCensored) statsOfSender else 0
-    
+
     hessian <- -timespan * ratesStatsStatsSum
     pVector <- objectiveFunctions + (-timespan * ratesSum)
     if (modelType == "REM") dim(pVector) <- c(dimMatrix[1], dimMatrix[2])
@@ -686,7 +686,7 @@ getIterationStepState <- function(
     verbose = FALSE,
     opportunitiesList = NULL,
     prepEnvir = new.env()) {
-  
+
   # CHANGED MARION: changed dims
   nEvents <- length(statsList$orderEvents)
   nParams <- dim(statsList$initialStats)[3]
@@ -716,7 +716,7 @@ getIterationStepState <- function(
   statsArray <- statsList$initialStats # 84*84*6
   # CHANGED Marion: remove the use of events object
   time <- statsList$eventTime[[1]]
-  timespan <- ifelse(modelType %in% c("DyNAM-M-Rate", "REM"), NA, 0) 
+  timespan <- ifelse(modelType %in% c("DyNAM-M-Rate", "REM"), NA, 0)
   previoustime <- time
   idep <- 1
   irc <- 1
@@ -807,7 +807,7 @@ getIterationStepState <- function(
       # without intercept in the model
       if (statsList$orderEvents[[i]] == 1) {
         # dependent event
-        isDependent <- T
+        isDependent <- TRUE
         for (j in seq.int(nParams)) {
           statsArray[, , j] <-
             updFun(
@@ -880,18 +880,18 @@ getIterationStepState <- function(
     # presence2 <- rep(0,nrow(nodes2))
     updatepresence <- !is.null(compChange1)
     updatepresence2 <- !is.null(compChange2)
-    
+
     current_time <- statsList$eventTime[[i]]
     if (updatepresence) {
       compChange1 <- sanitizeEvents(compChange1, nodes)
       dims <- dim(statsArrayComp)
-      
+
       update <-
         compChange1[compChange1$time <= current_time &
                       compChange1$time > oldTime, ]
       presence[update$node] <- update$replace
     }
-    
+
     if (updatepresence2) {
       compChange2 <- sanitizeEvents(compChange2, nodes2)
       dims <- dim(statsArrayComp)
@@ -941,7 +941,7 @@ getIterationStepState <- function(
     # handle the reductions in one step outside the iteration loop, to be make
     if (reduceMatrixToVector) {
       if (!isTwoMode) {
-        dims <- dim(statsArrayComp) 
+        dims <- dim(statsArrayComp)
           # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
         arr <- apply(statsArrayComp, 3, function(stat) {
           diag(stat) <- 0
@@ -951,8 +951,7 @@ getIterationStepState <- function(
           stat <- rowMeans(m, na.rm = TRUE) * (dim(m)[1]) / (dim(m)[1] - 1)
           stat
         })
-      }
-      else {
+      } else {
         dims <- dim(statsArrayComp)
           # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
         arr <- apply(statsArrayComp, 3, function(stat) {
@@ -1161,7 +1160,7 @@ modifyStatisticsList <- function(
     reduceArrayToMatrix = FALSE,
     excludeParameters = NULL,
     addInterceptEffect = FALSE) {
-  
+
   # exclude effect statistics
   if (!is.null(excludeParameters)) {
     unknownIndexes <- setdiff(

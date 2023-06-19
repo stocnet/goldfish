@@ -119,7 +119,7 @@ test_that(
 #       model = "DyNAM", subModel = "choice",
 #       preprocessingOnly = TRUE
 #     )
-# 
+#
 #     outDependetStatChange <- ReducePreprocess(preproData)[[1]]
 #     expect_equal(preproData$initialStats[, , 1],
 #       matrix(0, 5, 5, TRUE),
@@ -175,7 +175,7 @@ test_that(
         replace = c(5, 1, 6, 4, 5, 2),
         time = NULL, set = 1:5),
       label = "updating outdeg with increment works"
-    ) # n-1 updates, should update last 
+    ) # n-1 updates, should update last
     expect_equal(
       statsChange[[1]][["dependent"]],
       fillChanges(
@@ -288,7 +288,7 @@ test_that(
         replace = c(3, 4, 5, 1, 6, 4),
         time = NULL, set = 1:5),
       label = "updating outdeg with increment works"
-    ) # n-1 updates, should update last 
+    ) # n-1 updates, should update last
     expect_equal(
       statsChange[[1]][["dependent"]],
       fillChanges(
@@ -345,7 +345,7 @@ test_that(
       preproData$eventSender,
       c(3, 4, rep(2, 3), 5, 1, 4, 3, 3, 4),
       label = "sender events"
-    ) # ties just first, last event sender and receiver of next dependent 
+    ) # ties just first, last event sender and receiver of next dependent
     expect_equal(
       preproData$eventReceiver,
       c(2, 2, 3, 3, 3, 1, 5, 5, 4, 4, 2),

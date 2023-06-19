@@ -209,7 +209,7 @@
 #' \dontshow{
 #' callsDependent <- callsDependent[1:50, ]
 #' }
-#' 
+#'
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
 #'                   model = "DyNAM", subModel = "choice",
 #'                   estimationInit = list(engine = "default_c"))
@@ -239,7 +239,7 @@
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, defaultNetwork = bilatnet
 #' )
-#'  
+#'
 #' partnerModel <- estimate(
 #'   createBilat ~
 #'     inertia(bilatnet) +
@@ -255,7 +255,7 @@
 #' )
 #' summary(partnerModel)
 #' }
-#' 
+#'
 estimate <- function(
   x,
   model = c("DyNAM", "REM", "DyNAMi"),
@@ -369,7 +369,7 @@ estimate.formula <- function(
 
   ### 1. PARSE the formula----
   PreprocessEnvir <- new.env()
-  
+
   if (progress) cat("Parsing formula.\n")
   formula <- x
 
@@ -402,7 +402,7 @@ estimate.formula <- function(
   }
   rightCensored <- hasIntercept
 
-  if (progress && 
+  if (progress &&
       !(model %in% c("DyNAM", "DyNAMi") &&
       subModel %in% c("choice", "choice_coordination")))
     cat(
@@ -548,7 +548,7 @@ estimate.formula <- function(
           "The numbers of right-censored events in the formula and in the ",
           "preprocessed object are not consistent.\n",
            "\tPlease check whether some windows have been changed.",
-          call. = FALSE  
+          call. = FALSE
         )
 
     }
@@ -778,6 +778,6 @@ estimate.formula <- function(
   result$call <- match.call(call = sys.call(-1L),
                             expand.dots = TRUE)
   result$call[[2]] <- formulaKeep
-  
+
   return(result)
 }

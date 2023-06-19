@@ -29,9 +29,8 @@ init_DyNAM_choice.default <- function(
   stats <- matrix(0, nrow = n1, ncol = n2) # check for poss
 
   # init a generic cache object
-  if ("cache" %in% .argsNames) {
-    cache <- stats
-  } else cache <- NULL
+  if ("cache" %in% .argsNames) cache <- stats
+  else cache <- NULL
 
   if (hasNetwork) {
     # check if not empty network to initialize the statistical matrix

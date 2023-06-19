@@ -242,13 +242,12 @@ GatherPreprocessing <- function(
     "present" == attr(nodes, "dynamicAttribute")
   ]
   hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
-  
+
   compChangeName2 <- attr(nodes2, "events")[
     "present" == attr(nodes2, "dynamicAttribute")
   ]
   hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
-  
-  
+
   if (hasCompChange1) {
     temp <- get(compChangeName1)
     temp <- sanitizeEvents(temp, nodes)
@@ -283,7 +282,7 @@ GatherPreprocessing <- function(
     presence2_init <- rep(TRUE, nrow(nodes2))
   }
 
-  ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED 
+  ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED
   ## BY C FUNCTIONS
   if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
     is_dependent <- preprocessingStat$orderEvents == 1
@@ -293,7 +292,7 @@ GatherPreprocessing <- function(
   } else {
     timespan <- NA
   }
-  
+
   ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED
   ## BY C FUNCTIONS
   event_mat <- rbind(

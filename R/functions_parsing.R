@@ -23,7 +23,7 @@
 #'            class = "dependent.goldfish"
 #'          )
 #' callNetwork <- structure(matrix(0, 3, 3), class = "network.goldfish")
-#' 
+#'
 #' parseFormula(
 #'   calls ~ outdeg(callNetwork, type="ego") + indeg(callNetwork, type="alter")
 #' )
@@ -414,7 +414,9 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
     if (length(nodesObject) > 1) {
       nodes <- nodesObject[1]
       nodes2 <- nodesObject[2]
-    } else nodes <- nodes2 <- nodesObject
+    } else {
+      nodes <- nodes2 <- nodesObject
+    }
 
     # replace labels with ids
     if (length(evNames) > 0) {

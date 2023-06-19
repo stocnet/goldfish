@@ -65,7 +65,7 @@ preprocess <- function(
   whichEventNoWindowEffect <- eventsEffectsLink[, !isWindowEffect, drop = FALSE]
   whichEventNoWindowEffect <- rowSums(!is.na(whichEventNoWindowEffect))
   whichEventNoWindowEffect <- c(1, which(whichEventNoWindowEffect > 0))
-  
+
   eventsMin <- min(vapply(
     events[whichEventNoWindowEffect],
     function(x) min(x$time),
@@ -107,7 +107,7 @@ preprocess <- function(
     # To solve: if startTime < eventsMin should be a warning?
   }
   ignoreEvents <- 1L # eventPos should be correct for initialization
-  
+
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 
@@ -145,7 +145,9 @@ preprocess <- function(
       nRightCensoredEvents <- as.integer(sum(
         nRightCensoredEvents >= startTime &
           nRightCensoredEvents <= endTime) - 1)
-    } else nRightCensoredEvents <- 0L    
+    } else {
+      nRightCensoredEvents <- 0L
+    }
   } else {
     nRightCensoredEvents <- 0L
     nTotalEvents <- as.integer(nrow(events[[1]]))
@@ -217,7 +219,9 @@ preprocess <- function(
         interval <- nextEventTime - startTime
         isValidEvent <- TRUE
       }
-    } else interval <- nextEventTime - time
+    } else {
+      interval <- nextEventTime - time
+    }
 
     time <- nextEventTime
 
@@ -229,7 +233,7 @@ preprocess <- function(
       ignoreEvents <- ignoreEvents + 1L
       eventPos <- 0
     }
-    
+
     # # CHANGED ALVARO: progress bar
     if (progress && iTotalEvents %% dotEvents == 0) {
       utils::setTxtProgressBar(pb, iTotalEvents)
@@ -460,7 +464,7 @@ preprocess <- function(
             #   updates[is.na(updates[, "replace"]), "replace"] <- average
             #   statCache[[id]][["stat"]][position_NA] <- average
             # }
-             
+
             updatesDependent[[id]] <- ReduceUpdateNonDuplicates(
               updatesDependent[[id]],
               updates
@@ -602,7 +606,7 @@ initializeCacheStat <- function(
 #' @param .argsFUN named list with the arguments to feed FUN.
 #' @param error function that returns the error mesage if any.
 #' @param warning function that returns the warning mesage if any.
-#' @param effectLabel character use by the error or warning function to give 
+#' @param effectLabel character use by the error or warning function to give
 #'   an additional information to the user.
 #'
 #' @return the output of call `effects[[effectPos]][[effectType]]`
@@ -744,7 +748,6 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
   return(done)
 }
 
-
 ReduceUpdateNonDuplicates <- function(oldUpdates, newUpdates) {
   if (is.null(newUpdates)) {
     return(oldUpdates)
@@ -756,5 +759,7 @@ ReduceUpdateNonDuplicates <- function(oldUpdates, newUpdates) {
       oldUpdates[!idsOld %in% idsNew, , drop = FALSE],
       newUpdates
     ))
-  } else return(newUpdates)
+  } else {
+    return(newUpdates)
+  }
 }

@@ -236,7 +236,7 @@ networkState <- matrix(
 )
 
 # defining objects
-actorsEx <- defineNodes(actorsEx) 
+actorsEx <- defineNodes(actorsEx)
 actorsEx <- linkEvents(
   x = actorsEx,
   changeEvent = compChange,
@@ -419,8 +419,3 @@ resModObject <- structure(
   ),
   class = "result.goldfish"
 )
-
-
-
-
-

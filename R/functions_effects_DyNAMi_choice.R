@@ -316,7 +316,7 @@ update_DyNAMi_choice_alterdeg <- function(network,
         if (subType == "max") {
           rep <- sum(network[smembers, ])
         }
-      } else{
+      } else {
         if (subType == "mean") {
           rep <- mean(rowSums(network[smembers, ]))
         }

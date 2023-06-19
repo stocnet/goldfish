@@ -81,9 +81,9 @@ estimate_c_int <- function(
       " Wrong number of initial parameters passed to function.",
       "\n\tLength ", dQuote("parameters"), " vector:",
       length(parameters), "\n\tNumber of parameters:", nParams,
-      call. = FALSE  
+      call. = FALSE
     )
-  
+
   if (!(length(minDampingFactor) %in% c(1, nParams)))
     stop(
       "minDampingFactor has wrong length:",
@@ -92,7 +92,7 @@ estimate_c_int <- function(
       "\nIt should be length 1 or same as number of parameters.",
       call. = FALSE
     )
-  
+
   if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1)
     stop(
       "Damping increase / decrease factors cannot be smaller than one.",
@@ -148,13 +148,13 @@ estimate_c_int <- function(
   if (modelTypeCall %in% c("REM","DyNAM-M-Rate") && addInterceptEffect) {
     totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
       sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
-    
+
     if (!is.null(nodes$present)) {
       nActors <- length(which(nodes$present == TRUE))
     } else {
       nActors <- dim(nodes)[1]
     }
-    
+
     if (hasCompChange1) {
     # CHANGED MARION: remove the use of the events object
     time <- statsList$eventTime[[1]]
@@ -162,7 +162,7 @@ estimate_c_int <- function(
     currentInterval <- 1
     currentRCInterval <- 1
     nAvgActors <- 0
-    
+
     for (i in 1:nEvents) {
       previoustime <- time
       if (statsList$orderEvents[[i]] == 1) {
@@ -172,21 +172,23 @@ estimate_c_int <- function(
         time <- time + statsList$rightCensoredIntervals[[currentRCInterval]]
         currentRCInterval <- currentRCInterval + 1
       }
-      
+
       changesAtTime <- compChange1$replace[
         intersect(
           which(compChange1$time > previoustime),
           which(compChange1$time <= time)
         )
       ]
-      
+
       # add new present actors and substract non-present
       nActors <- nActors + sum(changesAtTime) - sum(!changesAtTime)
       nAvgActors <- nAvgActors + nActors
     }
     nAvgActors <- nAvgActors / nEvents
-    } else nAvgActors <- nActors
-    
+    } else {
+      nAvgActors <- nActors
+    }
+
     if (is.null(initialParameters) &&
         (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
       # log crude rate event, estimate when not covariates
@@ -268,7 +270,7 @@ estimate_c_int <- function(
   } else {
     timespan <- NA
   }
-  
+
   ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED
   ##  BY C FUNCTIONS
   event_mat <- rbind(statsList$eventSender, statsList$eventReceiver)
@@ -728,7 +730,7 @@ gather_ <- function(
     verbose,
     impute
 ) {
-  
+
   if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
     # For DyNAM-MM, we deal with twomode_or_reflexive in the estimation
     # for convenience.

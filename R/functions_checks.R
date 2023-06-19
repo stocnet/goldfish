@@ -14,8 +14,11 @@
 ### 0. find helpers
 ## Find composition changes events for one nodeset
 findPresence <- function(nodes) {
-  if (!is.null(attr(nodes, "dynamicAttributes")) && "present" %in% attr(nodes, "dynamicAttributes")) {
-    compositionChanges <- attr(nodes, "events")[which(attr(nodes, "dynamicAttributes") == "present")]
+  if (!is.null(attr(nodes, "dynamicAttributes")) &&
+      "present" %in% attr(nodes, "dynamicAttributes")) {
+    compositionChanges <- attr(nodes, "events")[
+      which(attr(nodes, "dynamicAttributes") == "present")
+    ]
     if (is.na(compositionChanges)) stop("Composition changes were mispecified.")
     return(compositionChanges)
   } else {
@@ -45,7 +48,7 @@ forcePresence <- function(compositionChanges, events, nodes) {
         compositionChanges <- rbind(
           data.frame(
             time = as.POSIXct(as.Date(time) - 1),
-            node = nodes$label[node], replace = TRUE, stringsAsFactors = F
+            node = nodes$label[node], replace = TRUE, stringsAsFactors = FALSE
           ),
           compositionChanges
         )
@@ -77,12 +80,19 @@ forceUntilPresent <- function(events, compositionChanges, nodes) {
       if (presence == -1) presence <- nodes$present[node]
       if (!presence) {
         if (all(is.character(compositionChanges$node))) {
-          nextPres <- compositionChanges[compositionChanges$node == nodes[node, "label"] &
-                                           compositionChanges$replace == TRUE, "time"]
+          nextPres <- compositionChanges[
+            compositionChanges$node == nodes[node, "label"] &
+              compositionChanges$replace == TRUE,
+            "time"
+          ]
           nextPres <- nextPres[nextPres > time]
           events[r, ]["time"]$time <- nextPres[1]
         } else {
-          nextPres <- compositionChanges[compositionChanges$node == node & compositionChanges$replace == TRUE, "time"]
+          nextPres <- compositionChanges[
+            compositionChanges$node == node &
+              compositionChanges$replace == TRUE,
+            "time"
+          ]
           nextPres <- nextPres[nextPres > time]
           events[r, ]["time"]$time <- nextPres[1]
         }
@@ -145,16 +155,28 @@ checkClasses <- function(object, classes) {
 #' @return character vector with the assigned category to each object
 #' @noRd
 #'
-#' @examples assignCatToObject(list(logical(2), numeric(4), integer(3),
-#'                                  matrix(FALSE, 2, 2), matrix(0L, 1, 1), matrix(0, 2, 2)))
-assignCatToObject <- function(object,
-                        classes  = c("matrix",  "Matrix",  "numeric",   "character", "logical"),
-                        category = c("network", "network", "attribute", "attribute", "attribute")) {
+#' @examples
+#' assignCatToObject(
+#'   list(logical(2), numeric(4), integer(3),
+#'   matrix(FALSE, 2, 2), matrix(0L, 1, 1), matrix(0, 2, 2))
+#' )
+assignCatToObject <- function(
+    object,
+    classes  = c("matrix",  "Matrix",  "numeric",   "character", "logical"),
+    category = c("network", "network", "attribute", "attribute", "attribute")) {
   stopifnot(length(classes) == length(category))
-  objectClasses <- vapply(object, FUN = checkClasses, FUN.VALUE = logical(length(classes)), classes = classes)
+  objectClasses <- vapply(
+    object,
+    FUN = checkClasses,
+    FUN.VALUE = logical(length(classes)),
+    classes = classes
+  )
   manyClasses <- colSums(objectClasses)
   objectCat <- apply(objectClasses, 2, function(x) category[x])
-  attributes(objectCat) <- list(noneClass = any(manyClasses == 0), manyClasses = manyClasses)
+  attributes(objectCat) <- list(
+    noneClass = any(manyClasses == 0),
+    manyClasses = manyClasses
+  )
   return(objectCat)
 }
 
@@ -163,20 +185,26 @@ assignCatToObject <- function(object,
 #'
 #' @param inDataFrame data.frame where the columns are checked
 #' @param mandatoryNames character vector. Names of columns that must exist.
-#' @param incompatibleNames character vector. One of those should exist but not both at the same time.
+#' @param incompatibleNames character vector. One of those should exist
+#'  but not both at the same time.
 #' @param optionalNames character vector. Names of columns that are optional.
-#' @param classes names list of character vectors. For mandatory/incompatible/optional names of columns
-#' specify the allowed classes of the column. \code{".allow"} tagged slot give the classes allowed for other columns.
+#' @param classes names list of character vectors.
+#'  For mandatory/incompatible/optional names of columns
+#' specify the allowed classes of the column. \code{".allow"} tagged slot
+#'  give the classes allowed for other columns.
 #'
-#' @return raise an error when either missing columns, incompatible columns or type/class is not supported.
+#' @return raise an error when either missing columns, incompatible columns
+#'  or type/class is not supported.
 #' @noRd
 #'
 #' @examples
 #' checkColumns(data.frame(sender = "1", receiver = "2", time = 2),
 #'   mandatoryNames = c("sender", "receiver", "time"),
 #'   classes = list(
-#'     sender = c("character", "numeric"), receiver = c("character", "numeric"),
-#'     time = c("POSIXct", "numeric"), .allow = c("character", "numeric", "logical")
+#'     sender = c("character", "numeric"),
+#'     receiver = c("character", "numeric"),
+#'     time = c("POSIXct", "numeric"),
+#'     .allow = c("character", "numeric", "logical")
 #'   ))
 checkColumns <- function(
   inDataFrame,
@@ -188,7 +216,10 @@ checkColumns <- function(
   columnNames <- colnames(inDataFrame)
   if (!is.null(mandatoryNames) && !all(mandatoryNames %in% columnNames)) {
     stop("Missing columns ",
-         paste(mandatoryNames[which(!(mandatoryNames %in% columnNames))], collapse = ", "),
+         paste(
+           mandatoryNames[which(!(mandatoryNames %in% columnNames))],
+           collapse = ", "
+          ),
          call. = FALSE)
   }
   if (!is.null(incompatibleNames) && !any(columnNames %in% incompatibleNames)) {
@@ -196,24 +227,32 @@ checkColumns <- function(
          paste(incompatibleNames, collapse = " or "),
          call. = FALSE)
   }
-  if (!is.null(incompatibleNames) && sum(colnames(inDataFrame) %in% incompatibleNames) > 1) {
+  if (!is.null(incompatibleNames) &&
+      sum(colnames(inDataFrame) %in% incompatibleNames) > 1) {
     stop("Incompatible columns",
-         paste(incompatibleNames[which((incompatibleNames %in% colnames(inDataFrame)))], collapse = ", "),
+         paste(
+           incompatibleNames[
+             which((incompatibleNames %in% colnames(inDataFrame)))
+             ],
+           collapse = ", "
+          ),
          call. = FALSE)
   }
 
   # # vector helper to define types
   colType <- columnNames
-  colType[!columnNames %in% c(mandatoryNames, incompatibleNames, optionalNames)] <- ".allow"
+  colType[
+    !columnNames %in% c(mandatoryNames, incompatibleNames, optionalNames)] <-
+    ".allow"
 
   checked <- mapply(
     function(column, ct, name) {
-      if (!any(checkClasses(column, classes[[ct]]))) {
+      if (!any(checkClasses(column, classes[[ct]])))
         stop("The column ", dQuote(name), " expects values of type ",
              paste(classes[[ct]], collapse = ", "), ".",
              call. = FALSE
         )
-      } else TRUE
+      else TRUE
     },
     inDataFrame, colType, columnNames
   )
@@ -231,10 +270,13 @@ checkColumns <- function(
 #'
 #' A nodeset should be a \code{data.frame} object that contains:
 #' \itemize{
-#'   \item a column "label" a character/numeric vector (no NAs and no duplicates)
+#'   \item a column "label" a character/numeric vector
+#'    (no NAs and no duplicates)
 #'   \item (optional) a column "present" of logical values
-#'   \item any other column of attributes containing characters or numerics or logical values
-#'   \item And should have: one attribute "events" linked to a valid and compatible events list
+#'   \item any other column of attributes containing characters or numerics
+#'    or logical values
+#'   \item And should have: one attribute "events" linked to a valid
+#'    and compatible events list
 #' }
 #'
 #' @param nodes a data frame to check
@@ -260,11 +302,17 @@ checkNodes <- function(nodes) {
     )
   )
   # special case of labels
-  if (anyNA(as.vector(nodes$label))) stop("Labels column cannot have missing values.", call. = FALSE)
-  if (anyDuplicated(as.vector(nodes$label))) stop("Labels should not be redundant (duplicate values).", .call = FALSE)
+  if (anyNA(as.vector(nodes$label)))
+    stop("Labels column cannot have missing values.", call. = FALSE)
+  if (anyDuplicated(as.vector(nodes$label)))
+    stop("Labels should not be redundant (duplicate values).", .call = FALSE)
   # events attribute
   if (!is.null(attr(nodes, "events")) && !is.character(attr(nodes, "events")))
-    stop("The nodeset attribute ", dQuote("events"), " should be a character vector.", call. = FALSE)
+    stop(
+      "The nodeset attribute ", dQuote("events"),
+      " should be a character vector.",
+      call. = FALSE
+    )
   return(TRUE)
 }
 
@@ -277,9 +325,12 @@ checkNodes <- function(nodes) {
 #' A network should be a matrix. And should have:
 #' \itemize{
 #'   \item one attribute "events" linked to a valid and compatible events list
-#'   \item one attribute "nodes" linked to one valid and compatible \code{nodeset}
-#'   \item one attribute "directed" linked to a logical compatible with the matrix form
-#'   \item one optional attribute "nodes2" linked to one valid and compatible \code{nodeset}
+#'   \item one attribute "nodes" linked to one valid and compatible
+#'    \code{nodeset}
+#'   \item one attribute "directed" linked to a logical compatible with
+#'    the matrix form
+#'   \item one optional attribute "nodes2" linked to one valid and compatible
+#'    \code{nodeset}
 #' }
 #'
 #' @param matrix object with the network as a adjacency matrix
@@ -292,9 +343,13 @@ checkNodes <- function(nodes) {
 #'
 #' @examples
 #' checkNetwork(
-#'   matrix = structure(matrix(0, 2, 3),
-#'                      dimnames = list(sprintf("A%d", 1:2), sprintf("B%d", 1:3)),
-#'                      directed = TRUE, class = c("network.goldfish", "matrix", "array"), nodes = c("n1", "n2")),
+#'   matrix = structure(
+#'     matrix(0, 2, 3),
+#'     dimnames = list(sprintf("A%d", 1:2), sprintf("B%d", 1:3)),
+#'     directed = TRUE,
+#'     class = c("network.goldfish", "matrix", "array"),
+#'     nodes = c("n1", "n2")
+#'   ),
 #'   nodes = data.frame(label = sprintf("A%d", 1:2)), nodesName = c("n1", "n2"),
 #'   nodes2 = data.frame(label = sprintf("B%d", 1:3))
 #' )
@@ -304,22 +359,27 @@ checkNetwork <- function(matrix, nodes, nodesName, nodes2 = NULL) {
   #   stop("A network should be a matrix.", call. = FALSE)
   # network class (here this class is mandatory)
   if (!inherits(matrix, "network.goldfish")) {
-    stop("A network should be of the class network.goldfish. Please use the function \"defineNetwork\".")
+    stop("A network should be of the class network.goldfish.",
+         " Please use the function \"defineNetwork\".")
   }
   # events, nodes, directed attributes
   if (!is.null(attr(matrix, "events")) && !is.character(attr(matrix, "events")))
     stop("The network attribute \"events\" should be a character vector.")
   if (is.null(attr(matrix, "nodes")))
-    stop("The network attribute \"nodes\" should contain the name of one or two nodesets.")
-  if (!is.character(attr(matrix, "nodes")) && !length(attr(matrix, "nodes")) %in% c(1, 2))
-    stop("The network attribute \"nodes\" should contain the name of one or two nodesets.")
+    stop("The network attribute \"nodes\" should contain",
+         " the name of one or two nodesets.")
+  if (!is.character(attr(matrix, "nodes")) &&
+      !length(attr(matrix, "nodes")) %in% c(1, 2))
+    stop("The network attribute \"nodes\" should contain",
+         "the name of one or two nodesets.")
   if (!is.logical(attr(matrix, "directed")))
     stop("The network attribute \"directed\" should be a boolean.")
   if (any(attr(matrix, "nodes") != nodesName))
     stop("The nodesets associated to this network were mispecified.")
   # validity of nodes
   isTwoMode <- !is.null(nodes2)
-  if (!(inherits(nodes, "nodes.goldfish") && isTwoMode && !inherits(nodes2, "nodes.goldfish")))
+  if (!(inherits(nodes, "nodes.goldfish") &&
+        isTwoMode && !inherits(nodes2, "nodes.goldfish")))
     tryCatch({
       checkNodes(nodes)
       if (isTwoMode) checkNodes(nodes2)
@@ -329,12 +389,12 @@ checkNetwork <- function(matrix, nodes, nodesName, nodes2 = NULL) {
     })
 
   # compatibility between nodes and matrix
-  if (!isTwoMode && !all(dim(matrix) == nrow(nodes))) {
+  if (!isTwoMode && !all(dim(matrix) == nrow(nodes)))
     stop("The matrix dimensions are not coherent with the nodeset size.")
-  }
-  if (isTwoMode && any(dim(matrix)[1] != nrow(nodes) && dim(matrix)[2] != nrow(nodes2))) {
+
+  if (isTwoMode && any(dim(matrix)[1] != nrow(nodes) &&
+                       dim(matrix)[2] != nrow(nodes2)))
     stop("The matrix dimensions are not coherent with the nodesets sizes.")
-  }
 
   # labels when present agree
   if (!is.null(dimnames(matrix))) {
@@ -346,26 +406,38 @@ checkNetwork <- function(matrix, nodes, nodesName, nodes2 = NULL) {
 
     colIn <- dimNames[[2]] %in% if (!isTwoMode) nodes$label else nodes2$label
     if (!all(colIn))
-      stop("Some column node labels are not in nodes", ifelse(isTwoMode, "2", ""), " data frame: ",
-           paste(dimNames[[2]][!colIn], collapse = ", "))
+      stop(
+        "Some column node labels are not in nodes",
+        ifelse(isTwoMode, "2", ""), " data frame: ",
+        paste(dimNames[[2]][!colIn], collapse = ", ")
+      )
 
     if (!all(dimNames[[1]] == nodes$label) ||
         !all(dimNames[[2]] == if (!isTwoMode) nodes$label else nodes2$label))
-      stop("The order of nodes in either row or columns is not the same as in \"nodes\"",
-           ifelse(isTwoMode, "and \"nodes2\"", ""), " data frame", ifelse(isTwoMode, "s", ""))
+      stop(
+        "The order of nodes in either row or columns is",
+        "not the same as in \"nodes\"",
+         ifelse(isTwoMode, "and \"nodes2\"", ""), " data frame",
+        ifelse(isTwoMode, "s", "")
+      )
 
-  } else
-    warning(dQuote("matrix"), " object doesn't have a \"dimnames\" attribute. ",
-            "The order of rows and columns is assumed to be the same as in \"nodes\"",
-            ifelse(isTwoMode, "and \"nodes2\"", ""), " data frame", ifelse(isTwoMode, "s", ""),
-            call. = FALSE)
+  } else {
+    warning(
+      dQuote("matrix"), " object doesn't have a \"dimnames\" attribute. ",
+      "The order of rows and columns is assumed to be the same as in \"nodes\"",
+      ifelse(isTwoMode, "and \"nodes2\"", ""), " data frame",
+      ifelse(isTwoMode, "s", ""),
+      call. = FALSE
+    )
+  }
 
   return(TRUE)
 }
 
 
 ## Dependent events lists
-# Dependent events should be a valid eventlist for either a nodeset or a network with
+# Dependent events should be a valid eventlist for either a nodeset
+#   or a network with
 # with one or two associated nodesets
 # And should have:
 # - one attribute "nodes" linked to one or two valid and compatible nodeset(s)
@@ -379,7 +451,11 @@ checkDependentEvents <- function(events, eventsName, nodes, nodes2,
   # check content
   if ("node" %in% names(events)) {
     tryCatch({
-      checkEvents(nodes, events, eventsName, updateColumn = updateColumn, environment = environment)
+      checkEvents(
+        nodes, events, eventsName,
+        updateColumn = updateColumn,
+        environment = environment
+      )
     }, error = function(e) {
       stop("These events were assumed to be monadic events.", e$message)
     })
@@ -391,7 +467,8 @@ checkDependentEvents <- function(events, eventsName, nodes, nodes2,
       stop("These events were assumed to be dyadic events.", e$message)
     })
   } else {
-    stop("Invalid event list: missing one column node or two columns sender and receiver.")
+    stop("Invalid event list: missing one column node or two columns",
+         "sender and receiver.")
   }
 
   return(TRUE)
@@ -427,8 +504,10 @@ checkGlobalAttribute <- function(global) {
 ## Events lists
 # An events list should be a dataframe that contains:
 # - a column "time" of numerics or POSIX times
-# - a column "node" with labels (characters) or ids (numerics) IF it's associated to a nodeset
-# - 2 columns "sender" and "receiver" with labels (characters) or ids (numerics) IF it's associated to a network
+# - a column "node" with labels (characters) or ids (numerics)
+#   IF it's associated to a nodeset
+# - 2 columns "sender" and "receiver" with labels (characters) or ids (numerics)
+#   IF it's associated to a network
 # - a column "replace" OR "increment" of characters or numerics or booleans
 
 checkEvents <- function(object, ...)
@@ -449,16 +528,32 @@ checkEvents.nodes.goldfish <- function(
   # check attributes
   if (!is.data.frame(events)) stop("An event list should be a data frame.")
   if (!is.null(attribute)) {
-    if (!(is.character(attribute) && length(attribute) == 1)) stop("An attribute should be a character object.")
-    if (is.null(attr(object, "dynamicAttributes")) || !(attribute %in% attr(object, "dynamicAttributes")))
+    if (!(is.character(attribute) && length(attribute) == 1))
+      stop("An attribute should be a character object.")
+    if (is.null(attr(object, "dynamicAttributes")) ||
+        !(attribute %in% attr(object, "dynamicAttributes")))
       stop("The dynamic attributes for this nodeset were mispecified.")
-    if (!eventsName %in% attr(object, "events")[which(attr(object, "dynamicAttributes") == attribute)])
-      stop("The events related to the dynamic attributes of this nodeset were mispecified.")
-  } else if (!is.null(attr(object, "events")) && eventsName %in% attr(object, "events")) {
+    if (!eventsName %in%
+        attr(object, "events")[
+          which(attr(object, "dynamicAttributes") == attribute)
+        ])
+      stop(
+        "The events related to the dynamic attributes of this nodeset",
+        " were mispecified."
+      )
+  } else if (!is.null(attr(object, "events")) &&
+             eventsName %in% attr(object, "events")) {
       if (is.null(attr(object, "dynamicAttributes")) ||
-        is.na(attr(object, "dynamicAttributes")[which(attr(object, "events") == eventsName)]))
-        stop("The events related to the dynamic attributes of this nodeset were mispecified.")
-      attribute <- attr(object, "dynamicAttributes")[which(attr(object, "events") == eventsName)]
+        is.na(attr(object, "dynamicAttributes")[
+          which(attr(object, "events") == eventsName)
+        ]))
+        stop(
+          "The events related to the dynamic attributes of this nodeset",
+          "were mispecified."
+        )
+      attribute <- attr(object, "dynamicAttributes")[
+        which(attr(object, "events") == eventsName)
+      ]
   }
 
   # check classes and names of columns in events data.frame
@@ -473,14 +568,14 @@ checkEvents.nodes.goldfish <- function(
     stop(e)
   }
   if (!(attribute == "present")) {
-    if (updateColumn) {
+    if (updateColumn)
       tryCatch(
         checkColumns(events,
                      mandatoryNames = c("time", "node"),
                      incompatibleNames = c("increment", "replace"),
                      classes = classesToCheck),
         error = errorMessage)
-    } else tryCatch(
+    else tryCatch(
       checkColumns(events,
                    mandatoryNames = c("time", "node"),
                    classes = classesToCheck),
@@ -494,30 +589,51 @@ checkEvents.nodes.goldfish <- function(
       error = errorMessage)
   }
 
-  if (is.unsorted(events$time)) stop("Invalid events list: Events should be ordered by time.")
+  if (is.unsorted(events$time))
+    stop("Invalid events list: Events should be ordered by time.")
 
   # check presence of nodes
   compositionChanges <- findPresence(object)
-  if (!is.null(compositionChanges) && attribute != "present") {
-    tryCatch(checkPresence(events, object, get(compositionChanges, envir = environment)))
-  }
+  if (!is.null(compositionChanges) && attribute != "present")
+    tryCatch(
+      checkPresence(
+        events,
+        object,
+        get(compositionChanges, envir = environment)
+      )
+    )
 
   # check attributes compatibility
   if (!is.null(attribute)) {
-    if (is.null(object[[attribute]])) stop("The attribute ", sQuote(attribute), " doesn't exist in the nodeset.")
+    if (is.null(object[[attribute]]))
+      stop(
+        "The attribute ", sQuote(attribute),
+        " doesn't exist in the nodeset."
+      )
 
     classAttr <- class(object[[attribute]])
-    eventUpdate <- if (!is.null(events$replace)) events$replace else events$increment
+    eventUpdate <- if (!is.null(events$replace)) events$replace
+      else events$increment
     classEven <- class(eventUpdate)
-    if (!all(checkClasses(object[[attribute]], classEven)) && !all(checkClasses(eventUpdate, classAttr)))
-      stop("The type of the attribute ", sQuote(attribute), " is incompatible with the associated event list.",
-           "\n\tattribute class: ", paste(classAttr, collapse = ", "),
-           "\n\tevent (increment/replace) class: ", paste(classEven, collapse = ", "))
+    if (!all(checkClasses(object[[attribute]], classEven)) &&
+        !all(checkClasses(eventUpdate, classAttr)))
+      stop(
+        "The type of the attribute ", sQuote(attribute),
+        " is incompatible with the associated event list.",
+        "\n\tattribute class: ", paste(classAttr, collapse = ", "),
+        "\n\tevent (increment/replace) class: ",
+        paste(classEven, collapse = ", ")
+      )
   }
   # if (all(events$node %in% object$label) && is.integer(events$node) &&
   #     (min(events$node) < 1 || max(events$node) > dim(object)[1]))
-  #   stop("Nodes indexes for the attribute ", sQuote(attribute), " are incorrect.")
-  if (!all(events$node %in% object$label)) stop("Nodes labels for the attribute ", sQuote(attribute), " are incorrect.")
+  #   stop(
+  #     "Nodes indexes for the attribute ", sQuote(attribute), " are incorrect."
+  #   )
+  if (!all(events$node %in% object$label))
+    stop(
+      "Nodes labels for the attribute ", sQuote(attribute), " are incorrect."
+    )
 
   return(TRUE)
 }
@@ -530,21 +646,29 @@ checkEvents.nodes.goldfish <- function(
 # If the network is not specified, less checks are possible !!!
 
 checkEvents.network.goldfish <- function(
-  object, events, eventsName, nodes, nodes2 = NULL,
-  updateColumn = TRUE, environment = environment()) {
+  object, events, eventsName,
+  nodes, nodes2 = NULL,
+  updateColumn = TRUE, environment = environment()
+) {
   # get data frames of presence events over the nodes sets
   isTwoMode <- !is.null(nodes2)
-  nodesName <- c(as.character(substitute(nodes, environment)), as.character(substitute(nodes2, environment)))
+  nodesName <- c(
+    as.character(substitute(nodes, environment)),
+    as.character(substitute(nodes2, environment))
+  )
   compositionChanges <- findPresence(nodes)
-  if (!is.null(compositionChanges)) compositionChanges <- get(compositionChanges, envir = environment)
+  if (!is.null(compositionChanges))
+    compositionChanges <- get(compositionChanges, envir = environment)
   if (isTwoMode) {
     compositionChanges2 <- findPresence(nodes2)
-    if (!is.null(compositionChanges2)) compositionChanges2 <- get(compositionChanges2, envir = environment)
+    if (!is.null(compositionChanges2))
+      compositionChanges2 <- get(compositionChanges2, envir = environment)
   }
 
   if (!is.data.frame(events)) stop("An event list should be a data frame.")
   # check nodeset type
-  if (!inherits(nodes, "nodes.goldfish") || (isTwoMode && !inherits(nodes2, "nodes.goldfish")))
+  if (!inherits(nodes, "nodes.goldfish") ||
+      (isTwoMode && !inherits(nodes2, "nodes.goldfish")))
     tryCatch({
       checkNodes(nodes)
       if (isTwoMode) checkNodes(nodes2)
@@ -580,21 +704,31 @@ checkEvents.network.goldfish <- function(
   if (is.unsorted(events$time)) stop("Events should be ordered by time.")
 
   # self-directed event
-  if (any(events[, "sender"] == events[, "receiver"])) warning("At least one self-directed event in data.")
+  if (any(events[, "sender"] == events[, "receiver"]))
+    warning("At least one self-directed event in data.")
 
   # other checks
-  # if (is.null(attr(object, "events")) || !any(eventsName %in% attr(object, "events")))
-  #   warning("The events associated to this network were mispecified.",
-  #           "\nNetwork events attached: ", paste(attr(object, "events"), collapse = ", "),
-  #           "\nevents being checked: ", paste(eventsName, collapse = ""))
-  if (is.null(attr(object, "nodes")) || !all(nodesName %in% attr(object, "nodes")))
+  # if (is.null(attr(object, "events")) ||
+  #   !any(eventsName %in% attr(object, "events")))
+  #   warning(
+  #     "The events associated to this network were mispecified.",
+  #     "\nNetwork events attached: ",
+  #     paste(attr(object, "events"), collapse = ", "),
+  #     "\nevents being checked: ", paste(eventsName, collapse = "")
+  #   )
+  if (is.null(attr(object, "nodes")) ||
+      !all(nodesName %in% attr(object, "nodes")))
     stop("The nodeset(s) associated to this network were mispecified.")
 
   # check presence of nodes
   if (!is.null(compositionChanges))
-    tryCatch(checkPresence(events, nodes, compositionChanges, onlyReceiver = FALSE))
+    tryCatch(
+      checkPresence(events, nodes, compositionChanges, onlyReceiver = FALSE)
+    )
   if (isTwoMode && !is.null(compositionChanges2))
-    tryCatch(checkPresence(events, nodes2, compositionChanges2, onlyReceiver = TRUE))
+    tryCatch(
+      checkPresence(events, nodes2, compositionChanges2, onlyReceiver = TRUE)
+    )
 
   # check attributes compatibility
   if (!isTwoMode) nodes2 <- nodes
@@ -604,24 +738,34 @@ checkEvents.network.goldfish <- function(
   # if (!all(events$receiver %in% nodes2$label) && is.integer(events$receiver)
   #     && (min(events$receiver) < 1 || max(events$receiver) > dim(nodes2)[1]))
   #   stop("Nodes indexes in the receiver column are incorrect.")
-  if (!all(events$sender %in% nodes$label)) stop("Nodes labels for the sender column are incorrect.")
-  if (!all(events$receiver %in% nodes2$label)) stop("Nodes labels for the receiver column are incorrect.")
+  if (!all(events$sender %in% nodes$label))
+    stop("Nodes labels for the sender column are incorrect.")
+  if (!all(events$receiver %in% nodes2$label))
+    stop("Nodes labels for the receiver column are incorrect.")
 
-  eventUpdate <- if (!is.null(events$replace)) events$replace else events$increment
+  eventUpdate <- if (!is.null(events$replace)) events$replace
+    else events$increment
   if (!all(checkClasses(eventUpdate, mode(object))))
-    stop("The class of the associated event list is incompatible with the mode of the 'network.goldfish' object.",
-         "\n\tevent (increment/replace) class: ", paste(class(eventUpdate), collapse = ", "),
-         "\n\tmode network: ", paste(mode(object), collapse = ", "))
+    stop(
+      "The class of the associated event list is incompatible",
+      " with the mode of the 'network.goldfish' object.",
+      "\n\tevent (increment/replace) class: ",
+      paste(class(eventUpdate), collapse = ", "),
+      "\n\tmode network: ", paste(mode(object), collapse = ", ")
+    )
 
   return(TRUE)
 }
 
 
 ## Presence of nodes in events
-# Once we have all the data objects, we can check whether events times are coherent
+# Once we have all the data objects, we can check whether events times are
+# coherent
 # with the nodes presence specified in the nodeset(s)
 # this function doesn't check anything else than presence coherence!
-checkPresence <- function(events, nodes, compositionChanges, onlyReceiver = FALSE) {
+checkPresence <- function(
+    events, nodes, compositionChanges, onlyReceiver = FALSE
+) {
   for (r in seq_len(nrow(events))) {
 
     # find time and nodes for this event
@@ -643,7 +787,8 @@ checkPresence <- function(events, nodes, compositionChanges, onlyReceiver = FALS
       presence <- findLastPresence(node, time, nodes, compositionChanges)
       if (presence == -1) presence <- nodes$present[node]
       if (!presence)
-        stop("Error in the events timestamps: the node ", nodes$label[node], " is not present at time ", time)
+        stop("Error in the events timestamps: the node ",
+             nodes$label[node], " is not present at time ", time)
     }
 
     # check presence if it's a network event
@@ -653,13 +798,15 @@ checkPresence <- function(events, nodes, compositionChanges, onlyReceiver = FALS
         presence <- findLastPresence(node, time, nodes, compositionChanges)
         if (presence == -1) presence <- nodes$present[node]
         if (!presence)
-          stop("Error in the events timestamps: the node ", nodes$label[node], " is not present at time ", time)
+          stop("Error in the events timestamps: the node ", nodes$label[node],
+               " is not present at time ", time)
       }
       node <- eventNodes[2]
       presence <- findLastPresence(node, time, nodes, compositionChanges)
       if (presence == -1) presence <- nodes$present[node]
       if (!presence)
-        stop("Error in the events timestamps: the node ", nodes$label[node], " is not present at time ", time)
+        stop("Error in the events timestamps: the node ", nodes$label[node],
+             " is not present at time ", time)
     }
   }
 }
@@ -669,13 +816,19 @@ checkPresence <- function(events, nodes, compositionChanges, onlyReceiver = FALS
 #' @param model character string defining the model type
 #' @param subModel character string defining the subModel type
 #' @param modelList character string vector defining allowed options
-#' @param subModelList list with character string vectors defining allowed subModel options by each model
+#' @param subModelList list with character string vectors defining allowed
+#'    subModel options by each model
 #'
 #' @return invisible TRUE if model and subModel check conditions
 #'
 #' @examples
-#' checkModelPar(c("DyNAM", "REM"), "Rate", c("DyNAM", "REM"),
-#'               list(DyNAM = c("choice", "rate", "choice_coordination"), REM = c("choice")))
+#' checkModelPar(
+#'   c("DyNAM", "REM"), "Rate", c("DyNAM", "REM"),
+#'   list(
+#'     DyNAM = c("choice", "rate", "choice_coordination"),
+#'     REM = c("choice")
+#'    )
+#' )
 #' @noRd
 
 checkModelPar <- function(model, subModel, modelList, subModelList) {
@@ -690,7 +843,8 @@ checkModelPar <- function(model, subModel, modelList, subModelList) {
 
   if (!subModel %in% subModelList[[model]]) {
     stop(
-      "model: '", model, "' doesn't allow subModel: '", subModel, "' available options '",
+      "model: '", model, "' doesn't allow subModel: '",
+      subModel, "' available options '",
       paste(subModelList[[model]], collapse = ", "), "'"
     )
   }

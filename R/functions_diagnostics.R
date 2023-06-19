@@ -11,7 +11,7 @@
 # (see \code{\link{defineDependentEvents}}) with the events identified as
 # outliers or change point inflections.
 #' An object of class `ggplot` object from a call of [ggplot2::ggplot()].
-#' It can be modified using the `ggplot2` syntax. 
+#' It can be modified using the `ggplot2` syntax.
 #' @name examine
 #' @examples
 #' # A multinomial receiver choice model
@@ -42,12 +42,12 @@ NULL
 # Examine outlier cases
 #' @param method A method for identifying outliers.
 #'   The current options are "Hampel" for a Hampel filter/identifier,
-#'   "IQR" for identifying outliers on the basis of lying outside 
-#'   the interquartile range, and "Top" which returns the 
+#'   "IQR" for identifying outliers on the basis of lying outside
+#'   the interquartile range, and "Top" which returns the
 #'   `parameter` number of outliers.
 #' @param parameter An integer that represents the number of absolute outliers
 #'   to identify, the threshold for the Hampel filter, i.e. `parameter * MAD`,
-#'   or the threshold beyond the interquartile range halved, i.e. 
+#'   or the threshold beyond the interquartile range halved, i.e.
 #'   `parameter/2 * IQR`.
 #' @param window The window half-width for the Hampel filter.
 #'   By default it is half the width of the event sequence.
@@ -84,7 +84,9 @@ examineOutliers <- function(x,
     calls$verbose <- FALSE
     prep <- suppressWarnings(do.call(estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
-  } else data$intervalLogL <- x$intervalLogL
+  } else {
+    data$intervalLogL <- x$intervalLogL
+  }
 
   if (!is.numeric(data$time)) {
     data$time <- as.POSIXct(data$time)
@@ -120,7 +122,9 @@ examineOutliers <- function(x,
     data$outlier[outlierIndexes] <- "YES"
     data$label[outlierIndexes] <- paste(data$sender,
                                         data$receiver, sep = "-")[outlierIndexes]
-  } else return(cat("No outliers found."))
+  } else {
+    return(cat("No outliers found."))
+  }
 
   ggplot2::ggplot(data, ggplot2::aes(x = .data$time, y = .data$intervalLogL)) +
     ggplot2::geom_line() +
@@ -190,7 +194,9 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
     calls$verbose <- FALSE
     prep <- suppressWarnings(do.call(goldfish::estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
-  } else data$intervalLogL <- x$intervalLogL
+  } else {
+    data$intervalLogL <- x$intervalLogL
+  }
 
   if (!is.numeric(data$time)) {
     data$time <- as.POSIXct(data$time)
