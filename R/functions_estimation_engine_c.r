@@ -149,7 +149,7 @@ estimate_c_int <- function(
     presence1_update <- matrix(0, 0, 0)
     presence1_update_pointer <- numeric(1)
   }
-  
+
   if (hasCompChange2) {
     compChange2 <- get(compChangeName2, envir = prepEnvir)
     compChange2 <- sanitizeEvents(compChange2, nodes2)
@@ -161,7 +161,7 @@ estimate_c_int <- function(
     presence2_update <- matrix(0, 0, 0)
     presence2_update_pointer <- numeric(1)
   }
-  
+
   if (!is.null(nodes$present)) {
     presence1_init <- nodes$present
   } else {
@@ -181,8 +181,8 @@ estimate_c_int <- function(
   if (modelTypeCall %in% c("REM","DyNAM-M-Rate") && hasIntercept &&
       is.null(initialParameters) &&
       (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
-    totalTime <- sum(statsList$intervals, na.rm = TRUE) +
-      sum(statsList$rightCensoredIntervals, na.rm = TRUE)
+    totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
+      sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
 
     nActors <- sum(presence1_init)
 

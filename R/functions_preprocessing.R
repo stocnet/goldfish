@@ -68,7 +68,7 @@ preprocess <- function(
   whichEventNoWindowEffect <- c(1, which(whichEventNoWindowEffect > 0))
 
   hasIgnoreRep <- any(ignoreRepParameter)
-  
+
   eventsMin <- min(vapply(
     events[whichEventNoWindowEffect],
     function(x) min(x$time),
@@ -757,7 +757,7 @@ ReduceUpdateNonDuplicates <- function(oldUpdates, newUpdates) {
   } else if (!is.null(oldUpdates)) {
     idsOld <- paste(oldUpdates[, "node1"], oldUpdates[, "node2"], sep = "_")
     idsNew <- paste(newUpdates[, "node1"], newUpdates[, "node2"], sep = "_")
-    
+
     return(rbind(
       oldUpdates[!idsOld %in% idsNew, , drop = FALSE],
       newUpdates

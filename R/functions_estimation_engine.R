@@ -169,8 +169,8 @@ estimate_int <- function(
   if (modelType %in% c("REM", "DyNAM-M-Rate") && hasIntercept &&
       is.null(initialParameters) &&
       (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
-    totalTime <- sum(statsList$intervals, na.rm = TRUE) +
-      sum(statsList$rightCensoredIntervals, na.rm = TRUE)
+    totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
+      sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
 
     nActors <- sum(presence)
 
@@ -819,7 +819,7 @@ getIterationStepState <- function(
       }
       if (hasIntercept) {
         time <- time + statsList$rightCensoredIntervals[[irc]]
-        timespan <- statsList$rightCensoredIntervals[[irc]]  
+        timespan <- statsList$rightCensoredIntervals[[irc]]
       }
 
       activeDyad <- NULL
@@ -947,7 +947,7 @@ getIterationStepState <- function(
       parameters = parameters,
       modelType = modelType,
       isRightCensored = isRightCensored,
-      timespan = timespan, 
+      timespan = timespan,
       allowReflexive = allowReflexive,
       isTwoMode = isTwoMode
     )

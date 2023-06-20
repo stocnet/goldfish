@@ -27,7 +27,7 @@ test_that(
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
-    
+
     expect_equal(vcov(modR), vcov(modCd))
     expect_equal(vcov(modR), vcov(modCgc))
   }
@@ -60,7 +60,7 @@ test_that(
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
-    
+
     expect_equal(vcov(modR), vcov(modCd))
     expect_equal(vcov(modR), vcov(modCgc))
   }
@@ -94,7 +94,7 @@ test_that(
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
-    
+
     expect_equal(vcov(modR), vcov(modCd))
     expect_equal(vcov(modR), vcov(modCgc))
   }
@@ -124,7 +124,7 @@ test_that(
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
-    
+
     expect_equal(vcov(modR), vcov(modCd))
     expect_equal(vcov(modR), vcov(modCgc))
   }
@@ -154,7 +154,7 @@ test_that(
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
-    
+
     expect_equal(vcov(modR), vcov(modCd))
     expect_equal(vcov(modR), vcov(modCgc))
   }
@@ -188,7 +188,7 @@ test_that(
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
-    
+
     expect_equal(vcov(modR), vcov(modCd))
     expect_equal(vcov(modR), vcov(modCgc))
   }
