@@ -28,6 +28,7 @@ preprocess <- function(
   events,
   effects,
   windowParameters,
+  ignoreRepParameter,
   eventsObjectsLink,
   eventsEffectsLink,
   objectsEffectsLink,
@@ -66,6 +67,8 @@ preprocess <- function(
   whichEventNoWindowEffect <- rowSums(!is.na(whichEventNoWindowEffect))
   whichEventNoWindowEffect <- c(1, which(whichEventNoWindowEffect > 0))
 
+  hasIgnoreRep <- any(ignoreRepParameter)
+  
   eventsMin <- min(vapply(
     events[whichEventNoWindowEffect],
     function(x) min(x$time),

@@ -74,7 +74,8 @@ inline arma::mat reduce_mat_to_vector(
      // update stat_mat
      if (is_dependent(id_event)) {
        while (stat_mat_update_id < stat_mat_update_pointer(id_dep_event)) {
-         stat_mat(stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
+         stat_mat(
+           stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
            stat_mat_update(1, stat_mat_update_id),
            stat_mat_update(2, stat_mat_update_id))
          = stat_mat_update(3, stat_mat_update_id);

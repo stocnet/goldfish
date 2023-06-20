@@ -28,7 +28,7 @@ estimate_c_int <- function(
   allowReflexive = FALSE,
   isTwoMode = FALSE,
   # additional parameter for DyNAM-M-Rate
-  addInterceptEffect = FALSE,
+  hasIntercept = FALSE,
   returnIntervalLogL = FALSE,
   parallelize = FALSE,
   cpus = 6,
@@ -46,10 +46,10 @@ estimate_c_int <- function(
   # CHANGED MARION
   # nParams: number of effects + 1 (if has intercept)
   nParams <- dim(statsList$initialStats)[3] - length(excludeParameters) +
-    addInterceptEffect
+    hasIntercept
   #
   parameters <- initialParameters
-  if (is.null(initialParameters)) parameters <- rep(0, nParams)
+  if (is.null(initialParameters)) parameters <- numeric(nParams)
   # deal with fixedParameters
   idUnfixedCompnents <- seq_len(nParams)
   idFixedCompnents <- NULL
@@ -70,9 +70,9 @@ estimate_c_int <- function(
     idUnfixedCompnents <- which(is.na(fixedParameters))
     idFixedCompnents <- which(!is.na(fixedParameters))
   }
+
   modelTypeCall <- match.arg(modelTypeCall)
   engine <- match.arg(engine)
-  # modelTypeCall <- modelType
 
   ## PARAMETER CHECKS
 
@@ -115,11 +115,13 @@ estimate_c_int <- function(
   # CHANGED MARION: updated function
   # for rate model with intercept, add a table of all 1 to the
   #  statsList$initStats
-  statsList <- modifyStatisticsList(statsList, modelTypeCall,
+  statsList <- modifyStatisticsList(
+    statsList = statsList,
+    modelType = modelTypeCall,
     reduceMatrixToVector = reduceMatrixToVector,
     reduceArrayToMatrix = reduceArrayToMatrix,
     excludeParameters = excludeParameters,
-    addInterceptEffect = addInterceptEffect
+    addInterceptEffect = hasIntercept
   )
 
   # CHANGED MARION: handle composition changes
@@ -135,80 +137,105 @@ estimate_c_int <- function(
   ]
   hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
 
-  compChange1 <- NULL
-  compChange2 <- NULL
-  if (hasCompChange1) compChange1 <- get(compChangeName1, envir = prepEnvir)
-  if (hasCompChange2) compChange2 <- get(compChangeName2, envir = prepEnvir)
+  ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
+  if (hasCompChange1) {
+    compChange1 <- get(compChangeName1, envir = prepEnvir)
+    compChange1 <- sanitizeEvents(compChange1, nodes)
+    temp <- C_convert_composition_change(compChange1, statsList$eventTime)
+    presence1_update <- temp$presenceUpdate
+    presence1_update_pointer <- temp$presenceUpdatePointer
+  } else {
+    compChange1 <- NULL
+    presence1_update <- matrix(0, 0, 0)
+    presence1_update_pointer <- numeric(1)
+  }
+  
+  if (hasCompChange2) {
+    compChange2 <- get(compChangeName2, envir = prepEnvir)
+    compChange2 <- sanitizeEvents(compChange2, nodes2)
+    temp <- C_convert_composition_change(compChange2, statsList$eventTime)
+    presence2_update <- temp$presenceUpdate
+    presence2_update_pointer <- temp$presenceUpdatePointer
+  } else {
+    compChange2 <- NULL
+    presence2_update <- matrix(0, 0, 0)
+    presence2_update_pointer <- numeric(1)
+  }
+  
+  if (!is.null(nodes$present)) {
+    presence1_init <- nodes$present
+  } else {
+    presence1_init <- rep(TRUE, nrow(nodes))
+  }
+  if (!is.null(nodes2$present)) {
+    presence2_init <- nodes2$present
+  } else {
+    presence2_init <- rep(TRUE, nrow(nodes2))
+  }
 
   nEvents <- length(statsList$orderEvents)
 
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
-  if (modelTypeCall %in% c("REM","DyNAM-M-Rate") && addInterceptEffect) {
-    totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
-      sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
+  if (modelTypeCall %in% c("REM","DyNAM-M-Rate") && hasIntercept &&
+      is.null(initialParameters) &&
+      (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
+    totalTime <- sum(statsList$intervals, na.rm = TRUE) +
+      sum(statsList$rightCensoredIntervals, na.rm = TRUE)
 
-    if (!is.null(nodes$present)) {
-      nActors <- length(which(nodes$present == TRUE))
-    } else {
-      nActors <- dim(nodes)[1]
-    }
+    nActors <- sum(presence1_init)
 
     if (hasCompChange1) {
-    # CHANGED MARION: remove the use of the events object
-    time <- statsList$eventTime[[1]]
-    previoustime <- time
-    currentInterval <- 1
-    currentRCInterval <- 1
-    nAvgActors <- 0
+      # CHANGED MARION: remove the use of the events object
+      time <- statsList$startTime
+      previoustime <- -Inf
+      currentInterval <- 1
+      currentRCInterval <- 1
+      nAvgActors <- 0
 
-    for (i in 1:nEvents) {
-      previoustime <- time
-      if (statsList$orderEvents[[i]] == 1) {
-        time <- time + statsList$intervals[[currentInterval]]
-        currentInterval <- currentInterval + 1
-      } else {
-        time <- time + statsList$rightCensoredIntervals[[currentRCInterval]]
-        currentRCInterval <- currentRCInterval + 1
+      for (i in seq_len(nEvents)) {
+        if (statsList$orderEvents[[i]] == 1) {
+          time <- time + statsList$intervals[[currentInterval]]
+          currentInterval <- currentInterval + 1
+        } else {
+          time <- time + statsList$rightCensoredIntervals[[currentRCInterval]]
+          currentRCInterval <- currentRCInterval + 1
+        }
+
+        changesAtTime <- compChange1$replace[
+          intersect(
+            which(compChange1$time > previoustime),
+            which(compChange1$time <= time)
+          )
+        ]
+
+        # add new present actors and substract non-present
+        nActors <- nActors + sum(changesAtTime) - sum(!changesAtTime)
+        nAvgActors <- nAvgActors + nActors
+        previoustime <- time
       }
-
-      changesAtTime <- compChange1$replace[
-        intersect(
-          which(compChange1$time > previoustime),
-          which(compChange1$time <= time)
-        )
-      ]
-
-      # add new present actors and substract non-present
-      nActors <- nActors + sum(changesAtTime) - sum(!changesAtTime)
-      nAvgActors <- nAvgActors + nActors
-    }
-    nAvgActors <- nAvgActors / nEvents
+      nAvgActors <- nAvgActors / nEvents
     } else {
       nAvgActors <- nActors
     }
 
-    if (is.null(initialParameters) &&
-        (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
-      # log crude rate event, estimate when not covariates
-      initialInterceptEstimate <- log(nEvents / totalTime / nAvgActors)
-      parameters[1] <- initialInterceptEstimate
-    }
+    # log crude rate event, estimate when not covariates
+    initialInterceptEstimate <- log(nEvents / totalTime / nAvgActors)
+    parameters[1] <- initialInterceptEstimate
   }
-
   ## SET VARIABLES BASED ON STATSLIST
   twomode_or_reflexive <- (allowReflexive || isTwoMode)
   n_parameters <- dim(statsList$initialStats)[3]
   n_actors1 <- dim(statsList$initialStats)[1]
-  n_actors2 <- nActors <- dim(statsList$initialStats)[2]
+  n_actors2 <- dim(statsList$initialStats)[2]
 
 
   ## CONVERT UPDATES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
   temp <- convert_change(statsList$dependentStatsChange)
   stat_mat_update <- temp$statMatUpdate
   stat_mat_update_pointer <- temp$statMatUpdatePointer
-  if (addInterceptEffect) {
+  if (hasIntercept) {
     stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
   }
   # Convert the right-censored events
@@ -221,43 +248,10 @@ estimate_c_int <- function(
     temp <- convert_change(statsList$rightCensoredStatsChange)
     stat_mat_rightcensored_update <- temp$statMatUpdate
     stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
-    if (addInterceptEffect) {
+    if (hasIntercept) {
       stat_mat_rightcensored_update[3, ] <-
         stat_mat_rightcensored_update[3, ] + 1
     }
-  }
-
-  ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  if (hasCompChange1) {
-    compChange1 <- sanitizeEvents(compChange1, nodes)
-    temp <- C_convert_composition_change(compChange1, statsList$eventTime)
-    presence1_update <- temp$presenceUpdate
-    presence1_update_pointer <- temp$presenceUpdatePointer
-  } else {
-    presence1_update <- matrix(0, 0, 0)
-    presence1_update_pointer <- numeric(1)
-  }
-
-  if (hasCompChange1) {
-    compChange2 <- sanitizeEvents(compChange2, nodes2)
-    temp <- C_convert_composition_change(compChange2, statsList$eventTime)
-    presence2_update <- temp$presenceUpdate
-    presence2_update_pointer <- temp$presenceUpdatePointer
-  } else {
-    presence2_update <- matrix(0, 0, 0)
-    presence2_update_pointer <- numeric(1)
-  }
-
-  if (!is.null(nodes$present)) {
-    presence1_init <- nodes$present
-  } else {
-    presence1_init <- rep(TRUE, nrow(nodes))
-  }
-
-  if (!is.null(nodes2$present)) {
-    presence2_init <- nodes2$present
-  } else {
-    presence2_init <- rep(TRUE, nrow(nodes2))
   }
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED
@@ -267,6 +261,9 @@ estimate_c_int <- function(
     timespan <- numeric(length(is_dependent))
     timespan[is_dependent] <- statsList$intervals
     timespan[!is_dependent] <- statsList$rightCensoredIntervals
+  } else if (modelTypeCall %in%
+             c("DyNAM-M-Rate-ordered", "REM-ordered", "DyNAM-MM")) {
+    is_dependent <- statsList$orderEvents == 1
   } else {
     timespan <- NA
   }

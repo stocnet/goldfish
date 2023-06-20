@@ -39,8 +39,6 @@ List gather_receiver_model(
     int n_events = dep_event_mat.n_cols;
     int n_parameters = stat_mat.n_cols;
     // declare auxilliary variables
-    arma::rowvec average_effect_current_event(n_parameters);
-    arma::mat hessian_current_event(n_parameters, n_parameters);
     int stat_mat_update_id = 0;
     int n_total = 0;
     // to check(gutian): deal with composition change of actors1
