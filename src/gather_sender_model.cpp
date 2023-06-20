@@ -161,9 +161,9 @@ inline arma::mat reduce_mat_to_vector(
            chosens(id_event) = n_present;
            id_dep_event++;
          }
+         n_total++;
+         n_present++;
        }
-       n_total++;
-       n_present++;
      }
      n_presence(id_event) = n_present;
      if (2 * n_total > size_stat_all_events) {
@@ -180,10 +180,6 @@ inline arma::mat reduce_mat_to_vector(
      Named("selected") = chosens
    );
  }
- 
- 
- 
- 
  
  inline arma::mat reduce_mat_to_vector(
      const arma::mat& stat_mat,

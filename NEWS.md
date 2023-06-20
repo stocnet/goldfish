@@ -5,7 +5,7 @@
 * Clean unnecessary functions imports.
 * Solves `aes_string()` deprecation.
 * Solves issue on `C++` engine on DyNAM-rate.
-* Enforcing a 80-character line length.
+* Enforcing a 80-character line length on C++ code.
 * Complain to code style.
 
 # goldfish 1.6.4
