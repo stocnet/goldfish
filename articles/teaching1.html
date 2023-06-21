@@ -40,7 +40,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.4</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.5</span>
       </span>
     </div>
 
@@ -113,8 +113,11 @@
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>DyNAM: How to start</h1>
-            <h3 data-toc-skip class="subtitle">Dynamic Network Actor Models using the goldfish package</h3>
-                        <h4 data-toc-skip class="author">Christoph Stadtfeld, James Hollway, Marion Hoffman, Alvaro Uzaheta, Kieran Mepham, Timon Elmer, Mirko Reul</h4>
+            <h3 data-toc-skip class="subtitle">Dynamic Network Actor
+Models using the goldfish package</h3>
+                        <h4 data-toc-skip class="author">Christoph
+Stadtfeld, James Hollway, Marion Hoffman, Alvaro Uzaheta, Kieran Mepham,
+Timon Elmer, Mirko Reul</h4>
             
       
       <small class="dont-index">Source: <a href="https://github.com/snlab-ch/goldfish/blob/HEAD/vignettes/teaching1.Rmd" class="external-link"><code>vignettes/teaching1.Rmd</code></a></small>
@@ -124,14 +127,23 @@
 
     
     
-<p>Example script analyzing the MIT Social Evolution data with <code>R</code>’s <code>goldfish</code> package. Models inspired by section 7 of:</p>
+<p>Example script analyzing the MIT Social Evolution data with
+<code>R</code>’s <code>goldfish</code> package. Models inspired by
+section 7 of:</p>
 <blockquote>
-<p>Stadtfeld &amp; Block (2017), “Interactions, Actors and Time: Dynamic Network Actor Models for Relational Events”, Sociological Science, 2017, 4(1): 318-352. DOI: 10.15195/v4.a14</p>
+<p>Stadtfeld &amp; Block (2017), “Interactions, Actors and Time: Dynamic
+Network Actor Models for Relational Events”, Sociological Science, 2017,
+4(1): 318-352. DOI: 10.15195/v4.a14</p>
 </blockquote>
 <div class="section level2">
 <h2 id="step-0-load-package-and-data">Step 0: Load package and data<a class="anchor" aria-label="anchor" href="#step-0-load-package-and-data"></a>
 </h2>
-<p>First, we load the <code>goldfish</code> package and load the data. The data is loaded using lazy loading, i.e., the objects are only ‘promised’ for the moment, but are available in the environment to be used, and more information will appear as you use them. You can find out more about this dataset, its format, and its origins in a couple of ERGM papers by callings its documentation:</p>
+<p>First, we load the <code>goldfish</code> package and load the data.
+The data is loaded using lazy loading, i.e., the objects are only
+‘promised’ for the moment, but are available in the environment to be
+used, and more information will appear as you use them. You can find out
+more about this dataset, its format, and its origins in a couple of ERGM
+papers by callings its documentation:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://snlab-ch.github.io/goldfish/">goldfish</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"Social_Evolution"</span><span class="op">)</span></span>
@@ -156,7 +168,9 @@
 <div class="section level2">
 <h2 id="preamble-run-a-quick-dynam-in-five-lines">Preamble: Run a quick DyNAM in five lines<a class="anchor" aria-label="anchor" href="#preamble-run-a-quick-dynam-in-five-lines"></a>
 </h2>
-<p>We use <code>R</code> version 4.2.0 to compile the vignettes. The native pipe operator is available in <code>R</code> from version 4.1.0.</p>
+<p>We use <code>R</code> version 4.2.0 to compile the vignettes. The
+native pipe operator is available in <code>R</code> from version
+4.1.0.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="co"># 1</span></span>
 <span>  <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span>changeEvent <span class="op">=</span> <span class="va">calls</span>, nodes <span class="op">=</span> <span class="va">actors</span><span class="op">)</span> <span class="co"># 2</span></span>
@@ -227,7 +241,8 @@
 <div class="section level3">
 <h3 id="step-1a-define-node-sets-and-attributes">Step 1a: Define node set(s) and attributes<a class="anchor" aria-label="anchor" href="#step-1a-define-node-sets-and-attributes"></a>
 </h3>
-<p>We’ve loaded a dataset that defines its nodes and their attributes as a data frame. Let’s check what we have first.</p>
+<p>We’ve loaded a dataset that defines its nodes and their attributes as
+a data frame. Let’s check what we have first.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="va">actors</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "data.frame"</span></span>
@@ -239,8 +254,13 @@
 <span><span class="co">#&gt; 4 Actor 4    TRUE     2         2</span></span>
 <span><span class="co">#&gt; 5 Actor 5    TRUE     4         1</span></span>
 <span><span class="co">#&gt; 6 Actor 6    TRUE     4         2</span></span></code></pre></div>
-<p>Note that there are four column variables: <code>label</code> the identifier, <code>present</code>, the <code>floor</code> of residence, and <code>gradeType</code> their educational level (1 = freshmen to 5 = graduate). All of these columns will be recognized as individual attributes by goldfish.</p>
-<p>We need to define them as nodes so that <code>goldfish</code> knows what to do with them.</p>
+<p>Note that there are four column variables: <code>label</code> the
+identifier, <code>present</code>, the <code>floor</code> of residence,
+and <code>gradeType</code> their educational level (1 = freshmen to 5 =
+graduate). All of these columns will be recognized as individual
+attributes by goldfish.</p>
+<p>We need to define them as nodes so that <code>goldfish</code> knows
+what to do with them.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">actors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNodes.html">defineNodes</a></span><span class="op">(</span><span class="va">actors</span><span class="op">)</span></span>
 <span><span class="va">actors</span></span>
@@ -255,12 +275,15 @@
 <span><span class="co">#&gt; 4 Actor 4    TRUE     2         2</span></span>
 <span><span class="co">#&gt; 5 Actor 5    TRUE     4         1</span></span>
 <span><span class="co">#&gt; 6 Actor 6    TRUE     4         2</span></span></code></pre></div>
-<p>As you can see, the structure is the same, so we can still treat it like a data frame, but the added class helps goldfish interpret the data frame correctly.</p>
+<p>As you can see, the structure is the same, so we can still treat it
+like a data frame, but the added class helps goldfish interpret the data
+frame correctly.</p>
 </div>
 <div class="section level3">
 <h3 id="step-1b-define-networks">Step 1b: Define networks<a class="anchor" aria-label="anchor" href="#step-1b-define-networks"></a>
 </h3>
-<p>Next we want to define the dyadic or network elements: calls between our actors.</p>
+<p>Next we want to define the dyadic or network elements: calls between
+our actors.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">calls</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         time   sender receiver increment</span></span>
@@ -270,13 +293,17 @@
 <span><span class="co">#&gt; 4 1221785882 Actor 43 Actor 22         1</span></span>
 <span><span class="co">#&gt; 5 1221787264 Actor 43 Actor 55         1</span></span>
 <span><span class="co">#&gt; 6 1221848443 Actor 43 Actor 51         1</span></span></code></pre></div>
-<p>Note there are columns for <code>time</code>, <code>sender</code>, and <code>receiver</code>. <code>increment</code> is a reserved column.</p>
+<p>Note there are columns for <code>time</code>, <code>sender</code>,
+and <code>receiver</code>. <code>increment</code> is a reserved
+column.</p>
 <p>To tell goldfish this is a network, we must define it as such:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="op">?</span><span class="va">defineNetwork</span></span></code></pre></div>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p>The argument <code>directed</code> is <code>TRUE</code> by default, but we need to specify the nodes so that <code>goldfish</code> can check for consistency and relate it to that nodeset as needed.</p>
+<p>The argument <code>directed</code> is <code>TRUE</code> by default,
+but we need to specify the nodes so that <code>goldfish</code> can check
+for consistency and relate it to that nodeset as needed.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">callNetwork</span></span>
 <span><span class="co">#&gt; Dimensions: 84 84 </span></span>
@@ -293,8 +320,18 @@
 <span><span class="co">#&gt;   Actor 4       0       0       0       0       0       0</span></span>
 <span><span class="co">#&gt;   Actor 5       0       0       0       0       0       0</span></span>
 <span><span class="co">#&gt;   Actor 6       0       0       0       0       0       0</span></span></code></pre></div>
-<p>Note that we have not added any network data yet. By default, <code><a href="../reference/defineNetwork.html">defineNetwork()</a></code> just constructs an empty matrix with dimensions defined by the length of the nodeset(s). So we have an empty network as a starting state.</p>
-<p>Now that goldfish recognizes the matrix as a network, we can also associate an event list that updates it. To do this we use the <code><a href="../reference/linkEvents.html">linkEvents()</a></code> function, which requires us to identify a goldfish object to be updated, the events that update it and, in this case, also the nodes that the events should relate to. <code>goldfish</code> checks the consistency of all this information and relates these objects to one another so that information can be called as needed.</p>
+<p>Note that we have not added any network data yet. By default,
+<code><a href="../reference/defineNetwork.html">defineNetwork()</a></code> just constructs an empty matrix with
+dimensions defined by the length of the nodeset(s). So we have an empty
+network as a starting state.</p>
+<p>Now that goldfish recognizes the matrix as a network, we can also
+associate an event list that updates it. To do this we use the
+<code><a href="../reference/linkEvents.html">linkEvents()</a></code> function, which requires us to identify a
+goldfish object to be updated, the events that update it and, in this
+case, also the nodes that the events should relate to.
+<code>goldfish</code> checks the consistency of all this information and
+relates these objects to one another so that information can be called
+as needed.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="op">?</span><span class="va">linkEvents</span></span></code></pre></div>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
@@ -318,7 +355,13 @@
 <div class="section level4">
 <h4 id="task">Task<a class="anchor" aria-label="anchor" href="#task"></a>
 </h4>
-<p>You should now be able to do the same with the friendship nomination network/event list. See the familiar columns <code>time</code>, <code>sender</code>, and <code>receiver</code>. The new column, <code>replace</code>, is an alternative treatment to <code>increment</code>. When an event occurs, goldfish will replace the value in the relevant cell with the value in this column instead of incrementing it. Friendship is thus a binary network.</p>
+<p>You should now be able to do the same with the friendship nomination
+network/event list. See the familiar columns <code>time</code>,
+<code>sender</code>, and <code>receiver</code>. The new column,
+<code>replace</code>, is an alternative treatment to
+<code>increment</code>. When an event occurs, goldfish will replace the
+value in the relevant cell with the value in this column instead of
+incrementing it. Friendship is thus a binary network.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">friendship</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         time   sender receiver replace</span></span>
@@ -330,8 +373,8 @@
 <span><span class="co">#&gt; 7 1220918400 Actor 49 Actor 40       1</span></span>
 <span><span class="va">friendshipNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">friendshipNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span></span>
-<span>  x <span class="op">=</span> <span class="va">friendshipNetwork</span>, </span>
-<span>  changeEvents <span class="op">=</span> <span class="va">friendship</span>, </span>
+<span>  x <span class="op">=</span> <span class="va">friendshipNetwork</span>,</span>
+<span>  changeEvents <span class="op">=</span> <span class="va">friendship</span>,</span>
 <span>  nodes <span class="op">=</span> <span class="va">actors</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="va">friendshipNetwork</span></span>
@@ -355,7 +398,10 @@
 <div class="section level3">
 <h3 id="step-1c-define-dependent-events">Step 1c: Define dependent events<a class="anchor" aria-label="anchor" href="#step-1c-define-dependent-events"></a>
 </h3>
-<p>The final step in defining the data objects is to identify the dependent events. Here we would like to model as the dependent variable the calls between individuals. We specify the event list and the node list.</p>
+<p>The final step in defining the data objects is to identify the
+dependent events. Here we would like to model as the dependent variable
+the calls between individuals. We specify the event list and the node
+list.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="op">?</span><span class="va">defineDependentEvents</span></span></code></pre></div>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
@@ -379,14 +425,22 @@
 <div class="section level4">
 <h4 id="intermediate-step-visualization">Intermediate step: Visualization<a class="anchor" aria-label="anchor" href="#intermediate-step-visualization"></a>
 </h4>
-<p>While not a required part of the modeling process, we highly recommend the visualization of your data for analytic and diagnostic purposes. <code>goldfish</code> includes wrappers for base <code>R</code> commands to help extract monadic and dyadic information for certain time points, <code><a href="../reference/update-method.html">?as.data.frame.nodes.goldfish</a></code> and <code><a href="../reference/update-method.html">?as.matrix.network.goldfish</a></code> .</p>
-<p>We can use these functions to visually compare our network at two (or more) different time periods using <code>migraph</code>. See the <code>migraph</code> package documentation for additional information about network visualization.</p>
+<p>While not a required part of the modeling process, we highly
+recommend the visualization of your data for analytic and diagnostic
+purposes. <code>goldfish</code> includes wrappers for base
+<code>R</code> commands to help extract monadic and dyadic information
+for certain time points, <code><a href="../reference/update-method.html">?as.data.frame.nodes.goldfish</a></code> and
+<code><a href="../reference/update-method.html">?as.matrix.network.goldfish</a></code>.</p>
+<p>We can use these functions to visually compare our network at two (or
+more) different time periods using <code>migraph</code>. See the
+<code>migraph</code> package documentation for additional information
+about network visualization.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggraph.data-imaginist.com" class="external-link">ggraph</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/snlab-ch/migraph" class="external-link">migraph</a></span><span class="op">)</span></span>
 <span><span class="co"># The network at the beginning</span></span>
 <span><span class="va">callNetworkBgn</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/migraph/man/autographr.html" class="external-link">autographr</a></span><span class="op">(</span><span class="va">callNetworkBgn</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/pkg/manynet/man/auto_graph.html" class="external-link">autographr</a></span><span class="op">(</span><span class="va">callNetworkBgn</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span></code></pre></div>
 <div class="figure">
 <img src="teaching/plot-teaching1-1.png" alt=""><p class="caption">plot of chunk plot-teaching1</p>
 </div>
@@ -394,10 +448,10 @@
 <code class="sourceCode R"><span></span>
 <span><span class="co"># The network at half time</span></span>
 <span><span class="va">callNetworkHlf</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">callNetwork</span>,</span>
-<span>                            time <span class="op">=</span> <span class="va">calls</span><span class="op">$</span><span class="va">time</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">calls</span><span class="op">)</span> <span class="op">/</span> <span class="fl">2</span><span class="op">)</span><span class="op">]</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"floor"</span>, <span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span>
+<span>                            time <span class="op">=</span> <span class="va">calls</span><span class="op">$</span><span class="va">time</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">calls</span><span class="op">)</span> <span class="op">/</span> <span class="fl">2</span><span class="op">)</span><span class="op">]</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/manynet/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"floor"</span>, <span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/migraph/man/autographr.html" class="external-link">autographr</a></span><span class="op">(</span><span class="va">callNetworkHlf</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/manynet/man/auto_graph.html" class="external-link">autographr</a></span><span class="op">(</span><span class="va">callNetworkHlf</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggraph.data-imaginist.com/reference/geom_node_point.html" class="external-link">geom_node_point</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">floor</span><span class="op">)</span><span class="op">)</span>, size <span class="op">=</span> <span class="fl">2</span>, show.legend <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <div class="figure">
 <img src="teaching/plot-teaching1-2.png" alt=""><p class="caption">plot of chunk plot-teaching1</p>
@@ -405,10 +459,10 @@
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># The network at the end</span></span>
-<span><span class="va">callNetworkEnd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">callNetwork</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">calls</span><span class="op">$</span><span class="va">time</span><span class="op">)</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"floor"</span>, <span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span>
+<span><span class="va">callNetworkEnd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">callNetwork</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">calls</span><span class="op">$</span><span class="va">time</span><span class="op">)</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/manynet/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"floor"</span>, <span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/migraph/man/autographr.html" class="external-link">autographr</a></span><span class="op">(</span><span class="va">callNetworkEnd</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/manynet/man/auto_graph.html" class="external-link">autographr</a></span><span class="op">(</span><span class="va">callNetworkEnd</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggraph.data-imaginist.com/reference/geom_node_point.html" class="external-link">geom_node_point</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">floor</span><span class="op">)</span><span class="op">)</span>, size <span class="op">=</span> <span class="fl">2</span>, show.legend <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <div class="figure">
 <img src="teaching/plot-teaching1-3.png" alt=""><p class="caption">plot of chunk plot-teaching1</p>
@@ -427,30 +481,41 @@
 <div class="section level2">
 <h2 id="step-2-specify-and-estimate-model">Step 2: Specify and estimate model<a class="anchor" aria-label="anchor" href="#step-2-specify-and-estimate-model"></a>
 </h2>
-<p>The second step is to specify and fit a model to this data. This step can be broken up into several stages:</p>
+<p>The second step is to specify and fit a model to this data. This step
+can be broken up into several stages:</p>
 <ul>
-<li><p><strong>Step 2a</strong>. <em>Formula</em>: Specify a model formula from the effects and variables available</p></li>
-<li><p><strong>Step 2b</strong>. <em>Preprocessing</em>: Calculate the change statistics associated with these effects</p></li>
-<li><p><strong>Step 2c</strong>. <em>Estimation</em>: Fit an appropriate model to these statistics</p></li>
+<li><p><strong>Step 2a</strong>. <em>Formula</em>: Specify a model
+formula from the effects and variables available</p></li>
+<li><p><strong>Step 2b</strong>. <em>Preprocessing</em>: Calculate the
+change statistics associated with these effects</p></li>
+<li><p><strong>Step 2c</strong>. <em>Estimation</em>: Fit an appropriate
+model to these statistics</p></li>
 </ul>
-<p>However, in goldfish we also have the option of accelerating this process and using memory more efficiently by combining these three sub-steps in one. Nonetheless, it can be helpful to think of 2a separately, and recognize steps 2b and 2c as goldfish does them.</p>
+<p>However, in goldfish we also have the option of accelerating this
+process and using memory more efficiently by combining these three
+sub-steps in one. Nonetheless, it can be helpful to think of 2a
+separately, and recognize steps 2b and 2c as goldfish does them.</p>
 <div class="section level3">
 <h3 id="step-2a--formula">Step 2a. Formula<a class="anchor" aria-label="anchor" href="#step-2a--formula"></a>
 </h3>
 <p>We specify our model using the standard R formula format like:</p>
 <p><code>goldfish_dependent ~ effects(process_state_element)</code></p>
-<p>We can see which effects are currently available and how to specify them here:</p>
+<p>We can see which effects are currently available and how to specify
+them here:</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"goldfishEffects"</span><span class="op">)</span></span></code></pre></div>
 <p>Let’s start with the simplest model we can imagine:</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">simpleFormulaChoice</span> <span class="op">&lt;-</span> <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">tie</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span></span></code></pre></div>
-<p>What are we testing here? Do individuals call their friends more than non-friends?</p>
+<p>What are we testing here? Do individuals call their friends more than
+non-friends?</p>
 </div>
 <div class="section level3">
 <h3 id="step-2b-and-2c--preprocessing-and-estimation">Step 2b and 2c. Preprocessing and Estimation<a class="anchor" aria-label="anchor" href="#step-2b-and-2c--preprocessing-and-estimation"></a>
 </h3>
-<p>Now to estimate this model, we use the <code><a href="../reference/estimate.html">?estimate</a></code> function. For now, only need to worry about the <code>formula</code> and the <code>model</code>, <code>subModel</code> type (DyNAM-choice).</p>
+<p>Now to estimate this model, we use the <code><a href="../reference/estimate.html">?estimate</a></code>
+function. For now, only need to worry about the <code>formula</code> and
+the <code>model</code>, <code>subModel</code> type (DyNAM-choice).</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mod01Choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
 <span>  <span class="va">simpleFormulaChoice</span>,</span>
@@ -475,7 +540,8 @@
 <span><span class="co">#&gt;   AICc: 2579.4 </span></span>
 <span><span class="co">#&gt;   BIC:  2583.5 </span></span>
 <span><span class="co">#&gt;   model: "DyNAM" subModel: "choice"</span></span></code></pre></div>
-<p>Ok, as fascinating as that was, perhaps we can test how robust this finding is in the presence of plausible controls.</p>
+<p>Ok, as fascinating as that was, perhaps we can test how robust this
+finding is in the presence of plausible controls.</p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">complexFormulaChoice</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">inertia</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">recip</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
@@ -523,8 +589,10 @@
 <div class="section level4">
 <h4 id="rate-model">Rate model<a class="anchor" aria-label="anchor" href="#rate-model"></a>
 </h4>
-<p>How do individual properties affect the rate of action of individuals? (Step 1 of the model)</p>
-<p>Let us again define a simple formula that only depends on individuals’ degree in the friendship network</p>
+<p>How do individual properties affect the rate of action of
+individuals? (Step 1 of the model)</p>
+<p>Let us again define a simple formula that only depends on
+individuals’ degree in the friendship network</p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">simpleFormulaRate</span> <span class="op">&lt;-</span> <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span></span>
 <span><span class="va">mod01Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
@@ -534,10 +602,12 @@
 <div class="section level5">
 <h5 id="remark">Remark:<a class="anchor" aria-label="anchor" href="#remark"></a>
 </h5>
-<p>Sometimes, the default values for the algorithm are not enough to reach convergence. We can remedy this by increasing the number of iterations:</p>
+<p>Sometimes, the default values for the algorithm are not enough to
+reach convergence. We can remedy this by increasing the number of
+iterations:</p>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mod01Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
-<span>  <span class="va">simpleFormulaRate</span>, </span>
+<span>  <span class="va">simpleFormulaRate</span>,</span>
 <span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span>,</span>
 <span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>maxIterations <span class="op">=</span> <span class="fl">40</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
@@ -560,11 +630,12 @@
 <span><span class="co">#&gt;   AICc: 3738.3 </span></span>
 <span><span class="co">#&gt;   BIC:  3742.3 </span></span>
 <span><span class="co">#&gt;   model: "DyNAM" subModel: "rate"</span></span></code></pre></div>
-<p>What if we include additional structural effects? Let us add the in and out degree of the nodes in the call network</p>
+<p>What if we include additional structural effects? Let us add the in
+and out degree of the nodes in the call network</p>
 <div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">complexFormulaRate</span> <span class="op">&lt;-</span> </span>
-<span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">outdeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                   <span class="fu">indeg</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span> </span>
+<code class="sourceCode R"><span><span class="va">complexFormulaRate</span> <span class="op">&lt;-</span></span>
+<span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">outdeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
+<span>                   <span class="fu">indeg</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">mod02Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">complexFormulaRate</span>, model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod02Rate</span><span class="op">)</span></span>
@@ -598,7 +669,10 @@
 <div class="section level5">
 <h5 id="right-censored-intervals">Right-censored intervals<a class="anchor" aria-label="anchor" href="#right-censored-intervals"></a>
 </h5>
-<p>Recall that it is important to add a time intercept when estimating models with right-censored intervals (as discussed in Stadtfeld &amp; Block, 2017). Adding an intercept is as easy as including a 1 to the formula:</p>
+<p>Recall that it is important to add a time intercept when estimating
+models with right-censored intervals (as discussed in Stadtfeld &amp;
+Block, 2017). Adding an intercept is as easy as including a 1 to the
+formula:</p>
 <div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">interceptFormulaRate</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">outdeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
@@ -621,47 +695,59 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients :</span></span>
 <span><span class="co">#&gt;             Estimate Std. Error   z-value  Pr(&gt;|z|)    </span></span>
-<span><span class="co">#&gt; Intercept -14.335641   0.094257 -152.0912 &lt; 2.2e-16 ***</span></span>
-<span><span class="co">#&gt; indeg       0.568475   0.067244    8.4540 &lt; 2.2e-16 ***</span></span>
-<span><span class="co">#&gt; outdeg      0.314266   0.030898   10.1712 &lt; 2.2e-16 ***</span></span>
-<span><span class="co">#&gt; indeg       0.047770   0.015148    3.1535  0.001613 ** </span></span>
+<span><span class="co">#&gt; Intercept -14.380373   0.095669 -150.3135 &lt; 2.2e-16 ***</span></span>
+<span><span class="co">#&gt; indeg       0.695555   0.063115   11.0204 &lt; 2.2e-16 ***</span></span>
+<span><span class="co">#&gt; outdeg      0.234633   0.030153    7.7814 7.105e-15 ***</span></span>
+<span><span class="co">#&gt; indeg       0.054792   0.015049    3.6409 0.0002716 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   Converged with max abs. score of 0 </span></span>
-<span><span class="co">#&gt;   Log-Likelihood: -5984.3</span></span>
-<span><span class="co">#&gt;   AIC:  11977 </span></span>
-<span><span class="co">#&gt;   AICc: 11977 </span></span>
-<span><span class="co">#&gt;   BIC:  11993 </span></span>
+<span><span class="co">#&gt;   Log-Likelihood: -6003.1</span></span>
+<span><span class="co">#&gt;   AIC:  12014 </span></span>
+<span><span class="co">#&gt;   AICc: 12014 </span></span>
+<span><span class="co">#&gt;   BIC:  12031 </span></span>
 <span><span class="co">#&gt;   model: "DyNAM" subModel: "rate"</span></span></code></pre></div>
-<p>Note that <span class="math inline">\(1 / \exp({\beta_{intercept}})\)</span> is the waiting time without any covariates, or how long it takes to make the next phone call if everything else is set to 0. Therefore, the larger the intercept the shorter the waiting time. For example, an intercept of -14 means a waiting time of <span class="math inline">\(1 / e^{-14} = 334\)</span> hours. The baseline waiting time between two events in hours:</p>
+<p>Note that <span class="math inline">\(1 /
+\exp({\beta_{intercept}})\)</span> is the waiting time without any
+covariates, or how long it takes to make the next phone call if
+everything else is set to 0. Therefore, the larger the intercept the
+shorter the waiting time. For example, an intercept of -14 means a
+waiting time of <span class="math inline">\(1 / e^{-14} = 334\)</span>
+hours. The baseline waiting time between two events in hours:</p>
 <div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mod03RateCoef</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">mod03Rate</span><span class="op">)</span></span>
 <span><span class="fl">1</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">mod03RateCoef</span><span class="op">[[</span><span class="st">"Intercept"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> <span class="op">/</span> <span class="fl">3600</span></span>
-<span><span class="co">#&gt; [1] 467.291</span></span>
+<span><span class="co">#&gt; [1] 488.6682</span></span>
 <span><span class="co"># or days:</span></span>
 <span><span class="fl">1</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">mod03RateCoef</span><span class="op">[[</span><span class="st">"Intercept"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> <span class="op">/</span> <span class="fl">86400</span></span>
-<span><span class="co">#&gt; [1] 19.47046</span></span>
+<span><span class="co">#&gt; [1] 20.36118</span></span>
 <span></span>
 <span><span class="co"># But what if it is not just a random call?</span></span>
-<span><span class="co"># Expected waiting time of those who have five outgoing call ties (five different actors)</span></span>
+<span><span class="co"># Expected waiting time of those who have five outgoing call ties</span></span>
+<span><span class="co"># (five different actors)</span></span>
 <span><span class="fl">1</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span></span>
 <span>  <span class="va">mod03RateCoef</span><span class="op">[[</span><span class="st">"Intercept"</span><span class="op">]</span><span class="op">]</span> <span class="op">+</span> <span class="va">mod03RateCoef</span><span class="op">[[</span><span class="st">"outdeg"</span><span class="op">]</span><span class="op">]</span> <span class="op">*</span> <span class="fl">5</span></span>
 <span>  <span class="op">)</span> <span class="op">/</span> <span class="fl">3600</span></span>
-<span><span class="co">#&gt; [1] 97.08854</span></span>
-<span><span class="co"># Expected waiting time of those who have five outgoing and incoming call ties (five different actors)</span></span>
+<span><span class="co">#&gt; [1] 151.1872</span></span>
+<span><span class="co"># Expected waiting time of those who have five outgoing and incoming call ties</span></span>
+<span><span class="co"># (five different actors)</span></span>
 <span><span class="fl">1</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span></span>
 <span>  <span class="va">mod03RateCoef</span><span class="op">[[</span><span class="st">"Intercept"</span><span class="op">]</span><span class="op">]</span> <span class="op">+</span></span>
 <span>    <span class="va">mod03RateCoef</span><span class="op">[[</span><span class="st">"outdeg"</span><span class="op">]</span><span class="op">]</span> <span class="op">*</span> <span class="fl">5</span> <span class="op">+</span></span>
 <span>    <span class="va">mod03RateCoef</span><span class="op">[[</span><span class="st">"indeg"</span><span class="op">]</span><span class="op">]</span> <span class="op">*</span> <span class="fl">5</span></span>
 <span>  <span class="op">)</span> <span class="op">/</span> <span class="fl">3600</span></span>
-<span><span class="co">#&gt; [1] 5.658994</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 4.66806</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level4">
 <h4 id="windows">Windows<a class="anchor" aria-label="anchor" href="#windows"></a>
 </h4>
-<p>Remember our <code>callNetwork</code> process state accumulates actions in time, but some older actions may no longer be relevant to current action. Let’s see whether it is really just recent partners that matter by adding extra effects with a window of… how long? Let us try 5 minutes <span class="math inline">\(= 5 * 60 = 300s\)</span></p>
+<p>Remember our <code>callNetwork</code> process state accumulates
+actions in time, but some older actions may no longer be relevant to
+current action. Let’s see whether it is really just recent partners that
+matter by adding extra effects with a window of… how long? Let us try 5
+minutes <span class="math inline">\(= 5 * 60 = 300s\)</span></p>
 <div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">windowFormulaRate</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">outdeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
@@ -670,13 +756,12 @@
 <span>                   <span class="fu">indeg</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">mod04Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">windowFormulaRate</span>, model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod04Rate</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">#&gt; </span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod04Rate</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
 <span><span class="co">#&gt; estimate(x = callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) + </span></span>
 <span><span class="co">#&gt;     indeg(callNetwork, window = 300) + outdeg(callNetwork, window = 300) + </span></span>
-<span><span class="co">#&gt;     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate", </span></span>
-<span><span class="co">#&gt;     estimationInit = list(engine = "default"))</span></span>
+<span><span class="co">#&gt;     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details :</span></span>
@@ -704,9 +789,9 @@
 <span><span class="co">#&gt;   AIC:  10964 </span></span>
 <span><span class="co">#&gt;   AICc: 10964 </span></span>
 <span><span class="co">#&gt;   BIC:  10992 </span></span>
-<span><span class="co">#&gt;   model: "DyNAM" subModel: "rate"</span></span></code></pre>
+<span><span class="co">#&gt;   model: "DyNAM" subModel: "rate"</span></span></code></pre></div>
 <p>Of course, you can also add windows to the choice formula!</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">windowFormulaChoice</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">inertia</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">recip</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">inertia</span><span class="op">(</span><span class="va">callNetwork</span>, window <span class="op">=</span> <span class="fl">300</span><span class="op">)</span> <span class="op">+</span></span>
@@ -755,9 +840,12 @@
 <span><span class="co">#&gt;   AICc: 1148.1 </span></span>
 <span><span class="co">#&gt;   BIC:  1180.5 </span></span>
 <span><span class="co">#&gt;   model: "DyNAM" subModel: "choice"</span></span></code></pre></div>
-<p>All this shows you that you can specify different formula for the rate and choice components of the model. This is a key advantage of the DyNAM!</p>
-<p>When comparing the information criteria (AIC / BIC) of the different models, we see that the time windows explain a lot</p>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<p>All this shows you that you can specify different formula for the
+rate and choice components of the model. This is a key advantage of the
+DyNAM!</p>
+<p>When comparing the information criteria (AIC / BIC) of the different
+models, we see that the time windows explain a lot</p>
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Compare different specifications of the subModel = "choice"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">mod02Choice</span>, <span class="va">mod03Choice</span><span class="op">)</span></span>
 <span><span class="co">#&gt;             df      AIC</span></span>
@@ -768,30 +856,42 @@
 <span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">mod03Rate</span>, <span class="va">mod04Rate</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the same number of observations</span></span>
 <span><span class="co">#&gt;           df      AIC</span></span>
-<span><span class="co">#&gt; mod03Rate  4 11976.58</span></span>
+<span><span class="co">#&gt; mod03Rate  4 12014.20</span></span>
 <span><span class="co">#&gt; mod04Rate  6 10963.75</span></span></code></pre></div>
 </div>
 <div class="section level4">
 <h4 id="rem-with-goldfish">REM with <code>goldfish</code><a class="anchor" aria-label="anchor" href="#rem-with-goldfish"></a>
 </h4>
-<p><code>goldfish</code> does not only run DyNAMs; it also runs REMs (Butts, 2008). We can now also run REMs using the right-censored intervals as introduced in Stadtfeld &amp; Block (2017).</p>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<p><code>goldfish</code> does not only run DyNAMs; it also runs REMs
+(Butts, 2008). We can now also run REMs using the right-censored
+intervals as introduced in Stadtfeld &amp; Block (2017).</p>
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">allFormulaREM</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="fu">inertia</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">recip</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">inertia</span><span class="op">(</span><span class="va">callNetwork</span>, window <span class="op">=</span> <span class="fl">300</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">recip</span><span class="op">(</span><span class="va">callNetwork</span>, window <span class="op">=</span> <span class="fl">300</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">tie</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">recip</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gradeType</span><span class="op">)</span> <span class="op">+</span> <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span></code></pre></div>
-<p>And we can estimate this model, to speed up estimation, we can use any of the two <code>C</code> implementations of the estimation algorithm. Setting the option <code>engine</code> on the <code>estimationInit</code> argument, we can choose which version of the <code>C</code> code to use. <code>"default_c"</code> implements the same algorithm as the default one implemented in plain <code>R</code> code that reduces the memory use by exploiting the sparsity of the dyads that change the effects’ statistics after each event. <code>"gather_compute"</code> implements a version with an overhead of memory use, representing the data in a more usual tabular way but reducing time estimation.</p>
+<p>And we can estimate this model, to speed up estimation, we can use
+any of the two <code>C</code> implementations of the estimation
+algorithm. Setting the option <code>engine</code> on the
+<code>estimationInit</code> argument, we can choose which version of the
+<code>C</code> code to use. <code>"default_c"</code> implements the same
+algorithm as the default one implemented in plain <code>R</code> code
+that reduces the memory use by exploiting the sparsity of the dyads that
+change the effects’ statistics after each event.
+<code>"gather_compute"</code> implements a version with an overhead of
+memory use, representing the data in a more usual tabular way but
+reducing time estimation.</p>
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">mod01REM</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<span>  <span class="va">allFormulaREM</span>, model <span class="op">=</span> <span class="st">"REM"</span>,</span>
+<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>initialDamping <span class="op">=</span> <span class="fl">40</span>, engine <span class="op">=</span> <span class="st">"default_c"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mod01REM</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
 <span>  <span class="va">allFormulaREM</span>, model <span class="op">=</span> <span class="st">"REM"</span>,</span>
 <span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>engine <span class="op">=</span> <span class="st">"gather_compute"</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">mod01REM</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
-<span>  <span class="va">allFormulaREM</span>, model <span class="op">=</span> <span class="st">"REM"</span>,</span>
-<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>initialDamping <span class="op">=</span> <span class="fl">40</span>, engine <span class="op">=</span> <span class="st">"default_c"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod01REM</span><span class="op">)</span></span>
@@ -800,8 +900,7 @@
 <span><span class="co">#&gt; estimate(x = callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) + </span></span>
 <span><span class="co">#&gt;     inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) + </span></span>
 <span><span class="co">#&gt;     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + </span></span>
-<span><span class="co">#&gt;     same(actors$floor), model = "REM", estimationInit = list(initialDamping = 40, </span></span>
-<span><span class="co">#&gt;     engine = "default_c"))</span></span>
+<span><span class="co">#&gt;     same(actors$floor), model = "REM", estimationInit = list(engine = "gather_compute"))</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details :</span></span>
@@ -858,7 +957,7 @@
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.7.</p>
 </div>
 
       </footer>

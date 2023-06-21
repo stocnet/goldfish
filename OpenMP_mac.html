@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.4</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.5</span>
       </span>
     </div>
 
@@ -101,8 +101,10 @@ SHLIB_OPENMP_CXXFLAGS=-fopenmp
 SHLIB_OPENMP_FCFLAGS=-fopenmp
 SHLIB_OPENMP_FFLAGS=-fopenmp</code></pre>
 <p>If you do not have version 10 of <code>gcc</code>, replace all the 10s in the code above with your version number.</p>
-<ol start="5" style="list-style-type: decimal"><li>Go to <code>/Library/Frameworks/R.framework/Resources/etc/</code> and open the file <code>Makeconf</code>. Here you need to add the library path to <code>SHLIB_LIBADD</code>:</li></ol><pre><code><span><span class="va">SHLIB_LIBADD</span> <span class="op">=</span> <span class="op">-</span><span class="va">L</span><span class="op">/</span><span class="va">usr</span><span class="op">/</span><span class="va">local</span><span class="op">/</span><span class="va">lib</span></span></code></pre>
-<ol start="6" style="list-style-type: decimal"><li>Installing goldfish from source should work now. Otherwise get in contact with the developer team.</li></ol></div>
+<ol start="5" style="list-style-type: decimal"><li>Go to <code>/Library/Frameworks/R.framework/Resources/etc/</code> and open the file <code>Makeconf</code>. Here you need to add the library path to <code>SHLIB_LIBADD</code>:</li>
+</ol><pre><code><span><span class="va">SHLIB_LIBADD</span> <span class="op">=</span> <span class="op">-</span><span class="va">L</span><span class="op">/</span><span class="va">usr</span><span class="op">/</span><span class="va">local</span><span class="op">/</span><span class="va">lib</span></span></code></pre>
+<ol start="6" style="list-style-type: decimal"><li>Installing goldfish from source should work now. Otherwise get in contact with the developer team.</li>
+</ol></div>
 
   </div>
 
@@ -119,7 +121,7 @@ SHLIB_OPENMP_FFLAGS=-fopenmp</code></pre>
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.7.</p>
 </div>
 
       </footer></div>

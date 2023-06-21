@@ -40,7 +40,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.4</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.5</span>
       </span>
     </div>
 
@@ -113,8 +113,10 @@
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>DyNAM-i: an example script</h1>
-            <h3 data-toc-skip class="subtitle">Dynamic Network Actor Models for face-to-face interaction data</h3>
-                        <h4 data-toc-skip class="author">Marion Hoffman</h4>
+            <h3 data-toc-skip class="subtitle">Dynamic Network Actor
+Models for face-to-face interaction data</h3>
+                        <h4 data-toc-skip class="author">Marion
+Hoffman</h4>
             
             <h4 data-toc-skip class="date">2022-08-11</h4>
       
@@ -125,23 +127,34 @@
 
     
     
-<p>Example script analyzing the RFID validity study data (Elmer et al, 2019) with the DyNAM-i model of the <code>goldfish</code> package. Data received from:</p>
+<p>Example script analyzing the RFID validity study data (Elmer et al,
+2019) with the DyNAM-i model of the <code>goldfish</code> package. Data
+received from:</p>
 <blockquote>
-<p>Elmer, T., Chaitanya, K., Purwar, P., &amp; Stadtfeld, C. (2019). The validity of RFID badges measuring face-to-face interactions. Behavior research methods, 51(5), 2120-2138.</p>
+<p>Elmer, T., Chaitanya, K., Purwar, P., &amp; Stadtfeld, C. (2019). The
+validity of RFID badges measuring face-to-face interactions. Behavior
+research methods, 51(5), 2120-2138.</p>
 </blockquote>
 <p>Analyses inspired from:</p>
 <blockquote>
-<p>Hoffman, M., Block, P., Elmer, T., &amp; Stadtfeld, C. (2020). A model for the dynamics of face-to-face interactions in social groups. Network Science, 8(S1), S4-S25.</p>
+<p>Hoffman, M., Block, P., Elmer, T., &amp; Stadtfeld, C. (2020). A
+model for the dynamics of face-to-face interactions in social groups.
+Network Science, 8(S1), S4-S25.</p>
 </blockquote>
 <div class="section level2">
 <h2 id="step-0-load-package-and-data">Step 0: Load package and data<a class="anchor" aria-label="anchor" href="#step-0-load-package-and-data"></a>
 </h2>
-<p>First, we load the <code>goldfish</code> package and load the data. . You can find out more about this dataset and its format by callings its documentation.</p>
+<p>First, we load the <code>goldfish</code> package and load the data. .
+You can find out more about this dataset and its format by callings its
+documentation.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://snlab-ch.github.io/goldfish/">goldfish</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"RFID_Validity_Study"</span><span class="op">)</span></span>
 <span><span class="co">#?RFID_Validity_Study</span></span></code></pre></div>
-<p>The <code>participants</code> object contains the nodeset of actors interacting together. The available attributes are their age, their gender, their organizational unit (group), and their seniority level:</p>
+<p>The <code>participants</code> object contains the nodeset of actors
+interacting together. The available attributes are their age, their
+gender, their organizational unit (group), and their seniority
+level:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">participants</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##   actor  label present age gender group level</span></span>
@@ -151,7 +164,10 @@
 <span><span class="co">## 4     4 Actor4    TRUE  26      0     1     2</span></span>
 <span><span class="co">## 5     5 Actor5    TRUE  26      0     1     1</span></span>
 <span><span class="co">## 6     6 Actor6    TRUE  31      1     3     3</span></span></code></pre>
-<p>The <code>rfid</code> object contains the list of dyadic interactions collected via RFID badges. Each interaction is characterized by two actors (<code>NodeA</code> and <code>NodeB</code>) and two time points (<code>Start</code> and <code>End</code>):</p>
+<p>The <code>rfid</code> object contains the list of dyadic interactions
+collected via RFID badges. Each interaction is characterized by two
+actors (<code>NodeA</code> and <code>NodeB</code>) and two time points
+(<code>Start</code> and <code>End</code>):</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">rfid</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##   NodeA NodeB      Start        End</span></span>
@@ -161,7 +177,10 @@
 <span><span class="co">## 4    10     4 1491329895 1491329911</span></span>
 <span><span class="co">## 5    10     5 1491329895 1491329924</span></span>
 <span><span class="co">## 6     3     5 1491329902 1491329913</span></span></code></pre>
-<p>The <code>video</code> object contains the list of dyadic interactions collected via video recordings and has the same format as the <code>rfid</code> object. We know that these measures should be more reliable, so we will work with those data in this script!</p>
+<p>The <code>video</code> object contains the list of dyadic
+interactions collected via video recordings and has the same format as
+the <code>rfid</code> object. We know that these measures should be more
+reliable, so we will work with those data in this script!</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">video</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##    NodeA NodeB      Start        End</span></span>
@@ -171,17 +190,28 @@
 <span><span class="co">## 19     1     6 1491329893 1491329984</span></span>
 <span><span class="co">## 42     7     6 1491329893 1491330372</span></span>
 <span><span class="co">## 45    11     6 1491329893 1491330372</span></span></code></pre>
-<p>Finally, the <code>known.before</code> matrix indicates which actors knew each other before the event.</p>
+<p>Finally, the <code>known.before</code> matrix indicates which actors
+knew each other before the event.</p>
 <div class="section level4">
 <h4 id="step-1-create-groups-and-interaction-events">Step 1: Create groups and interaction events<a class="anchor" aria-label="anchor" href="#step-1-create-groups-and-interaction-events"></a>
 </h4>
-<p>Before specifying the model, we need to set the data in the right format for DyNAM-i: We had a list of dyadic interactions, but DyNAM-i is specifically meant for group interactions. More specifically, the model is designed for events of actors joining or leavin interaction groups. We can use this function to create these group events (please note we need to use the right labels in the dataframe: <code>NodeA</code>, <code>NodeB</code>,<code>Start</code>, and <code>End</code>):</p>
+<p>Before specifying the model, we need to set the data in the right
+format for DyNAM-i: We had a list of dyadic interactions, but DyNAM-i is
+specifically meant for group interactions. More specifically, the model
+is designed for events of actors joining or leavin interaction groups.
+We can use this function to create these group events (please note we
+need to use the right labels in the dataframe: <code>NodeA</code>,
+<code>NodeB</code>,<code>Start</code>, and <code>End</code>):</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#?defineGroups_interaction</span></span>
-<span><span class="va">prepdata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineGroups_interaction.html">defineGroups_interaction</a></span><span class="op">(</span><span class="va">video</span>, <span class="va">participants</span>, seed.randomization <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
-<p>This functions to creates 5 objects: 1. <code>groups</code>: a goldfish nodeset containing the interaction groups (initially there are as many groups as actors and they are all present, meaning available)</p>
+<span><span class="va">prepdata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineGroups_interaction.html">defineGroups_interaction</a></span><span class="op">(</span><span class="va">video</span>, <span class="va">participants</span>,</span>
+<span>                                     seed.randomization <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
+<p>This functions to creates 5 objects: 1. <code>groups</code>: a
+goldfish nodeset containing the interaction groups (initially there are
+as many groups as actors and they are all present, meaning
+available)</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">groups</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">groups</span> </span>
+<code class="sourceCode R"><span><span class="va">groups</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">groups</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">groups</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##    label present</span></span>
 <span><span class="co">## 1 Group1    TRUE</span></span>
@@ -192,7 +222,11 @@
 <span><span class="co">## 6 Group6    TRUE</span></span></code></pre>
 <ol start="2" style="list-style-type: decimal">
 <li>
-<code>dependent.events</code>: goldfish events specifying the events that we want to model, when an actor (in the dataframe, the <code>sender</code> column) joins or leaves (<code>increment</code> = 1 or -1) a group (<code>receiver</code>) at a particular point in time (<code>time</code>)</li>
+<code>dependent.events</code>: goldfish events specifying the events
+that we want to model, when an actor (in the dataframe, the
+<code>sender</code> column) joins or leaves (<code>increment</code> = 1
+or -1) a group (<code>receiver</code>) at a particular point in time
+(<code>time</code>)</li>
 </ol>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dependent.events</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">dependent.events</span></span>
@@ -206,10 +240,14 @@
 <span><span class="co">## 6 1491329893  Actor8   Group5         1</span></span></code></pre>
 <ol start="3" style="list-style-type: decimal">
 <li>
-<code>exogenous.events</code>: goldfish events specifying the events that need to happen but are not modeled (for example, when an actor leaves a group, a dependent event is created for this leaving but an exogenous event is also created because the actor “joins” a new group, its own isolated group)</li>
+<code>exogenous.events</code>: goldfish events specifying the events
+that need to happen but are not modeled (for example, when an actor
+leaves a group, a dependent event is created for this leaving but an
+exogenous event is also created because the actor “joins” a new group,
+its own isolated group)</li>
 </ol>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">exogenous.events</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">exogenous.events</span> </span>
+<code class="sourceCode R"><span><span class="va">exogenous.events</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">exogenous.events</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">exogenous.events</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##         time  sender receiver increment</span></span>
 <span><span class="co">## 1 1491329893  Actor4   Group4        -1</span></span>
@@ -220,10 +258,11 @@
 <span><span class="co">## 6 1491329893  Actor8   Group8        -1</span></span></code></pre>
 <ol start="4" style="list-style-type: decimal">
 <li>
-<code>interaction.updates</code>: goldfish events that are used to update the number of past interactions between participants:</li>
+<code>interaction.updates</code>: goldfish events that are used to
+update the number of past interactions between participants:</li>
 </ol>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">interaction.updates</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">interaction.updates</span> </span>
+<code class="sourceCode R"><span><span class="va">interaction.updates</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">interaction.updates</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">interaction.updates</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##         time  sender receiver increment</span></span>
 <span><span class="co">## 1 1491329893  Actor4   Actor3         1</span></span>
@@ -234,7 +273,9 @@
 <span><span class="co">## 6 1491329893 Actor11   Actor1         1</span></span></code></pre>
 <ol start="5" style="list-style-type: decimal">
 <li>
-<code>opportunities</code>: list containing the interaction groups available at each decision time (this will vary when groups are being joined or left)</li>
+<code>opportunities</code>: list containing the interaction groups
+available at each decision time (this will vary when groups are being
+joined or left)</li>
 </ol>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">opportunities</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">opportunities</span></span>
@@ -260,51 +301,99 @@
 <div class="section level4">
 <h4 id="step-2-set-up-goldfish-objects">Step 2: Set up goldfish objects<a class="anchor" aria-label="anchor" href="#step-2-set-up-goldfish-objects"></a>
 </h4>
-<p>Now that we have all the data we need, we need to define the link between our objects in a way that goldfish understands what is going on.</p>
+<p>Now that we have all the data we need, we need to define the link
+between our objects in a way that goldfish understands what is going
+on.</p>
 <p>First, we define the first mode nodeset, the actors:</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">participants</span><span class="op">$</span><span class="va">label</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">participants</span><span class="op">$</span><span class="va">label</span><span class="op">)</span> <span class="co"># goldfish requires character names</span></span>
+<code class="sourceCode R"><span><span class="co"># goldfish requires character names</span></span>
+<span><span class="va">participants</span><span class="op">$</span><span class="va">label</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">participants</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
 <span><span class="va">actors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNodes.html">defineNodes</a></span><span class="op">(</span><span class="va">participants</span><span class="op">)</span></span></code></pre></div>
 <p>Then we define the second mode nodeset, the groups:</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">groups</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNodes.html">defineNodes</a></span><span class="op">(</span><span class="va">groups</span><span class="op">)</span></span></code></pre></div>
-<p>Then we create the dynamic interaction network between the actors and the groups, updated by the previously created events in <code>dependent.events</code> and <code>exogenous.events</code></p>
+<p>Then we create the dynamic interaction network between the actors and
+the groups, updated by the previously created events in
+<code>dependent.events</code> and <code>exogenous.events</code></p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">init.network</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span>x<span class="op">=</span><span class="fl">1</span>,<span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">actors</span><span class="op">)</span>,<span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">groups</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">network.interactions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span>matrix <span class="op">=</span> <span class="va">init.network</span>, nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span>, directed <span class="op">=</span> <span class="cn">T</span><span class="op">)</span> <span class="co"># don't worry about the warnings</span></span>
-<span><span class="va">network.interactions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">network.interactions</span>, changeEvent <span class="op">=</span> <span class="va">dependent.events</span>, nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span><span class="op">)</span></span>
-<span><span class="va">network.interactions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">network.interactions</span>, changeEvent <span class="op">=</span> <span class="va">exogenous.events</span>, nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span><span class="op">)</span></span></code></pre></div>
-<p>Then we create the dynamic network between the actors that records past interactions, updated by the previously created events in <code>interaction.updates</code></p>
+<code class="sourceCode R"><span><span class="va">init.network</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">actors</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">groups</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">network.interactions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span></span>
+<span>  matrix <span class="op">=</span> <span class="va">init.network</span>, nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span>, directed <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span> <span class="co"># don't worry about the warnings</span></span>
+<span><span class="va">network.interactions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span></span>
+<span>  x <span class="op">=</span> <span class="va">network.interactions</span>, changeEvent <span class="op">=</span> <span class="va">dependent.events</span>,</span>
+<span>  nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">network.interactions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span></span>
+<span>  x <span class="op">=</span> <span class="va">network.interactions</span>, changeEvent <span class="op">=</span> <span class="va">exogenous.events</span>,</span>
+<span>  nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Then we create the dynamic network between the actors that records
+past interactions, updated by the previously created events in
+<code>interaction.updates</code></p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">network.past</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">F</span><span class="op">)</span></span>
-<span><span class="va">network.past</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">network.past</span>, changeEvents <span class="op">=</span> <span class="va">interaction.updates</span>, nodes <span class="op">=</span> <span class="va">actors</span><span class="op">)</span> <span class="co"># don't worry about the warnings</span></span></code></pre></div>
-<p>Finally, we define the events that we want to model: <code>dependent.events</code>:</p>
+<code class="sourceCode R"><span><span class="va">network.past</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="va">network.past</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span></span>
+<span>  x <span class="op">=</span> <span class="va">network.past</span>, changeEvents <span class="op">=</span> <span class="va">interaction.updates</span>, nodes <span class="op">=</span> <span class="va">actors</span></span>
+<span><span class="op">)</span> <span class="co"># don't worry about the warnings</span></span></code></pre></div>
+<p>Finally, we define the events that we want to model:
+<code>dependent.events</code>:</p>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dependent.events</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineDependentEvents.html">defineDependentEvents</a></span><span class="op">(</span>events <span class="op">=</span> <span class="va">dependent.events</span>, nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span>, defaultNetwork <span class="op">=</span> <span class="va">network.interactions</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">dependent.events</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineDependentEvents.html">defineDependentEvents</a></span><span class="op">(</span></span>
+<span>  events <span class="op">=</span> <span class="va">dependent.events</span>, nodes <span class="op">=</span> <span class="va">actors</span>,</span>
+<span>  nodes2 <span class="op">=</span> <span class="va">groups</span>, defaultNetwork <span class="op">=</span> <span class="va">network.interactions</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level4">
 <h4 id="step-4-estimate-a-model-with-attribute-effects">Step 4: Estimate a model with attribute effects<a class="anchor" aria-label="anchor" href="#step-4-estimate-a-model-with-attribute-effects"></a>
 </h4>
-<p>Let us define some models we could estimate (we try not to put too many effects because we have little data).</p>
-<p>We first have a model only with effects related to individual attributes (M1).</p>
-<p>For the rate, we have the following effects: 1. general intercept (joining and leaving events) + dummy interaction for the intercept of joining events specifically 2. ego age (joining): tendency for older individuals to join groups faster 3. ego age (leaving): tendency for older individuals to leave groups faster 4. diff age (leaving): tendency for individuals to leave groups faster if the average sum of age difference to the group are high 5. diff level (leaving): tendency for individuals to leave groups faster if the average sum of level difference to the group are high 6. same gender (leaving): tendency for individuals to leave groups faster if the proportion of same gender in the group is high 7. same group (leaving): tendency for individuals to leave groups faster if the proportion of same group in the group is high 8. tie known before (leaving): tendency for individuals to leave groups faster if the proportion of previous friends in the group is high</p>
+<p>Let us define some models we could estimate (we try not to put too
+many effects because we have little data).</p>
+<p>We first have a model only with effects related to individual
+attributes (M1).</p>
+<p>For the rate, we have the following effects: 1. general intercept
+(joining and leaving events) + dummy interaction for the intercept of
+joining events specifically 2. ego age (joining): tendency for older
+individuals to join groups faster 3. ego age (leaving): tendency for
+older individuals to leave groups faster 4. diff age (leaving): tendency
+for individuals to leave groups faster if the average sum of age
+difference to the group are high 5. diff level (leaving): tendency for
+individuals to leave groups faster if the average sum of level
+difference to the group are high 6. same gender (leaving): tendency for
+individuals to leave groups faster if the proportion of same gender in
+the group is high 7. same group (leaving): tendency for individuals to
+leave groups faster if the proportion of same group in the group is high
+8. tie known before (leaving): tendency for individuals to leave groups
+faster if the proportion of previous friends in the group is high</p>
 <div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">formula.rate.M1</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span>  <span class="fl">1</span> <span class="op">+</span> <span class="fu">intercept</span><span class="op">(</span><span class="va">network.interactions</span>, joining<span class="op">=</span><span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>,joining<span class="op">=</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                          <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                          <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                          <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">group</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu">tie</span><span class="op">(</span><span class="va">known.before</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span></span></code></pre></div>
-<p>and for the choice model: 9. diff age: tendency for individuals to join groups if the average sum of age difference to the group are high 10. diff level: tendency for individuals to join groups if the average sum of level difference to the group are high 11. same gender: tendency for individuals to join groups if the proportion of same gender in the group is high 12. same group: tendency for individuals to join groups if the proportion of same group in the group is high 13. tie known before: tendency for individuals to join groups if the proportion of previous friends in the group is high</p>
+<code class="sourceCode R"><span><span class="va">formula.rate.M1</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span>  <span class="fl">1</span> <span class="op">+</span></span>
+<span>  <span class="fu">intercept</span><span class="op">(</span><span class="va">network.interactions</span>, joining <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">group</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tie</span><span class="op">(</span><span class="va">known.before</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span></span></code></pre></div>
+<p>and for the choice model: 9. diff age: tendency for individuals to
+join groups if the average sum of age difference to the group are high
+10. diff level: tendency for individuals to join groups if the average
+sum of level difference to the group are high 11. same gender: tendency
+for individuals to join groups if the proportion of same gender in the
+group is high 12. same group: tendency for individuals to join groups if
+the proportion of same group in the group is high 13. tie known before:
+tendency for individuals to join groups if the proportion of previous
+friends in the group is high</p>
 <div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">formula.choice.M1</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>,subType<span class="op">=</span><span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                            <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>,subType<span class="op">=</span><span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                            <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                            <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">group</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                            <span class="fu">tie</span><span class="op">(</span><span class="va">known.before</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span></span></code></pre></div>
-<p>Note that effects in the choice model can mirror the ones in the leaving model: The first model explains who people want to join (or not join), the second explains who people want to leave (or stay with).</p>
+<code class="sourceCode R"><span><span class="va">formula.choice.M1</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">group</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tie</span><span class="op">(</span><span class="va">known.before</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span></span></code></pre></div>
+<p>Note that effects in the choice model can mirror the ones in the
+leaving model: The first model explains who people want to join (or not
+join), the second explains who people want to leave (or stay with).</p>
 <p>Now let us run goldfish estimation!</p>
 <div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">est.rate.M1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">formula.rate.M1</span>, model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span><span class="op">)</span></span>
@@ -355,7 +444,11 @@
 <span><span class="co">##   BIC:  2661.7 </span></span>
 <span><span class="co">##   model: "DyNAMi" subModel: "rate"</span></span></code></pre>
 <div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">est.choice.M1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">formula.choice.M1</span>, model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span>, estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>opportunitiesList <span class="op">=</span> <span class="va">opportunities</span><span class="op">)</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">est.choice.M1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<span>  <span class="va">formula.choice.M1</span>,</span>
+<span>  model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span>,</span>
+<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>opportunitiesList <span class="op">=</span> <span class="va">opportunities</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">est.choice.M1</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## </span></span>
 <span><span class="co">## Call:</span></span>
@@ -394,33 +487,49 @@
 <div class="section level4">
 <h4 id="step-5-estimate-a-model-with-structural-and-time-effects">Step 5: Estimate a model with structural and time effects<a class="anchor" aria-label="anchor" href="#step-5-estimate-a-model-with-structural-and-time-effects"></a>
 </h4>
-<p>Now let’s add effects related to group sizes and past interactions. We add to the rate model the effects of: 1. size (leaving): tendency for individuals to leave large groups faster 2. egopop (joining): tendency for individuals who had more interactions in the past to join groups faster 3. egopop (leaving): tendency for individuals who had more interactions in the past to leave groups faster</p>
+<p>Now let’s add effects related to group sizes and past interactions.
+We add to the rate model the effects of: 1. size (leaving): tendency for
+individuals to leave large groups faster 2. egopop (joining): tendency
+for individuals who had more interactions in the past to join groups
+faster 3. egopop (leaving): tendency for individuals who had more
+interactions in the past to leave groups faster</p>
 <div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">formula.rate.M2</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span>  <span class="fl">1</span> <span class="op">+</span> <span class="fu">intercept</span><span class="op">(</span><span class="va">network.interactions</span>, joining<span class="op">=</span><span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>,joining<span class="op">=</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                          <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                          <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                          <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">group</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu">tie</span><span class="op">(</span><span class="va">known.before</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu">size</span><span class="op">(</span><span class="va">network.interactions</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"identity"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu">egopop</span><span class="op">(</span><span class="va">network.past</span>,joining<span class="op">=</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"normalized"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                          <span class="fu">egopop</span><span class="op">(</span><span class="va">network.past</span>,joining<span class="op">=</span><span class="op">-</span><span class="fl">1</span>,subType<span class="op">=</span><span class="st">"normalized"</span><span class="op">)</span> </span></code></pre></div>
-<p>We add to the choice model: 1. size: tendency for individuals to join large groups 2. alterpop: tendency for individuals to join groups with individuals who had more interactions in the past 3. inertia, window = 60s: tendency for individuals to join groups with a high average number of previous interactions with the group members within the last minute 3. inertia, window = 300s: same as above, for 5 minutes</p>
+<code class="sourceCode R"><span><span class="va">formula.rate.M2</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span>  <span class="fl">1</span> <span class="op">+</span></span>
+<span>  <span class="fu">intercept</span><span class="op">(</span><span class="va">network.interactions</span>, joining <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">group</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tie</span><span class="op">(</span><span class="va">known.before</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">size</span><span class="op">(</span><span class="va">network.interactions</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"identity"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">egopop</span><span class="op">(</span><span class="va">network.past</span>, joining <span class="op">=</span> <span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"normalized"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">egopop</span><span class="op">(</span><span class="va">network.past</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"normalized"</span><span class="op">)</span></span></code></pre></div>
+<p>We add to the choice model: 1. size: tendency for individuals to join
+large groups 2. alterpop: tendency for individuals to join groups with
+individuals who had more interactions in the past 3. inertia, window =
+60s: tendency for individuals to join groups with a high average number
+of previous interactions with the group members within the last minute
+3. inertia, window = 300s: same as above, for 5 minutes</p>
 <div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">formula.choice.M2</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>,subType<span class="op">=</span><span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                            <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>,subType<span class="op">=</span><span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                            <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                            <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">group</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                            <span class="fu">alter</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>,subType<span class="op">=</span><span class="st">"mean"</span><span class="op">)</span><span class="op">+</span></span>
-<span>                                            <span class="fu">tie</span><span class="op">(</span><span class="va">known.before</span>,subType<span class="op">=</span><span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                            <span class="fu">size</span><span class="op">(</span><span class="va">network.interactions</span>,subType<span class="op">=</span><span class="st">"identity"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                            <span class="fu">alterpop</span><span class="op">(</span><span class="va">network.past</span>,subType<span class="op">=</span><span class="st">"mean_normalized"</span><span class="op">)</span> <span class="op">+</span> </span>
-<span>                                            <span class="fu">inertia</span><span class="op">(</span><span class="va">network.past</span>, window<span class="op">=</span><span class="fl">60</span>,subType<span class="op">=</span><span class="st">"mean"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                                            <span class="fu">inertia</span><span class="op">(</span><span class="va">network.past</span>, window<span class="op">=</span><span class="fl">300</span>,subType<span class="op">=</span><span class="st">"mean"</span><span class="op">)</span></span></code></pre></div>
-<p>One can note that we have normalized (using the option <code>subType="mean"</code>) the effects related to previous interactions, because we want to avoid time heterogeneity issues (in the beginning no interaction has happened, at the end, a lot happened).</p>
-<p>All effects can have different subTypes, please look at the goldfish documentation to learn more.</p>
+<code class="sourceCode R"><span><span class="va">formula.choice.M2</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">group</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">alter</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, subType <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">tie</span><span class="op">(</span><span class="va">known.before</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">size</span><span class="op">(</span><span class="va">network.interactions</span>, subType <span class="op">=</span> <span class="st">"identity"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">alterpop</span><span class="op">(</span><span class="va">network.past</span>, subType <span class="op">=</span> <span class="st">"mean_normalized"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">inertia</span><span class="op">(</span><span class="va">network.past</span>, window <span class="op">=</span> <span class="fl">60</span>, subType <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">inertia</span><span class="op">(</span><span class="va">network.past</span>, window <span class="op">=</span> <span class="fl">300</span>, subType <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span></span></code></pre></div>
+<p>One can note that we have normalized (using the option
+<code>subType="mean"</code>) the effects related to previous
+interactions, because we want to avoid time heterogeneity issues (in the
+beginning no interaction has happened, at the end, a lot happened).</p>
+<p>All effects can have different subTypes, please look at the goldfish
+documentation to learn more.</p>
 <p>Now we can run again</p>
 <div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">est.rate.M2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">formula.rate.M2</span>, model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span><span class="op">)</span></span>
@@ -481,7 +590,11 @@
 <span><span class="co">##   model: "DyNAMi" subModel: "rate"</span></span></code></pre>
 <p>and:</p>
 <div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">est.choice.M2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">formula.choice.M2</span>, model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span>, estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>opportunitiesList <span class="op">=</span> <span class="va">opportunities</span><span class="op">)</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">est.choice.M2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<span>  <span class="va">formula.choice.M2</span>,</span>
+<span>  model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span>,</span>
+<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>opportunitiesList <span class="op">=</span> <span class="va">opportunities</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">est.choice.M2</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## </span></span>
 <span><span class="co">## Call:</span></span>
@@ -529,19 +642,29 @@
 <span><span class="co">##   AICc: 401.49 </span></span>
 <span><span class="co">##   BIC:  427.65 </span></span>
 <span><span class="co">##   model: "DyNAMi" subModel: "choice"</span></span></code></pre>
-<p>Of course these models ask a bit much from our data, so ideally we would a bit more reasonable with the number of effects we include, or do some model selection.</p>
+<p>Of course these models ask a bit much from our data, so ideally we
+would a bit more reasonable with the number of effects we include, or do
+some model selection.</p>
 </div>
 <div class="section level4">
 <h4 id="step-6-extra-steps">Step 6: Extra steps<a class="anchor" aria-label="anchor" href="#step-6-extra-steps"></a>
 </h4>
-<p>We now have for each rate model a general intercept and a dummy interaction between the intercept and the joining events. If we want to report the actual intercept for joining, we can calculate the following (for M2 for example):</p>
+<p>We now have for each rate model a general intercept and a dummy
+interaction between the intercept and the joining events. If we want to
+report the actual intercept for joining, we can calculate the following
+(for M2 for example):</p>
 <div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cov.matrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">est.rate.M2</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">est.interceptjoining</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">est.rate.M2</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">est.rate.M2</span><span class="op">)</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span></span>
-<span><span class="va">se.interceptjoining</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="va">cov.matrix</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="va">cov.matrix</span><span class="op">[</span><span class="fl">2</span>, <span class="fl">2</span><span class="op">]</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">cov.matrix</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="va">se.interceptjoining</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span></span>
+<span>  <span class="va">cov.matrix</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="va">cov.matrix</span><span class="op">[</span><span class="fl">2</span>, <span class="fl">2</span><span class="op">]</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">cov.matrix</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">]</span></span>
+<span><span class="op">)</span></span>
 <span><span class="va">t.interceptjoining</span> <span class="op">&lt;-</span> <span class="va">est.interceptjoining</span> <span class="op">/</span> <span class="va">se.interceptjoining</span></span></code></pre></div>
-<p>This script can be continued by looking at better model specifications than the ones provided, or trying to model the interaction data collected from RFID badges rather than video recordings, and maybe compare both.</p>
+<p>This script can be continued by looking at better model
+specifications than the ones provided, or trying to model the
+interaction data collected from RFID badges rather than video
+recordings, and maybe compare both.</p>
 </div>
 </div>
   </div>
@@ -563,7 +686,7 @@
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.7.</p>
 </div>
 
       </footer>

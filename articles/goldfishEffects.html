@@ -40,7 +40,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.4</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.5</span>
       </span>
     </div>
 
@@ -113,8 +113,10 @@
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>goldfish Effects</h1>
-            <h3 data-toc-skip class="subtitle">Catalog of available effects</h3>
-                        <h4 data-toc-skip class="author">Alvaro Uzaheta and Siwei Zhang</h4>
+            <h3 data-toc-skip class="subtitle">Catalog of available
+effects</h3>
+                        <h4 data-toc-skip class="author">Alvaro Uzaheta
+and Siwei Zhang</h4>
             
       
       <small class="dont-index">Source: <a href="https://github.com/snlab-ch/goldfish/blob/HEAD/vignettes/goldfishEffects.Rmd" class="external-link"><code>vignettes/goldfishEffects.Rmd</code></a></small>
@@ -124,335 +126,404 @@
 
     
     
-<p>This vignette summarizes effects that are implemented in <code>goldfish</code> and are thus available to be used with actor-oriented DyNAM models and tie-oriented Relational Event Models.</p>
+<p>This vignette summarizes effects that are implemented in
+<code>goldfish</code> and are thus available to be used with
+actor-oriented DyNAM models and tie-oriented Relational Event
+Models.</p>
 <div class="section level2">
 <h2 id="effect-arguments">Effect arguments<a class="anchor" aria-label="anchor" href="#effect-arguments"></a>
 </h2>
 <p>Effect functions have the following 5 arguments:</p>
 <ul>
 <li>
-<strong>network(s)/attribute(s)</strong>: Objects upon which the effect should be calculated. For network effects, this would be either an explanatory network or the dependent network (the default). For attribute effects, this should be the attribute name with the indication of the data frame containing the initial values of nodes attributes (<code>data.frame$attribute</code>), see documentation of <code><a href="../reference/defineNodes.html">defineNodes()</a></code> for details.</li>
+<strong>network(s)/attribute(s)</strong>: Objects upon which the
+effect should be calculated. For network effects, this would be either
+an explanatory network or the dependent network (the default). For
+attribute effects, this should be the attribute name with the indication
+of the data frame containing the initial values of nodes attributes
+(<code>data.frame$attribute</code>), see documentation of
+<code><a href="../reference/defineNodes.html">defineNodes()</a></code> for details.</li>
 <li>
-<strong>isTwoMode</strong>: Identifies whether the effect assumes the network is originated from a two-mode network or not. The default value is <code>FALSE</code>, it means that updates involving self-ties are ignore during the statistics update.</li>
+<strong>isTwoMode</strong>: Identifies whether the effect assumes
+the network is originated from a two-mode network or not. The default
+value is <code>FALSE</code>, it means that updates involving self-ties
+are ignore during the statistics update.</li>
 <li>
-<strong>ignoreRep</strong>: Identifies whether the effect recognizes actors to send additional ties beyond the first to receivers (<code>FALSE</code> means additional ties are taken into account). The default value is <code>FALSE</code>. Only available for structural effects.</li>
+<strong>ignoreRep</strong>: Identifies whether the effect recognizes
+actors to send additional ties beyond the first to receivers
+(<code>FALSE</code> means additional ties are taken into account). The
+default value is <code>FALSE</code>. Only available for structural
+effects.</li>
 <li>
-<strong>weighted</strong>: Identifies whether the effect relies on the presence (dummy value) or number of ties (<code>TRUE</code> means it relies also on the number of ties). The default value is <code>FALSE</code>.</li>
+<strong>weighted</strong>: Identifies whether the effect relies on
+the presence (dummy value) or number of ties (<code>TRUE</code> means it
+relies also on the number of ties). The default value is
+<code>FALSE</code>.</li>
 <li>
-<strong>window</strong>: Identifies a window length within which changes should apply to events. The default value is <code>Inf</code> meaning that no windows are applied to the effect. Window size can be specified as a number in seconds (i.e. an hour is 3600 seconds), or as a string stating the number of time units in the format “number unit”, for example “30 seconds”, “1 minute”, “2 hours”, “3 days”, “4 weeks”, “5 months”, or “6 years”. <em>Note:</em> The time units are converted to seconds using their most common lengths in seconds.</li>
+<strong>window</strong>: Identifies a window length within which
+changes should apply to events. The default value is <code>Inf</code>
+meaning that no windows are applied to the effect. Window size can be
+specified as a number in seconds (i.e. an hour is 3600 seconds), or as a
+string stating the number of time units in the format “number unit”, for
+example “30 seconds”, “1 minute”, “2 hours”, “3 days”, “4 weeks”, “5
+months”, or “6 years”. <em>Note:</em> The time units are converted to
+seconds using their most common lengths in seconds.</li>
 <li>
-<strong>transformFun</strong>: Use this parameter to obtain transformed statistics. The function used as argument is applied to the change statistic. <em>Note:</em> Most of the time a transformation function is applied when an effect counts the number of ties <code>weighted == TRUE</code>.</li>
+<strong>transformFun</strong>: Use this parameter to obtain
+transformed statistics. The function used as argument is applied to the
+change statistic. <em>Note:</em> Most of the time a transformation
+function is applied when an effect counts the number of ties
+<code>weighted == TRUE</code>.</li>
 <li>
-<strong>aggregateFun</strong>: Use this parameter to obtain a transformed aggregated statistics for indirect effects like <code>tertius</code> and <code>tertiusDiff</code>. The function used as argument is applied to aggregated statistic.</li>
+<strong>aggregateFun</strong>: Use this parameter to obtain a
+transformed aggregated statistics for indirect effects like
+<code>tertius</code> and <code>tertiusDiff</code>. The function used as
+argument is applied to aggregated statistic.</li>
 <li>
-<strong>type</strong>: Applies only to <code>indegree</code>, <code>outdegree</code> and <code>nodeTrans</code> in the case of a REM model <code>model = "REM"</code>. In the default case of <code>type = "alter"</code>, the effect returns change statistics for the potential receivers. In the case where <code>type = "ego"</code>, the effect returns change statistics for the potential sender. This argument does not apply in the case of the DyNAM models: the DyNAM-choice submodel only considers change statistics for potential receivers <code>type = "alter"</code>, while the DyNAM-rate submodel only considers change statistics for potential senders <code>type = "ego"</code>.</li>
+<strong>type</strong>: Applies only to <code>indegree</code>,
+<code>outdegree</code> and <code>nodeTrans</code> in the case of a REM
+model <code>model = "REM"</code>. In the default case of
+<code>type = "alter"</code>, the effect returns change statistics for
+the potential receivers. In the case where <code>type = "ego"</code>,
+the effect returns change statistics for the potential sender. This
+argument does not apply in the case of the DyNAM models: the
+DyNAM-choice submodel only considers change statistics for potential
+receivers <code>type = "alter"</code>, while the DyNAM-rate submodel
+only considers change statistics for potential senders
+<code>type = "ego"</code>.</li>
 </ul>
-<p>The following table summaries whether the corresponding arguments can be used for the effects or not.</p>
-<table class="table">
+<p>The following table summaries whether the corresponding arguments can
+be used for the effects or not.</p>
+<table style="width:100%;" class="table">
+<colgroup>
+<col width="10%">
+<col width="10%">
+<col width="10%">
+<col width="10%">
+<col width="10%">
+<col width="10%">
+<col width="10%">
+<col width="10%">
+<col width="10%">
+<col width="10%">
+</colgroup>
 <thead><tr class="header">
 <th></th>
 <th></th>
 <th></th>
-<th align="center">isTwoMode</th>
-<th align="center">ignoreRep</th>
-<th align="center">weighted</th>
-<th align="center">window</th>
-<th align="center">transformFun</th>
-<th align="center">aggregateFun</th>
-<th align="center">type</th>
+<th>isTwoMode</th>
+<th>ignoreRep</th>
+<th>weighted</th>
+<th>window</th>
+<th>transformFun</th>
+<th>aggregateFun</th>
+<th>type</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
 <td>Node/actor statistics</td>
 <td>Structural</td>
 <td>indeg</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
 </tr>
 <tr class="even">
 <td></td>
 <td></td>
 <td>outdeg</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
 </tr>
 <tr class="odd">
 <td></td>
 <td></td>
 <td>nodeTrans</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
+<td>×</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
 </tr>
 <tr class="even">
 <td></td>
 <td>Attribute</td>
 <td>ego</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="odd">
 <td></td>
 <td></td>
 <td>alter</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="even">
 <td></td>
 <td>Structural + attribute</td>
 <td>tertius</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
 </tr>
 <tr class="odd">
 <td>Dyadic statistics</td>
 <td>Structural</td>
 <td>tie</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="even">
 <td></td>
 <td></td>
 <td>inertia</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="odd">
 <td></td>
 <td></td>
 <td>recip</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="even">
 <td></td>
 <td>Attribute</td>
 <td>same</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="odd">
 <td></td>
 <td></td>
 <td>diff</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="even">
 <td></td>
 <td></td>
 <td>sim</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="odd">
 <td></td>
 <td></td>
 <td>egoAlterInt</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="even">
 <td></td>
 <td>Structural + attribute</td>
 <td>tertiusDiff</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
 </tr>
 <tr class="odd">
 <td></td>
 <td>Closure effects</td>
 <td>trans</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>×</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="even">
 <td></td>
 <td></td>
 <td>cycle</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>×</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="odd">
 <td></td>
 <td></td>
 <td>commonSender</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="even">
 <td></td>
 <td></td>
 <td>commonReceiver</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="odd">
 <td></td>
 <td></td>
 <td>four</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="even">
 <td></td>
 <td></td>
 <td>mixedTrans</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>×</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="odd">
 <td></td>
 <td></td>
 <td>mixedCycle</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>×</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="even">
 <td></td>
 <td></td>
 <td>mixedCommonSender</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>×</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 <tr class="odd">
 <td></td>
 <td></td>
 <td>mixedCommonReceiver</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td>×</td>
+<td>√</td>
+<td>×</td>
+<td>√</td>
+<td>√</td>
+<td>×</td>
+<td>×</td>
 </tr>
 </tbody>
 </table>
-<p><em>Note</em> that the use of some effects (combinations) are ill-advised. For example, using <code>tie(network, ignoreRep = FALSE)</code>, where the network refers to the dependent network, will always result in a change statistic of zero, and thus cannot be used.</p>
+<p><em>Note</em> that the use of some effects (combinations) are
+ill-advised. For example, using
+<code>tie(network, ignoreRep = FALSE)</code>, where the network refers
+to the dependent network, will always result in a change statistic of
+zero, and thus cannot be used.</p>
 <div class="section level4">
 <h4 id="notation">Notation<a class="anchor" aria-label="anchor" href="#notation"></a>
 </h4>
 <ul>
 <li>
-<span class="math inline">\(x(t)_{ij}\)</span> denotes the value of network <span class="math inline">\(x\)</span> at time <span class="math inline">\(t\)</span> between actor <span class="math inline">\(i\)</span> and actor <span class="math inline">\(j\)</span>.</li>
+<span class="math inline">\(x(t)_{ij}\)</span> denotes the value of
+network <span class="math inline">\(x\)</span> at time <span class="math inline">\(t\)</span> between actor <span class="math inline">\(i\)</span> and actor <span class="math inline">\(j\)</span>.</li>
 <li>
-<span class="math inline">\(z(t)_i\)</span> denotes the value of an actor attribute <span class="math inline">\(z\)</span> at time <span class="math inline">\(t\)</span> for actor <span class="math inline">\(i\)</span>.</li>
+<span class="math inline">\(z(t)_i\)</span> denotes the value of an
+actor attribute <span class="math inline">\(z\)</span> at time <span class="math inline">\(t\)</span> for actor <span class="math inline">\(i\)</span>.</li>
 <li>
-<span class="math inline">\(I(y)\)</span> denotes the indicator function. It takes the value 1 when variable <span class="math inline">\(y\)</span> is <code>TRUE</code> and 0 in other case.</li>
-<li>We refer as the weighted statistics to the outcome of the effect when <code>weighted = TRUE</code>, similarly we refer as the unweighted statistics when <code>weighted = FALSE</code>.</li>
-<li>We omit the difference in the computation of the statistics when the argument <code>isTwoMode</code> is used. In the default case when <code>isTwoMode = FALSE</code> self ties are excluded in the calculation of the change statistics.</li>
+<span class="math inline">\(I(y)\)</span> denotes the indicator
+function. It takes the value 1 when variable <span class="math inline">\(y\)</span> is <code>TRUE</code> and 0 in other
+case.</li>
+<li>We refer as the weighted statistics to the outcome of the effect
+when <code>weighted = TRUE</code>, similarly we refer as the unweighted
+statistics when <code>weighted = FALSE</code>.</li>
+<li>We omit the difference in the computation of the statistics when the
+argument <code>isTwoMode</code> is used. In the default case when
+<code>isTwoMode = FALSE</code> self ties are excluded in the calculation
+of the change statistics.</li>
 </ul>
 </div>
 </div>
@@ -490,7 +561,8 @@
 </tr>
 </tbody>
 </table>
-<p>Here we refer to ego type when <code>type = "ego"</code> and alter type when <code>type = "alter"</code>.</p>
+<p>Here we refer to ego type when <code>type = "ego"</code> and alter
+type when <code>type = "alter"</code>.</p>
 <div class="section level4">
 <h4 id="indegree-indeg">Indegree (<code>indeg()</code>)<a class="anchor" aria-label="anchor" href="#indegree-indeg"></a>
 </h4>
@@ -498,12 +570,12 @@
 <code class="sourceCode R"><span><span class="fu">indeg</span><span class="op">(</span><span class="va">network</span>, isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
 <span>     ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{align}
-  r(i, t, x) &amp;= 
+  r(i, t, x) &amp;=
   \begin{cases}
     \sum_{j}{I(x(t)_{ji}&gt;0)} &amp; \text{unweighted}\\
     \sum_{j}{x(t)_{ji}} &amp; \text{weighted}
   \end{cases} &amp;&amp; \text{ego type}\\
-  s(i,j, t, x) &amp;= 
+  s(i,j, t, x) &amp;=
 \begin{cases}
     \sum_{l}{I(x(t)_{lj}&gt;0)} &amp; \text{unweighted}\\
     \sum_{l}{x(t)_{lj}} &amp; \text{weighted}
@@ -511,13 +583,23 @@
 \end{align}\]</span></p>
 <ul>
 <li>
-<em>DyNAM-Rate model:</em> tendency of actor <span class="math inline">\(i\)</span> to create an event when <span class="math inline">\(i\)</span> has a high incoming degree in a covariate network (‘ego’ type).</li>
+<em>DyNAM-Rate model:</em> tendency of actor <span class="math inline">\(i\)</span> to create an event when <span class="math inline">\(i\)</span> has a high incoming degree in a
+covariate network (‘ego’ type).</li>
 <li>
-<em>DyNAM-choice model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(j\)</span> has a high incoming degree in a covariate network (‘alter’ type).</li>
+<em>DyNAM-choice model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(j\)</span> has a high incoming degree in a
+covariate network (‘alter’ type).</li>
 <li>
-<em>REM model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when either <span class="math inline">\(i\)</span> or <span class="math inline">\(j\)</span> has a high incoming degree in a covariate network. The argument type allows to choose whether to use the indegree effect for sender <span class="math inline">\(i\)</span> (<code>type = "ego"</code>) or for receiver j (<code>type = "alter"</code>).</li>
+<em>REM model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when either <span class="math inline">\(i\)</span> or <span class="math inline">\(j\)</span> has a high incoming degree in a
+covariate network. The argument type allows to choose whether to use the
+indegree effect for sender <span class="math inline">\(i\)</span>
+(<code>type = "ego"</code>) or for receiver j
+(<code>type = "alter"</code>).</li>
 <li>
-<em>DyNAM-choice_coordination:</em> the effects compute the total degree in a covariate network (‘alter’ type). <em>Note:</em> The effect statistic correspond to the total degree for an undirected network as define when using <code>defineNetwork(net, directed = FALSE)</code>.</li>
+<em>DyNAM-choice_coordination:</em> the effects compute the total
+degree in a covariate network (‘alter’ type). <em>Note:</em> The effect
+statistic correspond to the total degree for an undirected network as
+define when using
+<code>defineNetwork(net, directed = FALSE)</code>.</li>
 </ul>
 <p>The degree can be transform with .</p>
 </div>
@@ -526,14 +608,14 @@
 </h4>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">outdeg</span><span class="op">(</span><span class="va">network</span>, isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>       ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span>  </span></code></pre></div>
+<span>       ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{align}
-  r(i, t, x) &amp;= 
+  r(i, t, x) &amp;=
   \begin{cases}
     \sum_{j}{I(x(t)_{ij}&gt;0)} &amp; \text{unweighted}\\
     \sum_{j}{x(t)_{ij}} &amp; \text{weighted}
   \end{cases} &amp;&amp; \text{ego type}\\
-  s(i,j, t, x) &amp;= 
+  s(i,j, t, x) &amp;=
 \begin{cases}
     \sum_{l}{I(x(t)_{jl}&gt;0)} &amp; \text{unweighted}\\
     \sum_{l}{x(t)_{jl}} &amp; \text{weighted}
@@ -541,11 +623,17 @@
 \end{align}\]</span></p>
 <ul>
 <li>
-<em>DyNAM-Rate model:</em> tendency of actor <span class="math inline">\(i\)</span> to create an event when <span class="math inline">\(i\)</span> has a high outgoing degree in a covariate network (‘ego’ type).</li>
+<em>DyNAM-Rate model:</em> tendency of actor <span class="math inline">\(i\)</span> to create an event when <span class="math inline">\(i\)</span> has a high outgoing degree in a
+covariate network (‘ego’ type).</li>
 <li>
-<em>DyNAM-choice model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(j\)</span> has a high outgoing degree in a covariate network (‘alter’ type).</li>
+<em>DyNAM-choice model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(j\)</span> has a high outgoing degree in a
+covariate network (‘alter’ type).</li>
 <li>
-<em>REM model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when either <span class="math inline">\(i\)</span> or <span class="math inline">\(j\)</span> has a high outgoing degree in a covariate network. The argument <code>type</code> allows to choose whether to use the outdegree effect for sender <span class="math inline">\(i\)</span> (<code>type = "ego"</code>) or for receiver <span class="math inline">\(j\)</span> (<code>type = "alter"</code>).</li>
+<em>REM model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when either <span class="math inline">\(i\)</span> or <span class="math inline">\(j\)</span> has a high outgoing degree in a
+covariate network. The argument <code>type</code> allows to choose
+whether to use the outdegree effect for sender <span class="math inline">\(i\)</span> (<code>type = "ego"</code>) or for
+receiver <span class="math inline">\(j\)</span>
+(<code>type = "alter"</code>).</li>
 </ul>
 </div>
 <div class="section level4">
@@ -553,23 +641,36 @@
 </h4>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">nodeTrans</span><span class="op">(</span><span class="va">network</span>, isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>          type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span>  </span></code></pre></div>
+<span>          type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{align}
-  r(i, t, x) &amp;= 
-  \sum_{jk}{I(x(t)_{ik}&gt;0)I(x(t)_{kj}&gt;0)I(x(t)_{ij}&gt;0)} &amp;&amp; \text{ego type}\\
+  r(i, t, x) &amp;=
+  \sum_{jk}{I(x(t)_{ik}&gt;0)I(x(t)_{kj}&gt;0)I(x(t)_{ij}&gt;0)}
+&amp;&amp; \text{ego type}\\
   s(i,j, t, x) &amp;=
-    \sum_{kl}{I(x(t)_{jk}&gt;0)I(x(t)_{kl}&gt;0)I(x(t)_{jl}&gt;0)} &amp;&amp; \text{alter type}  
+    \sum_{kl}{I(x(t)_{jk}&gt;0)I(x(t)_{kl}&gt;0)I(x(t)_{jl}&gt;0)}
+&amp;&amp; \text{alter type}
 \end{align}\]</span></p>
 <p>Embeddedness in transitive structures as a source node.</p>
 <ul>
 <li>
-<em>DyNAM-Rate model:</em> tendency of actor <span class="math inline">\(i\)</span> to create an event when <span class="math inline">\(i\)</span> is embeddeded in more transitive structures as the source <span class="math inline">\(i\rightarrow k \rightarrow j \leftarrow i\)</span> in a covariate network (‘ego’ type).</li>
+<em>DyNAM-Rate model:</em> tendency of actor <span class="math inline">\(i\)</span> to create an event when <span class="math inline">\(i\)</span> is embeddeded in more transitive
+structures as the source <span class="math inline">\(i\rightarrow k
+\rightarrow j \leftarrow i\)</span> in a covariate network (‘ego’
+type).</li>
 <li>
-<em>DyNAM-choice model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(j\)</span> is embeddeded in more transitive structures as the source <span class="math inline">\(j\rightarrow k \rightarrow l \leftarrow j\)</span> in a covariate network (‘alter’ type).</li>
+<em>DyNAM-choice model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(j\)</span> is embeddeded in more transitive
+structures as the source <span class="math inline">\(j\rightarrow k
+\rightarrow l \leftarrow j\)</span> in a covariate network (‘alter’
+type).</li>
 <li>
-<em>REM model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when either <span class="math inline">\(i\)</span> or <span class="math inline">\(j\)</span> are embeddeded in more transitive structures as the source in a covariate network. The argument <code>type</code> allows to choose whether to use the node embeddedness transitivity effect for sender <span class="math inline">\(i\)</span> (<code>type = "ego"</code>) or for receiver <span class="math inline">\(j\)</span> (<code>type = "alter"</code>).</li>
+<em>REM model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when either <span class="math inline">\(i\)</span> or <span class="math inline">\(j\)</span> are embeddeded in more transitive
+structures as the source in a covariate network. The argument
+<code>type</code> allows to choose whether to use the node embeddedness
+transitivity effect for sender <span class="math inline">\(i\)</span>
+(<code>type = "ego"</code>) or for receiver <span class="math inline">\(j\)</span> (<code>type = "alter"</code>).</li>
 </ul>
-<p>The statistic can be transform with , there is not weighted version for this effect.</p>
+<p>The statistic can be transform with , there is not weighted version
+for this effect.</p>
 </div>
 </div>
 <div class="section level3">
@@ -603,11 +704,12 @@
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">ego</span><span class="op">(</span><span class="va">attribute</span>, isTwoMode <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{align}
-  r(i, t, z) &amp;= z(t)_i 
+  r(i, t, z) &amp;= z(t)_i
 \end{align}\]</span></p>
 <ul>
 <li>
-<em>DyNAM-Rate model:</em> tendency of actors to be more active when they score high on an attribute.</li>
+<em>DyNAM-Rate model:</em> tendency of actors to be more active when
+they score high on an attribute.</li>
 <li>
 <em>REM model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(i\)</span> has a high score on an attribute.</li>
 </ul>
@@ -618,18 +720,21 @@
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">alter</span><span class="op">(</span><span class="va">attribute</span>, isTwoMode <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{align}
-  s(i, j, t, z) &amp;= z(t)_j 
+  s(i, j, t, z) &amp;= z(t)_j
 \end{align}\]</span></p>
 <ul>
 <li>
-<em>DyNAM-choice/DyNAM-choice_coordination model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(j\)</span> score high on an attribute.</li>
+<em>DyNAM-choice/DyNAM-choice_coordination model:</em> tendency to
+create an event <span class="math inline">\(i\rightarrow j\)</span> when
+<span class="math inline">\(j\)</span> score high on an attribute.</li>
 <li>
 <em>REM model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(j\)</span> has a high score on an attribute.</li>
 </ul>
 </div>
 </div>
 <div class="section level3">
-<h3 id="structural-attribute-effect">Structural <span class="math inline">\(+\)</span> Attribute effect<a class="anchor" aria-label="anchor" href="#structural-attribute-effect"></a>
+<h3 id="structural-attribute-effect">Structural <span class="math inline">\(+\)</span> Attribute
+effect<a class="anchor" aria-label="anchor" href="#structural-attribute-effect"></a>
 </h3>
 <table class="table">
 <thead><tr class="header">
@@ -654,21 +759,35 @@
 <span>        aggregateFun <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{align}
   r(i, t, x, z) &amp;=
-    \frac{\sum_{j:~x(t)_{ji} &gt; 0}{z(t)_j}}{\sum_{j}{I(x(t)_{ji} &gt; 0)}}
+    \frac{\sum_{j:~x(t)_{ji} &gt; 0}{z(t)_j}}{\sum_{j}{I(x(t)_{ji} &gt;
+0)}}
     &amp;&amp; \text{ego type}\\
-  s(i,j, t, x, z) &amp;= 
-    \frac{\sum_{k:~x(t)_{kj} &gt; 0}{z(t)_k}}{\sum_{k}{I(x(t)_{kj} &gt; 0)}}
-    &amp;&amp; \text{alter type}  
+  s(i,j, t, x, z) &amp;=
+    \frac{\sum_{k:~x(t)_{kj} &gt; 0}{z(t)_k}}{\sum_{k}{I(x(t)_{kj} &gt;
+0)}}
+    &amp;&amp; \text{alter type}
 \end{align}\]</span></p>
 <ul>
 <li>
-<em>DyNAM-Rate submodel:</em> tendency of actor <span class="math inline">\(i\)</span> to create an event when <span class="math inline">\(i\)</span> has a high aggregate (<code>aggregateFun</code>) value of its in-neighbors (<span class="math inline">\(\forall j:~ x[j, i] &gt; 0\)</span>) in a covariate network (‘ego’ type).</li>
+<em>DyNAM-Rate submodel:</em> tendency of actor <span class="math inline">\(i\)</span> to create an event when <span class="math inline">\(i\)</span> has a high aggregate
+(<code>aggregateFun</code>) value of its in-neighbors (<span class="math inline">\(\forall j:~ x[j, i] &gt; 0\)</span>) in a
+covariate network (‘ego’ type).</li>
 <li>
-<em>DyNAM-choice/choice_coordination submodels:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(j\)</span> has a high aggregate (<code>aggregateFun</code>) value of its in-neighbors (<span class="math inline">\(\forall k:~ x[k, j] &gt; 0\)</span>) in a covariate network (‘alter’ type).</li>
+<em>DyNAM-choice/choice_coordination submodels:</em> tendency to
+create an event <span class="math inline">\(i\rightarrow j\)</span> when
+<span class="math inline">\(j\)</span> has a high aggregate
+(<code>aggregateFun</code>) value of its in-neighbors (<span class="math inline">\(\forall k:~ x[k, j] &gt; 0\)</span>) in a
+covariate network (‘alter’ type).</li>
 <li>
-<em>REM model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when either <span class="math inline">\(i\)</span> or <span class="math inline">\(j\)</span> has a high aggregate (<code>aggregateFun</code>) value of its in-neighbors in a covariate network. The argument <code>type</code> allows to choose whether to use the tertius effect for sender <span class="math inline">\(i\)</span> (<code>type = "ego"</code>) or for receiver <span class="math inline">\(j\)</span> (<code>type = "alter"</code>).</li>
+<em>REM model:</em> tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when either <span class="math inline">\(i\)</span> or <span class="math inline">\(j\)</span> has a high aggregate
+(<code>aggregateFun</code>) value of its in-neighbors in a covariate
+network. The argument <code>type</code> allows to choose whether to use
+the tertius effect for sender <span class="math inline">\(i\)</span>
+(<code>type = "ego"</code>) or for receiver <span class="math inline">\(j\)</span> (<code>type = "alter"</code>).</li>
 </ul>
-<p><strong>Note:</strong> When a node does not have in-neighbors, the tertius effect is impute as the average of the aggregate values of nodes with in-neighbors.</p>
+<p><strong>Note:</strong> When a node does not have in-neighbors, the
+tertius effect is impute as the average of the aggregate values of nodes
+with in-neighbors.</p>
 </div>
 </div>
 </div>
@@ -711,45 +830,71 @@
 </h4>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">tie</span><span class="op">(</span><span class="va">network</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>    transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span> </span></code></pre></div>
+<span>    transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
-s(i,j, t, x) = 
+s(i,j, t, x) =
 \begin{cases}
     I(x(t)_{ij}&gt;0) &amp; \text{unweighted}\\
     x(t)_{ij} &amp; \text{weighted}
   \end{cases}
 \end{equation}\]</span></p>
-<p>Tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> if the tie <span class="math inline">\(i\rightarrow j\)</span> exists in a covariate network. Parameter <code>weighted</code> can be set to <code>TRUE</code> if the value in the covariate network for the dyad <span class="math inline">\(i\rightarrow j\)</span> is to be taken as a statistic. It can be transformed by using <code>transformFun</code> (This might make sense when <code>weighted = TRUE</code>).</p>
+<p>Tendency to create an event <span class="math inline">\(i\rightarrow
+j\)</span> if the tie <span class="math inline">\(i\rightarrow
+j\)</span> exists in a covariate network. Parameter
+<code>weighted</code> can be set to <code>TRUE</code> if the value in
+the covariate network for the dyad <span class="math inline">\(i\rightarrow j\)</span> is to be taken as a
+statistic. It can be transformed by using <code>transformFun</code>
+(This might make sense when <code>weighted = TRUE</code>).</p>
 </div>
 <div class="section level4">
 <h4 id="inertia-inertia">Inertia (<code>inertia()</code>)<a class="anchor" aria-label="anchor" href="#inertia-inertia"></a>
 </h4>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">inertia</span><span class="op">(</span><span class="va">network</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span>  </span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">inertia</span><span class="op">(</span><span class="va">network</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
-s(i,j, t, x) = 
+s(i,j, t, x) =
 \begin{cases}
     I(x(t)_{ij}&gt;0) &amp; \text{unweighted}\\
     x(t)_{ij} &amp; \text{weighted}
   \end{cases}
 \end{equation}\]</span></p>
-<p>Usually used as the “intercept” for the choice submodel, <em>inertia</em> is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> if the event <span class="math inline">\(i\rightarrow j\)</span> happened before. It can be interpreted as the differential tendency to update existing ties rather than creating new ones. Thus, <em>inertia</em> is similar to <em>tie</em>, but defined on the network to which the dependent events relate. Parameter <code>weighted</code> can be set to <code>TRUE</code> if the count of past events <span class="math inline">\(i\rightarrow j\)</span> is to be taken as a statistic. It can be transformed by using <code>transformFun</code> (this might make sense when <code>weighted = TRUE</code>). <strong>Note:</strong> <code>inertia</code> can never be used in combination with a <code>ignoreRep = TRUE</code> parameter as this would replace all positive statistics with zeros.</p>
+<p>Usually used as the “intercept” for the choice submodel,
+<em>inertia</em> is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> if the event <span class="math inline">\(i\rightarrow j\)</span> happened before. It can be
+interpreted as the differential tendency to update existing ties rather
+than creating new ones. Thus, <em>inertia</em> is similar to
+<em>tie</em>, but defined on the network to which the dependent events
+relate. Parameter <code>weighted</code> can be set to <code>TRUE</code>
+if the count of past events <span class="math inline">\(i\rightarrow
+j\)</span> is to be taken as a statistic. It can be transformed by using
+<code>transformFun</code> (this might make sense when
+<code>weighted = TRUE</code>). <strong>Note:</strong>
+<code>inertia</code> can never be used in combination with a
+<code>ignoreRep = TRUE</code> parameter as this would replace all
+positive statistics with zeros.</p>
 </div>
 <div class="section level4">
 <h4 id="tie-reciprocation-recip">Tie reciprocation (<code>recip()</code>)<a class="anchor" aria-label="anchor" href="#tie-reciprocation-recip"></a>
 </h4>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">recip</span><span class="op">(</span><span class="va">network</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>      transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span> </span></code></pre></div>
+<span>      transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
-s(i,j, t, x) = 
+s(i,j, t, x) =
 \begin{cases}
     I(x(t)_{ji}&gt;0) &amp; \text{unweighted}\\
     x(t)_{ji} &amp; \text{weighted}
   \end{cases}
 \end{equation}\]</span></p>
-<p>Effect of a tie j-&gt;i on event <span class="math inline">\(i\rightarrow j\)</span>. Recip cannot be used with binary = T in undirected dependent network</p>
-<p>Tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> if one or several <span class="math inline">\(j\rightarrow i\)</span> happened before. Parameter <code>weighted</code> can be set to <code>TRUE</code> if the count/weight of <span class="math inline">\(j\rightarrow i\)</span> events/ties is to be taken as a statistic. It can be transformed by using <code>transformFun</code> (this might make sense when <code>weighted = TRUE</code>). This effect cannot be used for two-mode networks and for DyNAM-choice_coordination submodel.</p>
+<p>Effect of a tie j-&gt;i on event <span class="math inline">\(i\rightarrow j\)</span>. Recip cannot be used with
+binary = T in undirected dependent network</p>
+<p>Tendency to create an event <span class="math inline">\(i\rightarrow
+j\)</span> if one or several <span class="math inline">\(j\rightarrow
+i\)</span> happened before. Parameter <code>weighted</code> can be set
+to <code>TRUE</code> if the count/weight of <span class="math inline">\(j\rightarrow i\)</span> events/ties is to be taken
+as a statistic. It can be transformed by using <code>transformFun</code>
+(this might make sense when <code>weighted = TRUE</code>). This effect
+cannot be used for two-mode networks and for DyNAM-choice_coordination
+submodel.</p>
 </div>
 </div>
 <div class="section level3">
@@ -797,7 +942,9 @@ s(i,j, t, x) =
 <p><span class="math display">\[\begin{equation}
 s(i,j, t, z) = I(z(t)_i = z(t)_j)
 \end{equation}\]</span></p>
-<p>Homophily (same value). The tendency of an event <span class="math inline">\(i\rightarrow j\)</span> to happen if actors i and j have the same attribute value. This effect cannot be used for two-mode networks and for the DyNAM-rate submodel.</p>
+<p>Homophily (same value). The tendency of an event <span class="math inline">\(i\rightarrow j\)</span> to happen if actors i and
+j have the same attribute value. This effect cannot be used for two-mode
+networks and for the DyNAM-rate submodel.</p>
 </div>
 <div class="section level4">
 <h4 id="differences-in-attribute-diff">Differences in attribute (<code>diff()</code>)<a class="anchor" aria-label="anchor" href="#differences-in-attribute-diff"></a>
@@ -807,7 +954,10 @@ s(i,j, t, z) = I(z(t)_i = z(t)_j)
 <p><span class="math display">\[\begin{equation}
 s(i,j, t, z) = |z(t)_i - z(t)_j|
 \end{equation}\]</span></p>
-<p>Heterophily. The tendency of an event <span class="math inline">\(i\rightarrow j\)</span> to happen if actors i and j have different attribute values (high absolute differences regarding attribute if <code>transformFun = abs</code>). This effect cannot be used for two-mode networks.</p>
+<p>Heterophily. The tendency of an event <span class="math inline">\(i\rightarrow j\)</span> to happen if actors i and
+j have different attribute values (high absolute differences regarding
+attribute if <code>transformFun = abs</code>). This effect cannot be
+used for two-mode networks.</p>
 </div>
 <div class="section level4">
 <h4 id="similarity-in-attribute-sim">Similarity in attribute (<code>sim()</code>)<a class="anchor" aria-label="anchor" href="#similarity-in-attribute-sim"></a>
@@ -817,21 +967,30 @@ s(i,j, t, z) = |z(t)_i - z(t)_j|
 <p><span class="math display">\[\begin{equation}
 s(i,j, t, z) = -|z(t)_i - z(t)_j|
 \end{equation}\]</span></p>
-<p>Homophily (similar value). The tendency of an event <span class="math inline">\(i\rightarrow j\)</span> to happen if actors i and j have similar <code>attribute</code> values (low absolute differences regarding <code>attribute</code> if <code>transformFun = abs</code>). This effect cannot be used for two-mode networks.</p>
+<p>Homophily (similar value). The tendency of an event <span class="math inline">\(i\rightarrow j\)</span> to happen if actors i and
+j have similar <code>attribute</code> values (low absolute differences
+regarding <code>attribute</code> if <code>transformFun = abs</code>).
+This effect cannot be used for two-mode networks.</p>
 </div>
 <div class="section level4">
 <h4 id="ego-alter-interaction-egoalterint">Ego Alter interaction (<code>egoAlterInt()</code>)<a class="anchor" aria-label="anchor" href="#ego-alter-interaction-egoalterint"></a>
 </h4>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">egoAlterInt</span><span class="op">(</span>attribute <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">attribute1</span>, <span class="va">attribute2</span><span class="op">)</span><span class="op">)</span> </span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">egoAlterInt</span><span class="op">(</span>attribute <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">attribute1</span>, <span class="va">attribute2</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
 s(i,j, t, z^{(1)}, z^{(2)}) = z(t)_i^{(1)} * z(t)_j^{(2)}
 \end{equation}\]</span></p>
-<p>In a model that includes an alter effect using <code>attribute2</code>, the ego alter interaction helps to study the tendency to create an event <span class="math inline">\(i \rightarrow j\)</span> when <span class="math inline">\(j\)</span> score high on <code>attribute2</code> moderated by the score of ego on <code>attribute1</code>.</p>
+<p>In a model that includes an alter effect using
+<code>attribute2</code>, the ego alter interaction helps to study the
+tendency to create an event <span class="math inline">\(i \rightarrow
+j\)</span> when <span class="math inline">\(j\)</span> score high on
+<code>attribute2</code> moderated by the score of ego on
+<code>attribute1</code>.</p>
 </div>
 </div>
 <div class="section level3">
-<h3 id="structural-attribute-effect-1">Structural <span class="math inline">\(+\)</span> Attribute effect<a class="anchor" aria-label="anchor" href="#structural-attribute-effect-1"></a>
+<h3 id="structural-attribute-effect-1">Structural <span class="math inline">\(+\)</span> Attribute
+effect<a class="anchor" aria-label="anchor" href="#structural-attribute-effect-1"></a>
 </h3>
 <table class="table">
 <thead><tr class="header">
@@ -853,11 +1012,17 @@ s(i,j, t, z^{(1)}, z^{(2)}) = z(t)_i^{(1)} * z(t)_j^{(2)}
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">tertiusDiff</span><span class="op">(</span><span class="va">network</span>, <span class="va">attribute</span>, isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>            window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">abs</span>,</span>
-<span>            aggregateFun <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> </span></code></pre></div>
+<span>            aggregateFun <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
-s(i,j, t, x, z) = \left|\frac{z(t)_i - \sum_{k:~x(t)_{kj} &gt; 0}{z(t)_k}}{ \sum_{k}{I(x(t)_{kj} &gt; 0)}}\right|
+s(i,j, t, x, z) = \left|\frac{z(t)_i -
+\sum_{k:~x(t)_{kj} &gt; 0}{z(t)_k}}{ \sum_{k}{I(x(t)_{kj} &gt;
+0)}}\right|
 \end{equation}\]</span></p>
-<p>The tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(i\)</span> has a similar value as <span class="math inline">\(j\)</span> aggregate (<code>aggregateFun</code>) value of its in-neighbors (<span class="math inline">\(\forall j:~ x[j, i] &gt; 0\)</span>). <em>Note:</em> When the node <span class="math inline">\(j\)</span> does not have in-neighbors, its value is imputed by the average of the similarities computed for the pairs <span class="math inline">\(i\)</span>, <span class="math inline">\(k\)</span> for all <span class="math inline">\(k\)</span> that has at least one in-neighbor.</p>
+<p>The tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when <span class="math inline">\(i\)</span> has a similar value as <span class="math inline">\(j\)</span> aggregate (<code>aggregateFun</code>)
+value of its in-neighbors (<span class="math inline">\(\forall j:~ x[j,
+i] &gt; 0\)</span>). <em>Note:</em> When the node <span class="math inline">\(j\)</span> does not have in-neighbors, its value
+is imputed by the average of the similarities computed for the pairs
+<span class="math inline">\(i\)</span>, <span class="math inline">\(k\)</span> for all <span class="math inline">\(k\)</span> that has at least one in-neighbor.</p>
 </div>
 </div>
 </div>
@@ -936,7 +1101,12 @@ s(i,j, t, x, z) = \left|\frac{z(t)_i - \sum_{k:~x(t)_{kj} &gt; 0}{z(t)_k}}{ \sum
 <p><span class="math display">\[\begin{equation}
 s(i,j, t, x) = \sum_{k}{I(x(t)_{ik}&gt;0)I(x(t)_{kj}&gt;0)}
 \end{equation}\]</span></p>
-<p>It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more two-paths (<span class="math inline">\(i\rightarrow k\rightarrow j\)</span>) observed in the past events in a covariate <code>network</code>. It can be transformed by using <code>transformFun</code>. This effect cannot be used for two-mode networks.</p>
+<p>It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more
+two-paths (<span class="math inline">\(i\rightarrow k\rightarrow
+j\)</span>) observed in the past events in a covariate
+<code>network</code>. It can be transformed by using
+<code>transformFun</code>. This effect cannot be used for two-mode
+networks.</p>
 </div>
 <div class="section level4">
 <h4 id="cycle-cycle">Cycle (<code>cycle()</code>)<a class="anchor" aria-label="anchor" href="#cycle-cycle"></a>
@@ -946,38 +1116,60 @@ s(i,j, t, x) = \sum_{k}{I(x(t)_{ik}&gt;0)I(x(t)_{kj}&gt;0)}
 <p><span class="math display">\[\begin{equation}
 s(i,j, t, x) = \sum_{k}{I(x(t)_{jk}&gt;0)I(x(t)_{ki}&gt;0)}
 \end{equation}\]</span></p>
-<p>It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more two-paths (<span class="math inline">\(j\rightarrow k\rightarrow i\)</span>) observed in the past events in a covariate <code>network</code>. It can be transformed by using <code>transformFun</code>. This effect cannot be used for two-mode networks and DyNAM-choice_coordination.</p>
+<p>It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more
+two-paths (<span class="math inline">\(j\rightarrow k\rightarrow
+i\)</span>) observed in the past events in a covariate
+<code>network</code>. It can be transformed by using
+<code>transformFun</code>. This effect cannot be used for two-mode
+networks and DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
 <h4 id="common-sender-closure-commonsender">Common sender closure (<code>commonSender()</code>)<a class="anchor" aria-label="anchor" href="#common-sender-closure-commonsender"></a>
 </h4>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">commonSender</span><span class="op">(</span><span class="va">network</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span> </span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">commonSender</span><span class="op">(</span><span class="va">network</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
 s(i,j, t, x) = \sum_{k}{I(x(t)_{ki}&gt;0)I(x(t)_{kj}&gt;0)}
 \end{equation}\]</span></p>
-<p>It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more two-paths (<span class="math inline">\(i\leftarrow k\rightarrow j\)</span>) observed in the past events in a covariate <code>network</code>. It can be transformed by using <code>transformFun</code>.. This effect cannot be used for two-mode networks and DyNAM-choice_coordination.</p>
+<p>It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more
+two-paths (<span class="math inline">\(i\leftarrow k\rightarrow
+j\)</span>) observed in the past events in a covariate
+<code>network</code>. It can be transformed by using
+<code>transformFun</code>. This effect cannot be used for two-mode
+networks and DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
 <h4 id="common-receiver-closure-commonreceiver">Common receiver closure (<code>commonReceiver()</code>)<a class="anchor" aria-label="anchor" href="#common-receiver-closure-commonreceiver"></a>
 </h4>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">commonReceiver</span><span class="op">(</span><span class="va">network</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span> </span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">commonReceiver</span><span class="op">(</span><span class="va">network</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>               transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
 s(i,j, t, x) = \sum_{k}{I(x(t)_{ik}&gt;0)I(x(t)_{jk}&gt;0)}
 \end{equation}\]</span></p>
-<p>It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more two-paths (<span class="math inline">\(i\rightarrow k\leftarrow j\)</span>) observed in the past events in a covariate <code>network</code>. It can be transformed by using <code>transformFun</code>.. This effect cannot be used for two-mode networks and DyNAM-choice_coordination.</p>
+<p>It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more
+two-paths (<span class="math inline">\(i\rightarrow k\leftarrow
+j\)</span>) observed in the past events in a covariate
+<code>network</code>. It can be transformed by using
+<code>transformFun</code>. This effect cannot be used for two-mode
+networks and DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
 <h4 id="four-cycle-four">Four cycle (<code>four()</code>)<a class="anchor" aria-label="anchor" href="#four-cycle-four"></a>
 </h4>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">four</span><span class="op">(</span><span class="va">network</span>, isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>     transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span> </span></code></pre></div>
+<span>     transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
-s(i,j, t, x) = \sum_{kl}{I(x(t)_{ik}&gt;0)I(x(t)_{lk}&gt;0)I(x(t)_{lj}&gt;0)}
+s(i,j, t, x) =
+\sum_{kl}{I(x(t)_{ik}&gt;0)I(x(t)_{lk}&gt;0)I(x(t)_{lj}&gt;0)}
 \end{equation}\]</span></p>
-<p>Closure of three-paths. It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more three-paths (<span class="math inline">\(i\rightarrow k\leftarrow l\rightarrow j\)</span>) observed in the past events in a covariate <code>network</code>. It can be transformed by using <code>transformFun</code>.. This effect cannot be used for two-mode networks and DyNAM-choice_coordination.</p>
+<p>Closure of three-paths. It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more
+three-paths (<span class="math inline">\(i\rightarrow k\leftarrow
+l\rightarrow j\)</span>) observed in the past events in a covariate
+<code>network</code>. It can be transformed by using
+<code>transformFun</code>. This effect cannot be used for two-mode
+networks and DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
 <h4 id="mixed-transitivity-mixedtrans">Mixed Transitivity (<code>mixedTrans()</code>)<a class="anchor" aria-label="anchor" href="#mixed-transitivity-mixedtrans"></a>
@@ -986,42 +1178,71 @@ s(i,j, t, x) = \sum_{kl}{I(x(t)_{ik}&gt;0)I(x(t)_{lk}&gt;0)I(x(t)_{lj}&gt;0)}
 <code class="sourceCode R"><span><span class="fu">mixedTrans</span><span class="op">(</span>network <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">network1</span>, <span class="va">network2</span><span class="op">)</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
 <span>           ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
-s(i,j, t, x^{(1)}, x^{(2)}) = \sum_{k}{I(x(t)_{ik}^{(1)}&gt;0)I(x(t)_{kj}^{(2)}&gt;0)}
+s(i,j, t, x^{(1)}, x^{(2)}) =
+\sum_{k}{I(x(t)_{ik}^{(1)}&gt;0)I(x(t)_{kj}^{(2)}&gt;0)}
 \end{equation}\]</span></p>
-<p>Transitivity within 2 networks. It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more two-paths with events (<span class="math inline">\(i\rightarrow k\)</span>) in <code>network1</code> and (<span class="math inline">\(k\rightarrow j\)</span>) in <code>network2</code> observed in the past events in the covariate networks. It can be transformed by using <code>transformFun</code>.. This effect cannot be used for two-mode networks.</p>
+<p>Transitivity within 2 networks. It is the tendency to create an event
+<span class="math inline">\(i\rightarrow j\)</span> when it closes more
+two-paths with events (<span class="math inline">\(i\rightarrow
+k\)</span>) in <code>network1</code> and (<span class="math inline">\(k\rightarrow j\)</span>) in <code>network2</code>
+observed in the past events in the covariate networks. It can be
+transformed by using <code>transformFun</code>. This effect cannot be
+used for two-mode networks.</p>
 </div>
 <div class="section level4">
 <h4 id="mixed-cycle-mixedcycle">Mixed Cycle (<code>mixedCycle()</code>)<a class="anchor" aria-label="anchor" href="#mixed-cycle-mixedcycle"></a>
 </h4>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">mixedCycle</span><span class="op">(</span>network <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">network1</span>, <span class="va">network2</span><span class="op">)</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>           ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span> </span></code></pre></div>
+<span>           ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
-s(i,j, t, x^{(1)}, x^{(2)}) = \sum_{k}{I(x(t)_{ki}^{(1)}&gt;0)I(x(t)_{jk}^{(2)}&gt;0)}
+s(i,j, t, x^{(1)}, x^{(2)}) =
+\sum_{k}{I(x(t)_{ki}^{(1)}&gt;0)I(x(t)_{jk}^{(2)}&gt;0)}
 \end{equation}\]</span></p>
-<p>Cycle within 2 networks. It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more two-paths with events (<span class="math inline">\(k\rightarrow i\)</span>) in <code>network1</code> and (<span class="math inline">\(j\rightarrow k\)</span>) in <code>network2</code> observed in the past events in the covariate networks. It can be transformed by using <code>transformFun</code>.. This effect cannot be used for two-mode networks and DyNAM-choice_coordination.</p>
+<p>Cycle within 2 networks. It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more
+two-paths with events (<span class="math inline">\(k\rightarrow
+i\)</span>) in <code>network1</code> and (<span class="math inline">\(j\rightarrow k\)</span>) in <code>network2</code>
+observed in the past events in the covariate networks. It can be
+transformed by using <code>transformFun</code>. This effect cannot be
+used for two-mode networks and DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
 <h4 id="mixed-common-sender-closure-mixedcommonsender">Mixed common sender closure (<code>mixedCommonSender()</code>)<a class="anchor" aria-label="anchor" href="#mixed-common-sender-closure-mixedcommonsender"></a>
 </h4>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">mixedCommonSender</span><span class="op">(</span>network <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">network1</span>, <span class="va">network2</span><span class="op">)</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>              ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span> </span></code></pre></div>
+<span>              ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
-s(i,j, t, x^{(1)}, x^{(2)}) = \sum_{k}{I(x(t)_{ki}^{(1)}&gt;0)I(x(t)_{kj}^{(2)}&gt;0)}
+s(i,j, t, x^{(1)}, x^{(2)}) =
+\sum_{k}{I(x(t)_{ki}^{(1)}&gt;0)I(x(t)_{kj}^{(2)}&gt;0)}
 \end{equation}\]</span></p>
-<p>Closure common sender within 2 networks. It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more two-paths with events (<span class="math inline">\(k\rightarrow i\)</span>) in <code>network1</code> and (<span class="math inline">\(k\rightarrow j\)</span>) in <code>network2</code> observed in the past events in the covariate networks. It can be transformed by using <code>transformFun</code>.. This effect cannot be used for two-mode networks and DyNAM-choice_coordination.</p>
+<p>Closure common sender within 2 networks. It is the tendency to create
+an event <span class="math inline">\(i\rightarrow j\)</span> when it
+closes more two-paths with events (<span class="math inline">\(k\rightarrow i\)</span>) in <code>network1</code>
+and (<span class="math inline">\(k\rightarrow j\)</span>) in
+<code>network2</code> observed in the past events in the covariate
+networks. It can be transformed by using <code>transformFun</code>. This
+effect cannot be used for two-mode networks and
+DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
-<h4 id="mixed-common-receiver-closure-mixedcommonreceiver">Mixed common receiver closure (<code>mixedCommonReceiver()</code>)<a class="anchor" aria-label="anchor" href="#mixed-common-receiver-closure-mixedcommonreceiver"></a>
+<h4 id="mixed-common-receiver-closure-mixedcommonreceiver">Mixed common receiver closure
+(<code>mixedCommonReceiver()</code>)<a class="anchor" aria-label="anchor" href="#mixed-common-receiver-closure-mixedcommonreceiver"></a>
 </h4>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">mixedCommonReceiver</span><span class="op">(</span>network <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">network1</span>, <span class="va">network2</span><span class="op">)</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>               ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span> </span></code></pre></div>
+<span>               ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><span class="math display">\[\begin{equation}
-s(i,j, t, x^{(1)}, x^{(2)}) = \sum_{k}{I(x(t)_{ik}^{(1)}&gt;0)I(x(t)_{jk}^{(2)}&gt;0)}
+s(i,j, t, x^{(1)}, x^{(2)}) =
+\sum_{k}{I(x(t)_{ik}^{(1)}&gt;0)I(x(t)_{jk}^{(2)}&gt;0)}
 \end{equation}\]</span></p>
-<p>Closure receiver within 2 networks. It is the tendency to create an event <span class="math inline">\(i\rightarrow j\)</span> when it closes more two-paths with events (<span class="math inline">\(i\rightarrow k\)</span>) in <code>network1</code> and (<span class="math inline">\(j\rightarrow k\)</span>) in <code>network2</code> observed in the past events in the covariate networks. It can be transformed by using <code>transformFun</code>.. This effect cannot be used for two-mode networks and DyNAM-choice_coordination.</p>
+<p>Closure receiver within 2 networks. It is the tendency to create an
+event <span class="math inline">\(i\rightarrow j\)</span> when it closes
+more two-paths with events (<span class="math inline">\(i\rightarrow
+k\)</span>) in <code>network1</code> and (<span class="math inline">\(j\rightarrow k\)</span>) in <code>network2</code>
+observed in the past events in the covariate networks. It can be
+transformed by using <code>transformFun</code>. This effect cannot be
+used for two-mode networks and DyNAM-choice_coordination.</p>
 </div>
 </div>
   </div>
@@ -1043,7 +1264,7 @@ s(i,j, t, x^{(1)}, x^{(2)}) = \sum_{k}{I(x(t)_{ik}^{(1)}&gt;0)I(x(t)_{jk}^{(2)}&
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.7.</p>
 </div>
 
       </footer>
