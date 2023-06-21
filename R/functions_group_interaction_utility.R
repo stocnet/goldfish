@@ -47,7 +47,6 @@
 #' }
 defineGroups_interaction <- function(records, actors, seed.randomization,
                                      progress = getOption("progress")) {
-
   stopifnot(
     inherits(records, "data.frame"),
     inherits(actors, "data.frame"),
@@ -154,10 +153,8 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 
     # check all actors
     for (a1 in seq.int(nactors - 1)) {
-
       # check all others
       for (a2 in seq.int(a1 + 1, nactors)) {
-
         # interaction records?
         nAa1 <- which(records$NodeA == toString(a1))
         nBa1 <- which(records$NodeB == toString(a1))
@@ -170,7 +167,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
         if (length(inda1a2) > 0) {
           for (j in seq.int(length(inda1a2))) {
             if (records$Start[inda1a2[j]] <= time &&
-                records$End[inda1a2[j]] > time) {
+              records$End[inda1a2[j]] > time) {
               areinteracting <- 1
             }
           }
@@ -184,7 +181,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     g <- 1
 
     for (a1 in seq.int(nactors)) {
-
       # is the actor is interacting?
       isinteracting <- sum(tempnet[a1, ]) > 0
 
@@ -335,7 +331,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 
         # if some of them were interacting before, in one or several groups
         if (numpreviousgroups >= 1) {
-
           # we randomly choose the group to keep, potentially
           #  create one more in the split case
           newkeptg <- FALSE
@@ -377,7 +372,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 
           if (newkeptg) {
             for (g2 in seq_len(numpreviousgroups)) {
-
               # we check whether there are some other actors
               #  in the previous group
               previousgroup <- previousgroups[g2]
@@ -387,7 +381,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 
               if (length(previousgroupactors) > 0) {
                 for (a2 in seq_along(previousgroupactors)) {
-
                   # dependent leaving events for active actors in other groups
                   # + exogenous joining events to intermediary singletons
                   if (!previousgroup %in% singletons) {
@@ -502,7 +495,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
                     # debug
                     # cat(paste("(exo) leaving event: ",
                     #  previousgroupactors[a2],"to", newg, "\n"))
-
                   } else {
                     # if it was a singleton, it just leaves the singleton
                     exotimeevents_temp <- c(exotimeevents_temp, time)
@@ -533,7 +525,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
             previousgroups <- previousgroups[which(previousgroups != keptg)]
 
             for (g2 in seq.int(numpreviousgroups)) {
-
               # we check whether there are some other actors
               #  in the previous group
               previousgroup <- previousgroups[g2]
@@ -543,7 +534,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 
               if (length(previousgroupactors) > 0) {
                 for (a2 in seq.int(length(previousgroupactors))) {
-
                   # dependent leaving events for active actors in other groups
                   # + exogenous joining events to intermediary singletons
                   if (!previousgroup %in% singletons) {
@@ -672,7 +662,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
                     #     "to", newg, "\n"
                     #   )
                     # )
-
                   } else {
                     # if it was a singleton, it just leaves the singleton
                     exotimeevents_temp <- c(exotimeevents_temp, time)
@@ -744,7 +733,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     # if there were previous groups, go through all of them in a random order
     if (numgroups > 0) {
       for (g in seq.int(numgroups)) {
-
         # what about other actors in the group
         previousgroup <- previousgroups[g]
         groupactors <- which(currentgroups == previousgroup)
@@ -889,7 +877,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     pastreceiverevents <- c(pastreceiverevents, pastreceiverevents_temp)
     pastreplaceevents <- c(pastreplaceevents, pastreplaceevents_temp)
     pastorder <- c(pastorder, pastorder_temp)
-
   }
 
   # RESULTS
@@ -951,13 +938,16 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
   exogenous.events$receiver <- groups$label[exogenous.events$receiver]
 
   # Inform about the number of events
-  if (progress)
+  if (progress) {
     cat(
       "Data preparation for DyNAM-i model:\n",
       paste(nrow(dependent.events), "dependent events created"), "\n",
-      paste(nrow(exogenous.events),
-            "exogenous events created (group composition updates")
+      paste(
+        nrow(exogenous.events),
+        "exogenous events created (group composition updates"
+      )
     )
+  }
 
   groupsResult <- list(
     interaction.updates = interaction.updates,
@@ -980,15 +970,13 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 cleanInteractionEvents <- function(
     events, eventsEffectsLink, windowParameters,
     subModel, depName, eventsObjectsLink, envir) {
-
-  done.events <- rep(FALSE,dim(eventsEffectsLink)[1])
+  done.events <- rep(FALSE, dim(eventsEffectsLink)[1])
 
   # Windowed events: we remove the order of the events
   for (e in seq.int(dim(eventsEffectsLink)[1])) {
     for (eff in seq.int(dim(eventsEffectsLink)[2])) {
       if (!done.events[e] && !is.na(eventsEffectsLink[e, eff]) &&
-          !is.null(windowParameters[[eff]])) {
-
+        !is.null(windowParameters[[eff]])) {
         eventsobject <- get(rownames(eventsEffectsLink)[e], envir = envir)
 
         # correct the order of events
@@ -1043,7 +1031,6 @@ cleanInteractionEvents <- function(
 # remove own groups from the sets of options
 setopportunities_interaction <- function(
     nodes, nodes2, eventsObjectsLink, groups.network) {
-
   # get objects
   getactors <- get(nodes)
   getgroups <- get(nodes2)

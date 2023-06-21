@@ -1,8 +1,7 @@
 # define methods ----------------------------------------------------------
 # init the statistical matrix
 init_DyNAM_rate <- function(
-    effectFun, network, attribute, n1, n2, cache = NULL
-  ) {
+    effectFun, network, attribute, n1, n2, cache = NULL) {
   UseMethod("init_DyNAM_rate", effectFun)
 }
 
@@ -11,8 +10,7 @@ init_DyNAM_rate.default <- function(
     effectFun,
     network = NULL, attribute = NULL,
     window,
-    n1, n2
-) {
+    n1, n2) {
   init_DyNAM_choice.default(
     effectFun = effectFun,
     network = network, attribute = attribute,
@@ -49,9 +47,9 @@ init_DyNAM_rate.default <- function(
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
 #' effectFUN <- function(
-#'   weighted = TRUE, isTwoMode = TRUE, transformFun = identity
-#' )
+#'     weighted = TRUE, isTwoMode = TRUE, transformFun = identity) {
 #'   NULL
+#' }
 #' init_REM_choice.indeg(effectFUN, network, 5, 6)
 #' network <- matrix(
 #'   c(
@@ -64,23 +62,25 @@ init_DyNAM_rate.default <- function(
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
 #' effectFUN <- function(
-#'   weighted = TRUE, isTwoMode = FALSE, transformFun = identity
-#'  )
+#'     weighted = TRUE, isTwoMode = FALSE, transformFun = identity) {
 #'   NULL
+#' }
 #' init_DyNAM_rate.indeg(effectFUN, network, NULL, 5, 5)
 #'
 #' effectFUN <- function(
-#'   weighted = TRUE, isTwoMode = FALSE, transformFun = identity,
-#'   type = "alter"
-#'  )
+#'     weighted = TRUE, isTwoMode = FALSE, transformFun = identity,
+#'     type = "alter") {
 #'   NULL
+#' }
 #' init_DyNAM_rate.indeg(effectFUN, network, NULL, 5, 5)
 #' }
 init_DyNAM_rate.indeg <- function(effectFun, network, window, n1, n2) {
   formals(effectFun) <- c(formals(effectFun), list(type = "ego"))
-  init_REM_choice.indeg(effectFun = effectFun, network = network,
-                        window = window,
-                        n1 = n1, n2 = n2)
+  init_REM_choice.indeg(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2
+  )
 }
 
 #' update stat indegree using cache ego
@@ -125,8 +125,7 @@ update_DyNAM_rate_indeg <- function(
     network,
     sender, receiver, replace, cache,
     n1, n2, isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity
-) {
+    weighted = FALSE, transformFun = identity) {
   update_REM_choice_indeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
@@ -138,9 +137,11 @@ update_DyNAM_rate_indeg <- function(
 # outdeg ---------------------------------------------------------------
 init_DyNAM_rate.outdeg <- function(effectFun, network, window, n1, n2) {
   formals(effectFun) <- c(formals(effectFun), list(type = "ego"))
-  init_REM_choice.outdeg(effectFun = effectFun, network = network,
-                         window = window,
-                         n1 = n1, n2 = n2)
+  init_REM_choice.outdeg(
+    effectFun = effectFun, network = network,
+    window = window,
+    n1 = n1, n2 = n2
+  )
 }
 
 
@@ -148,8 +149,7 @@ update_DyNAM_rate_outdeg <- function(
     network,
     sender, receiver, replace, cache,
     n1, n2, isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity
-) {
+    weighted = FALSE, transformFun = identity) {
   update_REM_choice_outdeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
@@ -163,7 +163,8 @@ init_DyNAM_rate.nodeTrans <- function(effectFun, network, window, n1, n2) {
   formals(effectFun) <- c(formals(effectFun), list(type = "ego"))
   init_REM_choice.nodeTrans(
     effectFun = effectFun, network = network,
-    window = window, n1 = n1, n2 = n2)
+    window = window, n1 = n1, n2 = n2
+  )
 }
 
 update_DyNAM_rate_nodeTrans <- function(
@@ -174,8 +175,7 @@ update_DyNAM_rate_nodeTrans <- function(
     cache,
     n1, n2,
     isTwoMode = FALSE,
-    transformFun = identity
-) {
+    transformFun = identity) {
   update_REM_choice_nodeTrans(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
@@ -185,8 +185,7 @@ update_DyNAM_rate_nodeTrans <- function(
 }
 # tertius ----------------------------------------------------------------
 init_DyNAM_rate.tertius <- function(
-    effectFun, network, attribute, window, n1, n2
-  ) {
+    effectFun, network, attribute, window, n1, n2) {
   formals(effectFun) <- c(formals(effectFun), list(type = "ego"))
   init_REM_choice.tertius(
     effectFun = effectFun, network = network, attribute = attribute,
@@ -206,8 +205,7 @@ update_DyNAM_rate_tertius <- function(
     isTwoMode = FALSE,
     n1 = n1, n2 = n2,
     transformFun = identity,
-    aggregateFun = function(x) mean(x, na.rm = TRUE)
-) {
+    aggregateFun = function(x) mean(x, na.rm = TRUE)) {
   update_REM_choice_tertius(
     network = network,
     attribute = attribute,
@@ -226,16 +224,17 @@ update_DyNAM_rate_tertius <- function(
 # Covariate effects -------------------------------------------------------
 # ego ---------------------------------------------------------------------
 init_DyNAM_rate.ego <- function(effectFun, attribute, n1, n2) {
-  init_REM_choice.ego(effectFun = effectFun, attribute = attribute,
-                      n1 = n1, n2 = n2)
+  init_REM_choice.ego(
+    effectFun = effectFun, attribute = attribute,
+    n1 = n1, n2 = n2
+  )
 }
 
 update_DyNAM_rate_ego <- function(
     attribute,
     node, replace,
     n1, n2,
-    isTwoMode = FALSE
-) {
+    isTwoMode = FALSE) {
   update_REM_choice_ego(
     attribute = attribute,
     node = node, replace = replace,

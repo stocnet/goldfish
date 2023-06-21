@@ -1,4 +1,3 @@
-
 test_that("ego returns a valid matrix", {
   expect_type(
     update_DyNAM_rate_ego(

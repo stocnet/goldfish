@@ -31,7 +31,6 @@
 #' getDataObjects(list(rownames(objectsEffectsLink)), removeFirst = FALSE)
 #' }
 getDataObjects <- function(namedList, keepOrder = FALSE, removeFirst = TRUE) {
-
   # strip function names
   objNames <- unlist(namedList)
   if (removeFirst) objNames <- unlist(lapply(namedList, "[", -1))
@@ -47,8 +46,9 @@ getDataObjects <- function(namedList, keepOrder = FALSE, removeFirst = TRUE) {
   # # case list(...)
   areList <- grepl("list\\(\\s*(.+)\\s*\\)", objNames)
   .split <- ifelse(areList,
-                  gsub("list\\(\\s*(.+)\\s*\\)", "\\1", objNames),
-                  objNames)
+    gsub("list\\(\\s*(.+)\\s*\\)", "\\1", objNames),
+    objNames
+  )
   .split <- unlist(strsplit(.split, split = "\\s*,\\s*"))
 
   if (!keepOrder) .split <- unique(.split)
@@ -248,7 +248,7 @@ ReducePreprocess <- function(
   )
 
   if ((preproData$subModel == "rate" || preproData$model == "REM") &&
-      length(preproData$rightCensoredStatsChange) > 0) {
+    length(preproData$rightCensoredStatsChange) > 0) {
     rightCensoredStatChange <- ReduceEffUpdates(
       preproData$rightCensoredStatsChange,
       preproData$eventTime[preproData$orderEvents == 2]
@@ -341,7 +341,7 @@ UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
 
 
   if (inherits(changeEvents, "matrix") &&
-      all(c("node1", "node2", "replace") %in% colnames(changeEvents))) {
+    all(c("node1", "node2", "replace") %in% colnames(changeEvents))) {
     changeEvents <- data.frame(changeEvents)
     names(changeEvents)[match(c("node1", "node2"), names(changeEvents))] <-
       c("sender", "receiver")
@@ -375,7 +375,8 @@ UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
     names(redEvents)[chIncrement] <- "replace"
   } else if ("replace" %in% names(changeEvents)) {
     discard <- duplicated(changeEvents[, c("sender", "receiver")],
-                          fromLast = TRUE)
+      fromLast = TRUE
+    )
     redEvents <- changeEvents[
       !discard,
       c("sender", "receiver", "replace"),
@@ -394,21 +395,23 @@ GetDetailPrint <- function(
   # matrix with the effects in rows and objects in columns,
   # which net or actor att
   maxObjs <- max(objectsEffectsLink, na.rm = TRUE)
-  effectDescription <- matrix(t(
-    apply(
-      objectsEffectsLink, 2,
-      function(x) {
-        notNA <- !is.na(x)
-        objs <- x[notNA]
-        objs <- names(objs[order(objs)])
-        c(objs, rep("", maxObjs - length(objs)))
-      })
-  ),
-  nrow = ncol(objectsEffectsLink),
-  ncol = maxObjs
+  effectDescription <- matrix(
+    t(
+      apply(
+        objectsEffectsLink, 2,
+        function(x) {
+          notNA <- !is.na(x)
+          objs <- x[notNA]
+          objs <- names(objs[order(objs)])
+          c(objs, rep("", maxObjs - length(objs)))
+        }
+      )
+    ),
+    nrow = ncol(objectsEffectsLink),
+    ncol = maxObjs
   )
   # # handle degenerate case one effect one object
-  dimnames(effectDescription) <-  list(
+  dimnames(effectDescription) <- list(
     colnames(objectsEffectsLink),
     if (ncol(effectDescription) == 1) {
       "Object"
@@ -449,7 +452,8 @@ GetDetailPrint <- function(
       window = vapply(
         parsedformula$windowParameters,
         function(x) ifelse(is.null(x), "", gsub("['\"]", "", x)),
-        character(1))
+        character(1)
+      )
     )
     # reduce object name
     effectDescription[, objectsName] <- t(apply(
@@ -493,7 +497,7 @@ GetDetailPrint <- function(
 
   if (!is.null(fixedParameters)) {
     effectDescription <- cbind(effectDescription,
-                               fixed = !is.na(fixedParameters)
+      fixed = !is.na(fixedParameters)
     )
   }
 
@@ -502,11 +506,13 @@ GetDetailPrint <- function(
 }
 
 GetFixed <- function(object) {
-  if ("fixed" %in% colnames(object$names))
+  if ("fixed" %in% colnames(object$names)) {
     vapply(
       object$names[, "fixed"],
       function(x) eval(parse(text = x)),
       logical(1)
     )
-  else rep(FALSE, length(object$parameters))
+  } else {
+    rep(FALSE, length(object$parameters))
+  }
 }

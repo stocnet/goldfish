@@ -7,7 +7,7 @@ test_that(
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "count") +
+        inertia(past_network_DyNAMi, weighted = TRUE, subType = "count") +
         tie(covnetwork_DyNAMi, weighted = TRUE, subType = "count") +
         inertia(past_network_DyNAMi, weighted = TRUE, subType = "proportion") +
         tie(covnetwork_DyNAMi, weighted = TRUE, subType = "proportion") +
@@ -24,8 +24,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change))
+      if (!is.null(change)) {
         stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -290,8 +291,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change))
+      if (!is.null(change)) {
         stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -391,9 +393,11 @@ test_that(
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
         alterpop(past_network_DyNAMi,
-                 weighted = TRUE, subType = "mean_normalized") +
+          weighted = TRUE, subType = "mean_normalized"
+        ) +
         alterdeg(covnetwork_DyNAMi,
-                 weighted = TRUE, subType = "mean_normalized") +
+          weighted = TRUE, subType = "mean_normalized"
+        ) +
         alterpop(past_network_DyNAMi, weighted = TRUE, subType = "min") +
         alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "min") +
         alterpop(past_network_DyNAMi, weighted = TRUE, subType = "mean") +
@@ -401,16 +405,19 @@ test_that(
         alterpop(past_network_DyNAMi, weighted = TRUE, subType = "max") +
         alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "max") +
         alterpop(past_network_DyNAMi,
-                 weighted = TRUE, subType = "mean_centered") +
+          weighted = TRUE, subType = "mean_centered"
+        ) +
         alterdeg(covnetwork_DyNAMi,
-                 weighted = TRUE, subType = "mean_centered"),
+          weighted = TRUE, subType = "mean_centered"
+        ),
       model = "DyNAMi", subModel = "choice",
       preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change))
+      if (!is.null(change)) {
         stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -648,15 +655,16 @@ test_that(
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      size(interaction_network_DyNAMi, subType = "identity") +
+        size(interaction_network_DyNAMi, subType = "identity") +
         size(interaction_network_DyNAMi, subType = "squared"),
       model = "DyNAMi", subModel = "choice",
       preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change))
+      if (!is.null(change)) {
         stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -760,7 +768,7 @@ test_that(
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~ alter(actors_DyNAMi$attr1, subType = "mean")
-      + alter(actors_DyNAMi$attr1, subType = "mean_normalized")
+        + alter(actors_DyNAMi$attr1, subType = "mean_normalized")
         + alter(actors_DyNAMi$attr1, subType = "mean_squared")
         + alter(actors_DyNAMi$attr1, subType = "min")
         + alter(actors_DyNAMi$attr1, subType = "max")
@@ -771,8 +779,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change))
+      if (!is.null(change)) {
         stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -980,23 +989,24 @@ test_that(
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
         same(actors_DyNAMi$attr2, subType = "proportion")
-      + same(actors_DyNAMi$attr2, subType = "count")
-      + same(actors_DyNAMi$attr2, subType = "presence")
-      + diff(actors_DyNAMi$attr1, subType = "averaged_sum")
-      + diff(actors_DyNAMi$attr1, subType = "mean")
-      + diff(actors_DyNAMi$attr1, subType = "min")
-      + diff(actors_DyNAMi$attr1, subType = "max")
-      + sim(actors_DyNAMi$attr1, subType = "averaged_sum")
-      + sim(actors_DyNAMi$attr1, subType = "mean")
-      + sim(actors_DyNAMi$attr1, subType = "min")
-      + sim(actors_DyNAMi$attr1, subType = "max"),
+        + same(actors_DyNAMi$attr2, subType = "count")
+        + same(actors_DyNAMi$attr2, subType = "presence")
+        + diff(actors_DyNAMi$attr1, subType = "averaged_sum")
+        + diff(actors_DyNAMi$attr1, subType = "mean")
+        + diff(actors_DyNAMi$attr1, subType = "min")
+        + diff(actors_DyNAMi$attr1, subType = "max")
+        + sim(actors_DyNAMi$attr1, subType = "averaged_sum")
+        + sim(actors_DyNAMi$attr1, subType = "mean")
+        + sim(actors_DyNAMi$attr1, subType = "min")
+        + sim(actors_DyNAMi$attr1, subType = "max"),
       model = "DyNAMi", subModel = "choice",
       preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change))
+      if (!is.null(change)) {
         stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 

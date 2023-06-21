@@ -88,8 +88,10 @@ test_that("vcov function", {
   expect_equal(
     vcov.result.goldfish(resModObject),
     matrix(
-      c(0.0241456179209463, -0.00230482755796413,
-        -0.00230482755796413, 0.0390106272519763),
+      c(
+        0.0241456179209463, -0.00230482755796413,
+        -0.00230482755796413, 0.0390106272519763
+      ),
       ncol = 2, nrow = 2,
       dimnames = list(c("inertia", "trans"), c("inertia", "trans"))
     ),
@@ -110,12 +112,16 @@ test_that("vcov function", {
   expect_equal(
     vcov.result.goldfish(resModObject, complete = TRUE),
     matrix(
-      c(0.0241456179209463, NA, -0.00230482755796413,
+      c(
+        0.0241456179209463, NA, -0.00230482755796413,
         NA, NA, NA,
-        -0.00230482755796413, NA, 0.0390106272519763),
+        -0.00230482755796413, NA, 0.0390106272519763
+      ),
       ncol = 3, nrow = 3,
-      dimnames = list(c("inertia", "recip", "trans"),
-                      c("inertia", "recip", "trans"))
+      dimnames = list(
+        c("inertia", "recip", "trans"),
+        c("inertia", "recip", "trans")
+      )
     ),
     label = "correct output when complete = TRUE"
   )

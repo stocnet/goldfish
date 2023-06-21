@@ -21,13 +21,14 @@
 #' @examples
 #' \donttest{
 #' calls <- structure(
-#'            list(time = 1, sender = "a", receiver = "b", replace = 1),
-#'            class = "dependent.goldfish"
-#'          )
+#'   list(time = 1, sender = "a", receiver = "b", replace = 1),
+#'   class = "dependent.goldfish"
+#' )
 #' callNetwork <- structure(matrix(0, 3, 3), class = "network.goldfish")
 #'
 #' parseFormula(
-#'   calls ~ outdeg(callNetwork, type="ego") + indeg(callNetwork, type="alter")
+#'   calls ~ outdeg(callNetwork, type = "ego") +
+#'     indeg(callNetwork, type = "alter")
 #' )
 #' }
 parseFormula <- function(formula, envir = new.env()) {
@@ -35,7 +36,9 @@ parseFormula <- function(formula, envir = new.env()) {
   depName <- getDependentName(formula)
   if (!inherits(get(depName, envir = envir), "dependent.goldfish")) {
     stop("The left hand side of the formula should contain dependent events",
-         " (check the function defineDependentEvents).", call. = FALSE)
+      " (check the function defineDependentEvents).",
+      call. = FALSE
+    )
   }
   # check right side
   rhsNames <- getRHSNames(formula)
@@ -72,10 +75,12 @@ parseFormula <- function(formula, envir = new.env()) {
   mult <- parseMultipleEffects(rhsNames, envir = envir)
   rhsNames <- mult[[1]]
   ignoreRepParameter <- mult[[2]]
-    # check mismatch with default parameter
+  # check mismatch with default parameter
   if (any(unlist(ignoreRepParameter)) && is.null(defaultNetworkName)) {
     stop("No default network defined, thus ", dQuote("ignoreRep = TRUE"),
-         " effects cannot be used.", call. = FALSE)
+      " effects cannot be used.",
+      call. = FALSE
+    )
   }
   # check right side: weighted parameter
   weightedParameter <- lapply(rhsNames, function(x) {
@@ -91,10 +96,11 @@ parseFormula <- function(formula, envir = new.env()) {
   getFunName <- function(x, which) {
     v <- getElement(x, which)
     v <- ifelse(!is.null(v), v, "")
-    v <- gsub("['\" ]", "", v)  # replace quotation marks
+    v <- gsub("['\" ]", "", v) # replace quotation marks
     v <- ifelse(
       grepl("function.?\\(", v) || nchar(v) > 12,
-      "userDefined", v) # if it is a function, it is replace by short text
+      "userDefined", v
+    ) # if it is a function, it is replace by short text
   }
   transParameter <- lapply(rhsNames, getFunName, "transformFun")
   aggreParameter <- lapply(rhsNames, getFunName, "aggregateFun")
@@ -137,34 +143,38 @@ parseFormula <- function(formula, envir = new.env()) {
 #    are new, and with the
 #    the index of the effect in the old formula if the effect was already there
 compareFormulas <- function(
-    oldparsedformula, newparsedformula, model, subModel
-) {
-
+    oldparsedformula, newparsedformula, model, subModel) {
   # test dependent events and default network
   if (oldparsedformula$depName != newparsedformula$depName) {
-    stop("The dependent events in the formula are not the ones used in",
-         " the preprocessed object given in preprocessingInit.")
+    stop(
+      "The dependent events in the formula are not the ones used in",
+      " the preprocessed object given in preprocessingInit."
+    )
   }
   if (!identical(
     oldparsedformula$defaultNetworkName,
     newparsedformula$defaultNetworkName
   )) {
-    stop("The default network in the formula is not the one used in",
-         " the preprocessed object given in preprocessingInit.")
+    stop(
+      "The default network in the formula is not the one used in",
+      " the preprocessed object given in preprocessingInit."
+    )
   }
   # test the right-censoring
   # for now it's easier to just reject inconsistent formulas, otherwise,
   # we would need go in the details of the RC intervals and updates
   oldhasIntercept <- oldparsedformula$hasIntercept
   newhasIntercept <- newparsedformula$hasIntercept
-  if (model %in% "DyNAM" && subModel %in% c("choice", "choice_coordination")
-      && oldhasIntercept) {
+  if (model %in% "DyNAM" && subModel %in% c("choice", "choice_coordination") &&
+    oldhasIntercept) {
     oldhasIntercept <- FALSE
     newhasIntercept <- FALSE
   }
   if (oldhasIntercept && !newhasIntercept) {
-    stop("The preprocessing for the object in preprocessingInit was not done",
-         " with the right-censored intervals that this formula requires.")
+    stop(
+      "The preprocessing for the object in preprocessingInit was not done",
+      " with the right-censored intervals that this formula requires."
+    )
   }
   if (!oldhasIntercept && newhasIntercept) {
     stop(
@@ -234,23 +244,28 @@ createEffectsFunctions <- function(effectInit, model, subModel,
       FUN <- tryCatch(
         eval(parse(text = funText), envir = environment()),
         error = function(e) NULL
-        )
+      )
       # FUN <- NULL
       if (is.null(FUN)) {
-        tryCatch({
-          FUN <- eval(parse(text = x[[1]]), envir = envir)
-        },
-        error = function(e) stop("Unknown effect ", x[[1]]) # ,
-        # finally = warning("Effect ")
+        tryCatch(
+          {
+            FUN <- eval(parse(text = x[[1]]), envir = envir)
+          },
+          error = function(e) stop("Unknown effect ", x[[1]]) # ,
+          # finally = warning("Effect ")
         )
       }
 
       # collect update functions for stat
-      .FUNStat <- utils::getS3method(.statMethod, x[[1]], optional = TRUE,
-                                     envir = environment())
+      .FUNStat <- utils::getS3method(.statMethod, x[[1]],
+        optional = TRUE,
+        envir = environment()
+      )
       if (is.null(.FUNStat)) {
-        .FUNStat <- utils::getS3method(.statMethod, "default", optional = TRUE,
-                                       envir = envir)
+        .FUNStat <- utils::getS3method(.statMethod, "default",
+          optional = TRUE,
+          envir = envir
+        )
       }
 
       # Update signatures of the effects based on default parameters
@@ -289,12 +304,14 @@ createEffectsFunctions <- function(effectInit, model, subModel,
           eval(.signature[["network"]], envir = envir), "nodes"
         )) > 1
         if (!is.null(parmsToSet[["isTwoMode"]]) &&
-            eval(parmsToSet[["isTwoMode"]], envir = envir) != isTwoMode) {
+          eval(parmsToSet[["isTwoMode"]], envir = envir) != isTwoMode) {
           warning(
             "The \"isTwoMode\" parameter in effect ",
             x[[1]], " has a different value than",
             " the attributes on network argument '",
-            x[[2]], "'", call. = FALSE, immediate. = TRUE)
+            x[[2]], "'",
+            call. = FALSE, immediate. = TRUE
+          )
         } else if (isTwoMode && is.null(parmsToSet[["isTwoMode"]])) {
           .signature[["isTwoMode"]] <- isTwoMode
           warning(
@@ -336,7 +353,6 @@ createEffectsFunctions <- function(effectInit, model, subModel,
 
 # create new events lists when a window should be applied
 createWindowedEvents <- function(objectEvents, window) {
-
   # create dissolution events
   # - for increment, add the opposite increment
   # - for replace, replace by 0
@@ -386,8 +402,7 @@ getDependentName <- function(formula) {
 
 getEventsAndObjectsLink <- function(
     depName, rhsNames, nodes = NULL, nodes2 = NULL,
-    envir = environment()
-) {
+    envir = environment()) {
   # Find objects (irrespective of where they occur)
   objectNames <- getDataObjects(rhsNames)
 
@@ -525,7 +540,7 @@ parseIntercept <- function(rhsNames) {
   tryCatch(
     v <- as.numeric(rhsNames[[1]][[1]]),
     warning = function(x) {
-      }
+    }
   )
   if (!is.na(v) && v == 1) {
     intercept <- TRUE
@@ -540,8 +555,7 @@ parseIntercept <- function(rhsNames) {
 # then finds a network object from the other parameters that this is related to
 # unless a network name is passed to the multiple attribute
 parseMultipleEffects <- function(
-    rhsNames, default = FALSE, envir = environment()
-) {
+    rhsNames, default = FALSE, envir = environment()) {
   multiple <- list()
   multipleNames <- character(0)
   for (i in seq_along(rhsNames)) {
@@ -549,14 +563,16 @@ parseMultipleEffects <- function(
     id <- which(names(rhsNames[[i]]) == "ignoreRep")
     multipleParam <- ifelse(length(id) == 1, rhsNames[[i]][[id]], default)
 
-    if (multipleParam %in% c("T", "F", "TRUE", "FALSE"))
+    if (multipleParam %in% c("T", "F", "TRUE", "FALSE")) {
       multipleParam <- as.logical(multipleParam)
+    }
     if (!multipleParam) {
       table <- getDataObjects(rhsNames[i])
       netIds <- vapply(getElementFromDataObjectTable(table, envir = envir),
-                       FUN = inherits,
-                       FUN.VALUE = logical(1),
-                       what = "network.goldfish")
+        FUN = inherits,
+        FUN.VALUE = logical(1),
+        what = "network.goldfish"
+      )
       name <- table[netIds, "name"][1] # take first network
       # apply(getDataObjects(rhsNames)
       # netIds <- sapply(, function(x) "network.goldfish" %in% class(get(x)))
@@ -568,8 +584,9 @@ parseMultipleEffects <- function(
       multipleParam <- FALSE
     }
 
-    if (!is.na(name) && name != "" && !exists(name, envir = envir))
+    if (!is.na(name) && name != "" && !exists(name, envir = envir)) {
       stop("Unknown object in 'ignoreRep' parameter: ", name, call. = FALSE)
+    }
 
     multiple <- append(multiple, multipleParam)
     multipleNames <- c(multipleNames, name)
@@ -587,7 +604,7 @@ parseTimeWindows <- function(rhsNames, envir = new.env()) {
 
   hasWindows <- which(
     vapply(rhsNames, function(x) !is.null(getElement(x, "window")), logical(1))
-    )
+  )
 
   for (i in hasWindows) {
     windowName <- rhsNames[[i]]$window
@@ -597,7 +614,8 @@ parseTimeWindows <- function(rhsNames, envir = new.env()) {
         e$message <- paste(
           "Invalid window parameter for effect ",
           rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
-          ":\n", e$message)
+          ":\n", e$message
+        )
         stop(e)
       }
     )
@@ -608,18 +626,21 @@ parseTimeWindows <- function(rhsNames, envir = new.env()) {
 
     # support for lubridate object classes for date operations
     if (inherits(window, c("Period", "Duration")) &&
-        "lubridate" %in% attr(attr(window, "class"), "package")) {
+      "lubridate" %in% attr(attr(window, "class"), "package")) {
       if (!isValidName) {
         windowName <- gsub("\\s", "", as.character(window))
-        if (inherits(window, "Duration"))
-          windowName <- gsub("^(\\d+s)\\s*(\\(.+\\))$", "\\1",
-                             as.character(window))
+        if (inherits(window, "Duration")) {
+          windowName <- gsub(
+            "^(\\d+s)\\s*(\\(.+\\))$", "\\1",
+            as.character(window)
+          )
         }
+      }
     } else if (inherits(window, "character")) {
       if (!isValidName) windowName <- gsub(" ", "", window)
 
       if (!is.numeric(window) &&
-          !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
+        !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
         stop(
           "The window effect specified with the effect ", rhsNames[[i]][[1]],
           " ", rhsNames[[i]][[2]], " is not in the form 'number unit'\n",
@@ -652,11 +673,13 @@ parseTimeWindows <- function(rhsNames, envir = new.env()) {
       }
     } else if (is.numeric(window)) { # check numeric type
 
-      if (window < 0)
+      if (window < 0) {
         stop(
           "The window specified with the effect ",
           rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
-          " is not a positive numeric value")
+          " is not a positive numeric value"
+        )
+      }
     }
 
 
@@ -672,8 +695,8 @@ parseTimeWindows <- function(rhsNames, envir = new.env()) {
     # newRhs[[2]] <- paste(rhsNames[[i]][[2]], window, sep="_")
     # rhsNames[[length(rhsNames)+1]] <- newRhs
     rhsNames[[i]][[2]] <- paste(rhsNames[[i]][[2]],
-                                windowName,
-                                sep = "_"
+      windowName,
+      sep = "_"
     )
 
 
@@ -691,7 +714,6 @@ parseTimeWindows <- function(rhsNames, envir = new.env()) {
       allDynamicAttributes <- attr(nodes, "dynamicAttributes")
       allEvents <- allEvents[allDynamicAttributes == attribute]
     } else {
-
       # get network, create windowed network, get related events
       # to be windowed later
       network <- get(name, envir = envir)

@@ -1,4 +1,3 @@
-
 #' Extract model coefficients from estimate output
 #'
 #' Return a named vector with the estimated coefficients returned by `estimate`.
@@ -29,15 +28,20 @@
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
-#'                           nodes = actors)
-#' callsDependent <- defineDependentEvents(events = calls, nodes = actors,
-#'                                         defaultNetwork = callNetwork)
+#' callNetwork <- linkEvents(
+#'   x = callNetwork, changeEvent = calls,
+#'   nodes = actors
+#' )
+#' callsDependent <- defineDependentEvents(
+#'   events = calls, nodes = actors,
+#'   defaultNetwork = callNetwork
+#' )
 #' \dontshow{
 #' callsDependent <- callsDependent[1:50, ]
 #' }
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-#'                   model = "DyNAM", subModel = "choice")
+#'   model = "DyNAM", subModel = "choice"
+#' )
 #' coef(mod01)
 coef.result.goldfish <- function(object, ..., complete = FALSE) {
   result <- object$parameters

@@ -16,8 +16,10 @@ test_that(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0, engine = "default_c",
-                            returnIntervalLogL = TRUE)
+      estimationInit = list(
+        startTime = 0, engine = "default_c",
+        returnIntervalLogL = TRUE
+      )
     )
     modCgc <- estimate(
       formula,

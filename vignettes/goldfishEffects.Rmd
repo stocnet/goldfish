@@ -141,8 +141,10 @@ Here we refer to ego type when `type = "ego"` and alter type when
 ### Indegree (`indeg()`)
 
 ```{r}
-indeg(network, isTwoMode = FALSE, weighted = FALSE, window = Inf,
-     ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity)
+indeg(network,
+  isTwoMode = FALSE, weighted = FALSE, window = Inf,
+  ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity
+)
 ```
 
 \begin{align}
@@ -177,8 +179,10 @@ The degree can be transform with \code{transformFun}.
 ### Outdegree (`outdeg()`)
 
 ```{r}
-outdeg(network, isTwoMode = FALSE, weighted = FALSE, window = Inf,
-       ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity)
+outdeg(network,
+  isTwoMode = FALSE, weighted = FALSE, window = Inf,
+  ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity
+)
 ```
 
 \begin{align}
@@ -207,8 +211,10 @@ outdeg(network, isTwoMode = FALSE, weighted = FALSE, window = Inf,
 ### Node embeddedness transitivity (`nodeTrans()`)
 
 ```{r}
-nodeTrans(network, isTwoMode = FALSE, window = Inf, ignoreRep = FALSE,
-          type = c("alter", "ego"), transformFun = identity)
+nodeTrans(network,
+  isTwoMode = FALSE, window = Inf, ignoreRep = FALSE,
+  type = c("alter", "ego"), transformFun = identity
+)
 ```
 
 \begin{align}
@@ -285,9 +291,11 @@ alter(attribute, isTwoMode = FALSE)
 ### Tertius (`tertius()`)
 
 ```{r}
-tertius(network, attribute, isTwoMode = FALSE, window = Inf,
-        ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity,
-        aggregateFun = function(x) mean(x, na.rm = TRUE))
+tertius(network, attribute,
+  isTwoMode = FALSE, window = Inf,
+  ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity,
+  aggregateFun = function(x) mean(x, na.rm = TRUE)
+)
 ```
 
 \begin{align}
@@ -329,8 +337,10 @@ as the average of the aggregate values of nodes with in-neighbors.
 ### Tie (`tie()`)
 
 ```{r}
-tie(network, weighted = FALSE, window = Inf, ignoreRep = FALSE,
-    transformFun = identity)
+tie(network,
+  weighted = FALSE, window = Inf, ignoreRep = FALSE,
+  transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -380,8 +390,10 @@ statistics with zeros.
 ### Tie reciprocation (`recip()`)
 
 ```{r}
-recip(network, weighted = FALSE, window = Inf, ignoreRep = FALSE,
-      transformFun = identity)
+recip(network,
+  weighted = FALSE, window = Inf, ignoreRep = FALSE,
+  transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -487,9 +499,11 @@ when $j$ score high on `attribute2` moderated by the score of ego on
 ### Tertius difference (`tertiusDiff()`)
 
 ```{r}
-tertiusDiff(network, attribute, isTwoMode = FALSE, weighted = FALSE,
-            window = Inf, ignoreRep = FALSE, transformFun = abs,
-            aggregateFun = function(x) mean(x, na.rm = TRUE))
+tertiusDiff(network, attribute,
+  isTwoMode = FALSE, weighted = FALSE,
+  window = Inf, ignoreRep = FALSE, transformFun = abs,
+  aggregateFun = function(x) mean(x, na.rm = TRUE)
+)
 ```
 
 \begin{equation}
@@ -571,8 +585,10 @@ DyNAM-choice_coordination.
 ### Common receiver closure (`commonReceiver()`)
 
 ```{r}
-commonReceiver(network, window = Inf, ignoreRep = FALSE,
-               transformFun = identity)
+commonReceiver(network,
+  window = Inf, ignoreRep = FALSE,
+  transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -589,8 +605,10 @@ DyNAM-choice_coordination.
 ### Four cycle (`four()`)
 
 ```{r}
-four(network, isTwoMode = FALSE, window = Inf, ignoreRep = FALSE,
-     transformFun = identity)
+four(network,
+  isTwoMode = FALSE, window = Inf, ignoreRep = FALSE,
+  transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -608,8 +626,10 @@ DyNAM-choice_coordination.
 ### Mixed Transitivity (`mixedTrans()`)
 
 ```{r}
-mixedTrans(network = list(network1, network2), window = Inf,
-           ignoreRep = FALSE, transformFun = identity)
+mixedTrans(
+  network = list(network1, network2), window = Inf,
+  ignoreRep = FALSE, transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -627,8 +647,10 @@ This effect cannot be used for two-mode networks.
 ### Mixed Cycle (`mixedCycle()`)
 
 ```{r}
-mixedCycle(network = list(network1, network2), window = Inf,
-           ignoreRep = FALSE, transformFun = identity)
+mixedCycle(
+  network = list(network1, network2), window = Inf,
+  ignoreRep = FALSE, transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -647,8 +669,10 @@ DyNAM-choice_coordination.
 ### Mixed common sender closure (`mixedCommonSender()`)
 
 ```{r}
-mixedCommonSender(network = list(network1, network2), window = Inf,
-              ignoreRep = FALSE, transformFun = identity)
+mixedCommonSender(
+  network = list(network1, network2), window = Inf,
+  ignoreRep = FALSE, transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -667,8 +691,10 @@ DyNAM-choice_coordination.
 ### Mixed common receiver closure (`mixedCommonReceiver()`)
 
 ```{r}
-mixedCommonReceiver(network = list(network1, network2), window = Inf,
-               ignoreRep = FALSE, transformFun = identity)
+mixedCommonReceiver(
+  network = list(network1, network2), window = Inf,
+  ignoreRep = FALSE, transformFun = identity
+)
 ```
 
 \begin{equation}

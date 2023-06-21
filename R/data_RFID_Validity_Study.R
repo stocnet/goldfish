@@ -24,7 +24,7 @@
 #' - known.before (11 rows, 11 columns): network of previous acquaintances\cr
 #' See below for variables and formats.\cr
 #'
-#'\tabular{lll}{
+#' \tabular{lll}{
 #'   \strong{Object} \tab \strong{Description} \tab \strong{Format} \cr
 #'   participants$actor \tab Identifier of the actor \tab  integer \cr
 #'   participants$label \tab (Anonymized) name \tab  Factor \cr

@@ -43,12 +43,11 @@
 #'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet)
 #' )
 GatherPreprocessing <- function(
-  formula,
-  model = c("DyNAM", "REM"),
-  subModel = c("choice", "choice_coordination", "rate"),
-  preprocessArgs = NULL,
-  progress = getOption("progress")) {
-
+    formula,
+    model = c("DyNAM", "REM"),
+    subModel = c("choice", "choice_coordination", "rate"),
+    preprocessArgs = NULL,
+    progress = getOption("progress")) {
   model <- match.arg(model)
   subModel <- match.arg(subModel)
 
@@ -68,9 +67,12 @@ GatherPreprocessing <- function(
       )
     }
 
-    if (!is.null(preprocessArgs["opportunitiesList"]))
-      warning(dQuote("GatherPreprocessing"), " doesn't implement yet the ",
-              dQuote("opportunitiesList"), " functionality")
+    if (!is.null(preprocessArgs["opportunitiesList"])) {
+      warning(
+        dQuote("GatherPreprocessing"), " doesn't implement yet the ",
+        dQuote("opportunitiesList"), " functionality"
+      )
+    }
   }
 
   ### 1. PARSE the formula----
@@ -81,18 +83,21 @@ GatherPreprocessing <- function(
   windowParameters <- parsedformula$windowParameters
 
   # # C implementation doesn't have ignoreRep option issue #105
-  if (any(unlist(parsedformula$ignoreRepParameter)))
+  if (any(unlist(parsedformula$ignoreRepParameter))) {
     stop("gatherPreprocessing ",
-         " doesn't support ignoreRep effects (GH issue #105)!",
-         call. = FALSE, immediate. = TRUE)
+      " doesn't support ignoreRep effects (GH issue #105)!",
+      call. = FALSE, immediate. = TRUE
+    )
+  }
 
   # Model-specific preprocessing initialization
   if (model %in% c("DyNAM", "DyNAMi") &&
-      subModel %in% c("choice", "choice_coordination") &&
-      parsedformula$hasIntercept) {
+    subModel %in% c("choice", "choice_coordination") &&
+    parsedformula$hasIntercept) {
     warning("Model ", dQuote(model), " subModel ", dQuote(subModel),
-            " ignores the time intercept.",
-            call. = FALSE, immediate. = TRUE)
+      " ignores the time intercept.",
+      call. = FALSE, immediate. = TRUE
+    )
     parsedformula$hasIntercept <- FALSE
   }
   rightCensored <- parsedformula$hasIntercept
@@ -124,7 +129,9 @@ GatherPreprocessing <- function(
   envir <- environment()
 
   effects <- createEffectsFunctions(
-    parsedformula$rhsNames, model, subModel, envir = envir)
+    parsedformula$rhsNames, model, subModel,
+    envir = envir
+  )
   # Get links between objects and effects for printing results
   objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames)
 
@@ -133,13 +140,18 @@ GatherPreprocessing <- function(
   # Initialize events list and link to objects
   events <- getEventsAndObjectsLink(
     parsedformula$depName, parsedformula$rhsNames,
-    .nodes, .nodes2, envir = envir)[[1]]
+    .nodes, .nodes2,
+    envir = envir
+  )[[1]]
   # moved cleanInteractionEvents in getEventsAndObjectsLink
   eventsObjectsLink <- getEventsAndObjectsLink(
     parsedformula$depName, parsedformula$rhsNames,
-    .nodes, .nodes2, envir = envir)[[2]]
+    .nodes, .nodes2,
+    envir = envir
+  )[[2]]
   eventsEffectsLink <- getEventsEffectsLink(
-    events, parsedformula$rhsNames, eventsObjectsLink)
+    events, parsedformula$rhsNames, eventsObjectsLink
+  )
 
   ## 3.2 PREPROCESS when preprocessingInit == NULL
   preprocessingStat <- preprocess(
@@ -357,21 +369,24 @@ GatherPreprocessing <- function(
 #' @noRd
 #'
 #' @examples
-#' names <- cbind(Object = c("bilatnet", "bilatnet", "contignet"),
-#'                Weighted = c("W", "", "W"))
+#' names <- cbind(
+#'   Object = c("bilatnet", "bilatnet", "contignet"),
+#'   Weighted = c("W", "", "W")
+#' )
 #' rownames(names) <- c("inertia", "trans", "tie")
 #' CreateNames(names, sep = "|")
 CreateNames <- function(
-  names, sep = " ", joiner = ", ") {
-
+    names, sep = " ", joiner = ", ") {
   isObjectD <- grepl("Object \\d+", colnames(names))
   if (any(isObjectD)) {
-    object <- apply(names[, isObjectD], 1,
-                    function(z) {
-                      ret <- Filter(function(w) !is.na(w) & w != "", z)
-                      ret <- paste(ret, collapse = joiner)
-                      return(ret)
-                      })
+    object <- apply(
+      names[, isObjectD], 1,
+      function(z) {
+        ret <- Filter(function(w) !is.na(w) & w != "", z)
+        ret <- paste(ret, collapse = joiner)
+        return(ret)
+      }
+    )
     newNames <- c("Object", colnames(names)[!isObjectD])
     names <- cbind(object, names[, !isObjectD])
     colnames(names) <- newNames
@@ -382,12 +397,14 @@ CreateNames <- function(
   }
 
   names <- cbind(effect = rownames(names), names)
-  nombres <- apply(names, 1,
-                   function(z) {
-                     ret <- Filter(function(w) !is.na(w) & w != "", z)
-                     ret <- paste(ret, collapse = sep)
-                     return(ret)
-                     })
+  nombres <- apply(
+    names, 1,
+    function(z) {
+      ret <- Filter(function(w) !is.na(w) & w != "", z)
+      ret <- paste(ret, collapse = sep)
+      return(ret)
+    }
+  )
   names(nombres) <- NULL
 
   return(nombres)
