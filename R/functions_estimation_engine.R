@@ -667,9 +667,10 @@ getInformationMatrixREM <- function(eventProbabilities, firstDerivatives) {
 
   values <- colSums(apply(
     indexes, 1,
-    function(ind)
+    \(ind) {
       firstDerivatives[, , ind[1]] * firstDerivatives[, , ind[2]] *
       eventProbabilities
+    }
   ))
   information <- matrix(values, nParams, nParams)
   # symmetrize
@@ -1029,9 +1030,10 @@ getMultinomialInformationMatrix <- function(likelihoods, derivatives) {
 
   values <- apply(
     indexes, 1,
-    function(ind)
+    \(ind) {
       sum(derivatives[, , ind[1]] * derivatives[, , ind[2]] *
             likelihoodsTriangle)
+    }
   )
   informationMatrix <- matrix(values, nParams, nParams, byrow = FALSE)
 
@@ -1050,9 +1052,10 @@ getMultinomialInformationMatrixM <- function(
 
   temp <- apply(
     indexes, 1,
-    function(ind)
+    \(ind) {
       firstDerivatives[, ind[1]] * firstDerivatives[, ind[2]] *
       eventProbabilities
+    }
   )
   if (!is.null(dim(temp))) {
     values <- colSums(temp)

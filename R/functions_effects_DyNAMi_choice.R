@@ -1,7 +1,8 @@
 # define methods ----------------------------------------------------------
 # init cache data structure: vector or matrix
-init_DyNAMi_choice <- function(effectFun, network, attribute)
+init_DyNAMi_choice <- function(effectFun, network, attribute) {
   UseMethod("init_DyNAMi_choice", effectFun)
+}
 
 # default -----------------------------------------------------------------
 

@@ -651,7 +651,7 @@ callFUN <- function(
   errorHandler <- function(e) {
     erro <- simpleError(
       paste0(
-        "Effect ", sQuote(effectLabel),
+        "Effect ", dQuote(effectLabel),
         " (", effectPos, ") ", textMss, e$message)
     )
     stop(erro)

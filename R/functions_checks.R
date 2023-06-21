@@ -510,8 +510,9 @@ checkGlobalAttribute <- function(global) {
 #   IF it's associated to a network
 # - a column "replace" OR "increment" of characters or numerics or booleans
 
-checkEvents <- function(object, ...)
+checkEvents <- function(object, ...) {
   UseMethod("checkEvents", object)
+}
 
 ## Nodesets and Events
 # When adding an event to a nodeset:
@@ -607,7 +608,7 @@ checkEvents.nodes.goldfish <- function(
   if (!is.null(attribute)) {
     if (is.null(object[[attribute]]))
       stop(
-        "The attribute ", sQuote(attribute),
+        "The attribute ", dQuote(attribute),
         " doesn't exist in the nodeset."
       )
 
@@ -618,7 +619,7 @@ checkEvents.nodes.goldfish <- function(
     if (!all(checkClasses(object[[attribute]], classEven)) &&
         !all(checkClasses(eventUpdate, classAttr)))
       stop(
-        "The type of the attribute ", sQuote(attribute),
+        "The type of the attribute ", dQuote(attribute),
         " is incompatible with the associated event list.",
         "\n\tattribute class: ", paste(classAttr, collapse = ", "),
         "\n\tevent (increment/replace) class: ",
@@ -628,11 +629,11 @@ checkEvents.nodes.goldfish <- function(
   # if (all(events$node %in% object$label) && is.integer(events$node) &&
   #     (min(events$node) < 1 || max(events$node) > dim(object)[1]))
   #   stop(
-  #     "Nodes indexes for the attribute ", sQuote(attribute), " are incorrect."
+  #     "Nodes indexes for the attribute ", dQuote(attribute), " are incorrect."
   #   )
   if (!all(events$node %in% object$label))
     stop(
-      "Nodes labels for the attribute ", sQuote(attribute), " are incorrect."
+      "Nodes labels for the attribute ", dQuote(attribute), " are incorrect."
     )
 
   return(TRUE)

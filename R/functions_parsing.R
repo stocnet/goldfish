@@ -8,9 +8,11 @@
 #' parse formula
 #' A valid formula should have:
 #' - on the left side a list of dependent events
-#' - on the right side a list of names that correspond to effects we have in our pre-defined functions
+#' - on the right side a list of names that correspond to effects
+#'   we have in our pre-defined functions
 #' - parameters for the effects that are coherent with the documentation
-#' on top of this, we parse the formula to the right format for the rest of the estimation
+#'   on top of this, we parse the formula to the right format
+#'   for the rest of the estimation
 #' @param formula a class \code{formula} object that defines the model
 #'
 #' @return a list with parsed values needed in the next steps
@@ -72,7 +74,8 @@ parseFormula <- function(formula, envir = new.env()) {
   ignoreRepParameter <- mult[[2]]
     # check mismatch with default parameter
   if (any(unlist(ignoreRepParameter)) && is.null(defaultNetworkName)) {
-    stop("No default network defined, thus ", sQuote("ignoreRep = TRUE"), " effects cannot be used.", call. = FALSE)
+    stop("No default network defined, thus ", dQuote("ignoreRep = TRUE"),
+         " effects cannot be used.", call. = FALSE)
   }
   # check right side: weighted parameter
   weightedParameter <- lapply(rhsNames, function(x) {
@@ -127,18 +130,25 @@ parseFormula <- function(formula, envir = new.env()) {
 
 
 # Comparison of two parsed formulas for preprocessingInit
-# throws errors when: dependent events or default network are not the same, when there is righ-censoring
+# throws errors when: dependent events or default network are not the same,
+#  when there is righ-censoring
 # for one and not the other
-# returns: a list of the size of the new formula, with zeros when the effects are new, and with the
-#          the index of the effect in the old formula if the effect was already there
-compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel) {
+# returns: a list of the size of the new formula, with zeros when the effects
+#    are new, and with the
+#    the index of the effect in the old formula if the effect was already there
+compareFormulas <- function(
+    oldparsedformula, newparsedformula, model, subModel
+) {
 
   # test dependent events and default network
   if (oldparsedformula$depName != newparsedformula$depName) {
     stop("The dependent events in the formula are not the ones used in",
          " the preprocessed object given in preprocessingInit.")
   }
-  if (!identical(oldparsedformula$defaultNetworkName, newparsedformula$defaultNetworkName)) {
+  if (!identical(
+    oldparsedformula$defaultNetworkName,
+    newparsedformula$defaultNetworkName
+  )) {
     stop("The default network in the formula is not the one used in",
          " the preprocessed object given in preprocessingInit.")
   }
@@ -147,7 +157,8 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
   # we would need go in the details of the RC intervals and updates
   oldhasIntercept <- oldparsedformula$hasIntercept
   newhasIntercept <- newparsedformula$hasIntercept
-  if (model %in% "DyNAM" && subModel %in% c("choice", "choice_coordination") && oldhasIntercept) {
+  if (model %in% "DyNAM" && subModel %in% c("choice", "choice_coordination")
+      && oldhasIntercept) {
     oldhasIntercept <- FALSE
     newhasIntercept <- FALSE
   }
@@ -156,14 +167,18 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
          " with the right-censored intervals that this formula requires.")
   }
   if (!oldhasIntercept && newhasIntercept) {
-    stop("The preprocessing for the object in preprocessingInit was done",
-         " with right-censored intervals and this formula does not include those.")
+    stop(
+      "The preprocessing for the object in preprocessingInit was done",
+      " with right-censored intervals and this formula does not include those."
+    )
   }
-  # counters for remembering which of the old effects are found in the new formula
+  # counters for remembering which of the old effects
+  # are found in the new formula
   sizeold <- length(oldparsedformula$rhsNames)
   sizenew <- length(newparsedformula$rhsNames)
   effectsindexes <- rep(0, sizenew)
-  # go through all new effects to check whether they already existed in the old formula
+  # go through all new effects to check whether they already existed
+  # in the old formula
   for (i in seq.int(sizenew)) {
     effectname <- newparsedformula$rhsNames[[i]][[1]]
     effectobject <- newparsedformula$rhsNames[[i]][[2]]
@@ -185,7 +200,9 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
         next
       }
       # 4 check other parameters
-      if (!identical(oldparsedformula$ignoreRepParameter[[j]], effectignorerep)) {
+      if (!identical(
+        oldparsedformula$ignoreRepParameter[[j]], effectignorerep
+      )) {
         next
       }
       if (!identical(oldparsedformula$weightedParameter[[j]], effectweighted)) {
@@ -203,7 +220,8 @@ compareFormulas <- function(oldparsedformula, newparsedformula, model, subModel)
 
 
 # Creation of the different effects with the right parameters
-# in which the first empty parameters are replaced with the ones found in effectInit
+# in which the first empty parameters are replaced with
+# the ones found in effectInit
 # ignores parameters that are not used in the updates computation (parmsIgnore)
 createEffectsFunctions <- function(effectInit, model, subModel,
                                    envir = environment()) {
@@ -235,7 +253,8 @@ createEffectsFunctions <- function(effectInit, model, subModel,
                                        envir = envir)
       }
 
-      # Update signatures of the effects based on default parameters and above specified parameters
+      # Update signatures of the effects based on default parameters
+      # and above specified parameters
       .signature <- formals(FUN)
       .argsNames <- names(.signature)
       parmsToSet <- x[-1]
@@ -243,12 +262,15 @@ createEffectsFunctions <- function(effectInit, model, subModel,
       if (is.null(names(parmsToSet))) {
         namedParams <- rep(FALSE, length(parmsToSet))
       } else {
-        namedParams <- unlist(lapply(names(parmsToSet), function(v) is.character(v) && v != ""))
+        namedParams <- unlist(lapply(
+          names(parmsToSet),
+          \(v) is.character(v) && v != ""
+        ))
       }
 
       # change parameter type from character to an expression
       nameArg <- parmsToSet[[1]]
-      parmsToSet <- lapply(parmsToSet, function(s) call("eval", parse(text = s)))
+      parmsToSet <- lapply(parmsToSet, \(s) call("eval", parse(text = s)))
 
       # replace named and unnamed parameters
       .argsReplace <- pmatch(names(parmsToSet), .argsNames)
@@ -256,13 +278,16 @@ createEffectsFunctions <- function(effectInit, model, subModel,
       names <- names(parmsToSet)[namedParams]
       # replace named args in formals
       .signature[na.omit(.argsReplace)] <- parmsToSet[!is.na(.argsReplace)]
-      isCondition <- isReservedElementName(.argsNames) & !(.argsNames %in% names)
+      isCondition <- isReservedElementName(.argsNames) &
+        !(.argsNames %in% names)
       .signature[isCondition] <- parmsToSet[!namedParams]
 
       # set isTwoMode parameter, checking if different
       if ("network" %in% .argsNames && "isTwoMode" %in% .argsNames) {
         # cat(x[[1]], is.null(parmsToSet[["isTwoMode"]]))
-        isTwoMode <- length(attr(eval(.signature[["network"]], envir = envir), "nodes")) > 1
+        isTwoMode <- length(attr(
+          eval(.signature[["network"]], envir = envir), "nodes"
+        )) > 1
         if (!is.null(parmsToSet[["isTwoMode"]]) &&
             eval(parmsToSet[["isTwoMode"]], envir = envir) != isTwoMode) {
           warning(
@@ -272,21 +297,29 @@ createEffectsFunctions <- function(effectInit, model, subModel,
             x[[2]], "'", call. = FALSE, immediate. = TRUE)
         } else if (isTwoMode && is.null(parmsToSet[["isTwoMode"]])) {
           .signature[["isTwoMode"]] <- isTwoMode
-          warning("Setting 'isTwoMode' parameter in effect ", x[[1]],
-                  " to TRUE for network '", x[[2]], "'", call. = FALSE, immediate. = TRUE)
+          warning(
+            "Setting 'isTwoMode' parameter in effect ", x[[1]],
+            " to TRUE for network '", x[[2]], "'",
+            call. = FALSE, immediate. = TRUE
+          )
         }
       }
       # if ("network2" %in% .argsNames && "isTwoMode" %in% .argsNames) {
-      #   isTwoMode <- length(attr(eval(.signature[["network2"]], envir = envir), "nodes")) > 2
-      #   if (!is.null(parmsToSet[["isTwoMode"]]) && eval(parmsToSet[["isTwoMode"]]) != isTwoMode) {
+      #   isTwoMode <- length(attr(
+      #     eval(.signature[["network2"]], envir = envir), "nodes"
+      #   )) > 1
+      #   if (!is.null(parmsToSet[["isTwoMode"]]) &&
+      #   eval(parmsToSet[["isTwoMode"]]) != isTwoMode) {
       #     warning(
-      #       "The 'isTwoMode' parameter in effect ", x[[1]], " has a diferent value than the network argument",
+      #       "The 'isTwoMode' parameter in effect ", x[[1]],
+      #       " has a diferent value than the network argument",
       #       .signature[["network2"]]
       #     )
       #   } else if (isTwoMode) .signature[["isTwoMode"]] <- isTwoMode
       # }
 
-      # if(inherits(.signature, "matrix")) .signature <- apply(.signature, 2, invisible)
+      # if(inherits(.signature, "matrix"))
+      #   .signature <- apply(.signature, 2, invisible)
 
       # Assign signatures with default values to generic functions
       formals(FUN) <- .signature
@@ -347,12 +380,14 @@ extractFormulaTerms <- function(rhs) {
 
 getDependentName <- function(formula) {
   dep <- list(formula[[2]])
-  depName <- unlist(lapply(dep, deparse))
+  unlist(lapply(dep, deparse))
 }
 
 
-getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NULL,
-                                    envir = environment()) {
+getEventsAndObjectsLink <- function(
+    depName, rhsNames, nodes = NULL, nodes2 = NULL,
+    envir = environment()
+) {
   # Find objects (irrespective of where they occur)
   objectNames <- getDataObjects(rhsNames)
 
@@ -443,8 +478,10 @@ getEventsAndObjectsLink <- function(depName, rhsNames, nodes = NULL, nodes2 = NU
 getEventsEffectsLink <- function(events, rhsNames, eventsObjectsLink) {
   eventsEffectsLink <- matrix(
     data = NA, nrow = length(events), ncol = length(rhsNames),
-    dimnames = list(names(events),
-                    vapply(rhsNames, FUN = "[[", FUN.VALUE = character(1), i = 1))
+    dimnames = list(
+      names(events),
+      vapply(rhsNames, FUN = "[[", FUN.VALUE = character(1), i = 1)
+    )
   )
   for (i in seq_along(rhsNames)) {
     # objects of effect
@@ -502,7 +539,9 @@ parseIntercept <- function(rhsNames) {
 # Figures out which effect is a multiple effect
 # then finds a network object from the other parameters that this is related to
 # unless a network name is passed to the multiple attribute
-parseMultipleEffects <- function(rhsNames, default = FALSE, envir = environment()) {
+parseMultipleEffects <- function(
+    rhsNames, default = FALSE, envir = environment()
+) {
   multiple <- list()
   multipleNames <- character(0)
   for (i in seq_along(rhsNames)) {
@@ -521,7 +560,8 @@ parseMultipleEffects <- function(rhsNames, default = FALSE, envir = environment(
       name <- table[netIds, "name"][1] # take first network
       # apply(getDataObjects(rhsNames)
       # netIds <- sapply(, function(x) "network.goldfish" %in% class(get(x)))
-      # name <- getDataObjects(rhsNames)$object[netIds][[1]]  # get the first network item
+      # # get the first network item
+      # name <- getDataObjects(rhsNames)$object[netIds][[1]]
     }
     if (is.character(multipleParam)) {
       name <- multipleParam
@@ -604,11 +644,11 @@ parseTimeWindows <- function(rhsNames, envir = new.env()) {
       if (grepl("week", window)) {
         window <- as.numeric(strsplit(window, " ")[[1]][1]) * 604800
       }
-      if (grepl("month", window)) {
-        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 2629800 # lubridate approximation
+      if (grepl("month", window)) { # lubridate approximation
+        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 2629800
       }
-      if (grepl("year", window)) {
-        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 31557600 # lubridate approximation
+      if (grepl("year", window)) { # lubridate approximation
+        window <- as.numeric(strsplit(window, " ")[[1]][1]) * 31557600
       }
     } else if (is.numeric(window)) { # check numeric type
 
@@ -638,7 +678,8 @@ parseTimeWindows <- function(rhsNames, envir = new.env()) {
 
 
     if (isAttribute) {
-      # get nodes & attribute, add new windowed attribute, get related events to be windowed later
+      # get nodes & attribute, add new windowed attribute,
+      # get related events to be windowed later
       nameNodes <- objects$nodeset
       nodes <- get(nameNodes, envir = envir)
       attribute <- objects$attribute
@@ -651,7 +692,8 @@ parseTimeWindows <- function(rhsNames, envir = new.env()) {
       allEvents <- allEvents[allDynamicAttributes == attribute]
     } else {
 
-      # get network, create windowed network, get related events to be windowed later
+      # get network, create windowed network, get related events
+      # to be windowed later
       network <- get(name, envir = envir)
 
       newNetwork <- matrix(0, nrow = nrow(network), ncol = ncol(network))

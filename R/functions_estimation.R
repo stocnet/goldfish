@@ -264,9 +264,9 @@ estimate <- function(
   preprocessingInit = NULL,
   preprocessingOnly = FALSE,
   progress = getOption("progress"),
-  verbose = getOption("verbose"))
+  verbose = getOption("verbose")) {
   UseMethod("estimate", x)
-
+}
 
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
@@ -769,14 +769,18 @@ estimate.formula <- function(
         "estimate_c_int",
         args = c(argsEstimation, list(engine = engine))
       ),
-      error = function(e) stop("Error in ", model, " ", subModel,
-                               " estimation: ", e, call. = FALSE)
+      error = \(e) {
+        stop("Error in ", model, " ", subModel,
+             " estimation: ", e, call. = FALSE)
+      }
     )
   } else {
     tryCatch(
       result <- do.call("estimate_int", args = argsEstimation),
-      error = function(e) stop("Error in ", model, " ", subModel,
-                               " estimation: ", e, call. = FALSE)
+      error = \(e) {
+        stop("Error in ", model, " ", subModel,
+             " estimation: ", e, call. = FALSE)
+      }
     )
   }
 

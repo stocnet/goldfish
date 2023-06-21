@@ -91,38 +91,49 @@ testAttr <- data.frame(
 )
 
 # Effect Functions  -------------------------------------------------
-effectFUN_tie <- function(network,
-                          sender, receiver, replace,
-                          weighted = FALSE, transformFun = identity)
+effectFUN_tie <- function(
+    network,
+    sender, receiver, replace,
+    weighted = FALSE, transformFun = identity
+) {
   update_DyNAM_choice_tie(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     weighted = weighted, transformFun = transformFun
   )
-effectFUN_tie_weighted <- function(network,
-                                   sender, receiver, replace,
-                                   weighted = TRUE, transformFun = identity)
+}
+
+effectFUN_tie_weighted <- function(
+    network,
+    sender, receiver, replace,
+    weighted = TRUE, transformFun = identity
+) {
   update_DyNAM_choice_tie(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     weighted = weighted, transformFun = transformFun
   )
-effectFUN_same <- function(attribute,
-                           node, replace,
-                           isTwoMode = FALSE)
+}
+
+effectFUN_same <- function(
+    attribute,
+    node, replace,
+    isTwoMode = FALSE
+) {
   update_DyNAM_choice_same(
     attribute = attribute,
     node = node, replace = replace,
     isTwoMode = isTwoMode
   )
-
+}
 
 effectFUN_indeg <- function(
-  network,
-  sender, receiver, replace,
-  cache, n1, n2,
-  isTwoMode = FALSE,
-  weighted = FALSE, transformFun = identity) {
+    network,
+    sender, receiver, replace,
+    cache, n1, n2,
+    isTwoMode = FALSE,
+    weighted = FALSE, transformFun = identity
+) {
   update_DyNAM_choice_indeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
@@ -131,55 +142,68 @@ effectFUN_indeg <- function(
   )
 }
 
-effectFUN_trans <- function(network,
-                            sender,
-                            receiver,
-                            replace, cache,
-                            isTwoMode = FALSE,
-                            transformFun = identity)
+effectFUN_trans <- function(
+    network,
+    sender,
+    receiver,
+    replace, cache,
+    isTwoMode = FALSE,
+    transformFun = identity
+) {
   update_DyNAM_choice_trans(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     cache = cache,
     isTwoMode = isTwoMode, transformFun = transformFun
   )
+}
 
-effectFUN_tertius <- function(network,
-                              attribute,
-                              sender = NULL,
-                              receiver = NULL,
-                              node = NULL,
-                              replace,
-                              cache,
-                              isTwoMode = FALSE,
-                              n1 = n1, n2 = n2,
-                              transformFun = abs,
-                              aggregateFun = function(x) mean(x, na.rm = TRUE))
-  update_DyNAM_choice_tertiusDiff(network = network,
-                                   attribute = attribute,
-                                   sender = sender,
-                                   receiver = receiver,
-                                   node = node,
-                                   replace = replace,
-                                   cache = cache,
-                                   isTwoMode = isTwoMode,
-                                   n1 = n1, n2 = n2,
-                                   transformFun = transformFun,
-                                   aggregateFun = aggregateFun)
+effectFUN_tertius <- function(
+    network,
+    attribute,
+    sender = NULL,
+    receiver = NULL,
+    node = NULL,
+    replace,
+    cache,
+    isTwoMode = FALSE,
+    n1 = n1, n2 = n2,
+    transformFun = abs,
+    aggregateFun = function(x) mean(x, na.rm = TRUE)
+) {
+  update_DyNAM_choice_tertiusDiff(
+    network = network,
+    attribute = attribute,
+    sender = sender,
+    receiver = receiver,
+    node = node,
+    replace = replace,
+    cache = cache,
+    isTwoMode = isTwoMode,
+    n1 = n1, n2 = n2,
+    transformFun = transformFun,
+    aggregateFun = aggregateFun)
+}
 
-effectFUN_REM_ego <- function(attribute,
-                              node, replace,
-                              n1, n2,
-                              isTwoMode = FALSE)
-  update_REM_choice_ego(attribute = attribute,
-                        node = node, replace = replace,
-                        n1 = n1, n2 = n2,
-                        isTwoMode = isTwoMode)
+effectFUN_REM_ego <- function(
+    attribute,
+    node, replace,
+    n1, n2,
+    isTwoMode = FALSE
+) {
+  update_REM_choice_ego(
+    attribute = attribute,
+    node = node, replace = replace,
+    n1 = n1, n2 = n2,
+    isTwoMode = isTwoMode)
+}
 
-effectFUN_REM_diff <- function(attribute, node, replace,
-                               n1, n2,
-                               isTwoMode = FALSE,
-                               transformFun = abs)
+effectFUN_REM_diff <- function(
+    attribute, node, replace,
+    n1, n2,
+    isTwoMode = FALSE,
+    transformFun = abs
+) {
   update_DyNAM_choice_diff(
     attribute = attribute,
     node = node, replace = replace,
@@ -187,15 +211,19 @@ effectFUN_REM_diff <- function(attribute, node, replace,
     n1 = n1, n2 = n2,
     transformFun = transformFun
   )
+}
 
-effectFUN_REM_sim <- function(attribute,
-                              node, replace,
-                              isTwoMode = FALSE)
+effectFUN_REM_sim <- function(
+    attribute,
+    node, replace,
+    isTwoMode = FALSE
+) {
   update_DyNAM_choice_same(
     attribute = attribute,
     node = node, replace = replace,
     isTwoMode = isTwoMode
   )
+}
 
 # Preprocessing DyNAM ---------------------------------------------------------
 # direct network

@@ -788,21 +788,26 @@ defineGlobalAttribute <- function(global) {
 #' callNetwork <- linkEvents(
 #'   x = callNetwork, changeEvent = calls, nodes = actors
 #' )
-linkEvents <- function(x, ...)
+linkEvents <- function(x, ...) {
   UseMethod("linkEvents", x)
+}
 
 #' @rdname linkEvents
 #' @export
 linkEvents.nodes.goldfish <- function(x, changeEvents, attribute, ...) {
   # check input types
   if (!(is.character(attribute) && length(attribute) == 1))
-    stop("Invalid argument attributes: this function expects a character attribute value.")
-  if (!is.data.frame(changeEvents)) stop("Invalid argument changeEvents: this function expects a data frame.")
+    stop("Invalid argument attributes:",
+         " this function expects a character attribute value.")
+
+  if (!is.data.frame(changeEvents))
+    stop("Invalid argument changeEvents: this function expects a data frame.")
 
   # data frame has to be passed as a variable name
   linkEnvir <- environment()
   if (!is.name(substitute(changeEvents, linkEnvir)))
-    stop("Parameter change events has to be the name of a data frame (rather than a data frame)")
+    stop("Parameter change events has to be the name of a data frame",
+         " (rather than a data frame)")
 
   # link data
   # initial <- object
@@ -810,7 +815,8 @@ linkEvents.nodes.goldfish <- function(x, changeEvents, attribute, ...) {
   objEventCurr <- as.character(substitute(changeEvents, linkEnvir))
 
   if (length(objEventsPrev) > 0 && objEventCurr %in% objEventsPrev) {
-      warning("The event ", sQuote(objEventCurr), " were already linked to this object.")
+      warning("The event ", dQuote(objEventCurr),
+              " were already linked to this object.")
       return(x)
   }
 
@@ -837,19 +843,25 @@ linkEvents.nodes.goldfish <- function(x, changeEvents, attribute, ...) {
 linkEvents.network.goldfish <- function(x, changeEvents,
                                         nodes = NULL, nodes2 = NULL, ...) {
   # check input types
-  if (is.null(nodes)) stop("Invalid argument nodes: a network is specified, this function expects an argument nodes.")
-  if (!is.data.frame(changeEvents)) stop("Invalid argument changeEvents: this function expects a data frame.")
+  if (is.null(nodes))
+    stop("Invalid argument nodes: a network is specified,",
+         "this function expects an argument nodes.")
+  if (!is.data.frame(changeEvents))
+    stop("Invalid argument changeEvents: this function expects a data frame.")
 
   isTwoMode <- !is.null(nodes2)
   if (!is.data.frame(nodes))
-    stop("Invalid argument nodes: this function expects a nodeset (data frame or nodes.goldfish object).")
+    stop("Invalid argument nodes: this function expects a nodeset",
+         " (data frame or nodes.goldfish object).")
   if (isTwoMode && !is.data.frame(nodes2))
-    stop("Invalid argument nodes2: this function expects a nodeset (data frame or nodes.goldfish object).")
+    stop("Invalid argument nodes2: this function expects a nodeset",
+         " (data frame or nodes.goldfish object).")
 
   # data frame has to be passed as a variable name
   linkEnvir <- environment()
   if (!is.name(substitute(changeEvents, linkEnvir)))
-    stop("Parameter change events has to be the name of a data frame (rather than a data frame)")
+    stop("Parameter change events has to be the name of a data frame",
+         " (rather than a data frame)")
 
   # link data
   # initial <- x
@@ -857,7 +869,8 @@ linkEvents.network.goldfish <- function(x, changeEvents,
   objEventCurr <- as.character(substitute(changeEvents, linkEnvir))
 
   if (length(objEventsPrev) > 0 && objEventCurr %in% objEventsPrev) {
-      warning("The event ", sQuote(objEventCurr), " were already linked to this object.")
+      warning("The event ", dQuote(objEventCurr),
+              " were already linked to this object.")
       return(x)
   }
   attr(x, "events") <- c(objEventsPrev, objEventCurr)
@@ -879,6 +892,9 @@ linkEvents.network.goldfish <- function(x, changeEvents,
 
 #' @rdname linkEvents
 #' @export
-linkEvents.default <- function(x, ...)
+linkEvents.default <- function(x, ...) {
   if (!any(checkClasses(x, c("nodes.goldfish", "network.goldfish"))))
-    stop('Invalid argument object: this function expects either a "nodes.goldfish" or a "network.goldfish" object.')
+    stop("Invalid argument object: this function expects either a ",
+         dQuote("nodes.goldfish"), " or a ", dQuote("network.goldfish"),
+         " object.")
+}

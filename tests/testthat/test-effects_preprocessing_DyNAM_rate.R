@@ -148,25 +148,27 @@ test_that(
       estimationInit = list(startTime = 10, endTime = 30)
     )
     statsChange <- ReducePreprocess(preproData)
-    expect_equal(preproData$initialStats[, , 1],
-                 matrix(c(
-                   0, 4, 4, 4, 4,
-                   4, 0, 4, 4, 4,
-                   3, 3, 0, 3, 3,
-                   1, 1, 1, 0, 1,
-                   0, 0, 0, 0, 0
-                 ), 5, 5, TRUE),
-                 label = "init outdeg stat matrix"
+    expect_equal(
+      preproData$initialStats[, , 1],
+      matrix(c(
+        0, 4, 4, 4, 4,
+        4, 0, 4, 4, 4,
+        3, 3, 0, 3, 3,
+        1, 1, 1, 0, 1,
+        0, 0, 0, 0, 0
+      ), 5, 5, TRUE),
+      label = "init outdeg stat matrix"
     )
-    expect_equal(preproData$initialStats[, , 2],
-                 matrix(c(
-                   0, 2, 2, 2, 2,
-                   5, 0, 5, 5, 5,
-                   0, 0, 0, 0, 0,
-                   1, 1, 1, 0, 1,
-                   0, 0, 0, 0, 0
-                 ), 5, 5, TRUE),
-                 label = "init indeg stat matrix"
+    expect_equal(
+      preproData$initialStats[, , 2],
+      matrix(c(
+        0, 2, 2, 2, 2,
+        5, 0, 5, 5, 5,
+        0, 0, 0, 0, 0,
+        1, 1, 1, 0, 1,
+        0, 0, 0, 0, 0
+      ), 5, 5, TRUE),
+      label = "init indeg stat matrix"
     )
     expect_equal(
       Reduce(rbind, lapply(preproData$dependentStatsChange, "[[", 1)),
@@ -179,8 +181,8 @@ test_that(
     expect_equal(
       statsChange[[1]][["dependent"]],
       fillChanges(
-        nodes   = c( 2,  5,  1,  3,  3,  4),
-        replace = c( 5,  1,  6,  4,  5,  2),
+        nodes   = c(2,  5,  1,  3,  3,  4),
+        replace = c(5,  1,  6,  4,  5,  2),
         time    = c(15, 16, 19, 23, 28, 29),
         set = 1:5),
       label = "updating outdeg times with increment works"
@@ -188,8 +190,8 @@ test_that(
     expect_equal(
       statsChange[[2]][["dependent"]],
       fillChanges(
-        nodes   = c( 3,  1,  2,  5,  3,  5),
-        replace = c( 1,  5,  4,  1,  3,  4),
+        nodes   = c(3,  1,  2,  5,  3,  5),
+        replace = c(1,  5,  4,  1,  3,  4),
         time    = c(15, 16, 19, 19, 28, 28),
         set = 1:5),
       label = "updating indeg times with increment works"
@@ -197,8 +199,8 @@ test_that(
     expect_equal(
       statsChange[[1]][["rightCensored"]],
       fillChanges(
-        nodes   = c( 2,  1,  3,  2),
-        replace = c( 5,  6,  5,  6),
+        nodes   = c(2,  1,  3,  2),
+        replace = c(5,  6,  5,  6),
         time    = c(14, 18, 25, 30),
         set = 1:5),
       label = "updating outdeg times right censored"
@@ -261,25 +263,27 @@ test_that(
       estimationInit = list(startTime = 6, endTime = 24)
     )
     statsChange <- ReducePreprocess(preproData)
-    expect_equal(preproData$initialStats[, , 1],
-                 matrix(c(
-                   0, 4, 4, 4, 4,
-                   3, 0, 3, 3, 3,
-                   1, 1, 0, 1, 1,
-                   1, 1, 1, 0, 1,
-                   0, 0, 0, 0, 0
-                 ), 5, 5, TRUE),
-                 label = "init outdeg stat matrix"
+    expect_equal(
+      preproData$initialStats[, , 1],
+      matrix(c(
+        0, 4, 4, 4, 4,
+        3, 0, 3, 3, 3,
+        1, 1, 0, 1, 1,
+        1, 1, 1, 0, 1,
+        0, 0, 0, 0, 0
+      ), 5, 5, TRUE),
+      label = "init outdeg stat matrix"
     )
-    expect_equal(preproData$initialStats[, , 2],
-                 matrix(c(
-                   0, 2, 2, 2, 2,
-                   4, 0, 4, 4, 4,
-                   0, 0, 0, 0, 0,
-                   1, 1, 1, 0, 1,
-                   0, 0, 0, 0, 0
-                 ), 5, 5, TRUE),
-                 label = "init indeg stat matrix"
+    expect_equal(
+      preproData$initialStats[, , 2],
+      matrix(c(
+        0, 2, 2, 2, 2,
+        4, 0, 4, 4, 4,
+        0, 0, 0, 0, 0,
+        1, 1, 1, 0, 1,
+        0, 0, 0, 0, 0
+      ), 5, 5, TRUE),
+      label = "init indeg stat matrix"
     )
     expect_equal(
       Reduce(rbind, lapply(preproData$dependentStatsChange, "[[", 1)),

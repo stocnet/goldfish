@@ -1,8 +1,9 @@
 # define methods ----------------------------------------------------------
 # init the statistical matrix: list(cache = NULL||list, stat = matrix)
 init_DyNAM_choice <- function(effectFun, network, attribute, n1, n2,
-                              cache = NULL)
+                              cache = NULL) {
   UseMethod("init_DyNAM_choice")
+}
 
 # default -----------------------------------------------------------------
 init_DyNAM_choice.default <- function(
@@ -14,7 +15,8 @@ init_DyNAM_choice.default <- function(
   # print(match.call())
   if (is.null(network) && is.null(attribute)) {
     # this check could be unnecessary
-    stop("the effect function doesn't specify neither a network nor an attribute as argument")
+    stop("the effect function doesn't specify neither a network",
+         " nor an attribute as argument")
   }
 
   # if multiple networks, attributes or combination of both are specified.
@@ -273,20 +275,22 @@ update_DyNAM_choice_tie <- function(
 }
 
 # inertia -----------------------------------------------------------------
-init_DyNAM_choice.inertia <- function(effectFun, network, window, n1, n2)
+init_DyNAM_choice.inertia <- function(effectFun, network, window, n1, n2) {
   init_DyNAM_choice.tie(effectFun = effectFun, network = network,
                         window = window, n1 = n1, n2 = n2)
+}
 
 #' @aliases inertia
 update_DyNAM_choice_inertia <- function(
     network,
     sender, receiver, replace,
-    weighted = FALSE, transformFun = identity)
+    weighted = FALSE, transformFun = identity) {
   update_DyNAM_choice_tie(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     weighted = weighted, transformFun = transformFun
   )
+}
 
 # indeg -------------------------------------------------------------------
 #' init stat matrix indegree using cache alter
@@ -370,13 +374,14 @@ update_DyNAM_choice_indeg <- function(
     sender, receiver, replace,
     cache, n1, n2,
     isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity)
+    weighted = FALSE, transformFun = identity) {
   update_REM_choice_indeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
     n1 = n1, n2 = n2, isTwoMode = isTwoMode,
     weighted = weighted, transformFun = transformFun, type = "alter"
   )
+}
 
 # outdeg -------------------------------------------------------------------
 #' init stat matrix outdegree using cache alter
@@ -461,14 +466,14 @@ update_DyNAM_choice_outdeg <- function(
     sender, receiver, replace,
     cache, n1, n2,
     isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity)
+    weighted = FALSE, transformFun = identity) {
   update_REM_choice_outdeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
     n1 = n1, n2 = n2, isTwoMode = isTwoMode,
     weighted = weighted, transformFun = transformFun, type = "alter"
   )
-
+}
 
 # recip -------------------------------------------------------------------
 #' init stat matrix reciprocity
@@ -624,12 +629,13 @@ update_DyNAM_choice_nodeTrans <- function(
     cache,
     n1, n2,
     isTwoMode = FALSE,
-    transformFun = identity)
+    transformFun = identity) {
   update_REM_choice_nodeTrans(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
     n1 = n1, n2 = n2, isTwoMode = isTwoMode,
     transformFun = transformFun, type = "alter")
+}
 
 # Closure effects --------------------------------------------------------------
 # trans -------------------------------------------------------------------
@@ -2402,7 +2408,7 @@ update_DyNAM_choice_tertius <- function(
     isTwoMode = FALSE,
     n1 = n1, n2 = n2,
     transformFun = identity,
-    aggregateFun = function(x) mean(x, na.rm = TRUE))
+    aggregateFun = function(x) mean(x, na.rm = TRUE)) {
   update_REM_choice_tertius(
     network = network,
     attribute = attribute,
@@ -2416,6 +2422,8 @@ update_DyNAM_choice_tertius <- function(
     transformFun = transformFun,
     aggregateFun = aggregateFun, type = "alter"
   )
+}
+
 # tertiusDiff ----------------------------------------------------------------
 #' init stat matrix tertius-diff using cache
 #'
@@ -2657,7 +2665,7 @@ update_DyNAM_choice_tertiusDiff <- function(
       rbind,
       lapply(
         nodesChange,
-        function(x)
+        \(x) {
           cbind(
             node1 = if (isTwoMode) seq_len(n1) else third(n1, x),
             node2 = x,
@@ -2666,6 +2674,7 @@ update_DyNAM_choice_tertiusDiff <- function(
               transformFun,
               (if (isTwoMode) attribute else attribute[-x]) - cache[x])
           )
+        }
       )
     )
   )
