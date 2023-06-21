@@ -260,14 +260,8 @@ preprocessInteraction <- function(
   while (any(validPointers)) {
 
     # times: the timepoint for next events to update in all event lists
-    times <- mapply(function(e, p) e[p, ]$time, events, pointers)
-    increments <- mapply(function(e, p) {
-      if ("increment" %in% names(e)) {
-        e[p, ]$increment
-      } else {
-        0
-      }
-    }, events, pointers)
+    times <- Map(function(e, p) e[p, ]$time, events, pointers) |>
+      vapply(identity, numeric(1))
 
     # added Marion: we set priority to dependent,
     # exogenous and past updates before anything else
@@ -281,17 +275,21 @@ preprocessInteraction <- function(
       c(depindex, exoindex, pastindexes)
     )
     if (length(prioritypointers) > 0) {
-      cpts <- mapply(function(p) {
-        if (p == depindex) {
-          return(deporder[pointers[p]])
-        }
-        if (p == exoindex) {
-          return(exoorder[pointers[p]])
-        }
-        if (p %in% pastindexes) {
-          return(pastorders[[which(pastindexes == p)]][pointers[p]])
-        }
-      }, prioritypointers)
+      cpts <- Map(
+        \(p) {
+          if (p == depindex) {
+            return(deporder[pointers[p]])
+          }
+          if (p == exoindex) {
+            return(exoorder[pointers[p]])
+          }
+          if (p %in% pastindexes) {
+            return(pastorders[[which(pastindexes == p)]][pointers[p]])
+          }
+        }, prioritypointers
+      ) |>
+        vapply(identity, numeric(1))
+      
       if (max(cpts) == 0) {
         nextEvent <- prioritypointers[1]
       } else {

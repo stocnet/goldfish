@@ -245,7 +245,7 @@ checkColumns <- function(
     !columnNames %in% c(mandatoryNames, incompatibleNames, optionalNames)] <-
     ".allow"
 
-  checked <- mapply(
+  checked <- Map(
     function(column, ct, name) {
       if (!any(checkClasses(column, classes[[ct]])))
         stop("The column ", dQuote(name), " expects values of type ",
@@ -255,7 +255,8 @@ checkColumns <- function(
       else TRUE
     },
     inDataFrame, colType, columnNames
-  )
+  ) |>
+  vapply(identity, logical(1))
 
   return(all(checked))
 }

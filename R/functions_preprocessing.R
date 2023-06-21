@@ -208,7 +208,8 @@ preprocess <- function(
   while (any(validPointers)) {
     iTotalEvents <- iTotalEvents + 1L
     # times: the timepoint for next events to update in all event lists
-    times <- mapply(function(e, p) e[p, ]$time, events, pointers)
+    times <- Map(function(e, p) e[p, ]$time, events, pointers) |>
+      vapply(identity, numeric(1))
     nextEvent <- which(validPointers)[head(which.min(times[validPointers]), 1)]
     nextEventTime <- times[nextEvent]
     if (hasStartTime || hasEndTime) {
