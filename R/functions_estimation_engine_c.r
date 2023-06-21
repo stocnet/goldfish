@@ -542,13 +542,6 @@ estimate_c_int <- function(
   estimationResult
 }
 
-
-
-########################################################################################### ###
-# different implementation for different modelTypeCall
-
-
-
 ## ESTIMATE FOR DIFFERENT MODELS
 estimate_ <- function(
     modelTypeCall,

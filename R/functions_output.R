@@ -309,8 +309,12 @@ print.dependent.goldfish <- function(x, ..., full = FALSE, n = 6) {
 #' @export
 #' @rdname print-method
 #
-# @examples print(structure(list(formula = dep ~ inertia, dependentStatistics = numeric(20)),
-# class = "preprocessed.goldfish"))
+# @examples print(
+#   structure(
+#     list(formula = dep ~ inertia, dependentStatistics = numeric(20)),
+#     class = "preprocessed.goldfish"
+#   )
+# )
 print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   cat("**Preprocess object for the model:**\n")
   print(x$formula)
@@ -318,26 +322,35 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   # cat(" Model type:", result$model.type, "\n")
   cat("*The results are available in the following objects:*\n\n")
 
+  textNodes <- "A character with the name of the object of class nodes.goldfish"
+
   description <- data.frame(
-    name = c("initialStats", "dependentStatsChange", "rightCensoredStatsChange",
-             "intervals", "rightCensoredIntervals", "orderEvents", "eventTime",
-             "eventSender", "eventReceiver", "startTime", "endTime", "formula",
-             "nodes", "nodes2"),
-    description =
-      c("Initial statistical matrices for the effects given previous history.",
-        "List: For each dependent event, a list with the change statistics for the given\n state of the process.",
-        "List: dependent change statistics for a given right-censored event.",
-        "Elapsed time between events.",
-        "List: updates statistics during the elapsed time between events.",
-        "Order of events.",
-        "Time of the event.",
-        "Event sender.",
-        "Event receiver.",
-        "Numeric time value of the initial time considered during estimation.",
-        "Numeric time value of the final time considered during estimation.",
-        "Formula of the model to estimate.",
-        "A character with the name of the object of class nodes.goldfish (rows/first-mode)",
-        "A character with the name of the object of class nodes.goldfish (cols/second-mode)"),
+    name = c(
+      "initialStats", "dependentStatsChange", "rightCensoredStatsChange",
+      "intervals", "rightCensoredIntervals", "orderEvents", "eventTime",
+      "eventSender", "eventReceiver", "startTime", "endTime", "formula",
+      "nodes", "nodes2"
+    ),
+    description = c(
+      "Initial statistical matrices for the effects given previous history.",
+      paste(
+        "List: For each dependent event,",
+        "a list with the change statistics for the given",
+        "\n state of the process."
+      ),
+      "List: dependent change statistics for a given right-censored event.",
+      "Elapsed time between events.",
+      "List: updates statistics during the elapsed time between events.",
+      "Order of events.",
+      "Time of the event.",
+      "Event sender.",
+      "Event receiver.",
+      "Numeric time value of the initial time considered during estimation.",
+      "Numeric time value of the final time considered during estimation.",
+      "Formula of the model to estimate.",
+      paste(textNodes, "(rows/first-mode)"),
+      paste(textNodes, "(cols/second-mode)")
+    ),
     stringsAsFactors = FALSE
   )
 
@@ -361,7 +374,8 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
 #' @importFrom generics tidy
 #' @export
 generics::tidy
-# tidy <- function(x) UseMethod("tidy") # just for testing, don't use because overwrites use in other packages
+# tidy <- function(x) UseMethod("tidy")
+# # just for testing, don't use because overwrites use in other packages
 
 #' @method tidy result.goldfish
 #' @export
@@ -383,8 +397,8 @@ tidy.result.goldfish <- function(
     terms <- paste(
       x$names[, 1],
       rownames(x$names),
-      if (ncol(x$names) > 2) apply(x$names[, -1], 1, paste, collapse = " ") else
-        x$names[, -1]
+      if (ncol(x$names) > 2) apply(x$names[, -1], 1, paste, collapse = " ")
+      else x$names[, -1]
       )
     terms <- trimws(terms)
     terms <- gsub("\\$"," ", terms)
@@ -426,7 +440,8 @@ tidy.result.goldfish <- function(
 #' @importFrom generics glance
 #' @export
 generics::glance
-# glance <- function(x) UseMethod("glance") # just for testing, don't use because overwrites use in other packages
+# glance <- function(x) UseMethod("glance")
+# just for testing, don't use because overwrites use in other packages
 
 #' @method glance result.goldfish
 #' @export

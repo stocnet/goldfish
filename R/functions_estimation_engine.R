@@ -1216,7 +1216,8 @@ reduceStatisticsList <- function(
   }
 
   # This part should be uncommented once we are sure about how to use
-  # these reductions through the whole estimation. For now we reduce at each step
+  # these reductions through the whole estimation.
+  # For now we reduce at each step
 
   # # reduce statistics matrix to a vector
   # if(reduceMatrixToVector) {
@@ -1256,7 +1257,8 @@ reduceStatisticsList <- function(
   # drop statistics with a time span of zero
   if (dropZeroTimespans) {
     hasZeroTime <- which(statsList$intervals == 0)
-    statsList$dependentStatsChange <- statsList$dependentStatsChange[-hasZeroTime]
+    statsList$dependentStatsChange <-
+      statsList$dependentStatsChange[-hasZeroTime]
     statsList$intervals <- statsList$intervals[-hasZeroTime]
     hasZeroTime <- which(statsList$rightCensoredIntervals == 0)
     statsList$rightCensoredStatsChange <-

@@ -120,8 +120,10 @@ examineOutliers <- function(x,
 
   if (length(outlierIndexes > 0)) {
     data$outlier[outlierIndexes] <- "YES"
-    data$label[outlierIndexes] <- paste(data$sender,
-                                        data$receiver, sep = "-")[outlierIndexes]
+    data$label[outlierIndexes] <- paste(
+      data$sender,
+      data$receiver, sep = "-"
+    )[outlierIndexes]
   } else {
     return(cat("No outliers found."))
   }

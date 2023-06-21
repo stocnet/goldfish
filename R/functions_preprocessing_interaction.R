@@ -289,7 +289,7 @@ preprocessInteraction <- function(
         }, prioritypointers
       ) |>
         vapply(identity, numeric(1))
-      
+
       if (max(cpts) == 0) {
         nextEvent <- prioritypointers[1]
       } else {
@@ -557,7 +557,7 @@ preprocessInteraction <- function(
 
 
     pointers[nextEvent] <- 1 + pointers[nextEvent]
-    validPointers <- pointers <= sapply(events, nrow)
+    validPointers <- pointers <= vapply(events, nrow, numeric(1))
   }
 
   if (progress && utils::getTxtProgressBar(pb) < nDependentEvents) {

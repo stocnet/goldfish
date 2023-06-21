@@ -1220,9 +1220,15 @@ init_DyNAM_choice.commonSender <- function(effectFun, network, window, n1, n2) {
 #'     0, 0, 1, 1, 2),
 #'   nrow = 5, ncol = 5)
 #'
-#' update_DyNAM_choice_commonSender(network, 1, 2, 5, cache, transformFun = sqrt)
-#' update_DyNAM_choice_commonSender(network, 5, 1, 0, cache, transformFun = sqrt)
-#' update_DyNAM_choice_commonSender(network, 2, 4, 5, cache, transformFun = sqrt)
+#' update_DyNAM_choice_commonSender(
+#'   network, 1, 2, 5, cache, transformFun = sqrt
+#' )
+#' update_DyNAM_choice_commonSender(
+#'   network, 5, 1, 0, cache, transformFun = sqrt
+#' )
+#' update_DyNAM_choice_commonSender(
+#'   network, 2, 4, 5, cache, transformFun = sqrt
+#' )
 #' }
 update_DyNAM_choice_commonSender <- function(
   network,

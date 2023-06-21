@@ -244,7 +244,7 @@ createBilat <- defineDependentEvents(
   events = bilatchanges[bilatchanges$increment == 1, ],
   nodes = states, defaultNetwork = bilatnet
 )
- 
+
 partnerModel <- estimate(
   createBilat ~
     inertia(bilatnet) +

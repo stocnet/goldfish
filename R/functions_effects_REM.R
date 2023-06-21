@@ -1097,14 +1097,17 @@ update_REM_choice_tertiusDiff <- function(
 # nodeTrans ------------------------------------------------------------------
 
 #' node trans init
-#' number of transitive triangles i->j->k;i->k where node i is embedded. Source node
-#' @param effectFun function with additional parameters isTwoMode, transformFun, type
+#' number of transitive triangles i->j->k;i->k where node i is embedded.
+#' Source node
+#' @param effectFun function with additional parameters isTwoMode, transformFun,
+#'  type, etc.
 #' @param network matrix n1*n2
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
 #'
-#' @return list with named components: cache numeric vector size n2, stat matrix numeric n1*n2
+#' @return list with named components: cache numeric vector size n2,
+#'  stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples

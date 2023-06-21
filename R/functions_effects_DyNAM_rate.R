@@ -25,13 +25,15 @@ init_DyNAM_rate.default <- function(
 # indeg -------------------------------------------------------------------
 #' init stat matrix indegree using cache
 #'
-#' @param effectFun function with additional parameters weighted, isTwoMode, transformFun
+#' @param effectFun function with additional parameters weighted,
+#'  isTwoMode, transformFun
 #' @param network matrix n1*n2
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
 #'
-#' @return list with named components: cache numeric vector size n2, stat matrix numeric n1*n2
+#' @return list with named components: cache numeric vector size n2,
+#'  stat matrix numeric n1*n2
 #' @noRd
 #'
 #' @examples
@@ -46,7 +48,9 @@ init_DyNAM_rate.default <- function(
 #'   ),
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
-#' effectFUN <- function(weighted = TRUE, isTwoMode = TRUE, transformFun = identity)
+#' effectFUN <- function(
+#'   weighted = TRUE, isTwoMode = TRUE, transformFun = identity
+#' )
 #'   NULL
 #' init_REM_choice.indeg(effectFUN, network, 5, 6)
 #' network <- matrix(
@@ -59,11 +63,16 @@ init_DyNAM_rate.default <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' effectFUN <- function(weighted = TRUE, isTwoMode = FALSE, transformFun = identity)
+#' effectFUN <- function(
+#'   weighted = TRUE, isTwoMode = FALSE, transformFun = identity
+#'  )
 #'   NULL
 #' init_DyNAM_rate.indeg(effectFUN, network, NULL, 5, 5)
 #'
-#' effectFUN <- function(weighted = TRUE, isTwoMode = FALSE, transformFun = identity, type = "alter")
+#' effectFUN <- function(
+#'   weighted = TRUE, isTwoMode = FALSE, transformFun = identity,
+#'   type = "alter"
+#'  )
 #'   NULL
 #' init_DyNAM_rate.indeg(effectFUN, network, NULL, 5, 5)
 #' }
@@ -179,9 +188,11 @@ init_DyNAM_rate.tertius <- function(
     effectFun, network, attribute, window, n1, n2
   ) {
   formals(effectFun) <- c(formals(effectFun), list(type = "ego"))
-  init_REM_choice.tertius(effectFun = effectFun, network = network, attribute = attribute,
-                          window = window,
-                          n1 = n1, n2 = n2)
+  init_REM_choice.tertius(
+    effectFun = effectFun, network = network, attribute = attribute,
+    window = window,
+    n1 = n1, n2 = n2
+  )
 }
 
 update_DyNAM_rate_tertius <- function(

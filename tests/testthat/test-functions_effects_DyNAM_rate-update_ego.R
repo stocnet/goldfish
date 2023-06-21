@@ -42,7 +42,8 @@ test_that("ego returns correct attributes on update", {
       node = 1, replace = NA,
       n1 = 8, n2 = 8, isTwoMode = FALSE
     )$changes,
-    cbind(node1 = rep(1, 7), node2 = 2:8, replace = rep(6.8, 7)), # replace by average
+    # replace by average
+    cbind(node1 = rep(1, 7), node2 = 2:8, replace = rep(6.8, 7)),
     label = "when replace is NA"
   )
   expect_equal(

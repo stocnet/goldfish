@@ -201,4 +201,3 @@ inline arma::mat reduce_mat_to_vector(
    }
    return reduced_data_mat;
  }
- 

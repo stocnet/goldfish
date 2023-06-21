@@ -2,8 +2,8 @@
 #' Extract model coefficients from estimate output
 #'
 #' Return a named vector with the estimated coefficients returned by `estimate`.
-#' The names just correspond to the short effect name. For a comprehensive output use
-#' `summary()`.
+#' The names just correspond to the short effect name.
+#' For a comprehensive output use `summary()`.
 #' Note that while the output to the console is rounded, the returned vector
 #' is not.
 #' @param object an object of class `result.goldfish` output from an
