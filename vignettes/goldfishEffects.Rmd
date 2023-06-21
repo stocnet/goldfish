@@ -21,20 +21,23 @@ knitr::opts_chunk$set(
 ```
 
 This vignette summarizes effects that are implemented in `goldfish` and
-are thus available to be used with actor-oriented DyNAM models and tie-oriented Relational Event Models.
+are thus available to be used with actor-oriented DyNAM models and
+tie-oriented Relational Event Models.
 
 
 # Effect arguments
 Effect functions have the following 5 arguments:
 
-* **network(s)/attribute(s)**: Objects upon which the effect should be calculated.
+* **network(s)/attribute(s)**: Objects upon which the effect
+should be calculated.
 For network effects, this would be either an explanatory network or the
 dependent network (the default).
 For attribute effects, this should be the attribute name with the
 indication of the data frame containing the initial values of
 nodes attributes (`data.frame$attribute`),
 see documentation of `defineNodes()` for details.
-* **isTwoMode**: Identifies whether the effect assumes the network is originated
+* **isTwoMode**: Identifies whether the effect assumes the network
+is originated
 from a two-mode network or not.
 The default value is `FALSE`, it means that updates involving
 self-ties are ignore during the statistics update.
@@ -67,36 +70,37 @@ for the potential receivers.
 In the case where `type = "ego"`, the effect returns change statistics for the
 potential sender.
 This argument does not apply in the case of the DyNAM models:
-the DyNAM-choice submodel only considers change statistics for potential receivers
+the DyNAM-choice submodel only considers change statistics for
+potential receivers
 `type = "alter"`, while the DyNAM-rate submodel only considers change statistics
 for potential senders `type = "ego"`.
 
 
 The following table summaries whether the corresponding arguments can be used for the effects or not.
 
-|  |  |         |     isTwoMode |     ignoreRep |     weighted |     window |     transformFun    | aggregateFun | type |
-|---|---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Node/actor statistics | Structural |     indeg |     √ |     √ |     √ |     √ |     √    |     ×    |     √    |
-|  |  | outdeg |     √ |     √ |     √ |     √ |     √    |     ×    |     √    |
-|  |  | nodeTrans |     ×    |     √ |     √ |     √ |     √    |     ×    |     √    |
-|  | Attribute |     ego |     √ |     × |     × |     × |     ×    |     ×    |     ×    |
-|  |  |     alter |     √ |     × |     × |     × |     ×    |     ×    |     ×    |
-|  | Structural + attribute | tertius |     √ |     √ |     √ |     √ |     √    |     √    |     √    |
-| Dyadic statistics | Structural |     tie |     √ |     √ |     √ |     √ |     √    |     ×    |     ×    |
-|  |  |     inertia |     √ |     √ |     √ |     √ |     √    |     ×    | × |
-|  |  |     recip |     √ |     √ |     √ |     √ |     √    |     ×    | × |
-|  | Attribute |     same |     √ |     × |     × |     × | √ |     ×    | × |
-|  |  |     diff | √ |     × |     × |     × | √ |     ×    | × |
-|  |  |     sim | √ |     × |     × |     × | √ |     ×    | × |
-|  |  | egoAlterInt | √ |     × |     × |     × | √ |     ×    |     ×    |
-|  | Structural + attribute | tertiusDiff |     √ |     √ |     √ |     √ |     √    |     √    | × |
-|  | Closure effects |     trans |     ×    |     √ |     × |     √ |     √    |     ×    |     ×    |
-|  |  | cycle |     ×    |     √ |     × |     √ | √ |     ×    |     ×    |
-|  |  | commonSender |     √ |     √ |     × |     √ | √ |     ×    |     ×    |
-|  |  | commonReceiver |     √ |     √ |     × |     √ | √ |     ×    |     ×    |
-|  |  |     four |     √ |     √ |     × |     √ | √ |     ×    |     ×    |
-|  |  |     mixedTrans |     ×    |     √ |     × |     √ | √ |     ×    |     ×    |
-|  |  | mixedCycle |     ×    |     √ |     × |     √ | √ |     ×    |     ×    |
+| || |isTwoMode |ignoreRep |weighted |window |transformFun |aggregateFun |type |
+|---|---|---|---|---|---|---|---|---|---|
+| Node/actor statistics | Structural | indeg | √ | √ | √ | √ | √ | × | √ |
+|  |  | outdeg | √ | √ | √ | √ | √ | × | √ |
+|  |  | nodeTrans | × | √ | √ | √ | √ | × | √ |
+|  | Attribute | ego | √ | × | × | × | × | × | × |
+|  |  | alter | √ | × | × | × | × | × | × |
+|  | Structural + attribute | tertius | √ | √ | √ | √ | √ | √ | √ |
+| Dyadic statistics | Structural | tie | √ | √ | √ | √ | √ | × | × |
+|  |  | inertia | √ | √ | √ | √ | √ | × | × |
+|  |  | recip | √ | √ | √ | √ | √ | × | × |
+|  | Attribute | same | √ | × | × | × | √ | × | × |
+|  |  | diff | √ | × | × | × | √ | × | × |
+|  |  | sim | √ | × | × | × | √ | × | × |
+|  |  | egoAlterInt | √ | × | × | × | √ | × | × |
+|  | Structural + attribute | tertiusDiff | √ | √ | √ | √ | √ | √ | × |
+|  | Closure effects | trans | × | √ | × | √ | √ | × | × |
+|  |  | cycle | × | √ | × | √ | √ | × | × |
+|  |  | commonSender | √ | √ | × | √ | √ | × | × |
+|  |  | commonReceiver | √ | √ | × | √ | √ | × | × |
+|  |  | four | √ | √ | × | √ | √ | × | × |
+|  |  | mixedTrans | × | √ | × | √ | √ | × | × |
+|  |  | mixedCycle | × | √ | × | √ | √ | × | × |
 |  |  | mixedCommonSender | × | √ | × | √ | √ | × | × |
 |  |  | mixedCommonReceiver | × | √ | × | √ | √ | × | × |
 
@@ -137,8 +141,10 @@ Here we refer to ego type when `type = "ego"` and alter type when
 ### Indegree (`indeg()`)
 
 ```{r}
-indeg(network, isTwoMode = FALSE, weighted = FALSE, window = Inf,
-     ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity)
+indeg(network,
+  isTwoMode = FALSE, weighted = FALSE, window = Inf,
+  ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity
+)
 ```
 
 \begin{align}
@@ -173,8 +179,10 @@ The degree can be transform with \code{transformFun}.
 ### Outdegree (`outdeg()`)
 
 ```{r}
-outdeg(network, isTwoMode = FALSE, weighted = FALSE, window = Inf,
-       ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity)  
+outdeg(network,
+  isTwoMode = FALSE, weighted = FALSE, window = Inf,
+  ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity
+)
 ```
 
 \begin{align}
@@ -192,39 +200,41 @@ outdeg(network, isTwoMode = FALSE, weighted = FALSE, window = Inf,
 
 * _DyNAM-Rate model:_ tendency of actor $i$ to create an
   event when $i$ has a high outgoing degree in a covariate network ('ego' type).
-* _DyNAM-choice model:_ tendency to create an event $i\rightarrow j$ when 
+* _DyNAM-choice model:_ tendency to create an event $i\rightarrow j$ when
   $j$ has a high outgoing degree in a covariate network ('alter' type).
-* _REM model:_ tendency to create an event $i\rightarrow j$ when either 
+* _REM model:_ tendency to create an event $i\rightarrow j$ when either
   $i$ or $j$ has a high outgoing degree in a covariate network.
-  The argument `type` allows to choose whether to use the outdegree effect for 
+  The argument `type` allows to choose whether to use the outdegree effect for
   sender $i$ (`type = "ego"`) or for receiver $j$ (`type = "alter"`).
 
 
 ### Node embeddedness transitivity (`nodeTrans()`)
 
 ```{r}
-nodeTrans(network, isTwoMode = FALSE, window = Inf, ignoreRep = FALSE,
-          type = c("alter", "ego"), transformFun = identity)  
+nodeTrans(network,
+  isTwoMode = FALSE, window = Inf, ignoreRep = FALSE,
+  type = c("alter", "ego"), transformFun = identity
+)
 ```
 
 \begin{align}
-  r(i, t, x) &= 
+  r(i, t, x) &=
   \sum_{jk}{I(x(t)_{ik}>0)I(x(t)_{kj}>0)I(x(t)_{ij}>0)} && \text{ego type}\\
   s(i,j, t, x) &=
-    \sum_{kl}{I(x(t)_{jk}>0)I(x(t)_{kl}>0)I(x(t)_{jl}>0)} && \text{alter type}  
+    \sum_{kl}{I(x(t)_{jk}>0)I(x(t)_{kl}>0)I(x(t)_{jl}>0)} && \text{alter type}
 \end{align}
 
 Embeddedness in transitive structures as a source node.
 
 * _DyNAM-Rate model:_ tendency of actor $i$ to create an
   event when $i$ is embeddeded in more transitive structures as the source
-  $i\rightarrow k \rightarrow j \leftarrow i$ in a covariate network 
+  $i\rightarrow k \rightarrow j \leftarrow i$ in a covariate network
   ('ego' type).
-* _DyNAM-choice model:_ tendency to create an event $i\rightarrow j$ when 
+* _DyNAM-choice model:_ tendency to create an event $i\rightarrow j$ when
   $j$ is embeddeded in more transitive structures as the source
-  $j\rightarrow k \rightarrow l \leftarrow j$ in a covariate network 
+  $j\rightarrow k \rightarrow l \leftarrow j$ in a covariate network
   ('alter' type).
-* _REM model:_ tendency to create an event $i\rightarrow j$ when either 
+* _REM model:_ tendency to create an event $i\rightarrow j$ when either
   $i$ or $j$ are embeddeded in more transitive structures as the source
   in a covariate network.
   The argument `type` allows to choose whether to use the node embeddedness
@@ -249,10 +259,10 @@ ego(attribute, isTwoMode = FALSE)
 ```
 
 \begin{align}
-  r(i, t, z) &= z(t)_i 
+  r(i, t, z) &= z(t)_i
 \end{align}
 
-* _DyNAM-Rate model:_ tendency of actors to be more active when 
+* _DyNAM-Rate model:_ tendency of actors to be more active when
   they score high on an attribute.
 * _REM model:_ tendency to create an event $i\rightarrow j$ when $i$ has a high
   score on an attribute.
@@ -264,7 +274,7 @@ alter(attribute, isTwoMode = FALSE)
 ```
 
 \begin{align}
-  s(i, j, t, z) &= z(t)_j 
+  s(i, j, t, z) &= z(t)_j
 \end{align}
 
 * _DyNAM-choice/DyNAM-choice_coordination model:_ tendency to create an event
@@ -281,29 +291,31 @@ alter(attribute, isTwoMode = FALSE)
 ### Tertius (`tertius()`)
 
 ```{r}
-tertius(network, attribute, isTwoMode = FALSE, window = Inf,
-        ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity,
-        aggregateFun = function(x) mean(x, na.rm = TRUE))
+tertius(network, attribute,
+  isTwoMode = FALSE, window = Inf,
+  ignoreRep = FALSE, type = c("alter", "ego"), transformFun = identity,
+  aggregateFun = function(x) mean(x, na.rm = TRUE)
+)
 ```
 
 \begin{align}
   r(i, t, x, z) &=
     \frac{\sum_{j:~x(t)_{ji} > 0}{z(t)_j}}{\sum_{j}{I(x(t)_{ji} > 0)}}
     && \text{ego type}\\
-  s(i,j, t, x, z) &= 
+  s(i,j, t, x, z) &=
     \frac{\sum_{k:~x(t)_{kj} > 0}{z(t)_k}}{\sum_{k}{I(x(t)_{kj} > 0)}}
-    && \text{alter type}  
+    && \text{alter type}
 \end{align}
 
 
 * _DyNAM-Rate submodel:_ tendency of actor $i$ to create an
   event when $i$ has a high aggregate (`aggregateFun`) value of its in-neighbors
   ($\forall j:~ x[j, i] > 0$) in a covariate network ('ego' type).
-* _DyNAM-choice/choice_coordination submodels:_ tendency to create an event 
+* _DyNAM-choice/choice_coordination submodels:_ tendency to create an event
   $i\rightarrow j$ when  $j$ has a high aggregate (`aggregateFun`) value of
   its in-neighbors ($\forall k:~ x[k, j] > 0$) in a covariate network
   ('alter' type).
-* _REM model:_ tendency to create an event $i\rightarrow j$ when either 
+* _REM model:_ tendency to create an event $i\rightarrow j$ when either
   $i$ or $j$ has a high aggregate (`aggregateFun`) value of its in-neighbors
   in a covariate network.
   The argument `type` allows to choose whether to use the tertius effect
@@ -325,12 +337,14 @@ as the average of the aggregate values of nodes with in-neighbors.
 ### Tie (`tie()`)
 
 ```{r}
-tie(network, weighted = FALSE, window = Inf, ignoreRep = FALSE,
-    transformFun = identity) 
+tie(network,
+  weighted = FALSE, window = Inf, ignoreRep = FALSE,
+  transformFun = identity
+)
 ```
 
 \begin{equation}
-s(i,j, t, x) = 
+s(i,j, t, x) =
 \begin{cases}
     I(x(t)_{ij}>0) & \text{unweighted}\\
     x(t)_{ij} & \text{weighted}
@@ -341,17 +355,17 @@ Tendency to create an event $i\rightarrow j$ if the tie $i\rightarrow j$ exists
 in a covariate network.
 Parameter `weighted` can be set to `TRUE` if the value in the covariate network
 for the dyad $i\rightarrow j$ is to be taken as a statistic.
-It can be transformed by using `transformFun` 
+It can be transformed by using `transformFun`
 (This might make sense when `weighted = TRUE`).
 
 ### Inertia (`inertia()`)
 
 ```{r}
-inertia(network, weighted = FALSE, window = Inf, transformFun = identity)  
+inertia(network, weighted = FALSE, window = Inf, transformFun = identity)
 ```
 
 \begin{equation}
-s(i,j, t, x) = 
+s(i,j, t, x) =
 \begin{cases}
     I(x(t)_{ij}>0) & \text{unweighted}\\
     x(t)_{ij} & \text{weighted}
@@ -367,7 +381,7 @@ Thus, _inertia_ is similar to _tie_, but defined on the network to
 which the dependent events relate.
 Parameter `weighted` can be set to `TRUE` if the count of past events
 $i\rightarrow j$ is to be taken as a statistic.
-It can be transformed by using `transformFun` (this might make sense 
+It can be transformed by using `transformFun` (this might make sense
 when `weighted = TRUE`).
 **Note:** `inertia` can never be used in combination with a
 `ignoreRep = TRUE` parameter as this would replace all positive
@@ -376,8 +390,10 @@ statistics with zeros.
 ### Tie reciprocation (`recip()`)
 
 ```{r}
-recip(network, weighted = FALSE, window = Inf, ignoreRep = FALSE,
-      transformFun = identity) 
+recip(network,
+  weighted = FALSE, window = Inf, ignoreRep = FALSE,
+  transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -388,7 +404,8 @@ s(i,j, t, x) =
   \end{cases}
 \end{equation}
 
-Effect of a tie j->i on event $i\rightarrow j$. Recip cannot be used with binary = T in undirected dependent network
+Effect of a tie j->i on event $i\rightarrow j$.
+Recip cannot be used with binary = T in undirected dependent network
 
 Tendency to create an event $i\rightarrow j$ if one or several $j\rightarrow i$
 happened before.
@@ -420,8 +437,10 @@ s(i,j, t, z) = I(z(t)_i = z(t)_j)
 \end{equation}
 
 
-Homophily (same value). The tendency of an event $i\rightarrow j$ to happen if actors i and j have the same attribute value.
-This effect cannot be used for two-mode networks and for the DyNAM-rate submodel.
+Homophily (same value). The tendency of an event $i\rightarrow j$ 
+to happen if actors i and j have the same attribute value.
+This effect cannot be used for two-mode networks and for
+the DyNAM-rate submodel.
 
 ### Differences in attribute (`diff()`)
 
@@ -433,7 +452,8 @@ diff(attribute, transformFun = abs)
 s(i,j, t, z) = |z(t)_i - z(t)_j|
 \end{equation}
 
-Heterophily. The tendency of an event $i\rightarrow j$ to happen if actors i and j 
+Heterophily. The tendency of an event $i\rightarrow j$
+to happen if actors i and j
 have different attribute values (high absolute differences regarding attribute
 if `transformFun = abs`).
 This effect cannot be used for two-mode networks.
@@ -458,7 +478,7 @@ This effect cannot be used for two-mode networks.
 ### Ego Alter interaction (`egoAlterInt()`)
 
 ```{r}
-egoAlterInt(attribute = list(attribute1, attribute2)) 
+egoAlterInt(attribute = list(attribute1, attribute2))
 ```
 
 \begin{equation}
@@ -479,13 +499,16 @@ when $j$ score high on `attribute2` moderated by the score of ego on
 ### Tertius difference (`tertiusDiff()`)
 
 ```{r}
-tertiusDiff(network, attribute, isTwoMode = FALSE, weighted = FALSE,
-            window = Inf, ignoreRep = FALSE, transformFun = abs,
-            aggregateFun = function(x) mean(x, na.rm = TRUE)) 
+tertiusDiff(network, attribute,
+  isTwoMode = FALSE, weighted = FALSE,
+  window = Inf, ignoreRep = FALSE, transformFun = abs,
+  aggregateFun = function(x) mean(x, na.rm = TRUE)
+)
 ```
 
 \begin{equation}
-s(i,j, t, x, z) = \left|\frac{z(t)_i - \sum_{k:~x(t)_{kj} > 0}{z(t)_k}}{ \sum_{k}{I(x(t)_{kj} > 0)}}\right|
+s(i,j, t, x, z) = \left|\frac{z(t)_i -
+\sum_{k:~x(t)_{kj} > 0}{z(t)_k}}{ \sum_{k}{I(x(t)_{kj} > 0)}}\right|
 \end{equation}
 
 The tendency to create an event $i\rightarrow j$ when $i$ has
@@ -519,7 +542,7 @@ trans(network, window = Inf, ignoreRep = FALSE, transformFun = identity)
 s(i,j, t, x) = \sum_{k}{I(x(t)_{ik}>0)I(x(t)_{kj}>0)}
 \end{equation}
 
-It is the tendency to create an event $i\rightarrow j$ when it closes 
+It is the tendency to create an event $i\rightarrow j$ when it closes
 more two-paths ($i\rightarrow k\rightarrow j$) observed in the past events in a
 covariate `network`.
 It can be transformed by using `transformFun`.
@@ -545,7 +568,7 @@ DyNAM-choice_coordination.
 ### Common sender closure (`commonSender()`)
 
 ```{r}
-commonSender(network, window = Inf, ignoreRep = FALSE, transformFun = identity) 
+commonSender(network, window = Inf, ignoreRep = FALSE, transformFun = identity)
 ```
 
 \begin{equation}
@@ -555,14 +578,17 @@ s(i,j, t, x) = \sum_{k}{I(x(t)_{ki}>0)I(x(t)_{kj}>0)}
 It is the tendency to create an event $i\rightarrow j$ when it closes more
 two-paths ($i\leftarrow k\rightarrow j$) observed in the past events in a
 covariate `network`.
-It can be transformed by using `transformFun`..
+It can be transformed by using `transformFun`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
 
 ### Common receiver closure (`commonReceiver()`)
 
 ```{r}
-commonReceiver(network, window = Inf, ignoreRep = FALSE, transformFun = identity) 
+commonReceiver(network,
+  window = Inf, ignoreRep = FALSE,
+  transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -572,15 +598,17 @@ s(i,j, t, x) = \sum_{k}{I(x(t)_{ik}>0)I(x(t)_{jk}>0)}
 It is the tendency to create an event $i\rightarrow j$ when it closes more
 two-paths ($i\rightarrow k\leftarrow j$) observed in the past events in a
 covariate `network`.
-It can be transformed by using `transformFun`..
+It can be transformed by using `transformFun`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
 
 ### Four cycle (`four()`)
 
 ```{r}
-four(network, isTwoMode = FALSE, window = Inf, ignoreRep = FALSE,
-     transformFun = identity) 
+four(network,
+  isTwoMode = FALSE, window = Inf, ignoreRep = FALSE,
+  transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -590,7 +618,7 @@ s(i,j, t, x) = \sum_{kl}{I(x(t)_{ik}>0)I(x(t)_{lk}>0)I(x(t)_{lj}>0)}
 Closure of three-paths. It is the tendency to create an event $i\rightarrow j$
 when it closes more three-paths ($i\rightarrow k\leftarrow l\rightarrow j$)
 observed in the past events in a covariate `network`.
-It can be transformed by using `transformFun`..
+It can be transformed by using `transformFun`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
 
@@ -598,8 +626,10 @@ DyNAM-choice_coordination.
 ### Mixed Transitivity (`mixedTrans()`)
 
 ```{r}
-mixedTrans(network = list(network1, network2), window = Inf,
-           ignoreRep = FALSE, transformFun = identity)
+mixedTrans(
+  network = list(network1, network2), window = Inf,
+  ignoreRep = FALSE, transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -611,14 +641,16 @@ It is the tendency to create an event $i\rightarrow j$ when it closes more
 two-paths with events ($i\rightarrow k$) in `network1` and
 ($k\rightarrow j$) in `network2` observed in the past events in the covariate
 networks.
-It can be transformed by using `transformFun`..
+It can be transformed by using `transformFun`.
 This effect cannot be used for two-mode networks.
 
 ### Mixed Cycle (`mixedCycle()`)
 
 ```{r}
-mixedCycle(network = list(network1, network2), window = Inf,
-           ignoreRep = FALSE, transformFun = identity) 
+mixedCycle(
+  network = list(network1, network2), window = Inf,
+  ignoreRep = FALSE, transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -630,15 +662,17 @@ It is the tendency to create an event $i\rightarrow j$ when it closes more
 two-paths with events ($k\rightarrow i$) in `network1` and
 ($j\rightarrow k$) in `network2` observed in the past events in the covariate
 networks.
-It can be transformed by using `transformFun`..
+It can be transformed by using `transformFun`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
 
 ### Mixed common sender closure (`mixedCommonSender()`)
 
 ```{r}
-mixedCommonSender(network = list(network1, network2), window = Inf,
-              ignoreRep = FALSE, transformFun = identity) 
+mixedCommonSender(
+  network = list(network1, network2), window = Inf,
+  ignoreRep = FALSE, transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -650,15 +684,17 @@ It is the tendency to create an event $i\rightarrow j$ when it closes more
 two-paths with events ($k\rightarrow i$) in `network1` and
 ($k\rightarrow j$) in `network2` observed in the past events in the covariate
 networks.
-It can be transformed by using `transformFun`..
+It can be transformed by using `transformFun`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
 
 ### Mixed common receiver closure (`mixedCommonReceiver()`)
 
 ```{r}
-mixedCommonReceiver(network = list(network1, network2), window = Inf,
-               ignoreRep = FALSE, transformFun = identity) 
+mixedCommonReceiver(
+  network = list(network1, network2), window = Inf,
+  ignoreRep = FALSE, transformFun = identity
+)
 ```
 
 \begin{equation}
@@ -670,6 +706,6 @@ It is the tendency to create an event $i\rightarrow j$ when it closes more
 two-paths with events ($i\rightarrow k$) in `network1` and
 ($j\rightarrow k$) in `network2` observed in the past events in the covariate
 networks.
-It can be transformed by using `transformFun`..
+It can be transformed by using `transformFun`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.

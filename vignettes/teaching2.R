@@ -1,109 +1,112 @@
-## ----setup, message=FALSE-----------------------------------------------------------------------------------
+## ----setup, message=FALSE----------------------------------------------------------------------------------------------
 library(goldfish)
 
 
-## ----load-data----------------------------------------------------------------------------------------------
+## ----load-data---------------------------------------------------------------------------------------------------------
 data("Fisheries_Treaties_6070")
 # ?Fisheries_Treaties_6070
 
 
-## ----examine-states-----------------------------------------------------------------------------------------
+## ----examine-states----------------------------------------------------------------------------------------------------
 tail(states)
 class(states)
 
 
-## ----defineNodes--------------------------------------------------------------------------------------------
+## ----defineNodes-------------------------------------------------------------------------------------------------------
 states <- defineNodes(states)
 head(states)
 class(states)
 
 
-## ----examine-node-changes-----------------------------------------------------------------------------------
+## ----examine-node-changes----------------------------------------------------------------------------------------------
 head(sovchanges)
 head(regchanges)
 head(gdpchanges)
 
 
-## ----present------------------------------------------------------------------------------------------------
+## ----present-----------------------------------------------------------------------------------------------------------
 head(states$present) # or states[,2]
 
 
-## ----link-present-------------------------------------------------------------------------------------------
+## ----link-present------------------------------------------------------------------------------------------------------
 states <- linkEvents(states, sovchanges, attribute = "present")
 # If you call the object now, what happens?
 states
 
 
-## ----states-------------------------------------------------------------------------------------------------
+## ----states------------------------------------------------------------------------------------------------------------
 str(states)
 
 
-## ----link-states-vars---------------------------------------------------------------------------------------
-states <- linkEvents(states, regchanges, attribute = "regime") |> 
+## ----link-states-vars--------------------------------------------------------------------------------------------------
+states <- linkEvents(states, regchanges, attribute = "regime") |>
   linkEvents(gdpchanges, attribute = "gdp")
 str(states)
 
 
-## ----examine-bilat-mat--------------------------------------------------------------------------------------
+## ----examine-bilat-mat-------------------------------------------------------------------------------------------------
 bilatnet[1:12, 1:12]  # head(bilatnet, n = c(12, 12))
 
 
-## ----define-bilat-net---------------------------------------------------------------------------------------
+## ----define-bilat-net--------------------------------------------------------------------------------------------------
 bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
 
 
-## ----examine-bilat-net--------------------------------------------------------------------------------------
+## ----examine-bilat-net-------------------------------------------------------------------------------------------------
 class(bilatnet)
 str(bilatnet)
 bilatnet
 
 
-## ----link-bilat-net-----------------------------------------------------------------------------------------
+## ----link-bilat-net----------------------------------------------------------------------------------------------------
 bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
 bilatnet
 
 
-## ----contig-net---------------------------------------------------------------------------------------------
-contignet <- defineNetwork(contignet, nodes = states, directed = FALSE) |> 
+## ----contig-net--------------------------------------------------------------------------------------------------------
+contignet <- defineNetwork(contignet, nodes = states, directed = FALSE) |>
   linkEvents(contigchanges, nodes = states)
 class(contignet)
 contignet
 
 
-## ----define-dep-events--------------------------------------------------------------------------------------
+## ----define-dep-events-------------------------------------------------------------------------------------------------
 createBilat <- defineDependentEvents(
-  events = bilatchanges[bilatchanges$increment == 1,], 
-  nodes = states, 
+  events = bilatchanges[bilatchanges$increment == 1,],
+  nodes = states,
   defaultNetwork = bilatnet
 )
 
 
-## ----examine-dep-events-------------------------------------------------------------------------------------
+## ----examine-dep-events------------------------------------------------------------------------------------------------
 class(createBilat)
 createBilat
 
 
-## ----hlp, eval = FALSE--------------------------------------------------------------------------------------
+## ----hlp, eval = FALSE-------------------------------------------------------------------------------------------------
 ## ?as.data.frame.nodes.goldfish
 ## ?as.matrix.network.goldfish
 
 
-## ----plot-teaching2, message=FALSE, warning=FALSE, fig.align='center'---------------------------------------
+## ----plot-teaching2, message=FALSE, warning=FALSE, fig.align='center'--------------------------------------------------
 library(igraph)
 library(migraph)
 
 # network at the beginning of the event sequence
-startStates <- as.data.frame(states, time = as.numeric(as.POSIXct("1960-01-02")))
+startStates <- as.data.frame(
+  states,
+  time = as.numeric(as.POSIXct("1960-01-02"))
+)
 startNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02"))) |>
-  add_node_attribute("present", startStates$present) |> 
-  add_node_attribute("regime", startStates$regime) |> 
+  add_node_attribute("present", startStates$present) |>
+  add_node_attribute("regime", startStates$regime) |>
   add_node_attribute("gdp", startStates$gdp)
 
 # network at the end of the event sequence
 endStates <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))
-endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01"))) |> 
-  add_node_attribute("present", endStates$present) |> 
-  add_node_attribute("regime", endStates$regime) |> 
+endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01"))) |>
+  add_node_attribute("present", endStates$present) |>
+  add_node_attribute("regime", endStates$regime) |>
   add_node_attribute("gdp", endStates$gdp)
 
 # logical value indicating if states where present and with agreements
@@ -118,11 +121,11 @@ endNet <- delete_vertices(endNet, !isStateActive)
 ggevolution(startNet, endNet, layout = "fr", based_on = "last")
 
 
-## ----hlp-effects, eval=FALSE--------------------------------------------------------------------------------
+## ----hlp-effects, eval=FALSE-------------------------------------------------------------------------------------------
 ## vignette("goldfishEffects")
 
 
-## ----estimate-init------------------------------------------------------------------------------------------
+## ----estimate-init-----------------------------------------------------------------------------------------------------
 formula1 <-
   createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignoreRep = TRUE) +
                 trans(bilatnet, ignoreRep = TRUE) +
@@ -145,7 +148,7 @@ system.time(
 )
 
 
-## ----estimate-rerun-----------------------------------------------------------------------------------------
+## ----estimate-rerun----------------------------------------------------------------------------------------------------
 estPrefs <- list(
   returnIntervalLogL = TRUE,
   initialDamping = 40,
@@ -161,7 +164,7 @@ partnerModel <- estimate(
 summary(partnerModel)
 
 
-## ----estimate-c---------------------------------------------------------------------------------------------
+## ----estimate-c--------------------------------------------------------------------------------------------------------
 formula2 <-
   createBilat ~ inertia(bilatnet, weighted = TRUE) +
                 indeg(bilatnet) + trans(bilatnet) +
@@ -184,19 +187,19 @@ system.time(
 )
 
 
-## ----broom, message=FALSE-----------------------------------------------------------------------------------
+## ----broom, message=FALSE----------------------------------------------------------------------------------------------
 library(broom)
 library(pixiedust)
-dust(tidy(tieModel, conf.int = TRUE)) %>% 
-  sprinkle(col = c(2:4, 6, 7), round = 3) %>% 
+dust(tidy(tieModel, conf.int = TRUE)) |>
+  sprinkle(col = c(2:4, 6, 7), round = 3) |>
   sprinkle(col = 5, fn = quote(pvalString(value)))
 
 
-## ----glance-------------------------------------------------------------------------------------------------
+## ----glance------------------------------------------------------------------------------------------------------------
 glance(tieModel)
 
 
-## ----examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3-----------------------------------
+## ----examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3----------------------------------------------
 examineOutliers(tieModel)
 examineChangepoints(tieModel)
 

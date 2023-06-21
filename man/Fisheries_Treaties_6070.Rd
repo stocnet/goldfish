@@ -23,28 +23,28 @@ contigchanges (139 rows, 4 columns, dyadic).
 See below for variables and formats.
 
 \tabular{lll}{
-\strong{Object}      \tab  \strong{Description}                      \tab    \strong{Format}       \cr
-states$label         \tab   Node identifier labels                   \tab     character            \cr
-states$present       \tab   Node present in dataset                  \tab     boolean              \cr
-states$regime        \tab   Placeholder for regime variable          \tab     numeric (NA)         \cr
-states$gdp           \tab   Placeholder for GDP variable             \tab     numeric (NA)         \cr
-sovchanges$time     \tab   Date of state sovereignty update         \tab     POSIXct              \cr
-sovchanges$node     \tab   Node for state sovereignty update        \tab     integer              \cr
-sovchanges$replace  \tab   State sovereignty update                 \tab     boolean              \cr
-regchanges$time          \tab   Date of regime update                    \tab     POSIXct              \cr
-regchanges$node          \tab   Node for regime update                   \tab     integer              \cr
-regchanges$replace       \tab   Regime update                            \tab     integer (-10--10)    \cr
-gdpchanges$time             \tab   Date of GDP update                       \tab     POSIXct              \cr
-gdpchanges$node             \tab   Node for GDP update                      \tab     integer              \cr
-gdpchanges$replace          \tab   GDP update                               \tab     numeric              \cr
-bilatchanges$time    \tab   Date of bilateral change                 \tab     POSIXct              \cr
-bilatchanges$sender  \tab   First bilateral change node              \tab     integer              \cr
-bilatchanges$receiver \tab   Second bilateral change node            \tab     integer              \cr
-bilatchanges$increment \tab   Create or dissolve action              \tab     numeric (-1 or 1)    \cr
-contigchanges$time      \tab   Date of contiguity change                \tab     POSIXct              \cr
-contigchanges$sender    \tab   First contiguity change node             \tab     integer              \cr
-contigchanges$receiver  \tab   Second contiguity change node            \tab     integer              \cr
-contigchanges$replace   \tab   New contiguity value                     \tab     numeric              \cr
+\strong{Object} \tab \strong{Description} \tab \strong{Format} \cr
+states$label \tab Node identifier labels \tab character \cr
+states$present \tab Node present in dataset \tab boolean \cr
+states$regime \tab Placeholder for regime variable \tab numeric (NA) \cr
+states$gdp \tab Placeholder for GDP variable \tab numeric (NA) \cr
+sovchanges$time \tab Date of state sovereignty update \tab POSIXct \cr
+sovchanges$node \tab Node for state sovereignty update \tab integer \cr
+sovchanges$replace \tab State sovereignty update \tab boolean \cr
+regchanges$time \tab Date of regime update \tab POSIXct \cr
+regchanges$node \tab Node for regime update \tab integer \cr
+regchanges$replace \tab Regime update \tab integer (-10--10) \cr
+gdpchanges$time \tab Date of GDP update \tab POSIXct \cr
+gdpchanges$node \tab Node for GDP update \tab integer \cr
+gdpchanges$replace \tab GDP update \tab numeric \cr
+bilatchanges$time \tab Date of bilateral change \tab POSIXct \cr
+bilatchanges$sender \tab First bilateral change node \tab integer \cr
+bilatchanges$receiver \tab Second bilateral change node \tab integer \cr
+bilatchanges$increment\tab Create or dissolve tie\tab numeric (-1 or 1)\cr
+contigchanges$time \tab Date of contiguity change \tab POSIXct \cr
+contigchanges$sender \tab First contiguity change node \tab integer \cr
+contigchanges$receiver \tab Second contiguity change node \tab integer \cr
+contigchanges$replace \tab New contiguity value \tab numeric \cr
 }
 
 An object of class \code{data.frame} with 77 rows and 4 columns.
@@ -87,21 +87,25 @@ An abbreviated version of the international fisheries agreements dataset,
 including only bilateral agreements, fewer variables,
 and ranging only between 1960 and 1970 inclusive.
 This data set is only meant for testing, and not for inference.
-It provides an example of an undirected, weighted (by integer/increment) network,
-with composition change and both monadic and dyadic covariates.
+It provides an example of an undirected, weighted (by integer/increment)
+network, with composition change and both monadic and dyadic covariates.
 Monadic variables include the dates states gain or lose sovereign status,
 their polity score, and their GDP.
 Dyadic variables include bilateral fisheries agreements between states,
 and states' contiguity with one another over time.
 }
 \references{
-Hollway, James, and Johan Koskinen. 2016. Multilevel Embeddedness: The Case of the Global Fisheries
-Governance Complex. \emph{Social Networks}, 44: 281-94. doi:10.1016/j.socnet.2015.03.001.
+Hollway, James, and Johan Koskinen. 2016.
+Multilevel Embeddedness: The Case of the Global Fisheries Governance Complex.
+\emph{Social Networks}, 44: 281-94. \doi{10.1016/j.socnet.2015.03.001}.
 
-Hollway, James, and Johan H Koskinen. 2016. Multilevel Bilateralism and Multilateralism: States' Bilateral and
+Hollway, James, and Johan H Koskinen. 2016.
+Multilevel Bilateralism and Multilateralism: States' Bilateral and
 Multilateral Fisheries Treaties and Their Secretariats.
-In \emph{Multilevel Network Analysis for the Social Sciences}, edited by Emmanuel Lazega and Tom A B Snijders,
-315-32. Cham: Springer International Publishing. doi:10.1007/978-3-319-24520-1_13.
+In \emph{Multilevel Network Analysis for the Social Sciences},
+edited by Emmanuel Lazega and Tom A B Snijders,
+315-32. Cham: Springer International Publishing.
+\doi{10.1007/978-3-319-24520-1_13}.
 }
 \keyword{datasets}
 \keyword{dynamic}

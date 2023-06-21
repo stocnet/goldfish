@@ -3,7 +3,8 @@
 
 #' Calculation for estimating an DyNAM-coordination model
 #'
-#' Output the derivative of loglikelihood, the Fisher information matrix, the logLikelihood, and the loglikelihood of each event given input data
+#' Output the derivative of log-likelihood, the Fisher information matrix,
+#'   the log-Likelihood, and the log-likelihood of each event given input data
 #'
 #' @noRd
 estimate_DyNAM_MM <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE) {
@@ -30,76 +31,106 @@ estimate_DyNAM_rate_ordered <- function(parameters, dep_event_mat, stat_mat_init
 
 #' Calculation for estimating an REM-choice model
 #'
-#' Given input data, it output the derivative of the loglikelihood, the Fisher information matrix, the logLikelihood,
-#'     and the loglikelihood of each event
+#' Given input data, it output the derivative of the loglikelihood,
+#'    the Fisher information matrix, the logLikelihood, 
+#'    and the loglikelihood of each event
 #'
 #' @param parameters An n_parameters by 1 matrix, which is the input parameter
-#' @param dep_event_mat An 2 by n_events matrix, the (1,n) entry is the sender of n-th event,
-#'     and the (2,n) entry is the receiver of the n-th event.
-#' @param timespan An n_events by 1 matrix. The i-th element is the waiting time of the i-th event.
-#' @param is_dependent An n_events by 1 matrix with boolean values. If the i-th event is dependent,
-#'     then the i-th entry of is_dependent is TRUE, otherwise it's FALSE.
-#' @param stat_mat_init An n_actor1*n_actor2 by n_parameters matrix. It is the initialization of the statistics matrix.
-#'      The initial value of k-th effect for the actor1-actor2 pair (i,j) is recorded in
-#'      the ((i-1)*n_actor2 + j,k) entry of stat_mat_init.
-#' @param stat_mat_update An matrix with four rows, which records the updates of the statistics matrix through all dependent events.
-#'     The following is an example.
+#' @param dep_event_mat An 2 by n_events matrix, the (1,n) entry is 
+#'    the sender of n-th event, and the (2,n) entry is the 
+#'    receiver of the n-th event.
+#' @param timespan An n_events by 1 matrix.
+#'    The i-th element is the waiting time of the i-th event.
+#' @param is_dependent An n_events by 1 matrix with boolean values.
+#'    If the i-th event is dependent, then the i-th entry of
+#'    is_dependent is TRUE, otherwise it's FALSE.
+#' @param stat_mat_init An n_actor1*n_actor2 by n_parameters matrix.
+#'    It is the initialization of the statistics matrix.
+#'    The initial value of k-th effect for the actor1-actor2 pair (i,j)
+#'    is recorded in the ((i-1)*n_actor2 + j,k) entry of stat_mat_init.
+#' @param stat_mat_update An matrix with four rows,
+#'    which records the updates of the statistics matrix through all
+#'    dependent events.
+#'    The following is an example.
 #'     \tabular{rrrrr}{
 #'       0 \tab 2 \tab 0 \tab 9 \tab 9\cr
 #'       2 \tab 1 \tab 5 \tab 4 \tab 3\cr
 #'       3 \tab 5 \tab 5 \tab  0 \tab 5\cr
 #'       1.2 \tab 3.5 \tab 2.5 \tab 9.23 \tab 2.8\cr
 #'     }
-#'     Each column represents an update. For example the first column means replacing the value of the (3+1)-th effect
-#'     for the actor1-actor2 pair(0+1,2+1) by 1.2. The +1 is due to the difference between the numberings in R and C.
-#' @param stat_mat_update_pointer An n_events by 1 matrix that record which update belongs to which dependent event.
-#'     Suppose that the first three elements are (10,11,15). Then the first 10 colums of stat_mat_update is the update for the first event,
-#'     the 11th column is  the update for the second event, and the 12th to 15th columns are the updates for the third event.
+#'     Each column represents an update.
+#'     For example the first column means replacing the value of
+#'     the (3+1)-th effect for the actor1-actor2 pair(0+1,2+1) by 1.2.
+#'     The +1 is due to the difference between the numberings in R and C.
+#' @param stat_mat_update_pointer An n_events by 1 matrix that record
+#'     which update belongs to which dependent event.
+#'     Suppose that the first three elements are (10,11,15).
+#'     Then the first 10 colums of stat_mat_update is the update for 
+#'     the first event, the 11th column is  the update for the second event,
+#'     and the 12th to 15th columns are the updates for the third event.
 #' @param stat_mat_rightcensored_update An matrix with four rows,
-#'     which record the updates of the statistics matrix through all right-censored events.
+#'     which record the updates of the statistics matrix through all 
+#'     right-censored events.
 #'     the structure is similar to stat_mat_update.
-#' @param stat_mat_update_pointer An n_events by 1 matrix that record which update belongs to which rightcensored event.
-#'     The structure is similar to stat_mat_update_pointer.
-#' @param presence1_init An n_actor1 by 1 matrix, which records the initial presence of each actor1.
-#'     If the i-th actor1 is not present in the
-#'      beginning then the i-th entry of presence1_init is 0, otherwise it's 1.
-#' @param presence1_update An matrix with two rows, which record the updates of the presence of actor1 through all events.
-#'     The following is an example.
+#' @param stat_mat_update_pointer An n_events by 1 matrix that record 
+#'    which update belongs to which rightcensored event.
+#'    The structure is similar to stat_mat_update_pointer.
+#' @param presence1_init An n_actor1 by 1 matrix, which records 
+#'    the initial presence of each actor1.
+#'    If the i-th actor1 is not present in the
+#'    beginning then the i-th entry of presence1_init is 0, otherwise it's 1.
+#' @param presence1_update An matrix with two rows, which record the 
+#'    updates of the presence of actor1 through all events.
+#'    The following is an example.
 #'     \tabular{rrrrr}{
 #'       0 \tab 3 \tab 4 \tab 9 \tab 20\cr
 #'       1 \tab 0 \tab 1 \tab 0 \tab 0\cr
 #'     }
-#'     Each column represents an update. For example the first column means the 0+1-th actor1 becomes present.
-#'     And the second column means the
-#'     the 3+1 th actor1 becomes absent. The +1 is due to the difference between the numberings in R and C.
-#' @param presence2_update_pointer An n_events by 1 matrix that record which update belongs to which (dependent+ rightcensored) event.
-#'     The structure is similar to stat_mat_update_pointer.
-#' @param presence2_init An n_actors2 by 1 matrix, which records the initial presence of each actor2.
-#'     If the i-th actor2 is not present in the beginning then the i-th entry of presence2_init is 0, otherwise it's 1.
-#' @param presence2_update An matrix with two rows, which record the updates of the presence of actor2 through all events.
-#'     The following is an example.
+#'    Each column represents an update. For example the first column means
+#'    the 0+1-th actor1 becomes present.
+#'    And the second column means the
+#'    the 3+1 th actor1 becomes absent. 
+#'    The +1 is due to the difference between the numberings in R and C.
+#' @param presence2_update_pointer An n_events by 1 matrix that record 
+#'    which update belongs to which (dependent+ rightcensored) event.
+#'    The structure is similar to stat_mat_update_pointer.
+#' @param presence2_init An n_actors2 by 1 matrix, which records the
+#'    initial presence of each actor2.
+#'    If the i-th actor2 is not present in the beginning then the i-th entry
+#'    of presence2_init is 0, otherwise it's 1.
+#' @param presence2_update An matrix with two rows, which record the updates
+#'    of the presence of actor2 through all events.
+#'    The following is an example.
 #'     \tabular{rrrrr}{
 #'       0 \tab 3 \tab 4 \tab 9 \tab 20\cr
 #'       1 \tab 0 \tab 1 \tab 0 \tab 0\cr
 #'     }
-#'     Each column represents an update. For example the first column means the 0+1-th actor2 becomes present.
-#'     And the second column means the
-#'     the 3+1 th actor2 becomes absent. The +1 is due to the difference between the numberings in R and C.
-#' @param presence2_update_pointer An n_events by 1 matrix that record which update belongs to which (dependent+ rightcensored) event.
-#'     The structure is similar to stat_mat_update_pointer.
+#'    Each column represents an update. For example the first column means
+#'    the 0+1-th actor2 becomes present.
+#'    And the second column means the 3+1 th actor2 becomes absent.
+#'    The +1 is due to the difference between the numberings in R and C.
+#' @param presence2_update_pointer An n_events by 1 matrix that record
+#'    which update belongs to which (dependent+ rightcensored) event.
+#'    The structure is similar to stat_mat_update_pointer.
 #' @param n_actors_1 An integer which is the number of actor1
 #' @param n_actors_2 An integer which is the number of actor2
-#' @param twomode_or_reflexive An boolean variable. If it's true, then the model is two-model
-#'     or we consider the reflexive effect (that's the value in the diagonal entries of the statistics matrix).
-#' @param impute An boolean variable. If it true, the function does the imputation for missing values.
+#' @param twomode_or_reflexive An boolean variable. If it's true,
+#'    then the model is two-model or we consider the reflexive effect
+#'    (that's the value in the diagonal entries of the statistics matrix).
+#' @param impute An boolean variable. If it true, the function does
+#'    the imputation for missing values.
 #'
 #' @return Return a list with elements as follows.
 #' \describe{
-#'   \item{derivative}{An 1 by n_parameters matrix, which is the derivative of loglikelihood given the input parameter and data.}
-#'   \item{fisher}{An n_parameters by n_parameters matrix, which is the fisher information matrix given the input parameter and data.}
-#'   \item{logLikelihood}{An scalar, which is the loglikelihood given the input parameter and data.}
+#'   \item{derivative}{An 1 by n_parameters matrix, which is the derivative of
+#'    loglikelihood given the input parameter and data.}
+#'   \item{fisher}{An n_parameters by n_parameters matrix, which is the fisher
+#'    information matrix given the input parameter and data.}
+#'   \item{logLikelihood}{An scalar, which is the loglikelihood given
+#'   the input parameter and data.}
 #'   \item{intervalLogL}{An n_events by 1 matrix,
-#'         of which the i-th entry is the loglikelihood of the i-th event given the input parameter and data.}
+#'         of which the i-th entry is the loglikelihood of the i-th event
+#'         given the input parameter and data.}
 #' }
 #' @noRd
 estimate_REM <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_rightcensored_update, stat_mat_rightcensored_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute) {
@@ -114,62 +145,79 @@ estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_
 
 #' Estimate a DyNAM-coordination model with gathered data
 #'
-#' Given the gathered and distilled data, it outputs the derivative of the loglikelihood, the Fisher information matrix, the logLikelihood,
+#' Given the gathered and distilled data, it outputs the derivative of
+#'     the loglikelihood, the Fisher information matrix, the logLikelihood,
 #'     and the loglikelihood of each event  for DyNAM-coordination models.
 #'
 #' @param parameters An n_effects by 1 matrix, which is the input parameter
 #' @param stat_all_events An matrix with n_effects columns.
-#'         Each row represent the values of all effects of a sender-receiver pair in an event. For example, for a model with 2 effects,
-#'         stat_all_events might looks like this.
-#'         \tabular{rr}{
-#'           3.2 \tab 1.9\cr
-#'           3.2 \tab 4.5\cr
-#'           1.2 \tab 5.2\cr
-#'           4.3 \tab 3.1\cr
-#'           2.4 \tab 4.7\cr
-#'           9.2 \tab 5.6\cr
-#'           2.9 \tab 8.9\cr
-#'           ... \tab ...\cr
-#'         }
-#'     The first row means in a event, the values of the two effects of a candidate pair is (3.2,1.9).
-#' @param n_candidates An n_events by 1 matrix. It record how many candidate sender-receiver pairs are in each event.
-#'         From this, we can know which row in stat_all_events belongs to which event. For example if the first two element of
-#'         n_candidates are (2, 4), then the first 2 rows of stat_all_events correspond to  the candidate pairs in the first event,
-#'         which is
-#'         \tabular{rr}{
-#'           3.2 \tab 1.9\cr
-#'           3.2 \tab 4.5\cr
-#'         }
-#'         And the 3rd-6th rows correspond to the candidate pairs in the  second event, which is
-#'         \tabular{rr}{
-#'           1.2 \tab 5.2\cr
-#'           4.3 \tab 3.1\cr
-#'           2.4 \tab 4.7\cr
-#'           9.2 \tab 5.6\cr
-#'         }
-#' @param n_candidates1 An n_events by 1 matrix, which is only used for estimating the DyNAM-coordination model.
-#'         it record how many candidate sender are in each event. And we have n_candidates1 * n_candidates2 = n_candidates.
-#' @param n_candidates2 An n_events by 1 matrix, which is ddonly used for estimating the DyNAM-coordination model.
-#'         it record how many candidate receiver are in each event. And we have n_candidates1 * n_candidates2 = n_candidates.
+#'     Each row represent the values of all effects of
+#'     a sender-receiver pair in an event.
+#'     For example, for a model with 2 effects, stat_all_events 
+#'     might looks like this.
+#'     \tabular{rr}{
+#'       3.2 \tab 1.9\cr
+#'       3.2 \tab 4.5\cr
+#'       1.2 \tab 5.2\cr
+#'       4.3 \tab 3.1\cr
+#'       2.4 \tab 4.7\cr
+#'       9.2 \tab 5.6\cr
+#'       2.9 \tab 8.9\cr
+#'       ... \tab ...\cr
+#'     }
+#'     The first row means in a event, the values of the two effects of
+#'     a candidate pair is (3.2,1.9).
+#' @param n_candidates An n_events by 1 matrix.
+#'     It record how many candidate sender-receiver pairs are in each event.
+#'     It indicates which row in stat_all_events belongs to which event.
+#'     For example if the first two element of n_candidates are (2, 4),
+#'     then the first 2 rows of stat_all_events correspond to
+#'     the candidate pairs in the first event, which is
+#'     \tabular{rr}{
+#'       3.2 \tab 1.9\cr
+#'       3.2 \tab 4.5\cr
+#'     }
+#'     And the 3rd-6th rows correspond to the candidate pairs in
+#'     the second event, which is
+#'     \tabular{rr}{
+#'       1.2 \tab 5.2\cr
+#'       4.3 \tab 3.1\cr
+#'       2.4 \tab 4.7\cr
+#'       9.2 \tab 5.6\cr
+#'     }
+#' @param n_candidates1 An n_events by 1 matrix, which is only used
+#'     for estimating the DyNAM-coordination model.
+#'     It record how many candidate sender are in each event.
+#'     And we have n_candidates1 * n_candidates2 = n_candidates.
+#' @param n_candidates2 An n_events by 1 matrix, which is only used
+#'     for estimating the DyNAM-coordination model.
+#'     It record how many candidate receiver are in each event.
+#'     And we have n_candidates1 * n_candidates2 = n_candidates.
 #' @param selected An n_events by 1 matrix.
-#'         It records the position of the selected candidate sender-receiver pair in each event.
-#'         For example  if the first two element of n_candidates are 2, 4, and the first two elements of selected is (0,2). Then the
-#'         value of the effects of the pair selected in the first event is (3.2,1.9), which is the 1st(=0+1) row of
-#'         \tabular{rr}{
-#'           3.2 \tab 1.9\cr
-#'           3.2 \tab 4.5\cr
-#'         }
-#'         And the value of the effects of the pair selected in the second event is (2.4, 4.7), which is the 3rd(=2+1) row of
-#'         \tabular{rr}{
-#'           1.2 \tab 5.2\cr
-#'           4.3 \tab 3.1\cr
-#'           2.4 \tab 4.7\cr
-#'           9.2 \tab 5.6\cr
-#'         }
+#'     It records the position of the selected candidate sender-receiver pair
+#'     in each event.
+#'     For example  if the first two element of n_candidates are 2, 4,
+#'     and the first two elements of selected is (0,2).
+#'     Then the value of the effects of the pair selected in the first event is
+#'     (3.2,1.9), which is the 1st(=0+1) row of
+#'     \tabular{rr}{
+#'       3.2 \tab 1.9\cr
+#'       3.2 \tab 4.5\cr
+#'     }
+#'     And the value of the effects of the pair selected in the second event is
+#'     (2.4, 4.7), which is the 3rd(=2+1) row of
+#'     \tabular{rr}{
+#'       1.2 \tab 5.2\cr
+#'       4.3 \tab 3.1\cr
+#'       2.4 \tab 4.7\cr
+#'       9.2 \tab 5.6\cr
+#'     }
 #' @param selected_actor1 An n_events by 1 matrix.
-#'         It records the index of the selected candidate sender among all candidate sender in each event.
+#'     It records the index of the selected candidate sender among
+#'     all candidate sender in each event.
 #' @param selected_actor2 An n_events by 1 matrix.
-#'         It records the index of the selected candidate receiver among all candidate receiver in each event.
+#'     It records the index of the selected candidate receiver among
+#'     all candidate receiver in each event.
 #' @noRd
 compute_coordination_selection <- function(parameters, stat_all_events, n_candidates, n_candidates1, n_candidates2, selected, selected_actor1, selected_actor2, twomode_or_reflexive) {
     .Call('_goldfish_compute_coordination_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, n_candidates1, n_candidates2, selected, selected_actor1, selected_actor2, twomode_or_reflexive)
@@ -177,8 +225,11 @@ compute_coordination_selection <- function(parameters, stat_all_events, n_candid
 
 #' Estimate a multinomial selection model with gathered data
 #'
-#' Given the gathered and distilled data, it outputs the derivative of the loglikelihood, the Fisher information matrix, the logLikelihood,
-#' and the loglikelihood of each event  for models with multinomial selection processes, e.g. DyNAM-rate-ordered, DyNAM-choice, and REM-choice models.
+#' Given the gathered and distilled data, it outputs the derivative of
+#'   the log-likelihood, the Fisher information matrix, the log-Likelihood,
+#'   and the log-likelihood of each event for models with
+#'   multinomial selection processes, e.g. DyNAM-rate-ordered, DyNAM-choice,
+#'   and REM-choice models.
 #' @noRd
 compute_multinomial_selection <- function(parameters, stat_all_events, n_candidates, selected) {
     .Call('_goldfish_compute_multinomial_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected)
@@ -186,19 +237,28 @@ compute_multinomial_selection <- function(parameters, stat_all_events, n_candida
 
 #' Estimate a poisson selection model with gathered data
 #'
-#' Given the gathered and distilled data, it outputs the derivative of the loglikelihood, the Fisher information matrix, the logLikelihood,
-#' and the loglikelihood of each event  for models with poisson selection processes, e.g. DyNAM-rate and REM-choice models.
+#' Given the gathered and distilled data,
+#' it outputs the derivative of the log-likelihood,
+#' the Fisher information matrix, the log-likelihood,
+#' and the log-likelihood of each event 
+#' for models with poisson selection processes,
+#' e.g., DyNAM-rate and REM-choice models.
 #' @noRd
 compute_poisson_selection <- function(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent) {
     .Call('_goldfish_compute_poisson_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, timespan, is_dependent)
 }
 
-#' a function to extract the update of composition change from an events and transform the data into a matrix
-#' and a vector.
+#' a function to extract the update of composition change
+#'   from an events and transform the data into a matrix
+#'   and a vector.
 #'
 #' @param event an event objects with the information on composition change
-#' @param reference_event_time a vector of time stamps that separate updates different time spans.
-#' @return A list with two element: changeMat and change_idx. For the structure of these two object see, e.g., the documentation of estimate_DyNAM_choice, in which they are used for stat_mat_update, and stat_mat_update_pointer.
+#' @param reference_event_time a vector of time stamps that separate updates
+#'   different time spans.
+#' @return A list with two element: changeMat and change_idx.
+#' For the structure of these two object see, e.g.,
+#'   the documentation of estimate_DyNAM_choice,
+#'   in which they are used for stat_mat_update, and stat_mat_update_pointer.
 #' @noRd
 C_convert_composition_change <- function(event, reference_event_time) {
     .Call('_goldfish_C_convert_composition_change', PACKAGE = 'goldfish', event, reference_event_time)
@@ -234,10 +294,15 @@ gather_receiver_model <- function(dep_event_mat, stat_mat_init, stat_mat_update,
 
 #' Gathering data for sender receiver model
 #'
-#' Gathering data for models for choosing an sender, i.e. DyNAM-rate and DyNAM-rate-ordered models.
-#'      Only the useful information are recorded, e.g. if a actor1 is not present then its information is not collected.
-#' @param verbose An boolean variable. It it's true, the function prints the progress to the screen.
-#' @return Return a list with elements as follows. The meaning of the argument can be found in corresponding computation codes, e.g. compute_multinomial_selection.cpp.
+#' Gathering data for models for choosing an sender,
+#'     i.e. DyNAM-rate and DyNAM-rate-ordered models.
+#'     Only the useful information are recorded,
+#'     e.g. if a actor1 is not present then its information is not collected.
+#' @param verbose An boolean variable. It it's true,
+#'     the function prints the progress to the screen.
+#' @return Return a list with elements as follows.
+#'     The meaning of the argument can be found in corresponding
+#'     computation codes, e.g. compute_poisson_selection.cpp.
 #' @noRd
 gather_sender_model <- function(dep_event_mat, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_rightcensored_update, stat_mat_rightcensored_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, verbose, impute = TRUE) {
     .Call('_goldfish_gather_sender_model', PACKAGE = 'goldfish', dep_event_mat, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_rightcensored_update, stat_mat_rightcensored_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, verbose, impute)
@@ -245,11 +310,15 @@ gather_sender_model <- function(dep_event_mat, is_dependent, stat_mat_init, stat
 
 #' Gathering data for sender receiver model
 #'
-#' Gathering data for model that considers all present sender-receiver pairs, i.e. REM, REM-ordered, and DyNAM-coordination models.
-#'      Only the useful information are recorded, 
-#'      e.g. if a actor1-actor2 pair is not present in an event, then its information is  not gathered by this function.
-#' @param verbose An boolean variable. It it's true, the function print the progress to the screen.
-#' @return Return a list with elements as follows. The meaning of the argument can be found in corresponding computation codes,
+#' Gathering data for model that considers all present sender-receiver pairs,
+#'   i.e. REM, REM-ordered, and DyNAM-coordination models.
+#'   Only the useful information are recorded, 
+#'   e.g. if a actor1-actor2 pair is not present in an event,
+#'   then its information is  not gathered by this function.
+#' @param verbose An boolean variable.
+#'   It it's true, the function print the progress to the screen.
+#' @return Return a list with elements as follows.
+#' The meaning of the argument can be found in corresponding computation codes,
 #' e.g. compute_coordination_selection.cpp.
 #' @noRd
 gather_sender_receiver_model <- function(dep_event_mat, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_rightcensored_update, stat_mat_rightcensored_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, verbose, impute) {

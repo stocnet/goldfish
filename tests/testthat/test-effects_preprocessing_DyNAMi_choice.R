@@ -3,11 +3,11 @@
 
 # test inertia and tie with different subtypes ----
 test_that(
-  "inertia/tie compute correct preprocessing objects weighted with all possible options",
+  "inertia/tie with objects weighted with all possible options",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "count") +
+        inertia(past_network_DyNAMi, weighted = TRUE, subType = "count") +
         tie(covnetwork_DyNAMi, weighted = TRUE, subType = "count") +
         inertia(past_network_DyNAMi, weighted = TRUE, subType = "proportion") +
         tie(covnetwork_DyNAMi, weighted = TRUE, subType = "proportion") +
@@ -24,7 +24,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -126,7 +128,8 @@ test_that(
     )
 
 
-    # Final stats for other inertia effects: proportion, presence, min, mean, mean
+    # Final stats for other inertia effects:
+    #  proportion, presence, min, mean, mean
     stat <- preproData$initialStats[, , 3]
     for (t in 1:4) {
       change <- preproData$dependentStatsChange[[t]][[3]]
@@ -279,7 +282,8 @@ test_that(
   "inertia computes correct preprocessing objects with window",
   {
     preproData <- estimate(
-      dependent.depevents_DyNAMi ~ inertia(past_network_DyNAMi, weighted = TRUE) +
+      dependent.depevents_DyNAMi ~
+        inertia(past_network_DyNAMi, weighted = TRUE) +
         inertia(past_network_DyNAMi, window = 2, weighted = TRUE) +
         inertia(past_network_DyNAMi, window = 7, weighted = TRUE),
       model = "DyNAMi", subModel = "choice",
@@ -287,7 +291,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -382,26 +388,36 @@ test_that(
 
 # test alterpop and alterdeg ----
 test_that(
-  "alterpop/alterdeg compute correct preprocessing objects weighted with all possible options",
+  "alterpop/alterdeg with objects weighted with all possible options",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      alterpop(past_network_DyNAMi, weighted = TRUE, subType = "mean_normalized") +
-        alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "mean_normalized") +
+        alterpop(past_network_DyNAMi,
+          weighted = TRUE, subType = "mean_normalized"
+        ) +
+        alterdeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "mean_normalized"
+        ) +
         alterpop(past_network_DyNAMi, weighted = TRUE, subType = "min") +
         alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "min") +
         alterpop(past_network_DyNAMi, weighted = TRUE, subType = "mean") +
         alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "mean") +
         alterpop(past_network_DyNAMi, weighted = TRUE, subType = "max") +
         alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "max") +
-        alterpop(past_network_DyNAMi, weighted = TRUE, subType = "mean_centered") +
-        alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "mean_centered"),
+        alterpop(past_network_DyNAMi,
+          weighted = TRUE, subType = "mean_centered"
+        ) +
+        alterdeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "mean_centered"
+        ),
       model = "DyNAMi", subModel = "choice",
       preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -515,7 +531,8 @@ test_that(
 
 
 
-    # Final stats for other inertia effects: mean_normalized, min, max, mean_centered
+    # Final stats for other inertia effects:
+    #  mean_normalized, min, max, mean_centered
     stat <- preproData$initialStats[, , 1]
     for (t in 1:4) {
       change <- preproData$dependentStatsChange[[t]][[1]]
@@ -634,18 +651,20 @@ test_that(
 
 # test size ----
 test_that(
-  "size computes correct preprocessing objects weighted with all possible options",
+  "size with objects weighted with all possible options",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      size(interaction_network_DyNAMi, subType = "identity") +
+        size(interaction_network_DyNAMi, subType = "identity") +
         size(interaction_network_DyNAMi, subType = "squared"),
       model = "DyNAMi", subModel = "choice",
       preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -745,11 +764,11 @@ test_that(
 
 # test alter ----
 test_that(
-  "alter computes correct preprocessing objects weighted with all possible options",
+  "alter with objects weighted with all possible options",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~ alter(actors_DyNAMi$attr1, subType = "mean")
-      + alter(actors_DyNAMi$attr1, subType = "mean_normalized")
+        + alter(actors_DyNAMi$attr1, subType = "mean_normalized")
         + alter(actors_DyNAMi$attr1, subType = "mean_squared")
         + alter(actors_DyNAMi$attr1, subType = "min")
         + alter(actors_DyNAMi$attr1, subType = "max")
@@ -760,7 +779,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -869,7 +890,8 @@ test_that(
     )
 
 
-    # Final stats for other alter effects: mean_normalized, mean_squared,  min, max, range, mean_centered
+    # Final stats for other alter effects:
+    #  mean_normalized, mean_squared,  min, max, range, mean_centered
     stat <- preproData$initialStats[, , 2]
     for (t in 1:4) {
       change <- preproData$dependentStatsChange[[t]][[2]]
@@ -962,11 +984,12 @@ test_that(
 
 # test same/diff/sim ----
 test_that(
-  "same/diff/sim compute correct preprocessing objects weighted with all possible options",
+  "same/diff/sim with objects weighted with all possible options",
   {
     preproData <- estimate(
-      dependent.depevents_DyNAMi ~ same(actors_DyNAMi$attr2, subType = "proportion")
-      + same(actors_DyNAMi$attr2, subType = "count")
+      dependent.depevents_DyNAMi ~
+        same(actors_DyNAMi$attr2, subType = "proportion")
+        + same(actors_DyNAMi$attr2, subType = "count")
         + same(actors_DyNAMi$attr2, subType = "presence")
         + diff(actors_DyNAMi$attr1, subType = "averaged_sum")
         + diff(actors_DyNAMi$attr1, subType = "mean")
@@ -981,7 +1004,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 

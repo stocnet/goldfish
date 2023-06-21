@@ -1,48 +1,59 @@
 # define methods ----------------------------------------------------------
 # init cache data structure: vector or matrix
-init_DyNAMi_rate <- function(effectFun, network, attribute)
+init_DyNAMi_rate <- function(effectFun, network, attribute) {
   UseMethod("init_DyNAMi_rate", effectFun)
+}
 
 # default -----------------------------------------------------------------
-init_DyNAMi_rate.default <- function(effectFun,
-                                     network = NULL, attribute = NULL,
-                                     groupsNetwork, window,
-                                     n1, n2) {
-  init_DyNAMi_choice.default(effectFun = effectFun,
-                            network = network, attribute = attribute,
-                            groupsNetwork = groupsNetwork, window = window,
-                            n1 = n1, n2 = n2)
+init_DyNAMi_rate.default <- function(
+    effectFun,
+    network = NULL, attribute = NULL,
+    groupsNetwork, window,
+    n1, n2) {
+  init_DyNAMi_choice.default(
+    effectFun = effectFun,
+    network = network, attribute = attribute,
+    groupsNetwork = groupsNetwork, window = window,
+    n1 = n1, n2 = n2
+  )
 }
 
 # Structural effects ------------------------------------------------------
-# intercept ---------------------------------------------------------------------
+# intercept -------------------------------------------------------------------
 # initStat_DyNAMi_rate_intercept <- function()
 
-update_DyNAMi_rate_intercept <- function(network,
-                                         groupsNetwork,
-                                         sender, receiver, replace,
-                                         n1, n2, statistics,
-                                         weighted = FALSE,
-                                         joining = 1) {
-
+update_DyNAMi_rate_intercept <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = FALSE,
+    joining = 1) {
   reptotal <- NULL
 
   # JOINING RATE
   if (joining == 1) {
-
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 1) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 1))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 1)
+          )
         }
         next
       } else {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
       }
     }
@@ -50,20 +61,27 @@ update_DyNAMi_rate_intercept <- function(network,
 
   # LEAVING RATE
   if (joining == -1) {
-
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (isingroup) {
         if (statistics[i, 1] != 1) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 1))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 1)
+          )
         }
         next
       } else {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
       }
     }
@@ -76,32 +94,33 @@ update_DyNAMi_rate_intercept <- function(network,
 # inertia ---------------------------------------------------------------------
 # initStat_DyNAMi_rate_inertia <- function()
 
-update_DyNAMi_rate_inertia <- function(network,
-                                       groupsNetwork,
-                                       sender, receiver, replace,
-                                       n1, n2, statistics,
-                                       weighted = TRUE, subType = "proportion",
-                                       joining = -1) {
-update_DyNAMi_rate_tie(network = network,
-                       groupsNetwork = groupsNetwork,
-                       sender = sender, receiver = receiver, replace = replace,
-                       n1 = n1, n2 = n2, statistics = statistics,
-                       weighted = weighted, subType = subType,
-                       joining = joining)
+update_DyNAMi_rate_inertia <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = TRUE, subType = "proportion",
+    joining = -1) {
+  update_DyNAMi_rate_tie(
+    network = network,
+    groupsNetwork = groupsNetwork,
+    sender = sender, receiver = receiver, replace = replace,
+    n1 = n1, n2 = n2, statistics = statistics,
+    weighted = weighted, subType = subType,
+    joining = joining
+  )
 }
-
-
 
 # tie ---------------------------------------------------------------------
 # initStat_DyNAMi_rate_tie <- function()
 
-update_DyNAMi_rate_tie <- function(network,
-                                   groupsNetwork,
-                                   sender, receiver, replace,
-                                   n1, n2, statistics,
-                                   weighted = FALSE, subType = "proportion",
-                                   joining = -1) {
-
+update_DyNAMi_rate_tie <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = FALSE, subType = "proportion",
+    joining = -1) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -109,11 +128,16 @@ update_DyNAMi_rate_tie <- function(network,
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
         next
       }
@@ -143,7 +167,10 @@ update_DyNAMi_rate_tie <- function(network,
       }
 
       if (statistics[i, 1] != rep) {
-        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+        reptotal <- rbind(
+          reptotal,
+          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+        )
       }
     }
   }
@@ -151,17 +178,16 @@ update_DyNAMi_rate_tie <- function(network,
   return(reptotal)
 }
 
-
 # egodeg -------------------------------------------------------------------
 # initStat_DyNAMi_rate_egodeg <- function()
 
-update_DyNAMi_rate_egodeg <- function(network,
-                                      groupsNetwork,
-                                      sender, receiver, replace,
-                                      n1, n2, statistics,
-                                      weighted = TRUE, subType = "identity",
-                                      joining = 1) {
-
+update_DyNAMi_rate_egodeg <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = TRUE, subType = "identity",
+    joining = 1) {
   reptotal <- NULL
   meandeg <- mean(rowSums(network))
   sddeg <- sd(rowSums(network))
@@ -171,9 +197,11 @@ update_DyNAMi_rate_egodeg <- function(network,
     reptotal <- NULL
 
     for (i in seq.int(n1)) {
-      owngroup <- which(groupsNetwork[i,] == 1)
+      owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (subType == "identity") {
@@ -183,16 +211,26 @@ update_DyNAMi_rate_egodeg <- function(network,
           rep <- sum(network[i, ]) - meandeg
         }
         if (subType == "normalized") {
-          if (sddeg > 0) rep <- (sum(network[i, ]) - meandeg) / sddeg else rep <- 0
+          if (sddeg > 0) {
+            rep <- (sum(network[i, ]) - meandeg) / sddeg
+          } else {
+            rep <- 0
+          }
         }
 
         if (statistics[i, 1] != rep) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          )
         }
         next
       } else {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
       }
     }
@@ -205,7 +243,9 @@ update_DyNAMi_rate_egodeg <- function(network,
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (isingroup) {
         if (subType == "identity") {
@@ -215,16 +255,26 @@ update_DyNAMi_rate_egodeg <- function(network,
           rep <- sum(network[i, ]) - meandeg
         }
         if (subType == "normalized") {
-          if (sddeg > 0) rep <- (sum(network[i, ]) - meandeg) / sddeg else rep <- 0
+          if (sddeg > 0) {
+            rep <- (sum(network[i, ]) - meandeg) / sddeg
+          } else {
+            rep <- 0
+          }
         }
 
         if (statistics[i, 1] != rep) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          )
         }
         next
       } else {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
       }
     }
@@ -237,30 +287,33 @@ update_DyNAMi_rate_egodeg <- function(network,
 # egopop -------------------------------------------------------------------
 # initStat_DyNAMi_rate_egopop <- function()
 
-update_DyNAMi_rate_egopop <- function(network,
-                                      groupsNetwork,
-                                      sender, receiver, replace,
-                                      n1, n2, statistics,
-                                      weighted = TRUE, subType = "normalized",
-                                      joining = 1) {
-  update_DyNAMi_rate_egodeg(network = network,
-                            groupsNetwork = groupsNetwork,
-                            sender = sender, receiver = receiver, replace = replace,
-                            n1 = n1, n2 = n2, statistics = statistics,
-                            weighted = weighted, subType = subType,
-                            joining = joining)
+update_DyNAMi_rate_egopop <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = TRUE, subType = "normalized",
+    joining = 1) {
+  update_DyNAMi_rate_egodeg(
+    network = network,
+    groupsNetwork = groupsNetwork,
+    sender = sender, receiver = receiver, replace = replace,
+    n1 = n1, n2 = n2, statistics = statistics,
+    weighted = weighted, subType = subType,
+    joining = joining
+  )
 }
 
 # alterdeg -------------------------------------------------------------------
 # initStat_DyNAMi_rate_alterdeg <- function()
 
-update_DyNAMi_rate_alterdeg <- function(network,
-                                        groupsNetwork,
-                                        sender, receiver, replace,
-                                        n1, n2, statistics,
-                                        weighted = TRUE, subType = "mean",
-                                        joining = -1) {
-
+update_DyNAMi_rate_alterdeg <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = TRUE, subType = "mean",
+    joining = -1) {
   reptotal <- NULL
   meandeg <- mean(rowSums(network))
   maxdeg <- max(rowSums(network))
@@ -268,17 +321,21 @@ update_DyNAMi_rate_alterdeg <- function(network,
 
   # LEAVING MODEL
   if (joining == -1) {
-
     reptotal <- NULL
 
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
         next
       }
@@ -296,7 +353,11 @@ update_DyNAMi_rate_alterdeg <- function(network,
           rep <- sum(network[smembers, ]) - meandeg
         }
         if (subType == "mean_normalized") {
-          if (sddeg > 0) rep <- (sum(network[smembers, ]) - meandeg) / sddeg else rep <- 0
+          if (sddeg > 0) {
+            rep <- (sum(network[smembers, ]) - meandeg) / sddeg
+          } else {
+            rep <- 0
+          }
         }
         if (subType == "min") {
           rep <- sum(network[smembers, ])
@@ -312,7 +373,11 @@ update_DyNAMi_rate_alterdeg <- function(network,
           rep <- mean(rowSums(network[smembers, ])) - meandeg
         }
         if (subType == "mean_normalized") {
-          if (sddeg > 0) rep <- (mean(rowSums(network[smembers, ])) - meandeg) / sddeg else rep <- 0
+          if (sddeg > 0) {
+            rep <- (mean(rowSums(network[smembers, ])) - meandeg) / sddeg
+          } else {
+            rep <- 0
+          }
         }
         if (subType == "min") {
           rep <- min(rowSums(network[smembers, ])) / maxdeg
@@ -323,10 +388,12 @@ update_DyNAMi_rate_alterdeg <- function(network,
       }
 
       if (statistics[i, 1] != rep) {
-        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+        reptotal <- rbind(
+          reptotal,
+          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+        )
       }
     }
-
   }
 
   return(reptotal)
@@ -335,45 +402,52 @@ update_DyNAMi_rate_alterdeg <- function(network,
 # alterpop -------------------------------------------------------------------
 # initStat_DyNAMi_rate_alterpop <- function()
 
-update_DyNAMi_rate_alterpop <- function(network,
-                                        groupsNetwork,
-                                        sender, receiver, replace,
-                                        n1, n2, statistics,
-                                        weighted = TRUE, subType = "mean_normalized",
-                                        joining = -1) {
-  update_DyNAMi_rate_alterdeg(network = network,
-                              groupsNetwork = groupsNetwork,
-                              sender = sender, receiver = receiver, replace = replace,
-                              n1 = n1, n2 = n2, statistics = statistics,
-                              weighted = weighted, subType = subType,
-                              joining = joining)
+update_DyNAMi_rate_alterpop <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = TRUE, subType = "mean_normalized",
+    joining = -1) {
+  update_DyNAMi_rate_alterdeg(
+    network = network,
+    groupsNetwork = groupsNetwork,
+    sender = sender, receiver = receiver, replace = replace,
+    n1 = n1, n2 = n2, statistics = statistics,
+    weighted = weighted, subType = subType,
+    joining = joining
+  )
 }
 
 # size -------------------------------------------------------------------
 # initStat_DyNAMi_rate_size <- function()
 
-update_DyNAMi_rate_size <- function(network,
-                                    groupsNetwork,
-                                    sender, receiver, replace,
-                                    n1, n2, statistics,
-                                    weighted = FALSE, subType = "identity",
-                                    joining = -1) {
-
+update_DyNAMi_rate_size <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = FALSE, subType = "identity",
+    joining = -1) {
   reptotal <- NULL
 
   # LEAVING MODEL
   if (joining == -1) {
-
     reptotal <- NULL
 
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
         next
       }
@@ -392,10 +466,12 @@ update_DyNAMi_rate_size <- function(network,
       }
 
       if (statistics[i, 1] != rep) {
-        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+        reptotal <- rbind(
+          reptotal,
+          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+        )
       }
     }
-
   }
 
   return(reptotal)
@@ -405,28 +481,32 @@ update_DyNAMi_rate_size <- function(network,
 # dyad -------------------------------------------------------------------
 # initStat_DyNAMi_rate_dyad <- function()
 
-update_DyNAMi_rate_dyad <- function(network,
-                                    groupsNetwork,
-                                    sender, receiver, replace,
-                                    n1, n2, statistics,
-                                    weighted = FALSE, subType = "identity",
-                                    joining = -1) {
-
+update_DyNAMi_rate_dyad <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = FALSE, subType = "identity",
+    joining = -1) {
   reptotal <- NULL
 
   # LEAVING MODEL
   if (joining == -1) {
-
     reptotal <- NULL
 
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
         next
       }
@@ -443,10 +523,12 @@ update_DyNAMi_rate_dyad <- function(network,
       }
 
       if (statistics[i, 1] != rep) {
-        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+        reptotal <- rbind(
+          reptotal,
+          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+        )
       }
     }
-
   }
 
   return(reptotal)
@@ -459,14 +541,14 @@ update_DyNAMi_rate_dyad <- function(network,
 # ego -------------------------------------------------------------------
 # initStat_DyNAMi_rate_ego <- function()
 
-update_DyNAMi_rate_ego <- function(attribute,
-                                   groupsNetwork,
-                                   sender, receiver, replace,
-                                   n1, n2, statistics,
-                                   subType = "identity",
-                                   joining = 1,
-                                   node = 0) {
-
+update_DyNAMi_rate_ego <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "identity",
+    joining = 1,
+    node = 0) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -478,7 +560,9 @@ update_DyNAMi_rate_ego <- function(attribute,
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (subType == "identity") {
@@ -491,20 +575,29 @@ update_DyNAMi_rate_ego <- function(attribute,
           rep <- attribute[i] - meanatt
         }
         if (subType == "normalized") {
-          if (sdatt > 0) rep <- (attribute[i] - meanatt) / sdatt else rep <- 0
+          if (sdatt > 0) {
+            rep <- (attribute[i] - meanatt) / sdatt
+          } else {
+            rep <- 0
+          }
         }
 
         if (statistics[i, 1] != rep) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          )
         }
         next
       } else {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
       }
     }
-
   }
 
   # LEAVING RATE
@@ -514,7 +607,9 @@ update_DyNAMi_rate_ego <- function(attribute,
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (isingroup) {
         if (subType == "identity") {
@@ -527,20 +622,29 @@ update_DyNAMi_rate_ego <- function(attribute,
           rep <- attribute[i] - meanatt
         }
         if (subType == "normalized") {
-          if (sdatt > 0) rep <- (attribute[i] - meanatt) / sdatt else rep <- 0
+          if (sdatt > 0) {
+            rep <- (attribute[i] - meanatt) / sdatt
+          } else {
+            rep <- 0
+          }
         }
 
         if (statistics[i, 1] != rep) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          )
         }
         next
       } else {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
       }
     }
-
   }
 
   return(reptotal)
@@ -549,31 +653,35 @@ update_DyNAMi_rate_ego <- function(attribute,
 # alter -------------------------------------------------------------------
 # initStat_DyNAMi_rate_alter <- function()
 
-update_DyNAMi_rate_alter <- function(attribute,
-                                     groupsNetwork,
-                                     sender, receiver, replace,
-                                     n1, n2, statistics,
-                                     subType = "mean",
-                                     joining = -1,
-                                     node = 0) {
-
+update_DyNAMi_rate_alter <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "mean",
+    joining = -1,
+    node = 0) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
 
   # LEAVING MODEL
   if (joining == -1) {
-
     reptotal <- NULL
 
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
         next
       }
@@ -596,7 +704,11 @@ update_DyNAMi_rate_alter <- function(attribute,
         rep <- (mean(attribute[smembers]) - meanatt)^2
       }
       if (subType == "mean_normalized") {
-        if (sdatt > 0) rep <- (mean(attribute[smembers]) - meanatt) / sdatt else rep <- 0
+        if (sdatt > 0) {
+          rep <- (mean(attribute[smembers]) - meanatt) / sdatt
+        } else {
+          rep <- 0
+        }
       }
       if (subType == "min") {
         rep <- min(attribute[smembers])
@@ -627,41 +739,47 @@ update_DyNAMi_rate_alter <- function(attribute,
       }
 
       if (statistics[i, 1] != rep) {
-        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+        reptotal <- rbind(
+          reptotal,
+          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+        )
       }
     }
-
   }
 
   return(reptotal)
-
 }
 
 # same --------------------------------------------------------------------
 # initStat_DyNAMi_rate_same <- function()
 
-update_DyNAMi_rate_same <- function(attribute,
-                                    groupsNetwork,
-                                    sender, receiver, replace,
-                                    n1, n2, statistics,
-                                    subType = "proportion",
-                                    joining = -1,
-                                    node = 0) {
+update_DyNAMi_rate_same <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "proportion",
+    joining = -1,
+    node = 0) {
   reptotal <- NULL
 
   # LEAVING MODEL
   if (joining == -1) {
-
     reptotal <- NULL
 
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
         next
       }
@@ -682,10 +800,12 @@ update_DyNAMi_rate_same <- function(attribute,
       }
 
       if (statistics[i, 1] != rep) {
-        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+        reptotal <- rbind(
+          reptotal,
+          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+        )
       }
     }
-
   }
 
   return(reptotal)
@@ -694,28 +814,33 @@ update_DyNAMi_rate_same <- function(attribute,
 # diff --------------------------------------------------------------------
 # initStat_DyNAMi_rate_diff <- function()
 
-update_DyNAMi_rate_diff <- function(attribute,
-                                    groupsNetwork,
-                                    sender, receiver, replace,
-                                    n1, n2, statistics,
-                                    subType = "averaged_sum",
-                                    joining = -1,
-                                    node = 0) {
+update_DyNAMi_rate_diff <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "averaged_sum",
+    joining = -1,
+    node = 0) {
   reptotal <- NULL
 
   # LEAVING MODEL
   if (joining == -1) {
-
     reptotal <- NULL
 
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
         next
       }
@@ -748,10 +873,12 @@ update_DyNAMi_rate_diff <- function(attribute,
       }
 
       if (statistics[i, 1] != rep) {
-        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+        reptotal <- rbind(
+          reptotal,
+          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+        )
       }
     }
-
   }
 
   return(reptotal)
@@ -761,28 +888,33 @@ update_DyNAMi_rate_diff <- function(attribute,
 # sim ---------------------------------------------------------------------
 # initStat_DyNAMi_rate_sim <- function()
 
-update_DyNAMi_rate_sim <- function(attribute,
-                                   groupsNetwork,
-                                   sender, receiver, replace,
-                                   n1, n2, statistics,
-                                   subType = "averaged_sum",
-                                   joining = -1,
-                                   node = 0) {
+update_DyNAMi_rate_sim <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "averaged_sum",
+    joining = -1,
+    node = 0) {
   reptotal <- NULL
 
   # LEAVING MODEL
   if (joining == -1) {
-
     reptotal <- NULL
 
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
         next
       }
@@ -806,10 +938,12 @@ update_DyNAMi_rate_sim <- function(attribute,
       }
 
       if (statistics[i, 1] != 1) {
-        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+        reptotal <- rbind(
+          reptotal,
+          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+        )
       }
     }
-
   }
 
   return(reptotal)
@@ -821,28 +955,33 @@ update_DyNAMi_rate_sim <- function(attribute,
 # sizeXdiff ---------------------------------------------------------------
 # initStat_DyNAMi_rate_sizeXdiff <- function()
 
-update_DyNAMi_rate_sizeXdiff <- function(attribute,
-                                    groupsNetwork,
-                                    sender, receiver, replace,
-                                    n1, n2, statistics,
-                                    subType = "averaged_sum",
-                                    joining = -1,
-                                    node = 0) {
+update_DyNAMi_rate_sizeXdiff <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "averaged_sum",
+    joining = -1,
+    node = 0) {
   reptotal <- NULL
 
   # LEAVING MODEL
   if (joining == -1) {
-
     reptotal <- NULL
 
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
         next
       }
@@ -853,7 +992,8 @@ update_DyNAMi_rate_sizeXdiff <- function(attribute,
       snmembers <- length(smembers)
 
       if (subType == "averaged_sum") {
-        rep <- nmembers * sum(abs(attribute[smembers] - attribute[i])) / snmembers
+        rep <- nmembers *
+          sum(abs(attribute[smembers] - attribute[i])) / snmembers
       }
       if (subType == "mean") {
         rep <- nmembers * abs(mean(attribute[smembers]) - attribute[i])
@@ -866,10 +1006,12 @@ update_DyNAMi_rate_sizeXdiff <- function(attribute,
       }
 
       if (statistics[i, 1] != rep) {
-        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+        reptotal <- rbind(
+          reptotal,
+          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+        )
       }
     }
-
   }
 
   return(reptotal)
@@ -879,28 +1021,33 @@ update_DyNAMi_rate_sizeXdiff <- function(attribute,
 # dyadXdiff ---------------------------------------------------------------
 # initStat_DyNAMi_rate_dyadXdiff <- function()
 
-update_DyNAMi_rate_dyadXdiff <- function(attribute,
-                                         groupsNetwork,
-                                         sender, receiver, replace,
-                                         n1, n2, statistics,
-                                         subType = "averaged_sum",
-                                         joining = -1,
-                                         node = 0) {
+update_DyNAMi_rate_dyadXdiff <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "averaged_sum",
+    joining = -1,
+    node = 0) {
   reptotal <- NULL
 
   # LEAVING MODEL
   if (joining == -1) {
-
     reptotal <- NULL
 
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       if (!isingroup) {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
         next
       }
@@ -930,10 +1077,12 @@ update_DyNAMi_rate_dyadXdiff <- function(attribute,
       }
 
       if (statistics[i, 1] != rep) {
-        reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+        reptotal <- rbind(
+          reptotal,
+          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+        )
       }
     }
-
   }
 
   return(reptotal)
@@ -942,14 +1091,14 @@ update_DyNAMi_rate_dyadXdiff <- function(attribute,
 # sizeXego -------------------------------------------------------------------
 # initStat_DyNAMi_rate_sizeXego <- function()
 
-update_DyNAMi_rate_sizeXego <- function(attribute,
-                                        groupsNetwork,
-                                        sender, receiver, replace,
-                                        n1, n2, statistics,
-                                        subType = "identity",
-                                        joining = -1,
-                                        node = 0) {
-
+update_DyNAMi_rate_sizeXego <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "identity",
+    joining = -1,
+    node = 0) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -961,7 +1110,9 @@ update_DyNAMi_rate_sizeXego <- function(attribute,
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       members <- which(groupsNetwork[, owngroup] == 1)
       nmembers <- length(members)
@@ -979,16 +1130,26 @@ update_DyNAMi_rate_sizeXego <- function(attribute,
           rep <- nmembers * (attribute[i] - meanatt)
         }
         if (subType == "normalized") {
-          if (sdatt > 0) rep <- nmembers * (attribute[i] - meanatt) / sdatt else rep <- 0
+          if (sdatt > 0) {
+            rep <- nmembers * (attribute[i] - meanatt) / sdatt
+          } else {
+            rep <- 0
+          }
         }
 
         if (statistics[i, 1] != rep) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          )
         }
         next
       } else {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
       }
     }
@@ -1001,14 +1162,14 @@ update_DyNAMi_rate_sizeXego <- function(attribute,
 # dyadXego -------------------------------------------------------------------
 # initStat_DyNAMi_rate_dyadXego <- function()
 
-update_DyNAMi_rate_dyadXego <- function(attribute,
-                                        groupsNetwork,
-                                        sender, receiver, replace,
-                                        n1, n2, statistics,
-                                        subType = "identity",
-                                        joining = -1,
-                                        node = 0) {
-
+update_DyNAMi_rate_dyadXego <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "identity",
+    joining = -1,
+    node = 0) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -1020,7 +1181,9 @@ update_DyNAMi_rate_dyadXego <- function(attribute,
     for (i in seq.int(n1)) {
       owngroup <- which(groupsNetwork[i, ] == 1)
       isingroup <- FALSE
-      if (length(owngroup) == 1) isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      if (length(owngroup) == 1) {
+        isingroup <- length(which(groupsNetwork[, owngroup] == 1)) > 1
+      }
 
       members <- which(groupsNetwork[, owngroup] == 1)
       nmembers <- length(members)
@@ -1044,16 +1207,26 @@ update_DyNAMi_rate_dyadXego <- function(attribute,
           rep <- m * (attribute[i] - meanatt)
         }
         if (subType == "normalized") {
-          if (sdatt > 0) rep <- m * (attribute[i] - meanatt) / sdatt else rep <- 0
+          if (sdatt > 0) {
+            rep <- m * (attribute[i] - meanatt) / sdatt
+          } else {
+            rep <- 0
+          }
         }
 
         if (statistics[i, 1] != rep) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = rep))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          )
         }
         next
       } else {
         if (statistics[i, 1] != 0) {
-          reptotal <- rbind(reptotal, cbind(node1 = i, node2 = seq.int(n2), replace = 0))
+          reptotal <- rbind(
+            reptotal,
+            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+          )
         }
       }
     }

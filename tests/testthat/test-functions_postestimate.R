@@ -15,7 +15,7 @@ test_that("coef function", {
     coef.result.goldfish(resModObject),
     c(inertia = 5.3751, trans = -0.0816),
     label = "correct output"
-  ) 
+  )
   expect_type(
     coef.result.goldfish(resModObject, complete = TRUE),
     "double"
@@ -32,7 +32,7 @@ test_that("coef function", {
     coef.result.goldfish(resModObject, complete = TRUE),
     c(inertia = 5.3751, recip = 1, trans = -0.0816),
     label = "correct output when complete = TRUE"
-  ) 
+  )
 })
 
 test_that("logLik function", {
@@ -52,7 +52,7 @@ test_that("logLik function", {
     logLik.result.goldfish(resModObject),
     structure(-699.4532, class = "logLik", nobs = 439L, df = 3L),
     label = "correct output"
-  ) 
+  )
   expect_type(
     logLik.result.goldfish(resModObject, avgPerEvent = TRUE),
     "double"
@@ -67,7 +67,7 @@ test_that("logLik function", {
   )
   expect_equal(
     logLik.result.goldfish(resModObject, avgPerEvent = TRUE),
-    -699.4532/439L,
+    -699.4532 / 439L,
     label = "correct output when avgPerEvent = TRUE"
   )
 })
@@ -88,13 +88,15 @@ test_that("vcov function", {
   expect_equal(
     vcov.result.goldfish(resModObject),
     matrix(
-      c(0.0241456179209463, -0.00230482755796413,
-        -0.00230482755796413, 0.0390106272519763),
+      c(
+        0.0241456179209463, -0.00230482755796413,
+        -0.00230482755796413, 0.0390106272519763
+      ),
       ncol = 2, nrow = 2,
       dimnames = list(c("inertia", "trans"), c("inertia", "trans"))
     ),
     label = "correct output"
-  ) 
+  )
   expect_type(
     vcov.result.goldfish(resModObject, complete = TRUE),
     "double"
@@ -110,13 +112,17 @@ test_that("vcov function", {
   expect_equal(
     vcov.result.goldfish(resModObject, complete = TRUE),
     matrix(
-      c(0.0241456179209463, NA, -0.00230482755796413,
+      c(
+        0.0241456179209463, NA, -0.00230482755796413,
         NA, NA, NA,
-        -0.00230482755796413, NA, 0.0390106272519763),
+        -0.00230482755796413, NA, 0.0390106272519763
+      ),
       ncol = 3, nrow = 3,
-      dimnames = list(c("inertia", "recip", "trans"),
-                      c("inertia", "recip", "trans"))
+      dimnames = list(
+        c("inertia", "recip", "trans"),
+        c("inertia", "recip", "trans")
+      )
     ),
     label = "correct output when complete = TRUE"
-  ) 
+  )
 })

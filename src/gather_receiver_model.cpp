@@ -20,25 +20,25 @@ using namespace arma;
 //' e.g. compute_coordination_selection.cpp.
 //' @noRd
 // [[Rcpp::export]]
-List gather_receiver_model(const arma::mat& dep_event_mat,
-                           const arma::mat& stat_mat_init,
-                           const arma::mat& stat_mat_update,
-                           const arma::vec& stat_mat_update_pointer,
-                           const arma::vec& presence2_init,
-                           const arma::mat& presence2_update,
-                           const arma::vec& presence2_update_pointer,
-                           const int n_actor1,
-                           const int n_actor2,
-                           const bool twomode_or_reflexive,
-                           const bool verbose = false,
-                           const int impute = true) {
+List gather_receiver_model(
+    const arma::mat& dep_event_mat,
+    const arma::mat& stat_mat_init,
+    const arma::mat& stat_mat_update,
+    const arma::vec& stat_mat_update_pointer,
+    const arma::vec& presence2_init,
+    const arma::mat& presence2_update,
+    const arma::vec& presence2_update_pointer,
+    const int n_actor1,
+    const int n_actor2,
+    const bool twomode_or_reflexive,
+    const bool verbose = false,
+    const int impute = true
+) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
     int n_events = dep_event_mat.n_cols;
     int n_parameters = stat_mat.n_cols;
     // declare auxilliary variables
-    arma::rowvec average_effect_current_event(n_parameters);
-    arma::mat hessian_current_event(n_parameters, n_parameters);
     int stat_mat_update_id = 0;
     int n_total = 0;
     // to check(gutian): deal with composition change of actors1
@@ -77,9 +77,14 @@ List gather_receiver_model(const arma::mat& dep_event_mat,
         // impute the missing statistics if necessary
         if (impute) {
             for (int i = 0; i < n_parameters; i++) {
-                // Construct a view for the i-th column of the stat_matrix and do the impute
-                arma::vec current_col(stat_mat.colptr(i), n_actor1 * n_actor2, false);
-                current_col.elem(find_nonfinite(current_col)).fill(\
+                // Construct a view for the i-th column of
+                //  the stat_matrix and do the impute
+                arma::vec current_col(
+                    stat_mat.colptr(i),
+                    n_actor1 * n_actor2,
+                    false
+                );
+                current_col.elem(find_nonfinite(current_col)).fill(
                     mean(current_col.elem(find_finite(current_col))));
             }
         }
@@ -123,6 +128,7 @@ List gather_receiver_model(const arma::mat& dep_event_mat,
     return List::create(
       Named("stat_all_events") = stat_all_events.rows(0, n_total - 1),
       Named("n_candidates") = n_presence2,
-      Named("selected") = receivers);
+      Named("selected") = receivers
+    );
 }
 

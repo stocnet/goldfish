@@ -8,32 +8,38 @@ using namespace arma;
 
 //' Gathering data for sender receiver model
 //'
-//' Gathering data for model that considers all present sender-receiver pairs, i.e. REM, REM-ordered, and DyNAM-coordination models.
-//'      Only the useful information are recorded, 
-//'      e.g. if a actor1-actor2 pair is not present in an event, then its information is  not gathered by this function.
-//' @param verbose An boolean variable. It it's true, the function print the progress to the screen.
-//' @return Return a list with elements as follows. The meaning of the argument can be found in corresponding computation codes,
+//' Gathering data for model that considers all present sender-receiver pairs,
+//'   i.e. REM, REM-ordered, and DyNAM-coordination models.
+//'   Only the useful information are recorded, 
+//'   e.g. if a actor1-actor2 pair is not present in an event,
+//'   then its information is  not gathered by this function.
+//' @param verbose An boolean variable.
+//'   It it's true, the function print the progress to the screen.
+//' @return Return a list with elements as follows.
+//' The meaning of the argument can be found in corresponding computation codes,
 //' e.g. compute_coordination_selection.cpp.
 //' @noRd
 // [[Rcpp::export]]
-List gather_sender_receiver_model(const arma::mat& dep_event_mat,
-                                  const arma::vec& is_dependent,
-                                  const arma::mat& stat_mat_init,
-                                  const arma::mat& stat_mat_update,
-                                  const arma::vec& stat_mat_update_pointer,
-                                  const arma::mat& stat_mat_rightcensored_update,
-                                  const arma::vec& stat_mat_rightcensored_update_pointer,
-                                  const arma::vec& presence1_init,
-                                  const arma::mat& presence1_update,
-                                  const arma::vec& presence1_update_pointer,
-                                  const arma::vec& presence2_init,
-                                  const arma::mat& presence2_update,
-                                  const arma::vec& presence2_update_pointer,
-                                  const int n_actors_1,
-                                  const int n_actors_2,
-                                  const bool twomode_or_reflexive,
-                                  const bool verbose,
-                                  const bool impute) {
+List gather_sender_receiver_model(
+    const arma::mat& dep_event_mat,
+    const arma::vec& is_dependent,
+    const arma::mat& stat_mat_init,
+    const arma::mat& stat_mat_update,
+    const arma::vec& stat_mat_update_pointer,
+    const arma::mat& stat_mat_rightcensored_update,
+    const arma::vec& stat_mat_rightcensored_update_pointer,
+    const arma::vec& presence1_init,
+    const arma::mat& presence1_update,
+    const arma::vec& presence1_update_pointer,
+    const arma::vec& presence2_init,
+    const arma::mat& presence2_update,
+    const arma::vec& presence2_update_pointer,
+    const int n_actors_1,
+    const int n_actors_2,
+    const bool twomode_or_reflexive,
+    const bool verbose,
+    const bool impute
+) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
     int n_events = is_dependent.n_elem;
@@ -80,47 +86,59 @@ List gather_sender_receiver_model(const arma::mat& dep_event_mat,
 
         // stat_mat_update
         if (is_dependent(id_event)) {
-            while (stat_mat_update_id < stat_mat_update_pointer(id_dep_event)) {
-                stat_mat(stat_mat_update(0, stat_mat_update_id)*n_actors_2 \
-                         + stat_mat_update(1, stat_mat_update_id), \
-                         stat_mat_update(2, stat_mat_update_id)) \
-                    = stat_mat_update(3, stat_mat_update_id);
-                stat_mat_update_id++;
-            }
-        } else {
-            while (stat_mat_rightcensored_update_id < stat_mat_rightcensored_update_pointer(id_event - id_dep_event)) {
-                stat_mat(stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id) * n_actors_2 \
-                         + stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id), \
-                         stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id)) \
-                    = stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);
-                stat_mat_rightcensored_update_id++;
-            }
+          while (stat_mat_update_id < stat_mat_update_pointer(id_dep_event)) {
+            stat_mat(
+              stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
+                stat_mat_update(1, stat_mat_update_id),
+                stat_mat_update(2, stat_mat_update_id)) =
+                  stat_mat_update(3, stat_mat_update_id);
+            stat_mat_update_id++;
+          }
+        } else { while (stat_mat_rightcensored_update_id <
+          stat_mat_rightcensored_update_pointer(id_event - id_dep_event)) {
+          stat_mat(
+           stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id) *
+            n_actors_2 +
+            stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id),
+           stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id)) =
+           stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);
+          stat_mat_rightcensored_update_id++;
+        }
         }
         // impute the missing statistics if necessary
         if (impute) {
             for (int i = 0; i < n_parameters; i++) {
-                // Construct a view for the i-th column of the stat_matrix and do the impute
-                arma::vec current_col(stat_mat.colptr(i), n_actors_1 * n_actors_2, false);
-                current_col.elem(find_nonfinite(current_col)).fill(mean(current_col.elem(find_finite(current_col))));
+                // Construct a view for the i-th column of the stat_matrix
+                //  and do the impute
+                arma::vec current_col(
+                    stat_mat.colptr(i),
+                    n_actors_1 * n_actors_2,
+                    false
+                );
+                current_col.elem(find_nonfinite(current_col)).fill(
+                    mean(current_col.elem(find_finite(current_col))));
             }
         }
 
         // composition change
         if (has_composition_change1) {
             while (presence1_update_id < presence1_update_pointer(id_event)) {
-                presence1(presence2_update(0, presence1_update_id) - 1) = presence1_update(1, presence1_update_id);
+                presence1(presence1_update(0, presence1_update_id) - 1) =
+                  presence1_update(1, presence1_update_id);
                 presence1_update_id++;
             }
         }
         if (has_composition_change2) {
             while (presence2_update_id < presence2_update_pointer(id_event)) {
-                presence2(presence2_update(0, presence2_update_id) - 1) = presence2_update(1, presence2_update_id);
+                presence2(presence2_update(0, presence2_update_id) - 1) =
+                  presence2_update(1, presence2_update_id);
                 presence2_update_id++;
             }
         }
 
 
-        // Declare variables for counting the number of present paris, actors1, actors2 in this event
+        // Declare variables for counting the number of present pairs,
+        //  actors1, actors2 in this event
         int n_present = 0;
         int n_present_actor1 = 0;
         int n_present_actor2 = 0;
@@ -132,10 +150,12 @@ List gather_sender_receiver_model(const arma::mat& dep_event_mat,
         }
 
 
-        // We calculate the derivative, logLikelihood, and hessian matrix of a current event according to the paper
-        // and add to the variables to be return in the end. The three quantities are unnormalized until having gone through
-        // all receivers.
-        // Reset auxilliary variables
+        // We calculate the derivative, log-Likelihood,
+        //  and hessian matrix of a current event according to the paper
+        //  and add to the variables to be return in the end.
+        //  The three quantities are unnormalized until having gone through
+        //  all receivers.
+        // Reset auxiliary variables
         // declare the ids of the sender and the receiver,
         const int id_sender = dep_event_mat(0, id_event) - 1;
         const int id_receiver = dep_event_mat(1, id_event) - 1;
@@ -143,8 +163,10 @@ List gather_sender_receiver_model(const arma::mat& dep_event_mat,
         for (int i = 0; i < n_actors_1; ++i) {
             if (presence1(i) == 1) {
                 n_present_actor2 = 0;
-                // declare the subviews of th stat mat corresponding to the first sender
-                const arma::mat& current_data_matrix = stat_mat.rows(i * n_actors_2, (i + 1) * n_actors_2 - 1);
+                // declare the subviews of th stat mat corresponding to
+                // the first sender
+                const arma::mat& current_data_matrix =
+                  stat_mat.rows(i * n_actors_2, (i + 1) * n_actors_2 - 1);
                 // deal with twomode and allow reflexive
                 int not_allowed_receiver = -1;
                 if (!twomode_or_reflexive) not_allowed_receiver = i;
@@ -152,8 +174,10 @@ List gather_sender_receiver_model(const arma::mat& dep_event_mat,
                 for (int j = 0; j < n_actors_2; j++) {
                     if (presence2(j) == 1 && (j != not_allowed_receiver)) {
                         // exp_current_receiver is \exp(\beta^T s)
-                        stat_all_events.row(n_total) = current_data_matrix.row(j);
-                        if ((is_dependent_current_event) && (i == id_sender) && (j == id_receiver)) {
+                        stat_all_events.row(n_total) =
+                          current_data_matrix.row(j);
+                        if ((is_dependent_current_event) &&
+                            (i == id_sender) && (j == id_receiver)) {
                             selected(id_event) = n_present;
                             selected_actor1(id_event) = n_present_actor1;
                             selected_actor2(id_event) = n_present_actor2;
@@ -167,7 +191,8 @@ List gather_sender_receiver_model(const arma::mat& dep_event_mat,
                 n_present_actor1++;
             }
         }
-        // Recording the numbers of the present pairs, the present actor1, and the present actor2 in this event.
+        // Recording the numbers of the present pairs, the present actor1,
+        //  and the present actor2 in this event.
         n_candidates(id_event) = n_present;
         n_candidates1(id_event) = n_present_actor1;
         n_candidates2(id_event) = n_present_actor2;
@@ -175,12 +200,13 @@ List gather_sender_receiver_model(const arma::mat& dep_event_mat,
     // clear the screen(console)
     if (verbose) gather_progress_terminate();
 
-    return List::create(Named("stat_all_events") = stat_all_events.rows(0, n_total - 1),
-                        Named("n_candidates") = n_candidates,
-                        Named("n_candidates1") = n_candidates1,
-                        Named("n_candidates2") = n_candidates2,
-                        Named("selected") = selected,
-                        Named("selected_actor1") = selected_actor1,
-                        Named("selected_actor2") = selected_actor2);
+    return List::create(
+      Named("stat_all_events") = stat_all_events.rows(0, n_total - 1),
+      Named("n_candidates") = n_candidates,
+      Named("n_candidates1") = n_candidates1,
+      Named("n_candidates2") = n_candidates2,
+      Named("selected") = selected,
+      Named("selected_actor1") = selected_actor1,
+      Named("selected_actor2") = selected_actor2
+    );
 }
-

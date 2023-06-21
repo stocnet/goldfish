@@ -11,30 +11,27 @@
 #'
 #' @return a list of class preprocessed.goldfish
 #'
-#' @importFrom methods is
-#' @importFrom utils setTxtProgressBar getTxtProgressBar object.size
-#' @importFrom utils txtProgressBar
-#' @importFrom stats time
 #' @noRd
 preprocess <- function(
-  model,
-  subModel,
-  parsedformula,
-  opportunitiesList = NULL,
-  # simulation parameters,
-  simulate = FALSE,
-  nEventMax = NULL,
-  simulateFunction = NULL,
-  simulateParams = NULL,
-  # add more parameters
-  startTime = NULL,
-  endTime = NULL,
-  rightCensored = FALSE,
-  # DyNAMi
-  groupsNetwork = NULL,
-  # Others
-  progress = FALSE,
-  prepEnvir = new.env()) {
+    model,
+    subModel,
+    events,
+    effects,
+    windowParameters,
+    ignoreRepParameter,
+    eventsObjectsLink,
+    eventsEffectsLink,
+    objectsEffectsLink,
+    # multipleParameter,
+    nodes,
+    nodes2 = nodes,
+    isTwoMode,
+    # add more parameters
+    startTime = min(vapply(events, function(x) min(x$time), double(1))),
+    endTime = max(vapply(events, function(x) max(x$time), double(1))),
+    rightCensored = FALSE,
+    progress = FALSE,
+    prepEnvir = new.env()) {
 
   # For debugging
   # if (identical(environment(), globalenv())) {
@@ -45,6 +42,7 @@ preprocess <- function(
 
   # print(match.call())
   # initialize statistics functions from data objects
+
   initializePreprocessing(
     parsedFormula = parsedformula, model = model, subModel = subModel,
     rightCensored = rightCensored, progress = progress,
@@ -57,10 +55,6 @@ preprocess <- function(
   # check start time and end time are valid values, set flags
   setStartEndTime(envir = prepEnvir)
   
-  # impute missing data in objects: 0 for networks and mean for attributes
-  imputed <- imputeMissingData(prepEnvir$objectsEffectsLink, envir = prepEnvir)
-
-  if (progress) cat("Initializing cache objects and statistical matrices.\n")
   initStatPrep(envir = prepEnvir)
   
   # add iterators
@@ -74,12 +68,13 @@ preprocess <- function(
   while (any(prepEnvir$validPointers)) {
     iTotalEvents <- iTotalEvents + 1L
     # times: the timepoint for next events to update in all event lists
-    times <- mapply(function(e, p) e[p, ]$time, events, pointers)
+    times <- Map(function(e, p) e[p, ]$time, events, pointers) |>
+      vapply(identity, numeric(1))
     nextEvent <- which(validPointers)[head(which.min(times[validPointers]), 1)]
     nextEventTime <- times[nextEvent]
     if (hasStartTime || hasEndTime) {
       if (isValidEvent && nextEventTime <= endTime) {
-         interval <- nextEventTime - time
+        interval <- nextEventTime - time
       } else if (isValidEvent && nextEventTime > endTime) {
         interval <- endTime - time
         nextEventTime <- endTime
@@ -88,7 +83,9 @@ preprocess <- function(
         interval <- nextEventTime - startTime
         isValidEvent <- TRUE
       }
-    } else interval <- nextEventTime - time
+    } else {
+      interval <- nextEventTime - time
+    }
 
     time <- nextEventTime
 
@@ -100,7 +97,7 @@ preprocess <- function(
       ignoreEvents <- ignoreEvents + 1L
       eventPos <- 0
     }
-    
+
     # # CHANGED ALVARO: progress bar
     if (progress && iTotalEvents %% dotEvents == 0) {
       utils::setTxtProgressBar(pb, iTotalEvents)
@@ -123,7 +120,7 @@ preprocess <- function(
       iDependentEvents <- 1L + iDependentEvents
       dependentStatistics[[iDependentEvents]] <- updatesDependent
       if (rightCensored) timeIntervals[[iDependentEvents]] <- interval
-        # timeIntervals[[iDependentEvents]] # correct it for not rate models
+      # timeIntervals[[iDependentEvents]] # correct it for not rate models
       updatesDependent <- vector("list", nEffects)
       updatesIntervals <- vector("list", nEffects)
       # CHANGED MARION: added orderEvents
@@ -140,14 +137,13 @@ preprocess <- function(
         event_sender[[eventPos]] <- event$sender
         event_receiver[[eventPos]] <- event$receiver
       }
-
     } else if (!isDependent) {
       # 2. store statistic updates for RIGHT-CENSORED
       # (non-dependent, positive) intervals
       if (isValidEvent && rightCensored && interval > 0) {
         # CHANGED MARION: the incremented index was incorrect
-        #rightCensoredStatistics[[ pointers[nextEvent] ]] <- updatesIntervals
-        #timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <-
+        # rightCensoredStatistics[[ pointers[nextEvent] ]] <- updatesIntervals
+        # timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <-
         # interval
         rightCensoredStatistics[[pointerTempRightCensored]] <- updatesIntervals
         timeIntervalsRightCensored[[pointerTempRightCensored]] <- interval
@@ -190,7 +186,8 @@ preprocess <- function(
       objectNameTable <- eventsObjectsLink[nextEvent, -1]
       objectName <- objectNameTable$name
       object <- getElementFromDataObjectTable(
-        objectNameTable, envir = prepEnvir
+        objectNameTable,
+        envir = prepEnvir
       )[[1]]
       isUndirectedNet <- FALSE
       if (inherits(object, "network.goldfish")) {
@@ -239,100 +236,117 @@ preprocess <- function(
 
 
       ## 3a. calculate statistics changes
-      if (!finalStep)
+      if (!finalStep) {
         for (id in which(!is.na(eventsEffectsLink[nextEvent, ]))) {
-        # create the ordered list for the objects
-        objectsToPass <- objectsEffectsLink[, id][
-          !is.na(objectsEffectsLink[, id])]
-        names <- rownames(objectsEffectsLink)[!is.na(objectsEffectsLink[, id])]
-        orderedNames <- names[order(objectsToPass)]
-        orderedObjectTable <- getDataObjects(list(list("", orderedNames)))
-        .objects <- getElementFromDataObjectTable(
-          orderedObjectTable,
-          envir = prepEnvir
-        )
-        # identify class to feed effects functions
-        objCat <- assignCatToObject(.objects)
-        attIDs <- which(objCat == "attribute")
-        netIDs <- which(objCat == "network")
-        if (attr(objCat, "noneClass"))
-          stop("An object is not assigned either as network or attibute\n\t",
-               paste(names[attr(objCat, "manyClasses") != 1], collapse = ", "),
-               "\n\tcheck the class of the object.", call. = FALSE)
-
-        # call effects function with required arguments
-        .argsFUN <- list(
-          network = if (length(.objects[netIDs]) == 1) {
-            .objects[netIDs][[1]]
-          } else {
-            .objects[netIDs]
-          },
-          attribute = if (length(.objects[attIDs]) == 1) {
-            .objects[attIDs][[1]]
-          } else {
-            .objects[attIDs]
-          },
-          cache = statCache[[id]],
-          n1 = n1,
-          n2 = n2,
-          netUpdate = if (length(.objects[netIDs]) == 1) {
-            NULL
-          } else {
-            which(orderedNames == objectName)
-          },
-          attUpdate = if (length(.objects[attIDs]) == 1) {
-            NULL
-          } else {
-            which(orderedNames == objectName)
+          # create the ordered list for the objects
+          objectsToPass <- objectsEffectsLink[, id][
+            !is.na(objectsEffectsLink[, id])
+          ]
+          names <- rownames(objectsEffectsLink)
+          names <- names[!is.na(objectsEffectsLink[, id])]
+          orderedNames <- names[order(objectsToPass)]
+          orderedObjectTable <- getDataObjects(list(list("", orderedNames)))
+          .objects <- getElementFromDataObjectTable(
+            orderedObjectTable,
+            envir = prepEnvir
+          )
+          # identify class to feed effects functions
+          objCat <- assignCatToObject(.objects)
+          attIDs <- which(objCat == "attribute")
+          netIDs <- which(objCat == "network")
+          if (attr(objCat, "noneClass")) {
+            stop("An object is not assigned either as network or attibute",
+              paste(names[attr(objCat, "manyClasses") != 1], collapse = ", "),
+              "check the class of the object.",
+              call. = FALSE
+            )
           }
-        )
 
-        effectUpdate <- callFUN(
-          effects, id, "effect", c(.argsFUN, event), " cannot update \n",
-          colnames(objectsEffectsLink)[id]
-        )
+          # call effects function with required arguments
+          .argsFUN <- list(
+            network = if (length(.objects[netIDs]) == 1) {
+              .objects[netIDs][[1]]
+            } else {
+              .objects[netIDs]
+            },
+            attribute = if (length(.objects[attIDs]) == 1) {
+              .objects[attIDs][[1]]
+            } else {
+              .objects[attIDs]
+            },
+            cache = statCache[[id]],
+            n1 = n1,
+            n2 = n2,
+            netUpdate = if (length(.objects[netIDs]) == 1) {
+              NULL
+            } else {
+              which(orderedNames == objectName)
+            },
+            attUpdate = if (length(.objects[attIDs]) == 1) {
+              NULL
+            } else {
+              which(orderedNames == objectName)
+            }
+          )
 
-        updates <- effectUpdate$changes
-        # if cache and changes are not null update cache
-        if (!is.null(effectUpdate$cache) && !is.null(effectUpdate$changes)) {
-          statCache[[id]] <- effectUpdate$cache
-        }
-
-        if (isUndirectedNet) {
-          event2 <- event
-          event2$sender <- event$receiver
-          event2$receiver <- event$sender
-          if (!is.null(effectUpdate$cache) && !is.null(effectUpdate$changes))
-            .argsFUN$cache <- statCache[[id]]
-          effectUpdate2 <- callFUN(
-            effects, id, "effect", c(.argsFUN, event2), " cannot update \n",
+          effectUpdate <- callFUN(
+            effects, id, "effect", c(.argsFUN, event), " cannot update \n",
             colnames(objectsEffectsLink)[id]
           )
 
-          if (!is.null(effectUpdate2$cache) && !is.null(effectUpdate2$changes))
-            statCache[[id]] <- effectUpdate2$cache
-          updates2 <- effectUpdate2$changes
-          updates <- rbind(updates, updates2)
-        }
+          updates <- effectUpdate$changes
+          # if cache and changes are not null update cache
+          if (!is.null(effectUpdate$cache) && !is.null(effectUpdate$changes)) {
+            statCache[[id]] <- effectUpdate$cache
+          }
 
-        if (!is.null(updates)) {
-          if (hasStartTime && nextEventTime < startTime) {
-            initialStats[cbind(updates[, "node1"], updates[, "node2"], id)] <-
-              updates[, "replace"]
-          } else {
-            # CHANGED WEIGUTIAN: UPDATE THE STAT MAT
-            # AND IMPUTE THE MISSING VALUES
-            # if (anyNA(statCache[[id]][["stat"]])) {
-            #   position_NA <- which(
-            #     is.na(statCache[[id]][["stat"]]),
-            #     arr.ind  = TRUE
-            #   )
-            #   average <- mean(statCache[[id]][["stat"]], na.rm = TRUE)
-            #   updates[is.na(updates[, "replace"]), "replace"] <- average
-            #   statCache[[id]][["stat"]][position_NA] <- average
-            # }
-            updatesDependent[[id]] <- rbind(updatesDependent[[id]], updates)
-            updatesIntervals[[id]] <- rbind(updatesIntervals[[id]], updates)
+          if (isUndirectedNet) {
+            event2 <- event
+            event2$sender <- event$receiver
+            event2$receiver <- event$sender
+            if (!is.null(effectUpdate$cache) &&
+                !is.null(effectUpdate$changes)) { # styler: off
+              .argsFUN$cache <- statCache[[id]]
+            }
+            effectUpdate2 <- callFUN(
+              effects, id, "effect", c(.argsFUN, event2), " cannot update \n",
+              colnames(objectsEffectsLink)[id]
+            )
+
+            if (!is.null(effectUpdate2$cache) &&
+                !is.null(effectUpdate2$changes)) { # styler: off
+              statCache[[id]] <- effectUpdate2$cache
+            }
+            updates2 <- effectUpdate2$changes
+            updates <- rbind(updates, updates2)
+          }
+
+          if (!is.null(updates)) {
+            if (hasStartTime && nextEventTime < startTime) {
+              initialStats[cbind(updates[, "node1"], updates[, "node2"], id)] <-
+                updates[, "replace"]
+            } else {
+              # CHANGED WEIGUTIAN: UPDATE THE STAT MAT
+              # AND IMPUTE THE MISSING VALUES
+              # if (anyNA(statCache[[id]][["stat"]])) {
+              #   position_NA <- which(
+              #     is.na(statCache[[id]][["stat"]]),
+              #     arr.ind  = TRUE
+              #   )
+              #   average <- mean(statCache[[id]][["stat"]], na.rm = TRUE)
+              #   updates[is.na(updates[, "replace"]), "replace"] <- average
+              #   statCache[[id]][["stat"]][position_NA] <- average
+              # }
+
+              updatesDependent[[id]] <- ReduceUpdateNonDuplicates(
+                updatesDependent[[id]],
+                updates
+              )
+              updatesIntervals[[id]] <- ReduceUpdateNonDuplicates(
+                updatesIntervals[[id]],
+                updates
+              )
+            }
           }
         }
       }
@@ -350,7 +364,8 @@ preprocess <- function(
         # Assign object
         assign("object", object, envir = prepEnvir)
         eval(parse(text = paste(objectName, "<- object")),
-             envir = prepEnvir, enclos = parent.frame())
+          envir = prepEnvir, enclos = parent.frame()
+        )
       }
     } # end 3. (!dependent)
 
@@ -394,24 +409,28 @@ preprocess <- function(
 #'
 #' @noRd
 initializeCacheStat <- function(
-  objectsEffectsLink, effects,
-  groupsNetwork, windowParameters,
-  n1, n2,
-  model, subModel, envir = environment()) {
+    objectsEffectsLink, effects,
+    groupsNetwork, windowParameters,
+    n1, n2,
+    model, subModel, envir = environment()) {
   objTable <- getDataObjects(list(rownames(objectsEffectsLink)),
-                             removeFirst = FALSE
+    removeFirst = FALSE
   )
   .objects <- getElementFromDataObjectTable(objTable, envir = envir)
   # list of 4, call matrix, friendship matrix, actor$gradetype vector,
   #  actor$floor vector
   objCat <- assignCatToObject(.objects)
-  if (attr(objCat, "noneClass"))
-    stop("An object is not assigned either as network or attibute\n\t",
-         paste(rownames(objectsEffectsLink)[attr(objCat, "manyClasses") != 1],
-               collapse = ", "),
-         "\n\tcheck the class of the object.",
-         call. = FALSE
+
+  if (attr(objCat, "noneClass")) {
+    stop(
+      "An object is not assigned either as network or attibute",
+      paste(rownames(objectsEffectsLink)[attr(objCat, "manyClasses") != 1],
+        collapse = ", "
+      ),
+      "check the class of the object.",
+      call. = FALSE
     )
+  }
 
   # objects: list of 6, each element is a 84*84 matrix
   objectsRet <- lapply(
@@ -434,8 +453,11 @@ initializeCacheStat <- function(
       .argsFUN <- list(
         effectFun = effects[[iEff]][["effect"]],
         network = if (length(networks) == 1) networks[[1]] else networks,
-        attribute = if (length(attributes) == 1)
-          attributes[[1]] else attributes,
+        attribute = if (length(attributes) == 1) {
+          attributes[[1]]
+        } else {
+          attributes
+        },
         groupsNetwork = groupsNetwork,
         window = windowParameters[[iEff]],
         n1 = n1,
@@ -460,7 +482,7 @@ initializeCacheStat <- function(
 #' @param .argsFUN named list with the arguments to feed FUN.
 #' @param error function that returns the error mesage if any.
 #' @param warning function that returns the warning mesage if any.
-#' @param effectLabel character use by the error or warning function to give 
+#' @param effectLabel character use by the error or warning function to give
 #'   an additional information to the user.
 #'
 #' @return the output of call `effects[[effectPos]][[effectType]]`
@@ -472,7 +494,7 @@ initializeCacheStat <- function(
 #'   network = m,
 #'   n1 = 5, n2 = 5,
 #'   sender = 1, receiver = 5, replace = 0
-#'  )
+#' )
 #' effects <- list(list(effect = out))
 #'
 #' ver2 <- callFUN(
@@ -489,7 +511,7 @@ initializeCacheStat <- function(
 #'   effects = effects, effectPos = effectPos, effectType = "effect",
 #'   .argsFUN = .argsFUN, textMss = " ver ",
 #'   effectLabel = "out"
-#'  )
+#' )
 #' }
 callFUN <- function(
     effects, effectPos, effectType, .argsFUN, textMss,
@@ -498,29 +520,33 @@ callFUN <- function(
   warn <- NULL
   .argsNames <- formals(effects[[effectPos]][[effectType]])
   .argsKeep <- pmatch(names(.argsNames), names(.argsFUN))
-    # check for more than one net
+  # check for more than one net
   errorHandler <- function(e) {
     erro <- simpleError(
       paste0(
-        "Effect ", sQuote(effectLabel),
-        " (", effectPos, ") ", textMss, e$message)
+        "Effect ", dQuote(effectLabel),
+        " (", effectPos, ") ", textMss, e$message
+      )
     )
     stop(erro)
   }
-  tryCatch({
-    withCallingHandlers({
-      callRes <- do.call(
-        effects[[effectPos]][[effectType]],
-        .argsFUN[na.omit(.argsKeep)]
-      )},
-      error = identity,
-      warning = function(w) {
-        warn <<- w
-        invokeRestart("muffleWarning")
-      }
-    )
-  },
-  error = errorHandler
+  tryCatch(
+    {
+      withCallingHandlers(
+        {
+          callRes <- do.call(
+            effects[[effectPos]][[effectType]],
+            .argsFUN[na.omit(.argsKeep)]
+          )
+        },
+        error = identity,
+        warning = function(w) {
+          warn <<- w
+          invokeRestart("muffleWarning")
+        }
+      )
+    },
+    error = errorHandler
   )
   if (!is.null(warn)) warning(warn)
   return(callRes)
@@ -563,9 +589,12 @@ callFUN <- function(
 #' )
 #'
 #' objectsEffectsLink <- matrix(
-#'   c(1, NA, NA, 1), nrow = 2, ncol = 2,
-#'   dimnames = list(c("networkAlgo", "actorsEx$attr1"),
-#'                   c("inertia", "alter"))
+#'   c(1, NA, NA, 1),
+#'   nrow = 2, ncol = 2,
+#'   dimnames = list(
+#'     c("networkAlgo", "actorsEx$attr1"),
+#'     c("inertia", "alter")
+#'   )
 #' )
 #' prepEnvir <- environment()
 #'
@@ -574,7 +603,8 @@ callFUN <- function(
 imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
   # get data object table, row objects columns class (matrix, attribute)
   objTable <- getDataObjects(list(rownames(objectsEffectsLink)),
-                             removeFirst = FALSE)
+    removeFirst = FALSE
+  )
   # print(objTable)
   done <- structure(vector("logical", nrow(objTable)), names = objTable$name)
   for (iEff in seq_len(nrow(objTable))) {
@@ -596,8 +626,25 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
       # Assign object
       assign("object", object, envir = envir)
       eval(parse(text = paste(objectName, "<- object")),
-           envir = envir, enclos = parent.frame())
+        envir = envir, enclos = parent.frame()
+      )
     }
   }
   return(done)
+}
+
+ReduceUpdateNonDuplicates <- function(oldUpdates, newUpdates) {
+  if (is.null(newUpdates)) {
+    return(oldUpdates)
+  } else if (!is.null(oldUpdates)) {
+    idsOld <- paste(oldUpdates[, "node1"], oldUpdates[, "node2"], sep = "_")
+    idsNew <- paste(newUpdates[, "node1"], newUpdates[, "node2"], sep = "_")
+
+    return(rbind(
+      oldUpdates[!idsOld %in% idsNew, , drop = FALSE],
+      newUpdates
+    ))
+  } else {
+    return(newUpdates)
+  }
 }

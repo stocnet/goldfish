@@ -1,13 +1,19 @@
-# goldfish 1.6.5
+# goldfish 1.6.6
 
 * Debugging `GatherPreprocessing()`.
+* Export `GatherPreprocessing()`. Experimental functionality.
+* Introduces experimental functionality `simulation()`.
 
 # goldfish 1.6.5
 
 * Solves `startTime` and `endTime` bug on `DyNAM` and `REM` models
   preprocessing.
-* Export `GatherPreprocessing()`. Experimental functionality.
-* Introduces experimental functionality `simulation()`.
+* Clean unnecessary functions imports.
+* Solves `aes_string()` deprecation.
+* Solves issue on `C++` engine on DyNAM-rate.
+* Enforcing an 80-character line length on C++ code.
+* Comply with code style.
+* Changes that reduce execution time in the R estimation engine.
 
 # goldfish 1.6.4
 

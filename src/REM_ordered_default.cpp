@@ -8,21 +8,23 @@ using namespace arma;
 //' Calculation for estimating an REM-choice-ordered model
 //' @noRd
 // [[Rcpp::export]]
-List estimate_REM_ordered(const arma::vec& parameters,
-                          const arma::mat& dep_event_mat,
-                          const arma::mat& stat_mat_init,
-                          const arma::mat& stat_mat_update,
-                          const arma::vec& stat_mat_update_pointer,
-                          const arma::vec& presence1_init,
-                          const arma::mat& presence1_update,
-                          const arma::vec& presence1_update_pointer,
-                          const arma::vec& presence2_init,
-                          const arma::mat& presence2_update,
-                          const arma::vec& presence2_update_pointer,
-                          const int n_actors_1,
-                          const int n_actors_2,
-                          const bool twomode_or_reflexive,
-                          bool impute = true) {
+List estimate_REM_ordered(
+    const arma::vec& parameters,
+    const arma::mat& dep_event_mat,
+    const arma::mat& stat_mat_init,
+    const arma::mat& stat_mat_update,
+    const arma::vec& stat_mat_update_pointer,
+    const arma::vec& presence1_init,
+    const arma::mat& presence1_update,
+    const arma::vec& presence1_update_pointer,
+    const arma::vec& presence2_init,
+    const arma::mat& presence2_update,
+    const arma::vec& presence2_update_pointer,
+    const int n_actors_1,
+    const int n_actors_2,
+    const bool twomode_or_reflexive,
+    bool impute = true
+) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
     int n_events = dep_event_mat.n_cols;
@@ -59,30 +61,40 @@ List estimate_REM_ordered(const arma::vec& parameters,
     for (int id_event = 0; id_event < n_events; id_event++) {
         // update stat_mat
         while (stat_mat_update_id < stat_mat_update_pointer(id_event)) {
-            stat_mat(stat_mat_update(0, stat_mat_update_id)*n_actors_2 + stat_mat_update(1, stat_mat_update_id), \
-                     stat_mat_update(2, stat_mat_update_id)) \
-                = stat_mat_update(3, stat_mat_update_id);
+            stat_mat(
+              stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
+                stat_mat_update(1, stat_mat_update_id),
+              stat_mat_update(2, stat_mat_update_id)) =
+              stat_mat_update(3, stat_mat_update_id);
             stat_mat_update_id++;
         }
         // impute the missing statistics if necessary
         if (impute) {
             for (int i = 0; i < n_parameters; i++) {
-                // Construct a view for the i-th column of the stat_matrix and do the impute
-                arma::vec current_col(stat_mat.colptr(i), n_actors_1 * n_actors_2, false);
-                current_col.elem(find_nonfinite(current_col)).fill(mean(current_col.elem(find_finite(current_col))));
+                // Construct a view for the i-th column of the stat_matrix
+                //  and do the impute
+                arma::vec current_col(
+                    stat_mat.colptr(i),
+                    n_actors_1 * n_actors_2,
+                    false
+                );
+                current_col.elem(find_nonfinite(current_col)).fill(
+                    mean(current_col.elem(find_finite(current_col))));
             }
         }
 
         // update presence
         if (has_composition_change1) {
             while (presence1_update_id < presence1_update_pointer(id_event)) {
-                presence1(presence2_update(0, presence1_update_id) - 1) = presence1_update(1, presence1_update_id);
+                presence1(presence1_update(0, presence1_update_id) - 1) =
+                  presence1_update(1, presence1_update_id);
                 presence1_update_id++;
             }
         }
         if (has_composition_change2) {
             while (presence2_update_id < presence2_update_pointer(id_event)) {
-                presence2(presence2_update(0, presence2_update_id) - 1) = presence2_update(1, presence2_update_id);
+                presence2(presence2_update(0, presence2_update_id) - 1) =
+                  presence2_update(1, presence2_update_id);
                 presence2_update_id++;
             }
         }
@@ -90,8 +102,9 @@ List estimate_REM_ordered(const arma::vec& parameters,
         // TO check(gutian): handle ignorant
 
 
-        // We calculate the derivative, logLikelihood, and fisher information matrix of a current event according to the paper.
-        // Reset auxilliary variables
+        // We calculate the derivative, log-Likelihood,
+        // and fisher information matrix of a current event
+        // Reset auxiliary variables
         expected_stat_current_event.zeros();
         fisher_current_event.zeros();
         double normalizer = 0;
@@ -100,25 +113,31 @@ List estimate_REM_ordered(const arma::vec& parameters,
         const int id_receiver = dep_event_mat(1, id_event) - 1;
         // go through all actor1-actor2 paris
         for (int i = 0; i < n_actors_1; ++i) {
-            if (presence1(i) == 1) {
-                // declare the subviews of th stat mat corresponding to the first sender
-                const arma::mat& current_data_matrix = stat_mat.rows(i * n_actors_2, (i + 1) * n_actors_2 - 1);
-                // deal with twomode and allow reflexive
-                int not_allowed_receiver = -1;
-                if (!twomode_or_reflexive) not_allowed_receiver = i;
-                // go through all receiver
-                for (int j = 0; j < n_actors_2; j++) {
-                    if (presence2(j) == 1 && (j != not_allowed_receiver)) {
-                        // exp_current_receiver is \exp(\beta^T s)
-                        double exp_current_receiver  = std::exp(dot(current_data_matrix.row(j), parameters));
-                        normalizer += exp_current_receiver;
-                        probability_current_receiver = exp_current_receiver;
-                        expected_stat_current_event += probability_current_receiver * (current_data_matrix.row(j));
-                        fisher_current_event += probability_current_receiver *
-                                                 ((current_data_matrix.row(j).t()) * (current_data_matrix.row(j)));
-                    }
-                }
+          if (presence1(i) == 1) {
+            // declare the subviews of th stat mat corresponding
+            // to the first sender
+            const arma::mat& current_data_matrix =
+              stat_mat.rows(i * n_actors_2, (i + 1) * n_actors_2 - 1);
+            // deal with twomode and allow reflexive
+            int not_allowed_receiver = -1;
+            if (!twomode_or_reflexive) not_allowed_receiver = i;
+            // go through all receiver
+            for (int j = 0; j < n_actors_2; j++) {
+              if (presence2(j) == 1 && (j != not_allowed_receiver)) {
+                // exp_current_receiver is \exp(\beta^T s)
+                double exp_current_receiver =
+                  std::exp(dot(current_data_matrix.row(j), parameters));
+                normalizer += exp_current_receiver;
+                probability_current_receiver = exp_current_receiver;
+                expected_stat_current_event +=
+                  probability_current_receiver * (current_data_matrix.row(j));
+                fisher_current_event +=
+                  probability_current_receiver *
+                  ((current_data_matrix.row(j).t()) *
+                  (current_data_matrix.row(j)));
+              }
             }
+          }
         }
         // add the quantities of a current event to the variables to be returned
         // derivative
@@ -127,17 +146,21 @@ List estimate_REM_ordered(const arma::vec& parameters,
         derivative -= expected_stat_current_event;
         // fisher matrix
         fisher_current_event /= normalizer;
-        fisher_current_event -= expected_stat_current_event.t() * expected_stat_current_event;
+        fisher_current_event -=
+          expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
         // logLikelihood
-        intervalLogL(id_event) = log(std::exp(dot(stat_mat.row( id_sender * n_actors_2 + id_receiver), parameters)) / normalizer);
+        intervalLogL(id_event) =
+          log(std::exp(dot(
+              stat_mat.row( id_sender * n_actors_2 + id_receiver), parameters
+          )) / normalizer);
         logLikelihood += intervalLogL(id_event);
     }
 
-    return List::create(Named("derivative") = derivative,
-                        Named("fisher") = fisher,
-                        Named("logLikelihood") = logLikelihood,
-                        Named("intervalLogL") = intervalLogL);
+    return List::create(
+      Named("derivative") = derivative,
+      Named("fisher") = fisher,
+      Named("logLikelihood") = logLikelihood,
+      Named("intervalLogL") = intervalLogL
+    );
 }
-
-
