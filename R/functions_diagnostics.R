@@ -11,7 +11,7 @@
 # (see \code{\link{defineDependentEvents}}) with the events identified as
 # outliers or change point inflections.
 #' An object of class `ggplot` object from a call of [ggplot2::ggplot()].
-#' It can be modified using the `ggplot2` syntax. 
+#' It can be modified using the `ggplot2` syntax.
 #' @name examine
 #' @examples
 #' # A multinomial receiver choice model
@@ -42,20 +42,20 @@ NULL
 # Examine outlier cases
 #' @param method A method for identifying outliers.
 #'   The current options are "Hampel" for a Hampel filter/identifier,
-#'   "IQR" for identifying outliers on the basis of lying outside the interquartile range,
-#'   and "Top" which returns the `parameter` number of outliers.
+#'   "IQR" for identifying outliers on the basis of lying outside
+#'   the interquartile range, and "Top" which returns the
+#'   `parameter` number of outliers.
 #' @param parameter An integer that represents the number of absolute outliers
 #'   to identify, the threshold for the Hampel filter, i.e. `parameter * MAD`,
-#'   or the threshold beyond the interquartile range halved, i.e. `parameter/2 * IQR`.
+#'   or the threshold beyond the interquartile range halved, i.e.
+#'   `parameter/2 * IQR`.
 #' @param window The window half-width for the Hampel filter.
 #'   By default it is half the width of the event sequence.
 #' @section Outliers:
 #' \code{examineOutliers} creates a plot with the log-likelihood of the events
 #' in the y-axis and the event index in the x-axis, identifying observations
 #' with labels indicating the sender and recipient.
-#' @importFrom graphics points
 #' @importFrom stats IQR median na.exclude
-#' @importFrom ggplot2 ggplot aes_string geom_line geom_point geom_text theme_minimal xlab ylab
 #' @export
 #' @rdname examine
 examineOutliers <- function(x,
@@ -82,9 +82,11 @@ examineOutliers <- function(x,
     calls$preprocessingInit <- NULL
     calls$progress <- FALSE
     calls$verbose <- FALSE
-    prep <- suppressWarnings(do.call(goldfish::estimate, calls))
+    prep <- suppressWarnings(do.call(estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
-  } else data$intervalLogL <- x$intervalLogL
+  } else {
+    data$intervalLogL <- x$intervalLogL
+  }
 
   if (!is.numeric(data$time)) {
     data$time <- as.POSIXct(data$time)
@@ -120,12 +122,14 @@ examineOutliers <- function(x,
     data$outlier[outlierIndexes] <- "YES"
     data$label[outlierIndexes] <- paste(data$sender,
                                         data$receiver, sep = "-")[outlierIndexes]
-  } else return(cat("No outliers found."))
+  } else {
+    return(cat("No outliers found."))
+  }
 
-  ggplot2::ggplot(data, ggplot2::aes_string(x = "time", y = "intervalLogL")) +
+  ggplot2::ggplot(data, ggplot2::aes(x = .data$time, y = .data$intervalLogL)) +
     ggplot2::geom_line() +
-    ggplot2::geom_point(ggplot2::aes_string(color = "outlier")) +
-    ggplot2::geom_text(ggplot2::aes_string(label = "label"),
+    ggplot2::geom_point(ggplot2::aes(color = .data$outlier)) +
+    ggplot2::geom_text(ggplot2::aes(label = .data$label),
                        angle = 270, size = 2,
                        hjust = "outward", color = "red") +
     ggplot2::theme_minimal() +
@@ -160,9 +164,6 @@ examineOutliers <- function(x,
 #' point sections identified by the method.
 # Also it prints a table of the change points events that are returned by the
 # method.
-#' @importFrom changepoint cpt.mean cpt.var
-#' @importFrom ggplot2 ggplot aes geom_line geom_point theme_minimal xlab ylab
-#'  geom_vline scale_x_continuous theme element_text
 #' @export
 #' @rdname examine
 examineChangepoints <- function(x, moment = c("mean", "variance"),
@@ -193,7 +194,9 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
     calls$verbose <- FALSE
     prep <- suppressWarnings(do.call(goldfish::estimate, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
-  } else data$intervalLogL <- x$intervalLogL
+  } else {
+    data$intervalLogL <- x$intervalLogL
+  }
 
   if (!is.numeric(data$time)) {
     data$time <- as.POSIXct(data$time)
@@ -219,7 +222,7 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
   if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time))
     return(cat("No regime changes found."))
 
-  ggplot2::ggplot(data, ggplot2::aes_string(x = "time", y = "intervalLogL")) +
+  ggplot2::ggplot(data, ggplot2::aes(x = .data$time, y = .data$intervalLogL)) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
     ggplot2::geom_vline(xintercept = na.exclude(data$time[cpt.pts]),

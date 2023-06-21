@@ -14,10 +14,6 @@
 #'
 #' @return a list of class preprocessed.goldfish
 #'
-#' @importFrom methods is
-#' @importFrom utils setTxtProgressBar getTxtProgressBar object.size
-#' @importFrom utils txtProgressBar
-#' @importFrom stats time
 #' @noRd
 preprocessInteraction <- function(
   subModel,
@@ -113,7 +109,7 @@ preprocessInteraction <- function(
   # initialize loop parameters
   events[[1]] <- NULL
   pointers <- rep(1, length(events))
-  validPointers <- rep(T, length(events))
+  validPointers <- rep(TRUE, length(events))
   pointerDependent <- 1
   pointerTempRightCensored <- 1
   time <- startTime
@@ -195,7 +191,9 @@ preprocessInteraction <- function(
     if (length(nodesObject) > 1) {
       nodes <- nodesObject[1]
       nodes2 <- nodesObject[2]
-    } else nodes <- nodes2 <- nodesObject
+    } else {
+      nodes <- nodes2 <- nodesObject
+    }
     events[[depindex]] <- sanitizeEvents(events[[depindex]], nodes, nodes2)
     events[[exoindex]] <- sanitizeEvents(events[[exoindex]], nodes, nodes2)
 
@@ -585,5 +583,3 @@ preprocessInteraction <- function(
   class = "preprocessed.goldfish"
   ))
 }
-
-

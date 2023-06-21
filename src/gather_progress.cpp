@@ -4,7 +4,8 @@
 
 void gather_progress_render(int processed_events, int total_events) {
     std::stringstream strs;
-    strs << "DATA GATHERING! " << "processed events: " << processed_events << ", total events: " << total_events;
+    strs << "DATA GATHERING! " << "processed events: " << processed_events <<
+      ", total events: " << total_events;
     std::string temp_str = strs.str();
     char const* char_type = temp_str.c_str();
     REprintf("\r");

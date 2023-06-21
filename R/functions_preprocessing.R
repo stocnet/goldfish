@@ -21,10 +21,6 @@
 #'
 #' @return a list of class preprocessed.goldfish
 #'
-#' @importFrom methods is
-#' @importFrom utils setTxtProgressBar getTxtProgressBar object.size
-#' @importFrom utils txtProgressBar
-#' @importFrom stats time
 #' @noRd
 preprocess <- function(
   model,
@@ -32,6 +28,7 @@ preprocess <- function(
   events,
   effects,
   windowParameters,
+  ignoreRepParameter,
   eventsObjectsLink,
   eventsEffectsLink,
   objectsEffectsLink,
@@ -65,10 +62,26 @@ preprocess <- function(
   hasStartTime <- FALSE
   isValidEvent <- TRUE
 
-  eventsMin <- min(vapply(events, function(x) min(x$time), double(1)))
-  eventsMax <- max(vapply(events, function(x) max(x$time), double(1)))
+  isWindowEffect <- !vapply(windowParameters, is.null, logical(1))
+  whichEventNoWindowEffect <- eventsEffectsLink[, !isWindowEffect, drop = FALSE]
+  whichEventNoWindowEffect <- rowSums(!is.na(whichEventNoWindowEffect))
+  whichEventNoWindowEffect <- c(1, which(whichEventNoWindowEffect > 0))
+
+  hasIgnoreRep <- any(ignoreRepParameter)
+
+  eventsMin <- min(vapply(
+    events[whichEventNoWindowEffect],
+    function(x) min(x$time),
+    double(1)
+  ))
+  eventsMax <- max(vapply(
+    events[whichEventNoWindowEffect],
+    function(x) max(x$time),
+    double(1)
+  ))
   if (is.null(endTime)) {
     endTime <- eventsMax
+    if (any(isWindowEffect)) hasEndTime <- TRUE
   } else if (endTime != eventsMax) {
     if (!is.numeric(endTime)) endTime <- as.numeric(endTime)
     if (eventsMin > endTime)
@@ -76,13 +89,13 @@ preprocess <- function(
       # to solve: if endTime > eventsMax
       # should it produce censored events? warning?
     # add a fake event to the event list
-    endTimeEvent <- data.frame(
-      time = endTime,
-      sender = NA,
-      receiver = NA,
-      replace = NA
-    )
-    events <- c(events, endtime = list(endTimeEvent))
+    # endTimeEvent <- data.frame(
+    #   time = endTime,
+    #   sender = NA,
+    #   receiver = NA,
+    #   replace = NA
+    # )
+    # events <- c(events, endtime = list(endTimeEvent))
     hasEndTime <- TRUE
   }
   if (is.null(startTime)) {
@@ -93,8 +106,10 @@ preprocess <- function(
       stop("Start time geater than last event time.", call. = FALSE)
     hasStartTime <- TRUE
     if (eventsMin < startTime) isValidEvent <- FALSE
+    # if (eventsMin > startTime) isValidEvent <- TRUE
     # To solve: if startTime < eventsMin should be a warning?
   }
+  ignoreEvents <- 1L # eventPos should be correct for initialization
 
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
@@ -106,8 +121,9 @@ preprocess <- function(
     groupsNetwork = NULL, windowParameters = windowParameters,
     n1 = n1, n2 = n2, model = model, subModel = subModel, envir = prepEnvir)
   # We put the initial stats to the previous format of 3 dimensional array
-  initialStats <- array(unlist(lapply(statCache, "[[", "stat")),
-                        dim = c(n1, n2, nEffects)
+  initialStats <- array(
+    unlist(lapply(statCache, "[[", "stat")),
+    dim = c(n1, n2, nEffects)
   )
 
   statCache <- lapply(statCache, "[[", "cache")
@@ -124,19 +140,29 @@ preprocess <- function(
 
   # calculate total of events
   time <- unique(events[[1]]$time)
-  nRightCensoredEvents <- unique(unlist(lapply(events, function(x) x$time)))
-  nTotalEvents  <- as.integer(sum(nRightCensoredEvents <= endTime))
-  nRightCensoredEvents <- setdiff(nRightCensoredEvents, time)
-  if (length(nRightCensoredEvents) > 1) {
-    nRightCensoredEvents <- as.integer(sum(
-      nRightCensoredEvents >= startTime &
-      nRightCensoredEvents <= endTime) - 1)
-  } else nRightCensoredEvents <- 0
-  nDependentEvents <- as.integer(sum(time >= startTime & time <= endTime))
-  if (!rightCensored) nRightCensoredEvents <- 0L
+  if (rightCensored) {
+    nRightCensoredEvents <- unique(unlist(lapply(events, function(x) x$time)))
+    nTotalEvents  <- as.integer(sum(nRightCensoredEvents <= endTime))
+    nRightCensoredEvents <- setdiff(nRightCensoredEvents, time)
+    if (length(nRightCensoredEvents) > 1) {
+      nRightCensoredEvents <- as.integer(sum(
+        nRightCensoredEvents >= startTime &
+          nRightCensoredEvents <= endTime) - 1)
+    } else {
+      nRightCensoredEvents <- 0L
+    }
+  } else {
+    nRightCensoredEvents <- 0L
+    nTotalEvents <- as.integer(nrow(events[[1]]))
+  }
+
+  nDependentEvents <- ifelse(
+    hasStartTime || hasEndTime,
+    as.integer(sum(time >= startTime & time <= endTime)),
+    as.integer(length(time)))
   # CHANGED ALVARO: preallocate objects sizes
   dependentStatistics <- vector("list", nDependentEvents)
-  timeIntervals <- vector("numeric", nDependentEvents)
+  timeIntervals <- vector("numeric", ifelse(rightCensored, nDependentEvents, 0))
   rightCensoredStatistics <- vector("list", nRightCensoredEvents)
   timeIntervalsRightCensored <- vector("numeric", nRightCensoredEvents)
   # CHANGED MARION: added a list that tracks the chronological(ordered by time)
@@ -186,22 +212,31 @@ preprocess <- function(
     nextEvent <- which(validPointers)[head(which.min(times[validPointers]), 1)]
     nextEventTime <- times[nextEvent]
     if (hasStartTime || hasEndTime) {
-      if (isValidEvent && nextEventTime < endTime) {
+      if (isValidEvent && nextEventTime <= endTime) {
          interval <- nextEventTime - time
-      } else if (isValidEvent && nextEventTime >= endTime) {
-        interval <- nextEventTime - endTime
-      } else if (!isValidEvent && nextEventTime > startTime) {
-        interval <- startTime - nextEventTime
-        isValidEvent <- TRUE
+      } else if (isValidEvent && nextEventTime > endTime) {
+        interval <- endTime - time
+        nextEventTime <- endTime
         finalStep <- TRUE
+      } else if (!isValidEvent && nextEventTime >= startTime) {
+        interval <- nextEventTime - startTime
+        isValidEvent <- TRUE
       }
-    } else interval <- nextEventTime - time
+    } else {
+      interval <- nextEventTime - time
+    }
 
     time <- nextEventTime
 
-    isDependent <- nextEvent == 1
+    isDependent <- nextEvent == 1 && !finalStep
 
-    eventPos <- pointers[1] + pointerTempRightCensored - 1
+    if (isValidEvent) {
+      eventPos <- pointers[1] + pointerTempRightCensored - ignoreEvents
+    } else if (isDependent && !isValidEvent) {
+      ignoreEvents <- ignoreEvents + 1L
+      eventPos <- 0
+    }
+
     # # CHANGED ALVARO: progress bar
     if (progress && iTotalEvents %% dotEvents == 0) {
       utils::setTxtProgressBar(pb, iTotalEvents)
@@ -223,7 +258,8 @@ preprocess <- function(
     if (isValidEvent && isDependent) {
       iDependentEvents <- 1L + iDependentEvents
       dependentStatistics[[iDependentEvents]] <- updatesDependent
-      timeIntervals[[iDependentEvents]] <- interval
+      if (rightCensored) timeIntervals[[iDependentEvents]] <- interval
+        # timeIntervals[[iDependentEvents]] # correct it for not rate models
       updatesDependent <- vector("list", nEffects)
       updatesIntervals <- vector("list", nEffects)
       # CHANGED MARION: added orderEvents
@@ -241,7 +277,7 @@ preprocess <- function(
         event_receiver[[eventPos]] <- event$receiver
       }
 
-    } else {
+    } else if (!isDependent) {
       # 2. store statistic updates for RIGHT-CENSORED
       # (non-dependent, positive) intervals
       if (isValidEvent && rightCensored && interval > 0) {
@@ -273,7 +309,10 @@ preprocess <- function(
           event_receiver[[eventPos]] <- event$receiver
         }
         pointerTempRightCensored <- pointerTempRightCensored + 1
-      }
+      } # else if (isValidEvent && !finalStep && interval > 0) {
+      #   timeIntervals[[iDependentEvents + 1]] <- interval +
+      #     timeIntervals[[iDependentEvents + 1]]
+      # }
 
       # 3. update stats and data objects for OBJECT CHANGE EVENTS
       # (all non-dependent events)
@@ -413,21 +452,31 @@ preprocess <- function(
         }
 
         if (!is.null(updates)) {
-          # CHANGED WEIGUTIAN: UPDATE THE STAT MAT AND IMPUTE THE MISSING VALUES
-          # statCache[[id]][["stat"]][
-          #   cbind(updates[, "node1"], updates[, "node2"])] <-
-          #     updates[, "replace"]
-          # if (anyNA(statCache[[id]][["stat"]])) {
-          #   position_NA <- which(
-          #     is.na(statCache[[id]][["stat"]]),
-          #     arr.ind  = TRUE
-          #   )
-          #   average <- mean(statCache[[id]][["stat"]], na.rm = TRUE)
-          #   updates[is.na(updates[, "replace"]), "replace"] <- average
-          #   statCache[[id]][["stat"]][position_NA] <- average
-          # }
-          updatesDependent[[id]] <- rbind(updatesDependent[[id]], updates)
-          updatesIntervals[[id]] <- rbind(updatesIntervals[[id]], updates)
+          if (hasStartTime && nextEventTime < startTime) {
+            initialStats[cbind(updates[, "node1"], updates[, "node2"], id)] <-
+              updates[, "replace"]
+          } else {
+            # CHANGED WEIGUTIAN: UPDATE THE STAT MAT
+            # AND IMPUTE THE MISSING VALUES
+            # if (anyNA(statCache[[id]][["stat"]])) {
+            #   position_NA <- which(
+            #     is.na(statCache[[id]][["stat"]]),
+            #     arr.ind  = TRUE
+            #   )
+            #   average <- mean(statCache[[id]][["stat"]], na.rm = TRUE)
+            #   updates[is.na(updates[, "replace"]), "replace"] <- average
+            #   statCache[[id]][["stat"]][position_NA] <- average
+            # }
+
+            updatesDependent[[id]] <- ReduceUpdateNonDuplicates(
+              updatesDependent[[id]],
+              updates
+            )
+            updatesIntervals[[id]] <- ReduceUpdateNonDuplicates(
+              updatesIntervals[[id]],
+              updates
+            )
+          }
         }
       }
 
@@ -560,7 +609,7 @@ initializeCacheStat <- function(
 #' @param .argsFUN named list with the arguments to feed FUN.
 #' @param error function that returns the error mesage if any.
 #' @param warning function that returns the warning mesage if any.
-#' @param effectLabel character use by the error or warning function to give 
+#' @param effectLabel character use by the error or warning function to give
 #'   an additional information to the user.
 #'
 #' @return the output of call `effects[[effectPos]][[effectType]]`
@@ -700,4 +749,20 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
     }
   }
   return(done)
+}
+
+ReduceUpdateNonDuplicates <- function(oldUpdates, newUpdates) {
+  if (is.null(newUpdates)) {
+    return(oldUpdates)
+  } else if (!is.null(oldUpdates)) {
+    idsOld <- paste(oldUpdates[, "node1"], oldUpdates[, "node2"], sep = "_")
+    idsNew <- paste(newUpdates[, "node1"], newUpdates[, "node2"], sep = "_")
+
+    return(rbind(
+      oldUpdates[!idsOld %in% idsNew, , drop = FALSE],
+      newUpdates
+    ))
+  } else {
+    return(newUpdates)
+  }
 }

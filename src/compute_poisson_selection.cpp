@@ -8,16 +8,22 @@ using namespace arma;
 
 //' Estimate a poisson selection model with gathered data
 //'
-//' Given the gathered and distilled data, it outputs the derivative of the loglikelihood, the Fisher information matrix, the logLikelihood,
-//' and the loglikelihood of each event  for models with poisson selection processes, e.g. DyNAM-rate and REM-choice models.
+//' Given the gathered and distilled data,
+//' it outputs the derivative of the log-likelihood,
+//' the Fisher information matrix, the log-likelihood,
+//' and the log-likelihood of each event 
+//' for models with poisson selection processes,
+//' e.g., DyNAM-rate and REM-choice models.
 //' @noRd
 // [[Rcpp::export]]
-List compute_poisson_selection(arma::colvec& parameters,
-                               const arma::mat& stat_all_events,
-                               const arma::uvec& n_candidates,
-                               const arma::uvec& selected,
-                               const arma::vec& timespan,
-                               const arma::vec& is_dependent) {
+List compute_poisson_selection(
+    arma::colvec& parameters,
+    const arma::mat& stat_all_events,
+    const arma::uvec& n_candidates,
+    const arma::uvec& selected,
+    const arma::vec& timespan,
+    const arma::vec& is_dependent
+) {
     int n_events = timespan.size();
     int n_parameters = parameters.size();
     // declare auxilliary variables
@@ -42,8 +48,10 @@ List compute_poisson_selection(arma::colvec& parameters,
         bool is_dependent_current_event = is_dependent(id_event);
         double timespan_current_event = timespan(id_event);
         // the subviewsof th stat mat and exps corresponding to this event
-        const arma::colvec& exp_current_event = exps.subvec(id_start, id_end - 1);
-        const arma::mat& stat_mat_current_event = stat_all_events.rows(id_start, id_end - 1);
+        const arma::colvec& exp_current_event =
+          exps.subvec(id_start, id_end - 1);
+        const arma::mat& stat_mat_current_event =
+          stat_all_events.rows(id_start, id_end - 1);
         // reset auxilliary variables
         weighted_sum_current_event.zeros();
         fisher_current_event.zeros();
@@ -53,8 +61,11 @@ List compute_poisson_selection(arma::colvec& parameters,
         // go through all candidates
         for (unsigned int j = 0; j < n_candidates(id_event); j++) {
             // probability_current_selected = exp_current_event(j) / normalizer;
-            weighted_sum_current_event += exp_current_event(j) * (stat_mat_current_event.row(j));
-            fisher_current_event += exp_current_event(j) * ((stat_mat_current_event.row(j).t()) * (stat_mat_current_event.row(j)));
+            weighted_sum_current_event +=
+              exp_current_event(j) * (stat_mat_current_event.row(j));
+            fisher_current_event +=
+              exp_current_event(j) * ((stat_mat_current_event.row(j).t()) *
+              (stat_mat_current_event.row(j)));
         }
         // add the quantities of a current event to the variables to be returned
         // derivative
@@ -77,8 +88,10 @@ List compute_poisson_selection(arma::colvec& parameters,
         id_start = id_end;
     }
 
-    return List::create(Named("derivative") = derivative,
-                        Named("fisher") = fisher,
-                        Named("intervalLogL") = intervalLogL,
-                        Named("logLikelihood") = logLikelihood);
+    return List::create(
+      Named("derivative") = derivative,
+      Named("fisher") = fisher,
+      Named("intervalLogL") = intervalLogL,
+      Named("logLikelihood") = logLikelihood
+    );
 }

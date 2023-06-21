@@ -3,15 +3,23 @@
 
 using namespace Rcpp;
 
-//' a function to extract the update of composition change from an events and transform the data into a matrix
-//' and a vector.
+//' a function to extract the update of composition change
+//'   from an events and transform the data into a matrix
+//'   and a vector.
 //'
 //' @param event an event objects with the information on composition change
-//' @param reference_event_time a vector of time stamps that separate updates different time spans.
-//' @return A list with two element: changeMat and change_idx. For the structure of these two object see, e.g., the documentation of estimate_DyNAM_choice, in which they are used for stat_mat_update, and stat_mat_update_pointer.
+//' @param reference_event_time a vector of time stamps that separate updates
+//'   different time spans.
+//' @return A list with two element: changeMat and change_idx.
+//' For the structure of these two object see, e.g.,
+//'   the documentation of estimate_DyNAM_choice,
+//'   in which they are used for stat_mat_update, and stat_mat_update_pointer.
 //' @noRd
 // [[Rcpp::export]]
-List C_convert_composition_change(const DataFrame& event, const arma::vec& reference_event_time) {
+List C_convert_composition_change(
+    const DataFrame& event,
+    const arma::vec& reference_event_time
+) {
   const arma::vec& event_time = event["time"];
   const arma::vec& id = event["node"];
   const arma::vec& presence = event["replace"];
@@ -25,7 +33,8 @@ List C_convert_composition_change(const DataFrame& event, const arma::vec& refer
   int total = 0;
   for (int i = 0; i < n_reference_events; ++i) {
     while (1) {
-      if ((total >= n_events) || (event_time(total) > reference_event_time(i))) {
+      if ((total >= n_events) ||
+          (event_time(total) > reference_event_time(i))) {
         presence_update_pointer(i) = total;
         break;
       } else {
@@ -46,7 +55,10 @@ List C_convert_composition_change(const DataFrame& event, const arma::vec& refer
 
 // similar to the the above, but take a event as the second argument
 // [[Rcpp::export]]
-List convert_composition_change (const DataFrame& event, const DataFrame reference_event) {
+List convert_composition_change (
+    const DataFrame& event,
+    const DataFrame reference_event
+) {
   const arma::vec& reference_event_time = reference_event["time"];
   return C_convert_composition_change(event, reference_event_time);
 }
@@ -76,7 +88,8 @@ List convert_change(const List& changeList) {
           size = size * 2;
           change_mat.resize(4, size);
         }
-        for (unsigned int id_change = 0; id_change < temp_mat.n_rows; id_change++) {
+        for (unsigned int id_change = 0;
+             id_change < temp_mat.n_rows; id_change++) {
           change_mat(0, total) = temp_mat(id_change, 0) - 1;
           change_mat(1, total) = temp_mat(id_change, 1) - 1;
           change_mat(2, total) = j;
@@ -94,11 +107,8 @@ List convert_change(const List& changeList) {
     total -= 1;
   } 
 
-  return List::create(Named("statMatUpdate") = change_mat.cols(0, total),
-                      Named("statMatUpdatePointer") = change_idx);
+  return List::create(
+    Named("statMatUpdate") = change_mat.cols(0, total),
+    Named("statMatUpdatePointer") = change_idx
+  );
 }
-
-
-
-
-

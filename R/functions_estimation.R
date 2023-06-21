@@ -172,7 +172,7 @@
 #'   `subModel = "rate"`) or REM (`model = "REM"`) models,
 #'   and when the model includes the intercept.}
 #'
-#' @importFrom stats formula na.omit end filter
+#' @importFrom stats formula na.omit
 #' @export
 #' @seealso [defineDependentEvents()], [defineGlobalAttribute()],
 #'  [defineNetwork()], [defineNodes()], [linkEvents()]
@@ -209,7 +209,7 @@
 #' \dontshow{
 #' callsDependent <- callsDependent[1:50, ]
 #' }
-#' 
+#'
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
 #'                   model = "DyNAM", subModel = "choice",
 #'                   estimationInit = list(engine = "default_c"))
@@ -239,7 +239,7 @@
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, defaultNetwork = bilatnet
 #' )
-#'  
+#'
 #' partnerModel <- estimate(
 #'   createBilat ~
 #'     inertia(bilatnet) +
@@ -255,7 +255,7 @@
 #' )
 #' summary(partnerModel)
 #' }
-#' 
+#'
 estimate <- function(
   x,
   model = c("DyNAM", "REM", "DyNAMi"),
@@ -369,7 +369,7 @@ estimate.formula <- function(
 
   ### 1. PARSE the formula----
   PreprocessEnvir <- new.env()
-  
+
   if (progress) cat("Parsing formula.\n")
   formula <- x
 
@@ -379,6 +379,7 @@ estimate.formula <- function(
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
   windowParameters <- parsedformula$windowParameters
+  ignoreRepParameter <- unlist(parsedformula$ignoreRepParameter)
 
   # DyNAM-i ONLY: creates extra parameter to differentiate joining and
   # leaving rates, and effect subtypes. Added directly to GetDetailPrint
@@ -393,8 +394,8 @@ estimate.formula <- function(
     engine <- "default"
   }
   # Model-specific preprocessing initialization
-  if (model %in% c("DyNAM", "DyNAMi") &&
-      subModel %in% c("choice", "choice_coordination") && hasIntercept) {
+  if (hasIntercept && model %in% c("DyNAM", "DyNAMi") &&
+      subModel %in% c("choice", "choice_coordination")) {
     warning("Model ", dQuote(model), " subModel ", dQuote(subModel),
             " ignores the time intercept.",
             call. = FALSE, immediate. = TRUE)
@@ -402,7 +403,7 @@ estimate.formula <- function(
   }
   rightCensored <- hasIntercept
 
-  if (progress && 
+  if (progress &&
       !(model %in% c("DyNAM", "DyNAMi") &&
       subModel %in% c("choice", "choice_coordination")))
     cat(
@@ -518,6 +519,7 @@ estimate.formula <- function(
         events = newevents,
         effects = neweffects,
         windowParameters = newWindowParameters,
+        ignoreRepParameter = ignoreRepParameter,
         eventsObjectsLink = neweventsObjectsLink, # for data update
         eventsEffectsLink = neweventsEffectsLink,
         objectsEffectsLink = newobjectsEffectsLink, # for parameterization
@@ -548,7 +550,7 @@ estimate.formula <- function(
           "The numbers of right-censored events in the formula and in the ",
           "preprocessed object are not consistent.\n",
            "\tPlease check whether some windows have been changed.",
-          call. = FALSE  
+          call. = FALSE
         )
 
     }
@@ -595,7 +597,9 @@ estimate.formula <- function(
         if (effectsindexes[e] > 0) {
           if (
             !is.null(
-              preprocessingInit$dependentStatsChange[[t]][[effectsindexes[e]]])) {
+              preprocessingInit$dependentStatsChange[[t]][[effectsindexes[e]]]
+            )
+          ) {
             allprep$dependentStatsChange[[t]][[e]] <-
               preprocessingInit$dependentStatsChange[[t]][[effectsindexes[e]]]
           }
@@ -620,9 +624,15 @@ estimate.formula <- function(
           if (effectsindexes[e] > 0) {
             if (
               !is.null(
-                preprocessingInit$rightCensoredStatsChange[[t]][[effectsindexes[e]]])) {
+                preprocessingInit$rightCensoredStatsChange[[t]][[
+                  effectsindexes[e]
+                ]]
+              )
+            ) {
               allprep$rightCensoredStatsChange[[t]][[e]] <-
-                preprocessingInit$rightCensoredStatsChange[[t]][[effectsindexes[e]]]
+                preprocessingInit$rightCensoredStatsChange[[t]][[
+                  effectsindexes[e]
+                ]]
             }
           }
         }
@@ -662,6 +672,7 @@ estimate.formula <- function(
         events = events,
         effects = effects,
         windowParameters = windowParameters,
+        ignoreRepParameter = ignoreRepParameter,
         eventsObjectsLink = eventsObjectsLink, # for data update
         eventsEffectsLink = eventsEffectsLink,
         objectsEffectsLink = objectsEffectsLink, # for parameterization
@@ -733,14 +744,14 @@ estimate.formula <- function(
     nodes = get(.nodes, envir = PreprocessEnvir),
     nodes2 = get(.nodes2, envir = PreprocessEnvir),
     defaultNetworkName = parsedformula$defaultNetworkName,
-    addInterceptEffect = hasIntercept,
+    hasIntercept = hasIntercept,
     modelType = modelTypeCall,
     initialDamping = ifelse(hasWindows, 30, 10),
     parallelize = FALSE,
     cpus = 1,
     verbose = verbose,
     progress = progress,
-    ignoreRepParameter = parsedformula$ignoreRepParameter,
+    ignoreRepParameter = ignoreRepParameter,
     isTwoMode = isTwoMode,
     prepEnvir = EstimateEnvir
   )
@@ -754,7 +765,10 @@ estimate.formula <- function(
   # use different engine depends on the variable "engine"
   if (engine %in% c("default_c", "gather_compute")) {
     tryCatch(
-      result <- do.call("estimate_c_int", args = argsEstimation),
+      result <- do.call(
+        "estimate_c_int",
+        args = c(argsEstimation, list(engine = engine))
+      ),
       error = function(e) stop("Error in ", model, " ", subModel,
                                " estimation: ", e, call. = FALSE)
     )
@@ -778,6 +792,6 @@ estimate.formula <- function(
   result$call <- match.call(call = sys.call(-1L),
                             expand.dots = TRUE)
   result$call[[2]] <- formulaKeep
-  
+
   return(result)
 }

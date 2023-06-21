@@ -213,9 +213,15 @@ eventsIncrement <- data.frame(
 
 actorsEx <- data.frame(
   label = sprintf("Actor %d", 1:5),
-  present = rep(TRUE, 5),
+  present = c(rep(TRUE, 4), FALSE),
   attr1 = c(9.9, 0.1, 0.5, 0.45, 0.25),
   stringsAsFactors = FALSE
+)
+
+compChange <- data.frame(
+  node = sprintf("Actor %d", c(5, 4, 4, 1, 5, 1, 5)),
+  time = c(10, 12, 17, 26, 26, 30, 30),
+  replace = c(TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE)
 )
 
 networkState <- matrix(
@@ -230,6 +236,12 @@ networkState <- matrix(
 )
 
 # defining objects
+actorsEx <- defineNodes(actorsEx)
+actorsEx <- linkEvents(
+  x = actorsEx,
+  changeEvent = compChange,
+  attribute = "present")
+
 networkState <- defineNetwork(
   matrix = networkState, nodes = actorsEx,
   directed = TRUE)
@@ -407,8 +419,3 @@ resModObject <- structure(
   ),
   class = "result.goldfish"
 )
-
-
-
-
-

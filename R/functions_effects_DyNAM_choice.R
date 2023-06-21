@@ -29,9 +29,8 @@ init_DyNAM_choice.default <- function(
   stats <- matrix(0, nrow = n1, ncol = n2) # check for poss
 
   # init a generic cache object
-  if ("cache" %in% .argsNames) {
-    cache <- stats
-  } else cache <- NULL
+  if ("cache" %in% .argsNames) cache <- stats
+  else cache <- NULL
 
   if (hasNetwork) {
     # check if not empty network to initialize the statistical matrix
@@ -2241,7 +2240,6 @@ init_DyNAM_choice.four <- function(effectFun, network, window, n1, n2) {
 #'   cache matrix numeric size n1 * n2,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
-#' @importFrom stats aggregate
 #' @aliases four
 #'
 #' @examples

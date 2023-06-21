@@ -8,9 +8,9 @@
 
 
 #' Methods for `goldfish` objects.
-#' 
+#'
 #' Printing functions for `goldfish` objects.
-#' 
+#'
 #' @param x an object of class `result.goldfish`, `summary.result.goldfish`,
 #' `nodes.goldfish`, `network.goldfish`, `dependent.goldfish`, or
 #' `preprocessed.goldfish`.
@@ -48,38 +48,38 @@ print.result.goldfish <- function(
     cat("Coefficients:\n")
     print.default(format(coef(x, complete = complete), digits = digits),
                   print.gap = 2, quote = FALSE, width = width, ...)
-  } else cat("No coefficients\n")
+  } else {
+    cat("No coefficients\n")
+  }
   cat("\n")
   invisible(x)
 }
 
 #' @method summary result.goldfish
 #' @export
-#' @importFrom stats AIC BIC
 #' @noRd
 summary.result.goldfish <- function(object, ...) {
   nParams <- object$nParams
 
   if (is.null(object$names)) object$names <- seq_len(nParams)
   # names <- object$names
-  
-  # 
+
   est <- object$parameters
   std.err <- object$standardErrors
   z <- est / std.err
-  p <- 2 * (1 - pnorm(abs(z)))
-  
+  p <- 2 * (1 - stats::pnorm(abs(z)))
+
   isFixed <- GetFixed(object)
-  
+
   if (any(isFixed)) {
     std.err[isFixed] <- NA_real_
     z[isFixed] <- NA_real_
-    p[isFixed] <- NA_real_ 
+    p[isFixed] <- NA_real_
   }
   # sig <- rep("", nparams)
-  # sig[abs(z) > qnorm(1 - 0.05 / 2)] <- "*"
-  # sig[abs(z) > qnorm(1 - 0.01 / 2)] <- "**"
-  # sig[abs(z) > qnorm(1 - 0.001 / 2)] <- "***"
+  # sig[abs(z) > stats::qnorm(1 - 0.05 / 2)] <- "*"
+  # sig[abs(z) > stats::qnorm(1 - 0.01 / 2)] <- "**"
+  # sig[abs(z) > stats::qnorm(1 - 0.001 / 2)] <- "***"
 
   # signif <- symnum(pv, corr = false, na = false,
   #                  cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
@@ -101,7 +101,6 @@ summary.result.goldfish <- function(object, ...) {
 }
 
 #' @export
-#' @importFrom stats printCoefmat pnorm qnorm
 #' @rdname print-method
 #' @return For objects of class `result.goldfish` and `summary.result.goldfish`
 #'  print the estimated coefficients when `complete = FALSE`, otherwise it
@@ -109,10 +108,10 @@ summary.result.goldfish <- function(object, ...) {
 #' For `summary.result.goldfish` print:
 #' \item{Effect details:}{a table with additional information of the effects.
 #' The information corresponds to the  values of the effects arguments when
-#' they are modified and if they where fixed during estimation, see 
+#' they are modified and if they where fixed during estimation, see
 #' `vignette("goldfishEffects")` for the complete list of arguments, and
 #' [estimate()] on how to fix coefficients during estimation.}
-#' \item{Coefficients:}{a table with the estimated coefficients, their 
+#' \item{Coefficients:}{a table with the estimated coefficients, their
 #'   approximate standard error obtain from the inverse of the negative Fisher
 #'   information matrix, z-value and the p-value of the univariate two-tailed
 #'   Wald test to test the hypothesis that the parameter is 0.}
@@ -200,7 +199,7 @@ print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
     cat(title[1], strrep(" ", mxName - nchar(title[1])), title[2],
         "\n", sep = "")
     lapply(
-      seq(length(events)),
+      seq_along(events),
       function(x) {
         cat(strrep(" ", 2), dynamicAttr[x],
             strrep(" ", mxName - nchar(dynamicAttr[x]) - 2), events[x], "\n")
@@ -271,7 +270,7 @@ print.network.goldfish <- function(x, ..., full = FALSE, n = 6L) {
 #' @rdname print-method
 #' @return For objects of class `dependent.goldfish` print information of the
 #'  total number of events in the object, linked nodes set(s),
-#'  linked default network 
+#'  linked default network
 #' and a printing of the first rows in the events data frame.
 #' See [defineDependentEvents()].
 #
@@ -279,7 +278,8 @@ print.network.goldfish <- function(x, ..., full = FALSE, n = 6L) {
 # print(
 #  structure(
 #    data.frame(sender = 1:5, receiver = 2:6, time = 1:5, replace = rep(1, 5)),
-#    class = c("nodes.goldfish", "data.frame"), nodes = "nodes", defaultNetwork = "network"
+#    class = c("nodes.goldfish", "data.frame"),
+#    nodes = "nodes", defaultNetwork = "network"
 #  )
 # )
 print.dependent.goldfish <- function(x, ..., full = FALSE, n = 6) {
@@ -358,27 +358,27 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   invisible(NULL)
 }
 
-#' @importFrom tibble as_tibble
 #' @importFrom generics tidy
 #' @export
 generics::tidy
 # tidy <- function(x) UseMethod("tidy") # just for testing, don't use because overwrites use in other packages
 
 #' @method tidy result.goldfish
-#' @importFrom stats confint
 #' @export
-tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95, 
-                                 compact = TRUE, complete = FALSE, ...) {
+tidy.result.goldfish <- function(
+    x, conf.int = FALSE, conf.level = 0.95,
+    compact = TRUE, complete = FALSE, ...
+) {
 
   isFixed <- GetFixed(x)
   coefMat <- summary.result.goldfish(x)$coefMat
   colnames(coefMat) <- c("estimate", "std.error", "statistic", "p.value")
-    
+
   if (conf.int) {
-    confInterval <- confint(x, level = conf.level)
+    confInterval <- stats::confint(x, level = conf.level)
     colnames(confInterval) <- c("conf.low", "conf.high")
   }
-  
+
   if (compact) {
     terms <- paste(
       x$names[, 1],
@@ -388,35 +388,35 @@ tidy.result.goldfish <- function(x, conf.int = FALSE, conf.level = 0.95,
       )
     terms <- trimws(terms)
     terms <- gsub("\\$"," ", terms)
-    
+
     if (!complete) terms <- terms[!isFixed]
-    
+
     terms <- cbind(term = terms)
   } else {
     terms <- cbind(term = rownames(x$names), x$names)
     terms[, "Object"] <- gsub("\\$"," ", terms[, "Object"])
-    
+
     if (!complete) terms <- terms[!isFixed, ]
-  }  
+  }
 
   if (complete) {
     result <- cbind(tibble::as_tibble(terms), tibble::as_tibble(coefMat))
-    
+
     if (conf.int) {
       confIntervalComplete <- matrix(
         NA_real_,
         nrow = length(isFixed),
         ncol = ncol(confInterval),
         dimnames = list(NULL, colnames(confInterval))
-                                     )
+      )
       confIntervalComplete[!isFixed, ] <- confInterval
-      
+
       result <- cbind(result, tibble::as_tibble(confIntervalComplete))
     }
   } else {
     coefMat <- coefMat[!isFixed, ]
     result <- cbind(tibble::as_tibble(terms), tibble::as_tibble(coefMat))
-    
+
     if (conf.int) result <- cbind(result, tibble::as_tibble(confInterval))
   }
 

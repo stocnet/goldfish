@@ -2,8 +2,8 @@ Encoding: UTF-8
 Package: goldfish
 Type: Package
 Title: Statistical Network Models for Dynamic Network Data
-Version: 1.6.4
-Date: 2022-08-23
+Version: 1.6.5
+Date: 2023-06-20
 Authors@R: c(person("James", "Hollway", role = c("cre", "aut", "dtc"), 
                     email = "james.hollway@graduateinstitute.ch",
                     comment = c("IHEID", ORCID = "0000-0002-8361-9647")),
@@ -39,6 +39,7 @@ Imports:
     stats,
     generics,
     ggplot2,
+    rlang,
     tibble
 LinkingTo:
     Rcpp,
@@ -57,7 +58,7 @@ Suggests:
     lmtest
 VignetteBuilder: knitr 
 LazyData: true
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Roxygen: list(markdown = TRUE)
 NeedsCompilation: yes
 Config/testthat/edition: 3
