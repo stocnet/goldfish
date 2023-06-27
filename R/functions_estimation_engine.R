@@ -169,7 +169,7 @@ estimate_int <- function(
   nEvents <- length(statsList$orderEvents)
 
   nEvents <- length(statsList$orderEvents)
-  
+
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept

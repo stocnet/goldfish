@@ -417,12 +417,14 @@ checkNetwork <- function(matrix, nodes, nodesName, nodes2 = NULL) {
   }
 
   # compatibility between nodes and matrix
-  if (!isTwoMode && !all(dim(matrix) == nrow(nodes)))
+  if (!isTwoMode && !all(dim(matrix) == nrow(nodes))) {
     stop("The matrix dimensions are not coherent with the nodeset size.")
+  }
 
   if (isTwoMode && any(dim(matrix)[1] != nrow(nodes) &&
     dim(matrix)[2] != nrow(nodes2))) {
     stop("The matrix dimensions are not coherent with the nodesets sizes.")
+  }
 
   # labels when present agree
   if (!is.null(dimnames(matrix))) {
@@ -456,7 +458,8 @@ checkNetwork <- function(matrix, nodes, nodesName, nodes2 = NULL) {
   } else {
     warning(
       dQuote("matrix"), " object doesn't have a \"dimnames\" attribute. ",
-      "The order of rows and columns is assumed to be the same as in \"nodes\"",
+      "The order of rows and columns is assumed to be the same as in",
+      dQuote("nodes"),
       ifelse(isTwoMode, "and \"nodes2\"", ""), " data frame",
       ifelse(isTwoMode, "s", ""),
       call. = FALSE
@@ -522,7 +525,9 @@ checkDependentEvents <- function(events, eventsName, nodes, nodes2,
 
 checkGlobalAttribute <- function(global) {
   # check type
-  if (!is.data.frame(global)) stop("A global attribute should be a data frame.")
+  if (!is.data.frame(global)) {
+    stop("A global attribute should be a data frame.")
+  }
 
   # check content
   tryCatch(
@@ -546,7 +551,8 @@ checkGlobalAttribute <- function(global) {
 # - a column "time" of numerics or POSIX times
 # - a column "node" with labels (characters) or ids (numerics)
 #   IF it's associated to a nodeset
-# - 2 columns "sender" and "receiver" with labels (characters) or ids (numerics)
+# - 2 columns "sender" and "receiver" with labels (characters)
+#   or ids (numerics)
 #   IF it's associated to a network
 # - a column "replace" OR "increment" of characters or numerics or booleans
 
@@ -642,8 +648,9 @@ checkEvents.nodes.goldfish <- function(
     )
   }
 
-  if (anyNA(events$time)) 
+  if (anyNA(events$time)) {
     stop("Invalid events list: Events time-stamps have missing data.")
+  }
 
   if (is.unsorted(events$time)) {
     stop("Invalid events list: Events should be ordered by time.")
@@ -686,15 +693,19 @@ checkEvents.nodes.goldfish <- function(
         "\n\tevent (increment/replace) class: ",
         paste(classEven, collapse = ", ")
       )
+    }
   }
   # if (all(events$node %in% object$label) && is.integer(events$node) &&
   #     (min(events$node) < 1 || max(events$node) > dim(object)[1]))
-  #   stop("Nodes indexes for the attribute ", sQuote(attribute), " are incorrect.")
-  if (!all(events$node %in% object$label))
-    stop("Nodes labels for the attribute ", sQuote(attribute),
-         " are incorrect.")
-    }
+  #   stop("Nodes indexes for the attribute ",
+  #     sQuote(attribute), " are incorrect.")
+  if (!all(events$node %in% object$label)) {
+    stop(
+      "Nodes labels for the attribute ", sQuote(attribute),
+      " are incorrect."
+    )
   }
+
   return(TRUE)
 }
 
@@ -765,12 +776,14 @@ checkEvents.network.goldfish <- function(
       )
     )
   }
-  
-  if (anyNA(events$time)) 
+
+  if (anyNA(events$time)) {
     stop("Invalid events list: Events time-stamps have missing data.")
-  
-  if (is.unsorted(events$time))
+  }
+
+  if (is.unsorted(events$time)) {
     stop("Invalid events list: Events should be ordered by time.")
+  }
 
   # self-directed event
   if (any(events[, "sender"] == events[, "receiver"])) {
@@ -843,8 +856,7 @@ checkEvents.network.goldfish <- function(
 # with the nodes presence specified in the nodeset(s)
 # this function doesn't check anything else than presence coherence!
 checkPresence <- function(
-    events, nodes, compositionChanges, onlyReceiver = FALSE
-) {
+    events, nodes, compositionChanges, onlyReceiver = FALSE) {
   for (r in seq_len(nrow(events))) {
     # find time and nodes for this event
     time <- events[r, ]["time"]$time

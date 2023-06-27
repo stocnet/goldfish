@@ -17,14 +17,11 @@
 #' @noRd
 preprocessInteraction <- function(
     subModel,
-    events,
+    parsedformula,
     effects,
-    eventsObjectsLink,
-    eventsEffectsLink,
-    objectsEffectsLink,
+    windowParameters,
     # multipleParameter,
-    nodes,
-    nodes2 = nodes,
+    nodesInfo,
     # add more parameters
     startTime = min(vapply(events, function(x) min(x$time), double(1))),
     endTime = max(vapply(events, function(x) max(x$time), double(1))),
@@ -46,35 +43,38 @@ preprocessInteraction <- function(
   n1 <- nrow(get(nodesInfo[["nodes"]], envir = prepEnvir))
   n2 <- nrow(get(nodesInfo[["nodes2"]], envir = prepEnvir))
   nEffects <- length(effects)
-  
+
   # effects info
   objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames)
   events <- getEventsAndObjectsLink(
     parsedformula[["depName"]], parsedformula[["rhsNames"]],
-    nodesInfo[["nodes"]], nodesInfo[["nodes2"]], envir = prepEnvir
+    nodesInfo[["nodes"]], nodesInfo[["nodes2"]],
+    envir = prepEnvir
   )
   eventsObjectsLink <- events[[2]]
   events <- events[[1]]
-  
+
   eventsEffectsLink <- getEventsEffectsLink(
     events, parsedformula[["rhsNames"]], eventsObjectsLink
   )
-  
+
   # DyNAM-i ONLY: extra cleaning step
   # we assign an extra class to the windowed events,
   # and remove leaving events for the choice estimation
   events <- cleanInteractionEvents(
     events, eventsEffectsLink, windowParameters, subModel,
     parsedformula[["depName"]],
-    eventsObjectsLink, envir = prepEnvir
+    eventsObjectsLink,
+    envir = prepEnvir
   )
-  
+
   # changed Marion
   groupsNetworkObject <- get(groupsNetwork, envir = prepEnvir)
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 
   if (progress) cat("Initializing cache objects and statistical matrices.\n")
+  model <- "DyNAMi"
   stats <- initializeCacheStat(
     objectsEffectsLink = objectsEffectsLink, effects = effects,
     groupsNetwork = groupsNetworkObject, windowParameters = NULL,

@@ -24,26 +24,26 @@
 #' It ensures the simulation call finishes even in the case when the model
 #' specification and parameter values leads to a process explosion in finite
 #' interval.
-#' @param startTime a numerical value or a date-time character. 
+#' @param startTime a numerical value or a date-time character.
 #' It indicates the starting time for the simulation of the relational events.
 #' The default value is `NULL`.
-#' @param endTime a numerical value or a date-time character. 
+#' @param endTime a numerical value or a date-time character.
 #' It indicates the ending time for the simulation of the relational events.
 #' The default value is `NULL`.
-#' @param keepPreprocess a logical value indicating whether should 
+#' @param keepPreprocess a logical value indicating whether should
 #' preprocessed statistics be returned.
-#' 
-#' @details 
+#'
+#' @details
 #' If arguments `startTime` and `endTime` use the default `NULL` value,
 #' they would be set to the time of the first and last event respectively,
 #' found on the dependent events and linked events objects that define
-#' the formula(s) (`formulaRate` and `formulaChoice`). 
+#' the formula(s) (`formulaRate` and `formulaChoice`).
 #' If a date-time character is used, it is transformed to a numeric value
 #' using `as.numeric()`.
-#' 
+#'
 #' @export
 #' @importFrom lifecycle badge
-#' 
+#'
 #' @return when `keepPreprocess = FALSE` a data frame with the simulated
 #' relational events that contains the following variables.
 #' \describe{
@@ -57,15 +57,19 @@
 #' when `keepPreprocess = TRUE`, and depending on the values of the arguments
 #' `model` and `subModel`, is an object of class `preprocessed.goldfish`
 #' or a list of objects of that class.
-#' 
+#'
 #' @examples
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
-#'                           nodes = actors)
-#' callsDependent <- defineDependentEvents(events = calls, nodes = actors,
-#'                                         defaultNetwork = callNetwork)
-#' 
+#' callNetwork <- linkEvents(
+#'   x = callNetwork, changeEvent = calls,
+#'   nodes = actors
+#' )
+#' callsDependent <- defineDependentEvents(
+#'   events = calls, nodes = actors,
+#'   defaultNetwork = callNetwork
+#' )
+#'
 #' simulateEvents <- simulate(
 #'   formulaRate = callsDependent ~ 1 + indeg + outdeg,
 #'   parametersRate = c(-14, 0.76, 0.25),
@@ -74,7 +78,7 @@
 #'   model = "DyNAM", subModel = "choice",
 #'   nEvents = 100
 #' )
-#' 
+#'
 simulate <- function(
     formulaRate,
     parametersRate,
@@ -86,30 +90,29 @@ simulate <- function(
     startTime = NULL,
     endTime = NULL,
     keepPreprocess = FALSE,
-    progress = getOption("progress")
-) {
-  
+    progress = getOption("progress")) {
   # CHECK INPUT
   model <- match.arg(model)
   subModel <- match.arg(subModel)
 
   ### check model and subModel
   checkModelPar(model, subModel,
-                modelList = c("DyNAM", "REM", "DyNAMi"),
-                subModelList = list(
-                  DyNAM = c("choice", "rate", "choice_coordination"),
-                  REM = "choice",
-                  DyNAMi = c("choice", "rate")
-                )
+    modelList = c("DyNAM", "REM", "DyNAMi"),
+    subModelList = list(
+      DyNAM = c("choice", "rate", "choice_coordination"),
+      REM = "choice",
+      DyNAMi = c("choice", "rate")
+    )
   )
 
-  if (subModel == "choice_coordination" || model == "DyNAMi")
+  if (subModel == "choice_coordination" || model == "DyNAMi") {
     stop(
       "It doesn't support yet simulating a DyNAM choice coordination or",
       "DyNAMi model.\n",
       call. = FALSE
     )
-  
+  }
+
   stopifnot(
     inherits(formulaRate, "formula"),
     is.null(formulaChoice) || inherits(formulaChoice, "formula"),
@@ -118,19 +121,19 @@ simulate <- function(
     is.null(progress) || inherits(progress, "logical"),
     inherits(nEventsMax, "numeric") && nEventsMax > 0
   )
-  
+
   if (is.null(progress)) progress <- FALSE
 
-  envir = environment()
-  
+  envir <- environment()
+
   ## 1.1 Preparing
   parsedformulaRate <- parseFormula(formulaRate, envir = envir)
-  
-  # The number of the independent variables should be the length 
+
+  # The number of the independent variables should be the length
   # of the input parameter vector
   if (length(parsedformulaRate$rhsNames) +
-      parsedformulaRate$hasIntercept !=
-      length(parametersRate))
+    parsedformulaRate$hasIntercept !=
+    length(parametersRate)) {
     stop(
       "The number of effects in the rate sub-model should be the same",
       " as the length of the input parameter vector:",
@@ -138,25 +141,30 @@ simulate <- function(
       paste(parametersRate, collapse = ",", sep = ""),
       call. = FALSE
     )
+  }
 
   if (!is.null(formulaChoice)) {
-    if (!(model == "DyNAM" && subModel %in% c("rate", "choice")))
+    if (!(model == "DyNAM" && subModel %in% c("rate", "choice"))) {
       stop(
         "The model you specified doesn't require a formula",
         "for the choice subModel",
         call. = FALSE
       )
+    }
 
     ## 1.1 PARSE for all cases: preprocessingInit or not
     parsedformulaChoice <- parseFormula(formulaChoice, envir = envir)
-    if (parsedformulaChoice$hasIntercept)
+    if (parsedformulaChoice$hasIntercept) {
       # In the DyNAM choice model,
       # the intercept will be cancelled and hence useless.
       stop("Intercept in the choice subModel model will be ignored.",
-           " Please remove the intercep and run again.", call. = FALSE)
+        " Please remove the intercep and run again.",
+        call. = FALSE
+      )
+    }
 
     if (length(parsedformulaChoice$rhsNames) !=
-        length(parametersChoice))
+      length(parametersChoice)) {
       stop(
         "The number of the effects in the choice sub-model should be the same",
         " as the length of the input parameter:",
@@ -164,11 +172,14 @@ simulate <- function(
         paste(parametersChoice, collapse = ","),
         call. = FALSE
       )
-    
-    if (parsedformulaRate$depName != parsedformulaChoice$depName)
+    }
+
+    if (parsedformulaRate$depName != parsedformulaChoice$depName) {
       stop("formula for rate and choice sub-models",
-           " must be defined over the same dependent event object",
-           call. = FALSE)
+        " must be defined over the same dependent event object",
+        call. = FALSE
+      )
+    }
   } else {
     parsedformulaChoice <- NULL
   }
@@ -176,14 +187,16 @@ simulate <- function(
   # CHECK THE INPUT FORMULA
   # There must exist the intercept in the formula for the waiting-time
   # generating process (For example, DyNAM rate, or REM),
-  if (!parsedformulaRate$hasIntercept)
+  if (!parsedformulaRate$hasIntercept) {
     stop("You didn't specify an intercept in the rate formula.",
-         "\n\tCurrent implementation requires intercept.",
-         call. = FALSE)
+      "\n\tCurrent implementation requires intercept.",
+      call. = FALSE
+    )
+  }
 
   # get node sets of dependent variable
   nodesInfo <- setNodesInfo(parsedformulaRate$depName, envir = envir)
-  
+
   # Simulating!
   if (progress) cat("Starting simulation\n")
   events <- simulateEngine(
@@ -202,11 +215,16 @@ simulate <- function(
     envir = envir
   )
 
-  if (keepPreprocess) return(events)
-  
+  if (keepPreprocess) {
+    return(events)
+  }
+
   nodes <- get(nodesInfo[["nodes"]], envir = envir)$label
-  nodes2 <- if (!nodesInfo[["isTwoMode"]]) nodes else
+  nodes2 <- if (!nodesInfo[["isTwoMode"]]) {
+    nodes
+  } else {
     get(nodesInfo[["nodes2"]], envir = envir)$label
+  }
   # Styling the result
   events <- data.frame(
     time = events[, 1],

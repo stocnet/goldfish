@@ -15,24 +15,20 @@
 preprocess <- function(
     model,
     subModel,
-    events,
-    effects,
-    windowParameters,
+    parsedformula,
+    opportunitiesList = NULL,
     ignoreRepParameter,
-    eventsObjectsLink,
-    eventsEffectsLink,
-    objectsEffectsLink,
-    # multipleParameter,
-    nodes,
-    nodes2 = nodes,
-    isTwoMode,
+    # simulation parameters,
+    simulate = FALSE,
+    nEventMax = NULL,
+    simulateFunction = NULL,
+    simulateParams = NULL,
     # add more parameters
-    startTime = min(vapply(events, function(x) min(x$time), double(1))),
-    endTime = max(vapply(events, function(x) max(x$time), double(1))),
+    startTime = NULL,
+    endTime = NULL,
     rightCensored = FALSE,
     progress = FALSE,
     prepEnvir = new.env()) {
-
   # For debugging
   # if (identical(environment(), globalenv())) {
   #   startTime <- min(vapply(events, function(x) min(x$time), double(1)))
@@ -51,18 +47,25 @@ preprocess <- function(
     groupsNetwork = groupsNetwork,
     envir = prepEnvir
   )
-  
+
   # check start time and end time are valid values, set flags
   setStartEndTime(envir = prepEnvir)
-  
+
   initStatPrep(envir = prepEnvir)
-  
+
   # add iterators
   initStoreObj(envir = prepEnvir)
-    
-  # initialize progressbar output 
+
+  # initialize progressbar output
   initProgressBar(envir = prepEnvir)
-  if (progress) on.exit(expr = local({close(pb)}, envir = prepEnvir))
+  if (progress) {
+    on.exit(expr = local(
+      {
+        close(pb)
+      },
+      envir = prepEnvir
+    ))
+  }
 
   # iterate over all event lists
   while (any(prepEnvir$validPointers)) {
@@ -255,9 +258,9 @@ preprocess <- function(
           attIDs <- which(objCat == "attribute")
           netIDs <- which(objCat == "network")
           if (attr(objCat, "noneClass")) {
-            stop("An object is not assigned either as network or attibute",
+            stop("An object is not assigned either as network or attibute\n\t",
               paste(names[attr(objCat, "manyClasses") != 1], collapse = ", "),
-              "check the class of the object.",
+              "\n\tcheck the class of the object.",
               call. = FALSE
             )
           }
@@ -375,20 +378,21 @@ preprocess <- function(
       times <= endTime
   }
 
-  return(structure(list(
-    initialStats = initialStats,
-    dependentStatsChange = dependentStatistics,
-    rightCensoredStatsChange = rightCensoredStatistics,
-    intervals = timeIntervals,
-    rightCensoredIntervals = timeIntervalsRightCensored,
-    orderEvents = orderEvents,
-    eventTime = event_time,
-    eventSender = event_sender,
-    eventReceiver = event_receiver,
-    startTime = startTime,
-    endTime = endTime
-  ),
-  class = "preprocessed.goldfish"
+  return(structure(
+    list(
+      initialStats = initialStats,
+      dependentStatsChange = dependentStatistics,
+      rightCensoredStatsChange = rightCensoredStatistics,
+      intervals = timeIntervals,
+      rightCensoredIntervals = timeIntervalsRightCensored,
+      orderEvents = orderEvents,
+      eventTime = event_time,
+      eventSender = event_sender,
+      eventReceiver = event_receiver,
+      startTime = startTime,
+      endTime = endTime
+    ),
+    class = "preprocessed.goldfish"
   ))
 }
 
@@ -423,11 +427,11 @@ initializeCacheStat <- function(
 
   if (attr(objCat, "noneClass")) {
     stop(
-      "An object is not assigned either as network or attibute",
+      "An object is not assigned either as network or attibute\n\t",
       paste(rownames(objectsEffectsLink)[attr(objCat, "manyClasses") != 1],
         collapse = ", "
       ),
-      "check the class of the object.",
+      "\n\tcheck the class of the object.",
       call. = FALSE
     )
   }
@@ -452,7 +456,11 @@ initializeCacheStat <- function(
       # init
       .argsFUN <- list(
         effectFun = effects[[iEff]][["effect"]],
-        network = if (length(networks) == 1) networks[[1]] else networks,
+        network = if (length(networks) == 1) {
+          networks[[1]]
+        } else {
+          networks
+        },
         attribute = if (length(attributes) == 1) {
           attributes[[1]]
         } else {

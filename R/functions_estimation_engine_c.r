@@ -46,8 +46,11 @@ estimate_c_int <- function(
   nParams <- dim(statsList$initialStats)[3] - length(excludeParameters) +
     hasIntercept
   #
-  if (is.null(initialParameters)) parameters <- rep(0, nParams)
-  else parameters <- initialParameters
+  if (is.null(initialParameters)) {
+    parameters <- rep(0, nParams)
+  } else {
+    parameters <- initialParameters
+  }
 
   # deal with fixedParameters
   idUnfixedCompnents <- seq_len(nParams)

@@ -136,8 +136,7 @@ parseFormula <- function(formula, envir = new.env()) {
 #    are new, and with the
 #    the index of the effect in the old formula if the effect was already there
 compareFormulas <- function(
-    oldparsedformula, newparsedformula, model, subModel
-) {
+    oldparsedformula, newparsedformula, model, subModel) {
   # test dependent events and default network
   if (oldparsedformula$depName != newparsedformula$depName) {
     stop(
@@ -161,7 +160,7 @@ compareFormulas <- function(
   oldhasIntercept <- oldparsedformula$hasIntercept
   newhasIntercept <- newparsedformula$hasIntercept
   if (model %in% "DyNAM" && subModel %in% c("choice", "choice_coordination") &&
-      oldhasIntercept) {
+    oldhasIntercept) {
     oldhasIntercept <- FALSE
     newhasIntercept <- FALSE
   }
@@ -211,6 +210,7 @@ compareFormulas <- function(
         oldparsedformula$ignoreRepParameter[[j]], effectignorerep
       )) {
         next
+      }
 
       if (!identical(oldparsedformula$weightedParameter[[j]], effectweighted)) {
         next
@@ -412,20 +412,21 @@ getDependentName <- function(formula) {
 #' @examples
 #' getEventsAndObjectsLink("depNetwork", list(list("inertia", "networkState")))
 getEventsAndObjectsLink <- function(
-    depName, rhsNames, envir = environment()
-) {
+    depName, rhsNames, envir = environment()) {
   nodesInfo <- setNodesInfo(depName, envir)
   # Find objects (irrespective of where they occur)
   objectNames <- getDataObjects(rhsNames)
-  
+
   # Add compositional changes if any
   hasCompChange <- listCompositionChange(nodesInfo)
   if (!is.null(hasCompChange)) {
     hasCompChange <- getDataObjects(as.list(hasCompChange), removeFirst = FALSE)
     objectNames <- rbind(objectNames, hasCompChange)
     hasCompChange <- TRUE
-  } else hasCompChange <- FALSE
-  
+  } else {
+    hasCompChange <- FALSE
+  }
+
 
   # Find event lists of objects and link
   events <- list()

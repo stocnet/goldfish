@@ -228,13 +228,14 @@ compChange <- data.frame(
   replace = c(TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE)
 )
 
-actorsEx <- defineNodes(actorsEx) 
+actorsEx <- defineNodes(actorsEx)
 actorsEx <- linkEvents(
   x = actorsEx,
   changeEvent = compChange,
-  attribute = "present")
+  attribute = "present"
+)
 
-  # changing attribute
+# changing attribute
 attrChange <- data.frame(
   node = sprintf("Actor %d", c(5, 4, 3, 1, 2, 3, 4)),
   time = c(11, 18, 23, 31, 32, 33, 35),
@@ -243,9 +244,10 @@ attrChange <- data.frame(
 actorsEx <- linkEvents(
   x = actorsEx,
   changeEvent = attrChange,
-  attribute = "attr1")
+  attribute = "attr1"
+)
 
-  # two-mode
+# two-mode
 clubsEx <- data.frame(
   label = sprintf("Club %d", 1:3),
   present = c(rep(TRUE, 2), FALSE),
@@ -259,11 +261,12 @@ clubsChange <- data.frame(
   replace = c(TRUE, FALSE, TRUE)
 )
 
-clubsEx <- defineNodes(clubsEx) 
+clubsEx <- defineNodes(clubsEx)
 clubsEx <- linkEvents(
   x = clubsEx,
   changeEvent = clubsChange,
-  attribute = "present")
+  attribute = "present"
+)
 
 
 # direct network
@@ -284,11 +287,16 @@ networkState <- matrix(
 
 eventsIncrement <- data.frame(
   time = cumsum(
-    c(1, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4)),
-  sender = sprintf("Actor %d",
-    c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)),
-  receiver = sprintf("Actor %d",
-    c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)),
+    c(1, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4)
+  ),
+  sender = sprintf(
+    "Actor %d",
+    c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)
+  ),
+  receiver = sprintf(
+    "Actor %d",
+    c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)
+  ),
   increment =
     c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
   stringsAsFactors = FALSE
@@ -355,7 +363,8 @@ networkExog <- linkEvents(
 # two-mode network
 
 networkActorClub <- matrix(
-  c(1, 0, 0,
+  c(
+    1, 0, 0,
     1, 0, 1,
     0, 0, 0,
     0, 1, 0,
@@ -370,24 +379,28 @@ networkActorClub <- matrix(
 
 eventsActorClub <- data.frame(
   time =
-    c(3,  8, 12, 17, 20, 30, 35),
+    c(3, 8, 12, 17, 20, 30, 35),
   sender = sprintf(
     "Actor %d",
-    c(1,  4,  5,  2,  3,  1,  3)),
+    c(1, 4, 5, 2, 3, 1, 3)
+  ),
   receiver = sprintf(
     "Club %d",
-    c(2,  1,  2,  2,  1,  1,  3)),
+    c(2, 1, 2, 2, 1, 1, 3)
+  ),
   replace =
-    c(1,  1,  0,  1,  1,  0,  1)
+    c(1, 1, 0, 1, 1, 0, 1)
 )
 
 networkActorClub <- defineNetwork(
   matrix = networkActorClub,
-  nodes = actorsEx, nodes2 = clubsEx, directed = TRUE)
+  nodes = actorsEx, nodes2 = clubsEx, directed = TRUE
+)
 networkActorClub <- linkEvents(
   x = networkActorClub,
   changeEvent = eventsActorClub,
-  nodes = actorsEx, nodes2 = clubsEx)
+  nodes = actorsEx, nodes2 = clubsEx
+)
 
 # DyNAM-i -----------------------------------------------------------
 # Attributes --------------------------------------------------------

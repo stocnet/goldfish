@@ -46,18 +46,17 @@
 #' gatheredData <- GatherPreprocessing(
 #'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet)
 #' )
-#' 
+#'
 GatherPreprocessing <- function(
     formula,
     model = c("DyNAM", "REM"),
     subModel = c("choice", "choice_coordination", "rate"),
     preprocessArgs = NULL,
-    progress = getOption("progress")
-) {
-
+    progress = getOption("progress"),
+    envir = new.env()) {
   model <- match.arg(model)
   subModel <- match.arg(subModel)
-  
+
   checkModelPar(
     model = model, subModel = subModel,
     modelList = c("DyNAM", "REM", "DyNAMRE"),
@@ -74,7 +73,7 @@ GatherPreprocessing <- function(
         "startTime", "endTime", "opportunitiesList"
       )
 
-    if (any(!parInit))
+    if (any(!parInit)) {
       warning(
         "The parameter: ",
         paste(names(preprocessArgs)[!parInit], collapse = ", "),
@@ -82,6 +81,7 @@ GatherPreprocessing <- function(
         "See the documentation for the list of available parameters",
         call. = FALSE, immediate. = TRUE
       )
+    }
 
     if (!is.null(preprocessArgs["opportunitiesList"])) {
       warning(
@@ -90,7 +90,7 @@ GatherPreprocessing <- function(
       )
     }
   }
-  
+
   if (is.null(progress)) progress <- FALSE
 
   ### 1. PARSE the formula----
@@ -112,7 +112,9 @@ GatherPreprocessing <- function(
   if (model == "DyNAMRE") {
     if (subModel == "choice") model <- "REM" else model <- "DyNAM"
     altModel <- "DyNAMRE"
-  } else altModel <- NULL
+  } else {
+    altModel <- NULL
+  }
 
   if (model %in% c("DyNAM", "DyNAMi") &&
     subModel %in% c("choice", "choice_coordination") &&
@@ -201,7 +203,7 @@ GatherPreprocessing <- function(
   reduceMatrixToVector <- FALSE
   reduceArrayToMatrix <- FALSE
 
-  if (!is.null(altModel) & subModel == "choice") model <- "DyNAM"
+  if (!is.null(altModel) && subModel == "choice") model <- "DyNAM"
 
   if (model == "REM") {
     if (!parsedformula$hasIntercept) {
@@ -367,15 +369,15 @@ GatherPreprocessing <- function(
     gatheredData$receiver <-
       nodes2$label[preprocessingStat$eventReceiver]
   } else if (model == "DyNAM" && subModel == "rate" &&
-             parsedformula$hasIntercept) {
-    gatheredData$timespan <- timespan 
+    parsedformula$hasIntercept) {
+    gatheredData$timespan <- timespan
     gatheredData$isDependent <- is_dependent
   }
   gatheredData$hasIntercept <- parsedformula$hasIntercept
-  
+
   gatheredData$selected <- gatheredData$selected +
     if (parsedformula$hasIntercept) (1 * is_dependent) else 1
-  
+
   ### 4. PREPARE PRINTING----
   # functions_utility.R
   effectDescription <-

@@ -403,14 +403,13 @@ UpdateNetwork <- function(network, changeEvents, nodes = NULL, nodes2 = nodes) {
 #' GetDetailPrint(
 #'   parseFormula(
 #'     depNetwork ~ inertia(networkState, window = 300, transformFun = sqrt) +
-#'     recip
+#'       recip
 #'   ),
 #'   c(NA, 1)
 #' )
 GetDetailPrint <- function(
     parsedformula,
-    fixedParameters = NULL
-) {
+    fixedParameters = NULL) {
   # matrix with the effects in rows and objects in columns,
   # which net or actor att
   objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames)
@@ -536,10 +535,10 @@ GetDetailPrint <- function(
 #' @examples
 #' parseFormula(
 #'   depNetwork ~ inertia(networkState, window = 300, transformFun = sqrt) +
-#'   recip
-#' ) |> 
-#' GetDetailPrint(c(NA, 1)) |> 
-#' GetFixed()
+#'     recip
+#' ) |>
+#'   GetDetailPrint(c(NA, 1)) |>
+#'   GetFixed()
 GetFixed <- function(object) {
   if ("fixed" %in% colnames(object$names)) {
     vapply(
@@ -565,7 +564,7 @@ GetFixed <- function(object) {
 checkArgs <- function(object, allowNames) {
   if (!is.null(object)) {
     parInit <- names(object) %in% allowNames
-    
+
     nameObject <- deparse(substitute(object))
     if (any(!parInit)) {
       warning(
@@ -579,5 +578,3 @@ checkArgs <- function(object, allowNames) {
   }
   invisible(NULL)
 }
-
-

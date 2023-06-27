@@ -112,7 +112,7 @@
 #' with the estimated coefficients.
 #' @param preprocessingInit a `preprocessed.goldfish` object computed for
 #' the current formula, allows skipping the preprocessing step.
-#' @param preprocessingArgs a list or arguments to be passed to the 
+#' @param preprocessingArgs a list or arguments to be passed to the
 #' pre-processing function. It may contain:
 #' \describe{
 #'  \item{startTime}{a numerical value or a date-time character with the same
@@ -273,8 +273,9 @@ estimate <- function(
     model = c("DyNAM", "REM", "DyNAMi"),
     subModel = c("choice", "rate", "choice_coordination"),
     estimationInit = NULL,
-    preprocessingInit = NULL,
     preprocessingOnly = FALSE,
+    preprocessingArgs = NULL,
+    preprocessingInit = NULL,
     progress = getOption("progress"),
     verbose = getOption("verbose")) {
   UseMethod("estimate", x)
@@ -289,8 +290,9 @@ estimate.formula <- function(
     model = c("DyNAM", "REM", "DyNAMi"),
     subModel = c("choice", "rate", "choice_coordination"),
     estimationInit = NULL,
-    preprocessingInit = NULL,
     preprocessingOnly = FALSE,
+    preprocessingArgs = NULL,
+    preprocessingInit = NULL,
     progress = getOption("progress"),
     verbose = getOption("verbose")) {
   # Steps:
@@ -333,10 +335,12 @@ estimate.formula <- function(
 
   checkArgs(
     estimationInit,
-    c("maxIterations", "maxScoreStopCriterion", "initialDamping",
+    c(
+      "maxIterations", "maxScoreStopCriterion", "initialDamping",
       "dampingIncreaseFactor", "dampingDecreaseFactor", "initialParameters",
       "fixedParameters", "returnEventProbabilities", "returnIntervalLogL",
-      "impute", "engine")
+      "impute", "engine"
+    )
   )
   checkArgs(
     preprocessingArgs, c("startTime", "endTime", "opportunitiesList")
@@ -362,18 +366,18 @@ estimate.formula <- function(
       engine <- "default"
     }
   }
-  
+
   # gather_compute and default_c don't support restrictions of opportunity sets
   if (!is.null(preprocessingArgs) &&
-      "opportunitiesList" %in% names(preprocessingArgs) &&
-      engine != "default") {
-      warning("engine = ", dQuote(engine), " doesn't support",
-        dQuote("opportunitiesList"),
-        ". engine =", dQuote("default"), " is used instead.",
-        call. = FALSE, immediate. = TRUE
-      )
-      engine <- "default"
-    }
+    "opportunitiesList" %in% names(preprocessingArgs) &&
+    engine != "default") {
+    warning("engine = ", dQuote(engine), " doesn't support",
+      dQuote("opportunitiesList"),
+      ". engine =", dQuote("default"), " is used instead.",
+      call. = FALSE, immediate. = TRUE
+    )
+    engine <- "default"
+  }
 
   PreprocessEnvir <- new.env()
 
@@ -407,7 +411,7 @@ estimate.formula <- function(
     )
     hasIntercept <- FALSE
   }
-  rightCensored <- parsedformula$hasIntercept
+  rightCensored <- hasIntercept
 
   if (progress &&
     !(model %in% c("DyNAM", "DyNAMi") &&
@@ -417,18 +421,6 @@ estimate.formula <- function(
       sep = ""
     )
   }
-  # if (progress && !all(vapply(windowParameters, is.null, logical(1))))
-  #   cat("Creating window objects in global environment.")
-
-  ## 1.2 PARSE for preprocessingInit: check the formula consistency
-  if (!is.null(preprocessingInit)) {
-    # find the old and new effects indexes, do basic consistency checks
-    oldparsedformula <- parseFormula(preprocessingInit$formula)
-    effectsindexes <- compareFormulas(
-      oldparsedformula = oldparsedformula,
-      newparsedformula = parsedformula,
-      model = model, subModel = subModel
-    )
 
   # if (progress) cat("Initializing objects.\n")
 
@@ -437,229 +429,6 @@ estimate.formula <- function(
   nodesInfo <- setNodesInfo(parsedformula$depName, envir = prepEnvir)
 
   ### 3. PREPROCESS statistics----
-
-  ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
-  # enviroment from which get the objects
-
-  effects <- createEffectsFunctions(rhsNames, model, subModel,
-    envir = PreprocessEnvir
-  )
-  # Get links between objects and effects for printing results
-  objectsEffectsLink <- getObjectsEffectsLink(rhsNames)
-
-  ## 2.2 INITIALIZE OBJECTS for preprocessingInit == NULL
-  if (is.null(preprocessingInit)) {
-    # Initialize events list and link to objects
-    events <- getEventsAndObjectsLink(
-      depName, rhsNames, .nodes, .nodes2,
-      envir = PreprocessEnvir
-    )[[1]]
-    # moved cleanInteractionEvents in getEventsAndObjectsLink
-    eventsObjectsLink <- getEventsAndObjectsLink(
-      depName, rhsNames, .nodes, .nodes2,
-      envir = PreprocessEnvir
-    )[[2]]
-    eventsEffectsLink <- getEventsEffectsLink(
-      events, rhsNames, eventsObjectsLink
-    )
-  }
-
-  # DyNAM-i ONLY: extra cleaning step
-  # we assign an extra class to the windowed events,
-  # and remove leaving events for the choice estimation
-  if (model == "DyNAMi") {
-    events <- cleanInteractionEvents(
-      events, eventsEffectsLink, windowParameters, subModel, depName,
-      eventsObjectsLink,
-      envir = PreprocessEnvir
-    )
-  }
-
-  ### 3. PREPROCESS statistics----
-  ## 3.1 INITIALIZE OBJECTS for preprocessingInit: remove old effects,
-  ## add new ones
-  if (!is.null(preprocessingInit)) {
-    # recover the nodesets
-    .nodes <- preprocessingInit$nodes
-    .nodes2 <- preprocessingInit$nodes2
-    isTwoMode <- FALSE
-    if (!identical(.nodes, .nodes2)) isTwoMode <- TRUE
-
-    # find new effects
-    if (min(effectsindexes) == 0) {
-      if (progress) cat("Calculating newly added effects.\n")
-      newrhsNames <- rhsNames[which(effectsindexes == 0)]
-      newWindowParameters <- windowParameters[which(effectsindexes == 0)]
-      neweffects <- createEffectsFunctions(
-        newrhsNames, model, subModel,
-        envir = PreprocessEnvir
-      )
-      # Get links between objects and effects for printing results
-      newobjectsEffectsLink <- getObjectsEffectsLink(newrhsNames)
-
-      # test the objects
-      # for now it's easier to just reject formulas that have new objects
-      # (and therefore possibly new events)
-      # otherwise we need to go in the details of orderEvents,
-      # eventTime, eventSender, eventReceiver
-      # objectspresent <-
-      #   rownames(newobjectsEffectsLink) %in% rownames(objectsEffectsLink)
-      # if(FALSE %in% objectspresent)
-      #  stop("The formula contains new objects or windows that were not taken
-      #         into account in the preprocessing used in preprocessingInit.\n
-      #       This is likely to affect statistics calculation.
-      #       Please recalculate the preprocessed object.")
-
-      # Retrieve again the events to calculate new statistics
-      newevents <- getEventsAndObjectsLink(
-        depName, newrhsNames, .nodes, .nodes2,
-        envir = PreprocessEnvir
-      )[[1]]
-      neweventsObjectsLink <- getEventsAndObjectsLink(
-        depName, newrhsNames, .nodes, .nodes2,
-        envir = PreprocessEnvir
-      )[[2]]
-      neweventsEffectsLink <- getEventsEffectsLink(
-        newevents, newrhsNames, neweventsObjectsLink
-      )
-
-      # Preprocess the new effects
-      if (progress) cat("Pre-processing additional effects.\n")
-      newprep <- preprocess(
-        model,
-        subModel,
-        events = newevents,
-        effects = neweffects,
-        windowParameters = newWindowParameters,
-        ignoreRepParameter = ignoreRepParameter,
-        eventsObjectsLink = neweventsObjectsLink, # for data update
-        eventsEffectsLink = neweventsEffectsLink,
-        objectsEffectsLink = newobjectsEffectsLink, # for parameterization
-        # multipleParameter = multipleParameter,
-        nodes = .nodes,
-        nodes2 = .nodes2,
-        isTwoMode = isTwoMode,
-        startTime = preprocessingInit[["startTime"]],
-        endTime = preprocessingInit[["endTime"]],
-        rightCensored = rightCensored,
-        progress = progress,
-        prepEnvir = PreprocessEnvir
-      )
-
-      # test the length of the dependent and RC updates (in case the events
-      #   objects was changed in the environment)
-      if (length(preprocessingInit$intervals) != length(newprep$intervals)) {
-        stop(
-          "The numbers of dependent events in the formula and in the ",
-          "preprocessed object are not consistent.\n",
-          "\tPlease check whether these events have changed.",
-          call. = FALSE
-        )
-      }
-
-      if (length(preprocessingInit$rightCensoredIntervals) !=
-        length(newprep$rightCensoredIntervals)) {
-        stop(
-          "The numbers of right-censored events in the formula and in the ",
-          "preprocessed object are not consistent.\n",
-          "\tPlease check whether some windows have been changed.",
-          call. = FALSE
-        )
-      }
-    }
-
-    # combine old and new preprocessed objects
-    if (progress) cat("Removing no longer required effects.\n")
-    allprep <- preprocessingInit
-    allprep$initialStats <- array(0,
-      dim = c(
-        nrow(get(.nodes, envir = PreprocessEnvir)),
-        nrow(get(.nodes2, envir = PreprocessEnvir)),
-        length(effectsindexes)
-      )
-    )
-    allprep$dependentStatsChange <- list()
-    allprep$rightCensoredStatsChange <- list()
-    cptnew <- 1
-
-    # initial stats
-    for (e in seq_along(effectsindexes)) {
-      if (effectsindexes[e] == 0) {
-        allprep$initialStats[, , e] <- newprep$initialStats[, , cptnew]
-        cptnew <- cptnew + 1
-      }
-      if (effectsindexes[e] > 0) {
-        allprep$initialStats[, , e] <-
-          preprocessingInit$initialStats[, , effectsindexes[e]]
-      }
-    }
-
-    # dependent stats updates
-    for (t in seq_along(allprep$intervals)) {
-      cptnew <- 1
-      allprep$dependentStatsChange[[t]] <-
-        lapply(seq_along(effectsindexes), function(x) NULL)
-      for (e in seq_along(effectsindexes)) {
-        if (effectsindexes[e] == 0) {
-          if (!is.null(newprep$dependentStatsChange[[t]][[cptnew]])) {
-            allprep$dependentStatsChange[[t]][[e]] <-
-              newprep$dependentStatsChange[[t]][[cptnew]]
-          }
-          cptnew <- cptnew + 1
-        }
-        if (effectsindexes[e] > 0) {
-          if (
-            !is.null(
-              preprocessingInit$dependentStatsChange[[t]][[effectsindexes[e]]]
-            )
-          ) {
-            allprep$dependentStatsChange[[t]][[e]] <-
-              preprocessingInit$dependentStatsChange[[t]][[effectsindexes[e]]]
-          }
-        }
-      }
-    }
-
-    # right censored stats updates
-    if (length(allprep$rightCensoredIntervals) > 0) {
-      for (t in seq_along(allprep$rightCensoredIntervals)) {
-        cptnew <- 1
-        allprep$rightCensoredStatsChange[[t]] <-
-          lapply(seq_along(effectsindexes), function(x) NULL)
-        for (e in seq_along(effectsindexes)) {
-          if (effectsindexes[e] == 0) {
-            if (!is.null(newprep$rightCensoredStatsChange[[t]][[cptnew]])) {
-              allprep$rightCensoredStatsChange[[t]][[e]] <-
-                newprep$rightCensoredStatsChange[[t]][[cptnew]]
-            }
-            cptnew <- cptnew + 1
-          }
-          if (effectsindexes[e] > 0) {
-            if (
-              !is.null(
-                preprocessingInit$rightCensoredStatsChange[[t]][[
-                  effectsindexes[e]
-                ]]
-              )
-            ) {
-              allprep$rightCensoredStatsChange[[t]][[e]] <-
-                preprocessingInit$rightCensoredStatsChange[[t]][[
-                  effectsindexes[e]
-                ]]
-            }
-          }
-        }
-      }
-    }
-
-    prep <- allprep
-    prep$formula <- formula
-    prep$model <- model
-    prep$subModel <- subModel
-    prep$nodes <- .nodes
-    prep$nodes2 <- .nodes2
-  }
-
   ## 3.2 PREPROCESS when preprocessingInit == NULL
   if (is.null(preprocessingInit)) {
     if (progress) cat("Starting preprocessing.\n")
@@ -697,14 +466,14 @@ estimate.formula <- function(
     # we can call the estimation with preprocessingInit later
     # (for parsing AND composition changes)
 
-    prep$formula   <- x
-    prep$model     <- model
-    prep$subModel  <- subModel
+    prep$formula <- x
+    prep$model <- model
+    prep$subModel <- subModel
     prep$nodesInfo <- nodesInfo
   } else if (!is.null(preprocessingInit) &&
-       !isTRUE(all.equal(x, preprocessingInit$formula))) {
+    !isTRUE(all.equal(x, preprocessingInit$formula))) {
     prep <- adjustPrepInit(
-      preprocessingInit = preprocessingInit, x = x, 
+      preprocessingInit = preprocessingInit, x = x,
       parsedformula = parsedformula,
       model = model, subModel = subModel, progress = progress,
       envir = prepEnvir
@@ -774,7 +543,7 @@ estimate.formula <- function(
     verbose = verbose,
     progress = progress,
     ignoreRepParameter = ignoreRepParameter,
-    isTwoMode = isTwoMode,
+    isTwoMode = nodesInfo[["isTwoMode"]],
     prepEnvir = EstimateEnvir
   )
   # prefer user-defined arguments

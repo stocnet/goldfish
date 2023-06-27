@@ -3,19 +3,22 @@ test_that("Args check", {
     simulate(
       depNetwork ~ inertia(networkState),
       c(1),
-      model = "dynam")
+      model = "dynam"
+    )
   )
   expect_error(
     simulate(
       depNetwork ~ inertia(networkState),
       c(1),
       model = "DyNAM",
-      subModel = "choice_coordination")
+      subModel = "choice_coordination"
+    )
   )
   expect_error(
     simulate(
       "depNetwork ~ inertia(networkState)",
-      c("1"))
+      c("1")
+    )
   )
   expect_error(
     simulate(
@@ -37,19 +40,22 @@ test_that("Args check", {
       depNetwork ~ 1 + indeg(networkState),
       c(1, 1),
       dependent.depevents_DyNAMi ~ inertia,
-      c(1))
+      c(1)
+    )
   )
   expect_error(
     simulate(
       depNetwork ~ indeg(networkState),
       c(1),
       depNetwork ~ inertia,
-      c(1))
+      c(1)
+    )
   )
   expect_warning(
     GatherPreprocessing(
       depNetwork ~ inertia(networkState),
-      preprocessArgs = list(opportunitiesList = 1))
+      preprocessArgs = list(opportunitiesList = 1)
+    )
   )
   expect_error(
     GatherPreprocessing(depNetwork ~ inertia(networkState, ignoreRep = TRUE))
@@ -62,7 +68,8 @@ test_that("Args check", {
   )
   expect_error(
     GatherPreprocessing(
-      depNetwork ~ 1 + inertia(networkState), subModel = "smh"
+      depNetwork ~ 1 + inertia(networkState),
+      subModel = "smh"
     )
   )
 })
@@ -76,6 +83,4 @@ test_that("Output", {
   out <- GatherPreprocessing(depNetwork ~ inertia(networkState))
   expect_type(out, "list")
   expect_length(out, 8)
-  
-  
 })
