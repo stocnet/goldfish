@@ -484,7 +484,7 @@ getEventValues <- function(
     eventProbabilities <-
       getMultinomialProbabilities(
         statsArray, activeDyad, parameters,
-        actorNested = TRUE, allowReflexive = FALSE, isTwoMode = isTwoMode
+        actorNested = TRUE, allowReflexive = allowReflexive, isTwoMode = isTwoMode
       )
     logLikelihood <- log(eventProbabilities[activeDyad[2]])
     firstDerivatives <- getFirstDerivativeM(statsArray, eventProbabilities)
@@ -925,12 +925,19 @@ getIterationStepState <- function(
           )
         }
 
+        posSender <- activeDyad[1]
         activeDyad[1] <- position
       }
+    } else {
+      posSender <- activeDyad[1]
     }
     if (updatepresence2 || updateopportunities) {
       subset <- presence2 & opportunities
-      statsArrayComp <- statsArrayComp[, subset, , drop = TRUE]
+      if (!allowReflexive) {
+        subset[posSender] <- FALSE
+        allowReflexiveCorrected <- TRUE
+      }
+      statsArrayComp <- statsArrayComp[, subset, , drop = FALSE]
       if (isDependent) {
         position <- which(activeDyad[2] == which(subset))
         if (length(position) == 0) {
@@ -941,6 +948,8 @@ getIterationStepState <- function(
 
         activeDyad[2] <- position
       }
+    } else {
+      allowReflexiveCorrected <- allowReflexive
     }
 
     # TEMPORARY: handle the reductions here for now
@@ -989,7 +998,7 @@ getIterationStepState <- function(
       modelType = modelType,
       isRightCensored = isRightCensored,
       timespan = timespan,
-      allowReflexive = allowReflexive,
+      allowReflexive = allowReflexiveCorrected,
       isTwoMode = isTwoMode
     )
 
