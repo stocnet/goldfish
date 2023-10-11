@@ -54,6 +54,7 @@ Suggests:
     igraph,
     ggraph,
     migraph,
+    manynet,
     broom,
     lmtest
 VignetteBuilder: knitr 

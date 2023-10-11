@@ -377,7 +377,7 @@ at two (or more) different time periods using igraph.
 
 ```r
 library(igraph)
-library(migraph)
+library(manynet)
 
 # network at the beginning of the event sequence
 startStates <- as.data.frame(
@@ -385,6 +385,7 @@ startStates <- as.data.frame(
   time = as.numeric(as.POSIXct("1960-01-02"))
 )
 startNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02"))) |>
+  as_igraph() |> 
   add_node_attribute("present", startStates$present) |>
   add_node_attribute("regime", startStates$regime) |>
   add_node_attribute("gdp", startStates$gdp)
@@ -392,6 +393,7 @@ startNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02"))) |>
 # network at the end of the event sequence
 endStates <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))
 endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01"))) |>
+  as_igraph() |>
   add_node_attribute("present", endStates$present) |>
   add_node_attribute("regime", endStates$regime) |>
   add_node_attribute("gdp", endStates$gdp)
@@ -402,10 +404,10 @@ isStateActiveEnd <- endStates$present & node_degree(endNet) > 0
 isStateActive <- isStateActiveStart | isStateActiveEnd
 
 # subset networks to active states
-startNet <- delete_vertices(startNet, !isStateActive)
-endNet <- delete_vertices(endNet, !isStateActive)
+startNet <- delete_nodes(startNet, !isStateActive)
+endNet <- delete_nodes(endNet, !isStateActive)
 
-ggevolution(startNet, endNet, layout = "fr", based_on = "last")
+autographs(list(startNet, endNet), layout = "fr")
 ```
 
 <img src="teaching/plot-teaching2-1.png" alt="plot of chunk plot-teaching2" style="display: block; margin: auto;" />
@@ -458,8 +460,8 @@ system.time(
     estimationInit = estPrefs
     )
 )
-#>    user  system elapsed 
-#>  155.92    5.78  162.42
+#> Error: Error in DyNAM choice_coordination estimation: Error in multinomialProbabilities * t(multinomialProbabilities): non-conformable arrays
+#> Timing stopped at: 106.2 1.63 110.7
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -473,52 +475,16 @@ estPrefs <- list(
   maxIterations = 30,
   initialParameters = coef(partnerModel)
   )
+#> Error in coef(partnerModel): object 'partnerModel' not found
 
 partnerModel <- estimate(
   formula1,
   model = "DyNAM", subModel = "choice_coordination",
   estimationInit = estPrefs
   )
+#> Error: Error in DyNAM choice_coordination estimation: Error in multinomialProbabilities * t(multinomialProbabilities): non-conformable arrays
 summary(partnerModel)
-#> 
-#> Call:
-#> estimate(x = createBilat ~ inertia(bilatnet) + indeg(bilatnet, 
-#>     ignoreRep = TRUE) + trans(bilatnet, ignoreRep = TRUE) + tie(contignet) + 
-#>     alter(states$regime) + diff(states$regime) + alter(states$gdp) + 
-#>     diff(states$gdp), model = "DyNAM", subModel = "choice_coordination", 
-#>     estimationInit = estPrefs)
-#> 
-#> 
-#> Effects details :
-#>         Object        ignoreRep
-#> inertia bilatnet               
-#> indeg   bilatnet      B        
-#> trans   bilatnet      B        
-#> tie     contignet              
-#> alter   states$regime          
-#> diff    states$regime          
-#> alter   states$gdp             
-#> diff    states$gdp             
-#> 
-#> Coefficients :
-#>           Estimate Std. Error z-value  Pr(>|z|)    
-#> inertia  2.8318525  0.2698244 10.4952 < 2.2e-16 ***
-#> indeg    0.4975580  0.0662465  7.5107 5.884e-14 ***
-#> trans    0.3083405  0.2138535  1.4418  0.149350    
-#> tie      1.0821380  0.2195159  4.9297 8.237e-07 ***
-#> alter    0.0047377  0.0143109  0.3311  0.740602    
-#> diff     0.0010369  0.0116815  0.0888  0.929268    
-#> alter    5.0326922  1.5429641  3.2617  0.001107 ** 
-#> diff    -3.0780228  1.5940179 -1.9310  0.053485 .  
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#>   Converged with max abs. score of 0.00029 
-#>   Log-Likelihood: -386.36
-#>   AIC:  788.72 
-#>   AICc: 791.12 
-#>   BIC:  806.6 
-#>   model: "DyNAM" subModel: "choice_coordination"
+#> Error in summary(partnerModel): object 'partnerModel' not found
 ```
 
 Let's interpret...
@@ -551,7 +517,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>  109.36    0.82  109.22
+#>  112.96    1.67  115.58
 ```
 
 # Extensions...
@@ -569,6 +535,7 @@ Here is an example on the current results object:
 
 ```r
 library(broom)
+#> Warning: package 'broom' was built under R version 4.2.3
 library(pixiedust)
 dust(tidy(tieModel, conf.int = TRUE)) |>
   sprinkle(col = c(2:4, 6, 7), round = 3) |>

@@ -377,11 +377,7 @@ callNetworkHlf <- as.matrix(callNetwork,
 
 autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
-```
-
-![plot of chunk plot-teaching1](teaching/plot-teaching1-2.png)
-
-```r
+#> Error in UseMethod("as_tidygraph"): no applicable method for 'as_tidygraph' applied to an object of class "NULL"
 
 # The network at the end
 callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |>
@@ -389,11 +385,7 @@ callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |>
 
 autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
-```
-
-![plot of chunk plot-teaching1](teaching/plot-teaching1-3.png)
-
-```r
+#> Error in UseMethod("as_tidygraph"): no applicable method for 'as_tidygraph' applied to an object of class "NULL"
 
 
 # The tie strength at the end
