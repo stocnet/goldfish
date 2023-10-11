@@ -411,7 +411,7 @@ estimate.formula <- function(
       " ignores the time intercept.",
       call. = FALSE, immediate. = TRUE
     )
-    hasIntercept <- FALSE
+    parsedformula$hasIntercept <- hasIntercept <- FALSE
   }
   rightCensored <- hasIntercept
 
