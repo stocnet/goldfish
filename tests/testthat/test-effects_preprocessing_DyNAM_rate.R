@@ -31,36 +31,40 @@ test_that(
     expect_equal(
       Reduce(rbind, lapply(preproData$dependentStatsChange, "[[", 1)),
       fillChanges(
-        nodes   = c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5),
+        nodes = c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5),
         replace = c(4, 3, 4, 5, 1, 6, 4, 5, 2, 6, 2),
-        time = NULL, set = 1:5),
+        time = NULL, set = 1:5
+      ),
       label = "updating outdeg with increment works"
     ) # n-1 updates
     expect_equal(
       statsChange[[1]][["dependent"]],
       fillChanges(
-        nodes   = c(1, 3,  2,  2,  5,  1,  3,  3,  4,  2,  5),
-        replace = c(4, 3,  4,  5,  1,  6,  4,  5,  2,  6,  2),
-        time    = c(6, 9, 13, 15, 16, 19, 23, 28, 29, 32, 36),
-        set = 1:5),
+        nodes = c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5),
+        replace = c(4, 3, 4, 5, 1, 6, 4, 5, 2, 6, 2),
+        time = c(6, 9, 13, 15, 16, 19, 23, 28, 29, 32, 36),
+        set = 1:5
+      ),
       label = "updating outdeg times with increment works"
     ) # n-1 updates
     expect_equal(
       statsChange[[2]][["dependent"]],
       fillChanges(
-        nodes   = c(2,  3,  1,  2,  5,  3,  5),
-        replace = c(5,  1,  5,  4,  1,  3,  4),
-        time    = c(9, 15, 16, 19, 19, 28, 28),
-        set = 1:5),
+        nodes = c(2, 3, 1, 2, 5, 3, 5),
+        replace = c(5, 1, 5, 4, 1, 3, 4),
+        time = c(9, 15, 16, 19, 19, 28, 28),
+        set = 1:5
+      ),
       label = "updating indeg times with increment works"
     ) # n-1 updates
     expect_equal(
       statsChange[[1]][["rightCensored"]],
       fillChanges(
-        nodes   = c(3,  2,  1,  3),
-        replace = c(3,  5,  6,  5),
-        time    = c(7, 14, 18, 25),
-        set = 1:5),
+        nodes = c(3, 2, 1, 3),
+        replace = c(3, 5, 6, 5),
+        time = c(7, 14, 18, 25),
+        set = 1:5
+      ),
       label = "updating outdeg times right censored"
     ) # n-1 updates
     expect_null(
@@ -119,7 +123,7 @@ test_that(
 #       model = "DyNAM", subModel = "choice",
 #       preprocessingOnly = TRUE
 #     )
-# 
+#
 #     outDependetStatChange <- ReducePreprocess(preproData)[[1]]
 #     expect_equal(preproData$initialStats[, , 1],
 #       matrix(0, 5, 5, TRUE),
@@ -148,59 +152,65 @@ test_that(
       estimationInit = list(startTime = 10, endTime = 30)
     )
     statsChange <- ReducePreprocess(preproData)
-    expect_equal(preproData$initialStats[, , 1],
-                 matrix(c(
-                   0, 4, 4, 4, 4,
-                   4, 0, 4, 4, 4,
-                   3, 3, 0, 3, 3,
-                   1, 1, 1, 0, 1,
-                   0, 0, 0, 0, 0
-                 ), 5, 5, TRUE),
-                 label = "init outdeg stat matrix"
+    expect_equal(
+      preproData$initialStats[, , 1],
+      matrix(c(
+        0, 4, 4, 4, 4,
+        4, 0, 4, 4, 4,
+        3, 3, 0, 3, 3,
+        1, 1, 1, 0, 1,
+        0, 0, 0, 0, 0
+      ), 5, 5, TRUE),
+      label = "init outdeg stat matrix"
     )
-    expect_equal(preproData$initialStats[, , 2],
-                 matrix(c(
-                   0, 2, 2, 2, 2,
-                   5, 0, 5, 5, 5,
-                   0, 0, 0, 0, 0,
-                   1, 1, 1, 0, 1,
-                   0, 0, 0, 0, 0
-                 ), 5, 5, TRUE),
-                 label = "init indeg stat matrix"
+    expect_equal(
+      preproData$initialStats[, , 2],
+      matrix(c(
+        0, 2, 2, 2, 2,
+        5, 0, 5, 5, 5,
+        0, 0, 0, 0, 0,
+        1, 1, 1, 0, 1,
+        0, 0, 0, 0, 0
+      ), 5, 5, TRUE),
+      label = "init indeg stat matrix"
     )
     expect_equal(
       Reduce(rbind, lapply(preproData$dependentStatsChange, "[[", 1)),
       fillChanges(
-        nodes   = c(2, 5, 1, 3, 3, 4),
+        nodes = c(2, 5, 1, 3, 3, 4),
         replace = c(5, 1, 6, 4, 5, 2),
-        time = NULL, set = 1:5),
+        time = NULL, set = 1:5
+      ),
       label = "updating outdeg with increment works"
-    ) # n-1 updates, should update last 
+    ) # n-1 updates, should update last
     expect_equal(
       statsChange[[1]][["dependent"]],
       fillChanges(
-        nodes   = c( 2,  5,  1,  3,  3,  4),
-        replace = c( 5,  1,  6,  4,  5,  2),
-        time    = c(15, 16, 19, 23, 28, 29),
-        set = 1:5),
+        nodes = c(2, 5, 1, 3, 3, 4),
+        replace = c(5, 1, 6, 4, 5, 2),
+        time = c(15, 16, 19, 23, 28, 29),
+        set = 1:5
+      ),
       label = "updating outdeg times with increment works"
     ) # n-1 updates
     expect_equal(
       statsChange[[2]][["dependent"]],
       fillChanges(
-        nodes   = c( 3,  1,  2,  5,  3,  5),
-        replace = c( 1,  5,  4,  1,  3,  4),
-        time    = c(15, 16, 19, 19, 28, 28),
-        set = 1:5),
+        nodes = c(3, 1, 2, 5, 3, 5),
+        replace = c(1, 5, 4, 1, 3, 4),
+        time = c(15, 16, 19, 19, 28, 28),
+        set = 1:5
+      ),
       label = "updating indeg times with increment works"
     ) # n-1 updates
     expect_equal(
       statsChange[[1]][["rightCensored"]],
       fillChanges(
-        nodes   = c( 2,  1,  3,  2),
-        replace = c( 5,  6,  5,  6),
-        time    = c(14, 18, 25, 30),
-        set = 1:5),
+        nodes = c(2, 1, 3, 2),
+        replace = c(5, 6, 5, 6),
+        time = c(14, 18, 25, 30),
+        set = 1:5
+      ),
       label = "updating outdeg times right censored"
     ) # n-1 updates
     expect_null(
@@ -261,59 +271,65 @@ test_that(
       estimationInit = list(startTime = 6, endTime = 24)
     )
     statsChange <- ReducePreprocess(preproData)
-    expect_equal(preproData$initialStats[, , 1],
-                 matrix(c(
-                   0, 4, 4, 4, 4,
-                   3, 0, 3, 3, 3,
-                   1, 1, 0, 1, 1,
-                   1, 1, 1, 0, 1,
-                   0, 0, 0, 0, 0
-                 ), 5, 5, TRUE),
-                 label = "init outdeg stat matrix"
+    expect_equal(
+      preproData$initialStats[, , 1],
+      matrix(c(
+        0, 4, 4, 4, 4,
+        3, 0, 3, 3, 3,
+        1, 1, 0, 1, 1,
+        1, 1, 1, 0, 1,
+        0, 0, 0, 0, 0
+      ), 5, 5, TRUE),
+      label = "init outdeg stat matrix"
     )
-    expect_equal(preproData$initialStats[, , 2],
-                 matrix(c(
-                   0, 2, 2, 2, 2,
-                   4, 0, 4, 4, 4,
-                   0, 0, 0, 0, 0,
-                   1, 1, 1, 0, 1,
-                   0, 0, 0, 0, 0
-                 ), 5, 5, TRUE),
-                 label = "init indeg stat matrix"
+    expect_equal(
+      preproData$initialStats[, , 2],
+      matrix(c(
+        0, 2, 2, 2, 2,
+        4, 0, 4, 4, 4,
+        0, 0, 0, 0, 0,
+        1, 1, 1, 0, 1,
+        0, 0, 0, 0, 0
+      ), 5, 5, TRUE),
+      label = "init indeg stat matrix"
     )
     expect_equal(
       Reduce(rbind, lapply(preproData$dependentStatsChange, "[[", 1)),
       fillChanges(
-        nodes   = c(3, 2, 2, 5, 1, 3),
+        nodes = c(3, 2, 2, 5, 1, 3),
         replace = c(3, 4, 5, 1, 6, 4),
-        time = NULL, set = 1:5),
+        time = NULL, set = 1:5
+      ),
       label = "updating outdeg with increment works"
-    ) # n-1 updates, should update last 
+    ) # n-1 updates, should update last
     expect_equal(
       statsChange[[1]][["dependent"]],
       fillChanges(
-        nodes   = c(3,  2,  2,  5,  1,  3),
-        replace = c(3,  4,  5,  1,  6,  4),
-        time    = c(9, 13, 15, 16, 19, 23),
-        set = 1:5),
+        nodes = c(3, 2, 2, 5, 1, 3),
+        replace = c(3, 4, 5, 1, 6, 4),
+        time = c(9, 13, 15, 16, 19, 23),
+        set = 1:5
+      ),
       label = "updating outdeg times with increment works"
     ) # n-1 updates
     expect_equal(
       statsChange[[2]][["dependent"]],
       fillChanges(
-        nodes   = c(2,  3,  1,  2,  5),
-        replace = c(5,  1,  5,  4,  1),
-        time    = c(9, 15, 16, 19, 19),
-        set = 1:5),
+        nodes = c(2, 3, 1, 2, 5),
+        replace = c(5, 1, 5, 4, 1),
+        time = c(9, 15, 16, 19, 19),
+        set = 1:5
+      ),
       label = "updating indeg times with increment works"
     ) # n-1 updates
     expect_equal(
       statsChange[[1]][["rightCensored"]],
       fillChanges(
-        nodes   = c(3,  2,  1,  3),
-        replace = c(3,  5,  6,  5),
-        time    = c(7, 14, 18, 24),
-        set = 1:5),
+        nodes = c(3, 2, 1, 3),
+        replace = c(3, 5, 6, 5),
+        time = c(7, 14, 18, 24),
+        set = 1:5
+      ),
       label = "updating outdeg times right censored"
     ) # n-1 updates
     expect_null(
@@ -345,7 +361,7 @@ test_that(
       preproData$eventSender,
       c(3, 4, rep(2, 3), 5, 1, 4, 3, 3, 4),
       label = "sender events"
-    ) # ties just first, last event sender and receiver of next dependent 
+    ) # ties just first, last event sender and receiver of next dependent
     expect_equal(
       preproData$eventReceiver,
       c(2, 2, 3, 3, 3, 1, 5, 5, 4, 4, 2),

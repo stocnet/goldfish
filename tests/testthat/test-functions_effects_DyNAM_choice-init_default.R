@@ -1,26 +1,45 @@
 test_that("DyNAM default and tie init return the same result", {
   expect_equal(
     init_DyNAM_choice.tie(effectFUN_tie, m1, NULL, 5, 5),
-    init_DyNAM_choice.default(effectFUN_tie, network = m1, attribute = NULL, window = NULL, n1 = 5, n2 = 5)
+    init_DyNAM_choice.default(
+      effectFUN_tie,
+      network = m1, attribute = NULL, window = NULL,
+      n1 = 5, n2 = 5
+    )
   )
   expect_equal(
     init_DyNAM_choice.tie(effectFUN_tie, m1, 1, 5, 5),
-    init_DyNAM_choice.default(effectFUN_tie, network = m1, attribute = NULL, window = 1, n1 = 5, n2 = 5),
+    init_DyNAM_choice.default(
+      effectFUN_tie,
+      network = m1, attribute = NULL, window = 1, n1 = 5, n2 = 5
+    ),
     label = "when window is not NULL"
   )
   expect_equal(
     init_DyNAM_choice.tie(effectFUN_tie_weighted, m1, NULL, 5, 5),
-    init_DyNAM_choice.default(effectFUN_tie_weighted, network = m1, attribute = NULL, window = NULL, n1 = 5, n2 = 5),
+    init_DyNAM_choice.default(
+      effectFUN_tie_weighted,
+      network = m1, attribute = NULL, window = NULL,
+      n1 = 5, n2 = 5
+    ),
     label = "when weighted is TRUE"
   )
   expect_equal(
     init_DyNAM_choice.tie(effectFUN_tie_weighted, m1, 1, 5, 5),
-    init_DyNAM_choice.default(effectFUN_tie_weighted, network = m1, attribute = NULL, window = 1, n1 = 5, n2 = 5),
+    init_DyNAM_choice.default(
+      effectFUN_tie_weighted,
+      network = m1, attribute = NULL, window = 1,
+      n1 = 5, n2 = 5
+    ),
     label = "when weighted is TRUE and window is not NULL"
   )
   expect_equal(
     init_DyNAM_choice.tie(effectFUN_tie_weighted, m0, NULL, 5, 5),
-    init_DyNAM_choice.default(effectFUN_tie_weighted, network = m0, attribute = NULL, window = NULL, n1 = 5, n2 = 5),
+    init_DyNAM_choice.default(
+      effectFUN_tie_weighted,
+      network = m0, attribute = NULL, window = NULL,
+      n1 = 5, n2 = 5
+    ),
     label = "when weighted is TRUE and there are no ties in the network"
   )
 })
@@ -47,7 +66,11 @@ test_that("DyNAM default and indeg init return the same result", {
 test_that("DyNAM default and trans init return the same result", {
   expect_equal(
     init_DyNAM_choice.trans(effectFUN_trans, m1, NULL, 5, 5),
-    init_DyNAM_choice.default(effectFUN_trans, network = m1, attribute = NULL, window = NULL, n1 = 5, n2 = 5)
+    init_DyNAM_choice.default(
+      effectFUN_trans,
+      network = m1, attribute = NULL, window = NULL,
+      n1 = 5, n2 = 5
+    )
   )
 })
 

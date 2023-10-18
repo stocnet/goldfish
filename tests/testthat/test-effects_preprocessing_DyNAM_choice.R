@@ -257,42 +257,46 @@ test_that(
     )
     outDependentStatChange <- ReducePreprocess(preproData)
     eventsIncrementSubset <- subset(eventsIncrement, time >= 10 & time <= 30)
-    expect_equal(preproData$initialStats[, , 1],
-                 matrix(c(
-                   0, 4, 0, 0, 0,
-                   1, 0, 2, 1, 0,
-                   0, 2, 0, 1, 0,
-                   0, 0, 1, 0, 0,
-                   0, 0, 0, 0, 0
-                 ), 5, 5, TRUE),
-                 label = "initialization of the statistics matrix"
+    expect_equal(
+      preproData$initialStats[, , 1],
+      matrix(c(
+        0, 4, 0, 0, 0,
+        1, 0, 2, 1, 0,
+        0, 2, 0, 1, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 0, 0
+      ), 5, 5, TRUE),
+      label = "initialization of the statistics matrix"
     )
-    expect_equal(preproData$initialStats[, , 2],
-                 matrix(c(
-                   0, 0, 0, 1, 0,
-                   0, 0, 0, 0, 0,
-                   0, 2, 0, 0, 0,
-                   1, 1, 0, 0, 0,
-                   1, 2, 0, 0, 0
-                 ), 5, 5, TRUE),
-                 label = "initialization of the statistics matrix"
+    expect_equal(
+      preproData$initialStats[, , 2],
+      matrix(c(
+        0, 0, 0, 1, 0,
+        0, 0, 0, 0, 0,
+        0, 2, 0, 0, 0,
+        1, 1, 0, 0, 0,
+        1, 2, 0, 0, 0
+      ), 5, 5, TRUE),
+      label = "initialization of the statistics matrix"
     )
-    expect_equal(Reduce(rbind, lapply(preproData$dependentStatsChange, "[[", 1)),
-                 cbind(
-                   node1 =   c(2, 5, 1, 3, 3, 4),
-                   node2 =   c(3, 1, 5, 4, 4, 2),
-                   replace = c(3, 1, 2, 2, 3, 1)
-                 ),
-                 label = "updating with increment works"
+    expect_equal(
+      Reduce(rbind, lapply(preproData$dependentStatsChange, "[[", 1)),
+      cbind(
+        node1 =   c(2, 5, 1, 3, 3, 4),
+        node2 =   c(3, 1, 5, 4, 4, 2),
+        replace = c(3, 1, 2, 2, 3, 1)
+      ),
+      label = "updating with increment works"
     ) # n-1 updates
-    expect_equal(outDependentStatChange[[2]],
-                 cbind(
-                   time = c(15, 16, 19, 19, 28, 28),
-                   node1 = c(2, 5, 4, 4, 1, 3),
-                   node2 = c(3, 1, 2, 5, 3, 5),
-                   replace = c(1, 4, 0, 1, 2, 3)
-                 ),
-                 label = "updating with increment works"
+    expect_equal(
+      outDependentStatChange[[2]],
+      cbind(
+        time = c(15, 16, 19, 19, 28, 28),
+        node1 = c(2, 5, 4, 4, 1, 3),
+        node2 = c(3, 1, 2, 5, 3, 5),
+        replace = c(1, 4, 0, 1, 2, 3)
+      ),
+      label = "updating with increment works"
     )
     expect_equal(
       preproData$rightCensoredStatsChange,

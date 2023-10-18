@@ -31,7 +31,8 @@ For a detail description see \code{\link[changepoint]{cpt.mean}} or
 
 \item{parameter}{An integer that represents the number of absolute outliers
 to identify, the threshold for the Hampel filter, i.e. \code{parameter * MAD},
-or the threshold beyond the interquartile range halved, i.e. \code{parameter/2 * IQR}.}
+or the threshold beyond the interquartile range halved, i.e.
+\code{parameter/2 * IQR}.}
 
 \item{window}{The window half-width for the Hampel filter.
 By default it is half the width of the event sequence.}
@@ -95,8 +96,10 @@ callsDependent <- callsDependent[1:50, ]
 }
 mod01 <- estimate(callsDependent ~ inertia + recip + trans,
   model = "DyNAM", subModel = "choice",
-  estimationInit = list(returnIntervalLogL = TRUE,
-                        engine = "default_c")
+  estimationInit = list(
+    returnIntervalLogL = TRUE,
+    engine = "default_c"
+  )
 )
 
 examineOutliers(mod01)

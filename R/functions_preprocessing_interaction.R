@@ -14,30 +14,25 @@
 #'
 #' @return a list of class preprocessed.goldfish
 #'
-#' @importFrom methods is
-#' @importFrom utils setTxtProgressBar getTxtProgressBar object.size
-#' @importFrom utils txtProgressBar
-#' @importFrom stats time
 #' @noRd
 preprocessInteraction <- function(
-  subModel,
-  events,
-  effects,
-  eventsObjectsLink,
-  eventsEffectsLink,
-  objectsEffectsLink,
-  # multipleParameter,
-  nodes,
-  nodes2 = nodes,
-  # add more parameters
-  startTime = min(vapply(events, function(x) min(x$time), double(1))),
-  endTime = max(vapply(events, function(x) max(x$time), double(1))),
-  rightCensored = FALSE,
-  progress = FALSE,
-  groupsNetwork = groupsNetwork,
-  prepEnvir = environment()) {
-
-# For debugging
+    subModel,
+    events,
+    effects,
+    eventsObjectsLink,
+    eventsEffectsLink,
+    objectsEffectsLink,
+    # multipleParameter,
+    nodes,
+    nodes2 = nodes,
+    # add more parameters
+    startTime = min(vapply(events, function(x) min(x$time), double(1))),
+    endTime = max(vapply(events, function(x) max(x$time), double(1))),
+    rightCensored = FALSE,
+    progress = FALSE,
+    groupsNetwork = groupsNetwork,
+    prepEnvir = environment()) {
+  # For debugging
   # if (identical(environment(), globalenv())) {
   #   startTime <- min(vapply(events, function(x) min(x$time), double(1)))
   #   endTime <- max(vapply(events, function(x) max(x$time), double(1)))
@@ -60,11 +55,12 @@ preprocessInteraction <- function(
   stats <- initializeCacheStat(
     objectsEffectsLink = objectsEffectsLink, effects = effects,
     groupsNetwork = groupsNetworkObject, windowParameters = NULL,
-    n1 = n1, n2 = n2, model = model, subModel = subModel, envir = prepEnvir)
+    n1 = n1, n2 = n2, model = model, subModel = subModel, envir = prepEnvir
+  )
 
   # We put the initial stats to the previous format of 3 dimensional array
   initialStats <- array(unlist(stats),
-                        dim = c(n1, n2, nEffects)
+    dim = c(n1, n2, nEffects)
   )
 
   # statCache <- lapply(statCache, "[[", "cache")
@@ -94,26 +90,28 @@ preprocessInteraction <- function(
   hasEndTime <- FALSE
   eventsMin <- min(vapply(events, function(x) min(x$time), double(1)))
   eventsMax <- max(vapply(events, function(x) max(x$time), double(1)))
-  if (!is.null(endTime) && endTime != eventsMax)
+  if (!is.null(endTime) && endTime != eventsMax) {
     stop(
       dQuote("DyNAMi"),
       " doesn't support setting the ",
       dQuote("endTime"), "parameter",
       call. = FALSE
     )
+  }
 
-  if (!is.null(startTime) && startTime != eventsMin)
+  if (!is.null(startTime) && startTime != eventsMin) {
     stop(
       dQuote("DyNAMi"),
       " doesn't support setting the ",
       dQuote("StartTime"), "parameter",
       call. = FALSE
     )
+  }
 
   # initialize loop parameters
   events[[1]] <- NULL
   pointers <- rep(1, length(events))
-  validPointers <- rep(T, length(events))
+  validPointers <- rep(TRUE, length(events))
   pointerDependent <- 1
   pointerTempRightCensored <- 1
   time <- startTime
@@ -140,15 +138,15 @@ preprocessInteraction <- function(
     for (e in seq.int(length(events))) {
       ev <- events[[e]]
       if (inherits(ev, "interaction.groups.updates") &&
-          all(get(dname, envir = prepEnvir) == ev)) {
+        all(get(dname, envir = prepEnvir) == ev)) {
         depindex <- e
         deporder <- attr(ev, "order")
       } else if (inherits(ev, "interaction.groups.updates") &&
-                 !all(get(dname, envir = prepEnvir) == ev)) {
+        !all(get(dname, envir = prepEnvir) == ev)) {
         exoindex <- e
         exoorder <- attr(ev, "order")
       } else if (inherits(ev, "interaction.network.updates") &&
-                 !is.null(attr(ev, "order"))) {
+        !is.null(attr(ev, "order"))) {
         numpast <- numpast + 1
         pastindexes[numpast] <- e
         pastorders[[numpast]] <- attr(ev, "order")
@@ -160,20 +158,21 @@ preprocessInteraction <- function(
   # (because there was no effect with the default network)
   # we need to find them anyway!
   if (depindex == 0) {
-
     # find groups udates and add them to events
     groupsupdates <- attr(groupsNetworkObject, "events")
 
     # PATCH Marion: the groups update events were not sanitized
     groupsupdates1Object <- sanitizeEvents(
-      get(groupsupdates[1], envir = prepEnvir), nodes, nodes2)
+      get(groupsupdates[1], envir = prepEnvir), nodes, nodes2
+    )
     assign(groupsupdates[1], groupsupdates1Object, envir = prepEnvir)
     groupsupdates2Object <- sanitizeEvents(
-      get(groupsupdates[2], envir = prepEnvir), nodes, nodes2)
+      get(groupsupdates[2], envir = prepEnvir), nodes, nodes2
+    )
     assign(groupsupdates[2], groupsupdates2Object, envir = prepEnvir)
 
     if (all(get(dname, envir = prepEnvir) ==
-            get(groupsupdates[1], envir = prepEnvir))) {
+      get(groupsupdates[1], envir = prepEnvir))) {
       depn <- groupsupdates[1]
       exon <- groupsupdates[2]
     } else {
@@ -195,7 +194,9 @@ preprocessInteraction <- function(
     if (length(nodesObject) > 1) {
       nodes <- nodesObject[1]
       nodes2 <- nodesObject[2]
-    } else nodes <- nodes2 <- nodesObject
+    } else {
+      nodes <- nodes2 <- nodesObject
+    }
     events[[depindex]] <- sanitizeEvents(events[[depindex]], nodes, nodes2)
     events[[exoindex]] <- sanitizeEvents(events[[exoindex]], nodes, nodes2)
 
@@ -231,8 +232,10 @@ preprocessInteraction <- function(
 
   # added Marion: updates of statistics
   updFun <- function(stat, change) {
-    if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <-
+    if (!is.null(change)) {
+      stat[cbind(change[, "node1"], change[, "node2"])] <-
         change[, "replace"]
+    }
     return(stat)
   }
 
@@ -260,16 +263,9 @@ preprocessInteraction <- function(
 
   # iterate over all event lists
   while (any(validPointers)) {
-
     # times: the timepoint for next events to update in all event lists
-    times <- mapply(function(e, p) e[p, ]$time, events, pointers)
-    increments <- mapply(function(e, p) {
-      if ("increment" %in% names(e)) {
-        e[p, ]$increment
-      } else {
-        0
-      }
-    }, events, pointers)
+    times <- Map(function(e, p) e[p, ]$time, events, pointers) |>
+      vapply(identity, numeric(1))
 
     # added Marion: we set priority to dependent,
     # exogenous and past updates before anything else
@@ -283,17 +279,21 @@ preprocessInteraction <- function(
       c(depindex, exoindex, pastindexes)
     )
     if (length(prioritypointers) > 0) {
-      cpts <- mapply(function(p) {
-        if (p == depindex) {
-          return(deporder[pointers[p]])
-        }
-        if (p == exoindex) {
-          return(exoorder[pointers[p]])
-        }
-        if (p %in% pastindexes) {
-          return(pastorders[[which(pastindexes == p)]][pointers[p]])
-        }
-      }, prioritypointers)
+      cpts <- Map(
+        \(p) {
+          if (p == depindex) {
+            return(deporder[pointers[p]])
+          }
+          if (p == exoindex) {
+            return(exoorder[pointers[p]])
+          }
+          if (p %in% pastindexes) {
+            return(pastorders[[which(pastindexes == p)]][pointers[p]])
+          }
+        }, prioritypointers
+      ) |>
+        vapply(identity, numeric(1))
+
       if (max(cpts) == 0) {
         nextEvent <- prioritypointers[1]
       } else {
@@ -307,7 +307,7 @@ preprocessInteraction <- function(
           if (length(cptindexes) > 1) cptorder <- cptorder - 1
         }
       }
-    } else {# otherwise we take the first next event
+    } else { # otherwise we take the first next event
       nextEvent <- currentpointers[1]
     }
     interval <- times[nextEvent] - time
@@ -317,7 +317,7 @@ preprocessInteraction <- function(
     # changed Marion: for choice, only joining events are dependent events
     isDependent <- (subModel == "rate" && nextEvent == depindex) ||
       (subModel == "choice" && nextEvent == depindex &&
-         events[[depindex]][pointers[nextEvent], "increment"] > 0)
+        events[[depindex]][pointers[nextEvent], "increment"] > 0)
 
     # # CHANGED ALVARO: progress bar
     if (progress && iDependentEvents %% dotEvents == 0) {
@@ -338,7 +338,6 @@ preprocessInteraction <- function(
 
     # 1. store statistic updates for DEPENDENT events
     if (isDependent) {
-
       # first store statistics
       iDependentEvents <- 1 + iDependentEvents
       dependentStatistics[[iDependentEvents]] <- updatesDependent
@@ -426,8 +425,8 @@ preprocessInteraction <- function(
         pointerTempRightCensored <- pointerTempRightCensored + 1
       }
 
-    # 3. update stats and data objects for OBJECT CHANGE EVENTS
-    # (all non-dependent events)
+      # 3. update stats and data objects for OBJECT CHANGE EVENTS
+      # (all non-dependent events)
 
       # Two steps are performed for non-dependent events
       #   (0. get objects and update increment columns)
@@ -438,11 +437,13 @@ preprocessInteraction <- function(
       objectNameTable <- eventsObjectsLink[nextEvent + 1, -1]
       objectName <- objectNameTable$name
       object <- getElementFromDataObjectTable(
-        objectNameTable, envir = prepEnvir
-        )[[1]]
+        objectNameTable,
+        envir = prepEnvir
+      )[[1]]
       isUndirectedNet <- FALSE
-      if (inherits(object, "network.goldfish"))
+      if (inherits(object, "network.goldfish")) {
         isUndirectedNet <- !attr(object, "directed")
+      }
 
       # # CHANGED ALVARO: avoid dependence in variables position
       if (isIncrementEvent[nextEvent]) {
@@ -453,8 +454,9 @@ preprocessInteraction <- function(
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
 
         if (isNodeEvent[nextEvent]) oldValue <- object[event$node]
-        if (!isNodeEvent[nextEvent])
+        if (!isNodeEvent[nextEvent]) {
           oldValue <- object[event$sender, event$receiver]
+        }
         event$replace <- oldValue + event$increment
         event$increment <- NULL
       } else {
@@ -465,9 +467,9 @@ preprocessInteraction <- function(
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
       }
 
-      #if (!isNodeEvent[nextEvent] && event$replace < 0) {
+      # if (!isNodeEvent[nextEvent] && event$replace < 0) {
       #  warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
-      #}
+      # }
 
 
       # b. Update the data object
@@ -503,8 +505,8 @@ preprocessInteraction <- function(
       # if EXOGENOUS JOINING OR LEAVING, everything is recalculated
       if (isgroupupdate) {
         effIds <- seq.int(dim(eventsEffectsLink)[2])
-      } else {# OTHERWISE (PAST UPDATE or ATTRIBUTE UPDATE),
-          # only statistics related to the object
+      } else { # OTHERWISE (PAST UPDATE or ATTRIBUTE UPDATE),
+        # only statistics related to the object
         effIds <- which(!is.na(eventsEffectsLink[nextEvent + 1, ]))
       }
       groupsNetworkObject <- get(groupsNetwork, envir = prepEnvir)
@@ -561,29 +563,28 @@ preprocessInteraction <- function(
 
 
     pointers[nextEvent] <- 1 + pointers[nextEvent]
-    validPointers <- pointers <= sapply(events, nrow)
+    validPointers <- pointers <= vapply(events, nrow, numeric(1))
   }
 
   if (progress && utils::getTxtProgressBar(pb) < nDependentEvents) {
     close(pb)
   }
 
-  return(structure(list(
-    initialStats = initialStats,
-    dependentStatsChange = dependentStatistics,
-    rightCensoredStatsChange = rightCensoredStatistics,
-    intervals = timeIntervals,
-    # CHANGED MARION
-    rightCensoredIntervals = timeIntervalsRightCensored,
-    orderEvents = orderEvents,
-    eventTime = event_time,
-    eventSender = event_sender,
-    eventReceiver = event_receiver,
-    startTime = startTime,
-    endTime = endTime
-  ),
-  class = "preprocessed.goldfish"
+  return(structure(
+    list(
+      initialStats = initialStats,
+      dependentStatsChange = dependentStatistics,
+      rightCensoredStatsChange = rightCensoredStatistics,
+      intervals = timeIntervals,
+      # CHANGED MARION
+      rightCensoredIntervals = timeIntervalsRightCensored,
+      orderEvents = orderEvents,
+      eventTime = event_time,
+      eventSender = event_sender,
+      eventReceiver = event_receiver,
+      startTime = startTime,
+      endTime = endTime
+    ),
+    class = "preprocessed.goldfish"
   ))
 }
-
-

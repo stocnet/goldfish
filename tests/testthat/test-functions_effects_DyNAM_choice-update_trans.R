@@ -9,12 +9,13 @@ test_that("trans returns a valid object on update", {
   )
   expect_true(
     inherits(
-    update_DyNAM_choice_trans(
-      m,
-      sender = 1, receiver = 5, replace = 1,
-      cache = m0
-    )$changes,
-    "matrix"),
+      update_DyNAM_choice_trans(
+        m,
+        sender = 1, receiver = 5, replace = 1,
+        cache = m0
+      )$changes,
+      "matrix"
+    ),
     label = "it doesn't return a matrix"
   )
   expect_length(
@@ -33,33 +34,37 @@ test_that("trans returns NULL if there is no change", {
     sender = 1, receiver = 2, replace = 1,
     cache = m0
   )$changes)
-  expect_null(update_DyNAM_choice_trans(
-    m,
-    sender = 1, receiver = 1, replace = 0,
-    cache = m0
-  )$changes,
-  label = "when sender and receiver are the same node"
+  expect_null(
+    update_DyNAM_choice_trans(
+      m,
+      sender = 1, receiver = 1, replace = 0,
+      cache = m0
+    )$changes,
+    label = "when sender and receiver are the same node"
   )
-  expect_null(update_DyNAM_choice_trans(
-    m,
-    sender = 5, receiver = 1, replace = NA,
-    cache = m0
-  )$changes,
-  label = "when previous value and replace are NA"
+  expect_null(
+    update_DyNAM_choice_trans(
+      m,
+      sender = 5, receiver = 1, replace = NA,
+      cache = m0
+    )$changes,
+    label = "when previous value and replace are NA"
   )
-  expect_null(update_DyNAM_choice_trans(
-    m0,
-    sender = 5, receiver = 4, replace = 1,
-    cache = m0
-  )$changes,
-  label = "when change in tie composition has no effect"
+  expect_null(
+    update_DyNAM_choice_trans(
+      m0,
+      sender = 5, receiver = 4, replace = 1,
+      cache = m0
+    )$changes,
+    label = "when change in tie composition has no effect"
   )
-  expect_null(update_DyNAM_choice_trans(
-    m,
-    sender = 1, receiver = 2, replace = 1.5,
-    cache = m0
-  )$changes,
-  label = "when weighted is set to FALSE and an updated tie already exists"
+  expect_null(
+    update_DyNAM_choice_trans(
+      m,
+      sender = 1, receiver = 2, replace = 1.5,
+      cache = m0
+    )$changes,
+    label = "when weighted is set to FALSE and an updated tie already exists"
   )
 })
 

@@ -46,21 +46,20 @@
 #' gatheredData <- GatherPreprocessing(
 #'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet)
 #' )
-#' 
+#'
 GatherPreprocessing <- function(
-  formula,
-  model = c("DyNAM", "REM"),
-  subModel = c("choice", "choice_coordination", "rate"),
-  preprocessArgs = NULL,
-  progress = getOption("progress"),
-  envir = new.env()) {
-
+    formula,
+    model = c("DyNAM", "REM"),
+    subModel = c("choice", "choice_coordination", "rate"),
+    preprocessArgs = NULL,
+    progress = getOption("progress"),
+    envir = new.env()) {
   model <- match.arg(
     arg = if (length(model) > 1) model[1] else model,
     choices = c("DyNAM", "REM", "DyNAMRE")
   )
   subModel <- match.arg(subModel)
-  
+
   checkModelPar(
     model = model, subModel = subModel,
     modelList = c("DyNAM", "REM", "DyNAMRE"),
@@ -77,7 +76,7 @@ GatherPreprocessing <- function(
         "startTime", "endTime", "opportunitiesList"
       )
 
-    if (any(!parInit))
+    if (any(!parInit)) {
       warning(
         "The parameter: ",
         paste(names(preprocessArgs)[!parInit], collapse = ", "),
@@ -85,12 +84,16 @@ GatherPreprocessing <- function(
         "See the documentation for the list of available parameters",
         call. = FALSE, immediate. = TRUE
       )
+    }
 
-    if (!is.null(preprocessArgs[["opportunitiesList"]]))
-      warning(dQuote("GatherPreprocessing"), " doesn't implement yet the ",
-              dQuote("opportunitiesList"), " functionality")
+    if (!is.null(preprocessArgs["opportunitiesList"])) {
+      warning(
+        dQuote("GatherPreprocessing"), " doesn't implement yet the ",
+        dQuote("opportunitiesList"), " functionality"
+      )
+    }
   }
-  
+
   if (is.null(progress)) progress <- FALSE
 
   ### 1. PARSE the formula----
@@ -101,23 +104,28 @@ GatherPreprocessing <- function(
   windowParameters <- parsedformula$windowParameters
 
   # # C implementation doesn't have ignoreRep option issue #105
-  if (any(unlist(parsedformula$ignoreRepParameter)))
+  if (any(unlist(parsedformula$ignoreRepParameter))) {
     stop("gatherPreprocessing ",
-         " doesn't support ignoreRep effects (GH issue #105)!",
-         call. = FALSE, immediate. = TRUE)
+      " doesn't support ignoreRep effects (GH issue #105)!",
+      call. = FALSE, immediate. = TRUE
+    )
+  }
 
   # Model-specific preprocessing initialization
   if (model == "DyNAMRE") {
     if (subModel == "choice") model <- "REM" else model <- "DyNAM"
     altModel <- "DyNAMRE"
-  } else altModel <- NULL
+  } else {
+    altModel <- NULL
+  }
 
   if (model %in% c("DyNAM", "DyNAMi") &&
-      subModel %in% c("choice", "choice_coordination") &&
-      parsedformula$hasIntercept) {
+    subModel %in% c("choice", "choice_coordination") &&
+    parsedformula$hasIntercept) {
     warning("Model ", dQuote(model), " subModel ", dQuote(subModel),
-            " ignores the time intercept.",
-            call. = FALSE, immediate. = TRUE)
+      " ignores the time intercept.",
+      call. = FALSE, immediate. = TRUE
+    )
     parsedformula$hasIntercept <- FALSE
   }
   rightCensored <- parsedformula$hasIntercept
@@ -147,7 +155,9 @@ GatherPreprocessing <- function(
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
   # enviroment from which get the objects
   effects <- createEffectsFunctions(
-    parsedformula$rhsNames, model, subModel, envir = envir)
+    parsedformula$rhsNames, model, subModel,
+    envir = envir
+  )
   # Get links between objects and effects for printing results
   objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames)
 
@@ -156,13 +166,18 @@ GatherPreprocessing <- function(
   # Initialize events list and link to objects
   events <- getEventsAndObjectsLink(
     parsedformula$depName, parsedformula$rhsNames,
-    .nodes, .nodes2, envir = envir)[[1]]
+    .nodes, .nodes2,
+    envir = envir
+  )[[1]]
   # moved cleanInteractionEvents in getEventsAndObjectsLink
   eventsObjectsLink <- getEventsAndObjectsLink(
     parsedformula$depName, parsedformula$rhsNames,
-    .nodes, .nodes2, envir = envir)[[2]]
+    .nodes, .nodes2,
+    envir = envir
+  )[[2]]
   eventsEffectsLink <- getEventsEffectsLink(
-    events, parsedformula$rhsNames, eventsObjectsLink)
+    events, parsedformula$rhsNames, eventsObjectsLink
+  )
 
   ## 3.2 PREPROCESS when preprocessingInit == NULL
   preprocessingStat <- preprocess(
@@ -191,7 +206,7 @@ GatherPreprocessing <- function(
   reduceMatrixToVector <- FALSE
   reduceArrayToMatrix <- FALSE
 
-  if (!is.null(altModel) & subModel == "choice") model <- "DyNAM"
+  if (!is.null(altModel) && subModel == "choice") model <- "DyNAM"
 
   if (model == "REM") {
     if (!parsedformula$hasIntercept) {
@@ -244,7 +259,7 @@ GatherPreprocessing <- function(
   }
   # Convert the right-censored events
   # which will be a zero matrice and a zero vector
-  #  if there's no right-censored event
+  # if there's no right-censored event
   if (length(preprocessingStat$rightCensoredIntervals) == 0) {
     stat_mat_rightcensored_update <- matrix(0, 4, 1)
     stat_mat_rightcensored_update_pointer <- numeric(1)
@@ -262,13 +277,17 @@ GatherPreprocessing <- function(
   compChangeName1 <- attr(nodes, "events")[
     "present" == attr(nodes, "dynamicAttribute")
   ]
+  hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
+
   compChangeName2 <- attr(nodes2, "events")[
     "present" == attr(nodes2, "dynamicAttribute")
   ]
-  if (!is.null(compChangeName1) && length(compChangeName1) > 0) {
+  hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
+
+  if (hasCompChange1) {
     temp <- get(compChangeName1)
     temp <- sanitizeEvents(temp, nodes)
-    temp <- C_convert_composition_change(temp, unlist(preprocessingStat$eventTime))
+    temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -276,10 +295,10 @@ GatherPreprocessing <- function(
     presence1_update_pointer <- numeric(1)
   }
 
-  if (!is.null(compChangeName2) && length(compChangeName2) > 0) {
+  if (hasCompChange2) {
     temp <- get(compChangeName2)
     temp <- sanitizeEvents(temp, nodes2)
-    temp <- C_convert_composition_change(temp, unlist(preprocessingStat$eventTime))
+    temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -299,26 +318,25 @@ GatherPreprocessing <- function(
     presence2_init <- rep(TRUE, nrow(nodes2))
   }
 
-  ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  is_dependent <- preprocessingStat$orderEvents == 1
+  ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED
+  ## BY C FUNCTIONS
   if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
-    timespan <- length(is_dependent)
+    is_dependent <- preprocessingStat$orderEvents == 1
+    timespan <- numeric(length(is_dependent))
     timespan[is_dependent] <- preprocessingStat$intervals
     timespan[(!is_dependent)] <- preprocessingStat$rightCensoredIntervals
   } else {
     timespan <- NA
   }
-  
-  ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  event_mat <- t(matrix(
-    c(
-      unlist(preprocessingStat$eventSender),
-      unlist(preprocessingStat$eventReceiver)
-    ),
-    ncol = 2
-  ))
 
-  ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED BY C FUNCTIONS
+  ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED
+  ## BY C FUNCTIONS
+  event_mat <- rbind(
+    preprocessingStat$eventSender, preprocessingStat$eventReceiver
+  )
+
+  ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED
+  ## BY C FUNCTIONS
   stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
   for (i in 1:n_parameters) {
     stat_mat_init[, i] <- t(preprocessingStat$initialStats[, , i])
@@ -333,7 +351,8 @@ GatherPreprocessing <- function(
     stat_mat_update = stat_mat_update,
     stat_mat_update_pointer = stat_mat_update_pointer,
     stat_mat_rightcensored_update = stat_mat_rightcensored_update,
-    stat_mat_rightcensored_update_pointer = stat_mat_rightcensored_update_pointer,
+    stat_mat_rightcensored_update_pointer =
+      stat_mat_rightcensored_update_pointer,
     presence1_init = presence1_init,
     presence1_update = presence1_update,
     presence1_update_pointer = presence1_update_pointer,
@@ -353,15 +372,15 @@ GatherPreprocessing <- function(
     gatheredData$receiver <-
       nodes2$label[preprocessingStat$eventReceiver]
   } else if (model == "DyNAM" && subModel == "rate" &&
-             parsedformula$hasIntercept) {
-    gatheredData$timespan <- timespan 
+    parsedformula$hasIntercept) {
+    gatheredData$timespan <- timespan
     gatheredData$isDependent <- is_dependent
   }
   gatheredData$hasIntercept <- parsedformula$hasIntercept
-  
+
   gatheredData$selected <- gatheredData$selected +
     if (parsedformula$hasIntercept) (1 * is_dependent) else 1
-  
+
   ### 4. PREPARE PRINTING----
   # functions_utility.R
   effectDescription <-
@@ -390,21 +409,24 @@ GatherPreprocessing <- function(
 #' @noRd
 #'
 #' @examples
-#' names <- cbind(Object = c("bilatnet", "bilatnet", "contignet"),
-#'                Weighted = c("W", "", "W"))
+#' names <- cbind(
+#'   Object = c("bilatnet", "bilatnet", "contignet"),
+#'   Weighted = c("W", "", "W")
+#' )
 #' rownames(names) <- c("inertia", "trans", "tie")
 #' CreateNames(names, sep = "|")
 CreateNames <- function(
-  names, sep = " ", joiner = ", ") {
-
+    names, sep = " ", joiner = ", ") {
   isObjectD <- grepl("Object \\d+", colnames(names))
   if (any(isObjectD)) {
-    object <- apply(names[, isObjectD], 1,
-                    function(z) {
-                      ret <- Filter(function(w) !is.na(w) & w != "", z)
-                      ret <- paste(ret, collapse = joiner)
-                      return(ret)
-                      })
+    object <- apply(
+      names[, isObjectD], 1,
+      function(z) {
+        ret <- Filter(function(w) !is.na(w) & w != "", z)
+        ret <- paste(ret, collapse = joiner)
+        return(ret)
+      }
+    )
     newNames <- c("Object", colnames(names)[!isObjectD])
     names <- cbind(object, names[, !isObjectD])
     colnames(names) <- newNames
@@ -415,12 +437,14 @@ CreateNames <- function(
   }
 
   names <- cbind(effect = rownames(names), names)
-  nombres <- apply(names, 1,
-                   function(z) {
-                     ret <- Filter(function(w) !is.na(w) & w != "", z)
-                     ret <- paste(ret, collapse = sep)
-                     return(ret)
-                     })
+  nombres <- apply(
+    names, 1,
+    function(z) {
+      ret <- Filter(function(w) !is.na(w) & w != "", z)
+      ret <- paste(ret, collapse = sep)
+      return(ret)
+    }
+  )
   names(nombres) <- NULL
 
   return(nombres)

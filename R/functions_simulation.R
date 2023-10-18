@@ -21,18 +21,22 @@
 #' effects parameters on \code{formulaChoice} should take during simulation.
 #' @param nEvents integer with the number of events to simulate from
 #' the given formulas and parameter vectors. Default to \code{100}.
-#' 
+#'
 #' @export
 #' @importFrom lifecycle badge
-#' 
+#'
 #' @examples
 #' data("Social_Evolution")
 #' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
-#'                           nodes = actors)
-#' callsDependent <- defineDependentEvents(events = calls, nodes = actors,
-#'                                         defaultNetwork = callNetwork)
-#' 
+#' callNetwork <- linkEvents(
+#'   x = callNetwork, changeEvent = calls,
+#'   nodes = actors
+#' )
+#' callsDependent <- defineDependentEvents(
+#'   events = calls, nodes = actors,
+#'   defaultNetwork = callNetwork
+#' )
+#'
 #' simulateEvents <- simulate(
 #'   formulaRate = callsDependent ~ 1 + indeg + outdeg,
 #'   parametersRate = c(-14, 0.76, 0.25),
@@ -41,7 +45,7 @@
 #'   model = "DyNAM", subModel = "choice",
 #'   nEvents = 100
 #' )
-#' 
+#'
 simulate <- function(formulaRate,
                      parametersRate,
                      formulaChoice = NULL,
@@ -54,7 +58,7 @@ simulate <- function(formulaRate,
 }
 
 
-# First estimation from a formula: can return either 
+# First estimation from a formula: can return either
 # a preprocessed object or a result object
 #' @export
 simulate.formula <- function(formulaRate,
@@ -65,28 +69,29 @@ simulate.formula <- function(formulaRate,
                              subModel = c("choice", "rate"),
                              progress = getOption("progress"),
                              nEvents = 100) {
-
   # CHECK INPUT
   model <- match.arg(model)
   subModel <- match.arg(subModel)
 
   ### check model and subModel
   checkModelPar(model, subModel,
-                modelList = c("DyNAM", "REM", "DyNAMi", "TriNAM"),
-                subModelList = list(
-                  DyNAM = c("choice", "rate", "choice_coordination"),
-                  REM = "choice",
-                  DyNAMi = c("choice", "rate"),
-                  TriNAM = c("choice", "rate")
-                )
+    modelList = c("DyNAM", "REM", "DyNAMi", "TriNAM"),
+    subModelList = list(
+      DyNAM = c("choice", "rate", "choice_coordination"),
+      REM = "choice",
+      DyNAMi = c("choice", "rate"),
+      TriNAM = c("choice", "rate")
+    )
   )
 
-  if (subModel == "choice_coordination")
+  if (subModel == "choice_coordination") {
     stop(
       "It doesn't support simulating a DyNAM choice coordination model.\n",
       "Since the generating process for the waiting time is not specified",
-      call. = FALSE)
-  
+      call. = FALSE
+    )
+  }
+
   stopifnot(
     inherits(formulaRate, "formula"),
     is.null(formulaChoice) || inherits(formulaChoice, "formula"),
@@ -95,17 +100,17 @@ simulate.formula <- function(formulaRate,
     is.null(progress) || inherits(progress, "logical"),
     inherits(nEvents, "numeric") && nEvents > 0
   )
-  
+
   if (is.null(progress)) progress <- FALSE
 
   ## 1.1 Preparing
   parsedformulaRate <- parseFormula(formulaRate)
-  
-  # The number of the independent variables should be the length 
+
+  # The number of the independent variables should be the length
   # of the input parameter vector
   if (length(parsedformulaRate$rhsNames) +
-      parsedformulaRate$hasIntercept !=
-      length(parametersRate))
+    parsedformulaRate$hasIntercept !=
+    length(parametersRate)) {
     stop(
       "The number of independent effects should be the same",
       " as the length of the input parameter vector:",
@@ -113,24 +118,30 @@ simulate.formula <- function(formulaRate,
       paste(parametersRate, collapse = ",", sep = ""),
       call. = FALSE
     )
+  }
 
   if (!is.null(formulaChoice)) {
-    if (!(model == "DyNAM" && subModel == "choice"))
+    if (!(model == "DyNAM" && subModel == "choice")) {
       stop(
         "The model you specified doesn't require a formula",
         "for the choice subModel",
-        call. = FALSE)
+        call. = FALSE
+      )
+    }
 
     ## 1.1 PARSE for all cases: preprocessingInit or not
     parsedformulaChoice <- parseFormula(formulaChoice)
-    if (parsedformulaChoice$hasIntercept)
+    if (parsedformulaChoice$hasIntercept) {
       # In the DyNAM choice model,
       # the intercept will be cancelled and hence useless.
       stop("Intercept in the choice subModel model will be ignored.",
-           " Please remove the intercep and run again.", call. = FALSE)
+        " Please remove the intercep and run again.",
+        call. = FALSE
+      )
+    }
 
     if (length(parsedformulaChoice$rhsNames) !=
-        length(parametersChoice))
+      length(parametersChoice)) {
       stop(
         "The number of the independent effects should be the same",
         " as the length of the input parameter:",
@@ -138,11 +149,14 @@ simulate.formula <- function(formulaRate,
         paste(parametersChoice, collapse = ","),
         call. = FALSE
       )
-    
-    if (parsedformulaRate$depName != parsedformulaChoice$depName)
+    }
+
+    if (parsedformulaRate$depName != parsedformulaChoice$depName) {
       stop("formula for rate and choice submodels",
-           " must be defined over the same dependent event object",
-           call. = FALSE)
+        " must be defined over the same dependent event object",
+        call. = FALSE
+      )
+    }
   } else {
     parsedformulaChoice <- NULL
   }
@@ -150,16 +164,18 @@ simulate.formula <- function(formulaRate,
   # CHECK THE INPUT FORMULA
   # There must exist the intercept in the formula for the waiting-time
   # generating process (For example, DyNAM rate, or REM),
-  if (!parsedformulaRate$hasIntercept)
+  if (!parsedformulaRate$hasIntercept) {
     stop("You didn't specify an intercept in the rate formula.",
-         "\n\tCurrent implementation requires intercept and",
-         " a positive parameter value for it.",
-         call. = FALSE)
+      "\n\tCurrent implementation requires intercept and",
+      " a positive parameter value for it.",
+      call. = FALSE
+    )
+  }
 
   # get node sets of dependent variable
   nodes <- attr(get(parsedformulaRate$depName), "nodes")
   isTwoMode <- FALSE
-  
+
   # two-mode networks(2 kinds of nodes)
   if (length(nodes) == 2) {
     nodes2 <- nodes[2]

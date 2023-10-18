@@ -6,7 +6,7 @@
 #' This function create all objects necessary to the estimation of a DyNAM-i
 #' model `model = "DyNAMi"` from dyadic interaction records and an actor set.
 #' It first creates a nodeset for the second mode of the interaction network
-#' that will be modeled, i.e. the interaction groups set, 
+#' that will be modeled, i.e. the interaction groups set,
 #' and an event list that indicates when groups are present or not through time.
 #' It then creates a list of interaction events, between actors and groups,
 #' in which an actor either joins or leaves a group. It is decomposed in
@@ -33,7 +33,6 @@
 #' @param progress logical weather detailed information of intermediate steps
 #' should be printed in the console.
 #' @export
-#' @importFrom methods is
 #' @return a `list` with the following data frames
 #' \describe{
 #'   \item{interaction.updates}{containing all joining and leaving events}
@@ -41,18 +40,17 @@
 #'     (the second mode of the network)}
 #'   \item{dependent.events}{for the events that should be modeled}
 #'   \item{exogenous.events}{that are not modeled (for example when an actor
-#'     leaves a group and joins its own singleton group, only the leaving event 
+#'     leaves a group and joins its own singleton group, only the leaving event
 #'     is modeled but not the joining event)}
 #'   \item{composition.changes}{that is an events list that should be attached
 #'     to the groups nodeset to indicate when a group is present or not}
 #' }
 defineGroups_interaction <- function(records, actors, seed.randomization,
                                      progress = getOption("progress")) {
-
   stopifnot(
     inherits(records, "data.frame"),
     inherits(actors, "data.frame"),
-    is(seed.randomization, "numeric"),
+    methods::is(seed.randomization, "numeric"),
     is.null(progress) || inherits(progress, "logical")
   )
 
@@ -81,7 +79,8 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 
   # STEP 1: order all events (start and end)
   # if some events occur at the same time, we randomize the order
-  # For now, we follow the exact time of the date, but if events were close enough 
+  # For now, we follow the exact time of the date,
+  #  but if events were close enough
   # (<delta t), we could also randomize when we know that we have
   # unperfect data
   while (i <= (2 * nrecords)) {
@@ -134,7 +133,8 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     }
   }
 
-  # STEP 2: go through all interactions recorded, and assign temporary groups to actors through all the times of events
+  # STEP 2: go through all interactions recorded, and assign temporary groups
+  #  to actors through all the times of events
   uniqueevents <- unique(timesevents) # aggregate all events at the same time
   nevents <- length(uniqueevents)
   groupassignment <- matrix(0, nactors, nevents) # temporary assignment
@@ -153,10 +153,8 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 
     # check all actors
     for (a1 in seq.int(nactors - 1)) {
-
       # check all others
       for (a2 in seq.int(a1 + 1, nactors)) {
-
         # interaction records?
         nAa1 <- which(records$NodeA == toString(a1))
         nBa1 <- which(records$NodeB == toString(a1))
@@ -168,7 +166,8 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
         areinteracting <- 0
         if (length(inda1a2) > 0) {
           for (j in seq.int(length(inda1a2))) {
-            if (records$Start[inda1a2[j]] <= time && records$End[inda1a2[j]] > time) {
+            if (records$Start[inda1a2[j]] <= time &&
+              records$End[inda1a2[j]] > time) {
               areinteracting <- 1
             }
           }
@@ -182,17 +181,14 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     g <- 1
 
     for (a1 in seq.int(nactors)) {
-
       # is the actor is interacting?
       isinteracting <- sum(tempnet[a1, ]) > 0
 
       # are the others previously assigned?
       if (isinteracting && min(which(tempnet[a1, ] == 1)) < a1) {
-        groupassignment[a1, i] <- groupassignment[min(which(tempnet[a1, ] == 1)), i]
-      }
-
-      # if not, assign a new group
-      else {
+        groupassignment[a1, i] <-
+          groupassignment[min(which(tempnet[a1, ] == 1)), i]
+      } else { # if not, assign a new group
         groupassignment[a1, i] <- g
         g <- g + 1
       }
@@ -211,24 +207,29 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     }
   }
 
-  # STEP 3: define the joining and leaving events from the start and end events and group assignments
+  # STEP 3: define the joining and leaving events from the start
+  #  and end events and group assignments
 
   # # groups: data.frame(label, present)
-  # # composition.changes: data.frame(time = grouptimeevents,
-  # #                                 node = groupevents,
-  # #                                 replace = groupreplaceevents) +/-1 if creation/deletion
+  # # composition.changes:
+  # # data.frame(time = grouptimeevents,
+  # #            node = groupevents,
+  # #            replace = groupreplaceevents) +/-1 if creation/deletion
   # grouptimeevents <- numeric()
   # groupnodeevents <- numeric()
   # groupreplaceevents <- numeric()
 
-  # opportunity sets: a list containing which groups are available at each decision time
-  # opportunities$time: same times as the joining events (the ones used in the choice model)
+  # opportunity sets: a list containing which groups are available
+  #  at each decision time
+  # opportunities$time: same times as the joining events
+  #  (the ones used in the choice model)
   # opportunities$groups: vector of available groups
   opportunities <- list()
 
   # depending events: joining and leaving events to be modeled
   # replace = +/-1 if joining/leaving
-  # deporder: vector indicating the order of this event in the whole scheme of events
+  # deporder: vector indicating the order of this event
+  #  in the whole scheme of events
   # (to be put as an attribute of the events)
   deptimeevents <- numeric()
   depsenderevents <- numeric()
@@ -239,7 +240,8 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
   # exogenous events: joining and leaving events that are "structural"
   # (when an isolate "leaves" its group, or when an actor "joins" an isolate)
   # replace = +/-1 if joining/leaving
-  # exoorder: vector indicating the order of this event in the whole scheme of events
+  # exoorder: vector indicating the order of this event
+  # in the whole scheme of events
   # (to be put as an attribute of the events)
   exotimeevents <- numeric()
   exosenderevents <- numeric()
@@ -248,8 +250,10 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
   exoorder <- numeric()
 
   # interaction updates events: updates of the past interaction network
-  # a weight 1 is added between 2 actors when one joins the other in an interaction
-  # pastorder: vector indicating the order of this event in the whole scheme of events
+  # a weight 1 is added between 2 actors when one joins
+  #  the other in an interaction
+  # pastorder: vector indicating the order of this event
+  #  in the whole scheme of events
   # (to be put as an attribute of the events)
   pastsenderevents <- numeric()
   pastreceiverevents <- numeric()
@@ -266,7 +270,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 
   for (i in 1:nevents) {
     time <- uniqueevents[i]
-    
+
     # debug
     # cat("Visiting event: ", i, " at time: ", time, "\n")
 
@@ -289,7 +293,8 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     pastreplaceevents_temp <- numeric()
     pastorder_temp <- numeric()
 
-    # INTERACTING ACTORS: for each group, update group events (groups are taken at random)
+    # INTERACTING ACTORS: for each group, update group events
+    #  (groups are taken at random)
     numgroups <- 0
     groups <- numeric()
     singletons <- numeric()
@@ -309,7 +314,8 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     }
 
     # in case of merge and splits, we randomly pick the group to keep
-    # so we need to keep track of kept groups, and the ones that will need to be removed
+    # so we need to keep track of kept groups, and the ones
+    #  that will need to be removed
     takengroups <- numeric()
     toberemovedgroups <- unique(currentgroups[currentgroups > 0])
 
@@ -325,11 +331,13 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 
         # if some of them were interacting before, in one or several groups
         if (numpreviousgroups >= 1) {
-
-          # we randomly choose the group to keep, potentially create one more in the split case
+          # we randomly choose the group to keep, potentially
+          #  create one more in the split case
           newkeptg <- FALSE
           if (length(intersect(previousgroups, takengroups)) > 0) {
-            topickfrom <- previousgroups[!previousgroups %in% intersect(previousgroups, takengroups)]
+            topickfrom <- previousgroups[
+              !previousgroups %in% intersect(previousgroups, takengroups)
+            ]
           } else {
             topickfrom <- previousgroups
           }
@@ -354,7 +362,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
             # grouptimeevents <- c(grouptimeevents,time-1)
             # groupnodeevents <- c(groupnodeevents,keptg)
             # groupreplaceevents <- c(groupreplaceevents,TRUE)
-            
+
             # debug
             # cat(paste("group created: ",keptg, "\n"))
           }
@@ -363,33 +371,44 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
           toberemovedgroups <- toberemovedgroups[toberemovedgroups != keptg]
 
           if (newkeptg) {
-            for (g2 in seq.int(numpreviousgroups)) {
-
-              # we check whether there are some other actors in the previous group
+            for (g2 in seq_len(numpreviousgroups)) {
+              # we check whether there are some other actors
+              #  in the previous group
               previousgroup <- previousgroups[g2]
-              previousgroupactors <- groupactors[which(currentgroups[groupactors] == previousgroup)]
+              previousgroupactors <- groupactors[
+                which(currentgroups[groupactors] == previousgroup)
+              ]
 
               if (length(previousgroupactors) > 0) {
-                for (a2 in seq.int(length(previousgroupactors))) {
-
+                for (a2 in seq_along(previousgroupactors)) {
                   # dependent leaving events for active actors in other groups
                   # + exogenous joining events to intermediary singletons
                   if (!previousgroup %in% singletons) {
                     deptimeevents_temp <- c(deptimeevents_temp, time)
-                    depsenderevents_temp <- c(depsenderevents_temp, previousgroupactors[a2])
-                    depreceiverevents_temp <- c(depreceiverevents_temp, previousgroup)
+                    depsenderevents_temp <- c(
+                      depsenderevents_temp,
+                      previousgroupactors[a2]
+                    )
+                    depreceiverevents_temp <- c(
+                      depreceiverevents_temp,
+                      previousgroup
+                    )
                     depreplaceevents_temp <- c(depreplaceevents_temp, -1)
 
                     cptorder <- cptorder + 1
                     deporder_temp <- c(deporder_temp, cptorder)
 
                     # debug
-                    # cat(paste("leaving event: ", previousgroupactors[a2],"to", previousgroup, "\n"))
+                    # cat(paste("leaving event: ",
+                    #    previousgroupactors[a2],"to", previousgroup, "\n"))
 
                     # We create a fake intermediary singleton!
                     newg <- min(allactors[!allactors %in% currentgroups])
                     exotimeevents_temp <- c(exotimeevents_temp, time)
-                    exosenderevents_temp <- c(exosenderevents_temp, previousgroupactors[a2])
+                    exosenderevents_temp <- c(
+                      exosenderevents_temp,
+                      previousgroupactors[a2]
+                    )
                     exoreceiverevents_temp <- c(exoreceiverevents_temp, newg)
                     exoreplaceevents_temp <- c(exoreplaceevents_temp, 1)
 
@@ -400,47 +419,73 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
                     currentgroups[previousgroupactors[a2]] <- newg
 
                     # debug
-                    # cat(paste("(exo) joining event: ", previousgroupactors[a2],"to", newg, "\n"))
+                    # cat(paste("(exo) joining event: ",
+                    #  previousgroupactors[a2],"to", newg, "\n"))
                   }
 
                   # dependent joining events for everyone
                   deptimeevents_temp <- c(deptimeevents_temp, time)
-                  depsenderevents_temp <- c(depsenderevents_temp, previousgroupactors[a2])
+                  depsenderevents_temp <- c(
+                    depsenderevents_temp,
+                    previousgroupactors[a2]
+                  )
                   depreceiverevents_temp <- c(depreceiverevents_temp, keptg)
                   depreplaceevents_temp <- c(depreplaceevents_temp, 1)
 
-                  # store the information on which groups were available at the time of the joining
+                  # store the information on which groups were available
+                  # at the time of the joining
                   cptopp <- cptopp + 1
                   opportunities[[cptopp]] <- unique(currentgroups)
                   # debug
-                  # cat(paste("opportunities: ", t(unique(currentgroups)), "\n"))
+                  # cat(paste("opportunities: ",
+                  #  t(unique(currentgroups)), "\n"))
 
                   cptorder <- cptorder + 1
                   deporder_temp <- c(deporder_temp, cptorder)
 
                   # debug
-                  # cat(paste("joining event: ", previousgroupactors[a2]," to ", keptg, "\n"))
+                  # cat(paste("joining event: ",
+                  #  previousgroupactors[a2]," to ", keptg, "\n"))
 
                   # update past interaction network
                   othersingroups <- which(currentgroups == keptg)
                   nothers <- length(othersingroups)
-                  pasttimeevents_temp <- c(pasttimeevents_temp, rep(time, nothers))
-                  pastsenderevents_temp <- c(pastsenderevents_temp, rep(previousgroupactors[a2], nothers))
-                  pastreceiverevents_temp <- c(pastreceiverevents_temp, othersingroups)
-                  pastreplaceevents_temp <- c(pastreplaceevents_temp, rep(1, nothers))
+                  pasttimeevents_temp <- c(
+                    pasttimeevents_temp,
+                    rep(time, nothers)
+                  )
+                  pastsenderevents_temp <- c(
+                    pastsenderevents_temp,
+                    rep(previousgroupactors[a2], nothers)
+                  )
+                  pastreceiverevents_temp <- c(
+                    pastreceiverevents_temp,
+                    othersingroups
+                  )
+                  pastreplaceevents_temp <- c(
+                    pastreplaceevents_temp,
+                    rep(1, nothers)
+                  )
 
                   cptorder <- cptorder + 1
-                  pastorder_temp <- c(pastorder_temp, cptorder:(cptorder + nothers - 1))
+                  pastorder_temp <- c(
+                    pastorder_temp,
+                    cptorder:(cptorder + nothers - 1)
+                  )
                   cptorder <- cptorder + nothers - 1
 
                   # update current groups
                   currentgroups[previousgroupactors[a2]] <- keptg
 
                   # exogenous leaving events for everyone
-                  # if the actor was in a real gorup, it leaves the fake intermediary singleton
+                  # if the actor was in a real gorup,
+                  #  it leaves the fake intermediary singleton
                   if (!previousgroup %in% singletons) {
                     exotimeevents_temp <- c(exotimeevents_temp, time)
-                    exosenderevents_temp <- c(exosenderevents_temp, previousgroupactors[a2])
+                    exosenderevents_temp <- c(
+                      exosenderevents_temp,
+                      previousgroupactors[a2]
+                    )
                     exoreceiverevents_temp <- c(exoreceiverevents_temp, newg)
                     exoreplaceevents_temp <- c(exoreplaceevents_temp, -1)
 
@@ -448,20 +493,27 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
                     exoorder_temp <- c(exoorder_temp, cptorder)
 
                     # debug
-                    # cat(paste("(exo) leaving event: ", previousgroupactors[a2],"to", newg, "\n"))
-                    
+                    # cat(paste("(exo) leaving event: ",
+                    #  previousgroupactors[a2],"to", newg, "\n"))
                   } else {
                     # if it was a singleton, it just leaves the singleton
                     exotimeevents_temp <- c(exotimeevents_temp, time)
-                    exosenderevents_temp <- c(exosenderevents_temp, previousgroupactors[a2])
-                    exoreceiverevents_temp <- c(exoreceiverevents_temp, previousgroup)
+                    exosenderevents_temp <- c(
+                      exosenderevents_temp,
+                      previousgroupactors[a2]
+                    )
+                    exoreceiverevents_temp <- c(
+                      exoreceiverevents_temp,
+                      previousgroup
+                    )
                     exoreplaceevents_temp <- c(exoreplaceevents_temp, -1)
 
                     cptorder <- cptorder + 1
                     exoorder_temp <- c(exoorder_temp, cptorder)
 
                     # debug
-                    # cat(paste("(exo) leaving event: ", previousgroupactors[a2],"to", previousgroup, "\n"))
+                    # cat(paste("(exo) leaving event: ",
+                    #  previousgroupactors[a2],"to", previousgroup, "\n"))
                   }
                 }
               }
@@ -473,20 +525,27 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
             previousgroups <- previousgroups[which(previousgroups != keptg)]
 
             for (g2 in seq.int(numpreviousgroups)) {
-
-              # we check whether there are some other actors in the previous group
+              # we check whether there are some other actors
+              #  in the previous group
               previousgroup <- previousgroups[g2]
-              previousgroupactors <- groupactors[which(currentgroups[groupactors] == previousgroup)]
+              previousgroupactors <- groupactors[
+                which(currentgroups[groupactors] == previousgroup)
+              ]
 
               if (length(previousgroupactors) > 0) {
                 for (a2 in seq.int(length(previousgroupactors))) {
-
                   # dependent leaving events for active actors in other groups
                   # + exogenous joining events to intermediary singletons
                   if (!previousgroup %in% singletons) {
                     deptimeevents_temp <- c(deptimeevents_temp, time)
-                    depsenderevents_temp <- c(depsenderevents_temp, previousgroupactors[a2])
-                    depreceiverevents_temp <- c(depreceiverevents_temp, previousgroup)
+                    depsenderevents_temp <- c(
+                      depsenderevents_temp,
+                      previousgroupactors[a2]
+                    )
+                    depreceiverevents_temp <- c(
+                      depreceiverevents_temp,
+                      previousgroup
+                    )
                     depreplaceevents_temp <- c(depreplaceevents_temp, -1)
 
                     cptorder <- cptorder + 1
@@ -515,7 +574,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
                     # update current groups
                     currentgroups[previousgroupactors[a2]] <- newg
 
-                    # debug 
+                    # debug
                     # cat(
                     #   paste("(exo) joining event: ",
                     #         previousgroupactors[a2],
@@ -544,7 +603,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
                   cptorder <- cptorder + 1
                   deporder_temp <- c(deporder_temp, cptorder)
 
-                  # debug 
+                  # debug
                   # cat(
                   #   paste("joining event: ", previousgroupactors[a2],
                   #         " to ", keptg, "\n")
@@ -603,7 +662,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
                     #     "to", newg, "\n"
                     #   )
                     # )
-                    
                   } else {
                     # if it was a singleton, it just leaves the singleton
                     exotimeevents_temp <- c(exotimeevents_temp, time)
@@ -675,7 +733,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     # if there were previous groups, go through all of them in a random order
     if (numgroups > 0) {
       for (g in seq.int(numgroups)) {
-
         # what about other actors in the group
         previousgroup <- previousgroups[g]
         groupactors <- which(currentgroups == previousgroup)
@@ -735,10 +792,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
               # )
             }
           }
-        }
-
-        # LEAVING EVENT: some other actors remain active
-        else {
+        } else { # LEAVING EVENT: some other actors remain active
 
           # we only take the ones who are no longer active
           groupactors <- groupactors[actorsactivity == 0]
@@ -823,7 +877,6 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
     pastreceiverevents <- c(pastreceiverevents, pastreceiverevents_temp)
     pastreplaceevents <- c(pastreplaceevents, pastreplaceevents_temp)
     pastorder <- c(pastorder, pastorder_temp)
-
   }
 
   # RESULTS
@@ -885,14 +938,17 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
   exogenous.events$receiver <- groups$label[exogenous.events$receiver]
 
   # Inform about the number of events
-  if (progress)
+  if (progress) {
     cat(
       "Data preparation for DyNAM-i model:\n",
       paste(nrow(dependent.events), "dependent events created"), "\n",
-      paste(nrow(exogenous.events),
-            "exogenous events created (group composition updates")
+      paste(
+        nrow(exogenous.events),
+        "exogenous events created (group composition updates"
+      )
     )
-  
+  }
+
   groupsResult <- list(
     interaction.updates = interaction.updates,
     groups = groups,
@@ -914,15 +970,13 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 cleanInteractionEvents <- function(
     events, eventsEffectsLink, windowParameters,
     subModel, depName, eventsObjectsLink, envir) {
-
-  done.events <- rep(F,dim(eventsEffectsLink)[1])
+  done.events <- rep(FALSE, dim(eventsEffectsLink)[1])
 
   # Windowed events: we remove the order of the events
   for (e in seq.int(dim(eventsEffectsLink)[1])) {
     for (eff in seq.int(dim(eventsEffectsLink)[2])) {
       if (!done.events[e] && !is.na(eventsEffectsLink[e, eff]) &&
-          !is.null(windowParameters[[eff]])) {
-
+        !is.null(windowParameters[[eff]])) {
         eventsobject <- get(rownames(eventsEffectsLink)[e], envir = envir)
 
         # correct the order of events
@@ -958,12 +1012,14 @@ cleanInteractionEvents <- function(
         if (length(nodesObject) > 1) {
           nodes <- nodesObject[1]
           nodes2 <- nodesObject[2]
-        } else nodes <- nodes2 <- nodesObject
+        } else {
+          nodes <- nodes2 <- nodesObject
+        }
         eventsobject <- sanitizeEvents(eventsobject, nodes, nodes2)
         events[[e]] <- eventsobject
 
         # we don't go through this event again
-        done.events[e] <- T
+        done.events[e] <- TRUE
       }
     }
   }
@@ -975,7 +1031,6 @@ cleanInteractionEvents <- function(
 # remove own groups from the sets of options
 setopportunities_interaction <- function(
     nodes, nodes2, eventsObjectsLink, groups.network) {
-
   # get objects
   getactors <- get(nodes)
   getgroups <- get(nodes2)
