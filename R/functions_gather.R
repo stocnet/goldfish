@@ -86,7 +86,7 @@ GatherPreprocessing <- function(
       )
     }
 
-    if (!is.null(preprocessArgs["opportunitiesList"])) {
+    if (!is.null(preprocessArgs[["opportunitiesList"]])) {
       warning(
         dQuote("GatherPreprocessing"), " doesn't implement yet the ",
         dQuote("opportunitiesList"), " functionality"
@@ -102,6 +102,7 @@ GatherPreprocessing <- function(
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
   windowParameters <- parsedformula$windowParameters
+  ignoreRepParameter <- unlist(parsedformula$ignoreRepParameter)
 
   # # C implementation doesn't have ignoreRep option issue #105
   if (any(unlist(parsedformula$ignoreRepParameter))) {
@@ -186,6 +187,7 @@ GatherPreprocessing <- function(
     events = events,
     effects = effects,
     windowParameters = parsedformula$windowParameters,
+    ignoreRepParameter = ignoreRepParameter,
     eventsObjectsLink = eventsObjectsLink, # for data update
     eventsEffectsLink = eventsEffectsLink,
     objectsEffectsLink = objectsEffectsLink, # for parameterization

@@ -135,6 +135,7 @@ inline arma::mat reduce_mat_to_vector(
      double timespan_current_event = timespan(id_event);
      // declare the ids of the sender and the receiver,
      const int id_sender = dep_event_mat(0, id_event) - 1;
+     //int sender_corr = 0;
      arma::mat reduce_stat_mat =
        reduce_mat_to_vector(stat_mat, n_actors_1, n_actors_2,
                             twomode_or_reflexive);
@@ -148,15 +149,24 @@ inline arma::mat reduce_mat_to_vector(
          weighted_sum_current_event +=
            exp_current_sender * (reduce_stat_mat.row(i));
          fisher_current_event += exp_current_sender *
-         ((reduce_stat_mat.row(i).t()) * (reduce_stat_mat.row(i)));
-       }
+           ((reduce_stat_mat.row(i).t()) * (reduce_stat_mat.row(i)));
+       }// else if (i < id_sender) {
+        // sender_corr += 1;
+       //}
      }
+     //id_sender -= sender_corr;
      // add the quantities of a current event to the variables to be returned
      // derivative
+     //Rcpp::Rcout << std::endl << "Event:" << id_event + 1 << std::endl;
+     //Rcpp::Rcout << "presence:" << presence1 << std::endl;
+     //Rcpp::Rcout << "mat:" << std::endl << reduce_stat_mat << std::endl;
+     //Rcpp::Rcout << "timespan:" << timespan_current_event << std::endl;
+     //Rcpp::Rcout << "Derivative:" << weighted_sum_current_event << std::endl;
      derivative -= timespan_current_event * weighted_sum_current_event;
      
      // fisher matrix
      fisher += timespan_current_event * fisher_current_event;
+     //Rcpp::Rcout << "fisher:" << std::endl << fisher_current_event << std::endl;
      // logLikelihood
      intervalLogL(id_event) = - timespan_current_event * normalizer;
      // update id_dep_event
@@ -164,6 +174,8 @@ inline arma::mat reduce_mat_to_vector(
        intervalLogL(id_event) +=
          dot(reduce_stat_mat.row(id_sender), parameters);
        derivative += reduce_stat_mat.row(id_sender);
+       //Rcpp::Rcout << "Der +:" << reduce_stat_mat.row(id_sender) << std::endl;
+       //Rcpp::Rcout << "sender:" << id_sender << std::endl;
        id_dep_event++;
      }
      // loglikelihood
