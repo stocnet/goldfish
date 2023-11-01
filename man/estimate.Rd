@@ -206,24 +206,30 @@ multinomial probability (Butts, 2008).
 # A multinomial receiver choice model
 data("Social_Evolution")
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
-                          nodes = actors)
-callsDependent <- defineDependentEvents(events = calls, nodes = actors,
-                                        defaultNetwork = callNetwork)
+callNetwork <- linkEvents(
+  x = callNetwork, changeEvent = calls,
+  nodes = actors
+)
+callsDependent <- defineDependentEvents(
+  events = calls, nodes = actors,
+  defaultNetwork = callNetwork
+)
 
 \dontshow{
 callsDependent <- callsDependent[1:50, ]
 }
 
 mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-                  model = "DyNAM", subModel = "choice",
-                  estimationInit = list(engine = "default_c"))
+  model = "DyNAM", subModel = "choice",
+  estimationInit = list(engine = "default_c")
+)
 summary(mod01)
 
 # A individual activity rates model
 mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
-                  model = "DyNAM", subModel = "rate",
-                  estimationInit = list(engine = "default_c"))
+  model = "DyNAM", subModel = "rate",
+  estimationInit = list(engine = "default_c")
+)
 summary(mod02)
 
 \donttest{

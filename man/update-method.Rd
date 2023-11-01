@@ -49,7 +49,8 @@ bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
 bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
 
 updateStates <- as.data.frame(states,
-                              time = as.numeric(as.POSIXct("1965-12-31")))
+  time = as.numeric(as.POSIXct("1965-12-31"))
+)
 
 
 updateNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1965-12-31")))

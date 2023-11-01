@@ -139,7 +139,8 @@ estimate_int <- function(
   compChangeName2 <- attr(nodes2, "events")[
     "present" == attr(nodes2, "dynamicAttribute")
   ]
-  hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
+  hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0 &&
+    !modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
 
   if (hasCompChange1) {
     compChange1 <- get(compChangeName1, envir = prepEnvir) # add prepEnvir
@@ -165,6 +166,8 @@ estimate_int <- function(
   } else {
     presence2 <- rep(TRUE, length(nodes2))
   }
+
+  nEvents <- length(statsList$orderEvents)
 
   nEvents <- length(statsList$orderEvents)
 
@@ -484,7 +487,8 @@ getEventValues <- function(
     eventProbabilities <-
       getMultinomialProbabilities(
         statsArray, activeDyad, parameters,
-        actorNested = TRUE, allowReflexive = allowReflexive, isTwoMode = isTwoMode
+        actorNested = TRUE, allowReflexive = allowReflexive,
+        isTwoMode = isTwoMode
       )
     logLikelihood <- log(eventProbabilities[activeDyad[2]])
     firstDerivatives <- getFirstDerivativeM(statsArray, eventProbabilities)
@@ -597,6 +601,11 @@ getEventValues <- function(
     pVector <- objectiveFunctions + (-timespan * ratesSum)
     if (modelType == "REM") dim(pVector) <- c(dimMatrix[1], dimMatrix[2])
 
+    # cat("\ntimespan:", timespan)
+    # cat("\nderivative:")
+    # print(ratesStatsSum)
+    # cat("\nfisher:")
+    # print(ratesStatsStatsSum)
     return(list(
       logLikelihood = logL,
       score = score,
@@ -786,6 +795,11 @@ getIterationStepState <- function(
     startTime <- -Inf
   }
 
+  # opportunities list initialization
+  opportunities <- rep(TRUE, nrow(nodes2))
+  updateopportunities <- !is.null(opportunitiesList) &&
+    !modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
+
   # utility function for the statistics update
   updFun <- function(stat, change) {
     # stat: current statistics (for one effect only)
@@ -884,8 +898,6 @@ getIterationStepState <- function(
     }
 
     # update opportunity set
-    opportunities <- rep(TRUE, nrow(nodes2))
-    updateopportunities <- !is.null(opportunitiesList)
     if (updateopportunities) {
       opportunities <- seq_len(nrow(nodes2)) %in% opportunitiesList[[i]]
     }
@@ -911,14 +923,21 @@ getIterationStepState <- function(
     }
     oldTime <- current_time
 
+    # patch to avoid collision with dropping absent people
+    if (!isTwoMode) {
+      for (parmPos in seq_len(dim(statsArrayComp)[3])) {
+        diag(statsArrayComp[, , parmPos]) <- 0
+      }
+    }
+
     # remove potential absent lines and columns from the stats array
     if (updatepresence) { # || (updateopportunities && !isTwoMode)
-      subset <- presence
+      keepIn <- presence
       # if (updateopportunities && !isTwoMode)
-      #   subset <- presence & opportunities
-      statsArrayComp <- statsArrayComp[subset, , , drop = FALSE]
+      #   keepIn <- presence & opportunities
+      statsArrayComp <- statsArrayComp[keepIn, , , drop = FALSE]
       if (isDependent) {
-        position <- which(activeDyad[1] == which(subset))
+        position <- which(activeDyad[1] == which(keepIn))
         if (length(position) == 0) {
           stop("Active node ", activeDyad[1], " not present in event ", i,
             call. = FALSE
@@ -931,15 +950,17 @@ getIterationStepState <- function(
     } else {
       posSender <- activeDyad[1]
     }
-    if (updatepresence2 || updateopportunities) {
-      subset <- presence2 & opportunities
-      if (!allowReflexive) {
-        subset[posSender] <- FALSE
+    if ((updatepresence2 || updateopportunities)) {
+      keepIn <- presence2 & opportunities
+      if (!allowReflexive && grepl("DyNAM-M(-|$)?", modelType)) {
+        keepIn[posSender] <- FALSE
         allowReflexiveCorrected <- TRUE
+      } else {
+        allowReflexiveCorrected <- FALSE
       }
-      statsArrayComp <- statsArrayComp[, subset, , drop = FALSE]
+      statsArrayComp <- statsArrayComp[, keepIn, , drop = FALSE]
       if (isDependent) {
-        position <- which(activeDyad[2] == which(subset))
+        position <- which(activeDyad[2] == which(keepIn))
         if (length(position) == 0) {
           stop("Active node ", activeDyad[2], " not available in event ", i,
             call. = FALSE
@@ -966,12 +987,10 @@ getIterationStepState <- function(
         statsArrayComp,
         3,
         \(stat) {
-          if (!isTwoMode) diag(stat) <- 0
-          m <- stat
           if (!isTwoMode) {
-            rowSums(m, na.rm = TRUE) / (dim(m)[1] - 1)
+            rowSums(stat, na.rm = TRUE) / (dim(stat)[2] - 1)
           } else {
-            rowMeans(m, na.rm = TRUE)
+            rowMeans(stat, na.rm = TRUE)
           }
         }
       )
