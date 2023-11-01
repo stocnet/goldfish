@@ -952,9 +952,11 @@ getIterationStepState <- function(
     }
     if ((updatepresence2 || updateopportunities)) {
       keepIn <- presence2 & opportunities
-      if (!allowReflexive) {
+      if (!allowReflexive && grepl("DyNAM-M(-|$)?", modelType)) {
         keepIn[posSender] <- FALSE
         allowReflexiveCorrected <- TRUE
+      } else {
+        allowReflexiveCorrected <- FALSE
       }
       statsArrayComp <- statsArrayComp[, keepIn, , drop = FALSE]
       if (isDependent) {
