@@ -141,7 +141,7 @@ GatherPreprocessing <- function(
 
   ## 2.0 Set isTwoMode to define effects functions
   # get node sets of dependent variable
-  .nodes <- attr(get(parsedformula$depName), "nodes")
+  .nodes <- attr(get(parsedformula$depName, envir = envir), "nodes")
 
   # two-mode networks(2 kinds of nodes)
   if (length(.nodes) == 2) {
@@ -241,8 +241,8 @@ GatherPreprocessing <- function(
   )
 
   # nEvents <- length(preprocessingStat$orderEvents)# number of events
-  nodes <- get(.nodes)
-  nodes2 <- get(.nodes2)
+  nodes <- get(.nodes, envir = envir)
+  nodes2 <- get(.nodes2, envir = envir)
 
   ## SET VARIABLES BASED ON STATSLIST
   twomode_or_reflexive <- (allowReflexive || isTwoMode)
@@ -287,7 +287,7 @@ GatherPreprocessing <- function(
   hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
 
   if (hasCompChange1) {
-    temp <- get(compChangeName1)
+    temp <- get(compChangeName1, envir = envir)
     temp <- sanitizeEvents(temp, nodes)
     temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
     presence1_update <- temp$presenceUpdate
@@ -298,7 +298,7 @@ GatherPreprocessing <- function(
   }
 
   if (hasCompChange2) {
-    temp <- get(compChangeName2)
+    temp <- get(compChangeName2, envir = envir)
     temp <- sanitizeEvents(temp, nodes2)
     temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
     presence2_update <- temp$presenceUpdate
