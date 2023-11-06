@@ -73,10 +73,14 @@ oppose to the general case of simulate events until end time is reached.
 \examples{
 data("Social_Evolution")
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-callNetwork <- linkEvents(x = callNetwork, changeEvent = calls,
-                          nodes = actors)
-callsDependent <- defineDependentEvents(events = calls, nodes = actors,
-                                        defaultNetwork = callNetwork)
+callNetwork <- linkEvents(
+  x = callNetwork, changeEvent = calls,
+  nodes = actors
+)
+callsDependent <- defineDependentEvents(
+  events = calls, nodes = actors,
+  defaultNetwork = callNetwork
+)
 
 simulateEvents <- simulate(
   formulaRate = callsDependent ~ 1 + indeg + outdeg,

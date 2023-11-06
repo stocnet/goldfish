@@ -28,7 +28,8 @@ in \code{vignette("goldfishEffects")}.}
 
 \item{progress}{Default \code{FALSE}.}
 
-\item{envir}{an \code{environment} where \code{formula} objects are available.}
+\item{envir}{an \code{environment} where \code{formula} objects and their linked
+objectsare available.}
 }
 \value{
 a list with the data and relevant information.

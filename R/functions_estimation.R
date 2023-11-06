@@ -131,6 +131,8 @@
 #' network (see [defineDependentEvents()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
 #' (see `vignette("goldfishEffects")`).
+#' @param envir an `environment` where `formula` objects and their linked
+#' objects are available.
 #'
 #' @return returns an object of [class()] `"result.goldfish"`
 #' when `preprocessingOnly = FALSE` or
@@ -269,8 +271,10 @@ estimate <- function(
     estimationInit = NULL,
     preprocessingInit = NULL,
     preprocessingOnly = FALSE,
+    envir = new.env(),
     progress = getOption("progress"),
-    verbose = getOption("verbose")) {
+    verbose = getOption("verbose")
+) {
   UseMethod("estimate", x)
 }
 
@@ -285,6 +289,7 @@ estimate.formula <- function(
     estimationInit = NULL,
     preprocessingInit = NULL,
     preprocessingOnly = FALSE,
+    envir = new.env(),
     progress = getOption("progress"),
     verbose = getOption("verbose")) {
   # Steps:
@@ -379,13 +384,11 @@ estimate.formula <- function(
 
 
   ### 1. PARSE the formula----
-  PreprocessEnvir <- new.env()
-
   if (progress) cat("Parsing formula.\n")
   formula <- x
 
   ## 1.1 PARSE for all cases: preprocessingInit or not
-  parsedformula <- parseFormula(formula, envir = PreprocessEnvir)
+  parsedformula <- parseFormula(formula, envir = envir)
   rhsNames <- parsedformula$rhsNames
   depName <- parsedformula$depName
   hasIntercept <- parsedformula$hasIntercept
@@ -444,7 +447,7 @@ estimate.formula <- function(
 
   ## 2.0 Set isTwoMode to define effects functions
   # get node sets of dependent variable
-  .nodes <- attr(get(depName, envir = PreprocessEnvir), "nodes")
+  .nodes <- attr(get(depName, envir = envir), "nodes")
   isTwoMode <- FALSE
   # two-mode networks(2 kinds of nodes)
   if (length(.nodes) == 2) {
@@ -459,8 +462,9 @@ estimate.formula <- function(
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
   # enviroment from which get the objects
 
-  effects <- createEffectsFunctions(rhsNames, model, subModel,
-    envir = PreprocessEnvir
+  effects <- createEffectsFunctions(
+    rhsNames, model, subModel,
+    envir = envir
   )
   # Get links between objects and effects for printing results
   objectsEffectsLink <- getObjectsEffectsLink(rhsNames)
@@ -470,12 +474,12 @@ estimate.formula <- function(
     # Initialize events list and link to objects
     events <- getEventsAndObjectsLink(
       depName, rhsNames, .nodes, .nodes2,
-      envir = PreprocessEnvir
+      envir = envir
     )[[1]]
     # moved cleanInteractionEvents in getEventsAndObjectsLink
     eventsObjectsLink <- getEventsAndObjectsLink(
       depName, rhsNames, .nodes, .nodes2,
-      envir = PreprocessEnvir
+      envir = envir
     )[[2]]
     eventsEffectsLink <- getEventsEffectsLink(
       events, rhsNames, eventsObjectsLink
@@ -489,7 +493,7 @@ estimate.formula <- function(
     events <- cleanInteractionEvents(
       events, eventsEffectsLink, windowParameters, subModel, depName,
       eventsObjectsLink,
-      envir = PreprocessEnvir
+      envir = envir
     )
   }
 
@@ -510,7 +514,7 @@ estimate.formula <- function(
       newWindowParameters <- windowParameters[which(effectsindexes == 0)]
       neweffects <- createEffectsFunctions(
         newrhsNames, model, subModel,
-        envir = PreprocessEnvir
+        envir = envir
       )
       # Get links between objects and effects for printing results
       newobjectsEffectsLink <- getObjectsEffectsLink(newrhsNames)
@@ -531,11 +535,11 @@ estimate.formula <- function(
       # Retrieve again the events to calculate new statistics
       newevents <- getEventsAndObjectsLink(
         depName, newrhsNames, .nodes, .nodes2,
-        envir = PreprocessEnvir
+        envir = envir
       )[[1]]
       neweventsObjectsLink <- getEventsAndObjectsLink(
         depName, newrhsNames, .nodes, .nodes2,
-        envir = PreprocessEnvir
+        envir = envir
       )[[2]]
       neweventsEffectsLink <- getEventsEffectsLink(
         newevents, newrhsNames, neweventsObjectsLink
@@ -561,7 +565,7 @@ estimate.formula <- function(
         endTime = preprocessingInit[["endTime"]],
         rightCensored = rightCensored,
         progress = progress,
-        prepEnvir = PreprocessEnvir
+        prepEnvir = envir
       )
 
       # test the length of the dependent and RC updates (in case the events
@@ -591,8 +595,8 @@ estimate.formula <- function(
     allprep <- preprocessingInit
     allprep$initialStats <- array(0,
       dim = c(
-        nrow(get(.nodes, envir = PreprocessEnvir)),
-        nrow(get(.nodes2, envir = PreprocessEnvir)),
+        nrow(get(.nodes, envir = envir)),
+        nrow(get(.nodes2, envir = envir)),
         length(effectsindexes)
       )
     )
@@ -695,7 +699,7 @@ estimate.formula <- function(
         rightCensored = rightCensored,
         progress = progress,
         groupsNetwork = parsedformula$defaultNetworkName,
-        prepEnvir = PreprocessEnvir
+        prepEnvir = envir
       )
     } else {
       prep <- preprocess(
@@ -716,7 +720,7 @@ estimate.formula <- function(
         endTime = estimationInit[["endTime"]],
         rightCensored = rightCensored,
         progress = progress,
-        prepEnvir = PreprocessEnvir
+        prepEnvir = envir
       )
     }
     # The formula, nodes, nodes2 are added to the preprocessed object so that
@@ -778,8 +782,8 @@ estimate.formula <- function(
   # Default estimation
   additionalArgs <- list(
     statsList = prep,
-    nodes = get(.nodes, envir = PreprocessEnvir),
-    nodes2 = get(.nodes2, envir = PreprocessEnvir),
+    nodes = get(.nodes, envir = envir),
+    nodes2 = get(.nodes2, envir = envir),
     defaultNetworkName = parsedformula$defaultNetworkName,
     hasIntercept = hasIntercept,
     modelType = modelTypeCall,

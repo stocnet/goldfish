@@ -21,6 +21,8 @@
 #' @param startTime a numeric `as.Date` format value; prior events are
 #' disregarded.
 #' @param ... Not further arguments are required.
+#' @param envir an `environment` where the nodes and linked events
+#'   objects are available.
 #' @return The respective object updated accordingly to the events link to it.
 #' For `nodes.goldfish` object the attributes are updated according to the
 #' events linked to them.
@@ -38,7 +40,8 @@
 #' bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
 #' bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
 #'
-#' updateStates <- as.data.frame(states,
+#' updateStates <- as.data.frame(
+#'   states,
 #'   time = as.numeric(as.POSIXct("1965-12-31"))
 #' )
 #'

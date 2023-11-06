@@ -1,10 +1,8 @@
-# # Goldfish package ----
 # #
 # # Author(s): AU
 # #
 # #
-# # Description: Helper functions to gather the preprocess data for
-# #   DyNAM-choice and DyNAM-choice-coordination
+# # Description: Helper functions to gather the preprocess data from a model
 
 
 #' Gather preprocess data from a formula
@@ -20,7 +18,8 @@
 #' @param preprocessArgs Additional preprocess arguments like `startTime`,
 #'   `endTime` and `opportunitiesList`. See [estimate()].
 #' @param progress Default `FALSE`.
-#' @param envir an `environment` where `formula` objects are available.
+#' @param envir an `environment` where `formula` objects and their linked
+#'   objectsare available.
 #'
 #' @return a list with the data and relevant information.
 #' @export
