@@ -288,7 +288,7 @@ GatherPreprocessing <- function(
 
   if (hasCompChange1) {
     temp <- get(compChangeName1, envir = envir)
-    temp <- sanitizeEvents(temp, nodes)
+    temp <- sanitizeEvents(temp, nodes, envir = envir)
     temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
@@ -299,7 +299,7 @@ GatherPreprocessing <- function(
 
   if (hasCompChange2) {
     temp <- get(compChangeName2, envir = envir)
-    temp <- sanitizeEvents(temp, nodes2)
+    temp <- sanitizeEvents(temp, nodes2, envir = envir)
     temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer

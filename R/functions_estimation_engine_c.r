@@ -143,7 +143,7 @@ estimate_c_int <- function(
   ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
   if (hasCompChange1) {
     compChange1 <- get(compChangeName1, envir = prepEnvir)
-    compChange1 <- sanitizeEvents(compChange1, nodes)
+    compChange1 <- sanitizeEvents(compChange1, nodes, envir = prepEnvir)
     temp <- C_convert_composition_change(compChange1, statsList$eventTime)
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
@@ -155,7 +155,7 @@ estimate_c_int <- function(
 
   if (hasCompChange2) {
     compChange2 <- get(compChangeName2, envir = prepEnvir)
-    compChange2 <- sanitizeEvents(compChange2, nodes2)
+    compChange2 <- sanitizeEvents(compChange2, nodes2, envir = prepEnvir)
     temp <- C_convert_composition_change(compChange2, statsList$eventTime)
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer

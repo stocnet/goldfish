@@ -134,9 +134,9 @@ isReservedElementName <- function(x) {
 #' data("Social_Evolution")
 #' afterSanitize <- sanitizeEvents(calls, "actors")
 #' }
-sanitizeEvents <- function(events, nodes, nodes2 = nodes) {
-  if (is.character(nodes)) nodes <- get(nodes)
-  if (is.character(nodes2)) nodes2 <- get(nodes2)
+sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
+  if (is.character(nodes)) nodes <- get(nodes, envir = envir)
+  if (is.character(nodes2)) nodes2 <- get(nodes2, envir = envir)
   if (is.character(events$node)) {
     events$node <- match(events$node, nodes$label)
   }
@@ -149,11 +149,6 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes) {
   events$time <- as.numeric(events$time)
   events
 }
-
-
-
-
-
 
 #' Reduce preprocess output
 #'

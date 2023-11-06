@@ -124,7 +124,11 @@ preprocessInteraction <- function(
   # and of the past interaction updates
   dname <- eventsObjectsLink[1, 1]
   # PATCH Marion: the depdendent.depevents_DyNAMi is not sanitized yet
-  dnameObject <- sanitizeEvents(get(dname, envir = prepEnvir), nodes, nodes2)
+  dnameObject <- sanitizeEvents(
+    get(dname, envir = prepEnvir),
+    nodes, nodes2,
+    envir = prepEnvir
+  )
   assign(dname, dnameObject, envir = prepEnvir)
 
   depindex <- 0
@@ -163,11 +167,15 @@ preprocessInteraction <- function(
 
     # PATCH Marion: the groups update events were not sanitized
     groupsupdates1Object <- sanitizeEvents(
-      get(groupsupdates[1], envir = prepEnvir), nodes, nodes2
+      get(groupsupdates[1], envir = prepEnvir),
+      nodes, nodes2,
+      envir = prepEnvir
     )
     assign(groupsupdates[1], groupsupdates1Object, envir = prepEnvir)
     groupsupdates2Object <- sanitizeEvents(
-      get(groupsupdates[2], envir = prepEnvir), nodes, nodes2
+      get(groupsupdates[2], envir = prepEnvir),
+      nodes, nodes2,
+      envir = prepEnvir
     )
     assign(groupsupdates[2], groupsupdates2Object, envir = prepEnvir)
 
@@ -197,8 +205,16 @@ preprocessInteraction <- function(
     } else {
       nodes <- nodes2 <- nodesObject
     }
-    events[[depindex]] <- sanitizeEvents(events[[depindex]], nodes, nodes2)
-    events[[exoindex]] <- sanitizeEvents(events[[exoindex]], nodes, nodes2)
+    events[[depindex]] <- sanitizeEvents(
+      events[[depindex]],
+      nodes, nodes2,
+      envir = prepEnvir
+    )
+    events[[exoindex]] <- sanitizeEvents(
+      events[[exoindex]],
+      nodes, nodes2,
+      envir = prepEnvir
+    )
 
     # augment the link objects
     eventsObjectsLink <- rbind(

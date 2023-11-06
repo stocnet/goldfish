@@ -52,8 +52,10 @@ NULL
 # Create a data frame from a dynamic nodes object
 #' @export
 #' @rdname update-method
-as.data.frame.nodes.goldfish <- function(x, ..., time = -Inf,
-                                         startTime = -Inf) {
+as.data.frame.nodes.goldfish <- function(
+    x, ..., time = -Inf,
+    startTime = -Inf, envir = new.env()
+) {
   df <- x
   dynamicAttributes <- attr(df, "dynamicAttribute")
   eventNames <- attr(df, "events")
@@ -64,8 +66,8 @@ as.data.frame.nodes.goldfish <- function(x, ..., time = -Inf,
     return(df)
   }
   for (i in seq_along(eventNames)) {
-    events <- get(eventNames[i])
-    events <- sanitizeEvents(events, df)
+    events <- get(eventNames[i], envir = envir)
+    events <- sanitizeEvents(events, df, envir = envir)
     events <- events[events$time >= startTime & events$time < time, ]
 
     if (nrow(events) > 0 && !is.null(events$replace)) {
