@@ -1,10 +1,3 @@
-##################### ##
-#
-# Goldfish package
-# Helper data testing -----------------------------------------------
-#
-#################### ###
-
 # DyNAM -------------------------------------------------------------
 
 # Networks  ---------------------------------------------------------
@@ -222,24 +215,6 @@ effectFUN_REM_sim <- function(
 }
 
 # Preprocessing DyNAM ---------------------------------------------------------
-# direct network
-eventsIncrement <- data.frame(
-  time = cumsum(
-    c(1, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4)
-  ),
-  sender = sprintf(
-    "Actor %d",
-    c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)
-  ),
-  receiver = sprintf(
-    "Actor %d",
-    c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)
-  ),
-  increment =
-    c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
-  stringsAsFactors = FALSE
-)
-
 actorsEx <- data.frame(
   label = sprintf("Actor %d", 1:5),
   present = c(rep(TRUE, 4), FALSE),
@@ -253,6 +228,48 @@ compChange <- data.frame(
   replace = c(TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE)
 )
 
+actorsEx <- defineNodes(actorsEx)
+actorsEx <- linkEvents(
+  x = actorsEx,
+  changeEvent = compChange,
+  attribute = "present"
+)
+
+# changing attribute
+attrChange <- data.frame(
+  node = sprintf("Actor %d", c(5, 4, 3, 1, 2, 3, 4)),
+  time = c(11, 18, 23, 31, 32, 33, 35),
+  replace = c(1.2, 1.67, 2.46, 7.89, 3.32, 2.32, 3.44)
+)
+actorsEx <- linkEvents(
+  x = actorsEx,
+  changeEvent = attrChange,
+  attribute = "attr1"
+)
+
+# two-mode
+clubsEx <- data.frame(
+  label = sprintf("Club %d", 1:3),
+  present = c(rep(TRUE, 2), FALSE),
+  clubSize = c(7, 9, 2),
+  stringsAsFactors = FALSE
+)
+
+clubsChange <- data.frame(
+  node = sprintf("Club %d", c(3, 1, 1)),
+  time = c(14, 17, 19),
+  replace = c(TRUE, FALSE, TRUE)
+)
+
+clubsEx <- defineNodes(clubsEx)
+clubsEx <- linkEvents(
+  x = clubsEx,
+  changeEvent = clubsChange,
+  attribute = "present"
+)
+
+
+# direct network
 networkState <- matrix(
   c(
     0, 3, 0, 0, 0,
@@ -268,12 +285,21 @@ networkState <- matrix(
   )
 )
 
-# defining objects
-actorsEx <- defineNodes(actorsEx)
-actorsEx <- linkEvents(
-  x = actorsEx,
-  changeEvent = compChange,
-  attribute = "present"
+eventsIncrement <- data.frame(
+  time = cumsum(
+    c(1, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4)
+  ),
+  sender = sprintf(
+    "Actor %d",
+    c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)
+  ),
+  receiver = sprintf(
+    "Actor %d",
+    c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)
+  ),
+  increment =
+    c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
+  stringsAsFactors = FALSE
 )
 
 networkState <- defineNetwork(
@@ -292,6 +318,21 @@ depNetwork <- defineDependentEvents(
 )
 
 # exogenous network
+networkExog <- matrix(
+  c(
+    0, 0, 0, 1, 0,
+    0, 0, 0, 0, 0,
+    0, 2, 0, 0, 0,
+    1, 0, 0, 0, 0,
+    1, 2, 0, 0, 0
+  ),
+  nrow = 5, ncol = 5, byrow = TRUE,
+  dimnames = list(
+    sprintf("Actor %d", 1:5),
+    sprintf("Actor %d", 1:5)
+  )
+)
+
 eventsExogenous <- data.frame(
   time =
     c(7, 14, 15, 18, 18, 25, 25),
@@ -308,21 +349,6 @@ eventsExogenous <- data.frame(
   stringsAsFactors = FALSE
 )
 
-networkExog <- matrix(
-  c(
-    0, 0, 0, 1, 0,
-    0, 0, 0, 0, 0,
-    0, 2, 0, 0, 0,
-    1, 0, 0, 0, 0,
-    1, 2, 0, 0, 0
-  ),
-  nrow = 5, ncol = 5, byrow = TRUE,
-  dimnames = list(
-    sprintf("Actor %d", 1:5),
-    sprintf("Actor %d", 1:5)
-  )
-)
-
 # define goldfish objects
 networkExog <- defineNetwork(
   matrix = networkExog,
@@ -334,6 +360,47 @@ networkExog <- linkEvents(
   nodes = actorsEx
 )
 
+# two-mode network
+
+networkActorClub <- matrix(
+  c(
+    1, 0, 0,
+    1, 0, 1,
+    0, 0, 0,
+    0, 1, 0,
+    0, 1, 0
+  ),
+  nrow = 5, ncol = 3, byrow = TRUE,
+  dimnames = list(
+    sprintf("Actor %d", 1:5),
+    sprintf("Club %d", 1:3)
+  )
+)
+
+eventsActorClub <- data.frame(
+  time =
+    c(3, 8, 12, 17, 20, 30, 35),
+  sender = sprintf(
+    "Actor %d",
+    c(1, 4, 5, 2, 3, 1, 3)
+  ),
+  receiver = sprintf(
+    "Club %d",
+    c(2, 1, 2, 2, 1, 1, 3)
+  ),
+  replace =
+    c(1, 1, 0, 1, 1, 0, 1)
+)
+
+networkActorClub <- defineNetwork(
+  matrix = networkActorClub,
+  nodes = actorsEx, nodes2 = clubsEx, directed = TRUE
+)
+networkActorClub <- linkEvents(
+  x = networkActorClub,
+  changeEvent = eventsActorClub,
+  nodes = actorsEx, nodes2 = clubsEx
+)
 
 # DyNAM-i -----------------------------------------------------------
 # Attributes --------------------------------------------------------
