@@ -32,6 +32,7 @@ a couple of ERGM papers by callings its documentation:
 
 ```r
 library(goldfish)
+#> Warning: package 'goldfish' was built under R version 4.3.2
 data("Social_Evolution")
 # ?Social_Evolution
 head(calls)
@@ -638,18 +639,18 @@ summary(mod03Rate)
 #> 
 #> Coefficients :
 #>             Estimate Std. Error   z-value  Pr(>|z|)    
-#> Intercept -14.380373   0.095669 -150.3135 < 2.2e-16 ***
-#> indeg       0.695555   0.063115   11.0204 < 2.2e-16 ***
-#> outdeg      0.234633   0.030153    7.7814 7.105e-15 ***
-#> indeg       0.054792   0.015049    3.6409 0.0002716 ***
+#> Intercept -14.335641   0.094257 -152.0912 < 2.2e-16 ***
+#> indeg       0.568475   0.067244    8.4540 < 2.2e-16 ***
+#> outdeg      0.314266   0.030898   10.1712 < 2.2e-16 ***
+#> indeg       0.047770   0.015148    3.1535  0.001613 ** 
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #>   Converged with max abs. score of 0 
-#>   Log-Likelihood: -6003.1
-#>   AIC:  12014 
-#>   AICc: 12014 
-#>   BIC:  12031 
+#>   Log-Likelihood: -5984.3
+#>   AIC:  11977 
+#>   AICc: 11977 
+#>   BIC:  11993 
 #>   model: "DyNAM" subModel: "rate"
 ```
 
@@ -665,10 +666,10 @@ The baseline waiting time between two events in hours:
 ```r
 mod03RateCoef <- coef(mod03Rate)
 1 / exp(mod03RateCoef[["Intercept"]]) / 3600
-#> [1] 488.6682
+#> [1] 467.291
 # or days:
 1 / exp(mod03RateCoef[["Intercept"]]) / 86400
-#> [1] 20.36118
+#> [1] 19.47046
 
 # But what if it is not just a random call?
 # Expected waiting time of those who have five outgoing call ties
@@ -676,7 +677,7 @@ mod03RateCoef <- coef(mod03Rate)
 1 / exp(
   mod03RateCoef[["Intercept"]] + mod03RateCoef[["outdeg"]] * 5
   ) / 3600
-#> [1] 151.1872
+#> [1] 97.08854
 # Expected waiting time of those who have five outgoing and incoming call ties
 # (five different actors)
 1 / exp(
@@ -684,7 +685,7 @@ mod03RateCoef <- coef(mod03Rate)
     mod03RateCoef[["outdeg"]] * 5 +
     mod03RateCoef[["indeg"]] * 5
   ) / 3600
-#> [1] 4.66806
+#> [1] 5.658994
 ```
 
 ### Windows
@@ -722,21 +723,21 @@ summary(mod04Rate)
 #> indeg     friendshipNetwork       
 #> 
 #> Coefficients :
-#>             Estimate Std. Error   z-value  Pr(>|z|)    
-#> Intercept -14.530750   0.101676 -142.9125 < 2.2e-16 ***
-#> indeg       0.245045   0.070682    3.4669 0.0005266 ***
-#> outdeg      0.364576   0.032556   11.1985 < 2.2e-16 ***
-#> indeg       5.295709   0.139463   37.9722 < 2.2e-16 ***
-#> outdeg     -0.767499   0.116642   -6.5800 4.706e-11 ***
-#> indeg       0.083772   0.015289    5.4794 4.268e-08 ***
+#>              Estimate  Std. Error   z-value  Pr(>|z|)    
+#> Intercept -14.1665102   0.0880817 -160.8337 < 2.2e-16 ***
+#> indeg       0.1910828   0.0781305    2.4457   0.01446 *  
+#> outdeg      0.5283974   0.0332725   15.8809 < 2.2e-16 ***
+#> indeg       3.1942574   0.4135005    7.7249  1.11e-14 ***
+#> outdeg      0.1404188   0.2860436    0.4909   0.62350    
+#> indeg       0.0098856   0.0154430    0.6401   0.52209    
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#>   Converged with max abs. score of 1e-05 
-#>   Log-Likelihood: -5475.9
-#>   AIC:  10964 
-#>   AICc: 10964 
-#>   BIC:  10992 
+#>   Converged with max abs. score of 0.00081 
+#>   Log-Likelihood: -5854.6
+#>   AIC:  11721 
+#>   AICc: 11721 
+#>   BIC:  11750 
 #>   model: "DyNAM" subModel: "rate"
 ```
 
@@ -813,8 +814,8 @@ AIC(mod02Choice, mod03Choice)
 AIC(mod03Rate, mod04Rate)
 #> Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the same number of observations
 #>           df      AIC
-#> mod03Rate  4 12014.20
-#> mod04Rate  6 10963.75
+#> mod03Rate  4 11976.58
+#> mod04Rate  6 11721.24
 ```
 
 ### REM with `goldfish`
