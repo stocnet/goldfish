@@ -28,8 +28,8 @@ Description: Tools for fitting statistical network models to dynamic network dat
    Stadtfeld, Hollway, and Block (2017b) <doi:10.1177/0081175017733457>,
    Stadtfeld and Block (2017) <doi:10.15195/v4.a14>,
    Hoffman et al. (2020) <doi:10.1017/nws.2020.3>.
-URL: https://snlab-ch.github.io/goldfish/
-BugReports: https://github.com/snlab-ch/goldfish/issues
+URL: https://stocnet.github.io/goldfish/ 
+BugReports: https://github.com/snlab-ch/goldfish/issues/ 
 Depends: R (>= 3.5.0)
 Imports:
     Rcpp (>= 1.0.1),
