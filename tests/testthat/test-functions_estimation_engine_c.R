@@ -10,7 +10,13 @@ test_that(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0, returnIntervalLogL = TRUE)
+      estimationInit = list(
+        startTime = 0,
+        # fixedParameters = c(offsetInt, 0, 0),
+        returnIntervalLogL = TRUE
+      ),
+      progress = FALSE,
+      verbose = FALSE
     )
     modCd <- estimate(
       formula,
@@ -18,6 +24,7 @@ test_that(
       subModel = subModel,
       estimationInit = list(
         startTime = 0, engine = "default_c",
+        # fixedParameters = c(offsetInt, 0, 0),
         returnIntervalLogL = TRUE
       )
     )

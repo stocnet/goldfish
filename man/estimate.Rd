@@ -11,6 +11,7 @@ estimate(
   estimationInit = NULL,
   preprocessingInit = NULL,
   preprocessingOnly = FALSE,
+  envir = new.env(),
   progress = getOption("progress"),
   verbose = getOption("verbose")
 )
@@ -103,6 +104,9 @@ the current formula, allows skipping the preprocessing step.}
 \item{preprocessingOnly}{logical indicating whether only preprocessed
 statistics should be returned rather than a \code{result.goldfish} object
 with the estimated coefficients.}
+
+\item{envir}{an \code{environment} where \code{formula} objects and their linked
+objects are available.}
 
 \item{progress}{logical indicating whether should print a minimal output
 to the console of the progress of the preprocessing and estimation processes.}

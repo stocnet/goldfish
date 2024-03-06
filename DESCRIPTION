@@ -2,7 +2,7 @@ Encoding: UTF-8
 Package: goldfish
 Type: Package
 Title: Statistical Network Models for Dynamic Network Data
-Version: 1.6.5
+Version: 1.6.6
 Date: 2023-06-20
 Authors@R: c(person("James", "Hollway", role = c("cre", "aut", "dtc"), 
                     email = "james.hollway@graduateinstitute.ch",
@@ -40,7 +40,8 @@ Imports:
     generics,
     ggplot2,
     rlang,
-    tibble
+    tibble,
+    lifecycle
 LinkingTo:
     Rcpp,
     RcppArmadillo

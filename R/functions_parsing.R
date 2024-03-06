@@ -90,7 +90,7 @@ parseFormula <- function(formula, envir = new.env()) {
   # check right side: type = c("ego", "alter")
   typeParameter <- lapply(rhsNames, function(x) {
     v <- getElement(x, "type")
-    ifelse(!is.null(v), v, "")
+    ifelse(!is.null(v), eval(parse(text = v), envir = envir), "")
   })
   # check right side: transformFun & aggregateFun
   getFunName <- function(x, which) {
@@ -419,7 +419,7 @@ getEventsAndObjectsLink <- function(
   )
 
   # replace dependent labels with ids
-  events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2)
+  events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2, envir = envir)
   # if(is.character(events[[1]]$sender) && is.character(events[[1]]$receiver)) {
   #   events[[1]]$sender <- match(events[[1]]$sender, get(nodes)$label)
   #   events[[1]]$receiver <- match(events[[1]]$receiver, get(nodes2)$label)
@@ -447,7 +447,7 @@ getEventsAndObjectsLink <- function(
       )
       evs <- lapply(
         evName,
-        function(x) sanitizeEvents(get(x), nodeSet)
+        function(x) sanitizeEvents(get(x, envir = envir), nodeSet, envir = envir)
       )
 
       events <- append(events, evs)
@@ -471,7 +471,7 @@ getEventsAndObjectsLink <- function(
     # replace labels with ids
     if (length(evNames) > 0) {
       for (j in seq_along(evs)) {
-        evs[[j]] <- sanitizeEvents(evs[[j]], nodes, nodes2)
+        evs[[j]] <- sanitizeEvents(evs[[j]], nodes, nodes2, envir = envir)
       }
       eventsObjectsLink <- rbind(
         eventsObjectsLink,

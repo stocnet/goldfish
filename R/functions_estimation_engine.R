@@ -144,14 +144,14 @@ estimate_int <- function(
 
   if (hasCompChange1) {
     compChange1 <- get(compChangeName1, envir = prepEnvir) # add prepEnvir
-    compChange1 <- sanitizeEvents(compChange1, nodes)
+    compChange1 <- sanitizeEvents(compChange1, nodes, envir = prepEnvir)
   } else {
     compChange1 <- NULL
   }
 
   if (hasCompChange2) {
     compChange2 <- get(compChangeName2, envir = prepEnvir) # add prepEnvir
-    compChange2 <- sanitizeEvents(compChange2, nodes2)
+    compChange2 <- sanitizeEvents(compChange2, nodes2, envir = prepEnvir)
   } else {
     compChange2 <- NULL
   }
