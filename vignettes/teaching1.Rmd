@@ -32,7 +32,6 @@ a couple of ERGM papers by callings its documentation:
 
 ```r
 library(goldfish)
-#> Warning: package 'goldfish' was built under R version 4.3.2
 data("Social_Evolution")
 # ?Social_Evolution
 head(calls)
@@ -57,7 +56,7 @@ head(actors)
 
 
 # Preamble: Run a quick DyNAM in five lines
-We use `R` version 4.2.0 to compile the vignettes.
+We use an `R` version higher than 4.2.0 to compile the vignettes.
 The native pipe operator is available in `R` from version 4.1.0.
 
 
@@ -360,6 +359,7 @@ for additional information about network visualization.
 
 
 ```r
+library(igraph)
 library(ggraph)
 library(migraph)
 # The network at the beginning
@@ -372,21 +372,33 @@ autographr(callNetworkBgn, labels = FALSE, layout = "fr")
 ```r
 
 # The network at half time
-callNetworkHlf <- as.matrix(callNetwork,
-                            time = calls$time[floor(nrow(calls) / 2)]) |>
+callNetworkHlf <- as.matrix(
+  callNetwork,
+  time = calls$time[floor(nrow(calls) / 2)]
+) |>
+  as_igraph() |>
   add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
-#> Error in UseMethod("as_tidygraph"): no applicable method for 'as_tidygraph' applied to an object of class "NULL"
+```
+
+![plot of chunk plot-teaching1](teaching/plot-teaching1-2.png)
+
+```r
 
 # The network at the end
 callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |>
+  as_igraph() |>
   add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
-#> Error in UseMethod("as_tidygraph"): no applicable method for 'as_tidygraph' applied to an object of class "NULL"
+```
+
+![plot of chunk plot-teaching1](teaching/plot-teaching1-3.png)
+
+```r
 
 
 # The tie strength at the end
@@ -639,18 +651,18 @@ summary(mod03Rate)
 #> 
 #> Coefficients :
 #>             Estimate Std. Error   z-value  Pr(>|z|)    
-#> Intercept -14.335641   0.094257 -152.0912 < 2.2e-16 ***
-#> indeg       0.568475   0.067244    8.4540 < 2.2e-16 ***
-#> outdeg      0.314266   0.030898   10.1712 < 2.2e-16 ***
-#> indeg       0.047770   0.015148    3.1535  0.001613 ** 
+#> Intercept -14.380373   0.095669 -150.3135 < 2.2e-16 ***
+#> indeg       0.695555   0.063115   11.0204 < 2.2e-16 ***
+#> outdeg      0.234633   0.030153    7.7814 7.105e-15 ***
+#> indeg       0.054792   0.015049    3.6409 0.0002716 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #>   Converged with max abs. score of 0 
-#>   Log-Likelihood: -5984.3
-#>   AIC:  11977 
-#>   AICc: 11977 
-#>   BIC:  11993 
+#>   Log-Likelihood: -6003.1
+#>   AIC:  12014 
+#>   AICc: 12014 
+#>   BIC:  12031 
 #>   model: "DyNAM" subModel: "rate"
 ```
 
@@ -666,10 +678,10 @@ The baseline waiting time between two events in hours:
 ```r
 mod03RateCoef <- coef(mod03Rate)
 1 / exp(mod03RateCoef[["Intercept"]]) / 3600
-#> [1] 467.291
+#> [1] 488.6682
 # or days:
 1 / exp(mod03RateCoef[["Intercept"]]) / 86400
-#> [1] 19.47046
+#> [1] 20.36118
 
 # But what if it is not just a random call?
 # Expected waiting time of those who have five outgoing call ties
@@ -677,7 +689,7 @@ mod03RateCoef <- coef(mod03Rate)
 1 / exp(
   mod03RateCoef[["Intercept"]] + mod03RateCoef[["outdeg"]] * 5
   ) / 3600
-#> [1] 97.08854
+#> [1] 151.1872
 # Expected waiting time of those who have five outgoing and incoming call ties
 # (five different actors)
 1 / exp(
@@ -685,7 +697,7 @@ mod03RateCoef <- coef(mod03Rate)
     mod03RateCoef[["outdeg"]] * 5 +
     mod03RateCoef[["indeg"]] * 5
   ) / 3600
-#> [1] 5.658994
+#> [1] 4.66806
 ```
 
 ### Windows
@@ -723,21 +735,21 @@ summary(mod04Rate)
 #> indeg     friendshipNetwork       
 #> 
 #> Coefficients :
-#>              Estimate  Std. Error   z-value  Pr(>|z|)    
-#> Intercept -14.1665102   0.0880817 -160.8337 < 2.2e-16 ***
-#> indeg       0.1910828   0.0781305    2.4457   0.01446 *  
-#> outdeg      0.5283974   0.0332725   15.8809 < 2.2e-16 ***
-#> indeg       3.1942574   0.4135005    7.7249  1.11e-14 ***
-#> outdeg      0.1404188   0.2860436    0.4909   0.62350    
-#> indeg       0.0098856   0.0154430    0.6401   0.52209    
+#>             Estimate Std. Error   z-value  Pr(>|z|)    
+#> Intercept -14.530750   0.101676 -142.9125 < 2.2e-16 ***
+#> indeg       0.245045   0.070682    3.4669 0.0005266 ***
+#> outdeg      0.364576   0.032556   11.1985 < 2.2e-16 ***
+#> indeg       5.295709   0.139463   37.9722 < 2.2e-16 ***
+#> outdeg     -0.767499   0.116642   -6.5800 4.706e-11 ***
+#> indeg       0.083772   0.015289    5.4794 4.268e-08 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#>   Converged with max abs. score of 0.00081 
-#>   Log-Likelihood: -5854.6
-#>   AIC:  11721 
-#>   AICc: 11721 
-#>   BIC:  11750 
+#>   Converged with max abs. score of 1e-05 
+#>   Log-Likelihood: -5475.9
+#>   AIC:  10964 
+#>   AICc: 10964 
+#>   BIC:  10992 
 #>   model: "DyNAM" subModel: "rate"
 ```
 
@@ -814,23 +826,28 @@ AIC(mod02Choice, mod03Choice)
 AIC(mod03Rate, mod04Rate)
 #> Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the same number of observations
 #>           df      AIC
-#> mod03Rate  4 11976.58
-#> mod04Rate  6 11721.24
+#> mod03Rate  4 12014.20
+#> mod04Rate  6 10963.75
 ```
 
 ### REM with `goldfish`
 
 `goldfish` does not only run DyNAMs; it also runs REMs (Butts, 2008).
 We can now also run REMs using the right-censored intervals as introduced in Stadtfeld & Block (2017).
+An equivalent model specification to the DyNAM model we estimated above,
+including the rate and choice sub-models, is:
+
 
 
 ```r
 allFormulaREM <-
-  callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) +
-                   inertia(callNetwork, window = 300) +
-                   recip(callNetwork, window = 300) +
-                   tie(friendshipNetwork) + recip(friendshipNetwork) +
-                   same(actors$gradeType) + same(actors$floor)
+  callsDependent ~ 
+    1 + indeg(callNetwork, type = "ego") + outdeg(callNetwork, type = "ego") +
+    indeg(friendshipNetwork, type = "ego") +
+    inertia(callNetwork) + recip(callNetwork) +
+    inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) +
+    tie(friendshipNetwork) + recip(friendshipNetwork) +
+    same(actors$gradeType) + same(actors$floor)
 ```
 
 And we can estimate this model, to speed up estimation, we can use any of the
@@ -862,42 +879,51 @@ mod01REM <- estimate(
 summary(mod01REM)
 #> 
 #> Call:
-#> estimate(x = callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) + 
+#> estimate(x = callsDependent ~ 1 + indeg(callNetwork, type = "ego") + 
+#>     outdeg(callNetwork, type = "ego") + indeg(friendshipNetwork, 
+#>     type = "ego") + inertia(callNetwork) + recip(callNetwork) + 
 #>     inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) + 
 #>     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + 
 #>     same(actors$floor), model = "REM", estimationInit = list(engine = "gather_compute"))
 #> 
 #> 
 #> Effects details :
-#>           Object            window
-#> Intercept                         
-#> inertia   callNetwork             
-#> recip     callNetwork             
-#> inertia   callNetwork       300   
-#> recip     callNetwork       300   
-#> tie       friendshipNetwork       
-#> recip     friendshipNetwork       
-#> same      actors$gradeType        
-#> same      actors$floor            
+#>           Object              type  window
+#> Intercept ""                  ""    ""    
+#> indeg     "callNetwork"       "ego" ""    
+#> outdeg    "callNetwork"       "ego" ""    
+#> indeg     "friendshipNetwork" "ego" ""    
+#> inertia   "callNetwork"       ""    ""    
+#> recip     "callNetwork"       ""    ""    
+#> inertia   "callNetwork"       ""    "300" 
+#> recip     "callNetwork"       ""    "300" 
+#> tie       "friendshipNetwork" ""    ""    
+#> recip     "friendshipNetwork" ""    ""    
+#> same      "actors$gradeType"  ""    ""    
+#> same      "actors$floor"      ""    ""    
 #> 
 #> Coefficients :
-#>            Estimate Std. Error   z-value  Pr(>|z|)    
-#> Intercept -19.71673    0.11613 -169.7865 < 2.2e-16 ***
-#> inertia     5.69399    0.16967   33.5596 < 2.2e-16 ***
-#> recip      -0.23048    0.14452   -1.5948    0.1108    
-#> inertia    -1.54005    0.17862   -8.6221 < 2.2e-16 ***
-#> recip       7.18721    0.16779   42.8342 < 2.2e-16 ***
-#> tie         0.94057    0.20797    4.5226 6.107e-06 ***
-#> recip       0.92988    0.19070    4.8761 1.082e-06 ***
-#> same        0.31116    0.13364    2.3283    0.0199 *  
-#> same       -0.60389    0.12207   -4.9470 7.538e-07 ***
+#>             Estimate Std. Error   z-value  Pr(>|z|)    
+#> Intercept -19.763568   0.136731 -144.5434 < 2.2e-16 ***
+#> indeg       0.086900   0.071528    1.2149 0.2243968    
+#> outdeg     -0.222330   0.040445   -5.4971 3.860e-08 ***
+#> indeg       0.010742   0.017245    0.6229 0.5333320    
+#> inertia     6.203483   0.189796   32.6850 < 2.2e-16 ***
+#> recip      -0.313425   0.154555   -2.0279 0.0425690 *  
+#> inertia    -1.589903   0.179494   -8.8577 < 2.2e-16 ***
+#> recip       7.013842   0.170730   41.0814 < 2.2e-16 ***
+#> tie         0.853373   0.206297    4.1366 3.525e-05 ***
+#> recip       0.930856   0.194742    4.7800 1.753e-06 ***
+#> same        0.470688   0.132528    3.5516 0.0003829 ***
+#> same       -0.670748   0.123206   -5.4441 5.207e-08 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #>   Converged with max abs. score of 0 
-#>   Log-Likelihood: -5657.2
-#>   AIC:  11332 
-#>   AICc: 11333 
-#>   BIC:  11375 
+#>   Log-Likelihood: -5639
+#>   AIC:  11302 
+#>   AICc: 11302 
+#>   BIC:  11359 
 #>   model: "REM" subModel: "choice"
 ```
+

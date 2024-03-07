@@ -93,6 +93,7 @@ callsDependent
 
 
 ## ----plot-teaching1, message=FALSE, warning=FALSE--------------------------------------------------------------------
+library(igraph)
 library(ggraph)
 library(migraph)
 # The network at the beginning
@@ -100,8 +101,11 @@ callNetworkBgn <- as.matrix(callNetwork)
 autographr(callNetworkBgn, labels = FALSE, layout = "fr")
 
 # The network at half time
-callNetworkHlf <- as.matrix(callNetwork,
-                            time = calls$time[floor(nrow(calls) / 2)]) |>
+callNetworkHlf <- as.matrix(
+  callNetwork,
+  time = calls$time[floor(nrow(calls) / 2)]
+) |>
+  as_igraph() |>
   add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
@@ -109,6 +113,7 @@ autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
 
 # The network at the end
 callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |>
+  as_igraph() |>
   add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
@@ -238,11 +243,13 @@ AIC(mod03Rate, mod04Rate)
 
 ## ----rem-------------------------------------------------------------------------------------------------------------
 allFormulaREM <-
-  callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) +
-                   inertia(callNetwork, window = 300) +
-                   recip(callNetwork, window = 300) +
-                   tie(friendshipNetwork) + recip(friendshipNetwork) +
-                   same(actors$gradeType) + same(actors$floor)
+  callsDependent ~ 
+    1 + indeg(callNetwork, type = "ego") + outdeg(callNetwork, type = "ego") +
+    indeg(friendshipNetwork, type = "ego") +
+    inertia(callNetwork) + recip(callNetwork) +
+    inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) +
+    tie(friendshipNetwork) + recip(friendshipNetwork) +
+    same(actors$gradeType) + same(actors$floor)
 
 
 ## ----rem-gather, eval=FALSE------------------------------------------------------------------------------------------

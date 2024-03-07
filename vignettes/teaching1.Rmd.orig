@@ -82,7 +82,7 @@ estimate <- function(
 
 
 # Preamble: Run a quick DyNAM in five lines
-We use `R` version 4.2.0 to compile the vignettes.
+We use an `R` version higher than 4.2.0 to compile the vignettes.
 The native pipe operator is available in `R` from version 4.1.0.
 
 ```{r quick}
@@ -244,6 +244,7 @@ different time periods using `migraph`. See the `migraph` package documentation
 for additional information about network visualization.
 
 ```{r plot-teaching1, message=FALSE, warning=FALSE}
+library(igraph)
 library(ggraph)
 library(migraph)
 # The network at the beginning
@@ -251,8 +252,11 @@ callNetworkBgn <- as.matrix(callNetwork)
 autographr(callNetworkBgn, labels = FALSE, layout = "fr")
 
 # The network at half time
-callNetworkHlf <- as.matrix(callNetwork,
-                            time = calls$time[floor(nrow(calls) / 2)]) |>
+callNetworkHlf <- as.matrix(
+  callNetwork,
+  time = calls$time[floor(nrow(calls) / 2)]
+) |>
+  as_igraph() |>
   add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
@@ -260,6 +264,7 @@ autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
 
 # The network at the end
 callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |>
+  as_igraph() |>
   add_node_attribute("floor", actors$floor)
 
 autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
@@ -479,14 +484,19 @@ AIC(mod03Rate, mod04Rate)
 
 `goldfish` does not only run DyNAMs; it also runs REMs (Butts, 2008).
 We can now also run REMs using the right-censored intervals as introduced in Stadtfeld & Block (2017).
+An equivalent model specification to the DyNAM model we estimated above,
+including the rate and choice sub-models, is:
+
 
 ```{r rem}
 allFormulaREM <-
-  callsDependent ~ 1 + inertia(callNetwork) + recip(callNetwork) +
-                   inertia(callNetwork, window = 300) +
-                   recip(callNetwork, window = 300) +
-                   tie(friendshipNetwork) + recip(friendshipNetwork) +
-                   same(actors$gradeType) + same(actors$floor)
+  callsDependent ~ 
+    1 + indeg(callNetwork, type = "ego") + outdeg(callNetwork, type = "ego") +
+    indeg(friendshipNetwork, type = "ego") +
+    inertia(callNetwork) + recip(callNetwork) +
+    inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) +
+    tie(friendshipNetwork) + recip(friendshipNetwork) +
+    same(actors$gradeType) + same(actors$floor)
 ```
 
 And we can estimate this model, to speed up estimation, we can use any of the
@@ -515,3 +525,4 @@ mod01REM <- estimate(
 
 summary(mod01REM)
 ```
+

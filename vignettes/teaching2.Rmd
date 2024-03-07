@@ -464,7 +464,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>  172.01   12.90  200.93
+#>  231.94    6.51  245.44
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -556,7 +556,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>   21.08    1.33   24.31
+#>  137.27    0.86  139.80
 ```
 
 # Extensions...
