@@ -55,6 +55,7 @@ An updated setting up instructions thanks to @timonelmer are available [here](ht
 
 More details can be found [here](https://medium.com/biosyntax/following-up-library-dependency-when-compiling-r-packages-89f191b9f227) (Thank you @Knieps for identifying this.).
 Other links that may be helpful include:
+
 - https://asieira.github.io/using-openmp-with-r-packages-in-os-x.html
 - https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/
 - https://ryanhomer.github.io/posts/build-openmp-macos-catalina-complete

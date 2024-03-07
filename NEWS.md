@@ -1,6 +1,7 @@
 # goldfish 1.6.6
 
-* Debugging `GatherPreprocessing()`.
+* Debugging and extend documentation for `GatherPreprocessing()`.
+* Fix note from CRAN checks.
 
 # goldfish 1.6.5
 
