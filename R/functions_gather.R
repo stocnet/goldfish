@@ -7,21 +7,82 @@
 
 #' Gather preprocess data from a formula
 #'
-#' Preprocess is made with goldfish.
+#' Gather the preprocess data from a formula and a model,
+#' where the output corresponds to the data structure used by the engine 
+#' `gather_compute`; see [estimate()].
+#' 
+#' It differs from the `estimate()` output when the argument `preprocessingOnly`
+#' is set to `TRUE` regarding the memory space requirement.
+#' The `gatherPreprocessing()` produces a list where the first element
+#' is a matrix that could have up to the number of events times
+#' the number of actors rows and the number of effects columns.
+#' For medium to large datasets with thousands of events and
+#' thousands of actors, the memory RAM requirements are large and,
+#' therefore, errors are produced due to a lack of space.
+#' The advantage of the data structure is that it can be adapted
+#' to estimate the models (or extensions of them) using standard packages
+#' for generalized linear models (or any other model)
+#' that use tabular data as input.
+#' 
+#' @inheritParams estimate
 #'
-#' @param formula See [estimate()]. Left side a dependent events object defined
-#' with [defineDependentEvents()] and right side effect parameters as described
-#' in `vignette("goldfishEffects")`.
-#' @param model See [estimate()].  Current version of gather works for
-#'  `c('DyNAM')`
-#' @param subModel Current version supports `c('choice_coordination', 'choice')`
-#' @param preprocessArgs Additional preprocess arguments like `startTime`,
-#'   `endTime` and `opportunitiesList`. See [estimate()].
-#' @param progress Default `FALSE`.
-#' @param envir an `environment` where `formula` objects and their linked
-#'   objectsare available.
+#' @param preprocessArgs a list containing additional parameters
+#' for preprocessing. It may contain:
+#' \describe{
+#'  \item{startTime}{a numerical value or a date-time character with the same
+#'  time-zone formatting as the times in event that indicates the starting time
+#'  to be considered during estimation.
+#'  \emph{Note:} it is only use during preprocessing}
+#'  \item{endTime}{a numerical value or a date-time character with the same
+#'  time-zone formatting as the times in event that indicates the end time
+#'  to be considered during estimation.
+#'  \emph{Note:} it is only use during preprocessing}
+#'  \item{opportunitiesList}{a list containing for each dependent event
+#'   the list of available nodes for the choice model, this list should be
+#'   the same length as the dependent events list (ONLY for choice models).}
+#' }
 #'
-#' @return a list with the data and relevant information.
+#' @return a list object including:
+#'  \describe{
+#'   \item{stat_all_events}{a matrix. The number of rows can be up to the number
+#'    of events times the number of actors
+#'    (square number of actors for the REM).
+#'    Rigth-censored events are included when the model has an intercept.
+#'    The number of columns is the number of effects in the model.
+#'    Every row is the effect statistics at the time of the event for each actor
+#'    in the choice set or the sender set.}
+#'   \item{n_candidates}{
+#'    a numeric vector with the number of rows related with an event.
+#'    The length correspond to the number of events
+#'    plus right censored events if any.}
+#'   \item{selected}{a numeric vector with the position of the
+#'    selected actor (choice model), sender actor (rate model), or
+#'    active dyad (choice-coordination model, REM model).
+#'    Indexing start at 1 for each event.}
+#'   \item{sender, receiver}{
+#'    a character vector with the label of the sender/receiver actor.
+#'    For right-censored events the receiver values is not meaningful.}
+#'   \item{hasIntercept}{
+#'    a logical value indicating if the model has an intercept.}
+#'   \item{namesEffects}{a character vector with a short name of the effect.
+#'   It includes the name of the object used to calculate the effects and
+#'   modifiers of the effect, e.g., the type of effect, weighted effect.}
+#'   \item{effectDescription}{
+#'    a character matrix with the description of the effects.
+#'    It includes the name of the object used to calculate the effects and
+#'    additional information of the effect, e.g., the type of effect, 
+#'    weighted effect, transformation function, window length.}
+#'  }
+#'  If the model has an intercept and the subModel is `rate` or model is `REM`,
+#'  additional elements are included:
+#'  \describe{
+#'   \item{timespan}{
+#'    a numeric vector with the time span between events,
+#'    including right-censored events.}
+#'   \item{isDependent}{
+#'    a logical vector indicating if the event is dependent or right-censored.}
+#'  }
+#'   
 #' @export
 #'
 #' @examples
@@ -321,11 +382,13 @@ GatherPreprocessing <- function(
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED
   ## BY C FUNCTIONS
-  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
+  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM", "DyNAM-MM")) {
     is_dependent <- preprocessingStat$orderEvents == 1
     timespan <- numeric(length(is_dependent))
-    timespan[is_dependent] <- preprocessingStat$intervals
-    timespan[(!is_dependent)] <- preprocessingStat$rightCensoredIntervals
+    if (modelTypeCall != "DyNAM-MM") {
+      timespan[is_dependent] <- preprocessingStat$intervals
+      timespan[(!is_dependent)] <- preprocessingStat$rightCensoredIntervals
+    }
   } else {
     timespan <- NA
   }

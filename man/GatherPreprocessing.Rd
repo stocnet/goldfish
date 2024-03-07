@@ -14,28 +14,114 @@ GatherPreprocessing(
 )
 }
 \arguments{
-\item{formula}{See \code{\link[=estimate]{estimate()}}. Left side a dependent events object defined
-with \code{\link[=defineDependentEvents]{defineDependentEvents()}} and right side effect parameters as described
-in \code{vignette("goldfishEffects")}.}
+\item{model}{a character string defining the model type.
+Current options include \code{"DyNAM"}, \code{"DyNAMi"} or \code{"REM"}
+\describe{
+\item{DyNAM}{Dynamic Network Actor Models
+(Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
+\item{DyNAMi}{Dynamic Network Actor Models for interactions
+(Hoffman et al., 2020)}
+\item{REM}{Relational Event Model (Butts, 2008)}
+}}
 
-\item{model}{See \code{\link[=estimate]{estimate()}}.  Current version of gather works for
-\code{c('DyNAM')}}
+\item{subModel}{a character string defining the submodel type.
+Current options include \code{"choice"}, \code{"rate"} or
+\code{"choice_coordination"}
+\describe{
+\item{choice}{a multinomial receiver choice model \code{model = "DyNAM"}
+(Stadtfeld and Block, 2017), or the general Relational event model
+\code{model = "REM"} (Butts, 2008).
+A multinomial group choice model \code{model = "DyNAMi"} (Hoffman et al., 2020)}
+\item{choice_coordination}{a multinomial-multinomial model for coordination
+ties \code{model = "DyNAM"} (Stadtfeld, Hollway and Block, 2017)}
+\item{rate}{A individual activity rates model \code{model = "DyNAM"}
+(Stadtfeld and Block, 2017).
+Two rate models, one for individuals joining groups and one for individuals
+leaving groups, jointly estimated \code{model = "DyNAMi"}(Hoffman et al., 2020)}
+}}
 
-\item{subModel}{Current version supports \code{c('choice_coordination', 'choice')}}
+\item{preprocessArgs}{a list containing additional parameters
+for preprocessing. It may contain:
+\describe{
+\item{startTime}{a numerical value or a date-time character with the same
+time-zone formatting as the times in event that indicates the starting time
+to be considered during estimation.
+\emph{Note:} it is only use during preprocessing}
+\item{endTime}{a numerical value or a date-time character with the same
+time-zone formatting as the times in event that indicates the end time
+to be considered during estimation.
+\emph{Note:} it is only use during preprocessing}
+\item{opportunitiesList}{a list containing for each dependent event
+the list of available nodes for the choice model, this list should be
+the same length as the dependent events list (ONLY for choice models).}
+}}
 
-\item{preprocessArgs}{Additional preprocess arguments like \code{startTime},
-\code{endTime} and \code{opportunitiesList}. See \code{\link[=estimate]{estimate()}}.}
-
-\item{progress}{Default \code{FALSE}.}
+\item{progress}{logical indicating whether should print a minimal output
+to the console of the progress of the preprocessing and estimation processes.}
 
 \item{envir}{an \code{environment} where \code{formula} objects and their linked
-objectsare available.}
+objects are available.}
 }
 \value{
-a list with the data and relevant information.
+a list object including:
+\describe{
+\item{stat_all_events}{a matrix. The number of rows can be up to the number
+of events times the number of actors
+(square number of actors for the REM).
+Rigth-censored events are included when the model has an intercept.
+The number of columns is the number of effects in the model.
+Every row is the effect statistics at the time of the event for each actor
+in the choice set or the sender set.}
+\item{n_candidates}{
+a numeric vector with the number of rows related with an event.
+The length correspond to the number of events
+plus right censored events if any.}
+\item{selected}{a numeric vector with the position of the
+selected actor (choice model), sender actor (rate model), or
+active dyad (choice-coordination model, REM model).
+Indexing start at 1 for each event.}
+\item{sender, receiver}{
+a character vector with the label of the sender/receiver actor.
+For right-censored events the receiver values is not meaningful.}
+\item{hasIntercept}{
+a logical value indicating if the model has an intercept.}
+\item{namesEffects}{a character vector with a short name of the effect.
+It includes the name of the object used to calculate the effects and
+modifiers of the effect, e.g., the type of effect, weighted effect.}
+\item{effectDescription}{
+a character matrix with the description of the effects.
+It includes the name of the object used to calculate the effects and
+additional information of the effect, e.g., the type of effect,
+weighted effect, transformation function, window length.}
+}
+If the model has an intercept and the subModel is \code{rate} or model is \code{REM},
+additional elements are included:
+\describe{
+\item{timespan}{
+a numeric vector with the time span between events,
+including right-censored events.}
+\item{isDependent}{
+a logical vector indicating if the event is dependent or right-censored.}
+}
 }
 \description{
-Preprocess is made with goldfish.
+Gather the preprocess data from a formula and a model,
+where the output corresponds to the data structure used by the engine
+\code{gather_compute}; see \code{\link[=estimate]{estimate()}}.
+}
+\details{
+It differs from the \code{estimate()} output when the argument \code{preprocessingOnly}
+is set to \code{TRUE} regarding the memory space requirement.
+The \code{gatherPreprocessing()} produces a list where the first element
+is a matrix that could have up to the number of events times
+the number of actors rows and the number of effects columns.
+For medium to large datasets with thousands of events and
+thousands of actors, the memory RAM requirements are large and,
+therefore, errors are produced due to a lack of space.
+The advantage of the data structure is that it can be adapted
+to estimate the models (or extensions of them) using standard packages
+for generalized linear models (or any other model)
+that use tabular data as input.
 }
 \examples{
 data("Fisheries_Treaties_6070")
