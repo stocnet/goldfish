@@ -14,6 +14,12 @@ GatherPreprocessing(
 )
 }
 \arguments{
+\item{formula}{a formula object that defines at the
+left-hand side the dependent
+network (see \code{\link[=defineDependentEvents]{defineDependentEvents()}}) and at the right-hand side the
+effects and the variables for which the effects are expected to occur
+(see \code{vignette("goldfishEffects")}).}
+
 \item{model}{a character string defining the model type.
 Current options include \code{"DyNAM"}, \code{"DyNAMi"} or \code{"REM"}
 \describe{

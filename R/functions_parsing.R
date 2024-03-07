@@ -447,7 +447,8 @@ getEventsAndObjectsLink <- function(
       )
       evs <- lapply(
         evName,
-        function(x) sanitizeEvents(get(x, envir = envir), nodeSet, envir = envir)
+        function(x)
+          sanitizeEvents(get(x, envir = envir), nodeSet, envir = envir)
       )
 
       events <- append(events, evs)

@@ -56,7 +56,7 @@ NULL
 #' @export
 #' @rdname update-method
 as.data.frame.nodes.goldfish <- function(
-    x, ..., time = -Inf,
+      x, ..., time = -Inf,
     startTime = -Inf, envir = new.env()
 ) {
   df <- x
@@ -443,7 +443,7 @@ defineNetwork <- function(
   }
 
   if (!is.null(nodes2) &&
-    !any(checkClasses(nodes2, c("data.frame", "nodes.goldfish")))) {
+      !any(checkClasses(nodes2, c("data.frame", "nodes.goldfish")))) {
     stop(
       "Invalid argument ", dQuote("nodes2"), ": ",
       "this function expects objects of class ",
@@ -595,7 +595,7 @@ defineDependentEvents <- function(events, nodes, nodes2 = NULL,
   }
 
   if (isTwoMode &&
-    !any(checkClasses(nodes2, c("data.frame", "nodes.goldfish")))) {
+      !any(checkClasses(nodes2, c("data.frame", "nodes.goldfish")))) {
     stop(
       "Invalid argument ", dQuote("nodes2"), ": ",
       "this function expects objects of class ",

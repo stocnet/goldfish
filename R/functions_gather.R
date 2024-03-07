@@ -8,9 +8,9 @@
 #' Gather preprocess data from a formula
 #'
 #' Gather the preprocess data from a formula and a model,
-#' where the output corresponds to the data structure used by the engine 
+#' where the output corresponds to the data structure used by the engine
 #' `gather_compute`; see [estimate()].
-#' 
+#'
 #' It differs from the `estimate()` output when the argument `preprocessingOnly`
 #' is set to `TRUE` regarding the memory space requirement.
 #' The `gatherPreprocessing()` produces a list where the first element
@@ -23,9 +23,14 @@
 #' to estimate the models (or extensions of them) using standard packages
 #' for generalized linear models (or any other model)
 #' that use tabular data as input.
-#' 
-#' @inheritParams estimate
 #'
+#' @inheritParams estimate
+#' 
+#' @param formula a formula object that defines at the
+#' left-hand side the dependent
+#' network (see [defineDependentEvents()]) and at the right-hand side the
+#' effects and the variables for which the effects are expected to occur
+#' (see `vignette("goldfishEffects")`).
 #' @param preprocessArgs a list containing additional parameters
 #' for preprocessing. It may contain:
 #' \describe{
@@ -70,7 +75,7 @@
 #'   \item{effectDescription}{
 #'    a character matrix with the description of the effects.
 #'    It includes the name of the object used to calculate the effects and
-#'    additional information of the effect, e.g., the type of effect, 
+#'    additional information of the effect, e.g., the type of effect,
 #'    weighted effect, transformation function, window length.}
 #'  }
 #'  If the model has an intercept and the subModel is `rate` or model is `REM`,
@@ -82,7 +87,7 @@
 #'   \item{isDependent}{
 #'    a logical vector indicating if the event is dependent or right-censored.}
 #'  }
-#'   
+#'
 #' @export
 #'
 #' @examples

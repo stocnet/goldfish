@@ -234,8 +234,10 @@ test_that(
     )
     expect_equal(
       preproData$eventTime,
-      c(eventsIncrement$time, eventsExogenous$time, 30) |> unique() |>
-        sort() |> Filter(\(x) x >= 10 & x <= 30, x = _),
+      c(eventsIncrement$time, eventsExogenous$time, 30) |>
+        unique() |>
+        sort() |>
+        Filter(\(x) x >= 10 & x <= 30, x = _),
       label = "events times"
     )
     expect_equal(
@@ -353,8 +355,10 @@ test_that(
     )
     expect_equal(
       preproData$eventTime,
-      c(eventsIncrement$time, eventsExogenous$time, 24) |> unique() |>
-        sort() |> Filter(\(x) x >= 6 & x <= 24, x = _),
+      c(eventsIncrement$time, eventsExogenous$time, 24) |>
+        unique() |>
+        sort() |>
+        Filter(\(x) x >= 6 & x <= 24, x = _),
       label = "events times"
     )
     expect_equal(
