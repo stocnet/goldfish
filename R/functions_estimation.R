@@ -811,8 +811,8 @@ estimate.formula <- function(
         args = c(argsEstimation, list(engine = engine))
       ),
       error = \(e) {
-        stop("Error in ", model, " ", subModel,
-          " estimation: ", e,
+        stop("For ", model, " ", subModel,
+          " estimation:\n\t", e$message,
           call. = FALSE
         )
       }
@@ -821,8 +821,8 @@ estimate.formula <- function(
     tryCatch(
       result <- do.call("estimate_int", args = argsEstimation),
       error = \(e) {
-        stop("Error in ", model, " ", subModel,
-          " estimation: ", e,
+        stop("For ", model, " ", subModel,
+          " estimation:\n\t", e$message,
           call. = FALSE
         )
       }

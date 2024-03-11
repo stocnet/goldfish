@@ -246,9 +246,11 @@ and `exogenous.events`
 
 ```r
 init.network <- diag(x = 1, nrow(actors), nrow(groups))
+# goldfish check that row/column names agree with the nodes data frame labels
+dimnames(init.network) <- list(actors$label, groups$label)
 network.interactions <- defineNetwork(
   matrix = init.network, nodes = actors, nodes2 = groups, directed = TRUE
-) # don't worry about the warnings
+)
 network.interactions <- linkEvents(
   x = network.interactions, changeEvent = dependent.events,
   nodes = actors, nodes2 = groups
@@ -400,18 +402,43 @@ est.choice.M1 <- estimate(
   model = "DyNAMi", subModel = "choice",
   estimationInit = list(opportunitiesList = opportunities)
 )
-```
-
-```
-## Error: Error in DyNAMi choice estimation: Error: Active node 1 not available in event 14
-```
-
-```r
 summary(est.choice.M1)
 ```
 
 ```
-## Error in eval(expr, envir, enclos): object 'est.choice.M1' not found
+## 
+## Call:
+## estimate(x = dependent.events ~ diff(actors$age, subType = "averaged_sum") + 
+##     diff(actors$level, subType = "averaged_sum") + same(actors$gender, 
+##     subType = "proportion") + same(actors$group, subType = "proportion") + 
+##     tie(known.before, subType = "proportion"), model = "DyNAMi", 
+##     subModel = "choice", estimationInit = list(opportunitiesList = opportunities))
+## 
+## 
+## Effects details :
+##      Object          subType         
+## diff "actors$age"    ""averaged_sum""
+## diff "actors$level"  ""averaged_sum""
+## same "actors$gender" ""proportion""  
+## same "actors$group"  ""proportion""  
+## tie  "known.before"  ""proportion""  
+## 
+## Coefficients :
+##       Estimate Std. Error z-value  Pr(>|z|)    
+## diff -0.107578   0.067179 -1.6014 0.1092943    
+## diff  0.262945   0.225568  1.1657 0.2437353    
+## same  0.292121   0.298317  0.9792 0.3274665    
+## same  0.024975   0.384103  0.0650 0.9481565    
+## tie   1.316141   0.378545  3.4768 0.0005074 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##   Converged with max abs. score of 0.00026 
+##   Log-Likelihood: -195.16
+##   AIC:  400.32 
+##   AICc: 400.84 
+##   BIC:  414.39 
+##   model: "DyNAMi" subModel: "choice"
 ```
 ### Step 5: Estimate a model with structural and time effects
 
@@ -540,18 +567,56 @@ est.choice.M2 <- estimate(
   model = "DyNAMi", subModel = "choice",
   estimationInit = list(opportunitiesList = opportunities)
 )
-```
-
-```
-## Error: Error in DyNAMi choice estimation: Error: Active node 1 not available in event 14
-```
-
-```r
 summary(est.choice.M2)
 ```
 
 ```
-## Error in eval(expr, envir, enclos): object 'est.choice.M2' not found
+## 
+## Call:
+## estimate(x = dependent.events ~ diff(actors$age, subType = "averaged_sum") + 
+##     diff(actors$level, subType = "averaged_sum") + same(actors$gender, 
+##     subType = "proportion") + same(actors$group, subType = "proportion") + 
+##     alter(actors$age, subType = "mean") + tie(known.before, subType = "proportion") + 
+##     size(network.interactions, subType = "identity") + alterpop(network.past, 
+##     subType = "mean_normalized") + inertia(network.past, window = 60, 
+##     subType = "mean") + inertia(network.past, window = 300, subType = "mean"), 
+##     model = "DyNAMi", subModel = "choice", estimationInit = list(opportunitiesList = opportunities))
+## 
+## 
+## Effects details :
+##          Object                 window subType            
+## diff     "actors$age"           ""     ""averaged_sum""   
+## diff     "actors$level"         ""     ""averaged_sum""   
+## same     "actors$gender"        ""     ""proportion""     
+## same     "actors$group"         ""     ""proportion""     
+## alter    "actors$age"           ""     ""mean""           
+## tie      "known.before"         ""     ""proportion""     
+## size     "network.interactions" ""     ""identity""       
+## alterpop "network.past"         ""     ""mean_normalized""
+## inertia  "network.past"         "60"   ""mean""           
+## inertia  "network.past"         "300"  ""mean""           
+## 
+## Coefficients :
+##           Estimate Std. Error z-value Pr(>|z|)   
+## diff     -0.133077   0.073387 -1.8134 0.069776 . 
+## diff      0.095857   0.231054  0.4149 0.678238   
+## same      0.141033   0.321444  0.4387 0.660843   
+## same     -0.284446   0.418710 -0.6793 0.496924   
+## alter     0.033538   0.017678  1.8971 0.057809 . 
+## tie       1.274992   0.393714  3.2384 0.001202 **
+## size      0.097754   0.093141  1.0495 0.293934   
+## alterpop  0.288526   0.170532  1.6919 0.090662 . 
+## inertia   0.211654   0.458129  0.4620 0.644084   
+## inertia  -0.096613   0.235330 -0.4105 0.681410   
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##   Converged with max abs. score of 2e-05 
+##   Log-Likelihood: -189.76
+##   AIC:  399.53 
+##   AICc: 401.49 
+##   BIC:  427.65 
+##   model: "DyNAMi" subModel: "choice"
 ```
 
 Of course these models ask a bit much from our data,
@@ -573,6 +638,14 @@ se.interceptjoining <- sqrt(
   cov.matrix[1, 1] + cov.matrix[2, 2] + 2 * cov.matrix[1, 2]
 )
 t.interceptjoining <- est.interceptjoining / se.interceptjoining
+sprintf(
+  "Intercept for joining: %.3f (SE = %.3f, t = %.3f)",
+  est.interceptjoining, se.interceptjoining, t.interceptjoining
+)
+```
+
+```
+## [1] "Intercept for joining: -3.434 (SE = 0.089, t = -38.477)"
 ```
 
 This script can be continued by looking at better model specifications

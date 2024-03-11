@@ -872,8 +872,8 @@ getIterationStepState <- function(
     }
 
     # IMPUTE missing statistics with current mean
-    if (impute) {
-      for (j in seq_len(nParams)) {
+    if (impute && anyNA(statsArray)) {
+      for (j in which(apply(statsArray, 3, anyNA))) {
         statsArray[, , j] <- imputeFun(statsArray[, , j])
       }
     }
@@ -952,8 +952,11 @@ getIterationStepState <- function(
     }
     if ((updatepresence2 || updateopportunities)) {
       keepIn <- presence2 & opportunities
+      # reducing stats array alters the correspondence between row/col 
+      # it needs to consider the reflexive case to avoid wrong calculation
+      # excludes REM and DyNAM-MM
       if (!allowReflexive && grepl("DyNAM-M(-|$)?", modelType)) {
-        keepIn[posSender] <- FALSE
+        if (!isTwoMode) keepIn[posSender] <- FALSE
         allowReflexiveCorrected <- TRUE
       } else {
         allowReflexiveCorrected <- FALSE
