@@ -1,13 +1,14 @@
 ## -*- mode: autoconf; autoconf-indentation: 4; -*-
 ##
 ## Copyright Dirk Eddelbuettel for RcppArmadillo (GPL-2)
+## https://stackoverflow.com/questions/46723854/rcpparmadillo-using-autoconf-to-disable-openmp
+## nspope/radish repo uses it
 
-VERSION=$(grep -i ^version DESCRIPTION | awk '{print $2}')
 ## require at least autoconf 2.69
 AC_PREREQ([2.69])
 
 ## Process this file with autoconf to produce a configure script.
-AC_INIT([Goldfish], @VERSION@)
+AC_INIT([goldfish], m4_esyscmd_s([awk -e '/^Version:/ {print $2}' DESCRIPTION]))
 
 ## Set R_HOME, respecting an environment variable if one is set
 : ${R_HOME=$(R RHOME)}
@@ -55,7 +56,7 @@ AC_OUTPUT
 
 echo "
  --------------------------------------------------
-  Configuration for goldfish version ${VERSION}
+  Configuration for goldfish version ${PACKAGE_VERSION}
   ================
   
     openMP: ${openmp_flag} 
