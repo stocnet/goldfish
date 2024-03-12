@@ -151,11 +151,11 @@ print.summary.result.goldfish <- function(
   }
 
   if (isDetPrint) {
-    cat("\nEffects details :\n")
+    cat("\nEffects details:\n")
     print.default(names, quote = FALSE, width = width, ...)
   }
 
-  cat("\nCoefficients :\n")
+  cat("\nCoefficients:\n")
   stats::printCoefmat(coefMat, digits = digits, width = width, ...)
   cat("\n")
   cat(" ", paste(
@@ -251,7 +251,7 @@ print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
 print.network.goldfish <- function(x, ..., full = FALSE, n = 6L) {
   nodes <- attr(x, "nodes")
   directed <- attr(x, "directed")
-  ties <- if (directed) sum(x > 0) else sum(x > 0) / 2
+  ties <- sum(x > 0, na.rm = TRUE) / ifelse(directed, 1, 2)
   events <- attr(x, "events")
   cat(
     "Dimensions:", paste(dim(x), collapse = " "),
