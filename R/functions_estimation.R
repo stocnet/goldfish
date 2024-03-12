@@ -617,7 +617,7 @@ estimate.formula <- function(
     }
 
     # dependent stats updates
-    for (t in seq_along(allprep$intervals)) {
+    for (t in seq_along(preprocessingInit$dependentStatsChange)) {
       cptnew <- 1
       allprep$dependentStatsChange[[t]] <-
         lapply(seq_along(effectsindexes), function(x) NULL)
@@ -643,8 +643,8 @@ estimate.formula <- function(
     }
 
     # right censored stats updates
-    if (length(allprep$rightCensoredIntervals) > 0) {
-      for (t in seq_along(allprep$rightCensoredIntervals)) {
+    if (length(preprocessingInit$rightCensoredIntervals) > 0) {
+      for (t in seq_along(preprocessingInit$rightCensoredIntervals)) {
         cptnew <- 1
         allprep$rightCensoredStatsChange[[t]] <-
           lapply(seq_along(effectsindexes), function(x) NULL)
