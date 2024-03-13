@@ -1,30 +1,33 @@
 # define methods ----------------------------------------------------------
 # init cache data structure: vector or matrix
-init_DyNAMi_choice <- function(effectFun, network, attribute)
+init_DyNAMi_choice <- function(effectFun, network, attribute) {
   UseMethod("init_DyNAMi_choice", effectFun)
+}
 
 # default -----------------------------------------------------------------
 
-#init_DyNAMi_choice.default <- function(effectFun, network, attribute)
+# init_DyNAMi_choice.default <- function(effectFun, network, attribute)
 #  NULL  # # effect without cache object
 
 init_DyNAMi_choice.default <- function(effectFun,
                                        network = NULL, attribute = NULL,
                                        groupsNetwork, window,
                                        n1, n2) {
-
   # print(match.call())
   if (is.null(network) && is.null(attribute)) {
     # this check could be unnecessary
-    stop("the effect function doesn't specify neither a network nor an attribute as argument")
+    stop(
+      "the effect function doesn't specify neither a network",
+      " nor an attribute as argument"
+    )
   }
 
   # if multiple networks, attributes or combination of both are specified.
   # The initialization is done over the fist network
   # lenNetwork <- length(network)
-  hasNetwork  <- length(network)   >= 1
-  hasMultNets <- length(network)   >= 1 & is.list(network)
-  hasMultAtt  <- length(attribute) >= 1 & is.list(attribute)
+  hasNetwork <- length(network) >= 1
+  hasMultNets <- length(network) >= 1 & is.list(network)
+  hasMultAtt <- length(attribute) >= 1 & is.list(attribute)
 
   .argsNames <- names(formals(effectFun))
   # if network inputs, just the first network is empty.
@@ -34,13 +37,18 @@ init_DyNAMi_choice.default <- function(effectFun,
     # check if not empty network to initialize the statistical matrix
     # create a copy of the network to iterate over
     if (hasMultNets) {
-      areEmpty <- vapply(network, function(x) all(x[!is.na(x)] == 0), logical(1))
+      areEmpty <- vapply(
+        network,
+        \(x) all(x[!is.na(x)] == 0),
+        logical(1)
+      )
       if ((!is.null(window) && !is.infinite(window)) || any(areEmpty)) {
         return(stats)
       }
       netIter <- network[[1]]
     } else {
-      if ((!is.null(window) && !is.infinite(window)) || all(network[!is.na(network)] == 0)) {
+      if ((!is.null(window) && !is.infinite(window)) ||
+        all(network[!is.na(network)] == 0)) {
         return(stats)
       }
       netIter <- network
@@ -49,7 +57,11 @@ init_DyNAMi_choice.default <- function(effectFun,
     emptyObject <- array(0, dim = dim(netIter))
   } else {
     if (hasMultAtt) {
-      areEmpty <- vapply(attribute, function(x) all(x[!is.na(x)] == 0), logical(1))
+      areEmpty <- vapply(
+        attribute,
+        \(x) all(x[!is.na(x)] == 0),
+        logical(1)
+      )
       if (any(areEmpty)) {
         return(stats)
       }
@@ -98,8 +110,9 @@ init_DyNAMi_choice.default <- function(effectFun,
         }
         # update networks
         # hack: if it's not the same dimension, the network shouldn't be updated
-        if (dim(netIter)[1] == n1 && dim(netIter)[2] == n2)
+        if (dim(netIter)[1] == n1 && dim(netIter)[2] == n2) {
           emptyObject[i, j] <- netIter[i, j]
+        }
       }
     }
   } else {
@@ -144,17 +157,16 @@ init_DyNAMi_choice.default <- function(effectFun,
 # tie ---------------------------------------------------------------------
 # init_DyNAMi_choice_tie <- function()
 
-update_DyNAMi_choice_tie <- function(network,
-                                    groupsNetwork,
-                                    sender, receiver, replace,
-                                    n1, n2, statistics,
-                                    weighted = FALSE, subType = "proportion") {
-
+update_DyNAMi_choice_tie <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = FALSE, subType = "proportion") {
   reptotal <- NULL
 
   for (i in seq.int(n1)) {
     for (j in seq.int(n2)) {
-
       members <- which(groupsNetwork[, j] == 1)
       nmembers <- length(members)
 
@@ -168,8 +180,9 @@ update_DyNAMi_choice_tie <- function(network,
       smembers <- members[members != i]
       snmembers <- length(smembers)
       if (snmembers == 0) {
-        if (statistics[i, j] != 0)
+        if (statistics[i, j] != 0) {
           reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = 0))
+        }
 
         next
       }
@@ -205,17 +218,16 @@ update_DyNAMi_choice_tie <- function(network,
 # inertia -----------------------------------------------------------------
 # init_DyNAMi_choice_inertia <- function()
 
-update_DyNAMi_choice_inertia <- function(network,
-                                         groupsNetwork,
-                                         sender, receiver, replace,
-                                         n1, n2, statistics,
-                                         weighted = FALSE, subType = "proportion") {
-
+update_DyNAMi_choice_inertia <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = FALSE, subType = "proportion") {
   reptotal <- NULL
 
   for (i in seq.int(n1)) {
     for (j in seq.int(n2)) {
-
       members <- which(groupsNetwork[, j] == 1)
       nmembers <- length(members)
 
@@ -270,12 +282,12 @@ update_DyNAMi_choice_inertia <- function(network,
 #' alterdeg effects DyNAM-i choice
 #' @importFrom stats sd
 #' @noRd
-update_DyNAMi_choice_alterdeg <- function(network,
-                                          groupsNetwork,
-                                          sender, receiver, replace,
-                                          n1, n2, statistics,
-                                          weighted = FALSE, subType = "mean") {
-
+update_DyNAMi_choice_alterdeg <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = FALSE, subType = "mean") {
   reptotal <- NULL
   meandeg <- mean(rowSums(network))
   sddeg <- sd(rowSums(network))
@@ -308,7 +320,11 @@ update_DyNAMi_choice_alterdeg <- function(network,
           rep <- sum(network[smembers, ]) - meandeg
         }
         if (subType == "mean_normalized") {
-          if (sddeg > 0) rep <- (sum(network[smembers, ]) - meandeg) / sddeg else rep <- 0
+          if (sddeg > 0) {
+            rep <- (sum(network[smembers, ]) - meandeg) / sddeg
+          } else {
+            rep <- 0
+          }
         }
         if (subType == "min") {
           rep <- sum(network[smembers, ])
@@ -324,7 +340,11 @@ update_DyNAMi_choice_alterdeg <- function(network,
           rep <- mean(rowSums(network[smembers, ])) - meandeg
         }
         if (subType == "mean_normalized") {
-          if (sddeg > 0) rep <- (mean(rowSums(network[smembers, ])) - meandeg) / sddeg else rep <- 0
+          if (sddeg > 0) {
+            rep <- (mean(rowSums(network[smembers, ])) - meandeg) / sddeg
+          } else {
+            rep <- 0
+          }
         }
         if (subType == "min") {
           rep <- min(rowSums(network[smembers, ]))
@@ -337,9 +357,7 @@ update_DyNAMi_choice_alterdeg <- function(network,
       if (statistics[i, j] != rep) {
         reptotal <- rbind(reptotal, cbind(node1 = i, node2 = j, replace = rep))
       }
-
     }
-
   }
 
   return(reptotal)
@@ -349,28 +367,31 @@ update_DyNAMi_choice_alterdeg <- function(network,
 # alterpop -------------------------------------------------------------------
 # init_DyNAMi_choice_alterpop <- function()
 
-update_DyNAMi_choice_alterpop <- function(network,
-                                          groupsNetwork,
-                                          sender, receiver, replace,
-                                          n1, n2, statistics,
-                                          weighted = FALSE, subType = "mean_normalized") {
-update_DyNAMi_choice_alterdeg(network = network,
-                              groupsNetwork = groupsNetwork,
-                              sender = sender, receiver = receiver, replace = replace,
-                              n1 = n1, n2 = n2, statistics = statistics,
-                              weighted = weighted, subType = subType)
+update_DyNAMi_choice_alterpop <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = FALSE, subType = "mean_normalized") {
+  update_DyNAMi_choice_alterdeg(
+    network = network,
+    groupsNetwork = groupsNetwork,
+    sender = sender, receiver = receiver, replace = replace,
+    n1 = n1, n2 = n2, statistics = statistics,
+    weighted = weighted, subType = subType
+  )
 }
 
 
 # size -------------------------------------------------------------------
 # init_DyNAMi_choice_size <- function()
 
-update_DyNAMi_choice_size <- function(network,
-                                      groupsNetwork,
-                                      sender, receiver, replace,
-                                      n1, n2, statistics,
-                                      weighted = FALSE, subType = "identity") {
-
+update_DyNAMi_choice_size <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = FALSE, subType = "identity") {
   reptotal <- NULL
 
   for (i in seq.int(n1)) {
@@ -407,12 +428,12 @@ update_DyNAMi_choice_size <- function(network,
 # dyad -------------------------------------------------------------------
 # init_DyNAMi_choice_dyad <- function()
 
-update_DyNAMi_choice_dyad <- function(network,
-                                      groupsNetwork,
-                                      sender, receiver, replace,
-                                      n1, n2, statistics,
-                                      weighted = FALSE, subType = "identity") {
-
+update_DyNAMi_choice_dyad <- function(
+    network,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    weighted = FALSE, subType = "identity") {
   reptotal <- NULL
 
   for (i in seq.int(n1)) {
@@ -449,13 +470,13 @@ update_DyNAMi_choice_dyad <- function(network,
 # alter -------------------------------------------------------------------
 # init_DyNAMi_choice_alter <- function()
 
-update_DyNAMi_choice_alter <- function(attribute,
-                                       groupsNetwork,
-                                       sender, receiver, replace,
-                                       n1, n2, statistics,
-                                       subType = "mean",
-                                       node = 0) {
-
+update_DyNAMi_choice_alter <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "mean",
+    node = 0) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -493,7 +514,11 @@ update_DyNAMi_choice_alter <- function(attribute,
         rep <- (mean(attribute[smembers]) - meanatt)^2
       }
       if (subType == "mean_normalized") {
-        if (sdatt > 0) rep <- (mean(attribute[smembers]) - meanatt) / sdatt else rep <- 0
+        if (sdatt > 0) {
+          rep <- (mean(attribute[smembers]) - meanatt) / sdatt
+        } else {
+          rep <- 0
+        }
       }
       if (subType == "min") {
         rep <- min(attribute[smembers])
@@ -535,12 +560,13 @@ update_DyNAMi_choice_alter <- function(attribute,
 # same --------------------------------------------------------------------
 # init_DyNAMi_choice_same <- function()
 
-update_DyNAMi_choice_same <- function(attribute,
-                                      groupsNetwork,
-                                      sender, receiver, replace,
-                                      n1, n2, statistics,
-                                      subType = "proportion",
-                                      node = 0) {
+update_DyNAMi_choice_same <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "proportion",
+    node = 0) {
   reptotal <- NULL
 
   for (i in seq.int(n1)) {
@@ -585,12 +611,13 @@ update_DyNAMi_choice_same <- function(attribute,
 # diff --------------------------------------------------------------------
 # init_DyNAMi_choice_diff <- function()
 
-update_DyNAMi_choice_diff <- function(attribute,
-                                      groupsNetwork,
-                                      sender, receiver, replace,
-                                      n1, n2, statistics,
-                                      subType = "averaged_sum",
-                                      node = 0) {
+update_DyNAMi_choice_diff <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "averaged_sum",
+    node = 0) {
   reptotal <- NULL
 
   for (i in seq.int(n1)) {
@@ -648,12 +675,13 @@ update_DyNAMi_choice_diff <- function(attribute,
 # sim ---------------------------------------------------------------------
 # init_DyNAMi_choice_sim <- function()
 
-update_DyNAMi_choice_sim <- function(attribute,
-                                     groupsNetwork,
-                                     sender, receiver, replace,
-                                     n1, n2, statistics,
-                                     subType = "averaged_sum",
-                                     node = 0) {
+update_DyNAMi_choice_sim <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "averaged_sum",
+    node = 0) {
   reptotal <- NULL
 
   for (i in seq.int(n1)) {
@@ -703,12 +731,13 @@ update_DyNAMi_choice_sim <- function(attribute,
 # sizeXdiff ---------------------------------------------------------------
 # init_DyNAMi_choice_sizeXdiff <- function()
 
-update_DyNAMi_choice_sizeXdiff <- function(attribute,
-                                      groupsNetwork,
-                                      sender, receiver, replace,
-                                      n1, n2, statistics,
-                                      subType = "averaged_sum",
-                                      node = 0) {
+update_DyNAMi_choice_sizeXdiff <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "averaged_sum",
+    node = 0) {
   reptotal <- NULL
 
   for (i in seq.int(n1)) {
@@ -732,7 +761,8 @@ update_DyNAMi_choice_sizeXdiff <- function(attribute,
       }
 
       if (subType == "averaged_sum") {
-        rep <- snmembers * sum(abs(attribute[smembers] - attribute[i])) / snmembers
+        rep <- snmembers * sum(abs(attribute[smembers] - attribute[i])) /
+          snmembers
       }
       if (subType == "mean") {
         rep <- snmembers * abs(mean(attribute[smembers]) - attribute[i])
@@ -754,15 +784,16 @@ update_DyNAMi_choice_sizeXdiff <- function(attribute,
 }
 
 
-# dyadXdiff ---------------------------------------------------------------------
+# dyadXdiff -------------------------------------------------------------------
 # init_DyNAMi_choice_dyadXdiff <- function()
 
-update_DyNAMi_choice_dyadXdiff <- function(attribute,
-                                           groupsNetwork,
-                                           sender, receiver, replace,
-                                           n1, n2, statistics,
-                                           subType = "averaged_sum",
-                                           node = 0) {
+update_DyNAMi_choice_dyadXdiff <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "averaged_sum",
+    node = 0) {
   reptotal <- NULL
 
   for (i in seq.int(n1)) {
@@ -816,12 +847,13 @@ update_DyNAMi_choice_dyadXdiff <- function(attribute,
 # sizeXego ---------------------------------------------------------------
 # init_DyNAMi_choice_sizeXego <- function()
 
-update_DyNAMi_choice_sizeXego <- function(attribute,
-                                          groupsNetwork,
-                                          sender, receiver, replace,
-                                          n1, n2, statistics,
-                                          subType = "identity",
-                                          node = 0) {
+update_DyNAMi_choice_sizeXego <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "identity",
+    node = 0) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -856,7 +888,11 @@ update_DyNAMi_choice_sizeXego <- function(attribute,
         rep <- snmembers * (attribute[i] - meanatt)
       }
       if (subType == "normalized") {
-        if (sdatt > 0) rep <- snmembers * (attribute[i] - meanatt) / sdatt else rep <- 0
+        if (sdatt > 0) {
+          rep <- snmembers * (attribute[i] - meanatt) / sdatt
+        } else {
+          rep <- 0
+        }
       }
 
       if (statistics[i, j] != rep) {
@@ -870,12 +906,13 @@ update_DyNAMi_choice_sizeXego <- function(attribute,
 # dyadXego ---------------------------------------------------------------
 # init_DyNAMi_choice_dyadXego <- function()
 
-update_DyNAMi_choice_dyadXego <- function(attribute,
-                                          groupsNetwork,
-                                          sender, receiver, replace,
-                                          n1, n2, statistics,
-                                          subType = "identity",
-                                          node = 0) {
+update_DyNAMi_choice_dyadXego <- function(
+    attribute,
+    groupsNetwork,
+    sender, receiver, replace,
+    n1, n2, statistics,
+    subType = "identity",
+    node = 0) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)

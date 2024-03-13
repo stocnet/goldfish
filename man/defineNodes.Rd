@@ -62,7 +62,7 @@ nodesAttr <- data.frame(
   label = paste("Actor", 1:5),
   present = c(TRUE, FALSE, TRUE, TRUE, FALSE),
   gender = c(1, 2, 1, 1, 2)
-  )
+)
 nodesAttr <- defineNodes(nodes = nodesAttr)
 
 # Social evolution nodes definition

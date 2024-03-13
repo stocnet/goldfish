@@ -7,37 +7,38 @@
 
 # Estimation
 estimate_int <- function(
-  statsList,
-  nodes, nodes2,
-  defaultNetworkName,
-  modelType = c("DyNAM-MM", "DyNAM-M", "REM-ordered",
-                "DyNAM-M-Rate", "REM", "DyNAM-M-Rate-ordered"),
-  initialParameters = NULL,
-  fixedParameters = NULL,
-  excludeParameters = NULL,
-  initialDamping = 1,
-  maxIterations = 20,
-  dampingIncreaseFactor = 2,
-  dampingDecreaseFactor = 3,
-  maxScoreStopCriterion = 0.001,
-  # additional return objects
-  returnEventProbabilities = FALSE,
-  # additional parameter for DyNAM-MM
-  allowReflexive = FALSE,
-  isTwoMode = FALSE,
-  # additional parameter for DyNAM-M-Rate
-  hasIntercept = FALSE,
-  returnIntervalLogL = FALSE,
-  parallelize = FALSE,
-  cpus = 6,
-  verbose = FALSE,
-  progress = FALSE,
-  impute = TRUE,
-  ignoreRepParameter,
-  # restrictions of opportunity sets
-  opportunitiesList = NULL,
-  prepEnvir = new.env()) {
-
+    statsList,
+    nodes, nodes2,
+    defaultNetworkName,
+    modelType = c(
+      "DyNAM-MM", "DyNAM-M", "REM-ordered",
+      "DyNAM-M-Rate", "REM", "DyNAM-M-Rate-ordered"
+    ),
+    initialParameters = NULL,
+    fixedParameters = NULL,
+    excludeParameters = NULL,
+    initialDamping = 1,
+    maxIterations = 20,
+    dampingIncreaseFactor = 2,
+    dampingDecreaseFactor = 3,
+    maxScoreStopCriterion = 0.001,
+    # additional return objects
+    returnEventProbabilities = FALSE,
+    # additional parameter for DyNAM-MM
+    allowReflexive = FALSE,
+    isTwoMode = FALSE,
+    # additional parameter for DyNAM-M-Rate
+    hasIntercept = FALSE,
+    returnIntervalLogL = FALSE,
+    parallelize = FALSE,
+    cpus = 6,
+    verbose = FALSE,
+    progress = FALSE,
+    impute = TRUE,
+    ignoreRepParameter,
+    # restrictions of opportunity sets
+    opportunitiesList = NULL,
+    prepEnvir = new.env()) {
   ## SET VARIABLES
 
   minDampingFactor <- initialDamping
@@ -53,7 +54,7 @@ estimate_int <- function(
   idFixedCompnents <- NULL
   likelihoodOnly <- FALSE
   if (!is.null(fixedParameters)) {
-    if (length(fixedParameters) != nParams)
+    if (length(fixedParameters) != nParams) {
       stop(
         "The length of fixedParameters is inconsistent with",
         "the number of the parameters.",
@@ -61,6 +62,7 @@ estimate_int <- function(
         length(fixedParameters), "\n\tNumber of parameters:", nParams,
         call. = FALSE
       )
+    }
 
     if (all(!is.na(fixedParameters))) likelihoodOnly <- TRUE
     parameters[!is.na(fixedParameters)] <-
@@ -73,15 +75,16 @@ estimate_int <- function(
 
   ## PARAMETER CHECKS
 
-  if (length(parameters) != nParams)
+  if (length(parameters) != nParams) {
     stop(
       " Wrong number of initial parameters passed to function.",
       "\n\tLength ", dQuote("parameters"), " vector:",
       length(parameters), "\n\tNumber of parameters:", nParams,
       call. = FALSE
     )
+  }
 
-  if (!(length(minDampingFactor) %in% c(1, nParams)))
+  if (!(length(minDampingFactor) %in% c(1, nParams))) {
     stop(
       "minDampingFactor has wrong length:",
       "\n\tLength ", dQuote("minDampingFactor"), " vector:",
@@ -89,12 +92,14 @@ estimate_int <- function(
       "\nIt should be length 1 or same as number of parameters.",
       call. = FALSE
     )
+  }
 
-  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1)
+  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1) {
     stop(
       "Damping increase / decrease factors cannot be smaller than one.",
       call. = FALSE
     )
+  }
 
   ## REDUCE STATISTICS LIST
 
@@ -128,24 +133,25 @@ estimate_int <- function(
   ## GET COMPOSITION CHANGES
   compChangeName1 <- attr(nodes, "events")[
     "present" == attr(nodes, "dynamicAttribute")
-    ]
+  ]
   hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
 
   compChangeName2 <- attr(nodes2, "events")[
     "present" == attr(nodes2, "dynamicAttribute")
-    ]
-  hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
+  ]
+  hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0 &&
+    !modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
 
   if (hasCompChange1) {
     compChange1 <- get(compChangeName1, envir = prepEnvir) # add prepEnvir
-    compChange1 <- sanitizeEvents(compChange1, nodes)
+    compChange1 <- sanitizeEvents(compChange1, nodes, envir = prepEnvir)
   } else {
     compChange1 <- NULL
   }
 
   if (hasCompChange2) {
     compChange2 <- get(compChangeName2, envir = prepEnvir) # add prepEnvir
-    compChange2 <- sanitizeEvents(compChange2, nodes2)
+    compChange2 <- sanitizeEvents(compChange2, nodes2, envir = prepEnvir)
   } else {
     compChange2 <- NULL
   }
@@ -163,12 +169,14 @@ estimate_int <- function(
 
   nEvents <- length(statsList$orderEvents)
 
+  nEvents <- length(statsList$orderEvents)
+
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
   if (modelType %in% c("REM", "DyNAM-M-Rate") && hasIntercept &&
-      is.null(initialParameters) &&
-      (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
+    is.null(initialParameters) &&
+    (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
     totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
       sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
 
@@ -284,12 +292,13 @@ estimate_int <- function(
     }
 
     if (isInitialEstimation && any(is.na(unlist(res))) &&
-        !all(parameters[-1] == 0))  # # Check
+      !all(parameters[-1] == 0)) { # # Check
       stop(
         "Estimation not possible with initial parameters.",
         " Try using zeros instead.",
         call. = FALSE
       )
+    }
 
     # If we only want the likelihood break here
     if (likelihoodOnly) {
@@ -303,27 +312,33 @@ estimate_int <- function(
     # It's for the fixing parameter feature. \
     score[idFixedCompnents] <- 0
 
-    if (!verbose && progress)
+    if (!verbose && progress) {
       cat(
         "\rMax score: ",
-        round(max(abs(score)),
-        round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
+        round(
+          max(abs(score)),
+          round(-logb(maxScoreStopCriterion / 1, 10)) + 1
+        ),
         " (", iIteration, ").        "
       )
+    }
 
     if (verbose) {
       cat(
         "\n\nLikelihood:", logLikelihood, "in iteration", iIteration,
-          "\nParameters:", toString(parameters),
-          "\nScore:", toString(score)
+        "\nParameters:", toString(parameters),
+        "\nScore:", toString(score)
       )
       # print(informationMatrix)
     }
 
     if (logLikelihood <= logLikelihood.old || any(is.na(unlist(res)))) {
-      if (verbose)
-        cat("\nNo improvement in estimation.",
-                " Resetting values and adjusting damping.")
+      if (verbose) {
+        cat(
+          "\nNo improvement in estimation.",
+          " Resetting values and adjusting damping."
+        )
+      }
       # reset values
       logLikelihood <- logLikelihood.old
       parameters <- parameters.old
@@ -357,39 +372,45 @@ estimate_int <- function(
       solve(informationMatrixUnfixed),
       silent = TRUE
     )
-    if (inherits(inverseInformationUnfixed, "try-error"))
+    if (inherits(inverseInformationUnfixed, "try-error")) {
       stop(
         "Matrix cannot be inverted;",
         " probably due to collinearity between parameters."
       )
+    }
 
     update <- rep(0, nParams)
     update[idUnfixedCompnents] <-
       (inverseInformationUnfixed %*% score[idUnfixedCompnents]) / dampingFactor
 
-    if (verbose)
+    if (verbose) {
       cat(
         "\nUpdate: ", toString(update),
         "\nDamping factor: ", toString(dampingFactor)
       )
+    }
 
     # check for stop criteria
     if (max(abs(score)) <= maxScoreStopCriterion) {
       isConverged <- TRUE
-      if (progress)
+      if (progress) {
         cat(
           "\nStopping as maximum absolute score is below ",
-          maxScoreStopCriterion, ".\n", sep = ""
+          maxScoreStopCriterion, ".\n",
+          sep = ""
         )
+      }
 
       break
     }
     if (iIteration > maxIterations) {
-      if (progress)
+      if (progress) {
         cat(
           "\nStopping as maximum of ",
           maxIterations,
-          " iterations have been reached. No convergence.\n")
+          " iterations have been reached. No convergence.\n"
+        )
+      }
       break
     }
 
@@ -423,8 +444,9 @@ estimate_int <- function(
     nEvents = nEvents
   )
   if (returnIntervalLogL) estimationResult$intervalLogL <- intervalLogL
-  if (returnEventProbabilities)
+  if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
+  }
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
 }
@@ -446,14 +468,18 @@ getEventValues <- function(
   if (modelType == "DyNAM-MM") {
     multinomialProbabilities <-
       getMultinomialProbabilities(
-        statsArray, activeDyad, parameters, allowReflexive = allowReflexive)
+        statsArray, activeDyad, parameters,
+        allowReflexive = allowReflexive
+      )
     eventLikelihoods <- getLikelihoodMM(multinomialProbabilities)
     logLikelihood <- log(eventLikelihoods[activeDyad[1], activeDyad[2]])
     firstDerivatives <- getFirstDerivativeMM(
-      statsArray, eventLikelihoods, multinomialProbabilities)
+      statsArray, eventLikelihoods, multinomialProbabilities
+    )
     score <- firstDerivatives[activeDyad[1], activeDyad[2], ]
     informationMatrix <- getMultinomialInformationMatrix(
-      eventLikelihoods, firstDerivatives)
+      eventLikelihoods, firstDerivatives
+    )
     pMatrix <- eventLikelihoods
   }
 
@@ -461,12 +487,15 @@ getEventValues <- function(
     eventProbabilities <-
       getMultinomialProbabilities(
         statsArray, activeDyad, parameters,
-        actorNested = TRUE, allowReflexive = FALSE, isTwoMode = isTwoMode)
+        actorNested = TRUE, allowReflexive = allowReflexive,
+        isTwoMode = isTwoMode
+      )
     logLikelihood <- log(eventProbabilities[activeDyad[2]])
     firstDerivatives <- getFirstDerivativeM(statsArray, eventProbabilities)
     score <- firstDerivatives[activeDyad[2], ]
     informationMatrix <- getMultinomialInformationMatrixM(
-      eventProbabilities, firstDerivatives)
+      eventProbabilities, firstDerivatives
+    )
     pMatrix <- eventProbabilities
   }
 
@@ -474,12 +503,14 @@ getEventValues <- function(
     eventProbabilities <-
       getMultinomialProbabilities(
         statsArray, activeDyad, parameters,
-        actorNested = FALSE, allowReflexive = FALSE)
+        actorNested = FALSE, allowReflexive = FALSE
+      )
     logLikelihood <- log(eventProbabilities[activeDyad[1], activeDyad[2]])
     firstDerivatives <- getFirstDerivativeREM(statsArray, eventProbabilities)
     score <- firstDerivatives[activeDyad[1], activeDyad[2], ]
     informationMatrix <- getInformationMatrixREM(
-      eventProbabilities, firstDerivatives)
+      eventProbabilities, firstDerivatives
+    )
     pMatrix <- eventProbabilities
   }
 
@@ -503,9 +534,10 @@ getEventValues <- function(
       rowSums(t(
         t(matrix(
           apply(deviations, 1, function(x) outer(x, x)),
-          ncol = length(eventProbabilities))
-        )
-        * eventProbabilities)),
+          ncol = length(eventProbabilities)
+        ))
+        * eventProbabilities
+      )),
       length(parameters), length(parameters)
     )
     pMatrix <- eventProbabilities
@@ -546,9 +578,9 @@ getEventValues <- function(
     ratesStatsSum <- colSums(rates * statsArray)
 
     ratesStatsStatsSum <- colSums(t(
-      apply(statsArray, 1, function(x) outer(x, x))) *
-        rates
-      )
+      apply(statsArray, 1, function(x) outer(x, x))
+    ) *
+      rates)
     if (length(parameters) == 1 && modelType == "DyNAM-M-Rate") {
       v <- as.vector(statsArray)
       sum <- 0
@@ -569,6 +601,11 @@ getEventValues <- function(
     pVector <- objectiveFunctions + (-timespan * ratesSum)
     if (modelType == "REM") dim(pVector) <- c(dimMatrix[1], dimMatrix[2])
 
+    # cat("\ntimespan:", timespan)
+    # cat("\nderivative:")
+    # print(ratesStatsSum)
+    # cat("\nfisher:")
+    # print(ratesStatsStatsSum)
     return(list(
       logLikelihood = logL,
       score = score,
@@ -667,9 +704,10 @@ getInformationMatrixREM <- function(eventProbabilities, firstDerivatives) {
 
   values <- colSums(apply(
     indexes, 1,
-    function(ind)
+    \(ind) {
       firstDerivatives[, , ind[1]] * firstDerivatives[, , ind[2]] *
-      eventProbabilities
+        eventProbabilities
+    }
   ))
   information <- matrix(values, nParams, nParams)
   # symmetrize
@@ -707,9 +745,7 @@ getIterationStepState <- function(
     impute = TRUE,
     verbose = FALSE,
     opportunitiesList = NULL,
-    prepEnvir = new.env()
-) {
-
+    prepEnvir = new.env()) {
   # CHANGED MARION: changed dims
   nEvents <- length(statsList$orderEvents)
   nParams <- dim(statsList$initialStats)[3]
@@ -719,10 +755,12 @@ getIterationStepState <- function(
   score <- rep(0, nParams)
   logLikelihood <- 0
 
-  if (returnEventProbabilities)
+  if (returnEventProbabilities) {
     EventProbabilities <- vector(mode = "list", length = nEvents)
-  if (returnIntervalLogL)
+  }
+  if (returnIntervalLogL) {
     eventLogL <- numeric(nEvents)
+  }
 
   # check for parallelization
   # if (parallelize && require("snowfall", quietly = TRUE)) {
@@ -757,12 +795,18 @@ getIterationStepState <- function(
     startTime <- -Inf
   }
 
+  # opportunities list initialization
+  opportunities <- rep(TRUE, nrow(nodes2))
+  updateopportunities <- !is.null(opportunitiesList) &&
+    !modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
+
   # utility function for the statistics update
   updFun <- function(stat, change) {
     # stat: current statistics (for one effect only)
     # change: statsList$dependentStatsChange[[current event]][[current effect]]
-    if (!is.null(change))
+    if (!is.null(change)) {
       stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+    }
     return(stat)
   }
 
@@ -785,12 +829,13 @@ getIterationStepState <- function(
         is.null,
         logical(1)
       )
-      for (j in which(pars2update))
+      for (j in which(pars2update)) {
         statsArray[, , j + hasIntercept] <-
-        updFun(
-          statsArray[, , j + hasIntercept],
-          statsList$dependentStatsChange[[idep]][[j]]
-        )
+          updFun(
+            statsArray[, , j + hasIntercept],
+            statsList$dependentStatsChange[[idep]][[j]]
+          )
+      }
       # with intercept in the model
       if (hasIntercept) {
         time <- time + statsList$intervals[[idep]]
@@ -827,10 +872,11 @@ getIterationStepState <- function(
     }
 
     # IMPUTE missing statistics with current mean
-    if (impute)
-      for (j in seq_len(nParams)) {
+    if (impute && anyNA(statsArray)) {
+      for (j in which(apply(statsArray, 3, anyNA))) {
         statsArray[, , j] <- imputeFun(statsArray[, , j])
       }
+    }
 
     statsArrayComp <- statsArray
     # Handle the ignoreRep option
@@ -845,17 +891,16 @@ getIterationStepState <- function(
         ones[, 1],
         ones[, 2],
         rep(ignoreRepIds, each = length(ignoreRepIds) * nrow(ones))
-        )] <- 0
+      )] <- 0
       # CHANGED SIWEI
       startTime <- statsList$eventTime[[i]]
       net[seq_len(dim(net)[1]), seq_len(dim(net)[2])] <- mat
     }
 
     # update opportunity set
-    opportunities <- rep(TRUE, nrow(nodes2))
-    updateopportunities <- !is.null(opportunitiesList)
-    if (updateopportunities)
+    if (updateopportunities) {
       opportunities <- seq_len(nrow(nodes2)) %in% opportunitiesList[[i]]
+    }
 
     # update composition
     # CHANGED SIWEI: fixed errors for composition change update
@@ -866,44 +911,69 @@ getIterationStepState <- function(
     if (updatepresence) {
       update <-
         compChange1[compChange1$time <= current_time &
-                      compChange1$time > oldTime, ]
+          compChange1$time > oldTime, ]
       presence[update$node] <- update$replace
     }
 
     if (updatepresence2) {
       update2 <-
         compChange2[compChange2$time <= current_time &
-                      compChange2$time > oldTime, ]
+          compChange2$time > oldTime, ]
       presence2[update2$node] <- update2$replace
     }
     oldTime <- current_time
 
-    # remove potential absent lines and columns from the stats array
-    if (updatepresence) { # || (updateopportunities && !isTwoMode)
-      subset <- presence
-      # if (updateopportunities && !isTwoMode)
-      #   subset <- presence & opportunities
-      statsArrayComp <- statsArrayComp[subset, , , drop = FALSE]
-      if (isDependent) {
-        position <- which(activeDyad[1] == which(subset))
-        if (length(position) == 0)
-          stop("Active node ", activeDyad[1], " not present in event ", i,
-               call. = FALSE)
-
-        activeDyad[1] <- position
+    # patch to avoid collision with dropping absent people
+    if (!isTwoMode) {
+      for (parmPos in seq_len(dim(statsArrayComp)[3])) {
+        diag(statsArrayComp[, , parmPos]) <- 0
       }
     }
-    if (updatepresence2 || updateopportunities) {
-      subset <- presence2 & opportunities
-      statsArrayComp <- statsArrayComp[, subset, , drop = TRUE]
+
+    # remove potential absent lines and columns from the stats array
+    if (updatepresence) { # || (updateopportunities && !isTwoMode)
+      keepIn <- presence
+      # if (updateopportunities && !isTwoMode)
+      #   keepIn <- presence & opportunities
+      statsArrayComp <- statsArrayComp[keepIn, , , drop = FALSE]
       if (isDependent) {
-        position <- which(activeDyad[2] == which(subset))
-        if (length(position) == 0)
+        position <- which(activeDyad[1] == which(keepIn))
+        if (length(position) == 0) {
+          stop("Active node ", activeDyad[1], " not present in event ", i,
+            call. = FALSE
+          )
+        }
+
+        posSender <- activeDyad[1]
+        activeDyad[1] <- position
+      }
+    } else {
+      posSender <- activeDyad[1]
+    }
+    if ((updatepresence2 || updateopportunities)) {
+      keepIn <- presence2 & opportunities
+      # reducing stats array alters the correspondence between row/col 
+      # it needs to consider the reflexive case to avoid wrong calculation
+      # excludes REM and DyNAM-MM
+      if (!allowReflexive && grepl("DyNAM-M(-|$)?", modelType)) {
+        if (!isTwoMode) keepIn[posSender] <- FALSE
+        allowReflexiveCorrected <- TRUE
+      } else {
+        allowReflexiveCorrected <- FALSE
+      }
+      statsArrayComp <- statsArrayComp[, keepIn, , drop = FALSE]
+      if (isDependent) {
+        position <- which(activeDyad[2] == which(keepIn))
+        if (length(position) == 0) {
           stop("Active node ", activeDyad[2], " not available in event ", i,
-               call. = FALSE)
+            call. = FALSE
+          )
+        }
 
         activeDyad[2] <- position
       }
+    } else {
+      allowReflexiveCorrected <- allowReflexive
     }
 
     # TEMPORARY: handle the reductions here for now
@@ -912,17 +982,19 @@ getIterationStepState <- function(
     # CHANGED SIWEI: treat one-mode and two-mode cases seperately
     # handle the reductions in one step outside the iteration loop, to be make
     if (reduceMatrixToVector) {
-      if (verbose && i == 1)
+      if (verbose && i == 1) {
         cat("\nReplacing effects statistics by row means")
+      }
       # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
       arr <- apply(
         statsArrayComp,
         3,
         \(stat) {
-          if (!isTwoMode) diag(stat) <- 0
-          m <- stat
-          if (!isTwoMode) rowSums(m, na.rm = TRUE) / (dim(m)[1] - 1)
-          else rowMeans(m, na.rm = TRUE)
+          if (!isTwoMode) {
+            rowSums(stat, na.rm = TRUE) / (dim(stat)[2] - 1)
+          } else {
+            rowMeans(stat, na.rm = TRUE)
+          }
         }
       )
       statsArrayComp <- arr # statsArrayComp: n_nodes*n_effects matrix
@@ -948,7 +1020,7 @@ getIterationStepState <- function(
       modelType = modelType,
       isRightCensored = isRightCensored,
       timespan = timespan,
-      allowReflexive = allowReflexive,
+      allowReflexive = allowReflexiveCorrected,
       isTwoMode = isTwoMode
     )
 
@@ -1029,9 +1101,10 @@ getMultinomialInformationMatrix <- function(likelihoods, derivatives) {
 
   values <- apply(
     indexes, 1,
-    function(ind)
+    \(ind) {
       sum(derivatives[, , ind[1]] * derivatives[, , ind[2]] *
-            likelihoodsTriangle)
+        likelihoodsTriangle)
+    }
   )
   informationMatrix <- matrix(values, nParams, nParams, byrow = FALSE)
 
@@ -1050,9 +1123,10 @@ getMultinomialInformationMatrixM <- function(
 
   temp <- apply(
     indexes, 1,
-    function(ind)
+    \(ind) {
       firstDerivatives[, ind[1]] * firstDerivatives[, ind[2]] *
-      eventProbabilities
+        eventProbabilities
+    }
   )
   if (!is.null(dim(temp))) {
     values <- colSums(temp)
@@ -1074,16 +1148,16 @@ getMultinomialProbabilities <- function(
     actorNested = TRUE,
     allowReflexive = TRUE,
     isTwoMode = FALSE) {
-
   # allow this for a two- OR a three-dimensional array provided as input,
   # to be make
   nDimensions <- length(dim(statsArray))
-  if (!(nDimensions %in% c(2, 3)))
+  if (!(nDimensions %in% c(2, 3))) {
     stop(
       "StatsArray in getMultinomialProbabilities has to be",
       " two- or three-dimensional.",
       call. = FALSE
     )
+  }
 
   # nParams <- dim(statsArray)[nDimensions]
   nActors1 <- dim(statsArray)[1]
@@ -1122,18 +1196,18 @@ modifyStatisticsList <- function(
     reduceArrayToMatrix = FALSE,
     excludeParameters = NULL,
     addInterceptEffect = FALSE) {
-
   # exclude effect statistics
   if (!is.null(excludeParameters)) {
     unknownIndexes <- setdiff(
       excludeParameters,
       seq_len(dim(statsList$initialStats)[3])
     )
-    if (length(unknownIndexes) > 0)
+    if (length(unknownIndexes) > 0) {
       stop(
         "Unknown parameter indexes in 'excludeIndexes': ",
         paste(unknownIndexes, collapse = " ")
       )
+    }
 
     statsList$initialStats <- statsList$initialStats[, , -excludeParameters]
   }
@@ -1201,7 +1275,7 @@ reduceStatisticsList <- function(
       if (statsList$orderEvents[[i]] > 1) {
         newintervals[[length(newintervals)]] <-
           newintervals[[length(newintervals)]] +
-            statsList$rightCensoredIntervals[[irc]]
+          statsList$rightCensoredIntervals[[irc]]
         irc <- irc + 1
       }
     }
@@ -1213,7 +1287,8 @@ reduceStatisticsList <- function(
   }
 
   # This part should be uncommented once we are sure about how to use
-  # these reductions through the whole estimation. For now we reduce at each step
+  # these reductions through the whole estimation.
+  # For now we reduce at each step
 
   # # reduce statistics matrix to a vector
   # if(reduceMatrixToVector) {
@@ -1253,7 +1328,8 @@ reduceStatisticsList <- function(
   # drop statistics with a time span of zero
   if (dropZeroTimespans) {
     hasZeroTime <- which(statsList$intervals == 0)
-    statsList$dependentStatsChange <- statsList$dependentStatsChange[-hasZeroTime]
+    statsList$dependentStatsChange <-
+      statsList$dependentStatsChange[-hasZeroTime]
     statsList$intervals <- statsList$intervals[-hasZeroTime]
     hasZeroTime <- which(statsList$rightCensoredIntervals == 0)
     statsList$rightCensoredStatsChange <-

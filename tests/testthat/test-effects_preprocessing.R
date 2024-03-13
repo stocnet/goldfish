@@ -2,12 +2,14 @@ test_that(
   "Reduce size updates",
   {
     depUpdates <- matrix(
-      c(1, 2, 0, 2, 3, 1, 4, 5, 1), nrow = 3,
+      c(1, 2, 0, 2, 3, 1, 4, 5, 1),
+      nrow = 3,
       dimnames = list(NULL, c("node1", "node2", "replace")),
       byrow = TRUE
     )
     updates <- matrix(
-      c(1, 2, 1, 4, 5, 2), nrow = 2,
+      c(1, 2, 1, 4, 5, 2),
+      nrow = 2,
       dimnames = list(NULL, c("node1", "node2", "replace")),
       byrow = TRUE
     )
@@ -20,7 +22,8 @@ test_that(
 
     check2 <- ReduceUpdateNonDuplicates(depUpdates, updates)
     outcome <- matrix(
-      c(2, 3, 1, 1, 2, 1, 4, 5, 2), nrow = 3,
+      c(2, 3, 1, 1, 2, 1, 4, 5, 2),
+      nrow = 3,
       dimnames = list(NULL, c("node1", "node2", "replace")),
       byrow = TRUE
     )

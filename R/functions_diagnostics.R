@@ -30,8 +30,10 @@
 #' }
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
 #'   model = "DyNAM", subModel = "choice",
-#'   estimationInit = list(returnIntervalLogL = TRUE,
-#'                         engine = "default_c")
+#'   estimationInit = list(
+#'     returnIntervalLogL = TRUE,
+#'     engine = "default_c"
+#'   )
 #' )
 #'
 #' examineOutliers(mod01)
@@ -62,7 +64,6 @@ examineOutliers <- function(x,
                             method = c("Hampel", "IQR", "Top"),
                             parameter = 3,
                             window = NULL) {
-
   if (!"result.goldfish" %in% attr(x, "class")) {
     stop("Not a goldfish results object.")
   }
@@ -97,8 +98,10 @@ examineOutliers <- function(x,
   if (method == "Top") {
     outlierIndexes <- order(data$intervalLogL)[1:parameter]
   } else if (method == "IQR") {
-    outlierIndexes <- which(data$intervalLogL < median(data$intervalLogL) -
-                              (parameter / 2) * IQR(data$intervalLogL))
+    outlierIndexes <- which(
+      data$intervalLogL < median(data$intervalLogL) -
+        (parameter / 2) * IQR(data$intervalLogL)
+    )
   } else if (method == "Hampel") {
     if (is.null(window)) window <- (nrow(data) / 2) - 1
     n <- length(data$intervalLogL)
@@ -120,8 +123,11 @@ examineOutliers <- function(x,
 
   if (length(outlierIndexes > 0)) {
     data$outlier[outlierIndexes] <- "YES"
-    data$label[outlierIndexes] <- paste(data$sender,
-                                        data$receiver, sep = "-")[outlierIndexes]
+    data$label[outlierIndexes] <- paste(
+      data$sender,
+      data$receiver,
+      sep = "-"
+    )[outlierIndexes]
   } else {
     return(cat("No outliers found."))
   }
@@ -130,11 +136,14 @@ examineOutliers <- function(x,
     ggplot2::geom_line() +
     ggplot2::geom_point(ggplot2::aes(color = .data$outlier)) +
     ggplot2::geom_text(ggplot2::aes(label = .data$label),
-                       angle = 270, size = 2,
-                       hjust = "outward", color = "red") +
+      angle = 270, size = 2,
+      hjust = "outward", color = "red"
+    ) +
     ggplot2::theme_minimal() +
-    ggplot2::scale_colour_manual(values = c("black","red"),
-                                 guide = "none") +
+    ggplot2::scale_colour_manual(
+      values = c("black", "red"),
+      guide = "none"
+    ) +
     ggplot2::xlab("") +
     ggplot2::ylab("Interval log likelihood")
 }
@@ -170,7 +179,6 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
                                 method = c("PELT", "AMOC", "BinSeg"),
                                 window = NULL,
                                 ...) {
-
   if (!methods::is(x, "result.goldfish")) {
     stop("Not a goldfish results object.", call. = FALSE)
   }
@@ -206,31 +214,40 @@ examineChangepoints <- function(x, moment = c("mean", "variance"),
 
   if (moment == "mean") {
     cpt <- changepoint::cpt.mean(data$intervalLogL,
-                                 method = method, minseglen = window, ...)
+      method = method, minseglen = window, ...
+    )
   }
   if (moment == "variance") {
     cpt <- changepoint::cpt.var(data$intervalLogL,
-                                method = method, minseglen = window, ...)
+      method = method, minseglen = window, ...
+    )
   }
 
   cpt.pts <- attributes(cpt)$cpts
   # cpt.mean <- attributes(cpt)$param.est$mean
 
-  if (anyDuplicated(data$time[cpt.pts]))
+  if (anyDuplicated(data$time[cpt.pts])) {
     cpt.pts <- cpt.pts[!duplicated(data$time[cpt.pts],
-                                   fromLast = TRUE)]
-  if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time))
+      fromLast = TRUE
+    )]
+  }
+  if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time)) {
     return(cat("No regime changes found."))
+  }
 
   ggplot2::ggplot(data, ggplot2::aes(x = .data$time, y = .data$intervalLogL)) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
-    ggplot2::geom_vline(xintercept = na.exclude(data$time[cpt.pts]),
-                        color = "red") +
+    ggplot2::geom_vline(
+      xintercept = na.exclude(data$time[cpt.pts]),
+      color = "red"
+    ) +
     ggplot2::theme_minimal() +
     ggplot2::xlab("") +
     ggplot2::ylab("Interval log likelihood") +
-    ggplot2::scale_x_continuous(breaks = data$time[cpt.pts],
-                                labels = data$time[cpt.pts]) +
+    ggplot2::scale_x_continuous(
+      breaks = data$time[cpt.pts],
+      labels = data$time[cpt.pts]
+    ) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 }

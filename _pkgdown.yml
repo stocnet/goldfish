@@ -1,5 +1,5 @@
 destination: docs
-url: https://snlab-ch.github.io/goldfish/
+url: https://stocnet.github.io/goldfish/
 development:
     mode: auto
 template:
@@ -32,7 +32,7 @@ navbar:
       href: news/index.html
     github:
       icon: "fab fa-github fa-lg"
-      href: https://github.com/snlab-ch/goldfish
+      href: https://github.com/stocnet/goldfish
 reference:
   - title: "Define"
     contents:
@@ -56,6 +56,9 @@ reference:
       - starts_with("Fisheries_")
       - starts_with("RFID_")
       - starts_with("Social_")
+  - title: "Gather preprocessing"
+    contents:
+      - GatherPreprocessing  
 articles:
   - title: "goldfish effects"
     navbar: "goldfish effects"

@@ -6,7 +6,7 @@
 \alias{as.matrix.network.goldfish}
 \title{Methods to update a nodes or network object}
 \usage{
-\method{as.data.frame}{nodes.goldfish}(x, ..., time = -Inf, startTime = -Inf)
+\method{as.data.frame}{nodes.goldfish}(x, ..., time = -Inf, startTime = -Inf, envir = new.env())
 
 \method{as.matrix}{network.goldfish}(x, ..., time = -Inf, startTime = -Inf)
 }
@@ -22,6 +22,9 @@ to update the state of the object \code{x} until this time value
 
 \item{startTime}{a numeric \code{as.Date} format value; prior events are
 disregarded.}
+
+\item{envir}{an \code{environment} where the nodes and linked events
+objects are available.}
 }
 \value{
 The respective object updated accordingly to the events link to it.
@@ -48,8 +51,10 @@ states <- linkEvents(states, gdpchanges, attribute = "gdp")
 bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
 bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
 
-updateStates <- as.data.frame(states,
-                              time = as.numeric(as.POSIXct("1965-12-31")))
+updateStates <- as.data.frame(
+  states,
+  time = as.numeric(as.POSIXct("1965-12-31"))
+)
 
 
 updateNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1965-12-31")))

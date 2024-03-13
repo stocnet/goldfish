@@ -34,7 +34,7 @@ First, we load the `goldfish` package and load the data. .
 You can find out more about this dataset and its format by callings
 its documentation.
 
-```{r}
+```{r load}
 library(goldfish)
 data("RFID_Validity_Study")
 #?RFID_Validity_Study
@@ -43,7 +43,7 @@ data("RFID_Validity_Study")
 The `participants` object contains the nodeset of actors interacting together.
 The available attributes are their age, their gender, their organizational
 unit (group), and their seniority level:
-```{r}
+```{r headParticipants}
 head(participants)
 ```
 
@@ -51,7 +51,7 @@ The `rfid` object contains the list of dyadic interactions collected via
 RFID badges.
 Each interaction is characterized by two actors (`NodeA` and `NodeB`) and
 two time points (`Start` and `End`):
-```{r}
+```{r headRfid}
 head(rfid)
 ```
 
@@ -59,7 +59,7 @@ The `video` object contains the list of dyadic interactions collected
 via video recordings and has the same format as the `rfid` object.
 We know that these measures should be more reliable, so we will work with
 those data in this script!
-```{r}
+```{r headVideo}
 head(video)
 ```
 
@@ -76,7 +76,7 @@ More specifically, the model is designed for events of actors joining or
 leavin interaction groups. We can use this function to create these group
 events (please note we need to use the right labels in the dataframe:
 `NodeA`, `NodeB`,`Start`, and `End`):
-```{r}
+```{r defGroups}
 #?defineGroups_interaction
 prepdata <- defineGroups_interaction(video, participants,
                                      seed.randomization = 1)
@@ -86,7 +86,7 @@ This functions to creates 5 objects:
 1. `groups`: a goldfish nodeset containing the interaction groups
 (initially there are as many groups as actors and they are all present,
 meaning available)
-```{r}
+```{r assGroups}
 groups <- prepdata$groups
 head(groups)
 ```
@@ -95,7 +95,7 @@ head(groups)
 to model, when an actor (in the dataframe, the `sender` column) joins or
 leaves (`increment` = 1 or -1) a group (`receiver`) at a particular point
 in time (`time`)
-```{r}
+```{r headDependent}
 dependent.events <- prepdata$dependent.events
 head(dependent.events)
 ```
@@ -104,21 +104,21 @@ head(dependent.events)
 happen but are not modeled (for example, when an actor leaves a group, a
 dependent event is created for this leaving but an exogenous event is also
 created because the actor "joins" a new group, its own isolated group)
-```{r}
+```{r headExogenous}
 exogenous.events <- prepdata$exogenous.events
 head(exogenous.events)
 ```
 
 4. `interaction.updates`: goldfish events that are used to update the number
 of past interactions between participants: 
-```{r}
+```{r headInteraction}
 interaction.updates <- prepdata$interaction.updates
 head(interaction.updates)
 ```
 
 5. `opportunities`: list containing the interaction groups available at each
 decision time (this will vary when groups are being joined or left)
-```{r}
+```{r headOpportunities}
 opportunities <- prepdata$opportunities
 head(opportunities)
 ```
@@ -129,25 +129,27 @@ Now that we have all the data we need, we need to define the link between our
 objects in a way that goldfish understands what is going on.
 
 First, we define the first mode nodeset, the actors:
-```{r}
+```{r defNodes}
 # goldfish requires character names
 participants$label <- as.character(participants$label)
 actors <- defineNodes(participants)
 ```
 
 Then we define the second mode nodeset, the groups:
-```{r}
+```{r groups}
 groups <- defineNodes(groups)
 ```
 
 Then we create the dynamic interaction network between the actors and
 the groups, updated by the previously created events in `dependent.events`
 and `exogenous.events`
-```{r warning=FALSE}
+```{r defNet}
 init.network <- diag(x = 1, nrow(actors), nrow(groups))
+# goldfish check that row/column names agree with the nodes data frame labels
+dimnames(init.network) <- list(actors$label, groups$label)
 network.interactions <- defineNetwork(
   matrix = init.network, nodes = actors, nodes2 = groups, directed = TRUE
-) # don't worry about the warnings
+)
 network.interactions <- linkEvents(
   x = network.interactions, changeEvent = dependent.events,
   nodes = actors, nodes2 = groups
@@ -161,14 +163,14 @@ network.interactions <- linkEvents(
 Then we create the dynamic network between the actors that records
 past interactions, updated by the previously created events in
 `interaction.updates`
-```{r warning=FALSE}
+```{r defNetPast, warning=FALSE}
 network.past <- defineNetwork(nodes = actors, directed = FALSE)
 network.past <- linkEvents(
   x = network.past, changeEvents = interaction.updates, nodes = actors
 ) # don't worry about the warnings
 ```
 Finally, we define the events that we want to model: `dependent.events`:
-```{r}
+```{r defEvents}
 dependent.events <- defineDependentEvents(
   events = dependent.events, nodes = actors,
   nodes2 = groups, defaultNetwork = network.interactions
@@ -197,7 +199,7 @@ For the rate, we have the following effects:
   if the proportion of same group in the group is high
 8. tie known before (leaving): tendency for individuals to leave groups faster
   if the proportion of previous friends in the group is high
-```{r}
+```{r modeRateM1}
 formula.rate.M1 <- dependent.events ~  1 +
   intercept(network.interactions, joining = 1) +
   ego(actors$age, joining = 1, subType = "centered") +
@@ -220,7 +222,7 @@ and for the choice model:
   if the proportion of same group in the group is high
 13. tie known before: tendency for individuals to join groups
   if the proportion of previous friends in the group is high
-```{r}
+```{r modeChoiceM1}
 formula.choice.M1 <- dependent.events ~
   diff(actors$age, subType = "averaged_sum") +
   diff(actors$level, subType = "averaged_sum") +
@@ -234,12 +236,12 @@ The first model explains who people want to join (or not join),
 the second explains who people want to leave (or stay with). 
 
 Now let us run goldfish estimation!
-```{r}
+```{r modRateM1Est}
 est.rate.M1 <- estimate(formula.rate.M1, model = "DyNAMi", subModel = "rate")
 summary(est.rate.M1)
 ```
 
-```{r}
+```{r modChoiceM1Est}
 est.choice.M1 <- estimate(
   formula.choice.M1,
   model = "DyNAMi", subModel = "choice",
@@ -256,7 +258,7 @@ We add to the rate model the effects of:
   who had more interactions in the past to join groups faster
 3. egopop (leaving): tendency for individuals
   who had more interactions in the past to leave groups faster
-```{r}
+```{r modeRateM2}
 formula.rate.M2 <- dependent.events ~  1 +
   intercept(network.interactions, joining = 1) +
   ego(actors$age, joining = 1, subType = "centered") +
@@ -279,7 +281,7 @@ We add to the choice model:
   with a high average number of previous interactions with the group members
   within the last minute
 3. inertia, window = 300s: same as above, for 5 minutes
-```{r}
+```{r modeChoiceM2}
 formula.choice.M2 <- dependent.events ~
   diff(actors$age, subType = "averaged_sum") +
   diff(actors$level, subType = "averaged_sum") +
@@ -302,12 +304,12 @@ All effects can have different subTypes,
 please look at the goldfish documentation to learn more.
 
 Now we can run again
-```{r}
+```{r modRateM2Est}
 est.rate.M2 <- estimate(formula.rate.M2, model = "DyNAMi", subModel = "rate")
 summary(est.rate.M2)
 ```
 and:
-```{r}
+```{r modChoiceM2Est}
 est.choice.M2 <- estimate(
   formula.choice.M2,
   model = "DyNAMi", subModel = "choice",
@@ -326,7 +328,7 @@ We now have for each rate model a general intercept and
 a dummy interaction between the intercept and the joining events.
 If we want to report the actual intercept for joining,
 we can calculate the following (for M2 for example):
-```{r}
+```{r interceptJoining}
 cov.matrix <- vcov(est.rate.M2)
 
 est.interceptjoining <- coef(est.rate.M2)[1] + coef(est.rate.M2)[2]
@@ -334,6 +336,11 @@ se.interceptjoining <- sqrt(
   cov.matrix[1, 1] + cov.matrix[2, 2] + 2 * cov.matrix[1, 2]
 )
 t.interceptjoining <- est.interceptjoining / se.interceptjoining
+sprintf(
+  "Intercept for joining: %.3f (SE = %.3f, t = %.3f)",
+  est.interceptjoining, se.interceptjoining, t.interceptjoining
+)
+
 ```
 
 This script can be continued by looking at better model specifications

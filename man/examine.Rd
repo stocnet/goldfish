@@ -96,8 +96,10 @@ callsDependent <- callsDependent[1:50, ]
 }
 mod01 <- estimate(callsDependent ~ inertia + recip + trans,
   model = "DyNAM", subModel = "choice",
-  estimationInit = list(returnIntervalLogL = TRUE,
-                        engine = "default_c")
+  estimationInit = list(
+    returnIntervalLogL = TRUE,
+    engine = "default_c"
+  )
 )
 
 examineOutliers(mod01)

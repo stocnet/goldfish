@@ -246,9 +246,11 @@ and `exogenous.events`
 
 ```r
 init.network <- diag(x = 1, nrow(actors), nrow(groups))
+# goldfish check that row/column names agree with the nodes data frame labels
+dimnames(init.network) <- list(actors$label, groups$label)
 network.interactions <- defineNetwork(
   matrix = init.network, nodes = actors, nodes2 = groups, directed = TRUE
-) # don't worry about the warnings
+)
 network.interactions <- linkEvents(
   x = network.interactions, changeEvent = dependent.events,
   nodes = actors, nodes2 = groups
@@ -636,6 +638,14 @@ se.interceptjoining <- sqrt(
   cov.matrix[1, 1] + cov.matrix[2, 2] + 2 * cov.matrix[1, 2]
 )
 t.interceptjoining <- est.interceptjoining / se.interceptjoining
+sprintf(
+  "Intercept for joining: %.3f (SE = %.3f, t = %.3f)",
+  est.interceptjoining, se.interceptjoining, t.interceptjoining
+)
+```
+
+```
+## [1] "Intercept for joining: -3.434 (SE = 0.089, t = -38.477)"
 ```
 
 This script can be continued by looking at better model specifications

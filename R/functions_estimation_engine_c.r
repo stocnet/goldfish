@@ -7,47 +7,46 @@
 
 # Estimation
 estimate_c_int <- function(
-  statsList,
-  nodes, nodes2,
-  defaultNetworkName,
-  modelTypeCall = c(
-    "DyNAM-MM", "DyNAM-M", "REM-ordered",
-    "DyNAM-M-Rate", "REM", "DyNAM-M-Rate-ordered"
-  ),
-  initialParameters = NULL,
-  fixedParameters = NULL,
-  excludeParameters = NULL,
-  initialDamping = 1,
-  maxIterations = 20,
-  dampingIncreaseFactor = 2,
-  dampingDecreaseFactor = 3,
-  maxScoreStopCriterion = 0.001,
-  # additional return objects
-  returnEventProbabilities = FALSE,
-  # additional parameter for DyNAM-MM
-  allowReflexive = FALSE,
-  isTwoMode = FALSE,
-  # additional parameter for DyNAM-M-Rate
-  hasIntercept = FALSE,
-  returnIntervalLogL = FALSE,
-  parallelize = FALSE,
-  cpus = 6,
-  verbose = FALSE,
-  progress = FALSE,
-  ignoreRepParameter = ignoreRepParameter,
-  testing = FALSE,
-  get_data_matrix = FALSE,
-  impute = FALSE,
-  engine = c("default_c", "gather_compute"),
-  prepEnvir = new.env()
-  ) {
-
+    statsList,
+    nodes, nodes2,
+    defaultNetworkName,
+    modelTypeCall = c(
+      "DyNAM-MM", "DyNAM-M", "REM-ordered",
+      "DyNAM-M-Rate", "REM", "DyNAM-M-Rate-ordered"
+    ),
+    initialParameters = NULL,
+    fixedParameters = NULL,
+    excludeParameters = NULL,
+    initialDamping = 1,
+    maxIterations = 20,
+    dampingIncreaseFactor = 2,
+    dampingDecreaseFactor = 3,
+    maxScoreStopCriterion = 0.001,
+    # additional return objects
+    returnEventProbabilities = FALSE,
+    # additional parameter for DyNAM-MM
+    allowReflexive = FALSE,
+    isTwoMode = FALSE,
+    # additional parameter for DyNAM-M-Rate
+    hasIntercept = FALSE,
+    returnIntervalLogL = FALSE,
+    parallelize = FALSE,
+    cpus = 6,
+    verbose = FALSE,
+    progress = FALSE,
+    ignoreRepParameter = ignoreRepParameter,
+    testing = FALSE,
+    get_data_matrix = FALSE,
+    impute = FALSE,
+    engine = c("default_c", "gather_compute"),
+    prepEnvir = new.env()) {
   minDampingFactor <- initialDamping
   # CHANGED MARION
   # nParams: number of effects + 1 (if has intercept)
   nParams <- dim(statsList$initialStats)[3] - length(excludeParameters) +
     hasIntercept
   #
+
   parameters <- initialParameters
   if (is.null(initialParameters)) parameters <- numeric(nParams)
   # deal with fixedParameters
@@ -55,7 +54,7 @@ estimate_c_int <- function(
   idFixedCompnents <- NULL
   likelihoodOnly <- FALSE
   if (!is.null(fixedParameters)) {
-    if (length(fixedParameters) != nParams)
+    if (length(fixedParameters) != nParams) {
       stop(
         "The length of fixedParameters is inconsistent with",
         "the number of the parameters.",
@@ -63,6 +62,7 @@ estimate_c_int <- function(
         length(fixedParameters), "\n\tNumber of parameters:", nParams,
         call. = FALSE
       )
+    }
 
     if (all(!is.na(fixedParameters))) likelihoodOnly <- TRUE
     parameters[!is.na(fixedParameters)] <-
@@ -76,15 +76,16 @@ estimate_c_int <- function(
 
   ## PARAMETER CHECKS
 
-  if (length(parameters) != nParams)
+  if (length(parameters) != nParams) {
     stop(
       " Wrong number of initial parameters passed to function.",
       "\n\tLength ", dQuote("parameters"), " vector:",
       length(parameters), "\n\tNumber of parameters:", nParams,
       call. = FALSE
     )
+  }
 
-  if (!(length(minDampingFactor) %in% c(1, nParams)))
+  if (!(length(minDampingFactor) %in% c(1, nParams))) {
     stop(
       "minDampingFactor has wrong length:",
       "\n\tLength ", dQuote("minDampingFactor"), " vector:",
@@ -92,12 +93,14 @@ estimate_c_int <- function(
       "\nIt should be length 1 or same as number of parameters.",
       call. = FALSE
     )
+  }
 
-  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1)
+  if (dampingIncreaseFactor < 1 || dampingDecreaseFactor < 1) {
     stop(
       "Damping increase / decrease factors cannot be smaller than one.",
       call. = FALSE
     )
+  }
 
   ## REDUCE STATISTICS LIST
 
@@ -140,7 +143,7 @@ estimate_c_int <- function(
   ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
   if (hasCompChange1) {
     compChange1 <- get(compChangeName1, envir = prepEnvir)
-    compChange1 <- sanitizeEvents(compChange1, nodes)
+    compChange1 <- sanitizeEvents(compChange1, nodes, envir = prepEnvir)
     temp <- C_convert_composition_change(compChange1, statsList$eventTime)
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
@@ -152,7 +155,7 @@ estimate_c_int <- function(
 
   if (hasCompChange2) {
     compChange2 <- get(compChangeName2, envir = prepEnvir)
-    compChange2 <- sanitizeEvents(compChange2, nodes2)
+    compChange2 <- sanitizeEvents(compChange2, nodes2, envir = prepEnvir)
     temp <- C_convert_composition_change(compChange2, statsList$eventTime)
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer
@@ -178,9 +181,9 @@ estimate_c_int <- function(
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
-  if (modelTypeCall %in% c("REM","DyNAM-M-Rate") && hasIntercept &&
-      is.null(initialParameters) &&
-      (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
+  if (modelTypeCall %in% c("REM", "DyNAM-M-Rate") && hasIntercept &&
+    is.null(initialParameters) &&
+    (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
     totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
       sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
 
@@ -262,7 +265,7 @@ estimate_c_int <- function(
     timespan[is_dependent] <- statsList$intervals
     timespan[!is_dependent] <- statsList$rightCensoredIntervals
   } else if (modelTypeCall %in%
-             c("DyNAM-M-Rate-ordered", "REM-ordered", "DyNAM-MM")) {
+    c("DyNAM-M-Rate-ordered", "REM-ordered", "DyNAM-MM")) {
     is_dependent <- statsList$orderEvents == 1
   } else {
     timespan <- NA
@@ -390,12 +393,13 @@ estimate_c_int <- function(
     }
 
     if (isInitialEstimation && any(is.na(unlist(res))) &&
-        !all(parameters[-1] == 0))
+      !all(parameters[-1] == 0)) {
       stop(
         "Estimation not possible with initial parameters.",
         " Try using zeros instead.",
         call. = FALSE
       )
+    }
 
     # If we only want the likelihood break here
     if (likelihoodOnly) {
@@ -413,8 +417,8 @@ estimate_c_int <- function(
       cat(
         "\rMax score: ",
         round(max(abs(score)), round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
-          " (", iIteration, ").        "
-        )
+        " (", iIteration, ").        "
+      )
     }
     if (verbose) {
       cat(
@@ -426,11 +430,12 @@ estimate_c_int <- function(
     }
 
     if (logLikelihood <= logLikelihood.old || any(is.na(unlist(res)))) {
-      if (verbose)
+      if (verbose) {
         cat(
           "\nNo improvement in estimation.",
           " Resetting values and adjusting damping."
         )
+      }
       # reset values
       logLikelihood <- logLikelihood.old
       parameters <- parameters.old
@@ -460,47 +465,52 @@ estimate_c_int <- function(
     # The fixed components of the score have already be set to be 0.
     # It's for the fixing parameter feature.
     informationMatrixUnfixed <-
-      informationMatrix[idUnfixedCompnents,idUnfixedCompnents]
+      informationMatrix[idUnfixedCompnents, idUnfixedCompnents]
     inverseInformationUnfixed <- try(
       solve(informationMatrixUnfixed),
       silent = TRUE
     )
-    if (inherits(inverseInformationUnfixed, "try-error"))
+    if (inherits(inverseInformationUnfixed, "try-error")) {
       stop(
         "Matrix cannot be inverted;",
         " probably due to collinearity between parameters.",
         call. = FALSE
       )
+    }
 
-      update <- rep(0,nParams)
-      update[idUnfixedCompnents] <-
-        (inverseInformationUnfixed %*% score[idUnfixedCompnents]) /
-          dampingFactor
+    update <- rep(0, nParams)
+    update[idUnfixedCompnents] <-
+      (inverseInformationUnfixed %*% score[idUnfixedCompnents]) /
+        dampingFactor
 
 
-    if (verbose)
+    if (verbose) {
       cat(
         "\nUpdate: ", toString(update),
         "\nDamping factor:", toString(dampingFactor)
       )
+    }
 
     # check for stop criteria
     if (max(abs(score)) <= maxScoreStopCriterion) {
       isConverged <- TRUE
-      if (progress)
+      if (progress) {
         cat(
           "\nStopping as maximum absolute score is below ",
-          maxScoreStopCriterion, ".\n", sep = ""
+          maxScoreStopCriterion, ".\n",
+          sep = ""
         )
+      }
       break
     }
     if (iIteration > maxIterations) {
-      if (progress)
+      if (progress) {
         cat(
           "\nStopping as maximum of ",
           maxIterations,
           " iterations have been reached. No convergence.\n"
         )
+      }
       break
     }
 
@@ -512,7 +522,7 @@ estimate_c_int <- function(
   ## ESTIMATION: END
   # calculate standard errors
   # the variance for the fixed compenents should be 0
-  stdErrors <- rep(0,nParams)
+  stdErrors <- rep(0, nParams)
   stdErrors[idUnfixedCompnents] <- sqrt(diag(inverseInformationUnfixed))
 
   # define, type and return result
@@ -536,18 +546,12 @@ estimate_c_int <- function(
   # if (testing) estimationResult$intermediateData <-
   #  DataMatrixAndId$intermediate_data
   if (returnIntervalLogL) estimationResult$intervalLogL <- intervalLogL
-  if (returnEventProbabilities)
+  if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
+  }
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
 }
-
-
-
-########################################################################################### ###
-# different implementation for different modelTypeCall
-
-
 
 ## ESTIMATE FOR DIFFERENT MODELS
 estimate_ <- function(
@@ -570,8 +574,7 @@ estimate_ <- function(
     n_actors1,
     n_actors2,
     twomode_or_reflexive,
-    impute
-) {
+    impute) {
   if (modelTypeCall == "DyNAM-MM") {
     res <- estimate_DyNAM_MM(
       parameters,
@@ -725,9 +728,7 @@ gather_ <- function(
     n_actors2,
     twomode_or_reflexive,
     verbose,
-    impute
-) {
-
+    impute) {
   if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
     # For DyNAM-MM, we deal with twomode_or_reflexive in the estimation
     # for convenience.
@@ -812,17 +813,17 @@ compute_ <- function(
     n_candidates2,
     timespan,
     is_dependent,
-    twomode_or_reflexive
-) {
-  if (modelTypeCall %in% c("DyNAM-M", "REM-ordered", "DyNAM-M-Rate-ordered"))
+    twomode_or_reflexive) {
+  if (modelTypeCall %in% c("DyNAM-M", "REM-ordered", "DyNAM-M-Rate-ordered")) {
     res <- compute_multinomial_selection(
       parameters,
       stat_all_events,
       n_candidates,
       selected
     )
+  }
 
-  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM"))
+  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
     res <- compute_poisson_selection(
       parameters,
       stat_all_events,
@@ -831,8 +832,9 @@ compute_ <- function(
       timespan,
       is_dependent
     )
+  }
 
-  if (modelTypeCall == "DyNAM-MM")
+  if (modelTypeCall == "DyNAM-MM") {
     res <- compute_coordination_selection(
       parameters,
       stat_all_events,
@@ -844,6 +846,7 @@ compute_ <- function(
       selected_actor2,
       twomode_or_reflexive
     )
+  }
 
   return(res)
 }

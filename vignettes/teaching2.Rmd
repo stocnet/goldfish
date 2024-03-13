@@ -377,7 +377,7 @@ at two (or more) different time periods using igraph.
 
 ```r
 library(igraph)
-library(migraph)
+library(manynet)
 
 # network at the beginning of the event sequence
 startStates <- as.data.frame(
@@ -385,6 +385,7 @@ startStates <- as.data.frame(
   time = as.numeric(as.POSIXct("1960-01-02"))
 )
 startNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02"))) |>
+  as_igraph() |> 
   add_node_attribute("present", startStates$present) |>
   add_node_attribute("regime", startStates$regime) |>
   add_node_attribute("gdp", startStates$gdp)
@@ -392,6 +393,7 @@ startNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1960-01-02"))) |>
 # network at the end of the event sequence
 endStates <- as.data.frame(states, time = as.numeric(as.POSIXct("1970-01-01")))
 endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01"))) |>
+  as_igraph() |>
   add_node_attribute("present", endStates$present) |>
   add_node_attribute("regime", endStates$regime) |>
   add_node_attribute("gdp", endStates$gdp)
@@ -402,13 +404,16 @@ isStateActiveEnd <- endStates$present & node_degree(endNet) > 0
 isStateActive <- isStateActiveStart | isStateActiveEnd
 
 # subset networks to active states
-startNet <- delete_vertices(startNet, !isStateActive)
-endNet <- delete_vertices(endNet, !isStateActive)
+startNet <- delete_nodes(startNet, !isStateActive)
+endNet <- delete_nodes(endNet, !isStateActive)
 
-ggevolution(startNet, endNet, layout = "fr", based_on = "last")
+autographs(list(startNet, endNet), layout = "fr")
 ```
 
-<img src="teaching/plot-teaching2-1.png" alt="plot of chunk plot-teaching2" style="display: block; margin: auto;" />
+<div class="figure" style="text-align: center">
+<img src="teaching/plot-teaching2-1.png" alt="plot of chunk plot-teaching2"  />
+<p class="caption">plot of chunk plot-teaching2</p>
+</div>
 
 What can we observe?
 
@@ -459,7 +464,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>  155.92    5.78  162.42
+#>  194.74    9.31  206.95
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -551,7 +556,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>  109.36    0.82  109.22
+#>  125.22    1.61  126.84
 ```
 
 # Extensions...
@@ -570,6 +575,7 @@ Here is an example on the current results object:
 ```r
 library(broom)
 library(pixiedust)
+#> Warning: package 'pixiedust' was built under R version 4.3.3
 dust(tidy(tieModel, conf.int = TRUE)) |>
   sprinkle(col = c(2:4, 6, 7), round = 3) |>
   sprinkle(col = 5, fn = quote(pvalString(value)))
@@ -604,7 +610,10 @@ examineOutliers(tieModel)
 examineChangepoints(tieModel)
 ```
 
-<img src="teaching/examine-1.png" alt="plot of chunk examine" width="432" style="display: block; margin: auto;" />
+<div class="figure" style="text-align: center">
+<img src="teaching/examine-1.png" alt="plot of chunk examine" width="432" />
+<p class="caption">plot of chunk examine</p>
+</div>
 
 For more, please see Hollway (2020) Network Embeddedness and
 the Rate of Water Cooperation and Conflict.

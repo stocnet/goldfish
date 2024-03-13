@@ -1,7 +1,17 @@
+# goldfish 1.6.6
+
+* Debugging and extend documentation for `GatherPreprocessing()`.
+* Fix note from CRAN checks.
+* Debug issue when using a preprocess init object in `estimate()`.
+* Debug issue with opportunity list in `estimate()` for `DyNAM` models.
+* Fix error in printing output from `estimate()` when using
+  a parameter is fixed to a value.  
+
 # goldfish 1.6.5
 
 * Solves `startTime` and `endTime` bug on `DyNAM` and `REM` models
   preprocessing.
+* Export `GatherPreprocessing()`. Experimental functionality.
 * Clean unnecessary functions imports.
 * Solves `aes_string()` deprecation.
 * Solves issue on `C++` engine on DyNAM-rate.

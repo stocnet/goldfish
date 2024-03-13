@@ -1,14 +1,19 @@
 ## usethis namespace: start
 #' goldfish package
 #'
-#' The goldfish Project is an R package that allows to fit statistical network models
+#' The goldfish Project is an R package that allows
+#' to fit statistical network models
 #' (such as DyNAM and REM) to dynamic network data.
 #'
 #' The \href{https://sn.ethz.ch/research/goldfish.html}{goldfish}
-#' package in R allows the study of time-stamped network data using a variety of models.
-#' In particular, it implements different types of Dynamic Network Actor Models (DyNAMs),
-#' a class of models that is tailored to the study of actor-oriented network processess through time.
-#' Goldfish also implements different versions of the tie-oriented Relational Event Model by Carter Butts.
+#' package in R allows the study of time-stamped network data
+#'  using a variety of models.
+#' In particular, it implements different types of
+#'  Dynamic Network Actor Models (DyNAMs),
+#' a class of models that is tailored to the study of
+#'  actor-oriented network processess through time.
+#' Goldfish also implements different versions of
+#'  the tie-oriented Relational Event Model by Carter Butts.
 #'
 #' @seealso [estimate()]
 #' @references
@@ -25,8 +30,10 @@
 #' \emph{Sociological Methodology 47 (1)}. \doi{10.1177/0081175017709295}
 #'
 #' Hollway, J. (2020).
-#' Network embeddedness and the rate of international water cooperation and conflict.
-#' In \emph{Networks in Water Governance}, edited by Manuel Fischer and Karin Ingold.
+#' Network embeddedness and the rate
+#' of international water cooperation and conflict.
+#' In \emph{Networks in Water Governance},
+#' edited by Manuel Fischer and Karin Ingold.
 #' London: Palgrave, pp. 87-113.
 #'
 #' Hoffman, M., Block P., Elmer T., and Stadtfeld C. (2020).

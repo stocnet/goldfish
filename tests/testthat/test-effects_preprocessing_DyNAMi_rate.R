@@ -3,16 +3,19 @@
 
 # test interecept leaving ----
 test_that(
-  "intercept computes correct preprocessing objects weighted with all possible options",
+  "intercept with objects weighted with all possible options",
   {
     preproData <- estimate(
-      dependent.depevents_DyNAMi ~ 1 + intercept(interaction_network_DyNAMi, joining = -1),
+      dependent.depevents_DyNAMi ~ 1 +
+        intercept(interaction_network_DyNAMi, joining = -1),
       model = "DyNAMi", subModel = "rate",
       preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -112,28 +115,54 @@ test_that(
 
 # test inertia with different subtypes ----
 test_that(
-  "inertia/tie compute correct preprocessing objects weighted with all possible options",
+  "inertia/tie with objects weighted with all possible options",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "count", joining = -1) +
-        tie(covnetwork_DyNAMi, weighted = TRUE, subType = "count", joining = -1) +
-        inertia(past_network_DyNAMi, weighted = TRUE, subType = "proportion", joining = -1) +
-        tie(covnetwork_DyNAMi, weighted = TRUE, subType = "proportion", joining = -1) +
-        inertia(past_network_DyNAMi, weighted = TRUE, subType = "presence", joining = -1) +
-        tie(covnetwork_DyNAMi, weighted = TRUE, subType = "presence", joining = -1) +
-        inertia(past_network_DyNAMi, weighted = TRUE, subType = "min", joining = -1) +
-        tie(covnetwork_DyNAMi, weighted = TRUE, subType = "min", joining = -1) +
-        inertia(past_network_DyNAMi, weighted = TRUE, subType = "mean", joining = -1) +
-        tie(covnetwork_DyNAMi, weighted = TRUE, subType = "mean", joining = -1) +
-        inertia(past_network_DyNAMi, weighted = TRUE, subType = "max", joining = -1) +
-        tie(covnetwork_DyNAMi, weighted = TRUE, subType = "max", joining = -1),
+        inertia(past_network_DyNAMi,
+          weighted = TRUE, subType = "count", joining = -1
+        ) +
+        tie(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "count", joining = -1
+        ) +
+        inertia(past_network_DyNAMi,
+          weighted = TRUE, subType = "proportion", joining = -1
+        ) +
+        tie(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "proportion", joining = -1
+        ) +
+        inertia(past_network_DyNAMi,
+          weighted = TRUE, subType = "presence", joining = -1
+        ) +
+        tie(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "presence", joining = -1
+        ) +
+        inertia(past_network_DyNAMi,
+          weighted = TRUE, subType = "min", joining = -1
+        ) +
+        tie(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "min", joining = -1
+        ) +
+        inertia(past_network_DyNAMi,
+          weighted = TRUE, subType = "mean", joining = -1
+        ) +
+        tie(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "mean", joining = -1
+        ) +
+        inertia(past_network_DyNAMi,
+          weighted = TRUE, subType = "max", joining = -1
+        ) +
+        tie(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "max", joining = -1
+        ),
       model = "DyNAMi", subModel = "rate",
       preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -323,7 +352,8 @@ test_that(
 
 
 
-    # Final stats for other inertia effects: proportion, presence, min, mean, max
+    # Final stats for other inertia effects:
+    #  proportion, presence, min, mean, max
     for (i in c(3, 5, 7, 9, 11)) {
       stat <- preproData$initialStats[, , i]
       for (t in 1:8) {
@@ -341,7 +371,8 @@ test_that(
       )
     }
 
-    # Final stats for other tie effects: proportion, presence, min, mean, mean
+    # Final stats for other tie effects:
+    #  proportion, presence, min, mean, mean
     for (i in c(4, 6, 8, 10, 12)) {
       stat <- preproData$initialStats[, , i]
       for (t in 1:8) {
@@ -368,15 +399,23 @@ test_that(
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "count", joining = -1)
-      + inertia(past_network_DyNAMi, weighted = TRUE, subType = "count", joining = -1, window = 2)
-        + inertia(past_network_DyNAMi, weighted = TRUE, subType = "count", joining = -1, window = 7),
+        inertia(past_network_DyNAMi,
+          weighted = TRUE, subType = "count", joining = -1
+        )
+        + inertia(past_network_DyNAMi,
+          weighted = TRUE, subType = "count", joining = -1, window = 2
+        )
+        + inertia(past_network_DyNAMi,
+          weighted = TRUE, subType = "count", joining = -1, window = 7
+        ),
       model = "DyNAMi", subModel = "rate",
       preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -638,28 +677,54 @@ test_that(
 
 # test egopop with different subtypes ----
 test_that(
-  "egopop/egodeg for joining and leaving compute correct preprocessing objects weighted with all possible options",
+  "egopop/egodeg for joining and leaving",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      egopop(past_network_DyNAMi, weighted = TRUE, subType = "identity", joining = 1) +
-        egodeg(covnetwork_DyNAMi, weighted = TRUE, subType = "identity", joining = 1) +
-        egopop(past_network_DyNAMi, weighted = TRUE, subType = "normalized", joining = 1) +
-        egodeg(covnetwork_DyNAMi, weighted = TRUE, subType = "normalized", joining = 1) +
-        egopop(past_network_DyNAMi, weighted = TRUE, subType = "identity", joining = -1) +
-        egodeg(covnetwork_DyNAMi, weighted = TRUE, subType = "identity", joining = -1) +
-        egopop(past_network_DyNAMi, weighted = TRUE, subType = "normalized", joining = -1) +
-        egodeg(covnetwork_DyNAMi, weighted = TRUE, subType = "normalized", joining = -1) +
-        egopop(past_network_DyNAMi, weighted = TRUE, subType = "centered", joining = 1) +
-        egodeg(covnetwork_DyNAMi, weighted = TRUE, subType = "centered", joining = 1) +
-        egopop(past_network_DyNAMi, weighted = TRUE, subType = "centered", joining = -1) +
-        egodeg(covnetwork_DyNAMi, weighted = TRUE, subType = "centered", joining = -1),
+        egopop(past_network_DyNAMi,
+          weighted = TRUE, subType = "identity", joining = 1
+        ) +
+        egodeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "identity", joining = 1
+        ) +
+        egopop(past_network_DyNAMi,
+          weighted = TRUE, subType = "normalized", joining = 1
+        ) +
+        egodeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "normalized", joining = 1
+        ) +
+        egopop(past_network_DyNAMi,
+          weighted = TRUE, subType = "identity", joining = -1
+        ) +
+        egodeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "identity", joining = -1
+        ) +
+        egopop(past_network_DyNAMi,
+          weighted = TRUE, subType = "normalized", joining = -1
+        ) +
+        egodeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "normalized", joining = -1
+        ) +
+        egopop(past_network_DyNAMi,
+          weighted = TRUE, subType = "centered", joining = 1
+        ) +
+        egodeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "centered", joining = 1
+        ) +
+        egopop(past_network_DyNAMi,
+          weighted = TRUE, subType = "centered", joining = -1
+        ) +
+        egodeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "centered", joining = -1
+        ),
       model = "DyNAMi", subModel = "rate",
       preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -1081,26 +1146,48 @@ test_that(
 
 # test alterpop with different subtypes ----
 test_that(
-  "alterpop/alterdeg for leaving compute correct preprocessing objects weighted with all possible options",
+  "alterpop/alterdeg for leaving objects weighted with all possible options",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      alterpop(past_network_DyNAMi, weighted = TRUE, subType = "mean", joining = -1) +
-        alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "mean", joining = -1) +
-        alterpop(past_network_DyNAMi, weighted = TRUE, subType = "mean_normalized", joining = -1) +
-        alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "mean_normalized", joining = -1) +
-        alterpop(past_network_DyNAMi, weighted = TRUE, subType = "min", joining = -1) +
-        alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "min", joining = -1) +
-        alterpop(past_network_DyNAMi, weighted = TRUE, subType = "max", joining = -1) +
-        alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "max", joining = -1) +
-        alterpop(past_network_DyNAMi, weighted = TRUE, subType = "mean_centered", joining = -1) +
-        alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "mean_centered", joining = -1),
+        alterpop(past_network_DyNAMi,
+          weighted = TRUE, subType = "mean", joining = -1
+        ) +
+        alterdeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "mean", joining = -1
+        ) +
+        alterpop(past_network_DyNAMi,
+          weighted = TRUE, subType = "mean_normalized", joining = -1
+        ) +
+        alterdeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "mean_normalized", joining = -1
+        ) +
+        alterpop(past_network_DyNAMi,
+          weighted = TRUE, subType = "min", joining = -1
+        ) +
+        alterdeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "min", joining = -1
+        ) +
+        alterpop(past_network_DyNAMi,
+          weighted = TRUE, subType = "max", joining = -1
+        ) +
+        alterdeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "max", joining = -1
+        ) +
+        alterpop(past_network_DyNAMi,
+          weighted = TRUE, subType = "mean_centered", joining = -1
+        ) +
+        alterdeg(covnetwork_DyNAMi,
+          weighted = TRUE, subType = "mean_centered", joining = -1
+        ),
       model = "DyNAMi", subModel = "rate",
       preprocessingOnly = TRUE
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -1418,11 +1505,11 @@ test_that(
 
 # test ego with different subtypes ----
 test_that(
-  "ego for joining and leaving compute correct preprocessing objects weighted with all possible options",
+  "ego for joining and leaving objects weighted with all possible options",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      ego(actors_DyNAMi$attr1, subType = "identity", joining = 1) +
+        ego(actors_DyNAMi$attr1, subType = "identity", joining = 1) +
         ego(actors_DyNAMi$attr1, subType = "identity", joining = -1) +
         ego(actors_DyNAMi$attr1, subType = "normalized", joining = 1) +
         ego(actors_DyNAMi$attr1, subType = "normalized", joining = -1) +
@@ -1435,7 +1522,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -1757,11 +1846,11 @@ test_that(
 
 # test alter with different subtypes ----
 test_that(
-  "alter for leaving compute correct preprocessing objects weighted with all possible options",
+  "alter for leaving with objects weighted with all possible options",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      alter(actors_DyNAMi$attr1, subType = "mean", joining = -1) +
+        alter(actors_DyNAMi$attr1, subType = "mean", joining = -1) +
         alter(actors_DyNAMi$attr1, subType = "mean_squared", joining = -1) +
         alter(actors_DyNAMi$attr1, subType = "mean_normalized", joining = -1) +
         alter(actors_DyNAMi$attr1, subType = "min", joining = -1) +
@@ -1772,7 +1861,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -1969,11 +2060,11 @@ test_that(
 
 # test same with different subtypes ----
 test_that(
-  "same for leaving compute correct preprocessing objects weighted with all possible options",
+  "same for leaving with objects weighted with all possible options",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      same(actors_DyNAMi$attr2, subType = "count", joining = -1) +
+        same(actors_DyNAMi$attr2, subType = "count", joining = -1) +
         same(actors_DyNAMi$attr2, subType = "proportion", joining = -1) +
         same(actors_DyNAMi$attr2, subType = "presence", joining = -1),
       model = "DyNAMi", subModel = "rate",
@@ -1981,7 +2072,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 
@@ -2114,11 +2207,11 @@ test_that(
 
 # test diff with different subtypes ----
 test_that(
-  "diff for leaving compute correct preprocessing objects weighted with all possible options",
+  "diff for leaving with objects weighted with all possible options",
   {
     preproData <- estimate(
       dependent.depevents_DyNAMi ~
-      diff(actors_DyNAMi$attr1, subType = "averaged_sum", joining = -1) +
+        diff(actors_DyNAMi$attr1, subType = "averaged_sum", joining = -1) +
         diff(actors_DyNAMi$attr1, subType = "mean", joining = -1) +
         diff(actors_DyNAMi$attr1, subType = "min", joining = -1) +
         diff(actors_DyNAMi$attr1, subType = "max", joining = -1),
@@ -2127,7 +2220,9 @@ test_that(
     )
 
     updFun <- function(stat, change) {
-      if (!is.null(change)) stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (!is.null(change)) {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
       return(stat)
     }
 

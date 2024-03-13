@@ -23,4 +23,18 @@ rm(list = ls())
 knit("dynami-example.Rmd.orig", "dynami-example.Rmd")
 purl("dynami-example.Rmd.orig", "dynami-example.R")
 
+
+# check if the RMD files contain errors
+lapply(
+  list("teaching1.Rmd", "teaching2.Rmd", "dynami-example.Rmd"),
+  \(x) {
+    text <- readLines(x)
+    haveErrors <- grepl("Error:", text)
+    if (any(haveErrors)) {
+      paste("Error in", x, " on line",
+            paste(which(haveErrors), collapse = ", "))
+    }
+  }
+)
+
 setwd("..")
