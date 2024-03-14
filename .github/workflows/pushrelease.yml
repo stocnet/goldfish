@@ -78,14 +78,14 @@ jobs:
       contents: write
     steps:
       - name: Checkout one
-        uses: actions/checkout@v04
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: '0'
           
       - name: Bump version and push tag
         id: newtag
-        uses: anothrNick/github-tag-action@1.67.0
+        uses: anothrNick/github-tag-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WITH_V: true

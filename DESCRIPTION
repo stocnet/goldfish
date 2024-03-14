@@ -2,15 +2,16 @@ Encoding: UTF-8
 Package: goldfish
 Type: Package
 Title: Statistical Network Models for Dynamic Network Data
-Version: 1.6.6
-Date: 2024-03-13
-Authors@R: c(person("James", "Hollway", role = c("cre", "aut", "dtc"), 
+Version: 1.6.7
+Date: 2024-03-14
+Authors@R: c(person("James", "Hollway", role = c("aut", "dtc"), 
                     email = "james.hollway@graduateinstitute.ch",
                     comment = c("IHEID", ORCID = "0000-0002-8361-9647")),
               person("Christoph", "Stadtfeld", role = c("aut", "dtc"),
                      email = "c.stadtfeld@ethz.ch"),
               person("Marion", "Hoffman", role = "ctb"),
-              person("Alvaro", "Uzaheta", role = "ctb",
+              person("Alvaro", "Uzaheta", role = c("cre", "ctb"),
+                     email = "ualvaro@ethz.ch",
                      comment = c(ORCID = "0000-0003-4367-3670")),
               person("Mirko", "Reul", role = "ctb"),
               person("Timon", "Elmer", role = "ctb"),
@@ -29,7 +30,7 @@ Description: Tools for fitting statistical network models to dynamic network dat
    Stadtfeld and Block (2017) <doi:10.15195/v4.a14>,
    Hoffman et al. (2020) <doi:10.1017/nws.2020.3>.
 URL: https://stocnet.github.io/goldfish/ 
-BugReports: https://github.com/snlab-ch/goldfish/issues/ 
+BugReports: https://github.com/stocnet/goldfish/issues/ 
 Depends: R (>= 3.5.0)
 Imports:
     Rcpp (>= 1.0.1),
