@@ -108,9 +108,9 @@ jobs:
         shell: bash
         run: |
           ls -R
-          cp ./macOS/${{ env.PACKAGE_NAME }}_${{ env.PACKAGE_VERSION }}.tgz .
-          cp ./linuxOS/${{ env.PACKAGE_NAME }}_${{ env.PACKAGE_VERSION }}.tar.gz .
-          cp ./winOS/${{ env.PACKAGE_NAME }}_${{ env.PACKAGE_VERSION }}.zip .
+          cp ./macOS/${{ env.PACKAGE_NAME }}_${{ env.PACKAGE_VERSION }}.*.tgz .
+          cp ./linuxOS/${{ env.PACKAGE_NAME }}_${{ env.PACKAGE_VERSION }}.*.tar.gz .
+          cp ./winOS/${{ env.PACKAGE_NAME }}_${{ env.PACKAGE_VERSION }}.*.zip .
           ls goldfish_*
        
       - name: Create Release and Upload Assets
