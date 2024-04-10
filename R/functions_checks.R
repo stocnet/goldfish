@@ -15,7 +15,7 @@
 ## Find composition changes events for one nodeset
 findPresence <- function(nodes) {
   if (!is.null(attr(nodes, "dynamicAttributes")) &&
-      "present" %in% attr(nodes, "dynamicAttributes")) {
+    "present" %in% attr(nodes, "dynamicAttributes")) {
     compositionChanges <- attr(nodes, "events")[
       which(attr(nodes, "dynamicAttributes") == "present")
     ]
@@ -232,7 +232,7 @@ checkColumns <- function(
     )
   }
   if (!is.null(incompatibleNames) &&
-      sum(colnames(inDataFrame) %in% incompatibleNames) > 1) {
+    sum(colnames(inDataFrame) %in% incompatibleNames) > 1) {
     stop("Incompatible columns",
       paste(
         incompatibleNames[
@@ -378,7 +378,7 @@ checkNetwork <- function(matrix, nodes, nodesName, nodes2 = NULL) {
   }
   # events, nodes, directed attributes
   if (!is.null(attr(matrix, "events")) &&
-      !is.character(attr(matrix, "events"))) { # styler: off
+        !is.character(attr(matrix, "events"))) { # styler: off
     stop("The network attribute \"events\" should be a character vector.")
   }
   if (is.null(attr(matrix, "nodes"))) {
@@ -388,7 +388,7 @@ checkNetwork <- function(matrix, nodes, nodesName, nodes2 = NULL) {
     )
   }
   if (!is.character(attr(matrix, "nodes")) &&
-      !length(attr(matrix, "nodes")) %in% c(1, 2)) { # styler: off
+        !length(attr(matrix, "nodes")) %in% c(1, 2)) { # styler: off
     stop(
       "The network attribute \"nodes\" should contain",
       "the name of one or two nodesets."
@@ -403,7 +403,7 @@ checkNetwork <- function(matrix, nodes, nodesName, nodes2 = NULL) {
   # validity of nodes
   isTwoMode <- !is.null(nodes2)
   if (!(inherits(nodes, "nodes.goldfish") &&
-      isTwoMode && !inherits(nodes2, "nodes.goldfish"))) {
+    isTwoMode && !inherits(nodes2, "nodes.goldfish"))) {
     tryCatch(
       {
         checkNodes(nodes)
@@ -422,7 +422,7 @@ checkNetwork <- function(matrix, nodes, nodesName, nodes2 = NULL) {
   }
 
   if (isTwoMode && any(dim(matrix)[1] != nrow(nodes) &&
-      dim(matrix)[2] != nrow(nodes2))) {
+    dim(matrix)[2] != nrow(nodes2))) {
     stop("The matrix dimensions are not coherent with the nodesets sizes.")
   }
 
@@ -447,7 +447,7 @@ checkNetwork <- function(matrix, nodes, nodesName, nodes2 = NULL) {
     }
 
     if (!all(dimNames[[1]] == nodes$label) ||
-        !all(dimNames[[2]] == if (!isTwoMode) nodes$label else nodes2$label)) {
+      !all(dimNames[[2]] == if (!isTwoMode) nodes$label else nodes2$label)) {
       stop(
         "The order of nodes in either row or columns is",
         "not the same as in \"nodes\"",
@@ -575,7 +575,7 @@ checkEvents.nodes.goldfish <- function(
       stop("An attribute should be a character object.")
     }
     if (is.null(attr(object, "dynamicAttributes")) ||
-        !(attribute %in% attr(object, "dynamicAttributes"))) {
+      !(attribute %in% attr(object, "dynamicAttributes"))) {
       stop("The dynamic attributes for this nodeset were mispecified.")
     }
     if (!eventsName %in%
@@ -588,11 +588,11 @@ checkEvents.nodes.goldfish <- function(
       )
     }
   } else if (!is.null(attr(object, "events")) &&
-      eventsName %in% attr(object, "events")) {
+    eventsName %in% attr(object, "events")) {
     if (is.null(attr(object, "dynamicAttributes")) ||
-        is.na(attr(object, "dynamicAttributes")[
-          which(attr(object, "events") == eventsName)
-        ])) {
+      is.na(attr(object, "dynamicAttributes")[
+        which(attr(object, "events") == eventsName)
+      ])) {
       stop(
         "The events related to the dynamic attributes of this nodeset",
         "were mispecified."
@@ -677,7 +677,7 @@ checkEvents.nodes.goldfish <- function(
     }
     classEven <- class(eventUpdate)
     if (!all(checkClasses(object[[attribute]], classEven)) &&
-        !all(checkClasses(eventUpdate, classAttr))) {
+      !all(checkClasses(eventUpdate, classAttr))) {
       stop(
         "The type of the attribute ", dQuote(attribute),
         " is incompatible with the associated event list.",
@@ -732,7 +732,7 @@ checkEvents.network.goldfish <- function(
   if (!is.data.frame(events)) stop("An event list should be a data frame.")
   # check nodeset type
   if (!inherits(nodes, "nodes.goldfish") ||
-      (isTwoMode && !inherits(nodes2, "nodes.goldfish"))) {
+    (isTwoMode && !inherits(nodes2, "nodes.goldfish"))) {
     tryCatch(
       {
         checkNodes(nodes)
@@ -786,7 +786,7 @@ checkEvents.network.goldfish <- function(
   #     "\nevents being checked: ", paste(eventsName, collapse = "")
   #   )
   if (is.null(attr(object, "nodes")) ||
-      !all(nodesName %in% attr(object, "nodes"))) {
+    !all(nodesName %in% attr(object, "nodes"))) {
     stop("The nodeset(s) associated to this network were mispecified.")
   }
 

@@ -273,8 +273,7 @@ estimate <- function(
     preprocessingOnly = FALSE,
     envir = new.env(),
     progress = getOption("progress"),
-    verbose = getOption("verbose")
-) {
+    verbose = getOption("verbose")) {
   UseMethod("estimate", x)
 }
 

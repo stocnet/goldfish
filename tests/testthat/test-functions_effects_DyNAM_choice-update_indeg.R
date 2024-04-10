@@ -29,7 +29,8 @@ test_that("indeg returns a valid object on update", {
 })
 
 test_that("indeg returns NULL if there is no change", {
-  expect_null(update_DyNAM_choice_indeg(m,
+  expect_null(update_DyNAM_choice_indeg(
+    m,
     sender = 1, receiver = 2, replace = 1,
     cache = vCache, n1 = 5, n2 = 0
   )$changes)

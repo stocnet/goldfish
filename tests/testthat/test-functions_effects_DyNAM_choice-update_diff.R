@@ -19,7 +19,8 @@ test_that("diff returns a valid object on update", {
 })
 
 test_that("diff equals NULL if there is no change", {
-  expect_null(update_DyNAM_choice_diff(testAttr$fishingSkill,
+  expect_null(update_DyNAM_choice_diff(
+    testAttr$fishingSkill,
     node = 7, replace = 3,
     n1 = 8, n2 = 0
   )$changes)

@@ -10,8 +10,7 @@ init_DyNAM_choice_coordination <- function(effectFun, ...) {
 update_DyNAM_choice_coordination_tie <- function(
     network,
     sender, receiver, replace,
-    weighted = FALSE, transformFun = identity
-) {
+    weighted = FALSE, transformFun = identity) {
   update_DyNAM_choice_tie(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -23,8 +22,7 @@ update_DyNAM_choice_coordination_tie <- function(
 update_DyNAM_choice_coordination_inertia <- function(
     network,
     sender, receiver, replace,
-    weighted = FALSE, transformFun = identity
-) {
+    weighted = FALSE, transformFun = identity) {
   update_DyNAM_choice_coordination_tie(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -37,8 +35,7 @@ update_DyNAM_choice_coordination_indeg <- function(
     network,
     sender, receiver, replace, cache,
     n1, n2, isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity
-) {
+    weighted = FALSE, transformFun = identity) {
   update_DyNAM_choice_indeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
@@ -68,8 +65,7 @@ update_DyNAM_choice_coordination_trans <- function(
     receiver,
     replace, cache,
     isTwoMode = FALSE,
-    transformFun = identity
-) {
+    transformFun = identity) {
   update_DyNAM_choice_trans(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
@@ -84,8 +80,7 @@ update_DyNAM_choice_coordination_mixedTrans <- function(
     receiver,
     replace, netUpdate, cache,
     isTwoMode = FALSE,
-    transformFun = identity
-) {
+    transformFun = identity) {
   update_DyNAM_choice_mixedTrans(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -100,8 +95,7 @@ update_DyNAM_choice_coordination_four <- function(
     sender, receiver, replace,
     cache,
     isTwoMode = FALSE,
-    transformFun = identity
-) {
+    transformFun = identity) {
   update_DyNAM_choice_four(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
@@ -123,8 +117,7 @@ update_DyNAM_choice_coordination_tertius <- function(
     isTwoMode = FALSE,
     n1 = n1, n2 = n2,
     transformFun = identity,
-    aggregateFun = function(x) mean(x, na.rm = TRUE)
-) {
+    aggregateFun = function(x) mean(x, na.rm = TRUE)) {
   update_DyNAM_choice_tertius(
     network = network,
     attribute = attribute,
@@ -208,8 +201,7 @@ update_DyNAM_choice_coordination_tertiusDiff <- function(
     isTwoMode = FALSE,
     n1 = n1, n2 = n2,
     transformFun = abs,
-    aggregateFun = function(x) mean(x, na.rm = TRUE)
-) {
+    aggregateFun = function(x) mean(x, na.rm = TRUE)) {
   update_DyNAM_choice_tertiusDiff(
     network = network,
     attribute = attribute,
@@ -234,8 +226,7 @@ update_DyNAM_choice_coordination_nodeTrans <- function(
     cache,
     n1, n2,
     isTwoMode = FALSE,
-    transformFun = identity
-) {
+    transformFun = identity) {
   update_DyNAM_choice_nodeTrans(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
@@ -250,8 +241,7 @@ update_DyNAM_choice_coordination_alter <- function(
     attribute,
     node, replace,
     n1, n2,
-    isTwoMode = FALSE
-) {
+    isTwoMode = FALSE) {
   update_DyNAM_choice_alter(
     attribute = attribute,
     node = node, replace = replace,
@@ -264,8 +254,7 @@ update_DyNAM_choice_coordination_alter <- function(
 update_DyNAM_choice_coordination_same <- function(
     attribute,
     node, replace,
-    isTwoMode = FALSE
-) {
+    isTwoMode = FALSE) {
   update_DyNAM_choice_same(
     attribute = attribute,
     node = node, replace = replace,
@@ -278,8 +267,7 @@ update_DyNAM_choice_coordination_diff <- function(
     attribute, node, replace,
     n1, n2,
     isTwoMode = FALSE,
-    transformFun = abs
-) {
+    transformFun = abs) {
   update_DyNAM_choice_diff(
     attribute = attribute,
     node = node, replace = replace,
@@ -294,8 +282,7 @@ update_DyNAM_choice_coordination_sim <- function(
     attribute, node, replace,
     n1, n2,
     isTwoMode = FALSE,
-    transformFun = abs
-) {
+    transformFun = abs) {
   update_DyNAM_choice_sim(
     attribute = attribute,
     node = node, replace = replace,
@@ -311,8 +298,7 @@ update_DyNAM_choice_coordination_egoAlterInt <- function(
     attUpdate,
     n1, n2,
     isTwoMode = FALSE,
-    transformFun = identity
-) {
+    transformFun = identity) {
   update_DyNAM_choice_egoAlterInt(
     attribute = attribute,
     node = node, replace = replace,

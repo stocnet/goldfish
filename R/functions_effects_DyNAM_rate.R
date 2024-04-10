@@ -9,8 +9,7 @@ init_DyNAM_rate.default <- function(
     effectFun,
     network = NULL, attribute = NULL,
     window,
-    n1, n2, ...
-) {
+    n1, n2, ...) {
   init_DyNAM_choice.default(
     effectFun = effectFun,
     network = network, attribute = attribute,
@@ -125,8 +124,7 @@ update_DyNAM_rate_indeg <- function(
     network,
     sender, receiver, replace, cache,
     n1, n2, isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity
-) {
+    weighted = FALSE, transformFun = identity) {
   update_REM_choice_indeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
@@ -150,8 +148,7 @@ update_DyNAM_rate_outdeg <- function(
     network,
     sender, receiver, replace, cache,
     n1, n2, isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity
-) {
+    weighted = FALSE, transformFun = identity) {
   update_REM_choice_outdeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
@@ -177,8 +174,7 @@ update_DyNAM_rate_nodeTrans <- function(
     cache,
     n1, n2,
     isTwoMode = FALSE,
-    transformFun = identity
-) {
+    transformFun = identity) {
   update_REM_choice_nodeTrans(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
@@ -188,8 +184,7 @@ update_DyNAM_rate_nodeTrans <- function(
 }
 # tertius ----------------------------------------------------------------
 init_DyNAM_rate.tertius <- function(
-    effectFun, network, attribute, window, n1, n2, ...
-) {
+    effectFun, network, attribute, window, n1, n2, ...) {
   formals(effectFun) <- c(formals(effectFun), list(type = "ego"))
   init_REM_choice.tertius(
     effectFun = effectFun, network = network, attribute = attribute,
@@ -209,8 +204,7 @@ update_DyNAM_rate_tertius <- function(
     isTwoMode = FALSE,
     n1 = n1, n2 = n2,
     transformFun = identity,
-    aggregateFun = function(x) mean(x, na.rm = TRUE)
-) {
+    aggregateFun = function(x) mean(x, na.rm = TRUE)) {
   update_REM_choice_tertius(
     network = network,
     attribute = attribute,
@@ -239,8 +233,7 @@ update_DyNAM_rate_ego <- function(
     attribute,
     node, replace,
     n1, n2,
-    isTwoMode = FALSE
-) {
+    isTwoMode = FALSE) {
   update_REM_choice_ego(
     attribute = attribute,
     node = node, replace = replace,

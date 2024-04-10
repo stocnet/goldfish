@@ -952,7 +952,7 @@ getIterationStepState <- function(
     }
     if ((updatepresence2 || updateopportunities)) {
       keepIn <- presence2 & opportunities
-      # reducing stats array alters the correspondence between row/col 
+      # reducing stats array alters the correspondence between row/col
       # it needs to consider the reflexive case to avoid wrong calculation
       # excludes REM and DyNAM-MM
       if (!allowReflexive && grepl("DyNAM-M(-|$)?", modelType)) {
