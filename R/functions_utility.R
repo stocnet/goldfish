@@ -111,7 +111,7 @@ getElementFromDataObjectTable <- function(x, envir = environment()) {
 # we don't want to have any unnecessary package dependencies.
 # We keep this utility function however,
 # as it may be useful elsewhere...
-is.POSIXct <- function(x) inherits(x, "POSIXct")
+# is.POSIXct <- function(x) inherits(x, "POSIXct")
 
 
 isReservedElementName <- function(x) {

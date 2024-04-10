@@ -1,6 +1,8 @@
 # define methods ----------------------------------------------------------
 # init cache data structure: vector or matrix
-init_DyNAMi_rate <- function(effectFun, network, attribute) {
+init_DyNAMi_rate <- function(
+    effectFun, network, attribute, groupsNetwork, window, n1, n2
+) {
   UseMethod("init_DyNAMi_rate", effectFun)
 }
 
@@ -9,7 +11,8 @@ init_DyNAMi_rate.default <- function(
     effectFun,
     network = NULL, attribute = NULL,
     groupsNetwork, window,
-    n1, n2) {
+    n1, n2
+) {
   init_DyNAMi_choice.default(
     effectFun = effectFun,
     network = network, attribute = attribute,
@@ -28,7 +31,8 @@ update_DyNAMi_rate_intercept <- function(
     sender, receiver, replace,
     n1, n2, statistics,
     weighted = FALSE,
-    joining = 1) {
+    joining = 1
+) {
   reptotal <- NULL
 
   # JOINING RATE
@@ -100,7 +104,8 @@ update_DyNAMi_rate_inertia <- function(
     sender, receiver, replace,
     n1, n2, statistics,
     weighted = TRUE, subType = "proportion",
-    joining = -1) {
+    joining = -1
+) {
   update_DyNAMi_rate_tie(
     network = network,
     groupsNetwork = groupsNetwork,
@@ -120,7 +125,8 @@ update_DyNAMi_rate_tie <- function(
     sender, receiver, replace,
     n1, n2, statistics,
     weighted = FALSE, subType = "proportion",
-    joining = -1) {
+    joining = -1
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -187,7 +193,8 @@ update_DyNAMi_rate_egodeg <- function(
     sender, receiver, replace,
     n1, n2, statistics,
     weighted = TRUE, subType = "identity",
-    joining = 1) {
+    joining = 1
+) {
   reptotal <- NULL
   meandeg <- mean(rowSums(network))
   sddeg <- sd(rowSums(network))
@@ -293,7 +300,8 @@ update_DyNAMi_rate_egopop <- function(
     sender, receiver, replace,
     n1, n2, statistics,
     weighted = TRUE, subType = "normalized",
-    joining = 1) {
+    joining = 1
+) {
   update_DyNAMi_rate_egodeg(
     network = network,
     groupsNetwork = groupsNetwork,
@@ -313,7 +321,8 @@ update_DyNAMi_rate_alterdeg <- function(
     sender, receiver, replace,
     n1, n2, statistics,
     weighted = TRUE, subType = "mean",
-    joining = -1) {
+    joining = -1
+) {
   reptotal <- NULL
   meandeg <- mean(rowSums(network))
   maxdeg <- max(rowSums(network))
@@ -408,7 +417,8 @@ update_DyNAMi_rate_alterpop <- function(
     sender, receiver, replace,
     n1, n2, statistics,
     weighted = TRUE, subType = "mean_normalized",
-    joining = -1) {
+    joining = -1
+) {
   update_DyNAMi_rate_alterdeg(
     network = network,
     groupsNetwork = groupsNetwork,
@@ -428,7 +438,8 @@ update_DyNAMi_rate_size <- function(
     sender, receiver, replace,
     n1, n2, statistics,
     weighted = FALSE, subType = "identity",
-    joining = -1) {
+    joining = -1
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -487,7 +498,8 @@ update_DyNAMi_rate_dyad <- function(
     sender, receiver, replace,
     n1, n2, statistics,
     weighted = FALSE, subType = "identity",
-    joining = -1) {
+    joining = -1
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -548,7 +560,8 @@ update_DyNAMi_rate_ego <- function(
     n1, n2, statistics,
     subType = "identity",
     joining = 1,
-    node = 0) {
+    node = 0
+) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -660,7 +673,8 @@ update_DyNAMi_rate_alter <- function(
     n1, n2, statistics,
     subType = "mean",
     joining = -1,
-    node = 0) {
+    node = 0
+) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -760,7 +774,8 @@ update_DyNAMi_rate_same <- function(
     n1, n2, statistics,
     subType = "proportion",
     joining = -1,
-    node = 0) {
+    node = 0
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -821,7 +836,8 @@ update_DyNAMi_rate_diff <- function(
     n1, n2, statistics,
     subType = "averaged_sum",
     joining = -1,
-    node = 0) {
+    node = 0
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -895,7 +911,8 @@ update_DyNAMi_rate_sim <- function(
     n1, n2, statistics,
     subType = "averaged_sum",
     joining = -1,
-    node = 0) {
+    node = 0
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -962,7 +979,8 @@ update_DyNAMi_rate_sizeXdiff <- function(
     n1, n2, statistics,
     subType = "averaged_sum",
     joining = -1,
-    node = 0) {
+    node = 0
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -1028,7 +1046,8 @@ update_DyNAMi_rate_dyadXdiff <- function(
     n1, n2, statistics,
     subType = "averaged_sum",
     joining = -1,
-    node = 0) {
+    node = 0
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -1098,7 +1117,8 @@ update_DyNAMi_rate_sizeXego <- function(
     n1, n2, statistics,
     subType = "identity",
     joining = -1,
-    node = 0) {
+    node = 0
+) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -1169,7 +1189,8 @@ update_DyNAMi_rate_dyadXego <- function(
     n1, n2, statistics,
     subType = "identity",
     joining = -1,
-    node = 0) {
+    node = 0
+) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
