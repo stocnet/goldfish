@@ -265,4 +265,4 @@ Science* 4 (14): 318–52. <https://doi.org/10.15195/v4.a14>.
 
 Stadtfeld, C., J. Hollway, and P. Block. 2017. “Dynamic Network Actor
 Models: Investigating Coordination Ties Through Time.” *Sociological
-Methodology* 47 (1): 1–40. <https://doi.org/10.1177/0081175017703776>.
+Methodology* 47 (1): 1–40. <https://doi.org/10.1177/0081175017709295>.
