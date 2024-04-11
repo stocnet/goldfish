@@ -12,14 +12,14 @@
 <link rel="apple-touch-icon" type="image/png" sizes="120x120" href="../apple-touch-icon-120x120.png">
 <link rel="apple-touch-icon" type="image/png" sizes="76x76" href="../apple-touch-icon-76x76.png">
 <link rel="apple-touch-icon" type="image/png" sizes="60x60" href="../apple-touch-icon-60x60.png">
-<!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
+<!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="../bootstrap-toc.css">
 <script src="../bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
 <!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- pkgdown --><link href="../pkgdown.css" rel="stylesheet">
 <script src="../pkgdown.js"></script><meta property="og:title" content="The Coordination Model and Extensions">
 <meta property="og:description" content="goldfish">
-<meta property="og:image" content="https://snlab-ch.github.io/goldfish/logo.png">
+<meta property="og:image" content="https://stocnet.github.io/goldfish/logo.png">
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
 <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
 <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
@@ -40,7 +40,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.5</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.7</span>
       </span>
     </div>
 
@@ -94,7 +94,7 @@
       </ul>
 <ul class="nav navbar-nav navbar-right">
 <li>
-  <a href="https://github.com/snlab-ch/goldfish" class="external-link">
+  <a href="https://github.com/stocnet/goldfish" class="external-link">
     <span class="fab fa-github fa-lg"></span>
      
   </a>
@@ -117,7 +117,7 @@
 Hollway</h4>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/snlab-ch/goldfish/blob/HEAD/vignettes/teaching2.Rmd" class="external-link"><code>vignettes/teaching2.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/stocnet/goldfish/blob/HEAD/vignettes/teaching2.Rmd" class="external-link"><code>vignettes/teaching2.Rmd</code></a></small>
       <div class="hidden name"><code>teaching2.Rmd</code></div>
 
     </div>
@@ -138,7 +138,7 @@ Investigating Coordination Ties through Time”, Sociological Methodology,
 <p>First, let’s make sure we’re starting with a clean slate and take the
 goldfish out of the bowl:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://snlab-ch.github.io/goldfish/">goldfish</a></span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://stocnet.github.io/goldfish/">goldfish</a></span><span class="op">)</span></span></code></pre></div>
 <p>This lazy loads several datasets, including the one we will now
 use:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -195,12 +195,12 @@ set, and they all change:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">sovchanges</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                     time node replace</span></span>
-<span><span class="co">#&gt; 1165 1960-04-03 01:00:00  SEN    TRUE</span></span>
-<span><span class="co">#&gt; 99   1960-04-27 00:00:00  TGO    TRUE</span></span>
-<span><span class="co">#&gt; 1317 1960-05-31 01:00:00  COD    TRUE</span></span>
-<span><span class="co">#&gt; 1316 1960-05-31 01:00:00  MLI    TRUE</span></span>
-<span><span class="co">#&gt; 100  1960-06-20 00:00:00  MLI    TRUE</span></span>
-<span><span class="co">#&gt; 101  1960-06-26 00:00:00  MDG    TRUE</span></span>
+<span><span class="co">#&gt; 1165 1960-04-03 00:00:00  SEN    TRUE</span></span>
+<span><span class="co">#&gt; 99   1960-04-26 23:00:00  TGO    TRUE</span></span>
+<span><span class="co">#&gt; 1317 1960-05-31 00:00:00  COD    TRUE</span></span>
+<span><span class="co">#&gt; 1316 1960-05-31 00:00:00  MLI    TRUE</span></span>
+<span><span class="co">#&gt; 100  1960-06-19 23:00:00  MLI    TRUE</span></span>
+<span><span class="co">#&gt; 101  1960-06-25 23:00:00  MDG    TRUE</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">regchanges</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            time node replace</span></span>
 <span><span class="co">#&gt; 814  1960-01-02  LAO      -1</span></span>
@@ -422,7 +422,7 @@ monadic and dyadic information for certain time points.</p>
 more) different time periods using igraph.</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r.igraph.org/" class="external-link">igraph</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/snlab-ch/migraph" class="external-link">migraph</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://stocnet.github.io/manynet/" class="external-link">manynet</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># network at the beginning of the event sequence</span></span>
 <span><span class="va">startStates</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span></span>
@@ -430,28 +430,40 @@ more) different time periods using igraph.</p>
 <span>  time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"1960-01-02"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">startNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">bilatnet</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"1960-01-02"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/manynet/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"present"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">present</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/manynet/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"regime"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/manynet/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"gdp"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://stocnet.github.io/manynet/reference/as.html" class="external-link">as_igraph</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
+<span>  <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"present"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">present</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"regime"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"gdp"</span>, <span class="va">startStates</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># network at the end of the event sequence</span></span>
 <span><span class="va">endStates</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">states</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"1970-01-01"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">endNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">bilatnet</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"1970-01-01"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/manynet/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"present"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">present</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/manynet/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"regime"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/manynet/man/add.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"gdp"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://stocnet.github.io/manynet/reference/as.html" class="external-link">as_igraph</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"present"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">present</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"regime"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"gdp"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># logical value indicating if states where present and with agreements</span></span>
-<span><span class="va">isStateActiveStart</span> <span class="op">&lt;-</span> <span class="va">startStates</span><span class="op">$</span><span class="va">present</span> <span class="op">&amp;</span> <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/degree_centrality.html" class="external-link">node_degree</a></span><span class="op">(</span><span class="va">startNet</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span></span>
-<span><span class="va">isStateActiveEnd</span> <span class="op">&lt;-</span> <span class="va">endStates</span><span class="op">$</span><span class="va">present</span> <span class="op">&amp;</span> <span class="fu"><a href="https://rdrr.io/pkg/migraph/man/degree_centrality.html" class="external-link">node_degree</a></span><span class="op">(</span><span class="va">endNet</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span></span>
+<span><span class="va">isStateActiveStart</span> <span class="op">&lt;-</span> <span class="va">startStates</span><span class="op">$</span><span class="va">present</span> <span class="op">&amp;</span> <span class="fu"><a href="https://stocnet.github.io/migraph/reference/degree_centrality.html" class="external-link">node_degree</a></span><span class="op">(</span><span class="va">startNet</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span></span>
+<span><span class="va">isStateActiveEnd</span> <span class="op">&lt;-</span> <span class="va">endStates</span><span class="op">$</span><span class="va">present</span> <span class="op">&amp;</span> <span class="fu"><a href="https://stocnet.github.io/migraph/reference/degree_centrality.html" class="external-link">node_degree</a></span><span class="op">(</span><span class="va">endNet</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span></span>
 <span><span class="va">isStateActive</span> <span class="op">&lt;-</span> <span class="va">isStateActiveStart</span> <span class="op">|</span> <span class="va">isStateActiveEnd</span></span>
 <span></span>
 <span><span class="co"># subset networks to active states</span></span>
-<span><span class="va">startNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r.igraph.org/reference/delete_vertices.html" class="external-link">delete_vertices</a></span><span class="op">(</span><span class="va">startNet</span>, <span class="op">!</span><span class="va">isStateActive</span><span class="op">)</span></span>
-<span><span class="va">endNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r.igraph.org/reference/delete_vertices.html" class="external-link">delete_vertices</a></span><span class="op">(</span><span class="va">endNet</span>, <span class="op">!</span><span class="va">isStateActive</span><span class="op">)</span></span>
+<span><span class="va">startNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">delete_nodes</a></span><span class="op">(</span><span class="va">startNet</span>, <span class="op">!</span><span class="va">isStateActive</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Error in as_igraph_vs(graph, v): Invalid vertex name(s)</span></span>
+<span><span class="va">endNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">delete_nodes</a></span><span class="op">(</span><span class="va">endNet</span>, <span class="op">!</span><span class="va">isStateActive</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Error in as_igraph_vs(graph, v): Invalid vertex name(s)</span></span>
 <span></span>
-<span><span class="fu">ggevolution</span><span class="op">(</span><span class="va">startNet</span>, <span class="va">endNet</span>, layout <span class="op">=</span> <span class="st">"fr"</span>, based_on <span class="op">=</span> <span class="st">"last"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="teaching/plot-teaching2-1.png" alt="plot of chunk plot-teaching2" style="display: block; margin: auto;"></p>
+<span><span class="fu"><a href="https://stocnet.github.io/manynet/reference/autographs.html" class="external-link">autographs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">startNet</span>, <span class="va">endNet</span><span class="op">)</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; The patchwork package is required to run this function. Would you like to install patchwork from CRAN? (Yes/no/cancel) </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; The downloaded binary packages are in</span></span>
+<span><span class="co">#&gt;  /var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T//Rtmp9NRMU4/downloaded_packages</span></span></code></pre></div>
+<div class="figure" style="text-align: center">
+<img src="teaching/plot-teaching2-1.png" alt="plot of chunk plot-teaching2"><p class="caption">
+plot of chunk plot-teaching2
+</p>
+</div>
 <p>What can we observe?</p>
 </div>
 <div class="section level2">
@@ -497,8 +509,10 @@ Stadtfeld, Hollway, and Block 2017a</p>
 <span>    estimationInit <span class="op">=</span> <span class="va">estPrefs</span></span>
 <span>    <span class="op">)</span></span>
 <span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: engine = "gather_compute" doesn't support ignoreRep effects. engine</span></span>
+<span><span class="co">#&gt; ="default" is used instead.</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;  155.92    5.78  162.42</span></span></code></pre></div>
+<span><span class="co">#&gt; 152.975  24.172 185.706</span></span></code></pre></div>
 <p>Did the model converge? If not, you can restart the estimation
 process using the same formula and current parameter estimates:</p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
@@ -514,6 +528,8 @@ process using the same formula and current parameter estimates:</p>
 <span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"choice_coordination"</span>,</span>
 <span>  estimationInit <span class="op">=</span> <span class="va">estPrefs</span></span>
 <span>  <span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: engine = "gather_compute" doesn't support ignoreRep effects. engine</span></span>
+<span><span class="co">#&gt; ="default" is used instead.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">partnerModel</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
@@ -524,7 +540,7 @@ process using the same formula and current parameter estimates:</p>
 <span><span class="co">#&gt;     estimationInit = estPrefs)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Effects details :</span></span>
+<span><span class="co">#&gt; Effects details:</span></span>
 <span><span class="co">#&gt;         Object        ignoreRep</span></span>
 <span><span class="co">#&gt; inertia bilatnet               </span></span>
 <span><span class="co">#&gt; indeg   bilatnet      B        </span></span>
@@ -535,7 +551,7 @@ process using the same formula and current parameter estimates:</p>
 <span><span class="co">#&gt; alter   states$gdp             </span></span>
 <span><span class="co">#&gt; diff    states$gdp             </span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Coefficients :</span></span>
+<span><span class="co">#&gt; Coefficients:</span></span>
 <span><span class="co">#&gt;           Estimate Std. Error z-value  Pr(&gt;|z|)    </span></span>
 <span><span class="co">#&gt; inertia  2.8318525  0.2698244 10.4952 &lt; 2.2e-16 ***</span></span>
 <span><span class="co">#&gt; indeg    0.4975580  0.0662465  7.5107 5.884e-14 ***</span></span>
@@ -580,15 +596,15 @@ similarly rich or democratic partners?</p>
 <span>    <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;  109.36    0.82  109.22</span></span></code></pre></div>
+<span><span class="co">#&gt;  83.243   3.751  92.541</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="extensions">Extensions…<a class="anchor" aria-label="anchor" href="#extensions"></a>
 </h2>
-<p>In the most recent version of <a href="https://snlab-ch.github.io/goldfish/">goldfish</a>, you will find
+<p>In the most recent version of <a href="https://stocnet.github.io/goldfish/">goldfish</a>, you will find
 some functions still under development.</p>
 <p>One set of functions is to help integrate the results of
-<a href="https://snlab-ch.github.io/goldfish/">goldfish</a> models with the wider world of statistical
+<a href="https://stocnet.github.io/goldfish/">goldfish</a> models with the wider world of statistical
 modeling.</p>
 <p>We have implemented some “tidymodels” (or rather
 <a href="https://broom.tidymodels.org/" class="external-link">broom</a>) functions for extracting and printing the key
@@ -622,7 +638,11 @@ specification.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/examine.html">examineOutliers</a></span><span class="op">(</span><span class="va">tieModel</span><span class="op">)</span></span>
 <span><span class="co">#&gt; No outliers found.</span></span>
 <span><span class="fu"><a href="../reference/examine.html">examineChangepoints</a></span><span class="op">(</span><span class="va">tieModel</span><span class="op">)</span></span></code></pre></div>
-<p><img src="teaching/examine-1.png" alt="plot of chunk examine" width="432" style="display: block; margin: auto;"></p>
+<div class="figure" style="text-align: center">
+<img src="teaching/plot-examine-1.png" alt="plot of chunk plot-examine" width="432"><p class="caption">
+plot of chunk plot-examine
+</p>
+</div>
 <p>For more, please see Hollway (2020) Network Embeddedness and the Rate
 of Water Cooperation and Conflict.</p>
 </div>
@@ -640,12 +660,12 @@ of Water Cooperation and Conflict.</p>
 
       <footer><div class="copyright">
   <p></p>
-<p>Developed by <a href="https://jameshollway.com" class="external-link">James Hollway</a>, <a href="https://sn.ethz.ch/profile.html?persid=210738" class="external-link">Christoph Stadtfeld</a>.</p>
+<p>Developed by <a href="https://jameshollway.com" class="external-link">James Hollway</a>, <a href="https://sn.ethz.ch/profile.html?persid=210738" class="external-link">Christoph Stadtfeld</a>, Marion Hoffman, Alvaro Uzaheta.</p>
 </div>
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.7.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.8.</p>
 </div>
 
       </footer>

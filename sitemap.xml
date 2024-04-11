@@ -1,93 +1,96 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/404.html</loc>
+    <loc>https://stocnet.github.io/goldfish/404.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/CODE_OF_CONDUCT.html</loc>
+    <loc>https://stocnet.github.io/goldfish/CODE_OF_CONDUCT.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/CONTRIBUTING.html</loc>
+    <loc>https://stocnet.github.io/goldfish/CONTRIBUTING.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/OpenMP_mac.html</loc>
+    <loc>https://stocnet.github.io/goldfish/OpenMP_mac.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/articles/dynami-example.html</loc>
+    <loc>https://stocnet.github.io/goldfish/articles/dynami-example.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/articles/goldfishEffects.html</loc>
+    <loc>https://stocnet.github.io/goldfish/articles/goldfishEffects.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/articles/index.html</loc>
+    <loc>https://stocnet.github.io/goldfish/articles/index.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/articles/teaching1.html</loc>
+    <loc>https://stocnet.github.io/goldfish/articles/teaching1.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/articles/teaching2.html</loc>
+    <loc>https://stocnet.github.io/goldfish/articles/teaching2.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/authors.html</loc>
+    <loc>https://stocnet.github.io/goldfish/authors.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/index.html</loc>
+    <loc>https://stocnet.github.io/goldfish/index.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/news/index.html</loc>
+    <loc>https://stocnet.github.io/goldfish/news/index.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/pull_request_template.html</loc>
+    <loc>https://stocnet.github.io/goldfish/pull_request_template.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/Fisheries_Treaties_6070.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/Fisheries_Treaties_6070.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/RFID_Validity_Study.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/GatherPreprocessing.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/Social_Evolution.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/RFID_Validity_Study.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/defineDependentEvents.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/Social_Evolution.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/defineGlobalAttribute.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/defineDependentEvents.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/defineGroups_interaction.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/defineGlobalAttribute.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/defineNetwork.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/defineGroups_interaction.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/defineNodes.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/defineNetwork.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/estimate.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/defineNodes.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/examine.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/estimate.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/goldfish-package.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/examine.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/index.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/goldfish-package.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/linkEvents.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/index.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/logLik.result.goldfish.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/linkEvents.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/print-method.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/logLik.result.goldfish.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/reexports.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/print-method.html</loc>
   </url>
   <url>
-    <loc>https://snlab-ch.github.io/goldfish/reference/update-method.html</loc>
+    <loc>https://stocnet.github.io/goldfish/reference/reexports.html</loc>
+  </url>
+  <url>
+    <loc>https://stocnet.github.io/goldfish/reference/update-method.html</loc>
   </url>
 </urlset>

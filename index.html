@@ -12,20 +12,14 @@
 <link rel="apple-touch-icon" type="image/png" sizes="120x120" href="apple-touch-icon-120x120.png">
 <link rel="apple-touch-icon" type="image/png" sizes="76x76" href="apple-touch-icon-76x76.png">
 <link rel="apple-touch-icon" type="image/png" sizes="60x60" href="apple-touch-icon-60x60.png">
-<!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
+<!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="bootstrap-toc.css">
 <script src="bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
 <!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- pkgdown --><link href="pkgdown.css" rel="stylesheet">
 <script src="pkgdown.js"></script><meta property="og:title" content="Statistical Network Models for Dynamic Network Data">
-<meta property="og:description" content="Tools for fitting statistical network models to dynamic network data.
-   Can be used for fitting both dynamic network actor models (DyNAMs) and
-   relational event models (REMs).
-   Stadtfeld, Hollway, and Block (2017a) &lt;doi:10.1177/0081175017709295&gt;,
-   Stadtfeld, Hollway, and Block (2017b) &lt;doi:10.1177/0081175017733457&gt;,
-   Stadtfeld and Block (2017) &lt;doi:10.15195/v4.a14&gt;,
-   Hoffman et al. (2020) &lt;doi:10.1017/nws.2020.3&gt;.">
-<meta property="og:image" content="https://snlab-ch.github.io/goldfish/logo.png">
+<meta property="og:description" content="Tools for fitting statistical network models to dynamic network data. Can be used for fitting both dynamic network actor models (DyNAMs) and relational event models (REMs). Stadtfeld, Hollway, and Block (2017a) &lt;doi:10.1177/0081175017709295&gt;, Stadtfeld, Hollway, and Block (2017b) &lt;doi:10.1177/0081175017733457&gt;, Stadtfeld and Block (2017) &lt;doi:10.15195/v4.a14&gt;, Hoffman et al. (2020) &lt;doi:10.1017/nws.2020.3&gt;.">
+<meta property="og:image" content="https://stocnet.github.io/goldfish/logo.png">
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
 <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
 <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
@@ -46,7 +40,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.5</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.7</span>
       </span>
     </div>
 
@@ -100,7 +94,7 @@
       </ul>
 <ul class="nav navbar-nav navbar-right">
 <li>
-  <a href="https://github.com/snlab-ch/goldfish" class="external-link">
+  <a href="https://github.com/stocnet/goldfish" class="external-link">
     <span class="fab fa-github fa-lg"></span>
      
   </a>
@@ -123,37 +117,212 @@
 <!-- badges: start -->
 
 <div class="section level2">
+<h2 id="description">Description<a class="anchor" aria-label="anchor" href="#description"></a>
+</h2>
+<p>The <a href="https://stocnet.github.io/goldfish/">goldfish</a> package offers a collection of tools designed for applying statistical models to dynamic network data. It primarily focus on models for relational event data, namely, sequences of interactions between actors or entities within a network, enriched by fine-grained time-stamps information. Relational event data emerge in various domains, such as automatically collected data about interactions in communication and social media research, social science studies using social sensors, and archival network studies that provide in-depth details regarding the timing or sequence of relational actions between nodes.</p>
+<p>Currently, the package includes the following models:</p>
+<ul>
+<li>
+<strong>Dynamic Network Actor Models (DyNAM)</strong>: Investigate relational event models as an actor-oriented decision process (Stadtfeld and Block 2017).
+<ul>
+<li>
+<em>rate</em>: Actors compete for creating the next relational event.</li>
+<li>
+<em>choice</em>: The active actor choose the receiver of the event.</li>
+<li>
+<em>choice_coordination</em>: The creation of coordination ties as a two-sided process (Stadtfeld, Hollway, and Block 2017)</li>
+</ul>
+</li>
+<li>
+<strong>Dynamic Network Actor Models for interactions (DyNAMi)</strong>: Investigate dynamics of conversation groups and interpersonal interaction in different social contexts from an actor-oriented perspective (Hoffman et al. 2020).
+<ul>
+<li>
+<em>rate</em>: Actors compete for joining or leaving groups.</li>
+<li>
+<em>choice</em>: The active actor choose the group to join.</li>
+</ul>
+</li>
+<li>
+<strong>Relational Event Models (REM)</strong>: Investigate relational event models as a tie-oriented process (Butts 2008).</li>
+</ul>
+<div class="section level3">
+<h3 id="vignettes">Vignettes<a class="anchor" aria-label="anchor" href="#vignettes"></a>
+</h3>
+<p>For detailed documentation on each model, including usage examples, users are encouraged to consult the package’s vignettes and help files:</p>
+<ul>
+<li><a href="https://stocnet.github.io/goldfish/articles/teaching1.html">Getting Started with goldfish (DyNAM and REM)</a></li>
+<li><a href="https://stocnet.github.io/goldfish/articles/teaching2.html">Coordination ties (DyNAM-choice coordination)</a></li>
+<li><a href="https://stocnet.github.io/goldfish/articles/dynami-example.html">Face to face interactions (DyNAMi)</a></li>
+<li><a href="https://stocnet.github.io/goldfish/articles/goldfishEffects.html">Catalog of available effects</a></li>
+</ul>
+</div>
+</div>
+<div class="section level2">
+<h2 id="table-of-contents">Table of Contents<a class="anchor" aria-label="anchor" href="#table-of-contents"></a>
+</h2>
+<ul>
+<li>
+<a href="#installation">Installation</a>
+<ul>
+<li><a href="#installing-openmp-on-mac-osx">Installing OpenMP on Mac OSX</a></li>
+</ul>
+</li>
+<li>
+<a href="#usage">Usage</a>
+<ul>
+<li><a href="#define-data-objects-and-link-events">Define data objects and link events</a></li>
+<li><a href="#define-dependent-events">Define dependent events</a></li>
+<li><a href="#model-specification-and-estimation">Model specification and estimation</a></li>
+</ul>
+</li>
+<li><a href="#about">About</a></li>
+<li><a href="#references">References</a></li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
+</h2>
+<p>You can install <a href="https://stocnet.github.io/goldfish/">goldfish</a> directly from <a href="https://cran.r-project.org/package=goldfish" class="external-link">CRAN</a>:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">"goldfish"</span>)</span></code></pre></div>
+<p>To install the development version from GitHub, use the <a href="https://cran.r-project.org/package=remotes" class="external-link">remotes</a> package:</p>
+<ul>
+<li>For latest stable version: <code>remotes::install_github("stocnet/goldfish", build_vignettes = TRUE)</code>
+</li>
+<li>For latest development version: <code>remotes::install_github("stocnet/goldfish@develop", build_vignettes = TRUE)</code>
+</li>
+</ul>
+<p>Or by downloading and install the latest binary releases for all major OSes – Windows, Mac, and Linux – can be found <a href="https://github.com/stocnet/goldfish/releases" class="external-link">here</a>.</p>
+<div class="section level3">
+<h3 id="installing-openmp-on-mac-osx">Installing OpenMP on Mac OSX<a class="anchor" aria-label="anchor" href="#installing-openmp-on-mac-osx"></a>
+</h3>
+<p>In some cases, you may get an error that does not allow installation of <a href="https://stocnet.github.io/goldfish/">goldfish</a> from source on Mac OSX versions, including under R 4.0.0. The error may relate to compiling the parts of <a href="https://stocnet.github.io/goldfish/">goldfish</a> that are written in C++, or whether OpenMP (for parallelisation) can be found.</p>
+<p>Many installation woes can be solved by directing R to use <a href="https://brew.sh" class="external-link">Homebrew</a> installed <code>gcc</code>. An updated setting up instructions thanks to @timonelmer are available <a href="https://github.com/stocnet/goldfish/blob/main/.github/OpenMP_mac.md" class="external-link">here</a>.</p>
+<p>More details can be found <a href="https://medium.com/biosyntax/following-up-library-dependency-when-compiling-r-packages-89f191b9f227" class="external-link">here</a> (Thank you @Knieps for identifying this.). Other links that may be helpful include:</p>
+<ul>
+<li><a href="https://asieira.github.io/using-openmp-with-r-packages-in-os-x.html" class="external-link uri">https://asieira.github.io/using-openmp-with-r-packages-in-os-x.html</a></li>
+<li><a href="https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/" class="external-link uri">https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/</a></li>
+<li><a href="https://ryanhomer.github.io/posts/build-openmp-macos-catalina-complete" class="external-link uri">https://ryanhomer.github.io/posts/build-openmp-macos-catalina-complete</a></li>
+<li><a href="https://pat-s.me/transitioning-from-x86-to-arm64-on-macos-experiences-of-an-r-user/" class="external-link uri">https://pat-s.me/transitioning-from-x86-to-arm64-on-macos-experiences-of-an-r-user/</a></li>
+</ul>
+<p>Please share feedback on which of these work and we will update the installation guide accordingly.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
+</h2>
+<p>Below is a quick-start guide to using the <a href="https://stocnet.github.io/goldfish/">goldfish</a> package. The dataset used in this example is an abbreviated version of the MIT Social Evolution data (<code><a href="reference/Social_Evolution.html">?Social_Evolution</a></code>).</p>
+<div class="section level3">
+<h3 id="define-data-objects-and-link-events">Define data objects and link events<a class="anchor" aria-label="anchor" href="#define-data-objects-and-link-events"></a>
+</h3>
+<p>The main data objects required for the analysis are the node set(s) <code><a href="reference/defineNodes.html">defineNodes()</a></code> and network(s) <code><a href="reference/defineNetwork.html">defineNetwork()</a></code>. The node set object contains labels and attributes of the actors in the network. In contrast, a network object contains the information of past relational events between actors. By default, <code><a href="reference/defineNetwork.html">defineNetwork()</a></code> constructs an empty matrix, its dimensions defined by the length of the nodeset(s). Data frames containing event data that modify these data objects can be linked to them using the <code><a href="reference/linkEvents.html">linkEvents()</a></code> method.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(goldfish)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"Social_Evolution"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>callNetwork <span class="ot">&lt;-</span> <span class="fu">defineNetwork</span>(<span class="at">nodes =</span> actors, <span class="at">directed =</span> <span class="cn">TRUE</span>) <span class="sc">|&gt;</span> <span class="co"># 1</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="fu">linkEvents</span>(<span class="at">changeEvent =</span> calls, <span class="at">nodes =</span> actors) <span class="co"># 2</span></span></code></pre></div>
+<p>The events data frame, which indicates the time-varying attributes in the node set, contains the following columns:</p>
+<ul>
+<li>
+<code>time</code>: The time when the attribute changes, either a <code>numeric</code> or <code>POSIXct</code> value.</li>
+<li>
+<code>node</code>: The node for which the attribute changes, a <code>character</code> value that matches the <code>label</code> variable in the node set.</li>
+<li>
+<code>replace</code>: The new value of the attribute, a <code>numeric</code> value.</li>
+</ul>
+<p>The events data frame that details the relational events between actors contains the following columns:</p>
+<ul>
+<li>
+<code>time</code>: The time when the event occurred, either a <code>numeric</code> or <code>POSIXct</code> value.</li>
+<li>
+<code>sender</code>: The actor initiating the event, a <code>character</code> value that matches the <code>label</code> variable in the node set.</li>
+<li>
+<code>receiver</code>: The actor receiving the event, a <code>character</code> value that matches the <code>label</code> variable in the node set.</li>
+<li>
+<code>increment</code> or <code>replace</code>: A <code>numeric</code> value indicating either the increment that the relational event represents or the new value.</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="define-dependent-events">Define dependent events<a class="anchor" aria-label="anchor" href="#define-dependent-events"></a>
+</h3>
+<p>The final step in defining the data objects is to identify the dependent events. Here we would like to model as the dependent variable the calls between individuals. We specify the event data frame and the node set.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>callsDependent <span class="ot">&lt;-</span> <span class="fu">defineDependentEvents</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  <span class="at">events =</span> calls, <span class="at">nodes =</span> actors,</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="at">defaultNetwork =</span> callNetwork</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  )</span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="model-specification-and-estimation">Model specification and estimation<a class="anchor" aria-label="anchor" href="#model-specification-and-estimation"></a>
+</h3>
+<p>We specify our model using the standard R formula format like:</p>
+<p><code>goldfish_dependent ~ effects(process_state_element)</code></p>
+<p>We can see which effects are currently available and how to specify them here:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">vignette</span>(<span class="st">"goldfishEffects"</span>)</span></code></pre></div>
+<p>Now to estimate this model, we use the <code><a href="reference/estimate.html">?estimate</a></code> function.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>mod00Rate <span class="ot">&lt;-</span> <span class="fu">estimate</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  callsDependent <span class="sc">~</span> indeg <span class="sc">+</span> outdeg,</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="at">model =</span> <span class="st">"DyNAM"</span>, <span class="at">subModel =</span> <span class="st">"rate"</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>)</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="fu">summary</span>(mod00Rate)</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt; Call:</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt; estimate(x = callsDependent ~ indeg + outdeg, model = "DyNAM", </span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt;     subModel = "rate")</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt; Coefficients:</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error z-value  Pr(&gt;|z|)    </span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt; indeg  0.551445   0.066344  8.3119 &lt; 2.2e-16 ***</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt; outdeg 0.263784   0.028386  9.2927 &lt; 2.2e-16 ***</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt;   Converged with max abs. score of 2e-05 </span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt;   Log-Likelihood: -1750.9</span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt;   AIC:  3505.8 </span></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co">#&gt;   AICc: 3505.9 </span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#&gt;   BIC:  3514 </span></span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="co">#&gt;   model: "DyNAM" subModel: "rate"</span></span>
+<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a></span>
+<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a>mod00Choice <span class="ot">&lt;-</span> <span class="fu">estimate</span>(</span>
+<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a>  callsDependent <span class="sc">~</span> inertia <span class="sc">+</span> recip <span class="sc">+</span> trans,</span>
+<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a>  <span class="at">model =</span> <span class="st">"DyNAM"</span>, <span class="at">subModel =</span> <span class="st">"choice"</span></span>
+<span id="cb5-30"><a href="#cb5-30" tabindex="-1"></a>)</span>
+<span id="cb5-31"><a href="#cb5-31" tabindex="-1"></a><span class="fu">summary</span>(mod00Choice)</span>
+<span id="cb5-32"><a href="#cb5-32" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-33"><a href="#cb5-33" tabindex="-1"></a><span class="co">#&gt; Call:</span></span>
+<span id="cb5-34"><a href="#cb5-34" tabindex="-1"></a><span class="co">#&gt; estimate(x = callsDependent ~ inertia + recip + trans, model = "DyNAM", </span></span>
+<span id="cb5-35"><a href="#cb5-35" tabindex="-1"></a><span class="co">#&gt;     subModel = "choice")</span></span>
+<span id="cb5-36"><a href="#cb5-36" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-37"><a href="#cb5-37" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-38"><a href="#cb5-38" tabindex="-1"></a><span class="co">#&gt; Coefficients:</span></span>
+<span id="cb5-39"><a href="#cb5-39" tabindex="-1"></a><span class="co">#&gt;         Estimate Std. Error z-value  Pr(&gt;|z|)    </span></span>
+<span id="cb5-40"><a href="#cb5-40" tabindex="-1"></a><span class="co">#&gt; inertia  5.19690    0.17397 29.8725 &lt; 2.2e-16 ***</span></span>
+<span id="cb5-41"><a href="#cb5-41" tabindex="-1"></a><span class="co">#&gt; recip    1.39802    0.17300  8.0812 6.661e-16 ***</span></span>
+<span id="cb5-42"><a href="#cb5-42" tabindex="-1"></a><span class="co">#&gt; trans   -0.23036    0.21554 -1.0687    0.2852    </span></span>
+<span id="cb5-43"><a href="#cb5-43" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb5-44"><a href="#cb5-44" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
+<span id="cb5-45"><a href="#cb5-45" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-46"><a href="#cb5-46" tabindex="-1"></a><span class="co">#&gt;   Converged with max abs. score of 7e-05 </span></span>
+<span id="cb5-47"><a href="#cb5-47" tabindex="-1"></a><span class="co">#&gt;   Log-Likelihood: -696.72</span></span>
+<span id="cb5-48"><a href="#cb5-48" tabindex="-1"></a><span class="co">#&gt;   AIC:  1399.4 </span></span>
+<span id="cb5-49"><a href="#cb5-49" tabindex="-1"></a><span class="co">#&gt;   AICc: 1399.5 </span></span>
+<span id="cb5-50"><a href="#cb5-50" tabindex="-1"></a><span class="co">#&gt;   BIC:  1411.7 </span></span>
+<span id="cb5-51"><a href="#cb5-51" tabindex="-1"></a><span class="co">#&gt;   model: "DyNAM" subModel: "choice"</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
 <h2 id="about">About<a class="anchor" aria-label="anchor" href="#about"></a>
 </h2>
 <p>This project is a joint collaboration between the <strong>Social Networks Lab at ETH Zürich</strong> and the <strong>Graduate Institute Geneva</strong>, and incorporates and supports several sub-projects.</p>
 </div>
 <div class="section level2">
-<h2 id="aims">Aims<a class="anchor" aria-label="anchor" href="#aims"></a>
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
-<p>The objective of the project is to introduce, extend, and promote the Dynamic Network Actor-Oriented Model (DyNAM) for the statistical analysis of coordination networks through time. The chief advantage of the model is that it explicitly addresses five common features of data found in political science, sociology, and other social scientific disciplines:</p>
-<ol style="list-style-type: decimal">
-<li>observations are dependent,</li>
-<li>ties reflect the opportunities and preferences of both actors involved,</li>
-<li>that the creation of coordination ties is a two-sided process,</li>
-<li>that data might be available in a time-stamped format, and</li>
-<li>that processes typically differ between tie creation and dissolution (valence of ties), between different time windows (salience of ties), and between initial and repeated creation of ties (multiplicity of ties).</li>
-</ol>
-</div>
-<div class="section level2">
-<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
-</h2>
-<p>You can install the latest version of the <code>goldfish</code> package from source using <code>remotes</code>:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"snlab-ch/goldfish"</span>, build_vignettes <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p>Or by downloading and install the latest binary from <a href="https://github.com/snlab-ch/goldfish/releases" class="external-link">the releases page</a>.</p>
-<div class="section level3">
-<h3 id="installing-openmp-on-mac-osx">Installing OpenMP on Mac OSX<a class="anchor" aria-label="anchor" href="#installing-openmp-on-mac-osx"></a>
-</h3>
-<p>In some cases, you may get an error that does not allow installation of <code>goldfish</code> from source on Mac OSX versions, including under R 4.0.0. The error may relate to compiling the parts of <code>goldfish</code> that are written in C++, or whether OpenMP (for parallelisation) can be found.</p>
-<p>Many installation woes can be solved by directing R to use <a href="https://brew.sh" class="external-link">Homebrew</a> installed <code>gcc</code>. An updated setting up instructions thanks to @timonelmer are available <a href="https://github.com/snlab-ch/goldfish/blob/main/.github/OpenMP_mac.md" class="external-link">here</a>.</p>
-<p>More details can be found <a href="https://medium.com/biosyntax/following-up-library-dependency-when-compiling-r-packages-89f191b9f227" class="external-link">here</a> (Thank you @Knieps for identifying this.). Other links that may be helpful include: - <a href="https://asieira.github.io/using-openmp-with-r-packages-in-os-x.html" class="external-link uri">https://asieira.github.io/using-openmp-with-r-packages-in-os-x.html</a> - <a href="https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/" class="external-link uri">https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/</a> - <a href="https://ryanhomer.github.io/posts/build-openmp-macos-catalina-complete" class="external-link uri">https://ryanhomer.github.io/posts/build-openmp-macos-catalina-complete</a></p>
-<p>Please share feedback on which of these work and we will update the installation guide accordingly.</p>
-</div>
+<p>Butts, C. T. 2008. “A Relational Event Framework for Social Action.” <em>Sociological Methodology</em> 38 (1): 155–200.</p>
+<p>Hoffman, Marion, Per Block, Timon Elmer, and Christoph Stadtfeld. 2020. “A Model for the Dynamics of Face-to-Face Interactions in Social Groups.” <em>Network Science</em> 8 (S1): S4–25. <a href="https://doi.org/10.1017/nws.2020.3" class="external-link uri">https://doi.org/10.1017/nws.2020.3</a>.</p>
+<p>Stadtfeld, C., and P. Block. 2017. “Interactions, Actors, and Time: Dynamic Network Actor Models for Relational Events.” <em>Sociological Science</em> 4 (14): 318–52. <a href="https://doi.org/10.15195/v4.a14" class="external-link uri">https://doi.org/10.15195/v4.a14</a>.</p>
+<p>Stadtfeld, C., J. Hollway, and P. Block. 2017. “Dynamic Network Actor Models: Investigating Coordination Ties Through Time.” <em>Sociological Methodology</em> 47 (1): 1–40. <a href="https://doi.org/10.1177/0081175017703776" class="external-link uri">https://doi.org/10.1177/0081175017703776</a>.</p>
 </div>
 </div>
   </div>
@@ -163,8 +332,8 @@
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
 <li><a href="https://cloud.r-project.org/package=goldfish" class="external-link">View on CRAN</a></li>
-<li><a href="https://github.com/snlab-ch/goldfish/" class="external-link">Browse source code</a></li>
-<li><a href="https://github.com/snlab-ch/goldfish/issues" class="external-link">Report a bug</a></li>
+<li><a href="https://github.com/stocnet/goldfish/" class="external-link">Browse source code</a></li>
+<li><a href="https://github.com/stocnet/goldfish/issues/" class="external-link">Report a bug</a></li>
 </ul>
 </div>
 
@@ -194,9 +363,11 @@
 <h2 data-toc-skip>Developers</h2>
 <ul class="list-unstyled">
 <li>
-<a href="https://jameshollway.com" class="external-link">James Hollway</a> <br><small class="roles"> Maintainer, author, data contributor </small> <a href="https://orcid.org/0000-0002-8361-9647" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a> </li>
+<a href="https://jameshollway.com" class="external-link">James Hollway</a> <br><small class="roles"> Author, data contributor </small> <a href="https://orcid.org/0000-0002-8361-9647" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a> </li>
 <li>
 <a href="https://sn.ethz.ch/profile.html?persid=210738" class="external-link">Christoph Stadtfeld</a> <br><small class="roles"> Author, data contributor </small>  </li>
+<li>Marion Hoffman <br><small class="roles"> Author </small>  </li>
+<li>Alvaro Uzaheta <br><small class="roles"> Maintainer, author </small> <a href="https://orcid.org/0000-0003-4367-3670" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a> </li>
 <li><a href="authors.html">More about authors...</a></li>
 </ul>
 </div>
@@ -209,12 +380,12 @@
 
       <footer><div class="copyright">
   <p></p>
-<p>Developed by <a href="https://jameshollway.com" class="external-link">James Hollway</a>, <a href="https://sn.ethz.ch/profile.html?persid=210738" class="external-link">Christoph Stadtfeld</a>.</p>
+<p>Developed by <a href="https://jameshollway.com" class="external-link">James Hollway</a>, <a href="https://sn.ethz.ch/profile.html?persid=210738" class="external-link">Christoph Stadtfeld</a>, Marion Hoffman, Alvaro Uzaheta.</p>
 </div>
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.7.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.8.</p>
 </div>
 
       </footer>
