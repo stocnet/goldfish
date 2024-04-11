@@ -52,7 +52,13 @@ precompile()
 
 # check if the RMD files contain errors
 lapply(
-  list("teaching1.Rmd", "teaching2.Rmd", "dynami-example.Rmd"),
+  file.path(
+    tools::list_files_with_exts(
+      dir = "vignettes",
+      exts = "Rmd",
+      full.names = TRUE
+    )
+  ),
   \(x) {
     text <- readLines(x)
     haveErrors <- grepl("Error:", text)
