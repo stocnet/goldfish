@@ -83,7 +83,7 @@ summary(mod00Rate)
 #>     subModel = "rate")
 #> 
 #> 
-#> Coefficients :
+#> Coefficients:
 #>        Estimate Std. Error z-value  Pr(>|z|)    
 #> indeg  0.551445   0.066344  8.3119 < 2.2e-16 ***
 #> outdeg 0.263784   0.028386  9.2927 < 2.2e-16 ***
@@ -109,7 +109,7 @@ summary(mod00Choice)
 #>     subModel = "choice")
 #> 
 #> 
-#> Coefficients :
+#> Coefficients:
 #>         Estimate Std. Error z-value  Pr(>|z|)    
 #> inertia  5.19690    0.17397 29.8725 < 2.2e-16 ***
 #> recip    1.39802    0.17300  8.0812 6.661e-16 ***
@@ -468,7 +468,7 @@ summary(mod01Choice)
 #>     subModel = "choice")
 #> 
 #> 
-#> Coefficients :
+#> Coefficients:
 #>     Estimate Std. Error z-value  Pr(>|z|)    
 #> tie  4.02538    0.12513   32.17 < 2.2e-16 ***
 #> ---
@@ -504,7 +504,7 @@ summary(mod02Choice)
 #>     same(actors$floor), model = "DyNAM", subModel = "choice")
 #> 
 #> 
-#> Effects details :
+#> Effects details:
 #>         Object           
 #> inertia callNetwork      
 #> recip   callNetwork      
@@ -513,7 +513,7 @@ summary(mod02Choice)
 #> same    actors$gradeType 
 #> same    actors$floor     
 #> 
-#> Coefficients :
+#> Coefficients:
 #>         Estimate Std. Error z-value  Pr(>|z|)    
 #> inertia  4.42057    0.19225 22.9936 < 2.2e-16 ***
 #> recip    0.27151    0.19735  1.3758  0.168895    
@@ -569,7 +569,7 @@ summary(mod01Rate)
 #>     subModel = "rate", estimationInit = list(maxIterations = 40))
 #> 
 #> 
-#> Coefficients :
+#> Coefficients:
 #>       Estimate Std. Error z-value  Pr(>|z|)    
 #> indeg 0.157370   0.012699  12.392 < 2.2e-16 ***
 #> ---
@@ -600,13 +600,13 @@ summary(mod02Rate)
 #>     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")
 #> 
 #> 
-#> Effects details :
+#> Effects details:
 #>        Object           
 #> indeg  callNetwork      
 #> outdeg callNetwork      
 #> indeg  friendshipNetwork
 #> 
-#> Coefficients :
+#> Coefficients:
 #>        Estimate Std. Error z-value  Pr(>|z|)    
 #> indeg  0.454676   0.070918  6.4113 1.443e-10 ***
 #> outdeg 0.240231   0.029494  8.1452 4.441e-16 ***
@@ -642,14 +642,14 @@ summary(mod03Rate)
 #>     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")
 #> 
 #> 
-#> Effects details :
+#> Effects details:
 #>           Object           
 #> Intercept                  
 #> indeg     callNetwork      
 #> outdeg    callNetwork      
 #> indeg     friendshipNetwork
 #> 
-#> Coefficients :
+#> Coefficients:
 #>             Estimate Std. Error   z-value  Pr(>|z|)    
 #> Intercept -14.380373   0.095669 -150.3135 < 2.2e-16 ***
 #> indeg       0.695555   0.063115   11.0204 < 2.2e-16 ***
@@ -725,7 +725,7 @@ summary(mod04Rate)
 #>     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")
 #> 
 #> 
-#> Effects details :
+#> Effects details:
 #>           Object            window
 #> Intercept                         
 #> indeg     callNetwork             
@@ -734,7 +734,7 @@ summary(mod04Rate)
 #> outdeg    callNetwork       300   
 #> indeg     friendshipNetwork       
 #> 
-#> Coefficients :
+#> Coefficients:
 #>             Estimate Std. Error   z-value  Pr(>|z|)    
 #> Intercept -14.530750   0.101676 -142.9125 < 2.2e-16 ***
 #> indeg       0.245045   0.070682    3.4669 0.0005266 ***
@@ -775,7 +775,7 @@ summary(mod03Choice)
 #>     same(actors$floor), model = "DyNAM", subModel = "choice")
 #> 
 #> 
-#> Effects details :
+#> Effects details:
 #>         Object            window
 #> inertia callNetwork             
 #> recip   callNetwork             
@@ -786,7 +786,7 @@ summary(mod03Choice)
 #> same    actors$gradeType        
 #> same    actors$floor            
 #> 
-#> Coefficients :
+#> Coefficients:
 #>         Estimate Std. Error z-value  Pr(>|z|)    
 #> inertia  4.29828    0.20193 21.2863 < 2.2e-16 ***
 #> recip   -0.48574    0.23205 -2.0932 0.0363293 *  
@@ -824,8 +824,8 @@ AIC(mod02Choice, mod03Choice)
 
 # Compare different specifications of the subModel = "rate"
 AIC(mod03Rate, mod04Rate)
-#> Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the same number of
-#> observations
+#> Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the
+#> same number of observations
 #>           df      AIC
 #> mod03Rate  4 12014.20
 #> mod04Rate  6 10963.75
@@ -888,7 +888,7 @@ summary(mod01REM)
 #>     same(actors$floor), model = "REM", estimationInit = list(engine = "gather_compute"))
 #> 
 #> 
-#> Effects details :
+#> Effects details:
 #>           Object              type  window
 #> Intercept ""                  ""    ""    
 #> indeg     "callNetwork"       "ego" ""    
@@ -903,7 +903,7 @@ summary(mod01REM)
 #> same      "actors$gradeType"  ""    ""    
 #> same      "actors$floor"      ""    ""    
 #> 
-#> Coefficients :
+#> Coefficients:
 #>             Estimate Std. Error   z-value  Pr(>|z|)    
 #> Intercept -19.763568   0.136731 -144.5434 < 2.2e-16 ***
 #> indeg       0.086900   0.071528    1.2149 0.2243968    
