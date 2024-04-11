@@ -882,7 +882,8 @@ linkEvents.nodes.goldfish <- function(x, changeEvents, attribute, ...) {
     {
       checkEvents(
         object = x, events = changeEvents, eventsName = objEventCurr,
-        attribute = attribute, environment = linkEnvir
+        environment = linkEnvir,
+        attribute = attribute
       )
     },
     error = function(e) {
@@ -954,7 +955,8 @@ linkEvents.network.goldfish <- function(x, changeEvents,
     {
       checkEvents(
         object = x, events = changeEvents, eventsName = objEventCurr,
-        nodes = nodes, nodes2 = nodes2, environment = linkEnvir
+        environment = linkEnvir,
+        nodes = nodes, nodes2 = nodes2
       )
     },
     error = function(e) {

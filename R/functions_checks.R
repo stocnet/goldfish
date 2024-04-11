@@ -486,7 +486,7 @@ checkDependentEvents <- function(events, eventsName, nodes, nodes2,
     tryCatch(
       {
         checkEvents(
-          nodes, events, eventsName,
+          object = nodes, events = events, eventsName = eventsName,
           updateColumn = updateColumn,
           environment = environment
         )
@@ -498,8 +498,10 @@ checkDependentEvents <- function(events, eventsName, nodes, nodes2,
   } else if (all(c("sender", "receiver") %in% names(events))) {
     tryCatch(
       {
-        checkEvents(defaultNetwork, events, eventsName, nodes, nodes2,
-          updateColumn = updateColumn, environment = environment
+        checkEvents(
+          object = defaultNetwork, events = events, eventsName = eventsName,
+          updateColumn = updateColumn, environment = environment,
+          nodes = nodes, nodes2 = nodes2
         )
       },
       error = function(e) {
@@ -552,7 +554,9 @@ checkGlobalAttribute <- function(global) {
 #   IF it's associated to a network
 # - a column "replace" OR "increment" of characters or numerics or booleans
 
-checkEvents <- function(object, ...) {
+checkEvents <- function(
+    object, events, eventsName,
+    updateColumn = TRUE, environment = environment(), ...) {
   UseMethod("checkEvents", object)
 }
 
@@ -567,7 +571,8 @@ checkEvents <- function(object, ...) {
 
 checkEvents.nodes.goldfish <- function(
     object, events, eventsName,
-    attribute = NULL, updateColumn = TRUE, environment = environment()) {
+    updateColumn = TRUE, environment = environment(),
+    attribute = NULL, ...) {
   # check attributes
   if (!is.data.frame(events)) stop("An event list should be a data frame.")
   if (!is.null(attribute)) {
@@ -710,8 +715,8 @@ checkEvents.nodes.goldfish <- function(
 
 checkEvents.network.goldfish <- function(
     object, events, eventsName,
-    nodes, nodes2 = NULL,
-    updateColumn = TRUE, environment = environment()) {
+    updateColumn = TRUE, environment = environment(),
+    nodes, nodes2 = NULL, ...) {
   # get data frames of presence events over the nodes sets
   isTwoMode <- !is.null(nodes2)
   nodesName <- c(
