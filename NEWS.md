@@ -1,3 +1,8 @@
+# goldfish 1.6.8
+
+* `checkEvents()` method addresses S3 generic/method consistency.
+* Solves broken link in the bibliography.
+
 # goldfish 1.6.7
 
 * Debug and update yaml workflow files for GitHub Actions.
