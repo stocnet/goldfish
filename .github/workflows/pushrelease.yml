@@ -152,7 +152,7 @@ jobs:
         with:
           tag_name: ${{ steps.newtag.outputs.tag }}
           name: Release ${{ steps.newtag.outputs.tag }}
-          draft: true
+          draft: false
           prerelease: false
           fail_on_unmatched_files: true
           # Specify the assets you want to upload
@@ -200,7 +200,6 @@ jobs:
         shell: Rscript {0}
 
       - name: Deploy to GitHub pages 🚀
-        if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           clean: false
