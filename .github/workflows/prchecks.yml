@@ -8,66 +8,40 @@ name: Binary checks
 jobs:
 
   build:
-    name: Build for ${{ matrix.config.os }}
+    name: Build for ${{ matrix.config.os }} (${{ matrix.config.r }})
     runs-on: ${{ matrix.config.os }}
+    if: "!contains(github.event.head_commit.message, '[skip-ci]')"
     strategy:
       fail-fast: false
       matrix:
         config:
           - {os: macOS-latest,   r: 'release', artifact_name: '*.tar.gz', asset_name: macOS}
           - {os: windows-latest, r: 'release', artifact_name: '*.zip', asset_name: winOS}
-          - {os: ubuntu-20.04, r: 'release', rspm: "https://packagemanager.rstudio.com/cran/__linux__/focal/latest", artifact_name: '*.tar.gz', asset_name: linuxOS}
+          - {os: ubuntu-latest, r: 'release', artifact_name: '*.tar.gz', asset_name: linuxOS}
 
     env:
-      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
-      RSPM: ${{ matrix.config.rspm }}
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-pandoc@v2
 
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: ${{ matrix.config.r }}
-      - uses: r-lib/actions/setup-pandoc@v2
+          use-public-rspm: true
 
-      - name: Query dependencies
-        run: |
-          install.packages('remotes')
-          saveRDS(remotes::dev_package_deps(dependencies = TRUE), ".github/depends.Rds", version = 2)
-          writeLines(sprintf("R-%i.%i", getRversion()$major, getRversion()$minor), ".github/R-version")
-        shell: Rscript {0}
-
-      - name: Cache R packages
-        if: runner.os != 'Windows'
-        uses: actions/cache@v1
+      - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          path: ${{ env.R_LIBS_USER }}
-          key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('.github/depends.Rds') }}
-          restore-keys: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-
+          cache_version: 2
+          extra-packages: |
+            any::pkgbuild
+            any::lintr
+            any::spelling
+          needs: check
 
-      - name: Install system dependencies
-        if: runner.os == 'Linux'
-        run: |
-          while read -r cmd
-          do
-            eval sudo $cmd
-          done < <(Rscript -e 'cat(remotes::system_requirements("ubuntu", "20.04"), sep = "\n")')
-
-      - name: Install dependencies
-        run: |
-          remotes::install_deps(dependencies = TRUE)
-          remotes::install_cran("pkgbuild")
-        shell: Rscript {0}
-
-      - name: Session info
-        run: |
-          options(width = 100)
-          pkgs <- installed.packages()[, "Package"]
-          sessioninfo::session_info(pkgs, include_base = TRUE)
-        shell: Rscript {0}
-      - name: Document
-        run: Rscript -e 'roxygen2::roxygenise()'
       - name: Binary
         run: |
           pkgbuild::clean_dll()
@@ -77,11 +51,26 @@ jobs:
         shell: Rscript {0}
 
       - name: Save binary artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.config.asset_name }}
           path: build/
 
       - name: Calculate code coverage
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS-latest'
         run: Rscript -e "covr::codecov()"
+
+      - name: Lint
+        if: runner.os == 'macOS-latest'
+        run: lintr::lint_package()
+        shell: Rscript {0}
+
+      # - name: Goodpractice
+      #   run: |
+      #     goodpractice::gp()
+      #   shell: Rscript {0}
+
+      - name: Spell check
+        if: runner.os == 'macOS-latest'
+        run: spelling::spell_check_package()
+        shell: Rscript {0}

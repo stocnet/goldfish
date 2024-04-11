@@ -29,7 +29,8 @@ test_that("four returns a valid object on update", {
 })
 
 test_that("four NULL if there is no change", {
-  expect_null(update_DyNAM_choice_four(mTwoMode,
+  expect_null(update_DyNAM_choice_four(
+    mTwoMode,
     sender = 1, receiver = 2, replace = 1,
     cache = m0
   )$changes)

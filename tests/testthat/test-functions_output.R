@@ -75,8 +75,10 @@ test_that("network print", {
   expect_output(print(networkState), "Linked events: eventsIncrement")
   expect_output(print(networkState), "First \\d rows and columns")
   expect_failure(
-    expect_output(print(networkState, full = TRUE),
-                  "First \\d rows and columns")
+    expect_output(
+      print(networkState, full = TRUE),
+      "First \\d rows and columns"
+    )
   )
 
   netTest <- defineNetwork(matrix = m, nodes = actorsEx)
@@ -95,10 +97,12 @@ test_that("network print", {
   )
   expect_output(print(netTest), "First \\d rows and columns")
   expect_failure(
-    expect_output(print(netTest, full = TRUE),
-                  "First \\d rows and columns")
+    expect_output(
+      print(netTest, full = TRUE),
+      "First \\d rows and columns"
+    )
   )
-  
+
   expect_output(
     print(networkActorClub),
     paste("Dimensions:", paste(dim(networkActorClub), collapse = " "))
@@ -114,8 +118,10 @@ test_that("network print", {
   expect_output(print(networkActorClub), "Linked events: eventsActorClub")
   expect_output(print(networkActorClub), "First \\d rows and columns")
   expect_failure(
-    expect_output(print(networkActorClub, full = TRUE),
-                  "First \\d rows and columns")
+    expect_output(
+      print(networkActorClub, full = TRUE),
+      "First \\d rows and columns"
+    )
   )
 })
 test_that("dependent events", {
@@ -147,8 +153,8 @@ test_that("tidy results", {
   expect_length(tidy(resModObject, conf.int = TRUE), 7)
   expect_equal(
     tidy(resModObject, complete = TRUE)$term,
-    paste("callNetwork", c("inertia", "recip", "trans"), c(F, T, F))
-  ) 
+    paste("callNetwork", c("inertia", "recip", "trans"), c(FALSE, TRUE, FALSE))
+  )
   expect_true(
     anyNA(tidy(resModObject, complete = TRUE, conf.int = TRUE)$statistic)
   )

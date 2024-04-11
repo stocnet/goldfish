@@ -9,6 +9,7 @@
 [![Codecov test coverage](https://codecov.io/gh/stocnet/goldfish/branch/master/graph/badge.svg)](https://app.codecov.io/gh/stocnet/goldfish?branch=master)
 [![CodeFactor](https://www.codefactor.io/repository/github/stocnet/goldfish/badge)](https://www.codefactor.io/repository/github/stocnet/goldfish)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4563/badge)](https://bestpractices.coreinfrastructure.org/projects/4563)
+[![R-CMD-check](https://github.com/stocnet/goldfish/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/stocnet/goldfish/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 ## About

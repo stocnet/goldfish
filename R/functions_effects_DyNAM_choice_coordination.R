@@ -1,7 +1,6 @@
 # define methods ----------------------------------------------------------
 # init the statistical matrix
-init_DyNAM_choice_coordination <- function(
-    effectFun, network, attribute, n1, n2, cache = NULL) {
+init_DyNAM_choice_coordination <- function(effectFun, ...) {
   UseMethod("init_DyNAM_choice", effectFun)
 }
 

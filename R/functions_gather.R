@@ -25,7 +25,7 @@
 #' that use tabular data as input.
 #'
 #' @inheritParams estimate
-#' 
+#'
 #' @param formula a formula object that defines at the
 #' left-hand side the dependent
 #' network (see [defineDependentEvents()]) and at the right-hand side the

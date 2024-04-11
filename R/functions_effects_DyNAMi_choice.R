@@ -1,6 +1,7 @@
 # define methods ----------------------------------------------------------
 # init cache data structure: vector or matrix
-init_DyNAMi_choice <- function(effectFun, network, attribute) {
+init_DyNAMi_choice <- function(
+    effectFun, network, attribute, groupsNetwork, window, n1, n2) {
   UseMethod("init_DyNAMi_choice", effectFun)
 }
 
@@ -9,10 +10,11 @@ init_DyNAMi_choice <- function(effectFun, network, attribute) {
 # init_DyNAMi_choice.default <- function(effectFun, network, attribute)
 #  NULL  # # effect without cache object
 
-init_DyNAMi_choice.default <- function(effectFun,
-                                       network = NULL, attribute = NULL,
-                                       groupsNetwork, window,
-                                       n1, n2) {
+init_DyNAMi_choice.default <- function(
+    effectFun,
+    network = NULL, attribute = NULL,
+    groupsNetwork, window,
+    n1, n2) {
   # print(match.call())
   if (is.null(network) && is.null(attribute)) {
     # this check could be unnecessary

@@ -1,6 +1,7 @@
 # define methods ----------------------------------------------------------
 # init cache data structure: vector or matrix
-init_DyNAMi_rate <- function(effectFun, network, attribute) {
+init_DyNAMi_rate <- function(
+    effectFun, network, attribute, groupsNetwork, window, n1, n2) {
   UseMethod("init_DyNAMi_rate", effectFun)
 }
 

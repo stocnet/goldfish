@@ -379,7 +379,7 @@ glance(tieModel)
 Lastly, we have begun implementing further diagnostic functions that can
 help users identify areas for improving their model specification.
 
-```{r examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3}
+```{r plot-examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3}
 examineOutliers(tieModel)
 examineChangepoints(tieModel)
 ```

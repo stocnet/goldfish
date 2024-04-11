@@ -1,3 +1,8 @@
+# goldfish 1.6.7
+
+* Debug and update yaml workflow files for GitHub Actions.
+* Solve note mismatches generic/method consistency
+
 # goldfish 1.6.6
 
 * Debugging and extend documentation for `GatherPreprocessing()`.

@@ -25,8 +25,8 @@ test_that("preprocess init", {
   expect_equal(
     estimate(formulaTest, subModel = "rate")[toCompare],
     estimate(
-      formulaTest, subModel = "rate", preprocessingInit = preproData
+      formulaTest,
+      subModel = "rate", preprocessingInit = preproData
     )[toCompare]
   )
 })
-

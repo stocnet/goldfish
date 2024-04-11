@@ -39,11 +39,9 @@
 #' Hoffman, M., Block P., Elmer T., and Stadtfeld C. (2020).
 #' A model for the dynamics of face-to-face interactions in social groups.
 #' \emph{Network Science}, 8(S1), S4-S25. \doi{10.1017/nws.2020.3}
-#' @name goldfish-package
-#' @docType package
-#' @aliases goldfish goldfish-package
 #' @useDynLib goldfish
 #' @importFrom Rcpp sourceCpp
 #' @importFrom rlang .data
+"_PACKAGE"
 ## usethis namespace: end
 NULL

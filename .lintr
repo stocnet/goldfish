@@ -1,0 +1,23 @@
+linters: linters_with_defaults(
+  cyclocomp_linter = NULL,
+  object_name_linter = NULL,
+  line_length_linter(80),
+  commented_code_linter = NULL,
+  object_usage_linter = NULL,
+  commas_linter = NULL, # 42 [, , ]
+  object_length_linter = NULL,
+  indentation_linter = NULL
+    # indentation_linter(indent = 2L, hanging_indent_style = "tidy")
+  )
+exclusions: list(
+  "inst/goldfish_logo.R", "R/RcppExports.R", "R/zzz.R",
+  'tests/test_not_passed/helper_effects.R',
+  'tests/test_not_passed/helper_effects_attributes.R',
+  'tests/test_not_passed/helper_effects_bipartite.R',
+  'tests/test_not_passed/helper_effects_directed.R',
+  'tests/test_not_passed/helper_effects_twomode.R',
+  'tests/test_not_passed/test_effects_ego.R',
+  'tests/test_not_passed/test_effects_inertia_DyNAM_choice.R',
+  'vignettes/dynami-example.R', 'vignettes/teaching1.R',
+  'vignettes/teaching2.R'
+  )
