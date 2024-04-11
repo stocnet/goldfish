@@ -5,11 +5,43 @@ on:
     branches:
       - main
 
-name: Check and release
+name: Release
 
 jobs:
+  render:
+    name: Update README.md and Vignettes
+    runs-on: macOS-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+      - uses: r-lib/actions/setup-pandoc@v2
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          cache-version: 2
+          extra-packages: |
+            any::remotes
+            any::rmarkdown
+            any::knitr
+            any::purrr
+            local::.
+      - name: Render README.md and Vignettes
+        run: Rscript './vignettes/precompile.R'
+      - name: Commit and push changes
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add \*.R
+            git add \*.Rmd
+            git add \*.png
+            git add README.md
+            git commit -m 'precompile Vignettes and README.md' || echo "No changes to commit"
+            git push origin main || echo "No changes to push"
+          fi
+
   build:
     name: Build for ${{ matrix.config.os }} (${{ matrix.config.r }})
+    needs: render
     runs-on: ${{ matrix.config.os }}
     strategy:
       fail-fast: false
@@ -89,7 +121,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WITH_V: true
-          PRERELEASE: true
+          PRERELEASE: false
           DEFAULT_BUMP: patch
           RELEASE_BRANCHES: main
           
@@ -111,6 +143,7 @@ jobs:
           cp ./macOS/${{ env.PACKAGE_NAME }}_${{ env.PACKAGE_VERSION }}*.tgz .
           cp ./linuxOS/${{ env.PACKAGE_NAME }}_${{ env.PACKAGE_VERSION }}*.tar.gz .
           cp ./winOS/${{ env.PACKAGE_NAME }}_${{ env.PACKAGE_VERSION }}*.zip .
+          echo "Renamed files"
           ls goldfish_*
        
       - name: Create Release and Upload Assets
@@ -129,3 +162,48 @@ jobs:
             goldfish_*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+
+  
+  # Workflow derived from https://github.com/r-lib/actions/tree/v2/examples
+  # Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
+  pkgdown:
+    name: Build pkgdown site
+    needs: render
+    runs-on: macOS-latest
+    # Only restrict concurrency for non-PR jobs
+    concurrency:
+      group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          cache-version: 2
+          extra-packages: |
+            any::rcmdcheck
+            any::pkgdown
+            local::.
+          needs: website
+
+      - name: Build site
+        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE, examples = FALSE)
+        shell: Rscript {0}
+
+      - name: Deploy to GitHub pages 🚀
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          clean: false
+          branch: gh-pages
+          folder: docs
+

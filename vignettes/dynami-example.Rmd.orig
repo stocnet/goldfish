@@ -185,6 +185,7 @@ because we have little data).
 We first have a model only with effects related to individual attributes (M1). 
 
 For the rate, we have the following effects:
+
 1. general intercept (joining and leaving events) + dummy interaction for the
   intercept of joining events specifically
 2. ego age (joining): tendency for older individuals to join groups faster
@@ -199,6 +200,7 @@ For the rate, we have the following effects:
   if the proportion of same group in the group is high
 8. tie known before (leaving): tendency for individuals to leave groups faster
   if the proportion of previous friends in the group is high
+  
 ```{r modeRateM1}
 formula.rate.M1 <- dependent.events ~  1 +
   intercept(network.interactions, joining = 1) +
@@ -212,6 +214,7 @@ formula.rate.M1 <- dependent.events ~  1 +
 ```
 
 and for the choice model:
+
 9. diff age: tendency for individuals to join groups
   if the average sum of age difference to the group are high
 10. diff level: tendency for individuals to join groups
@@ -222,6 +225,7 @@ and for the choice model:
   if the proportion of same group in the group is high
 13. tie known before: tendency for individuals to join groups
   if the proportion of previous friends in the group is high
+  
 ```{r modeChoiceM1}
 formula.choice.M1 <- dependent.events ~
   diff(actors$age, subType = "averaged_sum") +
@@ -253,11 +257,13 @@ summary(est.choice.M1)
 
 Now let's add effects related to group sizes and past interactions.
 We add to the rate model the effects of:
+
 1. size (leaving): tendency for individuals to leave large groups faster
 2. egopop (joining): tendency for individuals
   who had more interactions in the past to join groups faster
 3. egopop (leaving): tendency for individuals
   who had more interactions in the past to leave groups faster
+
 ```{r modeRateM2}
 formula.rate.M2 <- dependent.events ~  1 +
   intercept(network.interactions, joining = 1) +
@@ -274,6 +280,7 @@ formula.rate.M2 <- dependent.events ~  1 +
 ```
 
 We add to the choice model:
+
 1. size: tendency for individuals to join large groups
 2. alterpop: tendency for individuals to join groups with individuals
   who had more interactions in the past
@@ -281,6 +288,7 @@ We add to the choice model:
   with a high average number of previous interactions with the group members
   within the last minute
 3. inertia, window = 300s: same as above, for 5 minutes
+
 ```{r modeChoiceM2}
 formula.choice.M2 <- dependent.events ~
   diff(actors$age, subType = "averaged_sum") +
