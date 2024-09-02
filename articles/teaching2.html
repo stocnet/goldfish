@@ -442,21 +442,15 @@ more) different time periods using igraph.</p>
 <span>  <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">add_node_attribute</a></span><span class="op">(</span><span class="st">"gdp"</span>, <span class="va">endStates</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># logical value indicating if states where present and with agreements</span></span>
-<span><span class="va">isStateActiveStart</span> <span class="op">&lt;-</span> <span class="va">startStates</span><span class="op">$</span><span class="va">present</span> <span class="op">&amp;</span> <span class="fu"><a href="https://stocnet.github.io/manynet/reference/degree_centrality.html" class="external-link">node_degree</a></span><span class="op">(</span><span class="va">startNet</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span></span>
-<span><span class="va">isStateActiveEnd</span> <span class="op">&lt;-</span> <span class="va">endStates</span><span class="op">$</span><span class="va">present</span> <span class="op">&amp;</span> <span class="fu"><a href="https://stocnet.github.io/manynet/reference/degree_centrality.html" class="external-link">node_degree</a></span><span class="op">(</span><span class="va">endNet</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span></span>
+<span><span class="va">isStateActiveStart</span> <span class="op">&lt;-</span> <span class="va">startStates</span><span class="op">$</span><span class="va">present</span> <span class="op">&amp;</span> <span class="fu"><a href="https://stocnet.github.io/manynet/reference/degree_centrality.html" class="external-link">node_deg</a></span><span class="op">(</span><span class="va">startNet</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span></span>
+<span><span class="va">isStateActiveEnd</span> <span class="op">&lt;-</span> <span class="va">endStates</span><span class="op">$</span><span class="va">present</span> <span class="op">&amp;</span> <span class="fu"><a href="https://stocnet.github.io/manynet/reference/degree_centrality.html" class="external-link">node_deg</a></span><span class="op">(</span><span class="va">endNet</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span></span>
 <span><span class="va">isStateActive</span> <span class="op">&lt;-</span> <span class="va">isStateActiveStart</span> <span class="op">|</span> <span class="va">isStateActiveEnd</span></span>
 <span></span>
 <span><span class="co"># subset networks to active states</span></span>
 <span><span class="va">startNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">delete_nodes</a></span><span class="op">(</span><span class="va">startNet</span>, <span class="op">!</span><span class="va">isStateActive</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error in as_igraph_vs(graph, v): Invalid vertex name(s)</span></span>
 <span><span class="va">endNet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://stocnet.github.io/manynet/reference/add_nodes.html" class="external-link">delete_nodes</a></span><span class="op">(</span><span class="va">endNet</span>, <span class="op">!</span><span class="va">isStateActive</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error in as_igraph_vs(graph, v): Invalid vertex name(s)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://stocnet.github.io/manynet/reference/defunct.html" class="external-link">autographs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">startNet</span>, <span class="va">endNet</span><span class="op">)</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; The patchwork package is required to run this function. Would you like to install patchwork from CRAN? (Yes/no/cancel) </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; The downloaded binary packages are in</span></span>
-<span><span class="co">#&gt;  /var/folders/m4/5dz5h26x329cqq4fx333f8gm0000gn/T//RtmpzFJfKh/downloaded_packages</span></span></code></pre></div>
+<span><span class="fu"><a href="https://stocnet.github.io/manynet/reference/graphs.html" class="external-link">graphs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">startNet</span>, <span class="va">endNet</span><span class="op">)</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
 <img src="teaching/plot-teaching2-1.png" alt="plot of chunk plot-teaching2"><p class="caption">
 plot of chunk plot-teaching2
@@ -510,7 +504,7 @@ Stadtfeld, Hollway, and Block 2017a</p>
 <span><span class="co">#&gt; Warning: engine = "gather_compute" doesn't support ignoreRep effects. engine</span></span>
 <span><span class="co">#&gt; ="default" is used instead.</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;  59.171   2.362  61.570</span></span></code></pre></div>
+<span><span class="co">#&gt;  62.352   2.947  65.340</span></span></code></pre></div>
 <p>Did the model converge? If not, you can restart the estimation
 process using the same formula and current parameter estimates:</p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
@@ -594,7 +588,7 @@ similarly rich or democratic partners?</p>
 <span>    <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;  31.179   0.271  31.456</span></span></code></pre></div>
+<span><span class="co">#&gt;  34.706   0.374  35.115</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="extensions">Extensions…<a class="anchor" aria-label="anchor" href="#extensions"></a>
