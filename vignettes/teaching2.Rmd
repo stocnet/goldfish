@@ -399,21 +399,15 @@ endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01"))) |>
   add_node_attribute("gdp", endStates$gdp)
 
 # logical value indicating if states where present and with agreements
-isStateActiveStart <- startStates$present & node_degree(startNet) > 0
-isStateActiveEnd <- endStates$present & node_degree(endNet) > 0
+isStateActiveStart <- startStates$present & node_deg(startNet) > 0
+isStateActiveEnd <- endStates$present & node_deg(endNet) > 0
 isStateActive <- isStateActiveStart | isStateActiveEnd
 
 # subset networks to active states
 startNet <- delete_nodes(startNet, !isStateActive)
-#> Error in as_igraph_vs(graph, v): Invalid vertex name(s)
 endNet <- delete_nodes(endNet, !isStateActive)
-#> Error in as_igraph_vs(graph, v): Invalid vertex name(s)
 
-autographs(list(startNet, endNet), layout = "fr")
-#> The patchwork package is required to run this function. Would you like to install patchwork from CRAN? (Yes/no/cancel) 
-#> 
-#> The downloaded binary packages are in
-#> 	/var/folders/m4/5dz5h26x329cqq4fx333f8gm0000gn/T//RtmpzFJfKh/downloaded_packages
+graphs(list(startNet, endNet), layout = "fr")
 ```
 
 <div class="figure" style="text-align: center">
@@ -472,7 +466,7 @@ system.time(
 #> Warning: engine = "gather_compute" doesn't support ignoreRep effects. engine
 #> ="default" is used instead.
 #>    user  system elapsed 
-#>  59.171   2.362  61.570
+#>  62.352   2.947  65.340
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -566,7 +560,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>  31.179   0.271  31.456
+#>  34.706   0.374  35.115
 ```
 
 # Extensions...
