@@ -305,8 +305,8 @@ as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
 #' object by using the [linkEvents()].
 #' A new call of `linkEvents()` is required for each attribute that is dynamic.
 #'
-#' Objects of class [tbl_df] from the tibble package frequently use in the
-#' tidyverse ecosystem and objects of class `data.table` will produce
+#' Objects of class [tibble::tbl_df] from the tibble package frequently use in the
+#' tidyverse ecosystem and objects from the \pkg{data.table} package will produce
 #' errors in later steps for goldfish.
 #' Current implementation of goldfish relies on the subsetting behavior of
 #' data frames objects. The previous mentioned objects classes change this
