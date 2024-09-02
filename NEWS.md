@@ -1,3 +1,7 @@
+# goldfish 1.6.9
+
+* Solve issue on `Makevars.in` file that produced a note when check as CRAN. 
+
 # goldfish 1.6.8
 
 * `checkEvents()` method addresses S3 generic/method consistency.
