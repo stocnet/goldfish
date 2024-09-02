@@ -243,15 +243,15 @@ endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01"))) |>
   add_node_attribute("gdp", endStates$gdp)
 
 # logical value indicating if states where present and with agreements
-isStateActiveStart <- startStates$present & node_degree(startNet) > 0
-isStateActiveEnd <- endStates$present & node_degree(endNet) > 0
+isStateActiveStart <- startStates$present & node_deg(startNet) > 0
+isStateActiveEnd <- endStates$present & node_deg(endNet) > 0
 isStateActive <- isStateActiveStart | isStateActiveEnd
 
 # subset networks to active states
 startNet <- delete_nodes(startNet, !isStateActive)
 endNet <- delete_nodes(endNet, !isStateActive)
 
-autographs(list(startNet, endNet), layout = "fr")
+graphs(list(startNet, endNet), layout = "fr")
 ```
 
 What can we observe?

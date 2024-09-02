@@ -35,7 +35,7 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          cache_version: 2
+          cache-version: 2
           extra-packages: |
             any::pkgbuild
             any::lintr
