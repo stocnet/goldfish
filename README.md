@@ -254,15 +254,27 @@ and supports several sub-projects.
 Butts, C. T. 2008. “A Relational Event Framework for Social Action.”
 *Sociological Methodology* 38 (1): 155–200.
 
+Stadtfeld, Christoph, James Hollway, and Per Block. 2017a. 
+“Dynamic Network Actor Models: Investigating Coordination Ties Through Time.” 
+*Sociological Methodology* 47 (1): 1–40. <https://doi.org/10.1177/0081175017709295>.
+
+Stadtfeld, Christoph, James Hollway, and Per Block. 2017b. 
+“Rejoinder: DyNAMs and the Grounds for Actor-Oriented Network Event Models.” 
+*Sociological Methodology* 47 (1): 56–67. <https://doi.org/10.1177/0081175017733457>.
+
+Stadtfeld, Christoph, and Per Block. 2017. “Interactions, Actors, and Time:
+Dynamic Network Actor Models for Relational Events.” 
+*Sociological Science* 4 (14): 318–52. <https://doi.org/10.15195/v4.a14>.
+
+Hollway, James. 2020. “Network Embeddedness and the Rate of Water Cooperation and Conflict.” 
+Pp. 87–113 in *Networks in Water Governance*, edited by M. Fischer and K. Ingold. 
+Cham: Palgrave Macmillan. <https://doi.org/10.1007/978-3-030-46769-2_4>.
+
 Hoffman, Marion, Per Block, Timon Elmer, and Christoph Stadtfeld. 2020.
-“A Model for the Dynamics of Face-to-Face Interactions in Social
-Groups.” *Network Science* 8 (S1): S4–25.
+“A Model for the Dynamics of Face-to-Face Interactions in Social Groups.” 
+*Network Science* 8 (S1): S4–25.
 <https://doi.org/10.1017/nws.2020.3>.
 
-Stadtfeld, C., and P. Block. 2017. “Interactions, Actors, and Time:
-Dynamic Network Actor Models for Relational Events.” *Sociological
-Science* 4 (14): 318–52. <https://doi.org/10.15195/v4.a14>.
-
-Stadtfeld, C., J. Hollway, and P. Block. 2017. “Dynamic Network Actor
-Models: Investigating Coordination Ties Through Time.” *Sociological
-Methodology* 47 (1): 1–40. <https://doi.org/10.1177/0081175017709295>.
+Haunss, Sebastian, and James Hollway. 2023. 
+“Multimodal Mechanisms of Political Discourse Dynamics and the Case of Germany’s Nuclear Energy Phase-Out.” 
+*Network Science* 11(2):205–23. <https://doi.org/10.1017/nws.2022.31>.
