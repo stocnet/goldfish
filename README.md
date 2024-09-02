@@ -15,8 +15,8 @@ Releases](https://img.shields.io/github/downloads/stocnet/goldfish/total)
 [![R-CMD-check](https://github.com/stocnet/goldfish/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/stocnet/goldfish/actions/workflows/R-CMD-check.yml)
 [![Codecov test
 coverage](https://codecov.io/gh/stocnet/goldfish/branch/main/graph/badge.svg)](https://app.codecov.io/gh/stocnet/goldfish?branch=main)
-[![CII Best
-Practices](https://bestpractices.coreinfrastructure.org/projects/4563/badge)](https://bestpractices.coreinfrastructure.org/projects/4563)
+[![OpenSSF Best
+Practices](https://www.bestpractices.dev/projects/4563/badge)](https://www.bestpractices.dev/projects/4563)
 <!-- badges: end -->
 
 <!-- [![CodeFactor](https://www.codefactor.io/repository/github/stocnet/goldfish/badge)](https://www.codefactor.io/repository/github/stocnet/goldfish) -->

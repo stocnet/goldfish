@@ -22,6 +22,7 @@ CXXFLAGS=$("${R_HOME}/bin/R" CMD config CXXFLAGS)
 ## We are using C++
 AC_LANG(C++)
 AC_REQUIRE_CPP
+AC_PROG_CXX
 
 # check openMP
 openmp_flag=""

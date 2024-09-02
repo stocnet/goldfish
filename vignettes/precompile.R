@@ -77,4 +77,3 @@ rmarkdown::render(
   output_format = "md_document",
   envir = globalenv()
 )
-
