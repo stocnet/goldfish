@@ -51,7 +51,7 @@ object by using the \code{\link[=linkEvents]{linkEvents()}}.
 A new call of \code{linkEvents()} is required for each attribute that is dynamic.
 
 Objects of class \link[tibble:tbl_df-class]{tibble::tbl_df} from the tibble package frequently use in the
-tidyverse ecosystem and objects of class \code{\link[data.table:data.table]{data.table::data.table()}} will produce
+tidyverse ecosystem and objects from the \pkg{data.table} package will produce
 errors in later steps for goldfish.
 Current implementation of goldfish relies on the subsetting behavior of
 data frames objects. The previous mentioned objects classes change this
