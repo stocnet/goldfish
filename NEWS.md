@@ -1,5 +1,6 @@
 # goldfish 1.6.9
 
+* Solving missing package anchors in the documentation.
 * Update deprecated functions in the vignettes from `manynet`.
 * Solve issue on `Makevars.in` file that produced a note when check as CRAN. 
 

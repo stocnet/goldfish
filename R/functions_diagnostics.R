@@ -155,10 +155,10 @@ examineOutliers <- function(x,
 #' For a detail description see \code{\link[changepoint]{cpt.mean}} or
 #' \code{\link[changepoint]{cpt.var}}. The default value is \code{"PELT"}.
 #' @param ... additional arguments to be passed to the functions in the
-#' \code{\link{changepoint}} package.
+#' \pkg{changepoint} package.
 #' @section Change point:
 #' The parameter \code{moment} controls which method from the package
-#' \code{\link{changepoint}} is used:
+#' \pkg{changepoint} is used:
 #' \describe{
 #'   \item{\code{"mean"}}{It uses the \code{\link[changepoint]{cpt.mean}}
 #'   function to investigate optimal positioning and (potentially) number

@@ -1,13 +1,15 @@
 ## Test environments
 
 * local R installation, Windows 10 x64 19405, R 4.3.1
-* Mac OS Monterey 12.7.3 (on Github), R 4.3.3
-* Microsoft Windows Server 2022 10.0.20348 (on Github), R 4.3.3
-* Ubuntu 20.04.6 (on Github), R 4.3.3
+* Mac OS Darwin 14.6.1 (on Github), R 4.4.1
+* Microsoft Windows Server 2022 10.0.20348 (on Github), R 4.4.1
+* Ubuntu 22.04.4 (on Github), R 4.4.1
 
 ## R CMD check results
 
 0 errors | 0 warnings | 1 note
 
 * This is a new release.
-* `checkEvents()` method addresses S3 generic/method consistency.
+* Solving missing package anchors in the documentation.
+* Update deprecated functions in the vignettes from `manynet`.
+* Solve issue on `Makevars.in` file that produced a note when check as CRAN. 
