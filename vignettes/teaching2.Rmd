@@ -466,7 +466,7 @@ system.time(
 #> Warning: engine = "gather_compute" doesn't support ignoreRep effects. engine
 #> ="default" is used instead.
 #>    user  system elapsed 
-#>  57.448   2.324  59.799
+#>  82.545   4.586  87.329
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -560,7 +560,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>  30.676   0.229  30.920
+#>  39.908   0.539  40.542
 ```
 
 # Extensions...
