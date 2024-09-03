@@ -34,7 +34,6 @@
 #'      \tab numeric \cr
 #'  }
 #'
-#' @source \url{http://realitycommons.media.mit.edu/socialevolution.html}
 #' @references
 #' A. Madan, M. Cebrian, S. Moturu, K. Farrahi, A. Pentland (2012).
 #' Sensing the 'Health State' of a Community.

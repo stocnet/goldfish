@@ -10,6 +10,4 @@
 0 errors | 0 warnings | 1 note
 
 * This is a new release.
-* Solving missing package anchors in the documentation.
-* Update deprecated functions in the vignettes from `manynet`.
-* Solve issue on `Makevars.in` file that produced a note when check as CRAN. 
+* Solves invalid URL.
