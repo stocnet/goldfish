@@ -38,9 +38,6 @@ An object of class \code{data.frame} with 439 rows and 4 columns.
 
 An object of class \code{data.frame} with 766 rows and 4 columns.
 }
-\source{
-\url{http://realitycommons.media.mit.edu/socialevolution.html}
-}
 \usage{
 data(Social_Evolution)
 

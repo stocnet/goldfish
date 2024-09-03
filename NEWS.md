@@ -1,3 +1,7 @@
+# goldfish 1.6.10
+
+* Solves invalid URL link for the MIT Social Evolution dataset.
+
 # goldfish 1.6.9
 
 * Solving missing package anchors in the documentation.
@@ -7,7 +11,7 @@
 # goldfish 1.6.8
 
 * `checkEvents()` method addresses S3 generic/method consistency.
-* Solves broken link in the bibliography.
+* Solves invalid URL link in the bibliography.
 
 # goldfish 1.6.7
 
