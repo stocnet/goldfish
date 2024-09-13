@@ -46,19 +46,19 @@ the timing or sequence of relational actions between nodes.
 Currently, the package includes the following models:
 
 - **Dynamic Network Actor Models (DyNAM)**: Investigate relational event models
-  as an actor-oriented decision process [@stad2017interaction]. 
-  - *rate*: Actors compete for creating the next relational event.
-  - *choice*: The active actor choose the receiver of the event.
+  as an actor-oriented decision process. 
+  - *rate*: Actors compete for creating the next relational event [@hollway2020rate]
+  - *choice*: The active actor choose the receiver of the event from among the same [@stadtfeld2017interaction] or a different set of nodes [@hollway2022multimodal]
   - *choice_coordination*: The creation of coordination ties as a two-sided
-    process [@Stadtfeld2017Coordination]
+    process [@stadtfeld2017coordination]
 - **Dynamic Network Actor Models for interactions (DyNAMi)**:
   Investigate dynamics of conversation groups and interpersonal interaction in
   different social contexts from an actor-oriented perspective 
-  [@Hoffman2020].
-  - *rate*: Actors compete for joining or leaving groups.
-  - *choice*: The active actor choose the group to join.
+  [@hoffman2020groups]
+  - *rate*: Actors compete for joining or leaving groups
+  - *choice*: The active actor choose the group to join
 - **Relational Event Models (REM)**: Investigate relational event models
-  as a tie-oriented process [@butts2008relational].
+  as a tie-oriented process [@butts2008relational], taking into account right-censoring [@stadtfeld2017rejoinder].
   
 ### Vignettes
 
@@ -222,7 +222,7 @@ summary(mod00Choice)
 
 ## About
 
-This project is a joint collaboration between the **Social Networks Lab at ETH Zürich** and the **Graduate Institute Geneva**,
+This project is a joint collaboration between the **Social Networks Lab at ETH Zürich** and the **Geneva Graduate Institute**,
 and incorporates and supports several sub-projects.
 
 ## References
