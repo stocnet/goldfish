@@ -41,7 +41,7 @@ By default it is half the width of the event sequence.}
 See section \emph{Change point} for details.}
 
 \item{...}{additional arguments to be passed to the functions in the
-\code{\link{changepoint}} package.}
+\pkg{changepoint} package.}
 }
 \value{
 \code{NULL} if neither outliers nor change points are identified.
@@ -64,7 +64,7 @@ with labels indicating the sender and recipient.
 \section{Change point}{
 
 The parameter \code{moment} controls which method from the package
-\code{\link{changepoint}} is used:
+\pkg{changepoint} is used:
 \describe{
 \item{\code{"mean"}}{It uses the \code{\link[changepoint]{cpt.mean}}
 function to investigate optimal positioning and (potentially) number

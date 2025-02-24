@@ -98,7 +98,7 @@ library(ggraph)
 library(migraph)
 # The network at the beginning
 callNetworkBgn <- as.matrix(callNetwork)
-autographr(callNetworkBgn, labels = FALSE, layout = "fr")
+graphr(callNetworkBgn, labels = FALSE, layout = "fr")
 
 # The network at half time
 callNetworkHlf <- as.matrix(
@@ -108,7 +108,7 @@ callNetworkHlf <- as.matrix(
   as_igraph() |>
   add_node_attribute("floor", actors$floor)
 
-autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
+graphr(callNetworkHlf, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
 
 # The network at the end
@@ -116,7 +116,7 @@ callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |>
   as_igraph() |>
   add_node_attribute("floor", actors$floor)
 
-autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
+graphr(callNetworkEnd, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
 
 

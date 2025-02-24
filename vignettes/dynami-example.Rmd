@@ -33,7 +33,7 @@ You can find out more about this dataset and its format by callings
 its documentation.
 
 
-```r
+``` r
 library(goldfish)
 data("RFID_Validity_Study")
 #?RFID_Validity_Study
@@ -43,7 +43,7 @@ The `participants` object contains the nodeset of actors interacting together.
 The available attributes are their age, their gender, their organizational
 unit (group), and their seniority level:
 
-```r
+``` r
 head(participants)
 ```
 
@@ -62,7 +62,7 @@ RFID badges.
 Each interaction is characterized by two actors (`NodeA` and `NodeB`) and
 two time points (`Start` and `End`):
 
-```r
+``` r
 head(rfid)
 ```
 
@@ -81,7 +81,7 @@ via video recordings and has the same format as the `rfid` object.
 We know that these measures should be more reliable, so we will work with
 those data in this script!
 
-```r
+``` r
 head(video)
 ```
 
@@ -109,7 +109,7 @@ leavin interaction groups. We can use this function to create these group
 events (please note we need to use the right labels in the dataframe:
 `NodeA`, `NodeB`,`Start`, and `End`):
 
-```r
+``` r
 #?defineGroups_interaction
 prepdata <- defineGroups_interaction(video, participants,
                                      seed.randomization = 1)
@@ -120,7 +120,7 @@ This functions to creates 5 objects:
 (initially there are as many groups as actors and they are all present,
 meaning available)
 
-```r
+``` r
 groups <- prepdata$groups
 head(groups)
 ```
@@ -140,7 +140,7 @@ to model, when an actor (in the dataframe, the `sender` column) joins or
 leaves (`increment` = 1 or -1) a group (`receiver`) at a particular point
 in time (`time`)
 
-```r
+``` r
 dependent.events <- prepdata$dependent.events
 head(dependent.events)
 ```
@@ -160,7 +160,7 @@ happen but are not modeled (for example, when an actor leaves a group, a
 dependent event is created for this leaving but an exogenous event is also
 created because the actor "joins" a new group, its own isolated group)
 
-```r
+``` r
 exogenous.events <- prepdata$exogenous.events
 head(exogenous.events)
 ```
@@ -178,7 +178,7 @@ head(exogenous.events)
 4. `interaction.updates`: goldfish events that are used to update the number
 of past interactions between participants: 
 
-```r
+``` r
 interaction.updates <- prepdata$interaction.updates
 head(interaction.updates)
 ```
@@ -196,7 +196,7 @@ head(interaction.updates)
 5. `opportunities`: list containing the interaction groups available at each
 decision time (this will vary when groups are being joined or left)
 
-```r
+``` r
 opportunities <- prepdata$opportunities
 head(opportunities)
 ```
@@ -228,7 +228,7 @@ objects in a way that goldfish understands what is going on.
 
 First, we define the first mode nodeset, the actors:
 
-```r
+``` r
 # goldfish requires character names
 participants$label <- as.character(participants$label)
 actors <- defineNodes(participants)
@@ -236,7 +236,7 @@ actors <- defineNodes(participants)
 
 Then we define the second mode nodeset, the groups:
 
-```r
+``` r
 groups <- defineNodes(groups)
 ```
 
@@ -244,7 +244,7 @@ Then we create the dynamic interaction network between the actors and
 the groups, updated by the previously created events in `dependent.events`
 and `exogenous.events`
 
-```r
+``` r
 init.network <- diag(x = 1, nrow(actors), nrow(groups))
 # goldfish check that row/column names agree with the nodes data frame labels
 dimnames(init.network) <- list(actors$label, groups$label)
@@ -265,7 +265,7 @@ Then we create the dynamic network between the actors that records
 past interactions, updated by the previously created events in
 `interaction.updates`
 
-```r
+``` r
 network.past <- defineNetwork(nodes = actors, directed = FALSE)
 network.past <- linkEvents(
   x = network.past, changeEvents = interaction.updates, nodes = actors
@@ -273,7 +273,7 @@ network.past <- linkEvents(
 ```
 Finally, we define the events that we want to model: `dependent.events`:
 
-```r
+``` r
 dependent.events <- defineDependentEvents(
   events = dependent.events, nodes = actors,
   nodes2 = groups, defaultNetwork = network.interactions
@@ -305,7 +305,7 @@ For the rate, we have the following effects:
   if the proportion of previous friends in the group is high
   
 
-```r
+``` r
 formula.rate.M1 <- dependent.events ~  1 +
   intercept(network.interactions, joining = 1) +
   ego(actors$age, joining = 1, subType = "centered") +
@@ -331,7 +331,7 @@ and for the choice model:
   if the proportion of previous friends in the group is high
   
 
-```r
+``` r
 formula.choice.M1 <- dependent.events ~
   diff(actors$age, subType = "averaged_sum") +
   diff(actors$level, subType = "averaged_sum") +
@@ -346,7 +346,7 @@ the second explains who people want to leave (or stay with).
 
 Now let us run goldfish estimation!
 
-```r
+``` r
 est.rate.M1 <- estimate(formula.rate.M1, model = "DyNAMi", subModel = "rate")
 summary(est.rate.M1)
 ```
@@ -400,7 +400,7 @@ summary(est.rate.M1)
 ```
 
 
-```r
+``` r
 est.choice.M1 <- estimate(
   formula.choice.M1,
   model = "DyNAMi", subModel = "choice",
@@ -456,7 +456,7 @@ We add to the rate model the effects of:
   who had more interactions in the past to leave groups faster
 
 
-```r
+``` r
 formula.rate.M2 <- dependent.events ~  1 +
   intercept(network.interactions, joining = 1) +
   ego(actors$age, joining = 1, subType = "centered") +
@@ -482,7 +482,7 @@ We add to the choice model:
 3. inertia, window = 300s: same as above, for 5 minutes
 
 
-```r
+``` r
 formula.choice.M2 <- dependent.events ~
   diff(actors$age, subType = "averaged_sum") +
   diff(actors$level, subType = "averaged_sum") +
@@ -506,7 +506,7 @@ please look at the goldfish documentation to learn more.
 
 Now we can run again
 
-```r
+``` r
 est.rate.M2 <- estimate(formula.rate.M2, model = "DyNAMi", subModel = "rate")
 summary(est.rate.M2)
 ```
@@ -569,7 +569,7 @@ summary(est.rate.M2)
 ```
 and:
 
-```r
+``` r
 est.choice.M2 <- estimate(
   formula.choice.M2,
   model = "DyNAMi", subModel = "choice",
@@ -638,7 +638,7 @@ a dummy interaction between the intercept and the joining events.
 If we want to report the actual intercept for joining,
 we can calculate the following (for M2 for example):
 
-```r
+``` r
 cov.matrix <- vcov(est.rate.M2)
 
 est.interceptjoining <- coef(est.rate.M2)[1] + coef(est.rate.M2)[2]

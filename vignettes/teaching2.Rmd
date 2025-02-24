@@ -25,14 +25,14 @@ First, let's make sure we're starting with a clean slate and take
 the goldfish out of the bowl:
 
 
-```r
+``` r
 library(goldfish)
 ```
 
 This lazy loads several datasets, including the one we will now use:
 
 
-```r
+``` r
 data("Fisheries_Treaties_6070")
 # ?Fisheries_Treaties_6070
 ```
@@ -51,7 +51,7 @@ We've loaded a dataset that defines its nodes and their attributes
 as a data frame.
 
 
-```r
+``` r
 tail(states)
 #>     label present regime          gdp
 #> 162   SLB   FALSE     NA           NA
@@ -67,7 +67,7 @@ class(states)
 We need to define them as nodes so that goldfish knows what to do with them.
 
 
-```r
+``` r
 states <- defineNodes(states)
 head(states)
 #> Number of nodes: 6 
@@ -94,7 +94,7 @@ There are three attributes associated with this node set,
 and they all change:
 
 
-```r
+``` r
 head(sovchanges)
 #>                     time node replace
 #> 1165 1960-04-03 00:00:00  SEN    TRUE
@@ -126,7 +126,7 @@ It holds the (reserved) "present" variable that indicates whether nodes
 are available to send or receive ties.
 
 
-```r
+``` r
 head(states$present) # or states[,2]
 #> [1] TRUE TRUE TRUE TRUE TRUE TRUE
 ```
@@ -139,7 +139,7 @@ To make sure goldfish recognises these changes at the appropriate point,
 we "link" these events to the node set and attribute we have defined.
 
 
-```r
+``` r
 states <- linkEvents(states, sovchanges, attribute = "present")
 # If you call the object now, what happens?
 states
@@ -163,7 +163,7 @@ to update it when necessary.
 You can see what is linked to which attribute here:
 
 
-```r
+``` r
 str(states)
 #> Classes 'nodes.goldfish' and 'data.frame':	154 obs. of  4 variables:
 #>  $ label  : chr  "AND" "DNK" "FRA" "DEU" ...
@@ -178,7 +178,7 @@ We can continue on with our other two dynamic monadic variables.
 Try this for yourself now.
 
 
-```r
+``` r
 states <- linkEvents(states, regchanges, attribute = "regime") |>
   linkEvents(gdpchanges, attribute = "gdp")
 str(states)
@@ -203,7 +203,7 @@ at the start of our time period.
 This is shown in the matrix
 
 
-```r
+``` r
 bilatnet[1:12, 1:12]  # head(bilatnet, n = c(12, 12))
 #>     AND DNK FRA DEU ITA LIE NLD PRT RUS SMR ESP SWE
 #> AND   0   0   0   0   0   0   0   0   0   0   0   0
@@ -225,7 +225,7 @@ Two things can be observed here. What are they?
 So that goldfish knows how to handle this network, we define it so:
 
 
-```r
+``` r
 bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
 ```
 
@@ -233,7 +233,7 @@ We specify the nodes so that goldfish can check for consistency,
 and relate the network to that nodeset when needed.
 
 
-```r
+``` r
 class(bilatnet)
 #> [1] "network.goldfish" "matrix"           "array"
 str(bilatnet)
@@ -270,7 +270,7 @@ We use precisely the same function as before
 goldfish knows what to do and how to check it).
 
 
-```r
+``` r
 bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
 bilatnet
 #> Dimensions: 154 154 
@@ -293,7 +293,7 @@ TASK: You should now be able to do the same with the
 initial contiguity network and the event list changing it.
 
 
-```r
+``` r
 contignet <- defineNetwork(contignet, nodes = states, directed = FALSE) |>
   linkEvents(contigchanges, nodes = states)
 class(contignet)
@@ -323,7 +323,7 @@ Since treaty dissolution is a rarer, more complex, and idiosyncratic process,
 we will only look at those events that create a treaty tie between countries.
 
 
-```r
+``` r
 createBilat <- defineDependentEvents(
   events = bilatchanges[bilatchanges$increment == 1,],
   nodes = states,
@@ -337,7 +337,7 @@ as well as the node set, so that structural effects
 can be interpreted correctly.
 
 
-```r
+``` r
 class(createBilat)
 #> [1] "dependent.goldfish" "data.frame"
 createBilat
@@ -366,7 +366,7 @@ to help extract monadic and dyadic information
 for certain time points.
 
 
-```r
+``` r
 ?as.data.frame.nodes.goldfish
 ?as.matrix.network.goldfish
 ```
@@ -375,7 +375,7 @@ We can use these functions to visually compare our network
 at two (or more) different time periods using igraph.
 
 
-```r
+``` r
 library(igraph)
 library(manynet)
 
@@ -399,17 +399,15 @@ endNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1970-01-01"))) |>
   add_node_attribute("gdp", endStates$gdp)
 
 # logical value indicating if states where present and with agreements
-isStateActiveStart <- startStates$present & node_degree(startNet) > 0
-isStateActiveEnd <- endStates$present & node_degree(endNet) > 0
+isStateActiveStart <- startStates$present & node_deg(startNet) > 0
+isStateActiveEnd <- endStates$present & node_deg(endNet) > 0
 isStateActive <- isStateActiveStart | isStateActiveEnd
 
 # subset networks to active states
 startNet <- delete_nodes(startNet, !isStateActive)
-#> Error in as_igraph_vs(graph, v): Invalid vertex name(s)
 endNet <- delete_nodes(endNet, !isStateActive)
-#> Error in as_igraph_vs(graph, v): Invalid vertex name(s)
 
-autographs(list(startNet, endNet), layout = "fr")
+graphs(list(startNet, endNet), layout = "fr")
 ```
 
 <div class="figure" style="text-align: center">
@@ -436,7 +434,7 @@ and recognise steps 2b and 2c as goldfish does them.
 Let us first see how to specify the effects and which are currently available:
 
 
-```r
+``` r
 vignette("goldfishEffects")
 ```
 
@@ -444,7 +442,7 @@ The data and model specification is similar (though not the same as)
 Stadtfeld, Hollway, and Block 2017a
 
 
-```r
+``` r
 formula1 <-
   createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignoreRep = TRUE) +
                 trans(bilatnet, ignoreRep = TRUE) +
@@ -468,14 +466,14 @@ system.time(
 #> Warning: engine = "gather_compute" doesn't support ignoreRep effects. engine
 #> ="default" is used instead.
 #>    user  system elapsed 
-#> 155.338  25.566 187.693
+#>  82.545   4.586  87.329
 ```
 
 Did the model converge? If not, you can restart the estimation process using
 the same formula and current parameter estimates:
 
 
-```r
+``` r
 estPrefs <- list(
   returnIntervalLogL = TRUE,
   initialDamping = 40,
@@ -540,7 +538,7 @@ Let's interpret...
 - Do states prefer similarly rich or democratic partners?
 
 
-```r
+``` r
 formula2 <-
   createBilat ~ inertia(bilatnet, weighted = TRUE) +
                 indeg(bilatnet) + trans(bilatnet) +
@@ -562,7 +560,7 @@ system.time(
     )
 )
 #>    user  system elapsed 
-#>  78.661   3.410  83.567
+#>  39.908   0.539  40.542
 ```
 
 # Extensions...
@@ -578,7 +576,7 @@ for extracting and printing the key results from goldfish results objects.
 Here is an example on the current results object:
 
 
-```r
+``` r
 library(broom)
 library(pixiedust)
 dust(tidy(tieModel, conf.int = TRUE)) |>
@@ -596,7 +594,7 @@ dust(tidy(tieModel, conf.int = TRUE)) |>
 ```
 
 
-```r
+``` r
 glance(tieModel)
 #> # A tibble: 1 × 5
 #>   logLik   AIC   BIC    df  nobs
@@ -609,7 +607,7 @@ Lastly, we have begun implementing further diagnostic functions that can
 help users identify areas for improving their model specification.
 
 
-```r
+``` r
 examineOutliers(tieModel)
 #> No outliers found.
 examineChangepoints(tieModel)

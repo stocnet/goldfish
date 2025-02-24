@@ -30,7 +30,7 @@ You can find out more about this dataset, its format, and its origins in
 a couple of ERGM papers by callings its documentation:
 
 
-```r
+``` r
 library(goldfish)
 data("Social_Evolution")
 # ?Social_Evolution
@@ -60,7 +60,7 @@ We use an `R` version higher than 4.2.0 to compile the vignettes.
 The native pipe operator is available in `R` from version 4.1.0.
 
 
-```r
+``` r
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE) |> # 1
   linkEvents(changeEvent = calls, nodes = actors) # 2
 
@@ -133,7 +133,7 @@ We've loaded a dataset that defines its nodes and their attributes as
 a data frame. Let's check what we have first.
 
 
-```r
+``` r
 class(actors)
 #> [1] "data.frame"
 head(actors)
@@ -154,7 +154,7 @@ All of these columns will be recognized as individual attributes by goldfish.
 We need to define them as nodes so that `goldfish` knows what to do with them.
 
 
-```r
+``` r
 actors <- defineNodes(actors)
 actors
 #> Number of nodes: 84 
@@ -180,7 +180,7 @@ correctly.
 Next we want to define the dyadic or network elements: calls between our actors.
 
 
-```r
+``` r
 head(calls)
 #>         time   sender receiver increment
 #> 1 1220733470 Actor 72 Actor 50         1
@@ -196,12 +196,12 @@ is a reserved column.
 
 To tell goldfish this is a network, we must define it as such:
 
-```r
+``` r
 ?defineNetwork
 ```
 
 
-```r
+``` r
 callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
 ```
 
@@ -210,7 +210,7 @@ the nodes so that `goldfish` can check for consistency and relate it to
 that nodeset as needed.
 
 
-```r
+``` r
 callNetwork
 #> Dimensions: 84 84 
 #> Number of ties (no weighted): 0 
@@ -242,12 +242,12 @@ also the nodes that the events should relate to.
 objects to one another so that information can be called as needed.
 
 
-```r
+``` r
 ?linkEvents
 ```
 
 
-```r
+``` r
 callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
 callNetwork
 #> Dimensions: 84 84 
@@ -278,7 +278,7 @@ the relevant cell with the value in this column instead of incrementing it.
 Friendship is thus a binary network.
 
 
-```r
+``` r
 head(friendship)
 #>         time   sender receiver replace
 #> 1 1220918400 Actor 47  Actor 2       1
@@ -319,12 +319,12 @@ between individuals.
 We specify the event list and the node list.
 
 
-```r
+``` r
 ?defineDependentEvents
 ```
 
 
-```r
+``` r
 callsDependent <- defineDependentEvents(
   events = calls, nodes = actors,
   defaultNetwork = callNetwork
@@ -358,18 +358,18 @@ different time periods using `migraph`. See the `migraph` package documentation
 for additional information about network visualization.
 
 
-```r
+``` r
 library(igraph)
 library(ggraph)
 library(migraph)
 # The network at the beginning
 callNetworkBgn <- as.matrix(callNetwork)
-autographr(callNetworkBgn, labels = FALSE, layout = "fr")
+graphr(callNetworkBgn, labels = FALSE, layout = "fr")
 ```
 
 ![plot of chunk plot-teaching1](teaching/plot-teaching1-1.png)
 
-```r
+``` r
 
 # The network at half time
 callNetworkHlf <- as.matrix(
@@ -379,26 +379,26 @@ callNetworkHlf <- as.matrix(
   as_igraph() |>
   add_node_attribute("floor", actors$floor)
 
-autographr(callNetworkHlf, labels = FALSE, layout = "fr") +
+graphr(callNetworkHlf, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
 ```
 
 ![plot of chunk plot-teaching1](teaching/plot-teaching1-2.png)
 
-```r
+``` r
 
 # The network at the end
 callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |>
   as_igraph() |>
   add_node_attribute("floor", actors$floor)
 
-autographr(callNetworkEnd, labels = FALSE, layout = "fr") +
+graphr(callNetworkEnd, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
 ```
 
 ![plot of chunk plot-teaching1](teaching/plot-teaching1-3.png)
 
-```r
+``` r
 
 
 # The tie strength at the end
@@ -435,14 +435,14 @@ We specify our model using the standard R formula format like:
 We can see which effects are currently available and how to specify them here:
 
 
-```r
+``` r
 vignette("goldfishEffects")
 ```
 
 Let's start with the simplest model we can imagine:
 
 
-```r
+``` r
 simpleFormulaChoice <- callsDependent ~ tie(friendshipNetwork)
 ```
 
@@ -456,7 +456,7 @@ For now, only need to worry about the `formula` and the `model`,
 `subModel` type (DyNAM-choice).
 
 
-```r
+``` r
 mod01Choice <- estimate(
   simpleFormulaChoice,
   model = "DyNAM", subModel = "choice"
@@ -486,7 +486,7 @@ Ok, as fascinating as that was, perhaps we can test how robust
 this finding is in the presence of plausible controls.
 
 
-```r
+``` r
 complexFormulaChoice <-
   callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
                    tie(friendshipNetwork) + recip(friendshipNetwork) +
@@ -541,7 +541,7 @@ Let us again define a simple formula that only depends on individuals' degree
 in the friendship network
 
 
-```r
+``` r
 simpleFormulaRate <- callsDependent ~ indeg(friendshipNetwork)
 mod01Rate <- estimate(
   simpleFormulaRate,
@@ -556,7 +556,7 @@ to reach convergence.
 We can remedy this by increasing the number of iterations:
 
 
-```r
+``` r
 mod01Rate <- estimate(
   simpleFormulaRate,
   model = "DyNAM", subModel = "rate",
@@ -587,7 +587,7 @@ What if we include additional structural effects?
 Let us add the in and out degree of the nodes in the call network
 
 
-```r
+``` r
 complexFormulaRate <-
   callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(friendshipNetwork)
@@ -629,7 +629,7 @@ right-censored intervals (as discussed in Stadtfeld & Block, 2017).
 Adding an intercept is as easy as including a 1 to the formula:
 
 
-```r
+``` r
 interceptFormulaRate <-
   callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(friendshipNetwork)
@@ -675,7 +675,7 @@ $1 / e^{-14} = 334$ hours.
 The baseline waiting time between two events in hours:
 
 
-```r
+``` r
 mod03RateCoef <- coef(mod03Rate)
 1 / exp(mod03RateCoef[["Intercept"]]) / 3600
 #> [1] 488.6682
@@ -709,7 +709,7 @@ by adding extra effects with a window of... how long?
 Let us try 5 minutes $= 5 * 60 = 300s$
 
 
-```r
+``` r
 windowFormulaRate <-
   callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(callNetwork, window = 300) +
@@ -756,7 +756,7 @@ summary(mod04Rate)
 Of course, you can also add windows to the choice formula!
 
 
-```r
+``` r
 windowFormulaChoice <-
   callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
                    inertia(callNetwork, window = 300) +
@@ -815,7 +815,7 @@ When comparing the information criteria (AIC / BIC) of the different models,
 we see that the time windows explain a lot
 
 
-```r
+``` r
 # Compare different specifications of the subModel = "choice"
 AIC(mod02Choice, mod03Choice)
 #>             df      AIC
@@ -840,7 +840,7 @@ including the rate and choice sub-models, is:
 
 
 
-```r
+``` r
 allFormulaREM <-
   callsDependent ~ 
     1 + indeg(callNetwork, type = "ego") + outdeg(callNetwork, type = "ego") +
@@ -863,7 +863,7 @@ after each event.
 representing the data in a more usual tabular way but reducing time estimation.
 
 
-```r
+``` r
 mod01REM <- estimate(
   allFormulaREM, model = "REM",
   estimationInit = list(initialDamping = 40, engine = "default_c")
@@ -871,7 +871,7 @@ mod01REM <- estimate(
 ```
 
 
-```r
+``` r
 mod01REM <- estimate(
   allFormulaREM, model = "REM",
   estimationInit = list(engine = "gather_compute")
