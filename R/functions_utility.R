@@ -92,13 +92,31 @@ getElementFromDataObjectTable <- function(x, envir = environment()) {
     elements[[i]] <- NA
     row <- x[i, ]
     if (!is.na(row$object)) {
-      elements[[i]] <- get(row$object, envir = envir)
+      netObject <- mget(
+        row$object, envir = envir,
+        ifnotfound = list(structure(
+            paste0("Object ", dQuote(row$object), " not found."),
+            class = "error"
+          ))
+      )
+      
+      if (inherits(netObject, "error")) {
+        stop(netObject, call. = FALSE)
+      }
+      
+      elements[[i]] <- netObject
     }
     if (!is.na(row$nodeset) && !is.na(row$attribute)) {
-      elements[[i]] <- getElement(
+      nodeAttribute <- getElement(
         get(row$nodeset, envir = envir),
         row$attribute
       )
+      if (length(nodeAttribute) == 0) {
+        stop("Attribute ", dQuote(row$attribute), " not found in ",
+          dQuote(row$nodeset), call. = FALSE
+        )
+      }
+      elements[[i]] <- nodeAttribute
     }
   }
   return(elements)

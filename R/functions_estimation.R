@@ -432,7 +432,9 @@ estimate.formula <- function(
   ## 1.2 PARSE for preprocessingInit: check the formula consistency
   if (!is.null(preprocessingInit)) {
     # find the old and new effects indexes, do basic consistency checks
-    oldparsedformula <- parseFormula(preprocessingInit$formula)
+    oldparsedformula <- parseFormula(
+      formula = preprocessingInit$formula, envir = envir
+    )
     effectsindexes <- compareFormulas(
       oldparsedformula = oldparsedformula,
       newparsedformula = parsedformula,
@@ -460,13 +462,13 @@ estimate.formula <- function(
 
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
   # enviroment from which get the objects
-
+  objectNames <- getDataObjects(rhsNames)
   effects <- createEffectsFunctions(
     rhsNames, model, subModel,
     envir = envir
   )
   # Get links between objects and effects for printing results
-  objectsEffectsLink <- getObjectsEffectsLink(rhsNames)
+  objectsEffectsLink <- getObjectsEffectsLink(rhsNames, objectNames)
 
   ## 2.2 INITIALIZE OBJECTS for preprocessingInit == NULL
   if (is.null(preprocessingInit)) {

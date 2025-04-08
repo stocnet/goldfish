@@ -5,6 +5,58 @@
 #
 ####################### #
 
+prepare_preprocessing_context <- function(
+    formula, model, subModel,
+    progress,
+    envir = environment()) {
+  ### 1. PARSE the formula----
+  if (progress) cat("Parsing formula.\n")
+  
+  ## 1.1 PARSE for all cases: preprocessingInit or not
+  parsedformula <- parse_formula(formula, envir = envir)
+  
+  
+  rhsNames <- parsedformula$rhsNames
+  depName <- parsedformula$depName
+  hasIntercept <- parsedformula$hasIntercept
+  windowParameters <- parsedformula$windowParameters
+  ignoreRepParameter <- unlist(parsedformula$ignoreRepParameter)
+  
+  # DyNAM-i ONLY: creates extra parameter to differentiate joining and
+  # leaving rates, and effect subtypes. Added directly to GetDetailPrint
+  
+  # # C implementation doesn't have ignoreRep option issue #105
+  if (any(unlist(parsedformula$ignoreRepParameter)) &&
+      engine %in% c("default_c", "gather_compute")) {
+    warning("engine = ", dQuote(engine),
+            " doesn't support ignoreRep effects. engine =",
+            dQuote("default"), " is used instead.",
+            call. = FALSE, immediate. = TRUE
+    )
+    engine <- "default"
+  }
+  # Model-specific preprocessing initialization
+  if (hasIntercept && model %in% c("DyNAM", "DyNAMi") &&
+      subModel %in% c("choice", "choice_coordination")) {
+    warning("Model ", dQuote(model), " subModel ", dQuote(subModel),
+            " ignores the time intercept.",
+            call. = FALSE, immediate. = TRUE
+    )
+    parsedformula$hasIntercept <- hasIntercept <- FALSE
+  }
+  rightCensored <- hasIntercept
+  
+  if (progress &&
+      !(model %in% c("DyNAM", "DyNAMi") &&
+        subModel %in% c("choice", "choice_coordination"))) {
+    cat(
+      ifelse(hasIntercept, "T", "No t"), "ime intercept added.\n",
+      sep = ""
+    )
+  }
+}
+
+
 #' parse formula
 #' A valid formula should have:
 #' - on the left side a list of dependent events
@@ -31,7 +83,7 @@
 #'     indeg(callNetwork, type = "alter")
 #' )
 #' }
-parseFormula <- function(formula, envir = new.env()) {
+parse_formula <- function(formula, envir = new.env()) {
   # check left side
   depName <- getDependentName(formula)
   if (!inherits(get(depName, envir = envir), "dependent.goldfish")) {
@@ -489,6 +541,79 @@ getEventsAndObjectsLink <- function(
     events,
     eventsObjectsLink
   ))
+}
+
+getEvents <- function(
+  depName, rhsNames, nodes = NULL, nodes2 = NULL,
+  envir = environment()) {
+  # Find objects (irrespective of where they occur)
+  objectNames <- getDataObjects(rhsNames)
+  
+  # Find event lists of objects and link
+  events <- list()
+  events[[1]] <- get(depName, envir = envir)
+  names(events) <- depName
+  
+  # replace dependent labels with ids
+  events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2, envir = envir)
+  # if(is.character(events[[1]]$sender) && is.character(events[[1]]$receiver)) {
+  #   events[[1]]$sender <- match(events[[1]]$sender, get(nodes)$label)
+  #   events[[1]]$receiver <- match(events[[1]]$receiver, get(nodes2)$label)
+  # }
+  
+  isAttribute <- is.na(objectNames$object)
+  # Link attributes to events
+  for (i in which(isAttribute)) {
+    nodeSet <- objectNames[i, ]$nodeset
+    attributeName <- objectNames[i, ]$attribute
+    dynamicAttributes <- attr(
+      get(objectNames[i, ]$nodeset, envir = envir),
+      "dynamicAttribute"
+    )
+    eventListNames <- attr(
+      get(objectNames[i, ]$nodeset, envir = envir),
+      "events"
+    )
+    evName <- eventListNames[which(dynamicAttributes == attributeName)]
+    
+    if (length(evName) > 0) {
+      evs <- lapply(
+        evName,
+        function(x) {
+          sanitizeEvents(get(x, envir = envir), nodeSet, envir = envir)
+        }
+      )
+      
+      events <- append(events, evs)
+      names(events)[(length(events) - length(evName) + 1):length(events)] <-
+        evName
+    }
+  }
+  # Link networks to events
+  for (i in which(!isAttribute)) {
+    evNames <- attr(get(objectNames[i, ]$object, envir = envir), "events")
+    evs <- lapply(evNames, get, envir = envir)
+    nodesObject <- attr(get(objectNames[i, ]$object, envir = envir), "nodes")
+    
+    if (length(nodesObject) > 1) {
+      nodes <- nodesObject[1]
+      nodes2 <- nodesObject[2]
+    } else {
+      nodes <- nodes2 <- nodesObject
+    }
+    
+    # replace labels with ids
+    if (length(evNames) > 0) {
+      for (j in seq_along(evs)) {
+        evs[[j]] <- sanitizeEvents(evs[[j]], nodes, nodes2, envir = envir)
+      }
+      events <- append(events, evs)
+      names(events)[(length(events) - length(evs) + 1):length(events)] <-
+        evNames
+    }
+  }
+  
+  return(events)
 }
 
 
