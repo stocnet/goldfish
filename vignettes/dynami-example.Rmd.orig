@@ -241,7 +241,10 @@ the second explains who people want to leave (or stay with).
 
 Now let us run goldfish estimation!
 ```{r modRateM1Est}
-est.rate.M1 <- estimate(formula.rate.M1, model = "DyNAMi", subModel = "rate")
+est.rate.M1 <- estimate(
+  formula.rate.M1, model = "DyNAMi", subModel = "rate",
+  estimationInit = list(engine = "default")                      
+)
 summary(est.rate.M1)
 ```
 
@@ -313,7 +316,10 @@ please look at the goldfish documentation to learn more.
 
 Now we can run again
 ```{r modRateM2Est}
-est.rate.M2 <- estimate(formula.rate.M2, model = "DyNAMi", subModel = "rate")
+est.rate.M2 <- estimate(
+  formula.rate.M2, model = "DyNAMi", subModel = "rate",
+  estimationInit = list(engine = "default")  
+)
 summary(est.rate.M2)
 ```
 and:

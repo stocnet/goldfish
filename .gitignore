@@ -15,3 +15,4 @@ review.txt
 *.code-workspace
 inst/doc
 docs
+.DS_Store

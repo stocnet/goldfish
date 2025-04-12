@@ -77,7 +77,6 @@ encouraged to consult the package's vignettes and help files:
 ## Table of Contents
 
 - [Installation](#installation)
-  + [Installing OpenMP on Mac OSX](#installing-openmp-on-mac-osx)
 - [Usage](#usage)
     + [Define data objects and link events](#define-data-objects-and-link-events)
     + [Define dependent events](#define-dependent-events)
@@ -105,26 +104,6 @@ To install the development version from GitHub, use the
 Or by downloading and install the latest binary releases for all major OSes
 -- Windows, Mac, and Linux -- can be found 
 [here](https://github.com/stocnet/goldfish/releases).
-
-### Installing OpenMP on Mac OSX
-
-In some cases, you may get an error that does not allow installation of 
-`{goldfish}` from source on Mac OSX versions, including under R 4.0.0.
-The error may relate to compiling the parts of `{goldfish}` that are written
-in C++, or whether OpenMP (for parallelisation) can be found.
-
-Many installation woes can be solved by directing R to use [Homebrew](https://brew.sh) installed `gcc`.
-An updated setting up instructions thanks to \@timonelmer are available [here](https://github.com/stocnet/goldfish/blob/main/.github/OpenMP_mac.md).
-
-More details can be found [here](https://medium.com/biosyntax/following-up-library-dependency-when-compiling-r-packages-89f191b9f227) (Thank you \@Knieps for identifying this.).
-Other links that may be helpful include:
-
-- https://asieira.github.io/using-openmp-with-r-packages-in-os-x.html
-- https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/
-- https://ryanhomer.github.io/posts/build-openmp-macos-catalina-complete
-- https://pat-s.me/transitioning-from-x86-to-arm64-on-macos-experiences-of-an-r-user/
-
-Please share feedback on which of these work and we will update the installation guide accordingly.
 
 ## Usage
 
