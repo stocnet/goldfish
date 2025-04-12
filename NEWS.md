@@ -1,3 +1,7 @@
+# goldfish 1.6.11
+
+* Register S3 methods for internal functions.
+
 # goldfish 1.6.10
 
 * Solves invalid URL link for the MIT Social Evolution dataset.

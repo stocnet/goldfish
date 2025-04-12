@@ -569,6 +569,7 @@ checkEvents <- function(
 # nodeset attribute "dynamicAttributes". If there's nothing, it means
 # that these events are not related to attributes.
 
+#' @export
 checkEvents.nodes.goldfish <- function(
     object, events, eventsName,
     updateColumn = TRUE, environment = environment(),
@@ -713,6 +714,7 @@ checkEvents.nodes.goldfish <- function(
 # - nodes labels/indexes should be correct
 # If the network is not specified, less checks are possible !!!
 
+#' @export
 checkEvents.network.goldfish <- function(
     object, events, eventsName,
     updateColumn = TRUE, environment = environment(),
