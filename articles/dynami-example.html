@@ -38,7 +38,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.11</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.12</span>
       </span>
     </div>
 
@@ -460,11 +460,8 @@ join), the second explains who people want to leave (or stay with).</p>
 <span>  <span class="va">formula.choice.M1</span>,</span>
 <span>  model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span>,</span>
 <span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>opportunitiesList <span class="op">=</span> <span class="va">opportunities</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## Warning: engine = "gather_compute" doesn't support"opportunitiesList". engine ="default" is used</span></span>
-<span><span class="co">## instead.</span></span></code></pre>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">est.choice.M1</span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">est.choice.M1</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## </span></span>
 <span><span class="co">## Call:</span></span>
 <span><span class="co">## estimate(x = dependent.events ~ diff(actors$age, subType = "averaged_sum") + </span></span>
@@ -512,7 +509,7 @@ in the past to join groups faster</li>
 <li>egopop (leaving): tendency for individuals who had more interactions
 in the past to leave groups faster</li>
 </ol>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">formula.rate.M2</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span>  <span class="fl">1</span> <span class="op">+</span></span>
 <span>  <span class="fu">intercept</span><span class="op">(</span><span class="va">network.interactions</span>, joining <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
@@ -535,7 +532,7 @@ a high average number of previous interactions with the group members
 within the last minute</li>
 <li>inertia, window = 300s: same as above, for 5 minutes</li>
 </ol>
-<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">formula.choice.M2</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
@@ -554,7 +551,7 @@ beginning no interaction has happened, at the end, a lot happened).</p>
 <p>All effects can have different subTypes, please look at the goldfish
 documentation to learn more.</p>
 <p>Now we can run again</p>
-<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">est.rate.M2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
 <span>  <span class="va">formula.rate.M2</span>, model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span>,</span>
 <span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>engine <span class="op">=</span> <span class="st">"default"</span><span class="op">)</span>  </span>
@@ -615,16 +612,13 @@ documentation to learn more.</p>
 <span><span class="co">##   BIC:  2672.4 </span></span>
 <span><span class="co">##   model: "DyNAMi" subModel: "rate"</span></span></code></pre>
 <p>and:</p>
-<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">est.choice.M2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
 <span>  <span class="va">formula.choice.M2</span>,</span>
 <span>  model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span>,</span>
 <span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>opportunitiesList <span class="op">=</span> <span class="va">opportunities</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## Warning: engine = "gather_compute" doesn't support"opportunitiesList". engine ="default" is used</span></span>
-<span><span class="co">## instead.</span></span></code></pre>
-<div class="sourceCode" id="cb38"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">est.choice.M2</span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">est.choice.M2</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## </span></span>
 <span><span class="co">## Call:</span></span>
 <span><span class="co">## estimate(x = dependent.events ~ diff(actors$age, subType = "averaged_sum") + </span></span>
@@ -682,7 +676,7 @@ some model selection.</p>
 interaction between the intercept and the joining events. If we want to
 report the actual intercept for joining, we can calculate the following
 (for M2 for example):</p>
-<div class="sourceCode" id="cb40"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cov.matrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">est.rate.M2</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">est.interceptjoining</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">est.rate.M2</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">est.rate.M2</span><span class="op">)</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span></span>
