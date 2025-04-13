@@ -10,6 +10,7 @@ init_DyNAMi_choice <- function(
 # init_DyNAMi_choice.default <- function(effectFun, network, attribute)
 #  NULL  # # effect without cache object
 
+#' @export
 init_DyNAMi_choice.default <- function(
     effectFun,
     network = NULL, attribute = NULL,

@@ -5,6 +5,7 @@ init_DyNAM_rate <- function(effectFun, ...) {
 }
 
 # default -----------------------------------------------------------------
+#' @export
 init_DyNAM_rate.default <- function(
     effectFun,
     network = NULL, attribute = NULL,
@@ -32,6 +33,7 @@ init_DyNAM_rate.default <- function(
 #' @return list with named components: cache numeric vector size n2,
 #'  stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -134,6 +136,7 @@ update_DyNAM_rate_indeg <- function(
 }
 
 # outdeg ---------------------------------------------------------------
+#' @export
 init_DyNAM_rate.outdeg <- function(effectFun, network, window, n1, n2, ...) {
   formals(effectFun) <- c(formals(effectFun), list(type = "ego"))
   init_REM_choice.outdeg(
@@ -158,6 +161,7 @@ update_DyNAM_rate_outdeg <- function(
 }
 
 # nodeTrans ------------------------------------------------------------------
+#' @export
 init_DyNAM_rate.nodeTrans <- function(effectFun, network, window, n1, n2, ...) {
   formals(effectFun) <- c(formals(effectFun), list(type = "ego"))
   init_REM_choice.nodeTrans(
@@ -183,6 +187,7 @@ update_DyNAM_rate_nodeTrans <- function(
   )
 }
 # tertius ----------------------------------------------------------------
+#' @export
 init_DyNAM_rate.tertius <- function(
     effectFun, network, attribute, window, n1, n2, ...) {
   formals(effectFun) <- c(formals(effectFun), list(type = "ego"))
@@ -222,6 +227,7 @@ update_DyNAM_rate_tertius <- function(
 
 # Covariate effects -------------------------------------------------------
 # ego ---------------------------------------------------------------------
+#' @export
 init_DyNAM_rate.ego <- function(effectFun, attribute, n1, n2, ...) {
   init_REM_choice.ego(
     effectFun = effectFun, attribute = attribute,

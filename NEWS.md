@@ -1,3 +1,10 @@
+# goldfish 1.6.11
+
+* Registers S3 methods for internal functions.
+* Updates R version dependency to 4.1.0 to use the anonymous function syntax.
+* Deletes configure files; OpenMP support is now managed directly through
+  the Makevars files.
+
 # goldfish 1.6.10
 
 * Solves invalid URL link for the MIT Social Evolution dataset.

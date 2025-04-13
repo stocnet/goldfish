@@ -2,7 +2,7 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
-#include "gather_progress.hpp"
+#include "gather_progress.h"
 
 inline arma::mat reduce_mat_to_vector(
     const arma::mat& stat_mat,
