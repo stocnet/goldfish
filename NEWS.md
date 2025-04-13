@@ -1,3 +1,7 @@
+# goldfish 1.6.12
+
+* Fixes invalid URL link in the `goldfish-package.Rd`.
+
 # goldfish 1.6.11
 
 * Registers S3 methods for internal functions.

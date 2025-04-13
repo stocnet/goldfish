@@ -11,7 +11,7 @@ to fit statistical network models
 (such as DyNAM and REM) to dynamic network data.
 }
 \details{
-The \href{https://sn.ethz.ch/research/goldfish.html}{goldfish}
+The \href{https://sn.ethz.ch/research/software/goldfish.html}{goldfish}
 package in R allows the study of time-stamped network data
 using a variety of models.
 In particular, it implements different types of
