@@ -2,7 +2,8 @@
 
 * Registers S3 methods for internal functions.
 * Updates R version dependency to 4.1.0 to use the anonymous function syntax.
-* Deletes configure file, use of OpenMP is ensure in the Makevars files.
+* Deletes configure files; OpenMP support is now managed directly through
+  the Makevars files.
 
 # goldfish 1.6.10
 

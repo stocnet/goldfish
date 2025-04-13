@@ -40,9 +40,9 @@ Currently, the package includes the following models:
     event models as an actor-oriented decision process.
     -   *rate*: Actors compete for creating the next relational event
         (Hollway 2020)
-    -   *choice*: The active actor choose the receiver of the event from
-        among the same (Stadtfeld and Block 2017) or a different set of
-        nodes (Haunss and Hollway 2023)
+    -   *choice*: The active actor chooses the receiver of the event
+        from among the same (Stadtfeld and Block 2017) or a different
+        set of nodes (Haunss and Hollway 2023)
     -   *choice\_coordination*: The creation of coordination ties as a
         two-sided process (Stadtfeld, Hollway, and Block 2017a)
 -   **Dynamic Network Actor Models for interactions (DyNAMi)**:
