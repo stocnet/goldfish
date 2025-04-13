@@ -409,14 +409,6 @@ est.choice.M1 <- estimate(
   model = "DyNAMi", subModel = "choice",
   estimationInit = list(opportunitiesList = opportunities)
 )
-```
-
-```
-## Warning: engine = "gather_compute" doesn't support"opportunitiesList". engine ="default" is used
-## instead.
-```
-
-``` r
 summary(est.choice.M1)
 ```
 
@@ -589,14 +581,6 @@ est.choice.M2 <- estimate(
   model = "DyNAMi", subModel = "choice",
   estimationInit = list(opportunitiesList = opportunities)
 )
-```
-
-```
-## Warning: engine = "gather_compute" doesn't support"opportunitiesList". engine ="default" is used
-## instead.
-```
-
-``` r
 summary(est.choice.M2)
 ```
 

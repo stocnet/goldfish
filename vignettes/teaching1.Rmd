@@ -824,8 +824,8 @@ AIC(mod02Choice, mod03Choice)
 
 # Compare different specifications of the subModel = "rate"
 AIC(mod03Rate, mod04Rate)
-#> Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the same number of
-#> observations
+#> Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the
+#> same number of observations
 #>           df      AIC
 #> mod03Rate  4 12014.20
 #> mod04Rate  6 10963.75
