@@ -40,7 +40,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.10</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.11</span>
       </span>
     </div>
 
@@ -124,27 +124,27 @@
 <p>Currently, the package includes the following models:</p>
 <ul>
 <li>
-<strong>Dynamic Network Actor Models (DyNAM)</strong>: Investigate relational event models as an actor-oriented decision process (Stadtfeld and Block 2017).
+<strong>Dynamic Network Actor Models (DyNAM)</strong>: Investigate relational event models as an actor-oriented decision process.
 <ul>
 <li>
-<em>rate</em>: Actors compete for creating the next relational event.</li>
+<em>rate</em>: Actors compete for creating the next relational event (Hollway 2020)</li>
 <li>
-<em>choice</em>: The active actor choose the receiver of the event.</li>
+<em>choice</em>: The active actor chooses the receiver of the event from among the same (Stadtfeld and Block 2017) or a different set of nodes (Haunss and Hollway 2023)</li>
 <li>
-<em>choice_coordination</em>: The creation of coordination ties as a two-sided process (Stadtfeld, Hollway, and Block 2017)</li>
+<em>choice_coordination</em>: The creation of coordination ties as a two-sided process (Stadtfeld, Hollway, and Block 2017a)</li>
 </ul>
 </li>
 <li>
-<strong>Dynamic Network Actor Models for interactions (DyNAMi)</strong>: Investigate dynamics of conversation groups and interpersonal interaction in different social contexts from an actor-oriented perspective (Hoffman et al. 2020).
+<strong>Dynamic Network Actor Models for interactions (DyNAMi)</strong>: Investigate dynamics of conversation groups and interpersonal interaction in different social contexts from an actor-oriented perspective (Hoffman et al. 2020)
 <ul>
 <li>
-<em>rate</em>: Actors compete for joining or leaving groups.</li>
+<em>rate</em>: Actors compete for joining or leaving groups</li>
 <li>
-<em>choice</em>: The active actor choose the group to join.</li>
+<em>choice</em>: The active actor choose the group to join</li>
 </ul>
 </li>
 <li>
-<strong>Relational Event Models (REM)</strong>: Investigate relational event models as a tie-oriented process (Butts 2008).</li>
+<strong>Relational Event Models (REM)</strong>: Investigate relational event models as a tie-oriented process (Butts 2008), taking into account right-censoring (Stadtfeld, Hollway, and Block 2017b).</li>
 </ul>
 <div class="section level3">
 <h3 id="vignettes">Vignettes<a class="anchor" aria-label="anchor" href="#vignettes"></a>
@@ -162,12 +162,7 @@
 <h2 id="table-of-contents">Table of Contents<a class="anchor" aria-label="anchor" href="#table-of-contents"></a>
 </h2>
 <ul>
-<li>
-<a href="#installation">Installation</a>
-<ul>
-<li><a href="#installing-openmp-on-mac-osx">Installing OpenMP on Mac OSX</a></li>
-</ul>
-</li>
+<li><a href="#installation">Installation</a></li>
 <li>
 <a href="#usage">Usage</a>
 <ul>
@@ -193,20 +188,6 @@
 </li>
 </ul>
 <p>Or by downloading and install the latest binary releases for all major OSes – Windows, Mac, and Linux – can be found <a href="https://github.com/stocnet/goldfish/releases" class="external-link">here</a>.</p>
-<div class="section level3">
-<h3 id="installing-openmp-on-mac-osx">Installing OpenMP on Mac OSX<a class="anchor" aria-label="anchor" href="#installing-openmp-on-mac-osx"></a>
-</h3>
-<p>In some cases, you may get an error that does not allow installation of <a href="https://stocnet.github.io/goldfish/">goldfish</a> from source on Mac OSX versions, including under R 4.0.0. The error may relate to compiling the parts of <a href="https://stocnet.github.io/goldfish/">goldfish</a> that are written in C++, or whether OpenMP (for parallelisation) can be found.</p>
-<p>Many installation woes can be solved by directing R to use <a href="https://brew.sh" class="external-link">Homebrew</a> installed <code>gcc</code>. An updated setting up instructions thanks to @timonelmer are available <a href="https://github.com/stocnet/goldfish/blob/main/.github/OpenMP_mac.md" class="external-link">here</a>.</p>
-<p>More details can be found <a href="https://medium.com/biosyntax/following-up-library-dependency-when-compiling-r-packages-89f191b9f227" class="external-link">here</a> (Thank you @Knieps for identifying this.). Other links that may be helpful include:</p>
-<ul>
-<li><a href="https://asieira.github.io/using-openmp-with-r-packages-in-os-x.html" class="external-link uri">https://asieira.github.io/using-openmp-with-r-packages-in-os-x.html</a></li>
-<li><a href="https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/" class="external-link uri">https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/</a></li>
-<li><a href="https://ryanhomer.github.io/posts/build-openmp-macos-catalina-complete" class="external-link uri">https://ryanhomer.github.io/posts/build-openmp-macos-catalina-complete</a></li>
-<li><a href="https://pat-s.me/transitioning-from-x86-to-arm64-on-macos-experiences-of-an-r-user/" class="external-link uri">https://pat-s.me/transitioning-from-x86-to-arm64-on-macos-experiences-of-an-r-user/</a></li>
-</ul>
-<p>Please share feedback on which of these work and we will update the installation guide accordingly.</p>
-</div>
 </div>
 <div class="section level2">
 <h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
@@ -315,15 +296,18 @@
 <div class="section level2">
 <h2 id="about">About<a class="anchor" aria-label="anchor" href="#about"></a>
 </h2>
-<p>This project is a joint collaboration between the <strong>Social Networks Lab at ETH Zürich</strong> and the <strong>Graduate Institute Geneva</strong>, and incorporates and supports several sub-projects.</p>
+<p>This project is a joint collaboration between the <strong>Social Networks Lab at ETH Zürich</strong> and the <strong>Geneva Graduate Institute</strong>, and incorporates and supports several sub-projects.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
-<p>Butts, C. T. 2008. “A Relational Event Framework for Social Action.” <em>Sociological Methodology</em> 38 (1): 155–200.</p>
+<p>Butts, Carter. 2008. “A Relational Event Framework for Social Action.” <em>Sociological Methodology</em> 38 (1): 155–200.</p>
+<p>Haunss, Sebastian, and James Hollway. 2023. “Multimodal Mechanisms of Political Discourse Dynamics and the Case of Germany’s Nuclear Energy Phase-Out.” <em>Network Science</em> 11 (2): 205–23. <a href="https://doi.org/10.1017/nws.2022.31" class="external-link uri">https://doi.org/10.1017/nws.2022.31</a>.</p>
 <p>Hoffman, Marion, Per Block, Timon Elmer, and Christoph Stadtfeld. 2020. “A Model for the Dynamics of Face-to-Face Interactions in Social Groups.” <em>Network Science</em> 8 (S1): S4–25. <a href="https://doi.org/10.1017/nws.2020.3" class="external-link uri">https://doi.org/10.1017/nws.2020.3</a>.</p>
-<p>Stadtfeld, C., and P. Block. 2017. “Interactions, Actors, and Time: Dynamic Network Actor Models for Relational Events.” <em>Sociological Science</em> 4 (14): 318–52. <a href="https://doi.org/10.15195/v4.a14" class="external-link uri">https://doi.org/10.15195/v4.a14</a>.</p>
-<p>Stadtfeld, C., J. Hollway, and P. Block. 2017. “Dynamic Network Actor Models: Investigating Coordination Ties Through Time.” <em>Sociological Methodology</em> 47 (1): 1–40. <a href="https://doi.org/10.1177/0081175017709295" class="external-link uri">https://doi.org/10.1177/0081175017709295</a>.</p>
+<p>Hollway, James. 2020. “Network Embeddedness and the Rate of Water Cooperation and Conflict.” In <em>Networks in Water Governance</em>, edited by Manuel Fischer and Karin Ingold, 87–113. Cham: Palgrave MacMillan. <a href="https://doi.org/10.1007/978-3-030-46769-2_4" class="external-link uri">https://doi.org/10.1007/978-3-030-46769-2_4</a>.</p>
+<p>Stadtfeld, Christoph, and Per Block. 2017. “Interactions, Actors, and Time: Dynamic Network Actor Models for Relational Events.” <em>Sociological Science</em> 4 (14): 318–52. <a href="https://doi.org/10.15195/v4.a14" class="external-link uri">https://doi.org/10.15195/v4.a14</a>.</p>
+<p>Stadtfeld, Christoph, James Hollway, and Per Block. 2017a. “Dynamic Network Actor Models: Investigating Coordination Ties Through Time.” <em>Sociological Methodology</em> 47 (1): 1–40. <a href="https://doi.org/10.1177/0081175017709295" class="external-link uri">https://doi.org/10.1177/0081175017709295</a>.</p>
+<p>———. 2017b. “Rejoinder: DyNAMs and the Grounds for <span class="nocase">Actor-oriented Network Event Models</span>.” <em>Sociological Methodology</em> 47 (1): 56–67. <a href="https://doi.org/10.1177/0081175017733457" class="external-link uri">https://doi.org/10.1177/0081175017733457</a>.</p>
 </div>
 </div>
   </div>
@@ -386,7 +370,7 @@
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.0.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
       </footer>
