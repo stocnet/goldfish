@@ -6,7 +6,7 @@
 #
 ##################### ###
 
-#' checks for missing ties and replaces null values with impute
+#' checks that oldValue \= replace and replaces null values with impute
 #'
 #' @param oldValue numeric
 #' @param replace numeric

@@ -247,15 +247,15 @@ update_REM_choice_indeg <- function(
     replace <- sign(replace)
   }
 
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  checkMissingResult <- checkMissing(oldValue,replace)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
   # update cache for receiver, event/tie
   cache[receiver] <- cache[receiver] + replace - oldValue
 
@@ -453,14 +453,15 @@ update_REM_choice_outdeg <- function(
   }
 
   # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  checkMissingResult <- checkMissing(oldValue,replace)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
 
   # update cache for sender, event/tie
   cache[sender] <- cache[sender] + replace - oldValue
@@ -903,14 +904,15 @@ update_REM_choice_tertius <- function(
     oldValue <- sign(network[sender, receiver])
 
     # Check if old value has changed
-    if (is.na(oldValue) && is.na(replace)) {
-      return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+    checkMissingResult <- checkMissing(oldValue,replace)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
     }
-
-    if (is.na(oldValue)) oldValue <- 0
-    if (is.na(replace)) replace <- 0
 
     newValue <- replace - oldValue
 
@@ -938,15 +940,18 @@ update_REM_choice_tertius <- function(
   if (!is.null(node) && is.null(sender) && is.null(receiver)) {
     # Get old value
     oldValue <- attribute[node]
-
-    # Check if old value has changed
-    if (is.na(oldValue) && is.na(replace)) {
-      return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+    imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
+                          mean(attribute[-node], na.rm = TRUE), 0) 
+    
+    checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
     }
-
-    if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
 
     # get all out-neighbors of node k->j
     outNode <- which(network[node, ] > 0)
@@ -1316,14 +1321,15 @@ update_REM_choice_nodeTrans <- function(
   oldValue <- sign(network[sender, receiver])
 
   # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  checkMissingResult <- checkMissing(oldValue,replace)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
 
   third <- function(n, diff) {
     setdiff(seq_len(n), diff)
@@ -1423,15 +1429,19 @@ update_REM_choice_ego <- function(
   res <- list(changes = NULL)
   # Get old value
   oldValue <- attribute[node]
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
+                        mean(attribute[-node], na.rm = TRUE), 0) 
+  
+  checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
   # utility functions to return third nodes
   third <- function(n, diff = c(node)) {
     setdiff(seq_len(n), diff)

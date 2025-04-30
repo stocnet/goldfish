@@ -273,16 +273,16 @@ update_DyNAM_choice_tie <- function(
     oldValue <- sign(oldValue)
     replace <- sign(replace)
   }
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  checkMissingResult <- checkMissing(oldValue,replace)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
 
   # change stat
   res$changes <- cbind(
@@ -632,15 +632,15 @@ update_DyNAM_choice_recip <- function(
     replace <- sign(replace)
   }
 
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  checkMissingResult <- checkMissing(oldValue,replace)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
 
   # change stat
   res$changes <- cbind(
@@ -809,15 +809,16 @@ update_DyNAM_choice_trans <- function(
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
 
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  checkMissingResult <- checkMissing(oldValue,replace)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
+  
   # get all in-neighbors of sender and out-neighbors of receiver
   # consider i -> k -> j,
   # when sender = k and receiver = j, constraint that k != j has been satisfied.
@@ -972,15 +973,16 @@ update_DyNAM_choice_cycle <- function(
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
 
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  checkMissingResult <- checkMissing(oldValue,replace)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
+  
   # get all in-neighbors of sender and out-neighbors of receiver
   # consider j -> k -> i,
   # when sender = k and receiver = j, constraint that k != j has been satisfied.
@@ -1160,15 +1162,15 @@ update_DyNAM_choice_commonReceiver <- function(
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
 
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  checkMissingResult <- checkMissing(oldValue,replace)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
   # get in-neighbors of receiver
   # consider i -> k <- j,
   # when sender = i and receiver = k
@@ -1323,15 +1325,16 @@ update_DyNAM_choice_commonSender <- function(
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
 
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  checkMissingResult <- checkMissing(oldValue,replace)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
+  
   # get out-neighbors of sender
   # consider i <- k -> j,
   # when sender = k and receiver = j
@@ -1530,16 +1533,14 @@ update_DyNAM_choice_mixedTrans <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    checkMissingResult <- checkMissing(oldValue,replace)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # receiver's outNeighbors in network2 create new two paths with sender
     temp <- network2[receiver, ]
@@ -1560,16 +1561,14 @@ update_DyNAM_choice_mixedTrans <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    checkMissingResult <- checkMissing(oldValue,replace)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # sender's inNeighbors in network1 create new two paths with receiver
     temp <- network1[, sender]
@@ -1764,16 +1763,14 @@ update_DyNAM_choice_mixedCycle <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    checkMissingResult <- checkMissing(oldValue,replace)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # receiver's outNeighbors in network2 create new two paths with sender
     temp <- network2[receiver, ]
@@ -1794,16 +1791,14 @@ update_DyNAM_choice_mixedCycle <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    checkMissingResult <- checkMissing(oldValue,replace)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # sender's inNeighbors in network1 create new two paths with receiver
     temp <- network1[, sender]
@@ -1992,16 +1987,14 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    checkMissingResult <- checkMissing(oldValue,replace)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # receiver's inNeighbors in network2 create new two in star with sender
     temp <- network2[, receiver]
@@ -2025,16 +2018,14 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    checkMissingResult <- checkMissing(oldValue,replace)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # sender's inNeighbors in network1 create new two paths with receiver
     temp <- network1[, receiver]
@@ -2226,16 +2217,14 @@ update_DyNAM_choice_mixedCommonSender <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    checkMissingResult <- checkMissing(oldValue,replace)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # receiver's inNeighbors in network2 create new two in star with sender
     temp <- network2[sender, ]
@@ -2259,16 +2248,14 @@ update_DyNAM_choice_mixedCommonSender <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    checkMissingResult <- checkMissing(oldValue,replace)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # sender's inNeighbors in network1 create new two paths with receiver
     temp <- network1[sender, ]
@@ -2739,15 +2726,15 @@ update_DyNAM_choice_tertiusDiff <- function(
     replace <- sign(replace)
     oldValue <- sign(network[sender, receiver])
 
-    # Check if old value has changed
-    if (is.na(oldValue) && is.na(replace)) {
-      return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+   checkMissingResult <- checkMissing(oldValue,replace)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
     }
-
-    if (is.na(oldValue)) oldValue <- 0
-    if (is.na(replace)) replace <- 0
 
     newValue <- replace - oldValue
 
@@ -2778,15 +2765,19 @@ update_DyNAM_choice_tertiusDiff <- function(
   if (!is.null(node) && is.null(sender) && is.null(receiver)) {
     # Get old value
     oldValue <- attribute[node]
-
-    # Check if old value has changed
-    if (is.na(oldValue) && is.na(replace)) {
-      return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+    
+    imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
+                          mean(attribute[-node], na.rm = TRUE), 0) 
+    
+    checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
     }
-
-    if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
 
     # get all out-neighbors of node k->j
     outNode <- which(network[node, ] > 0)
@@ -2894,14 +2885,18 @@ update_DyNAM_choice_alter <- function(
   # Get old value
   oldValue <- attribute[node]
 
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
+                        mean(attribute[-node], na.rm = TRUE), 0) 
+  
+  checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
 
   # utility functions to return third nodes
   third <- function(n, diff = c(node)) {
@@ -2938,21 +2933,22 @@ update_DyNAM_choice_same <- function(
   res <- list(changes = NULL)
   # Get old value
   oldValue <- attribute[node]
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
+                        mean(attribute[-node], na.rm = TRUE), 0) 
+  
+  checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
 
-  if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
-
   # compute change stat
   changes <- NULL
-
-  # if replace is missing impute by the average of not missing values
-  if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
 
   oldSameNodes <- setdiff(which(attribute == oldValue), node)
   if (length(oldSameNodes) != 0) {
@@ -3011,15 +3007,20 @@ update_DyNAM_choice_diff <- function(
 
   # Get old value
   oldValue <- attribute[node]
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
+                        mean(attribute[-node], na.rm = TRUE), 0) 
+  
+  checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
+  flag <- checkMissingResult$flag
+  oldValue <- checkMissingResult$oldValue
+  replace <- checkMissingResult$replace
+  
+  # If the old value of the tie is the same as the replace value
+  if (flag) {
     return(res)
   }
-
-  if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
+  
 
   # compute change stat
   newDiff <- forceAndCall(1, transformFun, replace - attribute[-node])
@@ -3111,16 +3112,20 @@ update_DyNAM_choice_egoAlterInt <- function(
   if (attUpdate == 1) {
     # Get old value
     oldValue <- attr1[node]
-
-    # Check if old value has changed
-    if (is.na(oldValue) && is.na(replace)) {
-      return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+    
+    imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
+                          mean(attr1[-node], na.rm = TRUE), 0) 
+    
+    checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
     }
-
-    if (is.na(replace)) replace <- mean(attr1[-node], na.rm = TRUE)
-
+    
     # compute change stat
     newDiff <- forceAndCall(1, transformFun, replace * attr2[-node])
 
@@ -3131,15 +3136,19 @@ update_DyNAM_choice_egoAlterInt <- function(
   } else if (attUpdate == 2) {
     # Get old value
     oldValue <- attr2[node]
-
-    # Check if old value has changed
-    if (is.na(oldValue) && is.na(replace)) {
-      return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+    
+    imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
+                          mean(attr2[-node], na.rm = TRUE), 0) 
+    
+    checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
+    flag <- checkMissingResult$flag
+    oldValue <- checkMissingResult$oldValue
+    replace <- checkMissingResult$replace
+    
+    # If the old value of the tie is the same as the replace value
+    if (flag) {
       return(res)
     }
-
-    if (is.na(replace)) replace <- mean(attr2[-node], na.rm = TRUE)
 
     # compute change stat
     newDiff <- forceAndCall(1, transformFun, attr1[-node] * replace)
