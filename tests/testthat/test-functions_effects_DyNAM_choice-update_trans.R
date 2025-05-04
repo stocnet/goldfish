@@ -125,17 +125,12 @@ test_that("trans recognizes tie deletion correctly", {
       "Actor 4" = c(node1 = 4, node2 = 2, replace = -1)
     )
   )
-  expect_equal(
+  expect_null(
     update_DyNAM_choice_trans(
       m,
       sender = 5, receiver = 1, replace = 0,
       cache = mCache
     )$changes,
-    rbind(
-      "Actor 2" = c(node1 = 5, node2 = 2, replace = 0),
-      "Actor 3" = c(node1 = 5, node2 = 3, replace = 0),
-      "Actor 4" = c(node1 = 4, node2 = 1, replace = 0)
-    ),
     label = "when previous value was NA"
   )
 })

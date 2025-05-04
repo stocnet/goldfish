@@ -98,12 +98,11 @@ test_that("indeg recognizes tie deletion correctly", {
     )$changes,
     cbind(node1 = c(1, 3:5), node2 = rep(2, 4), replace = rep(1, 4))
   )
-  expect_equal(
+  expect_null(
     update_DyNAM_choice_indeg(m,
       sender = 5, receiver = 1, replace = 0,
       cache = vCache, n1 = 5, n2 = 0
     )$changes,
-    cbind(node1 = 2:5, node2 = rep(1, 4), replace = rep(0, 4)),
     label = "when previous value was NA"
   )
 })

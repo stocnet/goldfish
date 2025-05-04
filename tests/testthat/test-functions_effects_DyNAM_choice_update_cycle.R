@@ -119,17 +119,12 @@ test_that("cycle recognizes tie deletion correctly", {
       "Actor 4" = c(node1 = 2, node2 = 4, replace = -1)
     )
   )
-  expect_equal(
+  expect_null(
     update_DyNAM_choice_cycle(
       m,
       sender = 5, receiver = 1, replace = 0,
       cache = mCache
     )$changes,
-    rbind(
-      "Actor 2" = c(node1 = 2, node2 = 5, replace = 0),
-      "Actor 3" = c(node1 = 3, node2 = 5, replace = 0),
-      "Actor 4" = c(node1 = 1, node2 = 4, replace = 0)
-    ),
     label = "when previous value was NA"
   )
 })

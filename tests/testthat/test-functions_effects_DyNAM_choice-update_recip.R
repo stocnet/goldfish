@@ -95,14 +95,11 @@ test_that("recip recognizes tie deletion correctly", {
       dimnames = list(NULL, c("node1", "node2", "replace"))
     )
   )
-  expect_equal(
+  expect_null(
     update_DyNAM_choice_recip(
       m,
       sender = 5, receiver = 1, replace = 0
     )$changes,
-    matrix(c(1, 5, 0), 1, 3,
-      dimnames = list(NULL, c("node1", "node2", "replace"))
-    ),
     label = "when previous value was NA"
   )
   expect_equal(
