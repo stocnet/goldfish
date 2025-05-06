@@ -349,6 +349,7 @@ preprocess <- function(
         # missing data imputation
         if (isNodeEvent[nextEvent]) {
           oldValue <- object[event$node]
+          # if the replace is missing impute by 0 because is increment
           if (is.na(event$increment)) event$increment <- 0
         }
         if (!isNodeEvent[nextEvent]) {
@@ -375,6 +376,7 @@ preprocess <- function(
         }
       }
 
+      # network update an negative replacement throws a warning
       if (!isNodeEvent[nextEvent] && event$replace < 0) {
         warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
       }
