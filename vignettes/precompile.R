@@ -61,7 +61,7 @@ lapply(
   ),
   \(x) {
     text <- readLines(x)
-    haveErrors <- grepl("Error:", text)
+    haveErrors <- grepl("Error", text) & !grepl("Std\\. Error", text)
     if (any(haveErrors)) {
       paste(
         "Error in", x, " on line",

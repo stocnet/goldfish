@@ -1,3 +1,20 @@
+# goldfish 1.6.13
+
+* Fixes problem when parallelizing code and using preprocess objects.
+* Fixes incorrect computation of number of right-censored events during 
+  preprocessing when `startTime` is specified.
+
+# goldfish 1.6.12
+
+* Fixes invalid URL link in the `goldfish-package.Rd`.
+
+# goldfish 1.6.11
+
+* Registers S3 methods for internal functions.
+* Updates R version dependency to 4.1.0 to use the anonymous function syntax.
+* Deletes configure files; OpenMP support is now managed directly through
+  the Makevars files.
+
 # goldfish 1.6.10
 
 * Solves invalid URL link for the MIT Social Evolution dataset.

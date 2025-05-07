@@ -6,6 +6,7 @@ init_DyNAMi_rate <- function(
 }
 
 # default -----------------------------------------------------------------
+#' @export
 init_DyNAMi_rate.default <- function(
     effectFun,
     network = NULL, attribute = NULL,

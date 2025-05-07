@@ -5,6 +5,7 @@ init_REM_choice <- function(effectFun, ...) {
 }
 
 # default -----------------------------------------------------------------
+#' @export
 init_REM_choice.default <- function(
     effectFun,
     network = NULL, attribute = NULL,
@@ -20,6 +21,7 @@ init_REM_choice.default <- function(
 
 # Structural effects ------------------------------------------------------
 # tie ---------------------------------------------------------------------
+#' @export
 init_REM_choice.tie <- function(effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.tie(
     effectFun = effectFun, network = network,
@@ -39,6 +41,7 @@ update_REM_choice_tie <- function(
 }
 
 # inertia -----------------------------------------------------------------
+#' @export
 init_REM_choice.inertia <- function(effectFun, network, window, n1, n2, ...) {
   init_REM_choice.tie(
     effectFun = effectFun, network = network,
@@ -58,6 +61,7 @@ update_REM_choice_inertia <- function(
 }
 
 # recip -------------------------------------------------------------------
+#' @export
 init_REM_choice.recip <- function(effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.recip(
     effectFun = effectFun, network = network,
@@ -94,6 +98,7 @@ update_REM_choice_recip <- function(
 #' @return list with named components: cache numeric vector size n2,
 #'   stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -298,6 +303,7 @@ update_REM_choice_indeg <- function(
 #' @return list with named components: cache numeric vector size n2,
 #'   stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -490,6 +496,7 @@ update_REM_choice_outdeg <- function(
 }
 
 # trans -------------------------------------------------------------------
+#' @export
 init_REM_choice.trans <- function(effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.trans(
     effectFun = effectFun, network = network,
@@ -514,6 +521,7 @@ update_REM_choice_trans <- function(
 }
 
 # cycle -------------------------------------------------------------------
+#' @export
 init_REM_choice.cycle <- function(effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.cycle(
     effectFun = effectFun, network = network,
@@ -538,6 +546,7 @@ update_REM_choice_cycle <- function(
 }
 
 # common receiver ---------------------------------------------------------
+#' @export
 init_REM_choice.commonReceiver <- function(
     effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.commonReceiver(
@@ -563,6 +572,7 @@ update_REM_choice_commonReceiver <- function(
 }
 
 # common sender -----------------------------------------------------------
+#' @export
 init_REM_choice.commonSender <- function(
     effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.commonSender(
@@ -588,6 +598,7 @@ update_REM_choice_commonSender <- function(
 }
 
 # mixedTrans --------------------------------------------------------------
+#' @export
 init_REM_choice.mixedTrans <- function(
     effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.mixedTrans(
@@ -613,6 +624,7 @@ update_REM_choice_mixedTrans <- function(
 }
 
 # mixedCycle --------------------------------------------------------------
+#' @export
 init_REM_choice.mixedCycle <- function(
     effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.mixedCycle(
@@ -638,6 +650,7 @@ update_REM_choice_mixedCycle <- function(
 }
 
 # mixed common receiver ---------------------------------------------------
+#' @export
 init_REM_choice.mixedCommonReceiver <- function(
     effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.mixedCommonReceiver(
@@ -663,6 +676,7 @@ update_REM_choice_mixedCommonReceiver <- function(
 }
 
 # mixed common sender -----------------------------------------------------
+#' @export
 init_REM_choice.mixedCommonSender <- function(
     effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.mixedCommonSender(
@@ -688,6 +702,7 @@ update_REM_choice_mixedCommonSender <- function(
 }
 
 # four --------------------------------------------------------------------
+#' @export
 init_REM_choice.four <- function(effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.four(
     effectFun = effectFun, network = network,
@@ -726,6 +741,7 @@ update_REM_choice_four <- function(
 #'   cache numeric vector n1
 #'   stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -1043,6 +1059,7 @@ update_REM_choice_tertius <- function(
 #'   cache numeric vector n1
 #'   stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -1171,6 +1188,7 @@ update_REM_choice_tertiusDiff <- function(
 #' @return list with named components: cache numeric vector size n2,
 #'  stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -1384,6 +1402,7 @@ update_REM_choice_nodeTrans <- function(
 
 # Covariate effects -------------------------------------------------------
 # ego ---------------------------------------------------------------------
+#' @export
 init_REM_choice.ego <- function(effectFun, attribute, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
@@ -1426,6 +1445,7 @@ update_REM_choice_ego <- function(
 }
 
 # alter -------------------------------------------------------------------
+#' @export
 init_REM_choice.alter <- function(effectFun, attribute, n1, n2, ...) {
   init_DyNAM_choice.alter(
     effectFun = effectFun, attribute = attribute, n1 = n2, n2 = n2, ...
@@ -1446,6 +1466,7 @@ update_REM_choice_alter <- function(
 }
 
 # same --------------------------------------------------------------------
+#' @export
 init_REM_choice.same <- function(effectFun, attribute, ...) {
   init_DyNAM_choice.same(effectFun = effectFun, attribute = attribute, ...)
 }
@@ -1462,6 +1483,7 @@ update_REM_choice_same <- function(
 }
 
 # diff --------------------------------------------------------------------
+#' @export
 init_REM_choice.diff <- function(effectFun, attribute, ...) {
   init_DyNAM_choice.diff(effectFun = effectFun, attribute = attribute, ...)
 }
@@ -1481,6 +1503,7 @@ update_REM_choice_diff <- function(
 }
 
 # sim ---------------------------------------------------------------------
+#' @export
 init_REM_choice.sim <- function(effectFun, attribute, ...) {
   init_DyNAM_choice.sim(effectFun = effectFun, attribute = attribute, ...)
 }
@@ -1500,6 +1523,7 @@ update_REM_choice_sim <- function(
 }
 
 # ego alter interaction ---------------------------------------------------
+#' @export
 init_REM_choice.egoAlterInt <- function(effectFun, attribute, ...) {
   init_DyNAM_choice.sim(effectFun = effectFun, attribute = attribute, ...)
 }

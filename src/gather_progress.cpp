@@ -1,6 +1,6 @@
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
-#include "gather_progress.hpp"
+#include "gather_progress.h"
 
 void gather_progress_render(int processed_events, int total_events) {
     std::stringstream strs;

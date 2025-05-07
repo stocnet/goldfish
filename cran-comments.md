@@ -1,9 +1,9 @@
 ## Test environments
 
-* local R installation, Windows 10 x64 19405, R 4.3.1
-* Mac OS Darwin 14.6.1 (on Github), R 4.4.1
-* Microsoft Windows Server 2022 10.0.20348 (on Github), R 4.4.1
-* Ubuntu 22.04.4 (on Github), R 4.4.1
+* local R installation, Mac OS Sequoia 15.4, R 4.4.3
+* Mac OS Darwin 14.6.1 (on Github), R 4.5.0
+* Microsoft Windows Server 2022 10.0.20348 (on Github), R 4.5.0
+* Ubuntu 24.04.2 (on Github), R 4.5.0
 
 ## R CMD check results
 

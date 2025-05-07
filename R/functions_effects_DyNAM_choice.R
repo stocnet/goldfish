@@ -5,6 +5,7 @@ init_DyNAM_choice <- function(effectFun, ...) {
 }
 
 # default -----------------------------------------------------------------
+#' @export
 init_DyNAM_choice.default <- function(
     effectFun,
     network = NULL, attribute = NULL,
@@ -184,6 +185,7 @@ init_DyNAM_choice.default <- function(
 #'
 #' @return list: stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -297,6 +299,7 @@ update_DyNAM_choice_tie <- function(
 }
 
 # inertia -----------------------------------------------------------------
+#' @export
 init_DyNAM_choice.inertia <- function(effectFun, network, window, n1, n2, ...) {
   init_DyNAM_choice.tie(
     effectFun = effectFun, network = network,
@@ -329,6 +332,7 @@ update_DyNAM_choice_inertia <- function(
 #' @return list with named components: cache numeric vector size n2,
 #'   stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -425,6 +429,7 @@ update_DyNAM_choice_indeg <- function(
 #' @return list with named components: cache numeric vector size n1,
 #'   stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -519,6 +524,7 @@ update_DyNAM_choice_outdeg <- function(
 #'
 #' @return list: stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -651,6 +657,7 @@ update_DyNAM_choice_recip <- function(
 }
 
 # node_trans ------------------------------------------------------------------
+#' @export
 init_DyNAM_choice.nodeTrans <- function(
     effectFun, network, window, n1, n2, ...) {
   formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
@@ -691,6 +698,7 @@ update_DyNAM_choice_nodeTrans <- function(
 #'   cache matrix numeric n1*n1
 #'   stat matrix numeric n1*n1
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -853,6 +861,7 @@ update_DyNAM_choice_trans <- function(
 #'   cache matrix numeric n1*n1
 #'   stat matrix numeric n1*n1
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -1018,6 +1027,7 @@ update_DyNAM_choice_cycle <- function(
 #'   cache matrix numeric n1*n1
 #'   stat matrix numeric n1*n1
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -1200,6 +1210,7 @@ update_DyNAM_choice_commonReceiver <- function(
 #'   cache matrix numeric n1*n1
 #'   stat matrix numeric n1*n1
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -1359,6 +1370,7 @@ update_DyNAM_choice_commonSender <- function(
 #'   cache matrix numeric n1*n1
 #'   stat matrix numeric n1*n1
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -1593,6 +1605,7 @@ update_DyNAM_choice_mixedTrans <- function(
 #'   cache matrix numeric n1*n1
 #'   stat matrix numeric n1*n1
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -1825,6 +1838,7 @@ update_DyNAM_choice_mixedCycle <- function(
 #'   cache matrix numeric n1*n1
 #'   stat matrix numeric n1*n1
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -2058,6 +2072,7 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
 #'   cache matrix numeric n1*n1
 #'   stat matrix numeric n1*n1
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -2291,6 +2306,7 @@ update_DyNAM_choice_mixedCommonSender <- function(
 #'   cache matrix numeric n1*n1
 #'   stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -2516,6 +2532,7 @@ update_DyNAM_choice_four <- function(
 
 # Structural and attribute effects ---------------------------------------------
 # tertius ----------------------------------------------------------------
+#' @export
 init_DyNAM_choice.tertius <- function(
     effectFun, network, attribute, window, n1, n2, ...) {
   formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
@@ -2569,6 +2586,7 @@ update_DyNAM_choice_tertius <- function(
 #'   cache numeric vector n1
 #'   stat matrix numeric n1*n2
 #' @noRd
+#' @export
 #'
 #' @examples
 #' \donttest{
@@ -2853,6 +2871,7 @@ update_DyNAM_choice_tertiusDiff <- function(
 
 # Covariate effects -------------------------------------------------------
 # alter -------------------------------------------------------------------
+#' @export
 init_DyNAM_choice.alter <- function(effectFun, attribute, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
@@ -2897,6 +2916,7 @@ update_DyNAM_choice_alter <- function(
 }
 
 # same --------------------------------------------------------------------
+#' @export
 init_DyNAM_choice.same <- function(effectFun, attribute, ...) {
   # Get arguments
   params <- formals(effectFun)
@@ -2958,6 +2978,7 @@ update_DyNAM_choice_same <- function(
 }
 
 # diff --------------------------------------------------------------------
+#' @export
 init_DyNAM_choice.diff <- function(effectFun, attribute, ...) {
   # Get arguments
   params <- formals(effectFun)
@@ -3011,6 +3032,7 @@ update_DyNAM_choice_diff <- function(
 }
 
 # sim ---------------------------------------------------------------------
+#' @export
 init_DyNAM_choice.sim <- function(effectFun, attribute, ...) {
   # Get arguments
   params <- formals(effectFun)
@@ -3043,7 +3065,7 @@ update_DyNAM_choice_sim <- function(
 
 # ego alter interaction ---------------------------------------------------
 
-#'
+#' @export
 init_DyNAM_choice.egoAlterInt <- function(effectFun, attribute, ...) {
   # Get arguments
   params <- formals(effectFun)
