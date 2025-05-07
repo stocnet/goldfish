@@ -451,7 +451,7 @@ estimate.formula <- function(
   ## 1.2 PARSE for preprocessingInit: check the formula consistency
   if (!is.null(preprocessingInit)) {
     # find the old and new effects indexes, do basic consistency checks
-    oldparsedformula <- parseFormula(preprocessingInit$formula)
+    oldparsedformula <- parseFormula(preprocessingInit$formula, envir = envir)
     effectsindexes <- compareFormulas(
       oldparsedformula = oldparsedformula,
       newparsedformula = parsedformula,

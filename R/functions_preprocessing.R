@@ -147,10 +147,15 @@ preprocess <- function(
     nTotalEvents <- as.integer(sum(nRightCensoredEvents <= endTime))
     nRightCensoredEvents <- setdiff(nRightCensoredEvents, time)
     if (length(nRightCensoredEvents) > 1) {
+      # count right censored events in the preprocessed window
       nRightCensoredEvents <- as.integer(sum(
         nRightCensoredEvents >= startTime &
           nRightCensoredEvents <= endTime
-      ) - 1)
+      ))
+      # -1 because the last event is the endTime event, correct if no events
+      nRightCensoredEvents <- ifelse(nRightCensoredEvents > 1, 
+        nRightCensoredEvents - 1L, 0L
+      )
     } else {
       nRightCensoredEvents <- 0L
     }

@@ -1,3 +1,7 @@
+# goldfish 1.6.13
+
+* Fixes problem when parallelizing code and using preprocess objects.
+
 # goldfish 1.6.12
 
 * Fixes invalid URL link in the `goldfish-package.Rd`.
