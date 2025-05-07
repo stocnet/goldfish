@@ -438,7 +438,13 @@ preprocess <- function(
               NULL
             } else {
               which(orderedNames == objectName)
-            }
+            },
+            # add more parameters:
+            # - consecutive updates in closure effects
+            # - interEventTime (since last event right-censored included):
+            #   exponentially weighted decay effects
+            eventOrder = iTotalEvents,
+            interEventTime = interval
           )
 
           effectUpdate <- callFUN(
