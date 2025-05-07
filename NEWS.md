@@ -1,6 +1,8 @@
 # goldfish 1.6.13
 
 * Fixes problem when parallelizing code and using preprocess objects.
+* Fixes incorrect computation of number of right-censored events during 
+  preprocessing when `startTime` is specified.
 
 # goldfish 1.6.12
 
