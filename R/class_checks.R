@@ -12,14 +12,19 @@
 ################################# ###
 
 ### 0. find helpers
-## Find composition changes events for one nodeset
-findPresence <- function(nodes) {
-  if (!is.null(attr(nodes, "dynamicAttributes")) &&
-    "present" %in% attr(nodes, "dynamicAttributes")) {
-    compositionChanges <- attr(nodes, "events")[
-      which(attr(nodes, "dynamicAttributes") == "present")
-    ]
-    if (is.na(compositionChanges)) stop("Composition changes were mispecified.")
+## Find composition changes events for a nodeset
+find_presence <- function(nodes) {
+  if (!is.null(attr(nodes, "dynamic_attributes")) &&
+    "present" %in% attr(nodes, "dynamic_attributes")) {
+    # Get the indices where "present" is found
+    present_indices <- which(attr(nodes, "dynamic_attributes") == "present")
+    
+    # Assuming 'events' is a parallel structure to 'dynamic_attributes'
+    composition_changes <- attr(nodes, "events")[preset_indices]
+    
+    if (anyNA(compositionChanges)) {
+      cli::cli_abort("Composition changes were mispecified.")
+    }
     return(compositionChanges)
   } else {
     return(NULL)

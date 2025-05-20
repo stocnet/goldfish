@@ -42,6 +42,7 @@
 #' @useDynLib goldfish
 #' @importFrom Rcpp sourceCpp
 #' @importFrom rlang .data
+#' @importFrom lifecycle deprecated
 "_PACKAGE"
 ## usethis namespace: end
 NULL

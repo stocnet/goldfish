@@ -60,7 +60,7 @@ NULL
 #' @importFrom stats IQR median na.exclude
 #' @export
 #' @rdname examine
-examineOutliers <- function(x,
+examine_outliers <- function(x,
                             method = c("Hampel", "IQR", "Top"),
                             parameter = 3,
                             window = NULL) {
@@ -175,7 +175,7 @@ examineOutliers <- function(x,
 # method.
 #' @export
 #' @rdname examine
-examineChangepoints <- function(x, moment = c("mean", "variance"),
+examine_changepoints <- function(x, moment = c("mean", "variance"),
                                 method = c("PELT", "AMOC", "BinSeg"),
                                 window = NULL,
                                 ...) {

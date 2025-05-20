@@ -9,8 +9,8 @@
 #' Methods to update a nodes or network object
 #'
 #' Methods to create a data frame from an object of class `nodes.goldfish`
-#' (see [defineNodes()]) or a matrix from an object of class
-#' `network.goldfish` (see [defineNetwork()]) with the attributes
+#' (see [make_nodes()]) or a matrix from an object of class
+#' `network.goldfish` (see [make_network()]) with the attributes
 #' or the network ties updated according with the events linked to the object
 #' using the [linkEvents()]) function.
 #' @param x an object of class `nodes.goldfish` for `as.data.frame()`
