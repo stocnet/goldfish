@@ -1,6 +1,9 @@
 # goldfish 1.6.13
 
 * Fixes problem when parallelizing code and using preprocess objects.
+* Add `lifecycle` and `cli` to imports.
+* Rename functions names to `snake_case` to comply with the tidyverse
+  style guide and `stocnet` interface.
 
 # goldfish 1.6.12
 

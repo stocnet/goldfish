@@ -41,7 +41,9 @@ Imports:
     generics,
     ggplot2,
     rlang,
-    tibble
+    tibble,
+    cli,
+    lifecycle
 LinkingTo:
     Rcpp,
     RcppArmadillo
