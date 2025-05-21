@@ -87,6 +87,10 @@ testAttr <- data.frame(
 )
 
 # Effect Functions  -------------------------------------------------
+effectFUN <- function (
+    network, sender, receiver, replace, cache, weighted = FALSE, isTwoMode = FALSE, 
+                       transformFun = identity) {}
+
 effectFUN_tie <- function(
     network,
     sender, receiver, replace,
@@ -134,7 +138,7 @@ effectFUN_indeg <- function(
   )
 }
 
-effectFUN_trans <- function(
+effectFUN_closure <- function(
     network,
     sender,
     receiver,
@@ -148,6 +152,7 @@ effectFUN_trans <- function(
     isTwoMode = isTwoMode, transformFun = transformFun
   )
 }
+
 
 effectFUN_tertius <- function(
     network,

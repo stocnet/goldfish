@@ -274,13 +274,8 @@ update_DyNAM_choice_tie <- function(
     replace <- sign(replace)
   }
   
-  checkMissingResult <- checkMissing(oldValue,replace)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
-  
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace ) {
     return(res)
   }
 
@@ -631,14 +626,9 @@ update_DyNAM_choice_recip <- function(
     oldValue <- sign(oldValue)
     replace <- sign(replace)
   }
-
-  checkMissingResult <- checkMissing(oldValue,replace)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
   
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace ) {
     return(res)
   }
 
@@ -685,6 +675,21 @@ update_DyNAM_choice_nodeTrans <- function(
 }
 
 # Closure effects --------------------------------------------------------------
+
+twopath_in_neigh <- function(network, sender, receiver) {
+  temp <- network[, sender]
+  temp[sender] <- 0 # don't consider the cases with i = k
+  inSender <- which(temp > 0)
+  return(inSender)
+}
+
+twopath_out_neigh <- function(network, sender, receiver) {
+  temp <- network[receiver, ]
+  temp[receiver] <- 0 # don't consider the cases with  k = j
+  outReceiver <- which(temp > 0)
+  return(outReceiver)
+}
+
 # trans -------------------------------------------------------------------
 #' init stat matrix transitivity using cache: Closure of two-paths (i->k->j)
 #'
@@ -717,11 +722,12 @@ update_DyNAM_choice_nodeTrans <- function(
 #' }
 #' init_DyNAM_choice.trans(effectFUN, network, NULL, 5, 5)
 #' }
-init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, ...) {
+init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, history = c('pooled','sequential','consecutive'), ...) {
   # Get arguments
   params <- formals(effectFun)
   isTwoMode <- eval(params[["isTwoMode"]])
   funApply <- eval(params[["transformFun"]])
+  history <- match.arg(history)
 
   if (isTwoMode) {
     stop(dQuote("trans"),
@@ -732,9 +738,13 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, ...) {
   }
 
   # has window or is empty initialize empty
-  if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
+  if ((!is.null(window) && !is.infinite(window)) || (all(network == 0)) || (history != 'pooled')) {
+    cache <- matrix(0, nrow = n1, ncol = n2)
+    if (history == "consecutive") {
+      attr(cache, "lastUpdate") <- c(0, 0, 0)
+    }
     return(list(
-      cache = matrix(0, nrow = n1, ncol = n2),
+      cache = cache,
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
     ))
   }
@@ -799,9 +809,12 @@ update_DyNAM_choice_trans <- function(
     receiver,
     replace, cache,
     isTwoMode = FALSE,
-    transformFun = identity) {
+    transformFun = identity,
+    history = c('pooled','sequential','consecutive'),
+    eventOrder) {
   # only relevant for one-mode networks
   res <- list(cache = cache, changes = NULL)
+  history <- match.arg(history)
   if (sender == receiver) {
     return(res)
   }
@@ -809,34 +822,29 @@ update_DyNAM_choice_trans <- function(
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
 
-  checkMissingResult <- checkMissing(oldValue,replace)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
-  
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace) {
     return(res)
   }
   
-  # get all in-neighbors of sender and out-neighbors of receiver
-  # consider i -> k -> j,
-  # when sender = k and receiver = j, constraint that k != j has been satisfied.
-  temp <- network[, sender]
-  # temp[c(sender, receiver)] <- 0 # don't consider the cases with i = k
-  temp[sender] <- 0 # don't consider the cases with i = k
-  inSender <- which(temp > 0)
-  # when sender = i and receiver = k, constraint that i != k has been satisfied.
-  temp <- network[receiver, ]
-  # temp[c(sender, receiver)] <- 0 # don't consider the cases with  k = j
-  temp[receiver] <- 0 # don't consider the cases with  k = j
-  outReceiver <- which(temp > 0)
-  ids <- rbind(
-    if (length(outReceiver) > 0) cbind(sender, outReceiver),
-    if (length(inSender) > 0) cbind(inSender, receiver)
-  )
-  # update cache
-  if (length(outReceiver) + length(inSender) > 0) {
+  if (history == 'pooled') {
+    ids <- update_DyNAM_choice_trans.pooled(network, sender, receiver, replace, oldValue, cache, 
+                                     isTwoMode, transformFun,
+                                     eventOrder, res)
+  }
+  else if (history == 'sequential') {
+    ids <- update_DyNAM_choice_trans.sequential(network, sender, receiver, replace, oldValue, cache, 
+                                            isTwoMode, transformFun,
+                                            eventOrder, res)
+  }
+  else {
+    updates <- update_DyNAM_choice_trans.consecutive(network, sender, receiver, replace, oldValue, cache, 
+                                            isTwoMode, transformFun,
+                                            eventOrder, res)
+    ids <- updates[[1]]
+    res$cache <- updates[[2]]
+  }
+  if (length(ids) > 0) {
     # changes in two-paths (i->k->j)
     replaceValues <- replace - oldValue + res$cache[cbind(ids[, 1], ids[, 2])]
     res$cache[cbind(ids[, 1], ids[, 2])] <- replaceValues
@@ -845,9 +853,100 @@ update_DyNAM_choice_trans <- function(
       node2 = ids[, 2],
       replace = forceAndCall(1, transformFun, replaceValues)
     )
+    if (!is.null(rownames(ids))) {
+      rownames(res$changes) <- rownames(ids)
+    }
   }
   return(res)
 }
+
+update_DyNAM_choice_trans.pooled <- function(
+    network,
+    sender,
+    receiver,
+    replace, oldValue, cache,
+    isTwoMode = FALSE,
+    transformFun = identity,
+    eventOrder,
+    res) {
+    
+  # get all in-neighbors of sender and out-neighbors of receiver
+  inSender <- twopath_in_neigh(network, sender, receiver)
+  outReceiver <- twopath_out_neigh(network, sender, receiver)
+  ids <- rbind(
+    if (length(outReceiver) > 0) cbind(sender, outReceiver),
+    if (length(inSender) > 0) cbind(inSender, receiver)
+  )
+  return(ids)
+}
+
+update_DyNAM_choice_trans.sequential <- function(
+    network,
+    sender,
+    receiver,
+    replace, oldValue, cache,
+    isTwoMode = FALSE,
+    transformFun = identity,
+    eventOrder,
+    res) {
+
+  inSender <- twopath_in_neigh(network, sender, receiver)
+  
+  # when sender = i and receiver = k, we only look for two paths to delete
+  if (replace < 1) {
+    # when sender = i and receiver = k, constraint that i != k has been satisfied.
+    temp <- network[receiver, ]
+    temp[receiver] <- 0 # don't consider the cases with  k = j
+    outReceiver <- which(temp > 0)
+  }
+  else {
+    outReceiver <- NULL
+  }
+  
+  ids <- rbind(
+    if (length(outReceiver) > 0) cbind(sender, outReceiver),
+    if (length(inSender) > 0) cbind(inSender, receiver)
+  )
+  return(ids)
+}
+
+update_DyNAM_choice_trans.consecutive <- function(
+    network,
+    sender,
+    receiver,
+    replace, oldValue, cache,
+    isTwoMode = FALSE,
+    transformFun = identity,
+    eventOrder,
+    res) {
+  
+  lastUpdate <- attr(cache,'lastUpdate')
+  lastSender <- lastUpdate[1]
+  lastReceiver <- lastUpdate[2]
+  lastEventOrder <- lastUpdate[3]
+  
+  # checks that preceding event was an update
+  if ((replace == 1) && (sender == lastReceiver) && (lastEventOrder == (eventOrder - 1))) {
+      inSender <- lastSender
+      names(inSender) <- paste("Actor",inSender)
+      attr(cache,'lastUpdate') <- c(sender, receiver, eventOrder)
+      outReceiver <- NULL
+  }
+  else if (replace < 1){
+      # get all in-neighbors of sender and out-neighbors of receiver
+      inSender <- twopath_in_neigh(network, sender, receiver)
+      outReceiver <- twopath_out_neigh(network, sender, receiver)
+  }
+  else {
+      inSender <- NULL
+      outReceiver <- NULL
+  }
+  ids <- rbind(
+    if (length(outReceiver) > 0) cbind(sender, outReceiver),
+    if (length(inSender) > 0) cbind(inSender, receiver)
+  )
+  return(list(ids,cache))
+  }
 
 # cycle ------------------------------------------------------------------------
 #' init stat matrix cyclying using cache: Closure of two-paths (j->k->i)
@@ -972,14 +1071,9 @@ update_DyNAM_choice_cycle <- function(
   # get old value, always weighted
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
-
-  checkMissingResult <- checkMissing(oldValue,replace)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
   
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace) {
     return(res)
   }
   
@@ -1055,30 +1149,23 @@ init_DyNAM_choice.commonReceiver <- function(
   isTwoMode <- eval(params[["isTwoMode"]])
   funApply <- eval(params[["transformFun"]])
 
-  if (n1 != n2) {
-    stop(
-      "'commonReceiver' effect requeries that the dependent network",
-      " is a one-mode network",
-      call. = FALSE
-    )
-  } else {
-    warning(
-      " (isTwoMode = TRUE) \n has conformable dimensions with the",
-      " dependent network, i.e.,\n the first mode nodes set is the same",
-      " as the nodes set of the one-mode dependet network.",
-      call. = FALSE, immediate. = TRUE
-    )
-  }
-
   if (isTwoMode) {
     warning(
       "Check that the 'commonReceiver' effect used in a two-mode network",
       " (isTwoMode = TRUE) \n has conformable dimensions with the",
       " dependent network, i.e.,\n the first mode nodes set is the same",
-      " as the nodes set of the one-mode dependet network.",
+      " as the nodes set of the one-mode dependent network.",
       call. = FALSE, immediate. = TRUE
     )
   }
+  
+  if (n1 != n2 || nrow(network) != n1) {
+    stop(
+      "Dimensions of the two-mode network are not conformable dimensions with the",
+      " dependent network.",
+      call. = FALSE, immediate. = TRUE
+    )
+  } 
 
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
@@ -1161,14 +1248,9 @@ update_DyNAM_choice_commonReceiver <- function(
   # get old value, always weighted
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
-
-  checkMissingResult <- checkMissing(oldValue,replace)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
   
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace) {
     return(res)
   }
   # get in-neighbors of receiver
@@ -1237,9 +1319,17 @@ init_DyNAM_choice.commonSender <- function(
   params <- formals(effectFun)
   isTwoMode <- eval(params[["isTwoMode"]])
   funApply <- eval(params[["transformFun"]])
-
-  n1 <- nrow(network)
-  n2 <- ncol(network)
+  
+  if (n1 != n2 || ncol(network) != n1) {
+    stop(
+      "Dimensions of the two-mode network are not conformable dimensions with the",
+      " dependent network",
+      call. = FALSE, immediate. = TRUE
+    )
+  }
+  
+  #n1 <- nrow(network)
+  #n2 <- ncol(network)
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
@@ -1324,14 +1414,9 @@ update_DyNAM_choice_commonSender <- function(
   # get old value, always weighted
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
-
-  checkMissingResult <- checkMissing(oldValue,replace)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
   
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace) {
     return(res)
   }
   
@@ -1533,13 +1618,9 @@ update_DyNAM_choice_mixedTrans <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    checkMissingResult <- checkMissing(oldValue,replace)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
     
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
     # receiver's outNeighbors in network2 create new two paths with sender
@@ -1561,13 +1642,9 @@ update_DyNAM_choice_mixedTrans <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    checkMissingResult <- checkMissing(oldValue,replace)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
     
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
     # sender's inNeighbors in network1 create new two paths with receiver
@@ -1763,13 +1840,9 @@ update_DyNAM_choice_mixedCycle <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    checkMissingResult <- checkMissing(oldValue,replace)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
     
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
     # receiver's outNeighbors in network2 create new two paths with sender
@@ -1791,13 +1864,9 @@ update_DyNAM_choice_mixedCycle <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    checkMissingResult <- checkMissing(oldValue,replace)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
-    
+
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
     # sender's inNeighbors in network1 create new two paths with receiver
@@ -1987,13 +2056,9 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    checkMissingResult <- checkMissing(oldValue,replace)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
     
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
     # receiver's inNeighbors in network2 create new two in star with sender
@@ -2018,13 +2083,9 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    checkMissingResult <- checkMissing(oldValue,replace)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
     
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
     # sender's inNeighbors in network1 create new two paths with receiver
@@ -2217,13 +2278,9 @@ update_DyNAM_choice_mixedCommonSender <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    checkMissingResult <- checkMissing(oldValue,replace)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
     
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
     # receiver's inNeighbors in network2 create new two in star with sender
@@ -2248,13 +2305,9 @@ update_DyNAM_choice_mixedCommonSender <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    checkMissingResult <- checkMissing(oldValue,replace)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
     
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
     # sender's inNeighbors in network1 create new two paths with receiver
@@ -2725,14 +2778,9 @@ update_DyNAM_choice_tertiusDiff <- function(
     # get old value, always weighted
     replace <- sign(replace)
     oldValue <- sign(network[sender, receiver])
-
-   checkMissingResult <- checkMissing(oldValue,replace)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
     
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
 
@@ -2766,16 +2814,8 @@ update_DyNAM_choice_tertiusDiff <- function(
     # Get old value
     oldValue <- attribute[node]
     
-    imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
-                          mean(attribute[-node], na.rm = TRUE), 0) 
-    
-    checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
-    
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
 
@@ -2884,17 +2924,9 @@ update_DyNAM_choice_alter <- function(
   res <- list(changes = NULL)
   # Get old value
   oldValue <- attribute[node]
-
-  imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
-                        mean(attribute[-node], na.rm = TRUE), 0) 
-  
-  checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
   
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace ) {
     return(res)
   }
 
@@ -2934,16 +2966,8 @@ update_DyNAM_choice_same <- function(
   # Get old value
   oldValue <- attribute[node]
   
-  imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
-                        mean(attribute[-node], na.rm = TRUE), 0) 
-  
-  checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
-  
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace) {
     return(res)
   }
 
@@ -3008,16 +3032,8 @@ update_DyNAM_choice_diff <- function(
   # Get old value
   oldValue <- attribute[node]
   
-  imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
-                        mean(attribute[-node], na.rm = TRUE), 0) 
-  
-  checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
-  
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace) {
     return(res)
   }
   
@@ -3113,16 +3129,8 @@ update_DyNAM_choice_egoAlterInt <- function(
     # Get old value
     oldValue <- attr1[node]
     
-    imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
-                          mean(attr1[-node], na.rm = TRUE), 0) 
-    
-    checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
-    
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
     
@@ -3137,16 +3145,8 @@ update_DyNAM_choice_egoAlterInt <- function(
     # Get old value
     oldValue <- attr2[node]
     
-    imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
-                          mean(attr2[-node], na.rm = TRUE), 0) 
-    
-    checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
-    
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
 
