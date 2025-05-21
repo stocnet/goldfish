@@ -195,7 +195,7 @@ print.summary.result.goldfish <- function(
 #                 class = c("nodes.goldfish", "data.frame")))
 print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
   events <- attr(x, "events")
-  dynamicAttr <- attr(x, "dynamicAttributes")
+  dynamicAttr <- attr(x, "dynamic_attributes")
   cat("Number of nodes:", nrow(x), "\n")
   if ("present" %in% names(x)) {
     cat("Number of present nodes:", sum(x$present), "\n")
@@ -219,7 +219,7 @@ print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
   }
 
   cat("\n")
-  attributes(x)[c("events", "dynamicAttributes")] <- NULL
+  attributes(x)[c("events", "dynamic_attributes")] <- NULL
   class(x) <- "data.frame"
   # x <- as.data.frame(x)
   if (full) {

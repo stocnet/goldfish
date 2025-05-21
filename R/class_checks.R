@@ -585,13 +585,13 @@ checkEvents.nodes.goldfish <- function(
     if (!(is.character(attribute) && length(attribute) == 1)) {
       stop("An attribute should be a character object.")
     }
-    if (is.null(attr(object, "dynamicAttributes")) ||
-      !(attribute %in% attr(object, "dynamicAttributes"))) {
+    if (is.null(attr(object, "dynamic_attributes")) ||
+      !(attribute %in% attr(object, "dynamic_attributes"))) {
       stop("The dynamic attributes for this nodeset were mispecified.")
     }
     if (!eventsName %in%
       attr(object, "events")[
-        which(attr(object, "dynamicAttributes") == attribute)
+        which(attr(object, "dynamic_attributes") == attribute)
       ]) {
       stop(
         "The events related to the dynamic attributes of this nodeset",
@@ -600,8 +600,8 @@ checkEvents.nodes.goldfish <- function(
     }
   } else if (!is.null(attr(object, "events")) &&
     eventsName %in% attr(object, "events")) {
-    if (is.null(attr(object, "dynamicAttributes")) ||
-      is.na(attr(object, "dynamicAttributes")[
+    if (is.null(attr(object, "dynamic_attributes")) ||
+      is.na(attr(object, "dynamic_attributes")[
         which(attr(object, "events") == eventsName)
       ])) {
       stop(
@@ -609,7 +609,7 @@ checkEvents.nodes.goldfish <- function(
         "were mispecified."
       )
     }
-    attribute <- attr(object, "dynamicAttributes")[
+    attribute <- attr(object, "dynamic_attributes")[
       which(attr(object, "events") == eventsName)
     ]
   }

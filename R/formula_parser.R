@@ -26,74 +26,54 @@
 #' )
 #' callNetwork <- structure(matrix(0, 3, 3), class = "network.goldfish")
 #'
-#' parseFormula(
+#' parse_formula(
 #'   calls ~ outdeg(callNetwork, type = "ego") +
 #'     indeg(callNetwork, type = "alter")
 #' )
 #' }
-parseFormula <- function(formula, envir = new.env()) {
-  # check left side
-  depName <- getDependentName(formula)
-  if (!inherits(get(depName, envir = envir), "dependent.goldfish")) {
+parse_formula <- function(formula, envir = new.env()) {
+  dep_name <- get_dependent_name(formula)
+  if (!inherits(get(dep_name, envir = envir), "dependent.goldfish")) {
     stop("The left hand side of the formula should contain dependent events",
       " (check the function defineDependentEvents).",
       call. = FALSE
     )
   }
-  # check right side
-  rhsNames <- getRHSNames(formula)
-  if (length(rhsNames) == 0) {
+  rhs_names <- get_rhs_names(formula)
+  if (length(rhs_names) == 0) {
     stop("A model without effects cannot be estimated.", call. = FALSE)
   }
-  # check right side: intercept
-  int <- parseIntercept(rhsNames)
-  rhsNames <- int[[1]]
-  hasIntercept <- int[[2]]
-  # check right side: default network
-  defaultNetworkName <- attr(get(depName, envir = envir), "defaultNetwork")
-  if (!is.null(defaultNetworkName)) {
-    noObjectIds <- which(1 == vapply(rhsNames, length, integer(1)))
-    for (i in noObjectIds) {
-      rhsNames[[i]][[2]] <- defaultNetworkName
+  int <- parse_intercept(rhs_names)
+  rhs_names <- int[[1]]
+  has_intercept <- int[[2]]
+  default_network_name <- attr(get(dep_name, envir = envir), "defaultNetwork")
+  if (!is.null(default_network_name)) {
+    no_object_ids <- which(1 == vapply(rhs_names, length, integer(1)))
+    for (i in no_object_ids) {
+      rhs_names[[i]][[2]] <- default_network_name
     }
   }
-  # check right side: all parameters
-  for (i in seq_along(rhsNames)) {
-    if ("binary" %in% names(rhsNames[[i]])) {
-      stop("The use of the binary parameter is no longer available,
-                 please use ignoreRep.", call. = FALSE)
-    }
-    if ("isBipartite" %in% names(rhsNames[[i]])) {
-      stop("The use of the isBipartite parameter is no longer available,
-           please use isTwoMode", call. = FALSE)
-    }
-  }
-  # check right side: windows
-  windowParameters <- lapply(rhsNames, getElement, "window")
-  rhsNames <- parseTimeWindows(rhsNames, envir = envir)
-  # check right side: ignoreRep parameter
-  mult <- parseMultipleEffects(rhsNames, envir = envir)
-  rhsNames <- mult[[1]]
-  ignoreRepParameter <- mult[[2]]
-  # check mismatch with default parameter
-  if (any(unlist(ignoreRepParameter)) && is.null(defaultNetworkName)) {
+  
+  window_parameters <- lapply(rhs_names, getElement, "window")
+  rhs_names <- parse_time_windows(rhs_names, envir = envir)
+  mult <- parse_multiple_effects(rhs_names, envir = envir)
+  rhs_names <- mult[[1]]
+  ignore_rep_parameter <- mult[[2]]
+  if (any(unlist(ignore_rep_parameter)) && is.null(default_network_name)) {
     stop("No default network defined, thus ", dQuote("ignoreRep = TRUE"),
       " effects cannot be used.",
       call. = FALSE
     )
   }
-  # check right side: weighted parameter
-  weightedParameter <- lapply(rhsNames, function(x) {
+  weighted_parameter <- lapply(rhs_names, function(x) {
     v <- getElement(x, "weighted")
     ifelse(!is.null(v) && substr(v, 1, 1) == "T", TRUE, FALSE)
   })
-  # check right side: type = c("ego", "alter")
-  typeParameter <- lapply(rhsNames, function(x) {
+  type_parameter <- lapply(rhs_names, function(x) {
     v <- getElement(x, "type")
     ifelse(!is.null(v), eval(parse(text = v), envir = envir), "")
   })
-  # check right side: transformFun & aggregateFun
-  getFunName <- function(x, which) {
+  get_fun_name <- function(x, which) {
     v <- getElement(x, which)
     v <- ifelse(!is.null(v), v, "")
     v <- gsub("['\" ]", "", v) # replace quotation marks
@@ -102,34 +82,29 @@ parseFormula <- function(formula, envir = new.env()) {
       "userDefined", v
     ) # if it is a function, it is replace by short text
   }
-  transParameter <- lapply(rhsNames, getFunName, "transformFun")
-  aggreParameter <- lapply(rhsNames, getFunName, "aggregateFun")
-
-  # DyNAM-i ONLY: check right side: joining parameter
-  joiningParameter <- lapply(rhsNames, function(x) {
+  trans_parameter <- lapply(rhs_names, get_fun_name, "transformFun")
+  aggre_parameter <- lapply(rhs_names, get_fun_name, "aggregateFun")
+  joining_parameter <- lapply(rhs_names, function(x) {
     v <- getElement(x, "joining")
     ifelse(!is.null(v), v, "")
   })
-  # DyNAM-i ONLY: check right side: subtype parameter
-  subTypeParameter <- lapply(rhsNames, function(x) {
+  sub_type_parameter <- lapply(rhs_names, function(x) {
     v <- getElement(x, "subType")
     ifelse(!is.null(v), v, "")
   })
-
-  # return all the results of the formula parsing
   res <- list(
-    rhsNames = rhsNames,
-    depName = depName,
-    hasIntercept = hasIntercept,
-    defaultNetworkName = defaultNetworkName,
-    windowParameters = windowParameters,
-    ignoreRepParameter = ignoreRepParameter,
-    weightedParameter = weightedParameter,
-    typeParameter = typeParameter,
-    transParameter = transParameter,
-    aggreParameter = aggreParameter,
-    joiningParameter = joiningParameter,
-    subTypeParameter = subTypeParameter
+    rhs_names = rhs_names,
+    dep_name = dep_name,
+    has_intercept = has_intercept,
+    default_network_name = default_network_name,
+    window_parameters = window_parameters,
+    ignore_rep_parameter = ignore_rep_parameter,
+    weighted_parameter = weighted_parameter,
+    type_parameter = type_parameter,
+    trans_parameter = trans_parameter,
+    aggre_parameter = aggre_parameter,
+    joining_parameter = joining_parameter,
+    sub_type_parameter = sub_type_parameter
   )
   return(res)
 }
@@ -142,127 +117,104 @@ parseFormula <- function(formula, envir = new.env()) {
 # returns: a list of the size of the new formula, with zeros when the effects
 #    are new, and with the
 #    the index of the effect in the old formula if the effect was already there
-compareFormulas <- function(
-    oldparsedformula, newparsedformula, model, subModel) {
+compare_formulas <- function(
+    old_parsed_formula, new_parsed_formula, model, sub_model) {
   # test dependent events and default network
-  if (oldparsedformula$depName != newparsedformula$depName) {
+  if (old_parsed_formula$dep_name != new_parsed_formula$dep_name) {
     stop(
       "The dependent events in the formula are not the ones used in",
       " the preprocessed object given in preprocessingInit."
     )
   }
   if (!identical(
-    oldparsedformula$defaultNetworkName,
-    newparsedformula$defaultNetworkName
+    old_parsed_formula$default_network_name,
+    new_parsed_formula$default_network_name
   )) {
     stop(
       "The default network in the formula is not the one used in",
       " the preprocessed object given in preprocessingInit."
     )
   }
-  # test the right-censoring
-  # for now it's easier to just reject inconsistent formulas, otherwise,
-  # we would need go in the details of the RC intervals and updates
-  oldhasIntercept <- oldparsedformula$hasIntercept
-  newhasIntercept <- newparsedformula$hasIntercept
-  if (model %in% "DyNAM" && subModel %in% c("choice", "choice_coordination") &&
-    oldhasIntercept) {
-    oldhasIntercept <- FALSE
-    newhasIntercept <- FALSE
+  old_has_intercept <- old_parsed_formula$has_intercept
+  new_has_intercept <- new_parsed_formula$has_intercept
+  if (model %in% "DyNAM" && sub_model %in% c("choice", "choice_coordination") &&
+    old_has_intercept) {
+    old_has_intercept <- FALSE
+    new_has_intercept <- FALSE
   }
-  if (oldhasIntercept && !newhasIntercept) {
+  if (old_has_intercept && !new_has_intercept) {
     stop(
       "The preprocessing for the object in preprocessingInit was not done",
       " with the right-censored intervals that this formula requires."
     )
   }
-  if (!oldhasIntercept && newhasIntercept) {
+  if (!old_has_intercept && new_has_intercept) {
     stop(
       "The preprocessing for the object in preprocessingInit was done",
       " with right-censored intervals and this formula does not include those."
     )
   }
-  # counters for remembering which of the old effects
-  # are found in the new formula
-  sizeold <- length(oldparsedformula$rhsNames)
-  sizenew <- length(newparsedformula$rhsNames)
-  effectsindexes <- rep(0, sizenew)
-  # go through all new effects to check whether they already existed
-  # in the old formula
-  for (i in seq.int(sizenew)) {
-    effectname <- newparsedformula$rhsNames[[i]][[1]]
-    effectobject <- newparsedformula$rhsNames[[i]][[2]]
-    effectwindow <- newparsedformula$windowParameters[[i]]
-    effectignorerep <- newparsedformula$ignoreRepParameter[[i]]
-    effectweighted <- newparsedformula$weightedParameter[[i]]
-    effectparameter <- newparsedformula$userSetParameter[[i]]
-    for (j in seq.int(sizeold)) {
-      # 1 check name of the effect
-      if (!identical(oldparsedformula$rhsNames[[j]][[1]], effectname)) {
+  size_old <- length(old_parsed_formula$rhs_names)
+  size_new <- length(new_parsed_formula$rhs_names)
+  effects_indexes <- rep(0, size_new)
+  for (i in seq.int(size_new)) {
+    effect_name <- new_parsed_formula$rhs_names[[i]][[1]]
+    effect_object <- new_parsed_formula$rhs_names[[i]][[2]]
+    effect_window <- new_parsed_formula$window_parameters[[i]]
+    effect_ignore_rep <- new_parsed_formula$ignore_rep_parameter[[i]]
+    effect_weighted <- new_parsed_formula$weighted_parameter[[i]]
+    effect_parameter <- new_parsed_formula$user_set_parameter[[i]]
+    for (j in seq.int(size_old)) {
+      if (!identical(old_parsed_formula$rhs_names[[j]][[1]], effect_name)) {
         next
       }
-      # 2 check object of the effect
-      if (!identical(oldparsedformula$rhsNames[[j]][[2]], effectobject)) {
+      if (!identical(old_parsed_formula$rhs_names[[j]][[2]], effect_object)) {
         next
       }
-      # 3 check windows
-      if (!identical(oldparsedformula$windowParameters[[j]], effectwindow)) {
+      if (!identical(old_parsed_formula$window_parameters[[j]], effect_window)) {
         next
       }
-      # 4 check other parameters
       if (!identical(
-        oldparsedformula$ignoreRepParameter[[j]], effectignorerep
+        old_parsed_formula$ignore_rep_parameter[[j]], effect_ignore_rep
       )) {
         next
       }
-      if (!identical(oldparsedformula$weightedParameter[[j]], effectweighted)) {
+      if (!identical(old_parsed_formula$weighted_parameter[[j]], effect_weighted)) {
         next
       }
-      if (!identical(oldparsedformula$userSetParameter[[j]], effectparameter)) {
+      if (!identical(old_parsed_formula$user_set_parameter[[j]], effect_parameter)) {
         next
       }
-      # else it is the same effect
-      effectsindexes[i] <- j
+      effects_indexes[i] <- j
     }
   }
-  return(effectsindexes)
+  return(effects_indexes)
 }
 
-
-# Creation of the different effects with the right parameters
-# in which the first empty parameters are replaced with
-# the ones found in effectInit
-# ignores parameters that are not used in the updates computation (parmsIgnore)
-createEffectsFunctions <- function(effectInit, model, subModel,
+create_effects_functions <- function(effect_init, model, sub_model,
                                    envir = environment()) {
-  # CHANGED ALVARO: adapted to model, subModel naming and additional functions
-  .statMethod <- paste("init", model, subModel, sep = "_")
-
+  .stat_method <- paste("init", model, sub_model, sep = "_")
   effects <- lapply(
-    effectInit, function(x, model, subModel) {
-      funText <- paste("update", model, subModel, x[[1]], sep = "_")
+    effect_init, function(x, model, sub_model) {
+      fun_text <- paste("update", model, sub_model, x[[1]], sep = "_")
       FUN <- tryCatch(
-        eval(parse(text = funText), envir = environment()),
+        eval(parse(text = fun_text), envir = environment()),
         error = function(e) NULL
       )
-      # FUN <- NULL
       if (is.null(FUN)) {
         tryCatch(
           {
             FUN <- eval(parse(text = x[[1]]), envir = envir)
           },
-          error = function(e) stop("Unknown effect ", x[[1]]) # ,
-          # finally = warning("Effect ")
+          error = function(e) stop("Unknown effect ", x[[1]])
         )
       }
-
-      # collect update functions for stat
-      .FUNStat <- utils::getS3method(.statMethod, x[[1]],
+      .FUN_stat <- utils::getS3method(.stat_method, x[[1]],
         optional = TRUE,
         envir = environment()
       )
-      if (is.null(.FUNStat)) {
-        .FUNStat <- utils::getS3method(.statMethod, "default",
+      if (is.null(.FUN_stat)) {
+        .FUN_stat <- utils::getS3method(.stat_method, "default",
           optional = TRUE,
           envir = envir
         )
@@ -271,40 +223,30 @@ createEffectsFunctions <- function(effectInit, model, subModel,
       # Update signatures of the effects based on default parameters
       # and above specified parameters
       .signature <- formals(FUN)
-      .argsNames <- names(.signature)
-      parmsToSet <- x[-1]
-
-      if (is.null(names(parmsToSet))) {
-        namedParams <- rep(FALSE, length(parmsToSet))
+      .args_names <- names(.signature)
+      parms_to_set <- x[-1]
+      if (is.null(names(parms_to_set))) {
+        named_params <- rep(FALSE, length(parms_to_set))
       } else {
-        namedParams <- unlist(lapply(
-          names(parmsToSet),
-          \(v) is.character(v) && v != ""
+        named_params <- unlist(lapply(
+          names(parms_to_set),
+          function(v) is.character(v) && v != ""
         ))
       }
-
-      # change parameter type from character to an expression
-      nameArg <- parmsToSet[[1]]
-      parmsToSet <- lapply(parmsToSet, \(s) call("eval", parse(text = s)))
-
-      # replace named and unnamed parameters
-      .argsReplace <- pmatch(names(parmsToSet), .argsNames)
-
-      names <- names(parmsToSet)[namedParams]
-      # replace named args in formals
-      .signature[na.omit(.argsReplace)] <- parmsToSet[!is.na(.argsReplace)]
-      isCondition <- isReservedElementName(.argsNames) &
-        !(.argsNames %in% names)
-      .signature[isCondition] <- parmsToSet[!namedParams]
-
-      # set isTwoMode parameter, checking if different
-      if ("network" %in% .argsNames && "isTwoMode" %in% .argsNames) {
-        # cat(x[[1]], is.null(parmsToSet[["isTwoMode"]]))
-        isTwoMode <- length(attr(
+      name_arg <- parms_to_set[[1]]
+      parms_to_set <- lapply(parms_to_set, function(s) call("eval", parse(text = s)))
+      .args_replace <- pmatch(names(parms_to_set), .args_names)
+      names_ <- names(parms_to_set)[named_params]
+      .signature[na.omit(.args_replace)] <- parms_to_set[!is.na(.args_replace)]
+      is_condition <- isReservedElementName(.args_names) &
+        !(.args_names %in% names_)
+      .signature[is_condition] <- parms_to_set[!named_params]
+      if ("network" %in% .args_names && "isTwoMode" %in% .args_names) {
+        is_two_mode <- length(attr(
           eval(.signature[["network"]], envir = envir), "nodes"
         )) > 1
-        if (!is.null(parmsToSet[["isTwoMode"]]) &&
-          eval(parmsToSet[["isTwoMode"]], envir = envir) != isTwoMode) {
+        if (!is.null(parms_to_set[["isTwoMode"]]) &&
+          eval(parms_to_set[["isTwoMode"]], envir = envir) != is_two_mode) {
           warning(
             "The \"isTwoMode\" parameter in effect ",
             x[[1]], " has a different value than",
@@ -312,8 +254,8 @@ createEffectsFunctions <- function(effectInit, model, subModel,
             x[[2]], "'",
             call. = FALSE, immediate. = TRUE
           )
-        } else if (isTwoMode && is.null(parmsToSet[["isTwoMode"]])) {
-          .signature[["isTwoMode"]] <- isTwoMode
+        } else if (is_two_mode && is.null(parms_to_set[["isTwoMode"]])) {
+          .signature[["isTwoMode"]] <- is_two_mode
           warning(
             "Setting 'isTwoMode' parameter in effect ", x[[1]],
             " to TRUE for network '", x[[2]], "'",
@@ -321,65 +263,33 @@ createEffectsFunctions <- function(effectInit, model, subModel,
           )
         }
       }
-      # if ("network2" %in% .argsNames && "isTwoMode" %in% .argsNames) {
-      #   isTwoMode <- length(attr(
-      #     eval(.signature[["network2"]], envir = envir), "nodes"
-      #   )) > 1
-      #   if (!is.null(parmsToSet[["isTwoMode"]]) &&
-      #   eval(parmsToSet[["isTwoMode"]]) != isTwoMode) {
-      #     warning(
-      #       "The 'isTwoMode' parameter in effect ", x[[1]],
-      #       " has a diferent value than the network argument",
-      #       .signature[["network2"]]
-      #     )
-      #   } else if (isTwoMode) .signature[["isTwoMode"]] <- isTwoMode
-      # }
-
-      # if(inherits(.signature, "matrix"))
-      #   .signature <- apply(.signature, 2, invisible)
-
-      # Assign signatures with default values to generic functions
       formals(FUN) <- .signature
-
-      return(list(effect = FUN, initEffect = .FUNStat))
+      return(list(effect = FUN, initEffect = .FUN_stat))
     },
-    model, subModel
+    model, sub_model
   )
-
-  # class(effects) <- "goldfish.formulae"
   structure(effects, class = "goldfish.formulae")
 }
 
-
-# create new events lists when a window should be applied
-createWindowedEvents <- function(objectEvents, window) {
-  # create dissolution events
-  # - for increment, add the opposite increment
-  # - for replace, replace by 0
-  dissolveEvents <- objectEvents
-  dissolveEvents$time <- dissolveEvents$time + window # always seconds
-  if ("increment" %in% names(objectEvents)) {
-    dissolveEvents$increment <- -dissolveEvents$increment
+create_windowed_events <- function(object_events, window) {
+  dissolve_events <- object_events
+  dissolve_events$time <- dissolve_events$time + window
+  if ("increment" %in% names(object_events)) {
+    dissolve_events$increment <- -dissolve_events$increment
   }
-  if ("replace" %in% names(objectEvents)) {
-    dissolveEvents$replace <- 0
+  if ("replace" %in% names(object_events)) {
+    dissolve_events$replace <- 0
   }
-
-  # merge initial and dissolution events, and sort them by time
-  newEvents <- rbind(objectEvents, dissolveEvents)
-  sort.order <- order(newEvents$time)
-  for (n in seq_along(names(newEvents))) {
-    name <- names(newEvents)[n]
-    newEvents[[name]] <- newEvents[[name]][sort.order]
+  new_events <- rbind(object_events, dissolve_events)
+  sort_order <- order(new_events$time)
+  for (n in seq_along(names(new_events))) {
+    name <- names(new_events)[n]
+    new_events[[name]] <- new_events[[name]][sort_order]
   }
-
-  return(newEvents)
+  return(new_events)
 }
 
-
-# inspired by the ergm package function parser
-extractFormulaTerms <- function(rhs) {
-  # most inner term reached
+extract_formula_terms <- function(rhs) {
   if (is.symbol(rhs)) {
     return(rhs)
   }
@@ -387,31 +297,25 @@ extractFormulaTerms <- function(rhs) {
     rhs[[1]] != "+" &&
     rhs[[1]] != "*") {
     return(rhs)
-    # return(list(rightHandSide[[1]], rightHandSide[[2]]))
   } else {
-    return(c(extractFormulaTerms(rhs[[2]]), rhs[[3]]))
+    return(c(extract_formula_terms(rhs[[2]]), rhs[[3]]))
   }
 }
 
-
-getDependentName <- function(formula) {
+get_dependent_name <- function(formula) {
   dep <- list(formula[[2]])
   unlist(lapply(dep, deparse))
 }
 
-
-getEventsAndObjectsLink <- function(
-    depName, rhsNames, nodes = NULL, nodes2 = NULL,
+get_events_and_objects_link <- function(
+    dep_name, rhs_names, nodes = NULL, nodes2 = NULL,
     envir = environment()) {
-  # Find objects (irrespective of where they occur)
-  objectNames <- getDataObjects(rhsNames)
-
-  # Find event lists of objects and link
+  object_names <- getDataObjects(rhs_names)
   events <- list()
-  events[[1]] <- get(depName, envir = envir)
-  names(events) <- depName
-  eventsObjectsLink <- data.frame(
-    events = depName,
+  events[[1]] <- get(dep_name, envir = envir)
+  names(events) <- dep_name
+  events_objects_link <- data.frame(
+    events = dep_name,
     name = NA,
     object = NA,
     nodeset = NA,
@@ -420,238 +324,197 @@ getEventsAndObjectsLink <- function(
 
   # replace dependent labels with ids
   events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2, envir = envir)
-  # if(is.character(events[[1]]$sender) && is.character(events[[1]]$receiver)) {
-  #   events[[1]]$sender <- match(events[[1]]$sender, get(nodes)$label)
-  #   events[[1]]$receiver <- match(events[[1]]$receiver, get(nodes2)$label)
-  # }
-
-  isAttribute <- is.na(objectNames$object)
-  # Link attributes to events
-  for (i in which(isAttribute)) {
-    nodeSet <- objectNames[i, ]$nodeset
-    attributeName <- objectNames[i, ]$attribute
-    dynamicAttributes <- attr(
-      get(objectNames[i, ]$nodeset, envir = envir),
-      "dynamicAttribute"
+  is_attribute <- is.na(object_names$object)
+  for (i in which(is_attribute)) {
+    node_set <- object_names[i, ]$nodeset
+    attribute_name <- object_names[i, ]$attribute
+    dynamic_attributes <- attr(
+      get(object_names[i, ]$nodeset, envir = envir),
+      "dynamic_attributes"
     )
-    eventListNames <- attr(
-      get(objectNames[i, ]$nodeset, envir = envir),
+    event_list_names <- attr(
+      get(object_names[i, ]$nodeset, envir = envir),
       "events"
     )
-    evName <- eventListNames[which(dynamicAttributes == attributeName)]
-
-    if (length(evName) > 0) {
-      eventsObjectsLink <- rbind(
-        eventsObjectsLink,
-        cbind(events = evName, objectNames[i, ])
+    ev_name <- event_list_names[which(dynamic_attributes == attribute_name)]
+    if (length(ev_name) > 0) {
+      events_objects_link <- rbind(
+        events_objects_link,
+        cbind(events = ev_name, object_names[i, ])
       )
       evs <- lapply(
-        evName,
+        ev_name,
         function(x) {
-          sanitizeEvents(get(x, envir = envir), nodeSet, envir = envir)
+          sanitizeEvents(get(x, envir = envir), node_set, envir = envir)
         }
       )
 
       events <- append(events, evs)
-      names(events)[(length(events) - length(evName) + 1):length(events)] <-
-        evName
+      names(events)[(length(events) - length(ev_name) + 1):length(events)] <-
+        ev_name
     }
   }
-  # Link networks to events
-  for (i in which(!isAttribute)) {
-    evNames <- attr(get(objectNames[i, ]$object, envir = envir), "events")
-    evs <- lapply(evNames, get, envir = envir)
-    nodesObject <- attr(get(objectNames[i, ]$object, envir = envir), "nodes")
-
-    if (length(nodesObject) > 1) {
-      nodes <- nodesObject[1]
-      nodes2 <- nodesObject[2]
+  for (i in which(!is_attribute)) {
+    ev_names <- attr(get(object_names[i, ]$object, envir = envir), "events")
+    evs <- lapply(ev_names, get, envir = envir)
+    nodes_object <- attr(get(object_names[i, ]$object, envir = envir), "nodes")
+    if (length(nodes_object) > 1) {
+      nodes <- nodes_object[1]
+      nodes2 <- nodes_object[2]
     } else {
-      nodes <- nodes2 <- nodesObject
+      nodes <- nodes2 <- nodes_object
     }
 
     # replace labels with ids
-    if (length(evNames) > 0) {
+    if (length(ev_names) > 0) {
       for (j in seq_along(evs)) {
         evs[[j]] <- sanitizeEvents(evs[[j]], nodes, nodes2, envir = envir)
       }
-      eventsObjectsLink <- rbind(
-        eventsObjectsLink,
-        cbind(events = evNames, objectNames[i, ], row.names = NULL)
+      events_objects_link <- rbind(
+        events_objects_link,
+        cbind(events = ev_names, object_names[i, ], row.names = NULL)
       )
       events <- append(events, evs)
       names(events)[(length(events) - length(evs) + 1):length(events)] <-
-        evNames
+        ev_names
     }
   }
 
   return(list(
     events,
-    eventsObjectsLink
+    events_objects_link
   ))
 }
 
-
-getEventsEffectsLink <- function(events, rhsNames, eventsObjectsLink) {
-  eventsEffectsLink <- matrix(
-    data = NA, nrow = length(events), ncol = length(rhsNames),
+get_events_effects_link <- function(events, rhs_names, events_objects_link) {
+  events_effects_link <- matrix(
+    data = NA, nrow = length(events), ncol = length(rhs_names),
     dimnames = list(
       names(events),
-      vapply(rhsNames, FUN = "[[", FUN.VALUE = character(1), i = 1)
+      vapply(rhs_names, FUN = "[[", FUN.VALUE = character(1), i = 1)
     )
   )
-  for (i in seq_along(rhsNames)) {
-    # objects of effect
-    obj <- getDataObjects(rhsNames[i])$name
-    # get events that relate to any of the objects
-    eventIds <- which(eventsObjectsLink$name %in% obj)
-    eventsEffectsLink[eventIds, i] <- 1
+  for (i in seq_along(rhs_names)) {
+    obj <- getDataObjects(rhs_names[i])$name
+    event_ids <- which(events_objects_link$name %in% obj)
+    events_effects_link[event_ids, i] <- 1
   }
-
-  eventsEffectsLink
+  events_effects_link
 }
 
-
-getObjectsEffectsLink <- function(rhsNames) {
-  objNames <- getDataObjects(rhsNames)$name
-  effNames <- vapply(rhsNames, FUN = "[[", FUN.VALUE = character(1), i = 1)
-  objectsEffectsLink <- matrix(
-    data = NA, nrow = length(objNames), ncol = length(effNames),
-    dimnames = list(objNames, effNames)
+get_objects_effects_link <- function(rhs_names) {
+  obj_names <- getDataObjects(rhs_names)$name
+  eff_names <- vapply(rhs_names, FUN = "[[", FUN.VALUE = character(1), i = 1)
+  objects_effects_link <- matrix(
+    data = NA, nrow = length(obj_names), ncol = length(eff_names),
+    dimnames = list(obj_names, eff_names)
   )
-  objAsParams <- lapply(rhsNames, function(x) getDataObjects(list(x)))
-  for (i in seq_along(objAsParams)) {
-    names <- objAsParams[[i]]$name
-    objectsEffectsLink[names, i] <- seq_along(names)
+  obj_as_params <- lapply(rhs_names, function(x) getDataObjects(list(x)))
+  for (i in seq_along(obj_as_params)) {
+    names_ <- obj_as_params[[i]]$name
+    objects_effects_link[names_, i] <- seq_along(names_)
   }
-  objectsEffectsLink
+  objects_effects_link
 }
 
-
-getRHSNames <- function(formula) {
-  rhs <- extractFormulaTerms(formula[[3]])
-  # embed single parameter models in list
+get_rhs_names <- function(formula) {
+  rhs <- extract_formula_terms(formula[[3]])
   if (!is.list(rhs)) rhs <- list(rhs)
-  rhsNames <- lapply(rhs, function(term) lapply(term, deparse))
+  rhs_names <- lapply(rhs, function(term) lapply(term, deparse))
 }
 
-
-parseIntercept <- function(rhsNames) {
+parse_intercept <- function(rhs_names) {
   intercept <- FALSE
   v <- NA
   tryCatch(
-    v <- as.numeric(rhsNames[[1]][[1]]),
+    v <- as.numeric(rhs_names[[1]][[1]]),
     warning = function(x) {
     }
   )
   if (!is.na(v) && v == 1) {
     intercept <- TRUE
-    rhsNames <- rhsNames[-1]
+    rhs_names <- rhs_names[-1]
   }
-
-  return(list(rhsNames, intercept))
+  return(list(rhs_names, intercept))
 }
 
-
-# Figures out which effect is a multiple effect
-# then finds a network object from the other parameters that this is related to
-# unless a network name is passed to the multiple attribute
-parseMultipleEffects <- function(
-    rhsNames, default = FALSE, envir = environment()) {
+parse_multiple_effects <- function(
+    rhs_names, default = FALSE, envir = environment()) {
   multiple <- list()
-  multipleNames <- character(0)
-  for (i in seq_along(rhsNames)) {
+  multiple_names <- character(0)
+  for (i in seq_along(rhs_names)) {
     name <- ""
-    id <- which(names(rhsNames[[i]]) == "ignoreRep")
-    multipleParam <- ifelse(length(id) == 1, rhsNames[[i]][[id]], default)
-
-    if (multipleParam %in% c("T", "F", "TRUE", "FALSE")) {
-      multipleParam <- as.logical(multipleParam)
+    id <- which(names(rhs_names[[i]]) == "ignoreRep")
+    multiple_param <- ifelse(length(id) == 1, rhs_names[[i]][[id]], default)
+    if (multiple_param %in% c("T", "F", "TRUE", "FALSE")) {
+      multiple_param <- as.logical(multiple_param)
     }
-    if (!multipleParam) {
-      table <- getDataObjects(rhsNames[i])
-      netIds <- vapply(getElementFromDataObjectTable(table, envir = envir),
+    if (!multiple_param) {
+      table <- getDataObjects(rhs_names[i])
+      net_ids <- vapply(getElementFromDataObjectTable(table, envir = envir),
         FUN = inherits,
         FUN.VALUE = logical(1),
         what = "network.goldfish"
       )
-      name <- table[netIds, "name"][1] # take first network
-      # apply(getDataObjects(rhsNames)
-      # netIds <- sapply(, function(x) "network.goldfish" %in% class(get(x)))
-      # # get the first network item
-      # name <- getDataObjects(rhsNames)$object[netIds][[1]]
+      name <- table[net_ids, "name"][1]
     }
-    if (is.character(multipleParam)) {
-      name <- multipleParam
-      multipleParam <- FALSE
+    if (is.character(multiple_param)) {
+      name <- multiple_param
+      multiple_param <- FALSE
     }
-
     if (!is.na(name) && name != "" && !exists(name, envir = envir)) {
       stop("Unknown object in 'ignoreRep' parameter: ", name, call. = FALSE)
     }
-
-    multiple <- append(multiple, multipleParam)
-    multipleNames <- c(multipleNames, name)
-    rhsNames[[i]] <- if (length(id) > 0) rhsNames[[i]][-id] else rhsNames[[i]]
+    multiple <- append(multiple, multiple_param)
+    multiple_names <- c(multiple_names, name)
+    rhs_names[[i]] <- if (length(id) > 0) rhs_names[[i]][-id] else rhs_names[[i]]
   }
-  names(multiple) <- multipleNames
-  return(list(rhsNames, multiple))
+  names(multiple) <- multiple_names
+  return(list(rhs_names, multiple))
 }
 
-
-# Identify time windows objects, create new events and objects, link updates and
-# finally update rhs (and thus effectInit) accordingly
-parseTimeWindows <- function(rhsNames, envir = new.env()) {
-  objectNames <- getDataObjects(rhsNames)
-
-  hasWindows <- which(
-    vapply(rhsNames, function(x) !is.null(getElement(x, "window")), logical(1))
+parse_time_windows <- function(rhs_names, envir = new.env()) {
+  object_names <- getDataObjects(rhs_names)
+  has_windows <- which(
+    vapply(rhs_names, function(x) !is.null(getElement(x, "window")), logical(1))
   )
-
-  for (i in hasWindows) {
-    windowName <- rhsNames[[i]]$window
+  for (i in has_windows) {
+    window_name <- rhs_names[[i]]$window
     window <- tryCatch(
-      eval(parse(text = windowName), envir = envir),
+      eval(parse(text = window_name), envir = envir),
       error = function(e) {
         e$message <- paste(
           "Invalid window parameter for effect ",
-          rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
+          rhs_names[[i]][[1]], " ", rhs_names[[i]][[2]],
           ":\n", e$message
         )
         stop(e)
       }
     )
-
-    # # in the case windows is provided as an object name,
-    # it should start with alphabetic character
-    isValidName <- grepl("^[[:alpha:]][[:alnum:]_.]+$", windowName)
-
-    # support for lubridate object classes for date operations
+    is_valid_name <- grepl("^[[:alpha:]][[:alnum:]_.]+$", window_name)
     if (inherits(window, c("Period", "Duration")) &&
       "lubridate" %in% attr(attr(window, "class"), "package")) {
-      if (!isValidName) {
-        windowName <- gsub("\\s", "", as.character(window))
+      if (!is_valid_name) {
+        window_name <- gsub("\\s", "", as.character(window))
         if (inherits(window, "Duration")) {
-          windowName <- gsub(
+          window_name <- gsub(
             "^(\\d+s)\\s*(\\(.+\\))$", "\\1",
             as.character(window)
           )
         }
       }
     } else if (inherits(window, "character")) {
-      if (!isValidName) windowName <- gsub(" ", "", window)
-
+      if (!is_valid_name) window_name <- gsub(" ", "", window)
       if (!is.numeric(window) &&
         !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
         stop(
-          "The window effect specified with the effect ", rhsNames[[i]][[1]],
-          " ", rhsNames[[i]][[2]], " is not in the form 'number unit'\n",
+          "The window effect specified with the effect ", rhs_names[[i]][[1]],
+          " ", rhs_names[[i]][[2]], " is not in the form 'number unit'\n",
           " or the number is not an integer number\n",
           " or the unit is not between the accepted options:\n\t",
           "seconds, minutes, hours, weeks, months, years"
         )
       }
-
       if (grepl("sec", window)) {
         window <- as.numeric(strsplit(window, " ")[[1]][1]) * 1
       }
@@ -678,88 +541,57 @@ parseTimeWindows <- function(rhsNames, envir = new.env()) {
       if (window < 0) {
         stop(
           "The window specified with the effect ",
-          rhsNames[[i]][[1]], " ", rhsNames[[i]][[2]],
+          rhs_names[[i]][[1]], " ", rhs_names[[i]][[2]],
           " is not a positive numeric value"
         )
       }
     }
-
-
-
-    # get initial object, check whether it's an attribute or a network
-    name <- rhsNames[[i]][[2]]
-    objects <- objectNames[objectNames$name == name, ]
-    isAttribute <- !is.na(objects$attribute)
-
-    # add new RHS term for the windowed element
-    # newRhs <- list()
-    # newRhs[[1]] <- rhsNames[[i]][[1]]
-    # newRhs[[2]] <- paste(rhsNames[[i]][[2]], window, sep="_")
-    # rhsNames[[length(rhsNames)+1]] <- newRhs
-    rhsNames[[i]][[2]] <- paste(rhsNames[[i]][[2]],
-      windowName,
+    name <- rhs_names[[i]][[2]]
+    objects <- object_names[object_names$name == name, ]
+    is_attribute <- !is.na(objects$attribute)
+    rhs_names[[i]][[2]] <- paste(rhs_names[[i]][[2]],
+      window_name,
       sep = "_"
     )
-
-
-    if (isAttribute) {
-      # get nodes & attribute, add new windowed attribute,
-      # get related events to be windowed later
-      nameNodes <- objects$nodeset
-      nodes <- get(nameNodes, envir = envir)
+    if (is_attribute) {
+      name_nodes <- objects$nodeset
+      nodes <- get(name_nodes, envir = envir)
       attribute <- objects$attribute
-
-      newAttribute <- paste(attribute, windowName, sep = "_")
-      nodes[newAttribute] <- nodes[attribute]
-
-      allEvents <- attr(nodes, "events")
-      allDynamicAttributes <- attr(nodes, "dynamicAttributes")
-      allEvents <- allEvents[allDynamicAttributes == attribute]
+      new_attribute <- paste(attribute, window_name, sep = "_")
+      nodes[new_attribute] <- nodes[attribute]
+      all_events <- attr(nodes, "events")
+      all_dynamic_attributes <- attr(nodes, "dynamicAttributes")
+      all_events <- all_events[all_dynamic_attributes == attribute]
     } else {
-      # get network, create windowed network, get related events
-      # to be windowed later
       network <- get(name, envir = envir)
-
-      newNetwork <- matrix(0, nrow = nrow(network), ncol = ncol(network))
-      newName <- paste(name, windowName, sep = "_")
-      attr(newNetwork, "events") <- NULL
-
-      # add attribute
-      attr(newNetwork, "nodes") <- attr(network, "nodes")
-      attr(newNetwork, "directed") <- attr(network, "directed")
-      dimnames(newNetwork) <- dimnames(network)
-      class(newNetwork) <- class(network)
-
-      allEvents <- attr(network, "events")
+      new_network <- matrix(0, nrow = nrow(network), ncol = ncol(network))
+      new_name <- paste(name, window_name, sep = "_")
+      attr(new_network, "events") <- NULL
+      attr(new_network, "nodes") <- attr(network, "nodes")
+      attr(new_network, "directed") <- attr(network, "directed")
+      dimnames(new_network) <- dimnames(network)
+      class(new_network) <- class(network)
+      all_events <- attr(network, "events")
     }
-
-    # create new windowed events lists, link them, add them to the environment
-    for (events in allEvents) {
-      objectEvents <- get(events, envir = envir)
-      newEvents <- createWindowedEvents(objectEvents, window)
-      nameNewEvents <- paste(events, window, sep = "_")
-
-      if (isAttribute) {
-        attr(nodes, "events") <- c(attr(nodes, "events"), nameNewEvents)
-        attr(nodes, "dynamicAttributes") <-
-          c(attr(nodes, "dynamicAttributes"), newAttribute)
+    for (events in all_events) {
+      object_events <- get(events, envir = envir)
+      new_events <- create_windowed_events(object_events, window)
+      name_new_events <- paste(events, window, sep = "_")
+      if (is_attribute) {
+        attr(nodes, "events") <- c(attr(nodes, "events"), name_new_events)
+        attr(nodes, "dynamic_attributes") <-
+          c(attr(nodes, "dynamic_attributes"), new_attribute)
       } else {
-        attr(newNetwork, "events") <-
-          c(attr(newNetwork, "events"), nameNewEvents)
+        attr(new_network, "events") <-
+          c(attr(new_network, "events"), name_new_events)
       }
-
-      assign(nameNewEvents, newEvents, envir = envir)
+      assign(name_new_events, new_events, envir = envir)
     }
-
-    # Put nodes/networks elements back in the environments
-    if (isAttribute) {
-      assign(nameNodes, nodes, envir = envir)
+    if (is_attribute) {
+      assign(name_nodes, nodes, envir = envir)
     } else {
-      assign(newName, newNetwork, envir = envir)
+      assign(new_name, new_network, envir = envir)
     }
-
-    # not sure about this: should we remove the window parts from the rhs names?
-    # rhsNames[[i]]$window <- NULL
   }
-  return(rhsNames)
+  return(rhs_names)
 }

@@ -58,7 +58,7 @@ NULL
 as.data.frame.nodes.goldfish <- function(x, ..., time = -Inf,
     startTime = -Inf, envir = new.env()) {
   df <- x
-  dynamicAttributes <- attr(df, "dynamicAttribute")
+  dynamic_attributes <- attr(df, "dynamic_attributes")
   eventNames <- attr(df, "events")
   if (is.character(time)) time <- as.POSIXct(time)
   time <- as.numeric(time)
@@ -72,12 +72,12 @@ as.data.frame.nodes.goldfish <- function(x, ..., time = -Inf,
     events <- events[events$time >= startTime & events$time < time, ]
 
     if (nrow(events) > 0 && !is.null(events$replace)) {
-      df[[dynamicAttributes[i]]][events$node] <- events$replace
+      df[[dynamic_attributes[i]]][events$node] <- events$replace
     }
     if (nrow(events) > 0 && !is.null(events$increment)) {
       for (k in seq_len(nrow(events))) {
-        oldValue <- df[[dynamicAttributes[i]]][events[k, ]$node]
-        df[[dynamicAttributes[i]]][events[k, ]$node] <-
+        oldValue <- df[[dynamic_attributes[i]]][events[k, ]$node]
+        df[[dynamic_attributes[i]]][events[k, ]$node] <-
           oldValue + events[k, ]$increment
       }
     }
