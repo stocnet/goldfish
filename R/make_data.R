@@ -843,8 +843,7 @@ linkEvents.nodes.goldfish <- function(x, changeEvents, attribute, ...) {
   # check input types
   if (!(is.character(attribute) && length(attribute) == 1)) {
     stop(
-      "Invalid argument attributes:",
-      " this function expects a character attribute value."
+      "The 'attribute' argument must be a character vector of length one."
     )
   }
 

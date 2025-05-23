@@ -2,8 +2,8 @@
 
 S3method(as.data.frame,nodes.goldfish)
 S3method(as.matrix,network.goldfish)
-S3method(checkEvents,network.goldfish)
-S3method(checkEvents,nodes.goldfish)
+S3method(check_events,network.goldfish)
+S3method(check_events,nodes.goldfish)
 S3method(coef,result.goldfish)
 S3method(estimate,formula)
 S3method(glance,result.goldfish)
