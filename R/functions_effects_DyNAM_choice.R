@@ -676,20 +676,190 @@ update_DyNAM_choice_nodeTrans <- function(
 
 # Closure effects --------------------------------------------------------------
 
-twopath_in_neigh <- function(network, sender, receiver) {
+#' get in-neighbors of sender
+#'
+#' @param network square matrix. Positive values indicate ties
+#' @param sender integer. Sanitized index of the sender
+#' @param receiver integer. Sanitized index of the receiver
+#'
+#' @returns integer vector. Indices of the in-neighbors of sender
+#' @noRd
+#'
+#' @examples get_two_path_in_neigh(networkState, 1, 2)
+get_two_path_in_neigh <- function(network, sender, receiver) {
   temp <- network[, sender]
   temp[sender] <- 0 # don't consider the cases with i = k
   inSender <- which(temp > 0)
   return(inSender)
 }
 
-twopath_out_neigh <- function(network, sender, receiver) {
+#' get out-neighbors of receiver
+#'
+#' @param network square matrix. Positive values indicate ties
+#' @param sender integer. Sanitized index of the sender
+#' @param receiver integer. Sanitized index of the receiver
+#'
+#' @returns integer vector. Indices of the out-neighbors of receiver
+#' @noRd
+#'
+#' @examples get_two_path_out_neigh(networkState, 1, 2)
+get_two_path_out_neigh <- function(network, sender, receiver) {
   temp <- network[receiver, ]
   temp[receiver] <- 0 # don't consider the cases with  k = j
   outReceiver <- which(temp > 0)
   return(outReceiver)
 }
 
+#' compute ids of nodes to update the number of two-paths
+#' 
+#' The pooled version doesn't consider the sequence in which the two-path is
+#' created. The two-path considered is `source` -> `broker` -> `sink`.
+#'
+#' @param network square matrix. Positive values indicate ties
+#' @param sender integer. Sanitized index of the sender
+#' @param receiver integer. Sanitized index of the receiver
+#' @param replace numeric. New value of the tie between sender and receiver
+#' @param cache square matrix. Number of two-paths between nodes.
+#' @param eventOrder integer vector. Last event updated in
+#'   the network argument
+#'
+#' @returns integer array. Each row contains the source and sink of the two-path
+#'   to be updated.
+#' @noRd
+#'
+#' @examples
+#'   compute_update_two_path_pooled(
+#'     networkState, 1, 2, 1,
+#'     cache = networkState %*% networkState,
+#'     eventOrder = c(sender = 0, receiver = 0, eventOrder = 0)
+#'   )
+compute_update_two_path_pooled <- function(
+    network,
+    sender,
+    receiver,
+    replace,
+    cache,
+    eventOrder
+) {
+  
+  # get all in-neighbors of sender and out-neighbors of receiver
+  inSender <- get_two_path_in_neigh(network, sender, receiver)
+  outReceiver <- get_two_path_out_neigh(network, sender, receiver)
+  ids <- rbind(
+    if (length(outReceiver) > 0) cbind(sender, outReceiver),
+    if (length(inSender) > 0) cbind(inSender, receiver)
+  )
+  colnames(ids) <- c("source", "sink")
+  return(ids)
+}
+
+#' compute ids of nodes to update the number of two-paths
+#' 
+#' The sequential version considers the sequence in which the two-path is
+#' created. The two-path considered is `source` -> `broker` -> `sink`.
+#'
+#' @param network square matrix. Positive values indicate ties
+#' @param sender integer. Sanitized index of the sender
+#' @param receiver integer. Sanitized index of the receiver
+#' @param replace numeric. New value of the tie between sender and receiver
+#' @param cache square matrix. Number of two-paths between nodes.
+#' @param eventOrder integer vector. Last event updated in
+#'  the network argument
+#'
+#' @returns integer array. Each row contains the source and sink of the two-path
+#' @noRd
+#'
+#' @examples
+#'  compute_update_two_path_sequential(
+#'    networkState, 1, 2, 1,
+#'    cache = networkState %*% networkState,
+#'    eventOrder = c(sender = 0, receiver = 0, eventOrder = 0)
+#'  )
+compute_update_two_path_sequential <- function(
+    network,
+    sender,
+    receiver,
+    replace, 
+    cache,
+    eventOrder
+) {
+  
+  inSender <- get_two_path_in_neigh(network, sender, receiver)
+  
+  # when sender = i and receiver = k, we only look for two paths to delete
+  if (replace < 1) {
+    # when sender = i and receiver = k, constraint i != k is satisfied.
+    outReceiver <- get_two_path_out_neigh(network, sender, receiver)
+  } else {
+    outReceiver <- NULL
+  }
+  
+  ids <- rbind(
+    if (length(outReceiver) > 0) cbind(sender, outReceiver),
+    if (length(inSender) > 0) cbind(inSender, receiver)
+  )
+  colnames(ids) <- c("source", "sink")
+  return(ids)
+}
+
+#' compute ids of nodes to update the number of two-paths
+#' 
+#' The consecutive version force an strict sequence in which the two-path is
+#' created. The two-path considered is `source` -> `broker` -> `sink`.
+#'
+#' @param network square matrix. Positive values indicate ties
+#' @param sender integer. Sanitized index of the sender
+#' @param receiver integer. Sanitized index of the receiver
+#' @param replace numeric. New value of the tie between sender and receiver
+#' @param cache square matrix. Number of two-paths between nodes.
+#' @param eventOrder integer vector. Last event updated in
+#'  the network argument
+#'
+#' @returns integer array. Each row contains the source and sink of the two-path
+#' @noRd
+#'
+#' @examples
+#' compute_update_two_path_consecutive(
+#'  networkState, 1, 2, 1,
+#'  cache = networkState %*% networkState,
+#'  eventOrder = c(sender = 0, receiver = 0, eventOrder = 0)
+#' )
+compute_update_two_path_consecutive <- function(
+    network,
+    sender,
+    receiver,
+    replace,
+    cache,
+    eventOrder
+) {
+  
+  lastUpdate <- attr(cache, 'lastUpdate')
+  lastSender <- lastUpdate["sender"]
+  lastReceiver <- lastUpdate["receiver"]
+  lastEventOrder <- lastUpdate["eventOrder"]
+  
+  # checks that preceding event was an update
+  if ((replace == 1) && (sender == lastReceiver) &&
+      (lastEventOrder == (eventOrder - 1L))) {
+    inSender <- lastSender
+    attr(cache, 'lastUpdate') <-
+      c(sender = sender, receiver = receiver, eventOrder = eventOrder)
+    outReceiver <- NULL
+  } else if (replace < 1){
+    # get all in-neighbors of sender and out-neighbors of receiver
+    inSender <- get_two_path_in_neigh(network, sender, receiver)
+    outReceiver <- get_two_path_out_neigh(network, sender, receiver)
+  } else {
+    inSender <- NULL
+    outReceiver <- NULL
+  }
+  ids <- rbind(
+    if (length(outReceiver) > 0) cbind(sender, outReceiver),
+    if (length(inSender) > 0) cbind(inSender, receiver)
+  )
+  colnames(ids) <- c("source", "sink")
+  return(list(ids = ids, cache = cache))
+}
 # trans -------------------------------------------------------------------
 #' init stat matrix transitivity using cache: Closure of two-paths (i->k->j)
 #'
@@ -722,12 +892,14 @@ twopath_out_neigh <- function(network, sender, receiver) {
 #' }
 #' init_DyNAM_choice.trans(effectFUN, network, NULL, 5, 5)
 #' }
-init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, history = c('pooled','sequential','consecutive'), ...) {
+init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
   isTwoMode <- eval(params[["isTwoMode"]])
   funApply <- eval(params[["transformFun"]])
-  history <- match.arg(history)
+  history <- match.arg(
+    eval(params[["history"]]), c('pooled','sequential','consecutive')
+  )
 
   if (isTwoMode) {
     stop(dQuote("trans"),
@@ -738,10 +910,11 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, history 
   }
 
   # has window or is empty initialize empty
-  if ((!is.null(window) && !is.infinite(window)) || (all(network == 0)) || (history != 'pooled')) {
+  if ((!is.null(window) && !is.infinite(window)) ||
+      (all(network == 0)) || (history != 'pooled')) {
     cache <- matrix(0, nrow = n1, ncol = n2)
     if (history == "consecutive") {
-      attr(cache, "lastUpdate") <- c(0, 0, 0)
+      attr(cache, "lastUpdate") <- c(sender = 0, receiver = 0, eventOrder = 0)
     }
     return(list(
       cache = cache,
@@ -812,13 +985,13 @@ update_DyNAM_choice_trans <- function(
     transformFun = identity,
     history = c('pooled','sequential','consecutive'),
     eventOrder) {
+  history <- match.arg(history)
   # only relevant for one-mode networks
   res <- list(cache = cache, changes = NULL)
-  history <- match.arg(history)
   if (sender == receiver) {
     return(res)
   }
-  # get old value, always weighted
+  # get old value, always unweighted
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
 
@@ -827,126 +1000,39 @@ update_DyNAM_choice_trans <- function(
     return(res)
   }
   
-  if (history == 'pooled') {
-    ids <- update_DyNAM_choice_trans.pooled(network, sender, receiver, replace, oldValue, cache, 
-                                     isTwoMode, transformFun,
-                                     eventOrder, res)
+  compute_history <- paste0("compute_update_two_path_", history)
+  
+  ids <- do.call(
+    what = compute_history,
+    args = list(
+      network = network, sender = sender, receiver = receiver,
+      replace = replace,
+      cache = cache,
+      eventOrder = eventOrder
+    )
+  )
+  
+  if (history == "sequential") {
+    cache <- ids[["cache"]]
+    ids <- ids[["ids"]]
   }
-  else if (history == 'sequential') {
-    ids <- update_DyNAM_choice_trans.sequential(network, sender, receiver, replace, oldValue, cache, 
-                                            isTwoMode, transformFun,
-                                            eventOrder, res)
-  }
-  else {
-    updates <- update_DyNAM_choice_trans.consecutive(network, sender, receiver, replace, oldValue, cache, 
-                                            isTwoMode, transformFun,
-                                            eventOrder, res)
-    ids <- updates[[1]]
-    res$cache <- updates[[2]]
-  }
+
   if (length(ids) > 0) {
-    # changes in two-paths (i->k->j)
-    replaceValues <- replace - oldValue + res$cache[cbind(ids[, 1], ids[, 2])]
-    res$cache[cbind(ids[, 1], ids[, 2])] <- replaceValues
+    # changes in two-paths (i->k->j): (source->broker->sink)
+    replaceValues <- replace - oldValue +
+      res$cache[cbind(ids[, "source"], ids[, "sink"])]
+    res$cache[cbind(ids[, "source"], ids[, "sink"])] <- replaceValues
     res$changes <- cbind(
-      node1 = ids[, 1],
-      node2 = ids[, 2],
+      node1 = ids[, "source"],
+      node2 = ids[, "sink"],
       replace = forceAndCall(1, transformFun, replaceValues)
     )
-    if (!is.null(rownames(ids))) {
-      rownames(res$changes) <- rownames(ids)
-    }
+    # if (!is.null(rownames(ids))) {
+    #   rownames(res$changes) <- rownames(ids)
+    # }
   }
   return(res)
 }
-
-update_DyNAM_choice_trans.pooled <- function(
-    network,
-    sender,
-    receiver,
-    replace, oldValue, cache,
-    isTwoMode = FALSE,
-    transformFun = identity,
-    eventOrder,
-    res) {
-    
-  # get all in-neighbors of sender and out-neighbors of receiver
-  inSender <- twopath_in_neigh(network, sender, receiver)
-  outReceiver <- twopath_out_neigh(network, sender, receiver)
-  ids <- rbind(
-    if (length(outReceiver) > 0) cbind(sender, outReceiver),
-    if (length(inSender) > 0) cbind(inSender, receiver)
-  )
-  return(ids)
-}
-
-update_DyNAM_choice_trans.sequential <- function(
-    network,
-    sender,
-    receiver,
-    replace, oldValue, cache,
-    isTwoMode = FALSE,
-    transformFun = identity,
-    eventOrder,
-    res) {
-
-  inSender <- twopath_in_neigh(network, sender, receiver)
-  
-  # when sender = i and receiver = k, we only look for two paths to delete
-  if (replace < 1) {
-    # when sender = i and receiver = k, constraint that i != k has been satisfied.
-    temp <- network[receiver, ]
-    temp[receiver] <- 0 # don't consider the cases with  k = j
-    outReceiver <- which(temp > 0)
-  }
-  else {
-    outReceiver <- NULL
-  }
-  
-  ids <- rbind(
-    if (length(outReceiver) > 0) cbind(sender, outReceiver),
-    if (length(inSender) > 0) cbind(inSender, receiver)
-  )
-  return(ids)
-}
-
-update_DyNAM_choice_trans.consecutive <- function(
-    network,
-    sender,
-    receiver,
-    replace, oldValue, cache,
-    isTwoMode = FALSE,
-    transformFun = identity,
-    eventOrder,
-    res) {
-  
-  lastUpdate <- attr(cache,'lastUpdate')
-  lastSender <- lastUpdate[1]
-  lastReceiver <- lastUpdate[2]
-  lastEventOrder <- lastUpdate[3]
-  
-  # checks that preceding event was an update
-  if ((replace == 1) && (sender == lastReceiver) && (lastEventOrder == (eventOrder - 1))) {
-      inSender <- lastSender
-      names(inSender) <- paste("Actor",inSender)
-      attr(cache,'lastUpdate') <- c(sender, receiver, eventOrder)
-      outReceiver <- NULL
-  }
-  else if (replace < 1){
-      # get all in-neighbors of sender and out-neighbors of receiver
-      inSender <- twopath_in_neigh(network, sender, receiver)
-      outReceiver <- twopath_out_neigh(network, sender, receiver)
-  }
-  else {
-      inSender <- NULL
-      outReceiver <- NULL
-  }
-  ids <- rbind(
-    if (length(outReceiver) > 0) cbind(sender, outReceiver),
-    if (length(inSender) > 0) cbind(inSender, receiver)
-  )
-  return(list(ids,cache))
-  }
 
 # cycle ------------------------------------------------------------------------
 #' init stat matrix cyclying using cache: Closure of two-paths (j->k->i)
@@ -985,6 +1071,9 @@ init_DyNAM_choice.cycle <- function(effectFun, network, window, n1, n2, ...) {
   params <- formals(effectFun)
   isTwoMode <- eval(params[["isTwoMode"]])
   funApply <- eval(params[["transformFun"]])
+  history <- match.arg(
+    eval(params[["history"]]), c('pooled','sequential','consecutive')
+  )
 
   if (isTwoMode) {
     stop(dQuote("cycle"),
@@ -995,9 +1084,14 @@ init_DyNAM_choice.cycle <- function(effectFun, network, window, n1, n2, ...) {
   }
 
   # has window or is empty initialize empty
-  if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
+  if ((!is.null(window) && !is.infinite(window)) ||
+      (all(network == 0)) || (history != 'pooled')) {
+    cache <- matrix(0, nrow = n1, ncol = n2)
+    if (history == "consecutive") {
+      attr(cache, "lastUpdate") <- c(sender = 0, receiver = 0, eventOrder = 0)
+    }
     return(list(
-      cache = matrix(0, nrow = n1, ncol = n2),
+      cache = cache,
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
     ))
   }
@@ -1013,7 +1107,7 @@ init_DyNAM_choice.cycle <- function(effectFun, network, window, n1, n2, ...) {
   ))
 }
 
-#' update stat cyclying using cache
+#' update stat cycle of length two using cache
 #'
 #' @param network matrix n1*n1
 #' @param sender integer
@@ -1077,28 +1171,32 @@ update_DyNAM_choice_cycle <- function(
     return(res)
   }
   
-  # get all in-neighbors of sender and out-neighbors of receiver
-  # consider j -> k -> i,
-  # when sender = k and receiver = j, constraint that k != j has been satisfied.
-  temp <- network[, sender]
-  temp[c(sender, receiver)] <- 0 # don't consider the cases with i = k
-  inSender <- which(temp > 0)
-  # when sender = i and receiver = k, constraint that i != k has been satisfied.
-  temp <- network[receiver, ]
-  temp[c(sender, receiver)] <- 0 # don't consider the cases with  k = j
-  outReceiver <- which(temp > 0)
-  ids <- rbind(
-    if (length(outReceiver) > 0) cbind(outReceiver, sender),
-    if (length(inSender) > 0) cbind(receiver, inSender)
+  compute_history <- paste0("compute_update_two_path_", history)
+  
+  ids <- do.call(
+    what = compute_history,
+    args = list(
+      network = network, sender = sender, receiver = receiver,
+      replace = replace,
+      cache = cache,
+      eventOrder = eventOrder
+    )
   )
+  
+  if (history == "sequential") {
+    cache <- ids[["cache"]]
+    ids <- ids[["ids"]]
+  }
+  
   # update cache
-  if (length(outReceiver) + length(inSender) > 0) {
-    # changes in two-paths (i->k->j)
-    replaceValues <- replace - oldValue + res$cache[cbind(ids[, 1], ids[, 2])]
-    res$cache[cbind(ids[, 1], ids[, 2])] <- replaceValues
+  if (length(ids) > 0) {
+    # changes in two-paths (j->k->i)
+    replaceValues <- replace - oldValue +
+      res$cache[cbind(ids[, "sink"], ids[, "source"])]
+    res$cache[cbind(ids[, "sink"], ids[, "source"])] <- replaceValues
     res$changes <- cbind(
-      node1 = ids[, 1],
-      node2 = ids[, 2],
+      node1 = ids[, "source"],
+      node2 = ids[, "sink"],
       replace = forceAndCall(1, transformFun, replaceValues)
     )
   }
