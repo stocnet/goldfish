@@ -74,7 +74,7 @@ test_that("trans returns NULL if there is no change", {
     )$changes,
     label = "when sequential and the only two paths the new tie forms are not sequential"
   )
-  attr(m0,'lastUpdate') <- c(0,0,0)
+  attr(m0,'lastUpdate') <- c(sender = 0, receiver = 0, eventorder = 0)
   expect_null(
     update_DyNAM_choice_trans(
       m0,
@@ -111,7 +111,7 @@ test_that("trans recognizes tie creation correctly ", {
     ),
     label = "when history = sequential"
   )
-  attr(mCache,"lastUpdate") <- c(2,1,1)
+  attr(mCache,"lastUpdate") <- c(sender = 2, receiver = 1, eventOrder = 1)
   expect_equal(
     update_DyNAM_choice_trans(
       m,
@@ -119,7 +119,7 @@ test_that("trans recognizes tie creation correctly ", {
       cache = mCache, history='cons', eventOrder = 2
     )$changes,
     rbind(
-      "Actor 2" = c(node1 = 2, node2 = 4, replace = 1)
+      "sender" = c(node1 = 2, node2 = 4, replace = 1)
     ),
     label = "when history = consecutive"
   )
@@ -229,6 +229,6 @@ test_that("DyNAM default and trans init return the same result", {
 test_that("trans init is correctly performed for history = consecutive",{
   expect_equal(
     attr(init_DyNAM_choice.trans(effectFUN_closure, m1, NULL, 5, 5, history="cons")$cache,"lastUpdate"),
-    c(0,0,0)
+    c(sender = 0, receiver = 0, eventOrder = 0)
   )
 })
