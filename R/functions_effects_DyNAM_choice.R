@@ -1214,8 +1214,8 @@ update_DyNAM_choice_cycle <- function(
       res$cache[cbind(ids[, "sink"], ids[, "source"])]
     res$cache[cbind(ids[, "sink"], ids[, "source"])] <- replaceValues
     res$changes <- cbind(
-      node1 = ids[, "source"],
-      node2 = ids[, "sink"],
+      node1 = ids[, "sink"],
+      node2 = ids[, "source"],
       replace = forceAndCall(1, transformFun, replaceValues)
     )
   }
