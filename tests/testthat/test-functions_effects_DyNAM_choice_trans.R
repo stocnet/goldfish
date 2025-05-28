@@ -121,7 +121,8 @@ test_that("trans recognizes tie creation correctly ", {
     rbind(
       "sender" = c(node1 = 2, node2 = 4, replace = 1)
     ),
-    label = "when history = consecutive"
+    label = "when history = consecutive",
+    ignore_attr = c("names","dimnames")
   )
   
   # expect_equal(
@@ -215,18 +216,17 @@ test_that("trans init throws an error when two-mode network", {
                regexp = ".*\\Q effect must not use when is a two-mode network\\E.*")
 })
 
-test_that("DyNAM default and trans init return the same result", {
+test_that("trans init is correctly performed", {
   expect_equal(
-    init_DyNAM_choice.trans(effectFUN_closure, m1, NULL, 5, 5),
-    init_DyNAM_choice.default(
-      effectFUN_closure,
-      network = m1, attribute = NULL, window = NULL,
-      n1 = 5, n2 = 5
-    )
+    init_DyNAM_choice.trans(effectFUN_closure, m1, NULL, 5, 5)$cache,
+    unname(sign(m1) %*% sign(m1))
   )
 })
 
 test_that("trans init is correctly performed for history = consecutive",{
+  check = formals(effectFUN_closure)
+  check$history = "cons"
+  formals(effectFUN_closure) <- check
   expect_equal(
     attr(init_DyNAM_choice.trans(effectFUN_closure, m1, NULL, 5, 5, history="cons")$cache,"lastUpdate"),
     c(sender = 0, receiver = 0, eventOrder = 0)

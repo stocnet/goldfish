@@ -144,13 +144,8 @@ effectFUN_closure <- function(
     receiver,
     replace, cache,
     isTwoMode = FALSE,
-    transformFun = identity) {
-  update_DyNAM_choice_trans(
-    network = network,
-    sender = sender, receiver = receiver, replace = replace,
-    cache = cache,
-    isTwoMode = isTwoMode, transformFun = transformFun
-  )
+    transformFun = identity,
+    history = "pooled") {
 }
 
 

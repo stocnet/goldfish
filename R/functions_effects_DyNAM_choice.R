@@ -904,13 +904,8 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, ...) {
   params <- formals(effectFun)
   isTwoMode <- eval(params[["isTwoMode"]])
   funApply <- eval(params[["transformFun"]])
-  arguments <- list(...)
-  if ("history" %in% names(arguments)) {
-    history <- match.arg(
-      arguments$history, c('pooled','sequential','consecutive'))
-  } else {
-    history <- 'pooled'
-  }
+  history <- eval(params[["history"]])
+  history <- match.arg(history, c('pooled','sequential','consecutive'))
   
   if (isTwoMode) {
     stop(dQuote("trans"),
@@ -995,8 +990,8 @@ update_DyNAM_choice_trans <- function(
     isTwoMode = FALSE,
     transformFun = identity,
     history = c('pooled','sequential','consecutive'),
-    eventOrder = 0) {
-  history <- match.arg(history)
+    eventOrder = NULL) {
+  history <- match.arg(history, c('pooled','sequential','consecutive'))
   # only relevant for one-mode networks
   res <- list(cache = cache, changes = NULL)
   if (sender == receiver) {
@@ -1038,10 +1033,6 @@ update_DyNAM_choice_trans <- function(
       node2 = ids[, "sink"],
       replace = forceAndCall(1, transformFun, replaceValues)
     )
-    #this is needed otherwise cons will return an output that doesn't start with "Actor.."
-     if (!is.null(rownames(ids))) {
-       rownames(res$changes) <- rownames(ids)
-     }
   }
   return(res)
 }
@@ -1083,13 +1074,8 @@ init_DyNAM_choice.cycle <- function(effectFun, network, window, n1, n2, ...) {
   params <- formals(effectFun)
   isTwoMode <- eval(params[["isTwoMode"]])
   funApply <- eval(params[["transformFun"]])
-  arguments <- list(...)
-  if ("history" %in% names(arguments)) {
-    history <- match.arg(
-      arguments$history, c('pooled','sequential','consecutive'))
-  } else {
-    history <- 'pooled'
-  }
+  history <- eval(params[["history"]])
+  history <- match.arg(history, c('pooled','sequential','consecutive'))
   
   if (isTwoMode) {
     stop(dQuote("cycle"),
@@ -1175,7 +1161,7 @@ update_DyNAM_choice_cycle <- function(
     transformFun = identity,
     history = c('pooled','sequential','consecutive'),
     eventOrder = 0) {
-  history <- match.arg(history)
+  history <- match.arg(history, c('pooled','sequential','consecutive'))
   # only relevant for one-mode networks
   res <- list(cache = cache, changes = NULL)
   if (sender == receiver) {
@@ -1202,7 +1188,7 @@ update_DyNAM_choice_cycle <- function(
     )
   )
   
-  if (history == "sequential") {
+  if (history == "consecutive") {
     cache <- ids[["cache"]]
     ids <- ids[["ids"]]
   }

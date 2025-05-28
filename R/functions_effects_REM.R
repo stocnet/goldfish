@@ -501,12 +501,15 @@ update_REM_choice_trans <- function(
     receiver,
     replace, cache,
     isTwoMode = FALSE,
-    transformFun = identity) {
+    transformFun = identity,
+    history = c('pooled','sequential','consecutive'),
+    eventOrder = 0) {
   update_DyNAM_choice_trans(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     cache = cache,
-    isTwoMode = isTwoMode, transformFun = transformFun
+    isTwoMode = isTwoMode, transformFun = transformFun,
+    history = history, eventOrder = 0
   )
 }
 
@@ -526,12 +529,14 @@ update_REM_choice_cycle <- function(
     receiver,
     replace, cache,
     isTwoMode = FALSE,
-    transformFun = identity) {
+    transformFun = identity,
+    history = c('pooled','sequential','consecutive'),
+    eventOrder = 0) {
   update_DyNAM_choice_cycle(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     cache = cache,
-    isTwoMode = isTwoMode, transformFun = transformFun
+    isTwoMode = isTwoMode, transformFun = transformFun, history = history, eventOrder = 0
   )
 }
 

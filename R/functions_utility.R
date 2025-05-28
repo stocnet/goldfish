@@ -484,6 +484,11 @@ GetDetailPrint <- function(
       subType = parsedformula$subTypeParameter
     )
   }
+  if (any(parsedformula$historyParameter != "")) {
+    effectDescription <- cbind(effectDescription,
+                               history = parsedformula$historyParameter
+    )
+  }
   # rownames(effectDescription) <- NULL
   if (parsedformula$hasIntercept) {
     effectDescription <- rbind("", effectDescription)

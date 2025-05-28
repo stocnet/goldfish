@@ -115,6 +115,12 @@ parseFormula <- function(formula, envir = new.env()) {
     v <- getElement(x, "subType")
     ifelse(!is.null(v), v, "")
   })
+  
+  # history parameter closure effects
+  historyParameter <- lapply(rhsNames, function(x) {
+    v <- getElement(x, "history")
+    ifelse(!is.null(v), eval(parse(text = v), envir = envir), "")
+  })
 
   # return all the results of the formula parsing
   res <- list(
@@ -129,7 +135,8 @@ parseFormula <- function(formula, envir = new.env()) {
     transParameter = transParameter,
     aggreParameter = aggreParameter,
     joiningParameter = joiningParameter,
-    subTypeParameter = subTypeParameter
+    subTypeParameter = subTypeParameter,
+    historyParameter = historyParameter
   )
   return(res)
 }
