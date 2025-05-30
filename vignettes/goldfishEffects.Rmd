@@ -1,7 +1,7 @@
 ---
 title: "goldfish Effects"
 subtitle: "Catalog of available effects"
-author: "Alvaro Uzaheta and Siwei Zhang"
+author: "Alvaro Uzaheta and Siwei Zhang and Mabel Wylie"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{goldfish Effects}
