@@ -35,7 +35,7 @@ dependent network (the default).
 For attribute effects, this should be the attribute name with the
 indication of the data frame containing the initial values of
 nodes attributes (`data.frame$attribute`),
-see documentation of `defineNodes()` for details.
+see documentation of `make_nodes()` for details.
 * **isTwoMode**: Identifies whether the effect assumes the network
 is originated
 from a two-mode network or not.
@@ -124,7 +124,7 @@ and thus cannot be used.
 * We omit the difference in the computation of the statistics when the 
   argument `isTwoMode` is used. In the default case when 
   `isTwoMode = FALSE` self ties are excluded in the calculation of the
-  change statistics. 
+  change statistics.  
   
 # Node or actor statistics
 
@@ -171,7 +171,7 @@ indeg(network,
 * *DyNAM-choice_coordination:* the effects compute the total degree in a
   covariate network ('alter' type).
   _Note:_ The effect statistic correspond to the total degree for an undirected
-  network as define when using `defineNetwork(net, directed = FALSE)`.
+  network as define when using `make_network(net, directed = FALSE)`.
   
 The degree can be transform with \code{transformFun}.
 

@@ -28,7 +28,7 @@
 #'
 #' @param formula a formula object that defines at the
 #' left-hand side the dependent
-#' network (see [defineDependentEvents()]) and at the right-hand side the
+#' network (see [make_dependent_events()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
 #' (see `vignette("goldfishEffects")`).
 #' @param preprocessArgs a list containing additional parameters
@@ -92,21 +92,21 @@
 #'
 #' @examples
 #' data("Fisheries_Treaties_6070")
-#' states <- defineNodes(states)
-#' states <- linkEvents(states, sovchanges, attribute = "present")
-#' states <- linkEvents(states, regchanges, attribute = "regime")
-#' states <- linkEvents(states, gdpchanges, attribute = "gdp")
+#' states <- make_nodes(states)
+#' states <- link_events(states, sovchanges, attribute = "present")
+#' states <- link_events(states, regchanges, attribute = "regime")
+#' states <- link_events(states, gdpchanges, attribute = "gdp")
 #'
-#' bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
-#' bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
+#' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+#' bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 #'
-#' createBilat <- defineDependentEvents(
+#' createBilat <- make_dependent_events(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
-#'   nodes = states, defaultNetwork = bilatnet
+#'   nodes = states, default_network = bilatnet
 #' )
 #'
-#' contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
-#' contignet <- linkEvents(contignet, contigchanges, nodes = states)
+#' contignet <- make_network(contignet, nodes = states, directed = FALSE)
+#' contignet <- link_events(contignet, contigchanges, nodes = states)
 #'
 #' gatheredData <- GatherPreprocessing(
 #'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet)

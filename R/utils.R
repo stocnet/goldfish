@@ -48,12 +48,12 @@ checkMissing <- function(oldValue, replace, imputeValue = 0) {
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(
-#'   x = callNetwork, changeEvent = calls, nodes = actors
+#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- link_events(
+#'   x = callNetwork, change_events = calls, nodes = actors
 #' )
 #' callsDependent <- defineDependentEvents(
-#'   events = calls, nodes = actors, defaultNetwork = callNetwork
+#'   events = calls, nodes = actors, default_network = callNetwork
 #' )
 #' parsedformula <- parseFormula(callsDependent ~ ego(actors$floor))
 #' objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames, 1L)
@@ -153,7 +153,7 @@ isReservedElementName <- function(x) {
 #' replace labels with IDs and specific time formats with numeric
 #'
 #' @param events a dataframe that represents a valid events list
-#' @inheritParams linkEvents
+#' @inheritParams link_events
 #'
 #' @return a data frame with IDs instead of labels and time in numeric format
 #' @noRd
@@ -197,12 +197,12 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- defineNetwork(nodes = actors, directed = T)
-#' callNetwork <- linkEvents(
-#'   x = callNetwork, changeEvent = calls, nodes = actors
+#' callNetwork <- make_network(nodes = actors, directed = T)
+#' callNetwork <- link_events(
+#'   x = callNetwork, change_events = calls, nodes = actors
 #' )
-#' callsDependent <- defineDependentEvents(
-#'   events = calls, nodes = actors, defaultNetwork = callNetwork
+#' callsDependent <- make_dependent_events(
+#'   events = calls, nodes = actors, default_network = callNetwork
 #' )
 #' prep <- estimate(callsDependent ~ inertia + trans,
 #'   model = "DyNAM", subModel = "choice",
@@ -329,7 +329,7 @@ fillChanges <- function(nodes, replace, time, set, isTwoMode = FALSE) {
 #' update a network (adjacency matrix)
 #'
 #' @param network a network (adjacency matrix) to update with an event list.
-#' @inheritParams linkEvents
+#' @inheritParams link_events
 #'
 #' @return a network (adjacency matrix) after update events from changeEvents
 #' @noRd
@@ -337,12 +337,12 @@ fillChanges <- function(nodes, replace, time, set, isTwoMode = FALSE) {
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(
-#'   x = callNetwork, changeEvent = calls, nodes = actors
+#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- link_events(
+#'   x = callNetwork, change_events = calls, nodes = actors
 #' )
-#' callsDependent <- defineDependentEvents(
-#'   events = calls, nodes = actors, defaultNetwork = callNetwork
+#' callsDependent <- make_dependent_events(
+#'   events = calls, nodes = actors, default_network = callNetwork
 #' )
 #' prep <- estimate(callsDependent ~ inertia + trans,
 #'   model = "DyNAM", subModel = "choice",
@@ -453,28 +453,28 @@ GetDetailPrint <- function(
   #   effectDescription
   # )
 
-  if (any(unlist(parsedformula$ignoreRepParameter))) {
+  if (any(unlist(parsedformula$ignore_rep_parameter))) {
     effectDescription <- cbind(effectDescription,
-      ignoreRep = ifelse(parsedformula$ignoreRepParameter, "B", "")
+      ignoreRep = ifelse(parsedformula$ignore_rep_parameter, "B", "")
     )
   }
-  if (any(unlist(parsedformula$weightedParameter))) {
+  if (any(unlist(parsedformula$weighted_parameter))) {
     effectDescription <- cbind(effectDescription,
-      weighted = ifelse(parsedformula$weightedParameter, "W", "")
+      weighted = ifelse(parsedformula$weighted_parameter, "W", "")
     )
   }
-  if (any(parsedformula$typeParameter != "")) {
+  if (any(parsedformula$type_parameter != "")) {
     effectDescription <- cbind(effectDescription,
-      type = parsedformula$typeParameter
+      type = parsedformula$type_parameter
     )
   }
   hasWindows <- FALSE
-  if (!all(vapply(parsedformula$windowParameters, is.null, logical(1)))) {
+  if (!all(vapply(parsedformula$window_parameters, is.null, logical(1)))) {
     hasWindows <- TRUE
     effectDescription <- cbind(
       effectDescription,
       window = vapply(
-        parsedformula$windowParameters,
+        parsedformula$window_parameters,
         function(x) ifelse(is.null(x), "", gsub("['\"]", "", x)),
         character(1)
       )
@@ -492,29 +492,29 @@ GetDetailPrint <- function(
       }
     ))
   }
-  if (any(parsedformula$transParameter != "")) {
+  if (any(parsedformula$trans_parameter != "")) {
     effectDescription <- cbind(effectDescription,
-      transformFun = parsedformula$transParameter
+      transformFun = parsedformula$trans_parameter
     )
   }
-  if (any(parsedformula$aggreParameter != "")) {
+  if (any(parsedformula$aggre_parameter != "")) {
     effectDescription <- cbind(effectDescription,
-      aggregateFun = parsedformula$aggreParameter
+      aggregateFun = parsedformula$aggre_parameter
     )
   }
   # DyNAMi
-  if (any(parsedformula$joiningParameter != "")) {
+  if (any(parsedformula$joining_parameter != "")) {
     effectDescription <- cbind(effectDescription,
-      joining = parsedformula$joiningParameter
+      joining = parsedformula$joining_parameter
     )
   }
-  if (any(parsedformula$subTypeParameter != "")) {
+  if (any(parsedformula$sub_type_parameter != "")) {
     effectDescription <- cbind(effectDescription,
-      subType = parsedformula$subTypeParameter
+      subType = parsedformula$sub_type_parameter
     )
   }
   # rownames(effectDescription) <- NULL
-  if (parsedformula$hasIntercept) {
+  if (parsedformula$has_intercept) {
     effectDescription <- rbind("", effectDescription)
     rownames(effectDescription)[1] <- "Intercept"
   }

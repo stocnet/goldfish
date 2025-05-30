@@ -1,6 +1,6 @@
 test_that("compositional change", {
   compositionalEvents <- find_presence(actorsEx)
-  expect_s3_class(compositionalEvents, "character")
+  expect_true(inherits(compositionalEvents, "character"))
   expect_equal(compositionalEvents, "compChange")
   
   expect_null(find_presence(data.frame(label = "a", present = TRUE)))

@@ -12,6 +12,7 @@
 #'
 #' * `defineNodes()` -> `make_nodes()`
 #' * `defineNetwork()` -> `make_network()`
+#' * `defineGlobalAttribute()` -> `make_global_attribute()`
 #' * `defineDependentEvents()` -> `make_dependent_events()`
 #' * `defineGroups_interaction()` -> `make_group_interaction()`
 #' * `linkEvents(x)` -> `link_events(x)`
@@ -42,6 +43,74 @@
 #' @name defunct
 #' @aliases NULL
 NULL
+
+#' @rdname defunct
+#' @export
+defineNodes <- function(nodes) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "defineNodes()",
+    with = "make_nodes()"
+  )
+  make_nodes(nodes = nodes)
+}
+
+#' @rdname defunct
+#' @export
+defineNetwork <- function(
+    matrix = NULL,
+    nodes, nodes2 = NULL, directed = TRUE, envir = environment()
+  ) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "defineNetwork()",
+    with = "make_network()"
+  )
+  make_network(
+    matrix = matrix, nodes = nodes, nodes2 = nodes2,
+    directed = directed, envir = envir
+  )
+}
+
+#' @rdname defunct
+#' @export
+defineDependentEvents <- function(
+    events, nodes, nodes2 = NULL, default_network = NULL,
+    envir = environment()
+  ) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "defineDependentEvents()",
+    with = "make_dependent_events()"
+  )
+  make_dependent_events(
+    events = events, nodes = nodes, nodes2 = nodes2,
+    default_network = default_network,
+    envir = envir
+  )
+}
+
+#' @rdname defunct
+#' @export
+defineGlobalAttribute <- function(global) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "defineGlobalAttribute()",
+    with = "make_global_attribute()"
+  )
+  make_global_attribute(global = global)
+}
+
+#' @rdname defunct
+#' @export
+linkEvents <- function(x) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "linkEvents()",
+    with = "link_events()"
+  )
+  link_events(x)
+}
 
 #' @rdname defunct
 #' @export

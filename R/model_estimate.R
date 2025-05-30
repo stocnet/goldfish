@@ -147,7 +147,7 @@
 #' @param progress logical indicating whether should print a minimal output
 #' to the console of the progress of the preprocessing and estimation processes.
 #' @param x a formula that defines at the left-hand side the dependent
-#' network (see [defineDependentEvents()]) and at the right-hand side the
+#' network (see [make_dependent_events()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
 #' (see `vignette("goldfishEffects")`).
 #' @param envir an `environment` where `formula` objects and their linked
@@ -195,8 +195,8 @@
 #'
 #' @importFrom stats formula na.omit
 #' @export
-#' @seealso [defineDependentEvents()], [defineGlobalAttribute()],
-#'  [defineNetwork()], [defineNodes()], [linkEvents()]
+#' @seealso [make_dependent_events()], [make_global_attribute()],
+#'  [make_network()], [make_nodes()], [link_events()]
 #'
 #' @references Butts C. (2008). A Relational Event Framework for Social Action.
 #' \emph{Sociological Methodology 38 (1)}.
@@ -221,14 +221,14 @@
 #' @examples
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
-#' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(
+#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- link_events(
 #'   x = callNetwork, changeEvent = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- defineDependentEvents(
+#' callsDependent <- make_dependent_events(
 #'   events = calls, nodes = actors,
-#'   defaultNetwork = callNetwork
+#'   default_network = callNetwork
 #' )
 #'
 #' \dontshow{
@@ -251,20 +251,20 @@
 #' \donttest{
 #' # A multinomial-multinomial choice model for coordination ties
 #' data("Fisheries_Treaties_6070")
-#' states <- defineNodes(states)
-#' states <- linkEvents(states, sovchanges, attribute = "present")
-#' states <- linkEvents(states, regchanges, attribute = "regime")
-#' states <- linkEvents(states, gdpchanges, attribute = "gdp")
+#' states <- make_nodes(states)
+#' states <- link_events(states, sovchanges, attribute = "present")
+#' states <- link_events(states, regchanges, attribute = "regime")
+#' states <- link_events(states, gdpchanges, attribute = "gdp")
 #'
-#' bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
-#' bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
+#' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+#' bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 #'
-#' contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
-#' contignet <- linkEvents(contignet, contigchanges, nodes = states)
+#' contignet <- make_network(contignet, nodes = states, directed = FALSE)
+#' contignet <- link_events(contignet, contigchanges, nodes = states)
 #'
-#' createBilat <- defineDependentEvents(
+#' createBilat <- make_dependent_events(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
-#'   nodes = states, defaultNetwork = bilatnet
+#'   nodes = states, default_network = bilatnet
 #' )
 #'
 #' partnerModel <- estimate(
@@ -324,10 +324,10 @@ estimate.formula <- function(
   # envir <- environment()
 
   ### check model and subModel
-  checkModelPar(
+  check_model_par(
     model, subModel,
-    modelList = c("DyNAM", "REM", "DyNAMi"),
-    subModelList = list(
+    model_list = c("DyNAM", "REM", "DyNAMi"),
+    sub_model_list = list(
       DyNAM = c("choice", "rate", "choice_coordination"),
       REM = "choice",
       DyNAMi = c("choice", "rate")
@@ -698,7 +698,7 @@ estimate.formula <- function(
         nodes2 = .nodes2,
         rightCensored = rightCensored,
         progress = progress,
-        groupsNetwork = parsed_formula$defaultNetworkName,
+        groupsNetwork = parsed_formula$default_network_name,
         prepEnvir = envir
       )
     } else {

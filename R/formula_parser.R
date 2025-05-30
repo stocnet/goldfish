@@ -35,7 +35,7 @@ parse_formula <- function(formula, envir = new.env()) {
   dep_name <- get_dependent_name(formula)
   if (!inherits(get(dep_name, envir = envir), "dependent.goldfish")) {
     stop("The left hand side of the formula should contain dependent events",
-      " (check the function defineDependentEvents).",
+      " (check the function 'make_dependent_events()').",
       call. = FALSE
     )
   }
@@ -46,7 +46,7 @@ parse_formula <- function(formula, envir = new.env()) {
   int <- parse_intercept(rhs_names)
   rhs_names <- int[[1]]
   has_intercept <- int[[2]]
-  default_network_name <- attr(get(dep_name, envir = envir), "defaultNetwork")
+  default_network_name <- attr(get(dep_name, envir = envir), "default_network")
   if (!is.null(default_network_name)) {
     no_object_ids <- which(1 == vapply(rhs_names, length, integer(1)))
     for (i in no_object_ids) {

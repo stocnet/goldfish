@@ -132,12 +132,12 @@ First, we define the first mode nodeset, the actors:
 ```{r defNodes}
 # goldfish requires character names
 participants$label <- as.character(participants$label)
-actors <- defineNodes(participants)
+actors <- make_nodes(participants)
 ```
 
 Then we define the second mode nodeset, the groups:
 ```{r groups}
-groups <- defineNodes(groups)
+groups <- make_nodes(groups)
 ```
 
 Then we create the dynamic interaction network between the actors and
@@ -147,15 +147,15 @@ and `exogenous.events`
 init.network <- diag(x = 1, nrow(actors), nrow(groups))
 # goldfish check that row/column names agree with the nodes data frame labels
 dimnames(init.network) <- list(actors$label, groups$label)
-network.interactions <- defineNetwork(
+network.interactions <- make_network(
   matrix = init.network, nodes = actors, nodes2 = groups, directed = TRUE
 )
-network.interactions <- linkEvents(
-  x = network.interactions, changeEvent = dependent.events,
+network.interactions <- link_events(
+  x = network.interactions, change_events = dependent.events,
   nodes = actors, nodes2 = groups
 )
-network.interactions <- linkEvents(
-  x = network.interactions, changeEvent = exogenous.events,
+network.interactions <- link_events(
+  x = network.interactions, change_events = exogenous.events,
   nodes = actors, nodes2 = groups
 )
 ```
@@ -164,16 +164,16 @@ Then we create the dynamic network between the actors that records
 past interactions, updated by the previously created events in
 `interaction.updates`
 ```{r defNetPast, warning=FALSE}
-network.past <- defineNetwork(nodes = actors, directed = FALSE)
-network.past <- linkEvents(
-  x = network.past, changeEvents = interaction.updates, nodes = actors
+network.past <- make_network(nodes = actors, directed = FALSE)
+network.past <- link_events(
+  x = network.past, change_events = interaction.updates, nodes = actors
 ) # don't worry about the warnings
 ```
 Finally, we define the events that we want to model: `dependent.events`:
 ```{r defEvents}
-dependent.events <- defineDependentEvents(
+dependent.events <- make_dependent_events(
   events = dependent.events, nodes = actors,
-  nodes2 = groups, defaultNetwork = network.interactions
+  nodes2 = groups, default_network = network.interactions
 )
 ```
 

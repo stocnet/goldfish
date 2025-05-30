@@ -24,7 +24,7 @@ test_that("choice formula", {
       calls,
       class = c("dependent.goldfish", "data.frame"),
       nodes = c("actors", "actors"), events = c("calls"),
-      defaultNetwork = "callNetwork", type = "dyadic"
+      default_network = "callNetwork", type = "dyadic"
     )
   }, envir = envirTest)
   
@@ -115,7 +115,7 @@ test_that("get effects functions", {
       calls,
       class = c("dependent.goldfish", "data.frame"),
       nodes = c("actors"), events = c("calls"),
-      defaultNetwork = "callNetwork", type = "dyadic"
+      default_network = "callNetwork", type = "dyadic"
     )
   }, envir = envirTest)
   
@@ -158,7 +158,7 @@ test_that("unknown effect", {
       calls,
       class = c("dependent.goldfish", "data.frame"),
       nodes = c("actors"), events = c("calls"),
-      defaultNetwork = "callNetwork", type = "dyadic"
+      default_network = "callNetwork", type = "dyadic"
     )
   }, envir = envirTest)
   
@@ -196,7 +196,7 @@ test_that("warning two mode", {
       calls,
       class = c("dependent.goldfish", "data.frame"),
       nodes = c("actors", "actors"), events = c("calls"),
-      defaultNetwork = "callNetwork", type = "dyadic"
+      default_network = "callNetwork", type = "dyadic"
     )
   }, envir = envirTest)
   
@@ -238,7 +238,7 @@ test_that("objects effects link", {
       calls,
       class = c("dependent.goldfish", "data.frame"),
       nodes = c("actors", "actors"), events = c("calls"),
-      defaultNetwork = "callNetwork", type = "dyadic"
+      default_network = "callNetwork", type = "dyadic"
     )
     
     networkExog <- structure(
@@ -292,7 +292,7 @@ test_that("events, objects & effects links", {
       calls,
       class = c("dependent.goldfish", "data.frame"),
       nodes = c("actors", "actors"), events = c("calls"),
-      defaultNetwork = "callNetwork", type = "dyadic"
+      default_network = "callNetwork", type = "dyadic"
     )
     
     networkExog <- structure(

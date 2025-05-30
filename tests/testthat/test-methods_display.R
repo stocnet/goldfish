@@ -47,18 +47,18 @@ test_that("nodes print", {
   expect_output(print(actorsEx), "Dynamic attribute")
   expect_failure(expect_output(print(actorsEx, full = TRUE), "First \\d rows"))
   expect_output(
-    print(defineNodes(testAttr)),
+    print(make_nodes(testAttr)),
     paste("Number of nodes:", nrow(testAttr))
   )
   expect_failure(
-    expect_output(print(defineNodes(testAttr)), "Number of present nodes:")
+    expect_output(print(make_nodes(testAttr)), "Number of present nodes:")
   )
   expect_failure(
-    expect_output(print(defineNodes(testAttr)), "Dynamic attribute")
+    expect_output(print(make_nodes(testAttr)), "Dynamic attribute")
   )
-  expect_output(print(defineNodes(testAttr)), "First 6 rows")
+  expect_output(print(make_nodes(testAttr)), "First 6 rows")
   expect_failure(
-    expect_output(print(defineNodes(testAttr), full = TRUE), "First 6 rows")
+    expect_output(print(make_nodes(testAttr), full = TRUE), "First 6 rows")
   )
 })
 test_that("network print", {
@@ -81,7 +81,7 @@ test_that("network print", {
     )
   )
 
-  netTest <- defineNetwork(matrix = m, nodes = actorsEx)
+  netTest <- make_network(matrix = m, nodes = actorsEx)
   expect_output(
     print(netTest),
     paste("Dimensions:", paste(dim(netTest), collapse = " "))

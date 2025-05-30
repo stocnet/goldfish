@@ -228,12 +228,12 @@ compChange <- data.frame(
   replace = c(TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE)
 )
 
-# actorsEx <- defineNodes(actorsEx)
-# actorsEx <- linkEvents(
-#   x = actorsEx,
-#   changeEvent = compChange,
-#   attribute = "present"
-# )
+actorsEx <- make_nodes(actorsEx)
+actorsEx <- link_events(
+  x = actorsEx,
+  change_events = compChange,
+  attribute = "present"
+)
 
 # changing attribute
 attrChange <- data.frame(
@@ -241,11 +241,11 @@ attrChange <- data.frame(
   time = c(11, 18, 23, 31, 32, 33, 35),
   replace = c(1.2, 1.67, 2.46, 7.89, 3.32, 2.32, 3.44)
 )
-# actorsEx <- linkEvents(
-#   x = actorsEx,
-#   changeEvent = attrChange,
-#   attribute = "attr1"
-# )
+actorsEx <- link_events(
+  x = actorsEx,
+  change_events = attrChange,
+  attribute = "attr1"
+)
 
 # two-mode
 clubsEx <- data.frame(
@@ -261,12 +261,12 @@ clubsChange <- data.frame(
   replace = c(TRUE, FALSE, TRUE)
 )
 
-# clubsEx <- defineNodes(clubsEx)
-# clubsEx <- linkEvents(
-#   x = clubsEx,
-#   changeEvent = clubsChange,
-#   attribute = "present"
-# )
+clubsEx <- make_nodes(clubsEx)
+clubsEx <- link_events(
+  x = clubsEx,
+  change_events = clubsChange,
+  attribute = "present"
+)
 
 
 # direct network
@@ -302,20 +302,20 @@ eventsIncrement <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# networkState <- defineNetwork(
-#   matrix = networkState, nodes = actorsEx,
-#   directed = TRUE
-# )
-# networkState <- linkEvents(
-#   x = networkState,
-#   changeEvent = eventsIncrement,
-#   nodes = actorsEx
-# )
-# depNetwork <- defineDependentEvents(
-#   events = eventsIncrement,
-#   nodes = actorsEx,
-#   defaultNetwork = networkState
-# )
+networkState <- make_network(
+  matrix = networkState, nodes = actorsEx,
+  directed = TRUE
+)
+networkState <- link_events(
+  x = networkState,
+  change_events = eventsIncrement,
+  nodes = actorsEx
+)
+depNetwork <- make_dependent_events(
+  events = eventsIncrement,
+  nodes = actorsEx,
+  default_network = networkState
+)
 
 # exogenous network
 networkExog <- matrix(
@@ -350,15 +350,15 @@ eventsExogenous <- data.frame(
 )
 
 # define goldfish objects
-# networkExog <- defineNetwork(
-#   matrix = networkExog,
-#   nodes = actorsEx, directed = TRUE
-# )
-# networkExog <- linkEvents(
-#   x = networkExog,
-#   changeEvent = eventsExogenous,
-#   nodes = actorsEx
-# )
+networkExog <- make_network(
+  matrix = networkExog,
+  nodes = actorsEx, directed = TRUE
+)
+networkExog <- link_events(
+  x = networkExog,
+  change_events = eventsExogenous,
+  nodes = actorsEx
+)
 
 # two-mode network
 
@@ -392,15 +392,15 @@ eventsActorClub <- data.frame(
     c(1, 1, 0, 1, 1, 0, 1)
 )
 
-# networkActorClub <- defineNetwork(
-#   matrix = networkActorClub,
-#   nodes = actorsEx, nodes2 = clubsEx, directed = TRUE
-# )
-# networkActorClub <- linkEvents(
-#   x = networkActorClub,
-#   changeEvent = eventsActorClub,
-#   nodes = actorsEx, nodes2 = clubsEx
-# )
+networkActorClub <- make_network(
+  matrix = networkActorClub,
+  nodes = actorsEx, nodes2 = clubsEx, directed = TRUE
+)
+networkActorClub <- link_events(
+  x = networkActorClub,
+  change_events = eventsActorClub,
+  nodes = actorsEx, nodes2 = clubsEx
+)
 
 # DyNAM-i -----------------------------------------------------------
 # Attributes --------------------------------------------------------
@@ -475,40 +475,40 @@ class(pastupdates_DyNAMi) <-
   c(class(pastupdates_DyNAMi), "interaction.network.updates")
 
 # goldfish Objects --------------------------------------------------
-# actors_DyNAMi <- defineNodes(actors_DyNAMi)
-# groups_DyNAMi <- defineNodes(groups_DyNAMi)
-# groups <- linkEvents(x = groups, compchanges, attribute = "present")
+actors_DyNAMi <- make_nodes(actors_DyNAMi)
+groups_DyNAMi <- make_nodes(groups_DyNAMi)
+# groups <- link_events(x = groups, compchanges, attribute = "present")
 
 initnetwork_DyNAMi <- structure(
   diag(x = 1, nrow(actors_DyNAMi), nrow(actors_DyNAMi)),
   dimnames = list(sprintf("Actor %d", 1:4), sprintf("Group %d", 1:4))
 )
 
-# interaction_network_DyNAMi <- defineNetwork(
-#   matrix = initnetwork_DyNAMi,
-#   nodes = actors_DyNAMi, nodes2 = groups_DyNAMi, directed = TRUE
-# )
+interaction_network_DyNAMi <- make_network(
+  matrix = initnetwork_DyNAMi,
+  nodes = actors_DyNAMi, nodes2 = groups_DyNAMi, directed = TRUE
+)
 
-# interaction_network_DyNAMi <- linkEvents(
-#   x = interaction_network_DyNAMi, changeEvent = depevents_DyNAMi,
-#   nodes = actors_DyNAMi, nodes2 = groups_DyNAMi
-# )
-# interaction_network_DyNAMi <- linkEvents(
-#   x = interaction_network_DyNAMi, changeEvent = exoevents_DyNAMi,
-#   nodes = actors_DyNAMi, nodes2 = groups_DyNAMi
-# )
+interaction_network_DyNAMi <- link_events(
+  x = interaction_network_DyNAMi, change_events = depevents_DyNAMi,
+  nodes = actors_DyNAMi, nodes2 = groups_DyNAMi
+)
+interaction_network_DyNAMi <- link_events(
+  x = interaction_network_DyNAMi, change_events = exoevents_DyNAMi,
+  nodes = actors_DyNAMi, nodes2 = groups_DyNAMi
+)
 
-# past_network_DyNAMi <- defineNetwork(nodes = actors_DyNAMi, directed = FALSE)
-# past_network_DyNAMi <- linkEvents(
-#   x = past_network_DyNAMi, changeEvents = pastupdates_DyNAMi,
-#   nodes = actors_DyNAMi
-# )
+past_network_DyNAMi <- make_network(nodes = actors_DyNAMi, directed = FALSE)
+past_network_DyNAMi <- link_events(
+  x = past_network_DyNAMi, change_events = pastupdates_DyNAMi,
+  nodes = actors_DyNAMi
+)
 
-# dependent.depevents_DyNAMi <- defineDependentEvents(
-#   events = depevents_DyNAMi,
-#   nodes = actors_DyNAMi, nodes2 = groups_DyNAMi,
-#   defaultNetwork = interaction_network_DyNAMi
-# )
+dependent.depevents_DyNAMi <- make_dependent_events(
+  events = depevents_DyNAMi,
+  nodes = actors_DyNAMi, nodes2 = groups_DyNAMi,
+  default_network = interaction_network_DyNAMi
+)
 
 # result goldfish object --------------------------------------------------
 resModObject <- structure(
