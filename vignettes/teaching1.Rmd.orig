@@ -186,7 +186,7 @@ objects to one another so that information can be called as needed.
 ```
 
 ```{r link-call-net}
-callNetwork <- link_events(x = callNetwork, changeEvent = calls, nodes = actors)
+callNetwork <- link_events(x = callNetwork, change_events = calls, nodes = actors)
 callNetwork
 ```
 

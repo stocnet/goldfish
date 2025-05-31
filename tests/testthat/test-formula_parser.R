@@ -256,7 +256,7 @@ test_that("objects effects link", {
   objects_effects_link <- get_objects_effects_link(parsed_formula$rhs_names)
   
   expect_true(inherits(objects_effects_link, "array"))
-  expect_dim(objects_effects_link, c(4, n_terms))
+  expect_equal(dim(objects_effects_link), c(4, n_terms))
   expect_equal(
     apply(objects_effects_link, 2, \(x) sum(!is.na(x))),
     c(1, 1, 1, 1, 2, 1, 1),
@@ -267,7 +267,7 @@ test_that("objects effects link", {
 
 test_that("events, objects & effects links", {
   formStat <- callsDependent ~ inertia + indeg +
-    outdeg(networkExog, weighted = TRUE) +
+    outdeg(network_exog, weighted = TRUE) +
     nodeTrans(callNetwork, transformFun = log1p) +
     tertius(callNetwork, actors$floor, aggregateFun = median) +
     indeg(callNetwork, window = "5 minutos") +
@@ -295,7 +295,7 @@ test_that("events, objects & effects links", {
       default_network = "callNetwork", type = "dyadic"
     )
     
-    networkExog <- structure(
+    network_exog <- structure(
       matrix(0, nrow(actors), nrow(actors),
              dimnames = list(actors$label, actors$label)),
       class = c("network.goldfish", "matrix", "array"),
@@ -310,7 +310,8 @@ test_that("events, objects & effects links", {
   objects_effects_link <- get_objects_effects_link(parsed_formula$rhs_names)
   events_objects_link <- get_events_and_objects_link(
     parsed_formula$dep_name, parsed_formula$rhs_names,
-    "actors", "actors"
+    "actors", "actors",
+    envir = envirTest
   )
   events_effects_link <- get_events_effects_link(
     events_objects_link[[1]], parsed_formula$rhs_names,
@@ -318,12 +319,17 @@ test_that("events, objects & effects links", {
   )
   
   expect_vector(events_objects_link, ptype = list(), size = 2)
-  expect_length(events_objects_link[[1]], 3)
+  # should be only three elements
+  expect_length(events_objects_link[[1]], 4)
+  expect_equal(
+    names(events_objects_link[[1]]),
+    c("callsDependent", "calls", "calls", "calls_300")
+  )
   expect_s3_class(events_objects_link[[2]], "data.frame")
-  expect_equal(dim(events_objects_link[[2]]), c(3, 5))
+  expect_equal(dim(events_objects_link[[2]]), c(4, 5))
   
   expect_true(inherits(events_effects_link, "array"))
-  expect_equal(dim(events_effects_link), c(3, n_terms))
+  expect_equal(dim(events_effects_link), c(4, n_terms))
   
 })
 

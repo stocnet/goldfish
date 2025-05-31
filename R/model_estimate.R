@@ -223,7 +223,7 @@
 #' data("Social_Evolution")
 #' callNetwork <- make_network(nodes = actors, directed = TRUE)
 #' callNetwork <- link_events(
-#'   x = callNetwork, changeEvent = calls,
+#'   x = callNetwork, change_event = calls,
 #'   nodes = actors
 #' )
 #' callsDependent <- make_dependent_events(
@@ -784,7 +784,7 @@ estimate.formula <- function(
     statsList = prep,
     nodes = get(.nodes, envir = envir),
     nodes2 = get(.nodes2, envir = envir),
-    defaultNetworkName = parsed_formula$defaultNetworkName,
+    defaultNetworkName = parsed_formula$default_network_name,
     hasIntercept = has_intercept,
     modelType = modelTypeCall,
     initialDamping = ifelse(hasWindows, 30, 10),

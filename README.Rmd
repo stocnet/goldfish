@@ -128,7 +128,7 @@ library(goldfish)
 data("Social_Evolution")
 
 callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
-  link_events(changeEvent = calls, nodes = actors) # 2
+  link_events(change_events = calls, nodes = actors) # 2
 
 ```
 

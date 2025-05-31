@@ -331,7 +331,7 @@ fillChanges <- function(nodes, replace, time, set, isTwoMode = FALSE) {
 #' @param network a network (adjacency matrix) to update with an event list.
 #' @inheritParams link_events
 #'
-#' @return a network (adjacency matrix) after update events from changeEvents
+#' @return a network (adjacency matrix) after update events from `change_events`
 #' @noRd
 #'
 #' @examples

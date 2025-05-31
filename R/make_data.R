@@ -220,7 +220,7 @@ as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
 #       )
 #       events <- vapply(
 #         names,
-#         function(x) paste(attr(get(x, envir = envir), "dynamicAttributes"),
+#         function(x) paste(attr(get(x, envir = envir), "dynamic_attributes"),
 #                           collapse = ", "),
 #         character(1)
 #       )
@@ -324,7 +324,7 @@ as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
 #' @return an object with an additional class `nodes.goldfish` with attributes:
 #' \item{events}{An empty character vector. [link_events()] is used to
 #' link event data frames.}
-#' \item{dynamicAttributes}{An empty character vector. [link_events()] is used to
+#' \item{dynamic_attributes}{An empty character vector. [link_events()] is used to
 #' link event data frames and their related attribute.}
 #'
 #' The object can be modified using methods for data frames.
@@ -736,7 +736,7 @@ make_global_attribute <- function(global) {
 #' names depending if they refer to dynamic attributes or dynamic networks.
 #'
 #' For dynamic networks stored in object of class `network.goldfish` the
-#' `changeEvents` data frame must contain the following variables:
+#' `change_events` data frame must contain the following variables:
 #'
 #' \describe{
 #' \item{time}{`numeric` or `POSIXct` (see [base::as.Date()]) variable
@@ -752,7 +752,7 @@ make_global_attribute <- function(global) {
 #' relate with dynamic networks.
 #'
 #' For dynamic attributes stored in object of class `nodes.goldfish` the
-#' `changeEvents` data frame must contain the following variables:
+#' `change_events` data frame must contain the following variables:
 #'
 #' \describe{
 #' \item{time}{`numeric` or `POSIXct` (see [base::as.Date()]) variable
@@ -802,7 +802,7 @@ make_global_attribute <- function(global) {
 #' @param x Either a nodeset (`nodes.goldfish` object) or a network
 #'   (`network.goldfish` object)
 #' @param ... additional arguments to be passed to the method.
-#' @param changeEvents The name of a data frame that represents a
+#' @param change_events The name of a data frame that represents a
 #' valid events list.
 #' @param attribute a character vector indicating the names of the attributes
 #'   that should be updated by the specified events (ONLY if the object is a
@@ -813,10 +813,10 @@ make_global_attribute <- function(global) {
 #'   related to the network (ONLY if `x` is a network)
 #' @return an object with the same class as the object `x`.
 #' For objects of class `network.goldfish` the attribute `events` with the name
-#' of the event data frame passed through with the argument `changeEvents`.
+#' of the event data frame passed through with the argument `change_events`.
 #' For objects of class `nodes.goldfish` attibutes `events` and
-#' `dynamicAttribute` are modified with name of the objects passed through with
-#' the arguments `changeEvents` and `attribute` respectively.
+#' `dynamic_attribute` are modified with name of the objects passed through with
+#' the arguments `change_events` and `attribute` respectively.
 #' @export link_events
 #' @seealso [make_nodes()], [make_network()]
 #' @examples
@@ -834,7 +834,7 @@ make_global_attribute <- function(global) {
 #'   replace = c(FALSE, TRUE)
 #' )
 #' actorsnew <- link_events(
-#'   x = actors, attribute = "present", changeEvents = compositionChangeEvents
+#'   x = actors, attribute = "present", change_events = compositionChangeEvents
 #' )
 #'
 #' # Link events to a Network
@@ -845,7 +845,7 @@ make_global_attribute <- function(global) {
 #'   increment = rep(1, 7)
 #' )
 #' callNetwork <- link_events(
-#'   x = callNetwork, changeEvent = calls, nodes = actors
+#'   x = callNetwork, change_events = calls, nodes = actors
 #' )
 link_events <- function(x, ...) {
   UseMethod("link_events", x)

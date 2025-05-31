@@ -560,7 +560,7 @@ parse_time_windows <- function(rhs_names, envir = new.env()) {
       new_attribute <- paste(attribute, window_name, sep = "_")
       nodes[new_attribute] <- nodes[attribute]
       all_events <- attr(nodes, "events")
-      all_dynamic_attributes <- attr(nodes, "dynamicAttributes")
+      all_dynamic_attributes <- attr(nodes, "dynamic_attributes")
       all_events <- all_events[all_dynamic_attributes == attribute]
     } else {
       network <- get(name, envir = envir)

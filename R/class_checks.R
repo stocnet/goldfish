@@ -558,7 +558,7 @@ check_events <- function(
 # - attribute should exist and be compatible
 # - nodes labels/indexes should be correct
 # if no attribute is specified, check for the one indicated in the
-# nodeset attribute "dynamicAttributes". If there's nothing, it means
+# nodeset attribute "dynamic_attributes". If there's nothing, it means
 # that these events are not related to attributes.
 
 #' @export

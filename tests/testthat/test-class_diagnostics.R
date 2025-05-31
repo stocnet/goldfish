@@ -17,8 +17,11 @@ test_that(
 
     p1 <- examine_outliers(mod00, method = "Top", parameter = 2)
     expect_s3_class(p1, "ggplot")
-
-    p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")
+    
+    out_text <- capture.output(
+      p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")  
+    )
     expect_null(p2)
+    expect_match(out_text, "No regime changes found.")
   }
 )
