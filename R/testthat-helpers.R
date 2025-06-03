@@ -317,6 +317,55 @@ depNetwork <- defineDependentEvents(
   defaultNetwork = networkState
 )
 
+# added for trans/cycle 
+
+networkStateTrans <- matrix(
+  c(
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0
+  ),
+  nrow = 5, ncol = 5, byrow = TRUE,
+  dimnames = list(
+    sprintf("Actor %d", 1:5),
+    sprintf("Actor %d", 1:5)
+  )
+)
+
+eventsIncrementTrans <- data.frame(
+  time = cumsum(
+    c(1, 5, 3, 4, 2, 1, 3, 8, 1, 1, 3, 4)
+  ),
+  sender = sprintf(
+    "Actor %d",
+    c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)
+  ),
+  receiver = sprintf(
+    "Actor %d",
+    c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)
+  ),
+  increment =
+    c(1, 2, 0, 0, 1, 2, 1, -1, 1, 1, 1, 1),
+  stringsAsFactors = FALSE
+)
+
+networkStateTrans <- defineNetwork(
+  matrix = networkStateTrans, nodes = actorsEx,
+  directed = TRUE
+)
+networkStateTrans <- linkEvents(
+  x = networkStateTrans,
+  changeEvent = eventsIncrementTrans,
+  nodes = actorsEx
+)
+depNetworkTrans <- defineDependentEvents(
+  events = eventsIncrementTrans,
+  nodes = actorsEx,
+  defaultNetwork = networkStateTrans
+)
+
 # exogenous network
 networkExog <- matrix(
   c(

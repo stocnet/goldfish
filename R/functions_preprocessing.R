@@ -446,11 +446,16 @@ preprocess <- function(
             eventOrder = iTotalEvents,
             interEventTime = interval
           )
-
           effectUpdate <- callFUN(
             effects, id, "effect", c(.argsFUN, event), " cannot update \n",
             colnames(objectsEffectsLink)[id]
           )
+          
+          # CHANGED - MABEL - need to update cache attributes for lastUpdate when
+          # trans or cycle and history = "consecutive"
+          if (!is.null(attr(effectUpdate$cache, 'lastUpdate'))) {
+            attr(statCache[[id]], "lastUpdate") <- attr(effectUpdate$cache, 'lastUpdate')
+          }
 
           updates <- effectUpdate$changes
           # if cache and changes are not null update cache

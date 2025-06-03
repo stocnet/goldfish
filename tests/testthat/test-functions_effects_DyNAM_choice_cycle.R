@@ -111,7 +111,7 @@ test_that("cycle recognises tie creation correctly", {
     ),
     label = "when history = sequential"
   )
-  attr(mCache,"lastUpdate") <- c(sender = 3, receiver = 4, eventOrder = 1)
+  attr(mCache,"lastUpdate") <- c(sender = 3, receiver = 4, eventOrder = 0)
   expect_equal(
     update_DyNAM_choice_cycle(
       `[<-`(m1, 4, 5, 0),

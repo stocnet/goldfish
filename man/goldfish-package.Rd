@@ -68,6 +68,7 @@ Other contributors:
   \item Weigutian Ou [contributor]
   \item Emily Garvin [contributor]
   \item Siwei Zhang [contributor]
+  \item Mabel Wylie [contributor]
 }
 
 }

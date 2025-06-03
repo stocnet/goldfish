@@ -111,7 +111,7 @@ test_that("trans recognizes tie creation correctly ", {
     ),
     label = "when history = sequential"
   )
-  attr(mCache,"lastUpdate") <- c(sender = 2, receiver = 1, eventOrder = 1)
+  attr(mCache,"lastUpdate") <- c(sender = 2, receiver = 1, eventOrder = 0)
   expect_equal(
     update_DyNAM_choice_trans(
       m,

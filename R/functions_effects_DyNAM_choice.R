@@ -836,19 +836,21 @@ compute_update_two_path_consecutive <- function(
     cache,
     eventOrder
 ) {
-  
   lastUpdate <- attr(cache, 'lastUpdate')
   lastSender <- lastUpdate["sender"]
   lastReceiver <- lastUpdate["receiver"]
   lastEventOrder <- lastUpdate["eventOrder"]
-  print(lastUpdate)
   
-  # checks that preceding event was an update
-  if ((replace == 1) && (sender == lastReceiver) &&
-      (lastEventOrder == (eventOrder - 1L))) {
-    inSender <- lastSender
+  # checks that preceding event was an update 
+  if (replace == 1) {
     attr(cache, 'lastUpdate') <-
       c(sender = sender, receiver = receiver, eventOrder = eventOrder)
+    if ((lastEventOrder == (eventOrder - 2L)) && (sender == lastReceiver)) {
+      inSender <- lastSender
+    }
+    else {
+      inSender <- NULL
+    }
     outReceiver <- NULL
   } else if (replace < 1){
     # get all in-neighbors of sender and out-neighbors of receiver
@@ -982,6 +984,7 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, ...) {
 #' update_DyNAM_choice_trans(network, 1, 4, 0, cache, transformFun = sqrt)
 #' update_DyNAM_choice_trans(network, 5, 1, 8, cache, transformFun = sqrt)
 #' }
+
 update_DyNAM_choice_trans <- function(
     network,
     sender,
@@ -997,6 +1000,7 @@ update_DyNAM_choice_trans <- function(
   if (sender == receiver) {
     return(res)
   }
+  
   # get old value, always unweighted
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
@@ -1021,6 +1025,7 @@ update_DyNAM_choice_trans <- function(
   if (history == "consecutive") {
     cache <- ids[["cache"]]
     ids <- ids[["ids"]]
+    attr(res$cache, "lastUpdate") <- attr(cache, 'lastUpdate')
   }
   
   if (length(ids) > 0) {
@@ -1191,6 +1196,7 @@ update_DyNAM_choice_cycle <- function(
   if (history == "consecutive") {
     cache <- ids[["cache"]]
     ids <- ids[["ids"]]
+    attr(res$cache, "lastUpdate") <- attr(cache, 'lastUpdate')
   }
   
   # update cache
