@@ -6,35 +6,6 @@
 #
 ##################### ###
 
-#' checks that oldValue \= replace and replaces null values with impute
-#'
-#' @param oldValue numeric
-#' @param replace numeric
-#' @param imputeValue numerical value that replace missing values 
-#'
-#' @returns a list containing a flag for if old value = replace, and oldValue
-#' and replace imputed if required
-#' @noRd
-#'
-#' @examples
-#' checkMissing(0,1,2) # expect (FALSE,O,1)
-#' checkMissing(NA,1,2) # expect (FALSE,2,1)
-#' checkMissing(1,1,2) # expect (TRUE,1,1)
-#'
-checkMissing <- function(oldValue, replace, imputeValue = 0) {
-  
-  if (is.na(replace)) replace <- imputeValue
-    if (is.na(oldValue)) oldValue <- imputeValue
-    
-  # Check if old value has changed
-  flag <- oldValue == replace    
-  return(list(
-    flag = flag,
-    oldValue = oldValue,
-    replace = replace
-  ))
-}
-
 
 #' get data objects
 #'
@@ -511,6 +482,11 @@ GetDetailPrint <- function(
   if (any(parsedformula$sub_type_parameter != "")) {
     effectDescription <- cbind(effectDescription,
       subType = parsedformula$sub_type_parameter
+    )
+  }
+  if (any(parsedformula$historyParameter != "")) {
+    effectDescription <- cbind(effectDescription,
+                               history = parsedformula$historyParameter
     )
   }
   # rownames(effectDescription) <- NULL

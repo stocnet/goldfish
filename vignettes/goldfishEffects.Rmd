@@ -1,7 +1,7 @@
 ---
 title: "goldfish Effects"
 subtitle: "Catalog of available effects"
-author: "Alvaro Uzaheta and Siwei Zhang"
+author: "Alvaro Uzaheta and Siwei Zhang and Mabel Wylie"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{goldfish Effects}
@@ -74,35 +74,43 @@ the DyNAM-choice submodel only considers change statistics for
 potential receivers
 `type = "alter"`, while the DyNAM-rate submodel only considers change statistics
 for potential senders `type = "ego"`.
+* **history**: Applies only to `trans` and `cycle`
+In the default case of `history = "pooled"`, the effect returns change statistics
+for all two-paths when regardless of the order of creation of the ties in the two-path.
+In the case where `history = "sequential"`, the effect returns change statistics
+for all two-paths when the subsequent tie is created after the preceding tie in the two-path.
+In the case where `history = "consecutive"`, the effect returns change statistics
+for all two-paths when the subsequent tie is created directly after the preceding tie in the two-path.
 
 
 The following table summaries whether the corresponding arguments can be used for the effects or not.
 
-| || |isTwoMode |ignoreRep |weighted |window |transformFun |aggregateFun |type |
-|---|---|---|---|---|---|---|---|---|---|
-| Node/actor statistics | Structural | indeg | √ | √ | √ | √ | √ | × | √ |
-|  |  | outdeg | √ | √ | √ | √ | √ | × | √ |
-|  |  | nodeTrans | × | √ | √ | √ | √ | × | √ |
-|  | Attribute | ego | √ | × | × | × | × | × | × |
-|  |  | alter | √ | × | × | × | × | × | × |
-|  | Structural + attribute | tertius | √ | √ | √ | √ | √ | √ | √ |
-| Dyadic statistics | Structural | tie | √ | √ | √ | √ | √ | × | × |
-|  |  | inertia | √ | √ | √ | √ | √ | × | × |
-|  |  | recip | √ | √ | √ | √ | √ | × | × |
-|  | Attribute | same | √ | × | × | × | √ | × | × |
-|  |  | diff | √ | × | × | × | √ | × | × |
-|  |  | sim | √ | × | × | × | √ | × | × |
-|  |  | egoAlterInt | √ | × | × | × | √ | × | × |
-|  | Structural + attribute | tertiusDiff | √ | √ | √ | √ | √ | √ | × |
-|  | Closure effects | trans | × | √ | × | √ | √ | × | × |
-|  |  | cycle | × | √ | × | √ | √ | × | × |
-|  |  | commonSender | √ | √ | × | √ | √ | × | × |
-|  |  | commonReceiver | √ | √ | × | √ | √ | × | × |
-|  |  | four | √ | √ | × | √ | √ | × | × |
-|  |  | mixedTrans | × | √ | × | √ | √ | × | × |
-|  |  | mixedCycle | × | √ | × | √ | √ | × | × |
-|  |  | mixedCommonSender | × | √ | × | √ | √ | × | × |
-|  |  | mixedCommonReceiver | × | √ | × | √ | √ | × | × |
+| || |isTwoMode |ignoreRep |weighted |window |transformFun |aggregateFun |type |history |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Node/actor statistics | Structural | indeg | √ | √ | √ | √ | √ | × | √ | × |
+| | | outdeg | √ | √ | √ | √ | √ | × | √ | × |
+| | | nodeTrans | × | √ | √ | √ | √ | × | √ | × |
+| | Attribute | ego | √ | × | × | × | × | × | × | × |
+| | | alter | √ | × | × | × | × | × | × | × |
+| | Structural + attribute | tertius | √ | √ | √ | √ | √ | √ | √ | × |
+| Dyadic statistics | Structural | tie | √ | √ | √ | √ | √ | × | × | × |
+| | | inertia | √ | √ | √ | √ | √ | × | × | × |
+| | | recip | √ | √ | √ | √ | √ | × | × | × |
+| | Attribute | same | √ | × | × | × | √ | × | × | × |
+| | | diff | √ | × | × | × | √ | × | × | × |
+| | | sim | √ | × | × | × | √ | × | × | × |
+| | | egoAlterInt | √ | × | × | × | √ | × | × | × |
+| | Structural + attribute | tertiusDiff | √ | √ | √ | √ | √ | √ | × | × |
+| | Closure effects | trans | × | √ | × | √ | √ | × | × | √ |
+| | | cycle | × | √ | × | √ | √ | × | × | √ |
+| | | commonSender | √ | √ | × | √ | √ | × | × | × |
+| | | commonReceiver | √ | √ | × | √ | √ | × | × | × |
+| | | four | √ | √ | × | √ | √ | × | × | × |
+| | | mixedTrans | × | √ | × | √ | √ | × | × | × |
+| | | mixedCycle | × | √ | × | √ | √ | × | × | × |
+| | | mixedCommonSender | × | √ | × | √ | √ | × | × | × |
+| | | mixedCommonReceiver | × | √ | × | √ | √ | × | × | × |
+
 
 
 _Note_ that the use of some effects (combinations) are ill-advised.
@@ -535,7 +543,8 @@ all $k$ that has at least one in-neighbor.
 ### Transitivity (`trans()`)
 
 ```{r}
-trans(network, window = Inf, ignoreRep = FALSE, transformFun = identity)
+trans(network, window = Inf, ignoreRep = FALSE, transformFun = identity,
+      history = c('pooled','sequential','consecutive'))
 ```
 
 \begin{equation}
@@ -551,7 +560,8 @@ This effect cannot be used for two-mode networks.
 ### Cycle (`cycle()`)
 
 ```{r}
-cycle(network, window = Inf, ignoreRep = FALSE, transformFun = identity)
+cycle(network, window = Inf, ignoreRep = FALSE, transformFun = identity, 
+      history = c('pooled','sequential','consecutive'))
 ```
 
 \begin{equation}
@@ -568,7 +578,10 @@ DyNAM-choice_coordination.
 ### Common sender closure (`commonSender()`)
 
 ```{r}
-commonSender(network, window = Inf, ignoreRep = FALSE, transformFun = identity)
+commonSender(network,
+             window = Inf, 
+             ignoreRep = FALSE, 
+             transformFun = identity)
 ```
 
 \begin{equation}

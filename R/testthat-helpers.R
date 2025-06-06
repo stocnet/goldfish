@@ -87,6 +87,10 @@ testAttr <- data.frame(
 )
 
 # Effect Functions  -------------------------------------------------
+effectFUN <- function (
+    network, sender, receiver, replace, cache, weighted = FALSE, isTwoMode = FALSE, 
+                       transformFun = identity) {}
+
 effectFUN_tie <- function(
     network,
     sender, receiver, replace,
@@ -134,20 +138,16 @@ effectFUN_indeg <- function(
   )
 }
 
-effectFUN_trans <- function(
+effectFUN_closure <- function(
     network,
     sender,
     receiver,
     replace, cache,
     isTwoMode = FALSE,
-    transformFun = identity) {
-  update_DyNAM_choice_trans(
-    network = network,
-    sender = sender, receiver = receiver, replace = replace,
-    cache = cache,
-    isTwoMode = isTwoMode, transformFun = transformFun
-  )
+    transformFun = identity,
+    history = "pooled") {
 }
+
 
 effectFUN_tertius <- function(
     network,
@@ -315,6 +315,55 @@ depNetwork <- make_dependent_events(
   events = eventsIncrement,
   nodes = actorsEx,
   default_network = networkState
+)
+
+# added for trans/cycle 
+
+networkStateTrans <- matrix(
+  c(
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0
+  ),
+  nrow = 5, ncol = 5, byrow = TRUE,
+  dimnames = list(
+    sprintf("Actor %d", 1:5),
+    sprintf("Actor %d", 1:5)
+  )
+)
+
+eventsIncrementTrans <- data.frame(
+  time = cumsum(
+    c(1, 5, 3, 4, 2, 1, 3, 8, 1, 1, 3, 4)
+  ),
+  sender = sprintf(
+    "Actor %d",
+    c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)
+  ),
+  receiver = sprintf(
+    "Actor %d",
+    c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)
+  ),
+  increment =
+    c(1, 2, 0, 0, 1, 2, 1, -1, 1, 1, 1, 1),
+  stringsAsFactors = FALSE
+)
+
+networkStateTrans <- make_network(
+  matrix = networkStateTrans, nodes = actorsEx,
+  directed = TRUE
+)
+networkStateTrans <- link_events(
+  x = networkStateTrans,
+  change_event = eventsIncrementTrans,
+  nodes = actorsEx
+)
+depNetworkTrans <- make_dependent_events(
+  events = eventsIncrementTrans,
+  nodes = actorsEx,
+  default_network = networkStateTrans
 )
 
 # exogenous network

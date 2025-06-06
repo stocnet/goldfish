@@ -52,14 +52,15 @@ test_that("choice formula", {
   
   # rhs_names <- parse_multiple_effects(rhs_names, envir = envirTest)
   
-  expect_vector(parsed_formula, ptype = list(), size = 12)
+  expect_vector(parsed_formula, ptype = list(), size = 13)
   expect_setequal(
     names(parsed_formula),
     c("rhs_names", "dep_name", "has_intercept", "default_network_name",
       "window_parameters", "ignore_rep_parameter", "weighted_parameter",
       "type_parameter",
       "trans_parameter", "aggre_parameter",
-      "joining_parameter", "sub_type_parameter")
+      "joining_parameter", "sub_type_parameter",
+      "history_parameter")
   )
   expect_true(which(!sapply(parsed_formula$window_parameters, is.null)) == 5)
   expect_true(which(as.logical(parsed_formula$ignore_rep_parameter)) == 6)

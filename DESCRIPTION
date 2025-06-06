@@ -20,7 +20,8 @@ Authors@R: c(person("James", "Hollway", role = c("aut", "dtc"),
               person("Xiaolei", "Zhang", role = "ctb"),
               person("Weigutian", "Ou", role = "ctb"),
               person("Emily", "Garvin", role = "ctb"),
-              person("Siwei", "Zhang", role = "ctb"))
+              person("Siwei", "Zhang", role = "ctb"),
+              person("Mabel", "Wylie", role = "ctb"))
 License: GPL (>= 3)
 Description: Tools for fitting statistical network models to dynamic network data.
    Can be used for fitting both dynamic network actor models ('DyNAMs') and

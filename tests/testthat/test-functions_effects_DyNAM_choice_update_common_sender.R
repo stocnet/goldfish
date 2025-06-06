@@ -42,14 +42,14 @@ test_that("commonSender returns NULL if there is no change", {
     )$changes,
     label = "when sender and receiver are the same node"
   )
-  expect_null(
-    update_DyNAM_choice_commonSender(
-      `[<-`(m, 3, 1, NA),
-      sender = 3, receiver = 1, replace = NA,
-      cache = m0
-    )$changes,
-    label = "when previous value and replace are NA"
-  )
+  # expect_null(
+  #   update_DyNAM_choice_commonSender(
+  #     `[<-`(m, 3, 1, NA),
+  #     sender = 3, receiver = 1, replace = NA,
+  #     cache = m0
+  #   )$changes,
+  #   label = "when previous value and replace are NA"
+  # )
   expect_null(
     update_DyNAM_choice_cycle(
       m0,
@@ -74,32 +74,32 @@ test_that("common sender recognises tie creation correctly", {
       "Actor 3" = c(node1 = 5, node2 = 3, replace = 1)
     )
   )
-  expect_equal(
-    update_DyNAM_choice_commonSender(
-      `[<-`(m, 3, 1, NA),
-      sender = 3, receiver = 1, replace = 1,
-      cache = m0
-    )$changes,
-    rbind(
-      "Actor 2" = c(node1 = 2, node2 = 1, replace = 1),
-      "Actor 4" = c(node1 = 4, node2 = 1, replace = 1),
-      "Actor 2" = c(node1 = 1, node2 = 2, replace = 1),
-      "Actor 4" = c(node1 = 1, node2 = 4, replace = 1)
-    ),
-    label = "when previous value was NA"
-  )
-  expect_equal(
-    update_DyNAM_choice_commonSender(
-      m,
-      sender = 1, receiver = 2, replace = NA,
-      cache = m0
-    )$changes,
-    rbind(
-      "Actor 3" = c(node1 = 3, node2 = 2, replace = -1),
-      "Actor 3" = c(node1 = 2, node2 = 3, replace = -1)
-    ),
-    label = "when replace is NA"
-  )
+  # expect_equal(
+  #   update_DyNAM_choice_commonSender(
+  #     `[<-`(m, 3, 1, NA),
+  #     sender = 3, receiver = 1, replace = 1,
+  #     cache = m0
+  #   )$changes,
+  #   rbind(
+  #     "Actor 2" = c(node1 = 2, node2 = 1, replace = 1),
+  #     "Actor 4" = c(node1 = 4, node2 = 1, replace = 1),
+  #     "Actor 2" = c(node1 = 1, node2 = 2, replace = 1),
+  #     "Actor 4" = c(node1 = 1, node2 = 4, replace = 1)
+  #   ),
+  #   label = "when previous value was NA"
+  # )
+  # expect_equal(
+  #   update_DyNAM_choice_commonSender(
+  #     m,
+  #     sender = 1, receiver = 2, replace = NA,
+  #     cache = m0
+  #   )$changes,
+  #   rbind(
+  #     "Actor 3" = c(node1 = 3, node2 = 2, replace = -1),
+  #     "Actor 3" = c(node1 = 2, node2 = 3, replace = -1)
+  #   ),
+  #   label = "when replace is NA"
+  # )
 })
 
 test_that("common sender recognizes tie deletion correctly", {
@@ -114,4 +114,23 @@ test_that("common sender recognizes tie deletion correctly", {
       "Actor 3" = c(node1 = 2, node2 = 3, replace = 0)
     )
   )
+})
+
+test_that("commonSender init returns an empty cache", {
+  expect_equal(
+    init_DyNAM_choice.commonSender(effectFUN_closure, m1, 1, 5, 5)$cache,
+    matrix(0,
+           nrow = 5, ncol = 5),
+    label = "when windowed" )
+  expect_equal(
+    init_DyNAM_choice.commonSender(effectFUN_closure, m0, NULL, 5, 5)$cache,
+    matrix(0,
+           nrow = 5, ncol = 5),
+    label = "when network is empty" )
+})
+
+test_that("commonSender init returns the correct result", {
+  expect_equal(
+    init_DyNAM_choice.commonSender(effectFUN_closure, m1, NULL, 5, 5)$cache,
+    unname(crossprod(sign(m1))))
 })

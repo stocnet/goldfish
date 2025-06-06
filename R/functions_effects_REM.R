@@ -246,14 +246,9 @@ update_REM_choice_indeg <- function(
     oldValue <- sign(oldValue)
     replace <- sign(replace)
   }
-
-  checkMissingResult <- checkMissing(oldValue,replace)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
   
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace) {
     return(res)
   }
   # update cache for receiver, event/tie
@@ -451,15 +446,9 @@ update_REM_choice_outdeg <- function(
     oldValue <- sign(oldValue)
     replace <- sign(replace)
   }
-
-  # Check if old value has changed
-  checkMissingResult <- checkMissing(oldValue,replace)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
   
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace) {
     return(res)
   }
 
@@ -512,12 +501,15 @@ update_REM_choice_trans <- function(
     receiver,
     replace, cache,
     isTwoMode = FALSE,
-    transformFun = identity) {
+    transformFun = identity,
+    history = c('pooled','sequential','consecutive'),
+    eventOrder = 0) {
   update_DyNAM_choice_trans(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     cache = cache,
-    isTwoMode = isTwoMode, transformFun = transformFun
+    isTwoMode = isTwoMode, transformFun = transformFun,
+    history = history, eventOrder = 0
   )
 }
 
@@ -537,12 +529,14 @@ update_REM_choice_cycle <- function(
     receiver,
     replace, cache,
     isTwoMode = FALSE,
-    transformFun = identity) {
+    transformFun = identity,
+    history = c('pooled','sequential','consecutive'),
+    eventOrder = 0) {
   update_DyNAM_choice_cycle(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     cache = cache,
-    isTwoMode = isTwoMode, transformFun = transformFun
+    isTwoMode = isTwoMode, transformFun = transformFun, history = history, eventOrder = 0
   )
 }
 
@@ -902,15 +896,9 @@ update_REM_choice_tertius <- function(
     # get old value, always weighted
     replace <- sign(replace)
     oldValue <- sign(network[sender, receiver])
-
-    # Check if old value has changed
-    checkMissingResult <- checkMissing(oldValue,replace)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
     
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
 
@@ -940,16 +928,9 @@ update_REM_choice_tertius <- function(
   if (!is.null(node) && is.null(sender) && is.null(receiver)) {
     # Get old value
     oldValue <- attribute[node]
-    imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
-                          mean(attribute[-node], na.rm = TRUE), 0) 
-    
-    checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
-    flag <- checkMissingResult$flag
-    oldValue <- checkMissingResult$oldValue
-    replace <- checkMissingResult$replace
     
     # If the old value of the tie is the same as the replace value
-    if (flag) {
+    if (oldValue == replace) {
       return(res)
     }
 
@@ -1319,15 +1300,9 @@ update_REM_choice_nodeTrans <- function(
   # get old value, always weighted
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
-
-  # Check if old value has changed
-  checkMissingResult <- checkMissing(oldValue,replace)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
   
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace) {
     return(res)
   }
 
@@ -1430,16 +1405,8 @@ update_REM_choice_ego <- function(
   # Get old value
   oldValue <- attribute[node]
   
-  imputeValue <- ifelse(is.na(replace) || is.na(oldValue),
-                        mean(attribute[-node], na.rm = TRUE), 0) 
-  
-  checkMissingResult <- checkMissing(oldValue,replace,imputeValue)
-  flag <- checkMissingResult$flag
-  oldValue <- checkMissingResult$oldValue
-  replace <- checkMissingResult$replace
-  
   # If the old value of the tie is the same as the replace value
-  if (flag) {
+  if (oldValue == replace) {
     return(res)
   }
   # utility functions to return third nodes
