@@ -99,7 +99,7 @@ test_that("same returns correct attributes on update", {
 
 test_that("same init throws an error when two-mode network", {
   check = formals(effectFUN)
-  check$isTwoMode = TRUE
+  check$is_two_mode = TRUE
   formals(effectFUN) <- check
   expect_error(init_DyNAM_choice.same(effectFUN, m1, NULL, 5, 5),
                regexp = "doesn't work in two mode networks")

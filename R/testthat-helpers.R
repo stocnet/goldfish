@@ -88,39 +88,39 @@ testAttr <- data.frame(
 
 # Effect Functions  -------------------------------------------------
 effectFUN <- function (
-    network, sender, receiver, replace, cache, weighted = FALSE, isTwoMode = FALSE, 
-                       transformFun = identity) {}
+    network, sender, receiver, replace, cache, weighted = FALSE, is_two_mode = FALSE, 
+                       transformer_fn = identity) {}
 
 effectFUN_tie <- function(
     network,
     sender, receiver, replace,
-    weighted = FALSE, transformFun = identity) {
+    weighted = FALSE, transformer_fn = identity) {
   update_DyNAM_choice_tie(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
-    weighted = weighted, transformFun = transformFun
+    weighted = weighted, transformer_fn = transformer_fn
   )
 }
 
 effectFUN_tie_weighted <- function(
     network,
     sender, receiver, replace,
-    weighted = TRUE, transformFun = identity) {
+    weighted = TRUE, transformer_fn = identity) {
   update_DyNAM_choice_tie(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
-    weighted = weighted, transformFun = transformFun
+    weighted = weighted, transformer_fn = transformer_fn
   )
 }
 
 effectFUN_same <- function(
     attribute,
     node, replace,
-    isTwoMode = FALSE) {
+    is_two_mode = FALSE) {
   update_DyNAM_choice_same(
     attribute = attribute,
     node = node, replace = replace,
-    isTwoMode = isTwoMode
+    is_two_mode = is_two_mode
   )
 }
 
@@ -128,13 +128,13 @@ effectFUN_indeg <- function(
     network,
     sender, receiver, replace,
     cache, n1, n2,
-    isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity) {
+    is_two_mode = FALSE,
+    weighted = FALSE, transformer_fn = identity) {
   update_DyNAM_choice_indeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, isTwoMode = isTwoMode,
-    weighted = weighted, transformFun = transformFun
+    n1 = n1, n2 = n2, is_two_mode = is_two_mode,
+    weighted = weighted, transformer_fn = transformer_fn
   )
 }
 
@@ -143,8 +143,8 @@ effectFUN_closure <- function(
     sender,
     receiver,
     replace, cache,
-    isTwoMode = FALSE,
-    transformFun = identity,
+    is_two_mode = FALSE,
+    transformer_fn = identity,
     history = "pooled") {
 }
 
@@ -157,10 +157,10 @@ effectFUN_tertius <- function(
     node = NULL,
     replace,
     cache,
-    isTwoMode = FALSE,
+    is_two_mode = FALSE,
     n1 = n1, n2 = n2,
-    transformFun = abs,
-    aggregateFun = function(x) mean(x, na.rm = TRUE)) {
+    transformer_fn = abs,
+    summarizer_fn = function(x) mean(x, na.rm = TRUE)) {
   update_DyNAM_choice_tertiusDiff(
     network = network,
     attribute = attribute,
@@ -169,10 +169,10 @@ effectFUN_tertius <- function(
     node = node,
     replace = replace,
     cache = cache,
-    isTwoMode = isTwoMode,
+    is_two_mode = is_two_mode,
     n1 = n1, n2 = n2,
-    transformFun = transformFun,
-    aggregateFun = aggregateFun
+    transformer_fn = transformer_fn,
+    summarizer_fn = summarizer_fn
   )
 }
 
@@ -180,37 +180,37 @@ effectFUN_REM_ego <- function(
     attribute,
     node, replace,
     n1, n2,
-    isTwoMode = FALSE) {
+    is_two_mode = FALSE) {
   update_REM_choice_ego(
     attribute = attribute,
     node = node, replace = replace,
     n1 = n1, n2 = n2,
-    isTwoMode = isTwoMode
+    is_two_mode = is_two_mode
   )
 }
 
 effectFUN_REM_diff <- function(
     attribute, node, replace,
     n1, n2,
-    isTwoMode = FALSE,
-    transformFun = abs) {
+    is_two_mode = FALSE,
+    transformer_fn = abs) {
   update_DyNAM_choice_diff(
     attribute = attribute,
     node = node, replace = replace,
-    isTwoMode = isTwoMode,
+    is_two_mode = is_two_mode,
     n1 = n1, n2 = n2,
-    transformFun = transformFun
+    transformer_fn = transformer_fn
   )
 }
 
 effectFUN_REM_sim <- function(
     attribute,
     node, replace,
-    isTwoMode = FALSE) {
+    is_two_mode = FALSE) {
   update_DyNAM_choice_same(
     attribute = attribute,
     node = node, replace = replace,
-    isTwoMode = isTwoMode
+    is_two_mode = is_two_mode
   )
 }
 

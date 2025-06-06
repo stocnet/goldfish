@@ -145,11 +145,11 @@ test_that("inertia recognizes updates to tie weights correctly", {
     update_DyNAM_choice_inertia(
       m,
       sender = 1, receiver = 3, replace = 2, weighted = TRUE,
-      transformFun = function(x) `^`(x, 2)
+      transformer_fn = function(x) `^`(x, 2)
     )$changes,
     matrix(c(1, 3, 4), 1, 3,
       dimnames = list(NULL, c("node1", "node2", "replace"))
     ),
-    label = "when transformFun is specified"
+    label = "when transformer_fn is specified"
   )
 })

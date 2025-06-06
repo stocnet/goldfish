@@ -12,8 +12,8 @@
 #' @param objectsEffectsLink data.frame output of `getObjectsEffectsLink()`.
 #' @param nodes character with the object that contains the nodes information
 #' @param nodes2 character with the object that contains the nodes information,
-#'   different from `nodes` when `isTwoMode = TRUE`.
-#' @param isTwoMode logical is it a two mode network?
+#'   different from `nodes` when `is_two_mode = TRUE`.
+#' @param is_two_mode logical is it a two mode network?
 #' @param startTime numerical start time to preprocess the data
 #' @param endTime numerical end time to preprocess the data
 #' @param rightCensored logical does it consider right censored events?
@@ -35,7 +35,7 @@ preprocess <- function(
     # multipleParameter,
     nodes,
     nodes2 = nodes,
-    isTwoMode,
+    is_two_mode,
     # add more parameters
     startTime = min(vapply(events, function(x) min(x$time), double(1))),
     endTime = max(vapply(events, function(x) max(x$time), double(1))),

@@ -26,7 +26,7 @@ estimate_int <- function(
     returnEventProbabilities = FALSE,
     # additional parameter for DyNAM-MM
     allowReflexive = FALSE,
-    isTwoMode = FALSE,
+    is_two_mode = FALSE,
     # additional parameter for DyNAM-M-Rate
     hasIntercept = FALSE,
     returnIntervalLogL = FALSE,
@@ -268,7 +268,7 @@ estimate_int <- function(
       returnIntervalLogL = returnIntervalLogL,
       returnEventProbabilities = returnEventProbabilities,
       allowReflexive = allowReflexive,
-      isTwoMode = isTwoMode,
+      is_two_mode = is_two_mode,
       reduceMatrixToVector = reduceMatrixToVector,
       reduceArrayToMatrix = reduceArrayToMatrix,
       ignoreRepParameter = ignoreRepParameter,
@@ -464,7 +464,7 @@ getEventValues <- function(
     isRightCensored,
     timespan,
     allowReflexive,
-    isTwoMode) {
+    is_two_mode) {
   if (modelType == "DyNAM-MM") {
     multinomialProbabilities <-
       getMultinomialProbabilities(
@@ -488,7 +488,7 @@ getEventValues <- function(
       getMultinomialProbabilities(
         statsArray, activeDyad, parameters,
         actorNested = TRUE, allowReflexive = allowReflexive,
-        isTwoMode = isTwoMode
+        is_two_mode = is_two_mode
       )
     logLikelihood <- log(eventProbabilities[activeDyad[2]])
     firstDerivatives <- getFirstDerivativeM(statsArray, eventProbabilities)
@@ -557,9 +557,9 @@ getEventValues <- function(
     if (is.na(timespan)) timespan <- 0
 
     # Don't consider self-connecting edge when both allowReflexive
-    # and  isTwoMode are false
+    # and  is_two_mode are false
     dontConsiderSelfConnecting <- (modelType == "REM") && !allowReflexive &&
-      !isTwoMode
+      !is_two_mode
     if (dontConsiderSelfConnecting) {
       idEdgeNotConsidered <- (seq_len(dimMatrix[1]) - 1) * dimMatrix[1] +
         seq_len(dimMatrix[1])
@@ -738,7 +738,7 @@ getIterationStepState <- function(
     returnIntervalLogL = FALSE,
     returnEventProbabilities = FALSE,
     allowReflexive = TRUE,
-    isTwoMode = FALSE,
+    is_two_mode = FALSE,
     reduceMatrixToVector = FALSE,
     reduceArrayToMatrix = FALSE,
     ignoreRepParameter = NULL,
@@ -924,16 +924,16 @@ getIterationStepState <- function(
     oldTime <- current_time
 
     # patch to avoid collision with dropping absent people
-    if (!isTwoMode) {
+    if (!is_two_mode) {
       for (parmPos in seq_len(dim(statsArrayComp)[3])) {
         diag(statsArrayComp[, , parmPos]) <- 0
       }
     }
 
     # remove potential absent lines and columns from the stats array
-    if (updatepresence) { # || (updateopportunities && !isTwoMode)
+    if (updatepresence) { # || (updateopportunities && !is_two_mode)
       keepIn <- presence
-      # if (updateopportunities && !isTwoMode)
+      # if (updateopportunities && !is_two_mode)
       #   keepIn <- presence & opportunities
       statsArrayComp <- statsArrayComp[keepIn, , , drop = FALSE]
       if (isDependent) {
@@ -956,7 +956,7 @@ getIterationStepState <- function(
       # it needs to consider the reflexive case to avoid wrong calculation
       # excludes REM and DyNAM-MM
       if (!allowReflexive && grepl("DyNAM-M(-|$)?", modelType)) {
-        if (!isTwoMode) keepIn[posSender] <- FALSE
+        if (!is_two_mode) keepIn[posSender] <- FALSE
         allowReflexiveCorrected <- TRUE
       } else {
         allowReflexiveCorrected <- FALSE
@@ -990,7 +990,7 @@ getIterationStepState <- function(
         statsArrayComp,
         3,
         \(stat) {
-          if (!isTwoMode) {
+          if (!is_two_mode) {
             rowSums(stat, na.rm = TRUE) / (dim(stat)[2] - 1)
           } else {
             rowMeans(stat, na.rm = TRUE)
@@ -1021,7 +1021,7 @@ getIterationStepState <- function(
       isRightCensored = isRightCensored,
       timespan = timespan,
       allowReflexive = allowReflexiveCorrected,
-      isTwoMode = isTwoMode
+      is_two_mode = is_two_mode
     )
 
     # update return list
@@ -1147,7 +1147,7 @@ getMultinomialProbabilities <- function(
     parameters,
     actorNested = TRUE,
     allowReflexive = TRUE,
-    isTwoMode = FALSE) {
+    is_two_mode = FALSE) {
   # allow this for a two- OR a three-dimensional array provided as input,
   # to be make
   nDimensions <- length(dim(statsArray))
@@ -1169,7 +1169,7 @@ getMultinomialProbabilities <- function(
     weightedStatsArray <- statsArray * rep(parameters, each = matrixSize)
     # get utility = exp( value of objective function )
     utility <- exp(apply(weightedStatsArray, c(1, 2), sum))
-    if (!allowReflexive && !isTwoMode) diag(utility) <- 0
+    if (!allowReflexive && !is_two_mode) diag(utility) <- 0
     if (actorNested) {
       denominators <- rowSums(utility)
     } else {
@@ -1181,7 +1181,7 @@ getMultinomialProbabilities <- function(
     weightedStatsArray <- sweep(statsArray, MARGIN = 2, parameters, "*")
     utility <- exp(rowSums(weightedStatsArray))
     # allow reflexive?
-    if (!allowReflexive && !isTwoMode) utility[activeDyad[1]] <- 0
+    if (!allowReflexive && !is_two_mode) utility[activeDyad[1]] <- 0
     denominators <- sum(utility)
   }
   utility / denominators

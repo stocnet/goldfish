@@ -152,26 +152,26 @@ test_that("recip recognizes updates to tie weights correctly", {
     update_DyNAM_choice_recip(
       m,
       sender = 1, receiver = 4, replace = 2,
-      weighted = TRUE, transformFun = function(x) x * x
+      weighted = TRUE, transformer_fn = function(x) x * x
     )$changes,
     matrix(c(4, 1, 4), 1, 3,
       dimnames = list(NULL, c("node1", "node2", "replace"))
     ),
-    label = "when transformFun is specified"
+    label = "when transformer_fn is specified"
   )
 })
   
 test_that("recip init throws an error when two-mode network", {
-  check = formals(effectFUN)
-  check$isTwoMode = TRUE
+  check <- formals(effectFUN)
+  check$is_two_mode <- TRUE
   formals(effectFUN) <- check
   expect_error(init_DyNAM_choice.recip(effectFUN, m, NULL, 5, 5),
                regexp = ".*\\Q effect must not be used when is a two-mode network\\E*")
 })
 
 test_that("recip init recognises weighted=TRUE", {
-  check = formals(effectFUN)
-  check$weighted = TRUE
+  check <- formals(effectFUN)
+  check$weighted <- TRUE
   formals(effectFUN) <- check
   expect_equal(init_DyNAM_choice.recip(effectFUN, m, NULL, 5, 5)$stat,
                unname(t(m)))

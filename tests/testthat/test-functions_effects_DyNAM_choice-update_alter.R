@@ -67,7 +67,7 @@ test_that("alter init returns the correct result when TwoMode = FALSE", {
 
 test_that("alter init returns the correct result when TwoMode = TRUE", {
   check = formals(effectFUN)
-  check$isTwoMode = TRUE
+  check$is_two_mode = TRUE
   formals(effectFUN) <- check
   expect_equal(
     diag(init_DyNAM_choice.alter(effectFUN, testAttr$fishingSkill, 8, 8)$stat),

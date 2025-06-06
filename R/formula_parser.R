@@ -60,7 +60,7 @@ parse_formula <- function(formula, envir = new.env()) {
   rhs_names <- mult[[1]]
   ignore_rep_parameter <- mult[[2]]
   if (any(unlist(ignore_rep_parameter)) && is.null(default_network_name)) {
-    stop("No default network defined, thus ", dQuote("ignoreRep = TRUE"),
+    stop("No default network defined, thus ", dQuote("ignore_repetitions = TRUE"),
       " effects cannot be used.",
       call. = FALSE
     )
@@ -82,8 +82,8 @@ parse_formula <- function(formula, envir = new.env()) {
       "userDefined", v
     ) # if it is a function, it is replace by short text
   }
-  trans_parameter <- lapply(rhs_names, get_fun_name, "transformFun")
-  aggre_parameter <- lapply(rhs_names, get_fun_name, "aggregateFun")
+  trans_parameter <- lapply(rhs_names, get_fun_name, "transformer_fn")
+  summ_parameter <- lapply(rhs_names, get_fun_name, "summarizer_fn")
   joining_parameter <- lapply(rhs_names, function(x) {
     v <- getElement(x, "joining")
     ifelse(!is.null(v), v, "")
@@ -109,7 +109,7 @@ parse_formula <- function(formula, envir = new.env()) {
     weighted_parameter = weighted_parameter,
     type_parameter = type_parameter,
     trans_parameter = trans_parameter,
-    aggre_parameter = aggre_parameter,
+    summ_parameter = summ_parameter,
     joining_parameter = joining_parameter,
     sub_type_parameter = sub_type_parameter,
     history_parameter = history_parameter
@@ -249,23 +249,23 @@ create_effects_functions <- function(effect_init, model, sub_model,
       is_condition <- isReservedElementName(.args_names) &
         !(.args_names %in% names_)
       .signature[is_condition] <- parms_to_set[!named_params]
-      if ("network" %in% .args_names && "isTwoMode" %in% .args_names) {
+      if ("network" %in% .args_names && "is_two_mode" %in% .args_names) {
         is_two_mode <- length(attr(
           eval(.signature[["network"]], envir = envir), "nodes"
         )) > 1
-        if (!is.null(parms_to_set[["isTwoMode"]]) &&
-          eval(parms_to_set[["isTwoMode"]], envir = envir) != is_two_mode) {
+        if (!is.null(parms_to_set[["is_two_mode"]]) &&
+          eval(parms_to_set[["is_two_mode"]], envir = envir) != is_two_mode) {
           warning(
-            "The \"isTwoMode\" parameter in effect ",
+            "The \"is_two_mode\" parameter in effect ",
             x[[1]], " has a different value than",
             " the attributes on network argument '",
             x[[2]], "'",
             call. = FALSE, immediate. = TRUE
           )
-        } else if (is_two_mode && is.null(parms_to_set[["isTwoMode"]])) {
-          .signature[["isTwoMode"]] <- is_two_mode
+        } else if (is_two_mode && is.null(parms_to_set[["is_two_mode"]])) {
+          .signature[["is_two_mode"]] <- is_two_mode
           warning(
-            "Setting 'isTwoMode' parameter in effect ", x[[1]],
+            "Setting 'is_two_mode' parameter in effect ", x[[1]],
             " to TRUE for network '", x[[2]], "'",
             call. = FALSE, immediate. = TRUE
           )
@@ -452,7 +452,7 @@ parse_multiple_effects <- function(
   multiple_names <- character(0)
   for (i in seq_along(rhs_names)) {
     name <- ""
-    id <- which(names(rhs_names[[i]]) == "ignoreRep")
+    id <- which(names(rhs_names[[i]]) == "ignore_repetitions")
     multiple_param <- ifelse(length(id) == 1, rhs_names[[i]][[id]], default)
     if (multiple_param %in% c("T", "F", "TRUE", "FALSE")) {
       multiple_param <- as.logical(multiple_param)
@@ -471,7 +471,7 @@ parse_multiple_effects <- function(
       multiple_param <- FALSE
     }
     if (!is.na(name) && name != "" && !exists(name, envir = envir)) {
-      stop("Unknown object in 'ignoreRep' parameter: ", name, call. = FALSE)
+      stop("Unknown object in 'ignore_repetitions' parameter: ", name, call. = FALSE)
     }
     multiple <- append(multiple, multiple_param)
     multiple_names <- c(multiple_names, name)

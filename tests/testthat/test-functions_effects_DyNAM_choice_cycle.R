@@ -205,9 +205,9 @@ test_that("cycle recognizes tie deletion correctly ", {
 })
 
 test_that("cycle init throws an error when two-mode network", {
-  # effectFUN_closure has isTwoMode=FALSE so we must change this prior to the test
-  check = formals(effectFUN_closure)
-  check$isTwoMode = TRUE
+  # effectFUN_closure has is_two_mode=FALSE so we must change this prior to the test
+  check <- formals(effectFUN_closure)
+  check$is_two_mode <- TRUE
   formals(effectFUN_closure) <- check
   expect_error(init_DyNAM_choice.cycle(effectFUN_closure, m1, NULL, 5, 5),
                regexp = ".*\\Q effect must not use when is a two-mode network\\E.*")
@@ -251,4 +251,3 @@ test_that("cycle init is correctly performed for history = consecutive",{
     c(sender = 0, receiver = 0, eventOrder = 0)
   )
 })
-  

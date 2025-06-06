@@ -24,7 +24,7 @@ init_DyNAM_rate.default <- function(
 #' init stat matrix indegree using cache
 #'
 #' @param effectFun function with additional parameters weighted,
-#'  isTwoMode, transformFun
+#'  is_two_mode, transformer_fn
 #' @param network matrix n1*n2
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
@@ -48,7 +48,7 @@ init_DyNAM_rate.default <- function(
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
 #' effectFUN <- function(
-#'     weighted = TRUE, isTwoMode = TRUE, transformFun = identity) {
+#'     weighted = TRUE, is_two_mode = TRUE, transformer_fn = identity) {
 #'   NULL
 #' }
 #' init_REM_choice.indeg(effectFUN, network, 5, 6)
@@ -63,13 +63,13 @@ init_DyNAM_rate.default <- function(
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
 #' effectFUN <- function(
-#'     weighted = TRUE, isTwoMode = FALSE, transformFun = identity) {
+#'     weighted = TRUE, is_two_mode = FALSE, transformer_fn = identity) {
 #'   NULL
 #' }
 #' init_DyNAM_rate.indeg(effectFUN, network, NULL, 5, 5)
 #'
 #' effectFUN <- function(
-#'     weighted = TRUE, isTwoMode = FALSE, transformFun = identity,
+#'     weighted = TRUE, is_two_mode = FALSE, transformer_fn = identity,
 #'     type = "alter") {
 #'   NULL
 #' }
@@ -93,9 +93,9 @@ init_DyNAM_rate.indeg <- function(effectFun, network, window, n1, n2, ...) {
 #' @param cache numeric vector size n2
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' @param isTwoMode logical
+#' @param is_two_mode logical
 #' @param weighted logical
-#' @param transformFun function to apply to the stat
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache numeric vector size n2,
@@ -119,19 +119,19 @@ init_DyNAM_rate.indeg <- function(effectFun, network, window, n1, n2, ...) {
 #'   network,
 #'   1, 2, 3,
 #'   cache, 5, 5,
-#'   isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt
+#'   is_two_mode = TRUE, weighted = TRUE, transformer_fn = sqrt
 #' )
 #' }
 update_DyNAM_rate_indeg <- function(
     network,
     sender, receiver, replace, cache,
-    n1, n2, isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity) {
+    n1, n2, is_two_mode = FALSE,
+    weighted = FALSE, transformer_fn = identity) {
   update_REM_choice_indeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, isTwoMode = isTwoMode,
-    weighted = weighted, transformFun = transformFun, type = "ego"
+    n1 = n1, n2 = n2, is_two_mode = is_two_mode,
+    weighted = weighted, transformer_fn = transformer_fn, type = "ego"
   )
 }
 
@@ -150,13 +150,13 @@ init_DyNAM_rate.outdeg <- function(effectFun, network, window, n1, n2, ...) {
 update_DyNAM_rate_outdeg <- function(
     network,
     sender, receiver, replace, cache,
-    n1, n2, isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity) {
+    n1, n2, is_two_mode = FALSE,
+    weighted = FALSE, transformer_fn = identity) {
   update_REM_choice_outdeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, isTwoMode = isTwoMode,
-    weighted = weighted, transformFun = transformFun, type = "ego"
+    n1 = n1, n2 = n2, is_two_mode = is_two_mode,
+    weighted = weighted, transformer_fn = transformer_fn, type = "ego"
   )
 }
 
@@ -177,13 +177,13 @@ update_DyNAM_rate_nodeTrans <- function(
     replace,
     cache,
     n1, n2,
-    isTwoMode = FALSE,
-    transformFun = identity) {
+    is_two_mode = FALSE,
+    transformer_fn = identity) {
   update_REM_choice_nodeTrans(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, isTwoMode = isTwoMode,
-    transformFun = transformFun, type = "ego"
+    n1 = n1, n2 = n2, is_two_mode = is_two_mode,
+    transformer_fn = transformer_fn, type = "ego"
   )
 }
 # tertius ----------------------------------------------------------------
@@ -206,10 +206,10 @@ update_DyNAM_rate_tertius <- function(
     node = NULL,
     replace,
     cache,
-    isTwoMode = FALSE,
+    is_two_mode = FALSE,
     n1 = n1, n2 = n2,
-    transformFun = identity,
-    aggregateFun = function(x) mean(x, na.rm = TRUE)) {
+    transformer_fn = identity,
+    summarizer_fn = function(x) mean(x, na.rm = TRUE)) {
   update_REM_choice_tertius(
     network = network,
     attribute = attribute,
@@ -218,10 +218,10 @@ update_DyNAM_rate_tertius <- function(
     node = node,
     replace = replace,
     cache = cache,
-    isTwoMode = isTwoMode,
+    is_two_mode = is_two_mode,
     n1 = n1, n2 = n2,
-    transformFun = transformFun,
-    aggregateFun = aggregateFun, type = "ego"
+    transformer_fn = transformer_fn,
+    summarizer_fn = summarizer_fn, type = "ego"
   )
 }
 
@@ -239,11 +239,11 @@ update_DyNAM_rate_ego <- function(
     attribute,
     node, replace,
     n1, n2,
-    isTwoMode = FALSE) {
+    is_two_mode = FALSE) {
   update_REM_choice_ego(
     attribute = attribute,
     node = node, replace = replace,
     n1 = n1, n2 = n2,
-    isTwoMode = isTwoMode
+    is_two_mode = is_two_mode
   )
 }

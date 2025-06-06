@@ -270,8 +270,8 @@
 #' partnerModel <- estimate(
 #'   createBilat ~
 #'     inertia(bilatnet) +
-#'     indeg(bilatnet, ignoreRep = TRUE) +
-#'     trans(bilatnet, ignoreRep = TRUE) +
+#'     indeg(bilatnet, ignore_repetitions = TRUE) +
+#'     trans(bilatnet, ignore_repetitions = TRUE) +
 #'     tie(contignet) +
 #'     alter(states$regime) +
 #'     diff(states$regime) +
@@ -416,7 +416,7 @@ estimate.formula <- function(
   # DyNAM-i ONLY: creates extra parameter to differentiate joining and
   # leaving rates, and effect subtypes. Added directly to GetDetailPrint
 
-  # # C implementation doesn't have ignoreRep option issue #105
+  # # C implementation doesn't have ignore_repetitions option issue #105
   if (any(unlist(parsed_formula$ignore_rep_parameter)) &&
     engine %in% c("default_c", "gather_compute")) {
     warning("engine = ", dQuote(engine),
@@ -463,15 +463,15 @@ estimate.formula <- function(
 
   if (progress) cat("Initializing objects.\n")
 
-  ## 2.0 Set isTwoMode to define effects functions
+  ## 2.0 Set is_two_mode to define effects functions
   # get node sets of dependent variable
   .nodes <- attr(get(dep_name, envir = envir), "nodes")
-  isTwoMode <- FALSE
+  is_two_mode <- FALSE
   # two-mode networks(2 kinds of nodes)
   if (length(.nodes) == 2) {
     .nodes2 <- .nodes[2]
     .nodes <- .nodes[1]
-    isTwoMode <- TRUE
+    is_two_mode <- TRUE
   } else {
     .nodes2 <- .nodes
   }
@@ -520,8 +520,8 @@ estimate.formula <- function(
     # recover the nodesets
     .nodes <- preprocessingInit$nodes
     .nodes2 <- preprocessingInit$nodes2
-    isTwoMode <- FALSE
-    if (!identical(.nodes, .nodes2)) isTwoMode <- TRUE
+    is_two_mode <- FALSE
+    if (!identical(.nodes, .nodes2)) is_two_mode <- TRUE
 
     # find new effects
     if (min(effects_indexes) == 0) {
@@ -560,7 +560,7 @@ estimate.formula <- function(
         # multipleParameter = multipleParameter,
         nodes = .nodes,
         nodes2 = .nodes2,
-        isTwoMode = isTwoMode,
+        is_two_mode = is_two_mode,
         startTime = preprocessingInit[["startTime"]],
         endTime = preprocessingInit[["endTime"]],
         rightCensored = rightCensored,
@@ -715,7 +715,7 @@ estimate.formula <- function(
         # multipleParameter = multipleParameter,
         nodes = .nodes,
         nodes2 = .nodes2,
-        isTwoMode = isTwoMode,
+        is_two_mode = is_two_mode,
         startTime = estimationInit[["startTime"]],
         endTime = estimationInit[["endTime"]],
         rightCensored = rightCensored,
@@ -793,7 +793,7 @@ estimate.formula <- function(
     verbose = verbose,
     progress = progress,
     ignoreRepParameter = ignore_rep_parameter,
-    isTwoMode = isTwoMode,
+    is_two_mode = is_two_mode,
     prepEnvir = EstimateEnvir
   )
   # prefer user-defined arguments

@@ -99,9 +99,9 @@ test_that("diff returns correct attributes on update", {
 })
 
 test_that("diff init throws an error when two-mode network", {
-  # effectFUN has isTwoMode=FALSE so we must change this prior to the test
-  check = formals(effectFUN)
-  check$isTwoMode = TRUE
+  # effectFUN has is_two_mode=FALSE so we must change this prior to the test
+  check <- formals(effectFUN)
+  check$is_two_mode <- TRUE
   formals(effectFUN) <- check
   expect_error(init_DyNAM_choice.diff(effectFUN, m1, NULL, 5, 5),
                regexp = "doesn't work in two mode networks")

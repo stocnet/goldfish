@@ -26,7 +26,7 @@ estimate_c_int <- function(
     returnEventProbabilities = FALSE,
     # additional parameter for DyNAM-MM
     allowReflexive = FALSE,
-    isTwoMode = FALSE,
+    is_two_mode = FALSE,
     # additional parameter for DyNAM-M-Rate
     hasIntercept = FALSE,
     returnIntervalLogL = FALSE,
@@ -34,7 +34,7 @@ estimate_c_int <- function(
     cpus = 6,
     verbose = FALSE,
     progress = FALSE,
-    ignoreRepParameter = ignoreRepParameter,
+    ignoreRepParameter = NULL,
     testing = FALSE,
     get_data_matrix = FALSE,
     impute = FALSE,
@@ -228,7 +228,7 @@ estimate_c_int <- function(
     parameters[1] <- initialInterceptEstimate
   }
   ## SET VARIABLES BASED ON STATSLIST
-  twomode_or_reflexive <- (allowReflexive || isTwoMode)
+  twomode_or_reflexive <- (allowReflexive || is_two_mode)
   n_parameters <- dim(statsList$initialStats)[3]
   n_actors1 <- dim(statsList$initialStats)[1]
   n_actors2 <- dim(statsList$initialStats)[2]

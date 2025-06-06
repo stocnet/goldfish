@@ -279,15 +279,15 @@ ReducePreprocess <- function(
 #' @param replace a numeric vector with the replace value
 #' @param time a numeric vector with the time-stamp when the changes happen
 #' @param set a numeric vector with the index id of the node set
-#' @param isTwoMode logical, whether self ties are allow or not
+#' @param is_two_mode logical, whether self ties are allow or not
 #'
 #' @return an array with columns `node1`, `node2`, `replace` and `time`
 #' @noRd
 #'
 #' @examples
 #' fillChanges(c(1, 3), c(4, 8), NULL, 1:5)
-fillChanges <- function(nodes, replace, time, set, isTwoMode = FALSE) {
-  times <- ifelse(isTwoMode, length(set), length(set) - 1)
+fillChanges <- function(nodes, replace, time, set, is_two_mode = FALSE) {
+  times <- ifelse(is_two_mode, length(set), length(set) - 1)
 
   cbind(
     time = if (!is.null(time)) rep(time, each = times) else NULL,
@@ -426,7 +426,7 @@ GetDetailPrint <- function(
 
   if (any(unlist(parsedformula$ignore_rep_parameter))) {
     effectDescription <- cbind(effectDescription,
-      ignoreRep = ifelse(parsedformula$ignore_rep_parameter, "B", "")
+      ignore_repetitions = ifelse(parsedformula$ignore_rep_parameter, "B", "")
     )
   }
   if (any(unlist(parsedformula$weighted_parameter))) {
@@ -465,12 +465,12 @@ GetDetailPrint <- function(
   }
   if (any(parsedformula$trans_parameter != "")) {
     effectDescription <- cbind(effectDescription,
-      transformFun = parsedformula$trans_parameter
+      transformer_fn = parsedformula$trans_parameter
     )
   }
-  if (any(parsedformula$aggre_parameter != "")) {
+  if (any(parsedformula$summ_parameter != "")) {
     effectDescription <- cbind(effectDescription,
-      aggregateFun = parsedformula$aggre_parameter
+      summarizer_fn = parsedformula$summ_parameter
     )
   }
   # DyNAMi

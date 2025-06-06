@@ -169,10 +169,10 @@ gather_model_data <- function(
   window_parameters <- parsed_formula$window_parameters
   ignore_rep_parameter <- unlist(parsed_formula$ignore_rep_parameter)
 
-  # # C implementation doesn't have ignoreRep option issue #105
+  # # C implementation doesn't have ignore_repetitions option issue #105
   if (any(unlist(parsed_formula$ignore_rep_parameter))) {
     stop("gather_model_data ",
-      " doesn't support ignoreRep effects (GH issue #105)!",
+      " doesn't support ignore_repetitions effects (GH issue #105)!",
       call. = FALSE, immediate. = TRUE
     )
   }
@@ -204,7 +204,7 @@ gather_model_data <- function(
 
   if (progress) cat("Initializing objects.\n")
 
-  ## 2.0 Set isTwoMode to define effects functions
+  ## 2.0 Set is_two_mode to define effects functions
   # get node sets of dependent variable
   .nodes <- attr(get(parsed_formula$dep_name, envir = envir), "nodes")
 
@@ -212,10 +212,10 @@ gather_model_data <- function(
   if (length(.nodes) == 2) {
     .nodes2 <- .nodes[2]
     .nodes <- .nodes[1]
-    isTwoMode <- TRUE
+    is_two_mode <- TRUE
   } else {
     .nodes2 <- .nodes
-    isTwoMode <- FALSE
+    is_two_mode <- FALSE
   }
 
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
@@ -259,7 +259,7 @@ gather_model_data <- function(
     # multipleParameter = multipleParameter,
     nodes = .nodes,
     nodes2 = .nodes2,
-    isTwoMode = isTwoMode,
+    is_two_mode = is_two_mode,
     startTime = control_preprocessing[["startTime"]],
     endTime = control_preprocessing[["endTime"]],
     rightCensored = right_censored,
@@ -268,7 +268,7 @@ gather_model_data <- function(
   )
 
   # # 3.3 additional processing to flat array objects
-  allowReflexive <- isTwoMode
+  allowReflexive <- is_two_mode
 
   reduceMatrixToVector <- FALSE
   reduceArrayToMatrix <- FALSE
@@ -310,7 +310,7 @@ gather_model_data <- function(
   nodes2 <- get(.nodes2, envir = envir)
 
   ## SET VARIABLES BASED ON STATSLIST
-  twomode_or_reflexive <- (allowReflexive || isTwoMode)
+  twomode_or_reflexive <- (allowReflexive || is_two_mode)
   # n_events <- length(preprocessingStat$orderEvents)
   dimensions <- dim(preprocessingStat$initialStats)
   n_parameters <- dimensions[3]

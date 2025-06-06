@@ -208,9 +208,9 @@ test_that("trans recognizes tie deletion correctly", {
 })
 
 test_that("trans init throws an error when two-mode network", {
-  # effectFUN_closure has isTwoMode=FALSE so we must change this prior to the test
+  # effectFUN_closure has is_two_mode=FALSE so we must change this prior to the test
   check = formals(effectFUN_closure)
-  check$isTwoMode = TRUE
+  check$is_two_mode = TRUE
   formals(effectFUN_closure) <- check
   expect_error(init_DyNAM_choice.trans(effectFUN_closure, m1, NULL, 5, 5),
                regexp = ".*\\Q effect must not use when is a two-mode network\\E.*")

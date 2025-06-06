@@ -281,8 +281,8 @@ Stadtfeld, Hollway, and Block 2017a
 
 ```{r estimate-init}
 formula1 <-
-  createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignoreRep = TRUE) +
-                trans(bilatnet, ignoreRep = TRUE) +
+  createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignore_repetitions = TRUE) +
+                trans(bilatnet, ignore_repetitions = TRUE) +
                 tie(contignet) +
                 alter(states$regime) + diff(states$regime) +
                 alter(states$gdp) + diff(states$gdp)

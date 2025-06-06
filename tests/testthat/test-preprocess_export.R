@@ -12,7 +12,9 @@ test_that("Args check", {
     )
   )
   expect_error(
-    gather_model_data(depNetwork ~ inertia(networkState, ignoreRep = TRUE))
+    gather_model_data(
+      depNetwork ~ inertia(networkState, ignore_repetitions = TRUE)
+    )
   )
   expect_warning(
     gather_model_data(depNetwork ~ 1 + inertia(networkState))

@@ -1,9 +1,9 @@
 test_that("choice formula", {
   formStat <- callsDependent ~ inertia + recip(callNetwork, weighted = TRUE) + 
-    trans(callNetwork, transformFun = log1p) +
-    tertius_diff(callNetwork, actors$floor, aggregateFun = median) +
+    trans(callNetwork, transformer_fn = log1p) +
+    tertius_diff(callNetwork, actors$floor, summarizer_fn = median) +
     recip(callNetwork, window = "5 minutos") +
-    indeg(callNetwork, ignoreRep = TRUE)
+    indeg(callNetwork, ignore_repetitions = TRUE)
   
   n_terms <- length(labels(terms(formStat)))
   
@@ -58,7 +58,7 @@ test_that("choice formula", {
     c("rhs_names", "dep_name", "has_intercept", "default_network_name",
       "window_parameters", "ignore_rep_parameter", "weighted_parameter",
       "type_parameter",
-      "trans_parameter", "aggre_parameter",
+      "trans_parameter", "summ_parameter",
       "joining_parameter", "sub_type_parameter",
       "history_parameter")
   )
@@ -67,17 +67,17 @@ test_that("choice formula", {
   expect_true(which(as.logical(parsed_formula$weighted_parameter)) == 2)
   expect_true(all(parsed_formula$type_parameter == ""))
   expect_true(which(as.character(parsed_formula$trans_parameter) != "") == 3)
-  expect_true(which(as.character(parsed_formula$aggre_parameter) != "") == 4)
+  expect_true(which(as.character(parsed_formula$summ_parameter) != "") == 4)
   expect_true(all(parsed_formula$joining_parameter == ""))
   expect_true(all(parsed_formula$sub_type_parameter == ""))
 })
 
 test_that("rate formula", {
   formStat <- callsDependent ~ 1 + indeg + outdeg + 
-    nodeTrans(callNetwork, transformFun = log1p) +
-    tertius(callNetwork, actors$floor, aggregateFun = median) +
+    nodeTrans(callNetwork, transformer_fn = log1p) +
+    tertius(callNetwork, actors$floor, summarizer_fn = median) +
     indeg(callNetwork, window = "5 minutos") +
-    outdeg(callNetwork, ignoreRep = TRUE)
+    outdeg(callNetwork, ignore_repetitions = TRUE)
   
   expect_equal(get_dependent_name(formStat), "callsDependent")
   
@@ -92,10 +92,10 @@ test_that("rate formula", {
 
 test_that("get effects functions", {
   formStat <- callsDependent ~ inertia + recip(callNetwork, weighted = TRUE) + 
-    trans(callNetwork, transformFun = log1p) +
-    tertiusDiff(callNetwork, actors$floor, aggregateFun = median) +
+    trans(callNetwork, transformer_fn = log1p) +
+    tertiusDiff(callNetwork, actors$floor, summarizer_fn = median) +
     recip(callNetwork, window = "5 minutos") +
-    indeg(callNetwork, ignoreRep = TRUE)
+    indeg(callNetwork, ignore_repetitions = TRUE)
   
   n_terms <- length(labels(terms(formStat)))
   
@@ -135,10 +135,10 @@ test_that("get effects functions", {
 
 test_that("unknown effect", {
   formStat <- callsDependent ~ inertia + recip(callNetwork, weighted = TRUE) + 
-    trans(callNetwork, transformFun = log1p) +
-    tertius_diff(callNetwork, actors$floor, aggregateFun = median) +
+    trans(callNetwork, transformer_fn = log1p) +
+    tertius_diff(callNetwork, actors$floor, summarizer_fn = median) +
     recip(callNetwork, window = "5 minutos") +
-    indeg(callNetwork, ignoreRep = TRUE)
+    indeg(callNetwork, ignore_repetitions = TRUE)
   
   n_terms <- length(labels(terms(formStat)))
   
@@ -176,7 +176,7 @@ test_that("unknown effect", {
 
 test_that("warning two mode", {
   formStat <- callsDependent ~ inertia + 
-    trans(callNetwork, transformFun = log1p) 
+    trans(callNetwork, transformer_fn = log1p) 
   
   n_terms <- length(labels(terms(formStat)))
   
@@ -208,17 +208,17 @@ test_that("warning two mode", {
       parsed_formula$rhs_names, "DyNAM", "choice",
       envir = envirTest
     ),
-    "Setting 'isTwoMode' parameter"
+    "Setting 'is_two_mode' parameter"
   )  
 })
 
 test_that("objects effects link", {
   formStat <- callsDependent ~ inertia + indeg +
     outdeg(networkExog, weighted = TRUE) +
-    nodeTrans(callNetwork, transformFun = log1p) +
-    tertius(callNetwork, actors$floor, aggregateFun = median) +
+    nodeTrans(callNetwork, transformer_fn = log1p) +
+    tertius(callNetwork, actors$floor, summarizer_fn = median) +
     indeg(callNetwork, window = "5 minutos") +
-    outdeg(callNetwork, ignoreRep = TRUE)
+    outdeg(callNetwork, ignore_repetitions = TRUE)
   
   n_terms <- length(labels(terms(formStat)))
   
@@ -269,10 +269,10 @@ test_that("objects effects link", {
 test_that("events, objects & effects links", {
   formStat <- callsDependent ~ inertia + indeg +
     outdeg(network_exog, weighted = TRUE) +
-    nodeTrans(callNetwork, transformFun = log1p) +
-    tertius(callNetwork, actors$floor, aggregateFun = median) +
+    nodeTrans(callNetwork, transformer_fn = log1p) +
+    tertius(callNetwork, actors$floor, summarizer_fn = median) +
     indeg(callNetwork, window = "5 minutos") +
-    outdeg(callNetwork, ignoreRep = TRUE)
+    outdeg(callNetwork, ignore_repetitions = TRUE)
   
   n_terms <- length(labels(terms(formStat)))
   

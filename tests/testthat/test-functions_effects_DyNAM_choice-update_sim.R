@@ -110,7 +110,7 @@ test_that("sim returns correct attributes on update", {
 
 test_that("sim init throws an error when two-mode network", {
   check = formals(effectFUN)
-  check$isTwoMode = TRUE
+  check$is_two_mode = TRUE
   formals(effectFUN) <- check
   expect_error(init_DyNAM_choice.sim(effectFUN, testAttr$fishingSkill, NULL, 8, 8),
                regexp = "doesn't work in two mode networks")
