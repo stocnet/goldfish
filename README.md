@@ -109,10 +109,10 @@ Evolution data (`?Social_Evolution`).
 ### Define data objects and link events
 
 The main data objects required for the analysis are the node set(s)
-`defineNodes()` and network(s) `defineNetwork()`. The node set object
+`defineNodes()` and network(s) `make_network()`. The node set object
 contains labels and attributes of the actors in the network. In
 contrast, a network object contains the information of past relational
-events between actors. By default, `defineNetwork()` constructs an empty
+events between actors. By default, `make_network()` constructs an empty
 matrix, its dimensions defined by the length of the nodeset(s). Data
 frames containing event data that modify these data objects can be
 linked to them using the `linkEvents()` method.
@@ -120,7 +120,7 @@ linked to them using the `linkEvents()` method.
     library(goldfish)
     data("Social_Evolution")
 
-    callNetwork <- defineNetwork(nodes = actors, directed = TRUE) |> # 1
+    callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
       linkEvents(changeEvent = calls, nodes = actors) # 2
 
 The events data frame, which indicates the time-varying attributes in
