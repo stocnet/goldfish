@@ -1,6 +1,6 @@
 test_that("common sender returns a valid object on update", {
   expect_type(
-    update_DyNAM_choice_commonSender(
+    update_DyNAM_choice_common_sender(
       m,
       sender = 1, receiver = 5, replace = 1,
       cache = m0
@@ -9,7 +9,7 @@ test_that("common sender returns a valid object on update", {
   )
   expect_true(
     inherits(
-      update_DyNAM_choice_commonSender(
+      update_DyNAM_choice_common_sender(
         m,
         sender = 1, receiver = 5, replace = 1,
         cache = m0
@@ -19,7 +19,7 @@ test_that("common sender returns a valid object on update", {
     label = "it doesn't return a matrix"
   )
   expect_length(
-    update_DyNAM_choice_commonSender(
+    update_DyNAM_choice_common_sender(
       m,
       sender = 1, receiver = 5, replace = 1,
       cache = m0
@@ -28,14 +28,14 @@ test_that("common sender returns a valid object on update", {
   )
 })
 
-test_that("commonSender returns NULL if there is no change", {
-  expect_null(update_DyNAM_choice_commonSender(
+test_that("common_sender returns NULL if there is no change", {
+  expect_null(update_DyNAM_choice_common_sender(
     m,
     sender = 1, receiver = 2, replace = 1,
     cache = m0
   )$changes)
   expect_null(
-    update_DyNAM_choice_commonSender(
+    update_DyNAM_choice_common_sender(
       m,
       sender = 1, receiver = 1, replace = 0,
       cache = m0
@@ -43,7 +43,7 @@ test_that("commonSender returns NULL if there is no change", {
     label = "when sender and receiver are the same node"
   )
   # expect_null(
-  #   update_DyNAM_choice_commonSender(
+  #   update_DyNAM_choice_common_sender(
   #     `[<-`(m, 3, 1, NA),
   #     sender = 3, receiver = 1, replace = NA,
   #     cache = m0
@@ -62,7 +62,7 @@ test_that("commonSender returns NULL if there is no change", {
 
 test_that("common sender recognises tie creation correctly", {
   expect_equal(
-    update_DyNAM_choice_commonSender(
+    update_DyNAM_choice_common_sender(
       m,
       sender = 1, receiver = 5, replace = 1,
       cache = m0
@@ -75,7 +75,7 @@ test_that("common sender recognises tie creation correctly", {
     )
   )
   # expect_equal(
-  #   update_DyNAM_choice_commonSender(
+  #   update_DyNAM_choice_common_sender(
   #     `[<-`(m, 3, 1, NA),
   #     sender = 3, receiver = 1, replace = 1,
   #     cache = m0
@@ -89,7 +89,7 @@ test_that("common sender recognises tie creation correctly", {
   #   label = "when previous value was NA"
   # )
   # expect_equal(
-  #   update_DyNAM_choice_commonSender(
+  #   update_DyNAM_choice_common_sender(
   #     m,
   #     sender = 1, receiver = 2, replace = NA,
   #     cache = m0
@@ -104,7 +104,7 @@ test_that("common sender recognises tie creation correctly", {
 
 test_that("common sender recognizes tie deletion correctly", {
   expect_equal(
-    update_DyNAM_choice_commonSender(
+    update_DyNAM_choice_common_sender(
       m,
       sender = 1, receiver = 2, replace = 0,
       cache = mCache
@@ -116,21 +116,21 @@ test_that("common sender recognizes tie deletion correctly", {
   )
 })
 
-test_that("commonSender init returns an empty cache", {
+test_that("common_sender init returns an empty cache", {
   expect_equal(
-    init_DyNAM_choice.commonSender(effectFUN_closure, m1, 1, 5, 5)$cache,
+    init_DyNAM_choice.common_sender(effectFUN_closure, m1, 1, 5, 5)$cache,
     matrix(0,
            nrow = 5, ncol = 5),
     label = "when windowed" )
   expect_equal(
-    init_DyNAM_choice.commonSender(effectFUN_closure, m0, NULL, 5, 5)$cache,
+    init_DyNAM_choice.common_sender(effectFUN_closure, m0, NULL, 5, 5)$cache,
     matrix(0,
            nrow = 5, ncol = 5),
     label = "when network is empty" )
 })
 
-test_that("commonSender init returns the correct result", {
+test_that("common_sender init returns the correct result", {
   expect_equal(
-    init_DyNAM_choice.commonSender(effectFUN_closure, m1, NULL, 5, 5)$cache,
+    init_DyNAM_choice.common_sender(effectFUN_closure, m1, NULL, 5, 5)$cache,
     unname(crossprod(sign(m1))))
 })

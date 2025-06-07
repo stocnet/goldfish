@@ -1,6 +1,6 @@
 test_that("common receiver returns a valid object on update", {
   expect_type(
-    update_DyNAM_choice_commonReceiver(
+    update_DyNAM_choice_common_receiver(
       m,
       sender = 1, receiver = 5, replace = 1,
       cache = m0
@@ -9,7 +9,7 @@ test_that("common receiver returns a valid object on update", {
   )
   expect_true(
     inherits(
-      update_DyNAM_choice_commonReceiver(
+      update_DyNAM_choice_common_receiver(
         m,
         sender = 1, receiver = 5, replace = 1,
         cache = m0
@@ -19,7 +19,7 @@ test_that("common receiver returns a valid object on update", {
     label = "it doesn't return a matrix"
   )
   expect_length(
-    update_DyNAM_choice_commonReceiver(
+    update_DyNAM_choice_common_receiver(
       m,
       sender = 1, receiver = 5, replace = 1,
       cache = m0
@@ -28,14 +28,14 @@ test_that("common receiver returns a valid object on update", {
   )
 })
 
-test_that("commonReceiver returns NULL if there is no change", {
-  expect_null(update_DyNAM_choice_commonReceiver(
+test_that("common_receiver returns NULL if there is no change", {
+  expect_null(update_DyNAM_choice_common_receiver(
     m,
     sender = 1, receiver = 2, replace = 1,
     cache = m0
   )$changes)
   expect_null(
-    update_DyNAM_choice_commonReceiver(
+    update_DyNAM_choice_common_receiver(
       m,
       sender = 1, receiver = 1, replace = 0,
       cache = m0
@@ -43,7 +43,7 @@ test_that("commonReceiver returns NULL if there is no change", {
     label = "when sender and receiver are the same node"
   )
   # expect_null(
-  #   update_DyNAM_choice_commonReceiver(
+  #   update_DyNAM_choice_common_receiver(
   #     `[<-`(m, 3, 1, NA),
   #     sender = 3, receiver = 1, replace = NA,
   #     cache = m0
@@ -62,7 +62,7 @@ test_that("commonReceiver returns NULL if there is no change", {
 
 test_that("common receiver recognises tie creation correctly", {
   expect_equal(
-    update_DyNAM_choice_commonReceiver(
+    update_DyNAM_choice_common_receiver(
       m,
       sender = 1, receiver = 5, replace = 1,
       cache = m0
@@ -73,7 +73,7 @@ test_that("common receiver recognises tie creation correctly", {
     )
   )
   # expect_equal(
-  #   update_DyNAM_choice_commonReceiver(
+  #   update_DyNAM_choice_common_receiver(
   #     m,
   #     sender = 5, receiver = 1, replace = 1,
   #     cache = m0
@@ -87,7 +87,7 @@ test_that("common receiver recognises tie creation correctly", {
   #   label = "when previous value was NA"
   # )
   # expect_equal(
-  #   update_DyNAM_choice_commonReceiver(
+  #   update_DyNAM_choice_common_receiver(
   #     m,
   #     sender = 1, receiver = 2, replace = NA,
   #     cache = m0
@@ -102,7 +102,7 @@ test_that("common receiver recognises tie creation correctly", {
 
 test_that("common receiver recognizes tie deletion correctly", {
   expect_equal(
-    update_DyNAM_choice_commonReceiver(
+    update_DyNAM_choice_common_receiver(
       m,
       sender = 1, receiver = 2, replace = 0,
       cache = mCache
@@ -114,28 +114,28 @@ test_that("common receiver recognizes tie deletion correctly", {
   )
 })
 
-test_that("commonReceiver init returns an empty cache", {
+test_that("common_receiver init returns an empty cache", {
   expect_equal(
-    init_DyNAM_choice.commonReceiver(effectFUN_closure, m1, 1, 5, 5)$cache,
+    init_DyNAM_choice.common_receiver(effectFUN_closure, m1, 1, 5, 5)$cache,
     matrix(0,
            nrow = 5, ncol = 5),
     label = "when windowed" )
   expect_equal(
-    init_DyNAM_choice.commonReceiver(effectFUN_closure, m0, NULL, 5, 5)$cache,
+    init_DyNAM_choice.common_receiver(effectFUN_closure, m0, NULL, 5, 5)$cache,
     matrix(0,
            nrow = 5, ncol = 5),
     label = "when network is empty" )
 })
 
-test_that("commonReceiver init returns the correct result", {
+test_that("common_receiver init returns the correct result", {
   expect_equal(
-    init_DyNAM_choice.commonReceiver(effectFUN_closure, m1, NULL, 5, 5)$cache,
+    init_DyNAM_choice.common_receiver(effectFUN_closure, m1, NULL, 5, 5)$cache,
     unname(tcrossprod(sign(m1))))
 })
 
-test_that("commonReceiver init returns an error when n1 != n2", {
+test_that("common_receiver init returns an error when n1 != n2", {
   expect_error(
-    init_DyNAM_choice.commonReceiver(effectFUN_closure, m1, NULL, 3, 5),
+    init_DyNAM_choice.common_receiver(effectFUN_closure, m1, NULL, 3, 5),
     regexp = "Dimensions of the two-mode network are not conformable")
 })
 

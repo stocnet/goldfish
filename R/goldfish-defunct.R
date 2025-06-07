@@ -21,9 +21,10 @@
 #' * `examineChangepoints()` -> `examine_changepoints()`
 #' * `egoAlterInt()` -> `ego_alter_interaction()`
 #' * `nodeTrans()` -> `node_trans()`
-#' * `commonSender()` & `commonReceiver()` -> `common_sender()` & `common_receiver()`
+#' * `commonSender()` & `commonReceiver()` -> `common_sender()` &
+#'   `common_receiver()`
 #' * `mixedTrans()`, `mixedCycle()`, `mixedCommonSender()` &
-#'   `mixedCommonReceiver()` -> `mixed_trans()`, `mixed_cycle()`, 
+#'   `mixedCommonReceiver()` -> `mixed_trans()`, `mixed_cycle()`,
 #'   `mixed_common_sender()` & `mixed_common_receiver()`
 #' * `tertiusDiff()` -> `tertius_diff()`
 #'
@@ -141,4 +142,105 @@ examineChangepoints <- function(
   examine_changepoints(
     x = x, moment = moment, method = method, window = window, ...
   )
+}
+
+# Deprecated effect functions ----
+
+#' @rdname defunct
+#' @export
+egoAlterInt <- function(...) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "egoAlterInt()",
+    with = "ego_alter_interaction()"
+  )
+  update_DyNAM_choice_ego_alter_interaction(...)
+}
+
+#' @rdname defunct
+#' @export
+nodeTrans <- function(...) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "nodeTrans()",
+    with = "node_trans()"
+  )
+  update_DyNAM_choice_node_trans(...)
+}
+
+#' @rdname defunct
+#' @export
+commonSender <- function(...) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "commonSender()",
+    with = "common_sender()"
+  )
+  update_DyNAM_choice_common_sender(...)
+}
+
+#' @rdname defunct
+#' @export
+commonReceiver <- function(...) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "commonReceiver()",
+    with = "common_receiver()"
+  )
+  update_DyNAM_choice_common_receiver(...)
+}
+
+#' @rdname defunct
+#' @export
+mixedTrans <- function(...) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "mixedTrans()",
+    with = "mixed_trans()"
+  )
+  update_DyNAM_choice_mixed_trans(...)
+}
+
+#' @rdname defunct
+#' @export
+mixedCycle <- function(...) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "mixedCycle()",
+    with = "mixed_cycle()"
+  )
+  update_DyNAM_choice_mixed_cycle(...)
+}
+
+#' @rdname defunct
+#' @export
+mixedCommonSender <- function(...) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "mixedCommonSender()",
+    with = "mixed_common_sender()"
+  )
+  update_DyNAM_choice_mixed_common_sender(...)
+}
+
+#' @rdname defunct
+#' @export
+mixedCommonReceiver <- function(...) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "mixedCommonReceiver()",
+    with = "mixed_common_receiver()"
+  )
+  update_DyNAM_choice_mixed_common_receiver(...)
+}
+
+#' @rdname defunct
+#' @export
+tertiusDiff <- function(...) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "tertiusDiff()",
+    with = "tertius_diff()"
+  )
+  update_DyNAM_choice_tertius_diff(...)
 }

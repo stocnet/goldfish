@@ -1249,9 +1249,9 @@ update_DyNAM_choice_cycle <- function(
 #' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.commonReceiver(effectFUN, network, NULL, 5, 5)
+#' init_DyNAM_choice.common_receiver(effectFUN, network, NULL, 5, 5)
 #' }
-init_DyNAM_choice.commonReceiver <- function(
+init_DyNAM_choice.common_receiver <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
@@ -1260,7 +1260,7 @@ init_DyNAM_choice.commonReceiver <- function(
   
   if (is_two_mode) {
     warning(
-      "Check that the 'commonReceiver' effect used in a two-mode network",
+      "Check that the 'common_receiver' effect used in a two-mode network",
       " (is_two_mode = TRUE) \n has conformable dimensions with the",
       " dependent network, i.e.,\n the first mode nodes set is the same",
       " as the nodes set of the one-mode dependent network.",
@@ -1332,17 +1332,17 @@ init_DyNAM_choice.commonReceiver <- function(
 #'   nrow = 5, ncol = 5
 #' )
 #'
-#' update_DyNAM_choice_commonReceiver(network, 2, 1, 5, cache,
+#' update_DyNAM_choice_common_receiver(network, 2, 1, 5, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_commonReceiver(network, 3, 2, 0, cache,
+#' update_DyNAM_choice_common_receiver(network, 3, 2, 0, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_commonReceiver(network, 2, 5, 2, cache,
+#' update_DyNAM_choice_common_receiver(network, 2, 5, 2, cache,
 #'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_commonReceiver <- function(
+update_DyNAM_choice_common_receiver <- function(
     network,
     sender,
     receiver,
@@ -1420,9 +1420,9 @@ update_DyNAM_choice_commonReceiver <- function(
 #' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.commonSender(effectFUN, network, NULL, 5, 5)
+#' init_DyNAM_choice.common_sender(effectFUN, network, NULL, 5, 5)
 #' }
-init_DyNAM_choice.commonSender <- function(
+init_DyNAM_choice.common_sender <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
@@ -1495,20 +1495,20 @@ init_DyNAM_choice.commonSender <- function(
 #'   nrow = 5, ncol = 5
 #' )
 #'
-#' update_DyNAM_choice_commonSender(
+#' update_DyNAM_choice.common_sender(
 #'   network, 1, 2, 5, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_commonSender(
+#' update_DyNAM_choice.common_sender(
 #'   network, 5, 1, 0, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_commonSender(
+#' update_DyNAM_choice.common_sender(
 #'   network, 2, 4, 5, cache,
 #'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_commonSender <- function(
+update_DyNAM_choice_common_sender <- function(
     network,
     sender,
     receiver,
@@ -1553,7 +1553,7 @@ update_DyNAM_choice_commonSender <- function(
   return(res)
 }
 
-# mixedTrans --------------------------------------------------------------
+# mixed_trans --------------------------------------------------------------
 #' init stat matrix transitivity using cache: Closure of two-paths (i->k->j)
 #'
 #' @param effectFun function with additional parameters transformer_fn, is_two_mode
@@ -1595,10 +1595,10 @@ update_DyNAM_choice_commonSender <- function(
 #' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.mixedTrans(effectFUN, networks, NULL, 5, 5)
-#' init_DyNAM_choice.mixedTrans(effectFUN, networks, 1, 5, 5)
+#' init_DyNAM_choice.mixed_trans(effectFUN, networks, NULL, 5, 5)
+#' init_DyNAM_choice.mixed_trans(effectFUN, networks, 1, 5, 5)
 #' }
-init_DyNAM_choice.mixedTrans <- function(
+init_DyNAM_choice.mixed_trans <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
@@ -1611,7 +1611,7 @@ init_DyNAM_choice.mixedTrans <- function(
   if (ncol(network1) != nrow(network2) ||
       nrow(network1) != n1 || ncol(network2) != n2) {
     stop(
-      "Non conformable dimensions sizes for effect ", dQuote("mixedTrans"),
+      "Non conformable dimensions sizes for effect ", dQuote("mixed_trans"),
       ".\n\tnetwork 1: ",
       paste(dim(network1), collapse = ", "),
       "\n\tnetwork 2: ", paste(dim(network2), collapse = ", "),
@@ -1658,7 +1658,7 @@ init_DyNAM_choice.mixedTrans <- function(
 #'   cache matrix size n1 * n1,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
-#' @aliases mixedTrans
+#' @aliases mixed_trans
 #'
 #' @examples
 #' \donttest{
@@ -1693,23 +1693,23 @@ init_DyNAM_choice.mixedTrans <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' update_DyNAM_choice_mixedTrans(networks, 4, 3, 5, 1, cache,
+#' update_DyNAM_choice_mixed_trans(networks, 4, 3, 5, 1, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedTrans(networks, 4, 3, 5, 2, cache,
+#' update_DyNAM_choice_mixed_trans(networks, 4, 3, 5, 2, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedTrans(networks, 2, 1, 0, 1, cache,
+#' update_DyNAM_choice_mixed_trans(networks, 2, 1, 0, 1, cache,
 #'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_mixedTrans <- function(
+update_DyNAM_choice_mixed_trans <- function(
     network, sender, receiver, replace,
     netUpdate,
     cache, is_two_mode = FALSE,
     transformer_fn = identity) {
   if (length(netUpdate) > 1 || !netUpdate %in% c(1, 2)) {
-    stop(dQuote("mixedTrans"), "receive a wrong ",
+    stop(dQuote("mixed_trans"), "receive a wrong ",
          dQuote("netUpdate"), " argument. ",
          "Check you declare only two networks in network argument",
          call. = FALSE
@@ -1776,7 +1776,7 @@ update_DyNAM_choice_mixedTrans <- function(
   }
 }
 
-# mixedCycle --------------------------------------------------------------
+# mixed_cycle --------------------------------------------------------------
 #' init stat matrix transitivity using cache: Closure of two-paths (j->k->i)
 #'
 #' @param effectFun function with additional parameters transformer_fn, is_two_mode
@@ -1818,10 +1818,10 @@ update_DyNAM_choice_mixedTrans <- function(
 #' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.mixedCycle(effectFUN, networks, NULL, 5, 5)
-#' init_DyNAM_choice.mixedCycle(effectFUN, networks, 1, 5, 5)
+#' init_DyNAM_choice.mixed_cycle(effectFUN, networks, NULL, 5, 5)
+#' init_DyNAM_choice.mixed_cycle(effectFUN, networks, 1, 5, 5)
 #' }
-init_DyNAM_choice.mixedCycle <- function(
+init_DyNAM_choice.mixed_cycle <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
@@ -1835,7 +1835,7 @@ init_DyNAM_choice.mixedCycle <- function(
   if (ncol(network1) != nrow(network2) ||
       nrow(network1) != n1 || ncol(network2) != n2) {
     stop(
-      "Non conformable dimensions sizes for effect ", dQuote("mixedCycle"),
+      "Non conformable dimensions sizes for effect ", dQuote("mixed_cycle"),
       ".\n\tnetwork 1: ", paste(dim(network1), collapse = ", "),
       "\n\tnetwork 2: ", paste(dim(network2), collapse = ", "),
       "\n\tdependent network: ", n1, ", ", n2,
@@ -1880,7 +1880,7 @@ init_DyNAM_choice.mixedCycle <- function(
 #'   cache matrix size n1 * n1,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
-#' @aliases mixedCycle
+#' @aliases mixed_cycle
 #'
 #' @examples
 #' \donttest{
@@ -1915,23 +1915,23 @@ init_DyNAM_choice.mixedCycle <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' update_DyNAM_choice_mixedCycle(networks, 4, 3, 5, 1, cache,
+#' update_DyNAM_choice_mixed_cycle(networks, 4, 3, 5, 1, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCycle(networks, 4, 3, 5, 2, cache,
+#' update_DyNAM_choice_mixed_cycle(networks, 4, 3, 5, 2, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCycle(networks, 2, 1, 0, 1, cache,
+#' update_DyNAM_choice_mixed_cycle(networks, 2, 1, 0, 1, cache,
 #'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_mixedCycle <- function(
+update_DyNAM_choice_mixed_cycle <- function(
     network, sender, receiver, replace,
     netUpdate,
     cache, is_two_mode = FALSE,
     transformer_fn = identity) {
   if (length(netUpdate) > 1 || !netUpdate %in% c(1, 2)) {
-    stop(dQuote("mixedCycle"), " receive a wrong ",
+    stop(dQuote("mixed_cycle"), " receive a wrong ",
          dQuote("netUpdate"), " argument. ",
          "Check that you only declare two networks as argument.",
          call. = FALSE
@@ -2039,17 +2039,17 @@ update_DyNAM_choice_mixedCycle <- function(
 #' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.mixedCommonReceiver(effectFUN, networks, NULL, 5, 5)
-#' init_DyNAM_choice.mixedCommonReceiver(effectFUN, networks, 1, 5, 5)
+#' init_DyNAM_choice.mixed_common_receiver(effectFUN, networks, NULL, 5, 5)
+#' init_DyNAM_choice.mixed_common_receiver(effectFUN, networks, 1, 5, 5)
 #' }
-init_DyNAM_choice.mixedCommonReceiver <- function(
+init_DyNAM_choice.mixed_common_receiver <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]])
   if (is_two_mode) {
-    stop(dQuote("mixedCommonReceiver"),
+    stop(dQuote("mixed_common_receiver"),
          " effect must not use when is a two-mode network (is_two_mode = TRUE)",
          call. = FALSE
     )
@@ -2129,26 +2129,26 @@ init_DyNAM_choice.mixedCommonReceiver <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' update_DyNAM_choice_mixedCommonReceiver(networks, 5, 1, 2, 1, cache,
+#' update_DyNAM_choice_mixed_common_receiver(networks, 5, 1, 2, 1, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonReceiver(networks, 5, 2, 0, 2, cache,
+#' update_DyNAM_choice_mixed_common_receiver(networks, 5, 2, 0, 2, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonReceiver(networks, 2, 3, 6, 2, cache,
+#' update_DyNAM_choice_mixed_common_receiver(networks, 2, 3, 6, 2, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonReceiver(networks, 4, 3, 6, 2, cache,
+#' update_DyNAM_choice_mixed_common_receiver(networks, 4, 3, 6, 2, cache,
 #'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_mixedCommonReceiver <- function(
+update_DyNAM_choice_mixed_common_receiver <- function(
     network, sender, receiver, replace,
     netUpdate,
     cache, is_two_mode = FALSE,
     transformer_fn = identity) {
   if (length(netUpdate) > 1 || !netUpdate %in% c(1, 2)) {
-    stop(dQuote("mixedCommonReceiver"),
+    stop(dQuote("mixed_common_receiver"),
          "receive a wrong ", dQuote("netUpdate"), " argument. ",
          "Check that you only declare two networks as argument",
          call. = FALSE
@@ -2261,17 +2261,17 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
 #' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.mixedCommonSender(effectFUN, networks, NULL, 5, 5)
-#' init_DyNAM_choice.mixedCommonSender(effectFUN, networks, 1, 5, 5)
+#' init_DyNAM_choice.mixed_common_sender(effectFUN, networks, NULL, 5, 5)
+#' init_DyNAM_choice.mixed_common_sender(effectFUN, networks, 1, 5, 5)
 #' }
-init_DyNAM_choice.mixedCommonSender <- function(
+init_DyNAM_choice.mixed_common_sender <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]])
   if (is_two_mode) {
-    stop(dQuote("mixedCommonSender"),
+    stop(dQuote("mixed_common_sender"),
          " effect must not use when is a two-mode network (is_two_mode = TRUE)",
          call. = FALSE
     )
@@ -2351,26 +2351,26 @@ init_DyNAM_choice.mixedCommonSender <- function(
 #'   ),
 #'   nrow = 5, ncol = 5
 #' )
-#' update_DyNAM_choice_mixedCommonSender(networks, 3, 4, 2, 1, cache,
+#' update_DyNAM_choice_mixed_common_sender(networks, 3, 4, 2, 1, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonSender(networks, 5, 3, 2, 2, cache,
+#' update_DyNAM_choice_mixed_common_sender(networks, 5, 3, 2, 2, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonSender(networks, 4, 3, 0, 1, cache,
+#' update_DyNAM_choice.mixed_common_sender(networks, 4, 3, 0, 1, cache,
 #'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonSender(networks, 1, 4, 0, 1, cache,
+#' update_DyNAM_choice.mixed_common_sender(networks, 1, 4, 0, 1, cache,
 #'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_mixedCommonSender <- function(
+update_DyNAM_choice_mixed_common_sender <- function(
     network, sender, receiver, replace,
     netUpdate,
     cache, is_two_mode = FALSE,
     transformer_fn = identity) {
   if (length(netUpdate) > 1 || !netUpdate %in% c(1, 2)) {
-    stop(dQuote("mixedCommonSender"),
+    stop(dQuote("mixed_common_sender"),
          "receive a wrong ", dQuote("netUpdate"), " argument. ",
          "Check that only two networks are declared in the 'network' argument",
          call. = FALSE
@@ -2720,7 +2720,7 @@ update_DyNAM_choice_tertius <- function(
   )
 }
 
-# tertiusDiff ----------------------------------------------------------------
+# tertius_diff ----------------------------------------------------------------
 #' init stat matrix tertius-diff using cache
 #'
 #' @param effectFun function with additional parameters transformer_fn,
@@ -2754,9 +2754,9 @@ update_DyNAM_choice_tertius <- function(
 #'                       summarizer_fn = function(x) median(x, na.rm = TRUE)) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.tertiusDiff(effectFUN, network, attribute)
+#' init_DyNAM_choice.tertius_diff(effectFUN, network, attribute)
 #' }
-init_DyNAM_choice.tertiusDiff <- function(
+init_DyNAM_choice.tertius_diff <- function(
     effectFun, network, attribute, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
@@ -2822,7 +2822,7 @@ init_DyNAM_choice.tertiusDiff <- function(
 #'   cache numeric vector size n1
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
-#' @aliases tertiusDiff
+#' @aliases tertius_diff
 #'
 #' @examples
 #' \donttest{
@@ -2839,7 +2839,7 @@ init_DyNAM_choice.tertiusDiff <- function(
 #' attribute <- c(1, 0, 1, 3, 1)
 #' cache <- c(2, 1, 0, 1, 0, 2)
 #'
-#' update_DyNAM_choice_tertiusDiff(
+#' update_DyNAM_choice_tertius_diff(
 #'   network, attribute,
 #'   sender = 2, receiver = 3,
 #'   node = NULL,
@@ -2850,7 +2850,7 @@ init_DyNAM_choice.tertiusDiff <- function(
 #'   summarizer_fn = function(x) median(x, na.rm = TRUE)
 #' )
 #'
-#' update_DyNAM_choice_tertiusDiff(
+#' update_DyNAM_choice_tertius_diff(
 #'   network, attribute,
 #'   sender = NULL, receiver = NULL,
 #'   node = 3,
@@ -2861,7 +2861,7 @@ init_DyNAM_choice.tertiusDiff <- function(
 #'   summarizer_fn = function(x) median(x, na.rm = TRUE)
 #' )
 #' }
-update_DyNAM_choice_tertiusDiff <- function(
+update_DyNAM_choice_tertius_diff <- function(
     network,
     attribute,
     sender = NULL,
@@ -3192,7 +3192,7 @@ update_DyNAM_choice_sim <- function(
 # ego alter interaction ---------------------------------------------------
 
 #' @export
-init_DyNAM_choice.egoAlterInt <- function(effectFun, attribute, ...) {
+init_DyNAM_choice.ego_alter_interaction <- function(effectFun, attribute, ...) {
   # Get arguments
   params <- formals(effectFun)
   is_two_mode <- eval(params[["is_two_mode"]])
@@ -3215,7 +3215,7 @@ init_DyNAM_choice.egoAlterInt <- function(effectFun, attribute, ...) {
 #' ego alter interaction
 #' attribute = list(attr1, attr2) attr1 is ego and attr2 is alter
 #' @noRd
-update_DyNAM_choice_egoAlterInt <- function(
+update_DyNAM_choice_ego_alter_interaction <- function(
     attribute, node, replace,
     attUpdate,
     n1, n2,

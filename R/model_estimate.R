@@ -420,7 +420,7 @@ estimate.formula <- function(
   if (any(unlist(parsed_formula$ignore_rep_parameter)) &&
     engine %in% c("default_c", "gather_compute")) {
     warning("engine = ", dQuote(engine),
-      " doesn't support ignore_repetition effects. engine =",
+      " doesn't support ignore_repetitions effects. engine =",
       dQuote("default"), " is used instead.",
       call. = FALSE, immediate. = TRUE
     )

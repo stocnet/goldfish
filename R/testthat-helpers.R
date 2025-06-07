@@ -161,7 +161,7 @@ effectFUN_tertius <- function(
     n1 = n1, n2 = n2,
     transformer_fn = abs,
     summarizer_fn = function(x) mean(x, na.rm = TRUE)) {
-  update_DyNAM_choice_tertiusDiff(
+  update_DyNAM_choice_tertius_diff(
     network = network,
     attribute = attribute,
     sender = sender,

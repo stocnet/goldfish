@@ -93,7 +93,7 @@ test_that("rate formula", {
 test_that("get effects functions", {
   formStat <- callsDependent ~ inertia + recip(callNetwork, weighted = TRUE) + 
     trans(callNetwork, transformer_fn = log1p) +
-    tertiusDiff(callNetwork, actors$floor, summarizer_fn = median) +
+    tertius_diff(callNetwork, actors$floor, summarizer_fn = median) +
     recip(callNetwork, window = "5 minutos") +
     indeg(callNetwork, ignore_repetitions = TRUE)
   
@@ -138,7 +138,7 @@ test_that("unknown effect", {
     trans(callNetwork, transformer_fn = log1p) +
     tertius_diff(callNetwork, actors$floor, summarizer_fn = median) +
     recip(callNetwork, window = "5 minutos") +
-    indeg(callNetwork, ignore_repetitions = TRUE)
+    indegree(callNetwork, ignore_repetitions = TRUE)
   
   n_terms <- length(labels(terms(formStat)))
   

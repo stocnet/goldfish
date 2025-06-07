@@ -542,23 +542,23 @@ update_REM_choice_cycle <- function(
 
 # common receiver ---------------------------------------------------------
 #' @export
-init_REM_choice.commonReceiver <- function(
+init_REM_choice.common_receiver <- function(
     effectFun, network, window, n1, n2, ...) {
-  init_DyNAM_choice.commonReceiver(
+  init_DyNAM_choice.common_receiver(
     effectFun = effectFun, network = network,
     window = window,
     n1 = n1, n2 = n2, ...
   )
 }
 
-update_REM_choice_commonReceiver <- function(
+update_REM_choice.common_receiver <- function(
     network,
     sender,
     receiver,
     replace, cache,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice_commonReceiver(
+  update_DyNAM_choice.common_receiver(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     cache = cache,
@@ -568,23 +568,23 @@ update_REM_choice_commonReceiver <- function(
 
 # common sender -----------------------------------------------------------
 #' @export
-init_REM_choice.commonSender <- function(
+init_REM_choice.common_sender <- function(
     effectFun, network, window, n1, n2, ...) {
-  init_DyNAM_choice.commonSender(
+  init_DyNAM_choice.common_sender(
     effectFun = effectFun, network = network,
     window = window,
     n1 = n1, n2 = n2, ...
   )
 }
 
-update_REM_choice_commonSender <- function(
+update_REM_choice.common_sender <- function(
     network,
     sender,
     receiver,
     replace, cache,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice_commonSender(
+  update_DyNAM_choice.common_sender(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     cache = cache,
@@ -592,25 +592,25 @@ update_REM_choice_commonSender <- function(
   )
 }
 
-# mixedTrans --------------------------------------------------------------
+# mixed_trans --------------------------------------------------------------
 #' @export
-init_REM_choice.mixedTrans <- function(
+init_REM_choice.mixed_trans <- function(
     effectFun, network, window, n1, n2, ...) {
-  init_DyNAM_choice.mixedTrans(
+  init_DyNAM_choice.mixed_trans(
     effectFun = effectFun, network = network,
     window = window,
     n1 = n1, n2 = n2, ...
   )
 }
 
-update_REM_choice_mixedTrans <- function(
+update_REM_choice_mixed_trans <- function(
     network,
     sender,
     receiver,
     replace, netUpdate, cache,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice_mixedTrans(
+  update_DyNAM_choice_mixed_trans(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     netUpdate = netUpdate, cache = cache,
@@ -618,25 +618,25 @@ update_REM_choice_mixedTrans <- function(
   )
 }
 
-# mixedCycle --------------------------------------------------------------
+# mixed_cycle --------------------------------------------------------------
 #' @export
-init_REM_choice.mixedCycle <- function(
+init_REM_choice.mixed_cycle <- function(
     effectFun, network, window, n1, n2, ...) {
-  init_DyNAM_choice.mixedCycle(
+  init_DyNAM_choice.mixed_cycle(
     effectFun = effectFun, network = network,
     window = window,
     n1 = n1, n2 = n2, ...
   )
 }
 
-update_REM_choice_mixedCycle <- function(
+update_REM_choice_mixed_cycle <- function(
     network,
     sender,
     receiver,
     replace, netUpdate, cache,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice_mixedCycle(
+  update_DyNAM_choice_mixed_cycle(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     netUpdate = netUpdate, cache = cache,
@@ -646,23 +646,23 @@ update_REM_choice_mixedCycle <- function(
 
 # mixed common receiver ---------------------------------------------------
 #' @export
-init_REM_choice.mixedCommonReceiver <- function(
+init_REM_choice.mixed_common_receiver <- function(
     effectFun, network, window, n1, n2, ...) {
-  init_DyNAM_choice.mixedCommonReceiver(
+  init_DyNAM_choice.mixed_common_receiver(
     effectFun = effectFun, network = network,
     window = window,
     n1 = n1, n2 = n2, ...
   )
 }
 
-update_REM_choice_mixedCommonReceiver <- function(
+update_REM_choice_mixed_common_receiver <- function(
     network,
     sender,
     receiver,
     replace, netUpdate, cache,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice_mixedCommonReceiver(
+  update_DyNAM_choice_mixed_common_receiver(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     netUpdate = netUpdate, cache = cache,
@@ -672,23 +672,23 @@ update_REM_choice_mixedCommonReceiver <- function(
 
 # mixed common sender -----------------------------------------------------
 #' @export
-init_REM_choice.mixedCommonSender <- function(
+init_REM_choice.mixed_common_sender <- function(
     effectFun, network, window, n1, n2, ...) {
-  init_DyNAM_choice.mixedCommonSender(
+  init_DyNAM_choice.mixed_common_sender(
     effectFun = effectFun, network = network,
     window = window,
     n1 = n1, n2 = n2, ...
   )
 }
 
-update_REM_choice_mixedCommonSender <- function(
+update_REM_choice_mixed_common_sender <- function(
     network,
     sender,
     receiver,
     replace, netUpdate, cache,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice_mixedCommonSender(
+  update_DyNAM_choice_mixed_common_sender(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     netUpdate = netUpdate, cache = cache,
@@ -1030,7 +1030,7 @@ update_REM_choice_tertius <- function(
   }
   return(list(cache = cache, changes = changes))
 }
-# tertiusDiff ----------------------------------------------------------------
+# tertius_diff ----------------------------------------------------------------
 #' init stat matrix tertius-diff using cache
 #'
 #' @param effectFun function with additional parameters transformer_fn,
@@ -1064,11 +1064,11 @@ update_REM_choice_tertius <- function(
 #'                       summarizer_fn = function(x) median(x, na.rm = TRUE)) {
 #'   NULL
 #' }
-#' init_REM_choice.tertiusDiff(effectFUN, network, attribute)
+#' init_REM_choice.tertius_diff(effectFUN, network, attribute)
 #' }
-init_REM_choice.tertiusDiff <- function(
+init_REM_choice.tertius_diff <- function(
     effectFun, network, attribute, window, n1, n2, ...) {
-  init_DyNAM_choice.tertiusDiff(
+  init_DyNAM_choice.tertius_diff(
     effectFun = effectFun,
     network = network, attribute = attribute,
     window = window,
@@ -1110,7 +1110,7 @@ init_REM_choice.tertiusDiff <- function(
 #' attribute <- c(1, 0, 1, 3, 1)
 #' cache <- c(2, 1, 0, 1, 0, 2)
 #'
-#' update_REM_choice_tertiusDiff(
+#' update_REM_choice_tertius_diff(
 #'   network, attribute,
 #'   sender = 2, receiver = 3,
 #'   node = NULL,
@@ -1121,7 +1121,7 @@ init_REM_choice.tertiusDiff <- function(
 #'   summarizer_fn = function(x) median(x, na.rm = TRUE)
 #' )
 #'
-#' update_REM_choice_tertiusDiff(
+#' update_REM_choice_tertius_diff(
 #'   network, attribute,
 #'   sender = NULL, receiver = NULL,
 #'   node = 3,
@@ -1132,7 +1132,7 @@ init_REM_choice.tertiusDiff <- function(
 #'   summarizer_fn = function(x) median(x, na.rm = TRUE)
 #' )
 #' }
-update_REM_choice_tertiusDiff <- function(
+update_REM_choice_tertius_diff <- function(
     network,
     attribute,
     sender = NULL,
@@ -1144,7 +1144,7 @@ update_REM_choice_tertiusDiff <- function(
     n1 = n1, n2 = n2,
     transformer_fn = abs,
     summarizer_fn = function(x) mean(x, na.rm = TRUE)) {
-  update_DyNAM_choice_tertiusDiff(
+  update_DyNAM_choice_tertius_diff(
     network = network,
     attribute = attribute,
     sender = sender,
@@ -1315,20 +1315,20 @@ update_REM_choice_nodeTrans <- function(
   outNeighSender <- which(network[sender, ] > 0) # N^+(i)
   inNeighReceiver <- which(network[, receiver] > 0) # N^-(j)
 
-  # commonReceivers = k: i->j & i->k & j->k => trans(i) += 1
-  commonReceivers <- intersect(
+  # common_receivers = k: i->j & i->k & j->k => trans(i) += 1
+  common_receivers <- intersect(
     outNeighSender,
     which(network[receiver, ] > 0)
   ) # N^+(i) \cap N^+(j)
-  # commonSenders = l: l->i & l->j & i->j => trans(l) += 1
-  commonSenders <- intersect(
+  # common_senders = l: l->i & l->j & i->j => trans(l) += 1
+  common_senders <- intersect(
     which(network[, sender] > 0),
     inNeighReceiver
   ) # N^-(i) \cap N^-(j)
   # brokers = b: i->b & b->j & i->j => trans(i) += 1
   brokers <- intersect(outNeighSender, inNeighReceiver) # N^+(i) \cap N^-(j)
 
-  senderChanges <- length(commonReceivers) + length(brokers) # trans(i) += 1
+  senderChanges <- length(common_receivers) + length(brokers) # trans(i) += 1
 
   changes <- NULL
   if (senderChanges > 0) {
@@ -1345,25 +1345,25 @@ update_REM_choice_nodeTrans <- function(
     cache[sender] <- replaceValues
   }
 
-  if (length(commonSenders) > 0) {
-    replaceValues <- (replace - oldValue) + cache[commonSenders]
+  if (length(common_senders) > 0) {
+    replaceValues <- (replace - oldValue) + cache[common_senders]
     changes <- rbind(
       changes,
       Reduce(
         rbind,
         lapply(
-          seq_along(commonSenders),
+          seq_along(common_senders),
           \(x) {
             if (type == "ego") {
               cbind(
-                node1 = commonSenders[x],
-                node2 = third(n1, commonSenders[x]),
+                node1 = common_senders[x],
+                node2 = third(n1, common_senders[x]),
                 replace = replaceValues[x]
               )
             } else {
               cbind(
-                node1 = third(n1, commonSenders[x]),
-                node2 = commonSenders[x],
+                node1 = third(n1, common_senders[x]),
+                node2 = common_senders[x],
                 replace = replaceValues[x]
               )
             }
@@ -1371,7 +1371,7 @@ update_REM_choice_nodeTrans <- function(
         )
       )
     )
-    cache[commonSenders] <- replaceValues
+    cache[common_senders] <- replaceValues
   }
 
   if (!is.null(changes)) {
@@ -1501,17 +1501,17 @@ update_REM_choice_sim <- function(
 
 # ego alter interaction ---------------------------------------------------
 #' @export
-init_REM_choice.egoAlterInt <- function(effectFun, attribute, ...) {
+init_REM_choice.ego_alter_interaction <- function(effectFun, attribute, ...) {
   init_DyNAM_choice.sim(effectFun = effectFun, attribute = attribute, ...)
 }
 
-update_REM_choice_egoAlterInt <- function(
+update_REM_choice_ego_alter_interaction <- function(
     attribute, node, replace,
     attUpdate,
     n1, n2,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice_egoAlterInt(
+  update_DyNAM_choice_ego_alter_interaction(
     attribute = attribute,
     node = node, replace = replace,
     attUpdate = attUpdate,

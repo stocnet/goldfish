@@ -61,7 +61,7 @@ The function used as argument is applied to the change statistic.
 _Note:_ Most of the time a transformation function is applied when an effect
 counts the number of ties `weighted == TRUE`.
 * **summarizer_fn**: Use this parameter to obtain a transformed aggregated
-statistics for indirect effects like `tertius` and `tertiusDiff`.
+statistics for indirect effects like `tertius` and `tertius_diff`.
 The function used as argument is applied to aggregated statistic.
 * **type**: Applies only to `indegree`, `outdegree` and `nodeTrans`
 in the case of a REM model `model = "REM"`.
@@ -85,31 +85,31 @@ for all two-paths when the subsequent tie is created directly after the precedin
 
 The following table summaries whether the corresponding arguments can be used for the effects or not.
 
-| || |is_two_mode |ignore_repetitions |weighted |window |transformer_fn |summarizer_fn |type |history |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Node/actor statistics | Structural | indeg | √ | √ | √ | √ | √ | × | √ | × |
-| | | outdeg | √ | √ | √ | √ | √ | × | √ | × |
-| | | nodeTrans | × | √ | √ | √ | √ | × | √ | × |
-| | Attribute | ego | √ | × | × | × | × | × | × | × |
-| | | alter | √ | × | × | × | × | × | × | × |
-| | Structural + attribute | tertius | √ | √ | √ | √ | √ | √ | √ | × |
-| Dyadic statistics | Structural | tie | √ | √ | √ | √ | √ | × | × | × |
-| | | inertia | √ | √ | √ | √ | √ | × | × | × |
-| | | recip | √ | √ | √ | √ | √ | × | × | × |
-| | Attribute | same | √ | × | × | × | √ | × | × | × |
-| | | diff | √ | × | × | × | √ | × | × | × |
-| | | sim | √ | × | × | × | √ | × | × | × |
-| | | egoAlterInt | √ | × | × | × | √ | × | × | × |
-| | Structural + attribute | tertiusDiff | √ | √ | √ | √ | √ | √ | × | × |
-| | Closure effects | trans | × | √ | × | √ | √ | × | × | √ |
-| | | cycle | × | √ | × | √ | √ | × | × | √ |
-| | | commonSender | √ | √ | × | √ | √ | × | × | × |
-| | | commonReceiver | √ | √ | × | √ | √ | × | × | × |
-| | | four | √ | √ | × | √ | √ | × | × | × |
-| | | mixedTrans | × | √ | × | √ | √ | × | × | × |
-| | | mixedCycle | × | √ | × | √ | √ | × | × | × |
-| | | mixedCommonSender | × | √ | × | √ | √ | × | × | × |
-| | | mixedCommonReceiver | × | √ | × | √ | √ | × | × | × |
+|                       |                        | mixed_common_receiver | is_two_mode | ignore_repetitions | weighted | window | transformer_fn | summarizer_fn | type | history |
+| :-------------------- | :--------------------- | :-------------------- | :---------- | :----------------- | :------- | :----- | :------------- | :------------ | :--- | :------ |
+| Node/actor statistics | Structural             | indeg                 | √           | √                  | √        | √      | √              | ×             | √    | ×       |
+|                       |                        | outdeg                | √           | √                  | √        | √      | √              | ×             | √    | ×       |
+|                       |                        | nodeTrans             | ×           | √                  | √        | √      | √              | ×             | √    | ×       |
+|                       | Attribute              | ego                   | √           | ×                  | ×        | ×      | ×              | ×             | ×    | ×       |
+|                       |                        | alter                 | √           | ×                  | ×        | ×      | ×              | ×             | ×    | ×       |
+|                       | Structural + attribute | tertius               | √           | √                  | √        | √      | √              | √             | √    | ×       |
+| Dyadic statistics     | Structural             | tie                   | √           | √                  | √        | √      | √              | ×             | ×    | ×       |
+|                       |                        | inertia               | √           | √                  | √        | √      | √              | ×             | ×    | ×       |
+|                       |                        | recip                 | √           | √                  | √        | √      | √              | ×             | ×    | ×       |
+|                       | Attribute              | same                  | √           | ×                  | ×        | ×      | √              | ×             | ×    | ×       |
+|                       |                        | diff                  | √           | ×                  | ×        | ×      | √              | ×             | ×    | ×       |
+|                       |                        | sim                   | √           | ×                  | ×        | ×      | √              | ×             | ×    | ×       |
+|                       |                        | ego_alter_interaction | √           | ×                  | ×        | ×      | √              | ×             | ×    | ×       |
+|                       | Structural + attribute | tertius_diff          | √           | √                  | √        | √      | √              | √             | ×    | ×       |
+|                       | Closure effects        | trans                 | ×           | √                  | ×        | √      | √              | ×             | ×    | √       |
+|                       |                        | cycle                 | ×           | √                  | ×        | √      | √              | ×             | ×    | √       |
+|                       |                        | common_sender         | √           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | common_receiver       | √           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | four                  | √           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | mixed_trans           | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | mixed_cycle           | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | mixed_common_sender   | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | mixed_common_receiver | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
 
 
 
@@ -137,11 +137,11 @@ and thus cannot be used.
 # Node or actor statistics
 
 ## Structural Effects
-| effect          |   rate   |  choice  | choice coordination |
-|-----------------|:--------:|:--------:|:-------------------:|
-|     indeg       |       √  |       √  |            √        |
-| outdeg          |       √  |       √  |           ×         |
-| nodeTrans       |       √  |       √  |            √        |
+| effect    | rate     | choice   | choice coordination |
+| :-------- | :------- | :------- | :------------------ |
+| indeg     |    √     |    √     |          √          |
+| outdeg    |    √     |    √     |          ×          |
+| nodeTrans |    √     |    √     |          √          |
 
 Here we refer to ego type when `type = "ego"` and alter type when
 `type = "alter"`.
@@ -254,10 +254,10 @@ there is not weighted version for this effect.
 
 ## Attribute effects
 
-| effect          |   rate   |  choice  | choice coordination |
-|-----------------|:--------:|:--------:|:-------------------:|
-|     ego         |       √  |     ×    |           ×         |
-|     alter       |     ×    |       √  |           ×         |
+| effect    | rate     | choice   | choice coordination |
+| :-------- | :------- | :------- | :------------------ |
+| ego       |    √     |    ×     |          ×          |
+| alter     |    ×     |    √     |          ×          |
 
 
 ### Ego attribute (`ego()`)
@@ -292,9 +292,9 @@ alter(attribute, is_two_mode = FALSE)
 
 ## Structural $+$ Attribute effect
 
-| effect          |   rate   |  choice  | choice coordination |
-|-----------------|:--------:|:--------:|:-------------------:|
-| tertius         |       √  |       √  |            √        |
+| effect  | rate     | choice   | choice coordination |
+| :------ | :------- | :------- | :------------------ |
+| tertius |    √     |    √     |          √          |
 
 ### Tertius (`tertius()`)
 
@@ -336,11 +336,11 @@ as the average of the aggregate values of nodes with in-neighbors.
 
 ## Structural effects
 
-| effect          |   rate   |  choice  | choice coordination |
-|-----------------|:--------:|:--------:|:-------------------:|
-|     tie         |     ×    |     √    |            √        |
-|     inertia     |     ×    |     √    |            √        |
-|     recip       |     ×    |     √    |           ×         |
+| effect  | rate     | choice   | choice coordination |
+| :------ | :------- | :------- | :------------------ |
+| tie     |    ×     |    √     |          √          |
+| inertia |    ×     |    √     |          √          |
+| recip   |    ×     |    √     |          ×          |
 
 ### Tie (`tie()`)
 
@@ -426,12 +426,12 @@ DyNAM-choice_coordination submodel.
 
 ## Attribute effects
 
-| effect          |   rate   |  choice  | choice coordination |
-|-----------------|:--------:|:--------:|:-------------------:|
-|     same        |     ×    |     √    |            √        |
-|     diff        |     ×    |     √    |            √        |
-|     sim         |     ×    |     √    |            √        |
-| egoAlterInt     |     ×    |     √    |            √        |
+| effect                | rate     | choice   | choice coordination |
+| :-------------------- | :------- | :------- | :------------------ |
+| same                  |    ×     |    √     |          √          |
+| diff                  |    ×     |    √     |          √          |
+| sim                   |    ×     |    √     |          √          |
+| ego_alter_interaction |    ×     |    √     |          √          |
 
 
 ### Same value in attribute (`same()`)
@@ -483,10 +483,10 @@ to happen if actors i and j have similar `attribute` values
 if `transformer_fn = abs`).
 This effect cannot be used for two-mode networks.
 
-### Ego Alter interaction (`egoAlterInt()`)
+### Ego Alter interaction (`ego_alter_interaction()`)
 
 ```{r}
-egoAlterInt(attribute = list(attribute1, attribute2))
+ego_alter_interaction(attribute = list(attribute1, attribute2))
 ```
 
 \begin{equation}
@@ -500,14 +500,14 @@ when $j$ score high on `attribute2` moderated by the score of ego on
 
 ## Structural $+$ Attribute effect
 
-| effect          |   rate   |  choice  | choice coordination |
-|-----------------|:--------:|:--------:|:-------------------:|
-| tertiusDiff     |     ×    |     √    |            √        |
+| effect       | rate     | choice   | choice coordination |
+| :----------- | :------- | :------- | :------------------ |
+| tertius_diff |    ×     |    √     |          √          |
 
-### Tertius difference (`tertiusDiff()`)
+### Tertius difference (`tertius_diff()`)
 
 ```{r}
-tertiusDiff(network, attribute,
+tertius_diff(network, attribute,
   is_two_mode = FALSE, weighted = FALSE,
   window = Inf, ignore_repetitions = FALSE, transformer_fn = abs,
   summarizer_fn = function(x) mean(x, na.rm = TRUE)
@@ -528,17 +528,17 @@ all $k$ that has at least one in-neighbor.
 
 # Closure effect statistics (Dyadic effects)
 
-| effect          |   rate   |  choice  | choice coordination |
-|-----------------|:--------:|:--------:|:-------------------:|
-|     trans       |     ×    |     √    |            √        |
-| cycle           |     ×    |     √    |           ×         |
-| commonSender        |     ×    |     √    |           ×         |
-| commonReceiver      |     ×    |     √    |           ×         |
-|     four        |     ×    |     √    |            √        |
-|     mixedTrans  |     ×    |     √    |            √        |
-| mixedCycle      |     ×    |     √    |           ×         |
-| mixedCommonSender   |     ×    |     √    |           ×         |
-| mixedCommonReceiver |     ×    |     √    |           ×         |
+| effect                | rate     | choice   | choice coordination |
+| :-------------------- | :------- | :------- | :------------------ |
+| trans                 |    ×     |    √     |          √          |
+| cycle                 |    ×     |    √     |          ×          |
+| common_sender         |    ×     |    √     |          ×          |
+| common_receiver       |    ×     |    √     |          ×          |
+| four                  |    ×     |    √     |          √          |
+| mixed_trans           |    ×     |    √     |          √          |
+| mixed_cycle           |    ×     |    √     |          ×          |
+| mixed_common_sender   |    ×     |    √     |          ×          |
+| mixed_common_receiver |    ×     |    √     |          ×          |
 
 ### Transitivity (`trans()`)
 
@@ -575,10 +575,10 @@ It can be transformed by using `transformer_fn`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
 
-### Common sender closure (`commonSender()`)
+### Common sender closure (`common_sender()`)
 
 ```{r}
-commonSender(network,
+common_sender(network,
              window = Inf, 
              ignore_repetitions = FALSE, 
              transformer_fn = identity)
@@ -595,10 +595,10 @@ It can be transformed by using `transformer_fn`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
 
-### Common receiver closure (`commonReceiver()`)
+### Common receiver closure (`common_receiver()`)
 
 ```{r}
-commonReceiver(network,
+common_receiver(network,
   window = Inf, ignore_repetitions = FALSE,
   transformer_fn = identity
 )
@@ -636,10 +636,10 @@ This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
 
 
-### Mixed Transitivity (`mixedTrans()`)
+### Mixed Transitivity (`mixed_trans()`)
 
 ```{r}
-mixedTrans(
+mixed_trans(
   network = list(network1, network2), window = Inf,
   ignore_repetitions = FALSE, transformer_fn = identity
 )
@@ -657,10 +657,10 @@ networks.
 It can be transformed by using `transformer_fn`.
 This effect cannot be used for two-mode networks.
 
-### Mixed Cycle (`mixedCycle()`)
+### Mixed Cycle (`mixed_cycle()`)
 
 ```{r}
-mixedCycle(
+mixed_cycle(
   network = list(network1, network2), window = Inf,
   ignore_repetitions = FALSE, transformer_fn = identity
 )
@@ -679,10 +679,10 @@ It can be transformed by using `transformer_fn`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
 
-### Mixed common sender closure (`mixedCommonSender()`)
+### Mixed common sender closure (`mixed_common_sender()`)
 
 ```{r}
-mixedCommonSender(
+mixed_common_sender(
   network = list(network1, network2), window = Inf,
   ignore_repetitions = FALSE, transformer_fn = identity
 )
@@ -701,10 +701,10 @@ It can be transformed by using `transformer_fn`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
 
-### Mixed common receiver closure (`mixedCommonReceiver()`)
+### Mixed common receiver closure (`mixed_common_receiver()`)
 
 ```{r}
-mixedCommonReceiver(
+mixed_common_receiver(
   network = list(network1, network2), window = Inf,
   ignore_repetitions = FALSE, transformer_fn = identity
 )

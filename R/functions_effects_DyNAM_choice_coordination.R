@@ -73,15 +73,15 @@ update_DyNAM_choice_coordination_trans <- function(
   )
 }
 
-# mixedTrans --------------------------------------------------------------
-update_DyNAM_choice_coordination_mixedTrans <- function(
+# mixed_trans --------------------------------------------------------------
+update_DyNAM_choice_coordination_mixed_trans <- function(
     network,
     sender,
     receiver,
     replace, netUpdate, cache,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice_mixedTrans(
+  update_DyNAM_choice_mixed_trans(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     netUpdate = netUpdate, cache = cache,
@@ -133,7 +133,7 @@ update_DyNAM_choice_coordination_tertius <- function(
   )
 }
 
-# tertiusDiff ----------------------------------------------------------------
+# tertius_diff ----------------------------------------------------------------
 #' update stat transitivity using cache
 #'
 #' @param network matrix n1*n1
@@ -168,7 +168,7 @@ update_DyNAM_choice_coordination_tertius <- function(
 #' attribute <- c(1, 0, 1, 3, 1)
 #' cache <- c(2, 1, 0, 1, 0, 2)
 #'
-#' update_DyNAM_choice_coordination_tertiusDiff(
+#' update_DyNAM_choice_coordination_tertius_diff(
 #'   network, attribute,
 #'   sender = 2, receiver = 3,
 #'   node = NULL,
@@ -179,7 +179,7 @@ update_DyNAM_choice_coordination_tertius <- function(
 #'   summarizer_fn = function(x) median(x, na.rm = TRUE)
 #' )
 #'
-#' update_DyNAM_choice_coordination_tertiusDiff(
+#' update_DyNAM_choice_coordination_tertius_diff(
 #'   network, attribute,
 #'   sender = NULL, receiver = NULL,
 #'   node = 3,
@@ -190,7 +190,7 @@ update_DyNAM_choice_coordination_tertius <- function(
 #'   summarizer_fn = function(x) median(x, na.rm = TRUE)
 #' )
 #' }
-update_DyNAM_choice_coordination_tertiusDiff <- function(
+update_DyNAM_choice_coordination_tertius_diff <- function(
     network,
     attribute,
     sender = NULL,
@@ -202,7 +202,7 @@ update_DyNAM_choice_coordination_tertiusDiff <- function(
     n1 = n1, n2 = n2,
     transformer_fn = abs,
     summarizer_fn = function(x) mean(x, na.rm = TRUE)) {
-  update_DyNAM_choice_tertiusDiff(
+  update_DyNAM_choice_tertius_diff(
     network = network,
     attribute = attribute,
     sender = sender,
@@ -293,13 +293,13 @@ update_DyNAM_choice_coordination_sim <- function(
 }
 
 # ego alter interaction ---------------------------------------------------
-update_DyNAM_choice_coordination_egoAlterInt <- function(
+update_DyNAM_choice_coordination_ego_alter_interaction <- function(
     attribute, node, replace,
     attUpdate,
     n1, n2,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice_egoAlterInt(
+  update_DyNAM_choice_ego_alter_interaction(
     attribute = attribute,
     node = node, replace = replace,
     attUpdate = attUpdate,
