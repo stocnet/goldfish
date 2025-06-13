@@ -77,9 +77,9 @@ leavin interaction groups. We can use this function to create these group
 events (please note we need to use the right labels in the dataframe:
 `NodeA`, `NodeB`,`Start`, and `End`):
 ```{r defGroups}
-#?defineGroups_interaction
-prepdata <- defineGroups_interaction(video, participants,
-                                     seed.randomization = 1)
+#?make_groups_interaction
+prepdata <- make_groups_interaction(video, participants,
+                                    seed_randomization = 1)
 ```
 
 This functions to creates 5 objects:

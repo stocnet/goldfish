@@ -28,7 +28,7 @@
 #' and ending time of their interaction.
 #' @param actors a object of class `nodes.goldfish` that defines the actors
 #' interacting (labels in records and actors should be identical).
-#' @param seed.randomization an `integer` used whenever there should
+#' @param seed_randomization an `integer` used whenever there should
 #' be some random choice to be made.
 #' @param progress logical weather detailed information of intermediate steps
 #' should be printed in the console.
@@ -45,12 +45,12 @@
 #'   \item{composition.changes}{that is an events list that should be attached
 #'     to the groups nodeset to indicate when a group is present or not}
 #' }
-defineGroups_interaction <- function(records, actors, seed.randomization,
+make_groups_interaction <- function(records, actors, seed_randomization,
                                      progress = getOption("progress")) {
   stopifnot(
     inherits(records, "data.frame"),
     inherits(actors, "data.frame"),
-    methods::is(seed.randomization, "numeric"),
+    methods::is(seed_randomization, "numeric"),
     is.null(progress) || inherits(progress, "logical")
   )
 
@@ -61,7 +61,7 @@ defineGroups_interaction <- function(records, actors, seed.randomization,
 
   # inititialization
   ngroups <- 0
-  set.seed(seed.randomization)
+  set.seed(seed_randomization)
 
   nrecords <- nrow(records)
   nactors <- nrow(actors)

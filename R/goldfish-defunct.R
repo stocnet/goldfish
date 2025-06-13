@@ -12,9 +12,9 @@
 #'
 #' * `defineNodes()` -> `make_nodes()`
 #' * `defineNetwork()` -> `make_network()`
-#' * `defineGlobalAttribute()` -> `make_global_attribute()`
 #' * `defineDependentEvents()` -> `make_dependent_events()`
-#' * `defineGroups_interaction()` -> `make_group_interaction()`
+#' * `defineGlobalAttribute()` -> `make_global_attribute()`
+#' * `defineGroups_interaction()` -> `make_groups_interaction()`
 #' * `linkEvents(x)` -> `link_events(x)`
 #' * `estimate()` -> `estimate_dynam()`, `estimate_rem()` & `estimate_dynami()` 
 #' * `examineOutliers()` -> `examine_outliers()`
@@ -104,13 +104,30 @@ defineGlobalAttribute <- function(global) {
 
 #' @rdname defunct
 #' @export
-linkEvents <- function(x) {
+defineGroups_interaction <- function(
+    records, actors, seed_randomization = NULL,
+    progress = getOption("progress")
+  ) {
+  lifecycle::deprecate_warn(
+    when = "1.7.0",
+    what = "defineGroups_interaction()",
+    with = "make_groups_interaction()"
+  )
+  make_groups_interaction(
+    records = records, actors = actors,
+    seed_randomization = seed_randomization, progress = progress
+  )
+}
+
+#' @rdname defunct
+#' @export
+linkEvents <- function(x, ...) {
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "linkEvents()",
     with = "link_events()"
   )
-  link_events(x)
+  link_events(x, ...)
 }
 
 #' @rdname defunct
@@ -244,3 +261,5 @@ tertiusDiff <- function(...) {
   )
   update_DyNAM_choice_tertius_diff(...)
 }
+
+
