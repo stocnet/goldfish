@@ -347,6 +347,26 @@ test_that(
 )
 
 test_that(
+  "trans preprocessing",
+  {
+    preproData <- estimate(
+      depNetworkTrans ~ trans(networkStateTrans, history="cons"),
+      model = "DyNAM", subModel = "choice",
+      preprocessingOnly = TRUE
+    )
+    expect_equal(
+      preproData$dependentStatsChange[[11]][[1]],
+      cbind(
+        node1 =   c(4),
+        node2 =   c(3),
+        replace = c(1)
+      ),
+      label = "updating with history = consecutive works"
+    )
+  }
+)
+
+test_that(
   "cycle preprocessing",
   {
     preproData <- estimate(
@@ -365,3 +385,4 @@ test_that(
     )
   }
 )
+
