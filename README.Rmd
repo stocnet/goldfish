@@ -114,21 +114,21 @@ MIT Social Evolution data (`?Social_Evolution`).
 ### Define data objects and link events
 
 The main data objects required for the analysis are the node set(s) 
-`defineNodes()` and network(s) `defineNetwork()`.
+`make_nodes()` and network(s) `make_network()`.
 The node set object contains labels and attributes of the actors in the network.
 In contrast, a network object contains the information of past relational events
 between actors.
-By default, `defineNetwork()` constructs an empty matrix, its dimensions
+By default, `make_network()` constructs an empty matrix, its dimensions
 defined by the length of the nodeset(s).
 Data frames containing event data that modify these data objects can be
-linked to them using the `linkEvents()` method.
+linked to them using the `link_events()` method.
 
 ```{r}
 library(goldfish)
 data("Social_Evolution")
 
-callNetwork <- defineNetwork(nodes = actors, directed = TRUE) |> # 1
-  linkEvents(changeEvent = calls, nodes = actors) # 2
+callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
+  link_events(change_events = calls, nodes = actors) # 2
 
 ```
 
@@ -163,7 +163,7 @@ We specify the event data frame and the node set.
 ```{r}
 callsDependent <- defineDependentEvents(
   events = calls, nodes = actors,
-  defaultNetwork = callNetwork
+  default_network = callNetwork
   )
 ```
 

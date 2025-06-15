@@ -27,14 +27,14 @@
 #' @examples
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
-#' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(
-#'   x = callNetwork, changeEvent = calls,
+#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- link_events(
+#'   x = callNetwork, change_events = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- defineDependentEvents(
+#' callsDependent <- make_dependent_events(
 #'   events = calls, nodes = actors,
-#'   defaultNetwork = callNetwork
+#'   default_network = callNetwork
 #' )
 #' \dontshow{
 #' callsDependent <- callsDependent[1:50, ]

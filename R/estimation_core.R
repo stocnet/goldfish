@@ -132,12 +132,12 @@ estimate_int <- function(
 
   ## GET COMPOSITION CHANGES
   compChangeName1 <- attr(nodes, "events")[
-    "present" == attr(nodes, "dynamicAttribute")
+    "present" == attr(nodes, "dynamic_attribute")
   ]
   hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
 
   compChangeName2 <- attr(nodes2, "events")[
-    "present" == attr(nodes2, "dynamicAttribute")
+    "present" == attr(nodes2, "dynamic_attribute")
   ]
   hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0 &&
     !modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")

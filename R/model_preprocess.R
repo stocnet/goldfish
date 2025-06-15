@@ -403,10 +403,10 @@ preprocess <- function(
             envir = prepEnvir
           )
           # identify class to feed effects functions
-          objCat <- assignCatToObject(.objects)
+          objCat <- assign_category_object(.objects)
           attIDs <- which(objCat == "attribute")
           netIDs <- which(objCat == "network")
-          if (attr(objCat, "noneClass")) {
+          if (attr(objCat, "none_class")) {
             stop("An object is not assigned either as network or attibute",
               paste(names[attr(objCat, "manyClasses") != 1], collapse = ", "),
               "check the class of the object.",
@@ -588,8 +588,8 @@ initializeCacheStat <- function(
   .objects <- getElementFromDataObjectTable(objTable, envir = envir)
   # list of 4, call matrix, friendship matrix, actor$gradetype vector,
   #  actor$floor vector
-  objCat <- assignCatToObject(.objects)
-  if (attr(objCat, "noneClass")) {
+  objCat <- assign_category_object(.objects)
+  if (attr(objCat, "none_class")) {
     stop(
       "An object is not assigned either as network or attibute",
       paste(rownames(objectsEffectsLink)[attr(objCat, "manyClasses") != 1],

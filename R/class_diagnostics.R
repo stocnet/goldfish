@@ -8,7 +8,7 @@
 #' \code{\link{estimate}} call.
 #' @return \code{NULL} if neither outliers nor change points are identified.
 # A subset of the dependent event data frame
-# (see \code{\link{defineDependentEvents}}) with the events identified as
+# (see [make_dependent_events()]) with the events identified as
 # outliers or change point inflections.
 #' An object of class `ggplot` object from a call of [ggplot2::ggplot()].
 #' It can be modified using the `ggplot2` syntax.
@@ -16,14 +16,14 @@
 #' @examples
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
-#' callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-#' callNetwork <- linkEvents(
-#'   x = callNetwork, changeEvent = calls,
+#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- link_events(
+#'   x = callNetwork, change_event = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- defineDependentEvents(
+#' callsDependent <- make_dependent_events(
 #'   events = calls, nodes = actors,
-#'   defaultNetwork = callNetwork
+#'   default_network = callNetwork
 #' )
 #' \dontshow{
 #' callsDependent <- callsDependent[1:50, ]
@@ -60,7 +60,7 @@ NULL
 #' @importFrom stats IQR median na.exclude
 #' @export
 #' @rdname examine
-examineOutliers <- function(x,
+examine_outliers <- function(x,
                             method = c("Hampel", "IQR", "Top"),
                             parameter = 3,
                             window = NULL) {
@@ -175,7 +175,7 @@ examineOutliers <- function(x,
 # method.
 #' @export
 #' @rdname examine
-examineChangepoints <- function(x, moment = c("mean", "variance"),
+examine_changepoints <- function(x, moment = c("mean", "variance"),
                                 method = c("PELT", "AMOC", "BinSeg"),
                                 window = NULL,
                                 ...) {

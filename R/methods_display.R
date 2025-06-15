@@ -190,12 +190,12 @@ print.summary.result.goldfish <- function(
 #' number of nodes in the object, the number of nodes present at the beginning
 #' of preprocessing, a table with the linked attributes with their respective
 #' events data frame and a printing of the first rows in the nodes data frame.
-#' See [defineNodes()].
+#' See [make_nodes()].
 # @examples print(structure(data.frame(label = 1:5),
 #                 class = c("nodes.goldfish", "data.frame")))
 print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
   events <- attr(x, "events")
-  dynamicAttr <- attr(x, "dynamicAttributes")
+  dynamicAttr <- attr(x, "dynamic_attributes")
   cat("Number of nodes:", nrow(x), "\n")
   if ("present" %in% names(x)) {
     cat("Number of present nodes:", sum(x$present), "\n")
@@ -219,7 +219,7 @@ print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
   }
 
   cat("\n")
-  attributes(x)[c("events", "dynamicAttributes")] <- NULL
+  attributes(x)[c("events", "dynamic_attributes")] <- NULL
   class(x) <- "data.frame"
   # x <- as.data.frame(x)
   if (full) {
@@ -245,19 +245,20 @@ print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
 #' preprocessing, the nodes data frames linked to it, information about their
 #' definition as a one-mode and directed network, linked events data frame to it
 #' and a printing of the first rows and columns in the array.
-#' See [defineNetwork()].
+#' See [make_network()].
 # @examples print(structure(rep(0, 100), dim = c(10, 10),
 #                 class = "network.goldfish"))
 print.network.goldfish <- function(x, ..., full = FALSE, n = 6L) {
   nodes <- attr(x, "nodes")
   directed <- attr(x, "directed")
+  is_two_mode <- attr(x, "is_two_mode")
   ties <- sum(x > 0, na.rm = TRUE) / ifelse(directed, 1, 2)
   events <- attr(x, "events")
   cat(
     "Dimensions:", paste(dim(x), collapse = " "),
     "\nNumber of ties (no weighted):", ties,
     "\nNodes set(s):", paste(nodes, collapse = " "),
-    "\nIt is a", ifelse(length(nodes) == 2, "two-mode", "one-mode"),
+    "\nIt is a", ifelse(is_two_mode, "two-mode", "one-mode"),
     "and", ifelse(directed, "directed", "undirected"), "network\n"
   )
 
@@ -287,29 +288,29 @@ print.network.goldfish <- function(x, ..., full = FALSE, n = 6L) {
 #'  total number of events in the object, linked nodes set(s),
 #'  linked default network
 #' and a printing of the first rows in the events data frame.
-#' See [defineDependentEvents()].
+#' See [make_dependent_events()].
 #
 # @examples
 # print(
 #  structure(
 #    data.frame(sender = 1:5, receiver = 2:6, time = 1:5, replace = rep(1, 5)),
 #    class = c("nodes.goldfish", "data.frame"),
-#    nodes = "nodes", defaultNetwork = "network"
+#    nodes = "nodes", default_network = "network"
 #  )
 # )
 print.dependent.goldfish <- function(x, ..., full = FALSE, n = 6) {
   nodes <- attr(x, "nodes")
-  defaultNetwork <- attr(x, "defaultNetwork")
+  default_network <- attr(x, "default_network")
   cat(
     "Number of events:", nrow(x),
     "\nNodes set(s):", paste(nodes, collapse = " "), "\n"
   )
-  if (!is.null(defaultNetwork) && defaultNetwork != "") {
-    cat("Default network:", defaultNetwork, "\n")
+  if (!is.null(default_network) && default_network != "") {
+    cat("Default network:", default_network, "\n")
   }
 
   cat("\n")
-  attributes(x)[c("nodes", "defaultNetwork", "type")] <- NULL
+  attributes(x)[c("nodes", "default_network", "type")] <- NULL
   class(x) <- "data.frame"
   # x <- as.data.frame(x)
   if (full) {

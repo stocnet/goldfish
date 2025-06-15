@@ -5,15 +5,15 @@
 # # Description: Helper functions to gather the preprocess data from a model
 
 
-#' Gather preprocess data from a formula
+#' Gather model data from a formula
 #'
-#' Gather the preprocess data from a formula and a model,
+#' Gather the preprocess data from a formula given a model and sub model,
 #' where the output corresponds to the data structure used by the engine
 #' `gather_compute`; see [estimate()].
 #'
 #' It differs from the `estimate()` output when the argument `preprocessingOnly`
 #' is set to `TRUE` regarding the memory space requirement.
-#' The `gatherPreprocessing()` produces a list where the first element
+#' The `gather_model_data()` produces a list where the first element
 #' is a matrix that could have up to the number of events times
 #' the number of actors rows and the number of effects columns.
 #' For medium to large datasets with thousands of events and
@@ -28,10 +28,10 @@
 #'
 #' @param formula a formula object that defines at the
 #' left-hand side the dependent
-#' network (see [defineDependentEvents()]) and at the right-hand side the
+#' network (see [make_dependent_events()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
 #' (see `vignette("goldfishEffects")`).
-#' @param preprocessArgs a list containing additional parameters
+#' @param control_preprocessing a list containing additional parameters
 #' for preprocessing. It may contain:
 #' \describe{
 #'  \item{startTime}{a numerical value or a date-time character with the same
@@ -67,7 +67,7 @@
 #'   \item{sender, receiver}{
 #'    a character vector with the label of the sender/receiver actor.
 #'    For right-censored events the receiver values is not meaningful.}
-#'   \item{hasIntercept}{
+#'   \item{has_intercept}{
 #'    a logical value indicating if the model has an intercept.}
 #'   \item{namesEffects}{a character vector with a short name of the effect.
 #'   It includes the name of the object used to calculate the effects and
@@ -78,7 +78,7 @@
 #'    additional information of the effect, e.g., the type of effect,
 #'    weighted effect, transformation function, window length.}
 #'  }
-#'  If the model has an intercept and the subModel is `rate` or model is `REM`,
+#'  If the model has an intercept and the sub_model is `rate` or model is `REM`,
 #'  additional elements are included:
 #'  \describe{
 #'   \item{timespan}{
@@ -92,51 +92,51 @@
 #'
 #' @examples
 #' data("Fisheries_Treaties_6070")
-#' states <- defineNodes(states)
-#' states <- linkEvents(states, sovchanges, attribute = "present")
-#' states <- linkEvents(states, regchanges, attribute = "regime")
-#' states <- linkEvents(states, gdpchanges, attribute = "gdp")
+#' states <- make_nodes(states)
+#' states <- link_events(states, sovchanges, attribute = "present")
+#' states <- link_events(states, regchanges, attribute = "regime")
+#' states <- link_events(states, gdpchanges, attribute = "gdp")
 #'
-#' bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
-#' bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
+#' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+#' bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 #'
-#' createBilat <- defineDependentEvents(
+#' createBilat <- make_dependent_events(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
-#'   nodes = states, defaultNetwork = bilatnet
+#'   nodes = states, default_network = bilatnet
 #' )
 #'
-#' contignet <- defineNetwork(contignet, nodes = states, directed = FALSE)
-#' contignet <- linkEvents(contignet, contigchanges, nodes = states)
+#' contignet <- make_network(contignet, nodes = states, directed = FALSE)
+#' contignet <- link_events(contignet, contigchanges, nodes = states)
 #'
-#' gatheredData <- GatherPreprocessing(
+#' gatheredData <- gather_model_data(
 #'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet)
 #' )
 #'
-GatherPreprocessing <- function(
+gather_model_data <- function(
     formula,
     model = c("DyNAM", "REM"),
-    subModel = c("choice", "choice_coordination", "rate"),
-    preprocessArgs = NULL,
+    sub_model = c("choice", "choice_coordination", "rate"),
+    control_preprocessing = NULL,
     progress = getOption("progress"),
     envir = new.env()) {
   model <- match.arg(
     arg = if (length(model) > 1) model[1] else model,
     choices = c("DyNAM", "REM", "DyNAMRE")
   )
-  subModel <- match.arg(subModel)
+  sub_model <- match.arg(sub_model)
 
-  checkModelPar(
-    model = model, subModel = subModel,
-    modelList = c("DyNAM", "REM", "DyNAMRE"),
-    subModelList = list(
+  check_model_par(
+    model = model, sub_model = sub_model,
+    model_list = c("DyNAM", "REM", "DyNAMRE"),
+    sub_model_list = list(
       DyNAM = c("choice", "rate", "choice_coordination"),
       REM = "choice",
       DyNAMRE = c("choice", "choice_coordination")
     )
   )
 
-  if (!is.null(preprocessArgs)) {
-    parInit <- names(preprocessArgs) %in%
+  if (!is.null(control_preprocessing)) {
+    parInit <- names(control_preprocessing) %in%
       c(
         "startTime", "endTime", "opportunitiesList"
       )
@@ -144,16 +144,16 @@ GatherPreprocessing <- function(
     if (any(!parInit)) {
       warning(
         "The parameter: ",
-        paste(names(preprocessArgs)[!parInit], collapse = ", "),
+        paste(names(control_preprocessing)[!parInit], collapse = ", "),
         " is not recognized for the preprocessing. ",
         "See the documentation for the list of available parameters",
         call. = FALSE, immediate. = TRUE
       )
     }
 
-    if (!is.null(preprocessArgs[["opportunitiesList"]])) {
+    if (!is.null(control_preprocessing[["opportunitiesList"]])) {
       warning(
-        dQuote("GatherPreprocessing"), " doesn't implement yet the ",
+        dQuote("gather_model_data"), " doesn't implement yet the ",
         dQuote("opportunitiesList"), " functionality"
       )
     }
@@ -162,16 +162,16 @@ GatherPreprocessing <- function(
   if (is.null(progress)) progress <- FALSE
 
   ### 1. PARSE the formula----
-  parsedformula <- parseFormula(formula, envir = envir)
-  rhsNames <- parsedformula$rhsNames
-  depName <- parsedformula$depName
-  hasIntercept <- parsedformula$hasIntercept
-  windowParameters <- parsedformula$windowParameters
-  ignoreRepParameter <- unlist(parsedformula$ignoreRepParameter)
+  parsed_formula <- parse_formula(formula, envir = envir)
+  rhs_names <- parsed_formula$rhs_names
+  dep_name <- parsed_formula$dep_name
+  has_intercept <- parsed_formula$has_intercept
+  window_parameters <- parsed_formula$window_parameters
+  ignore_rep_parameter <- unlist(parsed_formula$ignore_rep_parameter)
 
   # # C implementation doesn't have ignoreRep option issue #105
-  if (any(unlist(parsedformula$ignoreRepParameter))) {
-    stop("gatherPreprocessing ",
+  if (any(unlist(parsed_formula$ignore_rep_parameter))) {
+    stop("gather_model_data ",
       " doesn't support ignoreRep effects (GH issue #105)!",
       call. = FALSE, immediate. = TRUE
     )
@@ -179,22 +179,22 @@ GatherPreprocessing <- function(
 
   # Model-specific preprocessing initialization
   if (model == "DyNAMRE") {
-    if (subModel == "choice") model <- "REM" else model <- "DyNAM"
+    if (sub_model == "choice") model <- "REM" else model <- "DyNAM"
     altModel <- "DyNAMRE"
   } else {
     altModel <- NULL
   }
 
   if (model %in% c("DyNAM", "DyNAMi") &&
-    subModel %in% c("choice", "choice_coordination") &&
-    parsedformula$hasIntercept) {
-    warning("Model ", dQuote(model), " subModel ", dQuote(subModel),
+    sub_model %in% c("choice", "choice_coordination") &&
+    parsed_formula$has_intercept) {
+    warning("Model ", dQuote(model), " sub_model ", dQuote(sub_model),
       " ignores the time intercept.",
       call. = FALSE, immediate. = TRUE
     )
-    parsedformula$hasIntercept <- FALSE
+    parsed_formula$has_intercept <- FALSE
   }
-  rightCensored <- parsedformula$hasIntercept
+  right_censored <- parsed_formula$has_intercept
 
   # if (progress && !all(vapply(windowParameters, is.null, logical(1)))) {
   #   cat("Creating window objects in global environment.\n")
@@ -206,7 +206,7 @@ GatherPreprocessing <- function(
 
   ## 2.0 Set isTwoMode to define effects functions
   # get node sets of dependent variable
-  .nodes <- attr(get(parsedformula$depName, envir = envir), "nodes")
+  .nodes <- attr(get(parsed_formula$dep_name, envir = envir), "nodes")
 
   # two-mode networks(2 kinds of nodes)
   if (length(.nodes) == 2) {
@@ -220,49 +220,49 @@ GatherPreprocessing <- function(
 
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
   # enviroment from which get the objects
-  effects <- createEffectsFunctions(
-    parsedformula$rhsNames, model, subModel,
+  effects <- create_effects_functions(
+    parsed_formula$rhs_names, model, sub_model,
     envir = envir
   )
   # Get links between objects and effects for printing results
-  objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames)
+  objects_effects_link <- get_objects_effects_link(parsed_formula$rhs_names)
 
   ## 2.2 INITIALIZE OBJECTS for preprocessingInit == NULL
 
   # Initialize events list and link to objects
-  events <- getEventsAndObjectsLink(
-    parsedformula$depName, parsedformula$rhsNames,
+  events <- get_events_and_objects_link(
+    parsed_formula$dep_name, parsed_formula$rhs_names,
     .nodes, .nodes2,
     envir = envir
   )[[1]]
   # moved cleanInteractionEvents in getEventsAndObjectsLink
-  eventsObjectsLink <- getEventsAndObjectsLink(
-    parsedformula$depName, parsedformula$rhsNames,
+  events_objects_link <- get_events_and_objects_link(
+    parsed_formula$dep_name, parsed_formula$rhs_names,
     .nodes, .nodes2,
     envir = envir
   )[[2]]
-  eventsEffectsLink <- getEventsEffectsLink(
-    events, parsedformula$rhsNames, eventsObjectsLink
+  events_effects_link <- get_events_effects_link(
+    events, parsed_formula$rhs_names, events_objects_link
   )
 
   ## 3.2 PREPROCESS when preprocessingInit == NULL
   preprocessingStat <- preprocess(
     model = model,
-    subModel = subModel,
+    subModel = sub_model,
     events = events,
     effects = effects,
-    windowParameters = parsedformula$windowParameters,
-    ignoreRepParameter = ignoreRepParameter,
-    eventsObjectsLink = eventsObjectsLink, # for data update
-    eventsEffectsLink = eventsEffectsLink,
-    objectsEffectsLink = objectsEffectsLink, # for parameterization
+    windowParameters = parsed_formula$window_parameters,
+    ignoreRepParameter = ignore_rep_parameter,
+    eventsObjectsLink = events_objects_link, # for data update
+    eventsEffectsLink = events_effects_link,
+    objectsEffectsLink = objects_effects_link, # for parameterization
     # multipleParameter = multipleParameter,
     nodes = .nodes,
     nodes2 = .nodes2,
     isTwoMode = isTwoMode,
-    startTime = preprocessArgs[["startTime"]],
-    endTime = preprocessArgs[["endTime"]],
-    rightCensored = rightCensored,
+    startTime = control_preprocessing[["startTime"]],
+    endTime = control_preprocessing[["endTime"]],
+    rightCensored = right_censored,
     progress = progress,
     prepEnvir = envir
   )
@@ -273,22 +273,22 @@ GatherPreprocessing <- function(
   reduceMatrixToVector <- FALSE
   reduceArrayToMatrix <- FALSE
 
-  if (!is.null(altModel) && subModel == "choice") model <- "DyNAM"
+  if (!is.null(altModel) && sub_model == "choice") model <- "DyNAM"
 
   if (model == "REM") {
-    if (!parsedformula$hasIntercept) {
+    if (!parsed_formula$has_intercept) {
       modelTypeCall <- "REM-ordered"
     } else {
       modelTypeCall <- "REM"
     }
   } else if (model == "DyNAM") {
-    if (subModel == "rate" && !parsedformula$hasIntercept) {
+    if (sub_model == "rate" && !parsed_formula$has_intercept) {
       modelTypeCall <- "DyNAM-M-Rate-ordered"
       reduceMatrixToVector <- TRUE
-    } else if (subModel == "rate") {
+    } else if (sub_model == "rate") {
       modelTypeCall <- "DyNAM-M-Rate"
       reduceMatrixToVector <- TRUE
-    } else if (subModel == "choice_coordination") {
+    } else if (sub_model == "choice_coordination") {
       modelTypeCall <- "DyNAM-MM"
     } else {
       modelTypeCall <- "DyNAM-M"
@@ -302,7 +302,7 @@ GatherPreprocessing <- function(
     reduceMatrixToVector = reduceMatrixToVector,
     reduceArrayToMatrix = reduceArrayToMatrix,
     excludeParameters = NULL,
-    addInterceptEffect = parsedformula$hasIntercept
+    addInterceptEffect = parsed_formula$has_intercept
   )
 
   # nEvents <- length(preprocessingStat$orderEvents)# number of events
@@ -321,7 +321,7 @@ GatherPreprocessing <- function(
   temp <- convert_change(preprocessingStat$dependentStatsChange)
   stat_mat_update <- temp$statMatUpdate
   stat_mat_update_pointer <- temp$statMatUpdatePointer
-  if (parsedformula$hasIntercept) {
+  if (parsed_formula$has_intercept) {
     stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
   }
   # Convert the right-censored events
@@ -334,7 +334,7 @@ GatherPreprocessing <- function(
     temp <- convert_change(preprocessingStat$rightCensoredStatsChange)
     stat_mat_rightcensored_update <- temp$statMatUpdate
     stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
-    if (parsedformula$hasIntercept) {
+    if (parsed_formula$has_intercept) {
       stat_mat_rightcensored_update[3, ] <-
         stat_mat_rightcensored_update[3, ] + 1
     }
@@ -342,12 +342,12 @@ GatherPreprocessing <- function(
 
   ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
   compChangeName1 <- attr(nodes, "events")[
-    "present" == attr(nodes, "dynamicAttribute")
+    "present" == attr(nodes, "dynamic_attribute")
   ]
   hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
 
   compChangeName2 <- attr(nodes2, "events")[
-    "present" == attr(nodes2, "dynamicAttribute")
+    "present" == attr(nodes2, "dynamic_attribute")
   ]
   hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
 
@@ -437,23 +437,23 @@ GatherPreprocessing <- function(
 
   ## Add additional information
   gatheredData$sender <- nodes$label[preprocessingStat$eventSender]
-  if (model == "REM" || (model == "DyNAM" && subModel != "rate")) {
+  if (model == "REM" || (model == "DyNAM" && sub_model != "rate")) {
     gatheredData$receiver <-
       nodes2$label[preprocessingStat$eventReceiver]
-  } else if (model == "DyNAM" && subModel == "rate" &&
-    parsedformula$hasIntercept) {
+  } else if (model == "DyNAM" && sub_model == "rate" &&
+    parsed_formula$has_intercept) {
     gatheredData$timespan <- timespan
     gatheredData$isDependent <- is_dependent
   }
-  gatheredData$hasIntercept <- parsedformula$hasIntercept
+  gatheredData$has_intercept <- parsed_formula$has_intercept
 
   gatheredData$selected <- gatheredData$selected +
-    if (parsedformula$hasIntercept) (1 * is_dependent) else 1
+    if (parsed_formula$has_intercept) (1 * is_dependent) else 1
 
   ### 4. PREPARE PRINTING----
   # functions_utility.R
   effectDescription <-
-    GetDetailPrint(objectsEffectsLink, parsedformula)
+    GetDetailPrint(objects_effects_link, parsed_formula)
   hasWindows <- attr(effectDescription, "hasWindows")
 
   namesEffects <- CreateNames(effectDescription, sep = "_", joiner = "_")

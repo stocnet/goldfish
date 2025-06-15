@@ -62,8 +62,8 @@ class(states)
 
 We need to define them as nodes so that goldfish knows what to do with them.
 
-```{r defineNodes}
-states <- defineNodes(states)
+```{r make_nodes}
+states <- make_nodes(states)
 head(states)
 class(states)
 ```
@@ -98,7 +98,7 @@ To make sure goldfish recognises these changes at the appropriate point,
 we "link" these events to the node set and attribute we have defined.
 
 ```{r link-present}
-states <- linkEvents(states, sovchanges, attribute = "present")
+states <- link_events(states, sovchanges, attribute = "present")
 # If you call the object now, what happens?
 states
 ```
@@ -115,8 +115,8 @@ We can continue on with our other two dynamic monadic variables.
 Try this for yourself now.
 
 ```{r link-states-vars}
-states <- linkEvents(states, regchanges, attribute = "regime") |>
-  linkEvents(gdpchanges, attribute = "gdp")
+states <- link_events(states, regchanges, attribute = "regime") |>
+  link_events(gdpchanges, attribute = "gdp")
 str(states)
 ```
 
@@ -140,7 +140,7 @@ Two things can be observed here. What are they?
 So that goldfish knows how to handle this network, we define it so:
 
 ```{r define-bilat-net}
-bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
+bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
 ```
 
 We specify the nodes so that goldfish can check for consistency,
@@ -162,7 +162,7 @@ We use precisely the same function as before
 goldfish knows what to do and how to check it).
 
 ```{r link-bilat-net}
-bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
+bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 bilatnet
 ```
 
@@ -170,8 +170,8 @@ TASK: You should now be able to do the same with the
 initial contiguity network and the event list changing it.
 
 ```{r contig-net}
-contignet <- defineNetwork(contignet, nodes = states, directed = FALSE) |>
-  linkEvents(contigchanges, nodes = states)
+contignet <- make_network(contignet, nodes = states, directed = FALSE) |>
+  link_events(contigchanges, nodes = states)
 class(contignet)
 contignet
 ```
@@ -184,10 +184,10 @@ Since treaty dissolution is a rarer, more complex, and idiosyncratic process,
 we will only look at those events that create a treaty tie between countries.
 
 ```{r define-dep-events}
-createBilat <- defineDependentEvents(
+createBilat <- make_dependent_events(
   events = bilatchanges[bilatchanges$increment == 1,],
   nodes = states,
-  defaultNetwork = bilatnet
+  default_network = bilatnet
 )
 ```
 

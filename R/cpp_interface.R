@@ -131,12 +131,12 @@ estimate_c_int <- function(
   #  for counting average number of actors
   # and remove absent actors for each estimation step
   compChangeName1 <- attr(nodes, "events")[
-    "present" == attr(nodes, "dynamicAttribute")
+    "present" == attr(nodes, "dynamic_attributes")
   ]
   hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
 
   compChangeName2 <- attr(nodes2, "events")[
-    "present" == attr(nodes2, "dynamicAttribute")
+    "present" == attr(nodes2, "dynamic_attributes")
   ]
   hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
 
