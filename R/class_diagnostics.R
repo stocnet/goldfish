@@ -30,8 +30,8 @@
 #' }
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
 #'   model = "DyNAM", subModel = "choice",
-#'   estimationInit = list(
-#'     returnIntervalLogL = TRUE,
+#'   control_estimation = estimation_options(
+#'     return_interval_loglik = TRUE,
 #'     engine = "default_c"
 #'   )
 #' )

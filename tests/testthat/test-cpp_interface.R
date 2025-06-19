@@ -10,11 +10,8 @@ test_that(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(
-        startTime = 0,
-        # fixedParameters = c(offsetInt, 0, 0),
-        returnIntervalLogL = TRUE
-      ),
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
       progress = FALSE,
       verbose = FALSE
     )
@@ -22,17 +19,16 @@ test_that(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(
-        startTime = 0, engine = "default_c",
-        # fixedParameters = c(offsetInt, 0, 0),
-        returnIntervalLogL = TRUE
-      )
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation =
+        set_estimation_opt(engine = "default_c", return_interval_loglik = TRUE)
     )
     modCgc <- estimate(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0, engine = "gather_compute")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "gather_compute")
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
@@ -53,19 +49,21 @@ test_that(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0)
+      control_preprocessing = set_preprocessing_opt(start_time = 0)
     )
     modCd <- estimate(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0, engine = "default_c")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "default_c")
     )
     modCgc <- estimate(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0, engine = "gather_compute")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "gather_compute")
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
@@ -87,19 +85,21 @@ test_that(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0)
+      control_preprocessing = set_preprocessing_opt(start_time = 0)
     )
     modCd <- estimate(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0, engine = "default_c")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "default_c")
     )
     modCgc <- estimate(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0, engine = "gather_compute")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "gather_compute")
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
@@ -119,17 +119,19 @@ test_that(
     modR <- estimate(
       formula,
       model = model,
-      estimationInit = list(startTime = 0)
+      control_preprocessing = set_preprocessing_opt(start_time = 0)
     )
     modCd <- estimate(
       formula,
       model = model,
-      estimationInit = list(startTime = 0, engine = "default_c")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "default_c")
     )
     modCgc <- estimate(
       formula,
       model = model,
-      estimationInit = list(startTime = 0, engine = "gather_compute")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "gather_compute")
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
@@ -149,17 +151,19 @@ test_that(
     modR <- estimate(
       formula,
       model = model,
-      estimationInit = list(startTime = 0)
+      control_preprocessing = set_preprocessing_opt(start_time = 0)
     )
     modCd <- estimate(
       formula,
       model = model,
-      estimationInit = list(startTime = 0, engine = "default_c")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "default_c")
     )
     modCgc <- estimate(
       formula,
       model = model,
-      estimationInit = list(startTime = 0, engine = "gather_compute")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "gather_compute")
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))
@@ -181,19 +185,21 @@ test_that(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0)
+      control_preprocessing = set_preprocessing_opt(start_time = 0)
     )
     modCd <- estimate(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0, engine = "default_c")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "default_c")
     )
     modCgc <- estimate(
       formula,
       model = model,
       subModel = subModel,
-      estimationInit = list(startTime = 0, engine = "gather_compute")
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "gather_compute")
     )
     expect_equal(coef(modR), coef(modCd))
     expect_equal(coef(modR), coef(modCgc))

@@ -16,16 +16,18 @@
 #'   \item{\strong{Attribute Covariates:}}
 #'   \itemize{
 #'     \item{Initial Values:} Missing values for the initial state of an
-#'     attribute covariate are replaced by the mean value of that attribute across all actors.
+#'     attribute covariate are replaced by the mean value of that attribute
+#'     across all actors.
 #'     \item{During Event Updates (via linked events):}
 #'     \itemize{
 #'       \item{Using `replace`:} If a linked event uses the `replace` variable
-#'       to specify a new attribute value and that value is missing, the missing value
-#'       is replaced by the mean of the attribute,
+#'       to specify a new attribute value and that value is missing, the missing
+#'       value is replaced by the mean of the attribute,
 #'       excluding the node being updated, at the moment of the event.
-#'       \item{Using `increment`:} If a linked event uses the `increment` variable
-#'       to specify a change in attribute value and that increment is missing, the missing value
-#'       is imputed with a value of zero (0). This assumes no change occurred.
+#'       \item{Using `increment`:} If a linked event uses the `increment`
+#'       variable to specify a change in attribute value and that increment is
+#'       missing, the missing value is imputed with a value of zero (0).
+#'       This assumes no change occurred.
 #'     }
 #'   }
 #' }
@@ -87,69 +89,29 @@
 #'  Two rate models, one for individuals joining groups and one for individuals
 #'  leaving groups, jointly estimated `model = "DyNAMi"`(Hoffman et al., 2020)}
 #' }
-#' @param estimationInit a list containing lower level technical parameters
-#' for estimation. It may contain:
-#' \describe{
-#'  \item{initialParameters}{a numeric vector.
-#'  It includes initial parameters of the estimation.
-#'  Default is set to NULL.}
-#' 	\item{fixedParameters}{a numeric vector. It specifies which component of
-#' 	the coefficient parameters (intercept included) is fixed and the value
-#' 	it takes during estimation, e.g., if the vector is `c(2, NA)` then
-#' 	the first component of the parameter is fixed to 2 during the
-#' 	estimation process. Default is set to `NULL`, i.e. all parameters are
-#' 	estimated. Note that it must be consistent with `initialParameters`.}
-#'  \item{maxIterations}{maximum number of iterations of the Gauss/Fisher
-#'  scoring method for the estimation. Default is set to 20.}
-#'  \item{maxScoreStopCriterion}{maximum absolute score criteria for successful
-#'  convergence. Default value is 0.001}
-#'  \item{initialDamping}{a numeric vector used to declare the initial damping
-#'  factor for each parameter.
-#'  It controls the size of the update step during the iterative estimation
-#'  process. The default is set to 30 when the formula has windowed effects or
-#'  10 in another case, see `vignette("goldfishEffects")`.}
-#'  \item{dampingIncreaseFactor}{a numeric value. It controls the factor that
-#'  increases the damping of the parameters when improvements in the estimation
-#'  are found.}
-#'  \item{dampingDecreaseFactor}{a numeric value. Controls the factor that
-#'  decreases the damping of the parameters when no improvements in the
-#'  estimation are found.}
-#'  \item{returnIntervalLogL}{a logical value. Whether to keep the
-#'  log-likelihood of each event from the final iteration of the Gauss/Fisher
-#'  estimation method.}
-#'  \item{engine}{a string indicating the estimation engine to be used.
-#'  Current options include `"default"`, `"default_c"`, and `"gather_compute"`.
-#'  The default value is `"default"`, it is an estimation routine implemented in
-#'  pure `R` code.
-#'  `"default_c"` uses a `C` implementation of the `"default"` routine.
-#'  `"gather_compute"` uses a `C` implementation with a different data
-#'  structure that reduces the time but it can increase the memory usage.}
-#'  \item{startTime}{a numerical value or a date-time character with the same
-#'  time-zone formatting as the times in event that indicates the starting time
-#'  to be considered during estimation.
-#'  \emph{Note:} it is only use during preprocessing}
-#'  \item{endTime}{a numerical value or a date-time character with the same
-#'  time-zone formatting as the times in event that indicates the end time
-#'  to be considered during estimation.
-#'  \emph{Note:} it is only use during preprocessing}
-#'  \item{opportunitiesList}{a list containing for each dependent event
-#'   the list of available nodes for the choice model, this list should be
-#'   the same length as the dependent events list (ONLY for choice models).}
-#' }
-#' @param preprocessingOnly logical indicating whether only preprocessed
-#' statistics should be returned rather than a `result.goldfish` object
-#' with the estimated coefficients.
+#' @param control_estimation An object of class `control_estimation.goldfish`
+#'   (typically created by [control_estimation()]),
+#'   specifying parameters for the estimation algorithm.
+#' @param control_preprocessing An object of class
+#'   `control_preprocessing.goldfish` (typically created by
+#'   [control_preprocessing()]),
+#'   specifying parameters for data preprocessing. This is only used
+#'   if `preprocessingInit` is not a `preprocessed.goldfish` object or NULL.
 #' @param preprocessingInit a `preprocessed.goldfish` object computed for
-#' the current formula, allows skipping the preprocessing step.
+#'   the current formula, allows skipping the preprocessing step.
+#' @param preprocessingOnly logical indicating whether only preprocessed
+#'   statistics should be returned rather than a `result.goldfish` object
+#'   with the estimated coefficients.
 #' @param verbose logical indicating whether should print
-#' very detailed intermediate results of the iterative Newton-Raphson procedure;
-#' slows down the routine significantly.
+#'   very detailed intermediate results of the iterative Newton-Raphson
+#'   procedure; slows down the routine significantly.
 #' @param progress logical indicating whether should print a minimal output
-#' to the console of the progress of the preprocessing and estimation processes.
+#'   to the console of the progress of the preprocessing and
+#'   estimation processes.
 #' @param x a formula that defines at the left-hand side the dependent
-#' network (see [make_dependent_events()]) and at the right-hand side the
-#' effects and the variables for which the effects are expected to occur
-#' (see `vignette("goldfishEffects")`).
+#'   network (see [make_dependent_events()]) and at the right-hand side the
+#'   effects and the variables for which the effects are expected to occur
+#'   (see `vignette("goldfishEffects")`).
 #' @param envir an `environment` where `formula` objects and their linked
 #' objects are available.
 #'
@@ -237,14 +199,14 @@
 #'
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
 #'   model = "DyNAM", subModel = "choice",
-#'   estimationInit = list(engine = "default_c")
+#'   control_estimation = control_estimation(engine = "default_c")
 #' )
 #' summary(mod01)
 #'
 #' # A individual activity rates model
 #' mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
 #'   model = "DyNAM", subModel = "rate",
-#'   estimationInit = list(engine = "default_c")
+#'   control_estimation = control_estimation(engine = "default_c")
 #' )
 #' summary(mod02)
 #'
@@ -278,7 +240,8 @@
 #'     alter(states$gdp) +
 #'     diff(states$gdp),
 #'   model = "DyNAM", subModel = "choice_coordination",
-#'   estimationInit = list(initialDamping = 40, maxIterations = 30)
+#'   control_estimation =
+#'     set_estimation_opt(initial_damping = 40, max_iterations = 30)
 #' )
 #' summary(partnerModel)
 #' }
@@ -287,7 +250,8 @@ estimate <- function(
     x,
     model = c("DyNAM", "REM", "DyNAMi"),
     subModel = c("choice", "rate", "choice_coordination"),
-    estimationInit = NULL,
+    control_estimation = set_estimation_opt(),
+    control_preprocessing = set_preprocessing_opt(),
     preprocessingInit = NULL,
     preprocessingOnly = FALSE,
     envir = new.env(),
@@ -304,7 +268,8 @@ estimate.formula <- function(
     x,
     model = c("DyNAM", "REM", "DyNAMi"),
     subModel = c("choice", "rate", "choice_coordination"),
-    estimationInit = NULL,
+    control_estimation = set_estimation_opt(),
+    control_preprocessing = set_preprocessing_opt(),
     preprocessingInit = NULL,
     preprocessingOnly = FALSE,
     envir = new.env(),
@@ -340,64 +305,32 @@ estimate.formula <- function(
     is.null(progress) || inherits(progress, "logical"),
     is.null(preprocessingInit) ||
       inherits(preprocessingInit, "preprocessed.goldfish"),
-    is.null(estimationInit) ||
-      inherits(estimationInit, "list")
+    inherits(control_estimation, "estimation_opt.goldfish"),
+    inherits(control_preprocessing, "preprocessing_opt.goldfish")
   )
 
   if (is.null(progress)) progress <- FALSE
 
-  if (!is.null(estimationInit)) {
-    parInit <- names(estimationInit) %in%
-      c(
-        "maxIterations", "maxScoreStopCriterion", "initialDamping",
-        "dampingIncreaseFactor", "dampingDecreaseFactor", "initialParameters",
-        "fixedParameters", "returnEventProbabilities", "returnIntervalLogL",
-        "impute", "engine", "startTime", "endTime", "opportunitiesList"
-      )
-
-
-    if (any(!parInit)) {
-      warning(
-        "The parameter: ",
-        paste(names(estimationInit)[!parInit], collapse = ", "),
-        " is not recognized. ",
-        "See the documentation for the list of available parameters",
-        call. = FALSE, immediate. = TRUE
-      )
-    }
-  }
-
-  # Decide the type of engine
-  engine <- match.arg(
-    estimationInit[["engine"]],
-    c("default", "default_c", "gather_compute")
-  )
-  if (!is.null(estimationInit[["engine"]])) estimationInit[["engine"]] <- NULL
-
   # gather_compute and default_c don't support returnEventProbabilities
-  if (!is.null(estimationInit) &&
-    "returnEventProbabilities" %in% names(estimationInit)) {
-    if (isTRUE(estimationInit["returnEventProbabilities"]) &&
-      engine != "default") {
-      warning("engine = ", dQuote(engine), " doesn't support",
-        dQuote("returnEventProbabilities"),
-        ". engine =", dQuote("default"), " is used instead.",
-        call. = FALSE, immediate. = TRUE
+  if (control_estimation$return_probabilities &&
+      control_estimation$engine != "default") {
+    warning("engine = ", dQuote(control_estimation$engine), " doesn't support",
+      dQuote("return_probabilities"),
+      ". engine =", dQuote("default"), " is used instead.",
+      call. = FALSE, immediate. = TRUE
       )
-      engine <- "default"
-    }
+    control_estimation$engine <- "default"
   }
+
   # gather_compute and default_c don't support restrictions of opportunity sets
-  if (!is.null(estimationInit) &&
-    "opportunitiesList" %in% names(estimationInit)) {
-    if (!is.null(estimationInit["opportunitiesList"]) && engine != "default") {
-      warning("engine = ", dQuote(engine), " doesn't support",
-        dQuote("opportunitiesList"),
-        ". engine =", dQuote("default"), " is used instead.",
-        call. = FALSE, immediate. = TRUE
-      )
-      engine <- "default"
-    }
+  if (!is.null(control_preprocessing$opportunitiesList) &&
+      control_estimation$engine != "default") {
+    warning("engine = ", dQuote(control_estimation$engine), " doesn't support",
+      dQuote("opportunitiesList"),
+      ". engine =", dQuote("default"), " is used instead.",
+      call. = FALSE, immediate. = TRUE
+    )
+    control_estimation$engine <- "default"
   }
 
 
@@ -418,13 +351,13 @@ estimate.formula <- function(
 
   # # C implementation doesn't have ignore_repetitions option issue #105
   if (any(unlist(parsed_formula$ignore_rep_parameter)) &&
-    engine %in% c("default_c", "gather_compute")) {
-    warning("engine = ", dQuote(engine),
+    control_estimation$engine %in% c("default_c", "gather_compute")) {
+    warning("engine = ", dQuote(control_estimation$engine),
       " doesn't support ignore_repetitions effects. engine =",
       dQuote("default"), " is used instead.",
       call. = FALSE, immediate. = TRUE
     )
-    engine <- "default"
+    control_estimation$engine <- "default"
   }
   # Model-specific preprocessing initialization
   if (has_intercept && model %in% c("DyNAM", "DyNAMi") &&
@@ -451,7 +384,9 @@ estimate.formula <- function(
   ## 1.2 PARSE for preprocessingInit: check the formula consistency
   if (!is.null(preprocessingInit)) {
     # find the old and new effects indexes, do basic consistency checks
-    old_parsed_formula <- parse_formula(preprocessingInit$formula, envir = envir)
+    old_parsed_formula <- parse_formula(
+      preprocessingInit$formula, envir = envir
+    )
     effects_indexes <- compare_formulas(
       old_parsed_formula = old_parsed_formula,
       new_parsed_formula = parsed_formula,
@@ -475,7 +410,6 @@ estimate.formula <- function(
   } else {
     .nodes2 <- .nodes
   }
-
 
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
   # enviroment from which get the objects
@@ -561,8 +495,8 @@ estimate.formula <- function(
         nodes = .nodes,
         nodes2 = .nodes2,
         is_two_mode = is_two_mode,
-        startTime = preprocessingInit[["startTime"]],
-        endTime = preprocessingInit[["endTime"]],
+        startTime = control_preprocessing$start_time,
+        endTime = control_preprocessing$end_time,
         rightCensored = rightCensored,
         progress = progress,
         prepEnvir = envir
@@ -716,8 +650,8 @@ estimate.formula <- function(
         nodes = .nodes,
         nodes2 = .nodes2,
         is_two_mode = is_two_mode,
-        startTime = estimationInit[["startTime"]],
-        endTime = estimationInit[["endTime"]],
+        startTime = control_preprocessing$start_time,
+        endTime = control_preprocessing$end_time,
         rightCensored = rightCensored,
         progress = progress,
         prepEnvir = envir
@@ -738,13 +672,12 @@ estimate.formula <- function(
     return(prep)
   }
 
-
   ### 4. PREPARE PRINTING----
   # functions_utility.R
   effectDescription <-
     GetDetailPrint(
       objects_effects_link, parsed_formula,
-      estimationInit[["fixedParameters"]]
+      control_estimation$fixed_parameters 
     )
   hasWindows <- attr(effectDescription, "hasWindows")
   if (is.null(hasWindows)) {
@@ -779,36 +712,47 @@ estimate.formula <- function(
   }
 
   EstimateEnvir <- new.env()
-  # Default estimation
-  additionalArgs <- list(
+
+  # Construct argsEstimation by mapping snake_case from control object
+  # to camelCase for internal estimation functions.
+  argsEstimation <- list(
+    # Parameters from control_estimation
+    initialParameters = control_estimation$initial_parameters,
+    fixedParameters = control_estimation$fixed_parameters,
+    maxIterations = as.integer(control_estimation$max_iterations),
+    maxScoreStopCriterion = control_estimation$convergence_criterion,
+    dampingIncreaseFactor = control_estimation$damping_increase_factor,
+    dampingDecreaseFactor = control_estimation$damping_decrease_factor,
+    returnEventProbabilities = control_estimation$return_probabilities,
+    returnIntervalLogL = control_estimation$return_interval_loglik,
+
+    # Runtime parameters
     statsList = prep,
     nodes = get(.nodes, envir = envir),
     nodes2 = get(.nodes2, envir = envir),
     defaultNetworkName = parsed_formula$default_network_name,
     hasIntercept = has_intercept,
     modelType = modelTypeCall,
-    initialDamping = ifelse(hasWindows, 30, 10),
+    # overridden damping
+    initialDamping = if(!is.null(control_estimation$initial_damping)) {
+      control_estimation$initial_damping
+    } else {
+      ifelse(hasWindows, 30, 10)
+    },
     parallelize = FALSE,
     cpus = 1,
     verbose = verbose,
     progress = progress,
     ignoreRepParameter = ignore_rep_parameter,
-    is_two_mode = is_two_mode,
     prepEnvir = EstimateEnvir
   )
-  # prefer user-defined arguments
-  argsEstimation <- append(
-    estimationInit[!(names(estimationInit) %in%
-      c("startTime", "endTime"))],
-    additionalArgs[!(names(additionalArgs) %in% names(estimationInit))]
-  )
 
-  # use different engine depends on the variable "engine"
-  if (engine %in% c("default_c", "gather_compute")) {
+  # Call the appropriate estimation engine
+  if (control_estimation$engine %in% c("default_c", "gather_compute")) {
     tryCatch(
       result <- do.call(
         "estimate_c_int",
-        args = c(argsEstimation, list(engine = engine))
+        args = c(argsEstimation, list(engine = control_estimation$engine))
       ),
       error = \(e) {
         stop("For ", model, " ", subModel,

@@ -1,16 +1,4 @@
 test_that("Args check", {
-  expect_warning(
-    gather_model_data(
-      depNetwork ~ inertia(networkState),
-      control_preprocessing = list(smth = 1)
-    )
-  )
-  expect_warning(
-    gather_model_data(
-      depNetwork ~ inertia(networkState),
-      control_preprocessing = list(opportunitiesList = 1)
-    )
-  )
   expect_error(
     gather_model_data(
       depNetwork ~ inertia(networkState, ignore_repetitions = TRUE)

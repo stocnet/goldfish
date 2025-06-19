@@ -149,7 +149,8 @@ test_that(
         indeg(networkExog, weighted = TRUE),
       model = "DyNAM", subModel = "rate",
       preprocessingOnly = TRUE,
-      estimationInit = list(startTime = 10, endTime = 30)
+      control_preprocessing =
+        set_preprocessing_opt(start_time = 10, end_time = 30)
     )
     statsChange <- ReducePreprocess(preproData)
     expect_equal(
@@ -270,7 +271,8 @@ test_that(
         indeg(networkExog, weighted = TRUE),
       model = "DyNAM", subModel = "rate",
       preprocessingOnly = TRUE,
-      estimationInit = list(startTime = 6, endTime = 24)
+      control_preprocessing =
+        set_preprocessing_opt(start_time = 6, end_time = 24)
     )
     statsChange <- ReducePreprocess(preproData)
     expect_equal(

@@ -7,10 +7,8 @@ test_that(
       depNetwork ~ inertia + recip + trans,
       model = "DyNAM",
       subModel = "choice",
-      estimationInit = list(
-        startTime = 0,
-        returnIntervalLogL = TRUE
-      ),
+      control_preprocessing = set_preprocessing_opt(start_time = 0L),
+      control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
       progress = FALSE,
       verbose = FALSE
     )

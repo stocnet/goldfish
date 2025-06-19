@@ -186,7 +186,11 @@ objects to one another so that information can be called as needed.
 ```
 
 ```{r link-call-net}
-callNetwork <- link_events(x = callNetwork, change_events = calls, nodes = actors)
+callNetwork <- link_events(
+  x = callNetwork,
+  change_events = calls,
+  nodes = actors
+)
 callNetwork
 ```
 
@@ -370,7 +374,7 @@ We can remedy this by increasing the number of iterations:
 mod01Rate <- estimate(
   simpleFormulaRate,
   model = "DyNAM", subModel = "rate",
-  estimationInit = list(maxIterations = 40)
+  control_estimation = set_estimation_opt(max_iterations = 40)
   )
 summary(mod01Rate)
 ```
@@ -483,7 +487,8 @@ AIC(mod03Rate, mod04Rate)
 ### REM with `goldfish`
 
 `goldfish` does not only run DyNAMs; it also runs REMs (Butts, 2008).
-We can now also run REMs using the right-censored intervals as introduced in Stadtfeld & Block (2017).
+We can now also run REMs using the right-censored intervals as introduced in
+Stadtfeld & Block (2017).
 An equivalent model specification to the DyNAM model we estimated above,
 including the rate and choice sub-models, is:
 
@@ -513,14 +518,15 @@ representing the data in a more usual tabular way but reducing time estimation.
 ```{r rem-gather, eval=FALSE}
 mod01REM <- estimate(
   allFormulaREM, model = "REM",
-  estimationInit = list(initialDamping = 40, engine = "default_c")
+  control_estimation =
+    set_estimation_opt(initial_damping = 40, engine = "default_c")
   )
 ```
 
 ```{r rem-c}
 mod01REM <- estimate(
   allFormulaREM, model = "REM",
-  estimationInit = list(engine = "gather_compute")
+  control_estimation = set_estimation_opt(engine = "gather_compute")
   )
 
 summary(mod01REM)

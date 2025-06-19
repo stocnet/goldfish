@@ -31,21 +31,11 @@
 #' network (see [make_dependent_events()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
 #' (see `vignette("goldfishEffects")`).
-#' @param control_preprocessing a list containing additional parameters
-#' for preprocessing. It may contain:
-#' \describe{
-#'  \item{startTime}{a numerical value or a date-time character with the same
-#'  time-zone formatting as the times in event that indicates the starting time
-#'  to be considered during estimation.
-#'  \emph{Note:} it is only use during preprocessing}
-#'  \item{endTime}{a numerical value or a date-time character with the same
-#'  time-zone formatting as the times in event that indicates the end time
-#'  to be considered during estimation.
-#'  \emph{Note:} it is only use during preprocessing}
-#'  \item{opportunitiesList}{a list containing for each dependent event
-#'   the list of available nodes for the choice model, this list should be
-#'   the same length as the dependent events list (ONLY for choice models).}
-#' }
+#' @param control_preprocessing An object of class
+#'   `"preprocessing_options.goldfish"`, usually the result of a call to
+#'   [preprocessing_options()]. This object contains parameters that control
+#'   the data preprocessing. See [preprocessing_options()] for details on
+#'   the available parameters.
 #'
 #' @return a list object including:
 #'  \describe{
@@ -116,7 +106,7 @@ gather_model_data <- function(
     formula,
     model = c("DyNAM", "REM"),
     sub_model = c("choice", "choice_coordination", "rate"),
-    control_preprocessing = NULL,
+    control_preprocessing = set_preprocessing_opt(),
     progress = getOption("progress"),
     envir = new.env()) {
   model <- match.arg(
@@ -135,28 +125,21 @@ gather_model_data <- function(
     )
   )
 
-  if (!is.null(control_preprocessing)) {
-    parInit <- names(control_preprocessing) %in%
-      c(
-        "startTime", "endTime", "opportunitiesList"
-      )
+  # Check class of control_preprocessing
+  if (!inherits(control_preprocessing, "preprocessing_opt.goldfish")) {
+    stop("'control_preprocessing' must be NULL or an object of class",
+         " 'preprocessing_opt.goldfish' result of a call to",
+         " 'set_preprocessing_opt()'.", call. = FALSE)
+  }
 
-    if (any(!parInit)) {
-      warning(
-        "The parameter: ",
-        paste(names(control_preprocessing)[!parInit], collapse = ", "),
-        " is not recognized for the preprocessing. ",
-        "See the documentation for the list of available parameters",
-        call. = FALSE, immediate. = TRUE
-      )
-    }
-
-    if (!is.null(control_preprocessing[["opportunitiesList"]])) {
-      warning(
-        dQuote("gather_model_data"), " doesn't implement yet the ",
-        dQuote("opportunitiesList"), " functionality"
-      )
-    }
+  # Warning for opportunitiesList if still relevant
+  if (!is.null(control_preprocessing$opportunities_list)) {
+    warning(
+      dQuote("gather_model_data"), " doesn't implement yet the ",
+      dQuote("opportunities_list"),
+      " functionality. This parameter will be ignored.",
+      call. = FALSE, immediate. = TRUE
+    )
   }
 
   if (is.null(progress)) progress <- FALSE
@@ -260,8 +243,8 @@ gather_model_data <- function(
     nodes = .nodes,
     nodes2 = .nodes2,
     is_two_mode = is_two_mode,
-    startTime = control_preprocessing[["startTime"]],
-    endTime = control_preprocessing[["endTime"]],
+    startTime = control_preprocessing$start_time,
+    endTime = control_preprocessing$end_time,
     rightCensored = right_censored,
     progress = progress,
     prepEnvir = envir

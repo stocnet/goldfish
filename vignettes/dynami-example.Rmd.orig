@@ -243,7 +243,7 @@ Now let us run goldfish estimation!
 ```{r modRateM1Est}
 est.rate.M1 <- estimate(
   formula.rate.M1, model = "DyNAMi", subModel = "rate",
-  estimationInit = list(engine = "default")                      
+  control_estimation = set_estimation_opt(engine = "default")                      
 )
 summary(est.rate.M1)
 ```
@@ -252,7 +252,8 @@ summary(est.rate.M1)
 est.choice.M1 <- estimate(
   formula.choice.M1,
   model = "DyNAMi", subModel = "choice",
-  estimationInit = list(opportunitiesList = opportunities)
+  control_preprocessing =
+    set_preprocessing_opt(opportunities_list = opportunities)
 )
 summary(est.choice.M1)
 ```
@@ -318,7 +319,7 @@ Now we can run again
 ```{r modRateM2Est}
 est.rate.M2 <- estimate(
   formula.rate.M2, model = "DyNAMi", subModel = "rate",
-  estimationInit = list(engine = "default")  
+  control_estimation = set_estimation_opt(engine = "default")  
 )
 summary(est.rate.M2)
 ```
@@ -327,7 +328,8 @@ and:
 est.choice.M2 <- estimate(
   formula.choice.M2,
   model = "DyNAMi", subModel = "choice",
-  estimationInit = list(opportunitiesList = opportunities)
+  control_preprocessing =
+    set_preprocessing_opt(opportunities_list = opportunities)
 )
 summary(est.choice.M2)
 ```

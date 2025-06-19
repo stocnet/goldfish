@@ -391,6 +391,52 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   invisible(NULL)
 }
 
+# Print estimation_opt.goldfish object
+#' @export
+#' @rdname print-method
+#' @return For objects of class `estimation_opt.goldfish`, print a summary of the estimation control options.
+print.estimation_opt.goldfish <- function(x, ...) {
+  cat("Estimation Control Options (estimation_opt.goldfish):\n")
+  for (name in names(x)) {
+    value <- x[[name]]
+    if (is.null(value)) {
+      cat(sprintf("  %-25s: NULL\n", name))
+    } else if (is.atomic(value) && length(value) == 1) {
+      cat(sprintf("  %-25s: %s\n", name, as.character(value)))
+    } else if (is.atomic(value) && length(value) > 1 && length(value) <= 5) {
+      cat(sprintf("  %-25s: %s\n", name, paste(as.character(value), collapse = ", ")))
+    } else if (is.list(value) || (is.atomic(value) && length(value) > 5)) {
+      cat(sprintf("  %-25s: <%s of length %d>\n", name, class(value)[1], length(value)))
+    } else {
+      cat(sprintf("  %-25s: <%s>\n", name, class(value)[1]))
+    }
+  }
+  invisible(x)
+}
+
+# Print preprocessing_opt.goldfish object
+#' @export
+#' @rdname print-method
+#' @return For objects of class `preprocessing_opt.goldfish`, print a summary of the preprocessing control options.
+print.preprocessing_opt.goldfish <- function(x, ...) {
+  cat("Preprocessing Control Options (preprocessing_opt.goldfish):\n")
+  for (name in names(x)) {
+    value <- x[[name]]
+    if (is.null(value)) {
+      cat(sprintf("  %-20s: NULL\n", name))
+    } else if (name == "opportunities_list" && is.list(value)) {
+      cat(sprintf("  %-20s: List of %d elements\n", name, length(value)))
+    } else if (is.atomic(value) && length(value) == 1) {
+      cat(sprintf("  %-20s: %s\n", name, as.character(value)))
+    } else if (is.atomic(value) && length(value) > 1 && length(value) <= 5) {
+      cat(sprintf("  %-20s: %s\n", name, paste(as.character(value), collapse = ", ")))
+    } else {
+      cat(sprintf("  %-20s: <%s>\n", name, class(value)[1]))
+    }
+  }
+  invisible(x)
+}
+
 #' @importFrom generics tidy
 #' @export
 generics::tidy

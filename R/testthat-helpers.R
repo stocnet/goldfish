@@ -591,7 +591,7 @@ resModObject <- structure(
     nParams = 3L,
     call = str2lang(
       "estimate(x = callsDependent ~ inertia + recip + trans,
-       estimationInit = list(fixedParameters = c(NA, 1, NA)))"
+       control_estimation = estimation_options(fixedParameters = c(NA, 1, NA)))"
     )
   ),
   class = "result.goldfish"

@@ -253,7 +253,8 @@ test_that(
         tie(networkExog, weighted = TRUE),
       model = "DyNAM", subModel = "choice", # modelType = "DyNAM-M"
       preprocessingOnly = TRUE,
-      estimationInit = list(startTime = 10, endTime = 30)
+      control_preprocessing =
+        set_preprocessing_opt(start_time = 10, end_time = 30)
     )
     outDependentStatChange <- ReducePreprocess(preproData)
     eventsIncrementSubset <- subset(eventsIncrement, time >= 10 & time <= 30)
