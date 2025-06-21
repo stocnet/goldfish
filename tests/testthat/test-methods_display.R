@@ -137,8 +137,9 @@ test_that("preprocessed", {
   preproData <- estimate(
     depNetwork ~ inertia(networkState, weighted = TRUE) +
       tie(networkExog, weighted = TRUE),
-    model = "DyNAM", subModel = "choice",
-    preprocessingOnly = TRUE
+    model = "DyNAM", sub_model = "choice",
+    data = dataTest,
+    preprocessing_only = TRUE
   )
   expect_output(print(preproData), "Preprocess object for the model")
 })

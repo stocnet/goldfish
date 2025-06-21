@@ -38,11 +38,11 @@
 #' called Dynamic Network Actor Models (DyNAMs).
 #' The model is a two-step process. In the first step, the waiting time until
 #' an actor \eqn{i} initiates the next relational event is modeled
-#' (`model = "DyNAM"` and `subModel = "rate"`) by an exponential
+#' (`model = "DyNAM"` and `sub_model = "rate"`) by an exponential
 #' distribution depending on the actor activity rate.
 #' In the second step, the conditional probability of \eqn{i} choosing
 #'  \eqn{j} as the event receiver is modeled (`model = "DyNAM"` and
-#'  `subModel = "choice"`) by a multinomial probability distribution
+#'  `sub_model = "choice"`) by a multinomial probability distribution
 #'  with a linear predictor.
 #' These two-steps are assumed to be conditionally independent given
 #' the process state (Stadtfeld, 2012),
@@ -51,7 +51,7 @@
 #'
 #' @section Waiting times:
 #'
-#' When DyNAM-rate (`model = "DyNAM"` and `subModel = "rate"`) model
+#' When DyNAM-rate (`model = "DyNAM"` and `sub_model = "rate"`) model
 #' is used to estimate the first step component of the process, or the REM
 #' `model = "REM"` model is used.
 #' It is important to add a time intercept to model the waiting times between
@@ -66,7 +66,7 @@
 #' multinomial probability (Butts, 2008).
 #'
 #' @param model a character string defining the model type.
-#' Current options include `"DyNAM"`, `"DyNAMi"` or `"REM"`
+#' Current options include `"DyNAM"`, `"DyNAMi"` or `"REM"`.
 #' \describe{
 #'  \item{DyNAM}{Dynamic Network Actor Models
 #'  (Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
@@ -74,9 +74,10 @@
 #'  (Hoffman et al., 2020)}
 #'  \item{REM}{Relational Event Model (Butts, 2008)}
 #' }
-#' @param subModel a character string defining the submodel type.
-#'  Current options include `"choice"`, `"rate"` or
-#'  `"choice_coordination"`
+#' @param sub_model A character string specifying the sub-model to be estimated.
+#'  It can be `"rate"` to model the waiting times between events,
+#'  `"choice"` to model the choice of the receiver, or `"choice_coordination"`
+#'  to model coordination ties. See details.
 #' \describe{
 #'  \item{choice}{a multinomial receiver choice model `model = "DyNAM"`
 #'  (Stadtfeld and Block, 2017), or the general Relational event model
@@ -96,12 +97,15 @@
 #'   `control_preprocessing.goldfish` (typically created by
 #'   [control_preprocessing()]),
 #'   specifying parameters for data preprocessing. This is only used
-#'   if `preprocessingInit` is not a `preprocessed.goldfish` object or NULL.
-#' @param preprocessingInit a `preprocessed.goldfish` object computed for
-#'   the current formula, allows skipping the preprocessing step.
-#' @param preprocessingOnly logical indicating whether only preprocessed
-#'   statistics should be returned rather than a `result.goldfish` object
-#'   with the estimated coefficients.
+#'   if `preprocessing_init` is not a `preprocessed.goldfish` object or NULL.
+#' @param preprocessing_init an optional preprocessed object of class
+#'  `preprocessed.goldfish` from a previous estimation. When it is provided,
+#'  the function will skip the preprocessing of the effects that are already
+#'  present in the object and only preprocess the new effects. Default to
+#'  `NULL`.
+#' @param preprocessing_only logical. If `TRUE`, the function will only run
+#'  the preprocessing stage and return an object of class
+#'  `preprocessed.goldfish`. Default to `FALSE`.
 #' @param verbose logical indicating whether should print
 #'   very detailed intermediate results of the iterative Newton-Raphson
 #'   procedure; slows down the routine significantly.
@@ -112,13 +116,14 @@
 #'   network (see [make_dependent_events()]) and at the right-hand side the
 #'   effects and the variables for which the effects are expected to occur
 #'   (see `vignette("goldfishEffects")`).
-#' @param envir an `environment` where `formula` objects and their linked
-#' objects are available.
+#' @param data a `data.goldfish` object created with [make_data()].
+#' It is an environment that contains the nodesets, networks,
+#' attributes and dependent events objects. Default to `NULL`.
 #'
 #' @return returns an object of [class()] `"result.goldfish"`
-#' when `preprocessingOnly = FALSE` or
+#' when `preprocessing_only = FALSE` or
 #' a preprocessed statistics object of class `"preprocessed.goldfish"`
-#' when `preprocessingOnly = TRUE`.
+#' when `preprocessing_only = TRUE`.
 #'
 #' An object of class `"result.goldfish"` is a list including:
 #'   \item{parameters}{a numeric vector with the coefficients estimates.}
@@ -147,12 +152,12 @@
 #'    additional parameter description.}
 #'   \item{formula}{a formula with the information of the model fitted.}
 #'   \item{model}{a character value of the model type.}
-#'   \item{subModel}{a character value of the subModel type.}
+#'   \item{sub_model}{a character value of the sub_model type.}
 #'   \item{rightCensored}{
 #'   a logical value indicating if the estimation process considered
 #'   right-censored events.
 #'   Only it is considered for DyNAM-rate (`model = "DyNAM"` and
-#'   `subModel = "rate"`) or REM (`model = "REM"`) models,
+#'   `sub_model = "rate"`) or REM (`model = "REM"`) models,
 #'   and when the model includes the intercept.}
 #'
 #' @importFrom stats formula na.omit
@@ -198,14 +203,14 @@
 #' }
 #'
 #' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-#'   model = "DyNAM", subModel = "choice",
+#'   model = "DyNAM", sub_model = "choice",
 #'   control_estimation = control_estimation(engine = "default_c")
 #' )
 #' summary(mod01)
 #'
 #' # A individual activity rates model
 #' mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
-#'   model = "DyNAM", subModel = "rate",
+#'   model = "DyNAM", sub_model = "rate",
 #'   control_estimation = control_estimation(engine = "default_c")
 #' )
 #' summary(mod02)
@@ -239,7 +244,7 @@
 #'     diff(states$regime) +
 #'     alter(states$gdp) +
 #'     diff(states$gdp),
-#'   model = "DyNAM", subModel = "choice_coordination",
+#'   model = "DyNAM", sub_model = "choice_coordination",
 #'   control_estimation =
 #'     set_estimation_opt(initial_damping = 40, max_iterations = 30)
 #' )
@@ -249,12 +254,12 @@
 estimate <- function(
     x,
     model = c("DyNAM", "REM", "DyNAMi"),
-    subModel = c("choice", "rate", "choice_coordination"),
+    sub_model = c("choice", "rate", "choice_coordination"),
     control_estimation = set_estimation_opt(),
     control_preprocessing = set_preprocessing_opt(),
-    preprocessingInit = NULL,
-    preprocessingOnly = FALSE,
-    envir = new.env(),
+    preprocessing_init = NULL,
+    preprocessing_only = FALSE,
+    data = NULL, # Expects a data.goldfish object
     progress = getOption("progress"),
     verbose = getOption("verbose")) {
   UseMethod("estimate", x)
@@ -264,33 +269,30 @@ estimate <- function(
 # result object
 #' @importFrom stats as.formula
 #' @export
-estimate.formula <- function(
-    x,
+estimate.formula <- function(x,
     model = c("DyNAM", "REM", "DyNAMi"),
-    subModel = c("choice", "rate", "choice_coordination"),
+    sub_model = c("choice", "rate", "choice_coordination"),
     control_estimation = set_estimation_opt(),
     control_preprocessing = set_preprocessing_opt(),
-    preprocessingInit = NULL,
-    preprocessingOnly = FALSE,
-    envir = new.env(),
+    preprocessing_init = NULL,
+    preprocessing_only = FALSE,
+    data = NULL, # Expects a data.goldfish object
     progress = getOption("progress"),
     verbose = getOption("verbose")) {
+
   # Steps:
   # 1. Parse the formula
   # 2. Initialize additional objects
   # 3. Preprocess
-  # 4. Estimate model (old estimation still available as an option)
+  # 4. Estimate model
 
   ### 0. check parameters----
   model <- match.arg(model)
-  subModel <- match.arg(subModel)
-
-  # enviroment from which get the objects
-  # envir <- environment()
+  sub_model <- match.arg(sub_model)
 
   ### check model and subModel
   check_model_par(
-    model, subModel,
+    model, sub_model,
     model_list = c("DyNAM", "REM", "DyNAMi"),
     sub_model_list = list(
       DyNAM = c("choice", "rate", "choice_coordination"),
@@ -300,11 +302,12 @@ estimate.formula <- function(
   )
 
   stopifnot(
-    inherits(preprocessingOnly, "logical"),
+    inherits(data, "data.goldfish"),
+    inherits(preprocessing_only, "logical"),
     inherits(verbose, "logical"),
     is.null(progress) || inherits(progress, "logical"),
-    is.null(preprocessingInit) ||
-      inherits(preprocessingInit, "preprocessed.goldfish"),
+    is.null(preprocessing_init) ||
+      inherits(preprocessing_init, "preprocessed.goldfish"),
     inherits(control_estimation, "estimation_opt.goldfish"),
     inherits(control_preprocessing, "preprocessing_opt.goldfish")
   )
@@ -323,10 +326,10 @@ estimate.formula <- function(
   }
 
   # gather_compute and default_c don't support restrictions of opportunity sets
-  if (!is.null(control_preprocessing$opportunitiesList) &&
+  if (!is.null(control_preprocessing$opportunities_list) &&
       control_estimation$engine != "default") {
     warning("engine = ", dQuote(control_estimation$engine), " doesn't support",
-      dQuote("opportunitiesList"),
+      dQuote("opportunities_list"),
       ". engine =", dQuote("default"), " is used instead.",
       call. = FALSE, immediate. = TRUE
     )
@@ -338,8 +341,11 @@ estimate.formula <- function(
   if (progress) cat("Parsing formula.\n")
   formula <- x
 
+  # Create a working copy of the data environment to avoid side-effects
+  work_env <- rlang::env_clone(data)
+
   ## 1.1 PARSE for all cases: preprocessingInit or not
-  parsed_formula <- parse_formula(formula, envir = envir)
+  parsed_formula <- parse_formula(formula, envir = work_env)
   rhs_names <- parsed_formula$rhs_names
   dep_name <- parsed_formula$dep_name
   has_intercept <- parsed_formula$has_intercept
@@ -351,19 +357,19 @@ estimate.formula <- function(
 
   # # C implementation doesn't have ignore_repetitions option issue #105
   if (any(unlist(parsed_formula$ignore_rep_parameter)) &&
-    control_estimation$engine %in% c("default_c", "gather_compute")) {
+      control_estimation$engine %in% c("default_c", "gather_compute")) {
     warning("engine = ", dQuote(control_estimation$engine),
-      " doesn't support ignore_repetitions effects. engine =",
-      dQuote("default"), " is used instead.",
+            " doesn't support ignore_repetitions effects. engine =",
+            dQuote("default"), " is used instead.",
       call. = FALSE, immediate. = TRUE
     )
     control_estimation$engine <- "default"
   }
   # Model-specific preprocessing initialization
   if (has_intercept && model %in% c("DyNAM", "DyNAMi") &&
-    subModel %in% c("choice", "choice_coordination")) {
-    warning("Model ", dQuote(model), " subModel ", dQuote(subModel),
-      " ignores the time intercept.",
+    sub_model %in% c("choice", "choice_coordination")) {
+    warning("Model ", dQuote(model), " sub_model ", dQuote(sub_model),
+            " ignores the time intercept.",
       call. = FALSE, immediate. = TRUE
     )
     parsed_formula$has_intercept <- has_intercept <- FALSE
@@ -372,7 +378,7 @@ estimate.formula <- function(
 
   if (progress &&
     !(model %in% c("DyNAM", "DyNAMi") &&
-      subModel %in% c("choice", "choice_coordination"))) {
+      sub_model %in% c("choice", "choice_coordination"))) {
     cat(
       ifelse(has_intercept, "T", "No t"), "ime intercept added.\n",
       sep = ""
@@ -382,15 +388,15 @@ estimate.formula <- function(
   #   cat("Creating window objects in global environment.")
 
   ## 1.2 PARSE for preprocessingInit: check the formula consistency
-  if (!is.null(preprocessingInit)) {
+  if (!is.null(preprocessing_init)) {
     # find the old and new effects indexes, do basic consistency checks
     old_parsed_formula <- parse_formula(
-      preprocessingInit$formula, envir = envir
+      preprocessing_init$formula, envir = work_env
     )
     effects_indexes <- compare_formulas(
       old_parsed_formula = old_parsed_formula,
       new_parsed_formula = parsed_formula,
-      model = model, sub_model = subModel
+      model = model, sub_model = sub_model
     )
   }
 
@@ -400,9 +406,8 @@ estimate.formula <- function(
 
   ## 2.0 Set is_two_mode to define effects functions
   # get node sets of dependent variable
-  .nodes <- attr(get(dep_name, envir = envir), "nodes")
+  .nodes <- attr(get(dep_name, envir = work_env), "nodes")
   is_two_mode <- FALSE
-  # two-mode networks(2 kinds of nodes)
   if (length(.nodes) == 2) {
     .nodes2 <- .nodes[2]
     .nodes <- .nodes[1]
@@ -415,21 +420,21 @@ estimate.formula <- function(
   # enviroment from which get the objects
 
   effects <- create_effects_functions(
-    rhs_names, model, subModel,
-    envir = envir
+    rhs_names, model, sub_model,
+    envir = work_env
   )
   objects_effects_link <- get_objects_effects_link(rhs_names)
 
-  ## 2.2 INITIALIZE OBJECTS for preprocessingInit == NULL
-  if (is.null(preprocessingInit)) {
+  ## 2.2 INITIALIZE OBJECTS for preprocessing_init == NULL
+  if (is.null(preprocessing_init)) {
     # Initialize events list and link to objects
     events <- get_events_and_objects_link(
       dep_name, rhs_names, .nodes, .nodes2,
-      envir = envir
+      envir = work_env
     )[[1]]
     events_objects_link <- get_events_and_objects_link(
       dep_name, rhs_names, .nodes, .nodes2,
-      envir = envir
+      envir = work_env
     )[[2]]
     events_effects_link <- get_events_effects_link(
       events, rhs_names, events_objects_link
@@ -441,19 +446,19 @@ estimate.formula <- function(
   # and remove leaving events for the choice estimation
   if (model == "DyNAMi") {
     events <- cleanInteractionEvents(
-      events, events_effects_link, window_parameters, subModel, dep_name,
+      events, events_effects_link, window_parameters, sub_model, dep_name,
       events_objects_link,
-      envir = envir
+      envir = work_env
     )
   }
 
   ### 3. PREPROCESS statistics----
   ## 3.1 INITIALIZE OBJECTS for preprocessingInit: remove old effects,
   ## add new ones
-  if (!is.null(preprocessingInit)) {
+  if (!is.null(preprocessing_init)) {
     # recover the nodesets
-    .nodes <- preprocessingInit$nodes
-    .nodes2 <- preprocessingInit$nodes2
+    .nodes <- preprocessing_init$nodes
+    .nodes2 <- preprocessing_init$nodes2
     is_two_mode <- FALSE
     if (!identical(.nodes, .nodes2)) is_two_mode <- TRUE
 
@@ -463,17 +468,17 @@ estimate.formula <- function(
       new_rhs_names <- rhs_names[which(effects_indexes == 0)]
       new_window_parameters <- window_parameters[which(effects_indexes == 0)]
       new_effects <- create_effects_functions(
-        new_rhs_names, model, subModel,
-        envir = envir
+        new_rhs_names, model, sub_model,
+        envir = work_env
       )
       new_objects_effects_link <- get_objects_effects_link(new_rhs_names)
       new_events <- get_events_and_objects_link(
         dep_name, new_rhs_names, .nodes, .nodes2,
-        envir = envir
+        envir = work_env
       )[[1]]
       new_events_objects_link <- get_events_and_objects_link(
         dep_name, new_rhs_names, .nodes, .nodes2,
-        envir = envir
+        envir = work_env
       )[[2]]
       new_events_effects_link <- get_events_effects_link(
         new_events, new_rhs_names, new_events_objects_link
@@ -483,7 +488,7 @@ estimate.formula <- function(
       if (progress) cat("Pre-processing additional effects.\n")
       newprep <- preprocess(
         model,
-        subModel,
+        sub_model,
         events = new_events,
         effects = new_effects,
         windowParameters = new_window_parameters,
@@ -499,12 +504,12 @@ estimate.formula <- function(
         endTime = control_preprocessing$end_time,
         rightCensored = rightCensored,
         progress = progress,
-        prepEnvir = envir
+        prepEnvir = work_env
       )
 
       # test the length of the dependent and RC updates (in case the events
       #   objects was changed in the environment)
-      if (length(preprocessingInit$intervals) != length(newprep$intervals)) {
+      if (length(preprocessing_init$intervals) != length(newprep$intervals)) {
         stop(
           "The numbers of dependent events in the formula and in the ",
           "preprocessed object are not consistent.\n",
@@ -513,7 +518,7 @@ estimate.formula <- function(
         )
       }
 
-      if (length(preprocessingInit$rightCensoredIntervals) !=
+      if (length(preprocessing_init$rightCensoredIntervals) !=
         length(newprep$rightCensoredIntervals)) {
         stop(
           "The numbers of right-censored events in the formula and in the ",
@@ -526,11 +531,11 @@ estimate.formula <- function(
 
     # combine old and new preprocessed objects
     if (progress) cat("Removing no longer required effects.\n")
-    allprep <- preprocessingInit
+    allprep <- preprocessing_init
     allprep$initialStats <- array(0,
       dim = c(
-        nrow(get(.nodes, envir = envir)),
-        nrow(get(.nodes2, envir = envir)),
+        nrow(get(.nodes, envir = work_env)),
+        nrow(get(.nodes2, envir = work_env)),
         length(effects_indexes)
       )
     )
@@ -546,12 +551,12 @@ estimate.formula <- function(
       }
       if (effects_indexes[e] > 0) {
         allprep$initialStats[, , e] <-
-          preprocessingInit$initialStats[, , effects_indexes[e]]
+          preprocessing_init$initialStats[, , effects_indexes[e]]
       }
     }
 
     # dependent stats updates
-    for (t in seq_along(preprocessingInit$dependentStatsChange)) {
+    for (t in seq_along(preprocessing_init$dependentStatsChange)) {
       cptnew <- 1
       allprep$dependentStatsChange[[t]] <-
         lapply(seq_along(effects_indexes), function(x) NULL)
@@ -566,19 +571,19 @@ estimate.formula <- function(
         if (effects_indexes[e] > 0) {
           if (
             !is.null(
-              preprocessingInit$dependentStatsChange[[t]][[effects_indexes[e]]]
+              preprocessing_init$dependentStatsChange[[t]][[effects_indexes[e]]]
             )
           ) {
             allprep$dependentStatsChange[[t]][[e]] <-
-              preprocessingInit$dependentStatsChange[[t]][[effects_indexes[e]]]
+              preprocessing_init$dependentStatsChange[[t]][[effects_indexes[e]]]
           }
         }
       }
     }
 
     # right censored stats updates
-    if (length(preprocessingInit$rightCensoredIntervals) > 0) {
-      for (t in seq_along(preprocessingInit$rightCensoredIntervals)) {
+    if (length(preprocessing_init$rightCensoredIntervals) > 0) {
+      for (t in seq_along(preprocessing_init$rightCensoredIntervals)) {
         cptnew <- 1
         allprep$rightCensoredStatsChange[[t]] <-
           lapply(seq_along(effects_indexes), function(x) NULL)
@@ -593,13 +598,13 @@ estimate.formula <- function(
           if (effects_indexes[e] > 0) {
             if (
               !is.null(
-                preprocessingInit$rightCensoredStatsChange[[t]][[
+                preprocessing_init$rightCensoredStatsChange[[t]][[
                   effects_indexes[e]
                 ]]
-              )
+      )
             ) {
               allprep$rightCensoredStatsChange[[t]][[e]] <-
-                preprocessingInit$rightCensoredStatsChange[[t]][[
+                preprocessing_init$rightCensoredStatsChange[[t]][[
                   effects_indexes[e]
                 ]]
             }
@@ -611,17 +616,17 @@ estimate.formula <- function(
     prep <- allprep
     prep$formula <- formula
     prep$model <- model
-    prep$subModel <- subModel
+    prep$subModel <- sub_model
     prep$nodes <- .nodes
     prep$nodes2 <- .nodes2
   }
 
   ## 3.2 PREPROCESS when preprocessingInit == NULL
-  if (is.null(preprocessingInit)) {
+  if (is.null(preprocessing_init)) {
     if (progress) cat("Starting preprocessing.\n")
     if (model == "DyNAMi") {
       prep <- preprocessInteraction(
-        subModel = subModel,
+        subModel = sub_model,
         events = events,
         effects = effects,
         eventsObjectsLink = events_objects_link,
@@ -633,12 +638,12 @@ estimate.formula <- function(
         rightCensored = rightCensored,
         progress = progress,
         groupsNetwork = parsed_formula$default_network_name,
-        prepEnvir = envir
+        prepEnvir = work_env
       )
-    } else {
-      prep <- preprocess(
+  } else {
+    prep <- preprocess(
         model = model,
-        subModel = subModel,
+        subModel = sub_model,
         events = events,
         effects = effects,
         windowParameters = window_parameters,
@@ -654,7 +659,7 @@ estimate.formula <- function(
         endTime = control_preprocessing$end_time,
         rightCensored = rightCensored,
         progress = progress,
-        prepEnvir = envir
+        prepEnvir = work_env
       )
     }
     # The formula, nodes, nodes2 are added to the preprocessed object so that
@@ -662,13 +667,13 @@ estimate.formula <- function(
     # (for parsing AND composition changes)
     prep$formula <- formula
     prep$model <- model
-    prep$subModel <- subModel
+    prep$subModel <- sub_model
     prep$nodes <- .nodes
     prep$nodes2 <- .nodes2
   }
 
   ## 3.3 Stop here if preprocessingOnly == TRUE
-  if (preprocessingOnly) {
+  if (preprocessing_only) {
     return(prep)
   }
 
@@ -693,11 +698,11 @@ estimate.formula <- function(
       modelTypeCall <- "REM"
     }
   } else if (model %in% c("DyNAM", "DyNAMi")) {
-    if (subModel == "rate" && !has_intercept) {
+    if (sub_model == "rate" && !has_intercept) {
       modelTypeCall <- "DyNAM-M-Rate-ordered"
-    } else if (subModel == "rate") {
+    } else if (sub_model == "rate") {
       modelTypeCall <- "DyNAM-M-Rate"
-    } else if (subModel == "choice_coordination") {
+    } else if (sub_model == "choice_coordination") {
       modelTypeCall <- "DyNAM-MM"
     } else {
       modelTypeCall <- "DyNAM-M"
@@ -706,17 +711,14 @@ estimate.formula <- function(
   if (progress) {
     cat(
       "Estimating a model: ", dQuote(model), ", subModel: ",
-      dQuote(subModel), ".\n",
+      dQuote(sub_model), ".\n",
       sep = ""
     )
   }
 
-  EstimateEnvir <- new.env()
+  EstimateEnvir <- rlang::env_clone(data)
 
-  # Construct argsEstimation by mapping snake_case from control object
-  # to camelCase for internal estimation functions.
   argsEstimation <- list(
-    # Parameters from control_estimation
     initialParameters = control_estimation$initial_parameters,
     fixedParameters = control_estimation$fixed_parameters,
     maxIterations = as.integer(control_estimation$max_iterations),
@@ -725,11 +727,9 @@ estimate.formula <- function(
     dampingDecreaseFactor = control_estimation$damping_decrease_factor,
     returnEventProbabilities = control_estimation$return_probabilities,
     returnIntervalLogL = control_estimation$return_interval_loglik,
-
-    # Runtime parameters
     statsList = prep,
-    nodes = get(.nodes, envir = envir),
-    nodes2 = get(.nodes2, envir = envir),
+    nodes = get(.nodes, envir = data),
+    nodes2 = get(.nodes2, envir = data),
     defaultNetworkName = parsed_formula$default_network_name,
     hasIntercept = has_intercept,
     modelType = modelTypeCall,
@@ -780,7 +780,7 @@ estimate.formula <- function(
   )
   result$formula <- formulaKeep
   result$model <- model
-  result$subModel <- subModel
+  result$subModel <- sub_model
   result$rightCensored <- has_intercept
   result$nParams <- sum(!GetFixed(result))
   result$call <- match.call(

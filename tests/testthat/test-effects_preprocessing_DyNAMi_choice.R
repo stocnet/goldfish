@@ -19,8 +19,9 @@ test_that(
         tie(covnetwork_DyNAMi, weighted = TRUE, subType = "mean") +
         inertia(past_network_DyNAMi, weighted = TRUE, subType = "max") +
         tie(covnetwork_DyNAMi, weighted = TRUE, subType = "max"),
-      model = "DyNAMi", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "choice",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -286,8 +287,9 @@ test_that(
         inertia(past_network_DyNAMi, weighted = TRUE) +
         inertia(past_network_DyNAMi, window = 2, weighted = TRUE) +
         inertia(past_network_DyNAMi, window = 7, weighted = TRUE),
-      model = "DyNAMi", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "choice",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -410,8 +412,9 @@ test_that(
         alterdeg(covnetwork_DyNAMi,
           weighted = TRUE, subType = "mean_centered"
         ),
-      model = "DyNAMi", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "choice",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -657,8 +660,9 @@ test_that(
       dependent.depevents_DyNAMi ~
         size(interaction_network_DyNAMi, subType = "identity") +
         size(interaction_network_DyNAMi, subType = "squared"),
-      model = "DyNAMi", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "choice",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -774,8 +778,9 @@ test_that(
         + alter(actors_DyNAMi$attr1, subType = "max")
         + alter(actors_DyNAMi$attr1, subType = "range")
         + alter(actors_DyNAMi$attr1, subType = "mean_centered"),
-      model = "DyNAMi", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "choice",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -999,8 +1004,9 @@ test_that(
         + sim(actors_DyNAMi$attr1, subType = "mean")
         + sim(actors_DyNAMi$attr1, subType = "min")
         + sim(actors_DyNAMi$attr1, subType = "max"),
-      model = "DyNAMi", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "choice",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {

@@ -11,7 +11,7 @@
 #' where the output corresponds to the data structure used by the engine
 #' `gather_compute`; see [estimate()].
 #'
-#' It differs from the `estimate()` output when the argument `preprocessingOnly`
+#' It differs from the `estimate()` output when the argument `preprocessing_only`
 #' is set to `TRUE` regarding the memory space requirement.
 #' The `gather_model_data()` produces a list where the first element
 #' is a matrix that could have up to the number of events times

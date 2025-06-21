@@ -6,7 +6,8 @@ test_that(
     mod00 <- estimate(
       depNetwork ~ inertia + recip + trans,
       model = "DyNAM",
-      subModel = "choice",
+      sub_model = "choice",
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0L),
       control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
       progress = FALSE,

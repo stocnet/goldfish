@@ -9,16 +9,19 @@ test_that(
     modR <- estimate(
       formula,
       model = model,
-      subModel = subModel,
+      sub_model = subModel,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
-      control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+      control_estimation = 
+        set_estimation_opt(engine = "default", return_interval_loglik = TRUE),
       progress = FALSE,
       verbose = FALSE
     )
     modCd <- estimate(
       formula,
       model = model,
-      subModel = subModel,
+      sub_model = subModel,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation =
         set_estimation_opt(engine = "default_c", return_interval_loglik = TRUE)
@@ -26,7 +29,8 @@ test_that(
     modCgc <- estimate(
       formula,
       model = model,
-      subModel = subModel,
+      sub_model = subModel,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "gather_compute")
     )
@@ -48,20 +52,24 @@ test_that(
     modR <- estimate(
       formula,
       model = model,
-      subModel = subModel,
-      control_preprocessing = set_preprocessing_opt(start_time = 0)
+      sub_model = subModel,
+      data = dataTest,
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "default") 
     )
     modCd <- estimate(
       formula,
       model = model,
-      subModel = subModel,
+      sub_model = subModel,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
     )
     modCgc <- estimate(
       formula,
       model = model,
-      subModel = subModel,
+      sub_model = subModel,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "gather_compute")
     )
@@ -84,20 +92,24 @@ test_that(
     modR <- estimate(
       formula,
       model = model,
-      subModel = subModel,
-      control_preprocessing = set_preprocessing_opt(start_time = 0)
+      sub_model = subModel,
+      data = dataTest,
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "default")
     )
     modCd <- estimate(
       formula,
       model = model,
-      subModel = subModel,
+      sub_model = subModel,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
     )
     modCgc <- estimate(
       formula,
       model = model,
-      subModel = subModel,
+      sub_model = subModel,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "gather_compute")
     )
@@ -119,17 +131,21 @@ test_that(
     modR <- estimate(
       formula,
       model = model,
-      control_preprocessing = set_preprocessing_opt(start_time = 0)
+      data = dataTest,
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "default")
     )
     modCd <- estimate(
       formula,
       model = model,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
     )
     modCgc <- estimate(
       formula,
       model = model,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "gather_compute")
     )
@@ -151,17 +167,21 @@ test_that(
     modR <- estimate(
       formula,
       model = model,
-      control_preprocessing = set_preprocessing_opt(start_time = 0)
+      data = dataTest,
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "default")
     )
     modCd <- estimate(
       formula,
       model = model,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
     )
     modCgc <- estimate(
       formula,
       model = model,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "gather_compute")
     )
@@ -184,20 +204,24 @@ test_that(
     modR <- estimate(
       formula,
       model = model,
-      subModel = subModel,
-      control_preprocessing = set_preprocessing_opt(start_time = 0)
+      sub_model = subModel,
+      data = dataTest,
+      control_preprocessing = set_preprocessing_opt(start_time = 0),
+      control_estimation = set_estimation_opt(engine = "default")
     )
     modCd <- estimate(
       formula,
       model = model,
-      subModel = subModel,
+      sub_model = subModel,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
     )
     modCgc <- estimate(
       formula,
       model = model,
-      subModel = subModel,
+      sub_model = subModel,
+      data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "gather_compute")
     )

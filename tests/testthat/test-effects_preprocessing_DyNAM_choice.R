@@ -4,8 +4,9 @@ test_that(
     preproData <- estimate(
       depNetwork ~ inertia(networkState, weighted = TRUE) +
         tie(networkExog, weighted = TRUE),
-      model = "DyNAM", subModel = "choice", # modelType = "DyNAM-M"
-      preprocessingOnly = TRUE
+      model = "DyNAM", sub_model = "choice", # modelType = "DyNAM-M"
+      data = dataTest,
+      preprocessing_only = TRUE
     )
     outDependentStatChange <- ReducePreprocess(preproData)
     expect_equal(
@@ -102,8 +103,9 @@ test_that(
   {
     preproData <- estimate(
       depNetwork ~ inertia,
-      model = "DyNAM", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAM", sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
     )
     expect_equal(
       preproData$initialStats[, , 1],
@@ -178,8 +180,9 @@ test_that(
   {
     preproData <- estimate(
       depNetwork ~ inertia(networkState, weighted = TRUE, window = 2),
-      model = "DyNAM", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAM", sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
     )
 
     outDependentStatChange <- ReducePreprocess(preproData)[[1]]
@@ -251,8 +254,9 @@ test_that(
     preproData <- estimate(
       depNetwork ~ inertia(networkState, weighted = TRUE) +
         tie(networkExog, weighted = TRUE),
-      model = "DyNAM", subModel = "choice", # modelType = "DyNAM-M"
-      preprocessingOnly = TRUE,
+      model = "DyNAM", sub_model = "choice", # modelType = "DyNAM-M"
+      data = dataTest,
+      preprocessing_only = TRUE,
       control_preprocessing =
         set_preprocessing_opt(start_time = 10, end_time = 30)
     )
@@ -352,8 +356,9 @@ test_that(
   {
     preproData <- estimate(
       depNetworkTrans ~ trans(networkStateTrans, history="cons"),
-      model = "DyNAM", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAM", sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
     )
     expect_equal(
       preproData$dependentStatsChange[[11]][[1]],

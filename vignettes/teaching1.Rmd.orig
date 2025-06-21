@@ -44,43 +44,6 @@ head(calls)
 head(actors)
 ```
 
-```{r mask, echo=FALSE}
-#| purl = FALSE
-estimate <- function(
-    x,
-    model = c("DyNAM", "REM", "DyNAMi"),
-    subModel = c("choice", "rate", "choice_coordination"),
-    estimationInit = NULL,
-    preprocessingInit = NULL,
-    preprocessingOnly = FALSE,
-    verbose = FALSE,
-    progress = FALSE) {
-  
-  call <- match.call(expand.dots = TRUE)
-  
-  if (is.null(estimationInit$engine)) {
-    estimationInit <- c(estimationInit, list(engine = "gather_compute"))
-  }
-  
-  res <- goldfish::estimate(
-    x = x,
-    model = model,
-    subModel = subModel,
-    estimationInit = estimationInit,
-    preprocessingInit = preprocessingInit,
-    preprocessingOnly = preprocessingOnly,
-    verbose = verbose,
-    progress = progress
-  )
-  
-  res$call <- call 
-  res$call[["x"]] <- res$formula
-
-  return(res)
-}
-```
-
-
 # Preamble: Run a quick DyNAM in five lines
 We use an `R` version higher than 4.2.0 to compile the vignettes.
 The native pipe operator is available in `R` from version 4.1.0.
@@ -96,16 +59,19 @@ callsDependent <- make_dependent_events(
   )
 
 # 4
+dataSocialEvolution <- make_data(callsDependent, callNetwork, actors)
 mod00Rate <- estimate(
   callsDependent ~ indeg + outdeg,
-  model = "DyNAM", subModel = "rate"
+  model = "DyNAM", sub_model = "rate",
+  data = dataSocialEvolution
   )
 
 summary(mod00Rate)
 
 mod00Choice <- estimate(
   callsDependent ~ inertia + recip + trans,
-  model = "DyNAM", subModel = "choice"
+  model = "DyNAM", sub_model = "choice",
+  data = dataSocialEvolution
   )
 
 summary(mod00Choice)
@@ -217,7 +183,8 @@ friendshipNetwork
 
 ## Step 1c: Make dependent events
 
-The final step in defining the data objects is to identify the dependent events.
+The following step in defining the data objects is to identify 
+the dependent events.
 Here we would like to model as the dependent variable the calls
 between individuals.
 We specify the event list and the node list.
@@ -233,6 +200,26 @@ callsDependent <- make_dependent_events(
   )
 callsDependent
 ```
+
+## Step 1d: Make data object
+
+Now that we have all the objects we need, we can make the data object.
+The data object is a goldfish object that contains all the information
+needed to estimate the model.
+So, it is a container for the dependent events, the networks, and the nodes
+containing all the information of the dependent events and any dyadic or
+nodal covariate used as explanatory variables in the model.
+
+```{r hlp4, eval=FALSE}
+?make_data
+```
+
+```{r make-data}
+dataSocialEvolution <- make_data(
+  callsDependent, callNetwork, actors, friendshipNetwork
+)
+dataSocialEvolution
+``` 
 
 ### Intermediate step: Visualization
 
@@ -327,7 +314,8 @@ For now, only need to worry about the `formula` and the `model`,
 ```{r simple-choice}
 mod01Choice <- estimate(
   simpleFormulaChoice,
-  model = "DyNAM", subModel = "choice"
+  model = "DyNAM", sub_model = "choice",
+  data = dataSocialEvolution
   )
 summary(mod01Choice)
 ```
@@ -343,7 +331,8 @@ complexFormulaChoice <-
 
 mod02Choice <- estimate(
   complexFormulaChoice,
-  model = "DyNAM", subModel = "choice"
+  model = "DyNAM", sub_model = "choice",
+  data = dataSocialEvolution
   )
 summary(mod02Choice)
 ```
@@ -360,7 +349,8 @@ in the friendship network
 simpleFormulaRate <- callsDependent ~ indeg(friendshipNetwork)
 mod01Rate <- estimate(
   simpleFormulaRate,
-  model = "DyNAM", subModel = "rate"
+  model = "DyNAM", sub_model = "rate",
+  data = dataSocialEvolution
   )
 ```
 
@@ -373,7 +363,8 @@ We can remedy this by increasing the number of iterations:
 ```{r estimate-init}
 mod01Rate <- estimate(
   simpleFormulaRate,
-  model = "DyNAM", subModel = "rate",
+  model = "DyNAM", sub_model = "rate",
+  data = dataSocialEvolution,
   control_estimation = set_estimation_opt(max_iterations = 40)
   )
 summary(mod01Rate)
@@ -387,7 +378,11 @@ complexFormulaRate <-
   callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(friendshipNetwork)
 
-mod02Rate <- estimate(complexFormulaRate, model = "DyNAM", subModel = "rate")
+mod02Rate <- estimate(
+  complexFormulaRate,
+  model = "DyNAM", sub_model = "rate",
+  data = dataSocialEvolution
+)
 summary(mod02Rate)
 ```
 
@@ -402,7 +397,11 @@ interceptFormulaRate <-
   callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(friendshipNetwork)
 
-mod03Rate <- estimate(interceptFormulaRate, model = "DyNAM", subModel = "rate")
+mod03Rate <- estimate(
+  interceptFormulaRate,
+  model = "DyNAM", sub_model = "rate",
+  data = dataSocialEvolution
+)
 summary(mod03Rate)
 ```
 
@@ -450,7 +449,11 @@ windowFormulaRate <-
                    outdeg(callNetwork, window = 300) +
                    indeg(friendshipNetwork)
 
-mod04Rate <- estimate(windowFormulaRate, model = "DyNAM", subModel = "rate")
+mod04Rate <- estimate(
+  windowFormulaRate,
+  model = "DyNAM", sub_model = "rate",
+  data = dataSocialEvolution
+)
 summary(mod04Rate)
 ```
 
@@ -464,8 +467,11 @@ windowFormulaChoice <-
                    tie(friendshipNetwork) + recip(friendshipNetwork) +
                    same(actors$gradeType) + same(actors$floor)
 
-mod03Choice <- estimate(windowFormulaChoice,
-                         model = "DyNAM", subModel = "choice")
+mod03Choice <- estimate(
+  windowFormulaChoice,
+  model = "DyNAM", sub_model = "choice",
+  data = dataSocialEvolution
+)
 summary(mod03Choice)
 ```
 
@@ -518,16 +524,18 @@ representing the data in a more usual tabular way but reducing time estimation.
 ```{r rem-gather, eval=FALSE}
 mod01REM <- estimate(
   allFormulaREM, model = "REM",
+  data = dataSocialEvolution,
   control_estimation =
     set_estimation_opt(initial_damping = 40, engine = "default_c")
-  )
+)
 ```
 
 ```{r rem-c}
 mod01REM <- estimate(
   allFormulaREM, model = "REM",
+  data = dataSocialEvolution,
   control_estimation = set_estimation_opt(engine = "gather_compute")
-  )
+)
 
 summary(mod01REM)
 ```

@@ -727,6 +727,196 @@ make_global_attribute <- function(global) {
   return(global)
 }
 
+#' Create a data object for goldfish models
+#'
+#' This function creates a new object of class `data.goldfish` and
+#' populates it with the provided `R` objects and their linked objects,
+#' as specified by attributes common in the 'goldfish' package.
+#' This is useful for creating a self-contained data context for `estimate()`
+#' and `gather_model_data()`.
+#'
+#' The function recursively searches for linked objects:
+#' \itemize{
+#'   \item{For a \code{nodes.goldfish} object:} Events that modify 
+#'     its nodal attributes.
+#'   \item{For a \code{network.goldfish} object:} Events that modify 
+#'     its structure, and the \code{nodes.goldfish} object(s) that define
+#'     its nodes.
+#'   \item{For a \code{dependent.goldfish} object:} The \code{network.goldfish} 
+#'     object and \code{nodes.goldfish} object(s) defining its events' scope.
+#' }
+#' Linked objects are searched for in the `parent_env`
+#' (defaults to the calling environment) and the enclosing frames of the
+#' `parent_env` environment (see [base::get()], [base::exists()]).
+#'
+#' @param ... Objects to be included in the data environment. These objects
+#'   will be copied by their given argument names.
+#' @param parent_env The parent environment for the new data environment.
+#'   Also, the environment from which linked objects (not explicitly provided
+#'   in `...`) will be searched. Defaults to `parent.frame()`.
+#'
+#' @return An environment of class `data.goldfish`
+#'   containing the specified objects and their resolved dependencies.
+#'
+#' @export
+#' @examples
+#' data("Social_Evolution")
+#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- link_events(
+#'   x = callNetwork, change_event = calls,
+#'   nodes = actors
+#' )
+#' callsDependent <- make_dependent_events(
+#'   events = calls, nodes = actors,
+#'   default_network = callNetwork
+#' )
+#' socialEvolutionData <- make_data(
+#'   callNetwork, callsDependent, actors
+#' )
+#' 
+#' data("Fisheries_Treaties_6070")
+#' states <- make_nodes(states)
+#' states <- link_events(states, sovchanges, attribute = "present")
+#' states <- link_events(states, regchanges, attribute = "regime")
+#' states <- link_events(states, gdpchanges, attribute = "gdp")
+#'
+#' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+#' bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
+#'
+#' contignet <- make_network(contignet, nodes = states, directed = FALSE)
+#' contignet <- link_events(contignet, contigchanges, nodes = states)
+#'
+#' createBilat <- make_dependent_events(
+#'   events = bilatchanges[bilatchanges$increment == 1, ],
+#'   nodes = states, default_network = bilatnet
+#' )
+#' 
+#' fisheriesData <- make_data(
+#'   bilatnet, createBilat, states,
+#'   contignet, sovChanges, regChanges, gdpChanges
+#' )
+#' 
+make_data <- function(..., parent_env = parent.frame()) {
+  data_env <- new.env(parent = parent_env)
+
+  initial_objects <- list(...)
+  # Capture argument names as they were passed
+  arg_names <- vapply(
+    X = match.call(expand.dots = FALSE)$...,
+    FUN = deparse,
+    FUN.VALUE = character(1)
+  )
+
+  # Handle cases with no arguments or only named arguments carefully
+  if (length(initial_objects) == 0 && length(arg_names) == 0) {
+    stop("No arguments provided to make_data.", call. = FALSE)
+  } else if (length(initial_objects) > 0 &&
+             length(arg_names) != length(initial_objects)) {
+    # This can happen if objects in ... are themselves named lists.
+    # If `...` contains a mix of named and unnamed,
+    # `arg_names` should still be correct.
+    stop("make_data() received a mix of named and unnamed arguments.",
+         call. = FALSE)
+    # Potentially reconcile arg_names with names(initial_objects)
+  }
+
+  queue <- character(0) # Stores names of objects to process for links
+  processed_names <- character(0) # Stores names of objects already processed
+  all_nodes_names <- character(0)
+  all_events_names <- character(0)
+
+  # Initial population of data_env with explicitly provided objects
+  for (i in seq_along(initial_objects)) {
+    obj_name <- arg_names[i]
+    obj <- initial_objects[[i]]
+    assign(obj_name, obj, envir = data_env)
+    # Add to queue for link checking if not already processed or queued
+    if (!(obj_name %in% queue) && !(obj_name %in% processed_names)) {
+      queue <- c(queue, obj_name)
+    }
+  }
+
+  # Recursively find and add linked objects
+  while (length(queue) > 0) {
+    current_name <- queue[1]
+    queue <- queue[-1] # Dequeue
+
+    if (current_name %in% processed_names) {
+      next # Already processed this object
+    }
+
+    if (!exists(current_name, where = data_env, inherits = FALSE)) {
+      warning(sprintf(
+        "Object '%s' was in queue but not found in data_env. Skipping.",
+        current_name
+      ))
+      next
+    }
+    
+    current_obj <- get(current_name, envir = data_env, inherits = FALSE)
+    processed_names <- c(processed_names, current_name)
+    
+    linked_names_to_find <- character(0)
+
+    # Check for linked objects and collect their names
+    if (inherits(current_obj, "dependent.goldfish")) {
+      nodes_attr <- attr(current_obj, "nodes")
+      network_attr <- attr(current_obj, "default_network")
+      linked_names_to_find <- c(linked_names_to_find, nodes_attr, network_attr)
+      all_nodes_names <- c(all_nodes_names, nodes_attr)
+    } else if (inherits(current_obj, "network.goldfish")) {
+      nodes_attr <- attr(current_obj, "nodes")
+      events_attr <- attr(current_obj, "events")
+      linked_names_to_find <- c(linked_names_to_find, nodes_attr, events_attr)
+      all_nodes_names <- c(all_nodes_names, nodes_attr)
+      all_events_names <- c(all_events_names, events_attr)
+    } else if (inherits(current_obj, "nodes.goldfish")) {
+      events_attr <- attr(current_obj, "events") # Name of the events data frame
+      if (length(events_attr) > 0) {
+        linked_names_to_find <- c(linked_names_to_find, events_attr)
+        all_events_names <- c(all_events_names, events_attr)
+      }
+    }
+
+    # Clean up potential empty strings from attribute values
+    linked_names_to_find <- linked_names_to_find[nzchar(linked_names_to_find)]
+    linked_names_to_find <- unique(linked_names_to_find)
+
+    for (linked_name in linked_names_to_find) {
+      if (!exists(linked_name, where = data_env, inherits = FALSE)) {
+        # Try to find the linked object in the parent_env
+        if (exists(linked_name, where = parent_env, inherits = TRUE)) {
+          linked_obj <- get(linked_name, envir = parent_env, inherits = TRUE)
+          assign(linked_name, linked_obj, envir = data_env)
+          # Add the newly found linked object to the queue
+          if (!(linked_name %in% queue) &&
+              !(linked_name %in% processed_names)) {
+            queue <- c(queue, linked_name)
+          }
+        } else {
+          warning(
+            paste0(
+              "Linked object '", linked_name, "' (required by '",
+              current_name, "') was not found in the specified parent_env."
+            )
+          )
+        }
+      }
+    }
+  }
+
+  assign(".nodeset_names",
+         unique(all_nodes_names[nzchar(all_nodes_names)]),
+         envir = data_env)
+  assign(".events_names",
+         unique(all_events_names[nzchar(all_events_names)]),
+         envir = data_env)
+
+
+  class(data_env) <- c("data.goldfish", "environment")
+  return(data_env)
+}
+
 #' Link dynamic events to a nodeset or a network
 #'
 #' Link events stored in data frames that modify attributes of the nodeset or

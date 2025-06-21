@@ -317,6 +317,7 @@ depNetwork <- make_dependent_events(
   default_network = networkState
 )
 
+
 # added for trans/cycle 
 
 networkStateTrans <- matrix(
@@ -366,6 +367,8 @@ depNetworkTrans <- make_dependent_events(
   default_network = networkStateTrans
 )
 
+dataTrans <- make_data(depNetworkTrans)
+
 # exogenous network
 networkExog <- matrix(
   c(
@@ -409,6 +412,7 @@ networkExog <- link_events(
   nodes = actorsEx
 )
 
+dataTest <- make_data(depNetwork, networkExog)
 # two-mode network
 
 networkActorClub <- matrix(
@@ -522,6 +526,8 @@ pastupdates_DyNAMi <- data.frame(
 attr(pastupdates_DyNAMi, "order") <- c(2, 5, 6, 9, 10, 11, 18)
 class(pastupdates_DyNAMi) <-
   c(class(pastupdates_DyNAMi), "interaction.network.updates")
+
+dataDyNAMi <- make_data(depevents_DyNAMi, exoevents_DyNAMi, pastupdates_DyNAMi)
 
 # goldfish Objects --------------------------------------------------
 actors_DyNAMi <- make_nodes(actors_DyNAMi)

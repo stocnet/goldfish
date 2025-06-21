@@ -4,8 +4,9 @@ test_that(
     preproData <- estimate(
       depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
         indeg(networkExog, weighted = TRUE),
-      model = "DyNAM", subModel = "rate",
-      preprocessingOnly = TRUE
+      model = "DyNAM", sub_model = "rate",
+      data = dataTest,
+      preprocessing_only = TRUE
     )
     statsChange <- ReducePreprocess(preproData)
     expect_equal(preproData$initialStats[, , 1],
@@ -120,8 +121,8 @@ test_that(
 #     preproData <- estimate(
 #       depNetwork ~ outdeg(networkState, weighted = TRUE, window = 2) +
 #         indeg(networkExog, weighted = TRUE, window = 2),
-#       model = "DyNAM", subModel = "choice",
-#       preprocessingOnly = TRUE
+#       model = "DyNAM", sub_model = "choice",
+#       preprocessing_only = TRUE
 #     )
 #
 #     outDependetStatChange <- ReducePreprocess(preproData)[[1]]
@@ -147,8 +148,9 @@ test_that(
     preproData <- estimate(
       depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
         indeg(networkExog, weighted = TRUE),
-      model = "DyNAM", subModel = "rate",
-      preprocessingOnly = TRUE,
+      model = "DyNAM", sub_model = "rate",
+      data = dataTest,
+      preprocessing_only = TRUE,
       control_preprocessing =
         set_preprocessing_opt(start_time = 10, end_time = 30)
     )
@@ -269,8 +271,9 @@ test_that(
     preproData <- estimate(
       depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
         indeg(networkExog, weighted = TRUE),
-      model = "DyNAM", subModel = "rate",
-      preprocessingOnly = TRUE,
+      model = "DyNAM", sub_model = "rate",
+      data = dataTest,
+      preprocessing_only = TRUE,
       control_preprocessing =
         set_preprocessing_opt(start_time = 6, end_time = 24)
     )

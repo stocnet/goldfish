@@ -3,8 +3,9 @@ test_that("preprocess init", {
     outdeg(networkExog, weighted = TRUE) + inertia + recip
   preproData <- estimate(
     formulaTest,
-    model = "DyNAM", subModel = "choice",
-    preprocessingOnly = TRUE
+    model = "DyNAM", sub_model = "choice",
+    data = dataTest,
+    preprocessing_only = TRUE
   )
   toCompare <- c(
     "parameters", "standardErrors", "logLikelihood", "finalScore",
@@ -12,21 +13,23 @@ test_that("preprocess init", {
     "formula", "model", "subModel", "rightCensored", "nParams"
   )
   expect_equal(
-    estimate(formulaTest)[toCompare],
-    estimate(formulaTest, preprocessingInit = preproData)[toCompare]
+    estimate(formulaTest, data = dataTest)[toCompare],
+    estimate(formulaTest, data = dataTest,
+      preprocessing_init = preproData)[toCompare]
   )
   formulaTest <- depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
     outdeg(networkExog, weighted = TRUE)
   preproData <- estimate(
     formulaTest,
-    model = "DyNAM", subModel = "rate",
-    preprocessingOnly = TRUE
+    model = "DyNAM", sub_model = "rate",
+    data = dataTest,
+    preprocessing_only = TRUE
   )
   expect_equal(
-    estimate(formulaTest, subModel = "rate")[toCompare],
+    estimate(formulaTest, data = dataTest, sub_model = "rate")[toCompare],
     estimate(
-      formulaTest,
-      subModel = "rate", preprocessingInit = preproData
+      formulaTest, data = dataTest,
+      sub_model = "rate", preprocessing_init = preproData
     )[toCompare]
   )
 })

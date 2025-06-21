@@ -322,6 +322,195 @@ print.dependent.goldfish <- function(x, ..., full = FALSE, n = 6) {
   invisible(NULL)
 }
 
+#' @export
+#' @rdname print-method
+print.data.goldfish <- function(x, ...) {
+  cat("Goldfish Data Environment\n")
+  cat("=========================\n\n")
+
+  all_obj_names <- ls(envir = x, all.names = TRUE)
+  obj_names <- all_obj_names[!grepl("^\\.", all_obj_names)]
+
+  if (length(obj_names) == 0) {
+    cat("Environment is empty.\n")
+    invisible(x)
+    return()
+  }
+
+  nodeset_names <- mget(
+    ".nodeset_names",
+    envir = x,
+    ifnotfound = list(character(0))
+  )$.nodeset_names
+  events_names <- mget(
+    ".events_names",
+    envir = x,
+    ifnotfound = list(character(0))
+  )$.events_names
+
+  nets_obj <- character(0)
+  deps_obj <- character(0)
+  global_obj <- character(0)
+
+  categorized <- c(events_names)
+
+  for (name in setdiff(obj_names, categorized)) {
+    obj <- get(name, envir = x)
+    if (inherits(obj, "nodes.goldfish")) {
+      nodeset_names <- c(nodeset_names, name)
+    } else if (inherits(obj, "network.goldfish")) {
+      nets_obj <- c(nets_obj, name)
+    } else if (inherits(obj, "dependent.goldfish")) {
+      deps_obj <- c(deps_obj, name)
+    } else if (inherits(obj, "global.goldfish")) {
+      global_obj <- c(global_obj, name)
+    }
+  }
+  
+  nodeset_names <- unique(nodeset_names)
+  categorized <- c(categorized, nodeset_names, nets_obj, deps_obj, global_obj)
+  other_obj <- setdiff(obj_names, categorized)
+
+  if (length(nodeset_names) > 0) {
+    cat("--- Nodesets ---\n")
+    nodes_summary <- data.frame(
+      n = vapply(nodeset_names, \(n) nrow(get(n, envir = x)), integer(1)),
+      attributes = vapply(nodeset_names, \(n) {
+        obj <- get(n, envir = x)
+        ncol(obj) - 1L
+      }, integer(1)),
+      linked_events = vapply(nodeset_names, \(n) {
+        obj <- get(n, envir = x)
+        ev <- if (inherits(obj, "nodes.goldfish")) attr(obj, "events") else NULL
+        if (is.null(ev) || length(ev) == 0) "" else paste(ev, collapse = ", ")
+      }, character(1)),
+      row.names = nodeset_names,
+      check.names = FALSE
+    )
+    print(nodes_summary)
+    cat("\n")
+  }
+
+  if (length(nets_obj) > 0) {
+    cat("--- Networks ---\n")
+    nets_summary <- data.frame(
+      dimensions = vapply(
+        nets_obj,
+        \(n) paste(dim(get(n, envir = x)), collapse = "x"),
+        character(1)
+      ),
+      nodeset = vapply(
+        nets_obj,
+        \(n) paste(attr(get(n, envir = x), "nodes"), collapse = ", "),
+        character(1)
+      ),
+      linked_events = vapply(
+        nets_obj,
+        function(n) {
+          ev <- attr(get(n, envir = x), "events")
+          if (is.null(ev) || length(ev) == 0) "" else paste(ev, collapse = ", ")
+        },
+        character(1)
+      ),
+      directed = vapply(
+        nets_obj,
+        \(n) attr(get(n, envir = x), "directed"),
+        logical(1)
+      ),
+      two_mode = vapply(
+        nets_obj,
+        function(n) {
+          is_two_mode <- attr(get(n, envir = x), "is_two_mode")
+          if (is.null(is_two_mode)) FALSE else is_two_mode
+        },
+        logical(1)
+      ),
+      row.names = nets_obj,
+      check.names = FALSE
+    )
+    print(nets_summary)
+    cat("\n")
+  }
+
+  if (length(deps_obj) > 0) {
+    cat("--- Dependent Events ---\n")
+    deps_summary <- data.frame(
+      n_events = vapply(deps_obj, \(n) nrow(get(n, envir = x)), integer(1)),
+      default_network = vapply(
+        deps_obj,
+        function(n) {
+          net <- attr(get(n, envir = x), "default_network")
+          if (is.null(net)) "" else net
+        },
+        character(1)
+      ),
+      nodeset = vapply(
+        deps_obj,
+        \(n) paste(attr(get(n, envir = x), "nodes"), collapse = ", "),
+        character(1)
+      ),
+      row.names = deps_obj,
+      check.names = FALSE
+    )
+    print(deps_summary)
+    cat("\n")
+  }
+
+  if (length(events_names) > 0) {
+    cat("--- Events Data Frames ---\n")
+    events_summary <- data.frame(
+      n_events = vapply(events_names, \(n) nrow(get(n, envir = x)), integer(1)),
+      object_type = vapply(
+        events_names,
+        function(n) {
+          cols <- colnames(get(n, envir = x))
+          if (all(c("sender", "receiver") %in% cols)) return("dyadic")
+          if ("node" %in% cols) return("nodal")
+          return("unknown")
+        },
+        character(1)
+      ),
+      update_mode = vapply(
+        events_names,
+        function(n) {
+          cols <- colnames(get(n, envir = x))
+          if ("increment" %in% cols) return("increment")
+          if ("replace" %in% cols) return("replace")
+          return("unknown")
+      }, character(1)),
+      row.names = events_names,
+      check.names = FALSE
+    )
+    print(events_summary)
+    cat("\n")
+  }
+
+  if (length(global_obj) > 0) {
+    cat("--- Global Attributes ---\n")
+    global_summary <- data.frame(
+      n_events = vapply(global_obj, \(n) nrow(get(n, envir = x)), integer(1)),
+      row.names = global_obj,
+      check.names = FALSE
+    )
+    print(global_summary)
+    cat("\n")
+  }
+
+  if (length(other_obj) > 0) {
+    cat("--- Other Objects ---\n")
+    other_summary <- data.frame(
+      class = vapply(other_obj, \(n) class(get(n, envir = x))[1], character(1)),
+      length = vapply(other_obj, \(n) length(get(n, envir = x)), integer(1)),
+      row.names = other_obj,
+      check.names = FALSE
+    )
+    print(other_summary)
+    cat("\n")
+  }
+
+  invisible(x)
+}
+
 # print preprocessed.goldfish
 #
 # @param x a preprocessed.goldfish object

@@ -241,8 +241,14 @@ the second explains who people want to leave (or stay with).
 
 Now let us run goldfish estimation!
 ```{r modRateM1Est}
+dataGroups <- make_data(
+  dependent.events, network.interactions, actors, known.before,
+  opportunities, network.past
+)
 est.rate.M1 <- estimate(
-  formula.rate.M1, model = "DyNAMi", subModel = "rate",
+  formula.rate.M1,
+  model = "DyNAMi", sub_model = "rate",
+  data = dataGroups,
   control_estimation = set_estimation_opt(engine = "default")                      
 )
 summary(est.rate.M1)
@@ -251,7 +257,8 @@ summary(est.rate.M1)
 ```{r modChoiceM1Est}
 est.choice.M1 <- estimate(
   formula.choice.M1,
-  model = "DyNAMi", subModel = "choice",
+  model = "DyNAMi", sub_model = "choice",
+  data = dataGroups,
   control_preprocessing =
     set_preprocessing_opt(opportunities_list = opportunities)
 )
@@ -318,7 +325,9 @@ please look at the goldfish documentation to learn more.
 Now we can run again
 ```{r modRateM2Est}
 est.rate.M2 <- estimate(
-  formula.rate.M2, model = "DyNAMi", subModel = "rate",
+  formula.rate.M2,
+  model = "DyNAMi", sub_model = "rate",
+  data = dataGroups,
   control_estimation = set_estimation_opt(engine = "default")  
 )
 summary(est.rate.M2)
@@ -327,7 +336,8 @@ and:
 ```{r modChoiceM2Est}
 est.choice.M2 <- estimate(
   formula.choice.M2,
-  model = "DyNAMi", subModel = "choice",
+  model = "DyNAMi", sub_model = "choice",
+  data = dataGroups,
   control_preprocessing =
     set_preprocessing_opt(opportunities_list = opportunities)
 )
