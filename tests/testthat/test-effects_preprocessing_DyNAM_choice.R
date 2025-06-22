@@ -1,11 +1,12 @@
 test_that(
   "inertia/tie weighted preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ inertia(networkState, weighted = TRUE) +
         tie(networkExog, weighted = TRUE),
-      model = "DyNAM", subModel = "choice", # modelType = "DyNAM-M"
-      preprocessingOnly = TRUE
+      model = "DyNAM", sub_model = "choice", # modelType = "DyNAM-M"
+      data = dataTest,
+      preprocessing_only = TRUE
     )
     outDependentStatChange <- ReducePreprocess(preproData)
     expect_equal(
@@ -100,10 +101,11 @@ test_that(
 test_that(
   "inertia  not weighted preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ inertia,
-      model = "DyNAM", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAM", sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
     )
     expect_equal(
       preproData$initialStats[, , 1],
@@ -176,10 +178,11 @@ test_that(
 test_that(
   "inertia windowed and weighted preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ inertia(networkState, weighted = TRUE, window = 2),
-      model = "DyNAM", subModel = "choice",
-      preprocessingOnly = TRUE
+      model = "DyNAM", sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
     )
 
     outDependentStatChange <- ReducePreprocess(preproData)[[1]]
@@ -248,12 +251,14 @@ test_that(
 test_that(
   "inertia/tie startTime endTime preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ inertia(networkState, weighted = TRUE) +
         tie(networkExog, weighted = TRUE),
-      model = "DyNAM", subModel = "choice", # modelType = "DyNAM-M"
-      preprocessingOnly = TRUE,
-      estimationInit = list(startTime = 10, endTime = 30)
+      model = "DyNAM", sub_model = "choice", # modelType = "DyNAM-M"
+      data = dataTest,
+      preprocessing_only = TRUE,
+      control_preprocessing =
+        set_preprocessing_opt(start_time = 10, end_time = 30)
     )
     outDependentStatChange <- ReducePreprocess(preproData)
     eventsIncrementSubset <- subset(eventsIncrement, time >= 10 & time <= 30)
@@ -342,6 +347,27 @@ test_that(
       preproData$endTime,
       30,
       label = "end Time"
+    )
+  }
+)
+
+test_that(
+  "trans preprocessing",
+  {
+    preproData <- estimate_wrapper(
+      depNetworkTrans ~ trans(networkStateTrans, history="cons"),
+      model = "DyNAM", sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
+    )
+    expect_equal(
+      preproData$dependentStatsChange[[11]][[1]],
+      cbind(
+        node1 =   c(4),
+        node2 =   c(3),
+        replace = c(1)
+      ),
+      label = "updating with history = consecutive works"
     )
   }
 )

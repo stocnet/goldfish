@@ -34,14 +34,15 @@ navbar:
       icon: "fab fa-github fa-lg"
       href: https://github.com/stocnet/goldfish
 reference:
-  - title: "Define"
+  - title: "Make"
     contents:
       - goldfish-package
-      - starts_with("define")
+      - starts_with("make")
       - starts_with("link")
   - title: "Estimate"
     contents:
       - starts_with("estimate")
+      - starts_with("set")
       - update-method
       - print-method
   - title: "Diagnostics"
@@ -58,7 +59,7 @@ reference:
       - starts_with("Social_")
   - title: "Gather preprocessing"
     contents:
-      - GatherPreprocessing  
+      - gather_model_data 
 articles:
   - title: "goldfish effects"
     navbar: "goldfish effects"

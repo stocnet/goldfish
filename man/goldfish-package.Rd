@@ -46,7 +46,7 @@ A model for the dynamics of face-to-face interactions in social groups.
 \emph{Network Science}, 8(S1), S4-S25. \doi{10.1017/nws.2020.3}
 }
 \seealso{
-\code{\link[=estimate]{estimate()}}
+\link{estimate}
 }
 \author{
 \strong{Maintainer}: Alvaro Uzaheta \email{ualvaro@ethz.ch} (\href{https://orcid.org/0000-0003-4367-3670}{ORCID})
@@ -68,6 +68,7 @@ Other contributors:
   \item Weigutian Ou [contributor]
   \item Emily Garvin [contributor]
   \item Siwei Zhang [contributor]
+  \item Mabel Wylie [contributor]
 }
 
 }

@@ -5,11 +5,12 @@
 test_that(
   "intercept with objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~ 1 +
         intercept(interaction_network_DyNAMi, joining = -1),
-      model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "rate",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -117,7 +118,7 @@ test_that(
 test_that(
   "inertia/tie with objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         inertia(past_network_DyNAMi,
           weighted = TRUE, subType = "count", joining = -1
@@ -155,8 +156,9 @@ test_that(
         tie(covnetwork_DyNAMi,
           weighted = TRUE, subType = "max", joining = -1
         ),
-      model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "rate",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -397,7 +399,7 @@ test_that(
 test_that(
   "inertia computes correct preprocessing objects with window",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         inertia(past_network_DyNAMi,
           weighted = TRUE, subType = "count", joining = -1
@@ -408,8 +410,9 @@ test_that(
         + inertia(past_network_DyNAMi,
           weighted = TRUE, subType = "count", joining = -1, window = 7
         ),
-      model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "rate",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -679,7 +682,7 @@ test_that(
 test_that(
   "egopop/egodeg for joining and leaving",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         egopop(past_network_DyNAMi,
           weighted = TRUE, subType = "identity", joining = 1
@@ -717,8 +720,9 @@ test_that(
         egodeg(covnetwork_DyNAMi,
           weighted = TRUE, subType = "centered", joining = -1
         ),
-      model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "rate",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -1148,7 +1152,7 @@ test_that(
 test_that(
   "alterpop/alterdeg for leaving objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         alterpop(past_network_DyNAMi,
           weighted = TRUE, subType = "mean", joining = -1
@@ -1180,8 +1184,9 @@ test_that(
         alterdeg(covnetwork_DyNAMi,
           weighted = TRUE, subType = "mean_centered", joining = -1
         ),
-      model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "rate",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -1507,7 +1512,7 @@ test_that(
 test_that(
   "ego for joining and leaving objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         ego(actors_DyNAMi$attr1, subType = "identity", joining = 1) +
         ego(actors_DyNAMi$attr1, subType = "identity", joining = -1) +
@@ -1517,8 +1522,9 @@ test_that(
         ego(actors_DyNAMi$attr1, subType = "squared", joining = -1) +
         ego(actors_DyNAMi$attr1, subType = "centered", joining = 1) +
         ego(actors_DyNAMi$attr1, subType = "centered", joining = -1),
-      model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "rate",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -1848,7 +1854,7 @@ test_that(
 test_that(
   "alter for leaving with objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         alter(actors_DyNAMi$attr1, subType = "mean", joining = -1) +
         alter(actors_DyNAMi$attr1, subType = "mean_squared", joining = -1) +
@@ -1856,8 +1862,9 @@ test_that(
         alter(actors_DyNAMi$attr1, subType = "min", joining = -1) +
         alter(actors_DyNAMi$attr1, subType = "max", joining = -1) +
         alter(actors_DyNAMi$attr1, subType = "mean_centered", joining = -1),
-      model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "rate",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -2062,13 +2069,14 @@ test_that(
 test_that(
   "same for leaving with objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         same(actors_DyNAMi$attr2, subType = "count", joining = -1) +
         same(actors_DyNAMi$attr2, subType = "proportion", joining = -1) +
         same(actors_DyNAMi$attr2, subType = "presence", joining = -1),
-      model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "rate",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {
@@ -2209,14 +2217,15 @@ test_that(
 test_that(
   "diff for leaving with objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         diff(actors_DyNAMi$attr1, subType = "averaged_sum", joining = -1) +
         diff(actors_DyNAMi$attr1, subType = "mean", joining = -1) +
         diff(actors_DyNAMi$attr1, subType = "min", joining = -1) +
         diff(actors_DyNAMi$attr1, subType = "max", joining = -1),
-      model = "DyNAMi", subModel = "rate",
-      preprocessingOnly = TRUE
+      model = "DyNAMi", sub_model = "rate",
+      data = dataDyNAMi,
+      preprocessing_only = TRUE
     )
 
     updFun <- function(stat, change) {

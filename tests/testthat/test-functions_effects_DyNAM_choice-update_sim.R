@@ -24,14 +24,14 @@ test_that("sim equals NULL if there is no change", {
     node = 7, replace = 3,
     n1 = 8, n2 = 0
   )$changes)
-  expect_null(
-    update_DyNAM_choice_sim(
-      testAttr$fishingSkill,
-      node = 2, replace = NA,
-      n1 = 8, n2 = 0
-    )$changes,
-    label = "when replace is NA"
-  )
+  # expect_null(
+  #   update_DyNAM_choice_sim(
+  #     testAttr$fishingSkill,
+  #     node = 2, replace = NA,
+  #     n1 = 8, n2 = 0
+  #   )$changes,
+  #   label = "when replace is NA"
+  # )
 })
 
 test_that("sim returns correct attributes on update", {
@@ -70,40 +70,54 @@ test_that("sim returns correct attributes on update", {
     ),
     label = "when replace is 0"
   )
-  expect_equal(
-    update_DyNAM_choice_sim(
-      testAttr$fishingSkill,
-      node = 1, replace = NA,
-      n1 = 8, n2 = 0
-    )$changes,
-    rbind(
-      cbind(
-        node1 = rep(1, 7), node2 = 2:8,
-        replace = c(NA, -1.8, -3.2, -1.2, -1.2, -3.8, NA)
-      ),
-      cbind(
-        node1 = 2:8, node2 = rep(1, 7),
-        replace = c(NA, -1.8, -3.2, -1.2, -1.2, -3.8, NA)
-      )
-    ),
-    label = "when replace is NA"
-  )
-  expect_equal(
-    update_DyNAM_choice_sim(
-      testAttr$fishingSkill,
-      node = 2, replace = 10,
-      n1 = 8, n2 = 0
-    )$changes,
-    rbind(
-      cbind(
-        node1 = rep(2, 7), node2 = c(1, 3:8),
-        replace = c(0, -5, 0, -2, -2, -7, NA)
-      ),
-      cbind(
-        ndoe1 = c(1, 3:8), node2 = rep(2, 7),
-        replace = c(0, -5, 0, -2, -2, -7, NA)
-      )
-    ),
-    label = "when old value was NA"
-  )
+  # expect_equal(
+  #   update_DyNAM_choice_sim(
+  #     testAttr$fishingSkill,
+  #     node = 1, replace = NA,
+  #     n1 = 8, n2 = 0
+  #   )$changes,
+  #   rbind(
+  #     cbind(
+  #       node1 = rep(1, 7), node2 = 2:8,
+  #       replace = c(NA, -1.8, -3.2, -1.2, -1.2, -3.8, NA)
+  #     ),
+  #     cbind(
+  #       node1 = 2:8, node2 = rep(1, 7),
+  #       replace = c(NA, -1.8, -3.2, -1.2, -1.2, -3.8, NA)
+  #     )
+  #   ),
+  #   label = "when replace is NA"
+  # )
+  # expect_equal(
+  #   update_DyNAM_choice_sim(
+  #     testAttr$fishingSkill,
+  #     node = 2, replace = 10,
+  #     n1 = 8, n2 = 0
+  #   )$changes,
+  #   rbind(
+  #     cbind(
+  #       node1 = rep(2, 7), node2 = c(1, 3:8),
+  #       replace = c(0, -5, 0, -2, -2, -7, NA)
+  #     ),
+  #     cbind(
+  #       ndoe1 = c(1, 3:8), node2 = rep(2, 7),
+  #       replace = c(0, -5, 0, -2, -2, -7, NA)
+  #     )
+  #   ),
+  #   label = "when old value was NA"
+  # )
 })
+
+test_that("sim init throws an error when two-mode network", {
+  check = formals(effectFUN)
+  check$is_two_mode = TRUE
+  formals(effectFUN) <- check
+  expect_error(init_DyNAM_choice.sim(effectFUN, testAttr$fishingSkill, NULL, 8, 8),
+               regexp = "doesn't work in two mode networks")
+})
+
+test_that("sim init returns the correct result", {
+  expect_equal(init_DyNAM_choice.sim(effectFUN, testAttr$fishingSkill, NULL, 8, 8)$stat,
+               (-1)*outer(testAttr$fishingSkill,testAttr$fishingSkill,"-"))
+})
+

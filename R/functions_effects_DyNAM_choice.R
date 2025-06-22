@@ -19,25 +19,25 @@ init_DyNAM_choice.default <- function(
       " nor an attribute as argument"
     )
   }
-
+  
   # if multiple networks, attributes or combination of both are specified.
   # The initialization is done over the fist network
   # lenNetwork <- length(network)
   hasNetwork <- length(network) >= 1
   hasMultNets <- length(network) >= 1 & is.list(network)
   hasMultAtt <- length(attribute) >= 1 & is.list(attribute)
-
+  
   .argsNames <- names(formals(effectFun))
   # if network inputs, just the first network is empty.
   stats <- matrix(0, nrow = n1, ncol = n2) # check for poss
-
+  
   # init a generic cache object
   if ("cache" %in% .argsNames) {
     cache <- stats
   } else {
     cache <- NULL
   }
-
+  
   if (hasNetwork) {
     # check if not empty network to initialize the statistical matrix
     # create a copy of the network to iterate over
@@ -56,7 +56,7 @@ init_DyNAM_choice.default <- function(
       netIter <- network[[1]]
     } else {
       if ((!is.null(window) && !is.infinite(window)) ||
-        all(network[!is.na(network)] == 0)) {
+          all(network[!is.na(network)] == 0)) {
         if (is.null(cache)) {
           return(list(stat = stats))
         }
@@ -64,7 +64,7 @@ init_DyNAM_choice.default <- function(
       }
       netIter <- network
     }
-
+    
     emptyObject <- array(0, dim = dim(netIter))
   } else {
     if (hasMultAtt) {
@@ -89,7 +89,7 @@ init_DyNAM_choice.default <- function(
       }
       attIter <- attribute
     }
-
+    
     emptyObject <- vector(mode = "numeric", length = length(attIter))
   }
   # iterate over not empty entries and compute updates
@@ -177,7 +177,7 @@ init_DyNAM_choice.default <- function(
 # tie ---------------------------------------------------------------------
 #' init stat matrix tie
 #'
-#' @param effectFun function with additional parameters weighted, transformFun
+#' @param effectFun function with additional parameters weighted, transformer_fn
 #' @param network matrix n1*n2
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
@@ -199,7 +199,7 @@ init_DyNAM_choice.default <- function(
 #'   ),
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
-#' effectFUN <- function(weighted = TRUE, transformFun = identity) {
+#' effectFUN <- function(weighted = TRUE, transformer_fn = identity) {
 #'   NULL
 #' }
 #' init_DyNAM_choice.tie(effectFUN, network)
@@ -208,14 +208,14 @@ init_DyNAM_choice.tie <- function(effectFun, network, window, n1, n2, ...) {
   # get arguments
   params <- formals(effectFun)
   weighted <- eval(params[["weighted"]])
-  funApply <- eval(params[["transformFun"]])
-
+  funApply <- eval(params[["transformer_fn"]])
+  
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     value <- if (weighted) forceAndCall(1, funApply, 0) else 0
     return(list(stat = matrix(value, nrow = n1, ncol = n2)))
   }
-
+  
   if (weighted) {
     stat <- forceAndCall(1, funApply, network)
   } else {
@@ -231,7 +231,7 @@ init_DyNAM_choice.tie <- function(effectFun, network, window, n1, n2, ...) {
 #' @param receiver integer
 #' @param replace numeric
 #' @param weighted logical
-#' @param transformFun function to apply to the stat
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
@@ -252,38 +252,33 @@ init_DyNAM_choice.tie <- function(effectFun, network, window, n1, n2, ...) {
 #' )
 #' update_DyNAM_choice_tie(network,
 #'   1, 2, 3,
-#'   weighted = TRUE, transformFun = sqrt
+#'   weighted = TRUE, transformer_fn = sqrt
 #' )
 #' }
 update_DyNAM_choice_tie <- function(
     network,
     sender, receiver, replace,
-    weighted = FALSE, transformFun = identity) {
+    weighted = FALSE, transformer_fn = identity) {
   # No change check, irrelevant for two-mode network
   # if(sender == receiver) return(NULL)
-
+  
   # init res
   res <- list(changes = NULL)
-
+  
   # Get old value
   oldValue <- network[sender, receiver]
-
+  
   # change for weighted effect
   if (!weighted) {
     oldValue <- sign(oldValue)
     replace <- sign(replace)
   }
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  # If the old value of the tie is the same as the replace value
+  if (oldValue == replace ) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
-
+  
   # change stat
   res$changes <- cbind(
     node1 = sender,
@@ -291,10 +286,10 @@ update_DyNAM_choice_tie <- function(
     replace = if (!weighted) {
       1 * (replace > 0)
     } else {
-      forceAndCall(1, transformFun, replace)
+      forceAndCall(1, transformer_fn, replace)
     }
   )
-
+  
   return(res)
 }
 
@@ -311,11 +306,11 @@ init_DyNAM_choice.inertia <- function(effectFun, network, window, n1, n2, ...) {
 update_DyNAM_choice_inertia <- function(
     network,
     sender, receiver, replace,
-    weighted = FALSE, transformFun = identity) {
+    weighted = FALSE, transformer_fn = identity) {
   update_DyNAM_choice_tie(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
-    weighted = weighted, transformFun = transformFun
+    weighted = weighted, transformer_fn = transformer_fn
   )
 }
 
@@ -323,7 +318,7 @@ update_DyNAM_choice_inertia <- function(
 #' init stat matrix indegree using cache alter
 #'
 #' @param effectFun function with additional parameters
-#'   weighted, isTwoMode, transformFun
+#'   weighted, is_two_mode, transformer_fn
 #' @param network matrix n1*n2
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
@@ -346,8 +341,8 @@ update_DyNAM_choice_inertia <- function(
 #'   ),
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
-#' effectFUN <- function(weighted = TRUE, isTwoMode = FALSE,
-#'                       transformFun = identity) {
+#' effectFUN <- function(weighted = TRUE, is_two_mode = FALSE,
+#'                       transformer_fn = identity) {
 #'   NULL
 #' }
 #' init_DyNAM_choice.indeg(effectFUN, network, NULL, 5, 6)
@@ -372,9 +367,9 @@ init_DyNAM_choice.indeg <- function(effectFun, network, window, n1, n2, ...) {
 #' @param cache numeric vector size n2
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' @param isTwoMode logical
+#' @param is_two_mode logical
 #' @param weighted logical
-#' @param transformFun function to apply to the stat
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache numeric vector size n2,
@@ -398,20 +393,20 @@ init_DyNAM_choice.indeg <- function(effectFun, network, window, n1, n2, ...) {
 #'   network,
 #'   1, 2, 3,
 #'   cache, 5, 6,
-#'   isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt
+#'   is_two_mode = TRUE, weighted = TRUE, transformer_fn = sqrt
 #' )
 #' }
 update_DyNAM_choice_indeg <- function(
     network,
     sender, receiver, replace,
     cache, n1, n2,
-    isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity) {
+    is_two_mode = FALSE,
+    weighted = FALSE, transformer_fn = identity) {
   update_REM_choice_indeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, isTwoMode = isTwoMode,
-    weighted = weighted, transformFun = transformFun, type = "alter"
+    n1 = n1, n2 = n2, is_two_mode = is_two_mode,
+    weighted = weighted, transformer_fn = transformer_fn, type = "alter"
   )
 }
 
@@ -419,7 +414,7 @@ update_DyNAM_choice_indeg <- function(
 #' init stat matrix outdegree using cache alter
 #'
 #' @param effectFun function with additional parameters
-#'   weighted, isTwoMode, transformFun
+#'   weighted, is_two_mode, transformer_fn
 #' @param network matrix n1*n2
 #' @param window NULL||numeric(1) size of the window,
 #'   if not null and not Inf return empty stat and cache
@@ -443,8 +438,8 @@ update_DyNAM_choice_indeg <- function(
 #'   ),
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
-#' effectFUN <- function(weighted = TRUE, isTwoMode = FALSE,
-#'                       transformFun = identity) {
+#' effectFUN <- function(weighted = TRUE, is_two_mode = FALSE,
+#'                       transformer_fn = identity) {
 #'   NULL
 #' }
 #' init_DyNAM_choice.outdeg(effectFUN, network, NULL, 5, 6)
@@ -469,9 +464,9 @@ init_DyNAM_choice.outdeg <- function(effectFun, network, window, n1, n2, ...) {
 #' @param cache numeric vector size n1
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' @param isTwoMode logical
+#' @param is_two_mode logical
 #' @param weighted logical
-#' @param transformFun function to apply to the stat
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache numeric vector size n1,
@@ -495,20 +490,20 @@ init_DyNAM_choice.outdeg <- function(effectFun, network, window, n1, n2, ...) {
 #'   network,
 #'   1, 2, 3,
 #'   cache, 5, 6,
-#'   isTwoMode = TRUE, weighted = TRUE, transformFun = sqrt
+#'   is_two_mode = TRUE, weighted = TRUE, transformer_fn = sqrt
 #' )
 #' }
 update_DyNAM_choice_outdeg <- function(
     network,
     sender, receiver, replace,
     cache, n1, n2,
-    isTwoMode = FALSE,
-    weighted = FALSE, transformFun = identity) {
+    is_two_mode = FALSE,
+    weighted = FALSE, transformer_fn = identity) {
   update_REM_choice_outdeg(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, isTwoMode = isTwoMode,
-    weighted = weighted, transformFun = transformFun, type = "alter"
+    n1 = n1, n2 = n2, is_two_mode = is_two_mode,
+    weighted = weighted, transformer_fn = transformer_fn, type = "alter"
   )
 }
 
@@ -516,7 +511,7 @@ update_DyNAM_choice_outdeg <- function(
 #' init stat matrix reciprocity
 #'
 #' @param effectFun function with additional parameters
-#'   weighted, isTwoMode, transformFun
+#'   weighted, is_two_mode, transformer_fn
 #' @param network matrix n1*n2
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
@@ -538,8 +533,8 @@ update_DyNAM_choice_outdeg <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' effectFUN <- function(weighted = FALSE, isTwoMode = FALSE,
-#'                       transformFun = sqrt) {
+#' effectFUN <- function(weighted = FALSE, is_two_mode = FALSE,
+#'                       transformer_fn = sqrt) {
 #'   NULL
 #' }
 #'
@@ -548,31 +543,31 @@ update_DyNAM_choice_outdeg <- function(
 init_DyNAM_choice.recip <- function(effectFun, network, window, n1, n2, ...) {
   params <- formals(effectFun)
   weighted <- eval(params[["weighted"]])
-  funApply <- eval(params[["transformFun"]])
-  isTwoMode <- eval(params[["isTwoMode"]])
-
-  if (isTwoMode) {
+  funApply <- eval(params[["transformer_fn"]])
+  is_two_mode <- eval(params[["is_two_mode"]])
+  
+  if (is_two_mode) {
     stop(dQuote("recip"),
-      " effect must not be used when is a two-mode network",
-      " (isTwoMode = TRUE)",
-      call. = FALSE
+         " effect must not be used when is a two-mode network",
+         " (is_two_mode = TRUE)",
+         call. = FALSE
     )
   }
-
+  
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     value <- if (weighted) forceAndCall(1, funApply, 0) else 0
     return(list(stat = matrix(value, nrow = n1, ncol = n2)))
   }
-
+  
   if (weighted) {
     stats <- forceAndCall(1, funApply, t(network))
   } else {
     # network <- sign(network)
     stats <- t(network > 0) * 1
   }
-
-  # if (!isTwoMode) diag(stats) <- 0 # # I think is not needed!!!
+  
+  # if (!is_two_mode) diag(stats) <- 0 # # I think is not needed!!!
   return(list(stat = unname(stats)))
 }
 
@@ -583,8 +578,8 @@ init_DyNAM_choice.recip <- function(effectFun, network, window, n1, n2, ...) {
 #' @param receiver integer
 #' @param replace numeric
 #' @param weighted logical
-#' @param isTwoMode logical
-#' @param transformFun function to apply to the stat
+#' @param is_two_mode logical
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
@@ -606,42 +601,37 @@ init_DyNAM_choice.recip <- function(effectFun, network, window, n1, n2, ...) {
 #' update_DyNAM_choice_recip(
 #'   network,
 #'   1, 2, 9,
-#'   weighted = TRUE, isTwoMode = FALSE, transformFun = sqrt
+#'   weighted = TRUE, is_two_mode = FALSE, transformer_fn = sqrt
 #' )
 #' }
 update_DyNAM_choice_recip <- function(
     network,
     sender, receiver, replace,
     weighted = FALSE,
-    isTwoMode = FALSE,
-    transformFun = identity) {
+    is_two_mode = FALSE,
+    transformer_fn = identity) {
   # init res
   res <- list(changes = NULL)
-
+  
   # No change check, only relevant for one-mode networks
   if (sender == receiver) {
     return(res)
   }
-
+  
   # Get old value
   oldValue <- network[sender, receiver]
-
+  
   # change for weighted effect
   if (!weighted) {
     oldValue <- sign(oldValue)
     replace <- sign(replace)
   }
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  # If the old value of the tie is the same as the replace value
+  if (oldValue == replace ) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
-
+  
   # change stat
   res$changes <- cbind(
     node1 = receiver,
@@ -649,46 +639,240 @@ update_DyNAM_choice_recip <- function(
     replace = if (!weighted) {
       1 * (replace > 0)
     } else {
-      forceAndCall(1, transformFun, replace)
+      forceAndCall(1, transformer_fn, replace)
     }
   )
-
+  
   return(res)
 }
 
 # node_trans ------------------------------------------------------------------
 #' @export
-init_DyNAM_choice.nodeTrans <- function(
+init_DyNAM_choice.node_trans <- function(
     effectFun, network, window, n1, n2, ...) {
   formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
-  init_REM_choice.nodeTrans(
+  init_REM_choice.node_trans(
     effectFun = effectFun, network = network,
     window = window, n1 = n1, n2 = n2, ...
   )
 }
 
-update_DyNAM_choice_nodeTrans <- function(
+update_DyNAM_choice_node_trans <- function(
     network,
     sender,
     receiver,
     replace,
     cache,
     n1, n2,
-    isTwoMode = FALSE,
-    transformFun = identity) {
-  update_REM_choice_nodeTrans(
+    is_two_mode = FALSE,
+    transformer_fn = identity) {
+  update_REM_choice_node_trans(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, isTwoMode = isTwoMode,
-    transformFun = transformFun, type = "alter"
+    n1 = n1, n2 = n2, is_two_mode = is_two_mode,
+    transformer_fn = transformer_fn, type = "alter"
   )
 }
 
 # Closure effects --------------------------------------------------------------
+
+#' get in-neighbors of sender
+#'
+#' @param network square matrix. Positive values indicate ties
+#' @param sender integer. Sanitized index of the sender
+#' @param receiver integer. Sanitized index of the receiver
+#'
+#' @returns integer vector. Indices of the in-neighbors of sender
+#' @noRd
+#'
+#' @examples get_two_path_in_neigh(networkState, 1, 2)
+get_two_path_in_neigh <- function(network, sender, receiver) {
+  temp <- network[, sender]
+  temp[sender] <- 0 # don't consider the cases with i = k
+  inSender <- which(temp > 0)
+  return(inSender)
+}
+
+#' get out-neighbors of receiver
+#'
+#' @param network square matrix. Positive values indicate ties
+#' @param sender integer. Sanitized index of the sender
+#' @param receiver integer. Sanitized index of the receiver
+#'
+#' @returns integer vector. Indices of the out-neighbors of receiver
+#' @noRd
+#'
+#' @examples get_two_path_out_neigh(networkState, 1, 2)
+get_two_path_out_neigh <- function(network, sender, receiver) {
+  temp <- network[receiver, ]
+  temp[receiver] <- 0 # don't consider the cases with  k = j
+  outReceiver <- which(temp > 0)
+  return(outReceiver)
+}
+
+#' compute ids of nodes to update the number of two-paths
+#' 
+#' The pooled version doesn't consider the sequence in which the two-path is
+#' created. The two-path considered is `source` -> `broker` -> `sink`.
+#'
+#' @param network square matrix. Positive values indicate ties
+#' @param sender integer. Sanitized index of the sender
+#' @param receiver integer. Sanitized index of the receiver
+#' @param replace numeric. New value of the tie between sender and receiver
+#' @param cache square matrix. Number of two-paths between nodes.
+#' @param eventOrder integer vector. Last event updated in
+#'   the network argument
+#'
+#' @returns integer array. Each row contains the source and sink of the two-path
+#'   to be updated.
+#' @noRd
+#'
+#' @examples
+#'   compute_update_two_path_pooled(
+#'     networkState, 1, 2, 1,
+#'     cache = networkState %*% networkState,
+#'     eventOrder = c(sender = 0, receiver = 0, eventOrder = 0)
+#'   )
+compute_update_two_path_pooled <- function(
+    network,
+    sender,
+    receiver,
+    replace,
+    cache,
+    eventOrder
+) {
+  
+  # get all in-neighbors of sender and out-neighbors of receiver
+  inSender <- get_two_path_in_neigh(network, sender, receiver)
+  outReceiver <- get_two_path_out_neigh(network, sender, receiver)
+  ids <- rbind(
+    if (length(outReceiver) > 0) cbind(sender, outReceiver),
+    if (length(inSender) > 0) cbind(inSender, receiver)
+  )
+  if (length(ids) > 0) {
+    colnames(ids) <- c("source", "sink")
+  }
+  return(ids)
+}
+
+#' compute ids of nodes to update the number of two-paths
+#' 
+#' The sequential version considers the sequence in which the two-path is
+#' created. The two-path considered is `source` -> `broker` -> `sink`.
+#'
+#' @param network square matrix. Positive values indicate ties
+#' @param sender integer. Sanitized index of the sender
+#' @param receiver integer. Sanitized index of the receiver
+#' @param replace numeric. New value of the tie between sender and receiver
+#' @param cache square matrix. Number of two-paths between nodes.
+#' @param eventOrder integer vector. Last event updated in
+#'  the network argument
+#'
+#' @returns integer array. Each row contains the source and sink of the two-path
+#' @noRd
+#'
+#' @examples
+#'  compute_update_two_path_sequential(
+#'    networkState, 1, 2, 1,
+#'    cache = networkState %*% networkState,
+#'    eventOrder = c(sender = 0, receiver = 0, eventOrder = 0)
+#'  )
+compute_update_two_path_sequential <- function(
+    network,
+    sender,
+    receiver,
+    replace, 
+    cache,
+    eventOrder
+) {
+  
+  inSender <- get_two_path_in_neigh(network, sender, receiver)
+  
+  # when sender = i and receiver = k, we only look for two paths to delete
+  if (replace < 1) {
+    # when sender = i and receiver = k, constraint i != k is satisfied.
+    outReceiver <- get_two_path_out_neigh(network, sender, receiver)
+  } else {
+    outReceiver <- NULL
+  }
+  
+  ids <- rbind(
+    if (length(outReceiver) > 0) cbind(sender, outReceiver),
+    if (length(inSender) > 0) cbind(inSender, receiver)
+  )
+  if (length(ids) > 0) {
+    colnames(ids) <- c("source", "sink")
+  }
+  return(ids)
+}
+
+#' compute ids of nodes to update the number of two-paths
+#' 
+#' The consecutive version force an strict sequence in which the two-path is
+#' created. The two-path considered is `source` -> `broker` -> `sink`.
+#'
+#' @param network square matrix. Positive values indicate ties
+#' @param sender integer. Sanitized index of the sender
+#' @param receiver integer. Sanitized index of the receiver
+#' @param replace numeric. New value of the tie between sender and receiver
+#' @param cache square matrix. Number of two-paths between nodes.
+#' @param eventOrder integer vector. Last event updated in
+#'  the network argument
+#'
+#' @returns integer array. Each row contains the source and sink of the two-path
+#' @noRd
+#'
+#' @examples
+#' compute_update_two_path_consecutive(
+#'  networkState, 1, 2, 1,
+#'  cache = networkState %*% networkState,
+#'  eventOrder = c(sender = 0, receiver = 0, eventOrder = 0)
+#' )
+compute_update_two_path_consecutive <- function(
+    network,
+    sender,
+    receiver,
+    replace,
+    cache,
+    eventOrder
+) {
+  lastUpdate <- attr(cache, 'lastUpdate')
+  lastSender <- lastUpdate["sender"]
+  lastReceiver <- lastUpdate["receiver"]
+  lastEventOrder <- lastUpdate["eventOrder"]
+  
+  # checks that preceding event was an update 
+  if (replace == 1) {
+    attr(cache, 'lastUpdate') <-
+      c(sender = sender, receiver = receiver, eventOrder = eventOrder)
+    if ((lastEventOrder == (eventOrder - 2L)) && (sender == lastReceiver)) {
+      inSender <- lastSender
+    }
+    else {
+      inSender <- NULL
+    }
+    outReceiver <- NULL
+  } else if (replace < 1){
+    # get all in-neighbors of sender and out-neighbors of receiver
+    inSender <- get_two_path_in_neigh(network, sender, receiver)
+    outReceiver <- get_two_path_out_neigh(network, sender, receiver)
+  } else {
+    inSender <- NULL
+    outReceiver <- NULL
+  }
+  ids <- rbind(
+    if (length(outReceiver) > 0) cbind(sender, outReceiver),
+    if (length(inSender) > 0) cbind(inSender, receiver)
+  )
+  if (length(ids) > 0) {
+    colnames(ids) <- c("source", "sink")
+  }
+  return(list(ids = ids, cache = cache))
+}
 # trans -------------------------------------------------------------------
 #' init stat matrix transitivity using cache: Closure of two-paths (i->k->j)
 #'
-#' @param effectFun function with additional parameters transformFun, isTwoMode
+#' @param effectFun function with additional parameters transformer_fn, is_two_mode
 #' @param network matrix n1*n2
 #' @param window NULL||numeric(1) size of the window
 #' @param n1 integer nrow(network)
@@ -712,7 +896,7 @@ update_DyNAM_choice_nodeTrans <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = sqrt) {
+#' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
 #' init_DyNAM_choice.trans(effectFUN, network, NULL, 5, 5)
@@ -720,21 +904,28 @@ update_DyNAM_choice_nodeTrans <- function(
 init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]])
-
-  if (isTwoMode) {
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]])
+  history <- eval(params[["history"]])
+  history <- match.arg(history, c('pooled','sequential','consecutive'))
+  
+  if (is_two_mode) {
     stop(dQuote("trans"),
-      " effect must not use when is a two-mode network",
-      " (isTwoMode = TRUE)",
-      call. = FALSE
+         " effect must not use when is a two-mode network",
+         " (is_two_mode = TRUE)",
+         call. = FALSE
     )
   }
 
   # has window or is empty initialize empty
-  if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
+  if ((!is.null(window) && !is.infinite(window)) ||
+      (all(network == 0)) || (history != 'pooled')) {
+    cache <- matrix(0, nrow = n1, ncol = n2)
+    if (history == "consecutive") {
+      attr(cache, "lastUpdate") <- c(sender = 0, receiver = 0, eventOrder = 0)
+    }
     return(list(
-      cache = matrix(0, nrow = n1, ncol = n2),
+      cache = cache,
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
     ))
   }
@@ -743,7 +934,7 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, ...) {
   # compute stat
   cache <- unname(network %*% network)
   # diag(cache) <- 0
-
+  
   return(list(
     cache = cache,
     stat = forceAndCall(1, funApply, cache)
@@ -757,8 +948,8 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, ...) {
 #' @param receiver integer
 #' @param replace numeric
 #' @param cache stat matrix numeric n1 * n1
-#' @param isTwoMode logical
-#' @param transformFun function to apply to the stat
+#' @param is_two_mode logical
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache matrix size n1 * n1,
@@ -789,60 +980,63 @@ init_DyNAM_choice.trans <- function(effectFun, network, window, n1, n2, ...) {
 #'   nrow = 5, ncol = 5
 #' )
 #'
-#' update_DyNAM_choice_trans(network, 4, 3, 5, cache, transformFun = sqrt)
-#' update_DyNAM_choice_trans(network, 1, 4, 0, cache, transformFun = sqrt)
-#' update_DyNAM_choice_trans(network, 5, 1, 8, cache, transformFun = sqrt)
+#' update_DyNAM_choice_trans(network, 4, 3, 5, cache, transformer_fn = sqrt)
+#' update_DyNAM_choice_trans(network, 1, 4, 0, cache, transformer_fn = sqrt)
+#' update_DyNAM_choice_trans(network, 5, 1, 8, cache, transformer_fn = sqrt)
 #' }
+
 update_DyNAM_choice_trans <- function(
     network,
     sender,
     receiver,
     replace, cache,
-    isTwoMode = FALSE,
-    transformFun = identity) {
+    is_two_mode = FALSE,
+    transformer_fn = identity,
+    history = c('pooled','sequential','consecutive'),
+    eventOrder = NULL) {
+  history <- match.arg(history, c('pooled','sequential','consecutive'))
   # only relevant for one-mode networks
   res <- list(cache = cache, changes = NULL)
   if (sender == receiver) {
     return(res)
   }
-  # get old value, always weighted
+  
+  # get old value, always unweighted
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  # If the old value of the tie is the same as the replace value
+  if (oldValue == replace) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
-  # get all in-neighbors of sender and out-neighbors of receiver
-  # consider i -> k -> j,
-  # when sender = k and receiver = j, constraint that k != j has been satisfied.
-  temp <- network[, sender]
-  # temp[c(sender, receiver)] <- 0 # don't consider the cases with i = k
-  temp[sender] <- 0 # don't consider the cases with i = k
-  inSender <- which(temp > 0)
-  # when sender = i and receiver = k, constraint that i != k has been satisfied.
-  temp <- network[receiver, ]
-  # temp[c(sender, receiver)] <- 0 # don't consider the cases with  k = j
-  temp[receiver] <- 0 # don't consider the cases with  k = j
-  outReceiver <- which(temp > 0)
-  ids <- rbind(
-    if (length(outReceiver) > 0) cbind(sender, outReceiver),
-    if (length(inSender) > 0) cbind(inSender, receiver)
+  
+  compute_history <- paste0("compute_update_two_path_", history)
+  
+  ids <- do.call(
+    what = compute_history,
+    args = list(
+      network = network, sender = sender, receiver = receiver,
+      replace = replace,
+      cache = cache,
+      eventOrder = eventOrder
+    )
   )
-  # update cache
-  if (length(outReceiver) + length(inSender) > 0) {
-    # changes in two-paths (i->k->j)
-    replaceValues <- replace - oldValue + res$cache[cbind(ids[, 1], ids[, 2])]
-    res$cache[cbind(ids[, 1], ids[, 2])] <- replaceValues
+  
+  if (history == "consecutive") {
+    cache <- ids[["cache"]]
+    ids <- ids[["ids"]]
+    attr(res$cache, "lastUpdate") <- attr(cache, 'lastUpdate')
+  }
+  
+  if (length(ids) > 0) {
+    # changes in two-paths (i->k->j): (source->broker->sink)
+    replaceValues <- replace - oldValue +
+      res$cache[cbind(ids[, "source"], ids[, "sink"])]
+    res$cache[cbind(ids[, "source"], ids[, "sink"])] <- replaceValues
     res$changes <- cbind(
-      node1 = ids[, 1],
-      node2 = ids[, 2],
-      replace = forceAndCall(1, transformFun, replaceValues)
+      node1 = ids[, "source"],
+      node2 = ids[, "sink"],
+      replace = forceAndCall(1, transformer_fn, replaceValues)
     )
   }
   return(res)
@@ -851,7 +1045,7 @@ update_DyNAM_choice_trans <- function(
 # cycle ------------------------------------------------------------------------
 #' init stat matrix cyclying using cache: Closure of two-paths (j->k->i)
 #'
-#' @param effectFun function with additional parameters transformFun, isTwoMode
+#' @param effectFun function with additional parameters transformer_fn, is_two_mode
 #' @param network matrix n1*n2
 #' @param window NULL||numeric(1) size of the window
 #' @param n1 integer nrow(network)
@@ -875,7 +1069,7 @@ update_DyNAM_choice_trans <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = sqrt) {
+#' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
 #' init_DyNAM_choice.cycle(effectFUN, network, NULL, 5, 5)
@@ -883,21 +1077,28 @@ update_DyNAM_choice_trans <- function(
 init_DyNAM_choice.cycle <- function(effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]])
-
-  if (isTwoMode) {
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]])
+  history <- eval(params[["history"]])
+  history <- match.arg(history, c('pooled','sequential','consecutive'))
+  
+  if (is_two_mode) {
     stop(dQuote("cycle"),
-      " effect must not use when is a two-mode network",
-      " (isTwoMode = TRUE)",
-      call. = FALSE
+         " effect must not use when is a two-mode network",
+         " (is_two_mode = TRUE)",
+         call. = FALSE
     )
   }
-
+  
   # has window or is empty initialize empty
-  if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
+  if ((!is.null(window) && !is.infinite(window)) ||
+      (all(network == 0)) || (history != 'pooled')) {
+    cache <- matrix(0, nrow = n1, ncol = n2)
+    if (history == "consecutive") {
+      attr(cache, "lastUpdate") <- c(sender = 0, receiver = 0, eventOrder = 0)
+    }
     return(list(
-      cache = matrix(0, nrow = n1, ncol = n2),
+      cache = cache,
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
     ))
   }
@@ -906,22 +1107,22 @@ init_DyNAM_choice.cycle <- function(effectFun, network, window, n1, n2, ...) {
   # compute stat
   cache <- unname(t(network %*% network))
   diag(cache) <- 0
-
+  
   return(list(
     cache = cache,
     stat = forceAndCall(1, funApply, cache)
   ))
 }
 
-#' update stat cyclying using cache
+#' update stat cycle of length two using cache
 #'
 #' @param network matrix n1*n1
 #' @param sender integer
 #' @param receiver integer
 #' @param replace numeric
 #' @param cache stat matrix numeric n1 * n1
-#' @param isTwoMode logical
-#' @param transformFun function to apply to the stat
+#' @param is_two_mode logical
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache matrix size n1 * n1,
@@ -952,17 +1153,20 @@ init_DyNAM_choice.cycle <- function(effectFun, network, window, n1, n2, ...) {
 #'   nrow = 5, ncol = 5
 #' )
 #'
-#' update_DyNAM_choice_cycle(network, 4, 3, 5, cache, transformFun = sqrt)
-#' update_DyNAM_choice_cycle(network, 1, 4, 0, cache, transformFun = sqrt)
-#' update_DyNAM_choice_cycle(network, 5, 1, 8, cache, transformFun = sqrt)
+#' update_DyNAM_choice_cycle(network, 4, 3, 5, cache, transformer_fn = sqrt)
+#' update_DyNAM_choice_cycle(network, 1, 4, 0, cache, transformer_fn = sqrt)
+#' update_DyNAM_choice_cycle(network, 5, 1, 8, cache, transformer_fn = sqrt)
 #' }
 update_DyNAM_choice_cycle <- function(
     network,
     sender,
     receiver,
     replace, cache,
-    isTwoMode = FALSE,
-    transformFun = identity) {
+    is_two_mode = FALSE,
+    transformer_fn = identity,
+    history = c('pooled','sequential','consecutive'),
+    eventOrder = 0) {
+  history <- match.arg(history, c('pooled','sequential','consecutive'))
   # only relevant for one-mode networks
   res <- list(cache = cache, changes = NULL)
   if (sender == receiver) {
@@ -971,39 +1175,40 @@ update_DyNAM_choice_cycle <- function(
   # get old value, always weighted
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  # If the old value of the tie is the same as the replace value
+  if (oldValue == replace) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
-  # get all in-neighbors of sender and out-neighbors of receiver
-  # consider j -> k -> i,
-  # when sender = k and receiver = j, constraint that k != j has been satisfied.
-  temp <- network[, sender]
-  temp[c(sender, receiver)] <- 0 # don't consider the cases with i = k
-  inSender <- which(temp > 0)
-  # when sender = i and receiver = k, constraint that i != k has been satisfied.
-  temp <- network[receiver, ]
-  temp[c(sender, receiver)] <- 0 # don't consider the cases with  k = j
-  outReceiver <- which(temp > 0)
-  ids <- rbind(
-    if (length(outReceiver) > 0) cbind(outReceiver, sender),
-    if (length(inSender) > 0) cbind(receiver, inSender)
+  
+  compute_history <- paste0("compute_update_two_path_", history)
+  
+  ids <- do.call(
+    what = compute_history,
+    args = list(
+      network = network, sender = sender, receiver = receiver,
+      replace = replace,
+      cache = cache,
+      eventOrder = eventOrder
+    )
   )
+  
+  if (history == "consecutive") {
+    cache <- ids[["cache"]]
+    ids <- ids[["ids"]]
+    attr(res$cache, "lastUpdate") <- attr(cache, 'lastUpdate')
+  }
+  
   # update cache
-  if (length(outReceiver) + length(inSender) > 0) {
-    # changes in two-paths (i->k->j)
-    replaceValues <- replace - oldValue + res$cache[cbind(ids[, 1], ids[, 2])]
-    res$cache[cbind(ids[, 1], ids[, 2])] <- replaceValues
+  if (length(ids) > 0) {
+    # changes in two-paths (j->k->i)
+    replaceValues <- replace - oldValue +
+      res$cache[cbind(ids[, "sink"], ids[, "source"])]
+    res$cache[cbind(ids[, "sink"], ids[, "source"])] <- replaceValues
     res$changes <- cbind(
-      node1 = ids[, 1],
-      node2 = ids[, 2],
-      replace = forceAndCall(1, transformFun, replaceValues)
+      node1 = ids[, "sink"],
+      node2 = ids[, "source"],
+      replace = forceAndCall(1, transformer_fn, replaceValues)
     )
   }
   return(res)
@@ -1017,7 +1222,7 @@ update_DyNAM_choice_cycle <- function(
 #' but it's two shared popularity (sharedPop)
 #' a version that consider the values is balance
 #'
-#' @param effectFun function with additional parameters transformFun, isTwoMode
+#' @param effectFun function with additional parameters transformer_fn, is_two_mode
 #' @param network matrix n1*n2
 #' @param window NULL||numeric(1) size of the window
 #' @param n1 integer nrow(network)
@@ -1041,43 +1246,36 @@ update_DyNAM_choice_cycle <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = sqrt) {
+#' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.commonReceiver(effectFUN, network, NULL, 5, 5)
+#' init_DyNAM_choice.common_receiver(effectFUN, network, NULL, 5, 5)
 #' }
-init_DyNAM_choice.commonReceiver <- function(
+init_DyNAM_choice.common_receiver <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]])
-
-  if (n1 != n2) {
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]])
+  
+  if (is_two_mode) {
+    warning(
+      "Check that the 'common_receiver' effect used in a two-mode network",
+      " (is_two_mode = TRUE) \n has conformable dimensions with the",
+      " dependent network, i.e.,\n the first mode nodes set is the same",
+      " as the nodes set of the one-mode dependent network.",
+      call. = FALSE, immediate. = TRUE
+    )
+  }
+  
+  if (n1 != n2 || nrow(network) != n1) {
     stop(
-      "'commonReceiver' effect requeries that the dependent network",
-      " is a one-mode network",
-      call. = FALSE
-    )
-  } else {
-    warning(
-      " (isTwoMode = TRUE) \n has conformable dimensions with the",
-      " dependent network, i.e.,\n the first mode nodes set is the same",
-      " as the nodes set of the one-mode dependet network.",
+      "Dimensions of the two-mode network are not conformable dimensions with the",
+      " dependent network.",
       call. = FALSE, immediate. = TRUE
     )
-  }
-
-  if (isTwoMode) {
-    warning(
-      "Check that the 'commonReceiver' effect used in a two-mode network",
-      " (isTwoMode = TRUE) \n has conformable dimensions with the",
-      " dependent network, i.e.,\n the first mode nodes set is the same",
-      " as the nodes set of the one-mode dependet network.",
-      call. = FALSE, immediate. = TRUE
-    )
-  }
-
+  } 
+  
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
@@ -1089,7 +1287,7 @@ init_DyNAM_choice.commonReceiver <- function(
   network <- sign(network)
   # compute stat
   cache <- unname(tcrossprod(network))
-
+  
   return(list(
     cache = cache,
     stat = forceAndCall(1, funApply, cache)
@@ -1103,8 +1301,8 @@ init_DyNAM_choice.commonReceiver <- function(
 #' @param receiver integer
 #' @param replace numeric
 #' @param cache stat matrix numeric n1 * n1
-#' @param isTwoMode logical
-#' @param transformFun function to apply to the stat
+#' @param is_two_mode logical
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache matrix size n1 * n1,
@@ -1134,23 +1332,23 @@ init_DyNAM_choice.commonReceiver <- function(
 #'   nrow = 5, ncol = 5
 #' )
 #'
-#' update_DyNAM_choice_commonReceiver(network, 2, 1, 5, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_common_receiver(network, 2, 1, 5, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_commonReceiver(network, 3, 2, 0, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_common_receiver(network, 3, 2, 0, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_commonReceiver(network, 2, 5, 2, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_common_receiver(network, 2, 5, 2, cache,
+#'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_commonReceiver <- function(
+update_DyNAM_choice_common_receiver <- function(
     network,
     sender,
     receiver,
     replace, cache,
-    isTwoMode = FALSE,
-    transformFun = identity) {
+    is_two_mode = FALSE,
+    transformer_fn = identity) {
   # only relevant for one-mode networks
   res <- list(cache = cache, changes = NULL)
   if (sender == receiver) {
@@ -1159,16 +1357,11 @@ update_DyNAM_choice_commonReceiver <- function(
   # get old value, always weighted
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  # If the old value of the tie is the same as the replace value
+  if (oldValue == replace) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
   # get in-neighbors of receiver
   # consider i -> k <- j,
   # when sender = i and receiver = k
@@ -1187,7 +1380,7 @@ update_DyNAM_choice_commonReceiver <- function(
     res$changes <- cbind(
       node1 = ids[, 1],
       node2 = ids[, 2],
-      replace = forceAndCall(1, transformFun, replaceValues)
+      replace = forceAndCall(1, transformer_fn, replaceValues)
     )
   }
   return(res)
@@ -1200,7 +1393,7 @@ update_DyNAM_choice_commonReceiver <- function(
 #' an weighted version could be inStructEq structural equivalence effect
 #' with respect to incoming ties
 #'
-#' @param effectFun function with additional parameters transformFun, isTwoMode
+#' @param effectFun function with additional parameters transformer_fn, is_two_mode
 #' @param network matrix n1*n2
 #' @param window NULL||numeric(1) size of the window
 #' @param n1 integer nrow(network)
@@ -1224,20 +1417,28 @@ update_DyNAM_choice_commonReceiver <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = sqrt) {
+#' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.commonSender(effectFUN, network, NULL, 5, 5)
+#' init_DyNAM_choice.common_sender(effectFUN, network, NULL, 5, 5)
 #' }
-init_DyNAM_choice.commonSender <- function(
+init_DyNAM_choice.common_sender <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]])
-
-  n1 <- nrow(network)
-  n2 <- ncol(network)
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]])
+  
+  if (n1 != n2 || ncol(network) != n1) {
+    stop(
+      "Dimensions of the two-mode network are not conformable dimensions with the",
+      " dependent network",
+      call. = FALSE, immediate. = TRUE
+    )
+  }
+  
+  #n1 <- nrow(network)
+  #n2 <- ncol(network)
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
@@ -1249,7 +1450,7 @@ init_DyNAM_choice.commonSender <- function(
   network <- sign(network)
   # compute stat
   cache <- unname(crossprod(network))
-
+  
   return(list(
     cache = cache,
     stat = forceAndCall(1, funApply, cache)
@@ -1263,8 +1464,8 @@ init_DyNAM_choice.commonSender <- function(
 #' @param receiver integer
 #' @param replace numeric
 #' @param cache stat matrix numeric n1 * n1
-#' @param isTwoMode logical
-#' @param transformFun function to apply to the stat
+#' @param is_two_mode logical
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache matrix size n1 * n1,
@@ -1294,26 +1495,26 @@ init_DyNAM_choice.commonSender <- function(
 #'   nrow = 5, ncol = 5
 #' )
 #'
-#' update_DyNAM_choice_commonSender(
+#' update_DyNAM_choice.common_sender(
 #'   network, 1, 2, 5, cache,
-#'   transformFun = sqrt
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_commonSender(
+#' update_DyNAM_choice.common_sender(
 #'   network, 5, 1, 0, cache,
-#'   transformFun = sqrt
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_commonSender(
+#' update_DyNAM_choice.common_sender(
 #'   network, 2, 4, 5, cache,
-#'   transformFun = sqrt
+#'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_commonSender <- function(
+update_DyNAM_choice_common_sender <- function(
     network,
     sender,
     receiver,
     replace, cache,
-    isTwoMode = FALSE,
-    transformFun = identity) {
+    is_two_mode = FALSE,
+    transformer_fn = identity) {
   # only relevant for one-mode networks
   res <- list(cache = cache, changes = NULL)
   if (sender == receiver) {
@@ -1322,16 +1523,12 @@ update_DyNAM_choice_commonSender <- function(
   # get old value, always weighted
   replace <- sign(replace)
   oldValue <- sign(network[sender, receiver])
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  # If the old value of the tie is the same as the replace value
+  if (oldValue == replace) {
     return(res)
   }
-
-  if (is.na(oldValue)) oldValue <- 0
-  if (is.na(replace)) replace <- 0
+  
   # get out-neighbors of sender
   # consider i <- k -> j,
   # when sender = k and receiver = j
@@ -1350,16 +1547,16 @@ update_DyNAM_choice_commonSender <- function(
     res$changes <- cbind(
       node1 = ids[, 1],
       node2 = ids[, 2],
-      replace = forceAndCall(1, transformFun, replaceValues)
+      replace = forceAndCall(1, transformer_fn, replaceValues)
     )
   }
   return(res)
 }
 
-# mixedTrans --------------------------------------------------------------
+# mixed_trans --------------------------------------------------------------
 #' init stat matrix transitivity using cache: Closure of two-paths (i->k->j)
 #'
-#' @param effectFun function with additional parameters transformFun, isTwoMode
+#' @param effectFun function with additional parameters transformer_fn, is_two_mode
 #' @param network list of matrices n1*n2;
 #'   they should be one-mode over the same set of nodes
 #' @param window NULL||numeric(1) size of the window
@@ -1395,26 +1592,26 @@ update_DyNAM_choice_commonSender <- function(
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
 #' networks <- list(net1, net2)
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = sqrt) {
+#' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.mixedTrans(effectFUN, networks, NULL, 5, 5)
-#' init_DyNAM_choice.mixedTrans(effectFUN, networks, 1, 5, 5)
+#' init_DyNAM_choice.mixed_trans(effectFUN, networks, NULL, 5, 5)
+#' init_DyNAM_choice.mixed_trans(effectFUN, networks, 1, 5, 5)
 #' }
-init_DyNAM_choice.mixedTrans <- function(
+init_DyNAM_choice.mixed_trans <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]])
-
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]])
+  
   # always weighted, detach networks
   network2 <- sign(network[[2]])
   network1 <- sign(network[[1]])
   if (ncol(network1) != nrow(network2) ||
-    nrow(network1) != n1 || ncol(network2) != n2) {
+      nrow(network1) != n1 || ncol(network2) != n2) {
     stop(
-      "Non conformable dimensions sizes for effect ", dQuote("mixedTrans"),
+      "Non conformable dimensions sizes for effect ", dQuote("mixed_trans"),
       ".\n\tnetwork 1: ",
       paste(dim(network1), collapse = ", "),
       "\n\tnetwork 2: ", paste(dim(network2), collapse = ", "),
@@ -1426,7 +1623,7 @@ init_DyNAM_choice.mixedTrans <- function(
   }
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) ||
-    all(network1 == 0) || all(network2 == 0)) {
+      all(network1 == 0) || all(network2 == 0)) {
     return(list(
       cache = matrix(0, nrow = n1, ncol = n2),
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
@@ -1434,10 +1631,10 @@ init_DyNAM_choice.mixedTrans <- function(
   }
   # compute stat
   cache <- unname(network1 %*% network2)
-
+  
   # # It do no harm if we consider chain i->k->j with i = j
-  # if (!isTwoMode) diag(stats) <- 0
-
+  # if (!is_two_mode) diag(stats) <- 0
+  
   return(list(
     cache = cache,
     stat = forceAndCall(1, funApply, cache)
@@ -1454,14 +1651,14 @@ init_DyNAM_choice.mixedTrans <- function(
 #' @param netUpdate integer, indicates if the first or second network
 #'   is being updated
 #' @param cache stat matrix numeric n1 * n1
-#' @param isTwoMode logical
-#' @param transformFun function to apply to the stat
+#' @param is_two_mode logical
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache matrix size n1 * n1,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
-#' @aliases mixedTrans
+#' @aliases mixed_trans
 #'
 #' @examples
 #' \donttest{
@@ -1496,50 +1693,44 @@ init_DyNAM_choice.mixedTrans <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' update_DyNAM_choice_mixedTrans(networks, 4, 3, 5, 1, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_trans(networks, 4, 3, 5, 1, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedTrans(networks, 4, 3, 5, 2, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_trans(networks, 4, 3, 5, 2, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedTrans(networks, 2, 1, 0, 1, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_trans(networks, 2, 1, 0, 1, cache,
+#'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_mixedTrans <- function(
+update_DyNAM_choice_mixed_trans <- function(
     network, sender, receiver, replace,
     netUpdate,
-    cache, isTwoMode = FALSE,
-    transformFun = identity) {
+    cache, is_two_mode = FALSE,
+    transformer_fn = identity) {
   if (length(netUpdate) > 1 || !netUpdate %in% c(1, 2)) {
-    stop(dQuote("mixedTrans"), "receive a wrong ",
-      dQuote("netUpdate"), " argument. ",
-      "Check you declare only two networks in network argument",
-      call. = FALSE
+    stop(dQuote("mixed_trans"), "receive a wrong ",
+         dQuote("netUpdate"), " argument. ",
+         "Check you declare only two networks in network argument",
+         call. = FALSE
     )
   }
-
+  
   network2 <- network[[2]]
   network1 <- network[[1]]
-
+  
   res <- list(cache = cache, changes = NULL)
   if (sender == receiver) {
     return(res)
   }
   replace <- sign(replace)
-
+  
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # receiver's outNeighbors in network2 create new two paths with sender
     temp <- network2[receiver, ]
@@ -1552,7 +1743,7 @@ update_DyNAM_choice_mixedTrans <- function(
       res$changes <- cbind(
         node1 = ids[, 1], node2 = ids[, 2],
         replace = forceAndCall(
-          1, transformFun,
+          1, transformer_fn,
           replaceValues
         )
       )
@@ -1560,16 +1751,10 @@ update_DyNAM_choice_mixedTrans <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # sender's inNeighbors in network1 create new two paths with receiver
     temp <- network1[, sender]
@@ -1582,7 +1767,7 @@ update_DyNAM_choice_mixedTrans <- function(
       res$changes <- cbind(
         node1 = ids[, 1], node2 = ids[, 2],
         replace = forceAndCall(
-          1, transformFun,
+          1, transformer_fn,
           replaceValues
         )
       )
@@ -1591,10 +1776,10 @@ update_DyNAM_choice_mixedTrans <- function(
   }
 }
 
-# mixedCycle --------------------------------------------------------------
+# mixed_cycle --------------------------------------------------------------
 #' init stat matrix transitivity using cache: Closure of two-paths (j->k->i)
 #'
-#' @param effectFun function with additional parameters transformFun, isTwoMode
+#' @param effectFun function with additional parameters transformer_fn, is_two_mode
 #' @param network list of matrices n1*n2;
 #'   they should be one-mode over the same set of nodes
 #' @param window NULL||numeric(1) size of the window
@@ -1630,27 +1815,27 @@ update_DyNAM_choice_mixedTrans <- function(
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
 #' networks <- list(net1, net2)
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = sqrt) {
+#' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.mixedCycle(effectFUN, networks, NULL, 5, 5)
-#' init_DyNAM_choice.mixedCycle(effectFUN, networks, 1, 5, 5)
+#' init_DyNAM_choice.mixed_cycle(effectFUN, networks, NULL, 5, 5)
+#' init_DyNAM_choice.mixed_cycle(effectFUN, networks, 1, 5, 5)
 #' }
-init_DyNAM_choice.mixedCycle <- function(
+init_DyNAM_choice.mixed_cycle <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]])
-
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]])
+  
   # always weighted, detach networks
   network2 <- sign(network[[2]])
   network1 <- sign(network[[1]])
-
+  
   if (ncol(network1) != nrow(network2) ||
-    nrow(network1) != n1 || ncol(network2) != n2) {
+      nrow(network1) != n1 || ncol(network2) != n2) {
     stop(
-      "Non conformable dimensions sizes for effect ", dQuote("mixedCycle"),
+      "Non conformable dimensions sizes for effect ", dQuote("mixed_cycle"),
       ".\n\tnetwork 1: ", paste(dim(network1), collapse = ", "),
       "\n\tnetwork 2: ", paste(dim(network2), collapse = ", "),
       "\n\tdependent network: ", n1, ", ", n2,
@@ -1661,7 +1846,7 @@ init_DyNAM_choice.mixedCycle <- function(
   }
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) ||
-    all(network1 == 0) || all(network2 == 0)) {
+      all(network1 == 0) || all(network2 == 0)) {
     return(list(
       cache = matrix(0, nrow = n1, ncol = n2),
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
@@ -1669,10 +1854,10 @@ init_DyNAM_choice.mixedCycle <- function(
   }
   # compute stat
   cache <- unname(t(network1 %*% network2))
-
+  
   # # It do no harm if we consider chain i->k->j with i = j
-  # if (!isTwoMode) diag(stats) <- 0
-
+  # if (!is_two_mode) diag(stats) <- 0
+  
   return(list(
     cache = cache,
     stat = forceAndCall(1, funApply, cache)
@@ -1688,14 +1873,14 @@ init_DyNAM_choice.mixedCycle <- function(
 #' @param netUpdate integer, indicates if the first or second network
 #'   is being updated
 #' @param cache stat matrix numeric n1 * n1
-#' @param isTwoMode logical
-#' @param transformFun function to apply to the stat
+#' @param is_two_mode logical
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache matrix size n1 * n1,
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
-#' @aliases mixedCycle
+#' @aliases mixed_cycle
 #'
 #' @examples
 #' \donttest{
@@ -1730,50 +1915,44 @@ init_DyNAM_choice.mixedCycle <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' update_DyNAM_choice_mixedCycle(networks, 4, 3, 5, 1, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_cycle(networks, 4, 3, 5, 1, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCycle(networks, 4, 3, 5, 2, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_cycle(networks, 4, 3, 5, 2, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCycle(networks, 2, 1, 0, 1, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_cycle(networks, 2, 1, 0, 1, cache,
+#'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_mixedCycle <- function(
+update_DyNAM_choice_mixed_cycle <- function(
     network, sender, receiver, replace,
     netUpdate,
-    cache, isTwoMode = FALSE,
-    transformFun = identity) {
+    cache, is_two_mode = FALSE,
+    transformer_fn = identity) {
   if (length(netUpdate) > 1 || !netUpdate %in% c(1, 2)) {
-    stop(dQuote("mixedCycle"), " receive a wrong ",
-      dQuote("netUpdate"), " argument. ",
-      "Check that you only declare two networks as argument.",
-      call. = FALSE
+    stop(dQuote("mixed_cycle"), " receive a wrong ",
+         dQuote("netUpdate"), " argument. ",
+         "Check that you only declare two networks as argument.",
+         call. = FALSE
     )
   }
-
+  
   network2 <- network[[2]]
   network1 <- network[[1]]
-
+  
   res <- list(cache = cache, changes = NULL)
   if (sender == receiver) {
     return(res)
   }
   replace <- sign(replace)
-
+  
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # receiver's outNeighbors in network2 create new two paths with sender
     temp <- network2[receiver, ]
@@ -1786,7 +1965,7 @@ update_DyNAM_choice_mixedCycle <- function(
       res$changes <- cbind(
         node1 = ids[, 1], node2 = ids[, 2],
         replace = forceAndCall(
-          1, transformFun,
+          1, transformer_fn,
           replaceValues
         )
       )
@@ -1794,16 +1973,10 @@ update_DyNAM_choice_mixedCycle <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # sender's inNeighbors in network1 create new two paths with receiver
     temp <- network1[, sender]
@@ -1816,7 +1989,7 @@ update_DyNAM_choice_mixedCycle <- function(
       res$changes <- cbind(
         node1 = ids[, 1], node2 = ids[, 2],
         replace = forceAndCall(
-          1, transformFun,
+          1, transformer_fn,
           replaceValues
         )
       )
@@ -1828,7 +2001,7 @@ update_DyNAM_choice_mixedCycle <- function(
 # mixed common receiver ---------------------------------------------------
 #' init stat matrix using cache: two-paths (i->k<-j)
 #'
-#' @param effectFun function with additional parameters transformFun, isTwoMode
+#' @param effectFun function with additional parameters transformer_fn, is_two_mode
 #' @param network list of two matrices
 #' @param window NULL||numeric(1) size of the window
 #' @param n1 integer nrow(network)
@@ -1863,22 +2036,22 @@ update_DyNAM_choice_mixedCycle <- function(
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
 #' networks <- list(net1, net2)
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = sqrt) {
+#' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.mixedCommonReceiver(effectFUN, networks, NULL, 5, 5)
-#' init_DyNAM_choice.mixedCommonReceiver(effectFUN, networks, 1, 5, 5)
+#' init_DyNAM_choice.mixed_common_receiver(effectFUN, networks, NULL, 5, 5)
+#' init_DyNAM_choice.mixed_common_receiver(effectFUN, networks, 1, 5, 5)
 #' }
-init_DyNAM_choice.mixedCommonReceiver <- function(
+init_DyNAM_choice.mixed_common_receiver <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]])
-  if (isTwoMode) {
-    stop(dQuote("mixedCommonReceiver"),
-      " effect must not use when is a two-mode network (isTwoMode = TRUE)",
-      call. = FALSE
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]])
+  if (is_two_mode) {
+    stop(dQuote("mixed_common_receiver"),
+         " effect must not use when is a two-mode network (is_two_mode = TRUE)",
+         call. = FALSE
     )
   }
   # always weighted, detach networks
@@ -1886,7 +2059,7 @@ init_DyNAM_choice.mixedCommonReceiver <- function(
   network1 <- sign(network[[1]])
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) ||
-    all(network1 == 0) || all(network2 == 0)) {
+      all(network1 == 0) || all(network2 == 0)) {
     return(list(
       cache = matrix(0, nrow = n1, ncol = n2),
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
@@ -1895,10 +2068,10 @@ init_DyNAM_choice.mixedCommonReceiver <- function(
   # compute stat
   cache <- unname(tcrossprod(network1, network2))
   cache <- cache + t(cache)
-
+  
   # # It do no harm if we consider chain i->k->j with i = j
-  # if (!isTwoMode) diag(stats) <- 0
-
+  # if (!is_two_mode) diag(stats) <- 0
+  
   return(list(
     cache = cache,
     stat = forceAndCall(1, funApply, cache)
@@ -1915,8 +2088,8 @@ init_DyNAM_choice.mixedCommonReceiver <- function(
 #' @param netUpdate integer, indicates if the first or second network
 #'   is being updated
 #' @param cache stat matrix numeric n1 * n1
-#' @param isTwoMode logical
-#' @param transformFun function to apply to the stat
+#' @param is_two_mode logical
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache matrix size n1 * n1,
@@ -1956,52 +2129,46 @@ init_DyNAM_choice.mixedCommonReceiver <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' update_DyNAM_choice_mixedCommonReceiver(networks, 5, 1, 2, 1, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_common_receiver(networks, 5, 1, 2, 1, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonReceiver(networks, 5, 2, 0, 2, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_common_receiver(networks, 5, 2, 0, 2, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonReceiver(networks, 2, 3, 6, 2, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_common_receiver(networks, 2, 3, 6, 2, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonReceiver(networks, 4, 3, 6, 2, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_common_receiver(networks, 4, 3, 6, 2, cache,
+#'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_mixedCommonReceiver <- function(
+update_DyNAM_choice_mixed_common_receiver <- function(
     network, sender, receiver, replace,
     netUpdate,
-    cache, isTwoMode = FALSE,
-    transformFun = identity) {
+    cache, is_two_mode = FALSE,
+    transformer_fn = identity) {
   if (length(netUpdate) > 1 || !netUpdate %in% c(1, 2)) {
-    stop(dQuote("mixedCommonReceiver"),
-      "receive a wrong ", dQuote("netUpdate"), " argument. ",
-      "Check that you only declare two networks as argument",
-      call. = FALSE
+    stop(dQuote("mixed_common_receiver"),
+         "receive a wrong ", dQuote("netUpdate"), " argument. ",
+         "Check that you only declare two networks as argument",
+         call. = FALSE
     )
   }
   network2 <- network[[2]]
   network1 <- network[[1]]
-
+  
   res <- list(cache = cache, changes = NULL)
   if (sender == receiver) {
     return(res)
   }
   replace <- sign(replace)
-
+  
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # receiver's inNeighbors in network2 create new two in star with sender
     temp <- network2[, receiver]
@@ -2017,7 +2184,7 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
       res$changes <- cbind(
         node1 = ids[, 1], node2 = ids[, 2],
         replace = forceAndCall(
-          1, transformFun,
+          1, transformer_fn,
           replaceValues
         )
       )
@@ -2025,16 +2192,10 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # sender's inNeighbors in network1 create new two paths with receiver
     temp <- network1[, receiver]
@@ -2050,7 +2211,7 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
       res$changes <- cbind(
         node1 = ids[, 1], node2 = ids[, 2],
         replace = forceAndCall(
-          1, transformFun,
+          1, transformer_fn,
           replaceValues
         )
       )
@@ -2062,7 +2223,7 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
 # mixed common sender -------------------------------------------------------
 #' init stat matrix using cache: two-paths (i<-k->j)
 #'
-#' @param effectFun function with additional parameters transformFun, isTwoMode
+#' @param effectFun function with additional parameters transformer_fn, is_two_mode
 #' @param network list of two matrices
 #' @param window NULL||numeric(1) size of the window
 #' @param n1 integer nrow(network)
@@ -2097,22 +2258,22 @@ update_DyNAM_choice_mixedCommonReceiver <- function(
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
 #' networks <- list(net1, net2)
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = sqrt) {
+#' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.mixedCommonSender(effectFUN, networks, NULL, 5, 5)
-#' init_DyNAM_choice.mixedCommonSender(effectFUN, networks, 1, 5, 5)
+#' init_DyNAM_choice.mixed_common_sender(effectFUN, networks, NULL, 5, 5)
+#' init_DyNAM_choice.mixed_common_sender(effectFUN, networks, 1, 5, 5)
 #' }
-init_DyNAM_choice.mixedCommonSender <- function(
+init_DyNAM_choice.mixed_common_sender <- function(
     effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]])
-  if (isTwoMode) {
-    stop(dQuote("mixedCommonSender"),
-      " effect must not use when is a two-mode network (isTwoMode = TRUE)",
-      call. = FALSE
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]])
+  if (is_two_mode) {
+    stop(dQuote("mixed_common_sender"),
+         " effect must not use when is a two-mode network (is_two_mode = TRUE)",
+         call. = FALSE
     )
   }
   # always weighted, detach networks
@@ -2120,7 +2281,7 @@ init_DyNAM_choice.mixedCommonSender <- function(
   network1 <- sign(network[[1]])
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) ||
-    all(network1 == 0) || all(network2 == 0)) {
+      all(network1 == 0) || all(network2 == 0)) {
     return(list(
       cache = matrix(0, nrow = n1, ncol = n2),
       stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
@@ -2129,10 +2290,10 @@ init_DyNAM_choice.mixedCommonSender <- function(
   # compute stat
   cache <- unname(crossprod(network1, network2))
   cache <- cache + t(cache)
-
+  
   # # It do no harm if we consider chain i<-k->j with i = j
-  # if (!isTwoMode) diag(stats) <- 0
-
+  # if (!is_two_mode) diag(stats) <- 0
+  
   return(list(
     cache = cache,
     stat = forceAndCall(1, funApply, cache)
@@ -2149,8 +2310,8 @@ init_DyNAM_choice.mixedCommonSender <- function(
 #' @param netUpdate integer, indicates if the first or second network
 #'   is being updated
 #' @param cache stat matrix numeric n1 * n1
-#' @param isTwoMode logical
-#' @param transformFun function to apply to the stat
+#' @param is_two_mode logical
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache matrix size n1 * n1,
@@ -2190,52 +2351,46 @@ init_DyNAM_choice.mixedCommonSender <- function(
 #'   ),
 #'   nrow = 5, ncol = 5
 #' )
-#' update_DyNAM_choice_mixedCommonSender(networks, 3, 4, 2, 1, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_common_sender(networks, 3, 4, 2, 1, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonSender(networks, 5, 3, 2, 2, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice_mixed_common_sender(networks, 5, 3, 2, 2, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonSender(networks, 4, 3, 0, 1, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice.mixed_common_sender(networks, 4, 3, 0, 1, cache,
+#'   transformer_fn = sqrt
 #' )
-#' update_DyNAM_choice_mixedCommonSender(networks, 1, 4, 0, 1, cache,
-#'   transformFun = sqrt
+#' update_DyNAM_choice.mixed_common_sender(networks, 1, 4, 0, 1, cache,
+#'   transformer_fn = sqrt
 #' )
 #' }
-update_DyNAM_choice_mixedCommonSender <- function(
+update_DyNAM_choice_mixed_common_sender <- function(
     network, sender, receiver, replace,
     netUpdate,
-    cache, isTwoMode = FALSE,
-    transformFun = identity) {
+    cache, is_two_mode = FALSE,
+    transformer_fn = identity) {
   if (length(netUpdate) > 1 || !netUpdate %in% c(1, 2)) {
-    stop(dQuote("mixedCommonSender"),
-      "receive a wrong ", dQuote("netUpdate"), " argument. ",
-      "Check that only two networks are declared in the 'network' argument",
-      call. = FALSE
+    stop(dQuote("mixed_common_sender"),
+         "receive a wrong ", dQuote("netUpdate"), " argument. ",
+         "Check that only two networks are declared in the 'network' argument",
+         call. = FALSE
     )
   }
   network2 <- network[[2]]
   network1 <- network[[1]]
-
+  
   res <- list(cache = cache, changes = NULL)
   if (sender == receiver) {
     return(res)
   }
   replace <- sign(replace)
-
+  
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # receiver's inNeighbors in network2 create new two in star with sender
     temp <- network2[sender, ]
@@ -2251,7 +2406,7 @@ update_DyNAM_choice_mixedCommonSender <- function(
       res$changes <- cbind(
         node1 = ids[, 1], node2 = ids[, 2],
         replace = forceAndCall(
-          1, transformFun,
+          1, transformer_fn,
           replaceValues
         )
       )
@@ -2259,16 +2414,10 @@ update_DyNAM_choice_mixedCommonSender <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (is.na(oldValue) && is.na(replace)) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
-      return(res)
-    }
-    if (is.na(oldValue)) {
-      oldValue <- 0
-    }
-    if (is.na(replace)) {
-      replace <- 0
     }
     # sender's inNeighbors in network1 create new two paths with receiver
     temp <- network1[sender, ]
@@ -2284,7 +2433,7 @@ update_DyNAM_choice_mixedCommonSender <- function(
       res$changes <- cbind(
         node1 = ids[, 1], node2 = ids[, 2],
         replace = forceAndCall(
-          1, transformFun,
+          1, transformer_fn,
           replaceValues
         )
       )
@@ -2296,7 +2445,7 @@ update_DyNAM_choice_mixedCommonSender <- function(
 # four --------------------------------------------------------------------
 #' init stat matrix four using cache: Closure of three-paths (i->k<-j->l)
 #'
-#' @param effectFun function with additional parameters transformFun, isTwoMode
+#' @param effectFun function with additional parameters transformer_fn, is_two_mode
 #' @param network matrix n1*n2
 #' @param window NULL|numeric size of the window
 #' @param n1 integer nrow(network)
@@ -2320,7 +2469,7 @@ update_DyNAM_choice_mixedCommonSender <- function(
 #'   ),
 #'   nrow = 5, ncol = 5, byrow = TRUE
 #' )
-#' effectFUN <- function(isTwoMode = FALSE, transformFun = sqrt) {
+#' effectFUN <- function(is_two_mode = FALSE, transformer_fn = sqrt) {
 #'   NULL
 #' }
 #' init_DyNAM_choice.four(effectFUN, network, NULL, 5, 5)
@@ -2333,9 +2482,9 @@ init_DyNAM_choice.four <- function(
   }
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]])
-
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]])
+  
   # if (anyNA(network)) network[is.na(network)] <- 0
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
@@ -2347,11 +2496,11 @@ init_DyNAM_choice.four <- function(
   # always weighted
   network <- sign(network)
   # we don't consider self-connecting edges which may appears in one-mode models
-  if (!isTwoMode) diag(network) <- 0
-
+  if (!is_two_mode) diag(network) <- 0
+  
   # compute stat
   # Consider a chain i->k<-j->l
-
+  
   # stat <- crossprod(tcrossprod(network, network), network)
   stat <- tcrossprod(network, network) %*% network
   temp <- network * network
@@ -2364,7 +2513,7 @@ init_DyNAM_choice.four <- function(
   ## i==j&& l==k which is essentially i -> j
   stat_3 <- network
   stat <- unname(stat - stat_1 - stat_2 + stat_3)
-
+  
   # cache = list(stat = stat, network_old = network)
   return(list(
     cache = stat,
@@ -2379,8 +2528,8 @@ init_DyNAM_choice.four <- function(
 #' @param receiver integer
 #' @param replace numeric
 #' @param cache stat matrix numeric n1 * n2
-#' @param isTwoMode logical
-#' @param transformFun function to apply to the stat
+#' @param is_two_mode logical
+#' @param transformer_fn function to apply to the stat
 #'
 #' @return list:
 #'   cache matrix numeric size n1 * n2,
@@ -2414,23 +2563,23 @@ init_DyNAM_choice.four <- function(
 #' update_DyNAM_choice_four(network,
 #'   3, 5, 2,
 #'   cache,
-#'   isTwoMode = TRUE,
-#'   transformFun = identity
+#'   is_two_mode = TRUE,
+#'   transformer_fn = identity
 #' )
 #' }
 update_DyNAM_choice_four <- function(
     network,
     sender, receiver, replace,
     cache,
-    isTwoMode = FALSE,
-    transformFun = identity) {
+    is_two_mode = FALSE,
+    transformer_fn = identity) {
   # init res
   res <- list(cache = NULL, changes = NULL)
-
+  
   # get old value, always weighted
   replace2 <- sign(replace)
   oldValue <- sign(network[sender, receiver])
-
+  
   # Check if old value has changed
   if (is.na(oldValue) && is.na(replace2)) {
     return(res)
@@ -2439,11 +2588,11 @@ update_DyNAM_choice_four <- function(
   }
   if (is.na(oldValue)) oldValue <- 0
   if (is.na(replace)) replace <- 0
-  if (!isTwoMode && sender == receiver) {
+  if (!is_two_mode && sender == receiver) {
     return(res)
   }
   # CALCULATE CHANGE
-
+  
   # If isIncrease is 1, then the number of edges just from zero to nonzero,
   #  otherwise it is the other way around.
   isIncrease <- sign(replace)
@@ -2451,8 +2600,8 @@ update_DyNAM_choice_four <- function(
   if (anyNA(network)) network[is.na(network)] <- 0
   network[sender, receiver] <- replace
   network <- 1 * (network > 0)
-  if (!isTwoMode) diag(network) <- 0
-
+  if (!is_two_mode) diag(network) <- 0
+  
   # consider all chain i->k<-j->l
   # consider the chains in which the new tie is in position j->l.
   # we consider all possible two-path i->k<-j
@@ -2482,7 +2631,7 @@ update_DyNAM_choice_four <- function(
   temp[sender] <- 0 # don't consider the case with k = l
   neighborReceiver <- which(temp > 0)
   inOutCombinations <- expand.grid(neighborReceiver, neighborSender)
-
+  
   # Calculate the increment
   changes <- rbind(
     if (length(twoPathFromSender) > 0) {
@@ -2504,28 +2653,28 @@ update_DyNAM_choice_four <- function(
       )
     }
   )
-
+  
   if (!is.null(changes)) {
     if (nrow(changes) > 1) {
       changes <- as.data.frame(changes)
       changes <- stats::aggregate(replace ~ ., changes, sum)
       changes <- as.matrix(changes)
     }
-
+    
     # Calculate the replace
     changes[, "replace"] <-
       cache[cbind(changes[, "node1"], changes[, "node2"])] +
       changes[, "replace"]
-
+    
     cache[cbind(changes[, "node1"], changes[, "node2"])] <- changes[, "replace"]
     # res$changes <- changes
     changes[, "replace"] <- forceAndCall(
       1,
-      transformFun,
+      transformer_fn,
       ifelse(changes[, "replace"] >= 0, changes[, "replace"], 0)
     )
   }
-
+  
   return(list(cache = cache, changes = changes))
 }
 
@@ -2552,10 +2701,10 @@ update_DyNAM_choice_tertius <- function(
     node = NULL,
     replace,
     cache,
-    isTwoMode = FALSE,
+    is_two_mode = FALSE,
     n1 = n1, n2 = n2,
-    transformFun = identity,
-    aggregateFun = function(x) mean(x, na.rm = TRUE)) {
+    transformer_fn = identity,
+    summarizer_fn = function(x) mean(x, na.rm = TRUE)) {
   update_REM_choice_tertius(
     network = network,
     attribute = attribute,
@@ -2564,18 +2713,18 @@ update_DyNAM_choice_tertius <- function(
     node = node,
     replace = replace,
     cache = cache,
-    isTwoMode = isTwoMode,
+    is_two_mode = is_two_mode,
     n1 = n1, n2 = n2,
-    transformFun = transformFun,
-    aggregateFun = aggregateFun, type = "alter"
+    transformer_fn = transformer_fn,
+    summarizer_fn = summarizer_fn, type = "alter"
   )
 }
 
-# tertiusDiff ----------------------------------------------------------------
+# tertius_diff ----------------------------------------------------------------
 #' init stat matrix tertius-diff using cache
 #'
-#' @param effectFun function with additional parameters transformFun,
-#'   aggregateFun
+#' @param effectFun function with additional parameters transformer_fn,
+#'   summarizer_fn
 #' @param network matrix n1*n2
 #' @param attribute numeric vector n1
 #' @param window NULL|numeric size of the window
@@ -2601,19 +2750,19 @@ update_DyNAM_choice_tertius <- function(
 #'   nrow = 5, ncol = 6, byrow = TRUE
 #' )
 #' attribute <- c(1, 0, 1, 3, 1)
-#' effectFUN <- function(transformFun = abs,
-#'                       aggregateFun = function(x) median(x, na.rm = TRUE)) {
+#' effectFUN <- function(transformer_fn = abs,
+#'                       summarizer_fn = function(x) median(x, na.rm = TRUE)) {
 #'   NULL
 #' }
-#' init_DyNAM_choice.tertiusDiff(effectFUN, network, attribute)
+#' init_DyNAM_choice.tertius_diff(effectFUN, network, attribute)
 #' }
-init_DyNAM_choice.tertiusDiff <- function(
+init_DyNAM_choice.tertius_diff <- function(
     effectFun, network, attribute, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
-  aggFun <- eval(params[["aggregateFun"]])
-  funApply <- eval(params[["transformFun"]]) # applied FUN instead
-  isTwoMode <- eval(params[["isTwoMode"]])
+  aggFun <- eval(params[["summarizer_fn"]])
+  funApply <- eval(params[["transformer_fn"]]) # applied FUN instead
+  is_two_mode <- eval(params[["is_two_mode"]])
   # if (anyNA(network)) network[is.na(network)] <- 0
   # has window or is empty initialize empty
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
@@ -2638,17 +2787,17 @@ init_DyNAM_choice.tertiusDiff <- function(
       forceAndCall(1, aggFun, attribute[inReceiver])
     }
   )
-
+  
   stat2 <- forceAndCall(1, funApply, outer(attribute, stat, "-"))
-  # impute missing entries: nodes without inNeighbor, transformFun(differences)
-  if (isTwoMode) {
+  # impute missing entries: nodes without inNeighbor, transformer_fn(differences)
+  if (is_two_mode) {
     stat2[is.na(stat2)] <- mean(stat2, na.rm = TRUE)
   } else {
     diag(stat2) <- NA
     stat2[is.na(stat2)] <- mean(stat2, na.rm = TRUE)
     diag(stat2) <- 0
   }
-  # # applied transformFun to z_i - agg_{k \in N^-(j)}(z_k)
+  # # applied transformer_fn to z_i - agg_{k \in N^-(j)}(z_k)
   return(list(
     cache = stat,
     stat = stat2
@@ -2666,14 +2815,14 @@ init_DyNAM_choice.tertiusDiff <- function(
 #' @param cache numeric vector n1
 #' @param n1 integer nrow(network)
 #' @param n2 integer ncol(network)
-#' @param transformFun function to apply to the difference
-#' @param aggregateFun function usa to aggregate in-neighbors attributes
+#' @param transformer_fn function to apply to the difference
+#' @param summarizer_fn function usa to aggregate in-neighbors attributes
 #'
 #' @return list:
 #'   cache numeric vector size n1
 #'   changes NULL || array cbind(node1 = x, node2 = y, replace = z) stat updates
 #' @noRd
-#' @aliases tertiusDiff
+#' @aliases tertius_diff
 #'
 #' @examples
 #' \donttest{
@@ -2690,29 +2839,29 @@ init_DyNAM_choice.tertiusDiff <- function(
 #' attribute <- c(1, 0, 1, 3, 1)
 #' cache <- c(2, 1, 0, 1, 0, 2)
 #'
-#' update_DyNAM_choice_tertiusDiff(
+#' update_DyNAM_choice_tertius_diff(
 #'   network, attribute,
 #'   sender = 2, receiver = 3,
 #'   node = NULL,
 #'   3,
 #'   cache,
 #'   n1 = 5, n2 = 6,
-#'   transformFun = function(x) x^2,
-#'   aggregateFun = function(x) median(x, na.rm = TRUE)
+#'   transformer_fn = function(x) x^2,
+#'   summarizer_fn = function(x) median(x, na.rm = TRUE)
 #' )
 #'
-#' update_DyNAM_choice_tertiusDiff(
+#' update_DyNAM_choice_tertius_diff(
 #'   network, attribute,
 #'   sender = NULL, receiver = NULL,
 #'   node = 3,
 #'   3,
 #'   cache,
 #'   n1 = 5, n2 = 6,
-#'   transformFun = function(x) x^2,
-#'   aggregateFun = function(x) median(x, na.rm = TRUE)
+#'   transformer_fn = function(x) x^2,
+#'   summarizer_fn = function(x) median(x, na.rm = TRUE)
 #' )
 #' }
-update_DyNAM_choice_tertiusDiff <- function(
+update_DyNAM_choice_tertius_diff <- function(
     network,
     attribute,
     sender = NULL,
@@ -2721,9 +2870,9 @@ update_DyNAM_choice_tertiusDiff <- function(
     replace,
     cache,
     n1 = n1, n2 = n2,
-    isTwoMode = FALSE,
-    transformFun = abs,
-    aggregateFun = function(x) mean(x, na.rm = TRUE)) {
+    is_two_mode = FALSE,
+    transformer_fn = abs,
+    summarizer_fn = function(x) mean(x, na.rm = TRUE)) {
   # utility functions to return third nodes
   third <- function(n, diff = c(node)) {
     setdiff(seq_len(n), diff)
@@ -2738,19 +2887,14 @@ update_DyNAM_choice_tertiusDiff <- function(
     # get old value, always weighted
     replace <- sign(replace)
     oldValue <- sign(network[sender, receiver])
-
-    # Check if old value has changed
-    if (is.na(oldValue) && is.na(replace)) {
-      return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
     }
-
-    if (is.na(oldValue)) oldValue <- 0
-    if (is.na(replace)) replace <- 0
-
+    
     newValue <- replace - oldValue
-
+    
     if (newValue == 1) {
       # get all in-neighbors of receiver k->j, consider also sender
       inReceiver <- c(which(network[, receiver] > 0), sender)
@@ -2758,39 +2902,35 @@ update_DyNAM_choice_tertiusDiff <- function(
       # delete the k -> j tie, not consider sender
       inReceiver <- setdiff(which(network[, receiver] > 0), sender)
     }
-
+    
     # change stat
     valChangeCache <- forceAndCall(
       1,
-      aggregateFun,
+      summarizer_fn,
       if (length(inReceiver) > 0) attribute[inReceiver] else NA
     )
-
+    
     # changes case 1: all nodes needs to be update the att[i] - cache[j] values
-    # if (isTwoMode) seq_len(n2) else third(n1, receiver)
+    # if (is_two_mode) seq_len(n2) else third(n1, receiver)
     nodesChange <- if (!is.na(valChangeCache)) receiver else numeric()
     isImpute <- ifelse(!isImpute && is.na(valChangeCache), TRUE, isImpute)
     cache[receiver] <- valChangeCache
     changes <- NULL
   }
-
+  
   # case 2: an update in the attribute[node] <- replace
   if (!is.null(node) && is.null(sender) && is.null(receiver)) {
     # Get old value
     oldValue <- attribute[node]
-
-    # Check if old value has changed
-    if (is.na(oldValue) && is.na(replace)) {
-      return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
     }
-
-    if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
-
+    
     # get all out-neighbors of node k->j
     outNode <- which(network[node, ] > 0)
-
+    
     cache[outNode] <-
       vapply(
         X = outNode,
@@ -2798,23 +2938,23 @@ update_DyNAM_choice_tertiusDiff <- function(
           # # inNeighbor of outNode, excluding Node because has a new value
           inReceiver <- setdiff(which(network[, x] > 0), node)
           # # apply aggFun to inNeighbor(outNode)
-          forceAndCall(1, aggregateFun, c(attribute[inReceiver], replace))
+          forceAndCall(1, summarizer_fn, c(attribute[inReceiver], replace))
         },
         FUN.VALUE = double(1)
       )
-
+    
     # changes case 2: it's an update value for node,
     #   then its update is done separately
     nodesChange <- outNode
     isNotMissCache <- which(!is.na(cache))
-    if (!isTwoMode) isNotMissCache <- setdiff(isNotMissCache, node)
+    if (!is_two_mode) isNotMissCache <- setdiff(isNotMissCache, node)
     changes <- cbind(
       node1 = node,
       node2 = isNotMissCache,
       replace = forceAndCall(
         1,
-        transformFun,
-        (if (isTwoMode) replace else replace[-node]) - cache[isNotMissCache]
+        transformer_fn,
+        (if (is_two_mode) replace else replace[-node]) - cache[isNotMissCache]
       )
     )
   }
@@ -2826,12 +2966,12 @@ update_DyNAM_choice_tertiusDiff <- function(
         nodesChange,
         \(x) {
           cbind(
-            node1 = if (isTwoMode) seq_len(n1) else third(n1, x),
+            node1 = if (is_two_mode) seq_len(n1) else third(n1, x),
             node2 = x,
             replace = forceAndCall(
               1,
-              transformFun,
-              (if (isTwoMode) attribute else attribute[-x]) - cache[x]
+              transformer_fn,
+              (if (is_two_mode) attribute else attribute[-x]) - cache[x]
             )
           )
         }
@@ -2842,7 +2982,7 @@ update_DyNAM_choice_tertiusDiff <- function(
   if (isEmpty) {
     toImpute <- matrix(TRUE, nrow = n1, ncol = n2)
     toImpute[cbind(changes[, "node1"], changes[, "node2"])] <- FALSE
-    if (!isTwoMode) {
+    if (!is_two_mode) {
       diag(toImpute) <- FALSE
     }
     imputeVal <- mean(changes[, "replace"], na.rm = TRUE)
@@ -2851,10 +2991,10 @@ update_DyNAM_choice_tertiusDiff <- function(
       cbind(which(toImpute, arr.ind = TRUE), imputeVal)
     )
   } else if (isImpute) {
-    stat <- forceAndCall(1, transformFun, outer(attribute, cache, "-"))
+    stat <- forceAndCall(1, transformer_fn, outer(attribute, cache, "-"))
     toImpute <- is.na(stat)
     toImpute[cbind(changes[, "node1"], changes[, "node2"])] <- FALSE
-    if (!isTwoMode) {
+    if (!is_two_mode) {
       diag(stat) <- NA
       diag(toImpute) <- FALSE
     }
@@ -2875,12 +3015,12 @@ update_DyNAM_choice_tertiusDiff <- function(
 init_DyNAM_choice.alter <- function(effectFun, attribute, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-
+  is_two_mode <- eval(params[["is_two_mode"]])
+  
   # compute stat
   stats <- matrix(attribute, nrow = n1, ncol = n2, byrow = TRUE)
-  if (!isTwoMode) diag(stats) <- 0
-
+  if (!is_two_mode) diag(stats) <- 0
+  
   return(list(stat = stats))
 }
 
@@ -2889,27 +3029,23 @@ update_DyNAM_choice_alter <- function(
     attribute,
     node, replace,
     n1, n2,
-    isTwoMode = FALSE) {
+    is_two_mode = FALSE) {
   res <- list(changes = NULL)
   # Get old value
   oldValue <- attribute[node]
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  # If the old value of the tie is the same as the replace value
+  if (oldValue == replace ) {
     return(res)
   }
-
-  if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
-
+  
   # utility functions to return third nodes
   third <- function(n, diff = c(node)) {
     setdiff(seq_len(n), diff)
   }
-
-  if (!isTwoMode) nodesChange <- third(n1, node) else nodesChange <- seq_len(n1)
-
+  
+  if (!is_two_mode) nodesChange <- third(n1, node) else nodesChange <- seq_len(n1)
+  
   # change stat
   res$changes <- cbind(node1 = nodesChange, node2 = node, replace = replace)
   return(res)
@@ -2920,11 +3056,11 @@ update_DyNAM_choice_alter <- function(
 init_DyNAM_choice.same <- function(effectFun, attribute, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  if (isTwoMode) {
+  is_two_mode <- eval(params[["is_two_mode"]])
+  if (is_two_mode) {
     stop("effect", dQuote("same"),
-      "doesn't work in two mode networks ('isTwoMode = TRUE')",
-      call. = FALSE
+         "doesn't work in two mode networks ('is_two_mode = TRUE')",
+         call. = FALSE
     )
   }
   stat <- 1 * outer(attribute, attribute, "==")
@@ -2934,26 +3070,19 @@ init_DyNAM_choice.same <- function(effectFun, attribute, ...) {
 
 #' @aliases same
 update_DyNAM_choice_same <- function(
-    attribute, node, replace, isTwoMode = FALSE) {
+    attribute, node, replace, is_two_mode = FALSE) {
   res <- list(changes = NULL)
   # Get old value
   oldValue <- attribute[node]
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  # If the old value of the tie is the same as the replace value
+  if (oldValue == replace) {
     return(res)
   }
-
-  if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
-
+  
   # compute change stat
   changes <- NULL
-
-  # if replace is missing impute by the average of not missing values
-  if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
-
+  
   oldSameNodes <- setdiff(which(attribute == oldValue), node)
   if (length(oldSameNodes) != 0) {
     changes <- rbind(
@@ -2962,7 +3091,7 @@ update_DyNAM_choice_same <- function(
       cbind(node1 = oldSameNodes, node2 = node, replace = 0)
     )
   }
-
+  
   sameNodes <- setdiff(which(attribute == replace), node)
   if (length(sameNodes) != 0) {
     changes <- rbind(
@@ -2971,9 +3100,9 @@ update_DyNAM_choice_same <- function(
       cbind(node1 = sameNodes, node2 = node, replace = 1)
     )
   }
-
+  
   if (!is.null(changes)) res$changes <- changes
-
+  
   return(res)
 }
 
@@ -2982,12 +3111,12 @@ update_DyNAM_choice_same <- function(
 init_DyNAM_choice.diff <- function(effectFun, attribute, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]]) # applied FUN instead
-  if (isTwoMode) {
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]]) # applied FUN instead
+  if (is_two_mode) {
     stop("effect", dQuote("diff"),
-      "doesn't work in two mode networks ('isTwoMode = TRUE')",
-      call. = FALSE
+         "doesn't work in two mode networks ('is_two_mode = TRUE')",
+         call. = FALSE
     )
   }
   return(list(stat = forceAndCall(
@@ -3001,29 +3130,26 @@ init_DyNAM_choice.diff <- function(effectFun, attribute, ...) {
 update_DyNAM_choice_diff <- function(
     attribute, node, replace,
     n1, n2,
-    isTwoMode = FALSE,
-    transformFun = abs) {
+    is_two_mode = FALSE,
+    transformer_fn = abs) {
   res <- list(changes = NULL)
   # utility functions to return third nodes
   third <- function(n, diff = c(node)) {
     setdiff(seq_len(n), diff)
   }
-
+  
   # Get old value
   oldValue <- attribute[node]
-
-  # Check if old value has changed
-  if (is.na(oldValue) && is.na(replace)) {
-    return(res)
-  } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+  
+  # If the old value of the tie is the same as the replace value
+  if (oldValue == replace) {
     return(res)
   }
-
-  if (is.na(replace)) replace <- mean(attribute[-node], na.rm = TRUE)
-
+  
+  
   # compute change stat
-  newDiff <- forceAndCall(1, transformFun, replace - attribute[-node])
-
+  newDiff <- forceAndCall(1, transformer_fn, replace - attribute[-node])
+  
   res$changes <- rbind(
     cbind(node1 = node, node2 = third(n1), replace = newDiff),
     cbind(node1 = third(n1), node2 = node, replace = newDiff)
@@ -3036,51 +3162,51 @@ update_DyNAM_choice_diff <- function(
 init_DyNAM_choice.sim <- function(effectFun, attribute, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]]) # applied FUN instead
-  if (isTwoMode) {
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]]) # applied FUN instead
+  if (is_two_mode) {
     stop("effect", dQuote("sim"),
-      "doesn't work in two mode networks ('isTwoMode = TRUE')",
-      call. = FALSE
+         "doesn't work in two mode networks ('is_two_mode = TRUE')",
+         call. = FALSE
     )
   }
   return(list(stat = (-1) *
-    forceAndCall(1, funApply, outer(attribute, attribute, "-"))))
+                forceAndCall(1, funApply, outer(attribute, attribute, "-"))))
 }
 
 #' @aliases sim
 update_DyNAM_choice_sim <- function(
     attribute, node, replace,
     n1, n2,
-    isTwoMode = FALSE,
-    transformFun = abs) {
+    is_two_mode = FALSE,
+    transformer_fn = abs) {
   update_DyNAM_choice_diff(
     attribute = attribute,
     node = node, replace = replace,
     n1 = n1, n2 = n2,
-    isTwoMode = isTwoMode,
-    transformFun = function(x) (-1) * transformFun(x)
+    is_two_mode = is_two_mode,
+    transformer_fn = function(x) (-1) * transformer_fn(x)
   )
 }
 
 # ego alter interaction ---------------------------------------------------
 
 #' @export
-init_DyNAM_choice.egoAlterInt <- function(effectFun, attribute, ...) {
+init_DyNAM_choice.ego_alter_interaction <- function(effectFun, attribute, ...) {
   # Get arguments
   params <- formals(effectFun)
-  isTwoMode <- eval(params[["isTwoMode"]])
-  funApply <- eval(params[["transformFun"]]) # applied FUN instead
-  if (isTwoMode) {
+  is_two_mode <- eval(params[["is_two_mode"]])
+  funApply <- eval(params[["transformer_fn"]]) # applied FUN instead
+  if (is_two_mode) {
     stop("effect", dQuote("diff"),
-      "doesn't work in two mode networks ('isTwoMode = TRUE')",
-      call. = FALSE
+         "doesn't work in two mode networks ('is_two_mode = TRUE')",
+         call. = FALSE
     )
   }
   if (length(attribute) != 2) {
     stop("Interaction ego alter is just define for two attributes")
   }
-
+  
   attr1 <- attribute[[1]]
   attr2 <- attribute[[2]]
   return(list(stat = forceAndCall(1, funApply, outer(attr1, attr2, "*"))))
@@ -3089,41 +3215,37 @@ init_DyNAM_choice.egoAlterInt <- function(effectFun, attribute, ...) {
 #' ego alter interaction
 #' attribute = list(attr1, attr2) attr1 is ego and attr2 is alter
 #' @noRd
-update_DyNAM_choice_egoAlterInt <- function(
+update_DyNAM_choice_ego_alter_interaction <- function(
     attribute, node, replace,
     attUpdate,
     n1, n2,
-    isTwoMode = FALSE,
-    transformFun = identity) {
+    is_two_mode = FALSE,
+    transformer_fn = identity) {
   if (length(attribute) != 2) {
     stop("Interaction ego alter is just define for two attributes")
   }
-
+  
   attr1 <- attribute[[1]]
   attr2 <- attribute[[2]]
-
+  
   res <- list(changes = NULL)
   # utility functions to return third nodes
   third <- function(n, diff = c(node)) {
     setdiff(seq_len(n), diff)
   }
-
+  
   if (attUpdate == 1) {
     # Get old value
     oldValue <- attr1[node]
-
-    # Check if old value has changed
-    if (is.na(oldValue) && is.na(replace)) {
-      return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
     }
-
-    if (is.na(replace)) replace <- mean(attr1[-node], na.rm = TRUE)
-
+    
     # compute change stat
-    newDiff <- forceAndCall(1, transformFun, replace * attr2[-node])
-
+    newDiff <- forceAndCall(1, transformer_fn, replace * attr2[-node])
+    
     res$changes <- rbind(
       cbind(node1 = node, node2 = third(n1), replace = newDiff)
     )
@@ -3131,19 +3253,15 @@ update_DyNAM_choice_egoAlterInt <- function(
   } else if (attUpdate == 2) {
     # Get old value
     oldValue <- attr2[node]
-
-    # Check if old value has changed
-    if (is.na(oldValue) && is.na(replace)) {
-      return(res)
-    } else if (!is.na(oldValue) && !is.na(replace) && oldValue == replace) {
+    
+    # If the old value of the tie is the same as the replace value
+    if (oldValue == replace) {
       return(res)
     }
-
-    if (is.na(replace)) replace <- mean(attr2[-node], na.rm = TRUE)
-
+    
     # compute change stat
-    newDiff <- forceAndCall(1, transformFun, attr1[-node] * replace)
-
+    newDiff <- forceAndCall(1, transformer_fn, attr1[-node] * replace)
+    
     res$changes <- rbind(
       cbind(node1 = third(n1), node2 = node, replace = newDiff)
     )
