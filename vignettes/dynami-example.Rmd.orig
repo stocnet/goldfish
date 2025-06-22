@@ -96,8 +96,8 @@ to model, when an actor (in the dataframe, the `sender` column) joins or
 leaves (`increment` = 1 or -1) a group (`receiver`) at a particular point
 in time (`time`)
 ```{r headDependent}
-dependent.events <- prepdata$dependent.events
-head(dependent.events)
+dependentEvents <- prepdata$dependent.events
+head(dependentEvents)
 ```
 
 3. `exogenous.events`: goldfish events specifying the events that need to
@@ -105,15 +105,15 @@ happen but are not modeled (for example, when an actor leaves a group, a
 dependent event is created for this leaving but an exogenous event is also
 created because the actor "joins" a new group, its own isolated group)
 ```{r headExogenous}
-exogenous.events <- prepdata$exogenous.events
-head(exogenous.events)
+exogenousEvents <- prepdata$exogenous.events
+head(exogenousEvents)
 ```
 
 4. `interaction.updates`: goldfish events that are used to update the number
 of past interactions between participants: 
 ```{r headInteraction}
-interaction.updates <- prepdata$interaction.updates
-head(interaction.updates)
+interactionUpdates <- prepdata$interaction.updates
+head(interactionUpdates)
 ```
 
 5. `opportunities`: list containing the interaction groups available at each
@@ -144,18 +144,18 @@ Then we create the dynamic interaction network between the actors and
 the groups, updated by the previously created events in `dependent.events`
 and `exogenous.events`
 ```{r defNet}
-init.network <- diag(x = 1, nrow(actors), nrow(groups))
+initNetwork <- diag(x = 1, nrow(actors), nrow(groups))
 # goldfish check that row/column names agree with the nodes data frame labels
-dimnames(init.network) <- list(actors$label, groups$label)
-network.interactions <- make_network(
-  matrix = init.network, nodes = actors, nodes2 = groups, directed = TRUE
+dimnames(initNetwork) <- list(actors$label, groups$label)
+networkInteractions <- make_network(
+  matrix = initNetwork, nodes = actors, nodes2 = groups, directed = TRUE
 )
-network.interactions <- link_events(
-  x = network.interactions, change_events = dependent.events,
+networkInteractions <- link_events(
+  x = networkInteractions, change_events = dependentEvents,
   nodes = actors, nodes2 = groups
 )
-network.interactions <- link_events(
-  x = network.interactions, change_events = exogenous.events,
+networkInteractions <- link_events(
+  x = networkInteractions, change_events = exogenousEvents,
   nodes = actors, nodes2 = groups
 )
 ```
@@ -164,17 +164,34 @@ Then we create the dynamic network between the actors that records
 past interactions, updated by the previously created events in
 `interaction.updates`
 ```{r defNetPast, warning=FALSE}
-network.past <- make_network(nodes = actors, directed = FALSE)
-network.past <- link_events(
-  x = network.past, change_events = interaction.updates, nodes = actors
+networkPast <- make_network(nodes = actors, directed = FALSE)
+networkPast <- link_events(
+  x = networkPast, change_events = interactionUpdates, nodes = actors
 ) # don't worry about the warnings
 ```
-Finally, we define the events that we want to model: `dependent.events`:
+In the next step, we define the events that we want to model:
+`dependentEvents`:
+
 ```{r defEvents}
-dependent.events <- make_dependent_events(
-  events = dependent.events, nodes = actors,
-  nodes2 = groups, default_network = network.interactions
+dependentEvents <- make_dependent_events(
+  events = dependentEvents, nodes = actors,
+  nodes2 = groups, default_network = networkInteractions
 )
+```
+
+As a final step, we define a goldfish data object that contains
+all the information needed to estimate the model.
+So, it is a container for the dependent events, the networks, and the nodes
+containing all the information of the dependent events and any dyadic or
+nodal covariate used as explanatory variables in the model.
+
+```{r defData}
+rfidData <- make_data(
+  dependentEvents, networkInteractions, networkPast,
+  interactionUpdates, exogenousEvents, known.before, opportunities,
+  actors, groups
+)
+rfidData
 ```
 
 ### Step 4: Estimate a model with attribute effects
@@ -202,8 +219,8 @@ For the rate, we have the following effects:
   if the proportion of previous friends in the group is high
   
 ```{r modeRateM1}
-formula.rate.M1 <- dependent.events ~  1 +
-  intercept(network.interactions, joining = 1) +
+formulaRateM1 <- dependentEvents ~  1 +
+  intercept(networkInteractions, joining = 1) +
   ego(actors$age, joining = 1, subType = "centered") +
   ego(actors$age, joining = -1, subType = "centered") +
   diff(actors$age, joining = -1, subType = "averaged_sum") +
@@ -227,7 +244,7 @@ and for the choice model:
   if the proportion of previous friends in the group is high
   
 ```{r modeChoiceM1}
-formula.choice.M1 <- dependent.events ~
+formulaChoiceM1 <- dependentEvents ~
   diff(actors$age, subType = "averaged_sum") +
   diff(actors$level, subType = "averaged_sum") +
   same(actors$gender, subType = "proportion") +
@@ -241,28 +258,25 @@ the second explains who people want to leave (or stay with).
 
 Now let us run goldfish estimation!
 ```{r modRateM1Est}
-dataGroups <- make_data(
-  dependent.events, network.interactions, actors, known.before,
-  opportunities, network.past
-)
-est.rate.M1 <- estimate(
-  formula.rate.M1,
-  model = "DyNAMi", sub_model = "rate",
-  data = dataGroups,
+estRateM1 <- estimate_dynami(
+  formulaRateM1,
+  sub_model = "rate",
+  data = rfidData,
   control_estimation = set_estimation_opt(engine = "default")                      
 )
-summary(est.rate.M1)
+summary(estRateM1)
 ```
 
 ```{r modChoiceM1Est}
-est.choice.M1 <- estimate(
-  formula.choice.M1,
-  model = "DyNAMi", sub_model = "choice",
-  data = dataGroups,
+estChoiceM1 <- estimate_dynami(
+  formulaChoiceM1,
+  sub_model = "choice",
+  data = rfidData,
   control_preprocessing =
-    set_preprocessing_opt(opportunities_list = opportunities)
+    set_preprocessing_opt(opportunities_list = opportunities),
+  control_estimation = set_estimation_opt(engine = "default")
 )
-summary(est.choice.M1)
+summary(estChoiceM1)
 ```
 ### Step 5: Estimate a model with structural and time effects
 
@@ -276,8 +290,8 @@ We add to the rate model the effects of:
   who had more interactions in the past to leave groups faster
 
 ```{r modeRateM2}
-formula.rate.M2 <- dependent.events ~  1 +
-  intercept(network.interactions, joining = 1) +
+formulaRateM2 <- dependentEvents ~  1 +
+  intercept(networkInteractions, joining = 1) +
   ego(actors$age, joining = 1, subType = "centered") +
   ego(actors$age, joining = -1, subType = "centered") +
   diff(actors$age, joining = -1, subType = "averaged_sum") +
@@ -285,9 +299,9 @@ formula.rate.M2 <- dependent.events ~  1 +
   same(actors$gender, joining = -1, subType = "proportion") +
   same(actors$group, joining = -1, subType = "proportion") +
   tie(known.before, joining = -1, subType = "proportion") +
-  size(network.interactions, joining = -1, subType = "identity") +
-  egopop(network.past, joining = 1, subType = "normalized") +
-  egopop(network.past, joining = -1, subType = "normalized")
+  size(networkInteractions, joining = -1, subType = "identity") +
+  egopop(networkPast, joining = 1, subType = "normalized") +
+  egopop(networkPast, joining = -1, subType = "normalized")
 ```
 
 We add to the choice model:
@@ -301,17 +315,17 @@ We add to the choice model:
 3. inertia, window = 300s: same as above, for 5 minutes
 
 ```{r modeChoiceM2}
-formula.choice.M2 <- dependent.events ~
+formulaChoiceM2 <- dependentEvents ~
   diff(actors$age, subType = "averaged_sum") +
   diff(actors$level, subType = "averaged_sum") +
   same(actors$gender, subType = "proportion") +
   same(actors$group, subType = "proportion") +
   alter(actors$age, subType = "mean") +
   tie(known.before, subType = "proportion") +
-  size(network.interactions, subType = "identity") +
-  alterpop(network.past, subType = "mean_normalized") +
-  inertia(network.past, window = 60, subType = "mean") +
-  inertia(network.past, window = 300, subType = "mean")
+  size(networkInteractions, subType = "identity") +
+  alterpop(networkPast, subType = "mean_normalized") +
+  inertia(networkPast, window = 60, subType = "mean") +
+  inertia(networkPast, window = 300, subType = "mean")
 ```
 
 One can note that we have normalized (using the option `subType="mean"`)
@@ -324,24 +338,25 @@ please look at the goldfish documentation to learn more.
 
 Now we can run again
 ```{r modRateM2Est}
-est.rate.M2 <- estimate(
-  formula.rate.M2,
-  model = "DyNAMi", sub_model = "rate",
-  data = dataGroups,
+estRateM2 <- estimate_dynami(
+  formulaRateM2,
+  sub_model = "rate",
+  data = rfidData,
   control_estimation = set_estimation_opt(engine = "default")  
 )
-summary(est.rate.M2)
+summary(estRateM2)
 ```
 and:
 ```{r modChoiceM2Est}
-est.choice.M2 <- estimate(
-  formula.choice.M2,
-  model = "DyNAMi", sub_model = "choice",
-  data = dataGroups,
+estChoiceM2 <- estimate_dynami(
+  formulaChoiceM2,
+  sub_model = "choice",
+  data = rfidData,
   control_preprocessing =
-    set_preprocessing_opt(opportunities_list = opportunities)
+    set_preprocessing_opt(opportunities_list = opportunities),
+  control_estimation = set_estimation_opt(engine = "default")
 )
-summary(est.choice.M2)
+summary(estChoiceM2)
 ```
 
 Of course these models ask a bit much from our data,
@@ -355,16 +370,16 @@ a dummy interaction between the intercept and the joining events.
 If we want to report the actual intercept for joining,
 we can calculate the following (for M2 for example):
 ```{r interceptJoining}
-cov.matrix <- vcov(est.rate.M2)
+covMatrix <- vcov(estRateM2)
 
-est.interceptjoining <- coef(est.rate.M2)[1] + coef(est.rate.M2)[2]
-se.interceptjoining <- sqrt(
-  cov.matrix[1, 1] + cov.matrix[2, 2] + 2 * cov.matrix[1, 2]
+estInterceptJoining <- coef(estRateM2)[1] + coef(estRateM2)[2]
+seInterceptJoining <- sqrt(
+  covMatrix[1, 1] + covMatrix[2, 2] + 2 * covMatrix[1, 2]
 )
-t.interceptjoining <- est.interceptjoining / se.interceptjoining
+tInterceptJoining <- estInterceptJoining / seInterceptJoining
 sprintf(
   "Intercept for joining: %.3f (SE = %.3f, t = %.3f)",
-  est.interceptjoining, se.interceptjoining, t.interceptjoining
+  estInterceptJoining, seInterceptJoining, tInterceptJoining
 )
 
 ```

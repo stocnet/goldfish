@@ -6,7 +6,7 @@ test_that(
     subModel <- "rate"
     # endogenous and right-censored events
     formula <- depNetwork ~ 1 + indeg + outdeg(networkExog, weighted = TRUE)
-    modR <- estimate(
+    modR <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -17,7 +17,7 @@ test_that(
       progress = FALSE,
       verbose = FALSE
     )
-    modCd <- estimate(
+    modCd <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -26,7 +26,7 @@ test_that(
       control_estimation =
         set_estimation_opt(engine = "default_c", return_interval_loglik = TRUE)
     )
-    modCgc <- estimate(
+    modCgc <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -49,7 +49,7 @@ test_that(
     subModel <- "rate"
     # endogenous and right-censored events
     formula <- depNetwork ~ indeg + outdeg(networkExog, weighted = TRUE)
-    modR <- estimate(
+    modR <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -57,7 +57,7 @@ test_that(
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default") 
     )
-    modCd <- estimate(
+    modCd <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -65,7 +65,7 @@ test_that(
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
     )
-    modCgc <- estimate(
+    modCgc <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -89,7 +89,7 @@ test_that(
     # endogenous and right-censored events
     formula <- depNetwork ~ inertia + indeg +
       outdeg(networkExog, weighted = TRUE)
-    modR <- estimate(
+    modR <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -97,7 +97,7 @@ test_that(
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default")
     )
-    modCd <- estimate(
+    modCd <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -105,7 +105,7 @@ test_that(
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
     )
-    modCgc <- estimate(
+    modCgc <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -128,21 +128,21 @@ test_that(
     # endogenous and right-censored events
     formula <- depNetwork ~ 1 + inertia + indeg +
       outdeg(networkExog, type = "ego", weighted = TRUE)
-    modR <- estimate(
+    modR <- estimate_wrapper(
       formula,
       model = model,
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default")
     )
-    modCd <- estimate(
+    modCd <- estimate_wrapper(
       formula,
       model = model,
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
     )
-    modCgc <- estimate(
+    modCgc <- estimate_wrapper(
       formula,
       model = model,
       data = dataTest,
@@ -164,21 +164,21 @@ test_that(
     # endogenous and right-censored events
     formula <- depNetwork ~ inertia + indeg +
       outdeg(networkExog, type = "ego", weighted = TRUE)
-    modR <- estimate(
+    modR <- estimate_wrapper(
       formula,
       model = model,
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default")
     )
-    modCd <- estimate(
+    modCd <- estimate_wrapper(
       formula,
       model = model,
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
     )
-    modCgc <- estimate(
+    modCgc <- estimate_wrapper(
       formula,
       model = model,
       data = dataTest,
@@ -201,7 +201,7 @@ test_that(
     # endogenous and right-censored events
     formula <- depNetwork ~ inertia + indeg +
       indeg(networkExog, type = "ego", weighted = TRUE)
-    modR <- estimate(
+    modR <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -209,7 +209,7 @@ test_that(
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default")
     )
-    modCd <- estimate(
+    modCd <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,
@@ -217,7 +217,7 @@ test_that(
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
     )
-    modCgc <- estimate(
+    modCgc <- estimate_wrapper(
       formula,
       model = model,
       sub_model = subModel,

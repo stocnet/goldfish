@@ -134,10 +134,10 @@ test_that("dependent events", {
   )
 })
 test_that("preprocessed", {
-  preproData <- estimate(
+  preproData <- estimate_dynam(
     depNetwork ~ inertia(networkState, weighted = TRUE) +
       tie(networkExog, weighted = TRUE),
-    model = "DyNAM", sub_model = "choice",
+    sub_model = "choice",
     data = dataTest,
     preprocessing_only = TRUE
   )

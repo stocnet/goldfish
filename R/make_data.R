@@ -727,12 +727,18 @@ make_global_attribute <- function(global) {
   return(global)
 }
 
+# Alias for make_global_attribute
+#' @export
+#' @rdname make_global_attribute
+make_global_attribute_goldfish <- make_global_attribute
+
 #' Create a data object for goldfish models
 #'
 #' This function creates a new object of class `data.goldfish` and
 #' populates it with the provided `R` objects and their linked objects,
 #' as specified by attributes common in the 'goldfish' package.
-#' This is useful for creating a self-contained data context for `estimate()`
+#' This is useful for creating a self-contained data context for
+#' `estimate_dynam()`, `estimate_rem()`, `estimate_dynami()` 
 #' and `gather_model_data()`.
 #'
 #' The function recursively searches for linked objects:
@@ -793,7 +799,7 @@ make_global_attribute <- function(global) {
 #' 
 #' fisheriesData <- make_data(
 #'   bilatnet, createBilat, states,
-#'   contignet, sovChanges, regChanges, gdpChanges
+#'   contignet, sovchanges, regchanges, gdpchanges
 #' )
 #' 
 make_data <- function(..., parent_env = parent.frame()) {
@@ -916,6 +922,11 @@ make_data <- function(..., parent_env = parent.frame()) {
   class(data_env) <- c("data.goldfish", "environment")
   return(data_env)
 }
+
+# Alias for make_data
+#' @export
+#' @rdname make_data
+make_data_goldfish <- make_data
 
 #' Link dynamic events to a nodeset or a network
 #'

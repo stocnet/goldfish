@@ -175,8 +175,8 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
 #' callsDependent <- make_dependent_events(
 #'   events = calls, nodes = actors, default_network = callNetwork
 #' )
-#' prep <- estimate(callsDependent ~ inertia + trans,
-#'   model = "DyNAM", sub_model = "choice",
+#' prep <- estimate_dynam(callsDependent ~ inertia + trans,
+#'   sub_model = "choice",
 #'   preprocessing_only = TRUE, silent = TRUE
 #' )
 #' v00 <- ReducePreprocess(prep, "withTime")
@@ -315,8 +315,8 @@ fillChanges <- function(nodes, replace, time, set, is_two_mode = FALSE) {
 #' callsDependent <- make_dependent_events(
 #'   events = calls, nodes = actors, default_network = callNetwork
 #' )
-#' prep <- estimate(callsDependent ~ inertia + trans,
-#'   model = "DyNAM", sub_model = "choice",
+#' prep <- estimate_dynam(callsDependent ~ inertia + trans,
+#'   sub_model = "choice",
 #'   preprocessing_only = TRUE, silent = TRUE
 #' )
 #' finalNet <- UpdateNetwork(callNetwork, calls, nodes = "actors")

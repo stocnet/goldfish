@@ -86,7 +86,7 @@ users are encouraged to consult the package’s vignettes and help files:
 You can install `{goldfish}` directly from
 [CRAN](https://cran.r-project.org/package=goldfish):
 
-    install.packages("goldfish")
+`r load_package install.packages("goldfish")`
 
 To install the development version from GitHub, use the
 [remotes](https://cran.r-project.org/package=remotes) package:
@@ -109,19 +109,19 @@ Evolution data (`?Social_Evolution`).
 ### Define data objects and link events
 
 The main data objects required for the analysis are the node set(s)
-`defineNodes()` and network(s) `make_network()`. The node set object
+`make_nodes()` and network(s) `make_network()`. The node set object
 contains labels and attributes of the actors in the network. In
 contrast, a network object contains the information of past relational
 events between actors. By default, `make_network()` constructs an empty
 matrix, its dimensions defined by the length of the nodeset(s). Data
 frames containing event data that modify these data objects can be
-linked to them using the `linkEvents()` method.
+linked to them using the `link_events()` method.
 
     library(goldfish)
     data("Social_Evolution")
 
     callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
-      linkEvents(changeEvent = calls, nodes = actors) # 2
+      link_events(change_events = calls, nodes = actors) # 2
 
 The events data frame, which indicates the time-varying attributes in
 the node set, contains the following columns:
@@ -146,14 +146,24 @@ contains the following columns:
 
 ### Define dependent events
 
-The final step in defining the data objects is to identify the dependent
+The next step in defining the data objects is to identify the dependent
 events. Here we would like to model as the dependent variable the calls
 between individuals. We specify the event data frame and the node set.
 
-    callsDependent <- defineDependentEvents(
+    callsDependent <- make_dependent_events(
       events = calls, nodes = actors,
-      defaultNetwork = callNetwork
+      default_network = callNetwork
       )
+
+The final step is to make a goldfish object. The data object is a
+goldfish object that contains all the information needed to estimate the
+model. So, it is a container for the dependent events, the networks, and
+the nodes containing all the information of the dependent events and any
+dyadic or nodal covariate used as explanatory variables in the model.
+
+    socialEvolutionData <- make_data(
+      callsDependent, callNetwork, calls, actors
+    )
 
 ### Model specification and estimation
 
@@ -166,18 +176,20 @@ here:
 
     vignette("goldfishEffects")
 
-Now to estimate this model, we use the `?estimate` function.
+Now to estimate this model, we use the a `?estimate` function. For the
+DyNAM model the `estimate_dynam()` function is used.
 
-    mod00Rate <- estimate(
+    mod00Rate <- estimate_dynam(
       callsDependent ~ indeg + outdeg,
-      model = "DyNAM", subModel = "rate"
+      sub_model = "rate",
+      data = socialEvolutionData
     )
 
     summary(mod00Rate)
     #> 
     #> Call:
-    #> estimate(x = callsDependent ~ indeg + outdeg, model = "DyNAM", 
-    #>     subModel = "rate")
+    #> estimate_dynam(x = callsDependent ~ indeg + outdeg, sub_model = "rate", 
+    #>     data = socialEvolutionData)
     #> 
     #> 
     #> Coefficients:
@@ -194,15 +206,16 @@ Now to estimate this model, we use the `?estimate` function.
     #>   BIC:  3514 
     #>   model: "DyNAM" subModel: "rate"
 
-    mod00Choice <- estimate(
+    mod00Choice <- estimate_dynam(
       callsDependent ~ inertia + recip + trans,
-      model = "DyNAM", subModel = "choice"
+      sub_model = "choice",
+      data = socialEvolutionData
     )
     summary(mod00Choice)
     #> 
     #> Call:
-    #> estimate(x = callsDependent ~ inertia + recip + trans, model = "DyNAM", 
-    #>     subModel = "choice")
+    #> estimate_dynam(x = callsDependent ~ inertia + recip + trans, 
+    #>     sub_model = "choice", data = socialEvolutionData)
     #> 
     #> 
     #> Coefficients:

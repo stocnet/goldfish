@@ -28,17 +28,20 @@
 #' \dontshow{
 #' callsDependent <- callsDependent[1:50, ]
 #' }
-#' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-#'   model = "DyNAM", subModel = "choice",
-#'   control_estimation = estimation_options(
+#' socialEvolutionData <- make_data(callsDependent, callNetwork, calls, actors)
+#' mod01 <- estimate_dynam(
+#'   callsDependent ~ inertia + recip + trans,
+#'   sub_model = "choice",
+#'   data = socialEvolutionData,
+#'   control_estimation = set_estimation_opt(
 #'     return_interval_loglik = TRUE,
 #'     engine = "default_c"
 #'   )
 #' )
 #'
-#' examineOutliers(mod01)
+#' examine_outliers(mod01)
 #'
-#' examineChangepoints(mod01)
+#' examine_changepoints(mod01)
 NULL
 
 # Examine outlier cases
@@ -79,11 +82,12 @@ examine_outliers <- function(x,
   if (length(data$time) != length(x$intervalLogL)) {
     calls <- as.list(x$call)
     calls[[1]] <- NULL
-    calls$preprocessingOnly <- TRUE
-    calls$preprocessingInit <- NULL
+    calls$preprocessing_only <- TRUE
+    calls$preprocessing_init <- NULL
     calls$progress <- FALSE
     calls$verbose <- FALSE
-    prep <- suppressWarnings(do.call(estimate, calls))
+    calls$model <- x$model
+    prep <- suppressWarnings(do.call(estimate_wrapper, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
   } else {
     data$intervalLogL <- x$intervalLogL
@@ -196,11 +200,12 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
   if (length(data$time) != length(x$intervalLogL)) {
     calls <- as.list(x$call)
     calls[[1]] <- NULL
-    calls$preprocessingOnly <- TRUE
-    calls$preprocessingInit <- NULL
+    calls$preprocessing_only <- TRUE
+    calls$preprocessing_init <- NULL
     calls$progress <- FALSE
     calls$verbose <- FALSE
-    prep <- suppressWarnings(do.call(goldfish::estimate, calls))
+    calls$model <- x$model
+    prep <- suppressWarnings(do.call(estimate_wrapper, calls))
     data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
   } else {
     data$intervalLogL <- x$intervalLogL

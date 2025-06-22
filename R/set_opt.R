@@ -1,7 +1,7 @@
 #' Control Parameters for Estimation
 #'
 #' Specifies control parameters for the model estimation process in
-#' `[estimate()]`.
+#' `[estimate]`.
 #'
 #' The damping factors arguments control the step size at each iteration of
 #' the Newton-Raphson algorithm. They have a bigger impact in the first
@@ -40,7 +40,8 @@
 #'   Default is `0.001`.
 #' @param initial_damping A numeric value.
 #'   The initial damping factor for the Gauss-Fisher scoring algorithm.
-#'   Default is `NULL`, which allows `estimate()` to set
+#'   Default is `NULL`, which allows `estimate_dynam()`, `estimate_rem()` and
+#'   `estimate_dynami()` to set
 #'   a context-dependent default
 #'   (e.g., 30 or 10 based on wheter the model has windows effects).
 #'   If set, this value is used directly.
@@ -63,11 +64,13 @@
 #'   Default is `FALSE`.
 #' @param engine A character string specifying the estimation engine.
 #'   Options are:
-#'   \item{default_c}{C++ based implementation using RcppEigen
-#'     and RcppParallel.}
-#'   \item{default}{R-based implementation.}
-#'   \item{gather_compute}{C++ based implementation with a different data
-#'     structure that reduces the time but it can increase the memory usage.}
+#'   \describe{
+#'      \item{default_c}{`C++` based implementation using RcppEigen
+#'       and RcppParallel.}
+#'      \item{default}{R-based implementation.}
+#'      \item{gather_compute}{`C++` based implementation with a different data
+#'       structure that reduces the time but it can increase the memory usage.}
+#'    }
 #'   Default is `"default_c"`.
 #'
 #' @return An object of class `estimation_opt.goldfish` (a list object),
@@ -187,7 +190,8 @@ set_estimation_opt <- function(
 #' Control Parameters for Preprocessing
 #'
 #' Specifies control parameters for the data preprocessing stage,
-#' used by `estimate()` (when `preprocessingInit` is not a
+#' used by `estimate_dynam()`, `estimate_rem()` and `estimate_dynami()`
+#' (when `preprocessingInit` is not a
 #' `preprocessed.goldfish` object) and `gather_model_data()`.
 #'
 #' @param start_time A numerical value or a date-time character string

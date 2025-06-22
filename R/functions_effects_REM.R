@@ -551,14 +551,14 @@ init_REM_choice.common_receiver <- function(
   )
 }
 
-update_REM_choice.common_receiver <- function(
+update_REM_choice_common_receiver <- function(
     network,
     sender,
     receiver,
     replace, cache,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice.common_receiver(
+  update_DyNAM_choice_common_receiver(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     cache = cache,
@@ -577,14 +577,14 @@ init_REM_choice.common_sender <- function(
   )
 }
 
-update_REM_choice.common_sender <- function(
+update_REM_choice_common_sender <- function(
     network,
     sender,
     receiver,
     replace, cache,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice.common_sender(
+  update_DyNAM_choice_common_sender(
     network = network,
     sender = sender, receiver = receiver, replace = replace,
     cache = cache,
@@ -1193,27 +1193,27 @@ update_REM_choice_tertius_diff <- function(
 #'     is_two_mode = TRUE, transformer_fn = identity, type = "ego") {
 #'   NULL
 #' }
-#' init_REM_choice.nodeTrans(effectFUN, network, NULL, 5, 5)
+#' init_REM_choice.node_trans(effectFUN, network, NULL, 5, 5)
 #'
 #' effectFUN <- function(
 #'     is_two_mode = FALSE, transformer_fn = identity, type = "ego") {
 #'   NULL
 #' }
-#' init_REM_choice.nodeTrans(effectFUN, network, NULL, 5, 5)
+#' init_REM_choice.node_trans(effectFUN, network, NULL, 5, 5)
 #'
 #' effectFUN <- function(
 #'     is_two_mode = FALSE, transformer_fn = identity, type = "alter") {
 #'   NULL
 #' }
-#' init_REM_choice.nodeTrans(effectFUN, network, NULL, 5, 5)
+#' init_REM_choice.node_trans(effectFUN, network, NULL, 5, 5)
 #'
 #' effectFUN <- function(
 #'     is_two_mode = FALSE, transformer_fn = identity, type = "alter") {
 #'   NULL
 #' }
-#' init_REM_choice.nodeTrans(effectFUN, network, 9, 5, 5)
+#' init_REM_choice.node_trans(effectFUN, network, 9, 5, 5)
 #' }
-init_REM_choice.nodeTrans <- function(effectFun, network, window, n1, n2, ...) {
+init_REM_choice.node_trans <- function(effectFun, network, window, n1, n2, ...) {
   # Get arguments
   params <- formals(effectFun)
   is_two_mode <- eval(params[["is_two_mode"]])
@@ -1221,7 +1221,7 @@ init_REM_choice.nodeTrans <- function(effectFun, network, window, n1, n2, ...) {
   type <- eval(params[["type"]])
 
   if (is_two_mode) {
-    stop("'nodeTrans' effect must not use ",
+    stop("'node_trans' effect must not use ",
       "when is a two-mode network (is_two_mode = TRUE)",
       call. = FALSE
     )
@@ -1275,11 +1275,11 @@ init_REM_choice.nodeTrans <- function(effectFun, network, window, n1, n2, ...) {
 #' @examples
 #' \donttest{
 #' cache <- c(0, 0, 1, 1, 0)
-#' update_REM_choice_nodeTrans(network, 1, 5, 1, cache, 5, 5, type = "alter")
-#' update_REM_choice_nodeTrans(network, 1, 5, 1, cache, 5, 5, type = "ego")
-#' update_REM_choice_nodeTrans(network, 3, 2, 0, cache, 5, 5, type = "ego")
+#' update_REM_choice_node_trans(network, 1, 5, 1, cache, 5, 5, type = "alter")
+#' update_REM_choice_node_trans(network, 1, 5, 1, cache, 5, 5, type = "ego")
+#' update_REM_choice_node_trans(network, 3, 2, 0, cache, 5, 5, type = "ego")
 #' }
-update_REM_choice_nodeTrans <- function(
+update_REM_choice_node_trans <- function(
     network,
     sender,
     receiver,

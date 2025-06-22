@@ -182,7 +182,7 @@ nodeTrans <- function(...) {
     what = "nodeTrans()",
     with = "node_trans()"
   )
-  update_DyNAM_choice_node_trans(...)
+  update_REM_choice_node_trans(...)
 }
 
 #' @rdname defunct

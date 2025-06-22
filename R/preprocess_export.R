@@ -9,9 +9,10 @@
 #'
 #' Gather the preprocess data from a formula given a model and sub model,
 #' where the output corresponds to the data structure used by the engine
-#' `gather_compute`; see [estimate()].
+#' `gather_compute`; see [estimate].
 #'
-#' It differs from the `estimate()` output when the argument `preprocessing_only`
+#' It differs from the `estimate_dynam()`, `estimate_rem()` and
+#' `estimate_dynami()` output when the argument `preprocessing_only`
 #' is set to `TRUE` regarding the memory space requirement.
 #' The `gather_model_data()` produces a list where the first element
 #' is a matrix that could have up to the number of events times
@@ -31,10 +32,19 @@
 #' network (see [make_dependent_events()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
 #' (see `vignette("goldfishEffects")`).
+#' @param model a character string defining the model type.
+#' Current options include `"DyNAM"`, `"DyNAMi"` or `"REM"`
+#' \describe{
+#'  \item{DyNAM}{Dynamic Network Actor Models
+#'  (Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
+#'  \item{DyNAMi}{Dynamic Network Actor Models for interactions
+#'  (Hoffman et al., 2020)}
+#'  \item{REM}{Relational Event Model (Butts, 2008)}
+#' }
 #' @param control_preprocessing An object of class
 #'   `"preprocessing_options.goldfish"`, usually the result of a call to
-#'   [preprocessing_options()]. This object contains parameters that control
-#'   the data preprocessing. See [preprocessing_options()] for details on
+#'   [set_preprocessing_opt()]. This object contains parameters that control
+#'   the data preprocessing. See [set_preprocessing_opt()] for details on
 #'   the available parameters.
 #'
 #' @return a list object including:
@@ -95,20 +105,22 @@
 #'   nodes = states, default_network = bilatnet
 #' )
 #'
-#' contignet <- make_network(contignet, nodes = states, directed = FALSE)
-#' contignet <- link_events(contignet, contigchanges, nodes = states)
-#'
+#' fisheriesData <- make_data(createBilat)
+#' 
 #' gatheredData <- gather_model_data(
-#'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet)
+#'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet),
+#'   model = "DyNAM", sub_model = "choice_coordination",
+#'   data = fisheriesData
 #' )
 #'
 gather_model_data <- function(
     formula,
     model = c("DyNAM", "REM"),
     sub_model = c("choice", "choice_coordination", "rate"),
+    data = NULL,
     control_preprocessing = set_preprocessing_opt(),
-    progress = getOption("progress"),
-    envir = new.env()) {
+    progress = getOption("progress")
+    ) {
   model <- match.arg(
     arg = if (length(model) > 1) model[1] else model,
     choices = c("DyNAM", "REM", "DyNAMRE")
@@ -144,8 +156,11 @@ gather_model_data <- function(
 
   if (is.null(progress)) progress <- FALSE
 
+  # Create a working copy of the data environment to avoid side-effects
+  work_env <- rlang::env_clone(data)
+  
   ### 1. PARSE the formula----
-  parsed_formula <- parse_formula(formula, envir = envir)
+  parsed_formula <- parse_formula(formula, envir = work_env)
   rhs_names <- parsed_formula$rhs_names
   dep_name <- parsed_formula$dep_name
   has_intercept <- parsed_formula$has_intercept
@@ -189,7 +204,7 @@ gather_model_data <- function(
 
   ## 2.0 Set is_two_mode to define effects functions
   # get node sets of dependent variable
-  .nodes <- attr(get(parsed_formula$dep_name, envir = envir), "nodes")
+  .nodes <- attr(get(parsed_formula$dep_name, envir = work_env), "nodes")
 
   # two-mode networks(2 kinds of nodes)
   if (length(.nodes) == 2) {
@@ -205,7 +220,7 @@ gather_model_data <- function(
   # enviroment from which get the objects
   effects <- create_effects_functions(
     parsed_formula$rhs_names, model, sub_model,
-    envir = envir
+    envir = work_env
   )
   # Get links between objects and effects for printing results
   objects_effects_link <- get_objects_effects_link(parsed_formula$rhs_names)
@@ -216,13 +231,13 @@ gather_model_data <- function(
   events <- get_events_and_objects_link(
     parsed_formula$dep_name, parsed_formula$rhs_names,
     .nodes, .nodes2,
-    envir = envir
+    envir = work_env
   )[[1]]
   # moved cleanInteractionEvents in getEventsAndObjectsLink
   events_objects_link <- get_events_and_objects_link(
     parsed_formula$dep_name, parsed_formula$rhs_names,
     .nodes, .nodes2,
-    envir = envir
+    envir = work_env
   )[[2]]
   events_effects_link <- get_events_effects_link(
     events, parsed_formula$rhs_names, events_objects_link
@@ -247,7 +262,7 @@ gather_model_data <- function(
     endTime = control_preprocessing$end_time,
     rightCensored = right_censored,
     progress = progress,
-    prepEnvir = envir
+    prepEnvir = work_env
   )
 
   # # 3.3 additional processing to flat array objects
@@ -289,8 +304,8 @@ gather_model_data <- function(
   )
 
   # nEvents <- length(preprocessingStat$orderEvents)# number of events
-  nodes <- get(.nodes, envir = envir)
-  nodes2 <- get(.nodes2, envir = envir)
+  nodes <- get(.nodes, envir = data)
+  nodes2 <- get(.nodes2, envir = data)
 
   ## SET VARIABLES BASED ON STATSLIST
   twomode_or_reflexive <- (allowReflexive || is_two_mode)
@@ -335,8 +350,8 @@ gather_model_data <- function(
   hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
 
   if (hasCompChange1) {
-    temp <- get(compChangeName1, envir = envir)
-    temp <- sanitizeEvents(temp, nodes, envir = envir)
+    temp <- get(compChangeName1, envir = data)
+    temp <- sanitizeEvents(temp, nodes, envir = data)
     temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
@@ -346,8 +361,8 @@ gather_model_data <- function(
   }
 
   if (hasCompChange2) {
-    temp <- get(compChangeName2, envir = envir)
-    temp <- sanitizeEvents(temp, nodes2, envir = envir)
+    temp <- get(compChangeName2, envir = data)
+    temp <- sanitizeEvents(temp, nodes2, envir = data)
     temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer

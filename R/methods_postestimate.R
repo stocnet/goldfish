@@ -6,7 +6,7 @@
 #' Note that while the output to the console is rounded, the returned vector
 #' is not.
 #' @param object an object of class `result.goldfish` output from an
-#' [estimate()] call.
+#' [estimate] call.
 #' @param complete logical. Indicates whether the parameter coefficients of
 #' effects fixed during estimation using `fixedParameters` should be printed.
 #' @param ... additional arguments to be passed.
@@ -39,8 +39,8 @@
 #' \dontshow{
 #' callsDependent <- callsDependent[1:50, ]
 #' }
-#' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-#'   model = "DyNAM", subModel = "choice"
+#' mod01 <- estimate_dynam(callsDependent ~ inertia + recip + trans,
+#'  subModel = "choice"
 #' )
 #' coef(mod01)
 coef.result.goldfish <- function(object, ..., complete = FALSE) {

@@ -38,8 +38,16 @@ estimate_c_int <- function(
     testing = FALSE,
     get_data_matrix = FALSE,
     impute = FALSE,
+    opportunitiesList = NULL,
     engine = c("default_c", "gather_compute"),
     prepEnvir = new.env()) {
+  if (!is.null(opportunitiesList)) {
+    stop(
+      "opportunitiesList is not supported in the C interface.",
+      call. = FALSE
+    )
+  }
+
   minDampingFactor <- initialDamping
   # CHANGED MARION
   # nParams: number of effects + 1 (if has intercept)

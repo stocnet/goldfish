@@ -63,7 +63,7 @@ counts the number of ties `weighted == TRUE`.
 * **summarizer_fn**: Use this parameter to obtain a transformed aggregated
 statistics for indirect effects like `tertius` and `tertius_diff`.
 The function used as argument is applied to aggregated statistic.
-* **type**: Applies only to `indegree`, `outdegree` and `nodeTrans`
+* **type**: Applies only to `indegree`, `outdegree` and `node_trans`
 in the case of a REM model `model = "REM"`.
 In the default case of `type = "alter"`, the effect returns change statistics
 for the potential receivers.
@@ -89,7 +89,7 @@ The following table summaries whether the corresponding arguments can be used fo
 | :-------------------- | :--------------------- | :-------------------- | :---------- | :----------------- | :------- | :----- | :------------- | :------------ | :--- | :------ |
 | Node/actor statistics | Structural             | indeg                 | √           | √                  | √        | √      | √              | ×             | √    | ×       |
 |                       |                        | outdeg                | √           | √                  | √        | √      | √              | ×             | √    | ×       |
-|                       |                        | nodeTrans             | ×           | √                  | √        | √      | √              | ×             | √    | ×       |
+|                       |                        | node_trans             | ×           | √                  | √        | √      | √              | ×             | √    | ×       |
 |                       | Attribute              | ego                   | √           | ×                  | ×        | ×      | ×              | ×             | ×    | ×       |
 |                       |                        | alter                 | √           | ×                  | ×        | ×      | ×              | ×             | ×    | ×       |
 |                       | Structural + attribute | tertius               | √           | √                  | √        | √      | √              | √             | √    | ×       |
@@ -141,7 +141,7 @@ and thus cannot be used.
 | :-------- | :------- | :------- | :------------------ |
 | indeg     |    √     |    √     |          √          |
 | outdeg    |    √     |    √     |          ×          |
-| nodeTrans |    √     |    √     |          √          |
+| node_trans |    √     |    √     |          √          |
 
 Here we refer to ego type when `type = "ego"` and alter type when
 `type = "alter"`.
@@ -216,10 +216,10 @@ outdeg(network,
   sender $i$ (`type = "ego"`) or for receiver $j$ (`type = "alter"`).
 
 
-### Node embeddedness transitivity (`nodeTrans()`)
+### Node embeddedness transitivity (`node_trans()`)
 
 ```{r}
-nodeTrans(network,
+node_trans(network,
   is_two_mode = FALSE, window = Inf, ignore_repetitions = FALSE,
   type = c("alter", "ego"), transformer_fn = identity
 )

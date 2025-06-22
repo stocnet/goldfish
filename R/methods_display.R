@@ -111,7 +111,7 @@ summary.result.goldfish <- function(object, ...) {
 #' The information corresponds to the  values of the effects arguments when
 #' they are modified and if they where fixed during estimation, see
 #' `vignette("goldfishEffects")` for the complete list of arguments, and
-#' [estimate()] on how to fix coefficients during estimation.}
+#' [estimate] on how to fix coefficients during estimation.}
 #' \item{Coefficients:}{a table with the estimated coefficients, their
 #'   approximate standard error obtain from the inverse of the negative Fisher
 #'   information matrix, z-value and the p-value of the univariate two-tailed

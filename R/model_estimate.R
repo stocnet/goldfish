@@ -32,28 +32,43 @@
 #'   }
 #' }
 #'
+#' @section Models:
+#' Currently there are implemented the following models:
+#' \describe{
+#'  \item{DyNAM}{Dynamic Network Actor Models, \code{estimate_dynam()},
+#'  modeling a sequence of relational events as an actor-oriented process
+#'  (Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
+#'  \item{DyNAMi}{Dynamic Network Actor Models for interactions,
+#'  \code{estimate_dynami()}, modeling face-to-face interactions as an
+#'  actor oriented process 
+#'  (Hoffman et al., 2020)}
+#'  \item{REM}{Relational Event Model, \code{estimate_rem()},
+#'  modeling a sequence of relational events as a tie-oriented process
+#'  (Butts, 2008).}
+#' }
+#' 
 #' @section DyNAM:
 #'
-#' The actor-oriented models that the goldfish package implements have been
+#' The actor-oriented models that the goldfish package implements,
+#' `estimate_dynam()`, have been
 #' called Dynamic Network Actor Models (DyNAMs).
 #' The model is a two-step process. In the first step, the waiting time until
 #' an actor \eqn{i} initiates the next relational event is modeled
-#' (`model = "DyNAM"` and `sub_model = "rate"`) by an exponential
-#' distribution depending on the actor activity rate.
+#' (`sub_model = "rate"`) by an exponential distribution depending on
+#' the actor activity rate.
 #' In the second step, the conditional probability of \eqn{i} choosing
-#'  \eqn{j} as the event receiver is modeled (`model = "DyNAM"` and
-#'  `sub_model = "choice"`) by a multinomial probability distribution
-#'  with a linear predictor.
+#'  \eqn{j} as the event receiver is modeled (`sub_model = "choice"`)
+#'  by a multinomial probability distribution with a linear predictor.
 #' These two-steps are assumed to be conditionally independent given
 #' the process state (Stadtfeld, 2012),
 #' due to this assumption is possible to estimate these components by
-#' different calls of the `estimate` function.
+#' different calls of the `estimate_dynam()` function.
 #'
 #' @section Waiting times:
 #'
-#' When DyNAM-rate (`model = "DyNAM"` and `sub_model = "rate"`) model
+#' When DyNAM-rate (`estimate_dynam(x, sub_model = "rate")`) model
 #' is used to estimate the first step component of the process, or the REM
-#' `model = "REM"` model is used.
+#' `estimate_rem(x, model = "REM")` model is used.
 #' It is important to add a time intercept to model the waiting times between
 #' events, in this way the algorithm considers the right-censored intervals
 #' in the estimation process.
@@ -65,37 +80,27 @@
 #' For this ordinal case the likelihood of an event is merely a
 #' multinomial probability (Butts, 2008).
 #'
-#' @param model a character string defining the model type.
-#' Current options include `"DyNAM"`, `"DyNAMi"` or `"REM"`.
-#' \describe{
-#'  \item{DyNAM}{Dynamic Network Actor Models
-#'  (Stadtfeld, Hollway and Block, 2017 and Stadtfeld and Block, 2017)}
-#'  \item{DyNAMi}{Dynamic Network Actor Models for interactions
-#'  (Hoffman et al., 2020)}
-#'  \item{REM}{Relational Event Model (Butts, 2008)}
-#' }
 #' @param sub_model A character string specifying the sub-model to be estimated.
 #'  It can be `"rate"` to model the waiting times between events,
 #'  `"choice"` to model the choice of the receiver, or `"choice_coordination"`
 #'  to model coordination ties. See details.
 #' \describe{
-#'  \item{choice}{a multinomial receiver choice model `model = "DyNAM"`
-#'  (Stadtfeld and Block, 2017), or the general Relational event model
-#'  `model = "REM"` (Butts, 2008).
-#'  A multinomial group choice model `model = "DyNAMi"` (Hoffman et al., 2020)}
+#'  \item{choice}{a multinomial receiver choice model `estimate_dynam()`
+#'  (Stadtfeld and Block, 2017).
+#'  A multinomial group choice model `estimate_dynami()` (Hoffman et al., 2020)}
 #'  \item{choice_coordination}{a multinomial-multinomial model for coordination
-#'  ties `model = "DyNAM"` (Stadtfeld, Hollway and Block, 2017)}
-#'  \item{rate}{A individual activity rates model `model = "DyNAM"`
+#'  ties `estimate_dynam()` (Stadtfeld, Hollway and Block, 2017)}
+#'  \item{rate}{A individual activity rates model `estimate_dynam()`
 #'  (Stadtfeld and Block, 2017).
 #'  Two rate models, one for individuals joining groups and one for individuals
-#'  leaving groups, jointly estimated `model = "DyNAMi"`(Hoffman et al., 2020)}
+#'  leaving groups, jointly estimated `estimate_dynami()`(Hoffman et al., 2020)}
 #' }
 #' @param control_estimation An object of class `control_estimation.goldfish`
-#'   (typically created by [control_estimation()]),
+#'   (typically created by [set_estimation_opt()]),
 #'   specifying parameters for the estimation algorithm.
 #' @param control_preprocessing An object of class
 #'   `control_preprocessing.goldfish` (typically created by
-#'   [control_preprocessing()]),
+#'   [set_preprocessing_opt()]),
 #'   specifying parameters for data preprocessing. This is only used
 #'   if `preprocessing_init` is not a `preprocessed.goldfish` object or NULL.
 #' @param preprocessing_init an optional preprocessed object of class
@@ -156,12 +161,11 @@
 #'   \item{rightCensored}{
 #'   a logical value indicating if the estimation process considered
 #'   right-censored events.
-#'   Only it is considered for DyNAM-rate (`model = "DyNAM"` and
-#'   `sub_model = "rate"`) or REM (`model = "REM"`) models,
-#'   and when the model includes the intercept.}
+#'   Only it is considered for `estimate_dynam(x, sub_model = "rate")` or
+#'   REM (`estimate_rem()`), when the model includes the intercept.}
 #'
 #' @importFrom stats formula na.omit
-#' @export
+#' @name estimate
 #' @seealso [make_dependent_events()], [make_global_attribute()],
 #'  [make_network()], [make_nodes()], [link_events()]
 #'
@@ -186,7 +190,7 @@
 #' \emph{Sociological Methodology 47 (1)}. \doi{10.1177/0081175017709295}
 #'
 #' @examples
-#' # A multinomial receiver choice model
+#' # A DyNAM modeling rate and choice steps
 #' data("Social_Evolution")
 #' callNetwork <- make_network(nodes = actors, directed = TRUE)
 #' callNetwork <- link_events(
@@ -202,19 +206,35 @@
 #' callsDependent <- callsDependent[1:50, ]
 #' }
 #'
-#' mod01 <- estimate(callsDependent ~ inertia + recip + trans,
-#'   model = "DyNAM", sub_model = "choice",
-#'   control_estimation = control_estimation(engine = "default_c")
+#' socialEvData <- make_data(callsDependent, callNetwork, call, actors)
+#' 
+#' mod01 <- estimate_dynam(callsDependent ~ inertia + recip + trans,
+#'   sub_model = "choice",
+#'   data = socialEvData,
+#'   control_estimation = set_estimation_opt(engine = "gather_compute")
 #' )
 #' summary(mod01)
 #'
 #' # A individual activity rates model
-#' mod02 <- estimate(callsDependent ~ 1 + nodeTrans + indeg + outdeg,
-#'   model = "DyNAM", sub_model = "rate",
-#'   control_estimation = control_estimation(engine = "default_c")
+#' mod02 <- estimate_dynam(callsDependent ~ 1 + node_trans + indeg + outdeg,
+#'   sub_model = "rate",
+#'   data = socialEvData,
+#'   control_estimation = set_estimation_opt(engine = "gather_compute")
 #' )
 #' summary(mod02)
+#' 
+#' # A REM
 #'
+#' mod03 <- estimate_rem(
+#'   callsDependent ~ 1 + node_trans(callNetwork, type = "ego") +
+#'     indeg(callNetwork, type = "ego") + outdeg(callNetwork, type = "ego") +
+#'     inertia + recip + trans,
+#'     data = socialEvData,
+#'     control_estimation = set_estimation_opt(engine = "gather_compute")
+#' )
+#' summary(mod03)
+#' 
+#' 
 #' \donttest{
 #' # A multinomial-multinomial choice model for coordination ties
 #' data("Fisheries_Treaties_6070")
@@ -233,8 +253,12 @@
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, default_network = bilatnet
 #' )
-#'
-#' partnerModel <- estimate(
+#' 
+#' fisheriesData <- make_data(
+#'   createBilat, contignet, bilatnet, contigchanges, bilatchanges,
+#'   states, sovchanges, regchanges, gdpchanges
+#'  )
+#' partnerModel <- estimate_dynam(
 #'   createBilat ~
 #'     inertia(bilatnet) +
 #'     indeg(bilatnet, ignore_repetitions = TRUE) +
@@ -244,39 +268,108 @@
 #'     diff(states$regime) +
 #'     alter(states$gdp) +
 #'     diff(states$gdp),
-#'   model = "DyNAM", sub_model = "choice_coordination",
+#'   sub_model = "choice_coordination",
+#'   data = fisheriesData,
 #'   control_estimation =
-#'     set_estimation_opt(initial_damping = 40, max_iterations = 30)
+#'     set_estimation_opt(
+#'       initial_damping = 40, max_iterations = 30,
+#'       engine = "default"
+#'     )
 #' )
 #' summary(partnerModel)
 #' }
 #'
-estimate <- function(
+NULL
+
+#' @rdname estimate
+#' @export
+estimate_dynam <- function(
     x,
-    model = c("DyNAM", "REM", "DyNAMi"),
     sub_model = c("choice", "rate", "choice_coordination"),
+    data = NULL,
     control_estimation = set_estimation_opt(),
     control_preprocessing = set_preprocessing_opt(),
     preprocessing_init = NULL,
     preprocessing_only = FALSE,
-    data = NULL, # Expects a data.goldfish object
     progress = getOption("progress"),
-    verbose = getOption("verbose")) {
-  UseMethod("estimate", x)
+    verbose = getOption("verbose")
+    ) {
+  estimate_wrapper(
+    x = x, 
+    model = "DyNAM",
+    sub_model = sub_model,
+    data = data,
+    control_estimation = control_estimation,
+    control_preprocessing = control_preprocessing,
+    preprocessing_init = preprocessing_init,
+    preprocessing_only = preprocessing_only,
+    progress = progress, verbose = verbose 
+  )
+}
+
+#' @rdname estimate
+#' @export
+estimate_dynami <- function(
+    x,
+    sub_model = c("choice", "rate"),
+    data = NULL,
+    control_estimation = set_estimation_opt(),
+    control_preprocessing = set_preprocessing_opt(),
+    preprocessing_init = NULL,
+    preprocessing_only = FALSE,
+    progress = getOption("progress"),
+    verbose = getOption("verbose")
+) {
+  sub_model <- match.arg(sub_model)
+  estimate_wrapper(
+    x = x, 
+    model = "DyNAMi",
+    sub_model = sub_model,
+    data = data,
+    control_estimation = control_estimation,
+    control_preprocessing = control_preprocessing,
+    preprocessing_init = preprocessing_init,
+    preprocessing_only = preprocessing_only,
+    progress = progress, verbose = verbose 
+  )
+}
+
+#' @rdname estimate
+#' @export
+estimate_rem <- function(
+    x,
+    data = NULL,
+    control_estimation = set_estimation_opt(),
+    control_preprocessing = set_preprocessing_opt(),
+    preprocessing_init = NULL,
+    preprocessing_only = FALSE,
+    progress = getOption("progress"),
+    verbose = getOption("verbose")
+) {
+  estimate_wrapper(
+    x = x, 
+    model = "REM",
+    data = data,
+    control_estimation = control_estimation,
+    control_preprocessing = control_preprocessing,
+    preprocessing_init = preprocessing_init,
+    preprocessing_only = preprocessing_only,
+    progress = progress, verbose = verbose 
+  )
 }
 
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
 #' @importFrom stats as.formula
-#' @export
-estimate.formula <- function(x,
+#' @noRd
+estimate_wrapper <- function(x,
     model = c("DyNAM", "REM", "DyNAMi"),
     sub_model = c("choice", "rate", "choice_coordination"),
+    data = NULL,
     control_estimation = set_estimation_opt(),
     control_preprocessing = set_preprocessing_opt(),
     preprocessing_init = NULL,
     preprocessing_only = FALSE,
-    data = NULL, # Expects a data.goldfish object
     progress = getOption("progress"),
     verbose = getOption("verbose")) {
 
@@ -732,6 +825,7 @@ estimate.formula <- function(x,
     nodes2 = get(.nodes2, envir = data),
     defaultNetworkName = parsed_formula$default_network_name,
     hasIntercept = has_intercept,
+    is_two_mode = is_two_mode,
     modelType = modelTypeCall,
     # overridden damping
     initialDamping = if(!is.null(control_estimation$initial_damping)) {
@@ -744,6 +838,7 @@ estimate.formula <- function(x,
     verbose = verbose,
     progress = progress,
     ignoreRepParameter = ignore_rep_parameter,
+    opportunitiesList = control_preprocessing$opportunities_list,
     prepEnvir = EstimateEnvir
   )
 
@@ -755,7 +850,7 @@ estimate.formula <- function(x,
         args = c(argsEstimation, list(engine = control_estimation$engine))
       ),
       error = \(e) {
-        stop("For ", model, " ", subModel,
+        stop("For ", model, " ", sub_model,
           " estimation:\n\t", e$message,
           call. = FALSE
         )
@@ -765,7 +860,7 @@ estimate.formula <- function(x,
     tryCatch(
       result <- do.call("estimate_int", args = argsEstimation),
       error = \(e) {
-        stop("For ", model, " ", subModel,
+        stop("For ", model, " ", sub_model,
           " estimation:\n\t", e$message,
           call. = FALSE
         )

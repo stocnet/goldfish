@@ -218,7 +218,7 @@ update_DyNAM_choice_coordination_tertius_diff <- function(
 }
 
 # nodeTrans ------------------------------------------------------------------
-update_DyNAM_choice_coordination_nodeTrans <- function(
+update_DyNAM_choice_coordination_node_trans <- function(
     network,
     sender,
     receiver,
@@ -227,7 +227,7 @@ update_DyNAM_choice_coordination_nodeTrans <- function(
     n1, n2,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_DyNAM_choice_nodeTrans(
+  update_DyNAM_choice_node_trans(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
     n1 = n1, n2 = n2, is_two_mode = is_two_mode,

@@ -15,7 +15,7 @@
 #' Goldfish also implements different versions of
 #'  the tie-oriented Relational Event Model by Carter Butts.
 #'
-#' @seealso [estimate()]
+#' @seealso [estimate]
 #' @references
 #' Stadtfeld, C. (2012). Events in Social Networks: A Stochastic
 #' Actor-oriented Framework for Dynamic Event Processes in Social Networks.

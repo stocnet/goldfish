@@ -1,94 +1,99 @@
-## ----setup, message=FALSE-----------------------------------------------------------------------------
+## ----setup, message=FALSE--------------------------------------------------------------------
 library(goldfish)
 
 
-## ----load-data----------------------------------------------------------------------------------------
+## ----load-data-------------------------------------------------------------------------------
 data("Fisheries_Treaties_6070")
 # ?Fisheries_Treaties_6070
 
 
-## ----examine-states-----------------------------------------------------------------------------------
+## ----examine-states--------------------------------------------------------------------------
 tail(states)
 class(states)
 
 
-## ----defineNodes--------------------------------------------------------------------------------------
-states <- defineNodes(states)
+## ----make_nodes------------------------------------------------------------------------------
+states <- make_nodes(states)
 head(states)
 class(states)
 
 
-## ----examine-node-changes-----------------------------------------------------------------------------
+## ----examine-node-changes--------------------------------------------------------------------
 head(sovchanges)
 head(regchanges)
 head(gdpchanges)
 
 
-## ----present------------------------------------------------------------------------------------------
+## ----present---------------------------------------------------------------------------------
 head(states$present) # or states[,2]
 
 
-## ----link-present-------------------------------------------------------------------------------------
-states <- linkEvents(states, sovchanges, attribute = "present")
+## ----link-present----------------------------------------------------------------------------
+states <- link_events(states, sovchanges, attribute = "present")
 # If you call the object now, what happens?
 states
 
 
-## ----states-------------------------------------------------------------------------------------------
+## ----states----------------------------------------------------------------------------------
 str(states)
 
 
-## ----link-states-vars---------------------------------------------------------------------------------
-states <- linkEvents(states, regchanges, attribute = "regime") |>
-  linkEvents(gdpchanges, attribute = "gdp")
+## ----link-states-vars------------------------------------------------------------------------
+states <- link_events(states, regchanges, attribute = "regime") |>
+  link_events(gdpchanges, attribute = "gdp")
 str(states)
 
 
-## ----examine-bilat-mat--------------------------------------------------------------------------------
+## ----examine-bilat-mat-----------------------------------------------------------------------
 bilatnet[1:12, 1:12]  # head(bilatnet, n = c(12, 12))
 
 
-## ----define-bilat-net---------------------------------------------------------------------------------
-bilatnet <- defineNetwork(bilatnet, nodes = states, directed = FALSE)
+## ----define-bilat-net------------------------------------------------------------------------
+bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
 
 
-## ----examine-bilat-net--------------------------------------------------------------------------------
+## ----examine-bilat-net-----------------------------------------------------------------------
 class(bilatnet)
 str(bilatnet)
 bilatnet
 
 
-## ----link-bilat-net-----------------------------------------------------------------------------------
-bilatnet <- linkEvents(bilatnet, bilatchanges, nodes = states)
+## ----link-bilat-net--------------------------------------------------------------------------
+bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 bilatnet
 
 
-## ----contig-net---------------------------------------------------------------------------------------
-contignet <- defineNetwork(contignet, nodes = states, directed = FALSE) |>
-  linkEvents(contigchanges, nodes = states)
+## ----contig-net------------------------------------------------------------------------------
+contignet <- make_network(contignet, nodes = states, directed = FALSE) |>
+  link_events(contigchanges, nodes = states)
 class(contignet)
 contignet
 
 
-## ----define-dep-events--------------------------------------------------------------------------------
-createBilat <- defineDependentEvents(
+## ----define-dep-events-----------------------------------------------------------------------
+createBilat <- make_dependent_events(
   events = bilatchanges[bilatchanges$increment == 1,],
   nodes = states,
-  defaultNetwork = bilatnet
+  default_network = bilatnet
 )
 
 
-## ----examine-dep-events-------------------------------------------------------------------------------
+## ----examine-dep-events----------------------------------------------------------------------
 class(createBilat)
 createBilat
 
 
-## ----hlp, eval = FALSE--------------------------------------------------------------------------------
+## ----make-data-------------------------------------------------------------------------------
+fisheriesData <- make_data(createBilat, bilatnet, contignet, states)
+fisheriesData
+
+
+## ----hlp, eval = FALSE-----------------------------------------------------------------------
 # ?as.data.frame.nodes.goldfish
 # ?as.matrix.network.goldfish
 
 
-## ----plot-teaching2, message=FALSE, warning=FALSE, fig.align='center'---------------------------------
+## ----plot-teaching2, message=FALSE, warning=FALSE, fig.align='center'------------------------
 library(igraph)
 library(manynet)
 
@@ -123,73 +128,77 @@ endNet <- delete_nodes(endNet, !isStateActive)
 graphs(list(startNet, endNet), layout = "fr")
 
 
-## ----hlp-effects, eval=FALSE--------------------------------------------------------------------------
+## ----hlp-effects, eval=FALSE-----------------------------------------------------------------
 # vignette("goldfishEffects")
 
 
-## ----estimate-init------------------------------------------------------------------------------------
+## ----estimate-init---------------------------------------------------------------------------
 formula1 <-
-  createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignoreRep = TRUE) +
-                trans(bilatnet, ignoreRep = TRUE) +
+  createBilat ~ inertia(bilatnet) + indeg(bilatnet, ignore_repetitions = TRUE) +
+                trans(bilatnet, ignore_repetitions = TRUE) +
                 tie(contignet) +
                 alter(states$regime) + diff(states$regime) +
                 alter(states$gdp) + diff(states$gdp)
 
-estPrefs <- list(
-  returnIntervalLogL = TRUE,
-  initialDamping = 40,
-  maxIterations = 30
-  )
+est_opts <- set_estimation_opt(
+  return_interval_loglik = TRUE,
+  initial_damping = 40,
+  max_iterations = 30,
+  engine = "default"
+)
 
 system.time(
-  partnerModel <- estimate(
+  partnerModel <- estimate_dynam(
     formula1,
-    model = "DyNAM", subModel = "choice_coordination",
-    estimationInit = estPrefs
-    )
+    sub_model = "choice_coordination",
+    data = fisheriesData,
+    control_estimation = est_opts
+  )
 )
 
 
-## ----estimate-rerun-----------------------------------------------------------------------------------
-estPrefs <- list(
-  returnIntervalLogL = TRUE,
-  initialDamping = 40,
-  maxIterations = 30,
-  initialParameters = coef(partnerModel)
-  )
+## ----estimate-rerun--------------------------------------------------------------------------
+est_opts <- set_estimation_opt(
+  return_interval_loglik = TRUE,
+  initial_damping = 40,
+  max_iterations = 30,
+  initial_parameters = coef(partnerModel),
+  engine = "default"
+)
 
-partnerModel <- estimate(
+partnerModel <- estimate_dynam(
   formula1,
-  model = "DyNAM", subModel = "choice_coordination",
-  estimationInit = estPrefs
-  )
+  sub_model = "choice_coordination",
+  data = fisheriesData,
+  control_estimation = est_opts
+)
 summary(partnerModel)
 
 
-## ----estimate-c---------------------------------------------------------------------------------------
+## ----estimate-c------------------------------------------------------------------------------
 formula2 <-
   createBilat ~ inertia(bilatnet, weighted = TRUE) +
                 indeg(bilatnet) + trans(bilatnet) +
                 tie(contignet) + alter(states$regime) +
                 diff(states$regime) + alter(states$gdp) + diff(states$gdp)
 
-estPrefs <- list(
-  returnIntervalLogL = TRUE,
-  initialDamping = 40,
-  maxIterations = 30,
-  engine = "default_c"
-  )
+est_opts <- set_estimation_opt(
+  return_interval_loglik = TRUE,
+  initial_damping = 40,
+  max_iterations = 30
+)
 
 system.time(
-  tieModel <- estimate(
+  tieModel <- estimate_dynam(
     formula2,
-    model = "DyNAM", subModel = "choice_coordination",
-    estimationInit = estPrefs
-    )
+    sub_model = "choice_coordination",
+    data = fisheriesData,
+    control_estimation = est_opts
+)
 )
 
 
-## ----broom, message=FALSE-----------------------------------------------------------------------------
+## ----broom, message=FALSE--------------------------------------------------------------------
 library(broom)
 library(pixiedust)
 dust(tidy(tieModel, conf.int = TRUE)) |>
@@ -197,11 +206,11 @@ dust(tidy(tieModel, conf.int = TRUE)) |>
   sprinkle(col = 5, fn = quote(pvalString(value)))
 
 
-## ----glance-------------------------------------------------------------------------------------------
+## ----glance----------------------------------------------------------------------------------
 glance(tieModel)
 
 
-## ----plot-examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3------------------------
-examineOutliers(tieModel)
-examineChangepoints(tieModel)
+## ----plot-examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3---------------
+examine_outliers(tieModel)
+examine_changepoints(tieModel)
 

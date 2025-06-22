@@ -208,8 +208,8 @@ The data object is a goldfish object that contains all the information
 needed to estimate the model.
 
 ```{r make-data}
-dataFisheries <- make_data(createBilat, bilatnet, contignet, states)
-dataFisheries
+fisheriesData <- make_data(createBilat, bilatnet, contignet, states)
+fisheriesData
 ```
 
 # Intermediate step: Visualisation ####
@@ -298,17 +298,18 @@ formula1 <-
                 alter(states$regime) + diff(states$regime) +
                 alter(states$gdp) + diff(states$gdp)
 
-est_opts <- control_estimation(
+est_opts <- set_estimation_opt(
   return_interval_loglik = TRUE,
   initial_damping = 40,
-  max_iterations = 30
+  max_iterations = 30,
+  engine = "default"
 )
 
 system.time(
-  partnerModel <- estimate(
+  partnerModel <- estimate_dynam(
     formula1,
-    model = "DyNAM", sub_model = "choice_coordination",
-    data = dataFisheries,
+    sub_model = "choice_coordination",
+    data = fisheriesData,
     control_estimation = est_opts
   )
 )
@@ -318,17 +319,18 @@ Did the model converge? If not, you can restart the estimation process using
 the same formula and current parameter estimates:
 
 ```{r estimate-rerun}
-est_opts <- control_estimation(
+est_opts <- set_estimation_opt(
   return_interval_loglik = TRUE,
   initial_damping = 40,
   max_iterations = 30,
-  initial_parameters = coef(partnerModel)
+  initial_parameters = coef(partnerModel),
+  engine = "default"
 )
 
-partnerModel <- estimate(
+partnerModel <- estimate_dynam(
   formula1,
-  model = "DyNAM", sub_model = "choice_coordination",
-  data = dataFisheries,
+  sub_model = "choice_coordination",
+  data = fisheriesData,
   control_estimation = est_opts
 )
 summary(partnerModel)
@@ -348,18 +350,17 @@ formula2 <-
                 tie(contignet) + alter(states$regime) +
                 diff(states$regime) + alter(states$gdp) + diff(states$gdp)
 
-est_opts <- control_estimation(
+est_opts <- set_estimation_opt(
   return_interval_loglik = TRUE,
   initial_damping = 40,
-  max_iterations = 30,
-  engine = "default_c"
+  max_iterations = 30
 )
 
 system.time(
-  tieModel <- estimate(
+  tieModel <- estimate_dynam(
     formula2,
-    model = "DyNAM", sub_model = "choice_coordination",
-    data = dataFisheries,
+    sub_model = "choice_coordination",
+    data = fisheriesData,
     control_estimation = est_opts
 )
 )
@@ -394,8 +395,8 @@ Lastly, we have begun implementing further diagnostic functions that can
 help users identify areas for improving their model specification.
 
 ```{r plot-examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3}
-examineOutliers(tieModel)
-examineChangepoints(tieModel)
+examine_outliers(tieModel)
+examine_changepoints(tieModel)
 ```
 
 For more, please see Hollway (2020) Network Embeddedness and

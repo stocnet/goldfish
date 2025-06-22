@@ -162,15 +162,15 @@ update_DyNAM_rate_outdeg <- function(
 
 # nodeTrans ------------------------------------------------------------------
 #' @export
-init_DyNAM_rate.nodeTrans <- function(effectFun, network, window, n1, n2, ...) {
+init_DyNAM_rate.node_trans <- function(effectFun, network, window, n1, n2, ...) {
   formals(effectFun) <- c(formals(effectFun), list(type = "ego"))
-  init_REM_choice.nodeTrans(
+  init_REM_choice.node_trans(
     effectFun = effectFun, network = network,
     window = window, n1 = n1, n2 = n2, ...
   )
 }
 
-update_DyNAM_rate_nodeTrans <- function(
+update_DyNAM_rate_node_trans <- function(
     network,
     sender,
     receiver,
@@ -179,7 +179,7 @@ update_DyNAM_rate_nodeTrans <- function(
     n1, n2,
     is_two_mode = FALSE,
     transformer_fn = identity) {
-  update_REM_choice_nodeTrans(
+  update_REM_choice_node_trans(
     network = network,
     sender = sender, receiver = receiver, replace = replace, cache = cache,
     n1 = n1, n2 = n2, is_two_mode = is_two_mode,

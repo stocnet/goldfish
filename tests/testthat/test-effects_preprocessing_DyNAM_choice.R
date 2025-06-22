@@ -1,7 +1,7 @@
 test_that(
   "inertia/tie weighted preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ inertia(networkState, weighted = TRUE) +
         tie(networkExog, weighted = TRUE),
       model = "DyNAM", sub_model = "choice", # modelType = "DyNAM-M"
@@ -101,7 +101,7 @@ test_that(
 test_that(
   "inertia  not weighted preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ inertia,
       model = "DyNAM", sub_model = "choice",
       data = dataTest,
@@ -178,7 +178,7 @@ test_that(
 test_that(
   "inertia windowed and weighted preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ inertia(networkState, weighted = TRUE, window = 2),
       model = "DyNAM", sub_model = "choice",
       data = dataTest,
@@ -251,7 +251,7 @@ test_that(
 test_that(
   "inertia/tie startTime endTime preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ inertia(networkState, weighted = TRUE) +
         tie(networkExog, weighted = TRUE),
       model = "DyNAM", sub_model = "choice", # modelType = "DyNAM-M"
@@ -354,7 +354,7 @@ test_that(
 test_that(
   "trans preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetworkTrans ~ trans(networkStateTrans, history="cons"),
       model = "DyNAM", sub_model = "choice",
       data = dataTest,

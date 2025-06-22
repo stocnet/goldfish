@@ -3,9 +3,8 @@ test_that(
   {
     skip_on_cran()
 
-    mod00 <- estimate(
+    mod00 <- estimate_dynam(
       depNetwork ~ inertia + recip + trans,
-      model = "DyNAM",
       sub_model = "choice",
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0L),

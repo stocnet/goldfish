@@ -1,7 +1,7 @@
 test_that(
   "out/in/deg weighted right censored preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
         indeg(networkExog, weighted = TRUE),
       model = "DyNAM", sub_model = "rate",
@@ -118,7 +118,7 @@ test_that(
 # test_that(
 #   "in/out/deg windowed and weighted preprocessing",
 #   {
-#     preproData <- estimate(
+#     preproData <- estimate_wrapper(
 #       depNetwork ~ outdeg(networkState, weighted = TRUE, window = 2) +
 #         indeg(networkExog, weighted = TRUE, window = 2),
 #       model = "DyNAM", sub_model = "choice",
@@ -145,7 +145,7 @@ test_that(
 test_that(
   "in/out/deg startTime endTime preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
         indeg(networkExog, weighted = TRUE),
       model = "DyNAM", sub_model = "rate",
@@ -268,7 +268,7 @@ test_that(
 test_that(
   "in/out/deg startTime endTime exact preprocessing",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
         indeg(networkExog, weighted = TRUE),
       model = "DyNAM", sub_model = "rate",

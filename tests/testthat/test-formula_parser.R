@@ -74,7 +74,7 @@ test_that("choice formula", {
 
 test_that("rate formula", {
   formStat <- callsDependent ~ 1 + indeg + outdeg + 
-    nodeTrans(callNetwork, transformer_fn = log1p) +
+    node_trans(callNetwork, transformer_fn = log1p) +
     tertius(callNetwork, actors$floor, summarizer_fn = median) +
     indeg(callNetwork, window = "5 minutos") +
     outdeg(callNetwork, ignore_repetitions = TRUE)
@@ -215,7 +215,7 @@ test_that("warning two mode", {
 test_that("objects effects link", {
   formStat <- callsDependent ~ inertia + indeg +
     outdeg(networkExog, weighted = TRUE) +
-    nodeTrans(callNetwork, transformer_fn = log1p) +
+    node_trans(callNetwork, transformer_fn = log1p) +
     tertius(callNetwork, actors$floor, summarizer_fn = median) +
     indeg(callNetwork, window = "5 minutos") +
     outdeg(callNetwork, ignore_repetitions = TRUE)
@@ -269,7 +269,7 @@ test_that("objects effects link", {
 test_that("events, objects & effects links", {
   formStat <- callsDependent ~ inertia + indeg +
     outdeg(network_exog, weighted = TRUE) +
-    nodeTrans(callNetwork, transformer_fn = log1p) +
+    node_trans(callNetwork, transformer_fn = log1p) +
     tertius(callNetwork, actors$floor, summarizer_fn = median) +
     indeg(callNetwork, window = "5 minutos") +
     outdeg(callNetwork, ignore_repetitions = TRUE)

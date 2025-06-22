@@ -5,7 +5,7 @@
 test_that(
   "inertia/tie with objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         inertia(past_network_DyNAMi, weighted = TRUE, subType = "count") +
         tie(covnetwork_DyNAMi, weighted = TRUE, subType = "count") +
@@ -282,7 +282,7 @@ test_that(
 test_that(
   "inertia computes correct preprocessing objects with window",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         inertia(past_network_DyNAMi, weighted = TRUE) +
         inertia(past_network_DyNAMi, window = 2, weighted = TRUE) +
@@ -392,7 +392,7 @@ test_that(
 test_that(
   "alterpop/alterdeg with objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         alterpop(past_network_DyNAMi,
           weighted = TRUE, subType = "mean_normalized"
@@ -656,7 +656,7 @@ test_that(
 test_that(
   "size with objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         size(interaction_network_DyNAMi, subType = "identity") +
         size(interaction_network_DyNAMi, subType = "squared"),
@@ -770,7 +770,7 @@ test_that(
 test_that(
   "alter with objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~ alter(actors_DyNAMi$attr1, subType = "mean")
         + alter(actors_DyNAMi$attr1, subType = "mean_normalized")
         + alter(actors_DyNAMi$attr1, subType = "mean_squared")
@@ -991,7 +991,7 @@ test_that(
 test_that(
   "same/diff/sim with objects weighted with all possible options",
   {
-    preproData <- estimate(
+    preproData <- estimate_wrapper(
       dependent.depevents_DyNAMi ~
         same(actors_DyNAMi$attr2, subType = "proportion")
         + same(actors_DyNAMi$attr2, subType = "count")
