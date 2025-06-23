@@ -110,9 +110,9 @@ events (please note we need to use the right labels in the dataframe:
 `NodeA`, `NodeB`,`Start`, and `End`):
 
 ``` r
-#?defineGroups_interaction
-prepdata <- defineGroups_interaction(video, participants,
-                                     seed.randomization = 1)
+#?make_groups_interaction
+prepdata <- make_groups_interaction(video, participants,
+                                    seed_randomization = 1)
 ```
 
 This functions to creates 5 objects:
@@ -141,8 +141,8 @@ leaves (`increment` = 1 or -1) a group (`receiver`) at a particular point
 in time (`time`)
 
 ``` r
-dependent.events <- prepdata$dependent.events
-head(dependent.events)
+dependentEvents <- prepdata$dependent.events
+head(dependentEvents)
 ```
 
 ```
@@ -161,8 +161,8 @@ dependent event is created for this leaving but an exogenous event is also
 created because the actor "joins" a new group, its own isolated group)
 
 ``` r
-exogenous.events <- prepdata$exogenous.events
-head(exogenous.events)
+exogenousEvents <- prepdata$exogenous.events
+head(exogenousEvents)
 ```
 
 ```
@@ -179,8 +179,8 @@ head(exogenous.events)
 of past interactions between participants: 
 
 ``` r
-interaction.updates <- prepdata$interaction.updates
-head(interaction.updates)
+interactionUpdates <- prepdata$interaction.updates
+head(interactionUpdates)
 ```
 
 ```
@@ -231,13 +231,13 @@ First, we define the first mode nodeset, the actors:
 ``` r
 # goldfish requires character names
 participants$label <- as.character(participants$label)
-actors <- defineNodes(participants)
+actors <- make_nodes(participants)
 ```
 
 Then we define the second mode nodeset, the groups:
 
 ``` r
-groups <- defineNodes(groups)
+groups <- make_nodes(groups)
 ```
 
 Then we create the dynamic interaction network between the actors and
@@ -245,18 +245,18 @@ the groups, updated by the previously created events in `dependent.events`
 and `exogenous.events`
 
 ``` r
-init.network <- diag(x = 1, nrow(actors), nrow(groups))
+initNetwork <- diag(x = 1, nrow(actors), nrow(groups))
 # goldfish check that row/column names agree with the nodes data frame labels
-dimnames(init.network) <- list(actors$label, groups$label)
-network.interactions <- defineNetwork(
-  matrix = init.network, nodes = actors, nodes2 = groups, directed = TRUE
+dimnames(initNetwork) <- list(actors$label, groups$label)
+networkInteractions <- make_network(
+  matrix = initNetwork, nodes = actors, nodes2 = groups, directed = TRUE
 )
-network.interactions <- linkEvents(
-  x = network.interactions, changeEvent = dependent.events,
+networkInteractions <- link_events(
+  x = networkInteractions, change_events = dependentEvents,
   nodes = actors, nodes2 = groups
 )
-network.interactions <- linkEvents(
-  x = network.interactions, changeEvent = exogenous.events,
+networkInteractions <- link_events(
+  x = networkInteractions, change_events = exogenousEvents,
   nodes = actors, nodes2 = groups
 )
 ```
@@ -266,18 +266,65 @@ past interactions, updated by the previously created events in
 `interaction.updates`
 
 ``` r
-network.past <- defineNetwork(nodes = actors, directed = FALSE)
-network.past <- linkEvents(
-  x = network.past, changeEvents = interaction.updates, nodes = actors
+networkPast <- make_network(nodes = actors, directed = FALSE)
+networkPast <- link_events(
+  x = networkPast, change_events = interactionUpdates, nodes = actors
 ) # don't worry about the warnings
 ```
-Finally, we define the events that we want to model: `dependent.events`:
+In the next step, we define the events that we want to model:
+`dependentEvents`:
+
 
 ``` r
-dependent.events <- defineDependentEvents(
-  events = dependent.events, nodes = actors,
-  nodes2 = groups, defaultNetwork = network.interactions
+dependentEvents <- make_dependent_events(
+  events = dependentEvents, nodes = actors,
+  nodes2 = groups, default_network = networkInteractions
 )
+```
+
+As a final step, we define a goldfish data object that contains
+all the information needed to estimate the model.
+So, it is a container for the dependent events, the networks, and the nodes
+containing all the information of the dependent events and any dyadic or
+nodal covariate used as explanatory variables in the model.
+
+
+``` r
+rfidData <- make_data(
+  dependentEvents, networkInteractions, networkPast,
+  interactionUpdates, exogenousEvents, known.before, opportunities,
+  actors, groups
+)
+rfidData
+```
+
+```
+## Goldfish Data Environment
+## =========================
+## 
+## --- Nodesets ---
+##         n attributes linked_events
+## actors 11          6              
+## groups 11          1              
+## 
+## --- Networks ---
+##                     dimensions        nodeset                    linked_events directed
+## networkInteractions      11x11 actors, groups dependentEvents, exogenousEvents     TRUE
+## networkPast              11x11         actors               interactionUpdates    FALSE
+##                     two_mode
+## networkInteractions     TRUE
+## networkPast            FALSE
+## 
+## --- Events Data Frames ---
+##                    n_events object_type update_mode
+## dependentEvents         234      dyadic   increment
+## exogenousEvents         234      dyadic   increment
+## interactionUpdates      289      dyadic   increment
+## 
+## --- Other Objects ---
+##                class length
+## known.before  matrix    121
+## opportunities   list    123
 ```
 
 ### Step 4: Estimate a model with attribute effects
@@ -306,8 +353,8 @@ For the rate, we have the following effects:
   
 
 ``` r
-formula.rate.M1 <- dependent.events ~  1 +
-  intercept(network.interactions, joining = 1) +
+formulaRateM1 <- dependentEvents ~  1 +
+  intercept(networkInteractions, joining = 1) +
   ego(actors$age, joining = 1, subType = "centered") +
   ego(actors$age, joining = -1, subType = "centered") +
   diff(actors$age, joining = -1, subType = "averaged_sum") +
@@ -332,7 +379,7 @@ and for the choice model:
   
 
 ``` r
-formula.choice.M1 <- dependent.events ~
+formulaChoiceM1 <- dependentEvents ~
   diff(actors$age, subType = "averaged_sum") +
   diff(actors$level, subType = "averaged_sum") +
   same(actors$gender, subType = "proportion") +
@@ -347,38 +394,40 @@ the second explains who people want to leave (or stay with).
 Now let us run goldfish estimation!
 
 ``` r
-est.rate.M1 <- estimate(
-  formula.rate.M1, model = "DyNAMi", subModel = "rate",
-  estimationInit = list(engine = "default")                      
+estRateM1 <- estimate_dynami(
+  formulaRateM1,
+  sub_model = "rate",
+  data = rfidData,
+  control_estimation = set_estimation_opt(engine = "default")                      
 )
-summary(est.rate.M1)
+summary(estRateM1)
 ```
 
 ```
 ## 
 ## Call:
-## estimate(x = dependent.events ~ 1 + intercept(network.interactions, 
+## estimate_dynami(x = dependentEvents ~ 1 + intercept(networkInteractions, 
 ##     joining = 1) + ego(actors$age, joining = 1, subType = "centered") + 
 ##     ego(actors$age, joining = -1, subType = "centered") + diff(actors$age, 
 ##     joining = -1, subType = "averaged_sum") + diff(actors$level, 
 ##     joining = -1, subType = "averaged_sum") + same(actors$gender, 
 ##     joining = -1, subType = "proportion") + same(actors$group, 
 ##     joining = -1, subType = "proportion") + tie(known.before, 
-##     joining = -1, subType = "proportion"), model = "DyNAMi", 
-##     subModel = "rate", estimationInit = list(engine = "default"))
+##     joining = -1, subType = "proportion"), sub_model = "rate", 
+##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"))
 ## 
 ## 
 ## Effects details:
-##           Object                 joining subType         
-## Intercept ""                     ""      ""              
-## intercept "network.interactions" "1"     ""              
-## ego       "actors$age"           "1"     ""centered""    
-## ego       "actors$age"           "-1"    ""centered""    
-## diff      "actors$age"           "-1"    ""averaged_sum""
-## diff      "actors$level"         "-1"    ""averaged_sum""
-## same      "actors$gender"        "-1"    ""proportion""  
-## same      "actors$group"         "-1"    ""proportion""  
-## tie       "known.before"         "-1"    ""proportion""  
+##           Object                joining subType         
+## Intercept ""                    ""      ""              
+## intercept "networkInteractions" "1"     ""              
+## ego       "actors$age"          "1"     ""centered""    
+## ego       "actors$age"          "-1"    ""centered""    
+## diff      "actors$age"          "-1"    ""averaged_sum""
+## diff      "actors$level"        "-1"    ""averaged_sum""
+## same      "actors$gender"       "-1"    ""proportion""  
+## same      "actors$group"        "-1"    ""proportion""  
+## tie       "known.before"        "-1"    ""proportion""  
 ## 
 ## Coefficients:
 ##            Estimate Std. Error  z-value  Pr(>|z|)    
@@ -404,22 +453,26 @@ summary(est.rate.M1)
 
 
 ``` r
-est.choice.M1 <- estimate(
-  formula.choice.M1,
-  model = "DyNAMi", subModel = "choice",
-  estimationInit = list(opportunitiesList = opportunities)
+estChoiceM1 <- estimate_dynami(
+  formulaChoiceM1,
+  sub_model = "choice",
+  data = rfidData,
+  control_preprocessing =
+    set_preprocessing_opt(opportunities_list = opportunities),
+  control_estimation = set_estimation_opt(engine = "default")
 )
-summary(est.choice.M1)
+summary(estChoiceM1)
 ```
 
 ```
 ## 
 ## Call:
-## estimate(x = dependent.events ~ diff(actors$age, subType = "averaged_sum") + 
+## estimate_dynami(x = dependentEvents ~ diff(actors$age, subType = "averaged_sum") + 
 ##     diff(actors$level, subType = "averaged_sum") + same(actors$gender, 
 ##     subType = "proportion") + same(actors$group, subType = "proportion") + 
-##     tie(known.before, subType = "proportion"), model = "DyNAMi", 
-##     subModel = "choice", estimationInit = list(opportunitiesList = opportunities))
+##     tie(known.before, subType = "proportion"), sub_model = "choice", 
+##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"), 
+##     control_preprocessing = set_preprocessing_opt(opportunities_list = opportunities))
 ## 
 ## 
 ## Effects details:
@@ -460,8 +513,8 @@ We add to the rate model the effects of:
 
 
 ``` r
-formula.rate.M2 <- dependent.events ~  1 +
-  intercept(network.interactions, joining = 1) +
+formulaRateM2 <- dependentEvents ~  1 +
+  intercept(networkInteractions, joining = 1) +
   ego(actors$age, joining = 1, subType = "centered") +
   ego(actors$age, joining = -1, subType = "centered") +
   diff(actors$age, joining = -1, subType = "averaged_sum") +
@@ -469,9 +522,9 @@ formula.rate.M2 <- dependent.events ~  1 +
   same(actors$gender, joining = -1, subType = "proportion") +
   same(actors$group, joining = -1, subType = "proportion") +
   tie(known.before, joining = -1, subType = "proportion") +
-  size(network.interactions, joining = -1, subType = "identity") +
-  egopop(network.past, joining = 1, subType = "normalized") +
-  egopop(network.past, joining = -1, subType = "normalized")
+  size(networkInteractions, joining = -1, subType = "identity") +
+  egopop(networkPast, joining = 1, subType = "normalized") +
+  egopop(networkPast, joining = -1, subType = "normalized")
 ```
 
 We add to the choice model:
@@ -486,17 +539,17 @@ We add to the choice model:
 
 
 ``` r
-formula.choice.M2 <- dependent.events ~
+formulaChoiceM2 <- dependentEvents ~
   diff(actors$age, subType = "averaged_sum") +
   diff(actors$level, subType = "averaged_sum") +
   same(actors$gender, subType = "proportion") +
   same(actors$group, subType = "proportion") +
   alter(actors$age, subType = "mean") +
   tie(known.before, subType = "proportion") +
-  size(network.interactions, subType = "identity") +
-  alterpop(network.past, subType = "mean_normalized") +
-  inertia(network.past, window = 60, subType = "mean") +
-  inertia(network.past, window = 300, subType = "mean")
+  size(networkInteractions, subType = "identity") +
+  alterpop(networkPast, subType = "mean_normalized") +
+  inertia(networkPast, window = 60, subType = "mean") +
+  inertia(networkPast, window = 300, subType = "mean")
 ```
 
 One can note that we have normalized (using the option `subType="mean"`)
@@ -510,44 +563,46 @@ please look at the goldfish documentation to learn more.
 Now we can run again
 
 ``` r
-est.rate.M2 <- estimate(
-  formula.rate.M2, model = "DyNAMi", subModel = "rate",
-  estimationInit = list(engine = "default")  
+estRateM2 <- estimate_dynami(
+  formulaRateM2,
+  sub_model = "rate",
+  data = rfidData,
+  control_estimation = set_estimation_opt(engine = "default")  
 )
-summary(est.rate.M2)
+summary(estRateM2)
 ```
 
 ```
 ## 
 ## Call:
-## estimate(x = dependent.events ~ 1 + intercept(network.interactions, 
+## estimate_dynami(x = dependentEvents ~ 1 + intercept(networkInteractions, 
 ##     joining = 1) + ego(actors$age, joining = 1, subType = "centered") + 
 ##     ego(actors$age, joining = -1, subType = "centered") + diff(actors$age, 
 ##     joining = -1, subType = "averaged_sum") + diff(actors$level, 
 ##     joining = -1, subType = "averaged_sum") + same(actors$gender, 
 ##     joining = -1, subType = "proportion") + same(actors$group, 
 ##     joining = -1, subType = "proportion") + tie(known.before, 
-##     joining = -1, subType = "proportion") + size(network.interactions, 
-##     joining = -1, subType = "identity") + egopop(network.past, 
-##     joining = 1, subType = "normalized") + egopop(network.past, 
-##     joining = -1, subType = "normalized"), model = "DyNAMi", 
-##     subModel = "rate", estimationInit = list(engine = "default"))
+##     joining = -1, subType = "proportion") + size(networkInteractions, 
+##     joining = -1, subType = "identity") + egopop(networkPast, 
+##     joining = 1, subType = "normalized") + egopop(networkPast, 
+##     joining = -1, subType = "normalized"), sub_model = "rate", 
+##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"))
 ## 
 ## 
 ## Effects details:
-##           Object                 joining subType         
-## Intercept ""                     ""      ""              
-## intercept "network.interactions" "1"     ""              
-## ego       "actors$age"           "1"     ""centered""    
-## ego       "actors$age"           "-1"    ""centered""    
-## diff      "actors$age"           "-1"    ""averaged_sum""
-## diff      "actors$level"         "-1"    ""averaged_sum""
-## same      "actors$gender"        "-1"    ""proportion""  
-## same      "actors$group"         "-1"    ""proportion""  
-## tie       "known.before"         "-1"    ""proportion""  
-## size      "network.interactions" "-1"    ""identity""    
-## egopop    "network.past"         "1"     ""normalized""  
-## egopop    "network.past"         "-1"    ""normalized""  
+##           Object                joining subType         
+## Intercept ""                    ""      ""              
+## intercept "networkInteractions" "1"     ""              
+## ego       "actors$age"          "1"     ""centered""    
+## ego       "actors$age"          "-1"    ""centered""    
+## diff      "actors$age"          "-1"    ""averaged_sum""
+## diff      "actors$level"        "-1"    ""averaged_sum""
+## same      "actors$gender"       "-1"    ""proportion""  
+## same      "actors$group"        "-1"    ""proportion""  
+## tie       "known.before"        "-1"    ""proportion""  
+## size      "networkInteractions" "-1"    ""identity""    
+## egopop    "networkPast"         "1"     ""normalized""  
+## egopop    "networkPast"         "-1"    ""normalized""  
 ## 
 ## Coefficients:
 ##            Estimate Std. Error  z-value  Pr(>|z|)    
@@ -576,39 +631,43 @@ summary(est.rate.M2)
 and:
 
 ``` r
-est.choice.M2 <- estimate(
-  formula.choice.M2,
-  model = "DyNAMi", subModel = "choice",
-  estimationInit = list(opportunitiesList = opportunities)
+estChoiceM2 <- estimate_dynami(
+  formulaChoiceM2,
+  sub_model = "choice",
+  data = rfidData,
+  control_preprocessing =
+    set_preprocessing_opt(opportunities_list = opportunities),
+  control_estimation = set_estimation_opt(engine = "default")
 )
-summary(est.choice.M2)
+summary(estChoiceM2)
 ```
 
 ```
 ## 
 ## Call:
-## estimate(x = dependent.events ~ diff(actors$age, subType = "averaged_sum") + 
+## estimate_dynami(x = dependentEvents ~ diff(actors$age, subType = "averaged_sum") + 
 ##     diff(actors$level, subType = "averaged_sum") + same(actors$gender, 
 ##     subType = "proportion") + same(actors$group, subType = "proportion") + 
 ##     alter(actors$age, subType = "mean") + tie(known.before, subType = "proportion") + 
-##     size(network.interactions, subType = "identity") + alterpop(network.past, 
-##     subType = "mean_normalized") + inertia(network.past, window = 60, 
-##     subType = "mean") + inertia(network.past, window = 300, subType = "mean"), 
-##     model = "DyNAMi", subModel = "choice", estimationInit = list(opportunitiesList = opportunities))
+##     size(networkInteractions, subType = "identity") + alterpop(networkPast, 
+##     subType = "mean_normalized") + inertia(networkPast, window = 60, 
+##     subType = "mean") + inertia(networkPast, window = 300, subType = "mean"), 
+##     sub_model = "choice", data = rfidData, control_estimation = set_estimation_opt(engine = "default"), 
+##     control_preprocessing = set_preprocessing_opt(opportunities_list = opportunities))
 ## 
 ## 
 ## Effects details:
-##          Object                 window subType            
-## diff     "actors$age"           ""     ""averaged_sum""   
-## diff     "actors$level"         ""     ""averaged_sum""   
-## same     "actors$gender"        ""     ""proportion""     
-## same     "actors$group"         ""     ""proportion""     
-## alter    "actors$age"           ""     ""mean""           
-## tie      "known.before"         ""     ""proportion""     
-## size     "network.interactions" ""     ""identity""       
-## alterpop "network.past"         ""     ""mean_normalized""
-## inertia  "network.past"         "60"   ""mean""           
-## inertia  "network.past"         "300"  ""mean""           
+##          Object                window subType            
+## diff     "actors$age"          ""     ""averaged_sum""   
+## diff     "actors$level"        ""     ""averaged_sum""   
+## same     "actors$gender"       ""     ""proportion""     
+## same     "actors$group"        ""     ""proportion""     
+## alter    "actors$age"          ""     ""mean""           
+## tie      "known.before"        ""     ""proportion""     
+## size     "networkInteractions" ""     ""identity""       
+## alterpop "networkPast"         ""     ""mean_normalized""
+## inertia  "networkPast"         "60"   ""mean""           
+## inertia  "networkPast"         "300"  ""mean""           
 ## 
 ## Coefficients:
 ##           Estimate Std. Error z-value Pr(>|z|)   
@@ -645,16 +704,16 @@ If we want to report the actual intercept for joining,
 we can calculate the following (for M2 for example):
 
 ``` r
-cov.matrix <- vcov(est.rate.M2)
+covMatrix <- vcov(estRateM2)
 
-est.interceptjoining <- coef(est.rate.M2)[1] + coef(est.rate.M2)[2]
-se.interceptjoining <- sqrt(
-  cov.matrix[1, 1] + cov.matrix[2, 2] + 2 * cov.matrix[1, 2]
+estInterceptJoining <- coef(estRateM2)[1] + coef(estRateM2)[2]
+seInterceptJoining <- sqrt(
+  covMatrix[1, 1] + covMatrix[2, 2] + 2 * covMatrix[1, 2]
 )
-t.interceptjoining <- est.interceptjoining / se.interceptjoining
+tInterceptJoining <- estInterceptJoining / seInterceptJoining
 sprintf(
   "Intercept for joining: %.3f (SE = %.3f, t = %.3f)",
-  est.interceptjoining, se.interceptjoining, t.interceptjoining
+  estInterceptJoining, seInterceptJoining, tInterceptJoining
 )
 ```
 

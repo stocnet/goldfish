@@ -1,3 +1,27 @@
+# goldfish 1.7.0
+
+* Rename functions to follow tidyverse style guide.
+* Rename `define` functions to `make_`: `make_nodes()`, `make_network()`,
+  `make_dependent_events()`.
+* Introduce `set_` functions to set options: `set_estimation_opt()` 
+  for algorithm options, and `set_preprocess_opt()` for preprocessing options.
+* Introduce `make_data()` function to create a single data object with all
+  the data needed for estimation.
+* Introduce `history = c("pooling", "sequential", "consecutive")` argument
+  to `trans()` and `cycle()` effect functions that define how the previous history of events is used to compute the effect.
+* Add a function for each model implemented in the package: `estimate_dynam()`,
+  `estimate_dynami()` and `estimate_rem()`.
+
+# goldfish 1.6.13
+
+* Fixes problem when parallelizing code and using preprocess objects.
+* Fixes incorrect computation of number of right-censored events during 
+  preprocessing when `startTime` is specified.
+* Add `lifecycle` and `cli` to imports.
+* Rename functions names to `snake_case` to comply with the tidyverse
+  style guide and `stocnet` interface.
+* Add defunct documentation with functions that changed names.
+
 # goldfish 1.6.12
 
 * Fixes invalid URL link in the `goldfish-package.Rd`.

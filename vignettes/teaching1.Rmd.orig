@@ -44,68 +44,36 @@ head(calls)
 head(actors)
 ```
 
-```{r mask, echo=FALSE}
-#| purl = FALSE
-estimate <- function(
-    x,
-    model = c("DyNAM", "REM", "DyNAMi"),
-    subModel = c("choice", "rate", "choice_coordination"),
-    estimationInit = NULL,
-    preprocessingInit = NULL,
-    preprocessingOnly = FALSE,
-    verbose = FALSE,
-    progress = FALSE) {
-  
-  call <- match.call(expand.dots = TRUE)
-  
-  if (is.null(estimationInit$engine)) {
-    estimationInit <- c(estimationInit, list(engine = "gather_compute"))
-  }
-  
-  res <- goldfish::estimate(
-    x = x,
-    model = model,
-    subModel = subModel,
-    estimationInit = estimationInit,
-    preprocessingInit = preprocessingInit,
-    preprocessingOnly = preprocessingOnly,
-    verbose = verbose,
-    progress = progress
-  )
-  
-  res$call <- call 
-  res$call[["x"]] <- res$formula
-
-  return(res)
-}
-```
-
-
-# Preamble: Run a quick DyNAM in five lines
+# Preamble: Run a quick DyNAM in six lines
 We use an `R` version higher than 4.2.0 to compile the vignettes.
 The native pipe operator is available in `R` from version 4.1.0.
 
 ```{r quick}
-callNetwork <- defineNetwork(nodes = actors, directed = TRUE) |> # 1
-  linkEvents(changeEvent = calls, nodes = actors) # 2
+callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
+  link_events(change_events = calls, nodes = actors) # 2
 
 # 3
-callsDependent <- defineDependentEvents(
+callsDependent <- make_dependent_events(
   events = calls, nodes = actors,
-  defaultNetwork = callNetwork
+  default_network = callNetwork
   )
 
 # 4
-mod00Rate <- estimate(
+socialEvolutionData <- make_data(callsDependent, callNetwork, actors)
+
+# 5
+mod00Rate <- estimate_dynam(
   callsDependent ~ indeg + outdeg,
-  model = "DyNAM", subModel = "rate"
+  sub_model = "rate",
+  data = socialEvolutionData
   )
 
 summary(mod00Rate)
 
-mod00Choice <- estimate(
+mod00Choice <- estimate_dynam(
   callsDependent ~ inertia + recip + trans,
-  model = "DyNAM", subModel = "choice"
+  sub_model = "choice",
+  data = socialEvolutionData
   )
 
 summary(mod00Choice)
@@ -113,7 +81,7 @@ summary(mod00Choice)
 
 # Step 1: Create data objects
 
-## Step 1a: Define node set(s) and attributes
+## Step 1a: Make node set(s) and attributes
 
 We've loaded a dataset that defines its nodes and their attributes as
 a data frame. Let's check what we have first.
@@ -128,10 +96,10 @@ the `floor` of residence, and `gradeType` their educational level
 (1 = freshmen to 5 = graduate).
 All of these columns will be recognized as individual attributes by goldfish.
 
-We need to define them as nodes so that `goldfish` knows what to do with them.
+We need to make them as nodes so that `goldfish` knows what to do with them.
 
-```{r define-actors}
-actors <- defineNodes(actors)
+```{r make_nodes}
+actors <- make_nodes(actors)
 actors
 ```
 
@@ -140,7 +108,7 @@ a data frame, but the added class helps goldfish interpret the data frame
 correctly.
 
 
-## Step 1b: Define networks
+## Step 1b: Make networks
 
 Next we want to define the dyadic or network elements: calls between our actors.
 
@@ -151,13 +119,13 @@ head(calls)
 Note there are columns for `time`, `sender`, and `receiver`. `increment`
 is a reserved column.
 
-To tell goldfish this is a network, we must define it as such:
+To tell goldfish this is a network, we must make it as such:
 ```{r hlp1, eval=FALSE}
-?defineNetwork
+?make_network
 ```
 
 ```{r call-net}
-callNetwork <- defineNetwork(nodes = actors, directed = TRUE)
+callNetwork <- make_network(nodes = actors, directed = TRUE)
 ```
 
 The argument `directed` is `TRUE` by default, but we need to specify
@@ -168,25 +136,29 @@ that nodeset as needed.
 callNetwork
 ```
 
-Note that we have not added any network data yet. By default, `defineNetwork()`
+Note that we have not added any network data yet. By default, `make_network()`
 just constructs an empty matrix with dimensions defined by the length of the
 nodeset(s).
 So we have an empty network as a starting state.
 
 Now that goldfish recognizes the matrix as a network, we can also associate
 an event list that updates it.
-To do this we use the `linkEvents()` function, which requires us to identify
+To do this we use the `link_events()` function, which requires us to identify
 a goldfish object to be updated, the events that update it and, in this case,
 also the nodes that the events should relate to.
 `goldfish` checks the consistency of all this information and relates these
 objects to one another so that information can be called as needed.
 
 ```{r hlp2, eval=FALSE}
-?linkEvents
+?link_events
 ```
 
 ```{r link-call-net}
-callNetwork <- linkEvents(x = callNetwork, changeEvent = calls, nodes = actors)
+callNetwork <- link_events(
+  x = callNetwork,
+  change_events = calls,
+  nodes = actors
+)
 callNetwork
 ```
 
@@ -202,33 +174,54 @@ Friendship is thus a binary network.
 
 ```{r frdshp-net}
 head(friendship)
-friendshipNetwork <- defineNetwork(nodes = actors, directed = TRUE)
-friendshipNetwork <- linkEvents(
+friendshipNetwork <- make_network(nodes = actors, directed = TRUE)
+friendshipNetwork <- link_events(
   x = friendshipNetwork,
-  changeEvents = friendship,
+  change_events = friendship,
   nodes = actors
   )
 friendshipNetwork
 ```
 
-## Step 1c: Define dependent events
+## Step 1c: Make dependent events
 
-The final step in defining the data objects is to identify the dependent events.
+The following step in defining the data objects is to identify 
+the dependent events.
 Here we would like to model as the dependent variable the calls
 between individuals.
 We specify the event list and the node list.
 
 ```{r hlp3, eval=FALSE}
-?defineDependentEvents
+?make_dependent_events
 ```
 
 ```{r call-dep-events}
-callsDependent <- defineDependentEvents(
+callsDependent <- make_dependent_events(
   events = calls, nodes = actors,
-  defaultNetwork = callNetwork
+  default_network = callNetwork
   )
 callsDependent
 ```
+
+## Step 1d: Make data object
+
+Now that we have all the objects we need, we can make the data object.
+The data object is a goldfish object that contains all the information
+needed to estimate the model.
+So, it is a container for the dependent events, the networks, and the nodes
+containing all the information of the dependent events and any dyadic or
+nodal covariate used as explanatory variables in the model.
+
+```{r hlp4, eval=FALSE}
+?make_data
+```
+
+```{r make-data}
+socialEvolutionData <- make_data(
+  callsDependent, callNetwork, actors, friendshipNetwork
+)
+socialEvolutionData
+``` 
 
 ### Intermediate step: Visualization
 
@@ -321,9 +314,10 @@ For now, only need to worry about the `formula` and the `model`,
 `subModel` type (DyNAM-choice).
 
 ```{r simple-choice}
-mod01Choice <- estimate(
+mod01Choice <- estimate_dynam(
   simpleFormulaChoice,
-  model = "DyNAM", subModel = "choice"
+  sub_model = "choice",
+  data = socialEvolutionData
   )
 summary(mod01Choice)
 ```
@@ -337,9 +331,10 @@ complexFormulaChoice <-
                    tie(friendshipNetwork) + recip(friendshipNetwork) +
                    same(actors$gradeType) + same(actors$floor)
 
-mod02Choice <- estimate(
+mod02Choice <- estimate_dynam(
   complexFormulaChoice,
-  model = "DyNAM", subModel = "choice"
+  sub_model = "choice",
+  data = socialEvolutionData
   )
 summary(mod02Choice)
 ```
@@ -354,23 +349,30 @@ in the friendship network
 
 ```{r simple-rate}
 simpleFormulaRate <- callsDependent ~ indeg(friendshipNetwork)
-mod01Rate <- estimate(
+mod01Rate <- estimate_dynam(
   simpleFormulaRate,
-  model = "DyNAM", subModel = "rate"
+  sub_model = "rate",
+  data = socialEvolutionData
   )
 ```
 
 #### Remark:
 
 Sometimes, the default values for the algorithm are not enough
-to reach convergence. 
-We can remedy this by increasing the number of iterations:
+to reach convergence.
+The default values for the estimation algorithm are set by the function
+`set_estimation_opt()`, you can take a look to the different arguments and
+options that can be modified for the estimation algorithm taking a look to its
+documentation.
+We can remedy this by increasing the number of iterations setting a different
+value using the `control_estimation` argument:
 
 ```{r estimate-init}
-mod01Rate <- estimate(
+mod01Rate <- estimate_dynam(
   simpleFormulaRate,
-  model = "DyNAM", subModel = "rate",
-  estimationInit = list(maxIterations = 40)
+  sub_model = "rate",
+  data = socialEvolutionData,
+  control_estimation = set_estimation_opt(max_iterations = 40)
   )
 summary(mod01Rate)
 ```
@@ -383,7 +385,11 @@ complexFormulaRate <-
   callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(friendshipNetwork)
 
-mod02Rate <- estimate(complexFormulaRate, model = "DyNAM", subModel = "rate")
+mod02Rate <- estimate_dynam(
+  complexFormulaRate,
+  sub_model = "rate",
+  data = socialEvolutionData
+)
 summary(mod02Rate)
 ```
 
@@ -398,7 +404,11 @@ interceptFormulaRate <-
   callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(friendshipNetwork)
 
-mod03Rate <- estimate(interceptFormulaRate, model = "DyNAM", subModel = "rate")
+mod03Rate <- estimate_dynam(
+  interceptFormulaRate,
+  sub_model = "rate",
+  data = socialEvolutionData
+)
 summary(mod03Rate)
 ```
 
@@ -431,7 +441,7 @@ mod03RateCoef <- coef(mod03Rate)
   ) / 3600
 ```
 
-### Windows
+### Windows effects
 
 Remember our `callNetwork` process state accumulates actions in time,
 but some older actions may no longer be relevant to current action. 
@@ -446,7 +456,11 @@ windowFormulaRate <-
                    outdeg(callNetwork, window = 300) +
                    indeg(friendshipNetwork)
 
-mod04Rate <- estimate(windowFormulaRate, model = "DyNAM", subModel = "rate")
+mod04Rate <- estimate_dynam(
+  windowFormulaRate,
+  sub_model = "rate",
+  data = socialEvolutionData
+)
 summary(mod04Rate)
 ```
 
@@ -460,8 +474,11 @@ windowFormulaChoice <-
                    tie(friendshipNetwork) + recip(friendshipNetwork) +
                    same(actors$gradeType) + same(actors$floor)
 
-mod03Choice <- estimate(windowFormulaChoice,
-                         model = "DyNAM", subModel = "choice")
+mod03Choice <- estimate_dynam(
+  windowFormulaChoice,
+  sub_model = "choice",
+  data = socialEvolutionData
+)
 summary(mod03Choice)
 ```
 
@@ -483,7 +500,8 @@ AIC(mod03Rate, mod04Rate)
 ### REM with `goldfish`
 
 `goldfish` does not only run DyNAMs; it also runs REMs (Butts, 2008).
-We can now also run REMs using the right-censored intervals as introduced in Stadtfeld & Block (2017).
+We can now also run REMs using the right-censored intervals as introduced in
+Stadtfeld & Block (2017).
 An equivalent model specification to the DyNAM model we estimated above,
 including the rate and choice sub-models, is:
 
@@ -511,17 +529,20 @@ after each event.
 representing the data in a more usual tabular way but reducing time estimation.
 
 ```{r rem-gather, eval=FALSE}
-mod01REM <- estimate(
-  allFormulaREM, model = "REM",
-  estimationInit = list(initialDamping = 40, engine = "default_c")
-  )
+mod01REM <- estimate_rem(
+  allFormulaREM,
+  data = socialEvolutionData,
+  control_estimation =
+    set_estimation_opt(initial_damping = 40, engine = "default_c")
+)
 ```
 
 ```{r rem-c}
-mod01REM <- estimate(
-  allFormulaREM, model = "REM",
-  estimationInit = list(engine = "gather_compute")
-  )
+mod01REM <- estimate_rem(
+  allFormulaREM,
+  data = socialEvolutionData,
+  control_estimation = set_estimation_opt(engine = "gather_compute")
+)
 
 summary(mod01REM)
 ```
