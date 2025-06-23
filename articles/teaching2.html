@@ -6,12 +6,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Coordination Model and Extensions • goldfish</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
-<link rel="apple-touch-icon" type="image/png" sizes="180x180" href="../apple-touch-icon.png">
-<link rel="apple-touch-icon" type="image/png" sizes="120x120" href="../apple-touch-icon-120x120.png">
-<link rel="apple-touch-icon" type="image/png" sizes="76x76" href="../apple-touch-icon-76x76.png">
-<link rel="apple-touch-icon" type="image/png" sizes="60x60" href="../apple-touch-icon-60x60.png">
+<!-- favicons --><link rel="icon" type="image/png" sizes="48x48" href="../favicon-48x48.png">
+<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" sizes="any" href="../favicon.ico">
+<link rel="manifest" href="../site.webmanifest">
 <!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="../bootstrap-toc.css">
 <script src="../bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
@@ -38,7 +37,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.12</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.7.0</span>
       </span>
     </div>
 
@@ -170,7 +169,7 @@ a data frame.</p>
 <p>We need to define them as nodes so that goldfish knows what to do
 with them.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNodes.html">defineNodes</a></span><span class="op">(</span><span class="va">states</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_nodes.html">make_nodes</a></span><span class="op">(</span><span class="va">states</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">states</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Number of nodes: 6 </span></span>
 <span><span class="co">#&gt; Number of present nodes: 6 </span></span>
@@ -193,12 +192,12 @@ set, and they all change:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">sovchanges</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                     time node replace</span></span>
-<span><span class="co">#&gt; 1165 1960-04-03 00:00:00  SEN    TRUE</span></span>
-<span><span class="co">#&gt; 99   1960-04-26 23:00:00  TGO    TRUE</span></span>
-<span><span class="co">#&gt; 1317 1960-05-31 00:00:00  COD    TRUE</span></span>
-<span><span class="co">#&gt; 1316 1960-05-31 00:00:00  MLI    TRUE</span></span>
-<span><span class="co">#&gt; 100  1960-06-19 23:00:00  MLI    TRUE</span></span>
-<span><span class="co">#&gt; 101  1960-06-25 23:00:00  MDG    TRUE</span></span>
+<span><span class="co">#&gt; 1165 1960-04-03 01:00:00  SEN    TRUE</span></span>
+<span><span class="co">#&gt; 99   1960-04-27 00:00:00  TGO    TRUE</span></span>
+<span><span class="co">#&gt; 1317 1960-05-31 01:00:00  COD    TRUE</span></span>
+<span><span class="co">#&gt; 1316 1960-05-31 01:00:00  MLI    TRUE</span></span>
+<span><span class="co">#&gt; 100  1960-06-20 00:00:00  MLI    TRUE</span></span>
+<span><span class="co">#&gt; 101  1960-06-26 00:00:00  MDG    TRUE</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">regchanges</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            time node replace</span></span>
 <span><span class="co">#&gt; 814  1960-01-02  LAO      -1</span></span>
@@ -228,7 +227,7 @@ during the study period. To make sure goldfish recognises these changes
 at the appropriate point, we “link” these events to the node set and
 attribute we have defined.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">states</span>, <span class="va">sovchanges</span>, attribute <span class="op">=</span> <span class="st">"present"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span><span class="va">states</span>, <span class="va">sovchanges</span>, attribute <span class="op">=</span> <span class="st">"present"</span><span class="op">)</span></span>
 <span><span class="co"># If you call the object now, what happens?</span></span>
 <span><span class="va">states</span></span>
 <span><span class="co">#&gt; Number of nodes: 154 </span></span>
@@ -255,12 +254,12 @@ here:</p>
 <span><span class="co">#&gt;  $ regime : num  NA 10 5 -9 10 NA 10 -9 -1 NA ...</span></span>
 <span><span class="co">#&gt;  $ gdp    : num  NA 0.00625 0.06265 NA 0.04039 ...</span></span>
 <span><span class="co">#&gt;  - attr(*, "events")= chr "sovchanges"</span></span>
-<span><span class="co">#&gt;  - attr(*, "dynamicAttributes")= chr "present"</span></span></code></pre></div>
+<span><span class="co">#&gt;  - attr(*, "dynamic_attributes")= chr "present"</span></span></code></pre></div>
 <p>We can continue on with our other two dynamic monadic variables. Try
 this for yourself now.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">states</span>, <span class="va">regchanges</span>, attribute <span class="op">=</span> <span class="st">"regime"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">gdpchanges</span>, attribute <span class="op">=</span> <span class="st">"gdp"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span><span class="va">states</span>, <span class="va">regchanges</span>, attribute <span class="op">=</span> <span class="st">"regime"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span><span class="va">gdpchanges</span>, attribute <span class="op">=</span> <span class="st">"gdp"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">states</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Classes 'nodes.goldfish' and 'data.frame':   154 obs. of  4 variables:</span></span>
 <span><span class="co">#&gt;  $ label  : chr  "AND" "DNK" "FRA" "DEU" ...</span></span>
@@ -268,7 +267,7 @@ this for yourself now.</p>
 <span><span class="co">#&gt;  $ regime : num  NA 10 5 -9 10 NA 10 -9 -1 NA ...</span></span>
 <span><span class="co">#&gt;  $ gdp    : num  NA 0.00625 0.06265 NA 0.04039 ...</span></span>
 <span><span class="co">#&gt;  - attr(*, "events")= chr [1:3] "sovchanges" "regchanges" "gdpchanges"</span></span>
-<span><span class="co">#&gt;  - attr(*, "dynamicAttributes")= chr [1:3] "present" "regime" "gdp"</span></span></code></pre></div>
+<span><span class="co">#&gt;  - attr(*, "dynamic_attributes")= chr [1:3] "present" "regime" "gdp"</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="step-1b-define-networks">Step 1b: Define networks<a class="anchor" aria-label="anchor" href="#step-1b-define-networks"></a>
@@ -297,7 +296,7 @@ start of our time period. This is shown in the matrix</p>
 <p>So that goldfish knows how to handle this network, we define it
 so:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">bilatnet</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span><span class="va">bilatnet</span>, nodes <span class="op">=</span> <span class="va">states</span>, directed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">bilatnet</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_network.html">make_network</a></span><span class="op">(</span><span class="va">bilatnet</span>, nodes <span class="op">=</span> <span class="va">states</span>, directed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p>We specify the nodes so that goldfish can check for consistency, and
 relate the network to that nodeset when needed.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
@@ -308,9 +307,10 @@ relate the network to that nodeset when needed.</p>
 <span><span class="co">#&gt;  - attr(*, "dimnames")=List of 2</span></span>
 <span><span class="co">#&gt;   ..$ : chr [1:154] "AND" "DNK" "FRA" "DEU" ...</span></span>
 <span><span class="co">#&gt;   ..$ : chr [1:154] "AND" "DNK" "FRA" "DEU" ...</span></span>
-<span><span class="co">#&gt;  - attr(*, "events")= chr(0) </span></span>
 <span><span class="co">#&gt;  - attr(*, "nodes")= chr "states"</span></span>
 <span><span class="co">#&gt;  - attr(*, "directed")= logi FALSE</span></span>
+<span><span class="co">#&gt;  - attr(*, "is_two_mode")= logi FALSE</span></span>
+<span><span class="co">#&gt;  - attr(*, "events")= chr(0)</span></span>
 <span><span class="va">bilatnet</span></span>
 <span><span class="co">#&gt; Dimensions: 154 154 </span></span>
 <span><span class="co">#&gt; Number of ties (no weighted): 22 </span></span>
@@ -332,7 +332,7 @@ associate an event list that updates it. We use precisely the same
 function as before (since we have defined our objects, goldfish knows
 what to do and how to check it).</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">bilatnet</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">bilatnet</span>, <span class="va">bilatchanges</span>, nodes <span class="op">=</span> <span class="va">states</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">bilatnet</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span><span class="va">bilatnet</span>, <span class="va">bilatchanges</span>, nodes <span class="op">=</span> <span class="va">states</span><span class="op">)</span></span>
 <span><span class="va">bilatnet</span></span>
 <span><span class="co">#&gt; Dimensions: 154 154 </span></span>
 <span><span class="co">#&gt; Number of ties (no weighted): 22 </span></span>
@@ -351,8 +351,8 @@ what to do and how to check it).</p>
 <p>TASK: You should now be able to do the same with the initial
 contiguity network and the event list changing it.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">contignet</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span><span class="va">contignet</span>, nodes <span class="op">=</span> <span class="va">states</span>, directed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span><span class="va">contigchanges</span>, nodes <span class="op">=</span> <span class="va">states</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">contignet</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_network.html">make_network</a></span><span class="op">(</span><span class="va">contignet</span>, nodes <span class="op">=</span> <span class="va">states</span>, directed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span><span class="va">contigchanges</span>, nodes <span class="op">=</span> <span class="va">states</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="va">contignet</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "network.goldfish" "matrix"           "array"</span></span>
 <span><span class="va">contignet</span></span>
@@ -379,10 +379,10 @@ dependent events. Since treaty dissolution is a rarer, more complex, and
 idiosyncratic process, we will only look at those events that create a
 treaty tie between countries.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">createBilat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineDependentEvents.html">defineDependentEvents</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">createBilat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_dependent_events.html">make_dependent_events</a></span><span class="op">(</span></span>
 <span>  events <span class="op">=</span> <span class="va">bilatchanges</span><span class="op">[</span><span class="va">bilatchanges</span><span class="op">$</span><span class="va">increment</span> <span class="op">==</span> <span class="fl">1</span>,<span class="op">]</span>,</span>
 <span>  nodes <span class="op">=</span> <span class="va">states</span>,</span>
-<span>  defaultNetwork <span class="op">=</span> <span class="va">bilatnet</span></span>
+<span>  default_network <span class="op">=</span> <span class="va">bilatnet</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Note that we define the default network to which this dependent event
 list applies, as well as the node set, so that structural effects can be
@@ -404,6 +404,39 @@ interpreted correctly.</p>
 <span><span class="co">#&gt; 40 1961-03-11    GBR      ISL         1</span></span>
 <span><span class="co">#&gt; 41 1961-07-19    DEU      ISL         1</span></span></code></pre></div>
 </div>
+<div class="section level3">
+<h3 id="step-1d-make-data-object">Step 1d: Make data object<a class="anchor" aria-label="anchor" href="#step-1d-make-data-object"></a>
+</h3>
+<p>Now that we have all the objects we need, we can make the data
+object. The data object is a goldfish object that contains all the
+information needed to estimate the model.</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fisheriesData</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_data.html">make_data</a></span><span class="op">(</span><span class="va">createBilat</span>, <span class="va">bilatnet</span>, <span class="va">contignet</span>, <span class="va">states</span><span class="op">)</span></span>
+<span><span class="va">fisheriesData</span></span>
+<span><span class="co">#&gt; Goldfish Data Environment</span></span>
+<span><span class="co">#&gt; =========================</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Nodesets ---</span></span>
+<span><span class="co">#&gt;          n attributes                      linked_events</span></span>
+<span><span class="co">#&gt; states 154          3 sovchanges, regchanges, gdpchanges</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Networks ---</span></span>
+<span><span class="co">#&gt;           dimensions nodeset linked_events directed two_mode</span></span>
+<span><span class="co">#&gt; bilatnet     154x154  states  bilatchanges    FALSE    FALSE</span></span>
+<span><span class="co">#&gt; contignet    154x154  states contigchanges    FALSE    FALSE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Dependent Events ---</span></span>
+<span><span class="co">#&gt;             n_events default_network nodeset</span></span>
+<span><span class="co">#&gt; createBilat       69        bilatnet  states</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Events Data Frames ---</span></span>
+<span><span class="co">#&gt;               n_events object_type update_mode</span></span>
+<span><span class="co">#&gt; bilatchanges        77      dyadic   increment</span></span>
+<span><span class="co">#&gt; contigchanges      139      dyadic     replace</span></span>
+<span><span class="co">#&gt; sovchanges          62       nodal     replace</span></span>
+<span><span class="co">#&gt; regchanges         145       nodal     replace</span></span>
+<span><span class="co">#&gt; gdpchanges         979       nodal     replace</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
 <h2 id="intermediate-step-visualisation">Intermediate step: Visualisation<a class="anchor" aria-label="anchor" href="#intermediate-step-visualisation"></a>
@@ -413,12 +446,12 @@ recommend the visualisation of your data for analytic and diagnostic
 purposes.</p>
 <p>goldfish includes wrappers for base R commands to help extract
 monadic and dyadic information for certain time points.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="op">?</span><span class="va">as.data.frame.nodes.goldfish</span></span>
 <span><span class="op">?</span><span class="va">as.matrix.network.goldfish</span></span></code></pre></div>
 <p>We can use these functions to visually compare our network at two (or
 more) different time periods using igraph.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r.igraph.org/" class="external-link">igraph</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://stocnet.github.io/manynet/" class="external-link">manynet</a></span><span class="op">)</span></span>
 <span></span>
@@ -452,7 +485,7 @@ more) different time periods using igraph.</p>
 <span></span>
 <span><span class="fu"><a href="https://stocnet.github.io/manynet/reference/map_graphs.html" class="external-link">graphs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">startNet</span>, <span class="va">endNet</span><span class="op">)</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="teaching%2Fplot-teaching2-1.png" alt="plot of chunk plot-teaching2"><p class="caption">
+<img src="teaching/plot-teaching2-1.png" alt="plot of chunk plot-teaching2"><p class="caption">
 plot of chunk plot-teaching2
 </p>
 </div>
@@ -476,72 +509,72 @@ sub-steps in one. Nonetheless, it can be helpful to think of 2a
 separately, and recognise steps 2b and 2c as goldfish does them.</p>
 <p>Let us first see how to specify the effects and which are currently
 available:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"goldfishEffects"</span><span class="op">)</span></span></code></pre></div>
 <p>The data and model specification is similar (though not the same as)
 Stadtfeld, Hollway, and Block 2017a</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">formula1</span> <span class="op">&lt;-</span></span>
-<span>  <span class="va">createBilat</span> <span class="op">~</span> <span class="fu">inertia</span><span class="op">(</span><span class="va">bilatnet</span><span class="op">)</span> <span class="op">+</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">bilatnet</span>, ignoreRep <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">+</span></span>
-<span>                <span class="fu">trans</span><span class="op">(</span><span class="va">bilatnet</span>, ignoreRep <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="va">createBilat</span> <span class="op">~</span> <span class="fu">inertia</span><span class="op">(</span><span class="va">bilatnet</span><span class="op">)</span> <span class="op">+</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">bilatnet</span>, ignore_repetitions <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">+</span></span>
+<span>                <span class="fu">trans</span><span class="op">(</span><span class="va">bilatnet</span>, ignore_repetitions <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                <span class="fu">tie</span><span class="op">(</span><span class="va">contignet</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                <span class="fu">alter</span><span class="op">(</span><span class="va">states</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">states</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                <span class="fu">alter</span><span class="op">(</span><span class="va">states</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">states</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">estPrefs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  returnIntervalLogL <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  initialDamping <span class="op">=</span> <span class="fl">40</span>,</span>
-<span>  maxIterations <span class="op">=</span> <span class="fl">30</span></span>
-<span>  <span class="op">)</span></span>
+<span><span class="va">est_opts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_estimation_opt.html">set_estimation_opt</a></span><span class="op">(</span></span>
+<span>  return_interval_loglik <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  initial_damping <span class="op">=</span> <span class="fl">40</span>,</span>
+<span>  max_iterations <span class="op">=</span> <span class="fl">30</span>,</span>
+<span>  engine <span class="op">=</span> <span class="st">"default"</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span></span>
-<span>  <span class="va">partnerModel</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<span>  <span class="va">partnerModel</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
 <span>    <span class="va">formula1</span>,</span>
-<span>    model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"choice_coordination"</span>,</span>
-<span>    estimationInit <span class="op">=</span> <span class="va">estPrefs</span></span>
-<span>    <span class="op">)</span></span>
+<span>    sub_model <span class="op">=</span> <span class="st">"choice_coordination"</span>,</span>
+<span>    data <span class="op">=</span> <span class="va">fisheriesData</span>,</span>
+<span>    control_estimation <span class="op">=</span> <span class="va">est_opts</span></span>
+<span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: engine = "gather_compute" doesn't support ignoreRep effects. engine</span></span>
-<span><span class="co">#&gt; ="default" is used instead.</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;  57.504   2.220  59.779</span></span></code></pre></div>
+<span><span class="co">#&gt;  39.645   3.347  42.993</span></span></code></pre></div>
 <p>Did the model converge? If not, you can restart the estimation
 process using the same formula and current parameter estimates:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">estPrefs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  returnIntervalLogL <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  initialDamping <span class="op">=</span> <span class="fl">40</span>,</span>
-<span>  maxIterations <span class="op">=</span> <span class="fl">30</span>,</span>
-<span>  initialParameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">partnerModel</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">est_opts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_estimation_opt.html">set_estimation_opt</a></span><span class="op">(</span></span>
+<span>  return_interval_loglik <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  initial_damping <span class="op">=</span> <span class="fl">40</span>,</span>
+<span>  max_iterations <span class="op">=</span> <span class="fl">30</span>,</span>
+<span>  initial_parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">partnerModel</span><span class="op">)</span>,</span>
+<span>  engine <span class="op">=</span> <span class="st">"default"</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">partnerModel</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<span><span class="va">partnerModel</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
 <span>  <span class="va">formula1</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"choice_coordination"</span>,</span>
-<span>  estimationInit <span class="op">=</span> <span class="va">estPrefs</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: engine = "gather_compute" doesn't support ignoreRep effects. engine</span></span>
-<span><span class="co">#&gt; ="default" is used instead.</span></span>
+<span>  sub_model <span class="op">=</span> <span class="st">"choice_coordination"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">fisheriesData</span>,</span>
+<span>  control_estimation <span class="op">=</span> <span class="va">est_opts</span></span>
+<span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">partnerModel</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = createBilat ~ inertia(bilatnet) + indeg(bilatnet, </span></span>
-<span><span class="co">#&gt;     ignoreRep = TRUE) + trans(bilatnet, ignoreRep = TRUE) + tie(contignet) + </span></span>
-<span><span class="co">#&gt;     alter(states$regime) + diff(states$regime) + alter(states$gdp) + </span></span>
-<span><span class="co">#&gt;     diff(states$gdp), model = "DyNAM", subModel = "choice_coordination", </span></span>
-<span><span class="co">#&gt;     estimationInit = estPrefs)</span></span>
+<span><span class="co">#&gt; estimate_dynam(x = createBilat ~ inertia(bilatnet) + indeg(bilatnet, </span></span>
+<span><span class="co">#&gt;     ignore_repetitions = TRUE) + trans(bilatnet, ignore_repetitions = TRUE) + </span></span>
+<span><span class="co">#&gt;     tie(contignet) + alter(states$regime) + diff(states$regime) + </span></span>
+<span><span class="co">#&gt;     alter(states$gdp) + diff(states$gdp), sub_model = "choice_coordination", </span></span>
+<span><span class="co">#&gt;     data = fisheriesData, control_estimation = est_opts)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details:</span></span>
-<span><span class="co">#&gt;         Object        ignoreRep</span></span>
-<span><span class="co">#&gt; inertia bilatnet               </span></span>
-<span><span class="co">#&gt; indeg   bilatnet      B        </span></span>
-<span><span class="co">#&gt; trans   bilatnet      B        </span></span>
-<span><span class="co">#&gt; tie     contignet              </span></span>
-<span><span class="co">#&gt; alter   states$regime          </span></span>
-<span><span class="co">#&gt; diff    states$regime          </span></span>
-<span><span class="co">#&gt; alter   states$gdp             </span></span>
-<span><span class="co">#&gt; diff    states$gdp             </span></span>
+<span><span class="co">#&gt;         Object        ignore_repetitions</span></span>
+<span><span class="co">#&gt; inertia bilatnet                        </span></span>
+<span><span class="co">#&gt; indeg   bilatnet      B                 </span></span>
+<span><span class="co">#&gt; trans   bilatnet      B                 </span></span>
+<span><span class="co">#&gt; tie     contignet                       </span></span>
+<span><span class="co">#&gt; alter   states$regime                   </span></span>
+<span><span class="co">#&gt; diff    states$regime                   </span></span>
+<span><span class="co">#&gt; alter   states$gdp                      </span></span>
+<span><span class="co">#&gt; diff    states$gdp                      </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients:</span></span>
 <span><span class="co">#&gt;           Estimate Std. Error z-value  Pr(&gt;|z|)    </span></span>
@@ -566,29 +599,29 @@ process using the same formula and current parameter estimates:</p>
 states prefer partners that are contiguous? - Does transitivity matter?
 - Do states prefer rich or democratic partners? - Do states prefer
 similarly rich or democratic partners?</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">formula2</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">createBilat</span> <span class="op">~</span> <span class="fu">inertia</span><span class="op">(</span><span class="va">bilatnet</span>, weighted <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                <span class="fu">indeg</span><span class="op">(</span><span class="va">bilatnet</span><span class="op">)</span> <span class="op">+</span> <span class="fu">trans</span><span class="op">(</span><span class="va">bilatnet</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                <span class="fu">tie</span><span class="op">(</span><span class="va">contignet</span><span class="op">)</span> <span class="op">+</span> <span class="fu">alter</span><span class="op">(</span><span class="va">states</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">states</span><span class="op">$</span><span class="va">regime</span><span class="op">)</span> <span class="op">+</span> <span class="fu">alter</span><span class="op">(</span><span class="va">states</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">states</span><span class="op">$</span><span class="va">gdp</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">estPrefs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  returnIntervalLogL <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  initialDamping <span class="op">=</span> <span class="fl">40</span>,</span>
-<span>  maxIterations <span class="op">=</span> <span class="fl">30</span>,</span>
-<span>  engine <span class="op">=</span> <span class="st">"default_c"</span></span>
-<span>  <span class="op">)</span></span>
+<span><span class="va">est_opts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_estimation_opt.html">set_estimation_opt</a></span><span class="op">(</span></span>
+<span>  return_interval_loglik <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  initial_damping <span class="op">=</span> <span class="fl">40</span>,</span>
+<span>  max_iterations <span class="op">=</span> <span class="fl">30</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span></span>
-<span>  <span class="va">tieModel</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<span>  <span class="va">tieModel</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
 <span>    <span class="va">formula2</span>,</span>
-<span>    model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"choice_coordination"</span>,</span>
-<span>    estimationInit <span class="op">=</span> <span class="va">estPrefs</span></span>
-<span>    <span class="op">)</span></span>
+<span>    sub_model <span class="op">=</span> <span class="st">"choice_coordination"</span>,</span>
+<span>    data <span class="op">=</span> <span class="va">fisheriesData</span>,</span>
+<span>    control_estimation <span class="op">=</span> <span class="va">est_opts</span></span>
+<span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;  31.103   0.256  31.380</span></span></code></pre></div>
+<span><span class="co">#&gt;  25.770   0.587  26.252</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="extensions">Extensions…<a class="anchor" aria-label="anchor" href="#extensions"></a>
@@ -602,7 +635,7 @@ modeling.</p>
 <a href="https://broom.tidymodels.org/" class="external-link">broom</a>) functions for extracting and printing the key
 results from goldfish results objects. Here is an example on the current
 results object:</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://broom.tidymodels.org/" class="external-link">broom</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/nutterb/pixiedust" class="external-link">pixiedust</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/pixiedust/man/dust.html" class="external-link">dust</a></span><span class="op">(</span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">tieModel</span>, conf.int <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
@@ -617,7 +650,7 @@ results object:</p>
 <span><span class="co">#&gt; 6  states regime diff    0.008     0.013     0.651    0.52   -0.017     0.033</span></span>
 <span><span class="co">#&gt; 7    states gdp alter    6.089     1.516     4.015 &lt; 0.001   -0.047     0.016</span></span>
 <span><span class="co">#&gt; 8     states gdp diff   -4.601     1.582    -2.908   0.004   -0.017     0.033</span></span></code></pre></div>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance</a></span><span class="op">(</span><span class="va">tieModel</span><span class="op">)</span></span>
 <span><span class="co">#&gt; # A tibble: 1 × 5</span></span>
 <span><span class="co">#&gt;   logLik   AIC   BIC    df  nobs</span></span>
@@ -626,12 +659,12 @@ results object:</p>
 <p>Lastly, we have begun implementing further diagnostic functions that
 can help users identify areas for improving their model
 specification.</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/examine.html">examineOutliers</a></span><span class="op">(</span><span class="va">tieModel</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/examine.html">examine_outliers</a></span><span class="op">(</span><span class="va">tieModel</span><span class="op">)</span></span>
 <span><span class="co">#&gt; No outliers found.</span></span>
-<span><span class="fu"><a href="../reference/examine.html">examineChangepoints</a></span><span class="op">(</span><span class="va">tieModel</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/examine.html">examine_changepoints</a></span><span class="op">(</span><span class="va">tieModel</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="teaching%2Fplot-examine-1.png" alt="plot of chunk plot-examine" width="432"><p class="caption">
+<img src="teaching/plot-examine-1.png" alt="plot of chunk plot-examine" width="432"><p class="caption">
 plot of chunk plot-examine
 </p>
 </div>
@@ -655,7 +688,7 @@ of Water Cooperation and Conflict.</p>
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
       </footer>

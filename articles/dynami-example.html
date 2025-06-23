@@ -6,12 +6,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DyNAM-i: an example script • goldfish</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
-<link rel="apple-touch-icon" type="image/png" sizes="180x180" href="../apple-touch-icon.png">
-<link rel="apple-touch-icon" type="image/png" sizes="120x120" href="../apple-touch-icon-120x120.png">
-<link rel="apple-touch-icon" type="image/png" sizes="76x76" href="../apple-touch-icon-76x76.png">
-<link rel="apple-touch-icon" type="image/png" sizes="60x60" href="../apple-touch-icon-60x60.png">
+<!-- favicons --><link rel="icon" type="image/png" sizes="48x48" href="../favicon-48x48.png">
+<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" sizes="any" href="../favicon.ico">
+<link rel="manifest" href="../site.webmanifest">
 <!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="../bootstrap-toc.css">
 <script src="../bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
@@ -38,7 +37,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.12</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.7.0</span>
       </span>
     </div>
 
@@ -201,9 +200,9 @@ We can use this function to create these group events (please note we
 need to use the right labels in the dataframe: <code>NodeA</code>,
 <code>NodeB</code>,<code>Start</code>, and <code>End</code>):</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">#?defineGroups_interaction</span></span>
-<span><span class="va">prepdata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineGroups_interaction.html">defineGroups_interaction</a></span><span class="op">(</span><span class="va">video</span>, <span class="va">participants</span>,</span>
-<span>                                     seed.randomization <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="co">#?make_groups_interaction</span></span>
+<span><span class="va">prepdata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_groups_interaction.html">make_groups_interaction</a></span><span class="op">(</span><span class="va">video</span>, <span class="va">participants</span>,</span>
+<span>                                    seed_randomization <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
 <p>This functions to creates 5 objects: 1. <code>groups</code>: a
 goldfish nodeset containing the interaction groups (initially there are
 as many groups as actors and they are all present, meaning
@@ -227,8 +226,8 @@ or -1) a group (<code>receiver</code>) at a particular point in time
 (<code>time</code>)</li>
 </ol>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dependent.events</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">dependent.events</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">dependent.events</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">dependentEvents</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">dependent.events</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">dependentEvents</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##         time  sender receiver increment</span></span>
 <span><span class="co">## 1 1491329893  Actor4   Group3         1</span></span>
 <span><span class="co">## 2 1491329893  Actor2   Group9         1</span></span>
@@ -245,8 +244,8 @@ exogenous event is also created because the actor “joins” a new group,
 its own isolated group)</li>
 </ol>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">exogenous.events</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">exogenous.events</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">exogenous.events</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">exogenousEvents</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">exogenous.events</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">exogenousEvents</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##         time  sender receiver increment</span></span>
 <span><span class="co">## 1 1491329893  Actor4   Group4        -1</span></span>
 <span><span class="co">## 2 1491329893  Actor2   Group2        -1</span></span>
@@ -260,8 +259,8 @@ its own isolated group)</li>
 update the number of past interactions between participants:</li>
 </ol>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">interaction.updates</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">interaction.updates</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">interaction.updates</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">interactionUpdates</span> <span class="op">&lt;-</span> <span class="va">prepdata</span><span class="op">$</span><span class="va">interaction.updates</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">interactionUpdates</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##         time  sender receiver increment</span></span>
 <span><span class="co">## 1 1491329893  Actor4   Actor3         1</span></span>
 <span><span class="co">## 2 1491329893  Actor2   Actor9         1</span></span>
@@ -306,43 +305,81 @@ on.</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># goldfish requires character names</span></span>
 <span><span class="va">participants</span><span class="op">$</span><span class="va">label</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">participants</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
-<span><span class="va">actors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNodes.html">defineNodes</a></span><span class="op">(</span><span class="va">participants</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">actors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_nodes.html">make_nodes</a></span><span class="op">(</span><span class="va">participants</span><span class="op">)</span></span></code></pre></div>
 <p>Then we define the second mode nodeset, the groups:</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">groups</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNodes.html">defineNodes</a></span><span class="op">(</span><span class="va">groups</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">groups</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_nodes.html">make_nodes</a></span><span class="op">(</span><span class="va">groups</span><span class="op">)</span></span></code></pre></div>
 <p>Then we create the dynamic interaction network between the actors and
 the groups, updated by the previously created events in
 <code>dependent.events</code> and <code>exogenous.events</code></p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">init.network</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">actors</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">groups</span><span class="op">)</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">initNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">actors</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">groups</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co"># goldfish check that row/column names agree with the nodes data frame labels</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/dimnames.html" class="external-link">dimnames</a></span><span class="op">(</span><span class="va">init.network</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">label</span>, <span class="va">groups</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
-<span><span class="va">network.interactions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span></span>
-<span>  matrix <span class="op">=</span> <span class="va">init.network</span>, nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span>, directed <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/dimnames.html" class="external-link">dimnames</a></span><span class="op">(</span><span class="va">initNetwork</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">label</span>, <span class="va">groups</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
+<span><span class="va">networkInteractions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_network.html">make_network</a></span><span class="op">(</span></span>
+<span>  matrix <span class="op">=</span> <span class="va">initNetwork</span>, nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span>, directed <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">network.interactions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span></span>
-<span>  x <span class="op">=</span> <span class="va">network.interactions</span>, changeEvent <span class="op">=</span> <span class="va">dependent.events</span>,</span>
+<span><span class="va">networkInteractions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span></span>
+<span>  x <span class="op">=</span> <span class="va">networkInteractions</span>, change_events <span class="op">=</span> <span class="va">dependentEvents</span>,</span>
 <span>  nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">network.interactions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span></span>
-<span>  x <span class="op">=</span> <span class="va">network.interactions</span>, changeEvent <span class="op">=</span> <span class="va">exogenous.events</span>,</span>
+<span><span class="va">networkInteractions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span></span>
+<span>  x <span class="op">=</span> <span class="va">networkInteractions</span>, change_events <span class="op">=</span> <span class="va">exogenousEvents</span>,</span>
 <span>  nodes <span class="op">=</span> <span class="va">actors</span>, nodes2 <span class="op">=</span> <span class="va">groups</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Then we create the dynamic network between the actors that records
 past interactions, updated by the previously created events in
 <code>interaction.updates</code></p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">network.past</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span><span class="va">network.past</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span></span>
-<span>  x <span class="op">=</span> <span class="va">network.past</span>, changeEvents <span class="op">=</span> <span class="va">interaction.updates</span>, nodes <span class="op">=</span> <span class="va">actors</span></span>
+<code class="sourceCode R"><span><span class="va">networkPast</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_network.html">make_network</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="va">networkPast</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span></span>
+<span>  x <span class="op">=</span> <span class="va">networkPast</span>, change_events <span class="op">=</span> <span class="va">interactionUpdates</span>, nodes <span class="op">=</span> <span class="va">actors</span></span>
 <span><span class="op">)</span> <span class="co"># don't worry about the warnings</span></span></code></pre></div>
-<p>Finally, we define the events that we want to model:
-<code>dependent.events</code>:</p>
+<p>In the next step, we define the events that we want to model:
+<code>dependentEvents</code>:</p>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dependent.events</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineDependentEvents.html">defineDependentEvents</a></span><span class="op">(</span></span>
-<span>  events <span class="op">=</span> <span class="va">dependent.events</span>, nodes <span class="op">=</span> <span class="va">actors</span>,</span>
-<span>  nodes2 <span class="op">=</span> <span class="va">groups</span>, defaultNetwork <span class="op">=</span> <span class="va">network.interactions</span></span>
+<code class="sourceCode R"><span><span class="va">dependentEvents</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_dependent_events.html">make_dependent_events</a></span><span class="op">(</span></span>
+<span>  events <span class="op">=</span> <span class="va">dependentEvents</span>, nodes <span class="op">=</span> <span class="va">actors</span>,</span>
+<span>  nodes2 <span class="op">=</span> <span class="va">groups</span>, default_network <span class="op">=</span> <span class="va">networkInteractions</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>As a final step, we define a goldfish data object that contains all
+the information needed to estimate the model. So, it is a container for
+the dependent events, the networks, and the nodes containing all the
+information of the dependent events and any dyadic or nodal covariate
+used as explanatory variables in the model.</p>
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">rfidData</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_data.html">make_data</a></span><span class="op">(</span></span>
+<span>  <span class="va">dependentEvents</span>, <span class="va">networkInteractions</span>, <span class="va">networkPast</span>,</span>
+<span>  <span class="va">interactionUpdates</span>, <span class="va">exogenousEvents</span>, <span class="va">known.before</span>, <span class="va">opportunities</span>,</span>
+<span>  <span class="va">actors</span>, <span class="va">groups</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">rfidData</span></span></code></pre></div>
+<pre><code><span><span class="co">## Goldfish Data Environment</span></span>
+<span><span class="co">## =========================</span></span>
+<span><span class="co">## </span></span>
+<span><span class="co">## --- Nodesets ---</span></span>
+<span><span class="co">##         n attributes linked_events</span></span>
+<span><span class="co">## actors 11          6              </span></span>
+<span><span class="co">## groups 11          1              </span></span>
+<span><span class="co">## </span></span>
+<span><span class="co">## --- Networks ---</span></span>
+<span><span class="co">##                     dimensions        nodeset                    linked_events directed</span></span>
+<span><span class="co">## networkInteractions      11x11 actors, groups dependentEvents, exogenousEvents     TRUE</span></span>
+<span><span class="co">## networkPast              11x11         actors               interactionUpdates    FALSE</span></span>
+<span><span class="co">##                     two_mode</span></span>
+<span><span class="co">## networkInteractions     TRUE</span></span>
+<span><span class="co">## networkPast            FALSE</span></span>
+<span><span class="co">## </span></span>
+<span><span class="co">## --- Events Data Frames ---</span></span>
+<span><span class="co">##                    n_events object_type update_mode</span></span>
+<span><span class="co">## dependentEvents         234      dyadic   increment</span></span>
+<span><span class="co">## exogenousEvents         234      dyadic   increment</span></span>
+<span><span class="co">## interactionUpdates      289      dyadic   increment</span></span>
+<span><span class="co">## </span></span>
+<span><span class="co">## --- Other Objects ---</span></span>
+<span><span class="co">##                class length</span></span>
+<span><span class="co">## known.before  matrix    121</span></span>
+<span><span class="co">## opportunities   list    123</span></span></code></pre>
 </div>
 <div class="section level4">
 <h4 id="step-4-estimate-a-model-with-attribute-effects">Step 4: Estimate a model with attribute effects<a class="anchor" aria-label="anchor" href="#step-4-estimate-a-model-with-attribute-effects"></a>
@@ -370,9 +407,9 @@ faster if the proportion of same group in the group is high</li>
 <li>tie known before (leaving): tendency for individuals to leave groups
 faster if the proportion of previous friends in the group is high</li>
 </ol>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">formula.rate.M1</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span>  <span class="fl">1</span> <span class="op">+</span></span>
-<span>  <span class="fu">intercept</span><span class="op">(</span><span class="va">network.interactions</span>, joining <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">formulaRateM1</span> <span class="op">&lt;-</span> <span class="va">dependentEvents</span> <span class="op">~</span>  <span class="fl">1</span> <span class="op">+</span></span>
+<span>  <span class="fu">intercept</span><span class="op">(</span><span class="va">networkInteractions</span>, joining <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
@@ -393,8 +430,8 @@ proportion of same group in the group is high</li>
 <li>tie known before: tendency for individuals to join groups if the
 proportion of previous friends in the group is high</li>
 </ol>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">formula.choice.M1</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span></span>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">formulaChoiceM1</span> <span class="op">&lt;-</span> <span class="va">dependentEvents</span> <span class="op">~</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
@@ -404,36 +441,38 @@ proportion of previous friends in the group is high</li>
 leaving model: The first model explains who people want to join (or not
 join), the second explains who people want to leave (or stay with).</p>
 <p>Now let us run goldfish estimation!</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">est.rate.M1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
-<span>  <span class="va">formula.rate.M1</span>, model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span>,</span>
-<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>engine <span class="op">=</span> <span class="st">"default"</span><span class="op">)</span>                      </span>
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">estRateM1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynami</a></span><span class="op">(</span></span>
+<span>  <span class="va">formulaRateM1</span>,</span>
+<span>  sub_model <span class="op">=</span> <span class="st">"rate"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">rfidData</span>,</span>
+<span>  control_estimation <span class="op">=</span> <span class="fu"><a href="../reference/set_estimation_opt.html">set_estimation_opt</a></span><span class="op">(</span>engine <span class="op">=</span> <span class="st">"default"</span><span class="op">)</span>                      </span>
 <span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">est.rate.M1</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">estRateM1</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## </span></span>
 <span><span class="co">## Call:</span></span>
-<span><span class="co">## estimate(x = dependent.events ~ 1 + intercept(network.interactions, </span></span>
+<span><span class="co">## estimate_dynami(x = dependentEvents ~ 1 + intercept(networkInteractions, </span></span>
 <span><span class="co">##     joining = 1) + ego(actors$age, joining = 1, subType = "centered") + </span></span>
 <span><span class="co">##     ego(actors$age, joining = -1, subType = "centered") + diff(actors$age, </span></span>
 <span><span class="co">##     joining = -1, subType = "averaged_sum") + diff(actors$level, </span></span>
 <span><span class="co">##     joining = -1, subType = "averaged_sum") + same(actors$gender, </span></span>
 <span><span class="co">##     joining = -1, subType = "proportion") + same(actors$group, </span></span>
 <span><span class="co">##     joining = -1, subType = "proportion") + tie(known.before, </span></span>
-<span><span class="co">##     joining = -1, subType = "proportion"), model = "DyNAMi", </span></span>
-<span><span class="co">##     subModel = "rate", estimationInit = list(engine = "default"))</span></span>
+<span><span class="co">##     joining = -1, subType = "proportion"), sub_model = "rate", </span></span>
+<span><span class="co">##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"))</span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## Effects details:</span></span>
-<span><span class="co">##           Object                 joining subType         </span></span>
-<span><span class="co">## Intercept ""                     ""      ""              </span></span>
-<span><span class="co">## intercept "network.interactions" "1"     ""              </span></span>
-<span><span class="co">## ego       "actors$age"           "1"     ""centered""    </span></span>
-<span><span class="co">## ego       "actors$age"           "-1"    ""centered""    </span></span>
-<span><span class="co">## diff      "actors$age"           "-1"    ""averaged_sum""</span></span>
-<span><span class="co">## diff      "actors$level"         "-1"    ""averaged_sum""</span></span>
-<span><span class="co">## same      "actors$gender"        "-1"    ""proportion""  </span></span>
-<span><span class="co">## same      "actors$group"         "-1"    ""proportion""  </span></span>
-<span><span class="co">## tie       "known.before"         "-1"    ""proportion""  </span></span>
+<span><span class="co">##           Object                joining subType         </span></span>
+<span><span class="co">## Intercept ""                    ""      ""              </span></span>
+<span><span class="co">## intercept "networkInteractions" "1"     ""              </span></span>
+<span><span class="co">## ego       "actors$age"          "1"     ""centered""    </span></span>
+<span><span class="co">## ego       "actors$age"          "-1"    ""centered""    </span></span>
+<span><span class="co">## diff      "actors$age"          "-1"    ""averaged_sum""</span></span>
+<span><span class="co">## diff      "actors$level"        "-1"    ""averaged_sum""</span></span>
+<span><span class="co">## same      "actors$gender"       "-1"    ""proportion""  </span></span>
+<span><span class="co">## same      "actors$group"        "-1"    ""proportion""  </span></span>
+<span><span class="co">## tie       "known.before"        "-1"    ""proportion""  </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## Coefficients:</span></span>
 <span><span class="co">##            Estimate Std. Error  z-value  Pr(&gt;|z|)    </span></span>
@@ -455,20 +494,24 @@ join), the second explains who people want to leave (or stay with).</p>
 <span><span class="co">##   AICc: 2631.4 </span></span>
 <span><span class="co">##   BIC:  2661.7 </span></span>
 <span><span class="co">##   model: "DyNAMi" subModel: "rate"</span></span></code></pre>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">est.choice.M1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
-<span>  <span class="va">formula.choice.M1</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span>,</span>
-<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>opportunitiesList <span class="op">=</span> <span class="va">opportunities</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">estChoiceM1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynami</a></span><span class="op">(</span></span>
+<span>  <span class="va">formulaChoiceM1</span>,</span>
+<span>  sub_model <span class="op">=</span> <span class="st">"choice"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">rfidData</span>,</span>
+<span>  control_preprocessing <span class="op">=</span></span>
+<span>    <span class="fu"><a href="../reference/set_preprocessing_opt.html">set_preprocessing_opt</a></span><span class="op">(</span>opportunities_list <span class="op">=</span> <span class="va">opportunities</span><span class="op">)</span>,</span>
+<span>  control_estimation <span class="op">=</span> <span class="fu"><a href="../reference/set_estimation_opt.html">set_estimation_opt</a></span><span class="op">(</span>engine <span class="op">=</span> <span class="st">"default"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">est.choice.M1</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">estChoiceM1</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## </span></span>
 <span><span class="co">## Call:</span></span>
-<span><span class="co">## estimate(x = dependent.events ~ diff(actors$age, subType = "averaged_sum") + </span></span>
+<span><span class="co">## estimate_dynami(x = dependentEvents ~ diff(actors$age, subType = "averaged_sum") + </span></span>
 <span><span class="co">##     diff(actors$level, subType = "averaged_sum") + same(actors$gender, </span></span>
 <span><span class="co">##     subType = "proportion") + same(actors$group, subType = "proportion") + </span></span>
-<span><span class="co">##     tie(known.before, subType = "proportion"), model = "DyNAMi", </span></span>
-<span><span class="co">##     subModel = "choice", estimationInit = list(opportunitiesList = opportunities))</span></span>
+<span><span class="co">##     tie(known.before, subType = "proportion"), sub_model = "choice", </span></span>
+<span><span class="co">##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"), </span></span>
+<span><span class="co">##     control_preprocessing = set_preprocessing_opt(opportunities_list = opportunities))</span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## Effects details:</span></span>
@@ -509,9 +552,9 @@ in the past to join groups faster</li>
 <li>egopop (leaving): tendency for individuals who had more interactions
 in the past to leave groups faster</li>
 </ol>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">formula.rate.M2</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span>  <span class="fl">1</span> <span class="op">+</span></span>
-<span>  <span class="fu">intercept</span><span class="op">(</span><span class="va">network.interactions</span>, joining <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">formulaRateM2</span> <span class="op">&lt;-</span> <span class="va">dependentEvents</span> <span class="op">~</span>  <span class="fl">1</span> <span class="op">+</span></span>
+<span>  <span class="fu">intercept</span><span class="op">(</span><span class="va">networkInteractions</span>, joining <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ego</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"centered"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
@@ -519,9 +562,9 @@ in the past to leave groups faster</li>
 <span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">group</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">tie</span><span class="op">(</span><span class="va">known.before</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">size</span><span class="op">(</span><span class="va">network.interactions</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"identity"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">egopop</span><span class="op">(</span><span class="va">network.past</span>, joining <span class="op">=</span> <span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"normalized"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">egopop</span><span class="op">(</span><span class="va">network.past</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"normalized"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu">size</span><span class="op">(</span><span class="va">networkInteractions</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"identity"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">egopop</span><span class="op">(</span><span class="va">networkPast</span>, joining <span class="op">=</span> <span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"normalized"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">egopop</span><span class="op">(</span><span class="va">networkPast</span>, joining <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, subType <span class="op">=</span> <span class="st">"normalized"</span><span class="op">)</span></span></code></pre></div>
 <p>We add to the choice model:</p>
 <ol style="list-style-type: decimal">
 <li>size: tendency for individuals to join large groups</li>
@@ -532,18 +575,18 @@ a high average number of previous interactions with the group members
 within the last minute</li>
 <li>inertia, window = 300s: same as above, for 5 minutes</li>
 </ol>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">formula.choice.M2</span> <span class="op">&lt;-</span> <span class="va">dependent.events</span> <span class="op">~</span></span>
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">formulaChoiceM2</span> <span class="op">&lt;-</span> <span class="va">dependentEvents</span> <span class="op">~</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">level</span>, subType <span class="op">=</span> <span class="st">"averaged_sum"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gender</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">group</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">alter</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">age</span>, subType <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">tie</span><span class="op">(</span><span class="va">known.before</span>, subType <span class="op">=</span> <span class="st">"proportion"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">size</span><span class="op">(</span><span class="va">network.interactions</span>, subType <span class="op">=</span> <span class="st">"identity"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">alterpop</span><span class="op">(</span><span class="va">network.past</span>, subType <span class="op">=</span> <span class="st">"mean_normalized"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">inertia</span><span class="op">(</span><span class="va">network.past</span>, window <span class="op">=</span> <span class="fl">60</span>, subType <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">inertia</span><span class="op">(</span><span class="va">network.past</span>, window <span class="op">=</span> <span class="fl">300</span>, subType <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu">size</span><span class="op">(</span><span class="va">networkInteractions</span>, subType <span class="op">=</span> <span class="st">"identity"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">alterpop</span><span class="op">(</span><span class="va">networkPast</span>, subType <span class="op">=</span> <span class="st">"mean_normalized"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">inertia</span><span class="op">(</span><span class="va">networkPast</span>, window <span class="op">=</span> <span class="fl">60</span>, subType <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">inertia</span><span class="op">(</span><span class="va">networkPast</span>, window <span class="op">=</span> <span class="fl">300</span>, subType <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span></span></code></pre></div>
 <p>One can note that we have normalized (using the option
 <code>subType="mean"</code>) the effects related to previous
 interactions, because we want to avoid time heterogeneity issues (in the
@@ -551,42 +594,44 @@ beginning no interaction has happened, at the end, a lot happened).</p>
 <p>All effects can have different subTypes, please look at the goldfish
 documentation to learn more.</p>
 <p>Now we can run again</p>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">est.rate.M2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
-<span>  <span class="va">formula.rate.M2</span>, model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span>,</span>
-<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>engine <span class="op">=</span> <span class="st">"default"</span><span class="op">)</span>  </span>
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">estRateM2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynami</a></span><span class="op">(</span></span>
+<span>  <span class="va">formulaRateM2</span>,</span>
+<span>  sub_model <span class="op">=</span> <span class="st">"rate"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">rfidData</span>,</span>
+<span>  control_estimation <span class="op">=</span> <span class="fu"><a href="../reference/set_estimation_opt.html">set_estimation_opt</a></span><span class="op">(</span>engine <span class="op">=</span> <span class="st">"default"</span><span class="op">)</span>  </span>
 <span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">est.rate.M2</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">estRateM2</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## </span></span>
 <span><span class="co">## Call:</span></span>
-<span><span class="co">## estimate(x = dependent.events ~ 1 + intercept(network.interactions, </span></span>
+<span><span class="co">## estimate_dynami(x = dependentEvents ~ 1 + intercept(networkInteractions, </span></span>
 <span><span class="co">##     joining = 1) + ego(actors$age, joining = 1, subType = "centered") + </span></span>
 <span><span class="co">##     ego(actors$age, joining = -1, subType = "centered") + diff(actors$age, </span></span>
 <span><span class="co">##     joining = -1, subType = "averaged_sum") + diff(actors$level, </span></span>
 <span><span class="co">##     joining = -1, subType = "averaged_sum") + same(actors$gender, </span></span>
 <span><span class="co">##     joining = -1, subType = "proportion") + same(actors$group, </span></span>
 <span><span class="co">##     joining = -1, subType = "proportion") + tie(known.before, </span></span>
-<span><span class="co">##     joining = -1, subType = "proportion") + size(network.interactions, </span></span>
-<span><span class="co">##     joining = -1, subType = "identity") + egopop(network.past, </span></span>
-<span><span class="co">##     joining = 1, subType = "normalized") + egopop(network.past, </span></span>
-<span><span class="co">##     joining = -1, subType = "normalized"), model = "DyNAMi", </span></span>
-<span><span class="co">##     subModel = "rate", estimationInit = list(engine = "default"))</span></span>
+<span><span class="co">##     joining = -1, subType = "proportion") + size(networkInteractions, </span></span>
+<span><span class="co">##     joining = -1, subType = "identity") + egopop(networkPast, </span></span>
+<span><span class="co">##     joining = 1, subType = "normalized") + egopop(networkPast, </span></span>
+<span><span class="co">##     joining = -1, subType = "normalized"), sub_model = "rate", </span></span>
+<span><span class="co">##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"))</span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## Effects details:</span></span>
-<span><span class="co">##           Object                 joining subType         </span></span>
-<span><span class="co">## Intercept ""                     ""      ""              </span></span>
-<span><span class="co">## intercept "network.interactions" "1"     ""              </span></span>
-<span><span class="co">## ego       "actors$age"           "1"     ""centered""    </span></span>
-<span><span class="co">## ego       "actors$age"           "-1"    ""centered""    </span></span>
-<span><span class="co">## diff      "actors$age"           "-1"    ""averaged_sum""</span></span>
-<span><span class="co">## diff      "actors$level"         "-1"    ""averaged_sum""</span></span>
-<span><span class="co">## same      "actors$gender"        "-1"    ""proportion""  </span></span>
-<span><span class="co">## same      "actors$group"         "-1"    ""proportion""  </span></span>
-<span><span class="co">## tie       "known.before"         "-1"    ""proportion""  </span></span>
-<span><span class="co">## size      "network.interactions" "-1"    ""identity""    </span></span>
-<span><span class="co">## egopop    "network.past"         "1"     ""normalized""  </span></span>
-<span><span class="co">## egopop    "network.past"         "-1"    ""normalized""  </span></span>
+<span><span class="co">##           Object                joining subType         </span></span>
+<span><span class="co">## Intercept ""                    ""      ""              </span></span>
+<span><span class="co">## intercept "networkInteractions" "1"     ""              </span></span>
+<span><span class="co">## ego       "actors$age"          "1"     ""centered""    </span></span>
+<span><span class="co">## ego       "actors$age"          "-1"    ""centered""    </span></span>
+<span><span class="co">## diff      "actors$age"          "-1"    ""averaged_sum""</span></span>
+<span><span class="co">## diff      "actors$level"        "-1"    ""averaged_sum""</span></span>
+<span><span class="co">## same      "actors$gender"       "-1"    ""proportion""  </span></span>
+<span><span class="co">## same      "actors$group"        "-1"    ""proportion""  </span></span>
+<span><span class="co">## tie       "known.before"        "-1"    ""proportion""  </span></span>
+<span><span class="co">## size      "networkInteractions" "-1"    ""identity""    </span></span>
+<span><span class="co">## egopop    "networkPast"         "1"     ""normalized""  </span></span>
+<span><span class="co">## egopop    "networkPast"         "-1"    ""normalized""  </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## Coefficients:</span></span>
 <span><span class="co">##            Estimate Std. Error  z-value  Pr(&gt;|z|)    </span></span>
@@ -612,37 +657,41 @@ documentation to learn more.</p>
 <span><span class="co">##   BIC:  2672.4 </span></span>
 <span><span class="co">##   model: "DyNAMi" subModel: "rate"</span></span></code></pre>
 <p>and:</p>
-<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">est.choice.M2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
-<span>  <span class="va">formula.choice.M2</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"DyNAMi"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span>,</span>
-<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>opportunitiesList <span class="op">=</span> <span class="va">opportunities</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">estChoiceM2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynami</a></span><span class="op">(</span></span>
+<span>  <span class="va">formulaChoiceM2</span>,</span>
+<span>  sub_model <span class="op">=</span> <span class="st">"choice"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">rfidData</span>,</span>
+<span>  control_preprocessing <span class="op">=</span></span>
+<span>    <span class="fu"><a href="../reference/set_preprocessing_opt.html">set_preprocessing_opt</a></span><span class="op">(</span>opportunities_list <span class="op">=</span> <span class="va">opportunities</span><span class="op">)</span>,</span>
+<span>  control_estimation <span class="op">=</span> <span class="fu"><a href="../reference/set_estimation_opt.html">set_estimation_opt</a></span><span class="op">(</span>engine <span class="op">=</span> <span class="st">"default"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">est.choice.M2</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">estChoiceM2</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## </span></span>
 <span><span class="co">## Call:</span></span>
-<span><span class="co">## estimate(x = dependent.events ~ diff(actors$age, subType = "averaged_sum") + </span></span>
+<span><span class="co">## estimate_dynami(x = dependentEvents ~ diff(actors$age, subType = "averaged_sum") + </span></span>
 <span><span class="co">##     diff(actors$level, subType = "averaged_sum") + same(actors$gender, </span></span>
 <span><span class="co">##     subType = "proportion") + same(actors$group, subType = "proportion") + </span></span>
 <span><span class="co">##     alter(actors$age, subType = "mean") + tie(known.before, subType = "proportion") + </span></span>
-<span><span class="co">##     size(network.interactions, subType = "identity") + alterpop(network.past, </span></span>
-<span><span class="co">##     subType = "mean_normalized") + inertia(network.past, window = 60, </span></span>
-<span><span class="co">##     subType = "mean") + inertia(network.past, window = 300, subType = "mean"), </span></span>
-<span><span class="co">##     model = "DyNAMi", subModel = "choice", estimationInit = list(opportunitiesList = opportunities))</span></span>
+<span><span class="co">##     size(networkInteractions, subType = "identity") + alterpop(networkPast, </span></span>
+<span><span class="co">##     subType = "mean_normalized") + inertia(networkPast, window = 60, </span></span>
+<span><span class="co">##     subType = "mean") + inertia(networkPast, window = 300, subType = "mean"), </span></span>
+<span><span class="co">##     sub_model = "choice", data = rfidData, control_estimation = set_estimation_opt(engine = "default"), </span></span>
+<span><span class="co">##     control_preprocessing = set_preprocessing_opt(opportunities_list = opportunities))</span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## Effects details:</span></span>
-<span><span class="co">##          Object                 window subType            </span></span>
-<span><span class="co">## diff     "actors$age"           ""     ""averaged_sum""   </span></span>
-<span><span class="co">## diff     "actors$level"         ""     ""averaged_sum""   </span></span>
-<span><span class="co">## same     "actors$gender"        ""     ""proportion""     </span></span>
-<span><span class="co">## same     "actors$group"         ""     ""proportion""     </span></span>
-<span><span class="co">## alter    "actors$age"           ""     ""mean""           </span></span>
-<span><span class="co">## tie      "known.before"         ""     ""proportion""     </span></span>
-<span><span class="co">## size     "network.interactions" ""     ""identity""       </span></span>
-<span><span class="co">## alterpop "network.past"         ""     ""mean_normalized""</span></span>
-<span><span class="co">## inertia  "network.past"         "60"   ""mean""           </span></span>
-<span><span class="co">## inertia  "network.past"         "300"  ""mean""           </span></span>
+<span><span class="co">##          Object                window subType            </span></span>
+<span><span class="co">## diff     "actors$age"          ""     ""averaged_sum""   </span></span>
+<span><span class="co">## diff     "actors$level"        ""     ""averaged_sum""   </span></span>
+<span><span class="co">## same     "actors$gender"       ""     ""proportion""     </span></span>
+<span><span class="co">## same     "actors$group"        ""     ""proportion""     </span></span>
+<span><span class="co">## alter    "actors$age"          ""     ""mean""           </span></span>
+<span><span class="co">## tie      "known.before"        ""     ""proportion""     </span></span>
+<span><span class="co">## size     "networkInteractions" ""     ""identity""       </span></span>
+<span><span class="co">## alterpop "networkPast"         ""     ""mean_normalized""</span></span>
+<span><span class="co">## inertia  "networkPast"         "60"   ""mean""           </span></span>
+<span><span class="co">## inertia  "networkPast"         "300"  ""mean""           </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## Coefficients:</span></span>
 <span><span class="co">##           Estimate Std. Error z-value Pr(&gt;|z|)   </span></span>
@@ -676,17 +725,17 @@ some model selection.</p>
 interaction between the intercept and the joining events. If we want to
 report the actual intercept for joining, we can calculate the following
 (for M2 for example):</p>
-<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">cov.matrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">est.rate.M2</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb38"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">covMatrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">estRateM2</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">est.interceptjoining</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">est.rate.M2</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">est.rate.M2</span><span class="op">)</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span></span>
-<span><span class="va">se.interceptjoining</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span></span>
-<span>  <span class="va">cov.matrix</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="va">cov.matrix</span><span class="op">[</span><span class="fl">2</span>, <span class="fl">2</span><span class="op">]</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">cov.matrix</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">]</span></span>
+<span><span class="va">estInterceptJoining</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">estRateM2</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">estRateM2</span><span class="op">)</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span></span>
+<span><span class="va">seInterceptJoining</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span></span>
+<span>  <span class="va">covMatrix</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="va">covMatrix</span><span class="op">[</span><span class="fl">2</span>, <span class="fl">2</span><span class="op">]</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">covMatrix</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">]</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">t.interceptjoining</span> <span class="op">&lt;-</span> <span class="va">est.interceptjoining</span> <span class="op">/</span> <span class="va">se.interceptjoining</span></span>
+<span><span class="va">tInterceptJoining</span> <span class="op">&lt;-</span> <span class="va">estInterceptJoining</span> <span class="op">/</span> <span class="va">seInterceptJoining</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
 <span>  <span class="st">"Intercept for joining: %.3f (SE = %.3f, t = %.3f)"</span>,</span>
-<span>  <span class="va">est.interceptjoining</span>, <span class="va">se.interceptjoining</span>, <span class="va">t.interceptjoining</span></span>
+<span>  <span class="va">estInterceptJoining</span>, <span class="va">seInterceptJoining</span>, <span class="va">tInterceptJoining</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## [1] "Intercept for joining: -3.434 (SE = 0.089, t = -38.477)"</span></span></code></pre>
 <p>This script can be continued by looking at better model
@@ -712,7 +761,7 @@ recordings, and maybe compare both.</p>
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
       </footer>

@@ -6,12 +6,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DyNAM: How to start • goldfish</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
-<link rel="apple-touch-icon" type="image/png" sizes="180x180" href="../apple-touch-icon.png">
-<link rel="apple-touch-icon" type="image/png" sizes="120x120" href="../apple-touch-icon-120x120.png">
-<link rel="apple-touch-icon" type="image/png" sizes="76x76" href="../apple-touch-icon-76x76.png">
-<link rel="apple-touch-icon" type="image/png" sizes="60x60" href="../apple-touch-icon-60x60.png">
+<!-- favicons --><link rel="icon" type="image/png" sizes="48x48" href="../favicon-48x48.png">
+<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" sizes="any" href="../favicon.ico">
+<link rel="manifest" href="../site.webmanifest">
 <!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="../bootstrap-toc.css">
 <script src="../bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
@@ -38,7 +37,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.12</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.7.0</span>
       </span>
     </div>
 
@@ -164,32 +163,36 @@ papers by callings its documentation:</p>
 <span><span class="co">#&gt; 6 Actor 6    TRUE     4         2</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="preamble-run-a-quick-dynam-in-five-lines">Preamble: Run a quick DyNAM in five lines<a class="anchor" aria-label="anchor" href="#preamble-run-a-quick-dynam-in-five-lines"></a>
+<h2 id="preamble-run-a-quick-dynam-in-six-lines">Preamble: Run a quick DyNAM in six lines<a class="anchor" aria-label="anchor" href="#preamble-run-a-quick-dynam-in-six-lines"></a>
 </h2>
 <p>We use an <code>R</code> version higher than 4.2.0 to compile the
 vignettes. The native pipe operator is available in <code>R</code> from
 version 4.1.0.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="co"># 1</span></span>
-<span>  <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span>changeEvent <span class="op">=</span> <span class="va">calls</span>, nodes <span class="op">=</span> <span class="va">actors</span><span class="op">)</span> <span class="co"># 2</span></span>
+<code class="sourceCode R"><span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_network.html">make_network</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="co"># 1</span></span>
+<span>  <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span>change_events <span class="op">=</span> <span class="va">calls</span>, nodes <span class="op">=</span> <span class="va">actors</span><span class="op">)</span> <span class="co"># 2</span></span>
 <span></span>
 <span><span class="co"># 3</span></span>
-<span><span class="va">callsDependent</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineDependentEvents.html">defineDependentEvents</a></span><span class="op">(</span></span>
+<span><span class="va">callsDependent</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_dependent_events.html">make_dependent_events</a></span><span class="op">(</span></span>
 <span>  events <span class="op">=</span> <span class="va">calls</span>, nodes <span class="op">=</span> <span class="va">actors</span>,</span>
-<span>  defaultNetwork <span class="op">=</span> <span class="va">callNetwork</span></span>
+<span>  default_network <span class="op">=</span> <span class="va">callNetwork</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 4</span></span>
-<span><span class="va">mod00Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<span><span class="va">socialEvolutionData</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_data.html">make_data</a></span><span class="op">(</span><span class="va">callsDependent</span>, <span class="va">callNetwork</span>, <span class="va">actors</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 5</span></span>
+<span><span class="va">mod00Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="va">indeg</span> <span class="op">+</span> <span class="va">outdeg</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span></span>
+<span>  sub_model <span class="op">=</span> <span class="st">"rate"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod00Rate</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = callsDependent ~ indeg + outdeg, model = "DyNAM", </span></span>
-<span><span class="co">#&gt;     subModel = "rate")</span></span>
+<span><span class="co">#&gt; estimate_dynam(x = callsDependent ~ indeg + outdeg, sub_model = "rate", </span></span>
+<span><span class="co">#&gt;     data = socialEvolutionData)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients:</span></span>
@@ -206,16 +209,17 @@ version 4.1.0.</p>
 <span><span class="co">#&gt;   BIC:  3514 </span></span>
 <span><span class="co">#&gt;   model: "DyNAM" subModel: "rate"</span></span>
 <span></span>
-<span><span class="va">mod00Choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<span><span class="va">mod00Choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="va">inertia</span> <span class="op">+</span> <span class="va">recip</span> <span class="op">+</span> <span class="va">trans</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span></span>
+<span>  sub_model <span class="op">=</span> <span class="st">"choice"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod00Choice</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = callsDependent ~ inertia + recip + trans, model = "DyNAM", </span></span>
-<span><span class="co">#&gt;     subModel = "choice")</span></span>
+<span><span class="co">#&gt; estimate_dynam(x = callsDependent ~ inertia + recip + trans, </span></span>
+<span><span class="co">#&gt;     sub_model = "choice", data = socialEvolutionData)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients:</span></span>
@@ -237,7 +241,7 @@ version 4.1.0.</p>
 <h2 id="step-1-create-data-objects">Step 1: Create data objects<a class="anchor" aria-label="anchor" href="#step-1-create-data-objects"></a>
 </h2>
 <div class="section level3">
-<h3 id="step-1a-define-node-sets-and-attributes">Step 1a: Define node set(s) and attributes<a class="anchor" aria-label="anchor" href="#step-1a-define-node-sets-and-attributes"></a>
+<h3 id="step-1a-make-node-sets-and-attributes">Step 1a: Make node set(s) and attributes<a class="anchor" aria-label="anchor" href="#step-1a-make-node-sets-and-attributes"></a>
 </h3>
 <p>We’ve loaded a dataset that defines its nodes and their attributes as
 a data frame. Let’s check what we have first.</p>
@@ -257,10 +261,10 @@ identifier, <code>present</code>, the <code>floor</code> of residence,
 and <code>gradeType</code> their educational level (1 = freshmen to 5 =
 graduate). All of these columns will be recognized as individual
 attributes by goldfish.</p>
-<p>We need to define them as nodes so that <code>goldfish</code> knows
+<p>We need to make them as nodes so that <code>goldfish</code> knows
 what to do with them.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">actors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNodes.html">defineNodes</a></span><span class="op">(</span><span class="va">actors</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">actors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_nodes.html">make_nodes</a></span><span class="op">(</span><span class="va">actors</span><span class="op">)</span></span>
 <span><span class="va">actors</span></span>
 <span><span class="co">#&gt; Number of nodes: 84 </span></span>
 <span><span class="co">#&gt; Number of present nodes: 84 </span></span>
@@ -278,7 +282,7 @@ like a data frame, but the added class helps goldfish interpret the data
 frame correctly.</p>
 </div>
 <div class="section level3">
-<h3 id="step-1b-define-networks">Step 1b: Define networks<a class="anchor" aria-label="anchor" href="#step-1b-define-networks"></a>
+<h3 id="step-1b-make-networks">Step 1b: Make networks<a class="anchor" aria-label="anchor" href="#step-1b-make-networks"></a>
 </h3>
 <p>Next we want to define the dyadic or network elements: calls between
 our actors.</p>
@@ -294,11 +298,11 @@ our actors.</p>
 <p>Note there are columns for <code>time</code>, <code>sender</code>,
 and <code>receiver</code>. <code>increment</code> is a reserved
 column.</p>
-<p>To tell goldfish this is a network, we must define it as such:</p>
+<p>To tell goldfish this is a network, we must make it as such:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="op">?</span><span class="va">defineNetwork</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="op">?</span><span class="va">make_network</span></span></code></pre></div>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_network.html">make_network</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p>The argument <code>directed</code> is <code>TRUE</code> by default,
 but we need to specify the nodes so that <code>goldfish</code> can check
 for consistency and relate it to that nodeset as needed.</p>
@@ -319,21 +323,25 @@ for consistency and relate it to that nodeset as needed.</p>
 <span><span class="co">#&gt;   Actor 5       0       0       0       0       0       0</span></span>
 <span><span class="co">#&gt;   Actor 6       0       0       0       0       0       0</span></span></code></pre></div>
 <p>Note that we have not added any network data yet. By default,
-<code><a href="../reference/defineNetwork.html">defineNetwork()</a></code> just constructs an empty matrix with
+<code><a href="../reference/make_network.html">make_network()</a></code> just constructs an empty matrix with
 dimensions defined by the length of the nodeset(s). So we have an empty
 network as a starting state.</p>
 <p>Now that goldfish recognizes the matrix as a network, we can also
 associate an event list that updates it. To do this we use the
-<code><a href="../reference/linkEvents.html">linkEvents()</a></code> function, which requires us to identify a
+<code><a href="../reference/link_events.html">link_events()</a></code> function, which requires us to identify a
 goldfish object to be updated, the events that update it and, in this
 case, also the nodes that the events should relate to.
 <code>goldfish</code> checks the consistency of all this information and
 relates these objects to one another so that information can be called
 as needed.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="op">?</span><span class="va">linkEvents</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="op">?</span><span class="va">link_events</span></span></code></pre></div>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">callNetwork</span>, changeEvent <span class="op">=</span> <span class="va">calls</span>, nodes <span class="op">=</span> <span class="va">actors</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">callNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span></span>
+<span>  x <span class="op">=</span> <span class="va">callNetwork</span>,</span>
+<span>  change_events <span class="op">=</span> <span class="va">calls</span>,</span>
+<span>  nodes <span class="op">=</span> <span class="va">actors</span></span>
+<span><span class="op">)</span></span>
 <span><span class="va">callNetwork</span></span>
 <span><span class="co">#&gt; Dimensions: 84 84 </span></span>
 <span><span class="co">#&gt; Number of ties (no weighted): 0 </span></span>
@@ -369,10 +377,10 @@ incrementing it. Friendship is thus a binary network.</p>
 <span><span class="co">#&gt; 5 1220918400 Actor 68 Actor 40       1</span></span>
 <span><span class="co">#&gt; 6 1220918400 Actor 23 Actor 40       1</span></span>
 <span><span class="co">#&gt; 7 1220918400 Actor 49 Actor 40       1</span></span>
-<span><span class="va">friendshipNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineNetwork.html">defineNetwork</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="va">friendshipNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linkEvents.html">linkEvents</a></span><span class="op">(</span></span>
+<span><span class="va">friendshipNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_network.html">make_network</a></span><span class="op">(</span>nodes <span class="op">=</span> <span class="va">actors</span>, directed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">friendshipNetwork</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/link_events.html">link_events</a></span><span class="op">(</span></span>
 <span>  x <span class="op">=</span> <span class="va">friendshipNetwork</span>,</span>
-<span>  changeEvents <span class="op">=</span> <span class="va">friendship</span>,</span>
+<span>  change_events <span class="op">=</span> <span class="va">friendship</span>,</span>
 <span>  nodes <span class="op">=</span> <span class="va">actors</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="va">friendshipNetwork</span></span>
@@ -394,18 +402,18 @@ incrementing it. Friendship is thus a binary network.</p>
 </div>
 </div>
 <div class="section level3">
-<h3 id="step-1c-define-dependent-events">Step 1c: Define dependent events<a class="anchor" aria-label="anchor" href="#step-1c-define-dependent-events"></a>
+<h3 id="step-1c-make-dependent-events">Step 1c: Make dependent events<a class="anchor" aria-label="anchor" href="#step-1c-make-dependent-events"></a>
 </h3>
-<p>The final step in defining the data objects is to identify the
+<p>The following step in defining the data objects is to identify the
 dependent events. Here we would like to model as the dependent variable
 the calls between individuals. We specify the event list and the node
 list.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="op">?</span><span class="va">defineDependentEvents</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="op">?</span><span class="va">make_dependent_events</span></span></code></pre></div>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">callsDependent</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/defineDependentEvents.html">defineDependentEvents</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">callsDependent</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_dependent_events.html">make_dependent_events</a></span><span class="op">(</span></span>
 <span>  events <span class="op">=</span> <span class="va">calls</span>, nodes <span class="op">=</span> <span class="va">actors</span>,</span>
-<span>  defaultNetwork <span class="op">=</span> <span class="va">callNetwork</span></span>
+<span>  default_network <span class="op">=</span> <span class="va">callNetwork</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="va">callsDependent</span></span>
 <span><span class="co">#&gt; Number of events: 439 </span></span>
@@ -420,6 +428,43 @@ list.</p>
 <span><span class="co">#&gt; 4 1221785882 Actor 43 Actor 22         1</span></span>
 <span><span class="co">#&gt; 5 1221787264 Actor 43 Actor 55         1</span></span>
 <span><span class="co">#&gt; 6 1221848443 Actor 43 Actor 51         1</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="step-1d-make-data-object">Step 1d: Make data object<a class="anchor" aria-label="anchor" href="#step-1d-make-data-object"></a>
+</h3>
+<p>Now that we have all the objects we need, we can make the data
+object. The data object is a goldfish object that contains all the
+information needed to estimate the model. So, it is a container for the
+dependent events, the networks, and the nodes containing all the
+information of the dependent events and any dyadic or nodal covariate
+used as explanatory variables in the model.</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="op">?</span><span class="va">make_data</span></span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">socialEvolutionData</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/make_data.html">make_data</a></span><span class="op">(</span></span>
+<span>  <span class="va">callsDependent</span>, <span class="va">callNetwork</span>, <span class="va">actors</span>, <span class="va">friendshipNetwork</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">socialEvolutionData</span></span>
+<span><span class="co">#&gt; Goldfish Data Environment</span></span>
+<span><span class="co">#&gt; =========================</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Nodesets ---</span></span>
+<span><span class="co">#&gt;         n attributes linked_events</span></span>
+<span><span class="co">#&gt; actors 84          3              </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Networks ---</span></span>
+<span><span class="co">#&gt;                   dimensions nodeset linked_events directed two_mode</span></span>
+<span><span class="co">#&gt; callNetwork            84x84  actors         calls     TRUE    FALSE</span></span>
+<span><span class="co">#&gt; friendshipNetwork      84x84  actors    friendship     TRUE    FALSE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Dependent Events ---</span></span>
+<span><span class="co">#&gt;                n_events default_network nodeset</span></span>
+<span><span class="co">#&gt; callsDependent      439     callNetwork  actors</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Events Data Frames ---</span></span>
+<span><span class="co">#&gt;            n_events object_type update_mode</span></span>
+<span><span class="co">#&gt; calls           439      dyadic   increment</span></span>
+<span><span class="co">#&gt; friendship      766      dyadic     replace</span></span></code></pre></div>
 <div class="section level4">
 <h4 id="intermediate-step-visualization">Intermediate step: Visualization<a class="anchor" aria-label="anchor" href="#intermediate-step-visualization"></a>
 </h4>
@@ -433,7 +478,7 @@ for certain time points, <code><a href="../reference/update-method.html">?as.dat
 more) different time periods using <code>migraph</code>. See the
 <code>migraph</code> package documentation for additional information
 about network visualization.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r.igraph.org/" class="external-link">igraph</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggraph.data-imaginist.com" class="external-link">ggraph</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://stocnet.github.io/migraph/" class="external-link">migraph</a></span><span class="op">)</span></span>
@@ -441,9 +486,9 @@ about network visualization.</p>
 <span><span class="va">callNetworkBgn</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://stocnet.github.io/manynet/reference/map_graphr.html" class="external-link">graphr</a></span><span class="op">(</span><span class="va">callNetworkBgn</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="teaching%2Fplot-teaching1-1.png" alt="plot of chunk plot-teaching1"><div class="figcaption">plot of chunk plot-teaching1</div>
+<img src="teaching/plot-teaching1-1.png" alt="plot of chunk plot-teaching1"><div class="figcaption">plot of chunk plot-teaching1</div>
 </div>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># The network at half time</span></span>
 <span><span class="va">callNetworkHlf</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span></span>
@@ -456,9 +501,9 @@ about network visualization.</p>
 <span><span class="fu"><a href="https://stocnet.github.io/manynet/reference/map_graphr.html" class="external-link">graphr</a></span><span class="op">(</span><span class="va">callNetworkHlf</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggraph.data-imaginist.com/reference/geom_node_point.html" class="external-link">geom_node_point</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">floor</span><span class="op">)</span><span class="op">)</span>, size <span class="op">=</span> <span class="fl">2</span>, show.legend <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="teaching%2Fplot-teaching1-2.png" alt="plot of chunk plot-teaching1"><div class="figcaption">plot of chunk plot-teaching1</div>
+<img src="teaching/plot-teaching1-2.png" alt="plot of chunk plot-teaching1"><div class="figcaption">plot of chunk plot-teaching1</div>
 </div>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># The network at the end</span></span>
 <span><span class="va">callNetworkEnd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">callNetwork</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">calls</span><span class="op">$</span><span class="va">time</span><span class="op">)</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span> <span class="op">|&gt;</span></span>
@@ -468,9 +513,9 @@ about network visualization.</p>
 <span><span class="fu"><a href="https://stocnet.github.io/manynet/reference/map_graphr.html" class="external-link">graphr</a></span><span class="op">(</span><span class="va">callNetworkEnd</span>, labels <span class="op">=</span> <span class="cn">FALSE</span>, layout <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggraph.data-imaginist.com/reference/geom_node_point.html" class="external-link">geom_node_point</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">floor</span><span class="op">)</span><span class="op">)</span>, size <span class="op">=</span> <span class="fl">2</span>, show.legend <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="teaching%2Fplot-teaching1-3.png" alt="plot of chunk plot-teaching1"><div class="figcaption">plot of chunk plot-teaching1</div>
+<img src="teaching/plot-teaching1-3.png" alt="plot of chunk plot-teaching1"><div class="figcaption">plot of chunk plot-teaching1</div>
 </div>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span></span>
 <span><span class="co"># The tie strength at the end</span></span>
@@ -505,10 +550,10 @@ separately, and recognize steps 2b and 2c as goldfish does them.</p>
 <p><code>goldfish_dependent ~ effects(process_state_element)</code></p>
 <p>We can see which effects are currently available and how to specify
 them here:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"goldfishEffects"</span><span class="op">)</span></span></code></pre></div>
 <p>Let’s start with the simplest model we can imagine:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">simpleFormulaChoice</span> <span class="op">&lt;-</span> <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">tie</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span></span></code></pre></div>
 <p>What are we testing here? Do individuals call their friends more than
 non-friends?</p>
@@ -519,16 +564,17 @@ non-friends?</p>
 <p>Now to estimate this model, we use the <code><a href="../reference/estimate.html">?estimate</a></code>
 function. For now, only need to worry about the <code>formula</code> and
 the <code>model</code>, <code>subModel</code> type (DyNAM-choice).</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">mod01Choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">mod01Choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
 <span>  <span class="va">simpleFormulaChoice</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span></span>
+<span>  sub_model <span class="op">=</span> <span class="st">"choice"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod01Choice</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = callsDependent ~ tie(friendshipNetwork), model = "DyNAM", </span></span>
-<span><span class="co">#&gt;     subModel = "choice")</span></span>
+<span><span class="co">#&gt; estimate_dynam(x = callsDependent ~ tie(friendshipNetwork), sub_model = "choice", </span></span>
+<span><span class="co">#&gt;     data = socialEvolutionData)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients:</span></span>
@@ -545,22 +591,23 @@ the <code>model</code>, <code>subModel</code> type (DyNAM-choice).</p>
 <span><span class="co">#&gt;   model: "DyNAM" subModel: "choice"</span></span></code></pre></div>
 <p>Ok, as fascinating as that was, perhaps we can test how robust this
 finding is in the presence of plausible controls.</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">complexFormulaChoice</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">inertia</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">recip</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">tie</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">recip</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gradeType</span><span class="op">)</span> <span class="op">+</span> <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">mod02Choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<span><span class="va">mod02Choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
 <span>  <span class="va">complexFormulaChoice</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span></span>
+<span>  sub_model <span class="op">=</span> <span class="st">"choice"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod02Choice</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = callsDependent ~ inertia(callNetwork) + recip(callNetwork) + </span></span>
+<span><span class="co">#&gt; estimate_dynam(x = callsDependent ~ inertia(callNetwork) + recip(callNetwork) + </span></span>
 <span><span class="co">#&gt;     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + </span></span>
-<span><span class="co">#&gt;     same(actors$floor), model = "DyNAM", subModel = "choice")</span></span>
+<span><span class="co">#&gt;     same(actors$floor), sub_model = "choice", data = socialEvolutionData)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details:</span></span>
@@ -596,29 +643,35 @@ finding is in the presence of plausible controls.</p>
 individuals? (Step 1 of the model)</p>
 <p>Let us again define a simple formula that only depends on
 individuals’ degree in the friendship network</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">simpleFormulaRate</span> <span class="op">&lt;-</span> <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span></span>
-<span><span class="va">mod01Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+<span><span class="va">mod01Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
 <span>  <span class="va">simpleFormulaRate</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span></span>
+<span>  sub_model <span class="op">=</span> <span class="st">"rate"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 <div class="section level5">
 <h5 id="remark">Remark:<a class="anchor" aria-label="anchor" href="#remark"></a>
 </h5>
 <p>Sometimes, the default values for the algorithm are not enough to
-reach convergence. We can remedy this by increasing the number of
-iterations:</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">mod01Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
+reach convergence. The default values for the estimation algorithm are
+set by the function <code><a href="../reference/set_estimation_opt.html">set_estimation_opt()</a></code>, you can take a
+look to the different arguments and options that can be modified for the
+estimation algorithm taking a look to its documentation. We can remedy
+this by increasing the number of iterations setting a different value
+using the <code>control_estimation</code> argument:</p>
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">mod01Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
 <span>  <span class="va">simpleFormulaRate</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span>,</span>
-<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>maxIterations <span class="op">=</span> <span class="fl">40</span><span class="op">)</span></span>
+<span>  sub_model <span class="op">=</span> <span class="st">"rate"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span>,</span>
+<span>  control_estimation <span class="op">=</span> <span class="fu"><a href="../reference/set_estimation_opt.html">set_estimation_opt</a></span><span class="op">(</span>max_iterations <span class="op">=</span> <span class="fl">40</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod01Rate</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = callsDependent ~ indeg(friendshipNetwork), model = "DyNAM", </span></span>
-<span><span class="co">#&gt;     subModel = "rate", estimationInit = list(maxIterations = 40))</span></span>
+<span><span class="co">#&gt; estimate_dynam(x = callsDependent ~ indeg(friendshipNetwork), </span></span>
+<span><span class="co">#&gt;     sub_model = "rate", data = socialEvolutionData, control_estimation = set_estimation_opt(max_iterations = 40))</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients:</span></span>
@@ -635,17 +688,21 @@ iterations:</p>
 <span><span class="co">#&gt;   model: "DyNAM" subModel: "rate"</span></span></code></pre></div>
 <p>What if we include additional structural effects? Let us add the in
 and out degree of the nodes in the call network</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">complexFormulaRate</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">outdeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">indeg</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">mod02Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">complexFormulaRate</span>, model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span><span class="op">)</span></span>
+<span><span class="va">mod02Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
+<span>  <span class="va">complexFormulaRate</span>,</span>
+<span>  sub_model <span class="op">=</span> <span class="st">"rate"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span></span>
+<span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod02Rate</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) + </span></span>
-<span><span class="co">#&gt;     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")</span></span>
+<span><span class="co">#&gt; estimate_dynam(x = callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) + </span></span>
+<span><span class="co">#&gt;     indeg(friendshipNetwork), sub_model = "rate", data = socialEvolutionData)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details:</span></span>
@@ -676,17 +733,22 @@ and out degree of the nodes in the call network</p>
 models with right-censored intervals (as discussed in Stadtfeld &amp;
 Block, 2017). Adding an intercept is as easy as including a 1 to the
 formula:</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">interceptFormulaRate</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">outdeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">indeg</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">mod03Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">interceptFormulaRate</span>, model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span><span class="op">)</span></span>
+<span><span class="va">mod03Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
+<span>  <span class="va">interceptFormulaRate</span>,</span>
+<span>  sub_model <span class="op">=</span> <span class="st">"rate"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span></span>
+<span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod03Rate</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) + </span></span>
-<span><span class="co">#&gt;     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")</span></span>
+<span><span class="co">#&gt; estimate_dynam(x = callsDependent ~ 1 + indeg(callNetwork) + </span></span>
+<span><span class="co">#&gt;     outdeg(callNetwork) + indeg(friendshipNetwork), sub_model = "rate", </span></span>
+<span><span class="co">#&gt;     data = socialEvolutionData)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details:</span></span>
@@ -719,7 +781,7 @@ larger the intercept the shorter the waiting time. For example, an
 intercept of -14 means a waiting time of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>e</mi><mrow><mo>−</mo><mn>14</mn></mrow></msup><mo>=</mo><mn>334</mn></mrow><annotation encoding="application/x-tex">1 / e^{-14} = 334</annotation></semantics></math>
 hours. The baseline waiting time between two events in hours:</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mod03RateCoef</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">mod03Rate</span><span class="op">)</span></span>
 <span><span class="fl">1</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">mod03RateCoef</span><span class="op">[[</span><span class="st">"Intercept"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> <span class="op">/</span> <span class="fl">3600</span></span>
 <span><span class="co">#&gt; [1] 488.6682</span></span>
@@ -745,7 +807,7 @@ hours. The baseline waiting time between two events in hours:</p>
 </div>
 </div>
 <div class="section level4">
-<h4 id="windows">Windows<a class="anchor" aria-label="anchor" href="#windows"></a>
+<h4 id="windows-effects">Windows effects<a class="anchor" aria-label="anchor" href="#windows-effects"></a>
 </h4>
 <p>Remember our <code>callNetwork</code> process state accumulates
 actions in time, but some older actions may no longer be relevant to
@@ -753,20 +815,25 @@ current action. Let’s see whether it is really just recent partners that
 matter by adding extra effects with a window of… how long? Let us try 5
 minutes
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mn>5</mn><mo>*</mo><mn>60</mn><mo>=</mo><mn>300</mn><mi>s</mi></mrow><annotation encoding="application/x-tex">= 5 * 60 = 300s</annotation></semantics></math></p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">windowFormulaRate</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">outdeg</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">indeg</span><span class="op">(</span><span class="va">callNetwork</span>, window <span class="op">=</span> <span class="fl">300</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">outdeg</span><span class="op">(</span><span class="va">callNetwork</span>, window <span class="op">=</span> <span class="fl">300</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">indeg</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">mod04Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">windowFormulaRate</span>, model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"rate"</span><span class="op">)</span></span>
+<span><span class="va">mod04Rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
+<span>  <span class="va">windowFormulaRate</span>,</span>
+<span>  sub_model <span class="op">=</span> <span class="st">"rate"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span></span>
+<span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod04Rate</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) + </span></span>
-<span><span class="co">#&gt;     indeg(callNetwork, window = 300) + outdeg(callNetwork, window = 300) + </span></span>
-<span><span class="co">#&gt;     indeg(friendshipNetwork), model = "DyNAM", subModel = "rate")</span></span>
+<span><span class="co">#&gt; estimate_dynam(x = callsDependent ~ 1 + indeg(callNetwork) + </span></span>
+<span><span class="co">#&gt;     outdeg(callNetwork) + indeg(callNetwork, window = 300) + </span></span>
+<span><span class="co">#&gt;     outdeg(callNetwork, window = 300) + indeg(friendshipNetwork), </span></span>
+<span><span class="co">#&gt;     sub_model = "rate", data = socialEvolutionData)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details:</span></span>
@@ -796,7 +863,7 @@ minutes
 <span><span class="co">#&gt;   BIC:  10992 </span></span>
 <span><span class="co">#&gt;   model: "DyNAM" subModel: "rate"</span></span></code></pre></div>
 <p>Of course, you can also add windows to the choice formula!</p>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">windowFormulaChoice</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> <span class="fu">inertia</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">recip</span><span class="op">(</span><span class="va">callNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">inertia</span><span class="op">(</span><span class="va">callNetwork</span>, window <span class="op">=</span> <span class="fl">300</span><span class="op">)</span> <span class="op">+</span></span>
@@ -804,15 +871,18 @@ minutes
 <span>                   <span class="fu">tie</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span> <span class="op">+</span> <span class="fu">recip</span><span class="op">(</span><span class="va">friendshipNetwork</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                   <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">gradeType</span><span class="op">)</span> <span class="op">+</span> <span class="fu">same</span><span class="op">(</span><span class="va">actors</span><span class="op">$</span><span class="va">floor</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">mod03Choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span><span class="va">windowFormulaChoice</span>,</span>
-<span>                         model <span class="op">=</span> <span class="st">"DyNAM"</span>, subModel <span class="op">=</span> <span class="st">"choice"</span><span class="op">)</span></span>
+<span><span class="va">mod03Choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_dynam</a></span><span class="op">(</span></span>
+<span>  <span class="va">windowFormulaChoice</span>,</span>
+<span>  sub_model <span class="op">=</span> <span class="st">"choice"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span></span>
+<span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod03Choice</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = callsDependent ~ inertia(callNetwork) + recip(callNetwork) + </span></span>
+<span><span class="co">#&gt; estimate_dynam(x = callsDependent ~ inertia(callNetwork) + recip(callNetwork) + </span></span>
 <span><span class="co">#&gt;     inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) + </span></span>
 <span><span class="co">#&gt;     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + </span></span>
-<span><span class="co">#&gt;     same(actors$floor), model = "DyNAM", subModel = "choice")</span></span>
+<span><span class="co">#&gt;     same(actors$floor), sub_model = "choice", data = socialEvolutionData)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details:</span></span>
@@ -850,7 +920,7 @@ rate and choice components of the model. This is a key advantage of the
 DyNAM!</p>
 <p>When comparing the information criteria (AIC / BIC) of the different
 models, we see that the time windows explain a lot</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Compare different specifications of the subModel = "choice"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">mod02Choice</span>, <span class="va">mod03Choice</span><span class="op">)</span></span>
 <span><span class="co">#&gt;             df      AIC</span></span>
@@ -859,8 +929,8 @@ models, we see that the time windows explain a lot</p>
 <span></span>
 <span><span class="co"># Compare different specifications of the subModel = "rate"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">mod03Rate</span>, <span class="va">mod04Rate</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the</span></span>
-<span><span class="co">#&gt; same number of observations</span></span>
+<span><span class="co">#&gt; Warning in AIC.default(mod03Rate, mod04Rate): models are not all fitted to the same number of</span></span>
+<span><span class="co">#&gt; observations</span></span>
 <span><span class="co">#&gt;           df      AIC</span></span>
 <span><span class="co">#&gt; mod03Rate  4 12014.20</span></span>
 <span><span class="co">#&gt; mod04Rate  6 10963.75</span></span></code></pre></div>
@@ -873,7 +943,7 @@ models, we see that the time windows explain a lot</p>
 intervals as introduced in Stadtfeld &amp; Block (2017). An equivalent
 model specification to the DyNAM model we estimated above, including the
 rate and choice sub-models, is:</p>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">allFormulaREM</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">callsDependent</span> <span class="op">~</span> </span>
 <span>    <span class="fl">1</span> <span class="op">+</span> <span class="fu">indeg</span><span class="op">(</span><span class="va">callNetwork</span>, type <span class="op">=</span> <span class="st">"ego"</span><span class="op">)</span> <span class="op">+</span> <span class="fu">outdeg</span><span class="op">(</span><span class="va">callNetwork</span>, type <span class="op">=</span> <span class="st">"ego"</span><span class="op">)</span> <span class="op">+</span></span>
@@ -893,26 +963,29 @@ change the effects’ statistics after each event.
 <code>"gather_compute"</code> implements a version with an overhead of
 memory use, representing the data in a more usual tabular way but
 reducing time estimation.</p>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">mod01REM</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
-<span>  <span class="va">allFormulaREM</span>, model <span class="op">=</span> <span class="st">"REM"</span>,</span>
-<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>initialDamping <span class="op">=</span> <span class="fl">40</span>, engine <span class="op">=</span> <span class="st">"default_c"</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">mod01REM</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate</a></span><span class="op">(</span></span>
-<span>  <span class="va">allFormulaREM</span>, model <span class="op">=</span> <span class="st">"REM"</span>,</span>
-<span>  estimationInit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>engine <span class="op">=</span> <span class="st">"gather_compute"</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">mod01REM</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_rem</a></span><span class="op">(</span></span>
+<span>  <span class="va">allFormulaREM</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span>,</span>
+<span>  control_estimation <span class="op">=</span></span>
+<span>    <span class="fu"><a href="../reference/set_estimation_opt.html">set_estimation_opt</a></span><span class="op">(</span>initial_damping <span class="op">=</span> <span class="fl">40</span>, engine <span class="op">=</span> <span class="st">"default_c"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">mod01REM</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate.html">estimate_rem</a></span><span class="op">(</span></span>
+<span>  <span class="va">allFormulaREM</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">socialEvolutionData</span>,</span>
+<span>  control_estimation <span class="op">=</span> <span class="fu"><a href="../reference/set_estimation_opt.html">set_estimation_opt</a></span><span class="op">(</span>engine <span class="op">=</span> <span class="st">"gather_compute"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod01REM</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; estimate(x = callsDependent ~ 1 + indeg(callNetwork, type = "ego") + </span></span>
+<span><span class="co">#&gt; estimate_rem(x = callsDependent ~ 1 + indeg(callNetwork, type = "ego") + </span></span>
 <span><span class="co">#&gt;     outdeg(callNetwork, type = "ego") + indeg(friendshipNetwork, </span></span>
 <span><span class="co">#&gt;     type = "ego") + inertia(callNetwork) + recip(callNetwork) + </span></span>
 <span><span class="co">#&gt;     inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) + </span></span>
 <span><span class="co">#&gt;     tie(friendshipNetwork) + recip(friendshipNetwork) + same(actors$gradeType) + </span></span>
-<span><span class="co">#&gt;     same(actors$floor), model = "REM", estimationInit = list(engine = "gather_compute"))</span></span>
+<span><span class="co">#&gt;     same(actors$floor), data = socialEvolutionData, control_estimation = set_estimation_opt(engine = "gather_compute"))</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Effects details:</span></span>
@@ -973,7 +1046,7 @@ reducing time estimation.</p>
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
       </footer>

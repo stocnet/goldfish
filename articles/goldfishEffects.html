@@ -6,12 +6,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>goldfish Effects • goldfish</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
-<link rel="apple-touch-icon" type="image/png" sizes="180x180" href="../apple-touch-icon.png">
-<link rel="apple-touch-icon" type="image/png" sizes="120x120" href="../apple-touch-icon-120x120.png">
-<link rel="apple-touch-icon" type="image/png" sizes="76x76" href="../apple-touch-icon-76x76.png">
-<link rel="apple-touch-icon" type="image/png" sizes="60x60" href="../apple-touch-icon-60x60.png">
+<!-- favicons --><link rel="icon" type="image/png" sizes="48x48" href="../favicon-48x48.png">
+<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" sizes="any" href="../favicon.ico">
+<link rel="manifest" href="../site.webmanifest">
 <!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="../bootstrap-toc.css">
 <script src="../bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
@@ -38,7 +37,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">goldfish</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.6.12</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.7.0</span>
       </span>
     </div>
 
@@ -113,8 +112,8 @@
       <h1 data-toc-skip>goldfish Effects</h1>
             <h3 data-toc-skip class="subtitle">Catalog of available
 effects</h3>
-                        <h4 data-toc-skip class="author">Alvaro Uzaheta
-and Siwei Zhang</h4>
+                        <h4 data-toc-skip class="author">Alvaro Uzaheta,
+Siwei Zhang and Mabel Wylie</h4>
             
       
       <small class="dont-index">Source: <a href="https://github.com/stocnet/goldfish/blob/develop/vignettes/goldfishEffects.Rmd" class="external-link"><code>vignettes/goldfishEffects.Rmd</code></a></small>
@@ -140,15 +139,15 @@ an explanatory network or the dependent network (the default). For
 attribute effects, this should be the attribute name with the indication
 of the data frame containing the initial values of nodes attributes
 (<code>data.frame$attribute</code>), see documentation of
-<code><a href="../reference/defineNodes.html">defineNodes()</a></code> for details.</li>
+<code><a href="../reference/make_nodes.html">make_nodes()</a></code> for details.</li>
 <li>
-<strong>isTwoMode</strong>: Identifies whether the effect assumes
+<strong>is_two_mode</strong>: Identifies whether the effect assumes
 the network is originated from a two-mode network or not. The default
 value is <code>FALSE</code>, it means that updates involving self-ties
 are ignore during the statistics update.</li>
 <li>
-<strong>ignoreRep</strong>: Identifies whether the effect recognizes
-actors to send additional ties beyond the first to receivers
+<strong>ignore_repetitions</strong>: Identifies whether the effect
+recognizes actors to send additional ties beyond the first to receivers
 (<code>FALSE</code> means additional ties are taken into account). The
 default value is <code>FALSE</code>. Only available for structural
 effects.</li>
@@ -167,19 +166,19 @@ example “30 seconds”, “1 minute”, “2 hours”, “3 days”, “4 week
 months”, or “6 years”. <em>Note:</em> The time units are converted to
 seconds using their most common lengths in seconds.</li>
 <li>
-<strong>transformFun</strong>: Use this parameter to obtain
+<strong>transformer_fn</strong>: Use this parameter to obtain
 transformed statistics. The function used as argument is applied to the
 change statistic. <em>Note:</em> Most of the time a transformation
 function is applied when an effect counts the number of ties
 <code>weighted == TRUE</code>.</li>
 <li>
-<strong>aggregateFun</strong>: Use this parameter to obtain a
+<strong>summarizer_fn</strong>: Use this parameter to obtain a
 transformed aggregated statistics for indirect effects like
-<code>tertius</code> and <code>tertiusDiff</code>. The function used as
+<code>tertius</code> and <code>tertius_diff</code>. The function used as
 argument is applied to aggregated statistic.</li>
 <li>
 <strong>type</strong>: Applies only to <code>indegree</code>,
-<code>outdegree</code> and <code>nodeTrans</code> in the case of a REM
+<code>outdegree</code> and <code>node_trans</code> in the case of a REM
 model <code>model = "REM"</code>. In the default case of
 <code>type = "alter"</code>, the effect returns change statistics for
 the potential receivers. In the case where <code>type = "ego"</code>,
@@ -189,318 +188,354 @@ DyNAM-choice submodel only considers change statistics for potential
 receivers <code>type = "alter"</code>, while the DyNAM-rate submodel
 only considers change statistics for potential senders
 <code>type = "ego"</code>.</li>
+<li>
+<strong>history</strong>: Applies only to <code>trans</code> and
+<code>cycle</code> In the default case of
+<code>history = "pooled"</code>, the effect returns change statistics
+for all two-paths when regardless of the order of creation of the ties
+in the two-path. In the case where <code>history = "sequential"</code>,
+the effect returns change statistics for all two-paths when the
+subsequent tie is created after the preceding tie in the two-path. In
+the case where <code>history = "consecutive"</code>, the effect returns
+change statistics for all two-paths when the subsequent tie is created
+directly after the preceding tie in the two-path.</li>
 </ul>
 <p>The following table summaries whether the corresponding arguments can
 be used for the effects or not.</p>
 <table style="width:100%;" class="table">
 <colgroup>
-<col width="10%">
-<col width="10%">
-<col width="10%">
-<col width="10%">
-<col width="10%">
-<col width="10%">
-<col width="10%">
-<col width="10%">
-<col width="10%">
-<col width="10%">
+<col width="14%">
+<col width="15%">
+<col width="14%">
+<col width="7%">
+<col width="12%">
+<col width="5%">
+<col width="4%">
+<col width="9%">
+<col width="8%">
+<col width="2%">
+<col width="4%">
 </colgroup>
 <thead><tr class="header">
-<th></th>
-<th></th>
-<th></th>
-<th>isTwoMode</th>
-<th>ignoreRep</th>
-<th>weighted</th>
-<th>window</th>
-<th>transformFun</th>
-<th>aggregateFun</th>
-<th>type</th>
+<th align="left"></th>
+<th align="left"></th>
+<th align="left">mixed_common_receiver</th>
+<th align="left">is_two_mode</th>
+<th align="left">ignore_repetitions</th>
+<th align="left">weighted</th>
+<th align="left">window</th>
+<th align="left">transformer_fn</th>
+<th align="left">summarizer_fn</th>
+<th align="left">type</th>
+<th align="left">history</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>Node/actor statistics</td>
-<td>Structural</td>
-<td>indeg</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
+<td align="left">Node/actor statistics</td>
+<td align="left">Structural</td>
+<td align="left">indeg</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td></td>
-<td></td>
-<td>outdeg</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">outdeg</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td></td>
-<td>nodeTrans</td>
-<td>×</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">node_trans</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td></td>
-<td>Attribute</td>
-<td>ego</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left">Attribute</td>
+<td align="left">ego</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td></td>
-<td>alter</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">alter</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td></td>
-<td>Structural + attribute</td>
-<td>tertius</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
+<td align="left"></td>
+<td align="left">Structural + attribute</td>
+<td align="left">tertius</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td>Dyadic statistics</td>
-<td>Structural</td>
-<td>tie</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left">Dyadic statistics</td>
+<td align="left">Structural</td>
+<td align="left">tie</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td></td>
-<td></td>
-<td>inertia</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">inertia</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td></td>
-<td>recip</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">recip</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td></td>
-<td>Attribute</td>
-<td>same</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left">Attribute</td>
+<td align="left">same</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td></td>
-<td>diff</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">diff</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td></td>
-<td></td>
-<td>sim</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">sim</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td></td>
-<td>egoAlterInt</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
-<td>×</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">ego_alter_interaction</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td></td>
-<td>Structural + attribute</td>
-<td>tertiusDiff</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left">Structural + attribute</td>
+<td align="left">tertius_diff</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td>Closure effects</td>
-<td>trans</td>
-<td>×</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left">Closure effects</td>
+<td align="left">trans</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">√</td>
 </tr>
 <tr class="even">
-<td></td>
-<td></td>
-<td>cycle</td>
-<td>×</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">cycle</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">√</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td></td>
-<td>commonSender</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">common_sender</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td></td>
-<td></td>
-<td>commonReceiver</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">common_receiver</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td></td>
-<td>four</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">four</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td></td>
-<td></td>
-<td>mixedTrans</td>
-<td>×</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">mixed_trans</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td></td>
-<td>mixedCycle</td>
-<td>×</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">mixed_cycle</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td></td>
-<td></td>
-<td>mixedCommonSender</td>
-<td>×</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">mixed_common_sender</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td></td>
-<td>mixedCommonReceiver</td>
-<td>×</td>
-<td>√</td>
-<td>×</td>
-<td>√</td>
-<td>√</td>
-<td>×</td>
-<td>×</td>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left">mixed_common_receiver</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 </tbody>
 </table>
 <p><em>Note</em> that the use of some effects (combinations) are
 ill-advised. For example, using
-<code>tie(network, ignoreRep = FALSE)</code>, where the network refers
-to the dependent network, will always result in a change statistic of
-zero, and thus cannot be used.</p>
+<code>tie(network, ignore_repetitions = FALSE)</code>, where the network
+refers to the dependent network, will always result in a change
+statistic of zero, and thus cannot be used.</p>
 <div class="section level4">
 <h4 id="notation">Notation<a class="anchor" aria-label="anchor" href="#notation"></a>
 </h4>
@@ -532,9 +567,9 @@ is <code>TRUE</code> and 0 in other case.</li>
 when <code>weighted = TRUE</code>, similarly we refer as the unweighted
 statistics when <code>weighted = FALSE</code>.</li>
 <li>We omit the difference in the computation of the statistics when the
-argument <code>isTwoMode</code> is used. In the default case when
-<code>isTwoMode = FALSE</code> self ties are excluded in the calculation
-of the change statistics.</li>
+argument <code>is_two_mode</code> is used. In the default case when
+<code>is_two_mode = FALSE</code> self ties are excluded in the
+calculation of the change statistics.</li>
 </ul>
 </div>
 </div>
@@ -546,29 +581,29 @@ of the change statistics.</li>
 </h3>
 <table class="table">
 <thead><tr class="header">
-<th>effect</th>
-<th align="center">rate</th>
-<th align="center">choice</th>
-<th align="center">choice coordination</th>
+<th align="left">effect</th>
+<th align="left">rate</th>
+<th align="left">choice</th>
+<th align="left">choice coordination</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>indeg</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">indeg</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 <tr class="even">
-<td>outdeg</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">×</td>
+<td align="left">outdeg</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td>nodeTrans</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">node_trans</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 </tbody>
 </table>
@@ -579,8 +614,8 @@ type when <code>type = "alter"</code>.</p>
 </h4>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">indeg</span><span class="op">(</span><span class="va">network</span>,</span>
-<span>  isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>  ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<span>  is_two_mode <span class="op">=</span> <span class="cn">FALSE</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
+<span>  ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><mi>r</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><munder><mo>∑</mo><mi>j</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>i</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">unweighted</mtext></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><munder><mo>∑</mo><mi>j</mi></munder><mrow><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>i</mi></mrow></msub></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">weighted</mtext></mtd></mtr></mtable></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">ego type</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><munder><mo>∑</mo><mi>l</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>l</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">unweighted</mtext></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><munder><mo>∑</mo><mi>l</mi></munder><mrow><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>l</mi><mi>j</mi></mrow></msub></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">weighted</mtext></mtd></mtr></mtable></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">alter type</mtext></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{align}
   r(i, t, x) &amp;= 
@@ -623,8 +658,7 @@ allows to choose whether to use the indegree effect for sender
 <em>DyNAM-choice_coordination:</em> the effects compute the total
 degree in a covariate network (‘alter’ type). <em>Note:</em> The effect
 statistic correspond to the total degree for an undirected network as
-define when using
-<code>defineNetwork(net, directed = FALSE)</code>.</li>
+define when using <code>make_network(net, directed = FALSE)</code>.</li>
 </ul>
 <p>The degree can be transform with .</p>
 </div>
@@ -633,8 +667,8 @@ define when using
 </h4>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">outdeg</span><span class="op">(</span><span class="va">network</span>,</span>
-<span>  isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>  ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<span>  is_two_mode <span class="op">=</span> <span class="cn">FALSE</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
+<span>  ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><mi>r</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><munder><mo>∑</mo><mi>j</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">unweighted</mtext></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><munder><mo>∑</mo><mi>j</mi></munder><mrow><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">weighted</mtext></mtd></mtr></mtable></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">ego type</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><munder><mo>∑</mo><mi>l</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>l</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">unweighted</mtext></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><munder><mo>∑</mo><mi>l</mi></munder><mrow><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>l</mi></mrow></msub></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">weighted</mtext></mtd></mtr></mtable></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">alter type</mtext></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{align}
   r(i, t, x) &amp;= 
@@ -678,12 +712,12 @@ for sender
 </ul>
 </div>
 <div class="section level4">
-<h4 id="node-embeddedness-transitivity-nodetrans">Node embeddedness transitivity (<code>nodeTrans()</code>)<a class="anchor" aria-label="anchor" href="#node-embeddedness-transitivity-nodetrans"></a>
+<h4 id="node-embeddedness-transitivity-node_trans">Node embeddedness transitivity (<code>node_trans()</code>)<a class="anchor" aria-label="anchor" href="#node-embeddedness-transitivity-node_trans"></a>
 </h4>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">nodeTrans</span><span class="op">(</span><span class="va">network</span>,</span>
-<span>  isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<code class="sourceCode R"><span><span class="fu">node_trans</span><span class="op">(</span><span class="va">network</span>,</span>
+<span>  is_two_mode <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><mi>r</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><munder><mo>∑</mo><mrow><mi>j</mi><mi>k</mi></mrow></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">ego type</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><munder><mo>∑</mo><mrow><mi>k</mi><mi>l</mi></mrow></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>k</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>l</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>l</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">alter type</mtext></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{align}
   r(i, t, x) &amp;=
@@ -733,23 +767,23 @@ for this effect.</p>
 </h3>
 <table class="table">
 <thead><tr class="header">
-<th>effect</th>
-<th align="center">rate</th>
-<th align="center">choice</th>
-<th align="center">choice coordination</th>
+<th align="left">effect</th>
+<th align="left">rate</th>
+<th align="left">choice</th>
+<th align="left">choice coordination</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>ego</td>
-<td align="center">√</td>
-<td align="center">×</td>
-<td align="center">×</td>
+<td align="left">ego</td>
+<td align="left">√</td>
+<td align="left">×</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td>alter</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
+<td align="left">alter</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 </tbody>
 </table>
@@ -757,7 +791,7 @@ for this effect.</p>
 <h4 id="ego-attribute-ego">Ego attribute (<code>ego()</code>)<a class="anchor" aria-label="anchor" href="#ego-attribute-ego"></a>
 </h4>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">ego</span><span class="op">(</span><span class="va">attribute</span>, isTwoMode <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">ego</span><span class="op">(</span><span class="va">attribute</span>, is_two_mode <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><mi>r</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mi>z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>i</mi></msub></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{align}
   r(i, t, z) &amp;= z(t)_i
 \end{align}</annotation></semantics></math></p>
@@ -777,7 +811,7 @@ has a high score on an attribute.</li>
 <h4 id="alter-attribute-alter">Alter attribute (<code>alter()</code>)<a class="anchor" aria-label="anchor" href="#alter-attribute-alter"></a>
 </h4>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">alter</span><span class="op">(</span><span class="va">attribute</span>, isTwoMode <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">alter</span><span class="op">(</span><span class="va">attribute</span>, is_two_mode <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mi>z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>j</mi></msub></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{align}
   s(i, j, t, z) &amp;= z(t)_j
 \end{align}</annotation></semantics></math></p>
@@ -805,16 +839,16 @@ Attribute effect<a class="anchor" aria-label="anchor" href="#structural-attribut
 </h3>
 <table class="table">
 <thead><tr class="header">
-<th>effect</th>
-<th align="center">rate</th>
-<th align="center">choice</th>
-<th align="center">choice coordination</th>
+<th align="left">effect</th>
+<th align="left">rate</th>
+<th align="left">choice</th>
+<th align="left">choice coordination</th>
 </tr></thead>
 <tbody><tr class="odd">
-<td>tertius</td>
-<td align="center">√</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">tertius</td>
+<td align="left">√</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr></tbody>
 </table>
 <div class="section level4">
@@ -822,9 +856,9 @@ Attribute effect<a class="anchor" aria-label="anchor" href="#structural-attribut
 </h4>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">tertius</span><span class="op">(</span><span class="va">network</span>, <span class="va">attribute</span>,</span>
-<span>  isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>  ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformFun <span class="op">=</span> <span class="va">identity</span>,</span>
-<span>  aggregateFun <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>  is_two_mode <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
+<span>  ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alter"</span>, <span class="st">"ego"</span><span class="op">)</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span>,</span>
+<span>  summarizer_fn <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><mi>r</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mfrac><mrow><munder><mo>∑</mo><mrow><mi>j</mi><mo>:</mo><mspace width="0.222em"></mspace><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>i</mi></mrow></msub><mo>&gt;</mo><mn>0</mn></mrow></munder><mrow><mi>z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>j</mi></msub></mrow></mrow><mrow><munder><mo>∑</mo><mi>j</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>i</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow></mfrac></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">ego type</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mfrac><mrow><munder><mo>∑</mo><mrow><mi>k</mi><mo>:</mo><mspace width="0.222em"></mspace><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn></mrow></munder><mrow><mi>z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>k</mi></msub></mrow></mrow><mrow><munder><mo>∑</mo><mi>k</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow></mfrac></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">alter type</mtext></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{align}
   r(i, t, x, z) &amp;=
@@ -840,7 +874,7 @@ Attribute effect<a class="anchor" aria-label="anchor" href="#structural-attribut
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
 to create an event when
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
-has a high aggregate (<code>aggregateFun</code>) value of its
+has a high aggregate (<code>summarizer_fn</code>) value of its
 in-neighbors
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∀</mo><mi>j</mi><mo>:</mo><mspace width="0.222em"></mspace><mi>x</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>j</mi><mo>,</mo><mi>i</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\forall j:~ x[j, i] &gt; 0</annotation></semantics></math>)
 in a covariate network (‘ego’ type).</li>
@@ -850,7 +884,7 @@ create an event
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i\rightarrow j</annotation></semantics></math>
 when
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
-has a high aggregate (<code>aggregateFun</code>) value of its
+has a high aggregate (<code>summarizer_fn</code>) value of its
 in-neighbors
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∀</mo><mi>k</mi><mo>:</mo><mspace width="0.222em"></mspace><mi>x</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>k</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\forall k:~ x[k, j] &gt; 0</annotation></semantics></math>)
 in a covariate network (‘alter’ type).</li>
@@ -861,7 +895,7 @@ when either
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
 or
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
-has a high aggregate (<code>aggregateFun</code>) value of its
+has a high aggregate (<code>summarizer_fn</code>) value of its
 in-neighbors in a covariate network. The argument <code>type</code>
 allows to choose whether to use the tertius effect for sender
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
@@ -883,29 +917,29 @@ with in-neighbors.</p>
 </h3>
 <table class="table">
 <thead><tr class="header">
-<th>effect</th>
-<th align="center">rate</th>
-<th align="center">choice</th>
-<th align="center">choice coordination</th>
+<th align="left">effect</th>
+<th align="left">rate</th>
+<th align="left">choice</th>
+<th align="left">choice coordination</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>tie</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">tie</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 <tr class="even">
-<td>inertia</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">inertia</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 <tr class="odd">
-<td>recip</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
+<td align="left">recip</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 </tbody>
 </table>
@@ -914,8 +948,8 @@ with in-neighbors.</p>
 </h4>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">tie</span><span class="op">(</span><span class="va">network</span>,</span>
-<span>  weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<span>  weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">unweighted</mtext></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>j</mi></mrow></msub></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">weighted</mtext></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x) =
@@ -933,14 +967,14 @@ set to <code>TRUE</code> if the value in the covariate network for the
 dyad
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i\rightarrow j</annotation></semantics></math>
 is to be taken as a statistic. It can be transformed by using
-<code>transformFun</code> (This might make sense when
+<code>transformer_fn</code> (This might make sense when
 <code>weighted = TRUE</code>).</p>
 </div>
 <div class="section level4">
 <h4 id="inertia-inertia">Inertia (<code>inertia()</code>)<a class="anchor" aria-label="anchor" href="#inertia-inertia"></a>
 </h4>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">inertia</span><span class="op">(</span><span class="va">network</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">inertia</span><span class="op">(</span><span class="va">network</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">unweighted</mtext></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>j</mi></mrow></msub></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">weighted</mtext></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x) =
 \begin{cases}
@@ -960,19 +994,19 @@ to which the dependent events relate. Parameter <code>weighted</code>
 can be set to <code>TRUE</code> if the count of past events
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i\rightarrow j</annotation></semantics></math>
 is to be taken as a statistic. It can be transformed by using
-<code>transformFun</code> (this might make sense when
+<code>transformer_fn</code> (this might make sense when
 <code>weighted = TRUE</code>). <strong>Note:</strong>
 <code>inertia</code> can never be used in combination with a
-<code>ignoreRep = TRUE</code> parameter as this would replace all
-positive statistics with zeros.</p>
+<code>ignore_repetitions = TRUE</code> parameter as this would replace
+all positive statistics with zeros.</p>
 </div>
 <div class="section level4">
 <h4 id="tie-reciprocation-recip">Tie reciprocation (<code>recip()</code>)<a class="anchor" aria-label="anchor" href="#tie-reciprocation-recip"></a>
 </h4>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">recip</span><span class="op">(</span><span class="va">network</span>,</span>
-<span>  weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<span>  weighted <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>i</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">unweighted</mtext></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>i</mi></mrow></msub></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">weighted</mtext></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x) = 
@@ -992,7 +1026,7 @@ happened before. Parameter <code>weighted</code> can be set to
 <code>TRUE</code> if the count/weight of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>→</mo><mi>i</mi></mrow><annotation encoding="application/x-tex">j\rightarrow i</annotation></semantics></math>
 events/ties is to be taken as a statistic. It can be transformed by
-using <code>transformFun</code> (this might make sense when
+using <code>transformer_fn</code> (this might make sense when
 <code>weighted = TRUE</code>). This effect cannot be used for two-mode
 networks and for DyNAM-choice_coordination submodel.</p>
 </div>
@@ -1002,35 +1036,35 @@ networks and for DyNAM-choice_coordination submodel.</p>
 </h3>
 <table class="table">
 <thead><tr class="header">
-<th>effect</th>
-<th align="center">rate</th>
-<th align="center">choice</th>
-<th align="center">choice coordination</th>
+<th align="left">effect</th>
+<th align="left">rate</th>
+<th align="left">choice</th>
+<th align="left">choice coordination</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>same</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">same</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 <tr class="even">
-<td>diff</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">diff</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 <tr class="odd">
-<td>sim</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">sim</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 <tr class="even">
-<td>egoAlterInt</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">ego_alter_interaction</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 </tbody>
 </table>
@@ -1052,7 +1086,7 @@ submodel.</p>
 <h4 id="differences-in-attribute-diff">Differences in attribute (<code>diff()</code>)<a class="anchor" aria-label="anchor" href="#differences-in-attribute-diff"></a>
 </h4>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">attribute</span>, transformFun <span class="op">=</span> <span class="va">abs</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">attribute</span>, transformer_fn <span class="op">=</span> <span class="va">abs</span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>i</mi></msub><mo>−</mo><mi>z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>j</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, z) = |z(t)_i - z(t)_j|
 \end{equation}</annotation></semantics></math></p>
@@ -1060,14 +1094,14 @@ s(i,j, t, z) = |z(t)_i - z(t)_j|
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i\rightarrow j</annotation></semantics></math>
 to happen if actors i and j have different attribute values (high
 absolute differences regarding attribute if
-<code>transformFun = abs</code>). This effect cannot be used for
+<code>transformer_fn = abs</code>). This effect cannot be used for
 two-mode networks.</p>
 </div>
 <div class="section level4">
 <h4 id="similarity-in-attribute-sim">Similarity in attribute (<code>sim()</code>)<a class="anchor" aria-label="anchor" href="#similarity-in-attribute-sim"></a>
 </h4>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">sim</span><span class="op">(</span><span class="va">attribute</span>, transformFun <span class="op">=</span> <span class="va">abs</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">sim</span><span class="op">(</span><span class="va">attribute</span>, transformer_fn <span class="op">=</span> <span class="va">abs</span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>i</mi></msub><mo>−</mo><mi>z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>j</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, z) = -|z(t)_i - z(t)_j|
 \end{equation}</annotation></semantics></math></p>
@@ -1075,14 +1109,14 @@ s(i,j, t, z) = -|z(t)_i - z(t)_j|
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i\rightarrow j</annotation></semantics></math>
 to happen if actors i and j have similar <code>attribute</code> values
 (low absolute differences regarding <code>attribute</code> if
-<code>transformFun = abs</code>). This effect cannot be used for
+<code>transformer_fn = abs</code>). This effect cannot be used for
 two-mode networks.</p>
 </div>
 <div class="section level4">
-<h4 id="ego-alter-interaction-egoalterint">Ego Alter interaction (<code>egoAlterInt()</code>)<a class="anchor" aria-label="anchor" href="#ego-alter-interaction-egoalterint"></a>
+<h4 id="ego-alter-interaction-ego_alter_interaction">Ego Alter interaction (<code>ego_alter_interaction()</code>)<a class="anchor" aria-label="anchor" href="#ego-alter-interaction-ego_alter_interaction"></a>
 </h4>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">egoAlterInt</span><span class="op">(</span>attribute <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">attribute1</span>, <span class="va">attribute2</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">ego_alter_interaction</span><span class="op">(</span>attribute <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">attribute1</span>, <span class="va">attribute2</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>z</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>,</mo><msup><mi>z</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>z</mi><msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>*</mo><mi>z</mi><msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, z^{(1)}, z^{(2)}) = z(t)_i^{(1)} * z(t)_j^{(2)}
 \end{equation}</annotation></semantics></math></p>
@@ -1103,26 +1137,26 @@ Attribute effect<a class="anchor" aria-label="anchor" href="#structural-attribut
 </h3>
 <table class="table">
 <thead><tr class="header">
-<th>effect</th>
-<th align="center">rate</th>
-<th align="center">choice</th>
-<th align="center">choice coordination</th>
+<th align="left">effect</th>
+<th align="left">rate</th>
+<th align="left">choice</th>
+<th align="left">choice coordination</th>
 </tr></thead>
 <tbody><tr class="odd">
-<td>tertiusDiff</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">tertius_diff</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr></tbody>
 </table>
 <div class="section level4">
-<h4 id="tertius-difference-tertiusdiff">Tertius difference (<code>tertiusDiff()</code>)<a class="anchor" aria-label="anchor" href="#tertius-difference-tertiusdiff"></a>
+<h4 id="tertius-difference-tertius_diff">Tertius difference (<code>tertius_diff()</code>)<a class="anchor" aria-label="anchor" href="#tertius-difference-tertius_diff"></a>
 </h4>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">tertiusDiff</span><span class="op">(</span><span class="va">network</span>, <span class="va">attribute</span>,</span>
-<span>  isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">abs</span>,</span>
-<span>  aggregateFun <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="fu">tertius_diff</span><span class="op">(</span><span class="va">network</span>, <span class="va">attribute</span>,</span>
+<span>  is_two_mode <span class="op">=</span> <span class="cn">FALSE</span>, weighted <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  window <span class="op">=</span> <span class="cn">Inf</span>, ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, transformer_fn <span class="op">=</span> <span class="va">abs</span>,</span>
+<span>  summarizer_fn <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">|</mo><mfrac><mrow><mi>z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>i</mi></msub><mo>−</mo><munder><mo>∑</mo><mrow><mi>k</mi><mo>:</mo><mspace width="0.222em"></mspace><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn></mrow></munder><mrow><mi>z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>k</mi></msub></mrow></mrow><mrow><munder><mo>∑</mo><mi>k</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow></mfrac><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x, z) = \left|\frac{z(t)_i -
@@ -1134,7 +1168,7 @@ when
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
 has a similar value as
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
-aggregate (<code>aggregateFun</code>) value of its in-neighbors
+aggregate (<code>summarizer_fn</code>) value of its in-neighbors
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∀</mo><mi>j</mi><mo>:</mo><mspace width="0.222em"></mspace><mi>x</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>j</mi><mo>,</mo><mi>i</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\forall j:~ x[j, i] &gt; 0</annotation></semantics></math>).
 <em>Note:</em> When the node
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
@@ -1153,65 +1187,65 @@ that has at least one in-neighbor.</p>
 </h2>
 <table class="table">
 <thead><tr class="header">
-<th>effect</th>
-<th align="center">rate</th>
-<th align="center">choice</th>
-<th align="center">choice coordination</th>
+<th align="left">effect</th>
+<th align="left">rate</th>
+<th align="left">choice</th>
+<th align="left">choice coordination</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>trans</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">trans</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 <tr class="even">
-<td>cycle</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
+<td align="left">cycle</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td>commonSender</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
+<td align="left">common_sender</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td>commonReceiver</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
+<td align="left">common_receiver</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td>four</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">four</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 <tr class="even">
-<td>mixedTrans</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">√</td>
+<td align="left">mixed_trans</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">√</td>
 </tr>
 <tr class="odd">
-<td>mixedCycle</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
+<td align="left">mixed_cycle</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 <tr class="even">
-<td>mixedCommonSender</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
+<td align="left">mixed_common_sender</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 <tr class="odd">
-<td>mixedCommonReceiver</td>
-<td align="center">×</td>
-<td align="center">√</td>
-<td align="center">×</td>
+<td align="left">mixed_common_receiver</td>
+<td align="left">×</td>
+<td align="left">√</td>
+<td align="left">×</td>
 </tr>
 </tbody>
 </table>
@@ -1219,7 +1253,8 @@ that has at least one in-neighbor.</p>
 <h4 id="transitivity-trans">Transitivity (<code>trans()</code>)<a class="anchor" aria-label="anchor" href="#transitivity-trans"></a>
 </h4>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">trans</span><span class="op">(</span><span class="va">network</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">trans</span><span class="op">(</span><span class="va">network</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span>,</span>
+<span>      history <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'pooled'</span>,<span class="st">'sequential'</span>,<span class="st">'consecutive'</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x) = \sum_{k}{I(x(t)_{ik}&gt;0)I(x(t)_{kj}&gt;0)}
 \end{equation}</annotation></semantics></math></p>
@@ -1228,14 +1263,15 @@ s(i,j, t, x) = \sum_{k}{I(x(t)_{ik}&gt;0)I(x(t)_{kj}&gt;0)}
 when it closes more two-paths
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>→</mo><mi>k</mi><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i\rightarrow k\rightarrow j</annotation></semantics></math>)
 observed in the past events in a covariate <code>network</code>. It can
-be transformed by using <code>transformFun</code>. This effect cannot be
-used for two-mode networks.</p>
+be transformed by using <code>transformer_fn</code>. This effect cannot
+be used for two-mode networks.</p>
 </div>
 <div class="section level4">
 <h4 id="cycle-cycle">Cycle (<code>cycle()</code>)<a class="anchor" aria-label="anchor" href="#cycle-cycle"></a>
 </h4>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/time.html" class="external-link">cycle</a></span><span class="op">(</span><span class="va">network</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/time.html" class="external-link">cycle</a></span><span class="op">(</span><span class="va">network</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span>, </span>
+<span>      history <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'pooled'</span>,<span class="st">'sequential'</span>,<span class="st">'consecutive'</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>k</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>i</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x) = \sum_{k}{I(x(t)_{jk}&gt;0)I(x(t)_{ki}&gt;0)}
 \end{equation}</annotation></semantics></math></p>
@@ -1244,14 +1280,17 @@ s(i,j, t, x) = \sum_{k}{I(x(t)_{jk}&gt;0)I(x(t)_{ki}&gt;0)}
 when it closes more two-paths
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>→</mo><mi>k</mi><mo>→</mo><mi>i</mi></mrow><annotation encoding="application/x-tex">j\rightarrow k\rightarrow i</annotation></semantics></math>)
 observed in the past events in a covariate <code>network</code>. It can
-be transformed by using <code>transformFun</code>. This effect cannot be
-used for two-mode networks and DyNAM-choice_coordination.</p>
+be transformed by using <code>transformer_fn</code>. This effect cannot
+be used for two-mode networks and DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
-<h4 id="common-sender-closure-commonsender">Common sender closure (<code>commonSender()</code>)<a class="anchor" aria-label="anchor" href="#common-sender-closure-commonsender"></a>
+<h4 id="common-sender-closure-common_sender">Common sender closure (<code>common_sender()</code>)<a class="anchor" aria-label="anchor" href="#common-sender-closure-common_sender"></a>
 </h4>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">commonSender</span><span class="op">(</span><span class="va">network</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">common_sender</span><span class="op">(</span><span class="va">network</span>,</span>
+<span>             window <span class="op">=</span> <span class="cn">Inf</span>, </span>
+<span>             ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, </span>
+<span>             transformer_fn <span class="op">=</span> <span class="va">identity</span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>i</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x) = \sum_{k}{I(x(t)_{ki}&gt;0)I(x(t)_{kj}&gt;0)}
 \end{equation}</annotation></semantics></math></p>
@@ -1260,16 +1299,16 @@ s(i,j, t, x) = \sum_{k}{I(x(t)_{ki}&gt;0)I(x(t)_{kj}&gt;0)}
 when it closes more two-paths
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>←</mo><mi>k</mi><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i\leftarrow k\rightarrow j</annotation></semantics></math>)
 observed in the past events in a covariate <code>network</code>. It can
-be transformed by using <code>transformFun</code>. This effect cannot be
-used for two-mode networks and DyNAM-choice_coordination.</p>
+be transformed by using <code>transformer_fn</code>. This effect cannot
+be used for two-mode networks and DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
-<h4 id="common-receiver-closure-commonreceiver">Common receiver closure (<code>commonReceiver()</code>)<a class="anchor" aria-label="anchor" href="#common-receiver-closure-commonreceiver"></a>
+<h4 id="common-receiver-closure-common_receiver">Common receiver closure (<code>common_receiver()</code>)<a class="anchor" aria-label="anchor" href="#common-receiver-closure-common_receiver"></a>
 </h4>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">commonReceiver</span><span class="op">(</span><span class="va">network</span>,</span>
-<span>  window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<code class="sourceCode R"><span><span class="fu">common_receiver</span><span class="op">(</span><span class="va">network</span>,</span>
+<span>  window <span class="op">=</span> <span class="cn">Inf</span>, ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>k</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x) = \sum_{k}{I(x(t)_{ik}&gt;0)I(x(t)_{jk}&gt;0)}
@@ -1279,16 +1318,16 @@ s(i,j, t, x) = \sum_{k}{I(x(t)_{ik}&gt;0)I(x(t)_{jk}&gt;0)}
 when it closes more two-paths
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>→</mo><mi>k</mi><mo>←</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i\rightarrow k\leftarrow j</annotation></semantics></math>)
 observed in the past events in a covariate <code>network</code>. It can
-be transformed by using <code>transformFun</code>. This effect cannot be
-used for two-mode networks and DyNAM-choice_coordination.</p>
+be transformed by using <code>transformer_fn</code>. This effect cannot
+be used for two-mode networks and DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
 <h4 id="four-cycle-four">Four cycle (<code>four()</code>)<a class="anchor" aria-label="anchor" href="#four-cycle-four"></a>
 </h4>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">four</span><span class="op">(</span><span class="va">network</span>,</span>
-<span>  isTwoMode <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<span>  is_two_mode <span class="op">=</span> <span class="cn">FALSE</span>, window <span class="op">=</span> <span class="cn">Inf</span>, ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mrow><mi>k</mi><mi>l</mi></mrow></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>l</mi><mi>k</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>l</mi><mi>j</mi></mrow></msub><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x) = \sum_{kl}{I(x(t)_{ik}&gt;0)I(x(t)_{lk}&gt;0)I(x(t)_{lj}&gt;0)}
@@ -1298,16 +1337,16 @@ s(i,j, t, x) = \sum_{kl}{I(x(t)_{ik}&gt;0)I(x(t)_{lk}&gt;0)I(x(t)_{lj}&gt;0)}
 when it closes more three-paths
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>→</mo><mi>k</mi><mo>←</mo><mi>l</mi><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i\rightarrow k\leftarrow l\rightarrow j</annotation></semantics></math>)
 observed in the past events in a covariate <code>network</code>. It can
-be transformed by using <code>transformFun</code>. This effect cannot be
-used for two-mode networks and DyNAM-choice_coordination.</p>
+be transformed by using <code>transformer_fn</code>. This effect cannot
+be used for two-mode networks and DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
-<h4 id="mixed-transitivity-mixedtrans">Mixed Transitivity (<code>mixedTrans()</code>)<a class="anchor" aria-label="anchor" href="#mixed-transitivity-mixedtrans"></a>
+<h4 id="mixed-transitivity-mixed_trans">Mixed Transitivity (<code>mixed_trans()</code>)<a class="anchor" aria-label="anchor" href="#mixed-transitivity-mixed_trans"></a>
 </h4>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">mixedTrans</span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="fu">mixed_trans</span><span class="op">(</span></span>
 <span>  network <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">network1</span>, <span class="va">network2</span><span class="op">)</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>  ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<span>  ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>,</mo><msup><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>k</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>j</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x^{(1)}, x^{(2)}) = \sum_{k}{I(x(t)_{ik}^{(1)}&gt;0)I(x(t)_{kj}^{(2)}&gt;0)}
@@ -1319,16 +1358,16 @@ when it closes more two-paths with events
 in <code>network1</code> and
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">k\rightarrow j</annotation></semantics></math>)
 in <code>network2</code> observed in the past events in the covariate
-networks. It can be transformed by using <code>transformFun</code>. This
-effect cannot be used for two-mode networks.</p>
+networks. It can be transformed by using <code>transformer_fn</code>.
+This effect cannot be used for two-mode networks.</p>
 </div>
 <div class="section level4">
-<h4 id="mixed-cycle-mixedcycle">Mixed Cycle (<code>mixedCycle()</code>)<a class="anchor" aria-label="anchor" href="#mixed-cycle-mixedcycle"></a>
+<h4 id="mixed-cycle-mixed_cycle">Mixed Cycle (<code>mixed_cycle()</code>)<a class="anchor" aria-label="anchor" href="#mixed-cycle-mixed_cycle"></a>
 </h4>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">mixedCycle</span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="fu">mixed_cycle</span><span class="op">(</span></span>
 <span>  network <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">network1</span>, <span class="va">network2</span><span class="op">)</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>  ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<span>  ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>,</mo><msup><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>i</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>k</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x^{(1)}, x^{(2)}) = \sum_{k}{I(x(t)_{ki}^{(1)}&gt;0)I(x(t)_{jk}^{(2)}&gt;0)}
@@ -1340,17 +1379,18 @@ when it closes more two-paths with events
 in <code>network1</code> and
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>→</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">j\rightarrow k</annotation></semantics></math>)
 in <code>network2</code> observed in the past events in the covariate
-networks. It can be transformed by using <code>transformFun</code>. This
-effect cannot be used for two-mode networks and
+networks. It can be transformed by using <code>transformer_fn</code>.
+This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
-<h4 id="mixed-common-sender-closure-mixedcommonsender">Mixed common sender closure (<code>mixedCommonSender()</code>)<a class="anchor" aria-label="anchor" href="#mixed-common-sender-closure-mixedcommonsender"></a>
+<h4 id="mixed-common-sender-closure-mixed_common_sender">Mixed common sender closure
+(<code>mixed_common_sender()</code>)<a class="anchor" aria-label="anchor" href="#mixed-common-sender-closure-mixed_common_sender"></a>
 </h4>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">mixedCommonSender</span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="fu">mixed_common_sender</span><span class="op">(</span></span>
 <span>  network <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">network1</span>, <span class="va">network2</span><span class="op">)</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>  ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<span>  ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>,</mo><msup><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>i</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>k</mi><mi>j</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x^{(1)}, x^{(2)}) = \sum_{k}{I(x(t)_{ki}^{(1)}&gt;0)I(x(t)_{kj}^{(2)}&gt;0)}
@@ -1363,18 +1403,18 @@ when it closes more two-paths with events
 in <code>network1</code> and
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>→</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">k\rightarrow j</annotation></semantics></math>)
 in <code>network2</code> observed in the past events in the covariate
-networks. It can be transformed by using <code>transformFun</code>. This
-effect cannot be used for two-mode networks and
+networks. It can be transformed by using <code>transformer_fn</code>.
+This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.</p>
 </div>
 <div class="section level4">
-<h4 id="mixed-common-receiver-closure-mixedcommonreceiver">Mixed common receiver closure
-(<code>mixedCommonReceiver()</code>)<a class="anchor" aria-label="anchor" href="#mixed-common-receiver-closure-mixedcommonreceiver"></a>
+<h4 id="mixed-common-receiver-closure-mixed_common_receiver">Mixed common receiver closure
+(<code>mixed_common_receiver()</code>)<a class="anchor" aria-label="anchor" href="#mixed-common-receiver-closure-mixed_common_receiver"></a>
 </h4>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">mixedCommonReceiver</span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="fu">mixed_common_receiver</span><span class="op">(</span></span>
 <span>  network <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">network1</span>, <span class="va">network2</span><span class="op">)</span>, window <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>  ignoreRep <span class="op">=</span> <span class="cn">FALSE</span>, transformFun <span class="op">=</span> <span class="va">identity</span></span>
+<span>  ignore_repetitions <span class="op">=</span> <span class="cn">FALSE</span>, transformer_fn <span class="op">=</span> <span class="va">identity</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>,</mo><msup><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mi>k</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>j</mi><mi>k</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mrow><annotation encoding="application/x-tex">\begin{equation}
 s(i,j, t, x^{(1)}, x^{(2)}) = \sum_{k}{I(x(t)_{ik}^{(1)}&gt;0)I(x(t)_{jk}^{(2)}&gt;0)}
@@ -1387,8 +1427,8 @@ when it closes more two-paths with events
 in <code>network1</code> and
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>→</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">j\rightarrow k</annotation></semantics></math>)
 in <code>network2</code> observed in the past events in the covariate
-networks. It can be transformed by using <code>transformFun</code>. This
-effect cannot be used for two-mode networks and
+networks. It can be transformed by using <code>transformer_fn</code>.
+This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.</p>
 </div>
 </div>
@@ -1409,7 +1449,7 @@ DyNAM-choice_coordination.</p>
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
       </footer>
