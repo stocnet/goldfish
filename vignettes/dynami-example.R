@@ -1,67 +1,67 @@
-## ----setup, include=FALSE--------------------------------------------------------------------
+## ----setup, include=FALSE-----------------------------------------------------
 knitr::opts_chunk$set(echo = TRUE)
 
 
-## ----load------------------------------------------------------------------------------------
+## ----load---------------------------------------------------------------------
 library(goldfish)
 data("RFID_Validity_Study")
 #?RFID_Validity_Study
 
 
-## ----headParticipants------------------------------------------------------------------------
+## ----headParticipants---------------------------------------------------------
 head(participants)
 
 
-## ----headRfid--------------------------------------------------------------------------------
+## ----headRfid-----------------------------------------------------------------
 head(rfid)
 
 
-## ----headVideo-------------------------------------------------------------------------------
+## ----headVideo----------------------------------------------------------------
 head(video)
 
 
-## ----defGroups-------------------------------------------------------------------------------
+## ----defGroups----------------------------------------------------------------
 #?make_groups_interaction
 prepdata <- make_groups_interaction(video, participants,
                                     seed_randomization = 1)
 
 
-## ----assGroups-------------------------------------------------------------------------------
+## ----assGroups----------------------------------------------------------------
 groups <- prepdata$groups
 head(groups)
 
 
-## ----headDependent---------------------------------------------------------------------------
+## ----headDependent------------------------------------------------------------
 dependentEvents <- prepdata$dependent.events
 head(dependentEvents)
 
 
-## ----headExogenous---------------------------------------------------------------------------
+## ----headExogenous------------------------------------------------------------
 exogenousEvents <- prepdata$exogenous.events
 head(exogenousEvents)
 
 
-## ----headInteraction-------------------------------------------------------------------------
+## ----headInteraction----------------------------------------------------------
 interactionUpdates <- prepdata$interaction.updates
 head(interactionUpdates)
 
 
-## ----headOpportunities-----------------------------------------------------------------------
+## ----headOpportunities--------------------------------------------------------
 opportunities <- prepdata$opportunities
 head(opportunities)
 
 
-## ----defNodes--------------------------------------------------------------------------------
+## ----defNodes-----------------------------------------------------------------
 # goldfish requires character names
 participants$label <- as.character(participants$label)
 actors <- make_nodes(participants)
 
 
-## ----groups----------------------------------------------------------------------------------
+## ----groups-------------------------------------------------------------------
 groups <- make_nodes(groups)
 
 
-## ----defNet----------------------------------------------------------------------------------
+## ----defNet-------------------------------------------------------------------
 initNetwork <- diag(x = 1, nrow(actors), nrow(groups))
 # goldfish check that row/column names agree with the nodes data frame labels
 dimnames(initNetwork) <- list(actors$label, groups$label)
@@ -78,21 +78,21 @@ networkInteractions <- link_events(
 )
 
 
-## ----defNetPast, warning=FALSE---------------------------------------------------------------
+## ----defNetPast, warning=FALSE------------------------------------------------
 networkPast <- make_network(nodes = actors, directed = FALSE)
 networkPast <- link_events(
   x = networkPast, change_events = interactionUpdates, nodes = actors
 ) # don't worry about the warnings
 
 
-## ----defEvents-------------------------------------------------------------------------------
+## ----defEvents----------------------------------------------------------------
 dependentEvents <- make_dependent_events(
   events = dependentEvents, nodes = actors,
   nodes2 = groups, default_network = networkInteractions
 )
 
 
-## ----defData---------------------------------------------------------------------------------
+## ----defData------------------------------------------------------------------
 rfidData <- make_data(
   dependentEvents, networkInteractions, networkPast,
   interactionUpdates, exogenousEvents, known.before, opportunities,
@@ -101,7 +101,7 @@ rfidData <- make_data(
 rfidData
 
 
-## ----modeRateM1------------------------------------------------------------------------------
+## ----modeRateM1---------------------------------------------------------------
 formulaRateM1 <- dependentEvents ~  1 +
   intercept(networkInteractions, joining = 1) +
   ego(actors$age, joining = 1, subType = "centered") +
@@ -113,7 +113,7 @@ formulaRateM1 <- dependentEvents ~  1 +
   tie(known.before, joining = -1, subType = "proportion")
 
 
-## ----modeChoiceM1----------------------------------------------------------------------------
+## ----modeChoiceM1-------------------------------------------------------------
 formulaChoiceM1 <- dependentEvents ~
   diff(actors$age, subType = "averaged_sum") +
   diff(actors$level, subType = "averaged_sum") +
@@ -122,7 +122,7 @@ formulaChoiceM1 <- dependentEvents ~
   tie(known.before, subType = "proportion")
 
 
-## ----modRateM1Est----------------------------------------------------------------------------
+## ----modRateM1Est-------------------------------------------------------------
 estRateM1 <- estimate_dynami(
   formulaRateM1,
   sub_model = "rate",
@@ -132,7 +132,7 @@ estRateM1 <- estimate_dynami(
 summary(estRateM1)
 
 
-## ----modChoiceM1Est--------------------------------------------------------------------------
+## ----modChoiceM1Est-----------------------------------------------------------
 estChoiceM1 <- estimate_dynami(
   formulaChoiceM1,
   sub_model = "choice",
@@ -144,7 +144,7 @@ estChoiceM1 <- estimate_dynami(
 summary(estChoiceM1)
 
 
-## ----modeRateM2------------------------------------------------------------------------------
+## ----modeRateM2---------------------------------------------------------------
 formulaRateM2 <- dependentEvents ~  1 +
   intercept(networkInteractions, joining = 1) +
   ego(actors$age, joining = 1, subType = "centered") +
@@ -159,7 +159,7 @@ formulaRateM2 <- dependentEvents ~  1 +
   egopop(networkPast, joining = -1, subType = "normalized")
 
 
-## ----modeChoiceM2----------------------------------------------------------------------------
+## ----modeChoiceM2-------------------------------------------------------------
 formulaChoiceM2 <- dependentEvents ~
   diff(actors$age, subType = "averaged_sum") +
   diff(actors$level, subType = "averaged_sum") +
@@ -173,7 +173,7 @@ formulaChoiceM2 <- dependentEvents ~
   inertia(networkPast, window = 300, subType = "mean")
 
 
-## ----modRateM2Est----------------------------------------------------------------------------
+## ----modRateM2Est-------------------------------------------------------------
 estRateM2 <- estimate_dynami(
   formulaRateM2,
   sub_model = "rate",
@@ -183,7 +183,7 @@ estRateM2 <- estimate_dynami(
 summary(estRateM2)
 
 
-## ----modChoiceM2Est--------------------------------------------------------------------------
+## ----modChoiceM2Est-----------------------------------------------------------
 estChoiceM2 <- estimate_dynami(
   formulaChoiceM2,
   sub_model = "choice",
@@ -195,7 +195,7 @@ estChoiceM2 <- estimate_dynami(
 summary(estChoiceM2)
 
 
-## ----interceptJoining------------------------------------------------------------------------
+## ----interceptJoining---------------------------------------------------------
 covMatrix <- vcov(estRateM2)
 
 estInterceptJoining <- coef(estRateM2)[1] + coef(estRateM2)[2]

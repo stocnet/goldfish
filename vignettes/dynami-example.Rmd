@@ -308,12 +308,12 @@ rfidData
 ## groups 11          1              
 ## 
 ## --- Networks ---
-##                     dimensions        nodeset                    linked_events directed
-## networkInteractions      11x11 actors, groups dependentEvents, exogenousEvents     TRUE
-## networkPast              11x11         actors               interactionUpdates    FALSE
-##                     two_mode
-## networkInteractions     TRUE
-## networkPast            FALSE
+##                     dimensions        nodeset                    linked_events
+## networkInteractions      11x11 actors, groups dependentEvents, exogenousEvents
+## networkPast              11x11         actors               interactionUpdates
+##                     directed two_mode
+## networkInteractions     TRUE     TRUE
+## networkPast            FALSE    FALSE
 ## 
 ## --- Events Data Frames ---
 ##                    n_events object_type update_mode
@@ -400,55 +400,23 @@ estRateM1 <- estimate_dynami(
   data = rfidData,
   control_estimation = set_estimation_opt(engine = "default")                      
 )
+```
+
+```
+## Warning in formals(fun): argument is not a function
+```
+
+```
+## Error: Effect "intercept" (1)  cannot initialized with objects networkInteractions
+## 'what' must be a function or character string
+```
+
+``` r
 summary(estRateM1)
 ```
 
 ```
-## 
-## Call:
-## estimate_dynami(x = dependentEvents ~ 1 + intercept(networkInteractions, 
-##     joining = 1) + ego(actors$age, joining = 1, subType = "centered") + 
-##     ego(actors$age, joining = -1, subType = "centered") + diff(actors$age, 
-##     joining = -1, subType = "averaged_sum") + diff(actors$level, 
-##     joining = -1, subType = "averaged_sum") + same(actors$gender, 
-##     joining = -1, subType = "proportion") + same(actors$group, 
-##     joining = -1, subType = "proportion") + tie(known.before, 
-##     joining = -1, subType = "proportion"), sub_model = "rate", 
-##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"))
-## 
-## 
-## Effects details:
-##           Object                joining subType         
-## Intercept ""                    ""      ""              
-## intercept "networkInteractions" "1"     ""              
-## ego       "actors$age"          "1"     ""centered""    
-## ego       "actors$age"          "-1"    ""centered""    
-## diff      "actors$age"          "-1"    ""averaged_sum""
-## diff      "actors$level"        "-1"    ""averaged_sum""
-## same      "actors$gender"       "-1"    ""proportion""  
-## same      "actors$group"        "-1"    ""proportion""  
-## tie       "known.before"        "-1"    ""proportion""  
-## 
-## Coefficients:
-##            Estimate Std. Error  z-value  Pr(>|z|)    
-## Intercept -5.942916   0.322237 -18.4427 < 2.2e-16 ***
-## intercept  2.509660   0.334344   7.5062 6.084e-14 ***
-## ego        0.061687   0.024706   2.4968   0.01253 *  
-## ego        0.027958   0.035570   0.7860   0.43188    
-## diff      -0.163643   0.069175  -2.3656   0.01800 *  
-## diff       0.361468   0.226675   1.5947   0.11079    
-## same       0.027282   0.254374   0.1073   0.91459    
-## same       0.508497   0.371577   1.3685   0.17116    
-## tie       -0.156303   0.346267  -0.4514   0.65170    
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-##   Converged with max abs. score of 0.00012 
-##   Log-Likelihood: -1306.3
-##   AIC:  2630.6 
-##   AICc: 2631.4 
-##   BIC:  2661.7 
-##   model: "DyNAMi" subModel: "rate"
+## Error: object 'estRateM1' not found
 ```
 
 
@@ -461,44 +429,23 @@ estChoiceM1 <- estimate_dynami(
     set_preprocessing_opt(opportunities_list = opportunities),
   control_estimation = set_estimation_opt(engine = "default")
 )
+```
+
+```
+## Warning in formals(fun): argument is not a function
+```
+
+```
+## Error: Effect "diff" (1)  cannot initialized with objects actors$age
+## 'what' must be a function or character string
+```
+
+``` r
 summary(estChoiceM1)
 ```
 
 ```
-## 
-## Call:
-## estimate_dynami(x = dependentEvents ~ diff(actors$age, subType = "averaged_sum") + 
-##     diff(actors$level, subType = "averaged_sum") + same(actors$gender, 
-##     subType = "proportion") + same(actors$group, subType = "proportion") + 
-##     tie(known.before, subType = "proportion"), sub_model = "choice", 
-##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"), 
-##     control_preprocessing = set_preprocessing_opt(opportunities_list = opportunities))
-## 
-## 
-## Effects details:
-##      Object          subType         
-## diff "actors$age"    ""averaged_sum""
-## diff "actors$level"  ""averaged_sum""
-## same "actors$gender" ""proportion""  
-## same "actors$group"  ""proportion""  
-## tie  "known.before"  ""proportion""  
-## 
-## Coefficients:
-##       Estimate Std. Error z-value  Pr(>|z|)    
-## diff -0.107578   0.067179 -1.6014 0.1092943    
-## diff  0.262945   0.225568  1.1657 0.2437353    
-## same  0.292121   0.298317  0.9792 0.3274665    
-## same  0.024975   0.384103  0.0650 0.9481565    
-## tie   1.316141   0.378545  3.4768 0.0005074 ***
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-##   Converged with max abs. score of 0.00026 
-##   Log-Likelihood: -195.16
-##   AIC:  400.32 
-##   AICc: 400.84 
-##   BIC:  414.39 
-##   model: "DyNAMi" subModel: "choice"
+## Error: object 'estChoiceM1' not found
 ```
 ### Step 5: Estimate a model with structural and time effects
 
@@ -569,64 +516,23 @@ estRateM2 <- estimate_dynami(
   data = rfidData,
   control_estimation = set_estimation_opt(engine = "default")  
 )
+```
+
+```
+## Warning in formals(fun): argument is not a function
+```
+
+```
+## Error: Effect "intercept" (1)  cannot initialized with objects networkInteractions
+## 'what' must be a function or character string
+```
+
+``` r
 summary(estRateM2)
 ```
 
 ```
-## 
-## Call:
-## estimate_dynami(x = dependentEvents ~ 1 + intercept(networkInteractions, 
-##     joining = 1) + ego(actors$age, joining = 1, subType = "centered") + 
-##     ego(actors$age, joining = -1, subType = "centered") + diff(actors$age, 
-##     joining = -1, subType = "averaged_sum") + diff(actors$level, 
-##     joining = -1, subType = "averaged_sum") + same(actors$gender, 
-##     joining = -1, subType = "proportion") + same(actors$group, 
-##     joining = -1, subType = "proportion") + tie(known.before, 
-##     joining = -1, subType = "proportion") + size(networkInteractions, 
-##     joining = -1, subType = "identity") + egopop(networkPast, 
-##     joining = 1, subType = "normalized") + egopop(networkPast, 
-##     joining = -1, subType = "normalized"), sub_model = "rate", 
-##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"))
-## 
-## 
-## Effects details:
-##           Object                joining subType         
-## Intercept ""                    ""      ""              
-## intercept "networkInteractions" "1"     ""              
-## ego       "actors$age"          "1"     ""centered""    
-## ego       "actors$age"          "-1"    ""centered""    
-## diff      "actors$age"          "-1"    ""averaged_sum""
-## diff      "actors$level"        "-1"    ""averaged_sum""
-## same      "actors$gender"       "-1"    ""proportion""  
-## same      "actors$group"        "-1"    ""proportion""  
-## tie       "known.before"        "-1"    ""proportion""  
-## size      "networkInteractions" "-1"    ""identity""    
-## egopop    "networkPast"         "1"     ""normalized""  
-## egopop    "networkPast"         "-1"    ""normalized""  
-## 
-## Coefficients:
-##            Estimate Std. Error  z-value  Pr(>|z|)    
-## Intercept -6.376865   0.396152 -16.0970 < 2.2e-16 ***
-## intercept  2.942756   0.406082   7.2467  4.27e-13 ***
-## ego        0.067331   0.026053   2.5844  0.009755 ** 
-## ego        0.012435   0.036750   0.3384  0.735094    
-## diff      -0.142109   0.076203  -1.8649  0.062200 .  
-## diff       0.248709   0.240336   1.0348  0.300744    
-## same       0.051020   0.263799   0.1934  0.846641    
-## same       0.172918   0.409717   0.4220  0.672994    
-## tie        0.145864   0.379845   0.3840  0.700971    
-## size       0.133780   0.073838   1.8118  0.070015 .  
-## egopop     0.068527   0.105430   0.6500  0.515708    
-## egopop     0.177403   0.131982   1.3441  0.178900    
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-##   Converged with max abs. score of 0.00053 
-##   Log-Likelihood: -1303.5
-##   AIC:  2631 
-##   AICc: 2632.4 
-##   BIC:  2672.4 
-##   model: "DyNAMi" subModel: "rate"
+## Error: object 'estRateM2' not found
 ```
 and:
 
@@ -639,57 +545,23 @@ estChoiceM2 <- estimate_dynami(
     set_preprocessing_opt(opportunities_list = opportunities),
   control_estimation = set_estimation_opt(engine = "default")
 )
+```
+
+```
+## Warning in formals(fun): argument is not a function
+```
+
+```
+## Error: Effect "diff" (1)  cannot initialized with objects actors$age
+## 'what' must be a function or character string
+```
+
+``` r
 summary(estChoiceM2)
 ```
 
 ```
-## 
-## Call:
-## estimate_dynami(x = dependentEvents ~ diff(actors$age, subType = "averaged_sum") + 
-##     diff(actors$level, subType = "averaged_sum") + same(actors$gender, 
-##     subType = "proportion") + same(actors$group, subType = "proportion") + 
-##     alter(actors$age, subType = "mean") + tie(known.before, subType = "proportion") + 
-##     size(networkInteractions, subType = "identity") + alterpop(networkPast, 
-##     subType = "mean_normalized") + inertia(networkPast, window = 60, 
-##     subType = "mean") + inertia(networkPast, window = 300, subType = "mean"), 
-##     sub_model = "choice", data = rfidData, control_estimation = set_estimation_opt(engine = "default"), 
-##     control_preprocessing = set_preprocessing_opt(opportunities_list = opportunities))
-## 
-## 
-## Effects details:
-##          Object                window subType            
-## diff     "actors$age"          ""     ""averaged_sum""   
-## diff     "actors$level"        ""     ""averaged_sum""   
-## same     "actors$gender"       ""     ""proportion""     
-## same     "actors$group"        ""     ""proportion""     
-## alter    "actors$age"          ""     ""mean""           
-## tie      "known.before"        ""     ""proportion""     
-## size     "networkInteractions" ""     ""identity""       
-## alterpop "networkPast"         ""     ""mean_normalized""
-## inertia  "networkPast"         "60"   ""mean""           
-## inertia  "networkPast"         "300"  ""mean""           
-## 
-## Coefficients:
-##           Estimate Std. Error z-value Pr(>|z|)   
-## diff     -0.133077   0.073387 -1.8134 0.069776 . 
-## diff      0.095857   0.231054  0.4149 0.678238   
-## same      0.141033   0.321444  0.4387 0.660843   
-## same     -0.284446   0.418710 -0.6793 0.496924   
-## alter     0.033538   0.017678  1.8971 0.057809 . 
-## tie       1.274992   0.393714  3.2384 0.001202 **
-## size      0.097754   0.093141  1.0495 0.293934   
-## alterpop  0.288526   0.170532  1.6919 0.090662 . 
-## inertia   0.211654   0.458129  0.4620 0.644084   
-## inertia  -0.096613   0.235330 -0.4105 0.681410   
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-##   Converged with max abs. score of 2e-05 
-##   Log-Likelihood: -189.76
-##   AIC:  399.53 
-##   AICc: 401.49 
-##   BIC:  427.65 
-##   model: "DyNAMi" subModel: "choice"
+## Error: object 'estChoiceM2' not found
 ```
 
 Of course these models ask a bit much from our data,
@@ -705,12 +577,39 @@ we can calculate the following (for M2 for example):
 
 ``` r
 covMatrix <- vcov(estRateM2)
+```
 
+```
+## Error: object 'estRateM2' not found
+```
+
+``` r
 estInterceptJoining <- coef(estRateM2)[1] + coef(estRateM2)[2]
+```
+
+```
+## Error: object 'estRateM2' not found
+```
+
+``` r
 seInterceptJoining <- sqrt(
   covMatrix[1, 1] + covMatrix[2, 2] + 2 * covMatrix[1, 2]
 )
+```
+
+```
+## Error: object 'covMatrix' not found
+```
+
+``` r
 tInterceptJoining <- estInterceptJoining / seInterceptJoining
+```
+
+```
+## Error: object 'estInterceptJoining' not found
+```
+
+``` r
 sprintf(
   "Intercept for joining: %.3f (SE = %.3f, t = %.3f)",
   estInterceptJoining, seInterceptJoining, tInterceptJoining
@@ -718,7 +617,7 @@ sprintf(
 ```
 
 ```
-## [1] "Intercept for joining: -3.434 (SE = 0.089, t = -38.477)"
+## Error: object 'estInterceptJoining' not found
 ```
 
 This script can be continued by looking at better model specifications

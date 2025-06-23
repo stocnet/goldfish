@@ -1,4 +1,4 @@
-## ----load, message=FALSE---------------------------------------------------------------------
+## ----load, message=FALSE------------------------------------------------------
 library(goldfish)
 data("Social_Evolution")
 # ?Social_Evolution
@@ -6,7 +6,7 @@ head(calls)
 head(actors)
 
 
-## ----quick-----------------------------------------------------------------------------------
+## ----quick--------------------------------------------------------------------
 callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
   link_events(change_events = calls, nodes = actors) # 2
 
@@ -37,37 +37,37 @@ mod00Choice <- estimate_dynam(
 summary(mod00Choice)
 
 
-## ----actors----------------------------------------------------------------------------------
+## ----actors-------------------------------------------------------------------
 class(actors)
 head(actors)
 
 
-## ----make_nodes------------------------------------------------------------------------------
+## ----make_nodes---------------------------------------------------------------
 actors <- make_nodes(actors)
 actors
 
 
-## ----calls-events----------------------------------------------------------------------------
+## ----calls-events-------------------------------------------------------------
 head(calls)
 
 
-## ----hlp1, eval=FALSE------------------------------------------------------------------------
+## ----hlp1, eval=FALSE---------------------------------------------------------
 # ?make_network
 
 
-## ----call-net--------------------------------------------------------------------------------
+## ----call-net-----------------------------------------------------------------
 callNetwork <- make_network(nodes = actors, directed = TRUE)
 
 
-## ----strNet----------------------------------------------------------------------------------
+## ----strNet-------------------------------------------------------------------
 callNetwork
 
 
-## ----hlp2, eval=FALSE------------------------------------------------------------------------
+## ----hlp2, eval=FALSE---------------------------------------------------------
 # ?link_events
 
 
-## ----link-call-net---------------------------------------------------------------------------
+## ----link-call-net------------------------------------------------------------
 callNetwork <- link_events(
   x = callNetwork,
   change_events = calls,
@@ -76,7 +76,7 @@ callNetwork <- link_events(
 callNetwork
 
 
-## ----frdshp-net------------------------------------------------------------------------------
+## ----frdshp-net---------------------------------------------------------------
 head(friendship)
 friendshipNetwork <- make_network(nodes = actors, directed = TRUE)
 friendshipNetwork <- link_events(
@@ -87,11 +87,11 @@ friendshipNetwork <- link_events(
 friendshipNetwork
 
 
-## ----hlp3, eval=FALSE------------------------------------------------------------------------
+## ----hlp3, eval=FALSE---------------------------------------------------------
 # ?make_dependent_events
 
 
-## ----call-dep-events-------------------------------------------------------------------------
+## ----call-dep-events----------------------------------------------------------
 callsDependent <- make_dependent_events(
   events = calls, nodes = actors,
   default_network = callNetwork
@@ -99,18 +99,18 @@ callsDependent <- make_dependent_events(
 callsDependent
 
 
-## ----hlp4, eval=FALSE------------------------------------------------------------------------
+## ----hlp4, eval=FALSE---------------------------------------------------------
 # ?make_data
 
 
-## ----make-data-------------------------------------------------------------------------------
+## ----make-data----------------------------------------------------------------
 socialEvolutionData <- make_data(
   callsDependent, callNetwork, actors, friendshipNetwork
 )
 socialEvolutionData
 
 
-## ----plot-teaching1, message=FALSE, warning=FALSE--------------------------------------------
+## ----plot-teaching1, message=FALSE, warning=FALSE-----------------------------
 library(igraph)
 library(ggraph)
 library(migraph)
@@ -142,15 +142,15 @@ graphr(callNetworkEnd, labels = FALSE, layout = "fr") +
 table(as.matrix(callNetwork, time = max(calls$time) + 1))
 
 
-## ----effects, eval=FALSE---------------------------------------------------------------------
+## ----effects, eval=FALSE------------------------------------------------------
 # vignette("goldfishEffects")
 
 
-## ----simple-formula--------------------------------------------------------------------------
+## ----simple-formula-----------------------------------------------------------
 simpleFormulaChoice <- callsDependent ~ tie(friendshipNetwork)
 
 
-## ----simple-choice---------------------------------------------------------------------------
+## ----simple-choice------------------------------------------------------------
 mod01Choice <- estimate_dynam(
   simpleFormulaChoice,
   sub_model = "choice",
@@ -159,7 +159,7 @@ mod01Choice <- estimate_dynam(
 summary(mod01Choice)
 
 
-## ----complex-choice--------------------------------------------------------------------------
+## ----complex-choice-----------------------------------------------------------
 complexFormulaChoice <-
   callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
                    tie(friendshipNetwork) + recip(friendshipNetwork) +
@@ -173,7 +173,7 @@ mod02Choice <- estimate_dynam(
 summary(mod02Choice)
 
 
-## ----simple-rate-----------------------------------------------------------------------------
+## ----simple-rate--------------------------------------------------------------
 simpleFormulaRate <- callsDependent ~ indeg(friendshipNetwork)
 mod01Rate <- estimate_dynam(
   simpleFormulaRate,
@@ -182,7 +182,7 @@ mod01Rate <- estimate_dynam(
   )
 
 
-## ----estimate-init---------------------------------------------------------------------------
+## ----estimate-init------------------------------------------------------------
 mod01Rate <- estimate_dynam(
   simpleFormulaRate,
   sub_model = "rate",
@@ -192,7 +192,7 @@ mod01Rate <- estimate_dynam(
 summary(mod01Rate)
 
 
-## ----complex-rate----------------------------------------------------------------------------
+## ----complex-rate-------------------------------------------------------------
 complexFormulaRate <-
   callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(friendshipNetwork)
@@ -205,7 +205,7 @@ mod02Rate <- estimate_dynam(
 summary(mod02Rate)
 
 
-## ----intcpt-rate-----------------------------------------------------------------------------
+## ----intcpt-rate--------------------------------------------------------------
 interceptFormulaRate <-
   callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(friendshipNetwork)
@@ -218,7 +218,7 @@ mod03Rate <- estimate_dynam(
 summary(mod03Rate)
 
 
-## ----waiting-time----------------------------------------------------------------------------
+## ----waiting-time-------------------------------------------------------------
 mod03RateCoef <- coef(mod03Rate)
 1 / exp(mod03RateCoef[["Intercept"]]) / 3600
 # or days:
@@ -239,7 +239,7 @@ mod03RateCoef <- coef(mod03Rate)
   ) / 3600
 
 
-## ----windows-rate----------------------------------------------------------------------------
+## ----windows-rate-------------------------------------------------------------
 windowFormulaRate <-
   callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
                    indeg(callNetwork, window = 300) +
@@ -254,7 +254,7 @@ mod04Rate <- estimate_dynam(
 summary(mod04Rate)
 
 
-## ----windows-choice--------------------------------------------------------------------------
+## ----windows-choice-----------------------------------------------------------
 windowFormulaChoice <-
   callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
                    inertia(callNetwork, window = 300) +
@@ -270,7 +270,7 @@ mod03Choice <- estimate_dynam(
 summary(mod03Choice)
 
 
-## ----aic-------------------------------------------------------------------------------------
+## ----aic----------------------------------------------------------------------
 # Compare different specifications of the subModel = "choice"
 AIC(mod02Choice, mod03Choice)
 
@@ -278,7 +278,7 @@ AIC(mod02Choice, mod03Choice)
 AIC(mod03Rate, mod04Rate)
 
 
-## ----rem-------------------------------------------------------------------------------------
+## ----rem----------------------------------------------------------------------
 allFormulaREM <-
   callsDependent ~ 
     1 + indeg(callNetwork, type = "ego") + outdeg(callNetwork, type = "ego") +
@@ -289,7 +289,7 @@ allFormulaREM <-
     same(actors$gradeType) + same(actors$floor)
 
 
-## ----rem-gather, eval=FALSE------------------------------------------------------------------
+## ----rem-gather, eval=FALSE---------------------------------------------------
 # mod01REM <- estimate_rem(
 #   allFormulaREM,
 #   data = socialEvolutionData,
@@ -298,7 +298,7 @@ allFormulaREM <-
 # )
 
 
-## ----rem-c-----------------------------------------------------------------------------------
+## ----rem-c--------------------------------------------------------------------
 mod01REM <- estimate_rem(
   allFormulaREM,
   data = socialEvolutionData,
