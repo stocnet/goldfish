@@ -31,17 +31,17 @@ For example, if the vector is \code{c(2, NA)} then the first component of the
 parameter is fixed to 2 during the estimation process.
 Default is \code{NULL} (all parameters are estimated).}
 
-\item{max_iterations}{An integer.
+\item{max_iterations}{An integer non-negative.
 The maximum number of iterations in the Gauss-Fisher scoring algorithm.
 Default is \code{20}.}
 
-\item{convergence_criterion}{A numeric value.
+\item{convergence_criterion}{A positive numeric value.
 The convergence criterion for the estimation.
 The algorithm stops if the sum of absolute scores is smaller than
 this value.
 Default is \code{0.001}.}
 
-\item{initial_damping}{A numeric value.
+\item{initial_damping}{A positive numeric value.
 The initial damping factor for the Gauss-Fisher scoring algorithm.
 Default is \code{NULL}, which allows \code{estimate_dynam()}, \code{estimate_rem()} and
 \code{estimate_dynami()} to set
@@ -49,11 +49,11 @@ a context-dependent default
 (e.g., 30 or 10 based on wheter the model has windows effects).
 If set, this value is used directly.}
 
-\item{damping_increase_factor}{A numeric value.
+\item{damping_increase_factor}{A positive numeric value.
 Factor by which damping is increased when improvements
 in the estimation are found. Must be >= 1. Default is \code{2}.}
 
-\item{damping_decrease_factor}{A numeric value.
+\item{damping_decrease_factor}{A positive numeric value.
 Factor by which damping is decreased when no improvements
 in the estimation are found. Must be >= 1. Default is \code{3}.}
 

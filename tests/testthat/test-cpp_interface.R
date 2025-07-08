@@ -1,5 +1,5 @@
 test_that(
-  "test C and R engine DyNAM-rate",
+  "DyNAM-rate",
   {
     skip_on_cran()
     model <- "DyNAM"
@@ -42,7 +42,7 @@ test_that(
   }
 )
 test_that(
-  "test C and R engine DyNAM-rate ordered",
+  "DyNAM-rate ordered",
   {
     skip_on_cran()
     model <- "DyNAM"
@@ -81,7 +81,7 @@ test_that(
   }
 )
 test_that(
-  "test C and R engine DyNAM-choice",
+  "DyNAM-choice",
   {
     skip_on_cran()
     model <- "DyNAM"
@@ -121,7 +121,7 @@ test_that(
   }
 )
 test_that(
-  "test C and R engine REM",
+  "REM",
   {
     skip_on_cran()
     model <- "REM"
@@ -157,7 +157,7 @@ test_that(
   }
 )
 test_that(
-  "test C and R engine REM ordered",
+  "REM ordered",
   {
     skip_on_cran()
     model <- "REM"
@@ -193,7 +193,7 @@ test_that(
   }
 )
 test_that(
-  "test C and R engine DyNAM-choice_coordination",
+  "DyNAM-choice_coordination",
   {
     skip_on_cran()
     model <- "DyNAM"

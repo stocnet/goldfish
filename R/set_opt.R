@@ -30,25 +30,25 @@
 #'   For example, if the vector is `c(2, NA)` then the first component of the
 #'   parameter is fixed to 2 during the estimation process.
 #'   Default is `NULL` (all parameters are estimated).
-#' @param max_iterations An integer.
+#' @param max_iterations An integer non-negative.
 #'   The maximum number of iterations in the Gauss-Fisher scoring algorithm.
 #'   Default is `20`.
-#' @param convergence_criterion A numeric value.
+#' @param convergence_criterion A positive numeric value.
 #'   The convergence criterion for the estimation.
 #'   The algorithm stops if the sum of absolute scores is smaller than
 #'   this value.
 #'   Default is `0.001`.
-#' @param initial_damping A numeric value.
+#' @param initial_damping A positive numeric value.
 #'   The initial damping factor for the Gauss-Fisher scoring algorithm.
 #'   Default is `NULL`, which allows `estimate_dynam()`, `estimate_rem()` and
 #'   `estimate_dynami()` to set
 #'   a context-dependent default
 #'   (e.g., 30 or 10 based on wheter the model has windows effects).
 #'   If set, this value is used directly.
-#' @param damping_increase_factor A numeric value.
+#' @param damping_increase_factor A positive numeric value.
 #'   Factor by which damping is increased when improvements
 #'   in the estimation are found. Must be >= 1. Default is `2`.
-#' @param damping_decrease_factor A numeric value.
+#' @param damping_decrease_factor A positive numeric value.
 #'   Factor by which damping is decreased when no improvements
 #'   in the estimation are found. Must be >= 1. Default is `3`.
 #' @param return_interval_loglik A logical value.
@@ -123,12 +123,12 @@ set_estimation_opt <- function(
   if (!is.null(fixed_parameters) && !is.numeric(fixed_parameters)) {
     stop("'fixed_parameters' must be a numeric vector or NULL.", call. = FALSE)
   }
-  if (!is.numeric(max_iterations) || length(max_iterations) != 1 ||
-      max_iterations <= 0 || floor(max_iterations) != max_iterations) {
-    stop("'max_iterations' must be a single positive integer.", call. = FALSE)
+  if (!rlang::is_scalar_integerish(max_iterations, finite = TRUE) ||
+      max_iterations < 0) {
+    stop("'max_iterations' must be a single non-negative integer.", call. = FALSE)
   }
-  if (!is.numeric(convergence_criterion) ||
-      length(convergence_criterion) != 1 || convergence_criterion <= 0) {
+  if (!rlang::is_scalar_double(convergence_criterion) ||
+      convergence_criterion <= 0) {
     stop(
       "'convergence_criterion' must be a single positive numeric value.",
       call. = FALSE
@@ -155,15 +155,13 @@ set_estimation_opt <- function(
       call. = FALSE
     )
   }
-  if (!is.logical(return_interval_loglik) ||
-      length(return_interval_loglik) != 1) {
+  if (!rlang::is_scalar_logical(return_interval_loglik)) {
     stop(
       "'return_interval_loglik' must be a single logical value.",
       call. = FALSE
     )
   }
-  if (!is.logical(return_probabilities) ||
-      length(return_probabilities) != 1) {
+  if (!rlang::is_scalar_logical(return_probabilities)) {
     stop(
       "'return_probabilities' must be a single logical value.",
       call. = FALSE
