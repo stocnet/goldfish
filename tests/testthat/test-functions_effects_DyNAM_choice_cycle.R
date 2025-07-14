@@ -116,7 +116,7 @@ test_that("cycle recognises tie creation correctly", {
     update_DyNAM_choice_cycle(
       `[<-`(m1, 4, 5, 0),
       sender = 4, receiver = 5, replace = 1,
-      cache = mCache, history='cons', eventOrder = 2
+      cache = mCache, history='cons', eventOrder = 1
     )$changes,
     rbind(
       "sender" = c(node1 = 5, node2 = 3, replace = 1)

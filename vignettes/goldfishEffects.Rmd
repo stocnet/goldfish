@@ -85,6 +85,7 @@ for all two-paths when the subsequent tie is created directly after the precedin
 
 The following table summaries whether the corresponding arguments can be used for the effects or not.
 
+<<<<<<< HEAD
 | || |isTwoMode |ignoreRep |weighted |window |transformFun |aggregateFun |type |history |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Node/actor statistics | Structural | indeg | √ | √ | √ | √ | √ | × | √ | × |
@@ -110,6 +111,33 @@ The following table summaries whether the corresponding arguments can be used fo
 | | | mixedCycle | × | √ | × | √ | √ | × | × | × |
 | | | mixedCommonSender | × | √ | × | √ | √ | × | × | × |
 | | | mixedCommonReceiver | × | √ | × | √ | √ | × | × | × |
+=======
+|                       |                        | mixed_common_receiver | is_two_mode | ignore_repetitions | weighted | window | transformer_fn | summarizer_fn | type | history |
+| :-------------------- | :--------------------- | :-------------------- | :---------- | :----------------- | :------- | :----- | :------------- | :------------ | :--- | :------ |
+| Node/actor statistics | Structural             | indeg                 | √           | √                  | √        | √      | √              | ×             | √    | ×       |
+|                       |                        | outdeg                | √           | √                  | √        | √      | √              | ×             | √    | ×       |
+|                       |                        | node_trans             | ×           | √                  | √        | √      | √              | ×             | √    | ×       |
+|                       | Attribute              | ego                   | √           | ×                  | ×        | ×      | ×              | ×             | ×    | ×       |
+|                       |                        | alter                 | √           | ×                  | ×        | ×      | ×              | ×             | ×    | ×       |
+|                       | Structural + attribute | tertius               | √           | √                  | √        | √      | √              | √             | √    | ×       |
+| Dyadic statistics     | Structural             | tie                   | √           | √                  | √        | √      | √              | ×             | ×    | ×       |
+|                       |                        | inertia               | √           | √                  | √        | √      | √              | ×             | ×    | ×       |
+|                       |                        | recip                 | ×           | √                  | √        | √      | √              | ×             | ×    | ×       |
+|                       | Attribute              | same                  | ×           | ×                  | ×        | ×      | √              | ×             | ×    | ×       |
+|                       |                        | diff                  | ×           | ×                  | ×        | ×      | √              | ×             | ×    | ×       |
+|                       |                        | sim                   | ×           | ×                  | ×        | ×      | √              | ×             | ×    | ×       |
+|                       |                        | ego_alter_interaction | ×           | ×                  | ×        | ×      | √              | ×             | ×    | ×       |
+|                       | Structural + attribute | tertius_diff          | √           | √                  | √        | √      | √              | √             | ×    | ×       |
+|                       | Closure effects        | trans                 | ×           | √                  | ×        | √      | √              | ×             | ×    | √       |
+|                       |                        | cycle                 | ×           | √                  | ×        | √      | √              | ×             | ×    | √       |
+|                       |                        | common_sender         | √           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | common_receiver       | √           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | four                  | √           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | mixed_trans           | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | mixed_cycle           | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | mixed_common_sender   | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | mixed_common_receiver | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+>>>>>>> 8548309 (Fixed eventOrder bug and incorrect isTwoMode in vignette)
 
 
 

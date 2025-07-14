@@ -116,7 +116,7 @@ test_that("trans recognizes tie creation correctly ", {
     update_DyNAM_choice_trans(
       m,
       sender = 1, receiver = 4, replace = 1,
-      cache = mCache, history='cons', eventOrder = 2
+      cache = mCache, history='cons', eventOrder = 1
     )$changes,
     rbind(
       "sender" = c(node1 = 2, node2 = 4, replace = 1)

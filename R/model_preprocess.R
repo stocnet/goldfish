@@ -207,6 +207,7 @@ preprocess <- function(
   # iRightCensored <- 0
   iDependentEvents <- 0L
   iTotalEvents <- 0L
+  iUniqueEvents <- 0L
   if (progress) {
     cat("Preprocessing events.\n", startTime, endTime, nTotalEvents)
     # # how often print, max 50 prints
@@ -235,6 +236,10 @@ preprocess <- function(
       }
     } else {
       interval <- nextEventTime - time
+    }
+    
+    if (interval > 0) {
+      iUniqueEvents <- iUniqueEvents + 1L
     }
 
     time <- nextEventTime
@@ -439,11 +444,11 @@ preprocess <- function(
             } else {
               which(orderedNames == objectName)
             },
-            # add more parameters:
+            # add more parameters:s
             # - consecutive updates in closure effects
             # - interEventTime (since last event right-censored included):
             #   exponentially weighted decay effects
-            eventOrder = iTotalEvents,
+            eventOrder = iUniqueEvents,
             interEventTime = interval
           )
           effectUpdate <- callFUN(

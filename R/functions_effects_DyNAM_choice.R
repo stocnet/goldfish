@@ -845,7 +845,7 @@ compute_update_two_path_consecutive <- function(
   if (replace == 1) {
     attr(cache, 'lastUpdate') <-
       c(sender = sender, receiver = receiver, eventOrder = eventOrder)
-    if ((lastEventOrder == (eventOrder - 2L)) && (sender == lastReceiver)) {
+    if ((lastEventOrder == (eventOrder - 1L)) && (sender == lastReceiver)) {
       inSender <- lastSender
     }
     else {
