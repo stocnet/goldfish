@@ -133,7 +133,16 @@ test_that("commonReceiver init returns the correct result", {
     unname(tcrossprod(sign(m1))))
 })
 
-test_that("commonReceiver init returns an error when n1 != n2", {
+test_that("commonReceiver init returns a warning when two mode network", {
+  check <- formals(effectFUN_closure)
+  check$isTwoMode <- TRUE
+  formals(effectFUN_closure) <- check
+  expect_warning(
+    init_DyNAM_choice.commonReceiver(effectFUN_closure, mTwoMode, NULL, 5, 5),
+    regexp = "conformable dimensions")
+})
+
+test_that("common_receiver init returns an error when n1 != n2", {
   expect_error(
     init_DyNAM_choice.commonReceiver(effectFUN_closure, m1, NULL, 3, 5),
     regexp = "Dimensions of the two-mode network are not conformable")
