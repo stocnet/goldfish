@@ -650,7 +650,9 @@ check_events.nodes.goldfish <- function(
       error = error_message
     )
   }
-
+  if (NA %in% events$time) {
+    stop("Event time cannot be NA")
+  }
   if (is.unsorted(events$time)) {
     stop("Invalid events list: Events should be ordered by time.")
   }
@@ -689,9 +691,15 @@ check_events.nodes.goldfish <- function(
       )
     }
   }
+  if (NA %in% events$node) {
+    stop(
+      "Node labels contain NA values which is disallowed."
+    )
+  }
   if (!all(events$node %in% object$label)) {
     stop(
-      "Nodes labels for the attribute ", dQuote(attribute), " are incorrect."
+      "Some node labels for the attribute ", dQuote(attribute), "in events are invalid." ,
+      "Ensure that all events have valid attribute labels by checking node labels."
     )
   }
   return(TRUE)
@@ -762,9 +770,15 @@ check_events.network.goldfish <- function(
       )
     )
   }
-
+  if (NA %in% events$time) {
+    stop("Event time cannot be NA")
+  }
   if (is.unsorted(events$time)) stop("Events should be ordered by time.")
-
+  
+  if ((NA %in% events$sender) || (NA %in% events$receiver)) {
+    stop("Senders and Recievers must not be NA")
+  }
+  
   # self-directed event
   if (any(events[, "sender"] == events[, "receiver"])) {
     warning("At least one self-directed event in data.")
