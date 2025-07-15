@@ -777,7 +777,14 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
   done <- structure(vector("logical", nrow(objTable)), names = objTable$name)
   for (iEff in seq_len(nrow(objTable))) {
     objectNameTable <- objTable[iEff, ]
-    object <- getElementFromDataObjectTable(objectNameTable, envir = envir)[[1]]
+    objectList <- getElementFromDataObjectTable(objectNameTable, envir = envir)
+    if (length(objectList) == 0) {
+      stop("The formula uses the following unavailable object: ",
+           paste(objectNameTable$name, collapse = ", "),
+           call. = FALSE
+      )
+    }
+    object <- objectList[[1]]
     objectName <- objectNameTable$name
     # print(table(is.na(object)))
     # cat(objectName, "\n")
