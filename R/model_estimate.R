@@ -291,8 +291,8 @@ estimate_dynam <- function(
     control_preprocessing = set_preprocessing_opt(),
     preprocessing_init = NULL,
     preprocessing_only = FALSE,
-    progress = getOption("progress"),
-    verbose = getOption("verbose")
+    progress = getOption("progress", default = FALSE),
+    verbose = getOption("verbose", default = FALSE)
     ) {
   estimate_wrapper(
     x = x, 
@@ -317,8 +317,8 @@ estimate_dynami <- function(
     control_preprocessing = set_preprocessing_opt(),
     preprocessing_init = NULL,
     preprocessing_only = FALSE,
-    progress = getOption("progress"),
-    verbose = getOption("verbose")
+    progress = getOption("progress", default = FALSE),
+    verbose = getOption("verbose", default = FALSE)
 ) {
   sub_model <- match.arg(sub_model)
   estimate_wrapper(
@@ -343,8 +343,8 @@ estimate_rem <- function(
     control_preprocessing = set_preprocessing_opt(),
     preprocessing_init = NULL,
     preprocessing_only = FALSE,
-    progress = getOption("progress"),
-    verbose = getOption("verbose")
+    progress = getOption("progress", default = FALSE),
+    verbose = getOption("verbose", default = FALSE)
 ) {
   estimate_wrapper(
     x = x, 
@@ -370,8 +370,9 @@ estimate_wrapper <- function(x,
     control_preprocessing = set_preprocessing_opt(),
     preprocessing_init = NULL,
     preprocessing_only = FALSE,
-    progress = getOption("progress"),
-    verbose = getOption("verbose")) {
+    progress = getOption("progress", default = FALSE),
+    verbose = getOption("verbose", default = FALSE)
+  ) {
 
   # Steps:
   # 1. Parse the formula
@@ -396,9 +397,9 @@ estimate_wrapper <- function(x,
 
   stopifnot(
     inherits(data, "data.goldfish"),
-    inherits(preprocessing_only, "logical"),
-    inherits(verbose, "logical"),
-    is.null(progress) || inherits(progress, "logical"),
+    rlang::is_scalar_logical(preprocessing_only),
+    rlang::is_scalar_logical(verbose),
+    is.null(progress) || rlang::is_scalar_logical(progress),
     is.null(preprocessing_init) ||
       inherits(preprocessing_init, "preprocessed.goldfish"),
     inherits(control_estimation, "estimation_opt.goldfish"),
@@ -491,6 +492,14 @@ estimate_wrapper <- function(x,
       new_parsed_formula = parsed_formula,
       model = model, sub_model = sub_model
     )
+    if (sum(duplicated(effects_indexes)) > 0) {
+      stop(
+        "The comparison of the new formula and old formula is not able\n",
+        "to identify the effects properly.\n",
+        "It's not possible to use the preprocessing_init object in this case.",
+        call. = FALSE
+      )
+    }
   }
 
   ### 2. INITIALIZE OBJECTS: effects, nodes, and link objects----

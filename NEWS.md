@@ -1,3 +1,11 @@
+# goldfish 1.7.1
+
+* Fix bug when preprocessed data is used in `estimate_` functions due to
+  an incorrect comparison of formulas.
+* Allow for `max_iterations` in `set_estimation_opt()` to be set to `0` to
+  retain model statistics without running the estimation algorithm.
+* Remove unused variable in `compute_poisson_selection()`.
+
 # goldfish 1.7.0
 
 * Rename functions to follow tidyverse style guide.
@@ -14,8 +22,8 @@
 
 # goldfish 1.6.13
 
-* Fixes problem when parallelizing code and using preprocess objects.
-* Fixes incorrect computation of number of right-censored events during 
+* Fix problem when parallelizing code and using preprocess objects.
+* Fix incorrect computation of number of right-censored events during 
   preprocessing when `startTime` is specified.
 * Add `lifecycle` and `cli` to imports.
 * Rename functions names to `snake_case` to comply with the tidyverse
@@ -24,29 +32,29 @@
 
 # goldfish 1.6.12
 
-* Fixes invalid URL link in the `goldfish-package.Rd`.
+* Fix invalid URL link in the `goldfish-package.Rd`.
 
 # goldfish 1.6.11
 
-* Registers S3 methods for internal functions.
-* Updates R version dependency to 4.1.0 to use the anonymous function syntax.
-* Deletes configure files; OpenMP support is now managed directly through
+* Register S3 methods for internal functions.
+* Update R version dependency to 4.1.0 to use the anonymous function syntax.
+* Delete configure files; OpenMP support is now managed directly through
   the Makevars files.
 
 # goldfish 1.6.10
 
-* Solves invalid URL link for the MIT Social Evolution dataset.
+* Solve invalid URL link for the MIT Social Evolution dataset.
 
 # goldfish 1.6.9
 
 * Solving missing package anchors in the documentation.
 * Update deprecated functions in the vignettes from `manynet`.
-* Solve issue on `Makevars.in` file that produced a note when check as CRAN. 
+* Solves issue on `Makevars.in` file that produced a note when check as CRAN. 
 
 # goldfish 1.6.8
 
 * `checkEvents()` method addresses S3 generic/method consistency.
-* Solves invalid URL link in the bibliography.
+* Solve invalid URL link in the bibliography.
 
 # goldfish 1.6.7
 
@@ -64,15 +72,15 @@
 
 # goldfish 1.6.5
 
-* Solves `startTime` and `endTime` bug on `DyNAM` and `REM` models
+* Solve `startTime` and `endTime` bug on `DyNAM` and `REM` models
   preprocessing.
 * Export `GatherPreprocessing()`. Experimental functionality.
 * Clean unnecessary functions imports.
-* Solves `aes_string()` deprecation.
-* Solves issue on `C++` engine on DyNAM-rate.
+* Solve `aes_string()` deprecation.
+* Solve issue on `C++` engine on DyNAM-rate.
 * Enforcing an 80-character line length on C++ code.
 * Comply with code style.
-* Changes that reduce execution time in the R estimation engine.
+* Change that reduce execution time in the R estimation engine.
 
 # goldfish 1.6.4
 
@@ -198,8 +206,8 @@
 ## Minor improvements and fixes
 
 * Minor bugs in parsing and printing solved.
-* Solves some warnings regarding S3 generic/method consistency.
-* Solves no visible binding for global variables.
+* Solve some warnings regarding S3 generic/method consistency.
+* Solve no visible binding for global variables.
 * Documentation improvements creating new documentation pages
   aggregating similar functions on `print-method` and `update-method`.
 

@@ -215,7 +215,12 @@ set_estimation_opt <- function(
 #'   dependent events objects created with `make_dependent_events()`.
 #'   Default is `NULL`, so the choice set is the set of all nodes present at the
 #'   time of the event.
-#'
+# @param keep_sender_index A logical value. If `TRUE`, the sender index,
+#   the index in the nodeset, of the potential senders of the events is
+#   kept in the preprocessed data.   
+# @param keep_receiver_index A logical value. If `TRUE`, the receiver index,
+#  the index in the nodeset, of the potential receivers of the events is
+#  kept in the preprocessed data.
 #' @return An object of class `preprocessing_opt.goldfish` (a list object), with
 #'  where the components values are the default values or the values provided
 #'  to the function. The list object has the following components:
@@ -231,8 +236,7 @@ set_estimation_opt <- function(
 set_preprocessing_opt <- function(
   start_time = NULL,
   end_time = NULL,
-  opportunities_list = NULL
-) {
+  opportunities_list = NULL) {
   # Argument checks
   classesAllowed <- c("numeric", "character", "POSIXlt", "POSIXct", "POSIXt")
   if (!is.null(start_time)) {
@@ -279,10 +283,26 @@ set_preprocessing_opt <- function(
     }
   }
 
+  # if (!rlang::is_scalar_logical(keep_sender_index)) {
+  #   stop(
+  #     "'keep_sender_index' must be a single logical value.",
+  #     call. = FALSE
+  #   )
+  # }
+  # 
+  # if (!rlang::is_scalar_logical(keep_receiver_index)) {
+  #   stop(
+  #     "'keep_receiver_index' must be a single logical value.",
+  #     call. = FALSE
+  #   )
+  # }
+
   control_list <- list(
     start_time = start_time,
     end_time = end_time,
-    opportunities_list = opportunities_list
+    opportunities_list = opportunities_list#,
+    # keep_sender_index = keep_sender_index,
+    # keep_receiver_index = keep_receiver_index
   )
 
   class(control_list) <- c("preprocessing_opt.goldfish", "list")

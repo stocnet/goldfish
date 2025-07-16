@@ -127,6 +127,10 @@ parse_formula <- function(formula, envir = new.env()) {
 #    the index of the effect in the old formula if the effect was already there
 compare_formulas <- function(
     old_parsed_formula, new_parsed_formula, model, sub_model) {
+  # global check
+  if (identical(old_parsed_formula, new_parsed_formula)) {
+    return(seq_along(new_parsed_formula$rhs_names))
+  }
   # test dependent events and default network
   if (old_parsed_formula$dep_name != new_parsed_formula$dep_name) {
     stop(
@@ -165,32 +169,22 @@ compare_formulas <- function(
   size_old <- length(old_parsed_formula$rhs_names)
   size_new <- length(new_parsed_formula$rhs_names)
   effects_indexes <- rep(0, size_new)
+  slot_compare <- names(old_parsed_formula) 
+  slot_compare <- slot_compare[!slot_compare %in% c(
+    "dep_name", "has_intercept", "default_network_name"
+  )]
   for (i in seq.int(size_new)) {
-    effect_name <- new_parsed_formula$rhs_names[[i]][[1]]
-    effect_object <- new_parsed_formula$rhs_names[[i]][[2]]
-    effect_window <- new_parsed_formula$window_parameters[[i]]
-    effect_ignore_rep <- new_parsed_formula$ignore_rep_parameter[[i]]
-    effect_weighted <- new_parsed_formula$weighted_parameter[[i]]
-    effect_parameter <- new_parsed_formula$user_set_parameter[[i]]
     for (j in seq.int(size_old)) {
-      if (!identical(old_parsed_formula$rhs_names[[j]][[1]], effect_name)) {
-        next
+      flag <- FALSE
+      for (slot_name in slot_compare) {
+        if (!identical(
+          old_parsed_formula[[slot_name]][[j]],
+          new_parsed_formula[[slot_name]][[i]]
+        )) {
+          flag <- TRUE
+        }
       }
-      if (!identical(old_parsed_formula$rhs_names[[j]][[2]], effect_object)) {
-        next
-      }
-      if (!identical(old_parsed_formula$window_parameters[[j]], effect_window)) {
-        next
-      }
-      if (!identical(
-        old_parsed_formula$ignore_rep_parameter[[j]], effect_ignore_rep
-      )) {
-        next
-      }
-      if (!identical(old_parsed_formula$weighted_parameter[[j]], effect_weighted)) {
-        next
-      }
-      if (!identical(old_parsed_formula$user_set_parameter[[j]], effect_parameter)) {
+      if (flag) {
         next
       }
       effects_indexes[i] <- j

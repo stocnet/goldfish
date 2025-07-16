@@ -15,8 +15,8 @@ estimate_dynam(
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
-  progress = getOption("progress"),
-  verbose = getOption("verbose")
+  progress = getOption("progress", default = FALSE),
+  verbose = getOption("verbose", default = FALSE)
 )
 
 estimate_dynami(
@@ -27,8 +27,8 @@ estimate_dynami(
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
-  progress = getOption("progress"),
-  verbose = getOption("verbose")
+  progress = getOption("progress", default = FALSE),
+  verbose = getOption("verbose", default = FALSE)
 )
 
 estimate_rem(
@@ -38,8 +38,8 @@ estimate_rem(
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
-  progress = getOption("progress"),
-  verbose = getOption("verbose")
+  progress = getOption("progress", default = FALSE),
+  verbose = getOption("verbose", default = FALSE)
 )
 }
 \arguments{

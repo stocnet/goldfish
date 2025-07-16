@@ -39,7 +39,7 @@ List compute_poisson_selection(
     arma::vec exps = arma::exp(stat_all_events * parameters);
     // start address in stat_all_events of current events
     int id_start = 0;
-    int id_dep_event = 0;
+    // int id_dep_event = 0;
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -79,7 +79,7 @@ List compute_poisson_selection(
         if (is_dependent_current_event) {
             intervalLogL(id_event) += dot(stat_mat_current_event.row(id_selected), parameters);
             derivative += stat_mat_current_event.row(id_selected);
-            id_dep_event++;
+            //id_dep_event++;
         }
         // loglikelihood
         logLikelihood += intervalLogL(id_event);
