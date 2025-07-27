@@ -371,3 +371,17 @@ test_that(
     )
   }
 )
+
+test_that(
+  "Function indicates that the formula uses objects not available.",
+  {
+    expect_error(
+      estimate_wrapper(
+        depNetwork ~ inertia + alter(actorsEx$uno),
+        model = "DyNAM", sub_model = "choice",
+        data = dataTest,
+        preprocessing_only = TRUE
+      )
+    )
+  }
+)
