@@ -776,7 +776,7 @@ check_events.network.goldfish <- function(
   if (is.unsorted(events$time)) stop("Events should be ordered by time.")
   
   if ((NA %in% events$sender) || (NA %in% events$receiver)) {
-    stop("Senders and Recievers must not be NA")
+    stop("Senders and Receivers must not be NA")
   }
   
   # self-directed event
