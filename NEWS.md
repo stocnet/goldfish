@@ -18,7 +18,7 @@
 * Introduce `set_` functions to set options: `set_estimation_opt()` 
   for algorithm options, and `set_preprocess_opt()` for preprocessing options.
 * Introduce `make_data()` function to create a single data object with all
-  the data needed for estimation.
+  the data needed for estimation (#100).
 * Introduce `history = c("pooling", "sequential", "consecutive")` argument
   to `trans()` and `cycle()` effect functions that define how the
   previous history of events is used to compute the effect (#105).
