@@ -355,7 +355,7 @@ test_that(
   "trans preprocessing",
   {
     preproData <- estimate_wrapper(
-      depNetworkTrans ~ trans(networkStateTrans, history="cons"),
+      depNetworkTrans ~ trans(networkStateTrans, history = "cons"),
       model = "DyNAM", sub_model = "choice",
       data = dataTest,
       preprocessing_only = TRUE
@@ -377,11 +377,23 @@ test_that(
   {
     expect_error(
       estimate_wrapper(
+        depNetwork ~ inertia + tie(notReal),
+        model = "DyNAM", sub_model = "choice",
+        data = dataTest,
+        preprocessing_only = TRUE
+      ),
+      "valid object",
+      label = "when object doesn't exist"
+    )
+    expect_error(
+      estimate_wrapper(
         depNetwork ~ inertia + alter(actorsEx$uno),
         model = "DyNAM", sub_model = "choice",
         data = dataTest,
         preprocessing_only = TRUE
-      )
+      ),
+      "valid attribute",
+      label = "when attribute of an object doesn't exist"
     )
   }
 )

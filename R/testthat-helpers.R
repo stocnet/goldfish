@@ -87,9 +87,10 @@ testAttr <- data.frame(
 )
 
 # Effect Functions  -------------------------------------------------
-effectFUN <- function (
-    network, sender, receiver, replace, cache, weighted = FALSE, is_two_mode = FALSE, 
-                       transformer_fn = identity) {}
+effectFUN <- function(
+    network, sender, receiver, replace, cache, weighted = FALSE,
+    is_two_mode = FALSE,
+    transformer_fn = identity) {}
 
 effectFUN_tie <- function(
     network,
@@ -317,8 +318,7 @@ depNetwork <- make_dependent_events(
   default_network = networkState
 )
 
-
-# added for trans/cycle 
+# added for trans/cycle
 
 networkStateTrans <- matrix(
   c(
@@ -569,7 +569,7 @@ dependent.depevents_DyNAMi <- make_dependent_events(
 resModObject <- structure(
   list(
     parameters = c(5.3751, 1, -0.0816),
-    standardErrors = c(0.155388602931316, 0, 0.197511081339697),
+    standardErrors = c(0.155388602931316, 0, 0.197511081339697), 
     logLikelihood = -699.4532,
     finalScore = c(0.000200290995642893, 0, 1.49135840820103e-05),
     finalInformationMatrix = matrix(

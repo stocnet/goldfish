@@ -153,7 +153,7 @@ preprocess <- function(
           nRightCensoredEvents <= endTime
       ))
       # -1 because the last event is the endTime event, correct if no events
-      nRightCensoredEvents <- ifelse(nRightCensoredEvents > 1, 
+      nRightCensoredEvents <- ifelse(nRightCensoredEvents > 1,
         nRightCensoredEvents - 1L, 0L
       )
     } else {
@@ -450,11 +450,11 @@ preprocess <- function(
             effects, id, "effect", c(.argsFUN, event), " cannot update \n",
             colnames(objectsEffectsLink)[id]
           )
-          
+
           # CHANGED - MABEL - need to update cache attributes for lastUpdate when
           # trans or cycle and history = "consecutive"
-          if (!is.null(attr(effectUpdate$cache, 'lastUpdate'))) {
-            attr(statCache[[id]], "lastUpdate") <- attr(effectUpdate$cache, 'lastUpdate')
+          if (!is.null(attr(effectUpdate$cache, "lastUpdate"))) {
+            attr(statCache[[id]], "lastUpdate") <- attr(effectUpdate$cache, "lastUpdate")
           }
 
           updates <- effectUpdate$changes
@@ -779,10 +779,9 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
     objectNameTable <- objTable[iEff, ]
     objectList <- getElementFromDataObjectTable(objectNameTable, envir = envir)
     if (length(objectList) == 0) {
-      stop("The formula uses the following unavailable object: ",
-           paste(objectNameTable$name, collapse = ", "),
-           call. = FALSE
-      )
+      cli::cli_abort(c("{.var {objectNameTable$name}} must be valid attribute",
+        "x" = "{.var {objectNameTable$name}} does not exist."
+      ))
     }
     object <- objectList[[1]]
     objectName <- objectNameTable$name

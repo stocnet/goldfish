@@ -2,6 +2,10 @@
 
 * Fix bug when preprocessed data is used in `estimate_` functions due to
   an incorrect comparison of formulas (#111).
+* Provided more informative error messages when missing data is present in
+  data objects (#82).
+* Provided more informative error messages when elements that are not available
+  are used in estimate formula (#81).
 * Allow for `max_iterations` in `set_estimation_opt()` to be set to `0` to
   retain model statistics without running the estimation algorithm.
 * Remove unused variable in `compute_poisson_selection()`.

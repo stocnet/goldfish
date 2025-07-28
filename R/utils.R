@@ -92,6 +92,10 @@ getElementFromDataObjectTable <- function(x, envir = environment()) {
     elements[[i]] <- NA
     row <- x[i, ]
     if (!is.na(row$object)) {
+      if (!exists(row$object, envir = envir)) {
+        cli::cli_abort(c("{.var {row$object}} must be valid object",
+                         "x" = "{.var {row$object}} does not exist."))
+      }
       elements[[i]] <- get(row$object, envir = envir)
     }
     if (!is.na(row$nodeset) && !is.na(row$attribute)) {

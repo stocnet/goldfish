@@ -43,7 +43,7 @@ test_that(
 )
 
 test_that(
-  "NA data handled effectively in objects", 
+  "NA data handled effectively in objects",
   {
     data("Fisheries_Treaties_6070")
     states <- make_nodes(states)
@@ -51,12 +51,12 @@ test_that(
     expect_error(
       states <- link_events(states, sovchanges, attribute = "present"),
       "Event time cannot be NA"
-      )
+    )
   }
 )
 
 test_that(
-  "NA data handled effectively in objects", 
+  "NA data handled effectively in objects",
   {
     compChange1 <- data.frame(
       node = sprintf("Actor %d", c(5, 4, 4, 1, 5, 1, 5)),
@@ -82,8 +82,8 @@ test_that(
     expect_error(
       # changing attribute
       link_events(actorsEx, attrChange1, attribute = "attr1"),
-      "Node labels contain NA values which is disallowed",
-      label = "Node labels contain NA values which is disallowed"
+      "Node labels should not contain missing data",
+      label = "Node labels should not contain missing data"
     )
     eventsIncrement1 <- data.frame(
       time = cumsum(c(NA, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4)),
@@ -91,7 +91,7 @@ test_that(
       receiver = sprintf("Actor %d", c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)),
       increment = c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
       stringsAsFactors = FALSE
-      )
+    )
     networkState1 <- make_network(
       matrix = networkState, nodes = actorsEx,
       directed = TRUE
@@ -110,4 +110,3 @@ test_that(
     )
   }
 )
-

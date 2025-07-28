@@ -41,12 +41,12 @@ find_presence <- function(nodes) {
 #     } else {
 #       event_nodes <- c(events[r, ]$sender, events[r, ]$receiver)
 #     }
-# 
+#
 #     # find index of the node(s)
 #     if (all(is.character(event_nodes))) {
 #       event_nodes <- which(nodes$label %in% event_nodes)
 #     }
-# 
+#
 #     # check presence
 #     for (node in event_nodes) {
 #       presence <- find_last_presence(node, time, nodes, composition_changes)
@@ -74,12 +74,12 @@ find_presence <- function(nodes) {
 #     } else {
 #       event_nodes <- c(events[r, ]$sender, events[r, ]$receiver)
 #     }
-# 
+#
 #     # find index of the node(s)
 #     if (all(is.character(event_nodes))) {
 #       event_nodes <- which(nodes$label %in% event_nodes)
 #     }
-# 
+#
 #     # check presence
 #     for (node in event_nodes) {
 #       presence <- find_last_presence(node, time, nodes, composition_changes)
@@ -475,7 +475,7 @@ check_network <- function(matrix, nodes, nodes_name, nodes2 = NULL) {
 # - one attribute "nodes" linked to one or two valid and compatible nodeset(s)
 
 check_dependent_events <- function(events, events_name, nodes, nodes2,
-                                 default_network, environment) {
+                                   default_network, environment) {
   # check whether there's a column increment/replace or not (optional)
   update_column <- any(c("increment", "replace") %in% names(events))
   if ("node" %in% names(events)) {
@@ -599,8 +599,8 @@ check_events.nodes.goldfish <- function(
     stop(
       "The events object '", events_name,
       "' is not linked to any attribute of the nodeset."
-    ) 
-  } else{ 
+    )
+  } else {
     idx_events <- which(events_linked == events_name)
     if (length(idx_events) > 1) {
       stop(
@@ -651,7 +651,7 @@ check_events.nodes.goldfish <- function(
     )
   }
   if (NA %in% events$time) {
-    stop("Event time cannot be NA")
+    cli::cli_abort("Event time cannot be NA")
   }
   if (is.unsorted(events$time)) {
     stop("Invalid events list: Events should be ordered by time.")
@@ -692,14 +692,13 @@ check_events.nodes.goldfish <- function(
     }
   }
   if (NA %in% events$node) {
-    stop(
-      "Node labels contain NA values which is disallowed."
+    cli::cli_abort("Node labels should not contain missing data",
+      "x" = "{.var {events$node} contains NA values"
     )
   }
   if (!all(events$node %in% object$label)) {
-    stop(
-      "Some node labels for the attribute ", dQuote(attribute), "in events are invalid." ,
-      "Ensure that all events have valid attribute labels by checking node labels."
+    cli::cli_abort("All events have should have valid attribute labels",
+      "x" = "Some node labels for the attribute {.var {attribute}} in events are invalid."
     )
   }
   return(TRUE)
@@ -771,14 +770,14 @@ check_events.network.goldfish <- function(
     )
   }
   if (NA %in% events$time) {
-    stop("Event time cannot be NA")
+    cli::cli_abort("Event time cannot be NA")
   }
   if (is.unsorted(events$time)) stop("Events should be ordered by time.")
-  
+
   if ((NA %in% events$sender) || (NA %in% events$receiver)) {
-    stop("Senders and Receivers must not be NA")
+    cli::cli_abort("Senders and Receivers must not be NA")
   }
-  
+
   # self-directed event
   if (any(events[, "sender"] == events[, "receiver"])) {
     warning("At least one self-directed event in data.")
