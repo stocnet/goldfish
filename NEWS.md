@@ -1,7 +1,7 @@
 # goldfish 1.7.1
 
 * Fix bug when preprocessed data is used in `estimate_` functions due to
-  an incorrect comparison of formulas.
+  an incorrect comparison of formulas (#111).
 * Allow for `max_iterations` in `set_estimation_opt()` to be set to `0` to
   retain model statistics without running the estimation algorithm.
 * Remove unused variable in `compute_poisson_selection()`.
@@ -16,7 +16,8 @@
 * Introduce `make_data()` function to create a single data object with all
   the data needed for estimation.
 * Introduce `history = c("pooling", "sequential", "consecutive")` argument
-  to `trans()` and `cycle()` effect functions that define how the previous history of events is used to compute the effect.
+  to `trans()` and `cycle()` effect functions that define how the
+  previous history of events is used to compute the effect (#105).
 * Add a function for each model implemented in the package: `estimate_dynam()`,
   `estimate_dynami()` and `estimate_rem()`.
 
