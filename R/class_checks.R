@@ -653,6 +653,10 @@ check_events.nodes.goldfish <- function(
   if (NA %in% events$time) {
     cli::cli_abort("Event time cannot be NA")
   }
+  if (NA %in% events$replace) {
+    cli::cli_warn("Replace values being NA can cause issues with imputation 
+                  of catergorical variables")
+  }
   if (is.unsorted(events$time)) {
     stop("Invalid events list: Events should be ordered by time.")
   }

@@ -372,8 +372,17 @@ preprocess <- function(
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
         # missing data imputation
         if (isNodeEvent[nextEvent] && is.na(event$replace)) {
-          # impute by the mean of current values for attributes
-          event$replace <- mean(object[-event$node], na.rm = TRUE)
+          # if numeric data 
+          if (is.numeric(object)) {
+            # impute by the mean of current values for attributes
+            event$replace <- mean(object[-event$node], na.rm = TRUE)
+          }
+          else {
+            # impute using odds from node starting attributes 
+            # will this cause issues if lots of NA?
+            attributeColumn <- table(object)
+            event$replace <- sample(names(attributeColumn),size=1, replace = FALSE, prob = as.vector(attributeColumn))
+          }
         }
         if (!isNodeEvent[nextEvent] && is.na(event$replace)) {
           # if the replace is missing impute by 0 (not-tie)
