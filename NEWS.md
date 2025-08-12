@@ -1,5 +1,6 @@
 # goldfish 1.7.1
 
+* Added mode imputation for non-numeric attributes (#112).
 * Fix bug when preprocessed data is used in `estimate_` functions due to
   an incorrect comparison of formulas (#111).
 * Provided more informative error messages when missing data is present in

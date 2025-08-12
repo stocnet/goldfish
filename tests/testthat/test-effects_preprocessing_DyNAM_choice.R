@@ -373,7 +373,7 @@ test_that(
 )
 
 test_that(
-  "Function indicates that the formula uses objects not available.",
+  "Formula indicates ",
   {
     expect_error(
       estimate_wrapper(
@@ -382,7 +382,7 @@ test_that(
         data = dataTest,
         preprocessing_only = TRUE
       ),
-      "valid object",
+      "Check that the object used in the formula exists",
       label = "when object doesn't exist"
     )
     expect_error(
@@ -392,8 +392,18 @@ test_that(
         data = dataTest,
         preprocessing_only = TRUE
       ),
-      "valid attribute",
+      "Check that the attribute used in the formula exists",
       label = "when attribute of an object doesn't exist"
+    )
+    expect_error(
+      estimate_wrapper(
+        depNetwork ~ inertia + alter(actorsEx2$uno),
+        model = "DyNAM", sub_model = "choice",
+        data = dataTest,
+        preprocessing_only = TRUE
+      ),
+      "Check that the nodeset used in the formula exists",
+      label = "when nodeset doesn't exist"
     )
   }
 )

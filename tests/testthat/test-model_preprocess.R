@@ -50,13 +50,13 @@ test_that(
     sovchanges$time[5] <- NA
     expect_error(
       states <- link_events(states, sovchanges, attribute = "present"),
-      "Event time cannot be NA"
+      "Check that all events have non-NA time"
     )
   }
 )
 
 test_that(
-  "NA data handled effectively in objects",
+  "NA data handled effectively when linking to nodes.",
   {
     compChange1 <- data.frame(
       node = sprintf("Actor %d", c(5, 4, 4, 1, 5, 1, 5)),
@@ -70,7 +70,7 @@ test_that(
         change_events = compChange1,
         attribute = "present"
       ),
-      "Event time cannot be NA",
+      "Check that all events have non-NA time",
       label = "Event time cannot be NA"
     )
     attrChange1 <- data.frame(
@@ -78,18 +78,46 @@ test_that(
       time = c(11, 18, 23, 31, 32, 33, 35),
       replace = c(1.2, 1.67, 2.46, 7.89, 3.32, 2.32, 3.44)
     )
-    attrChange1$node[5] <- NA_character_
+    attrChange1$replace[4] <- NA
+    expect_warning(
+      # changing attribute
+      link_events(actorsEx, attrChange1, attribute = "attr1"),
+      "Missing replace value data exists",
+      label = "Warnings are issued when replace values are NA."
+    )
+    colnames(attrChange1) <- c("node", "time", "increment")
+    expect_warning(
+      # changing attribute
+      link_events(actorsEx, attrChange1, attribute = "attr1"),
+      "Missing increment value data exists",
+      label = "Warnings are issued when increment values are NA."
+    )
+    attrChange1$increment[4] <- 7.89
+    attrChange1$node[4] <- "Actor x"
     expect_error(
       # changing attribute
       link_events(actorsEx, attrChange1, attribute = "attr1"),
-      "Node labels should not contain missing data",
+      "Make sure all node labels are present in the nodeset",
       label = "Node labels should not contain missing data"
     )
+    attrChange1$node[4] <- NA_character_
+    expect_error(
+      # changing attribute
+      link_events(actorsEx, attrChange1, attribute = "attr1"),
+      "Check that node labels are not missing data",
+      label = "Node labels should not contain missing data"
+    )
+  }
+)
+
+test_that(
+  "NA data handled effectively when linking to networks.",
+  {
     eventsIncrement1 <- data.frame(
       time = cumsum(c(NA, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4)),
       sender = sprintf("Actor %d", c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5, 1)),
       receiver = sprintf("Actor %d", c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)),
-      increment = c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
+      replace = c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
       stringsAsFactors = FALSE
     )
     networkState1 <- make_network(
@@ -98,15 +126,38 @@ test_that(
     )
     expect_error(
       link_events(x = networkState1, change_events = eventsIncrement1, nodes = actorsEx),
-      "Event time cannot be NA",
+      "have non-NA time",
       label = "Event time cannot be NA"
     )
     eventsIncrement1$time <- cumsum(c(1, 5, 3, 4, 2, 1, 3, 4, 5, 1, 3, 4))
+
+    eventsIncrement1$replace[4] <- NA
+    expect_warning(
+      # changing attribute
+      link_events(x = networkState1, change_events = eventsIncrement1, nodes = actorsEx),
+      "Missing replace value data exists",
+      label = "Warnings are issued when replace values are NA."
+    )
+    colnames(eventsIncrement1) <- c("time", "sender", "receiver", "increment")
+    expect_warning(
+      # changing attribute
+      link_events(x = networkState1, change_events = eventsIncrement1, nodes = actorsEx),
+      "Missing increment value data exists",
+      label = "Warnings are issued when increment values are NA."
+    )
+    eventsIncrement1$increment[4] <- 7.89
     eventsIncrement1$sender[1] <- NA_character_
     expect_error(
       link_events(x = networkState1, change_events = eventsIncrement1, nodes = actorsEx),
-      "Senders and Receivers must not be NA",
-      label = "Senders and Receivers must not be NA"
+      "have non-NA senders",
+      label = "Senders must not be NA"
+    )
+    eventsIncrement1$receiver[1] <- NA_character_
+    eventsIncrement1$sender[1] <- "Actor 1"
+    expect_error(
+      link_events(x = networkState1, change_events = eventsIncrement1, nodes = actorsEx),
+      "have non-NA receivers",
+      label = "Receivers must not be NA"
     )
   }
 )

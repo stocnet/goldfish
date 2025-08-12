@@ -650,12 +650,29 @@ check_events.nodes.goldfish <- function(
       error = error_message
     )
   }
-  if (NA %in% events$time) {
-    cli::cli_abort("Event time cannot be NA")
+  if (anyNA(events$time)) {
+    obs <- which(is.na(events$time))
+    cli::cli_abort(c(
+      "x" = "Event time has NA values at indices: {obs}",
+      "i" = "Check that all events have non-NA time"
+    ))
   }
-  if (NA %in% events$replace) {
-    cli::cli_warn("Replace values being NA can cause issues with imputation 
-                  of catergorical variables")
+  if (!is.null(events$replace) && anyNA(events$replace)) {
+    obs <- which(is.na(events$replace))
+    cli::cli_warn(c(
+      "x" = "Missing replace value data exists at indices: {obs}
+      of {.var events_name}",
+      "i" = "Mean is used to impute for numerical values, mode is used to impute
+    for categorical values"
+    ))
+  }
+  if (!is.null(events$increment) && anyNA(events$increment)) {
+    obs <- which(is.na(events$increment))
+    cli::cli_warn(c(
+      "x" = "Missing increment value data exists at indices: {obs}
+      of {.var events_name}",
+      "i" = "Missing data in increment is imputed by 0"
+    ))
   }
   if (is.unsorted(events$time)) {
     stop("Invalid events list: Events should be ordered by time.")
@@ -695,15 +712,21 @@ check_events.nodes.goldfish <- function(
       )
     }
   }
-  if (NA %in% events$node) {
-    cli::cli_abort("Node labels should not contain missing data",
-      "x" = "{.var {events$node} contains NA values"
-    )
+  if (anyNA(events$node)) {
+    obs <- which(is.na(events$node))
+    cli::cli_abort(c(
+      "x" = "{.var {events_name}} node labels contains NA values at indices:
+      {obs}",
+      "i" = "Check that node labels are not missing data"
+    ))
   }
   if (!all(events$node %in% object$label)) {
-    cli::cli_abort("All events have should have valid attribute labels",
-      "x" = "Some node labels for the attribute {.var {attribute}} in events are invalid."
-    )
+    obs <- which(!events$node %in% object$label)
+    cli::cli_abort(c(
+      "x" = "Node labels in the {.var {events_name}} dataframe at indices:
+      {obs} are invalid.",
+      "i" = "Make sure all node labels are present in the nodeset"
+    ))
   }
   return(TRUE)
 }
@@ -773,13 +796,30 @@ check_events.network.goldfish <- function(
       )
     )
   }
-  if (NA %in% events$time) {
-    cli::cli_abort("Event time cannot be NA")
+  if (anyNA(events$time)) {
+    obs <- which(is.na(events$time))
+    cli::cli_abort(c(
+      "x" = "Event time has NA at indices: {obs}",
+      "i" = "Check that all events in {.var {events_name}} have non-NA time"
+    ))
   }
   if (is.unsorted(events$time)) stop("Events should be ordered by time.")
 
-  if ((NA %in% events$sender) || (NA %in% events$receiver)) {
-    cli::cli_abort("Senders and Receivers must not be NA")
+  if (anyNA(events$sender)) {
+    obs <- which(is.na(events$sender))
+    cli::cli_abort(c(
+      "x" = "Senders have NA at indices: {obs}",
+      "i" = "Check that all events in {.var {events_name}} have non-NA senders"
+    ))
+  }
+
+  if (anyNA(events$receiver)) {
+    obs <- which(is.na(events$receiver))
+    cli::cli_abort(c(
+      "x" = "Receivers have NA at indices: {obs}",
+      "i" = "Check that all events in {.var {events_name}} have
+      non-NA receivers"
+    ))
   }
 
   # self-directed event
@@ -807,6 +847,25 @@ check_events.network.goldfish <- function(
   if (!all(events$receiver %in% nodes2$label)) {
     stop("Nodes labels for the receiver column are incorrect.")
   }
+
+  if (!is.null(events$replace) && anyNA(events$replace)) {
+    obs <- which(is.na(events$replace))
+    cli::cli_warn(c(
+      "x" = "Missing replace value data exists at indices: {obs}
+      of {.var events_name}",
+      "i" = "Mean is used to impute for numerical values, mode is used to impute
+    for categorical values"
+    ))
+  }
+  if (!is.null(events$increment) && anyNA(events$increment)) {
+    obs <- which(is.na(events$increment))
+    cli::cli_warn(c(
+      "x" = "Missing increment value data exists at indices: {obs}
+      of {.var events_name}",
+      "i" = "Missing data in increment is imputed by 0"
+    ))
+  }
+
   event_update <- if (!is.null(events$replace)) {
     events$replace
   } else {

@@ -93,16 +93,33 @@ getElementFromDataObjectTable <- function(x, envir = environment()) {
     row <- x[i, ]
     if (!is.na(row$object)) {
       if (!exists(row$object, envir = envir)) {
-        cli::cli_abort(c("{.var {row$object}} must be valid object",
-                         "x" = "{.var {row$object}} does not exist."))
+        cli::cli_abort(c(
+          "x" = "The object {.var {row$object}} does not exist.",
+          "i" = "Check that the object used in the formula exists"
+        ))
       }
       elements[[i]] <- get(row$object, envir = envir)
     }
     if (!is.na(row$nodeset) && !is.na(row$attribute)) {
-      elements[[i]] <- getElement(
+      if (!exists(row$nodeset, envir = envir)) {
+        cli::cli_abort(c(
+          "x" = "The nodeset {.var {row$nodeset}} does not exist.",
+          "i" = "Check that the nodeset used in the formula exists"
+        ))
+      }
+      temp_attribute <- getElement(
         get(row$nodeset, envir = envir),
         row$attribute
       )
+      if (is.null(temp_attribute)) {
+        cli::cli_abort(c(
+          "x" = "The attribute {.var {row$attribute}} in the nodeset
+          {.var {row$nodeset}} does not exist.",
+          "i" = "Check that the attribute used in the formula exists"
+        ))
+      } else {
+        elements[[i]] <- temp_attribute
+      }
     }
   }
   return(elements)
@@ -490,7 +507,7 @@ GetDetailPrint <- function(
   }
   if (any(parsedformula$historyParameter != "")) {
     effectDescription <- cbind(effectDescription,
-                               history = parsedformula$historyParameter
+      history = parsedformula$historyParameter
     )
   }
   # rownames(effectDescription) <- NULL

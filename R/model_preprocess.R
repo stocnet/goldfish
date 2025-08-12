@@ -372,16 +372,13 @@ preprocess <- function(
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
         # missing data imputation
         if (isNodeEvent[nextEvent] && is.na(event$replace)) {
-          # if numeric data 
+          # if numeric data
           if (is.numeric(object)) {
             # impute by the mean of current values for attributes
             event$replace <- mean(object[-event$node], na.rm = TRUE)
-          }
-          else {
-            # impute using odds from node starting attributes 
-            # will this cause issues if lots of NA?
-            attributeColumn <- table(object)
-            event$replace <- sample(names(attributeColumn),size=1, replace = FALSE, prob = as.vector(attributeColumn))
+          } else {
+            # impute using mode
+            event$replace <- names(which.max(table(object[-event$node])))
           }
         }
         if (!isNodeEvent[nextEvent] && is.na(event$replace)) {
@@ -460,10 +457,13 @@ preprocess <- function(
             colnames(objectsEffectsLink)[id]
           )
 
-          # CHANGED - MABEL - need to update cache attributes for lastUpdate when
-          # trans or cycle and history = "consecutive"
+          # CHANGED - MABEL - need to update cache attributes for lastUpdate
+          # when trans or cycle and history = "consecutive"
           if (!is.null(attr(effectUpdate$cache, "lastUpdate"))) {
-            attr(statCache[[id]], "lastUpdate") <- attr(effectUpdate$cache, "lastUpdate")
+            attr(statCache[[id]], "lastUpdate") <- attr(
+              effectUpdate$cache,
+              "lastUpdate"
+            )
           }
 
           updates <- effectUpdate$changes
@@ -787,11 +787,12 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
   for (iEff in seq_len(nrow(objTable))) {
     objectNameTable <- objTable[iEff, ]
     objectList <- getElementFromDataObjectTable(objectNameTable, envir = envir)
-    if (length(objectList) == 0) {
-      cli::cli_abort(c("{.var {objectNameTable$name}} must be valid attribute",
-        "x" = "{.var {objectNameTable$name}} does not exist."
-      ))
-    }
+    # if (length(objectList) == 0) {
+    #  cli::cli_abort(c(
+    #    "x" = "{.var {objectNameTable$name}} does not exist.",
+    #    "i" = "Fix the formula"
+    #  ))
+    # }
     object <- objectList[[1]]
     objectName <- objectNameTable$name
     # print(table(is.na(object)))
@@ -803,7 +804,13 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
       # Assign object
       assign(objectName, object, envir = envir)
     } else if (is.vector(object) && any(is.na(object))) {
-      object[is.na(object)] <- mean(object, na.rm = TRUE)
+      if (is.numeric(object)) {
+        # impute by the mean of current values for attributes
+        event$replace <- mean(object, na.rm = TRUE)
+      } else {
+        # impute using mode
+        event$replace <- names(which.max(table(object)))
+      }
       done[iEff] <- TRUE
       # cat("vector\n")
       # Assign object
