@@ -1,5 +1,10 @@
 register_effect(
-  "tie",
+  name = "tie",
+  modify_data =
+    function(network, ...) {
+    # do one-time checks or setup
+    list()
+  },
   init = function(effectFun, network, window, n1, n2, ...) {
     # get arguments
     params <- formals(effectFun)
@@ -60,9 +65,5 @@ register_effect(
     label = "Tie Value",
     description = "Represents the value of a specific tie.",
     family = "structural"
-  ),
-  args_schema = list(
-    weighted = list(default = FALSE, allowed = c(TRUE, FALSE)),
-    transformer_fn = list(default = "identity", allowed = "function") # Store as string, convert later
   )
 )
