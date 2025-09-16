@@ -806,10 +806,10 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
     } else if (is.vector(object) && any(is.na(object))) {
       if (is.numeric(object)) {
         # impute by the mean of current values for attributes
-        event$replace <- mean(object, na.rm = TRUE)
+        object <- mean(object, na.rm = TRUE)
       } else {
         # impute using mode
-        event$replace <- names(which.max(table(object)))
+        object <- names(which.max(table(object)))
       }
       done[iEff] <- TRUE
       # cat("vector\n")
