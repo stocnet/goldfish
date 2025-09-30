@@ -5,7 +5,7 @@
     Condition
       Warning:
       `defineNodes()` was deprecated in goldfish 1.7.0.
-      i Please use `make_nodes()` instead.
+      i Please use `as_nodes_goldfish()` instead.
     Output
       Number of nodes: 1 
       
@@ -20,7 +20,7 @@
     Condition
       Warning:
       `defineGlobalAttribute()` was deprecated in goldfish 1.7.0.
-      i Please use `make_global_attribute()` instead.
+      i Please use `as_global_goldfish()` instead.
     Output
         time replace
       1    1       1
@@ -32,7 +32,7 @@
     Condition
       Warning:
       `defineNetwork()` was deprecated in goldfish 1.7.0.
-      i Please use `make_network()` instead.
+      i Please use `as_network_goldfish()` instead.
 
 ---
 
@@ -50,7 +50,7 @@
     Condition
       Warning:
       `defineDependentEvents()` was deprecated in goldfish 1.7.0.
-      i Please use `make_dependent_events()` instead.
+      i Please use `as_dependent_goldfish()` instead.
     Output
       Number of events: 3 
       Nodes set(s): nodes_df 

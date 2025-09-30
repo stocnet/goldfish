@@ -49,11 +49,11 @@ We use an `R` version higher than 4.2.0 to compile the vignettes.
 The native pipe operator is available in `R` from version 4.1.0.
 
 ```{r quick}
-callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
+callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE) |> # 1
   link_events(change_events = calls, nodes = actors) # 2
 
 # 3
-callsDependent <- make_dependent_events(
+callsDependent <- as_dependent_goldfish(
   events = calls, nodes = actors,
   default_network = callNetwork
   )
@@ -121,11 +121,11 @@ is a reserved column.
 
 To tell goldfish this is a network, we must make it as such:
 ```{r hlp1, eval=FALSE}
-?make_network
+?as_network_goldfish
 ```
 
 ```{r call-net}
-callNetwork <- make_network(nodes = actors, directed = TRUE)
+callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 ```
 
 The argument `directed` is `TRUE` by default, but we need to specify
@@ -136,7 +136,7 @@ that nodeset as needed.
 callNetwork
 ```
 
-Note that we have not added any network data yet. By default, `make_network()`
+Note that we have not added any network data yet. By default, `as_network_goldfish()`
 just constructs an empty matrix with dimensions defined by the length of the
 nodeset(s).
 So we have an empty network as a starting state.
@@ -174,7 +174,7 @@ Friendship is thus a binary network.
 
 ```{r frdshp-net}
 head(friendship)
-friendshipNetwork <- make_network(nodes = actors, directed = TRUE)
+friendshipNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 friendshipNetwork <- link_events(
   x = friendshipNetwork,
   change_events = friendship,
@@ -192,11 +192,11 @@ between individuals.
 We specify the event list and the node list.
 
 ```{r hlp3, eval=FALSE}
-?make_dependent_events
+?as_dependent_goldfish
 ```
 
 ```{r call-dep-events}
-callsDependent <- make_dependent_events(
+callsDependent <- as_dependent_goldfish(
   events = calls, nodes = actors,
   default_network = callNetwork
   )

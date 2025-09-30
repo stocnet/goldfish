@@ -368,14 +368,14 @@ check_nodes <- function(nodes) {
 #'   nodes2 = data.frame(label = sprintf("B%d", 1:3))
 #' )
 check_network <- function(matrix, nodes, nodes_name, nodes2 = NULL) {
-  # matrix type: It's done in make_network
+  # matrix type: It's done in as_network_goldfish
   # if (!any(checkClasses(matrix, c("matrix", "Matrix"))))
   #   stop("A network should be a matrix.", call. = FALSE)
   # network class (here this class is mandatory)
   if (!inherits(matrix, "network.goldfish")) {
     stop(
       "A network should be of the class network.goldfish.",
-      " Please use the function \"make_network\"."
+      " Please use the function \"as_network_goldfish\"."
     )
   }
   # events, nodes, directed attributes

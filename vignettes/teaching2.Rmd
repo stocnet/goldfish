@@ -226,7 +226,7 @@ So that goldfish knows how to handle this network, we define it so:
 
 
 ``` r
-bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 ```
 
 We specify the nodes so that goldfish can check for consistency,
@@ -295,7 +295,7 @@ initial contiguity network and the event list changing it.
 
 
 ``` r
-contignet <- make_network(contignet, nodes = states, directed = FALSE) |>
+contignet <- as_network_goldfish(contignet, nodes = states, directed = FALSE) |>
   link_events(contigchanges, nodes = states)
 class(contignet)
 #> [1] "network.goldfish" "matrix"           "array"
@@ -325,7 +325,7 @@ we will only look at those events that create a treaty tie between countries.
 
 
 ``` r
-createBilat <- make_dependent_events(
+createBilat <- as_dependent_goldfish(
   events = bilatchanges[bilatchanges$increment == 1,],
   nodes = states,
   default_network = bilatnet

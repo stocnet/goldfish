@@ -33,7 +33,7 @@ Default is \code{NULL} (end with the last event).}
 this list specifies, for each dependent event,
 the set of available nodes in the choice set.
 The list should have the same length as the number of events in the
-dependent events objects created with \code{make_dependent_events()}.
+dependent events objects created with \code{as_dependent_goldfish()}.
 Default is \code{NULL}, so the choice set is the set of all nodes present at the
 time of the event.}
 }

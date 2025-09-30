@@ -35,7 +35,7 @@ parse_formula <- function(formula, envir = new.env()) {
   dep_name <- get_dependent_name(formula)
   if (!inherits(get(dep_name, envir = envir), "dependent.goldfish")) {
     stop("The left hand side of the formula should contain dependent events",
-      " (check the function 'make_dependent_events()').",
+      " (check the function 'as_dependent_goldfish()').",
       call. = FALSE
     )
   }

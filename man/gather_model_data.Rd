@@ -16,7 +16,7 @@ gather_model_data(
 \arguments{
 \item{formula}{a formula object that defines at the
 left-hand side the dependent
-network (see \code{\link[=make_dependent_events]{make_dependent_events()}}) and at the right-hand side the
+network (see \code{\link[=as_dependent_goldfish]{as_dependent_goldfish()}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
 (see \code{vignette("goldfishEffects")}).}
 
@@ -124,15 +124,15 @@ that use tabular data as input.
 }
 \examples{
 data("Fisheries_Treaties_6070")
-states <- make_nodes(states)
+states <- as_nodes_goldfish(states)
 states <- link_events(states, sovchanges, attribute = "present")
 states <- link_events(states, regchanges, attribute = "regime")
 states <- link_events(states, gdpchanges, attribute = "gdp")
 
-bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 
-createBilat <- make_dependent_events(
+createBilat <- as_dependent_goldfish(
   events = bilatchanges[bilatchanges$increment == 1, ],
   nodes = states, default_network = bilatnet
 )

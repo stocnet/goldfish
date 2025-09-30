@@ -44,7 +44,7 @@ estimate_rem(
 }
 \arguments{
 \item{x}{a formula that defines at the left-hand side the dependent
-network (see \code{\link[=make_dependent_events]{make_dependent_events()}}) and at the right-hand side the
+network (see \code{\link[=as_dependent_goldfish]{as_dependent_goldfish()}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
 (see \code{vignette("goldfishEffects")}).}
 
@@ -227,12 +227,12 @@ multinomial probability (Butts, 2008).
 \examples{
 # A DyNAM modeling rate and choice steps
 data("Social_Evolution")
-callNetwork <- make_network(nodes = actors, directed = TRUE)
+callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 callNetwork <- link_events(
   x = callNetwork, change_event = calls,
   nodes = actors
 )
-callsDependent <- make_dependent_events(
+callsDependent <- as_dependent_goldfish(
   events = calls, nodes = actors,
   default_network = callNetwork
 )
@@ -273,18 +273,18 @@ summary(mod03)
 \donttest{
 # A multinomial-multinomial choice model for coordination ties
 data("Fisheries_Treaties_6070")
-states <- make_nodes(states)
+states <- as_nodes_goldfish(states)
 states <- link_events(states, sovchanges, attribute = "present")
 states <- link_events(states, regchanges, attribute = "regime")
 states <- link_events(states, gdpchanges, attribute = "gdp")
 
-bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 
-contignet <- make_network(contignet, nodes = states, directed = FALSE)
+contignet <- as_network_goldfish(contignet, nodes = states, directed = FALSE)
 contignet <- link_events(contignet, contigchanges, nodes = states)
 
-createBilat <- make_dependent_events(
+createBilat <- as_dependent_goldfish(
   events = bilatchanges[bilatchanges$increment == 1, ],
   nodes = states, default_network = bilatnet
 )
@@ -337,6 +337,6 @@ Dynamic Network Actor Models: Investigating Coordination Ties Through Time.
 \emph{Sociological Methodology 47 (1)}. \doi{10.1177/0081175017709295}
 }
 \seealso{
-\code{\link[=make_dependent_events]{make_dependent_events()}}, \code{\link[=make_global_attribute]{make_global_attribute()}},
-\code{\link[=make_network]{make_network()}}, \code{\link[=make_nodes]{make_nodes()}}, \code{\link[=link_events]{link_events()}}
+\code{\link[=as_dependent_goldfish]{as_dependent_goldfish()}}, \code{\link[=as_global_goldfish]{as_global_goldfish()}},
+\code{\link[=as_network_goldfish]{as_network_goldfish()}}, \code{\link[=as_nodes_goldfish]{as_nodes_goldfish()}}, \code{\link[=link_events]{link_events()}}
 }

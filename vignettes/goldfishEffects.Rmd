@@ -179,7 +179,7 @@ indeg(network,
 * *DyNAM-choice_coordination:* the effects compute the total degree in a
   covariate network ('alter' type).
   _Note:_ The effect statistic correspond to the total degree for an undirected
-  network as define when using `make_network(net, directed = FALSE)`.
+  network as define when using `as_network_goldfish(net, directed = FALSE)`.
   
 The degree can be transform with \code{transformer_fn}.
 

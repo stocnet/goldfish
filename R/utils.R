@@ -19,7 +19,7 @@
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 #' callNetwork <- link_events(
 #'   x = callNetwork, change_events = calls, nodes = actors
 #' )
@@ -172,11 +172,11 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = T)
+#' callNetwork <- as_network_goldfish(nodes = actors, directed = T)
 #' callNetwork <- link_events(
 #'   x = callNetwork, change_events = calls, nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' callsDependent <- as_dependent_goldfish(
 #'   events = calls, nodes = actors, default_network = callNetwork
 #' )
 #' prep <- estimate_dynam(callsDependent ~ inertia + trans,
@@ -312,11 +312,11 @@ fillChanges <- function(nodes, replace, time, set, is_two_mode = FALSE) {
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 #' callNetwork <- link_events(
 #'   x = callNetwork, change_events = calls, nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' callsDependent <- as_dependent_goldfish(
 #'   events = calls, nodes = actors, default_network = callNetwork
 #' )
 #' prep <- estimate_dynam(callsDependent ~ inertia + trans,

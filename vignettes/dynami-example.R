@@ -65,7 +65,7 @@ groups <- make_nodes(groups)
 initNetwork <- diag(x = 1, nrow(actors), nrow(groups))
 # goldfish check that row/column names agree with the nodes data frame labels
 dimnames(initNetwork) <- list(actors$label, groups$label)
-networkInteractions <- make_network(
+networkInteractions <- as_network_goldfish(
   matrix = initNetwork, nodes = actors, nodes2 = groups, directed = TRUE
 )
 networkInteractions <- link_events(
@@ -79,14 +79,14 @@ networkInteractions <- link_events(
 
 
 ## ----defNetPast, warning=FALSE------------------------------------------------
-networkPast <- make_network(nodes = actors, directed = FALSE)
+networkPast <- as_network_goldfish(nodes = actors, directed = FALSE)
 networkPast <- link_events(
   x = networkPast, change_events = interactionUpdates, nodes = actors
 ) # don't worry about the warnings
 
 
 ## ----defEvents----------------------------------------------------------------
-dependentEvents <- make_dependent_events(
+dependentEvents <- as_dependent_goldfish(
   events = dependentEvents, nodes = actors,
   nodes2 = groups, default_network = networkInteractions
 )

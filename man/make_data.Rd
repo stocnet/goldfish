@@ -46,12 +46,12 @@ Linked objects are searched for in the \code{parent_env}
 }
 \examples{
 data("Social_Evolution")
-callNetwork <- make_network(nodes = actors, directed = TRUE)
+callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 callNetwork <- link_events(
   x = callNetwork, change_event = calls,
   nodes = actors
 )
-callsDependent <- make_dependent_events(
+callsDependent <- as_dependent_goldfish(
   events = calls, nodes = actors,
   default_network = callNetwork
 )
@@ -60,18 +60,18 @@ socialEvolutionData <- make_data(
 )
 
 data("Fisheries_Treaties_6070")
-states <- make_nodes(states)
+states <- as_nodes_goldfish(states)
 states <- link_events(states, sovchanges, attribute = "present")
 states <- link_events(states, regchanges, attribute = "regime")
 states <- link_events(states, gdpchanges, attribute = "gdp")
 
-bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 
-contignet <- make_network(contignet, nodes = states, directed = FALSE)
+contignet <- as_network_goldfish(contignet, nodes = states, directed = FALSE)
 contignet <- link_events(contignet, contigchanges, nodes = states)
 
-createBilat <- make_dependent_events(
+createBilat <- as_dependent_goldfish(
   events = bilatchanges[bilatchanges$increment == 1, ],
   nodes = states, default_network = bilatnet
 )

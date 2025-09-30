@@ -212,7 +212,7 @@ set_estimation_opt <- function(
 #'   this list specifies, for each dependent event,
 #'   the set of available nodes in the choice set.
 #'   The list should have the same length as the number of events in the
-#'   dependent events objects created with `make_dependent_events()`.
+#'   dependent events objects created with `as_dependent_goldfish()`.
 #'   Default is `NULL`, so the choice set is the set of all nodes present at the
 #'   time of the event.
 # @param keep_sender_index A logical value. If `TRUE`, the sender index,

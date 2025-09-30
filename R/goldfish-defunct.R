@@ -10,10 +10,10 @@
 #' ecosystem, promoting consistency and easier transitions between
 #' related packages.
 #'
-#' * `defineNodes()` -> `make_nodes()`
-#' * `defineNetwork()` -> `make_network()`
-#' * `defineDependentEvents()` -> `make_dependent_events()`
-#' * `defineGlobalAttribute()` -> `make_global_attribute()`
+#' * `defineNodes()` -> `as_nodes_goldfish()`
+#' * `defineNetwork()` -> `as_network_goldfish()`
+#' * `defineDependentEvents()` -> `as_dependent_goldfish()`
+#' * `defineGlobalAttribute()` -> `as_global_goldfish()`
 #' * `defineGroups_interaction()` -> `make_groups_interaction()`
 #' * `linkEvents(x)` -> `link_events(x)`
 #' * `estimate()` -> `estimate_dynam()`, `estimate_rem()` & `estimate_dynami()` 
@@ -51,9 +51,9 @@ defineNodes <- function(nodes) {
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "defineNodes()",
-    with = "make_nodes()"
+    with = "as_nodes_goldfish()"
   )
-  make_nodes(nodes = nodes)
+  as_nodes_goldfish(nodes = nodes)
 }
 
 #' @rdname defunct
@@ -65,9 +65,9 @@ defineNetwork <- function(
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "defineNetwork()",
-    with = "make_network()"
+    with = "as_network_goldfish()"
   )
-  make_network(
+  as_network_goldfish(
     matrix = matrix, nodes = nodes, nodes2 = nodes2,
     directed = directed, envir = envir
   )
@@ -82,9 +82,9 @@ defineDependentEvents <- function(
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "defineDependentEvents()",
-    with = "make_dependent_events()"
+    with = "as_dependent_goldfish()"
   )
-  make_dependent_events(
+  as_dependent_goldfish(
     events = events, nodes = nodes, nodes2 = nodes2,
     default_network = default_network,
     envir = envir
@@ -97,9 +97,9 @@ defineGlobalAttribute <- function(global) {
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "defineGlobalAttribute()",
-    with = "make_global_attribute()"
+    with = "as_global_goldfish()"
   )
-  make_global_attribute(global = global)
+  as_global_goldfish(global = global)
 }
 
 #' @rdname defunct

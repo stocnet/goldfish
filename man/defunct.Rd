@@ -92,10 +92,10 @@ and foster a common and intuitive interface across the
 ecosystem, promoting consistency and easier transitions between
 related packages.
 \itemize{
-\item \code{defineNodes()} -> \code{make_nodes()}
-\item \code{defineNetwork()} -> \code{make_network()}
-\item \code{defineDependentEvents()} -> \code{make_dependent_events()}
-\item \code{defineGlobalAttribute()} -> \code{make_global_attribute()}
+\item \code{defineNodes()} -> \code{as_nodes_goldfish()}
+\item \code{defineNetwork()} -> \code{as_network_goldfish()}
+\item \code{defineDependentEvents()} -> \code{as_dependent_goldfish()}
+\item \code{defineGlobalAttribute()} -> \code{as_global_goldfish()}
 \item \code{defineGroups_interaction()} -> \code{make_groups_interaction()}
 \item \code{linkEvents(x)} -> \code{link_events(x)}
 \item \code{estimate()} -> \code{estimate_dynam()}, \code{estimate_rem()} & \code{estimate_dynami()}

@@ -35,20 +35,20 @@ events linked to it.
 }
 \description{
 Methods to create a data frame from an object of class \code{nodes.goldfish}
-(see \code{\link[=make_nodes]{make_nodes()}}) or a matrix from an object of class
-\code{network.goldfish} (see \code{\link[=make_network]{make_network()}}) with the attributes
+(see \code{\link[=as_nodes_goldfish]{as_nodes_goldfish()}}) or a matrix from an object of class
+\code{network.goldfish} (see \code{\link[=as_network_goldfish]{as_network_goldfish()}}) with the attributes
 or the network ties updated according with the events linked to the object
 using the \code{\link[=link_events]{link_events()}}) function.
 }
 \examples{
 \donttest{
 data("Fisheries_Treaties_6070")
-states <- make_nodes(states)
+states <- as_nodes_goldfish(states)
 states <- link_events(states, sovchanges, attribute = "present")
 states <- link_events(states, regchanges, attribute = "regime")
 states <- link_events(states, gdpchanges, attribute = "gdp")
 
-bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 
 updateStates <- as.data.frame(
@@ -62,5 +62,5 @@ updateNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1965-12-31")))
 
 }
 \seealso{
-\code{\link[=make_network]{make_network()}}, \code{\link[=make_nodes]{make_nodes()}}, \code{\link[=link_events]{link_events()}}
+\code{\link[=as_network_goldfish]{as_network_goldfish()}}, \code{\link[=as_nodes_goldfish]{as_nodes_goldfish()}}, \code{\link[=link_events]{link_events()}}
 }

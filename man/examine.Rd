@@ -82,12 +82,12 @@ point sections identified by the method.
 \examples{
 # A multinomial receiver choice model
 data("Social_Evolution")
-callNetwork <- make_network(nodes = actors, directed = TRUE)
+callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 callNetwork <- link_events(
   x = callNetwork, change_event = calls,
   nodes = actors
 )
-callsDependent <- make_dependent_events(
+callsDependent <- as_dependent_goldfish(
   events = calls, nodes = actors,
   default_network = callNetwork
 )

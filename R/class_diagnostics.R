@@ -8,7 +8,7 @@
 #' \code{\link{estimate}} call.
 #' @return \code{NULL} if neither outliers nor change points are identified.
 # A subset of the dependent event data frame
-# (see [make_dependent_events()]) with the events identified as
+# (see [as_dependent_goldfish()]) with the events identified as
 # outliers or change point inflections.
 #' An object of class `ggplot` object from a call of [ggplot2::ggplot()].
 #' It can be modified using the `ggplot2` syntax.
@@ -16,12 +16,12 @@
 #' @examples
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 #' callNetwork <- link_events(
 #'   x = callNetwork, change_event = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' callsDependent <- as_dependent_goldfish(
 #'   events = calls, nodes = actors,
 #'   default_network = callNetwork
 #' )

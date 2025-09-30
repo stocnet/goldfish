@@ -118,7 +118,7 @@
 #'   to the console of the progress of the preprocessing and
 #'   estimation processes.
 #' @param x a formula that defines at the left-hand side the dependent
-#'   network (see [make_dependent_events()]) and at the right-hand side the
+#'   network (see [as_dependent_goldfish()]) and at the right-hand side the
 #'   effects and the variables for which the effects are expected to occur
 #'   (see `vignette("goldfishEffects")`).
 #' @param data a `data.goldfish` object created with [make_data()].
@@ -166,8 +166,8 @@
 #'
 #' @importFrom stats formula na.omit
 #' @name estimate
-#' @seealso [make_dependent_events()], [make_global_attribute()],
-#'  [make_network()], [make_nodes()], [link_events()]
+#' @seealso [as_dependent_goldfish()], [as_global_goldfish()],
+#'  [as_network_goldfish()], [as_nodes_goldfish()], [link_events()]
 #'
 #' @references Butts C. (2008). A Relational Event Framework for Social Action.
 #' \emph{Sociological Methodology 38 (1)}.
@@ -192,12 +192,12 @@
 #' @examples
 #' # A DyNAM modeling rate and choice steps
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 #' callNetwork <- link_events(
 #'   x = callNetwork, change_event = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' callsDependent <- as_dependent_goldfish(
 #'   events = calls, nodes = actors,
 #'   default_network = callNetwork
 #' )
@@ -238,18 +238,18 @@
 #' \donttest{
 #' # A multinomial-multinomial choice model for coordination ties
 #' data("Fisheries_Treaties_6070")
-#' states <- make_nodes(states)
+#' states <- as_nodes_goldfish(states)
 #' states <- link_events(states, sovchanges, attribute = "present")
 #' states <- link_events(states, regchanges, attribute = "regime")
 #' states <- link_events(states, gdpchanges, attribute = "gdp")
 #'
-#' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+#' bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 #' bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 #'
-#' contignet <- make_network(contignet, nodes = states, directed = FALSE)
+#' contignet <- as_network_goldfish(contignet, nodes = states, directed = FALSE)
 #' contignet <- link_events(contignet, contigchanges, nodes = states)
 #'
-#' createBilat <- make_dependent_events(
+#' createBilat <- as_dependent_goldfish(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, default_network = bilatnet
 #' )

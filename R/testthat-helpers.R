@@ -229,7 +229,7 @@ compChange <- data.frame(
   replace = c(TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE)
 )
 
-actorsEx <- make_nodes(actorsEx)
+actorsEx <- as_nodes_goldfish(actorsEx)
 actorsEx <- link_events(
   x = actorsEx,
   change_events = compChange,
@@ -262,7 +262,7 @@ clubsChange <- data.frame(
   replace = c(TRUE, FALSE, TRUE)
 )
 
-clubsEx <- make_nodes(clubsEx)
+clubsEx <- as_nodes_goldfish(clubsEx)
 clubsEx <- link_events(
   x = clubsEx,
   change_events = clubsChange,
@@ -303,7 +303,7 @@ eventsIncrement <- data.frame(
   stringsAsFactors = FALSE
 )
 
-networkState <- make_network(
+networkState <- as_network_goldfish(
   matrix = networkState, nodes = actorsEx,
   directed = TRUE
 )
@@ -312,7 +312,7 @@ networkState <- link_events(
   change_events = eventsIncrement,
   nodes = actorsEx
 )
-depNetwork <- make_dependent_events(
+depNetwork <- as_dependent_goldfish(
   events = eventsIncrement,
   nodes = actorsEx,
   default_network = networkState
@@ -352,7 +352,7 @@ eventsIncrementTrans <- data.frame(
   stringsAsFactors = FALSE
 )
 
-networkStateTrans <- make_network(
+networkStateTrans <- as_network_goldfish(
   matrix = networkStateTrans, nodes = actorsEx,
   directed = TRUE
 )
@@ -361,7 +361,7 @@ networkStateTrans <- link_events(
   change_event = eventsIncrementTrans,
   nodes = actorsEx
 )
-depNetworkTrans <- make_dependent_events(
+depNetworkTrans <- as_dependent_goldfish(
   events = eventsIncrementTrans,
   nodes = actorsEx,
   default_network = networkStateTrans
@@ -402,7 +402,7 @@ eventsExogenous <- data.frame(
 )
 
 # define goldfish objects
-networkExog <- make_network(
+networkExog <- as_network_goldfish(
   matrix = networkExog,
   nodes = actorsEx, directed = TRUE
 )
@@ -445,7 +445,7 @@ eventsActorClub <- data.frame(
     c(1, 1, 0, 1, 1, 0, 1)
 )
 
-networkActorClub <- make_network(
+networkActorClub <- as_network_goldfish(
   matrix = networkActorClub,
   nodes = actorsEx, nodes2 = clubsEx, directed = TRUE
 )
@@ -530,8 +530,8 @@ class(pastupdates_DyNAMi) <-
 dataDyNAMi <- make_data(depevents_DyNAMi, exoevents_DyNAMi, pastupdates_DyNAMi)
 
 # goldfish Objects --------------------------------------------------
-actors_DyNAMi <- make_nodes(actors_DyNAMi)
-groups_DyNAMi <- make_nodes(groups_DyNAMi)
+actors_DyNAMi <- as_nodes_goldfish(actors_DyNAMi)
+groups_DyNAMi <- as_nodes_goldfish(groups_DyNAMi)
 # groups <- link_events(x = groups, compchanges, attribute = "present")
 
 initnetwork_DyNAMi <- structure(
@@ -539,7 +539,7 @@ initnetwork_DyNAMi <- structure(
   dimnames = list(sprintf("Actor %d", 1:4), sprintf("Group %d", 1:4))
 )
 
-interaction_network_DyNAMi <- make_network(
+interaction_network_DyNAMi <- as_network_goldfish(
   matrix = initnetwork_DyNAMi,
   nodes = actors_DyNAMi, nodes2 = groups_DyNAMi, directed = TRUE
 )
@@ -553,13 +553,13 @@ interaction_network_DyNAMi <- link_events(
   nodes = actors_DyNAMi, nodes2 = groups_DyNAMi
 )
 
-past_network_DyNAMi <- make_network(nodes = actors_DyNAMi, directed = FALSE)
+past_network_DyNAMi <- as_network_goldfish(nodes = actors_DyNAMi, directed = FALSE)
 past_network_DyNAMi <- link_events(
   x = past_network_DyNAMi, change_events = pastupdates_DyNAMi,
   nodes = actors_DyNAMi
 )
 
-dependent.depevents_DyNAMi <- make_dependent_events(
+dependent.depevents_DyNAMi <- as_dependent_goldfish(
   events = depevents_DyNAMi,
   nodes = actors_DyNAMi, nodes2 = groups_DyNAMi,
   default_network = interaction_network_DyNAMi

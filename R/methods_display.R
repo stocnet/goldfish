@@ -190,7 +190,7 @@ print.summary.result.goldfish <- function(
 #' number of nodes in the object, the number of nodes present at the beginning
 #' of preprocessing, a table with the linked attributes with their respective
 #' events data frame and a printing of the first rows in the nodes data frame.
-#' See [make_nodes()].
+#' See [as_nodes_goldfish()].
 # @examples print(structure(data.frame(label = 1:5),
 #                 class = c("nodes.goldfish", "data.frame")))
 print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
@@ -245,7 +245,7 @@ print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
 #' preprocessing, the nodes data frames linked to it, information about their
 #' definition as a one-mode and directed network, linked events data frame to it
 #' and a printing of the first rows and columns in the array.
-#' See [make_network()].
+#' See [as_network_goldfish()].
 # @examples print(structure(rep(0, 100), dim = c(10, 10),
 #                 class = "network.goldfish"))
 print.network.goldfish <- function(x, ..., full = FALSE, n = 6L) {
@@ -288,7 +288,7 @@ print.network.goldfish <- function(x, ..., full = FALSE, n = 6L) {
 #'  total number of events in the object, linked nodes set(s),
 #'  linked default network
 #' and a printing of the first rows in the events data frame.
-#' See [make_dependent_events()].
+#' See [as_dependent_goldfish()].
 #
 # @examples
 # print(

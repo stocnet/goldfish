@@ -140,7 +140,7 @@ Two things can be observed here. What are they?
 So that goldfish knows how to handle this network, we define it so:
 
 ```{r define-bilat-net}
-bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 ```
 
 We specify the nodes so that goldfish can check for consistency,
@@ -170,7 +170,7 @@ TASK: You should now be able to do the same with the
 initial contiguity network and the event list changing it.
 
 ```{r contig-net}
-contignet <- make_network(contignet, nodes = states, directed = FALSE) |>
+contignet <- as_network_goldfish(contignet, nodes = states, directed = FALSE) |>
   link_events(contigchanges, nodes = states)
 class(contignet)
 contignet
@@ -184,7 +184,7 @@ Since treaty dissolution is a rarer, more complex, and idiosyncratic process,
 we will only look at those events that create a treaty tie between countries.
 
 ```{r define-dep-events}
-createBilat <- make_dependent_events(
+createBilat <- as_dependent_goldfish(
   events = bilatchanges[bilatchanges$increment == 1,],
   nodes = states,
   default_network = bilatnet

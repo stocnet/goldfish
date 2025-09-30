@@ -46,7 +46,7 @@ test_that(
   "NA data handled effectively in objects",
   {
     data("Fisheries_Treaties_6070")
-    states <- make_nodes(states)
+    states <- as_nodes_goldfish(states)
     sovchanges$time[5] <- NA
     expect_error(
       states <- link_events(states, sovchanges, attribute = "present"),
@@ -92,7 +92,7 @@ test_that(
       increment = c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
       stringsAsFactors = FALSE
     )
-    networkState1 <- make_network(
+    networkState1 <- as_network_goldfish(
       matrix = networkState, nodes = actorsEx,
       directed = TRUE
     )

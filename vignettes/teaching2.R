@@ -49,7 +49,7 @@ bilatnet[1:12, 1:12]  # head(bilatnet, n = c(12, 12))
 
 
 ## ----define-bilat-net---------------------------------------------------------
-bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 
 
 ## ----examine-bilat-net--------------------------------------------------------
@@ -64,14 +64,14 @@ bilatnet
 
 
 ## ----contig-net---------------------------------------------------------------
-contignet <- make_network(contignet, nodes = states, directed = FALSE) |>
+contignet <- as_network_goldfish(contignet, nodes = states, directed = FALSE) |>
   link_events(contigchanges, nodes = states)
 class(contignet)
 contignet
 
 
 ## ----define-dep-events--------------------------------------------------------
-createBilat <- make_dependent_events(
+createBilat <- as_dependent_goldfish(
   events = bilatchanges[bilatchanges$increment == 1,],
   nodes = states,
   default_network = bilatnet

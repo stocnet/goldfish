@@ -84,7 +84,7 @@ For both cases an additional variable indicates the change in value of either
 the ties or attributes.
 The class of this variable must be the same as the tie value or attribute
 value that will be updated, i.e., when the \code{present} variable is dynamic the
-updating values must be \code{logical} (see \code{\link[=make_nodes]{make_nodes()}} for a description
+updating values must be \code{logical} (see \code{\link[=as_nodes_goldfish]{as_nodes_goldfish()}} for a description
 of this variable.
 There are two possibilities on how to specify those
 changes but only one can be used at a time:
@@ -119,8 +119,8 @@ actors <- data.frame(
   actor = 1:5, label = paste("Actor", 1:5),
   present = TRUE, gender = sample.int(2, 5, replace = TRUE)
 )
-actors <- make_nodes(nodes = actors)
-callNetwork <- make_network(nodes = actors)
+actors <- as_nodes_goldfish(nodes = actors)
+callNetwork <- as_network_goldfish(nodes = actors)
 
 # Link events to a nodeset
 compositionChangeEvents <- data.frame(
@@ -144,5 +144,5 @@ callNetwork <- link_events(
 )
 }
 \seealso{
-\code{\link[=make_nodes]{make_nodes()}}, \code{\link[=make_network]{make_network()}}
+\code{\link[=as_nodes_goldfish]{as_nodes_goldfish()}}, \code{\link[=as_network_goldfish]{as_network_goldfish()}}
 }

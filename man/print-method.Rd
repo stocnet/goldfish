@@ -94,20 +94,20 @@ For objects of class \code{nodes.goldfish} print information of the total
 number of nodes in the object, the number of nodes present at the beginning
 of preprocessing, a table with the linked attributes with their respective
 events data frame and a printing of the first rows in the nodes data frame.
-See \code{\link[=make_nodes]{make_nodes()}}.
+See \code{\link[=as_nodes_goldfish]{as_nodes_goldfish()}}.
 
 For objects of class \code{network.goldfish} print information of the
 dimensions of the network, number of ties presented at the beginning of the
 preprocessing, the nodes data frames linked to it, information about their
 definition as a one-mode and directed network, linked events data frame to it
 and a printing of the first rows and columns in the array.
-See \code{\link[=make_network]{make_network()}}.
+See \code{\link[=as_network_goldfish]{as_network_goldfish()}}.
 
 For objects of class \code{dependent.goldfish} print information of the
 total number of events in the object, linked nodes set(s),
 linked default network
 and a printing of the first rows in the events data frame.
-See \code{\link[=make_dependent_events]{make_dependent_events()}}.
+See \code{\link[=as_dependent_goldfish]{as_dependent_goldfish()}}.
 
 For objects of class \code{estimation_opt.goldfish}, print a summary of the estimation control options.
 

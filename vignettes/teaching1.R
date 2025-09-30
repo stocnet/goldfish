@@ -7,11 +7,11 @@ head(actors)
 
 
 ## ----quick--------------------------------------------------------------------
-callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
+callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE) |> # 1
   link_events(change_events = calls, nodes = actors) # 2
 
 # 3
-callsDependent <- make_dependent_events(
+callsDependent <- as_dependent_goldfish(
   events = calls, nodes = actors,
   default_network = callNetwork
   )
@@ -52,11 +52,11 @@ head(calls)
 
 
 ## ----hlp1, eval=FALSE---------------------------------------------------------
-# ?make_network
+# ?as_network_goldfish
 
 
 ## ----call-net-----------------------------------------------------------------
-callNetwork <- make_network(nodes = actors, directed = TRUE)
+callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 
 
 ## ----strNet-------------------------------------------------------------------
@@ -78,7 +78,7 @@ callNetwork
 
 ## ----frdshp-net---------------------------------------------------------------
 head(friendship)
-friendshipNetwork <- make_network(nodes = actors, directed = TRUE)
+friendshipNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 friendshipNetwork <- link_events(
   x = friendshipNetwork,
   change_events = friendship,
@@ -88,11 +88,11 @@ friendshipNetwork
 
 
 ## ----hlp3, eval=FALSE---------------------------------------------------------
-# ?make_dependent_events
+# ?as_dependent_goldfish
 
 
 ## ----call-dep-events----------------------------------------------------------
-callsDependent <- make_dependent_events(
+callsDependent <- as_dependent_goldfish(
   events = calls, nodes = actors,
   default_network = callNetwork
   )

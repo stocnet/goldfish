@@ -9,8 +9,8 @@
 #' Methods to update a nodes or network object
 #'
 #' Methods to create a data frame from an object of class `nodes.goldfish`
-#' (see [make_nodes()]) or a matrix from an object of class
-#' `network.goldfish` (see [make_network()]) with the attributes
+#' (see [as_nodes_goldfish()]) or a matrix from an object of class
+#' `network.goldfish` (see [as_network_goldfish()]) with the attributes
 #' or the network ties updated according with the events linked to the object
 #' using the [link_events()]) function.
 #' @param x an object of class `nodes.goldfish` for `as.data.frame()`
@@ -28,16 +28,16 @@
 #' events linked to them.
 #' For `network.goldfish` object the network ties are updated according to the
 #' events linked to it.
-#' @seealso [make_network()], [make_nodes()], [link_events()]
+#' @seealso [as_network_goldfish()], [as_nodes_goldfish()], [link_events()]
 #' @examples
 #' \donttest{
 #' data("Fisheries_Treaties_6070")
-#' states <- make_nodes(states)
+#' states <- as_nodes_goldfish(states)
 #' states <- link_events(states, sovchanges, attribute = "present")
 #' states <- link_events(states, regchanges, attribute = "regime")
 #' states <- link_events(states, gdpchanges, attribute = "gdp")
 #'
-#' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+#' bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 #' bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 #'
 #' updateStates <- as.data.frame(
@@ -170,18 +170,18 @@ as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
 # @export
 # @examples
 # data("Fisheries_Treaties_6070")
-# states <- make_nodes(states)
+# states <- as_nodes_goldfish(states)
 # states <- link_events(states, sovchanges, attribute = "present")
 # states <- link_events(states, regchanges, attribute = "regime")
 # states <- link_events(states, gdpchanges, attribute = "gdp")
 #
-# bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+# bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 # bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 #
-# contignet <- make_network(contignet, nodes = states, directed = FALSE)
+# contignet <- as_network_goldfish(contignet, nodes = states, directed = FALSE)
 # contignet <- link_events(contignet, contigchanges, nodes = states)
 #
-# createBilat <- make_dependent_events(
+# createBilat <- as_dependent_goldfish(
 #   events = bilatchanges[bilatchanges$increment == 1, ],
 #   nodes = states, default_network = bilatnet
 # )
@@ -282,7 +282,7 @@ as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
 
 #' Defining a node set with (dynamic) node attributes.
 #'
-#' The `make_nodes()` function processes and checks the `data.frame` passed to
+#' The `as_nodes_goldfish()` function processes and checks the `data.frame` passed to
 #' the `nodes` argument.
 #' This is a recommended step before the definition of the network.
 #'
@@ -329,23 +329,23 @@ as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
 #'
 #' The object can be modified using methods for data frames.
 #' @export
-#' @seealso [make_network()], [link_events()]
+#' @seealso [as_network_goldfish()], [link_events()]
 #' @examples
 #' nodesAttr <- data.frame(
 #'   label = paste("Actor", 1:5),
 #'   present = c(TRUE, FALSE, TRUE, TRUE, FALSE),
 #'   gender = c(1, 2, 1, 1, 2)
 #' )
-#' nodesAttr <- make_nodes(nodes = nodesAttr)
+#' nodesAttr <- as_nodes_goldfish(nodes = nodesAttr)
 #'
 #' # Social evolution nodes definition
 #' data("Social_Evolution")
-#' actors <- make_nodes(actors)
+#' actors <- as_nodes_goldfish(actors)
 #'
 #' # Fisheries treaties nodes definition
 #' data("Fisheries_Treaties_6070")
-#' states <- make_nodes(states)
-make_nodes <- function(nodes) {
+#' states <- as_nodes_goldfish(states)
+as_nodes_goldfish <- function(nodes) {
   # check input types
   if (!is.data.frame(nodes)) {
     stop(
@@ -372,24 +372,24 @@ make_nodes <- function(nodes) {
 }
 
 # alias
-#' @rdname make_nodes
+#' @rdname as_nodes_goldfish
 #' @export
-make_nodes_goldfish <- make_nodes
+as_nodes_goldfish_goldfish <- as_nodes_goldfish
 
 #' Defining a network with dynamic events
 #'
 #' The function defines a network object either from a nodeset or
 #' from a matrix (sociomatrix or adjacency matrix). If a matrix is used as
-#' input, `make_network()` returns a network filled with the same values
+#' input, `as_network_goldfish()` returns a network filled with the same values
 #' as the ones present in the provided network.
-#' If the nodeset is the only argument, `make_network()` returns an
+#' If the nodeset is the only argument, `as_network_goldfish()` returns an
 #' empty network with the number of columns and rows corresponding to the
 #' size of the nodeset.
 #' These networks are static, but they can be turned into dynamic networks
 #' by linking dynamic events to the network objectw using [link_events()].
 #'
 #' @param matrix An initial matrix (optional), and object of class `matrix`.
-#' @param nodes A node-set (see [make_nodes()]).
+#' @param nodes A node-set (see [as_nodes_goldfish()]).
 #' @param nodes2 A second optional node-set for the definition of
 #'   two-mode networks.
 #' @param directed A logical value indicating whether the network is directed.
@@ -407,7 +407,7 @@ make_nodes_goldfish <- make_nodes
 #' The object can be modified using methods for matrix.
 #' @details
 #' If a matrix is used as input, its dimension names must be a subset of the
-#' nodes in the nodeset as defined with the [make_nodes()] and the order of
+#' nodes in the nodeset as defined with the [as_nodes_goldfish()] and the order of
 #' the labels in rows and columns must correspond to the order of node labels
 #' in the nodeset.
 #' The matrix can be directed or undirected (as specified with the
@@ -420,16 +420,16 @@ make_nodes_goldfish <- make_nodes
 #' If no matrix is provided, goldfish only considers the nodeset and assumes
 #' the initial state to be empty (i.e., a matrix containing only 0s).
 #'
-#' @seealso [make_nodes()], [link_events()]
+#' @seealso [as_nodes_goldfish()], [link_events()]
 #' @examples
 #' # If no intial matrix is provided
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors)
+#' callNetwork <- as_network_goldfish(nodes = actors)
 #'
 #' # If a initial matrix is provided
 #' data("Fisheries_Treaties_6070")
-#' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
-make_network <- function(
+#' bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
+as_network_goldfish <- function(
     matrix = NULL, nodes, nodes2 = NULL, directed = TRUE,
     envir = environment()) {
   # check input types
@@ -510,10 +510,10 @@ make_network <- function(
   return(matrix)
 }
 
-# Alias for make_network
+# Alias for as_network_goldfish
 #' @export
-#' @rdname make_network
-make_network_goldfish <- make_network
+#' @rdname as_network_goldfish
+as_network_goldfish_goldfish <- as_network_goldfish
 
 #' Define dependent events for a model
 #'
@@ -541,7 +541,7 @@ make_network_goldfish <- make_network
 #' The object can be modified using methods for data frames.
 #' @export
 #' @details Before this step is performed, we have to define:
-#' the nodeset ([make_nodes()]), the network ([make_network()])
+#' the nodeset ([as_nodes_goldfish()]), the network ([as_network_goldfish()])
 #'  and the link the event list to the network ([link_events()]).
 #'
 #' During the definition as a dependent event, some checks are done to ensure
@@ -558,28 +558,28 @@ make_network_goldfish <- make_network
 #' contains information of creation and dissolution of treaties.
 #' `vignette(teaching2)` shows how to model just the creation of treaties
 #' conditional on creation and dissolution.
-#' @seealso [make_nodes()], [make_network()], [link_events()]
+#' @seealso [as_nodes_goldfish()], [as_network_goldfish()], [link_events()]
 #' @examples
 #' actors <- data.frame(
 #'   actor = 1:5, label = paste("Actor", 1:5),
 #'   present = TRUE, gender = sample.int(2, 5, replace = TRUE)
 #' )
-#' actors <- make_nodes(nodes = actors)
+#' actors <- as_nodes_goldfish(nodes = actors)
 #' calls <- data.frame(
 #'   time = c(12, 27, 45, 56, 66, 68, 87),
 #'   sender = paste("Actor", c(1, 3, 5, 2, 3, 4, 2)),
 #'   receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)), increment = rep(1, 7)
 #' )
-#' callNetwork <- make_network(nodes = actors)
+#' callNetwork <- as_network_goldfish(nodes = actors)
 #' callNetwork <- link_events(
 #'   x = callNetwork, change_events = calls, nodes = actors
 #' )
 #'
 #' # Defining the dependent events:
-#' callDependent <- make_dependent_events(
+#' callDependent <- as_dependent_goldfish(
 #'   events = calls, nodes = actors, default_network = callNetwork
 #' )
-make_dependent_events <- function(events, nodes, nodes2 = NULL,
+as_dependent_goldfish <- function(events, nodes, nodes2 = NULL,
                                   default_network = NULL,
                                   envir = environment()) {
   # check input types
@@ -681,9 +681,9 @@ make_dependent_events <- function(events, nodes, nodes2 = NULL,
   return(events)
 }
 
-#' @rdname make_dependent_events
+#' @rdname as_dependent_goldfish
 #' @export
-make_dependent_events_goldfish <- make_dependent_events
+as_dependent_goldfish_goldfish <- as_dependent_goldfish
 
 #' Define a global time-varying attribute
 #'
@@ -699,8 +699,8 @@ make_dependent_events_goldfish <- make_dependent_events
 #' Then, this global attribute can be linked to the nodeset by using
 #' [link_events()]
 #' @examples
-#' seasons <- make_global_attribute(data.frame(time = 1:12, replace = 1:12))
-make_global_attribute <- function(global) {
+#' seasons <- as_global_goldfish(data.frame(time = 1:12, replace = 1:12))
+as_global_goldfish <- function(global) {
   # check input types
   if (!is.data.frame(global)) {
     stop("Invalid argument: this function expects a data frame.")
@@ -727,10 +727,10 @@ make_global_attribute <- function(global) {
   return(global)
 }
 
-# Alias for make_global_attribute
+# Alias for as_global_goldfish
 #' @export
-#' @rdname make_global_attribute
-make_global_attribute_goldfish <- make_global_attribute
+#' @rdname as_global_goldfish
+as_global_goldfish_goldfish <- as_global_goldfish
 
 #' Create a data object for goldfish models
 #'
@@ -767,12 +767,12 @@ make_global_attribute_goldfish <- make_global_attribute
 #' @export
 #' @examples
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 #' callNetwork <- link_events(
 #'   x = callNetwork, change_event = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' callsDependent <- as_dependent_goldfish(
 #'   events = calls, nodes = actors,
 #'   default_network = callNetwork
 #' )
@@ -781,18 +781,18 @@ make_global_attribute_goldfish <- make_global_attribute
 #' )
 #' 
 #' data("Fisheries_Treaties_6070")
-#' states <- make_nodes(states)
+#' states <- as_nodes_goldfish(states)
 #' states <- link_events(states, sovchanges, attribute = "present")
 #' states <- link_events(states, regchanges, attribute = "regime")
 #' states <- link_events(states, gdpchanges, attribute = "gdp")
 #'
-#' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+#' bilatnet <- as_network_goldfish(bilatnet, nodes = states, directed = FALSE)
 #' bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 #'
-#' contignet <- make_network(contignet, nodes = states, directed = FALSE)
+#' contignet <- as_network_goldfish(contignet, nodes = states, directed = FALSE)
 #' contignet <- link_events(contignet, contigchanges, nodes = states)
 #'
-#' createBilat <- make_dependent_events(
+#' createBilat <- as_dependent_goldfish(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, default_network = bilatnet
 #' )
@@ -970,7 +970,7 @@ make_data_goldfish <- make_data
 #' the ties or attributes.
 #' The class of this variable must be the same as the tie value or attribute
 #' value that will be updated, i.e., when the `present` variable is dynamic the
-#' updating values must be `logical` (see [make_nodes()] for a description
+#' updating values must be `logical` (see [as_nodes_goldfish()] for a description
 #' of this variable.
 #' There are two possibilities on how to specify those
 #' changes but only one can be used at a time:
@@ -1019,14 +1019,14 @@ make_data_goldfish <- make_data
 #' `dynamic_attribute` are modified with name of the objects passed through with
 #' the arguments `change_events` and `attribute` respectively.
 #' @export link_events
-#' @seealso [make_nodes()], [make_network()]
+#' @seealso [as_nodes_goldfish()], [as_network_goldfish()]
 #' @examples
 #' actors <- data.frame(
 #'   actor = 1:5, label = paste("Actor", 1:5),
 #'   present = TRUE, gender = sample.int(2, 5, replace = TRUE)
 #' )
-#' actors <- make_nodes(nodes = actors)
-#' callNetwork <- make_network(nodes = actors)
+#' actors <- as_nodes_goldfish(nodes = actors)
+#' callNetwork <- as_network_goldfish(nodes = actors)
 #'
 #' # Link events to a nodeset
 #' compositionChangeEvents <- data.frame(

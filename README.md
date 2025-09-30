@@ -109,10 +109,10 @@ Evolution data (`?Social_Evolution`).
 ### Define data objects and link events
 
 The main data objects required for the analysis are the node set(s)
-`make_nodes()` and network(s) `make_network()`. The node set object
+`as_nodes_goldfish()` and network(s) `as_network_goldfish()`. The node set object
 contains labels and attributes of the actors in the network. In
 contrast, a network object contains the information of past relational
-events between actors. By default, `make_network()` constructs an empty
+events between actors. By default, `as_network_goldfish()` constructs an empty
 matrix, its dimensions defined by the length of the nodeset(s). Data
 frames containing event data that modify these data objects can be
 linked to them using the `link_events()` method.
@@ -120,7 +120,7 @@ linked to them using the `link_events()` method.
     library(goldfish)
     data("Social_Evolution")
 
-    callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
+    callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE) |> # 1
       link_events(change_events = calls, nodes = actors) # 2
 
 The events data frame, which indicates the time-varying attributes in
@@ -150,7 +150,7 @@ The next step in defining the data objects is to identify the dependent
 events. Here we would like to model as the dependent variable the calls
 between individuals. We specify the event data frame and the node set.
 
-    callsDependent <- make_dependent_events(
+    callsDependent <- as_dependent_goldfish(
       events = calls, nodes = actors,
       default_network = callNetwork
       )

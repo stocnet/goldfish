@@ -58,11 +58,11 @@ The native pipe operator is available in `R` from version 4.1.0.
 
 
 ``` r
-callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
+callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE) |> # 1
   link_events(change_events = calls, nodes = actors) # 2
 
 # 3
-callsDependent <- make_dependent_events(
+callsDependent <- as_dependent_goldfish(
   events = calls, nodes = actors,
   default_network = callNetwork
   )
@@ -199,12 +199,12 @@ is a reserved column.
 To tell goldfish this is a network, we must make it as such:
 
 ``` r
-?make_network
+?as_network_goldfish
 ```
 
 
 ``` r
-callNetwork <- make_network(nodes = actors, directed = TRUE)
+callNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 ```
 
 The argument `directed` is `TRUE` by default, but we need to specify
@@ -230,7 +230,7 @@ callNetwork
 #>   Actor 6       0       0       0       0       0       0
 ```
 
-Note that we have not added any network data yet. By default, `make_network()`
+Note that we have not added any network data yet. By default, `as_network_goldfish()`
 just constructs an empty matrix with dimensions defined by the length of the
 nodeset(s).
 So we have an empty network as a starting state.
@@ -293,7 +293,7 @@ head(friendship)
 #> 5 1220918400 Actor 68 Actor 40       1
 #> 6 1220918400 Actor 23 Actor 40       1
 #> 7 1220918400 Actor 49 Actor 40       1
-friendshipNetwork <- make_network(nodes = actors, directed = TRUE)
+friendshipNetwork <- as_network_goldfish(nodes = actors, directed = TRUE)
 friendshipNetwork <- link_events(
   x = friendshipNetwork,
   change_events = friendship,
@@ -327,12 +327,12 @@ We specify the event list and the node list.
 
 
 ``` r
-?make_dependent_events
+?as_dependent_goldfish
 ```
 
 
 ``` r
-callsDependent <- make_dependent_events(
+callsDependent <- as_dependent_goldfish(
   events = calls, nodes = actors,
   default_network = callNetwork
   )
