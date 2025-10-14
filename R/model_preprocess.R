@@ -805,11 +805,13 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
       assign(objectName, object, envir = envir)
     } else if (is.vector(object) && any(is.na(object))) {
       if (is.numeric(object)) {
+        cli::cli_warn(c("i" = "Missing data has been detected. Mean is used to impute for numerical values"))
         # impute by the mean of current values for attributes
-        object <- mean(object, na.rm = TRUE)
+        object[is.na(object)] <- mean(object, na.rm = TRUE)
       } else {
         # impute using mode
-        object <- names(which.max(table(object)))
+        cli::cli_warn(c("i" = "Missing data has been detected. Mode is used to impute for categorical values"))
+        object[is.na(object)] <- names(which.max(table(object)))
       }
       done[iEff] <- TRUE
       # cat("vector\n")

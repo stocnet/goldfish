@@ -1120,7 +1120,7 @@ link_events.network.goldfish <- function(x, change_events,
   if (is.null(nodes)) {
     stop(
       "Invalid argument nodes: a network is specified,",
-      "this function expects an argument nodes."
+      " this function expects an argument nodes."
     )
   }
   if (!is.data.frame(change_events)) {

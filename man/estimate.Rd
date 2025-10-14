@@ -153,9 +153,9 @@ This explicitly assumes the absence of a tie or event.
 
 \item{\strong{Attribute Covariates:}}
 \itemize{
-\item{Initial Values:} Missing values for the initial state of an
-attribute covariate are replaced by the mean value of that attribute
-across all actors.
+\item{Initial Values:} Missing numeric values for the initial state of
+an attribute covariate are replaced by the mean value of that attribute
+across all actors, and categorical values are replaced by the mode value.
 \item{During Event Updates (via linked events):}
 \itemize{
 \item{Using \code{replace}:} If a linked event uses the \code{replace} variable
