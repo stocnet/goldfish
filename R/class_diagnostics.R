@@ -135,13 +135,20 @@ examine_outliers <- function(x,
   } else {
     return(cat("No outliers found."))
   }
+  return(plot_outliers(data))
+}
 
+plot_outliers <- function(data) {
+  if (is.null(data)) {
+    return(cat("No outliers found."))
+  }
+  
   ggplot2::ggplot(data, ggplot2::aes(x = .data$time, y = .data$intervalLogL)) +
     ggplot2::geom_line() +
     ggplot2::geom_point(ggplot2::aes(color = .data$outlier)) +
     ggplot2::geom_text(ggplot2::aes(label = .data$label),
-      angle = 270, size = 2,
-      hjust = "outward", color = "red"
+                       angle = 270, size = 2,
+                       hjust = "outward", color = "red"
     ) +
     ggplot2::theme_minimal() +
     ggplot2::scale_colour_manual(
@@ -239,7 +246,15 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
   if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time)) {
     return(cat("No regime changes found."))
   }
+  return(plot_changepoints(list(data = data, cpt_points = data$time[cpt.pts])))
+}
 
+plot_changepoints <- function(result) {
+  data <- result$data
+  cpt.pts <- result$cpt_points
+  if (is.null(data)) {
+    return(cat("No regime changes found."))
+  }
   ggplot2::ggplot(data, ggplot2::aes(x = .data$time, y = .data$intervalLogL)) +
     ggplot2::geom_line() +
     ggplot2::geom_point() +
