@@ -88,7 +88,7 @@ as.data.frame.nodes.goldfish <- function(x, ..., time = -Inf,
 #' Create a Matrix from a dynamic nodes object
 #' @export
 #' @rdname update-method
-as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
+as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf, envir = new.env()) {
   net <- x
   if (is.character(time)) time <- as.POSIXct(time)
   time <- as.numeric(time)
@@ -106,9 +106,9 @@ as.matrix.network.goldfish <- function(x, ..., time = -Inf, startTime = -Inf) {
   if (is.null(eventNames)) {
     return(x[1:dim[1], 1:dim[2]])
   }
-  events <- lapply(lapply(eventNames, get),
+  events <- lapply(lapply(eventNames, get, envir = envir),
     sanitizeEvents,
-    nodes = nodes, nodes2 = nodes2
+    nodes = nodes, nodes2 = nodes2, envir = envir
   )
   # quick update for single event lists with replace
   if (length(events) == 1) {

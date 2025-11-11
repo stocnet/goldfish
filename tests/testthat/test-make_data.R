@@ -185,7 +185,6 @@ test_that(
     expect_error(link_events(x = networkState, change_events = data.frame(node = "test"), nodes = actorsEx),
                  "Parameter change events has to be the name of a data frame \\(rather than a data frame\\)",
                  label = "Error if change_events is not passed as a variable name")
-    
     expect_warning(link_events(x = networkState, change_events = eventsIncrement, nodes = actorsEx),
                    "were already linked to this object.",
                    label = "Warning if event name is already linked")
@@ -199,6 +198,9 @@ test_that(
     non_df_input <- array(1:8, dim=c(2,2,2))
     
     expect_error(make_dependent_events(events = non_df_input, nodes = actorsEx),
+                 "Invalid argument \"events\": this function expects objects of class \"data.frame\".",
+                 label = "Error if events is not a data frame")
+    expect_error(make_dependent_events_goldfish(events = non_df_input, nodes = actorsEx),
                  "Invalid argument \"events\": this function expects objects of class \"data.frame\".",
                  label = "Error if events is not a data frame")
     
@@ -221,8 +223,63 @@ test_that(
     expect_warning(make_dependent_events(events = eventsIncrement, nodes = actorsEx, default_network = networkStateTrans),
                    "The events data frame is not linked to the default_network",
                    label = "Warning if events are not linked to the default network")
-    
-    expect_no_error(make_dependent_events(events = eventsIncrement, nodes = actorsEx, default_network = networkState),
-                    message = "Monadic case should succeed without error")
+    expected_obj <- data.frame(list(time = c(1, 6, 9, 13, 15, 16, 19, 23, 28, 29, 32, 36),
+                                    sender = c("Actor 1", "Actor 3", "Actor 2", "Actor 2", "Actor 5",
+                                               "Actor 1", "Actor 3", "Actor 3", "Actor 4", "Actor 2", "Actor 5", "Actor 1"),
+                                    receiver = c("Actor 2", "Actor 2", "Actor 3", "Actor 3", "Actor 1", "Actor 5", "Actor 4",
+                                                 "Actor 4", "Actor 2", "Actor 3", "Actor 2", "Actor 2"),
+                                    increment = c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1)))
+    expect_equal(make_dependent_events(events = eventsIncrement, nodes = actorsEx, default_network = networkState),
+                 expected_obj,
+                 label = "Monadic case should succeed without error",
+                 ignore_attr = TRUE
+                 )
+  }
+)
+
+
+
+test_that(
+  "make_data works as expected",
+  {
+    expect_error(make_data(),
+                 "No arguments provided to make_data.",
+                 label = "No arguments detected for make_data")
+  }
+)
+
+test_that(
+  "as.data.frame.nodes.goldfish works as expected",
+  {
+    expected_df <- data.frame(
+      label = sprintf("Actor %d", 1:5),
+      present = c(TRUE, TRUE, TRUE, TRUE, FALSE),
+      attr1 = c(9.90, 0.10, 0.50, 0.45, 0.25),    
+      stringsAsFactors = FALSE
+    )
+    expect_equal(as.data.frame.nodes.goldfish(actorsEx),
+                 expected_df,
+                 ignore_attr = TRUE)
+  }
+)
+
+test_that(
+  "as.matrix.network.goldfish works as expected",
+  {
+    expect_equal(as.matrix.network.goldfish(networkExog),
+                 matrix(
+                   c(
+                     0, 0, 0, 1, 0,
+                     0, 0, 0, 0, 0,
+                     0, 2, 0, 0, 0,
+                     1, 0, 0, 0, 0,
+                     1, 2, 0, 0, 0
+                   ),
+                   nrow = 5, ncol = 5, byrow = TRUE,
+                   dimnames = list(
+                     sprintf("Actor %d", 1:5),
+                     sprintf("Actor %d", 1:5)
+                   )
+                 ))
   }
 )
