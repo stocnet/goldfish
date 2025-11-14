@@ -8,7 +8,7 @@
 \usage{
 \method{as.data.frame}{nodes.goldfish}(x, ..., time = -Inf, startTime = -Inf, envir = new.env())
 
-\method{as.matrix}{network.goldfish}(x, ..., time = -Inf, startTime = -Inf)
+\method{as.matrix}{network.goldfish}(x, ..., time = -Inf, startTime = -Inf, envir = new.env())
 }
 \arguments{
 \item{x}{an object of class \code{nodes.goldfish} for \code{as.data.frame()}
