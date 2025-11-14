@@ -725,3 +725,54 @@ glance.result.goldfish <- function(x, ...) {
     )
   )
 }
+
+#' @title Print method for goldfish.changepoints objects
+#' @description Prints a summary of the identified change points.
+#' @param x An object of class \code{goldfish.changepoints}.
+#' @return Print changepoints
+#' @export
+print.changepoints.goldfish <- function(x, ...) {
+  # if no change points were found
+  if (length(x$cpt_points) == 0) {
+    cat("No regime changes found.\n")
+    return(invisible(x))
+  }
+  
+  # create a data frame to display 
+  changepoint_table <- data.frame(
+    Index = which(x$data$time %in% x$cpt_points),
+    Event_Time = x$cpt_points
+  )
+  
+  cat("Identified", nrow(changepoint_table), "Change Point(s):\n")
+  
+  # print data frame to display the table
+  print(changepoint_table, row.names = FALSE)
+  
+  return(invisible(x))
+}
+
+#' @title Print method for goldfish.outliers objects
+#' @description Prints a summary of the identified outliers.
+#' @param x An object of class \code{goldfish.outliers}.
+#' @return Print outliers
+#' @export
+print.outliers.goldfish <- function(x, ...) {
+  
+  if (!"YES" %in% x$outlier) {
+    cat("No outliers found.\n")
+    return(invisible(NULL)) 
+  }
+  
+  # create a data frame to display 
+  outlier_table <- subset(x, outlier == "YES")
+
+  class(outlier_table) <- "data.frame"
+  
+  cat("Identified", nrow(outlier_table), "Outliers(s):\n")
+  
+  # print data frame to display the table
+  print(outlier_table, row.names = FALSE)
+  
+  return(invisible(x))
+}

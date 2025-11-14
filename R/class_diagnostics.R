@@ -10,8 +10,6 @@
 # A subset of the dependent event data frame
 # (see [make_dependent_events()]) with the events identified as
 # outliers or change point inflections.
-#' An object of class `ggplot` object from a call of [ggplot2::ggplot()].
-#' It can be modified using the `ggplot2` syntax.
 #' @name examine
 #' @examples
 #' # A multinomial receiver choice model
@@ -60,6 +58,8 @@ NULL
 #' \code{examineOutliers} creates a plot with the log-likelihood of the events
 #' in the y-axis and the event index in the x-axis, identifying observations
 #' with labels indicating the sender and recipient.
+#' The function call creates an object identifying the outliers
+#'identified by the method
 #' @importFrom stats IQR median na.exclude
 #' @export
 #' @rdname examine
@@ -124,6 +124,7 @@ examine_outliers <- function(x,
       }
     }
   }
+  
 
   if (length(outlierIndexes > 0)) {
     data$outlier[outlierIndexes] <- "YES"
@@ -132,32 +133,14 @@ examine_outliers <- function(x,
       data$receiver,
       sep = "-"
     )[outlierIndexes]
-  } else {
-    return(cat("No outliers found."))
   }
-  return(plot_outliers(data))
+    # otherwise if no outliers, no change required
+  
+  class(data) <- c("outliers.goldfish", class(data))
+  
+  return(data)
 }
 
-plot_outliers <- function(data) {
-  if (is.null(data)) {
-    return(cat("No outliers found."))
-  }
-  
-  ggplot2::ggplot(data, ggplot2::aes(x = .data$time, y = .data$intervalLogL)) +
-    ggplot2::geom_line() +
-    ggplot2::geom_point(ggplot2::aes(color = .data$outlier)) +
-    ggplot2::geom_text(ggplot2::aes(label = .data$label),
-                       angle = 270, size = 2,
-                       hjust = "outward", color = "red"
-    ) +
-    ggplot2::theme_minimal() +
-    ggplot2::scale_colour_manual(
-      values = c("black", "red"),
-      guide = "none"
-    ) +
-    ggplot2::xlab("") +
-    ggplot2::ylab("Interval log likelihood")
-}
 
 # Examine change point
 #' @param moment character argument to choose between "mean" or "variance".
@@ -179,11 +162,8 @@ plot_outliers <- function(data) {
 #'   function to investigate optimal positioning and (potentially) number
 #'   of change points for the log-likelihood of the events in variance}
 #' }
-#' The function call creates a plot with the log-likelihood of the events
-#' in the y-axis and the event index in the x-axis, highlighting the change
+#' The function call creates an object identifying the change
 #' point sections identified by the method.
-# Also it prints a table of the change points events that are returned by the
-# method.
 #' @export
 #' @rdname examine
 examine_changepoints <- function(x, moment = c("mean", "variance"),
@@ -244,30 +224,13 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
     )]
   }
   if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time)) {
-    return(cat("No regime changes found."))
+    # If no change points are found, return only data
+    result_object <- list(data = data, cpt_points = NULL)
   }
-  return(plot_changepoints(list(data = data, cpt_points = data$time[cpt.pts])))
-}
-
-plot_changepoints <- function(result) {
-  data <- result$data
-  cpt.pts <- result$cpt_points
-  if (is.null(data)) {
-    return(cat("No regime changes found."))
+  else {
+    result_object <- list(data = data, cpt_points = data$time[cpt.pts])
   }
-  ggplot2::ggplot(data, ggplot2::aes(x = .data$time, y = .data$intervalLogL)) +
-    ggplot2::geom_line() +
-    ggplot2::geom_point() +
-    ggplot2::geom_vline(
-      xintercept = na.exclude(data$time[cpt.pts]),
-      color = "red"
-    ) +
-    ggplot2::theme_minimal() +
-    ggplot2::xlab("") +
-    ggplot2::ylab("Interval log likelihood") +
-    ggplot2::scale_x_continuous(
-      breaks = data$time[cpt.pts],
-      labels = data$time[cpt.pts]
-    ) +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+  class(result_object) <- c("changepoints.goldfish", class(result_object))
+  
+  return(result_object)
 }
