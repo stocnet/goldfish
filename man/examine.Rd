@@ -45,8 +45,6 @@ See section \emph{Change point} for details.}
 }
 \value{
 \code{NULL} if neither outliers nor change points are identified.
-An object of class \code{ggplot} object from a call of \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}}.
-It can be modified using the \code{ggplot2} syntax.
 }
 \description{
 Provide diagnostic functions for an object of class \code{result.goldfish}.
@@ -59,6 +57,8 @@ in the events sequence is presented using the log-likelihood.
 \code{examineOutliers} creates a plot with the log-likelihood of the events
 in the y-axis and the event index in the x-axis, identifying observations
 with labels indicating the sender and recipient.
+The function call creates an object identifying the outliers
+identified by the method
 }
 
 \section{Change point}{
@@ -74,8 +74,7 @@ of change points for the log-likelihood of the events in mean.}
 function to investigate optimal positioning and (potentially) number
 of change points for the log-likelihood of the events in variance}
 }
-The function call creates a plot with the log-likelihood of the events
-in the y-axis and the event index in the x-axis, highlighting the change
+The function call creates an object identifying the change
 point sections identified by the method.
 }
 

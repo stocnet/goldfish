@@ -78,27 +78,11 @@ examine_outliers <- function(x,
   }
   method <- match.arg(method)
 
-  data <- get(as.character(x$formula[2]))
-  if (length(data$time) != length(x$intervalLogL)) {
-    calls <- as.list(x$call)
-    calls[[1]] <- NULL
-    calls$preprocessing_only <- TRUE
-    calls$preprocessing_init <- NULL
-    calls$progress <- FALSE
-    calls$verbose <- FALSE
-    calls$model <- x$model
-    prep <- suppressWarnings(do.call(estimate_wrapper, calls))
-    data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
-  } else {
-    data$intervalLogL <- x$intervalLogL
-  }
-
-  if (!is.numeric(data$time)) {
-    data$time <- as.POSIXct(data$time)
-  }
-
-  data$label <- ""
-  data$outlier <- "NO"
+  data <- augment.result.goldfish(x)
+  
+  data <- data %>% mutate(label = "")
+  data <- data %>% mutate(outlier = FALSE)
+  
   if (method == "Top") {
     outlierIndexes <- order(data$intervalLogL)[1:parameter]
   } else if (method == "IQR") {
@@ -127,7 +111,7 @@ examine_outliers <- function(x,
 
 
   if (length(outlierIndexes > 0)) {
-    data$outlier[outlierIndexes] <- "YES"
+    data$outlier[outlierIndexes] <- TRUE
     data$label[outlierIndexes] <- paste(
       data$sender,
       data$receiver,
@@ -136,7 +120,7 @@ examine_outliers <- function(x,
   }
   # otherwise if no outliers, no change required
 
-  class(data) <- c("outliers.goldfish", class(data))
+  class(data) <- c("diagnostic.goldfish", class(data))
 
   return(data)
 }
@@ -183,24 +167,7 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
   moment <- match.arg(moment)
   method <- match.arg(method)
 
-  data <- get(as.character(x$formula[2]))
-  if (length(data$time) != length(x$intervalLogL)) {
-    calls <- as.list(x$call)
-    calls[[1]] <- NULL
-    calls$preprocessing_only <- TRUE
-    calls$preprocessing_init <- NULL
-    calls$progress <- FALSE
-    calls$verbose <- FALSE
-    calls$model <- x$model
-    prep <- suppressWarnings(do.call(estimate_wrapper, calls))
-    data$intervalLogL <- x$intervalLogL[prep$orderEvents == 1]
-  } else {
-    data$intervalLogL <- x$intervalLogL
-  }
-
-  if (!is.numeric(data$time)) {
-    data$time <- as.POSIXct(data$time)
-  }
+  data <- augment.result.goldfish(x)
 
   if (is.null(window)) window <- max(table(data$time))
 
@@ -223,13 +190,10 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
       fromLast = TRUE
     )]
   }
-  if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time)) {
-    # If no change points are found, return only data
-    result_object <- list(data = data, cpt_points = NULL)
-  } else {
-    result_object <- list(data = data, cpt_points = cpt.pts)
-  }
-  class(result_object) <- c("changepoints.goldfish", class(result_object))
+  data <- data %>% mutate(cpt = FALSE)
+  data$cpt[cpt.pts] <- TRUE
+  
+  class(data) <- c("diagnostic.goldfish", class(data))
 
-  return(result_object)
+  return(data)
 }

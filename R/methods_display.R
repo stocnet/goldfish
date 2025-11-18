@@ -735,52 +735,57 @@ glance.result.goldfish <- function(x, ...) {
   )
 }
 
-#' @title Print method for goldfish.changepoints objects
-#' @description Prints a summary of the identified change points.
-#' @param x An object of class \code{goldfish.changepoints}.
-#' @return Print changepoints
+#' @title Augment method for goldfish.diagnostic objects
+#' @description Augments results for plotting
+#' @param x an object of class \code{result.goldfish}
+#' @return tibble
 #' @export
-print.changepoints.goldfish <- function(x, ...) {
-  # if no change points were found
-  if (length(x$cpt_points) == 0 || is.null(x$cpt_points)) {
-    cat("No regime changes found.\n")
-    return(invisible(x))
+augment.result.goldfish <- function(x, ...) {
+  data <- get(as.character(x$formula[2]))
+  class(data) <- "data.frame"
+  tib <- as_tibble(data)
+  tib <- tib %>% mutate(rightCensoredEvent = FALSE)
+  # prob need filter for rightCensoredEvents = TRUE
+  if (x$subModel == "rate") {
+    indices <- which(x$orderEvents == 2)
+    censoredTime <- x$eventTime[indices]
+    tibCen <- as_tibble(censoredTime)
+    names(tibCen) <- c("time")
+    tibCen <- tibCen %>% mutate(rightCensoredEvent = TRUE)
+    tibCen <- tibCen %>% mutate(sender = NULL)
+    tibCen <- tibCen %>% mutate(receiver = NULL)
+    tibCen <- tibCen %>% mutate(increment = NULL)
+    tib <- bind_rows(tib, tibCen)
   }
-
-  # create a data frame to display
-  changepoint_table <- data.frame(
-    Index = x$cpt_points,
-    Event_Time = x$data$time[x$cpt_points]
-  )
-
-  cat("Identified", nrow(changepoint_table), "Change Point(s):\n")
-
-  # print data frame to display the table
-  print(changepoint_table, row.names = FALSE)
-
-  return(invisible(x))
+  if (!is.numeric(tib$time)) {
+    tib$time <- as.POSIXct(tib$time)
+  }
+  tib <- arrange(tib,time)
+  tib$intervalLogL <- x$intervalLogL
+  return(tib)
 }
 
-#' @title Print method for goldfish.outliers objects
-#' @description Prints a summary of the identified outliers.
-#' @param x An object of class \code{goldfish.outliers}.
-#' @return Print outliers
+#' @title Print method for goldfish.diagnostic objects
+#' @description Prints a summary of the identified diagnostics.
+#' @param x An object of class \code{goldfish.diagnostic}.
+#' @return Print diagnostic summary
 #' @export
-print.outliers.goldfish <- function(x, ...) {
-  if (!"YES" %in% x$outlier) {
-    cat("No outliers found.\n")
-    return(invisible(NULL))
+print.diagnostic.goldfish <- function(x, ...) {
+  if ("cpt" %in% names(x)) {
+    column_text <- "Change Point(s):\n"
+    points <-  sum(x$cpt == TRUE)
+  }
+  else {
+    column_text <- "Outliers(s):\n"
+    points <- sum(x$outlier == TRUE)
   }
 
-  # create a data frame to display
-  outlier_table <- subset(x, outlier == "YES")
-
-  class(outlier_table) <- "data.frame"
-
-  cat("Identified", nrow(outlier_table), "Outliers(s):\n")
+  cat("Identified", points, column_text)
 
   # print data frame to display the table
-  print(outlier_table, row.names = FALSE)
+  obj <- x
+  class(obj) <- c("tbl_df", "tbl", "data.frame")
+  print(obj)
 
   return(invisible(x))
 }

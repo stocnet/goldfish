@@ -4,7 +4,7 @@ test_that(
     skip_on_cran()
 
     mod00 <- estimate_dynam(
-      depNetwork ~ inertia + recip + trans,
+      depNetwork ~ inertia + trans,
       sub_model = "choice",
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0L),
@@ -14,7 +14,7 @@ test_that(
     )
 
     p1 <- examine_outliers(mod00, method = "Top", parameter = 2)
-    expect_s3_class(p1, "outliers.goldfish")
+    expect_s3_class(p1, "diagnostic.goldfish")
   }
 )
 
@@ -49,6 +49,6 @@ test_that(
     )
 
     p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")
-    expect_s3_class(p2, "changepoints.goldfish")
+    expect_s3_class(p2, "diagnostic.goldfish")
   }
 )

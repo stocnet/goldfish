@@ -892,6 +892,9 @@ estimate_wrapper <- function(x,
     expand.dots = TRUE
   )
   result$call[[2]] <- formulaKeep
-
+  ## added to allow printing/plotting of rate models with rightCnesoredEvents
+  result$eventTime <- prep$eventTime
+  result$orderEvents <- prep$orderEvents
+  
   return(result)
 }
