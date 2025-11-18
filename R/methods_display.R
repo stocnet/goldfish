@@ -366,7 +366,7 @@ print.data.goldfish <- function(x, ...) {
       global_obj <- c(global_obj, name)
     }
   }
-  
+
   nodeset_names <- unique(nodeset_names)
   categorized <- c(categorized, nodeset_names, nets_obj, deps_obj, global_obj)
   other_obj <- setdiff(obj_names, categorized)
@@ -464,8 +464,12 @@ print.data.goldfish <- function(x, ...) {
         events_names,
         function(n) {
           cols <- colnames(get(n, envir = x))
-          if (all(c("sender", "receiver") %in% cols)) return("dyadic")
-          if ("node" %in% cols) return("nodal")
+          if (all(c("sender", "receiver") %in% cols)) {
+            return("dyadic")
+          }
+          if ("node" %in% cols) {
+            return("nodal")
+          }
           return("unknown")
         },
         character(1)
@@ -474,10 +478,15 @@ print.data.goldfish <- function(x, ...) {
         events_names,
         function(n) {
           cols <- colnames(get(n, envir = x))
-          if ("increment" %in% cols) return("increment")
-          if ("replace" %in% cols) return("replace")
+          if ("increment" %in% cols) {
+            return("increment")
+          }
+          if ("replace" %in% cols) {
+            return("replace")
+          }
           return("unknown")
-      }, character(1)),
+        }, character(1)
+      ),
       row.names = events_names,
       check.names = FALSE
     )
@@ -733,22 +742,22 @@ glance.result.goldfish <- function(x, ...) {
 #' @export
 print.changepoints.goldfish <- function(x, ...) {
   # if no change points were found
-  if (length(x$cpt_points) == 0) {
+  if (length(x$cpt_points) == 0 || is.null(x$cpt_points)) {
     cat("No regime changes found.\n")
     return(invisible(x))
   }
-  
-  # create a data frame to display 
+
+  # create a data frame to display
   changepoint_table <- data.frame(
-    Index = which(x$data$time %in% x$cpt_points),
-    Event_Time = x$cpt_points
+    Index = x$cpt_points,
+    Event_Time = x$data$time[x$cpt_points]
   )
-  
+
   cat("Identified", nrow(changepoint_table), "Change Point(s):\n")
-  
+
   # print data frame to display the table
   print(changepoint_table, row.names = FALSE)
-  
+
   return(invisible(x))
 }
 
@@ -758,21 +767,20 @@ print.changepoints.goldfish <- function(x, ...) {
 #' @return Print outliers
 #' @export
 print.outliers.goldfish <- function(x, ...) {
-  
   if (!"YES" %in% x$outlier) {
     cat("No outliers found.\n")
-    return(invisible(NULL)) 
+    return(invisible(NULL))
   }
-  
-  # create a data frame to display 
+
+  # create a data frame to display
   outlier_table <- subset(x, outlier == "YES")
 
   class(outlier_table) <- "data.frame"
-  
+
   cat("Identified", nrow(outlier_table), "Outliers(s):\n")
-  
+
   # print data frame to display the table
   print(outlier_table, row.names = FALSE)
-  
+
   return(invisible(x))
 }

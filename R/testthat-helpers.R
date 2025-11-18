@@ -569,7 +569,7 @@ dependent.depevents_DyNAMi <- make_dependent_events(
 resModObject <- structure(
   list(
     parameters = c(5.3751, 1, -0.0816),
-    standardErrors = c(0.155388602931316, 0, 0.197511081339697), 
+    standardErrors = c(0.155388602931316, 0, 0.197511081339697),
     logLikelihood = -699.4532,
     finalScore = c(0.000200290995642893, 0, 1.49135840820103e-05),
     finalInformationMatrix = matrix(

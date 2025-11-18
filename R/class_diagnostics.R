@@ -59,14 +59,14 @@ NULL
 #' in the y-axis and the event index in the x-axis, identifying observations
 #' with labels indicating the sender and recipient.
 #' The function call creates an object identifying the outliers
-#'identified by the method
+#' identified by the method
 #' @importFrom stats IQR median na.exclude
 #' @export
 #' @rdname examine
 examine_outliers <- function(x,
-                            method = c("Hampel", "IQR", "Top"),
-                            parameter = 3,
-                            window = NULL) {
+                             method = c("Hampel", "IQR", "Top"),
+                             parameter = 3,
+                             window = NULL) {
   if (!"result.goldfish" %in% attr(x, "class")) {
     stop("Not a goldfish results object.")
   }
@@ -124,7 +124,7 @@ examine_outliers <- function(x,
       }
     }
   }
-  
+
 
   if (length(outlierIndexes > 0)) {
     data$outlier[outlierIndexes] <- "YES"
@@ -134,10 +134,10 @@ examine_outliers <- function(x,
       sep = "-"
     )[outlierIndexes]
   }
-    # otherwise if no outliers, no change required
-  
+  # otherwise if no outliers, no change required
+
   class(data) <- c("outliers.goldfish", class(data))
-  
+
   return(data)
 }
 
@@ -167,9 +167,9 @@ examine_outliers <- function(x,
 #' @export
 #' @rdname examine
 examine_changepoints <- function(x, moment = c("mean", "variance"),
-                                method = c("PELT", "AMOC", "BinSeg"),
-                                window = NULL,
-                                ...) {
+                                 method = c("PELT", "AMOC", "BinSeg"),
+                                 window = NULL,
+                                 ...) {
   if (!methods::is(x, "result.goldfish")) {
     stop("Not a goldfish results object.", call. = FALSE)
   }
@@ -226,11 +226,10 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
   if (length(cpt.pts) == 1 && data$time[cpt.pts] == max(data$time)) {
     # If no change points are found, return only data
     result_object <- list(data = data, cpt_points = NULL)
-  }
-  else {
-    result_object <- list(data = data, cpt_points = data$time[cpt.pts])
+  } else {
+    result_object <- list(data = data, cpt_points = cpt.pts)
   }
   class(result_object) <- c("changepoints.goldfish", class(result_object))
-  
+
   return(result_object)
 }

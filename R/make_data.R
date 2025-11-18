@@ -55,7 +55,8 @@ NULL
 # Create a data frame from a dynamic nodes object
 #' @export
 #' @rdname update-method
-as.data.frame.nodes.goldfish <- function(x, ..., time = -Inf,
+as.data.frame.nodes.goldfish <- function(
+    x, ..., time = -Inf,
     startTime = -Inf, envir = new.env()) {
   df <- x
   dynamic_attributes <- attr(df, "dynamic_attributes")
@@ -444,7 +445,7 @@ make_network <- function(
     )
   }
   if (!is.null(nodes2) &&
-      !any(check_classes(nodes2, c("data.frame", "nodes.goldfish")))) {
+    !any(check_classes(nodes2, c("data.frame", "nodes.goldfish")))) {
     stop(
       "Invalid argument ", dQuote("nodes2"), ": ",
       "this function expects objects of class ",
@@ -484,13 +485,13 @@ make_network <- function(
 
   # define class
   class(matrix) <- unique(c("network.goldfish", class(matrix)))
-  
+
   # create attributes
   nodesName <- c(
     as.character(substitute(nodes, env = envir)),
     as.character(substitute(nodes2, env = envir))
   )
-  
+
   attr(matrix, "nodes") <- nodesName
   attr(matrix, "directed") <- directed
   attr(matrix, "is_two_mode") <- is_two_mode
@@ -649,8 +650,11 @@ make_dependent_events <- function(events, nodes, nodes2 = NULL,
       warning(
         "The events data frame is not linked to the default_network",
         "\nEvents attached to the ", dQuote("default_network"), ": ",
-        if (length(events_network) > 0) 
-          paste(events_network, collapse = ", ")  else "no events linked",
+        if (length(events_network) > 0) {
+          paste(events_network, collapse = ", ")
+        } else {
+          "no events linked"
+        },
         "\nDependent events: ", paste(objEvents, collapse = ""),
         "\n"
       )
@@ -738,17 +742,17 @@ make_global_attribute_goldfish <- make_global_attribute
 #' populates it with the provided `R` objects and their linked objects,
 #' as specified by attributes common in the 'goldfish' package.
 #' This is useful for creating a self-contained data context for
-#' `estimate_dynam()`, `estimate_rem()`, `estimate_dynami()` 
+#' `estimate_dynam()`, `estimate_rem()`, `estimate_dynami()`
 #' and `gather_model_data()`.
 #'
 #' The function recursively searches for linked objects:
 #' \itemize{
-#'   \item{For a \code{nodes.goldfish} object:} Events that modify 
+#'   \item{For a \code{nodes.goldfish} object:} Events that modify
 #'     its nodal attributes.
-#'   \item{For a \code{network.goldfish} object:} Events that modify 
+#'   \item{For a \code{network.goldfish} object:} Events that modify
 #'     its structure, and the \code{nodes.goldfish} object(s) that define
 #'     its nodes.
-#'   \item{For a \code{dependent.goldfish} object:} The \code{network.goldfish} 
+#'   \item{For a \code{dependent.goldfish} object:} The \code{network.goldfish}
 #'     object and \code{nodes.goldfish} object(s) defining its events' scope.
 #' }
 #' Linked objects are searched for in the `parent_env`
@@ -779,7 +783,7 @@ make_global_attribute_goldfish <- make_global_attribute
 #' socialEvolutionData <- make_data(
 #'   callNetwork, callsDependent, actors
 #' )
-#' 
+#'
 #' data("Fisheries_Treaties_6070")
 #' states <- make_nodes(states)
 #' states <- link_events(states, sovchanges, attribute = "present")
@@ -796,12 +800,12 @@ make_global_attribute_goldfish <- make_global_attribute
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, default_network = bilatnet
 #' )
-#' 
+#'
 #' fisheriesData <- make_data(
 #'   bilatnet, createBilat, states,
 #'   contignet, sovchanges, regchanges, gdpchanges
 #' )
-#' 
+#'
 make_data <- function(..., parent_env = parent.frame()) {
   data_env <- new.env(parent = parent_env)
 
@@ -817,12 +821,13 @@ make_data <- function(..., parent_env = parent.frame()) {
   if (length(initial_objects) == 0 && length(arg_names) == 0) {
     stop("No arguments provided to make_data.", call. = FALSE)
   } else if (length(initial_objects) > 0 &&
-             length(arg_names) != length(initial_objects)) {
+    length(arg_names) != length(initial_objects)) {
     # This can happen if objects in ... are themselves named lists.
     # If `...` contains a mix of named and unnamed,
     # `arg_names` should still be correct.
     stop("make_data() received a mix of named and unnamed arguments.",
-         call. = FALSE)
+      call. = FALSE
+    )
     # Potentially reconcile arg_names with names(initial_objects)
   }
 
@@ -858,10 +863,10 @@ make_data <- function(..., parent_env = parent.frame()) {
       ))
       next
     }
-    
+
     current_obj <- get(current_name, envir = data_env, inherits = FALSE)
     processed_names <- c(processed_names, current_name)
-    
+
     linked_names_to_find <- character(0)
 
     # Check for linked objects and collect their names
@@ -896,7 +901,7 @@ make_data <- function(..., parent_env = parent.frame()) {
           assign(linked_name, linked_obj, envir = data_env)
           # Add the newly found linked object to the queue
           if (!(linked_name %in% queue) &&
-              !(linked_name %in% processed_names)) {
+            !(linked_name %in% processed_names)) {
             queue <- c(queue, linked_name)
           }
         } else {
@@ -912,11 +917,13 @@ make_data <- function(..., parent_env = parent.frame()) {
   }
 
   assign(".nodeset_names",
-         unique(all_nodes_names[nzchar(all_nodes_names)]),
-         envir = data_env)
+    unique(all_nodes_names[nzchar(all_nodes_names)]),
+    envir = data_env
+  )
   assign(".events_names",
-         unique(all_events_names[nzchar(all_events_names)]),
-         envir = data_env)
+    unique(all_events_names[nzchar(all_events_names)]),
+    envir = data_env
+  )
 
 
   class(data_env) <- c("data.goldfish", "environment")
@@ -1115,7 +1122,7 @@ link_events.nodes.goldfish <- function(x, change_events, attribute, ...) {
 #' @rdname link_events
 #' @export
 link_events.network.goldfish <- function(x, change_events,
-                                        nodes = NULL, nodes2 = NULL, ...) {
+                                         nodes = NULL, nodes2 = NULL, ...) {
   # check input types
   if (is.null(nodes)) {
     stop(
