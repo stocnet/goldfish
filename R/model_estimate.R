@@ -163,6 +163,11 @@
 #'   right-censored events.
 #'   Only it is considered for `estimate_dynam(x, sub_model = "rate")` or
 #'   REM (`estimate_rem()`), when the model includes the intercept.}
+#'   \item{rightCensoredEvents}{a logical vector indicating whether or not an 
+#'   event is a right censored event}
+#'   \item{eventTimes}{
+#'   a numerical vector of times of events (including right censored events)
+#'   }
 #'
 #' @importFrom stats formula na.omit
 #' @name estimate
@@ -894,7 +899,7 @@ estimate_wrapper <- function(x,
   result$call[[2]] <- formulaKeep
   ## added to allow printing/plotting of rate models with rightCnesoredEvents
   result$eventTime <- prep$eventTime
-  result$orderEvents <- prep$orderEvents
+  result$rightCensoredEvents <- prep$orderEvents == 2
   
   return(result)
 }

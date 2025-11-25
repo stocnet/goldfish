@@ -135,6 +135,11 @@ a logical value indicating if the estimation process considered
 right-censored events.
 Only it is considered for \code{estimate_dynam(x, sub_model = "rate")} or
 REM (\code{estimate_rem()}), when the model includes the intercept.}
+\item{rightCensoredEvents}{a logical vector indicating whether or not an
+event is a right censored event}
+\item{eventTimes}{
+a numerical vector of times of events (including right censored events)
+}
 }
 \description{
 Estimates parameters for a dynamic network model via maximum likelihood

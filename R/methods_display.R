@@ -743,24 +743,23 @@ glance.result.goldfish <- function(x, ...) {
 augment.result.goldfish <- function(x, ...) {
   data <- get(as.character(x$formula[2]))
   class(data) <- "data.frame"
-  tib <- as_tibble(data)
-  tib <- tib %>% mutate(rightCensoredEvent = FALSE)
-  # prob need filter for rightCensoredEvents = TRUE
-  if (x$subModel == "rate") {
-    indices <- which(x$orderEvents == 2)
-    censoredTime <- x$eventTime[indices]
-    tibCen <- as_tibble(censoredTime)
+  tib <- tibble::as_tibble(data)
+  N <- nrow(tib)
+  tib$rightCensoredEvent <- rep(FALSE, N)
+  if (x$rightCensored) {
+    censoredTime <- x$eventTime[x$rightCensoredEvents]
+    tibCen <- tibble::as_tibble(censoredTime)
     names(tibCen) <- c("time")
-    tibCen <- tibCen %>% mutate(rightCensoredEvent = TRUE)
-    tibCen <- tibCen %>% mutate(sender = NULL)
-    tibCen <- tibCen %>% mutate(receiver = NULL)
-    tibCen <- tibCen %>% mutate(increment = NULL)
-    tib <- bind_rows(tib, tibCen)
+    N_censored <- nrow(tibCen) 
+    tibCen$rightCensoredEvent <- TRUE
+    tibCen$sender <- rep(NA_character_, N_censored)
+    tibCen$receiver <- rep(NA_character_, N_censored)
+    tibCen$increment <- rep(NA_integer_, N_censored)
+    tib <- rbind(tib, tibCen)
   }
   if (!is.numeric(tib$time)) {
     tib$time <- as.POSIXct(tib$time)
   }
-  tib <- arrange(tib,time)
   tib$intervalLogL <- x$intervalLogL
   return(tib)
 }

@@ -72,16 +72,16 @@ examine_outliers <- function(x,
   }
   if (is.null(x$intervalLogL)) {
     stop(
-      "Outlier identification only available when interval log likelihood",
-      " returned in results object."
+      "Outlier identification only available when interval log likelihood
+      returned in results object."
     )
   }
   method <- match.arg(method)
 
   data <- augment.result.goldfish(x)
   
-  data <- data %>% mutate(label = "")
-  data <- data %>% mutate(outlier = FALSE)
+  data <- data %>% transform(label = "")
+  data <- data %>% transform(outlier = FALSE)
   
   if (method == "Top") {
     outlierIndexes <- order(data$intervalLogL)[1:parameter]
@@ -159,8 +159,8 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
   }
   if (is.null(x$intervalLogL)) {
     stop(
-      "Outlier identification only available when interval log likelihood",
-      " returned in results object."
+      "Changepoint identification only available when interval log likelihood
+      returned in results object."
     )
   }
 
@@ -190,7 +190,7 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
       fromLast = TRUE
     )]
   }
-  data <- data %>% mutate(cpt = FALSE)
+  data <- data %>% transform(cpt = FALSE)
   data$cpt[cpt.pts] <- TRUE
   
   class(data) <- c("diagnostic.goldfish", class(data))
