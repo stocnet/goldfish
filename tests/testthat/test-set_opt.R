@@ -20,7 +20,7 @@ test_that("set_estimation_opt works correctly", {
   expect_null(default_opts$initial_damping) # Defaults to NULL
   expect_equal(default_opts$damping_increase_factor, 2)
   expect_equal(default_opts$damping_decrease_factor, 3)
-  expect_false(default_opts$return_interval_loglik)
+  expect_true(default_opts$return_interval_loglik)
   expect_false(default_opts$return_probabilities)
 
   # Test setting specific parameters

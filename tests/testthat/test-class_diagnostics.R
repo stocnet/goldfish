@@ -97,3 +97,43 @@ test_that(
   }
 )
 
+test_that(
+  "diagnostic methods work on \"rem\" models.",
+  {
+    data("Social_Evolution")
+    callNetwork <- make_network(nodes = actors, directed = TRUE)
+    friendshipNetwork <- make_network(nodes = actors, directed = TRUE)
+    callNetwork <- link_events(
+      x = callNetwork, change_event = calls,
+      nodes = actors
+    )
+    friendshipNetwork <- link_events(
+      x = friendshipNetwork, change_event = friendship,
+      nodes = actors
+    )
+    callsDependent <- make_dependent_events(
+      events = calls, nodes = actors,
+      default_network = callNetwork
+    )
+    socialEvolutionData <- make_data(callsDependent, callNetwork, friendshipNetwork, calls, actors)
+    
+    # this block is required for examine_changepoints otherwise "callsDependent" throws an error
+    assign("callsDependent", callsDependent, envir = .GlobalEnv)
+    on.exit(rm(callsDependent, envir = .GlobalEnv))
+    
+    mod00 <- estimate_rem(
+      callsDependent ~ 1 + indeg + outdeg + indeg(friendshipNetwork),
+      data = socialEvolutionData,
+      control_preprocessing = set_preprocessing_opt(start_time = 0L),
+      control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+      progress = FALSE,
+      verbose = FALSE
+    )
+    
+    p1 <- examine_outliers(mod00, method = "Top", parameter = 2)
+    expect_s3_class(p1, "diagnostic.goldfish")
+    p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")
+    expect_s3_class(p2, "diagnostic.goldfish")
+  }
+)
+

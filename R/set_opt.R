@@ -107,7 +107,7 @@ set_estimation_opt <- function(
   initial_damping = NULL,
   damping_increase_factor = 2,
   damping_decrease_factor = 3,
-  return_interval_loglik = FALSE,
+  return_interval_loglik = TRUE,
   return_probabilities = FALSE,
   engine = c("default_c", "default", "gather_compute")
 ) {
