@@ -1,8 +1,6 @@
 test_that(
   "diagnostic methods throw errors when intervalLogLikelihood isn't present",
   {
-    skip_on_cran()
-    
     mod00 <- estimate_dynam(
       depNetwork ~ inertia ,
       sub_model = "choice",
@@ -21,13 +19,21 @@ test_that(
   }
 )
 
+test_that(
+  "diagnostic methods does not accept non-result objects",
+  {
+    expect_error(examine_outliers(depNetwork, method = "Top", parameter = 2),
+                 "Not a goldfish results object.")
+    expect_error(examine_changepoints(depNetwork, moment = "mean", method = "PELT"),
+                 "Not a goldfish results object.")
+  }
+)
+
 
 
 test_that(
   "diagnostic methods work on \"choice\" models.",
   {
-    skip_on_cran()
-
     mod00 <- estimate_dynam(
       depNetwork ~ inertia + trans + indeg,
       sub_model = "choice",
@@ -40,7 +46,12 @@ test_that(
 
     p1 <- examine_outliers(mod00, method = "Top", parameter = 2)
     expect_s3_class(p1, "diagnostic.goldfish")
+    expect_equal(sum(p1$outlier), 2)
+    p11 <- examine_outliers(mod00, method = "IQR")
+    expect_s3_class(p11, "diagnostic.goldfish")
     p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")
+    expect_s3_class(p2, "diagnostic.goldfish")
+    p21 <- examine_changepoints(mod00, moment = "variance", method = "PELT", window = 2)
     expect_s3_class(p2, "diagnostic.goldfish")
   }
 )
@@ -48,7 +59,6 @@ test_that(
 test_that(
   "diagnostic methods work on \"rate\" models.",
   {
-    skip_on_cran()
     data("Social_Evolution")
     callNetwork <- make_network(nodes = actors, directed = TRUE)
     friendshipNetwork <- make_network(nodes = actors, directed = TRUE)

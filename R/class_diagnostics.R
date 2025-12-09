@@ -80,8 +80,8 @@ examine_outliers <- function(x,
 
   data <- augment.result.goldfish(x)
   
-  data <- data %>% transform(label = "")
-  data <- data %>% transform(outlier = FALSE)
+  data <- transform(data, label = "")
+  data <- transform(data, outlier = FALSE)
   
   if (method == "Top") {
     outlierIndexes <- order(data$intervalLogL)[1:parameter]
@@ -190,7 +190,9 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
       fromLast = TRUE
     )]
   }
-  data <- data %>% transform(cpt = FALSE)
+  
+  
+  data <- transform(data, cpt = FALSE)
   data$cpt[cpt.pts] <- TRUE
   
   class(data) <- c("diagnostic.goldfish", class(data))
