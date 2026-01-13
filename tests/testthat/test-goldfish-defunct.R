@@ -46,3 +46,164 @@ test_that("define dependent events deprecated", {
 # test_that("Deprecated effect functions throw warnings", {
 # 
 # })
+
+test_that("defineNetwork deprecated", {
+  expect_warning(defineNetwork(
+    matrix = networkState, nodes = actorsEx,
+    directed = TRUE
+  ),
+  "deprecated in goldfish 1.7.0.")
+})
+
+test_that("defineDependentEvents deprecated", {
+  expect_warning(defineDependentEvents(
+    events = eventsIncrement,
+    nodes = actorsEx,
+    default_network = networkState
+  )
+  ,
+  "deprecated in goldfish 1.7.0.")
+})
+
+test_that("defineGlobalAttribute deprecated", {
+  expect_warning(defineGlobalAttribute(
+    data.frame(time = 1, replace = 1)
+    ),
+    "deprecated in goldfish 1.7.0.")
+})
+
+test_that("linkEvents deprecated", {
+  compChange1 <- data.frame(
+    node = sprintf("Actor %d", c(5, 4, 4, 1, 5, 1, 5)),
+    time = c(10, 12, 17, 26, 26, 30, 30),
+    replace = c(TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE)
+  )
+  expect_warning(linkEvents(
+    x = actorsEx,
+    change_events = compChange1,
+    attribute = "present"
+  ),
+  "deprecated in goldfish 1.7.0.")
+})
+
+test_that("examineOutliers deprecated", {
+  mod00 <- estimate_dynam(
+    depNetwork ~ inertia + trans + indeg,
+    sub_model = "choice",
+    data = dataTest,
+    control_preprocessing = set_preprocessing_opt(start_time = 0L),
+    control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+    progress = FALSE,
+    verbose = FALSE
+  )
+  expect_warning(examineOutliers(
+    mod00, method = "Top", parameter = 2
+  ),
+  "deprecated in goldfish 1.7.0.")
+})
+
+test_that("examineChangepoints deprecated", {
+  mod00 <- estimate_dynam(
+    depNetwork ~ inertia + trans + indeg,
+    sub_model = "choice",
+    data = dataTest,
+    control_preprocessing = set_preprocessing_opt(start_time = 0L),
+    control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+    progress = FALSE,
+    verbose = FALSE
+  )
+  expect_warning(examineChangepoints(
+    mod00, moment = "mean", method = "PELT"
+  ),
+  "deprecated in goldfish 1.7.0.")
+})
+
+test_that("egoAlterInt deprecated", {
+  expect_warning(
+    # update_REM_choice_ego_alter_interaction(list(testAttr$fishingSkill,testAttr$fishCaught), node = 1, replace = 0, attUpdate = 1, n1 = 8, n2 = 0)
+    egoAlterInt(
+      list(testAttr$fishingSkill,testAttr$fishCaught), node = 1, replace = 0, attUpdate = 1, n1 = 8, n2 = 0
+    ),
+    "deprecated in goldfish 1.7.0."
+  )
+})
+
+test_that("nodeTrans deprecated", {
+  cache <- c(0, 0, 1, 1, 0)
+  expect_warning(
+    nodeTrans(
+      m, 1, 5, 1, cache, 5, 5, type = "alter"
+    ),
+    "deprecated in goldfish 1.7.0."
+  )
+})
+
+test_that("commonSender deprecated", {
+  expect_warning(
+    commonSender(
+      m,
+      sender = 1, receiver = 5, replace = 1,
+      cache = m0
+    ),
+    "deprecated in goldfish 1.7.0."
+  )
+})
+
+test_that("commonReceiver deprecated", {
+  expect_warning(
+    commonReceiver(
+      m,
+      sender = 1, receiver = 5, replace = 1,
+      cache = m0
+    ),
+    "deprecated in goldfish 1.7.0."
+  )
+})
+
+test_that("mixedTrans deprecated", {
+  # update_REM_choice_mixed_trans(list(m,m1), 4, 3, 5, 1, m0)
+  expect_warning(
+    mixedTrans(
+      list(m,m1), 4, 3, 5, 1, m0
+    ),
+    "deprecated in goldfish 1.7.0."
+  )
+})
+
+test_that("mixedCycle deprecated", {
+  # update_REM_choice_mixed_cycle(list(m,m1), 4, 3, 5, 1, m0)
+  expect_warning(
+    mixedCycle(
+      list(m,m1), 4, 3, 5, 1, m0
+    ),
+    "deprecated in goldfish 1.7.0."
+  )
+})
+
+test_that("mixedCommonSender deprecated", {
+  expect_warning(
+    mixedCommonSender(
+      list(m,m1), 4, 3, 5, 1, m0
+    ),
+    "deprecated in goldfish 1.7.0."
+  )
+})
+
+test_that("mixedCommonReceiver deprecated", {
+  expect_warning(
+    mixedCommonReceiver(
+      list(m,m1), 4, 3, 5, 1, m0
+    ),
+    "deprecated in goldfish 1.7.0."
+  )
+})
+
+test_that("tertiusDiff deprecated", {
+  # update_DyNAM_choice_tertius_diff(m, testAttr$fishingSkill, sender = 2, receiver = 3, node = NULL, 3, m0, n1 = 5, n2=5)
+  expect_warning(
+    tertiusDiff(
+      m, testAttr$fishingSkill, sender = 2, receiver = 3, node = NULL, 3, m0, n1 = 5, n2=5
+    ),
+    "deprecated in goldfish 1.7.0."
+  )
+})
