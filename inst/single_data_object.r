@@ -127,11 +127,79 @@ edges_friendship <- as_data_frame(graph_from_adjacency_matrix(timestamp_matrix_2
 total_edges <- edges_calls |>
   rbind(edges_friendship) 
 
-data <- tbl_graph(
+my_data <- tbl_graph(
   nodes = nodes,
   edges = total_edges,
   directed = TRUE
 ) 
-class(data)
-data <- structure(data, class = c("mnet", class(data)))
-data
+class(my_data)
+my_data <- structure(my_data, class = c("mnet", class(my_data)))
+my_data
+
+
+# Sample formulas
+
+friend_spec <- make_specification(
+  rate = list(
+    creation ~ 1 + outdeg(calls),
+    deletion ~ 1 + outdeg(friendship)
+  ),
+  choice = list(
+    creation ~ recip + tie(calls),
+    deletion ~ indeg + alter(floor)
+  ),
+  model = "icecream"
+)
+
+calls_spec <- make_specification(
+  rate = calls ~ 1 + outdeg(calls),
+  choice = calls ~ cycle + tie(friendship),
+  model = "icecream"
+)
+
+coevol <- make_multivariate_spec(
+  friend_spec,
+  calls_spec,
+  data = my_data
+)
+
+
+# Updated sample effects based on the sample specifications
+# In the example specifications we have 6 unique effects in total: 
+#   1. outdegree
+#   2. reciprocity
+#   3. tie
+#   4. indegree
+#   5. alter
+#   6. cycle
+
+effects <- data.frame(
+    gid = c(1, 1, 2, 3, 4, 5, 1, 6, 3),  # Global effect ID (unique across all formulas)
+    type = c("friendship", "friendship", "friendship", "friendship", "friendship", "friendship",
+             "call", "call", "call"),  # "friendship", "call"
+    flavour = c("creation", "deletion", 
+                "creation",  "creation", "deletion", "deletion", 
+                "call", "call", "call"),  # "creation", "deletion", "call"
+    submodel = c("rate", "rate",
+                 "choice", "choice", "choice", "choice", 
+                 "rate", "choice", "choice"),  # "rate", "choice"
+    effect_name = c("outdeg", "outdeg", "recip", "tie", "indeg", "alter", "outdeg", "cycle", "tie"),  # "indeg", "recip", "tie", etc.
+    lid = c(1, 1, 2, 2, 1, 2, 1, 2, 3),  # Local ID within this specific formula
+    param_id = c(1, 2, 3, 4, 5, 6, 7, 8, 9),  # Position in global parameter vector
+    stringsAsFactors = FALSE
+  )
+
+# Updated sample formulas based on the sample specifications
+formulas <- data.frame(
+    fid = c(1, 2, 3, 4, 5, 6),  # Global formula ID (unique across all formulas)
+    type = c("friendship", "friendship", "friendship", "friendship", "call", "call"),  # "friendship", "call"
+    flavour = c("creation", "deletion", "creation", "deletion", "call", "call"),  # "creation", "deletion", NA_character_
+    submodel = c("rate", "rate", "choice", "choice", "rate", "choice"),  # "rate", "choice"
+    intercept = c(TRUE, TRUE, FALSE, FALSE, TRUE, FALSE),  # Logical for intercept
+    gids = I(list(c(1), c(1), c(2, 3), c(4, 5), c(1), c(6, 3))),  # Grouped effect IDs
+    stringsAsFactors = FALSE
+  )
+
+
+  
+
