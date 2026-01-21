@@ -201,5 +201,85 @@ formulas <- data.frame(
   )
 
 
-  
+ #### Sample of events to effects matrix
+
+# From the sample data, we have 711 (events), 439 calls and 272 friendship changes 
+my_data %>% activate(edges) %>% as_tibble %>% nrow()
+my_data %>% activate(edges) %>% as_tibble %>% filter(type == "friendship") %>% nrow()
+my_data %>% activate(edges) %>% as_tibble %>% filter(type == "call") %>% nrow()
+
+
+# Then the matrix will have 711 rows and 6 columns (one for each unique effect)
+event_effect_link = matrix(0, nrow = 711, ncol = 6)
+
+aux_rows <- which(as_tibble(my_data, active = "edges")$type == "friendship")
+event_effect_link[aux_rows, c(1,2,3,4,5)] <- 1
+aux_rows <- which(as_tibble(my_data, active = "edges")$type == "call")
+event_effect_link[aux_rows, c(1,3,6)] <- 1
+
+
+## Sample separating by submodel 
+event_effect_link = list(rate = matrix(0, nrow = 711, ncol = 6),
+                          choice = matrix(0, nrow = 711, ncol = 6))     
+
+
+aux_rows <- which(as_tibble(my_data, active = "edges")$type == "friendship")
+event_effect_link$rate[aux_rows, c(1)] <- 1
+event_effect_link$choice[aux_rows, c(2,3,4,5)] <- 1
+
+aux_rows <- which(as_tibble(my_data, active = "edges")$type == "call")
+event_effect_link$rate[aux_rows, c(1)] <- 1
+event_effect_link$choice[aux_rows, c(3,6)] <- 1
+
+
+ #### Sample of events to objects matrix
+ # The objects are: friendship net, calls net, floor attribute
+ # The mateix will have 711 rows (events) and 3 columns (objects)
+event_object_link = matrix(0, nrow = 711, ncol = 3)
+col_names(event_object_link) <- c("friendship", "calls", "floor")
+
+aux_rows <- which(as_tibble(my_data, active = "edges")$type == "friendship")
+event_object_link[aux_rows, c(1,2,3)] <- 1  # friendship, calls and floor are involved in friendship changes
+aux_rows <- which(as_tibble(my_data, active = "edges")$type == "call")
+event_object_link[aux_rows, c(1,2)] <- 1  # friendship and calls are involved in call events
+
+## Sample separating by submodel
+event_object_link = list(rate = matrix(0, nrow = 711, ncol = 3),
+                         choice = matrix(0, nrow = 711, ncol = 3))     
+col_names(event_object_link$rate) <- c("friendship", "calls", "floor")
+col_names(event_object_link$choice) <- c("friendship", "calls", "floor")  
+
+aux_rows <- which(as_tibble(my_data, active = "edges")$type == "friendship")
+event_object_link$rate[aux_rows, c(1,2)] <- 1  # friendship, calls are involved in friendship changes
+event_object_link$choice[aux_rows, c(1,2,3)] <- 1  # friendship, calls and floor are involved in friendship changes
+aux_rows <- which(as_tibble(my_data, active = "edges")$type == "call")
+event_object_link$rate[aux_rows, c(2)] <- 1  # friendship and calls are involved in call events
+event_object_link$choice[aux_rows, c(1,2)] <- 1  # friendship and calls are involved in call events 
+
+
+#### Sample of objects to effects matrix 
+# The matrix will have 3 rows (objects) and 6 columns (effects)
+object_effect_link = matrix(0, nrow = 3, ncol = 6)
+col_names(object_effect_link) <- c("outdeg", "recip", "tie",
+                                    "indeg", "alter", "cycle")      
+row_names(object_effect_link) <- c("friendship", "calls", "floor")
+object_effect_link["friendship", c("outdeg", "recip", "tie", "indeg", "alter")] <- 1
+object_effect_link["calls", c("outdeg", "recip", "tie", "cycle")] <- 1
+object_effect_link["floor", c("alter")] <- 1  
+
+## Sample separating by submodel
+object_effect_link = list(rate = matrix(0, nrow = 3, ncol = 6),
+                          choice = matrix(0, nrow = 3, ncol = 6))     
+col_names(object_effect_link$rate) <- c("outdeg", "recip", "tie",
+                                    "indeg", "alter", "cycle")      
+col_names(object_effect_link$choice) <- c("outdeg", "recip", "tie",
+                                    "indeg", "alter", "cycle")
+row_names(object_effect_link$rate) <- c("friendship", "calls", "floor")
+row_names(object_effect_link$choice) <- c("friendship", "calls", "floor")
+object_effect_link$rate["friendship", c("outdeg")] <- 1
+object_effect_link$choice["friendship", c("recip", "tie", "indeg", "alter")] <- 1
+object_effect_link$rate["calls", c("outdeg")] <- 1
+object_effect_link$choice["calls", c("recip", "tie", "cycle")] <- 1
+object_effect_link$choice["floor", c("alter")] <- 1    
+
 
