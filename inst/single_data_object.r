@@ -153,7 +153,7 @@ friend_spec <- make_specification(
 
 calls_spec <- make_specification(
   rate = calls ~ 1 + outdeg(calls),
-  choice = calls ~ cycle + tie(friendship),
+  choice = calls ~ cycle + tie(friendship) + mixed_trans(list(friendship, calls)),
   model = "icecream"
 )
 
@@ -172,20 +172,21 @@ coevol <- make_multivariate_spec(
 #   4. indegree
 #   5. alter
 #   6. cycle
+#   7. mixed_trans
 
 effects <- data.frame(
-    gid = c(1, 1, 2, 3, 4, 5, 1, 6, 3),  # Global effect ID (unique across all formulas)
+    gid = c(1, 1, 2, 3, 4, 5, 1, 6, 3, 7),  # Global effect ID (unique across all formulas)
     type = c("friendship", "friendship", "friendship", "friendship", "friendship", "friendship",
-             "call", "call", "call"),  # "friendship", "call"
+             "call", "call", "call", "call"),  # "friendship", "call"
     flavour = c("creation", "deletion", 
                 "creation",  "creation", "deletion", "deletion", 
-                "call", "call", "call"),  # "creation", "deletion", "call"
+                "call", "call", "call", "call"),  # "creation", "deletion", "call"
     submodel = c("rate", "rate",
                  "choice", "choice", "choice", "choice", 
-                 "rate", "choice", "choice"),  # "rate", "choice"
-    effect_name = c("outdeg", "outdeg", "recip", "tie", "indeg", "alter", "outdeg", "cycle", "tie"),  # "indeg", "recip", "tie", etc.
-    lid = c(1, 1, 2, 2, 1, 2, 1, 2, 3),  # Local ID within this specific formula
-    param_id = c(1, 2, 3, 4, 5, 6, 7, 8, 9),  # Position in global parameter vector
+                 "rate", "choice", "choice", "choice"),  # "rate", "choice"
+    effect_name = c("outdeg", "outdeg", "recip", "tie", "indeg", "alter", "outdeg", "cycle", "tie", "mixed_trans"),  # "indeg", "recip", "tie", etc.
+    lid = c(1, 1, 1, 2, 1, 2, 1, 1, 2, 3, 4),  # Local ID within this specific formula
+    param_id = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),  # Position in global parameter vector
     stringsAsFactors = FALSE
   )
 
@@ -196,7 +197,7 @@ formulas <- data.frame(
     flavour = c("creation", "deletion", "creation", "deletion", "call", "call"),  # "creation", "deletion", NA_character_
     submodel = c("rate", "rate", "choice", "choice", "rate", "choice"),  # "rate", "choice"
     intercept = c(TRUE, TRUE, FALSE, FALSE, TRUE, FALSE),  # Logical for intercept
-    gids = I(list(c(1), c(1), c(2, 3), c(4, 5), c(1), c(6, 3))),  # Grouped effect IDs
+    gids = I(list(c(1), c(1), c(2, 3), c(4, 5), c(1), c(6, 3, 7))),  # Grouped effect IDs
     stringsAsFactors = FALSE
   )
 
@@ -210,27 +211,26 @@ my_data %>% activate(edges) %>% as_tibble %>% filter(type == "call") %>% nrow()
 
 
 # Then the matrix will have 711 rows and 6 columns (one for each unique effect)
-event_effect_link = matrix(0, nrow = 711, ncol = 6)
+event_effect_link = matrix(0, nrow = 711, ncol = 7)
 
 aux_rows <- which(as_tibble(my_data, active = "edges")$type == "friendship")
-event_effect_link[aux_rows, c(1,2,3,4,5)] <- 1
+event_effect_link[aux_rows, c(1,2,3,4,5,7)] <- 1
 aux_rows <- which(as_tibble(my_data, active = "edges")$type == "call")
-event_effect_link[aux_rows, c(1,3,6)] <- 1
+event_effect_link[aux_rows, c(1,3,6,7)] <- 1
 
 
 ## Sample separating by submodel 
-event_effect_link = list(rate = matrix(0, nrow = 711, ncol = 6),
-                          choice = matrix(0, nrow = 711, ncol = 6))     
+event_effect_link = list(rate = matrix(0, nrow = 711, ncol = 7),
+                          choice = matrix(0, nrow = 711, ncol = 7))     
 
 
 aux_rows <- which(as_tibble(my_data, active = "edges")$type == "friendship")
 event_effect_link$rate[aux_rows, c(1)] <- 1
-event_effect_link$choice[aux_rows, c(2,3,4,5)] <- 1
+event_effect_link$choice[aux_rows, c(2,3,4,5,7)] <- 1
 
 aux_rows <- which(as_tibble(my_data, active = "edges")$type == "call")
 event_effect_link$rate[aux_rows, c(1)] <- 1
-event_effect_link$choice[aux_rows, c(3,6)] <- 1
-
+event_effect_link$choice[aux_rows, c(3,6,7)] <- 1
 
  #### Sample of events to objects matrix
  # The objects are: friendship net, calls net, floor attribute
@@ -258,28 +258,29 @@ event_object_link$choice[aux_rows, c(1,2)] <- 1  # friendship and calls are invo
 
 
 #### Sample of objects to effects matrix 
-# The matrix will have 3 rows (objects) and 6 columns (effects)
-object_effect_link = matrix(0, nrow = 3, ncol = 6)
+# The matrix will have 3 rows (objects) and 7 columns (effects)
+object_effect_link = matrix(0, nrow = 3, ncol = 7)
 col_names(object_effect_link) <- c("outdeg", "recip", "tie",
-                                    "indeg", "alter", "cycle")      
+                                    "indeg", "alter", "cycle", "mixed_trans")      
 row_names(object_effect_link) <- c("friendship", "calls", "floor")
-object_effect_link["friendship", c("outdeg", "recip", "tie", "indeg", "alter")] <- 1
-object_effect_link["calls", c("outdeg", "recip", "tie", "cycle")] <- 1
+object_effect_link["friendship", c("outdeg", "recip", "tie", "indeg", "alter", "mixed_trans")] <- 1
+object_effect_link["calls", c("outdeg", "recip", "tie", "cycle", "mixed_trans")] <- 1
 object_effect_link["floor", c("alter")] <- 1  
 
 ## Sample separating by submodel
-object_effect_link = list(rate = matrix(0, nrow = 3, ncol = 6),
-                          choice = matrix(0, nrow = 3, ncol = 6))     
+object_effect_link = list(rate = matrix(0, nrow = 3, ncol = 7),
+                          choice = matrix(0, nrow = 3, ncol = 7))     
 col_names(object_effect_link$rate) <- c("outdeg", "recip", "tie",
-                                    "indeg", "alter", "cycle")      
+                                    "indeg", "alter", "cycle", "mixed_trans")      
 col_names(object_effect_link$choice) <- c("outdeg", "recip", "tie",
                                     "indeg", "alter", "cycle")
 row_names(object_effect_link$rate) <- c("friendship", "calls", "floor")
 row_names(object_effect_link$choice) <- c("friendship", "calls", "floor")
+
 object_effect_link$rate["friendship", c("outdeg")] <- 1
-object_effect_link$choice["friendship", c("recip", "tie", "indeg", "alter")] <- 1
+object_effect_link$choice["friendship", c("recip", "tie", "indeg", "alter","mixed_trans")] <- 1
 object_effect_link$rate["calls", c("outdeg")] <- 1
-object_effect_link$choice["calls", c("recip", "tie", "cycle")] <- 1
+object_effect_link$choice["calls", c("recip", "tie", "cycle", "mixed_trans")] <- 1
 object_effect_link$choice["floor", c("alter")] <- 1    
 
 
