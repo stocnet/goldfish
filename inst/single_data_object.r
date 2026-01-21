@@ -101,13 +101,29 @@ edges_calls <- calls |>
   mutate(type = "call") |>
   mutate(flavour = "call")
 
-edges_friendship <- friendship |>
-  rename(from = sender, to = receiver, increment = replace) |>
-  mutate(
-    type = "friendship",
-    flavour = ifelse(increment == 1, "creation", "deletion")
-  )  
+# Define adjacency matrices with the nodeset as `nodes`
+timestamp_matrix_1 <- friendship |>
+  filter(time == unique(time)[1]) |>
+  select(2, 3) |>
+  graph_from_data_frame(directed = TRUE, vertices = nodes) |>
+  as_adjacency_matrix()
 
+timestamp_matrix_2 <- friendship |>
+  filter(time == unique(time)[2]) |>
+  select(2, 3) |>
+  graph_from_data_frame(directed = TRUE, vertices = nodes) |>
+  as_adjacency_matrix()
+
+# Define edges_friendship as the changes between timestamp_matrix_1 and timestamp_matrix_2, recording the difference in an `increment` column
+edges_friendship <- as_data_frame(graph_from_adjacency_matrix(timestamp_matrix_2 - timestamp_matrix_1, mode = "directed", weighted = TRUE)) |>
+  rename(increment = weight) |>
+  filter(increment != 0) |>
+  mutate(
+    time = unique(friendship$time)[1],
+    type = "friendship",
+    flavour = ifelse(increment > 0, "creation", "deletion")
+  )
+ 
 total_edges <- edges_calls |>
   rbind(edges_friendship) 
 
