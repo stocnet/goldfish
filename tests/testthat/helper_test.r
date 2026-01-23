@@ -1,93 +1,11 @@
 # Helper functions for tests
-# ...existing code from single_data_object.r...
+# Not sure if loading of libraries is needed.
 library(dplyr)
 library(purrr)
 library(manynet)
 library(igraph)
 library(tidygraph)
-library(goldfish)
 
-# data("Fisheries_Treaties_6070")
-
-# edgesFisheries <- bilatchanges |>
-#   rename(from = sender, to = receiver) |>
-#   mutate(type = "bilateral") |>
-#   rbind(
-#     contigchanges |>
-#       rename(from = sender, to = receiver) |>
-#       mutate(
-#         type = "contiguity",
-#         increment = ifelse(replace == 1, 1, -1)
-#       ) |>
-#       select(-replace)
-#   ) |>
-#   mutate(prev_history = FALSE) |>
-#   rbind(
-#     bilatnet |>
-#       graph_from_adjacency_matrix(mode = "directed", weighted = "increment") |>
-#       igraph::as_data_frame(what = "edges") |>
-#       mutate(
-#         time = NA,
-#         prev_history = TRUE,
-#         type = "bilateral"
-#       )
-#   ) |>
-#   rbind(
-#     contignet |>
-#       graph_from_adjacency_matrix(
-#         mode = "undirected",
-#         weighted = "increment"
-#       ) |>
-#       igraph::as_data_frame(what = "edges") |>
-#       mutate(
-#         time = NA,
-#         prev_history = TRUE,
-#         type = "contiguity"
-#       )
-#   )
-
-
-# changesFisheries <- sovchanges |>
-#   as_tibble() |>
-#   mutate(
-#     var = "active",
-#     replace = map(replace, ~.x)
-#   ) |>
-#   rbind(
-#     regchanges |>
-#       as_tibble() |>
-#       mutate(
-#         var = "regime",
-#         replace = map(replace, ~.x)
-#       )
-#   ) |>
-#   rbind(
-#     gdpchanges |>
-#       as_tibble() |>
-#       mutate(
-#         var = "gdp",
-#         replace = map(replace, ~.x)
-#       )
-#   ) |>
-#   rename(value = replace) |>
-#   select(time, node, var, value)
-
-# nodesFisheries <- states |>
-#   rename(active = present)
-
-
-# dataFisheries <- tbl_graph(
-#   nodes = nodesFisheries,
-#   edges = edgesFisheries,
-#   directed = TRUE
-# ) |>
-#   add_changes(changesFisheries)
-
-# class(dataFisheries)
-# ?add_changes
-
-
-# Example with data Social Evolution:
 
 data("Social_Evolution")
 # Small description of the data: 
@@ -134,11 +52,12 @@ my_data <- tbl_graph(
   edges = total_edges,
   directed = TRUE
 ) 
-class(my_data)
 my_data <- structure(my_data, class = c("mnet", class(my_data)))
-my_data
 
+start_time <- unique(friendship$time)[1]
+end_time <- unique(friendship$time)[2]
 
+ 
 # Sample formulas
 
 friend_spec <- make_specification(
@@ -179,142 +98,117 @@ coevol <- make_multivariate_spec(
 #   9. mixed_trans(friendship,calls)
 
 
-# OBJECTO PARA RATE CON TODOS LOS LINKS Y OTRO PARA CHOICE, NO HACE FALTA ESPECIFICAR SUBMODEL EN EFFECTS O FORMULAS
 
-effects <- data.frame(
-    gid = c(1,2,3,4,6,7,1,8,5,9),  # Global effect ID (unique across all formulas)
-    submodel = c("rate", "rate",
-                 "choice", "choice", "choice", "choice", 
-                 "rate", "choice", "choice", "choice"),  # "rate", "choice"
-    effect_name = c("outdeg", "outdeg", "recip", "tie", "indeg", "alter", "outdeg", "cycle", "tie", "mixed_trans"),  # "indeg", "recip", "tie", etc.
-   # lid = c(1, 1, 1, 2, 1, 2, 1, 1, 2, 3, 4),  # Local ID within this specific formula
-    object = I(list("calls", "friendship",
-               "friendship", "calls", "friendship", "floor",
-               "calls", "calls", "friendship", c("friendship", "calls"))),  # Object(s) the effect depends on
-    params = I(list(0,0,c(0,0),c(0,0),0,c(0,0,0))),  # List of parameters with defaults
-    fids = c(1,2,3,3,4,4,5,6,6,6),  # Formula IDs where this effect is used
-    supp_const = c(1,2,NA,NA,NA,NA,3,NA,NA,NA),
+# Examples of the input data contest for preprocessing.
+
+formulas_rate <- data.frame(
+    fid = c(1, 2, 5),  # Global formula ID (unique across all formulas)
+    type = c("friendship", "friendship", "call"),  # "friendship", "call"
+    flavour = c("creation", "deletion", "call"),  # "creation", "deletion", NA_character_
+    intercept = c(TRUE, TRUE, TRUE),  # Logical for intercept
+)
+formulas_choice <- data.frame(
+    fid = c(3, 4, 6),  # Global formula ID (unique across all formulas)
+    type = c("friendship", "friendship", "call"),  # "friendship", "call"
+    flavour = c("creation", "deletion", "call"),  # "creation", "deletion", NA_character_
+    intercept = c(FALSE, FALSE, FALSE),  # Logical for intercept
+)
+
+
+effects_rate = data.frame(
+    gid = c(1, 2),              # Global effect ID (unique across all formulas)
+    effect_name = c("outdeg", "outdeg"),    # "indeg", "recip", "tie", etc.
+    object = I(list("calls", "friendship")),         # Object/event(s) the effect depends on, a character vector of arguments in the order given by the effect call
+    params = I(list(c(0,0),0)),          # List of parameters with defaults (or additional variables)
     stringsAsFactors = FALSE
-  )
+)
 
-formulas <- data.frame(
-    fid = c(1, 2, 3, 4, 5, 6),  # Global formula ID (unique across all formulas)
-    type = c("friendship", "friendship", "friendship", "friendship", "call", "call"),  # "friendship", "call"
-    flavour = c("creation", "deletion", "creation", "deletion", "call", "call"),  # "creation", "deletion", NA_character_
-  #  dependent_events = c("friend.crea", "friend.del", "friend.crea", "friend.del", "call", "call"),  # Name of the dependent events
-    submodel = c("rate", "rate", "choice", "choice", "rate", "choice"),  # "rate", "choice"
-    intercept = c(TRUE, TRUE, FALSE, FALSE, TRUE, FALSE),  # Logical for intercept
-  #  gids = I(list(c(1), c(1), c(2, 3), c(4, 5), c(1), c(6, 3, 7)))  # Grouped effect IDs
-  )
+effects_choice = data.frame(
+    gid = c(3, 4, 5, 6, 7, 8, 9),              # Global effect ID (unique across all formulas)
+    effect_name = c("recip",  "tie", "tie", "indeg", "alter", "cycle", "mixed_trans"),    # "indeg", "recip", "tie", etc.
+    object = I(list("friendship", "calls", "friendship", "friendship", "floor", "calls", c("friendship", "calls"))),         # Object/event(s) the effect depends on, a character vector of arguments in the order given by the effect call
+    params = I(list(0,0,0,0,0,0,0)),          # List of parameters with defaults (or additional variables)
+    stringsAsFactors = FALSE
+)
 
-eventos son los tibbles originales 
+# rows = gids, cols = fids, values = lid (or NA/0)
+formulas_effects_rate = matrix(0, nrow = 2, ncol = 3)
+col_names(formulas_effects_rate) <- c(1,2,5)  # fids
+row_names(formulas_effects_rate) <- c(1,2)    # gids
+formulas_effects_rate[1, c(1,3)] <- 1  # outdeg(calls) in formula 1 and 
+formulas_effects_rate[2, c(2)] <- 1  # outdeg(friendship) in formula 2  
+
+formulas_effects_choice = matrix(0, nrow = 7, ncol = 3)
+col_names(formulas_effects_choice) <- c(3,4,6)  # fids
+row_names(formulas_effects_choice) <- c(3,4,5,6,7,8,9)    # gids
+formulas_effects_choice[, 1] <- c(1,2,rep(0,5)) #lids
+formulas_effects_choice[, 2] <- c(0,0,0,1,2,0,0) # lids
+formulas_effects_choice[, 3] <- c(0,0,2,0,0,1,3) # lids
+
 # Assume in the following:
 objects <- list (
   "networks" = array(0, dim = c(84, 84, 2), dimnames = list(NULL, NULL, c("friendship", "calls"))),  # 2 networks
   "nodal_covariate" = matrix(0, nrow = 84, ncol = 3, dimnames = list(NULL, c("present","floor","gradeType")))  # 1 nodal covariate
 )
 
- objects_meta = data.frame(
+objects_meta_rate = data.frame(
     oid = c(1,2,1,2,3),              # Object ID: position in the respective object (matrix/array)
     name = c("friendship", "calls", "present", "floor", "gradeType"),        # Covariate name, network name
     class = c("numeric","numeric","lgl","numeric","numeric"),        # "factor", "numeric"
     missing = c(FALSE, FALSE, FALSE, FALSE, TRUE),            # Is there missing data?
-    gid = I(list(2,3,5,6,9),c(1,4,8,9),NULL,c(7),NULL),            # effect IDs,
+    gid = I(list(2),c(1),NULL,NULL,NULL),            # effect IDs,
     kind = c("network", "network", "nodal_covariate", "nodal_covariate", "nodal_covariate")         # "nodal_covariate", "network"
+)
+
+objects_meta_choice = data.frame(
+    oid = c(1,2,1,2,3),              # Object ID: position in the respective object (matrix/array)
+    name = c("friendship", "calls", "present", "floor", "gradeType"),        # Covariate name, network name
+    class = c("numeric","numeric","lgl","numeric","numeric"),        # "factor", "numeric"
+    missing = c(FALSE, FALSE, FALSE, FALSE, TRUE),            # Is there missing data?
+    gid = I(list(3,5,6,9),c(4,8,9),NULL,c(7),NULL),            # effect IDs,
+    kind = c("network", "network", "nodal_covariate", "nodal_covariate", "nodal_covariate")         # "nodal_covariate", "network"
+)
+
+
+event_effect_link_rate = matrix(0, nrow = 5, ncol = 2)
+row_names(event_effect_link_rate) <- c("friendship", "calls","present", "floor", "gradeType")    
+colnames(event_effect_link_rate) <- c(1,2)
+event_effect_link_rate["friendship", 1] <- 1
+event_effect_link_rate["calls", 1] <- 1
+
+event_effect_link_choice = matrix(0, nrow = 5, ncol = 7)
+row_names(event_effect_link_choice) <- c("friendship", "calls","present", "floor", "gradeType")    
+colnames(event_effect_link_choice) <- c(3,4,5,6,7,8,9)
+event_effect_link_choice["friendship", c(1,3,4,7)] <- 1
+event_effect_link_choice["calls", c(2,6)] <- 1
+event_effect_link_choice["calls", 7] <- 2
+event_effect_link_choice["floor", 5] <- 1
+
+
+parsing_info <- list(
+  # Submodel-specific data
+  rate = list(
+    effects = effects_rate,      # As defined in section 2.2
+    formulas = formulas_rate,    # As defined in section 2.2
+
+    # Linking tables (shared)
+    object_registry = objects_meta_rate,
+    event_effects = event_effect_link_rate,
+    formula_effects = formulas_effects_rate
+
+  ),
+
+  choice = list(
+    effects = effects_choice,      # As defined in section 2.2
+    formulas = formulas_choice,    # As defined in section 2.2
+
+    # Linking tables (shared)
+    object_registry = objects_meta_choice,
+    event_effects = event_effect_link_choice,
+    formula_effects = formulas_effects_choice
+  ),
+
+  rem = list(
+
   )
-
-
-
-
-#### Sample of object effects link
-# The matrix will have 5 rows (objects) and 9 columns (effects)
-object_effect_link = matrix(0, nrow = 5, ncol = 9)
-col_names(object_effect_link) <- c("outdegree(calls)", "outdegree(friendship)", "recip",
-                                   "tie(calls)", "tie(friendship)", "indegree",
-                                   "alter(floor)", "cycle", "mixed_trans(friendship,calls)")
-row_names(object_effect_link) <- c("friendship", "calls", "present", "floor", "gradeType")
-
-object_effect_link["friendship", c(2,3,5,6,9)] <- 1 # same info as objects meta?
-object_effect_link["calls", c(1,4,8,9)] <- 1
-object_effect_link["floor", c(7)] <- 1  
-
-## Sample separating by submodel
-object_effect_link = list(rate = matrix(0, nrow = 5, ncol = 9),
-                          choice = matrix(0, nrow = 5, ncol = 9))     
-col_names(object_effect_link$rate) <- c("outdegree(calls)", "outdegree(friendship)", "recip",
-                                   "tie(calls)", "tie(friendship)", "indegree",
-                                   "alter(floor)", "cycle", "mixed_trans(friendship,calls)")
-col_names(object_effect_link$choice) <- c("outdegree(calls)", "outdegree(friendship)", "recip",
-                                   "tie(calls)", "tie(friendship)", "indegree",
-                                   "alter(floor)", "cycle", "mixed_trans(friendship,calls)")
-row_names(object_effect_link$rate) <- c("friendship", "calls", "present", "floor", "gradeType")
-row_names(object_effect_link$choice) <- c("friendship", "calls", "present", "floor", "gradeType")
-
-object_effect_link$rate["friendship", 2] <- 1
-object_effect_link$choice["friendship",  c(2,3,5,6,9)] <- 1
-object_effect_link$rate["calls", 1] <- 1
-object_effect_link$choice["calls", c(4,8,9)] <- 1
-object_effect_link$choice["floor", c(7)] <- 1    
-
-
-#### Sample of event object link: 
-# The matrix will have 5 rows (objects) and 9 columns (effects)
-
-#  #### Sample of events to effects matrix
-
-# # From the sample data, we have 711 (events), 439 calls and 272 friendship changes 
-# my_data %>% activate(edges) %>% as_tibble %>% nrow()
-# my_data %>% activate(edges) %>% as_tibble %>% filter(type == "friendship") %>% nrow()
-# my_data %>% activate(edges) %>% as_tibble %>% filter(type == "call") %>% nrow()
-
-
-# # Then the matrix will have 711 rows and 7 columns (one for each unique effect)
-# event_effect_link = matrix(0, nrow = 711, ncol = 7)
-
-# aux_rows <- which(as_tibble(my_data, active = "edges")$type == "friendship")
-# event_effect_link[aux_rows, c(1,2,3,4,5,7)] <- 1
-# aux_rows <- which(as_tibble(my_data, active = "edges")$type == "call")
-# event_effect_link[aux_rows, c(1,3,6,7)] <- 1
-
-
-# ## Sample separating by submodel 
-# event_effect_link = list(rate = matrix(0, nrow = 711, ncol = 7),
-#                           choice = matrix(0, nrow = 711, ncol = 7))     
-
-
-# aux_rows <- which(as_tibble(my_data, active = "edges")$type == "friendship")
-# event_effect_link$rate[aux_rows, c(1)] <- 1
-# event_effect_link$choice[aux_rows, c(2,3,4,5,7)] <- 1
-
-# aux_rows <- which(as_tibble(my_data, active = "edges")$type == "call")
-# event_effect_link$rate[aux_rows, c(1)] <- 1
-# event_effect_link$choice[aux_rows, c(3,6,7)] <- 1
-
-#  #### Sample of events to objects matrix
-#  # The objects are: friendship net, calls net, floor attribute
-#  # The matrix will have 711 rows (events) and 3 columns (objects)
-# event_object_link = matrix(0, nrow = 711, ncol = 3)
-# col_names(event_object_link) <- c("friendship", "calls", "floor")
-
-# aux_rows <- which(as_tibble(my_data, active = "edges")$type == "friendship")
-# event_object_link[aux_rows, c(1,2,3)] <- 1  # friendship, calls and floor are involved in friendship changes
-# aux_rows <- which(as_tibble(my_data, active = "edges")$type == "call")
-# event_object_link[aux_rows, c(1,2)] <- 1  # friendship and calls are involved in call events
-
-# ## Sample separating by submodel
-# event_object_link = list(rate = matrix(0, nrow = 711, ncol = 3),
-#                          choice = matrix(0, nrow = 711, ncol = 3))     
-# col_names(event_object_link$rate) <- c("friendship", "calls", "floor")
-# col_names(event_object_link$choice) <- c("friendship", "calls", "floor")  
-
-# aux_rows <- which(as_tibble(my_data, active = "edges")$type == "friendship")
-# event_object_link$rate[aux_rows, c(1,2)] <- 1  # friendship, calls are involved in friendship changes
-# event_object_link$choice[aux_rows, c(1,2,3)] <- 1  # friendship, calls and floor are involved in friendship changes
-# aux_rows <- which(as_tibble(my_data, active = "edges")$type == "call")
-# event_object_link$rate[aux_rows, c(2)] <- 1  # friendship and calls are involved in call events
-# event_object_link$choice[aux_rows, c(1,2)] <- 1  # friendship and calls are involved in call events 
-
-
-
-# NOTES : 
-# Window events creates a new object : in phaes 1 filtering events
+)
