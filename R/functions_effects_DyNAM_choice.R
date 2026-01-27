@@ -2487,10 +2487,16 @@ init_DyNAM_choice.four <- function(
   
   # if (anyNA(network)) network[is.na(network)] <- 0
   # has window or is empty initialize empty
-  if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
+  if (!is.null(window) && !is.infinite(window)) {
     return(list(
-      cache = matrix(0, nrow = n1, ncol = n2),
-      stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2)
+      cache = matrix(0, nrow = n1, ncol = n2, dimnames =  list(
+        sprintf("Actor %d", 1:n1),
+        sprintf("Actor %d", 1:n2)
+      )),
+      stat = matrix(forceAndCall(1, funApply, 0), nrow = n1, ncol = n2, dimnames =  list(
+        sprintf("Actor %d", 1:n1),
+        sprintf("Actor %d", 1:n2)
+      ))
     ))
   }
   # always weighted
@@ -2513,8 +2519,12 @@ init_DyNAM_choice.four <- function(
   ## i==j&& l==k which is essentially i -> j
   stat_3 <- network
   stat <- unname(stat - stat_1 - stat_2 + stat_3)
-  
+  dimnames(stat) <- list(
+  sprintf("Actor %d", 1:n1),
+  sprintf("Actor %d", 1:n2)
+)
   # cache = list(stat = stat, network_old = network)
+  
   return(list(
     cache = stat,
     stat = forceAndCall(1, funApply, stat)

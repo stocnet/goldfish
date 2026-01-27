@@ -97,3 +97,16 @@ test_that("init mixed_trans initialises empty when it has a window or is empty",
     effectFUN, list(m,m1), 1, 5, 5)$cache,
     matrix(0, nrow = 5, ncol = 5))
 })
+
+test_that("REM and DyNAM mixed_trans return the same result", {
+  expect_equal(
+    init_REM_choice.mixed_trans(effectFUN, list(m, m1), 1, 5, 5),
+    init_DyNAM_choice.mixed_trans(effectFUN, list(m, m1), 1, 5, 5),
+    label = "for init"
+  )
+  expect_equal(
+    update_REM_choice_mixed_trans(list(m, m1), 4, 3, 5, 1, m0),
+    update_DyNAM_choice_mixed_trans(list(m, m1), 4, 3, 5, 1, m0),
+    label = "for update"
+  )
+})

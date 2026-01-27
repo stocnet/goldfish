@@ -139,4 +139,25 @@ test_that("common_receiver init returns an error when n1 != n2", {
     regexp = "Dimensions of the two-mode network are not conformable")
 })
 
+test_that("REM and DyNAM common_receiver return the same result", {
 
+  expect_equal(
+    init_REM_choice.common_receiver(effectFUN_closure, m1, 1, 5, 5),
+    init_DyNAM_choice.common_receiver(effectFUN_closure, m1, 1, 5, 5),
+    label = "REM and DyNAM init return different results"
+  )
+
+  expect_equal(
+    update_REM_choice_common_receiver(
+      m,
+      sender = 1, receiver = 5, replace = 1,
+      cache = m0
+    ),
+    update_DyNAM_choice_common_receiver(
+      m,
+      sender = 1, receiver = 5, replace = 1,
+      cache = m0
+    ),
+    label = "REM and DyNAM update return different results"
+  )
+})

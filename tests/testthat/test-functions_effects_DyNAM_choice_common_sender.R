@@ -134,3 +134,25 @@ test_that("common_sender init returns the correct result", {
     init_DyNAM_choice.common_sender(effectFUN_closure, m1, NULL, 5, 5)$cache,
     unname(crossprod(sign(m1))))
 })
+
+test_that("REM and DyNAM common_sender return the same result", {
+  expect_equal(
+    init_REM_choice.common_sender(effectFUN_closure, m1, 1, 5, 5),
+    init_DyNAM_choice.common_sender(effectFUN_closure, m1, 1, 5, 5),
+    label = "REM and DyNAM common_sender init return different results"
+  )
+  
+  expect_equal(
+    update_REM_choice_common_sender(
+      m,
+      sender = 1, receiver = 5, replace = 1,
+      cache = m0
+    ),
+    update_DyNAM_choice_common_sender(
+      m,
+      sender = 1, receiver = 5, replace = 1,
+      cache = m0
+    ),
+    label = "REM and DyNAM common_sender update return different results"
+  )
+})

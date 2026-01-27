@@ -35,3 +35,16 @@ test_that("init mixed_common_receiver checks two-mode and dimensions", {
 test_that("init mixed_common_receiver initialises empty when it has a window or is empty", {
   expect_equal(init_DyNAM_choice.mixed_common_receiver(effectFUN, list(m, m1), 3, 5, 5)$cache, matrix(0, nrow = 5, ncol = 5))
 })
+
+test_that("REM and DyNAM mixed_common_receiver return the same result", {
+  expect_equal(
+    init_REM_choice.mixed_common_receiver(effectFUN, list(m, m1), 1, 5, 5),
+    init_DyNAM_choice.mixed_common_receiver(effectFUN, list(m, m1), 1, 5, 5),
+    label = "for init"
+  )
+  expect_equal(
+    update_REM_choice_mixed_common_receiver(list(m, m1), 5, 3, 2, 1, m0),
+    update_DyNAM_choice_mixed_common_receiver(list(m, m1), 5, 3, 2, 1, m0),
+    label = "for update"
+  )
+})

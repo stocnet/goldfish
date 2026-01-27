@@ -31,3 +31,52 @@ test_that("init mixed_cycle handles dimensions and windows", {
   # Window init (should be empty)
   expect_type(init_DyNAM_choice.mixed_cycle(effectFUN, list(m, m1), 1, 5, 5), "list")
 })
+
+test_that("mixed_cycle returns a valid object on update", {
+  expect_type(update_DyNAM_choice_mixed_cycle(list(m, m1), 4, 3, 5, 1, m0), "list")
+  expect_type(update_DyNAM_choice_mixed_cycle(list(m, m1), 1, 5, 5, 2, m0), "list")
+})
+
+test_that("mixed_cycle doesn't update when replace == oldValue", {
+  expect_equal(update_DyNAM_choice_mixed_cycle(list(m, m1), 4, 3, 0, 1, m0)$cache, m0)
+  expect_equal(update_DyNAM_choice_mixed_cycle(list(m, m1), 1, 5, 0, 2, m0)$cache, m0)
+})
+
+test_that("update_mixed_cycle doesn't update when sender == receiver", {
+  expect_equal(update_DyNAM_choice_mixed_cycle(list(m, m1), 4, 4, 5, 1, m0)$cache, m0)
+})
+
+test_that("update_mixed_cycle throws error for wrong netUpdate", {
+  expect_error(
+    update_DyNAM_choice_mixed_cycle(list(m, m1), 4, 3, 5, 3, m0),
+    "Check that you only declare two networks as argument."
+  )
+})
+
+test_that("init mixed_cycle handles dimensions and windows", {
+  expect_type(init_DyNAM_choice.mixed_cycle(effectFUN, list(m, m1), NULL, 5, 5), "list")
+  expect_error(init_DyNAM_choice.mixed_cycle(effectFUN, list(m, m1), NULL, 4, 5), "Non conformable dimensions sizes")
+  expect_type(init_DyNAM_choice.mixed_cycle(effectFUN, list(m, m1), 1, 5, 5), "list")
+})
+
+test_that("REM and DyNAM common_receiver return the same result", {
+  expect_equal(
+    init_REM_choice.common_receiver(effectFUN_closure, m1, 1, 5, 5),
+    init_DyNAM_choice.common_receiver(effectFUN_closure, m1, 1, 5, 5),
+    label = "REM and DyNAM init return different results"
+  )
+  
+  expect_equal(
+    update_REM_choice_common_receiver(
+      m,
+      sender = 1, receiver = 5, replace = 1,
+      cache = m0
+    ),
+    update_DyNAM_choice_common_receiver(
+      m,
+      sender = 1, receiver = 5, replace = 1,
+      cache = m0
+    ),
+    label = "REM and DyNAM update return different results"
+  )
+})

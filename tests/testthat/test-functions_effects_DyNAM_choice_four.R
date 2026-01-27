@@ -90,5 +90,20 @@ test_that("four recognizes tie creation correctly", {
   )
 })
 
-# test_that("four recognizes tie deletion correctly", {
-# })
+test_that("init four initialises empty when it has a window or is empty", {
+  expect_equal(init_DyNAM_choice.four(effectFUN, m0, NULL, 5, 5)$cache, m0)
+  expect_equal(init_DyNAM_choice.four(effectFUN, m, 1, 5, 5)$cache, m0)
+})
+
+test_that("REM and DyNAM four return the same result", {
+  expect_equal(
+    init_REM_choice.four(effectFUN, m, 1, 5, 5),
+    init_DyNAM_choice.four(effectFUN, m, 1, 5, 5),
+    label = "for init"
+  )
+  expect_equal(
+    update_REM_choice_four(m, 1, 5, 1, m0),
+    update_DyNAM_choice_four(m, 1, 5, 1, m0),
+    label = "for update"
+  )
+})
