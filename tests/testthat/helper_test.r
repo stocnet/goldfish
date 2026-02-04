@@ -35,7 +35,11 @@ timestamp_matrix_2 <- friendship |>
   as_adjacency_matrix()
 
 # Define edges_friendship as the changes between timestamp_matrix_1 and timestamp_matrix_2, recording the difference in an `increment` column
-edges_friendship <- as_data_frame(graph_from_adjacency_matrix(timestamp_matrix_2 - timestamp_matrix_1, mode = "directed", weighted = TRUE)) |>
+edges_friendship <- as_data_frame(graph_from_adjacency_matrix(
+  timestamp_matrix_2 - timestamp_matrix_1,
+  mode = "directed",
+  weighted = TRUE
+)) |>
   rename(increment = weight) |>
   filter(increment != 0) |>
   mutate(
@@ -86,7 +90,9 @@ friend_spec <- make_specification(
 
 calls_spec <- make_specification(
   rate = calls ~ 1 + outdeg(calls),
-  choice = calls ~ cycle + tie(friendship) + mixed_trans(list(friendship, calls)),
+  choice = calls ~ cycle +
+    tie(friendship) +
+    mixed_trans(list(friendship, calls)),
   model = "icecream"
 )
 
@@ -108,7 +114,6 @@ coevol <- make_multivariate_spec(
 #   7. alter(floor)
 #   8. cycle
 #   9. mixed_trans(friendship,calls)
-
 
 # Examples of the input data contest for preprocessing.
 
@@ -136,8 +141,24 @@ effects_rate <- data.frame(
 
 effects_choice <- data.frame(
   gid = c(3, 4, 5, 6, 7, 8, 9), # Global effect ID (unique across all formulas)
-  effect_name = c("recip", "tie", "tie", "indeg", "alter", "cycle", "mixed_trans"), # "indeg", "recip", "tie", etc.
-  object = I(list("friendship", "calls", "friendship", "friendship", "floor", "calls", c("friendship", "calls"))), # Object/event(s) the effect depends on, a character vector of arguments in the order given by the effect call
+  effect_name = c(
+    "recip",
+    "tie",
+    "tie",
+    "indeg",
+    "alter",
+    "cycle",
+    "mixed_trans"
+  ), # "indeg", "recip", "tie", etc.
+  object = I(list(
+    "friendship",
+    "calls",
+    "friendship",
+    "friendship",
+    "floor",
+    "calls",
+    c("friendship", "calls")
+  )), # Object/event(s) the effect depends on, a character vector of arguments in the order given by the effect call
   args = I(list(0, 0, 0, 0, 0, 0, 0)), # List of parameters with defaults (or additional variables)
   stringsAsFactors = FALSE
 )
@@ -158,8 +179,17 @@ formulas_effects_choice[, 3] <- c(0, 0, 2, 0, 0, 1, 3) # lids
 
 # Assume in the following:
 objects <- list(
-  "networks" = array(0, dim = c(84, 84, 2), dimnames = list(NULL, NULL, c("friendship", "calls"))), # 2 networks
-  "nodal_covariate" = matrix(0, nrow = 84, ncol = 3, dimnames = list(NULL, c("present", "floor", "gradeType"))) # 1 nodal covariate
+  "networks" = array(
+    0,
+    dim = c(84, 84, 2),
+    dimnames = list(NULL, NULL, c("friendship", "calls"))
+  ), # 2 networks
+  "nodal_covariate" = matrix(
+    0,
+    nrow = 84,
+    ncol = 3,
+    dimnames = list(NULL, c("present", "floor", "gradeType"))
+  ) # 1 nodal covariate
 )
 
 objects_meta_rate <- data.frame(
@@ -168,7 +198,13 @@ objects_meta_rate <- data.frame(
   class = c("numeric", "numeric", "lgl", "numeric", "numeric"), # "factor", "numeric"
   missing = c(FALSE, FALSE, FALSE, FALSE, TRUE), # Is there missing data?
   gid = I(list(2), c(1), NULL, NULL, NULL), # effect IDs,
-  kind = c("network", "network", "nodal_covariate", "nodal_covariate", "nodal_covariate") # "nodal_covariate", "network"
+  kind = c(
+    "network",
+    "network",
+    "nodal_covariate",
+    "nodal_covariate",
+    "nodal_covariate"
+  ) # "nodal_covariate", "network"
 )
 
 objects_meta_choice <- data.frame(
@@ -177,18 +213,36 @@ objects_meta_choice <- data.frame(
   class = c("numeric", "numeric", "lgl", "numeric", "numeric"), # "factor", "numeric"
   missing = c(FALSE, FALSE, FALSE, FALSE, TRUE), # Is there missing data?
   gid = I(list(3, 5, 6, 9), c(4, 8, 9), NULL, c(7), NULL), # effect IDs,
-  kind = c("network", "network", "nodal_covariate", "nodal_covariate", "nodal_covariate") # "nodal_covariate", "network"
+  kind = c(
+    "network",
+    "network",
+    "nodal_covariate",
+    "nodal_covariate",
+    "nodal_covariate"
+  ) # "nodal_covariate", "network"
 )
 
 
 event_effect_link_rate <- matrix(0, nrow = 5, ncol = 2)
-rownames(event_effect_link_rate) <- c("friendship", "calls", "present", "floor", "gradeType")
+rownames(event_effect_link_rate) <- c(
+  "friendship",
+  "calls",
+  "present",
+  "floor",
+  "gradeType"
+)
 colnames(event_effect_link_rate) <- c(1, 2)
 event_effect_link_rate["friendship", 2] <- 1
 event_effect_link_rate["calls", 1] <- 1
 
 event_effect_link_choice <- matrix(0, nrow = 5, ncol = 7)
-rownames(event_effect_link_choice) <- c("friendship", "calls", "present", "floor", "gradeType")
+rownames(event_effect_link_choice) <- c(
+  "friendship",
+  "calls",
+  "present",
+  "floor",
+  "gradeType"
+)
 colnames(event_effect_link_choice) <- c(3, 4, 5, 6, 7, 8, 9)
 event_effect_link_choice["friendship", c(1, 3, 4, 7)] <- 1
 event_effect_link_choice["calls", c(2, 6)] <- 1

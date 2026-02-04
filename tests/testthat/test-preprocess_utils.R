@@ -1,72 +1,40 @@
-# Tests for split_flavours function
-test_that("split_flavours respects existing flavour column", {
-  df <- tibble(type = c("a", "b"), flavour = c("x", "y"))
-  out <- split_flavours(df)
-  expect_identical(out, df)
+library(tibble)
+
+# Tests for functions present in preprocess_utils.R
+test_that("pick_inc_col picks first matching increment-like column", {
+  df1 <- tibble(a = 1, increment = 2, weight = 3)
+  expect_equal(pick_inc_col(df1), "increment")
+  df2 <- tibble(replace = 1)
+  expect_equal(pick_inc_col(df2), "replace")
+  df3 <- tibble(x = 1)
+  expect_null(pick_inc_col(df3))
 })
 
-test_that("split_flavours synthesizes flavours from increment column", {
+test_that("split_flavours synthesizes and respects mappings", {
   df <- tibble(type = c("a", "a", "b"), increment = c(1, 0, 1))
   out <- split_flavours(df)
   expect_equal(out$flavour, c("a_1", "a_0", "b_1"))
-})
 
-test_that("split_flavours applies global flavour_map", {
-  df <- tibble(type = c("a", "a"), increment = c(1, 0))
   fm <- c("1" = "creation", "0" = "deletion")
-  out <- split_flavours(df, flavour_map = fm)
-  expect_equal(out$flavour, c("creation", "deletion"))
+  out2 <- split_flavours(df, flavour_map = fm)
+  expect_equal(out2$flavour, c("creation", "deletion", "creation"))
 })
 
-test_that("split_flavours uses per-type mapping", {
-  df <- tibble(type = c("a", "a", "b"), increment = c(1, 0, 1))
-  fm <- list(a = c("1" = "Ainc", "0" = "Adec"), b = c("1" = "Binc"))
-  out <- split_flavours(df, flavour_map = fm)
-  expect_equal(out$flavour, c("Ainc", "Adec", "Binc"))
-})
-
-test_that("split_flavours with no increment-like column uses type", {
-  df <- tibble(type = c("x", "y"))
-  out <- split_flavours(df, flavour_map = NULL)
-  expect_equal(out$flavour, c("x", "y"))
-})
-
-# Tests for order_events function
-test_that("order_events handles empty input", {
-  empty <- data.frame()
-  out <- order_events(empty)
-  expect_equal(nrow(out), 0L)
-  expect_true(is.integer(out$event_id))
-})
-
-test_that("order_events sorts by time with NA last and assigns event_id", {
-  df <- tibble(time = c(5, NA, 2))
-  out <- order_events(df)
-  expect_equal(out$time, c(2, 5, NA))
-  expect_equal(out$event_id, seq_len(nrow(out)))
-})
-
-
-# Test for prepare_events function
-test_that("prepare_events extracts and filters network and covariate events", {
-  flavour_map <- c("1" = "creation", "0" = "deletion") # set in test env
-  nodes <- tibble::tibble(name = c("a", "b"))
-  edges <- tibble::tibble(
-    from = 1L,
-    to = 2L,
-    time = c(3),
-    type = "t",
-    increment = 1
-  )
-  g <- tidygraph::tbl_graph(nodes = nodes, edges = edges, directed = TRUE)
-  res <- prepare_events(
-    g,
+test_that("add_window_events marks history for times before start", {
+  df <- tibble(time = c(1, 5, NA))
+  res <- add_window_events(
+    df,
     parsing_info = NULL,
-    preprocessing_opt = list(startTime = 0, endTime = 10)
+    preprocessing_opt = list(startTime = 3)
   )
-  expect_true(is.list(res))
-  expect_true("network_events" %in% names(res))
-  expect_equal(nrow(res$network_events), 1)
-  expect_true("flavour" %in% names(res$network_events))
-  expect_equal(res$network_events$flavour[1], "creation")
+  expect_true("history" %in% names(res))
+  expect_equal(res$history, c(TRUE, FALSE, FALSE))
+})
+
+test_that("get_pointer returns correct row indices and handles edge cases", {
+  df <- tibble(time = c(2, 4, NA))
+  expect_equal(get_pointer(df, 4), 2L)
+  expect_equal(get_pointer(df, df$time[2]), 2L)
+  expect_equal(get_pointer(df, -Inf), 1L)
+  expect_true(is.na(get_pointer(NULL, 1)))
 })

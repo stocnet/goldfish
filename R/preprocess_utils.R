@@ -1,3 +1,12 @@
+# helper to pick the column to inspect for increment-like values
+pick_inc_col <- function(df) {
+    cols <- intersect(names(df), c("increment", "replace", "weight"))
+    if (length(cols) == 0) {
+        return(NULL)
+    }
+    cols[1]
+}
+
 split_flavours <- function(
     events_tbl,
     flavour_map = c("1" = "creation", "0" = "deletion")
@@ -5,14 +14,6 @@ split_flavours <- function(
     # If flavour column already exists and has non-NA values, leave it alone
     if ("flavour" %in% names(events_tbl) && any(!is.na(events_tbl$flavour))) {
         return(events_tbl)
-    }
-
-    # helper to pick the column to inspect for increment-like values
-    pick_inc_col <- function(df) {
-        for (nm in c("increment", "replace", "weight")) {
-            if (nm %in% names(df)) return(nm)
-        }
-        return(NULL)
     }
 
     inc_col <- pick_inc_col(events_tbl)
@@ -151,27 +152,45 @@ add_window_events <- function(events_tbl, parsing_info, preprocessing_opt) {
         return(events_tbl)
     }
     if (!"history" %in% names(events_tbl)) {
-        events_tbl$history <- FALSE
+        events_tbl <- dplyr::mutate(events_tbl, history = FALSE)
     }
-    events_tbl$history <- ifelse(
-        !is.na(events_tbl$time) & events_tbl$time < start_time,
-        TRUE,
-        events_tbl$history
+    events_tbl <- dplyr::mutate(
+        events_tbl,
+        history = dplyr::coalesce(history, FALSE),
+        history = dplyr::if_else(
+            !is.na(time) & time < start_time,
+            TRUE,
+            history
+        )
     )
     return(events_tbl)
 }
 
-order_events <- function(tbl) {
-    if (nrow(tbl) == 0) {
-        tbl$event_id <- integer()
-        return(tbl)
+#' @importFrom tibble rowid_to_column
+#' @importFrom dplyr filter slice_head pull
+get_pointer <- function(tbl, time) {
+    if (is.null(tbl)) {
+        return(NA_integer_)
     }
-    # order with NA last
-    ord <- order(tbl$time, na.last = TRUE)
-    out <- tibble::as_tibble(tbl[ord, , drop = FALSE])
-    out$event_id <- seq_len(nrow(out))
-    return(out)
+    if (!is.finite(time)) {
+        return(1L)
+    }
+
+    if (!"time" %in% names(tbl)) {
+        return(NA_integer_)
+    }
+    target_time <- time
+    idx <- tbl %>%
+        tibble::rowid_to_column('.orig_row') %>%
+        dplyr::filter(!is.na(.data$time) & .data$time >= target_time) %>%
+        dplyr::slice_head(n = 1) %>%
+        dplyr::pull(.data$.orig_row)
+    if (length(idx) == 0) {
+        return(NA_integer_)
+    }
+    as.integer(idx[1])
 }
+
 
 prepare_events <- function(
     data,
@@ -186,98 +205,55 @@ prepare_events <- function(
     } else {
         -Inf
     }
-    endTime <- if (!is.null(preprocessing_opt$endTime)) {
-        preprocessing_opt$endTime
+    end_time <- if (!is.null(preprocessing_opt$end_time)) {
+        preprocessing_opt$end_time
     } else {
         Inf
     }
 
-    ties_tbl <- tryCatch(
-        {
-            data %>%
-                activate(edges) %>%
-                as_tibble()
-        },
-        error = function(e) NULL
-    )
+    ties_tbl <- data %>%
+        activate(edges) %>%
+        as_tibble()
 
-    changes_tbl <- tryCatch(
-        {
-            data %>%
-                activate(changes) %>%
-                as_tibble()
-        },
-        error = function(e) NULL
-    )
+    changes_tbl <- igraph::graph_attr(data, "changes")
 
-    # Filter by parsing_info types/objects if provided
-    if (!is.null(parsing_info)) {
-        types_keep <- NULL
-        if (!is.null(parsing_info$types)) {
-            types_keep <- unique(as.character(parsing_info$types))
-        } else if (
-            !is.null(parsing_info$objects) &&
-                is.data.frame(parsing_info$objects)
-        ) {
-            if ("name" %in% names(parsing_info$objects)) {
-                types_keep <- unique(as.character(parsing_info$objects$name))
-            }
-        }
-        if (!is.null(types_keep) && length(types_keep) > 0) {
-            ties_tbl <- dplyr::filter(
-                ties_tbl,
-                is.na(type) | type %in% types_keep
-            )
-        }
+    # Ties: filter and order
+    if (!is.infinite(end_time)) {
+        ties_tbl <- dplyr::filter(ties_tbl, is.na(time) | time <= end_time)
     }
+    ties_tbl <- dplyr::arrange(ties_tbl, is.na(time), time)
 
-    ties_tbl <- split_flavours(
-        ties_tbl,
-        flavour_map = flavour_map
-    )
-
-    ties_tbl <- add_window_events(ties_tbl, parsing_info, preprocessing_opt)
-
-    # Keep events in observation window or history events required to reconstruct initial state
-    if (!is.infinite(startTime)) {
-        keep_idx <- ties_tbl$history |
-            is.na(ties_tbl$time) |
-            ties_tbl$time >= startTime
-    } else {
-        keep_idx <- rep(TRUE, nrow(ties_tbl))
-    }
-    if (!is.infinite(endTime)) {
-        keep_idx <- keep_idx & (is.na(ties_tbl$time) | ties_tbl$time <= endTime)
-    }
-    ties_tbl <- ties_tbl[keep_idx, , drop = FALSE]
-    ties_tbl <- order_events(ties_tbl)
+    pointer <- get_pointer(ties_tbl, start_time)
 
     # Covariate changes: filter and order
     if (!is.null(changes_tbl) && nrow(changes_tbl) > 0) {
-        keep_ch <- rep(TRUE, nrow(changes_tbl))
-        if (!is.infinite(startTime)) {
-            keep_ch <- keep_ch &
-                (is.na(changes_tbl$time) | changes_tbl$time >= startTime)
+        # if (!is.infinite(startTime)) {
+        #     changes_tbl <- dplyr::filter(
+        #         changes_tbl,
+        #         is.na(time) | time >= startTime
+        #     )
+        # }
+        if (!is.infinite(end_time)) {
+            changes_tbl <- dplyr::filter(
+                changes_tbl,
+                is.na(time) | time <= end_time
+            )
         }
-        if (!is.infinite(endTime)) {
-            keep_ch <- keep_ch &
-                (is.na(changes_tbl$time) | changes_tbl$time <= endTime)
-        }
-        changes_tbl <- changes_tbl[keep_ch, , drop = FALSE]
-        if (nrow(changes_tbl) > 0) {
-            changes_tbl <- tibble::as_tibble(changes_tbl[
-                order(changes_tbl$time, na.last = TRUE),
-                ,
-                drop = FALSE
-            ])
-            changes_tbl$change_id <- seq_len(nrow(changes_tbl))
-        }
-    }
 
+        changes_tbl <- dplyr::arrange(changes_tbl, is.na(time), time)
+        pointer <- c(pointer, get_pointer(changes_tbl, startTime))
+    } else {
+        pointer <- c(pointer, NA)
+    }
+    pointer <- purrr::set_names(
+        pointer,
+        c("network_events", "covariate_events")
+    )
     return(
         list(
             network_events = ties_tbl,
-            covariate_events = changes_tbl
+            covariate_events = changes_tbl,
+            pointer = pointer
         )
     )
 }
