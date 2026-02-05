@@ -1,4 +1,14 @@
 # helper to pick the column to inspect for increment-like values
+#' Pick increment-like column
+#'
+#' Choose the first available column name among the common increment-like
+#' candidates (`increment`, `replace`, `weight`) present in `df`.
+#'
+#' @param df A data.frame or tibble.
+#' @return A character scalar with the selected column name or `NULL` if
+#'   none of the candidate columns are present.
+#' @keywords internal
+#' @noRd
 pick_inc_col <- function(df) {
     cols <- intersect(names(df), c("increment", "replace", "weight"))
     if (length(cols) == 0) {
@@ -7,6 +17,22 @@ pick_inc_col <- function(df) {
     cols[1]
 }
 
+#' Split events into flavours
+#'
+#' Derive a `flavour` column for `events_tbl` based on an `increment`-like
+#' column or a provided `flavour_map`. The `flavour` is useful to distinguish
+#' sub-types of the same event type (for example creation vs deletion).
+#'
+#' @param events_tbl A data.frame/tibble of event rows with at least a
+#'   `type` column and optionally `increment`/`replace`/`weight` columns.
+#' @param flavour_map Either a named character vector mapping increment
+#'   values to flavour names (applied globally), or a named list mapping
+#'   per-type values. If `NULL` or empty, flavours are synthesized from the
+#'   values present in the increment-like column.
+#' @return The input `events_tbl` with a `flavour` character column added or
+#'   left intact when already present and non-NA.
+#' @keywords internal
+#' @noRd
 split_flavours <- function(
     events_tbl,
     flavour_map = c("1" = "creation", "0" = "deletion")
@@ -143,6 +169,19 @@ split_flavours <- function(
     return(events_tbl)
 }
 
+#' Mark rows that belong to the initialization window
+#'
+#' Add or update a logical `history` column indicating whether each event
+#' occurred before the preprocessing `startTime`. Rows with `time < startTime`
+#' get `history = TRUE`.
+#'
+#' @param events_tbl A data.frame/tibble containing an event `time` column.
+#' @param parsing_info (Unused) placeholder for compatibility with parsing
+#'   workflow.
+#' @param preprocessing_opt A list that may contain `startTime` numeric.
+#' @return `events_tbl` with a `history` logical column.
+#' @keywords internal
+#' @noRd
 add_window_events <- function(events_tbl, parsing_info, preprocessing_opt) {
     if (is.null(preprocessing_opt) || is.null(preprocessing_opt$startTime)) {
         return(events_tbl)
@@ -168,6 +207,20 @@ add_window_events <- function(events_tbl, parsing_info, preprocessing_opt) {
 
 #' @importFrom tibble rowid_to_column
 #' @importFrom dplyr filter slice_head pull
+#' Find pointer to first row at or after a target time
+#'
+#' Locate the first row index in `tbl` whose `time` is greater than or
+#' equal to `time`. Returns `1` when `time` is not finite (start of table),
+#' and `NA_integer_` when no matching row exists or `tbl` lacks a `time`
+#' column.
+#'
+#' @param tbl A data.frame/tibble with a `time` column.
+#' @param time Numeric target time.
+#' @return Integer scalar row index (1-based) or `NA_integer_`.
+#' @importFrom tibble rowid_to_column
+#' @importFrom dplyr filter slice_head pull
+#' @keywords internal
+#' @noRd
 get_pointer <- function(tbl, time) {
     if (is.null(tbl)) {
         return(NA_integer_)
@@ -192,6 +245,23 @@ get_pointer <- function(tbl, time) {
 }
 
 
+#' Prepare event tables for preprocessing
+#'
+#' Extract and filter `network_events` (edges) and `covariate_events`
+#' (graph attribute `changes`) from `data`, apply time windowing and order
+#' rows. Returns a list with both tables and a `pointer` giving starting
+#' indices for each table relative to a `startTime`.
+#'
+#' @param data A tidygraph/igraph graph object where edges represent tie
+#'   events and graph attribute `changes` (accessible via
+#'   `igraph::graph_attr(data, "changes")`) holds covariate change events.
+#' @param parsing_info Placeholder for compatibility; not used.
+#' @param preprocessing_opt A list that can contain `startTime` and
+#'   `end_time` to filter the events.
+#' @return A list with elements `network_events`, `covariate_events`, and
+#'   `pointer` (named integer vector of start indices).
+#' @keywords internal
+#' @noRd
 prepare_events <- function(
     data,
     parsing_info = NULL,
