@@ -1,6 +1,3 @@
-library(tibble)
-
-# Tests for functions present in preprocess_utils.R
 test_that("pick_inc_col picks first matching increment-like column", {
   df1 <- tibble(a = 1, increment = 2, weight = 3)
   expect_equal(pick_inc_col(df1), "increment")

@@ -64,7 +64,7 @@ end_time <- unique(friendship$time)[2]
 
 networks_meta <- data.frame(
   # Network properties
-  type = c("friendship", "calls"), # or "calls"
+  type = c("friendship", "call"), # or "calls"
   data_type = c("panel", "relational_events"), # or "relational_events"
   directed = c(TRUE, TRUE),
   two_mode = c(FALSE, FALSE),
@@ -72,6 +72,9 @@ networks_meta <- data.frame(
   # Event processing
   event_update_type = c("increment", "increment") # or "replace"
 )
+
+# Attach networks_meta to the mnet object
+attr(my_data, "networks_meta") <- as_tibble(networks_meta)
 
 
 # Sample formulas
@@ -272,3 +275,37 @@ parsed_info <- list(
   ),
   rem = list()
 )
+
+# nodes <- data.frame(
+#     label = 1:30,
+#     active = TRUE,
+#     type_1 = rep(c("agent", "no-agent", "no-member"), each = 10),
+#     type_2 = rep(c("agent", "no-agent", "no-member"), times = c(10, 0, 20)),
+#     type_3 = rep(c("no-member", "agent", "no-agent"), times = c(10, 10, 10))
+# )
+
+# networks_meta <- data.frame(
+#     # Network properties
+#     type = c("friendship", "calls", "likes"), # or "calls"
+#     data_type = c("panel", "relational_events", "relational_events"), # or "relational_events"
+#     directed = c(TRUE, TRUE, TRUE),
+#     two_mode = c(TRUE, FALSE, TRUE),
+#     nodeset_def = c("type_1", "type_2", "type_3"), # node attribute indicating agency when two-mode, and active nodes for a one-mode
+#     # Event processing
+#     event_update_type = c("increment", "increment", "increment") # or "replace"
+# )
+
+# table_result <- matrix(0, nrow = 3, ncol = 3)
+# colnames(table_result) <- c("friendship", "calls", "likes")
+# rownames(table_result) <- c("1-10", "11-20", "21-30")
+# table_result[,] <- c(
+#     1,
+#     1,
+#     0,
+#     1,
+#     0,
+#     0,
+#     0,
+#     1,
+#     1
+# )
