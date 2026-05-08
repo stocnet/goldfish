@@ -78,12 +78,12 @@ test_that(
     )
     expect_equal(
       preproData$event_sender,
-      c(1, 3, -999, 2, 2, -999, 5, 1, -999, 3, 3, -999, 4, 2, 5, 1),
+      c(1, 3, 4, 2, 2, 2, 5, 1, 4, 3, 3, 1, 4, 2, 5, 1),
       label = "sender events"
     )
     expect_equal(
       preproData$event_receiver,
-      c(2, 2, -999, 3, 3, -999, 1, 5, -999, 4, 4, -999, 2, 3, 2, 2),
+      c(2, 2, 2, 3, 3, 3, 1, 5, 5, 4, 4, 3, 2, 3, 2, 2),
       label = "receiver events"
     )
     expect_equal(
@@ -186,12 +186,12 @@ test_that(
     )
     expect_equal(
       preproData$event_sender,
-      c(2, -999, 5, 1, -999, 3, 3, -999, 4, 2, -999),
+      c(2, 2, 5, 1, 4, 3, 3, 1, 4, 2, 5),
       label = "sender events"
     )
     expect_equal(
       preproData$event_receiver,
-      c(3, -999, 1, 5, -999, 4, 4, -999, 2, 3, -999),
+      c(3, 3, 1, 5, 5, 4, 4, 3, 2, 3, 2),
       label = "receiver events"
     )
     expect_equal(
@@ -293,12 +293,12 @@ test_that(
     )
     expect_equal(
       preproData$event_sender,
-      c(3, -999, 2, 2, -999, 5, 1, -999, 3, 3, -999),
+      c(3, 4, 2, 2, 2, 5, 1, 4, 3, 3, 4),
       label = "sender events"
     )
     expect_equal(
       preproData$event_receiver,
-      c(2, -999, 3, 3, -999, 1, 5, -999, 4, 4, -999),
+      c(2, 2, 3, 3, 3, 1, 5, 5, 4, 4, 2),
       label = "receiver events"
     )
     expect_equal(

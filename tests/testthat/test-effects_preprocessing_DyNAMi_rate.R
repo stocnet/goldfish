@@ -15,7 +15,13 @@ test_that(
 
     updFun <- function(stat, change) {
       if (!is.null(change)) {
-        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        if ("node2" %in% colnames(change)) {
+          stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        } else {
+          for (k in seq_len(nrow(change))) {
+            stat[change[k, "node1"], ] <- change[k, "replace"]
+          }
+        }
       }
       return(stat)
     }
@@ -163,7 +169,13 @@ test_that(
 
     updFun <- function(stat, change) {
       if (!is.null(change)) {
-        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        if ("node2" %in% colnames(change)) {
+          stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        } else {
+          for (k in seq_len(nrow(change))) {
+            stat[change[k, "node1"], ] <- change[k, "replace"]
+          }
+        }
       }
       return(stat)
     }
@@ -417,7 +429,13 @@ test_that(
 
     updFun <- function(stat, change) {
       if (!is.null(change)) {
-        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        if ("node2" %in% colnames(change)) {
+          stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        } else {
+          for (k in seq_len(nrow(change))) {
+            stat[change[k, "node1"], ] <- change[k, "replace"]
+          }
+        }
       }
       return(stat)
     }
@@ -727,7 +745,13 @@ test_that(
 
     updFun <- function(stat, change) {
       if (!is.null(change)) {
-        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        if ("node2" %in% colnames(change)) {
+          stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        } else {
+          for (k in seq_len(nrow(change))) {
+            stat[change[k, "node1"], ] <- change[k, "replace"]
+          }
+        }
       }
       return(stat)
     }
@@ -1191,7 +1215,13 @@ test_that(
 
     updFun <- function(stat, change) {
       if (!is.null(change)) {
-        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        if ("node2" %in% colnames(change)) {
+          stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        } else {
+          for (k in seq_len(nrow(change))) {
+            stat[change[k, "node1"], ] <- change[k, "replace"]
+          }
+        }
       }
       return(stat)
     }
@@ -1529,7 +1559,13 @@ test_that(
 
     updFun <- function(stat, change) {
       if (!is.null(change)) {
-        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        if ("node2" %in% colnames(change)) {
+          stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        } else {
+          for (k in seq_len(nrow(change))) {
+            stat[change[k, "node1"], ] <- change[k, "replace"]
+          }
+        }
       }
       return(stat)
     }
@@ -1869,7 +1905,13 @@ test_that(
 
     updFun <- function(stat, change) {
       if (!is.null(change)) {
-        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        if ("node2" %in% colnames(change)) {
+          stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        } else {
+          for (k in seq_len(nrow(change))) {
+            stat[change[k, "node1"], ] <- change[k, "replace"]
+          }
+        }
       }
       return(stat)
     }
@@ -2081,7 +2123,13 @@ test_that(
 
     updFun <- function(stat, change) {
       if (!is.null(change)) {
-        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        if ("node2" %in% colnames(change)) {
+          stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        } else {
+          for (k in seq_len(nrow(change))) {
+            stat[change[k, "node1"], ] <- change[k, "replace"]
+          }
+        }
       }
       return(stat)
     }
@@ -2230,7 +2278,13 @@ test_that(
 
     updFun <- function(stat, change) {
       if (!is.null(change)) {
-        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        if ("node2" %in% colnames(change)) {
+          stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+        } else {
+          for (k in seq_len(nrow(change))) {
+            stat[change[k, "node1"], ] <- change[k, "replace"]
+          }
+        }
       }
       return(stat)
     }

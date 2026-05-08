@@ -42,11 +42,10 @@ estimate_int <- function(
   ## SET VARIABLES
 
   minDampingFactor <- initialDamping
-  # CHANGED MARION
-  # nParams: number of effects + 1 (if has intercept)
-  nParams <- dim(statsList$initialStats)[3] - length(excludeParameters) +
-    hasIntercept
-  #
+  is_rate_model <- modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
+  nParams <- (if (is_rate_model) ncol(statsList$initialStats)
+              else dim(statsList$initialStats)[3]) -
+    length(excludeParameters) + hasIntercept
   parameters <- initialParameters
   if (is.null(initialParameters)) parameters <- numeric(nParams)
   # deal with fixedParameters
@@ -105,69 +104,44 @@ estimate_int <- function(
 
   if (verbose) cat("Reducing data\n")
 
-  # CHANGED MARION: add colOnly and rowOnly in a smart way for the estimation
-  reduceMatrixToVector <- FALSE
-  reduceArrayToMatrix <- FALSE
-  if (modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")) {
-    reduceMatrixToVector <- TRUE
-  } else if (modelType == "DyNAM-M") {
-    reduceArrayToMatrix <- TRUE
-  }
+  reduceArrayToMatrix <- modelType == "DyNAM-M"
 
-  # CHANGED MARION: updated function
-  # for rate model with intercept,
-  # add a table of all 1 to the statsList$initStats
   statsList <- modifyStatisticsList(
     statsList = statsList,
     modelType = modelType,
-    reduceMatrixToVector = reduceMatrixToVector,
     reduceArrayToMatrix = reduceArrayToMatrix,
     excludeParameters = excludeParameters,
     addInterceptEffect = hasIntercept
   )
 
-  # CHANGED MARION: handle composition changes for
-  # counting average number of actors
-  # and remove absent actors for each estimation step
-
   ## GET COMPOSITION CHANGES
-  compChangeName1 <- attr(nodes, "events")[
-    "present" == attr(nodes, "dynamic_attribute")
-  ]
-  hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
+  hasCompChange1 <- length(statsList$active_mode1_changes) > 0
+  hasCompChange2 <- length(statsList$active_mode2_changes) > 0 &&
+    !is_rate_model
 
-  compChangeName2 <- attr(nodes2, "events")[
-    "present" == attr(nodes2, "dynamic_attribute")
-  ]
-  hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0 &&
-    !modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
-
-  if (hasCompChange1) {
-    compChange1 <- get(compChangeName1, envir = prepEnvir) # add prepEnvir
-    compChange1 <- sanitizeEvents(compChange1, nodes, envir = prepEnvir)
+  compChange1 <- if (hasCompChange1) {
+    data.frame(
+      time = vapply(statsList$active_mode1_changes, `[[`, double(1), "time"),
+      node = vapply(statsList$active_mode1_changes, `[[`, integer(1), "node"),
+      replace = vapply(statsList$active_mode1_changes, `[[`, logical(1), "replace")
+    )
   } else {
-    compChange1 <- NULL
+    NULL
+  }
+  compChange2 <- if (hasCompChange2) {
+    data.frame(
+      time = vapply(statsList$active_mode2_changes, `[[`, double(1), "time"),
+      node = vapply(statsList$active_mode2_changes, `[[`, integer(1), "node"),
+      replace = vapply(statsList$active_mode2_changes, `[[`, logical(1), "replace")
+    )
+  } else {
+    NULL
   }
 
-  if (hasCompChange2) {
-    compChange2 <- get(compChangeName2, envir = prepEnvir) # add prepEnvir
-    compChange2 <- sanitizeEvents(compChange2, nodes2, envir = prepEnvir)
-  } else {
-    compChange2 <- NULL
-  }
+  presence <- statsList$active_mode1_init
+  presence2 <- statsList$active_mode2_init
 
-  if (!is.null(nodes$present)) {
-    presence <- nodes$present
-  } else {
-    presence <- rep(TRUE, length(nodes))
-  }
-  if (!is.null(nodes2$present)) {
-    presence2 <- nodes2$present
-  } else {
-    presence2 <- rep(TRUE, length(nodes2))
-  }
-
-  nEvents <- length(statsList$orderEvents)
+  nEvents <- length(statsList$is_dependent)
 
   ## ADD INTERCEPT
   # CHANGED MARION
@@ -175,27 +149,17 @@ estimate_int <- function(
   if (modelType %in% c("REM", "DyNAM-M-Rate") && hasIntercept &&
     is.null(initialParameters) &&
     (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
-    totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
-      sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
+    totalTime <- sum(statsList$intervals, na.rm = TRUE)
 
     nActors <- sum(presence)
 
     if (hasCompChange1) {
-      # CHANGED MARION: remove the use of the events object
       time <- statsList$startTime
       previoustime <- -Inf
-      currentInterval <- 1
-      currentRCInterval <- 1
       nAvgActors <- 0
 
       for (i in seq_len(nEvents)) {
-        if (statsList$orderEvents[[i]] == 1) {
-          time <- time + statsList$intervals[[currentInterval]]
-          currentInterval <- currentInterval + 1
-        } else {
-          time <- time + statsList$rightCensoredIntervals[[currentRCInterval]]
-          currentRCInterval <- currentRCInterval + 1
-        }
+        time <- time + statsList$intervals[[i]]
 
         changesAtTime <- compChange1$replace[
           intersect(
@@ -267,7 +231,6 @@ estimate_int <- function(
       returnEventProbabilities = returnEventProbabilities,
       allowReflexive = allowReflexive,
       is_two_mode = is_two_mode,
-      reduceMatrixToVector = reduceMatrixToVector,
       reduceArrayToMatrix = reduceArrayToMatrix,
       ignoreRepParameter = ignoreRepParameter,
       impute = impute,
@@ -737,16 +700,15 @@ getIterationStepState <- function(
     returnEventProbabilities = FALSE,
     allowReflexive = TRUE,
     is_two_mode = FALSE,
-    reduceMatrixToVector = FALSE,
     reduceArrayToMatrix = FALSE,
     ignoreRepParameter = NULL,
     impute = TRUE,
     verbose = FALSE,
     opportunitiesList = NULL,
     prepEnvir = new.env()) {
-  # CHANGED MARION: changed dims
-  nEvents <- length(statsList$orderEvents)
-  nParams <- dim(statsList$initialStats)[3]
+  nEvents <- length(statsList$is_dependent)
+  is_rate <- length(dim(statsList$initialStats)) == 2L
+  nParams <- if (is_rate) ncol(statsList$initialStats) else dim(statsList$initialStats)[3]
 
   # iterate over all events
   informationMatrix <- matrix(0, nParams, nParams) # n_effects * n_effects
@@ -777,12 +739,8 @@ getIterationStepState <- function(
 
   # CHANGED Marion: fill in the loop! stats array needs to be computed
   # also changes for dependent and rc events!
-  statsArray <- statsList$initialStats # 84*84*6
-  # CHANGED Marion: remove the use of events object
+  statsArray <- statsList$initialStats
   time <- statsList$startTime
-  # timespan <- ifelse(modelType %in% c("DyNAM-M-Rate", "REM"), NA, 0)
-  idep <- 1L
-  irc <- 1L
 
   hasIgnoreRep <- any(ignoreRepParameter)
   if (hasIgnoreRep) {
@@ -798,12 +756,13 @@ getIterationStepState <- function(
   updateopportunities <- !is.null(opportunitiesList) &&
     !modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
 
-  # utility function for the statistics update
-  updFun <- function(stat, change) {
-    # stat: current statistics (for one effect only)
-    # change: statsList$dependentStatsChange[[current event]][[current effect]]
+  updFun <- function(stat, change, is_rate_stat = FALSE) {
     if (!is.null(change)) {
-      stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      if (is_rate_stat) {
+        stat[change[, "node1"]] <- change[, "replace"]
+      } else {
+        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
+      }
     }
     return(stat)
   }
@@ -816,63 +775,39 @@ getIterationStepState <- function(
   oldTime <- -Inf
 
   for (i in seq_len(nEvents)) {
-    # get current event stats from preprocessing results based on time order
-    # CHANGED SIWEI: update statistics, timespan, isDependent and activeDyad
-    #  in diff cases with or without intercept
-    if (statsList$orderEvents[[i]] == 1) {
-      # dependent event
-      isDependent <- TRUE
-      pars2update <- !vapply(
-        statsList$dependentStatsChange[[idep]],
-        is.null,
-        logical(1)
-      )
-      for (j in which(pars2update)) {
+    isDependent <- statsList$is_dependent[[i]] == 1L
+    pars2update <- !vapply(statsList$stats_change[[i]], is.null, logical(1))
+    for (j in which(pars2update)) {
+      if (is_rate) {
+        statsArray[, j + hasIntercept] <-
+          updFun(statsArray[, j + hasIntercept],
+                 statsList$stats_change[[i]][[j]], is_rate_stat = TRUE)
+      } else {
         statsArray[, , j + hasIntercept] <-
-          updFun(
-            statsArray[, , j + hasIntercept],
-            statsList$dependentStatsChange[[idep]][[j]]
-          )
+          updFun(statsArray[, , j + hasIntercept],
+                 statsList$stats_change[[i]][[j]])
       }
-      # with intercept in the model
-      if (hasIntercept) {
-        time <- time + statsList$intervals[[idep]]
-        timespan <- statsList$intervals[[idep]]
-      }
-      # CHANGED Marion: remove the use of events object
-      activeDyad <- c(
-        statsList$eventSender[[i]],
-        statsList$eventReceiver[[i]]
-      )
-      idep <- idep + 1
+    }
+    if (hasIntercept) {
+      time <- time + statsList$intervals[[i]]
+      timespan <- statsList$intervals[[i]]
+    }
+    if (isDependent) {
+      activeDyad <- c(statsList$event_sender[[i]], statsList$event_receiver[[i]])
     } else {
-      # right-censored
-      isDependent <- FALSE
-      pars2update <- !vapply(
-        statsList$rightCensoredStatsChange[[irc]],
-        is.null,
-        logical(1)
-      )
-      for (j in which(pars2update)) {
-        statsArray[, , j + hasIntercept] <-
-          updFun(
-            statsArray[, , j + hasIntercept],
-            statsList$rightCensoredStatsChange[[irc]][[j]]
-          )
-      }
-      if (hasIntercept) {
-        time <- time + statsList$rightCensoredIntervals[[irc]]
-        timespan <- statsList$rightCensoredIntervals[[irc]]
-      }
-
       activeDyad <- NULL
-      irc <- irc + 1
     }
 
     # IMPUTE missing statistics with current mean
     if (impute && anyNA(statsArray)) {
-      for (j in which(apply(statsArray, 3, anyNA))) {
-        statsArray[, , j] <- imputeFun(statsArray[, , j])
+      if (is_rate) {
+        for (j in which(apply(statsArray, 2, anyNA))) {
+          statsArray[, j] <- imputeFun(statsArray[, j])
+        }
+      } else {
+        for (j in which(apply(statsArray, 3, anyNA))) {
+          statsArray[, , j] <- imputeFun(statsArray[, , j])
+        }
       }
     }
 
@@ -881,7 +816,7 @@ getIterationStepState <- function(
     if (hasIgnoreRep) {
       mat <- as.matrix(
         net,
-        time = statsList$eventTime[[i]],
+        time = statsList$event_time[[i]],
         startTime = startTime
       )
       ones <- which(mat > 0, arr.ind = TRUE)
@@ -891,7 +826,7 @@ getIterationStepState <- function(
         rep(ignoreRepIds, each = length(ignoreRepIds) * nrow(ones))
       )] <- 0
       # CHANGED SIWEI
-      startTime <- statsList$eventTime[[i]]
+      startTime <- statsList$event_time[[i]]
       net[seq_len(dim(net)[1]), seq_len(dim(net)[2])] <- mat
     }
 
@@ -905,7 +840,7 @@ getIterationStepState <- function(
     # CHANGED MARION: fixed wrong initialization of compositions,
     #   removed next lines
 
-    current_time <- statsList$eventTime[[i]]
+    current_time <- statsList$event_time[[i]]
     if (updatepresence) {
       update <-
         compChange1[compChange1$time <= current_time &
@@ -922,7 +857,7 @@ getIterationStepState <- function(
     oldTime <- current_time
 
     # patch to avoid collision with dropping absent people
-    if (!is_two_mode) {
+    if (!is_two_mode && !is_rate) {
       for (parmPos in seq_len(dim(statsArrayComp)[3])) {
         diag(statsArrayComp[, , parmPos]) <- 0
       }
@@ -933,7 +868,11 @@ getIterationStepState <- function(
       keepIn <- presence
       # if (updateopportunities && !is_two_mode)
       #   keepIn <- presence & opportunities
-      statsArrayComp <- statsArrayComp[keepIn, , , drop = FALSE]
+      statsArrayComp <- if (is_rate) {
+        statsArrayComp[keepIn, , drop = FALSE]
+      } else {
+        statsArrayComp[keepIn, , , drop = FALSE]
+      }
       if (isDependent) {
         position <- which(activeDyad[1] == which(keepIn))
         if (length(position) == 0) {
@@ -974,29 +913,6 @@ getIterationStepState <- function(
       allowReflexiveCorrected <- allowReflexive
     }
 
-    # TEMPORARY: handle the reductions here for now
-    # CHANGED SIWEI: reduce the matrix to vector for rate model
-    # here in each step seperately
-    # CHANGED SIWEI: treat one-mode and two-mode cases seperately
-    # handle the reductions in one step outside the iteration loop, to be make
-    if (reduceMatrixToVector) {
-      if (verbose && i == 1) {
-        cat("\nReplacing effects statistics by row means")
-      }
-      # statsArrayComp: n_nodes1*n_nodes2*num_statistics matrix
-      arr <- apply(
-        statsArrayComp,
-        3,
-        \(stat) {
-          if (!is_two_mode) {
-            rowSums(stat, na.rm = TRUE) / (dim(stat)[2] - 1)
-          } else {
-            rowMeans(stat, na.rm = TRUE)
-          }
-        }
-      )
-      statsArrayComp <- arr # statsArrayComp: n_nodes*n_effects matrix
-    }
     # reduce array to matrices
     if (reduceArrayToMatrix) {
       oldDim <- dim(statsArrayComp)
@@ -1196,9 +1112,10 @@ modifyStatisticsList <- function(
     addInterceptEffect = FALSE) {
   # exclude effect statistics
   if (!is.null(excludeParameters)) {
+    is_rate_stats <- length(dim(statsList$initialStats)) == 2L
     unknownIndexes <- setdiff(
       excludeParameters,
-      seq_len(dim(statsList$initialStats)[3])
+      seq_len(if (is_rate_stats) ncol(statsList$initialStats) else dim(statsList$initialStats)[3])
     )
     if (length(unknownIndexes) > 0) {
       stop(
@@ -1206,22 +1123,21 @@ modifyStatisticsList <- function(
         paste(unknownIndexes, collapse = " ")
       )
     }
-
-    statsList$initialStats <- statsList$initialStats[, , -excludeParameters]
+    statsList$initialStats <- if (is_rate_stats) {
+      statsList$initialStats[, -excludeParameters, drop = FALSE]
+    } else {
+      statsList$initialStats[, , -excludeParameters]
+    }
   }
 
-  # reduce for dynam-m RATE model
   if (modelType == "DyNAM-M-Rate") {
     statsList <- reduceStatisticsList(statsList,
-      # dropZeroTimespans = TRUE,
-      reduceMatrixToVector = TRUE,
       addInterceptEffect = addInterceptEffect
     )
   }
 
   if (modelType == "DyNAM-M-Rate-ordered") {
     statsList <- reduceStatisticsList(statsList,
-      reduceMatrixToVector = TRUE,
       dropRightCensored = FALSE
     )
   }
@@ -1257,31 +1173,22 @@ reduceStatisticsList <- function(
     statsList,
     addInterceptEffect = FALSE,
     dropRightCensored = FALSE,
-    reduceMatrixToVector = FALSE,
     reduceArrayToMatrix = FALSE,
     dropZeroTimespans = FALSE) {
   if (dropRightCensored) {
-    # reorder the intervals with only dependent events
-    idep <- 1
-    irc <- 1
-    newintervals <- list()
-    for (i in seq_along(statsList$orderEvents)) {
-      if (statsList$orderEvents[[i]] == 1) {
-        newintervals <- append(newintervals, statsList$intervals[[idep]])
-        idep <- idep + 1
-      }
-      if (statsList$orderEvents[[i]] > 1) {
-        newintervals[[length(newintervals)]] <-
-          newintervals[[length(newintervals)]] +
-          statsList$rightCensoredIntervals[[irc]]
-        irc <- irc + 1
+    is_dep <- statsList$is_dependent == 1L
+    dep_positions <- which(is_dep)
+    new_intervals <- statsList$intervals[is_dep]
+    for (rc_pos in which(!is_dep)) {
+      prev_dep <- max(dep_positions[dep_positions < rc_pos], 0)
+      if (prev_dep > 0) {
+        dep_idx <- which(dep_positions == prev_dep)
+        new_intervals[dep_idx] <- new_intervals[dep_idx] + statsList$intervals[[rc_pos]]
       }
     }
-    statsList$orderEvents <- rep(1, length(statsList$intervals))
-
-    # information on right censoring and intervals is no longer needed
-    statsList$rightCensoredStatsChange <- list()
-    statsList$rightCensoredIntervals <- list()
+    statsList$stats_change <- statsList$stats_change[is_dep]
+    statsList$intervals <- new_intervals
+    statsList$is_dependent <- rep(1L, sum(is_dep))
   }
 
   # This part should be uncommented once we are sure about how to use
@@ -1323,17 +1230,11 @@ reduceStatisticsList <- function(
     }
   }
 
-  # drop statistics with a time span of zero
   if (dropZeroTimespans) {
-    hasZeroTime <- which(statsList$intervals == 0)
-    statsList$dependentStatsChange <-
-      statsList$dependentStatsChange[-hasZeroTime]
+    hasZeroTime <- which(statsList$intervals == 0 & statsList$is_dependent == 1L)
+    statsList$stats_change <- statsList$stats_change[-hasZeroTime]
     statsList$intervals <- statsList$intervals[-hasZeroTime]
-    hasZeroTime <- which(statsList$rightCensoredIntervals == 0)
-    statsList$rightCensoredStatsChange <-
-      statsList$rightCensoredStatsChange[-hasZeroTime]
-    statsList$rightCensoredIntervals <-
-      statsList$rightCensoredIntervals[-hasZeroTime]
+    statsList$is_dependent <- statsList$is_dependent[-hasZeroTime]
   }
 
   return(statsList)

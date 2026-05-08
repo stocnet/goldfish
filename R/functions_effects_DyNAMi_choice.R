@@ -109,7 +109,11 @@ init_DyNAMi_choice.default <- function(
         # construct network objects step by step from empty objects
         res <- do.call(effectFun, .argsFUN[na.omit(.argsKeep)])
         if (!is.null(res) && nrow(res) > 0) {
-          stats[cbind(res[, 1], res[, 2])] <- res[, 3]
+          if (ncol(res) == 3) {
+            stats[cbind(res[, 1], res[, 2])] <- res[, 3]
+          } else {
+            for (k in seq_len(nrow(res))) stats[res[k, 1], ] <- res[k, 2]
+          }
         }
         # update networks
         # hack: if it's not the same dimension, the network shouldn't be updated
@@ -145,7 +149,11 @@ init_DyNAMi_choice.default <- function(
       # construct network objects step by step from empty objects
       res <- do.call(effectFun, .argsFUN[na.omit(.argsKeep)])
       if (!is.null(res) && nrow(res) > 0) {
-        stats[cbind(res[, 1], res[, 2])] <- res[, 3]
+        if (ncol(res) == 3) {
+          stats[cbind(res[, 1], res[, 2])] <- res[, 3]
+        } else {
+          for (k in seq_len(nrow(res))) stats[res[k, 1], ] <- res[k, 2]
+        }
       }
       # update cache if any
       # update networks

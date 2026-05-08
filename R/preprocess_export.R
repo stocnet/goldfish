@@ -268,24 +268,17 @@ gather_model_data <- function(
   # # 3.3 additional processing to flat array objects
   allowReflexive <- is_two_mode
 
-  reduceMatrixToVector <- FALSE
   reduceArrayToMatrix <- FALSE
 
   if (!is.null(altModel) && sub_model == "choice") model <- "DyNAM"
 
   if (model == "REM") {
-    if (!parsed_formula$has_intercept) {
-      modelTypeCall <- "REM-ordered"
-    } else {
-      modelTypeCall <- "REM"
-    }
+    modelTypeCall <- if (!parsed_formula$has_intercept) "REM-ordered" else "REM"
   } else if (model == "DyNAM") {
     if (sub_model == "rate" && !parsed_formula$has_intercept) {
       modelTypeCall <- "DyNAM-M-Rate-ordered"
-      reduceMatrixToVector <- TRUE
     } else if (sub_model == "rate") {
       modelTypeCall <- "DyNAM-M-Rate"
-      reduceMatrixToVector <- TRUE
     } else if (sub_model == "choice_coordination") {
       modelTypeCall <- "DyNAM-MM"
     } else {
@@ -294,65 +287,72 @@ gather_model_data <- function(
     }
   }
 
-  # from estimate_c_init
+  is_rate_model <- modelTypeCall %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
+
   preprocessingStat <- modifyStatisticsList(
     preprocessingStat, modelTypeCall,
-    reduceMatrixToVector = reduceMatrixToVector,
     reduceArrayToMatrix = reduceArrayToMatrix,
     excludeParameters = NULL,
     addInterceptEffect = parsed_formula$has_intercept
   )
 
-  # nEvents <- length(preprocessingStat$orderEvents)# number of events
   nodes <- get(.nodes, envir = data)
   nodes2 <- get(.nodes2, envir = data)
 
   ## SET VARIABLES BASED ON STATSLIST
   twomode_or_reflexive <- (allowReflexive || is_two_mode)
-  # n_events <- length(preprocessingStat$orderEvents)
-  dimensions <- dim(preprocessingStat$initialStats)
-  n_parameters <- dimensions[3]
-  n_actors1 <- dimensions[1]
-  n_actors2 <- dimensions[2]
+  if (is_rate_model) {
+    n_parameters <- ncol(preprocessingStat$initialStats)
+    n_actors1 <- nrow(preprocessingStat$initialStats)
+    n_actors2 <- 1L
+  } else {
+    dimensions <- dim(preprocessingStat$initialStats)
+    n_parameters <- dimensions[3]
+    n_actors1 <- dimensions[1]
+    n_actors2 <- dimensions[2]
+  }
 
-  ## CONVERT UPDATES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  temp <- convert_change(preprocessingStat$dependentStatsChange)
+  dep_idx <- preprocessingStat$is_dependent == 1L
+  rc_idx  <- preprocessingStat$is_dependent == 0L
+
+  expand_for_c <- function(changes_list) {
+    lapply(changes_list, function(event_changes) {
+      lapply(event_changes, function(ch) {
+        if (is.null(ch)) return(NULL)
+        if (!is.matrix(ch)) ch <- matrix(ch, nrow = 1L, dimnames = list(NULL, names(ch)))
+        cbind(node1 = ch[, "node1"], node2 = 1L, replace = ch[, "replace"])
+      })
+    })
+  }
+
+  dep_changes <- if (is_rate_model) expand_for_c(preprocessingStat$stats_change[dep_idx]) else preprocessingStat$stats_change[dep_idx]
+  temp <- convert_change(dep_changes)
   stat_mat_update <- temp$statMatUpdate
   stat_mat_update_pointer <- temp$statMatUpdatePointer
-  if (parsed_formula$has_intercept) {
-    stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
-  }
-  # Convert the right-censored events
-  # which will be a zero matrice and a zero vector
-  # if there's no right-censored event
-  if (length(preprocessingStat$rightCensoredIntervals) == 0) {
+  if (parsed_formula$has_intercept) stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
+
+  if (sum(rc_idx) == 0L) {
     stat_mat_rightcensored_update <- matrix(0, 4, 1)
     stat_mat_rightcensored_update_pointer <- numeric(1)
   } else {
-    temp <- convert_change(preprocessingStat$rightCensoredStatsChange)
+    rc_changes <- if (is_rate_model) expand_for_c(preprocessingStat$stats_change[rc_idx]) else preprocessingStat$stats_change[rc_idx]
+    temp <- convert_change(rc_changes)
     stat_mat_rightcensored_update <- temp$statMatUpdate
     stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
-    if (parsed_formula$has_intercept) {
-      stat_mat_rightcensored_update[3, ] <-
-        stat_mat_rightcensored_update[3, ] + 1
-    }
+    if (parsed_formula$has_intercept) stat_mat_rightcensored_update[3, ] <- stat_mat_rightcensored_update[3, ] + 1
   }
 
   ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  compChangeName1 <- attr(nodes, "events")[
-    "present" == attr(nodes, "dynamic_attribute")
-  ]
-  hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
-
-  compChangeName2 <- attr(nodes2, "events")[
-    "present" == attr(nodes2, "dynamic_attribute")
-  ]
-  hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
+  hasCompChange1 <- length(preprocessingStat$active_mode1_changes) > 0
+  hasCompChange2 <- length(preprocessingStat$active_mode2_changes) > 0
 
   if (hasCompChange1) {
-    temp <- get(compChangeName1, envir = data)
-    temp <- sanitizeEvents(temp, nodes, envir = data)
-    temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
+    compChange1 <- data.frame(
+      time = vapply(preprocessingStat$active_mode1_changes, `[[`, double(1), "time"),
+      node = vapply(preprocessingStat$active_mode1_changes, `[[`, integer(1), "node"),
+      replace = vapply(preprocessingStat$active_mode1_changes, `[[`, logical(1), "replace")
+    )
+    temp <- C_convert_composition_change(compChange1, preprocessingStat$event_time)
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -361,9 +361,12 @@ gather_model_data <- function(
   }
 
   if (hasCompChange2) {
-    temp <- get(compChangeName2, envir = data)
-    temp <- sanitizeEvents(temp, nodes2, envir = data)
-    temp <- C_convert_composition_change(temp, preprocessingStat$eventTime)
+    compChange2 <- data.frame(
+      time = vapply(preprocessingStat$active_mode2_changes, `[[`, double(1), "time"),
+      node = vapply(preprocessingStat$active_mode2_changes, `[[`, integer(1), "node"),
+      replace = vapply(preprocessingStat$active_mode2_changes, `[[`, logical(1), "replace")
+    )
+    temp <- C_convert_composition_change(compChange2, preprocessingStat$event_time)
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -371,27 +374,14 @@ gather_model_data <- function(
     presence2_update_pointer <- numeric(1)
   }
 
-  if (!is.null(nodes$present)) {
-    presence1_init <- nodes$present
-  } else {
-    presence1_init <- rep(TRUE, nrow(nodes))
-  }
-
-  if (!is.null(nodes2$present)) {
-    presence2_init <- nodes2$present
-  } else {
-    presence2_init <- rep(TRUE, nrow(nodes2))
-  }
+  presence1_init <- preprocessingStat$active_mode1_init
+  presence2_init <- preprocessingStat$active_mode2_init
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED
   ## BY C FUNCTIONS
   if (modelTypeCall %in% c("DyNAM-M-Rate", "REM", "DyNAM-MM")) {
-    is_dependent <- preprocessingStat$orderEvents == 1
-    timespan <- numeric(length(is_dependent))
-    if (modelTypeCall != "DyNAM-MM") {
-      timespan[is_dependent] <- preprocessingStat$intervals
-      timespan[(!is_dependent)] <- preprocessingStat$rightCensoredIntervals
-    }
+    is_dependent <- as.logical(preprocessingStat$is_dependent)
+    timespan <- if (modelTypeCall != "DyNAM-MM") preprocessingStat$intervals else numeric(length(is_dependent))
   } else {
     timespan <- NA
   }
@@ -399,14 +389,18 @@ gather_model_data <- function(
   ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED
   ## BY C FUNCTIONS
   event_mat <- rbind(
-    preprocessingStat$eventSender, preprocessingStat$eventReceiver
+    preprocessingStat$event_sender, preprocessingStat$event_receiver
   )
 
   ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED
   ## BY C FUNCTIONS
-  stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
-  for (i in 1:n_parameters) {
-    stat_mat_init[, i] <- t(preprocessingStat$initialStats[, , i])
+  if (is_rate_model) {
+    stat_mat_init <- preprocessingStat$initialStats
+  } else {
+    stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
+    for (i in seq_len(n_parameters)) {
+      stat_mat_init[, i] <- t(preprocessingStat$initialStats[, , i])
+    }
   }
 
   gatheredData <- gather_(
@@ -434,10 +428,10 @@ gather_model_data <- function(
   )
 
   ## Add additional information
-  gatheredData$sender <- nodes$label[preprocessingStat$eventSender]
+  gatheredData$sender <- nodes$label[preprocessingStat$event_sender]
   if (model == "REM" || (model == "DyNAM" && sub_model != "rate")) {
     gatheredData$receiver <-
-      nodes2$label[preprocessingStat$eventReceiver]
+      nodes2$label[preprocessingStat$event_receiver]
   } else if (model == "DyNAM" && sub_model == "rate" &&
     parsed_formula$has_intercept) {
     gatheredData$timespan <- timespan

@@ -535,7 +535,7 @@ print.data.goldfish <- function(x, ...) {
 print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   cat("**Preprocess object for the model:**\n")
   print(x$formula)
-  cat(" dependent events processed: ", length(x$dependentStatsChange), "\n")
+  cat(" dependent events processed: ", sum(x$is_dependent == 1L), "\n")
   # cat(" Model type:", result$model.type, "\n")
   cat("*The results are available in the following objects:*\n\n")
 
@@ -543,25 +543,25 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
 
   description <- data.frame(
     name = c(
-      "initialStats", "dependentStatsChange", "rightCensoredStatsChange",
-      "intervals", "rightCensoredIntervals", "orderEvents", "eventTime",
-      "eventSender", "eventReceiver", "startTime", "endTime", "formula",
-      "nodes", "nodes2"
+      "initialStats", "stats_change", "intervals", "is_dependent",
+      "event_time", "event_sender", "event_receiver", "event_pos",
+      "active_mode1_init", "active_mode1_changes",
+      "active_mode2_init", "active_mode2_changes",
+      "startTime", "endTime", "formula", "nodes", "nodes2"
     ),
     description = c(
-      "Initial statistical matrices for the effects given previous history.",
-      paste(
-        "List: For each dependent event,",
-        "a list with the change statistics for the given",
-        "\n state of the process."
-      ),
-      "List: dependent change statistics for a given right-censored event.",
-      "Elapsed time between events.",
-      "List: updates statistics during the elapsed time between events.",
-      "Order of events.",
+      "Initial statistical matrices/vectors for the effects.",
+      "List: for each event (dep + RC), a list with the change statistics.",
+      "Numeric vector: elapsed time before each event (dep + RC merged).",
+      "Integer vector: 1 for dependent events, 0 for right-censored.",
       "Time of the event.",
-      "Event sender.",
-      "Event receiver.",
+      "Event sender (-999 for right-censored events).",
+      "Event receiver (-999 for right-censored events).",
+      "Consecutive integer identifying each event position.",
+      "Initial presence vector for mode-1 nodes.",
+      "List of composition changes for mode-1 nodes.",
+      "Initial presence vector for mode-2 nodes.",
+      "List of composition changes for mode-2 nodes.",
       "Numeric time value of the initial time considered during estimation.",
       "Numeric time value of the final time considered during estimation.",
       "Formula of the model to estimate.",

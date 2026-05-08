@@ -12,7 +12,12 @@ init_DyNAMi_rate.default <- function(
     network = NULL, attribute = NULL,
     groupsNetwork, window,
     n1, n2) {
-  list(stat = rep(0, n1))
+  init_DyNAMi_choice.default(
+    effectFun = effectFun,
+    network = network, attribute = attribute,
+    groupsNetwork = groupsNetwork, window = window,
+    n1 = n1, n2 = n2
+  )
 }
 
 # Structural effects ------------------------------------------------------

@@ -51,8 +51,10 @@ estimate_c_int <- function(
   minDampingFactor <- initialDamping
   # CHANGED MARION
   # nParams: number of effects + 1 (if has intercept)
-  nParams <- dim(statsList$initialStats)[3] - length(excludeParameters) +
-    hasIntercept
+  is_rate_model <- modelTypeCall %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
+  nParams <- (if (is_rate_model) ncol(statsList$initialStats)
+              else dim(statsList$initialStats)[3]) -
+    length(excludeParameters) + hasIntercept
   #
 
   parameters <- initialParameters
@@ -114,14 +116,7 @@ estimate_c_int <- function(
 
   if (verbose) cat("Reducing data\n")
 
-  # CHANGED MARION: add colOnly and rowOnly in a smart way for the estimation
-  reduceMatrixToVector <- FALSE
-  reduceArrayToMatrix <- FALSE
-  if (modelTypeCall %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")) {
-    reduceMatrixToVector <- TRUE
-  } else if (modelTypeCall == "DyNAM-M") {
-    reduceArrayToMatrix <- TRUE
-  }
+  reduceArrayToMatrix <- modelTypeCall == "DyNAM-M"
 
   # CHANGED MARION: updated function
   # for rate model with intercept, add a table of all 1 to the
@@ -129,62 +124,47 @@ estimate_c_int <- function(
   statsList <- modifyStatisticsList(
     statsList = statsList,
     modelType = modelTypeCall,
-    reduceMatrixToVector = reduceMatrixToVector,
     reduceArrayToMatrix = reduceArrayToMatrix,
     excludeParameters = excludeParameters,
     addInterceptEffect = hasIntercept
   )
 
-  # CHANGED MARION: handle composition changes
-  #  for counting average number of actors
-  # and remove absent actors for each estimation step
-  compChangeName1 <- attr(nodes, "events")[
-    "present" == attr(nodes, "dynamic_attributes")
-  ]
-  hasCompChange1 <- !is.null(compChangeName1) && length(compChangeName1) > 0
-
-  compChangeName2 <- attr(nodes2, "events")[
-    "present" == attr(nodes2, "dynamic_attributes")
-  ]
-  hasCompChange2 <- !is.null(compChangeName2) && length(compChangeName2) > 0
-
   ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
+  hasCompChange1 <- length(statsList$active_mode1_changes) > 0
+  hasCompChange2 <- length(statsList$active_mode2_changes) > 0
+
   if (hasCompChange1) {
-    compChange1 <- get(compChangeName1, envir = prepEnvir)
-    compChange1 <- sanitizeEvents(compChange1, nodes, envir = prepEnvir)
-    temp <- C_convert_composition_change(compChange1, statsList$eventTime)
+    compChange1 <- data.frame(
+      time = vapply(statsList$active_mode1_changes, `[[`, double(1), "time"),
+      node = vapply(statsList$active_mode1_changes, `[[`, integer(1), "node"),
+      replace = vapply(statsList$active_mode1_changes, `[[`, logical(1), "replace")
+    )
+    temp <- C_convert_composition_change(compChange1, statsList$event_time)
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
   } else {
-    compChange1 <- NULL
     presence1_update <- matrix(0, 0, 0)
     presence1_update_pointer <- numeric(1)
   }
 
   if (hasCompChange2) {
-    compChange2 <- get(compChangeName2, envir = prepEnvir)
-    compChange2 <- sanitizeEvents(compChange2, nodes2, envir = prepEnvir)
-    temp <- C_convert_composition_change(compChange2, statsList$eventTime)
+    compChange2 <- data.frame(
+      time = vapply(statsList$active_mode2_changes, `[[`, double(1), "time"),
+      node = vapply(statsList$active_mode2_changes, `[[`, integer(1), "node"),
+      replace = vapply(statsList$active_mode2_changes, `[[`, logical(1), "replace")
+    )
+    temp <- C_convert_composition_change(compChange2, statsList$event_time)
     presence2_update <- temp$presenceUpdate
     presence2_update_pointer <- temp$presenceUpdatePointer
   } else {
-    compChange2 <- NULL
     presence2_update <- matrix(0, 0, 0)
     presence2_update_pointer <- numeric(1)
   }
 
-  if (!is.null(nodes$present)) {
-    presence1_init <- nodes$present
-  } else {
-    presence1_init <- rep(TRUE, nrow(nodes))
-  }
-  if (!is.null(nodes2$present)) {
-    presence2_init <- nodes2$present
-  } else {
-    presence2_init <- rep(TRUE, nrow(nodes2))
-  }
+  presence1_init <- statsList$active_mode1_init
+  presence2_init <- statsList$active_mode2_init
 
-  nEvents <- length(statsList$orderEvents)
+  nEvents <- length(statsList$is_dependent)
 
   ## ADD INTERCEPT
   # CHANGED MARION
@@ -192,8 +172,7 @@ estimate_c_int <- function(
   if (modelTypeCall %in% c("REM", "DyNAM-M-Rate") && hasIntercept &&
     is.null(initialParameters) &&
     (is.null(fixedParameters) || is.na(fixedParameters[1]))) {
-    totalTime <- sum(unlist(statsList$intervals), na.rm = TRUE) +
-      sum(unlist(statsList$rightCensoredIntervals), na.rm = TRUE)
+    totalTime <- sum(statsList$intervals, na.rm = TRUE)
 
     nActors <- sum(presence1_init)
 
@@ -201,18 +180,10 @@ estimate_c_int <- function(
       # CHANGED MARION: remove the use of the events object
       time <- statsList$startTime
       previoustime <- -Inf
-      currentInterval <- 1
-      currentRCInterval <- 1
       nAvgActors <- 0
 
       for (i in seq_len(nEvents)) {
-        if (statsList$orderEvents[[i]] == 1) {
-          time <- time + statsList$intervals[[currentInterval]]
-          currentInterval <- currentInterval + 1
-        } else {
-          time <- time + statsList$rightCensoredIntervals[[currentRCInterval]]
-          currentRCInterval <- currentRCInterval + 1
-        }
+        time <- time + statsList$intervals[[i]]
 
         changesAtTime <- compChange1$replace[
           intersect(
@@ -237,57 +208,73 @@ estimate_c_int <- function(
   }
   ## SET VARIABLES BASED ON STATSLIST
   twomode_or_reflexive <- (allowReflexive || is_two_mode)
-  n_parameters <- dim(statsList$initialStats)[3]
-  n_actors1 <- dim(statsList$initialStats)[1]
-  n_actors2 <- dim(statsList$initialStats)[2]
-
+  if (is_rate_model) {
+    n_parameters <- ncol(statsList$initialStats)
+    n_actors1 <- nrow(statsList$initialStats)
+    n_actors2 <- 1L
+    twomode_or_reflexive <- TRUE
+  } else {
+    n_parameters <- dim(statsList$initialStats)[3]
+    n_actors1 <- dim(statsList$initialStats)[1]
+    n_actors2 <- dim(statsList$initialStats)[2]
+  }
 
   ## CONVERT UPDATES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  temp <- convert_change(statsList$dependentStatsChange)
+  dep_idx <- statsList$is_dependent == 1L
+  rc_idx  <- statsList$is_dependent == 0L
+
+  expand_for_c <- function(changes_list) {
+    lapply(changes_list, function(event_changes) {
+      lapply(event_changes, function(ch) {
+        if (is.null(ch)) return(NULL)
+        if (!is.matrix(ch)) ch <- matrix(ch, nrow = 1L, dimnames = list(NULL, names(ch)))
+        cbind(node1 = ch[, "node1"], node2 = 1L, replace = ch[, "replace"])
+      })
+    })
+  }
+
+  dep_changes <- if (is_rate_model) expand_for_c(statsList$stats_change[dep_idx]) else statsList$stats_change[dep_idx]
+  temp <- convert_change(dep_changes)
   stat_mat_update <- temp$statMatUpdate
   stat_mat_update_pointer <- temp$statMatUpdatePointer
-  if (hasIntercept) {
-    stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
-  }
-  # Convert the right-censored events
-  # which will be a zero matrices and a zero vector
-  #  if there's no right-censored event
-  if (length(statsList$rightCensoredIntervals) == 0) {
+  if (hasIntercept) stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
+
+  if (sum(rc_idx) == 0L) {
     stat_mat_rightcensored_update <- matrix(0, 4, 1)
     stat_mat_rightcensored_update_pointer <- numeric(1)
   } else {
-    temp <- convert_change(statsList$rightCensoredStatsChange)
+    rc_changes <- if (is_rate_model) expand_for_c(statsList$stats_change[rc_idx]) else statsList$stats_change[rc_idx]
+    temp <- convert_change(rc_changes)
     stat_mat_rightcensored_update <- temp$statMatUpdate
     stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
-    if (hasIntercept) {
-      stat_mat_rightcensored_update[3, ] <-
-        stat_mat_rightcensored_update[3, ] + 1
-    }
+    if (hasIntercept) stat_mat_rightcensored_update[3, ] <- stat_mat_rightcensored_update[3, ] + 1
   }
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED
   ## BY C FUNCTIONS
   if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
-    is_dependent <- statsList$orderEvents == 1
-    timespan <- numeric(length(is_dependent))
-    timespan[is_dependent] <- statsList$intervals
-    timespan[!is_dependent] <- statsList$rightCensoredIntervals
+    is_dependent <- as.logical(statsList$is_dependent)
+    timespan <- statsList$intervals
   } else if (modelTypeCall %in%
     c("DyNAM-M-Rate-ordered", "REM-ordered", "DyNAM-MM")) {
-    is_dependent <- statsList$orderEvents == 1
+    is_dependent <- as.logical(statsList$is_dependent)
   } else {
     timespan <- NA
   }
 
   ## CONVERT INFOS OF SENDERS AND RECEIVERS INTO THE FORMAT ACCEPTED
   ##  BY C FUNCTIONS
-  event_mat <- rbind(statsList$eventSender, statsList$eventReceiver)
+  event_mat <- rbind(statsList$event_sender, statsList$event_receiver)
 
   ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED
   ##  BY C FUNCTIONS
-  stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
-  for (i in seq_len(n_parameters)) {
-    stat_mat_init[, i] <- t(statsList$initialStats[, , i])
+  if (is_rate_model) {
+    stat_mat_init <- statsList$initialStats
+  } else {
+    stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
+    for (i in seq_len(n_parameters)) {
+      stat_mat_init[, i] <- t(statsList$initialStats[, , i])
+    }
   }
 
 

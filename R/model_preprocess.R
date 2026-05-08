@@ -190,11 +190,13 @@ preprocess <- function(
   comp_events2 <- attr(nodes2_obj, "events")[attr(nodes2_obj, "dynamic_attribute") == "present"]
   active_mode1_changes <- if (length(comp_events1) > 0 && !is.na(comp_events1[1])) {
     cc <- get(comp_events1[1], envir = prepEnvir)
-    lapply(seq_len(nrow(cc)), function(i) list(time = cc$time[i], node = cc$node[i], replace = cc$replace[i]))
+    node_idx1 <- if (is.character(cc$node)) match(cc$node, nodes_obj$label) else as.integer(cc$node)
+    lapply(seq_len(nrow(cc)), function(i) list(time = cc$time[i], node = node_idx1[i], replace = cc$replace[i]))
   } else list()
   active_mode2_changes <- if (length(comp_events2) > 0 && !is.na(comp_events2[1])) {
     cc <- get(comp_events2[1], envir = prepEnvir)
-    lapply(seq_len(nrow(cc)), function(i) list(time = cc$time[i], node = cc$node[i], replace = cc$replace[i]))
+    node_idx2 <- if (is.character(cc$node)) match(cc$node, nodes2_obj$label) else as.integer(cc$node)
+    lapply(seq_len(nrow(cc)), function(i) list(time = cc$time[i], node = node_idx2[i], replace = cc$replace[i]))
   } else list()
 
   # # Remove duplicates of event lists!
@@ -300,8 +302,17 @@ preprocess <- function(
         intervals[[eventPos]] <- interval
         is_dependent[[eventPos]] <- 0L
         event_time[[eventPos]] <- time
-        event_sender[[eventPos]] <- -999L
-        event_receiver[[eventPos]] <- -999L
+        rc_event <- events[[nextEvent]][pointers[nextEvent], ]
+        if (isNodeEvent[nextEvent] && length(rc_event) == 1) {
+          event_sender[[eventPos]] <- rc_event
+          event_receiver[[eventPos]] <- rc_event
+        } else if (isNodeEvent[nextEvent]) {
+          event_sender[[eventPos]] <- rc_event$node
+          event_receiver[[eventPos]] <- rc_event$node
+        } else {
+          event_sender[[eventPos]] <- rc_event$sender
+          event_receiver[[eventPos]] <- rc_event$receiver
+        }
         updatesIntervals <- vector("list", nEffects)
         pointerTempRightCensored <- pointerTempRightCensored + 1
       } # else if (isValidEvent && !finalStep && interval > 0) {
