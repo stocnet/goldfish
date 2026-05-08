@@ -553,7 +553,7 @@ preprocess <- function(
       event_time = event_time,
       event_sender = event_sender,
       event_receiver = event_receiver,
-      event_pos = seq_len(nTotalChangeEvents),
+      event_pos = seq_len(length(stats_change)),
       active_mode1_init = active_mode1_init,
       active_mode1_changes = active_mode1_changes,
       active_mode2_init = active_mode2_init,
