@@ -40,6 +40,7 @@ preprocess <- function(
     startTime = min(vapply(events, function(x) min(x$time), double(1))),
     endTime = max(vapply(events, function(x) max(x$time), double(1))),
     rightCensored = FALSE,
+    opportunitiesList = NULL,
     progress = FALSE,
     prepEnvir = new.env()) {
   # For debugging
@@ -122,11 +123,15 @@ preprocess <- function(
     groupsNetwork = NULL, windowParameters = windowParameters,
     n1 = n1, n2 = n2, model = model, subModel = subModel, envir = prepEnvir
   )
-  # We put the initial stats to the previous format of 3 dimensional array
-  initialStats <- array(
-    unlist(lapply(statCache, "[[", "stat")),
-    dim = c(n1, n2, nEffects)
-  )
+  is_rate <- model == "DyNAM" && subModel == "rate"
+  if (is_rate) {
+    initialStats <- do.call(cbind, lapply(statCache, "[[", "stat"))
+  } else {
+    initialStats <- array(
+      unlist(lapply(statCache, "[[", "stat")),
+      dim = c(n1, n2, nEffects)
+    )
+  }
 
   statCache <- lapply(statCache, "[[", "cache")
 
@@ -153,7 +158,7 @@ preprocess <- function(
           nRightCensoredEvents <= endTime
       ))
       # -1 because the last event is the endTime event, correct if no events
-      nRightCensoredEvents <- ifelse(nRightCensoredEvents > 1,
+      nRightCensoredEvents <- ifelse(nRightCensoredEvents > 1, 
         nRightCensoredEvents - 1L, 0L
       )
     } else {
@@ -169,21 +174,28 @@ preprocess <- function(
     as.integer(sum(time >= startTime & time <= endTime)),
     as.integer(length(time))
   )
-  # CHANGED ALVARO: preallocate objects sizes
-  dependentStatistics <- vector("list", nDependentEvents)
-  timeIntervals <- vector("numeric", ifelse(rightCensored, nDependentEvents, 0))
-  rightCensoredStatistics <- vector("list", nRightCensoredEvents)
-  timeIntervalsRightCensored <- vector("numeric", nRightCensoredEvents)
-  # CHANGED MARION: added a list that tracks the chronological(ordered by time)
-  #                 order of events between dependent and right-censored events
-  # 1 is for dependent and 2 if for right-censored
-  # Also a list of the senders and receivers to allow
-  # the preprocessingInit routine
-  orderEvents <- vector("integer", nDependentEvents + nRightCensoredEvents)
-  event_time <- vector("numeric", nDependentEvents + nRightCensoredEvents)
-  event_sender <- vector("integer", nDependentEvents + nRightCensoredEvents)
-  event_receiver <- vector("integer", nDependentEvents + nRightCensoredEvents)
+  nTotalChangeEvents <- nDependentEvents + nRightCensoredEvents
+  stats_change <- vector("list", nTotalChangeEvents)
+  intervals <- vector("numeric", nTotalChangeEvents)
+  is_dependent <- vector("integer", nTotalChangeEvents)
+  event_time <- vector("numeric", nTotalChangeEvents)
+  event_sender <- vector("integer", nTotalChangeEvents)
+  event_receiver <- vector("integer", nTotalChangeEvents)
   finalStep <- FALSE
+  nodes_obj <- get(nodes, envir = prepEnvir)
+  nodes2_obj <- get(nodes2, envir = prepEnvir)
+  active_mode1_init <- if (!is.null(nodes_obj$present)) nodes_obj$present else rep(TRUE, n1)
+  active_mode2_init <- if (!is.null(nodes2_obj$present)) nodes2_obj$present else rep(TRUE, n2)
+  comp_events1 <- attr(nodes_obj, "events")[attr(nodes_obj, "dynamic_attribute") == "present"]
+  comp_events2 <- attr(nodes2_obj, "events")[attr(nodes2_obj, "dynamic_attribute") == "present"]
+  active_mode1_changes <- if (length(comp_events1) > 0 && !is.na(comp_events1[1])) {
+    cc <- get(comp_events1[1], envir = prepEnvir)
+    lapply(seq_len(nrow(cc)), function(i) list(time = cc$time[i], node = cc$node[i], replace = cc$replace[i]))
+  } else list()
+  active_mode2_changes <- if (length(comp_events2) > 0 && !is.na(comp_events2[1])) {
+    cc <- get(comp_events2[1], envir = prepEnvir)
+    lapply(seq_len(nrow(cc)), function(i) list(time = cc$time[i], node = cc$node[i], replace = cc$replace[i]))
+  } else list()
 
   # # Remove duplicates of event lists!
 
@@ -268,17 +280,12 @@ preprocess <- function(
     # 1. store statistic updates for DEPENDENT events
     if (isValidEvent && isDependent) {
       iDependentEvents <- 1L + iDependentEvents
-      dependentStatistics[[iDependentEvents]] <- updatesDependent
-      if (rightCensored) timeIntervals[[iDependentEvents]] <- interval
-      # timeIntervals[[iDependentEvents]] # correct it for not rate models
+      stats_change[[eventPos]] <- updatesDependent
+      intervals[[eventPos]] <- interval
+      is_dependent[[eventPos]] <- 1L
+      event_time[[eventPos]] <- time
       updatesDependent <- vector("list", nEffects)
       updatesIntervals <- vector("list", nEffects)
-      # CHANGED MARION: added orderEvents
-      orderEvents[[eventPos]] <- 1L
-      # CHANGED SIWEI: added time point of each event
-      # (dependent & right-censored)
-      event_time[[eventPos]] <- time
-      # CHANGED MARION: added sender and receiver
       event <- events[[nextEvent]][pointers[nextEvent], ]
       if (isNodeEvent[nextEvent]) {
         event_sender[[eventPos]] <- event$node
@@ -288,36 +295,14 @@ preprocess <- function(
         event_receiver[[eventPos]] <- event$receiver
       }
     } else if (!isDependent) {
-      # 2. store statistic updates for RIGHT-CENSORED
-      # (non-dependent, positive) intervals
       if (isValidEvent && rightCensored && interval > 0) {
-        # CHANGED MARION: the incremented index was incorrect
-        # rightCensoredStatistics[[ pointers[nextEvent] ]] <- updatesIntervals
-        # timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <-
-        # interval
-        rightCensoredStatistics[[pointerTempRightCensored]] <- updatesIntervals
-        timeIntervalsRightCensored[[pointerTempRightCensored]] <- interval
-        updatesIntervals <- vector("list", nEffects)
-
-        # CHANGED MARION: added orderEvents
-        orderEvents[[eventPos]] <- 2L
+        stats_change[[eventPos]] <- updatesIntervals
+        intervals[[eventPos]] <- interval
+        is_dependent[[eventPos]] <- 0L
         event_time[[eventPos]] <- time
-        # CHANGED MARION: added sender and receiver
-        # CHANGED WEIGUTIAN: removed "increment" which results a bug
-        # Check (WEIGUTIAN): check whether the following block is necessary for
-        #   right censored event,
-        #   Because in the right-censored events there's no sender and receiver.
-        event <- events[[nextEvent]][pointers[nextEvent], ]
-        if (isNodeEvent[nextEvent] && length(event) == 1) {
-          event_sender[[eventPos]] <- event
-          event_receiver[[eventPos]] <- event
-        } else if (isNodeEvent[nextEvent] && length(event) > 1) {
-          event_sender[[eventPos]] <- event$node
-          event_receiver[[eventPos]] <- event$node
-        } else {
-          event_sender[[eventPos]] <- event$sender
-          event_receiver[[eventPos]] <- event$receiver
-        }
+        event_sender[[eventPos]] <- -999L
+        event_receiver[[eventPos]] <- -999L
+        updatesIntervals <- vector("list", nEffects)
         pointerTempRightCensored <- pointerTempRightCensored + 1
       } # else if (isValidEvent && !finalStep && interval > 0) {
       #   timeIntervals[[iDependentEvents + 1]] <- interval +
@@ -372,14 +357,8 @@ preprocess <- function(
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
         # missing data imputation
         if (isNodeEvent[nextEvent] && is.na(event$replace)) {
-          # if numeric data
-          if (is.numeric(object)) {
-            # impute by the mean of current values for attributes
-            event$replace <- mean(object[-event$node], na.rm = TRUE)
-          } else {
-            # impute using mode
-            event$replace <- names(which.max(table(object[-event$node])))
-          }
+          # impute by the mean of current values for attributes
+          event$replace <- mean(object[-event$node], na.rm = TRUE)
         }
         if (!isNodeEvent[nextEvent] && is.na(event$replace)) {
           # if the replace is missing impute by 0 (not-tie)
@@ -456,14 +435,11 @@ preprocess <- function(
             effects, id, "effect", c(.argsFUN, event), " cannot update \n",
             colnames(objectsEffectsLink)[id]
           )
-
-          # CHANGED - MABEL - need to update cache attributes for lastUpdate
-          # when trans or cycle and history = "consecutive"
-          if (!is.null(attr(effectUpdate$cache, "lastUpdate"))) {
-            attr(statCache[[id]], "lastUpdate") <- attr(
-              effectUpdate$cache,
-              "lastUpdate"
-            )
+          
+          # CHANGED - MABEL - need to update cache attributes for lastUpdate when
+          # trans or cycle and history = "consecutive"
+          if (!is.null(attr(effectUpdate$cache, 'lastUpdate'))) {
+            attr(statCache[[id]], "lastUpdate") <- attr(effectUpdate$cache, 'lastUpdate')
           }
 
           updates <- effectUpdate$changes
@@ -495,8 +471,12 @@ preprocess <- function(
 
           if (!is.null(updates)) {
             if (hasStartTime && nextEventTime < startTime) {
-              initialStats[cbind(updates[, "node1"], updates[, "node2"], id)] <-
-                updates[, "replace"]
+              if (is_rate) {
+                initialStats[cbind(updates[, "node1"], id)] <- updates[, "replace"]
+              } else {
+                initialStats[cbind(updates[, "node1"], updates[, "node2"], id)] <-
+                  updates[, "replace"]
+              }
             } else {
               # CHANGED WEIGUTIAN: UPDATE THE STAT MAT
               # AND IMPUTE THE MISSING VALUES
@@ -512,11 +492,13 @@ preprocess <- function(
 
               updatesDependent[[id]] <- ReduceUpdateNonDuplicates(
                 updatesDependent[[id]],
-                updates
+                updates,
+                rate_mode = is_rate
               )
               updatesIntervals[[id]] <- ReduceUpdateNonDuplicates(
                 updatesIntervals[[id]],
-                updates
+                updates,
+                rate_mode = is_rate
               )
             }
           }
@@ -554,15 +536,17 @@ preprocess <- function(
   return(structure(
     list(
       initialStats = initialStats,
-      dependentStatsChange = dependentStatistics,
-      rightCensoredStatsChange = rightCensoredStatistics,
-      intervals = timeIntervals,
-      # CHANGED MARION
-      rightCensoredIntervals = timeIntervalsRightCensored,
-      orderEvents = orderEvents,
-      eventTime = event_time,
-      eventSender = event_sender,
-      eventReceiver = event_receiver,
+      stats_change = stats_change,
+      intervals = intervals,
+      is_dependent = is_dependent,
+      event_time = event_time,
+      event_sender = event_sender,
+      event_receiver = event_receiver,
+      event_pos = seq_len(nTotalChangeEvents),
+      active_mode1_init = active_mode1_init,
+      active_mode1_changes = active_mode1_changes,
+      active_mode2_init = active_mode2_init,
+      active_mode2_changes = active_mode2_changes,
       startTime = startTime,
       endTime = endTime
     ),
@@ -786,14 +770,7 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
   done <- structure(vector("logical", nrow(objTable)), names = objTable$name)
   for (iEff in seq_len(nrow(objTable))) {
     objectNameTable <- objTable[iEff, ]
-    objectList <- getElementFromDataObjectTable(objectNameTable, envir = envir)
-    # if (length(objectList) == 0) {
-    #  cli::cli_abort(c(
-    #    "x" = "{.var {objectNameTable$name}} does not exist.",
-    #    "i" = "Fix the formula"
-    #  ))
-    # }
-    object <- objectList[[1]]
+    object <- getElementFromDataObjectTable(objectNameTable, envir = envir)[[1]]
     objectName <- objectNameTable$name
     # print(table(is.na(object)))
     # cat(objectName, "\n")
@@ -804,15 +781,7 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
       # Assign object
       assign(objectName, object, envir = envir)
     } else if (is.vector(object) && any(is.na(object))) {
-      if (is.numeric(object)) {
-        cli::cli_warn(c("i" = "Missing data has been detected. Mean is used to impute for numerical values"))
-        # impute by the mean of current values for attributes
-        object[is.na(object)] <- mean(object, na.rm = TRUE)
-      } else {
-        # impute using mode
-        cli::cli_warn(c("i" = "Missing data has been detected. Mode is used to impute for categorical values"))
-        object[is.na(object)] <- names(which.max(table(object)))
-      }
+      object[is.na(object)] <- mean(object, na.rm = TRUE)
       done[iEff] <- TRUE
       # cat("vector\n")
       # Assign object
@@ -825,18 +794,20 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
   return(done)
 }
 
-ReduceUpdateNonDuplicates <- function(oldUpdates, newUpdates) {
-  if (is.null(newUpdates)) {
-    return(oldUpdates)
-  } else if (!is.null(oldUpdates)) {
-    idsOld <- paste(oldUpdates[, "node1"], oldUpdates[, "node2"], sep = "_")
-    idsNew <- paste(newUpdates[, "node1"], newUpdates[, "node2"], sep = "_")
-
+ReduceUpdateNonDuplicates <- function(oldUpdates, newUpdates, rate_mode = FALSE) {
+  if (is.null(newUpdates)) return(oldUpdates)
+  if (!is.null(oldUpdates)) {
+    if (rate_mode) {
+      idsOld <- oldUpdates[, "node1"]
+      idsNew <- newUpdates[, "node1"]
+    } else {
+      idsOld <- paste(oldUpdates[, "node1"], oldUpdates[, "node2"], sep = "_")
+      idsNew <- paste(newUpdates[, "node1"], newUpdates[, "node2"], sep = "_")
+    }
     return(rbind(
       oldUpdates[!idsOld %in% idsNew, , drop = FALSE],
       newUpdates
     ))
-  } else {
-    return(newUpdates)
   }
+  return(newUpdates)
 }

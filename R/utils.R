@@ -213,7 +213,8 @@ ReducePreprocess <- function(
   )
   type <- match.arg(type)
 
-  nEffects <- dim(preproData$initialStats)[3]
+  is_rate <- length(dim(preproData$initialStats)) == 2L
+  nEffects <- if (is_rate) ncol(preproData$initialStats) else dim(preproData$initialStats)[3]
 
   stopifnot(
     is.null(effectPos) || !is.null(effectPos) && max(effectPos) <= nEffects
@@ -225,52 +226,46 @@ ReducePreprocess <- function(
         lapply(
           x,
           \(z) {
-            if (is.null(z)) {
-              return(NULL)
-            } # no changes, no problem
+            if (is.null(z)) return(NULL)
             if (nrow(z) == 1) {
-              return(
-                if (type == "withTime") cbind(time = y, z) else z
-              )
-            } # just one update, no problem
-
-            discard <- duplicated(z[, c("node1", "node2")], fromLast = TRUE)
+              return(if (type == "withTime") cbind(time = y, z) else z)
+            }
+            dedup_cols <- if (is_rate) "node1" else c("node1", "node2")
+            discard <- duplicated(z[, dedup_cols, drop = FALSE], fromLast = TRUE)
             changes <- cbind(
               time = if (type == "withTime") rep(y, sum(!discard)) else NULL,
               z[!discard, , drop = FALSE]
             )
-            if (nrow(changes) == 1) {
-              return(changes)
-            }
-            # print(changes)
-            changes <- changes[order(changes[, "node1"], changes[, "node2"]), ]
+            if (nrow(changes) == 1) return(changes)
+            order_cols <- if (is_rate) "node1" else c("node1", "node2")
+            changes[do.call(order, lapply(order_cols, function(col) changes[, col])), ]
           }
-        ) # multiple updates might be repeated, keep the last
+        )
       },
       statsChange, eventTime
     )
 
     return(lapply(
       seq_len(nEffects),
-      function(i) {
-        Reduce(rbind, lapply(reduce, "[[", i))
-      }
+      function(i) Reduce(rbind, lapply(reduce, "[[", i))
     ))
   }
 
+  dep_idx <- preproData$is_dependent == 1L
+  rc_idx <- preproData$is_dependent == 0L
+
   outDependentStatChange <- ReduceEffUpdates(
-    preproData$dependentStatsChange,
-    preproData$eventTime[preproData$orderEvents == 1]
+    preproData$stats_change[dep_idx],
+    preproData$event_time[dep_idx]
   )
 
   if ((preproData$subModel == "rate" || preproData$model == "REM") &&
-    length(preproData$rightCensoredStatsChange) > 0) {
+    sum(rc_idx) > 0) {
     rightCensoredStatChange <- ReduceEffUpdates(
-      preproData$rightCensoredStatsChange,
-      preproData$eventTime[preproData$orderEvents == 2]
+      preproData$stats_change[rc_idx],
+      preproData$event_time[rc_idx]
     )
 
-    # combine lists
     reducedPrepro <- list()
     for (ii in seq.int(length(outDependentStatChange))) {
       reducedPrepro[[ii]] <- list(
@@ -279,11 +274,8 @@ ReducePreprocess <- function(
       )
     }
 
-    if (!is.null(effectPos)) {
-      return(reducedPrepro[effectPos])
-    } else {
-      return(reducedPrepro)
-    }
+    if (!is.null(effectPos)) return(reducedPrepro[effectPos])
+    return(reducedPrepro)
   } else if (!is.null(effectPos)) {
     return(outDependentStatChange[effectPos])
   } else {

@@ -32,7 +32,7 @@ test_that(
       label = "initialization of the statistics matrix"
     )
     expect_equal(
-      Reduce(rbind, lapply(preproData$dependentStatsChange, "[[", 1)),
+      Reduce(rbind, lapply(preproData$stats_change[preproData$is_dependent == 1], "[[", 1)),
       cbind(
         node1   = c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5),
         node2   = c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2),
@@ -51,37 +51,32 @@ test_that(
       label = "updating with increment works"
     ) # n-1 updates
     expect_equal(
-      preproData$rightCensoredStatsChange,
+      preproData$stats_change[preproData$is_dependent == 0],
       list(),
       label = "updating with increment works"
     )
     expect_equal(
-      preproData$intervals,
-      numeric(),
-      label = "intervals dependent"
-    ) # intervals are computed with right censored events
-    expect_equal(
-      preproData$rightCensoredIntervals,
+      preproData$intervals[preproData$is_dependent == 0],
       numeric(),
       label = "intervals right censored"
     )
     expect_equal(
-      preproData$orderEvents,
-      rep(1, nrow(eventsIncrement)),
+      preproData$is_dependent,
+      rep(1L, nrow(eventsIncrement)),
       label = "order events"
     )
     expect_equal(
-      preproData$eventTime,
+      preproData$event_time,
       eventsIncrement$time |> unique(),
       label = "events times"
     )
     expect_equal(
-      preproData$eventSender,
+      preproData$event_sender,
       as.numeric(gsub("\\D+(\\d)", "\\1", eventsIncrement$sender)),
       label = "sender events"
     )
     expect_equal(
-      preproData$eventReceiver,
+      preproData$event_receiver,
       as.numeric(gsub("\\D+(\\d)", "\\1", eventsIncrement$receiver)),
       label = "receiver events"
     )
@@ -119,7 +114,7 @@ test_that(
       label = "initialization of the statistics matrix"
     )
     expect_equal(
-      Reduce(rbind, lapply(preproData$dependentStatsChange, "[[", 1)),
+      Reduce(rbind, lapply(preproData$stats_change[preproData$is_dependent == 1], "[[", 1)),
       cbind(
         node1 = c(3, 5, 1, 4, 5),
         node2 = c(2, 1, 5, 2, 2),
@@ -128,37 +123,32 @@ test_that(
       label = "updating with increment works"
     ) # n-1 updates
     expect_equal(
-      preproData$rightCensoredStatsChange,
+      preproData$stats_change[preproData$is_dependent == 0],
       list(),
       label = "updating with increment works"
     )
     expect_equal(
-      preproData$intervals,
-      numeric(),
-      label = "intervals dependent"
-    ) # intervals are computed with right censored events
-    expect_equal(
-      preproData$rightCensoredIntervals,
+      preproData$intervals[preproData$is_dependent == 0],
       numeric(),
       label = "intervals right censored"
     )
     expect_equal(
-      preproData$orderEvents,
-      rep(1, nrow(eventsIncrement)),
+      preproData$is_dependent,
+      rep(1L, nrow(eventsIncrement)),
       label = "order events"
     )
     expect_equal(
-      preproData$eventTime,
+      preproData$event_time,
       eventsIncrement$time |> unique(),
       label = "events times"
     )
     expect_equal(
-      preproData$eventSender,
+      preproData$event_sender,
       as.numeric(gsub("\\D+(\\d)", "\\1", eventsIncrement$sender)),
       label = "sender events"
     )
     expect_equal(
-      preproData$eventReceiver,
+      preproData$event_receiver,
       as.numeric(gsub("\\D+(\\d)", "\\1", eventsIncrement$receiver)),
       label = "receiver events"
     )
@@ -201,37 +191,32 @@ test_that(
       label = "updating with increment works"
     ) # n-1 updates
     expect_equal(
-      preproData$rightCensoredStatsChange,
+      preproData$stats_change[preproData$is_dependent == 0],
       list(),
       label = "updating with increment works"
     )
     expect_equal(
-      preproData$intervals,
-      numeric(),
-      label = "intervals dependent"
-    ) # intervals are computed with right censored events
-    expect_equal(
-      preproData$rightCensoredIntervals,
+      preproData$intervals[preproData$is_dependent == 0],
       numeric(),
       label = "intervals right censored"
     )
     expect_equal(
-      preproData$orderEvents,
-      rep(1, nrow(eventsIncrement)),
+      preproData$is_dependent,
+      rep(1L, nrow(eventsIncrement)),
       label = "order events"
     )
     expect_equal(
-      preproData$eventTime,
+      preproData$event_time,
       eventsIncrement$time |> unique(),
       label = "events times"
     )
     expect_equal(
-      preproData$eventSender,
+      preproData$event_sender,
       as.numeric(gsub("\\D+(\\d)", "\\1", eventsIncrement$sender)),
       label = "sender events"
     )
     expect_equal(
-      preproData$eventReceiver,
+      preproData$event_receiver,
       as.numeric(gsub("\\D+(\\d)", "\\1", eventsIncrement$receiver)),
       label = "receiver events"
     )
@@ -285,7 +270,7 @@ test_that(
       label = "initialization of the statistics matrix"
     )
     expect_equal(
-      Reduce(rbind, lapply(preproData$dependentStatsChange, "[[", 1)),
+      Reduce(rbind, lapply(preproData$stats_change[preproData$is_dependent == 1], "[[", 1)),
       cbind(
         node1 =   c(2, 5, 1, 3, 3, 4),
         node2 =   c(3, 1, 5, 4, 4, 2),
@@ -304,37 +289,32 @@ test_that(
       label = "updating with increment works"
     )
     expect_equal(
-      preproData$rightCensoredStatsChange,
+      preproData$stats_change[preproData$is_dependent == 0],
       list(),
       label = "updating with increment works"
     )
     expect_equal(
-      preproData$intervals,
-      numeric(),
-      label = "intervals dependent"
-    ) # intervals are computed with right censored events
-    expect_equal(
-      preproData$rightCensoredIntervals,
+      preproData$intervals[preproData$is_dependent == 0],
       numeric(),
       label = "intervals right censored"
     )
     expect_equal(
-      preproData$orderEvents,
-      rep(1, nrow(eventsIncrementSubset)),
+      preproData$is_dependent,
+      rep(1L, nrow(eventsIncrementSubset)),
       label = "order events"
     )
     expect_equal(
-      preproData$eventTime,
+      preproData$event_time,
       eventsIncrementSubset$time |> unique(),
       label = "events times"
     )
     expect_equal(
-      preproData$eventSender,
+      preproData$event_sender,
       as.numeric(gsub("\\D+(\\d)", "\\1", eventsIncrementSubset$sender)),
       label = "sender events"
     )
     expect_equal(
-      preproData$eventReceiver,
+      preproData$event_receiver,
       as.numeric(gsub("\\D+(\\d)", "\\1", eventsIncrementSubset$receiver)),
       label = "receiver events"
     )
@@ -361,7 +341,7 @@ test_that(
       preprocessing_only = TRUE
     )
     expect_equal(
-      preproData$dependentStatsChange[[11]][[1]],
+      preproData$stats_change[preproData$is_dependent == 1][[11]][[1]],
       cbind(
         node1 =   c(4),
         node2 =   c(3),

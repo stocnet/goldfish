@@ -236,7 +236,9 @@ set_estimation_opt <- function(
 set_preprocessing_opt <- function(
   start_time = NULL,
   end_time = NULL,
-  opportunities_list = NULL) {
+  opportunities_list = NULL,
+  db = NULL,
+  db_table = "stats") {
   # Argument checks
   classesAllowed <- c("numeric", "character", "POSIXlt", "POSIXct", "POSIXt")
   if (!is.null(start_time)) {
@@ -297,12 +299,19 @@ set_preprocessing_opt <- function(
   #   )
   # }
 
+  if (!is.null(db) && !inherits(db, "DBIConnection")) {
+    stop("'db' must be NULL or a DBI connection object.", call. = FALSE)
+  }
+  if (!is.character(db_table) || length(db_table) != 1L) {
+    stop("'db_table' must be a single character string.", call. = FALSE)
+  }
+
   control_list <- list(
     start_time = start_time,
     end_time = end_time,
-    opportunities_list = opportunities_list#,
-    # keep_sender_index = keep_sender_index,
-    # keep_receiver_index = keep_receiver_index
+    opportunities_list = opportunities_list,
+    db = db,
+    db_table = db_table
   )
 
   class(control_list) <- c("preprocessing_opt.goldfish", "list")

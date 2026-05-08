@@ -610,13 +610,13 @@ estimate_wrapper <- function(x,
         startTime = control_preprocessing$start_time,
         endTime = control_preprocessing$end_time,
         rightCensored = rightCensored,
+        opportunitiesList = control_preprocessing$opportunities_list,
         progress = progress,
         prepEnvir = work_env
       )
 
-      # test the length of the dependent and RC updates (in case the events
-      #   objects was changed in the environment)
-      if (length(preprocessing_init$intervals) != length(newprep$intervals)) {
+      if (sum(preprocessing_init$is_dependent == 1L) !=
+          sum(newprep$is_dependent == 1L)) {
         stop(
           "The numbers of dependent events in the formula and in the ",
           "preprocessed object are not consistent.\n",
@@ -625,8 +625,8 @@ estimate_wrapper <- function(x,
         )
       }
 
-      if (length(preprocessing_init$rightCensoredIntervals) !=
-        length(newprep$rightCensoredIntervals)) {
+      if (sum(preprocessing_init$is_dependent == 0L) !=
+          sum(newprep$is_dependent == 0L)) {
         stop(
           "The numbers of right-censored events in the formula and in the ",
           "preprocessed object are not consistent.\n",
@@ -639,82 +639,59 @@ estimate_wrapper <- function(x,
     # combine old and new preprocessed objects
     if (progress) cat("Removing no longer required effects.\n")
     allprep <- preprocessing_init
-    allprep$initialStats <- array(0,
-      dim = c(
-        nrow(get(.nodes, envir = work_env)),
-        nrow(get(.nodes2, envir = work_env)),
-        length(effects_indexes)
-      )
-    )
-    allprep$dependentStatsChange <- list()
-    allprep$rightCensoredStatsChange <- list()
+    is_rate_model <- preprocessing_init$model == "DyNAM" &&
+      preprocessing_init$subModel == "rate"
+    n1_val <- nrow(get(.nodes, envir = work_env))
+    n2_val <- nrow(get(.nodes2, envir = work_env))
+    nEffectsNew <- length(effects_indexes)
+    if (is_rate_model) {
+      allprep$initialStats <- matrix(0, nrow = n1_val, ncol = nEffectsNew)
+    } else {
+      allprep$initialStats <- array(0, dim = c(n1_val, n2_val, nEffectsNew))
+    }
+    allprep$stats_change <- list()
     cptnew <- 1
 
     # initial stats
     for (e in seq_along(effects_indexes)) {
       if (effects_indexes[e] == 0) {
-        allprep$initialStats[, , e] <- newprep$initialStats[, , cptnew]
+        if (is_rate_model) {
+          allprep$initialStats[, e] <- newprep$initialStats[, cptnew]
+        } else {
+          allprep$initialStats[, , e] <- newprep$initialStats[, , cptnew]
+        }
         cptnew <- cptnew + 1
       }
       if (effects_indexes[e] > 0) {
-        allprep$initialStats[, , e] <-
-          preprocessing_init$initialStats[, , effects_indexes[e]]
+        if (is_rate_model) {
+          allprep$initialStats[, e] <-
+            preprocessing_init$initialStats[, effects_indexes[e]]
+        } else {
+          allprep$initialStats[, , e] <-
+            preprocessing_init$initialStats[, , effects_indexes[e]]
+        }
       }
     }
 
-    # dependent stats updates
-    for (t in seq_along(preprocessing_init$dependentStatsChange)) {
+    # stats updates (unified dependent + right-censored)
+    for (t in seq_along(preprocessing_init$stats_change)) {
       cptnew <- 1
-      allprep$dependentStatsChange[[t]] <-
+      allprep$stats_change[[t]] <-
         lapply(seq_along(effects_indexes), function(x) NULL)
       for (e in seq_along(effects_indexes)) {
         if (effects_indexes[e] == 0) {
-          if (!is.null(newprep$dependentStatsChange[[t]][[cptnew]])) {
-            allprep$dependentStatsChange[[t]][[e]] <-
-              newprep$dependentStatsChange[[t]][[cptnew]]
+          if (!is.null(newprep$stats_change[[t]][[cptnew]])) {
+            allprep$stats_change[[t]][[e]] <-
+              newprep$stats_change[[t]][[cptnew]]
           }
           cptnew <- cptnew + 1
         }
         if (effects_indexes[e] > 0) {
-          if (
-            !is.null(
-              preprocessing_init$dependentStatsChange[[t]][[effects_indexes[e]]]
-            )
-          ) {
-            allprep$dependentStatsChange[[t]][[e]] <-
-              preprocessing_init$dependentStatsChange[[t]][[effects_indexes[e]]]
-          }
-        }
-      }
-    }
-
-    # right censored stats updates
-    if (length(preprocessing_init$rightCensoredIntervals) > 0) {
-      for (t in seq_along(preprocessing_init$rightCensoredIntervals)) {
-        cptnew <- 1
-        allprep$rightCensoredStatsChange[[t]] <-
-          lapply(seq_along(effects_indexes), function(x) NULL)
-        for (e in seq_along(effects_indexes)) {
-          if (effects_indexes[e] == 0) {
-            if (!is.null(newprep$rightCensoredStatsChange[[t]][[cptnew]])) {
-              allprep$rightCensoredStatsChange[[t]][[e]] <-
-                newprep$rightCensoredStatsChange[[t]][[cptnew]]
-            }
-            cptnew <- cptnew + 1
-          }
-          if (effects_indexes[e] > 0) {
-            if (
-              !is.null(
-                preprocessing_init$rightCensoredStatsChange[[t]][[
-                  effects_indexes[e]
-                ]]
-      )
-            ) {
-              allprep$rightCensoredStatsChange[[t]][[e]] <-
-                preprocessing_init$rightCensoredStatsChange[[t]][[
-                  effects_indexes[e]
-                ]]
-            }
+          if (!is.null(
+            preprocessing_init$stats_change[[t]][[effects_indexes[e]]]
+          )) {
+            allprep$stats_change[[t]][[e]] <-
+              preprocessing_init$stats_change[[t]][[effects_indexes[e]]]
           }
         }
       }
@@ -765,6 +742,7 @@ estimate_wrapper <- function(x,
         startTime = control_preprocessing$start_time,
         endTime = control_preprocessing$end_time,
         rightCensored = rightCensored,
+        opportunitiesList = control_preprocessing$opportunities_list,
         progress = progress,
         prepEnvir = work_env
       )
@@ -898,8 +876,8 @@ estimate_wrapper <- function(x,
   )
   result$call[[2]] <- formulaKeep
   ## added to allow printing/plotting of rate models with rightCnesoredEvents
-  result$eventTime <- prep$eventTime
-  result$rightCensoredEvents <- prep$orderEvents == 2
+  result$eventTime <- prep$event_time
+  result$rightCensoredEvents <- prep$is_dependent == 0L
   
   return(result)
 }
