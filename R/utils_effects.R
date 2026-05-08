@@ -1,13 +1,25 @@
-#' Convert 2-column rate changes to 3-column ego perspective
+#' Expand 2-column rate changes to 3-column ego or alter perspective
 #'
-#' Expands actor-level changes from the rate model format to the ego-perspective
-#' format used by choice and REM models. Each affected actor (node1) is expanded
-#' to rows covering all alters (node2).
+#' Helper functions used internally to promote actor-level change matrices
+#' (2 columns: `node1`, `replace`) produced by DyNAM-rate effects into the
+#' dyad-level format (3 columns: `node1`, `node2`, `replace`) expected by
+#' choice and REM effect wrappers.
 #'
-#' @param changes matrix with columns node1 and replace, or NULL
-#' @param n2 integer number of alters / receivers
-#' @param is_two_mode logical whether the network is two-mode
-#' @return matrix with columns node1, node2, replace, or NULL
+#' `to_ego()` repeats each affected actor across all alters (ego perspective).
+#' `to_alter()` repeats each affected actor across all egos (alter perspective).
+#'
+#' @param changes a matrix with columns `node1` and `replace`, or `NULL`.
+#' @param n2 integer. Number of alters / receivers (used by `to_ego()`).
+#' @param n1 integer. Number of senders / egos (used by `to_alter()`).
+#' @param is_two_mode logical. Whether the network is two-mode; if `FALSE`
+#'   (default) the focal actor is excluded from the expanded rows.
+#' @return A matrix with columns `node1`, `node2`, `replace`, or `NULL` when
+#'   `changes` is `NULL`.
+#' @keywords internal
+#' @name utils-effects
+NULL
+
+#' @rdname utils-effects
 #' @export
 to_ego <- function(changes, n2, is_two_mode = FALSE) {
   if (is.null(changes)) return(NULL)
@@ -22,17 +34,7 @@ to_ego <- function(changes, n2, is_two_mode = FALSE) {
   }))
 }
 
-#' Convert 2-column rate changes to 3-column alter perspective
-#'
-#' Expands actor-level changes from the rate model format to the alter-perspective
-#' format used by choice and REM models. Each affected actor (node1 in the 2-col
-#' format, acting as the alter) is expanded to rows covering all egos (node1 in
-#' the 3-col format).
-#'
-#' @param changes matrix with columns node1 and replace, or NULL
-#' @param n1 integer number of senders / egos
-#' @param is_two_mode logical whether the network is two-mode
-#' @return matrix with columns node1, node2, replace, or NULL
+#' @rdname utils-effects
 #' @export
 to_alter <- function(changes, n1, is_two_mode = FALSE) {
   if (is.null(changes)) return(NULL)
