@@ -12,12 +12,7 @@ init_DyNAMi_rate.default <- function(
     network = NULL, attribute = NULL,
     groupsNetwork, window,
     n1, n2) {
-  init_DyNAMi_choice.default(
-    effectFun = effectFun,
-    network = network, attribute = attribute,
-    groupsNetwork = groupsNetwork, window = window,
-    n1 = n1, n2 = n2
-  )
+  list(stat = rep(0, n1))
 }
 
 # Structural effects ------------------------------------------------------
@@ -43,18 +38,18 @@ update_DyNAMi_rate_intercept <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 1) {
+        if (statistics[i] != 1) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 1)
+            cbind(node1 = i, replace = 1)
           )
         }
         next
       } else {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
       }
@@ -71,18 +66,18 @@ update_DyNAMi_rate_intercept <- function(
       }
 
       if (isingroup) {
-        if (statistics[i, 1] != 1) {
+        if (statistics[i] != 1) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 1)
+            cbind(node1 = i, replace = 1)
           )
         }
         next
       } else {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
       }
@@ -135,10 +130,10 @@ update_DyNAMi_rate_tie <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
         next
@@ -168,10 +163,10 @@ update_DyNAMi_rate_tie <- function(
         rep <- max(network[i, smembers])
       }
 
-      if (statistics[i, 1] != rep) {
+      if (statistics[i] != rep) {
         reptotal <- rbind(
           reptotal,
-          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          cbind(node1 = i, replace = rep)
         )
       }
     }
@@ -220,18 +215,18 @@ update_DyNAMi_rate_egodeg <- function(
           }
         }
 
-        if (statistics[i, 1] != rep) {
+        if (statistics[i] != rep) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+            cbind(node1 = i, replace = rep)
           )
         }
         next
       } else {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
       }
@@ -264,18 +259,18 @@ update_DyNAMi_rate_egodeg <- function(
           }
         }
 
-        if (statistics[i, 1] != rep) {
+        if (statistics[i] != rep) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+            cbind(node1 = i, replace = rep)
           )
         }
         next
       } else {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
       }
@@ -333,10 +328,10 @@ update_DyNAMi_rate_alterdeg <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
         next
@@ -389,10 +384,10 @@ update_DyNAMi_rate_alterdeg <- function(
         }
       }
 
-      if (statistics[i, 1] != rep) {
+      if (statistics[i] != rep) {
         reptotal <- rbind(
           reptotal,
-          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          cbind(node1 = i, replace = rep)
         )
       }
     }
@@ -445,10 +440,10 @@ update_DyNAMi_rate_size <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
         next
@@ -467,10 +462,10 @@ update_DyNAMi_rate_size <- function(
         rep <- nmembers > 2
       }
 
-      if (statistics[i, 1] != rep) {
+      if (statistics[i] != rep) {
         reptotal <- rbind(
           reptotal,
-          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          cbind(node1 = i, replace = rep)
         )
       }
     }
@@ -504,10 +499,10 @@ update_DyNAMi_rate_dyad <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
         next
@@ -524,10 +519,10 @@ update_DyNAMi_rate_dyad <- function(
         }
       }
 
-      if (statistics[i, 1] != rep) {
+      if (statistics[i] != rep) {
         reptotal <- rbind(
           reptotal,
-          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          cbind(node1 = i, replace = rep)
         )
       }
     }
@@ -584,18 +579,18 @@ update_DyNAMi_rate_ego <- function(
           }
         }
 
-        if (statistics[i, 1] != rep) {
+        if (statistics[i] != rep) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+            cbind(node1 = i, replace = rep)
           )
         }
         next
       } else {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
       }
@@ -631,18 +626,18 @@ update_DyNAMi_rate_ego <- function(
           }
         }
 
-        if (statistics[i, 1] != rep) {
+        if (statistics[i] != rep) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+            cbind(node1 = i, replace = rep)
           )
         }
         next
       } else {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
       }
@@ -679,10 +674,10 @@ update_DyNAMi_rate_alter <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
         next
@@ -740,10 +735,10 @@ update_DyNAMi_rate_alter <- function(
         rep <- max(attribute[smembers]) - min(attribute[smembers])
       }
 
-      if (statistics[i, 1] != rep) {
+      if (statistics[i] != rep) {
         reptotal <- rbind(
           reptotal,
-          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          cbind(node1 = i, replace = rep)
         )
       }
     }
@@ -777,10 +772,10 @@ update_DyNAMi_rate_same <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
         next
@@ -801,10 +796,10 @@ update_DyNAMi_rate_same <- function(
         rep <- min(attribute[smembers] == attribute[i])
       }
 
-      if (statistics[i, 1] != rep) {
+      if (statistics[i] != rep) {
         reptotal <- rbind(
           reptotal,
-          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          cbind(node1 = i, replace = rep)
         )
       }
     }
@@ -838,10 +833,10 @@ update_DyNAMi_rate_diff <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
         next
@@ -874,10 +869,10 @@ update_DyNAMi_rate_diff <- function(
         rep <- (max(attribute[smembers]) - attribute[i])^2
       }
 
-      if (statistics[i, 1] != rep) {
+      if (statistics[i] != rep) {
         reptotal <- rbind(
           reptotal,
-          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          cbind(node1 = i, replace = rep)
         )
       }
     }
@@ -912,10 +907,10 @@ update_DyNAMi_rate_sim <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
         next
@@ -939,10 +934,10 @@ update_DyNAMi_rate_sim <- function(
         rep <- (-1) * abs(max(attribute[smembers]) - attribute[i])
       }
 
-      if (statistics[i, 1] != 1) {
+      if (statistics[i] != 1) {
         reptotal <- rbind(
           reptotal,
-          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          cbind(node1 = i, replace = rep)
         )
       }
     }
@@ -979,10 +974,10 @@ update_DyNAMi_rate_sizeXdiff <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
         next
@@ -1007,10 +1002,10 @@ update_DyNAMi_rate_sizeXdiff <- function(
         rep <- nmembers * abs(max(attribute[smembers]) - attribute[i])
       }
 
-      if (statistics[i, 1] != rep) {
+      if (statistics[i] != rep) {
         reptotal <- rbind(
           reptotal,
-          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          cbind(node1 = i, replace = rep)
         )
       }
     }
@@ -1045,10 +1040,10 @@ update_DyNAMi_rate_dyadXdiff <- function(
       }
 
       if (!isingroup) {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
         next
@@ -1078,10 +1073,10 @@ update_DyNAMi_rate_dyadXdiff <- function(
         rep <- m * abs(max(attribute[smembers]) - attribute[i])
       }
 
-      if (statistics[i, 1] != rep) {
+      if (statistics[i] != rep) {
         reptotal <- rbind(
           reptotal,
-          cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+          cbind(node1 = i, replace = rep)
         )
       }
     }
@@ -1139,18 +1134,18 @@ update_DyNAMi_rate_sizeXego <- function(
           }
         }
 
-        if (statistics[i, 1] != rep) {
+        if (statistics[i] != rep) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+            cbind(node1 = i, replace = rep)
           )
         }
         next
       } else {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
       }
@@ -1216,18 +1211,18 @@ update_DyNAMi_rate_dyadXego <- function(
           }
         }
 
-        if (statistics[i, 1] != rep) {
+        if (statistics[i] != rep) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = rep)
+            cbind(node1 = i, replace = rep)
           )
         }
         next
       } else {
-        if (statistics[i, 1] != 0) {
+        if (statistics[i] != 0) {
           reptotal <- rbind(
             reptotal,
-            cbind(node1 = i, node2 = seq.int(n2), replace = 0)
+            cbind(node1 = i, replace = 0)
           )
         }
       }
