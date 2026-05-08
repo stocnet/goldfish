@@ -1,3 +1,22 @@
+# goldfish 1.7.2
+
+* Refactored DyNAM-rate preprocessing pipeline: statistics are now stored as
+  an `n1 × nEffects` matrix instead of a 3D array, eliminating the
+  `reduceMatrixToVector` step at estimation time.
+* Unified preprocessing output fields: `stats_change`, `intervals`,
+  `is_dependent`, `event_time`, `event_sender`, `event_receiver` (snake_case);
+  composition change vectors (`active_mode1/2_init`, `active_mode1/2_changes`)
+  are now stored in the preprocessing object instead of being re-derived during
+  estimation.
+* DyNAM-rate effect functions are now the base implementations returning
+  2-column `(node1, replace)` changes; REM and choice effects delegate to them
+  via `to_ego()` / `to_alter()` helpers (new `R/utils_effects.R`).
+* New DyNAM-rate effects: `degree()` (undirected), `triangle()` (undirected),
+  and `global()` for time-varying global covariates.
+* Added `db` and `db_table` parameters to `set_preprocessing_opt()` for
+  writing statistics to a DBI-compatible database during preprocessing.
+* Added `DBI` to package imports.
+
 # goldfish 1.7.1
 
 * Created new data objects for diagnostic methods (#116). 
