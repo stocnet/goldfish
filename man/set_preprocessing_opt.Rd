@@ -7,7 +7,9 @@
 set_preprocessing_opt(
   start_time = NULL,
   end_time = NULL,
-  opportunities_list = NULL
+  opportunities_list = NULL,
+  db = NULL,
+  db_table = "stats"
 )
 }
 \arguments{
