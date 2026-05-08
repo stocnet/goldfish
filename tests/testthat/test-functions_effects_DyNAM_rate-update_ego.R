@@ -24,7 +24,7 @@ test_that("ego returns correct attributes on update", {
       node = 1, replace = 9,
       n1 = 8, n2 = 8, is_two_mode = FALSE
     )$changes,
-    cbind(node1 = rep(1, 7), node2 = 2:8, replace = rep(9, 7))
+    cbind(node1 = 1, replace = 9)
   )
   expect_equal(
     update_DyNAM_rate_ego(
@@ -32,7 +32,7 @@ test_that("ego returns correct attributes on update", {
       node = 1, replace = 0,
       n1 = 8, n2 = 8, is_two_mode = FALSE
     )$changes,
-    cbind(node1 = rep(1, 7), node2 = 2:8, replace = rep(0, 7)),
+    cbind(node1 = 1, replace = 0),
     label = "when replace is 0"
   )
   # expect_equal(
