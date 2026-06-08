@@ -158,11 +158,25 @@ print.summary.result.goldfish <- function(
   cat("\nCoefficients:\n")
   stats::printCoefmat(coefMat, digits = digits, width = width, ...)
   cat("\n")
-  cat(" ", paste(
-    ifelse(x$convergence$isConverged, "Converged", "Not converged"),
-    "with max abs. score of",
-    round(x$convergence$maxAbsScore, digits)
-  ), "\n")
+  rc <- x$convergence$returnCode
+  if (is.null(rc) || rc == 0L) {
+    cat("  Not converged (return code 0)\n")
+  } else if (rc == 1L) {
+    cat("  Return code 1: gradient close to zero\n")
+  } else if (rc == 2L) {
+    cat("  Return code 2: step size close to zero (damped)\n")
+  }
+  nFree <- x$nParams
+  nTotal <- length(x$parameters)
+  nFixed <- nTotal - nFree
+  cat(
+    " ",
+    nFree,
+    if (nFree != 1) "parameters" else "parameter",
+    "estimated",
+    if (nFixed > 0) paste0("(", nFixed, " fixed)") else "",
+    "\n"
+  )
   cat(
     " ",
     paste("Log-Likelihood: ", signif(x$logLikelihood, digits),

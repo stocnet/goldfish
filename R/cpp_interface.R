@@ -26,7 +26,8 @@ estimate_c_int <- function(
   maxIterations = 20,
   dampingIncreaseFactor = 2,
   dampingDecreaseFactor = 3,
-  maxScoreStopCriterion = 0.001,
+  score_tol = 1e-6,
+  step_tol = 1e-8,
   # additional return objects
   returnEventProbabilities = FALSE,
   # additional parameter for DyNAM-MM
@@ -172,7 +173,7 @@ estimate_c_int <- function(
         "replace"
       )
     )
-    temp <- C_convert_composition_clohange(compChange1, statsList$event_time)
+    temp <- C_convert_composition_change(compChange1, statsList$event_time)
     presence1_update <- temp$presenceUpdate
     presence1_update_pointer <- temp$presenceUpdatePointer
   } else {
@@ -349,6 +350,8 @@ estimate_c_int <- function(
   score <- rep(0, nParams)
   logLikelihood <- 0
   isConverged <- FALSE
+  returnCode <- 0L
+  update <- rep(0, nParams)
   isInitialEstimation <- TRUE
   logLikelihood.old <- -Inf
   parameters.old <- initialParameters
@@ -462,6 +465,7 @@ estimate_c_int <- function(
       inverseInformationUnfixed <- matrix(0, nParams, nParams)
       score <- rep(0, nParams)
       isConverged <- TRUE
+      returnCode <- 1L
       break
     }
 
@@ -469,10 +473,13 @@ estimate_c_int <- function(
     #  It's for the fixing parameter feature. \
     score[idFixedCompnents] <- 0
 
+    score_rel_norm <- max(abs(score)) / max(1, abs(logLikelihood))
     if (!verbose && progress) {
       cat(
         "\rMax score: ",
-        round(max(abs(score)), round(-logb(maxScoreStopCriterion / 1, 10)) + 1),
+        round(score_rel_norm, round(-logb(score_tol, 10)) + 1),
+        "Max step: ",
+        round(max(abs(update)), round(-logb(step_tol, 10)) + 1),
         " (",
         iIteration,
         ").        "
@@ -556,15 +563,17 @@ estimate_c_int <- function(
     }
 
     # check for stop criteria
-    if (max(abs(score)) <= maxScoreStopCriterion) {
+    score_converged <- score_rel_norm <= score_tol
+    step_converged <- max(abs(update)) <= step_tol
+    if (score_converged || step_converged) {
       isConverged <- TRUE
+      returnCode <- if (score_converged) 1L else 2L
       if (progress) {
-        cat(
-          "\nStopping as maximum absolute score is below ",
-          maxScoreStopCriterion,
-          ".\n",
-          sep = ""
-        )
+        if (score_converged) {
+          cat("\nReturn code 1: gradient close to zero.\n")
+        } else {
+          cat("\nReturn code 2: step size close to zero (damped).\n")
+        }
       }
       break
     }
@@ -599,7 +608,9 @@ estimate_c_int <- function(
     finalInformationMatrix = informationMatrix,
     convergence = list(
       isConverged = isConverged,
-      maxAbsScore = max(abs(score))
+      returnCode = returnCode,
+      maxAbsScore = max(abs(score)),
+      maxAbsUpdate = max(abs(update))
     ),
     nIterations = iIteration,
     nEvents = nEvents

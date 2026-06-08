@@ -33,11 +33,17 @@
 #' @param max_iterations An integer non-negative.
 #'   The maximum number of iterations in the Gauss-Fisher scoring algorithm.
 #'   Default is `20`.
-#' @param convergence_criterion A positive numeric value.
-#'   The convergence criterion for the estimation.
-#'   The algorithm stops if the sum of absolute scores is smaller than
-#'   this value.
-#'   Default is `0.001`.
+#' @param score_tol A positive numeric value.
+#'   Scale-invariant gradient convergence criterion.
+#'   The algorithm stops if
+#'   `max(abs(score)) / max(1, abs(logLik)) <= score_tol`.
+#'   Default is `1e-6`.
+#' @param step_tol A positive numeric value.
+#'   Damped Newton step size convergence criterion.
+#'   The algorithm stops if `max(abs(update)) <= step_tol`.
+#'   Default is `1e-8`.
+#' @param convergence_criterion `r lifecycle::badge("deprecated")`.
+#'   Use `score_tol` instead. This argument is ignored.
 #' @param initial_damping A positive numeric value.
 #'   The initial damping factor for the Gauss-Fisher scoring algorithm.
 #'   Default is `NULL`, which allows `estimate_dynam()`, `estimate_rem()` and
@@ -82,8 +88,10 @@
 #'      the estimation process.}
 #'   \item{max_iterations}{Maximum number of iterations in the
 #'      estimation process.}
-#'   \item{convergence_criterion}{Convergence criterion for the
-#'      estimation process.}
+#'   \item{score_tol}{Scale-invariant gradient convergence criterion for
+#'      the estimation process.}
+#'   \item{step_tol}{Damped Newton step size convergence criterion for
+#'      the estimation process.}
 #'   \item{initial_damping}{Initial damping factor for the
 #'      estimation process.}
 #'   \item{damping_increase_factor}{Factor by which damping is
@@ -97,13 +105,16 @@
 #' @examples
 #' est_ctrl <- set_estimation_opt(
 #'   max_iterations = 50,
-#'   convergence_criterion = 1e-4
+#'   score_tol = 1e-7,
+#'   step_tol = 1e-9
 #' )
 set_estimation_opt <- function(
   initial_parameters = NULL,
   fixed_parameters = NULL,
   max_iterations = 20,
-  convergence_criterion = 0.001,
+  convergence_criterion = deprecated(),
+  score_tol = 1e-6,
+  step_tol = 1e-8,
   initial_damping = NULL,
   damping_increase_factor = 2,
   damping_decrease_factor = 3,
@@ -112,6 +123,17 @@ set_estimation_opt <- function(
   engine = c("default_c", "default", "gather_compute")
 ) {
   engine <- match.arg(engine)
+
+  if (lifecycle::is_present(convergence_criterion)) {
+    lifecycle::deprecate_warn(
+      when = "1.7.2",
+      what = "set_estimation_opt(convergence_criterion)",
+      details = paste0(
+        "`convergence_criterion` is ignored; ",
+        "please use `score_tol` instead (default: 1e-6)."
+      )
+    )
+  }
 
   # Argument checks
   if (!is.null(initial_parameters) && !is.numeric(initial_parameters)) {
@@ -127,12 +149,11 @@ set_estimation_opt <- function(
       max_iterations < 0) {
     stop("'max_iterations' must be a single non-negative integer.", call. = FALSE)
   }
-  if (!rlang::is_scalar_double(convergence_criterion) ||
-      convergence_criterion <= 0) {
-    stop(
-      "'convergence_criterion' must be a single positive numeric value.",
-      call. = FALSE
-    )
+  if (!rlang::is_scalar_double(score_tol) || score_tol <= 0) {
+    stop("'score_tol' must be a single positive numeric value.", call. = FALSE)
+  }
+  if (!rlang::is_scalar_double(step_tol) || step_tol <= 0) {
+    stop("'step_tol' must be a single positive numeric value.", call. = FALSE)
   }
   if (!is.null(initial_damping) && (!is.numeric(initial_damping) ||
       length(initial_damping) != 1 || initial_damping <= 0)) {
@@ -172,7 +193,8 @@ set_estimation_opt <- function(
     initial_parameters = initial_parameters,
     fixed_parameters = fixed_parameters,
     max_iterations = max_iterations,
-    convergence_criterion = convergence_criterion,
+    score_tol = score_tol,
+    step_tol = step_tol,
     initial_damping = initial_damping,
     damping_increase_factor = damping_increase_factor,
     damping_decrease_factor = damping_decrease_factor,

@@ -8,7 +8,9 @@ set_estimation_opt(
   initial_parameters = NULL,
   fixed_parameters = NULL,
   max_iterations = 20,
-  convergence_criterion = 0.001,
+  convergence_criterion = deprecated(),
+  score_tol = 1e-06,
+  step_tol = 1e-08,
   initial_damping = NULL,
   damping_increase_factor = 2,
   damping_decrease_factor = 3,
@@ -35,11 +37,19 @@ Default is \code{NULL} (all parameters are estimated).}
 The maximum number of iterations in the Gauss-Fisher scoring algorithm.
 Default is \code{20}.}
 
-\item{convergence_criterion}{A positive numeric value.
-The convergence criterion for the estimation.
-The algorithm stops if the sum of absolute scores is smaller than
-this value.
-Default is \code{0.001}.}
+\item{convergence_criterion}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}.
+Use \code{score_tol} instead. This argument is ignored.}
+
+\item{score_tol}{A positive numeric value.
+Scale-invariant gradient convergence criterion.
+The algorithm stops if
+\code{max(abs(score)) / max(1, abs(logLik)) <= score_tol}.
+Default is \code{1e-6}.}
+
+\item{step_tol}{A positive numeric value.
+Damped Newton step size convergence criterion.
+The algorithm stops if \code{max(abs(update)) <= step_tol}.
+Default is \code{1e-8}.}
 
 \item{initial_damping}{A positive numeric value.
 The initial damping factor for the Gauss-Fisher scoring algorithm.
@@ -93,8 +103,10 @@ the estimation process.}
 the estimation process.}
 \item{max_iterations}{Maximum number of iterations in the
 estimation process.}
-\item{convergence_criterion}{Convergence criterion for the
-estimation process.}
+\item{score_tol}{Scale-invariant gradient convergence criterion for
+the estimation process.}
+\item{step_tol}{Damped Newton step size convergence criterion for
+the estimation process.}
 \item{initial_damping}{Initial damping factor for the
 estimation process.}
 \item{damping_increase_factor}{Factor by which damping is
@@ -128,6 +140,7 @@ large changes in the coefficients that would create more iterations
 \examples{
 est_ctrl <- set_estimation_opt(
   max_iterations = 50,
-  convergence_criterion = 1e-4
+  score_tol = 1e-7,
+  step_tol = 1e-9
 )
 }

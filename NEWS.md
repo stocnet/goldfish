@@ -1,3 +1,17 @@
+# goldfish 1.7.3
+
+* Improved convergence diagnostics in the Newton-Raphson optimizer:
+  two stopping criteria are now checked independently and the first
+  criterion met is reported as a return code in the model summary.
+  `set_estimation_opt()` gains `score_tol` (default `1e-6`, scale-invariant
+  relative gradient criterion) and `step_tol` (default `1e-8`, damped Newton
+  step size criterion). The summary line now reads
+  "Return code 1: gradient close to zero" or
+  "Return code 2: step size close to zero (damped)" and is followed by
+  the number of free and fixed parameters estimated.
+* `set_estimation_opt(convergence_criterion)` is deprecated.
+  Use `score_tol` instead (default `1e-6`).
+
 # goldfish 1.7.2
 
 * Refactored DyNAM-rate preprocessing pipeline: statistics are now stored as
