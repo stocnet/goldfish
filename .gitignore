@@ -16,3 +16,7 @@ review.txt
 inst/doc
 docs
 .DS_Store
+.positai
+openspec/
+.plan/
+.claude/

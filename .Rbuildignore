@@ -15,3 +15,5 @@ vignettes/precompile\.R
 ^cran-comments\.md$
 ^CRAN-SUBMISSION$
 ^README\.Rmd$
+^\.positai$
+^\.claude$
