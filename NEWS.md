@@ -1,5 +1,13 @@
 # goldfish 1.7.3
 
+* `window` is now correctly supported for the four `mixed_*` effects
+  (`mixed_trans`, `mixed_cycle`, `mixed_common_sender`, `mixed_common_receiver`)
+  when the network argument is a `list(net1, net2)` expression. Previously
+  the formula parser errored with a cryptic "object not found" message.
+* Using `window` with an attribute-only effect (e.g., `alter(nodes$attr, window = 5)`,
+  `same`, `sim`, `diff`, `ego`, `ego_alter_interaction`) now raises a descriptive
+  error identifying the effect and attribute, and lists all violations in the formula
+  at once. Previously this silently produced results with undefined semantics.
 * Two-path cache counts in closure effects (`trans`, `cycle`, `common_sender`,
   `common_receiver`, and all `mixed_*` variants) are now clamped to zero via
   `pmax(0L, ...)` instead of filtering out negative rows. Previously, when all

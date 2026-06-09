@@ -480,7 +480,15 @@ parse_time_windows <- function(rhs_names, envir = new.env()) {
   has_windows <- which(
     vapply(rhs_names, function(x) !is.null(getElement(x, "window")), logical(1))
   )
-  for (i in has_windows) {
+
+  # Phase 1: parse/validate window values and collect attribute violations.
+  # Format errors on individual window values abort immediately (unambiguous).
+  # Attribute+window violations are collected and reported together.
+  windows_parsed <- vector("list", length(has_windows))
+  violations <- character(0)
+
+  for (idx in seq_along(has_windows)) {
+    i <- has_windows[idx]
     window_name <- rhs_names[[i]]$window
     window <- tryCatch(
       eval(parse(text = window_name), envir = envir),
@@ -539,7 +547,6 @@ parse_time_windows <- function(rhs_names, envir = new.env()) {
         window <- as.numeric(strsplit(window, " ")[[1]][1]) * 31557600
       }
     } else if (is.numeric(window)) { # check numeric type
-
       if (window < 0) {
         stop(
           "The window specified with the effect ",
@@ -548,23 +555,82 @@ parse_time_windows <- function(rhs_names, envir = new.env()) {
         )
       }
     }
+    windows_parsed[[idx]] <- list(window = window, window_name = window_name)
+
     name <- rhs_names[[i]][[2]]
-    objects <- object_names[object_names$name == name, ]
-    is_attribute <- !is.na(objects$attribute)
-    rhs_names[[i]][[2]] <- paste(rhs_names[[i]][[2]],
-      window_name,
-      sep = "_"
-    )
-    if (is_attribute) {
-      name_nodes <- objects$nodeset
-      nodes <- get(name_nodes, envir = envir)
-      attribute <- objects$attribute
-      new_attribute <- paste(attribute, window_name, sep = "_")
-      nodes[new_attribute] <- nodes[attribute]
-      all_events <- attr(nodes, "events")
-      all_dynamic_attributes <- attr(nodes, "dynamic_attributes")
-      all_events <- all_events[all_dynamic_attributes == attribute]
+    effect_name <- rhs_names[[i]][[1]]
+    if (grepl("^list\\(", name)) {
+      inner_names <- trimws(
+        strsplit(gsub("^list\\((.+)\\)$", "\\1", name), ",")[[1]]
+      )
+      attr_inners <- inner_names[grepl("\\$", inner_names)]
+      for (attr_ref in attr_inners) {
+        msg <- paste0(
+          "Effect {.code ", effect_name, "} on {.code ", attr_ref,
+          "} must not have a {.arg window} argument,",
+          " remove it from the formula."
+        )
+        violations <- c(violations, c(x = msg))
+      }
     } else {
+      objects <- object_names[object_names$name == name, ]
+      if (nrow(objects) > 0 && !is.na(objects$attribute[1])) {
+        msg <- paste0(
+          "Effect {.code ", effect_name, "} on {.code ", name,
+          "} must not have a {.arg window} argument,",
+          " remove it from the formula."
+        )
+        violations <- c(violations, c(x = msg))
+      }
+    }
+  }
+
+  if (length(violations) > 0) {
+    cli::cli_abort(c(
+      "{.arg window} is not supported for attribute effects.",
+      violations,
+      "i" = "Remove the {.arg window} argument from the listed effects in the formula."
+    ))
+  }
+
+  # Phase 2: process network windowing (only reached when no violations found).
+  for (idx in seq_along(has_windows)) {
+    i <- has_windows[idx]
+    window <- windows_parsed[[idx]]$window
+    window_name <- windows_parsed[[idx]]$window_name
+    name <- rhs_names[[i]][[2]]
+
+    if (grepl("^list\\(", name)) {
+      inner_names <- trimws(
+        strsplit(gsub("^list\\((.+)\\)$", "\\1", name), ",")[[1]]
+      )
+      new_inner_names <- character(length(inner_names))
+      for (j in seq_along(inner_names)) {
+        net_name <- inner_names[j]
+        network <- get(net_name, envir = envir)
+        new_net_name <- paste(net_name, window_name, sep = "_")
+        new_network <- matrix(0, nrow = nrow(network), ncol = ncol(network))
+        attr(new_network, "events") <- NULL
+        attr(new_network, "nodes") <- attr(network, "nodes")
+        attr(new_network, "directed") <- attr(network, "directed")
+        dimnames(new_network) <- dimnames(network)
+        class(new_network) <- class(network)
+        all_events <- attr(network, "events")
+        for (events in all_events) {
+          object_events <- get(events, envir = envir)
+          new_events <- create_windowed_events(object_events, window)
+          name_new_events <- paste(events, window, sep = "_")
+          attr(new_network, "events") <-
+            c(attr(new_network, "events"), name_new_events)
+          assign(name_new_events, new_events, envir = envir)
+        }
+        assign(new_net_name, new_network, envir = envir)
+        new_inner_names[j] <- new_net_name
+      }
+      rhs_names[[i]][[2]] <-
+        paste0("list(", paste(new_inner_names, collapse = ", "), ")")
+    } else {
+      rhs_names[[i]][[2]] <- paste(name, window_name, sep = "_")
       network <- get(name, envir = envir)
       new_network <- matrix(0, nrow = nrow(network), ncol = ncol(network))
       new_name <- paste(name, window_name, sep = "_")
@@ -574,24 +640,14 @@ parse_time_windows <- function(rhs_names, envir = new.env()) {
       dimnames(new_network) <- dimnames(network)
       class(new_network) <- class(network)
       all_events <- attr(network, "events")
-    }
-    for (events in all_events) {
-      object_events <- get(events, envir = envir)
-      new_events <- create_windowed_events(object_events, window)
-      name_new_events <- paste(events, window, sep = "_")
-      if (is_attribute) {
-        attr(nodes, "events") <- c(attr(nodes, "events"), name_new_events)
-        attr(nodes, "dynamic_attributes") <-
-          c(attr(nodes, "dynamic_attributes"), new_attribute)
-      } else {
+      for (events in all_events) {
+        object_events <- get(events, envir = envir)
+        new_events <- create_windowed_events(object_events, window)
+        name_new_events <- paste(events, window, sep = "_")
         attr(new_network, "events") <-
           c(attr(new_network, "events"), name_new_events)
+        assign(name_new_events, new_events, envir = envir)
       }
-      assign(name_new_events, new_events, envir = envir)
-    }
-    if (is_attribute) {
-      assign(name_nodes, nodes, envir = envir)
-    } else {
       assign(new_name, new_network, envir = envir)
     }
   }

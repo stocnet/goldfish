@@ -488,6 +488,76 @@ test_that("trans history sequential window", {
   )
 })
 
+test_that("mixed_trans with window and list(net1, net2) preprocesses without error", {
+  preproData <- estimate_wrapper(
+    depNetworkTrans ~ mixed_trans(list(networkStateTrans, networkExog), window = 5),
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_equal(
+    preproData$initialStats[,, 1],
+    matrix(0, nrow = 5, ncol = 5),
+    label = "windowed mixed_trans initializes with zero stat",
+    ignore_attr = TRUE
+  )
+})
+
+test_that("mixed_cycle with window and list(net1, net2) preprocesses without error", {
+  preproData <- estimate_wrapper(
+    depNetworkTrans ~ mixed_cycle(list(networkStateTrans, networkExog), window = 5),
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_equal(
+    preproData$initialStats[,, 1],
+    matrix(0, nrow = 5, ncol = 5),
+    label = "windowed mixed_cycle initializes with zero stat",
+    ignore_attr = TRUE
+  )
+})
+
+test_that("mixed_common_sender with window and list(net1, net2) preprocesses without error", {
+  preproData <- estimate_wrapper(
+    depNetworkTrans ~ mixed_common_sender(
+      list(networkStateTrans, networkExog),
+      window = 5
+    ),
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_equal(
+    preproData$initialStats[,, 1],
+    matrix(0, nrow = 5, ncol = 5),
+    label = "windowed mixed_common_sender initializes with zero stat",
+    ignore_attr = TRUE
+  )
+})
+
+test_that("mixed_common_receiver with window and list(net1, net2) preprocesses without error", {
+  preproData <- estimate_wrapper(
+    depNetworkTrans ~ mixed_common_receiver(
+      list(networkStateTrans, networkExog),
+      window = 5
+    ),
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_equal(
+    preproData$initialStats[,, 1],
+    matrix(0, nrow = 5, ncol = 5),
+    label = "windowed mixed_common_receiver initializes with zero stat",
+    ignore_attr = TRUE
+  )
+})
+
 test_that("Object and attribute existence", {
   expect_error(
     estimate_wrapper(

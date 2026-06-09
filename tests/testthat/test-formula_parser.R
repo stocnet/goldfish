@@ -331,6 +331,104 @@ test_that("events, objects & effects links", {
   
   expect_true(inherits(events_effects_link, "array"))
   expect_equal(dim(events_effects_link), c(4, n_terms))
-  
+
+})
+
+test_that("window on single attribute effect raises cli error", {
+  expect_error(
+    estimate_wrapper(
+      depNetwork ~ alter(actorsEx$attr1, window = 5),
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
+    ),
+    "not supported for attribute effects",
+    label = "header mentions attribute effects"
+  )
+  expect_error(
+    estimate_wrapper(
+      depNetwork ~ alter(actorsEx$attr1, window = 5),
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
+    ),
+    "alter.*must not have",
+    label = "violation names the effect"
+  )
+  expect_error(
+    estimate_wrapper(
+      depNetwork ~ alter(actorsEx$attr1, window = 5),
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
+    ),
+    "actorsEx\\$attr1",
+    label = "violation names the attribute reference"
+  )
+})
+
+test_that("window on list attribute effect raises cli error", {
+  expect_error(
+    estimate_wrapper(
+      depNetwork ~ ego_alter_interaction(
+        list(actorsEx$attr1, actorsEx$attr1),
+        window = 5
+      ),
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
+    ),
+    "not supported for attribute effects",
+    label = "header fires for list attribute case"
+  )
+  expect_error(
+    estimate_wrapper(
+      depNetwork ~ ego_alter_interaction(
+        list(actorsEx$attr1, actorsEx$attr1),
+        window = 5
+      ),
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
+    ),
+    "ego_alter_interaction.*must not have",
+    label = "violation names the effect for list attribute case"
+  )
+})
+
+test_that("multiple attribute+window violations are all reported in one error", {
+  err <- tryCatch(
+    estimate_wrapper(
+      depNetwork ~ alter(actorsEx$attr1, window = 5) +
+        same(actorsEx$attr1, window = 5),
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
+    ),
+    error = function(e) e
+  )
+  expect_s3_class(err, "error")
+  msg <- conditionMessage(err)
+  expect_match(msg, "alter.*must not have", label = "first violation is reported")
+  expect_match(msg, "same.*must not have", label = "second violation is reported")
+})
+
+test_that("window on network effect does not raise attribute error", {
+  expect_no_error(
+    estimate_wrapper(
+      depNetworkTrans ~ trans(networkStateTrans, window = 5),
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
+    ),
+    message = "network windowed effects must not raise the attribute error"
+  )
 })
 
