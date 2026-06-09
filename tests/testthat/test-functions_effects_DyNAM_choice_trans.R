@@ -116,7 +116,7 @@ test_that("trans recognizes tie creation correctly ", {
     update_DyNAM_choice_trans(
       m,
       sender = 1, receiver = 4, replace = 1,
-      cache = mCache, history='cons', eventOrder = 2
+      cache = mCache, history='cons', eventOrder = 1
     )$changes,
     rbind(
       "sender" = c(node1 = 2, node2 = 4, replace = 1)
@@ -162,10 +162,10 @@ test_that("trans recognizes tie deletion correctly", {
       cache = mCache
     )$changes,
     rbind(
-      "Actor 1" = c(node1 = 1, node2 = 1, replace = -1),
+      "Actor 1" = c(node1 = 1, node2 = 1, replace = 0),
       "Actor 3" = c(node1 = 1, node2 = 3, replace = 0),
-      "Actor 2" = c(node1 = 2, node2 = 2, replace = -1),
-      "Actor 4" = c(node1 = 4, node2 = 2, replace = -1)
+      "Actor 2" = c(node1 = 2, node2 = 2, replace = 0),
+      "Actor 4" = c(node1 = 4, node2 = 2, replace = 0)
     )
   )
     expect_equal(
@@ -175,10 +175,10 @@ test_that("trans recognizes tie deletion correctly", {
         cache = mCache, history='seq'
       )$changes,
       rbind(
-        "Actor 1" = c(node1 = 1, node2 = 1, replace = -1),
+        "Actor 1" = c(node1 = 1, node2 = 1, replace = 0),
         "Actor 3" = c(node1 = 1, node2 = 3, replace = 0),
-        "Actor 2" = c(node1 = 2, node2 = 2, replace = -1),
-        "Actor 4" = c(node1 = 4, node2 = 2, replace = -1)
+        "Actor 2" = c(node1 = 2, node2 = 2, replace = 0),
+        "Actor 4" = c(node1 = 4, node2 = 2, replace = 0)
       ),
       label = " when history = sequential"
     )
@@ -189,10 +189,10 @@ test_that("trans recognizes tie deletion correctly", {
         cache = mCache, history='cons', eventOrder = 2
       )$changes,
       rbind(
-        "Actor 1" = c(node1 = 1, node2 = 1, replace = -1),
+        "Actor 1" = c(node1 = 1, node2 = 1, replace = 0),
         "Actor 3" = c(node1 = 1, node2 = 3, replace = 0),
-        "Actor 2" = c(node1 = 2, node2 = 2, replace = -1),
-        "Actor 4" = c(node1 = 4, node2 = 2, replace = -1)
+        "Actor 2" = c(node1 = 2, node2 = 2, replace = 0),
+        "Actor 4" = c(node1 = 4, node2 = 2, replace = 0)
       ),
       label = " when history = consecutive"
     )

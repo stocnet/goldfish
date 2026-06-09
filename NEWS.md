@@ -1,5 +1,17 @@
 # goldfish 1.7.3
 
+* Two-path cache counts in closure effects (`trans`, `cycle`, `common_sender`,
+  `common_receiver`, and all `mixed_*` variants) are now clamped to zero via
+  `pmax(0L, ...)` instead of filtering out negative rows. Previously, when all
+  incremental counts were negative the cache was silently left unchanged;
+  counts are now always non-negative and all affected entries are updated.
+* All four `mixed_*` effects (`mixed_trans`, `mixed_cycle`,
+  `mixed_common_sender`, `mixed_common_receiver`) gain a `history` parameter
+  accepting `"pooled"` (default, existing behavior) or `"sequential"`. With
+  `"sequential"`, the argument order of the two networks defines the temporal
+  sequence: additions to the second network count existing first-network
+  neighbors, while additions to the first network produce no new two-path
+  entries. Removals always update the cache regardless of `history`.
 * Improved convergence diagnostics in the Newton-Raphson optimizer:
   two stopping criteria are now checked independently and the first
   criterion met is reported as a return code in the model summary.

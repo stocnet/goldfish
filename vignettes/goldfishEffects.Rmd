@@ -74,13 +74,19 @@ the DyNAM-choice submodel only considers change statistics for
 potential receivers
 `type = "alter"`, while the DyNAM-rate submodel only considers change statistics
 for potential senders `type = "ego"`.
-* **history**: Applies only to `trans` and `cycle`
+* **history**: Applies to `trans`, `cycle`, `mixed_trans`, `mixed_cycle`,
+`mixed_common_sender`, and `mixed_common_receiver`.
 In the default case of `history = "pooled"`, the effect returns change statistics
-for all two-paths when regardless of the order of creation of the ties in the two-path.
+for all two-paths regardless of the order of creation of the ties in the two-path.
 In the case where `history = "sequential"`, the effect returns change statistics
 for all two-paths when the subsequent tie is created after the preceding tie in the two-path.
-In the case where `history = "consecutive"`, the effect returns change statistics
+For `trans` and `cycle`, `history = "consecutive"` returns change statistics
 for all two-paths when the subsequent tie is created directly after the preceding tie in the two-path.
+For `mixed_*` effects, `"consecutive"` is not supported.
+The argument order of the two networks defines the temporal sequence for `mixed_*` effects
+with `history = "sequential"`: additions to the second network (`network2`) count
+existing first-network neighbors, while additions to the first network (`network1`)
+produce no new two-path entries. Removals always update the cache regardless of `history`.
 
 
 The following table summaries whether the corresponding arguments can be used for the effects or not.
@@ -106,12 +112,12 @@ The following table summaries whether the corresponding arguments can be used fo
 |                       |                        | common_sender         | √           | √                  | ×        | √      | √              | ×             | ×    | ×       |
 |                       |                        | common_receiver       | √           | √                  | ×        | √      | √              | ×             | ×    | ×       |
 |                       |                        | four                  | √           | √                  | ×        | √      | √              | ×             | ×    | ×       |
-|                       |                        | mixed_trans           | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
-|                       |                        | mixed_cycle           | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
-|                       |                        | mixed_common_sender   | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
-|                       |                        | mixed_common_receiver | ×           | √                  | ×        | √      | √              | ×             | ×    | ×       |
+|                       |                        | mixed_trans           | ×           | √                  | ×        | √      | √              | ×             | ×    | √†      |
+|                       |                        | mixed_cycle           | ×           | √                  | ×        | √      | √              | ×             | ×    | √†      |
+|                       |                        | mixed_common_sender   | ×           | √                  | ×        | √      | √              | ×             | ×    | √†      |
+|                       |                        | mixed_common_receiver | ×           | √                  | ×        | √      | √              | ×             | ×    | √†      |
 
-
+† `mixed_*` effects support `"pooled"` and `"sequential"` only; `"consecutive"` is not supported.
 
 _Note_ that the use of some effects (combinations) are ill-advised.
 For example, using `tie(network, ignore_repetitions = FALSE)`, where the network refers
@@ -641,7 +647,8 @@ DyNAM-choice_coordination.
 ```{r}
 mixed_trans(
   network = list(network1, network2), window = Inf,
-  ignore_repetitions = FALSE, transformer_fn = identity
+  ignore_repetitions = FALSE, transformer_fn = identity,
+  history = c("pooled", "sequential")
 )
 ```
 
@@ -656,13 +663,19 @@ two-paths with events ($i\rightarrow k$) in `network1` and
 networks.
 It can be transformed by using `transformer_fn`.
 This effect cannot be used for two-mode networks.
+When `history = "sequential"`, the argument order of the networks defines the temporal
+sequence: only ties added to `network2` ($k\rightarrow j$) create new two-path counts,
+reflecting that the `network1` tie ($i\rightarrow k$) must already exist.
+Ties added to `network1` produce no new counts under sequential history.
+Removals update the cache regardless of `history`.
 
 ### Mixed Cycle (`mixed_cycle()`)
 
 ```{r}
 mixed_cycle(
   network = list(network1, network2), window = Inf,
-  ignore_repetitions = FALSE, transformer_fn = identity
+  ignore_repetitions = FALSE, transformer_fn = identity,
+  history = c("pooled", "sequential")
 )
 ```
 
@@ -678,13 +691,18 @@ networks.
 It can be transformed by using `transformer_fn`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
+When `history = "sequential"`, only ties added to `network2` ($j\rightarrow k$)
+create new two-path counts, reflecting that the `network1` tie ($k\rightarrow i$)
+must already exist. Ties added to `network1` produce no new counts.
+Removals update the cache regardless of `history`.
 
 ### Mixed common sender closure (`mixed_common_sender()`)
 
 ```{r}
 mixed_common_sender(
   network = list(network1, network2), window = Inf,
-  ignore_repetitions = FALSE, transformer_fn = identity
+  ignore_repetitions = FALSE, transformer_fn = identity,
+  history = c("pooled", "sequential")
 )
 ```
 
@@ -700,13 +718,18 @@ networks.
 It can be transformed by using `transformer_fn`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
+When `history = "sequential"`, only ties added to `network2` ($k\rightarrow j$)
+create new two-path counts, reflecting that the `network1` tie ($k\rightarrow i$)
+must already exist. Ties added to `network1` produce no new counts.
+Removals update the cache regardless of `history`.
 
 ### Mixed common receiver closure (`mixed_common_receiver()`)
 
 ```{r}
 mixed_common_receiver(
   network = list(network1, network2), window = Inf,
-  ignore_repetitions = FALSE, transformer_fn = identity
+  ignore_repetitions = FALSE, transformer_fn = identity,
+  history = c("pooled", "sequential")
 )
 ```
 
@@ -722,3 +745,7 @@ networks.
 It can be transformed by using `transformer_fn`.
 This effect cannot be used for two-mode networks and
 DyNAM-choice_coordination.
+When `history = "sequential"`, only ties added to `network2` ($j\rightarrow k$)
+create new two-path counts, reflecting that the `network1` tie ($i\rightarrow k$)
+must already exist. Ties added to `network1` produce no new counts.
+Removals update the cache regardless of `history`.

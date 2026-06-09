@@ -439,7 +439,7 @@ preprocess <- function(
             # - consecutive updates in closure effects
             # - interEventTime (since last event right-censored included):
             #   exponentially weighted decay effects
-            eventOrder = iTotalEvents,
+            eventOrder = iTotalEvents - iDependentEvents,
             interEventTime = interval
           )
           effectUpdate <- callFUN(

@@ -65,7 +65,7 @@ test_that("REM and DyNAM common_receiver return the same result", {
     init_DyNAM_choice.common_receiver(effectFUN_closure, m1, 1, 5, 5),
     label = "REM and DyNAM init return different results"
   )
-  
+
   expect_equal(
     update_REM_choice_common_receiver(
       m,
@@ -78,5 +78,49 @@ test_that("REM and DyNAM common_receiver return the same result", {
       cache = m0
     ),
     label = "REM and DyNAM update return different results"
+  )
+})
+
+test_that("mixed_cycle history = sequential: adding to net1 produces no new paths", {
+  expect_null(
+    update_DyNAM_choice_mixed_cycle(
+      list(m, m1), 4, 3, 5, 1, m0, history = "sequential"
+    )$changes,
+    label = "sequential blocks new paths when adding to net1"
+  )
+})
+
+test_that("mixed_cycle history = sequential: adding to net2 same as pooled", {
+  expect_equal(
+    update_DyNAM_choice_mixed_cycle(
+      list(m, m1), 1, 5, 5, 2, m0, history = "sequential"
+    ),
+    update_DyNAM_choice_mixed_cycle(
+      list(m, m1), 1, 5, 5, 2, m0
+    ),
+    label = "sequential does not filter net2 additions"
+  )
+})
+
+test_that("mixed_cycle history = sequential: removal from net1 same as pooled", {
+  expect_equal(
+    update_DyNAM_choice_mixed_cycle(
+      list(m, m1), 4, 1, 0, 1, m0, history = "sequential"
+    ),
+    update_DyNAM_choice_mixed_cycle(
+      list(m, m1), 4, 1, 0, 1, m0
+    ),
+    label = "sequential does not block removals"
+  )
+})
+
+test_that("init mixed_cycle returns empty cache when history = sequential", {
+  effectFUN_seq <- function(
+    network, sender, receiver, replace, cache,
+    is_two_mode = FALSE, transformer_fn = identity,
+    history = "sequential") {}
+  expect_equal(
+    init_DyNAM_choice.mixed_cycle(effectFUN_seq, list(m, m1), NULL, 5, 5)$cache,
+    matrix(0, nrow = 5, ncol = 5)
   )
 })
