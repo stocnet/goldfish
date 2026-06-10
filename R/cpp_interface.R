@@ -473,18 +473,6 @@ estimate_c_int <- function(
     #  It's for the fixing parameter feature. \
     score[idFixedCompnents] <- 0
 
-    score_rel_norm <- max(abs(score)) / max(1, abs(logLikelihood))
-    if (!verbose && progress) {
-      cat(
-        "\rMax score: ",
-        round(score_rel_norm, round(-logb(score_tol, 10)) + 1),
-        "Max step: ",
-        round(max(abs(update)), round(-logb(step_tol, 10)) + 1),
-        " (",
-        iIteration,
-        ").        "
-      )
-    }
     if (verbose) {
       cat(
         "\n\nLikelihood: ",
@@ -499,7 +487,10 @@ estimate_c_int <- function(
       # print(informationMatrix)
     }
 
-    if (logLikelihood <= logLikelihood.old || any(is.na(unlist(res)))) {
+    stepAccepted <- !any(is.na(unlist(res))) &&
+      is.finite(logLikelihood) &&
+      logLikelihood > logLikelihood.old
+    if (!stepAccepted) {
       if (verbose) {
         cat(
           "\nNo improvement in estimation.",
@@ -563,13 +554,30 @@ estimate_c_int <- function(
     }
 
     # check for stop criteria
-    score_converged <- score_rel_norm <= score_tol
-    step_converged <- max(abs(update)) <= step_tol
-    if (score_converged || step_converged) {
+    convergence <- check_convergence(
+      score = score,
+      log_likelihood = logLikelihood,
+      update = update,
+      step_accepted = stepAccepted,
+      score_tol = score_tol,
+      step_tol = step_tol
+    )
+    if (!verbose && progress) {
+      cat(
+        "\rMax score: ",
+        round(convergence$score_rel_norm, round(-logb(score_tol, 10)) + 1),
+        "Max step: ",
+        round(max(abs(update)), round(-logb(step_tol, 10)) + 1),
+        " (",
+        iIteration,
+        ").        "
+      )
+    }
+    if (convergence$converged) {
       isConverged <- TRUE
-      returnCode <- if (score_converged) 1L else 2L
+      returnCode <- convergence$return_code
       if (progress) {
-        if (score_converged) {
+        if (returnCode == 1L) {
           cat("\nReturn code 1: gradient close to zero.\n")
         } else {
           cat("\nReturn code 2: step size close to zero (damped).\n")

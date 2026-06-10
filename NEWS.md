@@ -43,6 +43,15 @@
   the number of free and fixed parameters estimated.
 * `set_estimation_opt(convergence_criterion)` is deprecated.
   Use `score_tol` instead (default `1e-6`).
+* Fix premature convergence in the Newton-Raphson optimizer: when a damped
+  step overshot and the trial log-likelihood was non-finite (`-Inf`), the
+  likelihood-scaled score criterion evaluated to zero and the algorithm
+  stopped reporting "gradient close to zero" at unconverged estimates.
+  The stopping criteria, extracted into an internal `check_convergence()`
+  helper shared by both estimation engines, are now evaluated on the
+  accepted iterate, and the score criterion only on iterations whose step
+  improved the log-likelihood. The step size criterion remains active on
+  rejected steps as the stalled exit.
 
 # goldfish 1.7.2
 

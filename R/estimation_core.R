@@ -327,19 +327,6 @@ estimate_int <- function(
     # It's for the fixing parameter feature. \
     score[idFixedCompnents] <- 0
 
-    score_rel_norm <- max(abs(score)) / max(1, abs(logLikelihood))
-    if (!verbose && progress) {
-      cat(
-        "\rMax score: ",
-        round(score_rel_norm, round(-logb(score_tol, 10)) + 1),
-        " Max step: ",
-        round(max(abs(update)), round(-logb(step_tol, 10)) + 1),
-        " (",
-        iIteration,
-        ").        "
-      )
-    }
-
     if (verbose) {
       cat(
         "\n\nLikelihood:",
@@ -354,7 +341,10 @@ estimate_int <- function(
       # print(informationMatrix)
     }
 
-    if (logLikelihood <= logLikelihood.old || any(is.na(unlist(res)))) {
+    stepAccepted <- !any(is.na(unlist(res))) &&
+      is.finite(logLikelihood) &&
+      logLikelihood > logLikelihood.old
+    if (!stepAccepted) {
       if (verbose) {
         cat(
           "\nNo improvement in estimation.",
@@ -415,13 +405,30 @@ estimate_int <- function(
     }
 
     # check for stop criteria
-    score_converged <- score_rel_norm <= score_tol
-    step_converged <- max(abs(update)) <= step_tol
-    if (score_converged || step_converged) {
+    convergence <- check_convergence(
+      score = score,
+      log_likelihood = logLikelihood,
+      update = update,
+      step_accepted = stepAccepted,
+      score_tol = score_tol,
+      step_tol = step_tol
+    )
+    if (!verbose && progress) {
+      cat(
+        "\rMax score: ",
+        round(convergence$score_rel_norm, round(-logb(score_tol, 10)) + 1),
+        " Max step: ",
+        round(max(abs(update)), round(-logb(step_tol, 10)) + 1),
+        " (",
+        iIteration,
+        ").        "
+      )
+    }
+    if (convergence$converged) {
       isConverged <- TRUE
-      returnCode <- ifelse(score_converged, 1L, 2L)
+      returnCode <- convergence$return_code
       if (progress) {
-        if (score_converged) {
+        if (returnCode == 1L) {
           cat("\nReturn code 1: gradient close to zero.\n")
         } else {
           cat("\nReturn code 2: step size close to zero (damped).\n")
@@ -480,6 +487,53 @@ estimate_int <- function(
   }
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
+}
+
+#' Check Newton-Raphson stopping criteria
+#'
+#' Evaluates the two stopping criteria on the state of the current iteration:
+#' the likelihood-scaled relative score criterion and the damped step size
+#' criterion. The score criterion is only evaluated when the iteration step
+#' was accepted (`step_accepted = TRUE`), i.e., the trial step improved the
+#' log-likelihood and produced finite values. Rejected steps (including
+#' overshoots where the trial log-likelihood is `-Inf`) cannot trigger score
+#' convergence; the step size criterion remains active as the stalled exit
+#' when repeated damping drives the update towards zero.
+#'
+#' @param score numeric vector, score of the accepted state (post reset when
+#'   the trial step was rejected).
+#' @param log_likelihood numeric, log-likelihood of the accepted state.
+#' @param update numeric vector, damped Newton update for the next iteration.
+#' @param step_accepted logical, whether the trial step of this iteration
+#'   improved the log-likelihood with finite values.
+#' @param score_tol numeric, tolerance for the relative score criterion.
+#' @param step_tol numeric, tolerance for the step size criterion.
+#'
+#' @return a list with components `converged` (logical), `return_code`
+#'   (0L not converged, 1L gradient close to zero, 2L step size close to
+#'   zero), and `score_rel_norm` (numeric, the likelihood-scaled relative
+#'   score).
+#' @noRd
+check_convergence <- function(
+  score,
+  log_likelihood,
+  update,
+  step_accepted,
+  score_tol,
+  step_tol
+) {
+  score_rel_norm <- max(abs(score)) / max(1, abs(log_likelihood))
+  score_converged <- isTRUE(
+    step_accepted &&
+      is.finite(log_likelihood) &&
+      score_rel_norm <= score_tol
+  )
+  step_converged <- isTRUE(max(abs(update)) <= step_tol)
+  list(
+    converged = score_converged || step_converged,
+    return_code = if (score_converged) 1L else if (step_converged) 2L else 0L,
+    score_rel_norm = score_rel_norm
+  )
 }
 
 
