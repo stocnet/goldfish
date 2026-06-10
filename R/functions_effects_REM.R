@@ -1120,3 +1120,26 @@ update_REM_choice_ego_alter_interaction <- function(
     transformer_fn = transformer_fn
   )
 }
+
+# global ------------------------------------------------------------------
+#' @export
+init_REM_choice.global <- function(effectFun, attribute, n1, n2, ...) {
+  rate_init <- init_DyNAM_rate.global(effectFun, attribute, n1, n2, ...)
+  stat <- matrix(rate_init$stat, nrow = n1, ncol = n2)
+  if (n1 == n2) diag(stat) <- 0
+  list(stat = stat)
+}
+
+update_REM_choice_global <- function(
+    attribute,
+    replace,
+    n1, n2,
+    is_two_mode = FALSE,
+    ...) {
+  rate_result <- update_DyNAM_rate_global(
+    attribute = attribute, replace = replace, n1 = n1, n2 = n2, ...
+  )
+  if (is.null(rate_result$changes)) return(list(changes = NULL))
+  list(changes = to_ego(rate_result$changes, n2, is_two_mode))
+}
+

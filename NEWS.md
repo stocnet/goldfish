@@ -1,5 +1,17 @@
 # goldfish 1.7.3
 
+* `make_global_attributes()` (renamed from `make_global_attribute()`) now
+  accepts a one-row snapshot data frame with named numeric columns.
+  The plural name reflects that one object holds multiple global attribute
+  columns.
+* `global(df$col)` effect is now functional for DyNAM-rate and REM models.
+  The effect broadcasts a time-varying scalar to all actors at initialization
+  and emits per-actor change statistics whenever the global attribute is
+  updated by a linked event.
+* `link_events()` gains a method for `global.goldfish` objects.
+  Only replace-semantics events (no `increment` column) are supported;
+  the `replace` argument names the value column in the events data frame.
+
 * `window` is now correctly supported for the four `mixed_*` effects
   (`mixed_trans`, `mixed_cycle`, `mixed_common_sender`, `mixed_common_receiver`)
   when the network argument is a `list(net1, net2)` expression. Previously

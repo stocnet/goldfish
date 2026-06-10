@@ -23,26 +23,27 @@
 #'
 #' @noRd
 preprocess <- function(
-    model,
-    subModel,
-    events,
-    effects,
-    windowParameters,
-    ignoreRepParameter,
-    eventsObjectsLink,
-    eventsEffectsLink,
-    objectsEffectsLink,
-    # multipleParameter,
-    nodes,
-    nodes2 = nodes,
-    is_two_mode,
-    # add more parameters
-    startTime = min(vapply(events, function(x) min(x$time), double(1))),
-    endTime = max(vapply(events, function(x) max(x$time), double(1))),
-    rightCensored = FALSE,
-    opportunitiesList = NULL,
-    progress = FALSE,
-    prepEnvir = new.env()) {
+  model,
+  subModel,
+  events,
+  effects,
+  windowParameters,
+  ignoreRepParameter,
+  eventsObjectsLink,
+  eventsEffectsLink,
+  objectsEffectsLink,
+  # multipleParameter,
+  nodes,
+  nodes2 = nodes,
+  is_two_mode,
+  # add more parameters
+  startTime = min(vapply(events, function(x) min(x$time), double(1))),
+  endTime = max(vapply(events, function(x) max(x$time), double(1))),
+  rightCensored = FALSE,
+  opportunitiesList = NULL,
+  progress = FALSE,
+  prepEnvir = new.env()
+) {
   # For debugging
   # if (identical(environment(), globalenv())) {
   #   startTime <- min(vapply(events, function(x) min(x$time), double(1)))
@@ -83,7 +84,9 @@ preprocess <- function(
     endTime <- eventsMax
     if (any(isWindowEffect)) hasEndTime <- TRUE
   } else if (endTime != eventsMax) {
-    if (!is.numeric(endTime)) endTime <- as.numeric(endTime)
+    if (!is.numeric(endTime)) {
+      endTime <- as.numeric(endTime)
+    }
     if (eventsMin > endTime) {
       stop("End time smaller than first event time.", call. = FALSE)
     }
@@ -102,7 +105,9 @@ preprocess <- function(
   if (is.null(startTime)) {
     startTime <- eventsMin
   } else if (startTime != eventsMin) {
-    if (!is.numeric(startTime)) startTime <- as.numeric(startTime)
+    if (!is.numeric(startTime)) {
+      startTime <- as.numeric(startTime)
+    }
     if (eventsMax < startTime) {
       stop("Start time geater than last event time.", call. = FALSE)
     }
@@ -116,12 +121,20 @@ preprocess <- function(
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 
-  if (progress) cat("Initializing cache objects and statistical matrices.\n")
+  if (progress) {
+    cat("Initializing cache objects and statistical matrices.\n")
+  }
 
   statCache <- initializeCacheStat(
-    objectsEffectsLink = objectsEffectsLink, effects = effects,
-    groupsNetwork = NULL, windowParameters = windowParameters,
-    n1 = n1, n2 = n2, model = model, subModel = subModel, envir = prepEnvir
+    objectsEffectsLink = objectsEffectsLink,
+    effects = effects,
+    groupsNetwork = NULL,
+    windowParameters = windowParameters,
+    n1 = n1,
+    n2 = n2,
+    model = model,
+    subModel = subModel,
+    envir = prepEnvir
   )
   is_rate <- model == "DyNAM" && subModel == "rate"
   if (is_rate) {
@@ -142,6 +155,12 @@ preprocess <- function(
     logical(1)
   )
   isNodeEvent <- vapply(events, function(x) "node" %in% names(x), logical(1))
+  isGlobalEvent <- vapply(
+    events,
+    function(x) !any(c("node", "sender", "receiver") %in% names(x)),
+    logical(1)
+  )
+  isGlobalEvent[1] <- FALSE
 
   # initialize return objects
 
@@ -158,8 +177,10 @@ preprocess <- function(
           nRightCensoredEvents <= endTime
       ))
       # -1 because the last event is the endTime event, correct if no events
-      nRightCensoredEvents <- ifelse(nRightCensoredEvents > 1, 
-        nRightCensoredEvents - 1L, 0L
+      nRightCensoredEvents <- ifelse(
+        nRightCensoredEvents > 1,
+        nRightCensoredEvents - 1L,
+        0L
       )
     } else {
       nRightCensoredEvents <- 0L
@@ -184,20 +205,52 @@ preprocess <- function(
   finalStep <- FALSE
   nodes_obj <- get(nodes, envir = prepEnvir)
   nodes2_obj <- get(nodes2, envir = prepEnvir)
-  active_mode1_init <- if (!is.null(nodes_obj$present)) nodes_obj$present else rep(TRUE, n1)
-  active_mode2_init <- if (!is.null(nodes2_obj$present)) nodes2_obj$present else rep(TRUE, n2)
-  comp_events1 <- attr(nodes_obj, "events")[attr(nodes_obj, "dynamic_attribute") == "present"]
-  comp_events2 <- attr(nodes2_obj, "events")[attr(nodes2_obj, "dynamic_attribute") == "present"]
-  active_mode1_changes <- if (length(comp_events1) > 0 && !is.na(comp_events1[1])) {
+  active_mode1_init <- if (!is.null(nodes_obj$present)) {
+    nodes_obj$present
+  } else {
+    rep(TRUE, n1)
+  }
+  active_mode2_init <- if (!is.null(nodes2_obj$present)) {
+    nodes2_obj$present
+  } else {
+    rep(TRUE, n2)
+  }
+  comp_events1 <- attr(nodes_obj, "events")[
+    attr(nodes_obj, "dynamic_attribute") == "present"
+  ]
+  comp_events2 <- attr(nodes2_obj, "events")[
+    attr(nodes2_obj, "dynamic_attribute") == "present"
+  ]
+  active_mode1_changes <- if (
+    length(comp_events1) > 0 && !is.na(comp_events1[1])
+  ) {
     cc <- get(comp_events1[1], envir = prepEnvir)
-    node_idx1 <- if (is.character(cc$node)) match(cc$node, nodes_obj$label) else as.integer(cc$node)
-    lapply(seq_len(nrow(cc)), function(i) list(time = cc$time[i], node = node_idx1[i], replace = cc$replace[i]))
-  } else list()
-  active_mode2_changes <- if (length(comp_events2) > 0 && !is.na(comp_events2[1])) {
+    node_idx1 <- if (is.character(cc$node)) {
+      match(cc$node, nodes_obj$label)
+    } else {
+      as.integer(cc$node)
+    }
+    lapply(seq_len(nrow(cc)), function(i) {
+      list(time = cc$time[i], node = node_idx1[i], replace = cc$replace[i])
+    })
+  } else {
+    list()
+  }
+  active_mode2_changes <- if (
+    length(comp_events2) > 0 && !is.na(comp_events2[1])
+  ) {
     cc <- get(comp_events2[1], envir = prepEnvir)
-    node_idx2 <- if (is.character(cc$node)) match(cc$node, nodes2_obj$label) else as.integer(cc$node)
-    lapply(seq_len(nrow(cc)), function(i) list(time = cc$time[i], node = node_idx2[i], replace = cc$replace[i]))
-  } else list()
+    node_idx2 <- if (is.character(cc$node)) {
+      match(cc$node, nodes2_obj$label)
+    } else {
+      as.integer(cc$node)
+    }
+    lapply(seq_len(nrow(cc)), function(i) {
+      list(time = cc$time[i], node = node_idx2[i], replace = cc$replace[i])
+    })
+  } else {
+    list()
+  }
 
   # # Remove duplicates of event lists!
 
@@ -303,7 +356,10 @@ preprocess <- function(
         is_dependent[[eventPos]] <- 0L
         event_time[[eventPos]] <- time
         rc_event <- events[[nextEvent]][pointers[nextEvent], ]
-        if (isNodeEvent[nextEvent] && length(rc_event) == 1) {
+        if (isGlobalEvent[nextEvent]) {
+          event_sender[[eventPos]] <- NA_integer_
+          event_receiver[[eventPos]] <- NA_integer_
+        } else if (isNodeEvent[nextEvent] && length(rc_event) == 1) {
           event_sender[[eventPos]] <- rc_event
           event_receiver[[eventPos]] <- rc_event
         } else if (isNodeEvent[nextEvent]) {
@@ -341,7 +397,14 @@ preprocess <- function(
       }
 
       # # CHANGED ALVARO: avoid dependence in variables position
-      if (isIncrementEvent[nextEvent]) {
+      if (isGlobalEvent[nextEvent]) {
+        event <- events[[nextEvent]][
+          pointers[nextEvent],
+          "replace",
+          drop = FALSE
+        ]
+        if (is.na(event$replace)) event$replace <- 0
+      } else if (isIncrementEvent[nextEvent]) {
         varsKeep <- c(
           if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"),
           "increment"
@@ -378,10 +441,13 @@ preprocess <- function(
       }
 
       # network update an negative replacement throws a warning
-      if (!isNodeEvent[nextEvent] && event$replace < 0) {
+      if (
+        !isNodeEvent[nextEvent] &&
+          !isGlobalEvent[nextEvent] &&
+          event$replace < 0
+      ) {
         warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
       }
-
 
       ## 3a. calculate statistics changes
       if (!finalStep) {
@@ -403,7 +469,8 @@ preprocess <- function(
           attIDs <- which(objCat == "attribute")
           netIDs <- which(objCat == "network")
           if (attr(objCat, "none_class")) {
-            stop("An object is not assigned either as network or attibute",
+            stop(
+              "An object is not assigned either as network or attibute",
               paste(names[attr(objCat, "manyClasses") != 1], collapse = ", "),
               "check the class of the object.",
               call. = FALSE
@@ -425,12 +492,12 @@ preprocess <- function(
             cache = statCache[[id]],
             n1 = n1,
             n2 = n2,
-            netUpdate = if (length(.objects[netIDs]) == 1) {
+            netUpdate = if (length(.objects[netIDs]) <= 1) {
               NULL
             } else {
               which(orderedNames == objectName)
             },
-            attUpdate = if (length(.objects[attIDs]) == 1) {
+            attUpdate = if (length(.objects[attIDs]) <= 1) {
               NULL
             } else {
               which(orderedNames == objectName)
@@ -443,14 +510,21 @@ preprocess <- function(
             interEventTime = interval
           )
           effectUpdate <- callFUN(
-            effects, id, "effect", c(.argsFUN, event), " cannot update \n",
+            effects,
+            id,
+            "effect",
+            c(.argsFUN, event),
+            " cannot update \n",
             colnames(objectsEffectsLink)[id]
           )
-          
+
           # CHANGED - MABEL - need to update cache attributes for lastUpdate when
           # trans or cycle and history = "consecutive"
           if (!is.null(attr(effectUpdate$cache, 'lastUpdate'))) {
-            attr(statCache[[id]], "lastUpdate") <- attr(effectUpdate$cache, 'lastUpdate')
+            attr(statCache[[id]], "lastUpdate") <- attr(
+              effectUpdate$cache,
+              'lastUpdate'
+            )
           }
 
           updates <- effectUpdate$changes
@@ -463,17 +537,27 @@ preprocess <- function(
             event2 <- event
             event2$sender <- event$receiver
             event2$receiver <- event$sender
-            if (!is.null(effectUpdate$cache) &&
-                !is.null(effectUpdate$changes)) { # styler: off
+            if (
+              !is.null(effectUpdate$cache) &&
+                !is.null(effectUpdate$changes)
+            ) {
+              # styler: off
               .argsFUN$cache <- statCache[[id]]
             }
             effectUpdate2 <- callFUN(
-              effects, id, "effect", c(.argsFUN, event2), " cannot update \n",
+              effects,
+              id,
+              "effect",
+              c(.argsFUN, event2),
+              " cannot update \n",
               colnames(objectsEffectsLink)[id]
             )
 
-            if (!is.null(effectUpdate2$cache) &&
-                !is.null(effectUpdate2$changes)) { # styler: off
+            if (
+              !is.null(effectUpdate2$cache) &&
+                !is.null(effectUpdate2$changes)
+            ) {
+              # styler: off
               statCache[[id]] <- effectUpdate2$cache
             }
             updates2 <- effectUpdate2$changes
@@ -483,9 +567,15 @@ preprocess <- function(
           if (!is.null(updates)) {
             if (hasStartTime && nextEventTime < startTime) {
               if (is_rate) {
-                initialStats[cbind(updates[, "node1"], id)] <- updates[, "replace"]
+                initialStats[cbind(updates[, "node1"], id)] <- updates[,
+                  "replace"
+                ]
               } else {
-                initialStats[cbind(updates[, "node1"], updates[, "node2"], id)] <-
+                initialStats[cbind(
+                  updates[, "node1"],
+                  updates[, "node2"],
+                  id
+                )] <-
                   updates[, "replace"]
               }
             } else {
@@ -518,8 +608,11 @@ preprocess <- function(
 
       # 3b. Update the data object
       if (!finalStep) {
-        if (!is.null(event$node)) object[event$node] <- event$replace
-        if (!is.null(event$sender)) {
+        if (isGlobalEvent[nextEvent]) {
+          object <- event$replace
+        } else if (!is.null(event$node)) {
+          object[event$node] <- event$replace
+        } else if (!is.null(event$sender)) {
           # [sender, receiver] value: replace value of the event
           object[event$sender, event$receiver] <- event$replace
           if (isUndirectedNet) {
@@ -528,8 +621,10 @@ preprocess <- function(
         }
         # Assign object
         assign("object", object, envir = prepEnvir)
-        eval(parse(text = paste(objectName, "<- object")),
-          envir = prepEnvir, enclos = parent.frame()
+        eval(
+          parse(text = paste(objectName, "<- object")),
+          envir = prepEnvir,
+          enclos = parent.frame()
         )
       }
     } # end 3. (!dependent)
@@ -582,11 +677,18 @@ preprocess <- function(
 #'
 #' @noRd
 initializeCacheStat <- function(
-    objectsEffectsLink, effects,
-    groupsNetwork, windowParameters,
-    n1, n2,
-    model, subModel, envir = environment()) {
-  objTable <- getDataObjects(list(rownames(objectsEffectsLink)),
+  objectsEffectsLink,
+  effects,
+  groupsNetwork,
+  windowParameters,
+  n1,
+  n2,
+  model,
+  subModel,
+  envir = environment()
+) {
+  objTable <- getDataObjects(
+    list(rownames(objectsEffectsLink)),
     removeFirst = FALSE
   )
   .objects <- getElementFromDataObjectTable(objTable, envir = envir)
@@ -596,7 +698,8 @@ initializeCacheStat <- function(
   if (attr(objCat, "none_class")) {
     stop(
       "An object is not assigned either as network or attibute",
-      paste(rownames(objectsEffectsLink)[attr(objCat, "manyClasses") != 1],
+      paste(
+        rownames(objectsEffectsLink)[attr(objCat, "manyClasses") != 1],
         collapse = ", "
       ),
       "check the class of the object.",
@@ -619,7 +722,9 @@ initializeCacheStat <- function(
         collapse = ", "
       )
       messageEffect <- paste0(
-        " cannot initialized with objects ", objectsNames, "\n"
+        " cannot initialized with objects ",
+        objectsNames,
+        "\n"
       )
       # init
       .argsFUN <- list(
@@ -636,7 +741,11 @@ initializeCacheStat <- function(
         n2 = n2
       )
       callFUN(
-        effects, iEff, "initEffect", .argsFUN, messageEffect,
+        effects,
+        iEff,
+        "initEffect",
+        .argsFUN,
+        messageEffect,
         labelEffect
       )
     }
@@ -686,8 +795,13 @@ initializeCacheStat <- function(
 #' )
 #' }
 callFUN <- function(
-    effects, effectPos, effectType, .argsFUN, textMss,
-    effectLabel) {
+  effects,
+  effectPos,
+  effectType,
+  .argsFUN,
+  textMss,
+  effectLabel
+) {
   err <- NULL
   warn <- NULL
   .argsNames <- formals(effects[[effectPos]][[effectType]])
@@ -696,8 +810,13 @@ callFUN <- function(
   errorHandler <- function(e) {
     erro <- simpleError(
       paste0(
-        "Effect ", dQuote(effectLabel),
-        " (", effectPos, ") ", textMss, e$message
+        "Effect ",
+        dQuote(effectLabel),
+        " (",
+        effectPos,
+        ") ",
+        textMss,
+        e$message
       )
     )
     stop(erro)
@@ -720,7 +839,9 @@ callFUN <- function(
     },
     error = errorHandler
   )
-  if (!is.null(warn)) warning(warn)
+  if (!is.null(warn)) {
+    warning(warn)
+  }
   return(callRes)
 }
 
@@ -774,7 +895,8 @@ callFUN <- function(
 #' }
 imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
   # get data object table, row objects columns class (matrix, attribute)
-  objTable <- getDataObjects(list(rownames(objectsEffectsLink)),
+  objTable <- getDataObjects(
+    list(rownames(objectsEffectsLink)),
     removeFirst = FALSE
   )
   # print(objTable)
@@ -793,26 +915,38 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
       assign(objectName, object, envir = envir)
     } else if (is.vector(object) && any(is.na(object))) {
       if (is.numeric(object)) {
-        cli::cli_warn(c("i" = "Missing data has been detected. Mean is used to impute for numerical values"))
+        cli::cli_warn(c(
+          "i" = "Missing data has been detected. Mean is used to impute for numerical values"
+        ))
         object[is.na(object)] <- mean(object, na.rm = TRUE)
       } else {
-        cli::cli_warn(c("i" = "Missing data has been detected. Mode is used to impute for categorical values"))
+        cli::cli_warn(c(
+          "i" = "Missing data has been detected. Mode is used to impute for categorical values"
+        ))
         object[is.na(object)] <- names(which.max(table(object)))
       }
       done[iEff] <- TRUE
       # cat("vector\n")
       # Assign object
       assign("object", object, envir = envir)
-      eval(parse(text = paste(objectName, "<- object")),
-        envir = envir, enclos = parent.frame()
+      eval(
+        parse(text = paste(objectName, "<- object")),
+        envir = envir,
+        enclos = parent.frame()
       )
     }
   }
   return(done)
 }
 
-ReduceUpdateNonDuplicates <- function(oldUpdates, newUpdates, rate_mode = FALSE) {
-  if (is.null(newUpdates)) return(oldUpdates)
+ReduceUpdateNonDuplicates <- function(
+  oldUpdates,
+  newUpdates,
+  rate_mode = FALSE
+) {
+  if (is.null(newUpdates)) {
+    return(oldUpdates)
+  }
   if (!is.null(oldUpdates)) {
     if (rate_mode) {
       idsOld <- oldUpdates[, "node1"]

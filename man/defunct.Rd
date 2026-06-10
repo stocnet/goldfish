@@ -95,7 +95,7 @@ related packages.
 \item \code{defineNodes()} -> \code{make_nodes()}
 \item \code{defineNetwork()} -> \code{make_network()}
 \item \code{defineDependentEvents()} -> \code{make_dependent_events()}
-\item \code{defineGlobalAttribute()} -> \code{make_global_attribute()}
+\item \code{defineGlobalAttribute()} -> \code{make_global_attributes()}
 \item \code{defineGroups_interaction()} -> \code{make_groups_interaction()}
 \item \code{linkEvents(x)} -> \code{link_events(x)}
 \item \code{estimate()} -> \code{estimate_dynam()}, \code{estimate_rem()} & \code{estimate_dynami()}

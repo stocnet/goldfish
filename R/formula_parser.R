@@ -328,16 +328,28 @@ get_events_and_objects_link <- function(
   events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2, envir = envir)
   is_attribute <- is.na(object_names$object)
   for (i in which(is_attribute)) {
+    nodeset_obj <- get(object_names[i, ]$nodeset, envir = envir)
     node_set <- object_names[i, ]$nodeset
     attribute_name <- object_names[i, ]$attribute
-    dynamic_attributes <- attr(
-      get(object_names[i, ]$nodeset, envir = envir),
-      "dynamic_attributes"
-    )
-    event_list_names <- attr(
-      get(object_names[i, ]$nodeset, envir = envir),
-      "events"
-    )
+
+    if (inherits(nodeset_obj, "global.goldfish")) {
+      event_list_names <- attr(nodeset_obj, "events")
+      if (length(event_list_names) > 0) {
+        events_objects_link <- rbind(
+          events_objects_link,
+          cbind(events = event_list_names, object_names[i, ])
+        )
+        evs <- lapply(event_list_names, get, envir = envir)
+        events <- append(events, evs)
+        names(events)[
+          (length(events) - length(event_list_names) + 1):length(events)
+        ] <- event_list_names
+      }
+      next
+    }
+
+    dynamic_attributes <- attr(nodeset_obj, "dynamic_attributes")
+    event_list_names <- attr(nodeset_obj, "events")
     ev_name <- event_list_names[which(dynamic_attributes == attribute_name)]
     if (length(ev_name) > 0) {
       events_objects_link <- rbind(

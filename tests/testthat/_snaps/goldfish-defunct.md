@@ -20,7 +20,7 @@
     Condition
       Warning:
       `defineGlobalAttribute()` was deprecated in goldfish 1.7.0.
-      i Please use `make_global_attribute()` instead.
+      i Please use `make_global_attributes()` instead.
     Output
         time replace
       1    1       1

@@ -4,6 +4,7 @@
 \alias{link_events}
 \alias{link_events.nodes.goldfish}
 \alias{link_events.network.goldfish}
+\alias{link_events.global.goldfish}
 \alias{link_events.default}
 \title{Link dynamic events to a nodeset or a network}
 \usage{
@@ -12,6 +13,8 @@ link_events(x, ...)
 \method{link_events}{nodes.goldfish}(x, change_events, attribute, ...)
 
 \method{link_events}{network.goldfish}(x, change_events, nodes = NULL, nodes2 = NULL, ...)
+
+\method{link_events}{global.goldfish}(x, change_events, replace = "replace", ...)
 
 \method{link_events}{default}(x, ...)
 }
@@ -33,6 +36,10 @@ related to the network (ONLY if \code{x} is a network)}
 
 \item{nodes2}{an optional nodeset (\code{data.frame} or \code{nodes.goldfish} object)
 related to the network (ONLY if \code{x} is a network)}
+
+\item{replace}{a character string naming the column in \code{change_events} that
+holds the replacement value (ONLY if \code{x} is a \code{global.goldfish} object).
+Defaults to \code{"replace"}.}
 }
 \value{
 an object with the same class as the object \code{x}.

@@ -490,7 +490,10 @@ test_that("trans history sequential window", {
 
 test_that("mixed_trans with window and list(net1, net2) preprocesses without error", {
   preproData <- estimate_wrapper(
-    depNetworkTrans ~ mixed_trans(list(networkStateTrans, networkExog), window = 5),
+    depNetworkTrans ~ mixed_trans(
+      list(networkStateTrans, networkExog),
+      window = 5
+    ),
     model = "DyNAM",
     sub_model = "choice",
     data = dataTest,
@@ -506,12 +509,16 @@ test_that("mixed_trans with window and list(net1, net2) preprocesses without err
 
 test_that("mixed_cycle with window and list(net1, net2) preprocesses without error", {
   preproData <- estimate_wrapper(
-    depNetworkTrans ~ mixed_cycle(list(networkStateTrans, networkExog), window = 5),
+    depNetworkTrans ~ mixed_cycle(
+      list(networkStateTrans, networkExog),
+      window = 5
+    ),
     model = "DyNAM",
     sub_model = "choice",
     data = dataTest,
     preprocessing_only = TRUE
   )
+  outDependentStatChange <- ReducePreprocess(preproData, type = "withTime")
   expect_equal(
     preproData$initialStats[,, 1],
     matrix(0, nrow = 5, ncol = 5),

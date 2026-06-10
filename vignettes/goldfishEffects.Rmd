@@ -98,6 +98,7 @@ The following table summaries whether the corresponding arguments can be used fo
 |                       |                        | node_trans             | ×           | √                  | √        | √      | √              | ×             | √    | ×       |
 |                       | Attribute              | ego                   | √           | ×                  | ×        | ×      | ×              | ×             | ×    | ×       |
 |                       |                        | alter                 | √           | ×                  | ×        | ×      | ×              | ×             | ×    | ×       |
+|                       |                        | global                | ×           | ×                  | ×        | ×      | ×              | ×             | ×    | ×       |
 |                       | Structural + attribute | tertius               | √           | √                  | √        | √      | √              | √             | √    | ×       |
 | Dyadic statistics     | Structural             | tie                   | √           | √                  | √        | √      | √              | ×             | ×    | ×       |
 |                       |                        | inertia               | √           | √                  | √        | √      | √              | ×             | ×    | ×       |
@@ -264,6 +265,7 @@ there is not weighted version for this effect.
 | :-------- | :------- | :------- | :------------------ |
 | ego       |    √     |    ×     |          ×          |
 | alter     |    ×     |    √     |          ×          |
+| global    |    √     |    √     |          ×          |
 
 
 ### Ego attribute (`ego()`)
@@ -295,6 +297,52 @@ alter(attribute, is_two_mode = FALSE)
   $i\rightarrow j$ when $j$ score high on an attribute.
 * _REM model:_ tendency to create an event $i\rightarrow j$ when $j$ has a high
   score on an attribute.
+
+### Global attribute (`global()`)
+
+```{r}
+global(attribute)
+```
+
+Where `attribute` is a column of a `global.goldfish` object created with
+`make_global_attributes()`.
+A global attribute is a time-varying scalar that applies equally to all actors,
+not to individual nodes.
+One `global()` call per attribute column is the intended usage; multiple columns
+in the same `global.goldfish` object are linked as separate calls.
+
+\begin{align}
+  r(i, t, g) &= g(t) \\
+  s(i, j, t, g) &= g(t)
+\end{align}
+
+where $g(t)$ is the scalar value of the global attribute at time $t$.
+
+**Initialization:** the statistic vector (DyNAM-rate) or matrix (REM) is
+initialized by broadcasting $g(t_0)$ to all $n_1$ senders.
+For REM, the diagonal is set to zero for one-mode networks.
+
+**Update:** when a global event changes $g$ to $g'$, the statistic for every
+actor is updated to $g'$:
+
+* _DyNAM-rate:_ returns a 2-column change matrix `(node1, replace)` with one
+  row per actor ($n_1$ rows total).
+* _REM:_ applies `to_ego()` to expand the rate changes to a 3-column dyadic
+  matrix `(node1, node2, replace)`, covering all ordered pairs except
+  self-ties.
+
+**Usage:** define a global attribute, link replace events to it, then
+reference it in the formula with `global()`:
+
+```{r, eval=FALSE}
+seasons <- make_global_attributes(data.frame(winter = 0L, spring = 0L))
+seasons <- link_events(seasons, season_events, replace = "winter")
+m <- estimate(depEvents ~ global(seasons$winter), model = "DyNAM", sub_model = "rate")
+```
+
+Global attributes support replace-only events (no `increment` column).
+Only the DyNAM-rate and REM models are supported; DyNAM-rate-ordered is
+planned for a future release.
 
 ## Structural $+$ Attribute effect
 

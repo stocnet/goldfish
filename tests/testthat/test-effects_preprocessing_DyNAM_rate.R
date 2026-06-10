@@ -313,3 +313,39 @@ test_that(
     )
   }
 )
+
+test_that(
+  "global effect preprocessing: stat initializes to global value and updates on event",
+  {
+    seasons <- make_global_attributes(data.frame(winter = 0))
+    season_change <- data.frame(time = 15, replace = 1)
+    seasons <- link_events(seasons, season_change)
+
+    dataGlobal <- make_data(depNetwork, seasons)
+
+    preproData <- estimate_wrapper(
+      depNetwork ~ global(seasons$winter),
+      model = "DyNAM", sub_model = "rate",
+      data = dataGlobal,
+      preprocessing_only = TRUE
+    )
+
+    expect_equal(
+      preproData$initialStats[, 1],
+      c(0, 0, 0, 0, 0),
+      label = "initial global stat is 0 for all actors"
+    )
+
+    statsChange <- ReducePreprocess(preproData)[[1]]
+
+    events_after <- statsChange[statsChange[, "time"] > 15, , drop = FALSE]
+    expect_true(
+      nrow(events_after) == 5L,
+      label = "all 5 actors have a stat update after the global change event"
+    )
+    expect_true(
+      all(events_after[, "replace"] == 1),
+      label = "global stat is 1 for all actors after the change event"
+    )
+  }
+)

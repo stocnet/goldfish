@@ -432,3 +432,51 @@ test_that("window on network effect does not raise attribute error", {
   )
 })
 
+test_that("get_events_and_objects_link handles global.goldfish without error", {
+  envirTest <- new.env()
+  assign("actors", actors, envir = envirTest)
+  assign("calls", calls, envir = envirTest)
+
+  season_changes <- data.frame(time = c(30), replace = c(0))
+  attr(season_changes, "replace") <- "replace"
+
+  base::local({
+    callNetwork <- structure(
+      matrix(0, nrow(actors), nrow(actors),
+             dimnames = list(actors$label, actors$label)),
+      class = c("network.goldfish", "matrix", "array"),
+      nodes = c("actors", "actors"), directed = TRUE,
+      events = c("calls")
+    )
+    callsDependent <- structure(
+      calls,
+      class = c("dependent.goldfish", "data.frame"),
+      nodes = c("actors", "actors"), events = c("calls"),
+      default_network = "callNetwork", type = "dyadic"
+    )
+    seasons <- make_global_attributes(data.frame(winter = 1))
+    seasons <- link_events(seasons, season_changes)
+  }, envir = envirTest)
+
+  assign("season_changes", season_changes, envir = envirTest)
+
+  formStat <- callsDependent ~ indeg(callNetwork) + global(seasons$winter)
+  parsed_formula <- parse_formula(formStat, envir = envirTest)
+
+  expect_no_error(
+    get_events_and_objects_link(
+      parsed_formula$dep_name,
+      parsed_formula$rhs_names,
+      "actors", "actors",
+      envir = envirTest
+    )
+  )
+  result <- get_events_and_objects_link(
+    parsed_formula$dep_name,
+    parsed_formula$rhs_names,
+    "actors", "actors",
+    envir = envirTest
+  )
+  expect_true("season_changes" %in% names(result[[1]]))
+})
+

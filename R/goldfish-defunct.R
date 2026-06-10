@@ -13,7 +13,7 @@
 #' * `defineNodes()` -> `make_nodes()`
 #' * `defineNetwork()` -> `make_network()`
 #' * `defineDependentEvents()` -> `make_dependent_events()`
-#' * `defineGlobalAttribute()` -> `make_global_attribute()`
+#' * `defineGlobalAttribute()` -> `make_global_attributes()`
 #' * `defineGroups_interaction()` -> `make_groups_interaction()`
 #' * `linkEvents(x)` -> `link_events(x)`
 #' * `estimate()` -> `estimate_dynam()`, `estimate_rem()` & `estimate_dynami()` 
@@ -97,9 +97,9 @@ defineGlobalAttribute <- function(global) {
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "defineGlobalAttribute()",
-    with = "make_global_attribute()"
+    with = "make_global_attributes()"
   )
-  make_global_attribute(global = global)
+  make_global_attributes(global = global)
 }
 
 #' @rdname defunct

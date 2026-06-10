@@ -515,24 +515,35 @@ check_dependent_events <- function(events, events_name, nodes, nodes2,
 }
 
 ## Global attributes
-# A gobal attribute should be a data.frame that contains:
-# - a column "time" with numerics or POSIX times
-# - a column "replace" of numerics or characters or booleans
+# A global attribute should be a one-row data.frame with named numeric columns.
+# The class must include "global.goldfish".
 
 check_global_attribute <- function(global) {
-  if (!is.data.frame(global)) stop("A global attribute should be a data frame.")
-
-  # check content
-  tryCatch(
-    check_columns(global,
-      mandatory_names = c("time", "replace"),
-      classes = list(
-        time = c("POSIXlt", "POSIXct", "POSIXt", "numeric"),
-        replace = c("logical", "numeric", "character")
-      )
-    )
-  )
-
+  if (!is.data.frame(global)) {
+    cli::cli_abort(c(
+      "A global attribute must be a {.cls data.frame}.",
+      "x" = "Got object of class {.cls {class(global)}}."
+    ))
+  }
+  if (!inherits(global, "global.goldfish")) {
+    cli::cli_abort(c(
+      "A global attribute must have class {.cls global.goldfish}.",
+      "i" = "Use {.fn make_global_attributes} to create global attribute objects."
+    ))
+  }
+  if (nrow(global) != 1L) {
+    cli::cli_abort(c(
+      "A global attribute must have exactly one row.",
+      "x" = "Got {nrow(global)} row{?s}."
+    ))
+  }
+  non_numeric <- names(global)[!vapply(global, is.numeric, logical(1))]
+  if (length(non_numeric) > 0) {
+    cli::cli_abort(c(
+      "All columns of a global attribute must be numeric.",
+      "x" = "Non-numeric column{?s}: {.field {non_numeric}}."
+    ))
+  }
   return(TRUE)
 }
 

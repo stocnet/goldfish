@@ -342,6 +342,6 @@ Dynamic Network Actor Models: Investigating Coordination Ties Through Time.
 \emph{Sociological Methodology 47 (1)}. \doi{10.1177/0081175017709295}
 }
 \seealso{
-\code{\link[=make_dependent_events]{make_dependent_events()}}, \code{\link[=make_global_attribute]{make_global_attribute()}},
+\code{\link[=make_dependent_events]{make_dependent_events()}}, \code{\link[=make_global_attributes]{make_global_attributes()}},
 \code{\link[=make_network]{make_network()}}, \code{\link[=make_nodes]{make_nodes()}}, \code{\link[=link_events]{link_events()}}
 }

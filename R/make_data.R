@@ -544,39 +544,45 @@ make_dependent_events_goldfish <- make_dependent_events
 
 #' Define a global time-varying attribute
 #'
-#' This function allows to define a global attribute of the nodeset
-#' (i.e a variable that is identical for each node but changes over time).
+#' Creates a global attribute object from a one-row `data.frame` with named
+#' numeric columns. Each column represents one global attribute (e.g., season
+#' dummies). The plural name reflects that a single object holds multiple
+#' attributes.
 #'
-#' @param global a data frame containing all the values this global attribute
-#' takes along time.
-#' @return an object of class `global.goldfish`
+#' @param global a one-row `data.frame` with named numeric columns.
+#' @return an object of class `global.goldfish` (a one-row `data.frame` with
+#'   an `events` attribute initialised to `character(0)`).
 #' @export
-#' @details  For instance, seasonal climate changes could be defined as a
-#' changing global attribute.
-#' Then, this global attribute can be linked to the nodeset by using
-#' [link_events()]
+#' @details  For instance, seasonal climate indicators could be defined as a
+#' global attribute:
+#' ```r
+#' seasons <- make_global_attributes(
+#'   data.frame(winter = 1, spring = 0, summer = 0, autumn = 0)
+#' )
+#' ```
+#' Use [link_events()] to link timestamped update events (replace only) to
+#' the object. Use `global(seasons$winter)` in a formula to include the effect.
+#' @seealso [link_events()]
 #' @examples
-#' seasons <- make_global_attribute(data.frame(time = 1:12, replace = 1:12))
-make_global_attribute <- function(global) {
-  # check input types
+#' seasons <- make_global_attributes(
+#'   data.frame(winter = 1, spring = 0, summer = 0, autumn = 0)
+#' )
+make_global_attributes <- function(global) {
   if (!is.data.frame(global)) {
-    stop("Invalid argument: this function expects a data frame.")
+    cli::cli_abort(c(
+      "{.arg global} must be a {.cls data.frame}.",
+      "i" = "Supply a one-row data frame with named numeric columns."
+    ))
   }
 
-  # define class
   class(global) <- unique(c("global.goldfish", class(global)))
+  attr(global, "events") <- character(0)
 
-  # check format
   tryCatch(
     check_global_attribute(global),
     error = function(e) {
       scalls <- sys.calls()
       e$call <- scalls[[1]]
-      e$message <- paste(
-        "The global attribute couldn't be constructed: ",
-        e$message
-      )
-      # global <- NA
       stop(e)
     }
   )
@@ -584,10 +590,9 @@ make_global_attribute <- function(global) {
   return(global)
 }
 
-# Alias for make_global_attribute
 #' @export
-#' @rdname make_global_attribute
-make_global_attribute_goldfish <- make_global_attribute
+#' @rdname make_global_attributes
+make_global_attributes_goldfish <- make_global_attributes
 
 #' Create a data object for goldfish models
 #'
@@ -872,6 +877,9 @@ make_data_goldfish <- make_data
 #'   related to the network (ONLY if `x` is a network)
 #' @param nodes2 an optional nodeset (`data.frame` or `nodes.goldfish` object)
 #'   related to the network (ONLY if `x` is a network)
+#' @param replace a character string naming the column in `change_events` that
+#'   holds the replacement value (ONLY if `x` is a `global.goldfish` object).
+#'   Defaults to `"replace"`.
 #' @return an object with the same class as the object `x`.
 #' For objects of class `network.goldfish` the attribute `events` with the name
 #' of the event data frame passed through with the argument `change_events`.
@@ -1043,6 +1051,65 @@ link_events.network.goldfish <- function(x, change_events,
   )
 
   return(x)
+}
+
+#' @rdname link_events
+#' @export
+link_events.global.goldfish <- function(x, change_events, replace = "replace",
+                                         ...) {
+  if (!is.data.frame(change_events)) {
+    cli::cli_abort(
+      "{.arg change_events} must be a {.cls data.frame}."
+    )
+  }
+
+  linkEnvir <- environment()
+  if (!is.name(substitute(change_events, linkEnvir))) {
+    cli::cli_abort(c(
+      "{.arg change_events} must be the name of a data frame,",
+      "i" = "not a data frame literal."
+    ))
+  }
+
+  if ("node" %in% names(change_events)) {
+    cli::cli_abort(c(
+      "Global attribute events must not have a {.field node} column.",
+      "i" = "Global events apply to all actors simultaneously."
+    ))
+  }
+  if ("increment" %in% names(change_events)) {
+    cli::cli_abort(c(
+      "Global attribute events must use {.field replace}, not {.field increment}.",
+      "i" = "Increment semantics are not supported for global attributes."
+    ))
+  }
+  if (!"time" %in% names(change_events)) {
+    cli::cli_abort("Global attribute events must have a {.field time} column.")
+  }
+  if (!replace %in% names(change_events)) {
+    cli::cli_abort(
+      "Global attribute events must have a column named {.field {replace}}."
+    )
+  }
+
+  check_global_attribute(x)
+
+  objEventsPrev <- attr(x, "events")
+  objEventCurr <- as.character(substitute(change_events, linkEnvir))
+
+  if (length(objEventsPrev) > 0 && objEventCurr %in% objEventsPrev) {
+    warning(
+      "The event ", dQuote(objEventCurr),
+      " was already linked to this object."
+    )
+    return(x)
+  }
+
+  attr(change_events, "replace") <- replace
+  assign(objEventCurr, change_events, envir = parent.frame())
+  attr(x, "events") <- c(objEventsPrev, objEventCurr)
+
+  return(invisible(x))
 }
 
 #' @rdname link_events

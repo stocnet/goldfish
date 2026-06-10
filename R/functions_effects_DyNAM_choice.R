@@ -916,9 +916,11 @@ compute_update_two_path_consecutive <- function(
   lastEventOrder <- lastUpdate["eventOrder"]
 
   if (replace == 1) {
-    if (!is.null(lastUpdate) &&
+    if (
+      !is.null(lastUpdate) &&
         (lastEventOrder == (eventOrder - 1L)) &&
-        (sender == lastReceiver)) {
+        (sender == lastReceiver)
+    ) {
       inSender <- lastSender
     } else {
       inSender <- NULL
@@ -1087,16 +1089,20 @@ update_DyNAM_choice_trans <- function(
     return(res)
   }
 
-  lastUpdate <- if (history == "consecutive") attr(res$cache, "lastUpdate") else NULL
+  lastUpdate <- if (history == "consecutive") {
+    attr(res$cache, "lastUpdate")
+  } else {
+    NULL
+  }
 
   ids <- do.call(
     what = paste0("compute_update_two_path_", history),
     args = list(
-      network    = network,
-      sender     = sender,
-      receiver   = receiver,
-      replace    = replace,
-      cache      = cache,
+      network = network,
+      sender = sender,
+      receiver = receiver,
+      replace = replace,
+      cache = cache,
       eventOrder = eventOrder,
       lastUpdate = lastUpdate
     )
@@ -1104,7 +1110,9 @@ update_DyNAM_choice_trans <- function(
 
   if (history == "consecutive" && replace >= 1) {
     attr(res$cache, "lastUpdate") <- c(
-      sender = sender, receiver = receiver, eventOrder = eventOrder
+      sender = sender,
+      receiver = receiver,
+      eventOrder = eventOrder
     )
   }
 
@@ -1257,16 +1265,20 @@ update_DyNAM_choice_cycle <- function(
     return(res)
   }
 
-  lastUpdate <- if (history == "consecutive") attr(res$cache, "lastUpdate") else NULL
+  lastUpdate <- if (history == "consecutive") {
+    attr(res$cache, "lastUpdate")
+  } else {
+    NULL
+  }
 
   ids <- do.call(
     what = paste0("compute_update_two_path_", history),
     args = list(
-      network    = network,
-      sender     = sender,
-      receiver   = receiver,
-      replace    = replace,
-      cache      = cache,
+      network = network,
+      sender = sender,
+      receiver = receiver,
+      replace = replace,
+      cache = cache,
       eventOrder = eventOrder,
       lastUpdate = lastUpdate
     )
@@ -1274,14 +1286,22 @@ update_DyNAM_choice_cycle <- function(
 
   if (history == "consecutive" && replace >= 1) {
     attr(res$cache, "lastUpdate") <- c(
-      sender = sender, receiver = receiver, eventOrder = eventOrder
+      sender = sender,
+      receiver = receiver,
+      eventOrder = eventOrder
     )
   }
 
   if (length(ids) > 0) {
     colnames(ids) <- c("source", "sink")
     ids_cycle <- ids[, c("sink", "source"), drop = FALSE]
-    res <- apply_two_path_update(res, ids_cycle, replace, oldValue, transformer_fn)
+    res <- apply_two_path_update(
+      res,
+      ids_cycle,
+      replace,
+      oldValue,
+      transformer_fn
+    )
   }
   return(res)
 }
@@ -1839,8 +1859,12 @@ update_DyNAM_choice_mixed_trans <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (oldValue == replace) return(res)
-    if (history == "sequential" && replace >= 1) return(res)
+    if (oldValue == replace) {
+      return(res)
+    }
+    if (history == "sequential" && replace >= 1) {
+      return(res)
+    }
     temp <- network2[receiver, ]
     temp[c(sender, receiver)] <- 0
     outReceiver <- which(temp > 0)
@@ -1851,7 +1875,9 @@ update_DyNAM_choice_mixed_trans <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (oldValue == replace) return(res)
+    if (oldValue == replace) {
+      return(res)
+    }
     temp <- network1[, sender]
     temp[c(sender, receiver)] <- 0
     inSender <- which(temp > 0)
@@ -2074,11 +2100,13 @@ update_DyNAM_choice_mixed_cycle <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (oldValue == replace) return(res)
-    if (history == "sequential" && replace >= 1) return(res)
-    temp <- network2[receiver, ]
-    temp[c(sender, receiver)] <- 0
-    outReceiver <- which(temp > 0)
+    if (oldValue == replace) {
+      return(res)
+    }
+    if (history == "sequential" && replace >= 1) {
+      return(res)
+    }
+    outReceiver <- get_two_path_out_neigh(network2, sender, receiver)
     if (length(outReceiver) > 0) {
       ids <- cbind(outReceiver, sender)
       res <- apply_two_path_update(res, ids, replace, oldValue, transformer_fn)
@@ -2086,10 +2114,10 @@ update_DyNAM_choice_mixed_cycle <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (oldValue == replace) return(res)
-    temp <- network1[, sender]
-    temp[c(sender, receiver)] <- 0
-    inSender <- which(temp > 0)
+    if (oldValue == replace) {
+      return(res)
+    }
+    inSender <- get_two_path_in_neigh(network1, sender, receiver)
     if (length(inSender) > 0) {
       ids <- cbind(receiver, inSender)
       res <- apply_two_path_update(res, ids, replace, oldValue, transformer_fn)
@@ -2295,8 +2323,12 @@ update_DyNAM_choice_mixed_common_receiver <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (oldValue == replace) return(res)
-    if (history == "sequential" && replace >= 1) return(res)
+    if (oldValue == replace) {
+      return(res)
+    }
+    if (history == "sequential" && replace >= 1) {
+      return(res)
+    }
     temp <- network2[, receiver]
     temp[c(sender, receiver)] <- 0
     inReceiver <- which(temp > 0)
@@ -2307,7 +2339,9 @@ update_DyNAM_choice_mixed_common_receiver <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (oldValue == replace) return(res)
+    if (oldValue == replace) {
+      return(res)
+    }
     temp <- network1[, receiver]
     temp[c(sender, receiver)] <- 0
     inReceiver <- which(temp > 0)
@@ -2516,8 +2550,12 @@ update_DyNAM_choice_mixed_common_sender <- function(
 
   if (netUpdate == 1) {
     oldValue <- sign(network1[sender, receiver])
-    if (oldValue == replace) return(res)
-    if (history == "sequential" && replace >= 1) return(res)
+    if (oldValue == replace) {
+      return(res)
+    }
+    if (history == "sequential" && replace >= 1) {
+      return(res)
+    }
     temp <- network2[sender, ]
     temp[c(sender, receiver)] <- 0
     outSender <- which(temp > 0)
@@ -2528,7 +2566,9 @@ update_DyNAM_choice_mixed_common_sender <- function(
     return(res)
   } else {
     oldValue <- sign(network2[sender, receiver])
-    if (oldValue == replace) return(res)
+    if (oldValue == replace) {
+      return(res)
+    }
     temp <- network1[sender, ]
     temp[c(sender, receiver)] <- 0
     outSender <- which(temp > 0)

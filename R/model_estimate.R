@@ -171,7 +171,7 @@
 #'
 #' @importFrom stats formula na.omit
 #' @name estimate
-#' @seealso [make_dependent_events()], [make_global_attribute()],
+#' @seealso [make_dependent_events()], [make_global_attributes()],
 #'  [make_network()], [make_nodes()], [link_events()]
 #'
 #' @references Butts C. (2008). A Relational Event Framework for Social Action.
