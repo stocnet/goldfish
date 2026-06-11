@@ -112,6 +112,41 @@ test_that("new_model_spec two-mode requires both node sets", {
   expect_identical(spec$nodes2, "clubs")
 })
 
+test_that("legacy_model_type maps every spec class to its legacy string", {
+  expected <- c(
+    dynam_rate = "DyNAM-M-Rate",
+    dynam_rate_ordered = "DyNAM-M-Rate-ordered",
+    dynam_choice = "DyNAM-M",
+    dynam_choice_coord = "DyNAM-MM",
+    dynami_rate = "DyNAM-M-Rate",
+    dynami_rate_ordered = "DyNAM-M-Rate-ordered",
+    dynami_choice = "DyNAM-M",
+    rem_rate = "REM",
+    rem_rate_ordered = "REM-ordered"
+  )
+  constructors <- list(
+    dynam_rate = dynam_rate_spec,
+    dynam_rate_ordered = dynam_rate_ordered_spec,
+    dynam_choice = dynam_choice_spec,
+    dynam_choice_coord = dynam_choice_coord_spec,
+    dynami_rate = dynami_rate_spec,
+    dynami_rate_ordered = dynami_rate_ordered_spec,
+    dynami_choice = dynami_choice_spec,
+    rem_rate = rem_rate_spec,
+    rem_rate_ordered = rem_rate_ordered_spec
+  )
+  for (variant in names(expected)) {
+    expect_identical(
+      legacy_model_type(constructors[[variant]](nodes = "actors")),
+      unname(expected[variant])
+    )
+  }
+  expect_error(
+    legacy_model_type(structure(list(), class = "unknown_spec")),
+    "No legacy model type"
+  )
+})
+
 test_that("estimate_dynam constructs and forwards the typed spec", {
   fitChoice <- estimate_dynam(
     depNetwork ~ inertia + recip,

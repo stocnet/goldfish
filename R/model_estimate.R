@@ -791,24 +791,6 @@ estimate_wrapper <- function(x,
   }
   attr(effectDescription, "hasWindows") <- NULL
   ### 5. ESTIMATE----
-  # CHANGED Alvaro: to match model and subModel new parameters
-  if (model == "REM") {
-    if (!has_intercept) {
-      modelTypeCall <- "REM-ordered"
-    } else {
-      modelTypeCall <- "REM"
-    }
-  } else if (model %in% c("DyNAM", "DyNAMi")) {
-    if (sub_model == "rate" && !has_intercept) {
-      modelTypeCall <- "DyNAM-M-Rate-ordered"
-    } else if (sub_model == "rate") {
-      modelTypeCall <- "DyNAM-M-Rate"
-    } else if (sub_model == "choice_coordination") {
-      modelTypeCall <- "DyNAM-MM"
-    } else {
-      modelTypeCall <- "DyNAM-M"
-    }
-  }
   if (progress) {
     cat(
       "Estimating a model: ", dQuote(model), ", subModel: ",
@@ -835,7 +817,7 @@ estimate_wrapper <- function(x,
     defaultNetworkName = parsed_formula$default_network_name,
     hasIntercept = has_intercept,
     is_two_mode = is_two_mode,
-    modelType = modelTypeCall,
+    modelType = legacy_model_type(model_spec),
     # overridden damping
     initialDamping = if(!is.null(control_estimation$initial_damping)) {
       control_estimation$initial_damping
