@@ -310,6 +310,40 @@ fillChanges <- function(nodes, replace, time, set, is_two_mode = FALSE) {
   )
 }
 
+#' Apply flat buffer updates to a running statistics array
+#'
+#' Writes a slice of the flat update buffer into the running statistics
+#' array. `updates_slice` is a 4 x k matrix with rows
+#' `(node1, node2, effect, replace)` where indices are 0-based as stored in
+#' `stat_mat_update`. With duplicated cells the last column wins.
+#'
+#' @param statsArray a numeric matrix `n1 x nEffects` when
+#'   `is_sender = TRUE`, otherwise a numeric array `n1 x n2 x nEffects`.
+#' @param updates_slice a numeric matrix 4 x k, columns from
+#'   `stat_mat_update`.
+#' @param is_sender logical, whether `statsArray` is sender-indexed (2D).
+#'
+#' @return `statsArray` with the updates applied.
+#' @noRd
+apply_flat_update <- function(statsArray, updates_slice, is_sender) {
+  if (length(updates_slice) == 0L) {
+    return(statsArray)
+  }
+  if (is_sender) {
+    statsArray[cbind(
+      updates_slice[1, ] + 1L,
+      updates_slice[3, ] + 1L
+    )] <- updates_slice[4, ]
+  } else {
+    statsArray[cbind(
+      updates_slice[1, ] + 1L,
+      updates_slice[2, ] + 1L,
+      updates_slice[3, ] + 1L
+    )] <- updates_slice[4, ]
+  }
+  statsArray
+}
+
 
 GetDetailPrint <- function(
     objectsEffectsLink,
