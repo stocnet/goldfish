@@ -82,6 +82,7 @@
 #'
 #' @param sub_model A character string specifying the sub-model to be estimated.
 #'  It can be `"rate"` to model the waiting times between events,
+#'  `"rate_ordered"` to model only the order of the events,
 #'  `"choice"` to model the choice of the receiver, or `"choice_coordination"`
 #'  to model coordination ties. See details.
 #' \describe{
@@ -94,6 +95,10 @@
 #'  (Stadtfeld and Block, 2017).
 #'  Two rate models, one for individuals joining groups and one for individuals
 #'  leaving groups, jointly estimated `estimate_dynami()`(Hoffman et al., 2020)}
+#'  \item{rate_ordered}{An individual activity rates model where only the
+#'  order of the events is modeled (ordinal case, partial likelihood as in
+#'  the CoxPH model). It replaces the previous specification of this model:
+#'  `sub_model = "rate"` with a formula without the time intercept.}
 #' }
 #' @param control_estimation An object of class `control_estimation.goldfish`
 #'   (typically created by [set_estimation_opt()]),
@@ -290,7 +295,7 @@ NULL
 #' @export
 estimate_dynam <- function(
     x,
-    sub_model = c("choice", "rate", "choice_coordination"),
+    sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
     data = NULL,
     control_estimation = set_estimation_opt(),
     control_preprocessing = set_preprocessing_opt(),
@@ -452,7 +457,7 @@ compute_stats <- function(
 #' @noRd
 estimate_wrapper <- function(x,
     model = c("DyNAM", "REM", "DyNAMi"),
-    sub_model = c("choice", "rate", "choice_coordination"),
+    sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
     data = NULL,
     control_estimation = set_estimation_opt(),
     control_preprocessing = set_preprocessing_opt(),
@@ -477,7 +482,7 @@ estimate_wrapper <- function(x,
     model, sub_model,
     model_list = c("DyNAM", "REM", "DyNAMi"),
     sub_model_list = list(
-      DyNAM = c("choice", "rate", "choice_coordination"),
+      DyNAM = c("choice", "rate", "rate_ordered", "choice_coordination"),
       REM = "choice",
       DyNAMi = c("choice", "rate")
     )
@@ -548,8 +553,10 @@ estimate_wrapper <- function(x,
     control_estimation$engine <- "default"
   }
   # Model-specific preprocessing initialization
-  if (has_intercept && model %in% c("DyNAM", "DyNAMi") &&
-    sub_model %in% c("choice", "choice_coordination")) {
+  if (has_intercept &&
+    ((model %in% c("DyNAM", "DyNAMi") &&
+      sub_model %in% c("choice", "choice_coordination")) ||
+      sub_model == "rate_ordered")) {
     warning("Model ", dQuote(model), " sub_model ", dQuote(sub_model),
             " ignores the time intercept.",
       call. = FALSE, immediate. = TRUE
@@ -557,6 +564,9 @@ estimate_wrapper <- function(x,
     parsed_formula$has_intercept <- has_intercept <- FALSE
   }
   rightCensored <- has_intercept
+
+  legacy_sub_model <- sub_model
+  if (sub_model == "rate_ordered") legacy_sub_model <- "rate"
 
   if (progress &&
     !(model %in% c("DyNAM", "DyNAMi") &&
@@ -578,7 +588,7 @@ estimate_wrapper <- function(x,
     effects_indexes <- compare_formulas(
       old_parsed_formula = old_parsed_formula,
       new_parsed_formula = parsed_formula,
-      model = model, sub_model = sub_model
+      model = model, sub_model = legacy_sub_model
     )
     if (sum(duplicated(effects_indexes)) > 0) {
       stop(
@@ -610,7 +620,7 @@ estimate_wrapper <- function(x,
   # enviroment from which get the objects
 
   effects <- create_effects_functions(
-    rhs_names, model, sub_model,
+    rhs_names, model, legacy_sub_model,
     envir = work_env
   )
   objects_effects_link <- get_objects_effects_link(rhs_names)
@@ -658,7 +668,7 @@ estimate_wrapper <- function(x,
       new_rhs_names <- rhs_names[which(effects_indexes == 0)]
       new_window_parameters <- window_parameters[which(effects_indexes == 0)]
       new_effects <- create_effects_functions(
-        new_rhs_names, model, sub_model,
+        new_rhs_names, model, legacy_sub_model,
         envir = work_env
       )
       new_objects_effects_link <- get_objects_effects_link(new_rhs_names)
@@ -678,7 +688,7 @@ estimate_wrapper <- function(x,
       if (progress) cat("Pre-processing additional effects.\n")
       newprep <- preprocess(
         model,
-        sub_model,
+        legacy_sub_model,
         events = new_events,
         effects = new_effects,
         windowParameters = new_window_parameters,
@@ -783,7 +793,7 @@ estimate_wrapper <- function(x,
     prep <- allprep
     prep$formula <- formula
     prep$model <- model
-    prep$subModel <- sub_model
+    prep$subModel <- legacy_sub_model
     prep$nodes <- .nodes
     prep$nodes2 <- .nodes2
   }
@@ -810,7 +820,7 @@ estimate_wrapper <- function(x,
   } else {
     prep <- preprocess(
         model = model,
-        subModel = sub_model,
+        subModel = legacy_sub_model,
         events = events,
         effects = effects,
         windowParameters = window_parameters,
@@ -835,7 +845,7 @@ estimate_wrapper <- function(x,
     # (for parsing AND composition changes)
     prep$formula <- formula
     prep$model <- model
-    prep$subModel <- sub_model
+    prep$subModel <- legacy_sub_model
     prep$nodes <- .nodes
     prep$nodes2 <- .nodes2
   }
@@ -845,7 +855,7 @@ estimate_wrapper <- function(x,
       !has_intercept) {
     spec_sub_model <- "rate_ordered"
   }
-  if (model == "REM") {
+  if (model == "REM" && sub_model == "choice") {
     spec_sub_model <- if (has_intercept) "rate" else "rate_ordered"
   }
   model_spec <- new_model_spec(

@@ -32,6 +32,7 @@ Current options include \code{"DyNAM"}, \code{"DyNAMi"} or \code{"REM"}
 
 \item{sub_model}{A character string specifying the sub-model to be estimated.
 It can be \code{"rate"} to model the waiting times between events,
+\code{"rate_ordered"} to model only the order of the events,
 \code{"choice"} to model the choice of the receiver, or \code{"choice_coordination"}
 to model coordination ties. See details.
 \describe{
@@ -44,6 +45,10 @@ ties \code{estimate_dynam()} (Stadtfeld, Hollway and Block, 2017)}
 (Stadtfeld and Block, 2017).
 Two rate models, one for individuals joining groups and one for individuals
 leaving groups, jointly estimated \code{estimate_dynami()}(Hoffman et al., 2020)}
+\item{rate_ordered}{An individual activity rates model where only the
+order of the events is modeled (ordinal case, partial likelihood as in
+the CoxPH model). It replaces the previous specification of this model:
+\code{sub_model = "rate"} with a formula without the time intercept.}
 }}
 
 \item{data}{a \code{data.goldfish} object created with \code{\link[=make_data]{make_data()}}.
