@@ -46,7 +46,7 @@ test_that(
   {
     skip_on_cran()
     model <- "DyNAM"
-    subModel <- "rate"
+    subModel <- "rate_ordered"
     # endogenous and right-censored events
     formula <- depNetwork ~ indeg + outdeg(networkExog, weighted = TRUE)
     modR <- estimate_wrapper(
@@ -125,12 +125,14 @@ test_that(
   {
     skip_on_cran()
     model <- "REM"
+    subModel <- "rate"
     # endogenous and right-censored events
     formula <- depNetwork ~ 1 + inertia + indeg +
       outdeg(networkExog, type = "ego", weighted = TRUE)
     modR <- estimate_wrapper(
       formula,
       model = model,
+      sub_model = subModel,
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default")
@@ -138,6 +140,7 @@ test_that(
     modCd <- estimate_wrapper(
       formula,
       model = model,
+      sub_model = subModel,
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
@@ -145,6 +148,7 @@ test_that(
     modCgc <- estimate_wrapper(
       formula,
       model = model,
+      sub_model = subModel,
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "gather_compute")
@@ -161,12 +165,14 @@ test_that(
   {
     skip_on_cran()
     model <- "REM"
+    subModel <- "rate_ordered"
     # endogenous and right-censored events
     formula <- depNetwork ~ inertia + indeg +
       outdeg(networkExog, type = "ego", weighted = TRUE)
     modR <- estimate_wrapper(
       formula,
       model = model,
+      sub_model = subModel,
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default")
@@ -174,6 +180,7 @@ test_that(
     modCd <- estimate_wrapper(
       formula,
       model = model,
+      sub_model = subModel,
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "default_c")
@@ -181,6 +188,7 @@ test_that(
     modCgc <- estimate_wrapper(
       formula,
       model = model,
+      sub_model = subModel,
       data = dataTest,
       control_preprocessing = set_preprocessing_opt(start_time = 0),
       control_estimation = set_estimation_opt(engine = "gather_compute")
