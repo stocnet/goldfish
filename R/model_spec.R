@@ -113,3 +113,82 @@ rem_rate_ordered_spec <- function(
     is_two_mode = is_two_mode, nodes = nodes, nodes2 = nodes2, ...
   )
 }
+
+#' Construct a typed model specification
+#'
+#' Validates `(model, sub_model, is_two_mode, nodes, nodes2)` and returns
+#' the corresponding `model_spec` object. The class of the returned object
+#' is the resolved model variant, computed once; all downstream dispatch
+#' uses it. Not exported.
+#'
+#' @inheritParams model_spec
+#' @param model character, one of `"DyNAM"`, `"REM"`, `"DyNAMi"`.
+#' @param sub_model character, a valid sub model for `model`.
+#'
+#' @return an object of class `model_spec`.
+#' @noRd
+new_model_spec <- function(
+    model, sub_model, is_two_mode = FALSE, nodes = NULL, nodes2 = NULL, ...) {
+  stopifnot(
+    rlang::is_string(model),
+    rlang::is_string(sub_model),
+    rlang::is_scalar_logical(is_two_mode)
+  )
+  constructors <- list(
+    DyNAM = list(
+      rate = dynam_rate_spec,
+      rate_ordered = dynam_rate_ordered_spec,
+      choice = dynam_choice_spec,
+      choice_coordination = dynam_choice_coord_spec
+    ),
+    DyNAMi = list(
+      rate = dynami_rate_spec,
+      rate_ordered = dynami_rate_ordered_spec,
+      choice = dynami_choice_spec
+    ),
+    REM = list(
+      rate = rem_rate_spec,
+      rate_ordered = rem_rate_ordered_spec
+    )
+  )
+  if (!model %in% names(constructors)) {
+    cli::cli_abort(c(
+      "{.arg model} must be one of {.val {names(constructors)}}.",
+      "x" = "{.val {model}} is not a valid model."
+    ))
+  }
+  if (!sub_model %in% names(constructors[[model]])) {
+    cli::cli_abort(c(
+      "{.arg sub_model} for model {.val {model}} must be one of
+       {.val {names(constructors[[model]])}}.",
+      "x" = "{.val {sub_model}} is not a valid sub model."
+    ))
+  }
+  constructor <- constructors[[model]][[sub_model]]
+  is_sender <- sub_model %in% c("rate", "rate_ordered") && model != "REM"
+  if (is_sender) {
+    return(constructor(nodes = nodes, ...))
+  }
+  if (is_two_mode) {
+    if (is.null(nodes) || is.null(nodes2)) {
+      cli::cli_abort(c(
+        "Two-mode models require both node sets.",
+        "x" = "{.arg {c('nodes', 'nodes2')[c(is.null(nodes),
+         is.null(nodes2))]}} {?is/are} NULL.",
+        "i" = "Supply {.arg nodes} and {.arg nodes2} when
+         {.code is_two_mode = TRUE}."
+      ))
+    }
+    if (identical(nodes, nodes2)) {
+      cli::cli_abort(c(
+        "Two-mode models require distinct node sets.",
+        "x" = "{.arg nodes} and {.arg nodes2} are identical.",
+        "i" = "Use {.code is_two_mode = FALSE} for one-mode models."
+      ))
+    }
+  }
+  constructor(
+    is_two_mode = is_two_mode, nodes = nodes,
+    nodes2 = if (is.null(nodes2)) nodes else nodes2, ...
+  )
+}
