@@ -100,6 +100,9 @@
 #'  the CoxPH model). It replaces the previous specification of this model:
 #'  `sub_model = "rate"` with a formula without the time intercept.}
 #' }
+#' For `estimate_rem()` the valid values are `"rate"` (full dyadic hazard
+#' model, the default) and `"rate_ordered"` (only the order of the events is
+#' modeled); `"choice"` is kept as a deprecated alias of `"rate"`.
 #' @param control_estimation An object of class `control_estimation.goldfish`
 #'   (typically created by [set_estimation_opt()]),
 #'   specifying parameters for the estimation algorithm.
@@ -349,6 +352,7 @@ estimate_dynami <- function(
 #' @export
 estimate_rem <- function(
     x,
+    sub_model = c("rate", "rate_ordered", "choice"),
     data = NULL,
     control_estimation = set_estimation_opt(),
     control_preprocessing = set_preprocessing_opt(),
@@ -357,9 +361,11 @@ estimate_rem <- function(
     progress = getOption("progress", default = FALSE),
     verbose = getOption("verbose", default = FALSE)
 ) {
+  sub_model <- match.arg(sub_model)
   estimate_wrapper(
-    x = x, 
+    x = x,
     model = "REM",
+    sub_model = sub_model,
     data = data,
     control_estimation = control_estimation,
     control_preprocessing = control_preprocessing,
@@ -387,7 +393,8 @@ estimate_rem <- function(
 #'   `"DyNAM"`, `"REM"` or `"DyNAMi"`, see [estimate_dynam()],
 #'   [estimate_rem()] and [estimate_dynami()].
 #' @param sub_model a character string specifying the sub-model, see
-#'   [estimate_dynam()]. The default value `NULL` resolves to `"choice"`.
+#'   [estimate_dynam()]. The default value `NULL` resolves to `"rate"` for
+#'   `model = "REM"` and `"choice"` otherwise.
 #' @param output a character string specifying the output format of the
 #'   preprocessed statistics. Currently only `"default"` is implemented;
 #'   `"gather"` and `"db"` are reserved for statistics writers under
@@ -431,7 +438,9 @@ compute_stats <- function(
     output = c("default", "gather", "db"),
     ...) {
   model <- match.arg(model)
-  if (is.null(sub_model)) sub_model <- "choice"
+  if (is.null(sub_model)) {
+    sub_model <- if (model == "REM") "rate" else "choice"
+  }
   output <- match.arg(output)
   if (output != "default") {
     cli::cli_abort(c(
@@ -483,10 +492,19 @@ estimate_wrapper <- function(x,
     model_list = c("DyNAM", "REM", "DyNAMi"),
     sub_model_list = list(
       DyNAM = c("choice", "rate", "rate_ordered", "choice_coordination"),
-      REM = "choice",
+      REM = c("rate", "rate_ordered", "choice"),
       DyNAMi = c("choice", "rate")
     )
   )
+
+  if (model == "REM" && sub_model == "choice") {
+    cli::cli_warn(c(
+      "!" = "{.code sub_model = \"choice\"} is deprecated for REM models.",
+      "i" = "Use {.code sub_model = \"rate\"} instead; REM models the rate
+             of dyadic events."
+    ))
+    sub_model <- "rate"
+  }
 
   stopifnot(
     inherits(data, "data.goldfish"),
@@ -576,6 +594,7 @@ estimate_wrapper <- function(x,
 
   legacy_sub_model <- sub_model
   if (sub_model == "rate_ordered") legacy_sub_model <- "rate"
+  if (model == "REM") legacy_sub_model <- "choice"
 
   if (progress &&
     !(model %in% c("DyNAM", "DyNAMi") &&
@@ -860,12 +879,8 @@ estimate_wrapper <- function(x,
   }
 
   spec_sub_model <- sub_model
-  if (model %in% c("DyNAM", "DyNAMi") && sub_model == "rate" &&
-      !has_intercept) {
+  if (sub_model == "rate" && !has_intercept) {
     spec_sub_model <- "rate_ordered"
-  }
-  if (model == "REM" && sub_model == "choice") {
-    spec_sub_model <- if (has_intercept) "rate" else "rate_ordered"
   }
   model_spec <- new_model_spec(
     model = model, sub_model = spec_sub_model,

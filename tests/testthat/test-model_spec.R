@@ -201,6 +201,22 @@ test_that("estimate_dynam accepts the explicit rate_ordered sub_model", {
   )
 })
 
+test_that("estimate_rem accepts explicit rate and rate_ordered sub_models", {
+  prepRate <- estimate_rem(
+    depNetwork ~ 1 + inertia,
+    sub_model = "rate", data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_s3_class(prepRate$model_spec, "rem_rate_spec")
+  expect_identical(prepRate$subModel, "choice")
+  prepOrdered <- estimate_rem(
+    depNetwork ~ inertia,
+    sub_model = "rate_ordered", data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_s3_class(prepOrdered$model_spec, "rem_rate_ordered_spec")
+})
+
 test_that("estimate_rem constructs and forwards the typed spec", {
   fitRem <- estimate_rem(depNetwork ~ 1 + inertia, data = dataTest)
   expect_s3_class(fitRem$model_spec, "rem_rate_spec")

@@ -33,6 +33,7 @@ estimate_dynami(
 
 estimate_rem(
   x,
+  sub_model = c("rate", "rate_ordered", "choice"),
   data = NULL,
   control_estimation = set_estimation_opt(),
   control_preprocessing = set_preprocessing_opt(),
@@ -67,7 +68,10 @@ leaving groups, jointly estimated \code{estimate_dynami()}(Hoffman et al., 2020)
 order of the events is modeled (ordinal case, partial likelihood as in
 the CoxPH model). It replaces the previous specification of this model:
 \code{sub_model = "rate"} with a formula without the time intercept.}
-}}
+}
+For \code{estimate_rem()} the valid values are \code{"rate"} (full dyadic hazard
+model, the default) and \code{"rate_ordered"} (only the order of the events is
+modeled); \code{"choice"} is kept as a deprecated alias of \code{"rate"}.}
 
 \item{data}{a \code{data.goldfish} object created with \code{\link[=make_data]{make_data()}}.
 It is an environment that contains the nodesets, networks,

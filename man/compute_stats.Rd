@@ -26,7 +26,8 @@ effects and the variables for which the effects are expected to occur
 \code{\link[=estimate_rem]{estimate_rem()}} and \code{\link[=estimate_dynami]{estimate_dynami()}}.}
 
 \item{sub_model}{a character string specifying the sub-model, see
-\code{\link[=estimate_dynam]{estimate_dynam()}}. The default value \code{NULL} resolves to \code{"choice"}.}
+\code{\link[=estimate_dynam]{estimate_dynam()}}. The default value \code{NULL} resolves to \code{"rate"} for
+\code{model = "REM"} and \code{"choice"} otherwise.}
 
 \item{output}{a character string specifying the output format of the
 preprocessed statistics. Currently only \code{"default"} is implemented;
