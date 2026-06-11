@@ -243,6 +243,114 @@ test_that("build_update_plan aborts on inconsistent link matrices", {
   )
 })
 
+test_that("build_event_schedule merges streams into a sorted timeline", {
+  fixture <- build_plan_fixture(
+    depNetwork ~ inertia + alter(actorsEx$attr1) + outdeg(networkExog)
+  )
+  schedule <- build_event_schedule(
+    fixture$events, fixture$events_objects_link, fixture$plan$objects
+  )
+  expect_equal(schedule$n, sum(vapply(fixture$events, nrow, integer(1))))
+  expect_false(is.unsorted(schedule$time))
+  expect_equal(sum(schedule$dependent), nrow(fixture$events[[1]]))
+  expect_true(all(is.na(schedule$target[schedule$dependent])))
+  expect_true(all(!is.na(schedule$target[!schedule$dependent])))
+  expect_true(all(schedule$shape[!is.na(schedule$node)] == "node"))
+  expect_true(all(schedule$shape[!is.na(schedule$sender)] == "dyad"))
+})
+
+test_that("build_event_schedule breaks timestamp ties dependent first", {
+  depEvents <- data.frame(
+    time = c(10, 20), sender = c(1L, 2L), receiver = c(2L, 3L),
+    increment = c(1, 1)
+  )
+  streamA <- data.frame(
+    time = c(10, 20), sender = c(4L, 4L), receiver = c(5L, 1L),
+    increment = c(1, 1)
+  )
+  streamB <- data.frame(time = c(10, 10), node = c(1L, 2L), replace = c(5, 6))
+  events <- list(dep = depEvents, streamA = streamA, streamB = streamB)
+  eventsObjectsLink <- data.frame(
+    events = c("dep", "streamA", "streamB"),
+    name = c(NA, "netX", "actors$attr"),
+    object = c(NA, "netX", NA),
+    nodeset = c(NA, NA, "actors"),
+    attribute = c(NA, NA, "attr"),
+    stringsAsFactors = FALSE
+  )
+  objectsRegistry <- data.frame(
+    oid = 1:2,
+    name = c("netX", "actors$attr"),
+    shape = c("dyad", "node"),
+    stringsAsFactors = FALSE
+  )
+  schedule <- build_event_schedule(events, eventsObjectsLink, objectsRegistry)
+  at10 <- which(schedule$time == 10)
+  expect_equal(schedule$stream[at10], c(1L, 2L, 3L, 3L))
+  expect_true(schedule$dependent[at10][1])
+  expect_equal(schedule$node[at10][3:4], c(1L, 2L))
+  at20 <- which(schedule$time == 20)
+  expect_equal(schedule$stream[at20], c(1L, 2L))
+})
+
+test_that("build_event_schedule merges window expiry pseudo-events", {
+  fixture <- build_plan_fixture(
+    depNetwork ~ inertia(networkState, window = 3)
+  )
+  windowedStream <- grep("_3$", names(fixture$events), value = TRUE)
+  expect_length(windowedStream, 1)
+  windowedEvents <- fixture$events[[windowedStream]]
+  expect_equal(nrow(windowedEvents), 2L * nrow(eventsIncrement))
+  schedule <- build_event_schedule(
+    fixture$events, fixture$events_objects_link, fixture$plan$objects
+  )
+  windowedStreamId <- match(windowedStream, names(fixture$events))
+  fromWindowed <- schedule$stream == windowedStreamId
+  expect_equal(sum(fromWindowed), nrow(windowedEvents))
+  creations <- vapply(
+    schedule$value[fromWindowed & unlist(schedule$value) > 0], identity,
+    numeric(1)
+  )
+  expiries <- vapply(
+    schedule$value[fromWindowed & unlist(schedule$value) < 0], identity,
+    numeric(1)
+  )
+  expect_equal(sort(-expiries), sort(creations))
+  creationTimes <- schedule$time[fromWindowed][
+    unlist(schedule$value[fromWindowed]) > 0
+  ]
+  expiryTimes <- schedule$time[fromWindowed][
+    unlist(schedule$value[fromWindowed]) < 0
+  ]
+  expect_equal(sort(expiryTimes), sort(creationTimes + 3))
+  expect_false(is.unsorted(schedule$time))
+})
+
+test_that("build_event_schedule rebuilds deterministically", {
+  fixture <- build_plan_fixture(
+    depNetwork ~ inertia + alter(actorsEx$attr1)
+  )
+  first <- build_event_schedule(
+    fixture$events, fixture$events_objects_link, fixture$plan$objects
+  )
+  second <- build_event_schedule(
+    fixture$events, fixture$events_objects_link, fixture$plan$objects
+  )
+  expect_identical(first, second)
+})
+
+test_that("build_event_schedule aborts on streams missing from the plan", {
+  fixture <- build_plan_fixture(depNetwork ~ inertia)
+  brokenRegistry <- fixture$plan$objects
+  brokenRegistry$name <- "otherNetwork"
+  expect_error(
+    build_event_schedule(
+      fixture$events, fixture$events_objects_link, brokenRegistry
+    ),
+    "missing from the update plan"
+  )
+})
+
 test_that("state container supports in-place update round-trips", {
   env <- enviro_builders()
   state <- build_state_container(

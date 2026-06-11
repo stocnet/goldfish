@@ -255,3 +255,91 @@ build_update_plan <- function(
     templates = templates
   )
 }
+
+#' Build the merged event schedule
+#'
+#' Merges all event streams into a single time-sorted structure of aligned
+#' vectors (design D21), replacing the per-stream pointer search of the
+#' monolithic loop. At equal timestamps dependent events come first and
+#' remaining streams keep their list order (matching the pointer
+#' semantics); within a stream the original row order is preserved. Window
+#' expiry pseudo-events are part of the windowed object streams created at
+#' parse time, so they are merged into the timeline here. Values are stored
+#' untouched in a list to preserve their type; imputation against current
+#' state stays in the recipe kernel.
+#'
+#' @param events named list of sanitized event data frames; the first
+#'   element is the dependent events stream.
+#' @param events_objects_link data.frame from `get_events_and_objects_link()`.
+#' @param objects_registry the `objects` registry from `build_update_plan()`.
+#'
+#' @return a list of aligned vectors: `time`, `shape`, `target`,
+#'   `semantics`, `sender`, `receiver`, `node`, `value`, `dependent`,
+#'   `stream`, and the scalar `n`.
+#' @noRd
+build_event_schedule <- function(events, events_objects_link, objects_registry) {
+  n_streams <- length(events)
+  stream_rows <- vapply(events, nrow, integer(1))
+  n_total <- sum(stream_rows)
+  target_by_stream <- c(
+    NA_integer_,
+    match(events_objects_link$name[-1], objects_registry$name)
+  )
+  if (n_streams > 1 && anyNA(target_by_stream[-1])) {
+    missing_streams <- names(events)[-1][is.na(target_by_stream[-1])]
+    cli::cli_abort(
+      "Event stream{?s} {.val {missing_streams}} target{?s/} object{?s}
+       missing from the update plan."
+    )
+  }
+
+  time <- numeric(n_total)
+  shape <- character(n_total)
+  semantics <- character(n_total)
+  sender <- rep(NA_integer_, n_total)
+  receiver <- rep(NA_integer_, n_total)
+  node <- rep(NA_integer_, n_total)
+  value <- vector("list", n_total)
+  stream <- integer(n_total)
+
+  offset <- 0L
+  for (s in seq_len(n_streams)) {
+    rows <- stream_rows[s]
+    if (rows == 0L) next
+    idx <- offset + seq_len(rows)
+    stream_df <- events[[s]]
+    cols <- names(stream_df)
+    time[idx] <- stream_df$time
+    stream[idx] <- s
+    stream_semantics <- if ("increment" %in% cols) "increment" else "replace"
+    semantics[idx] <- stream_semantics
+    if ("node" %in% cols) {
+      shape[idx] <- "node"
+      node[idx] <- as.integer(stream_df$node)
+    } else if ("sender" %in% cols) {
+      shape[idx] <- "dyad"
+      sender[idx] <- as.integer(stream_df$sender)
+      receiver[idx] <- as.integer(stream_df$receiver)
+    } else {
+      shape[idx] <- "global"
+    }
+    value[idx] <- as.list(stream_df[[stream_semantics]])
+    offset <- offset + rows
+  }
+
+  ordering <- order(time, stream, method = "radix")
+
+  list(
+    time = time[ordering],
+    shape = shape[ordering],
+    target = target_by_stream[stream[ordering]],
+    semantics = semantics[ordering],
+    sender = sender[ordering],
+    receiver = receiver[ordering],
+    node = node[ordering],
+    value = value[ordering],
+    dependent = stream[ordering] == 1L,
+    stream = stream[ordering],
+    n = n_total
+  )
+}
