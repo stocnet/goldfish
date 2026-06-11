@@ -139,6 +139,34 @@ test_that("estimate_dynam constructs and forwards the typed spec", {
   expect_s3_class(prepRateOrdered$model_spec, "dynam_rate_ordered_spec")
 })
 
+test_that("estimate_rem constructs and forwards the typed spec", {
+  fitRem <- estimate_rem(depNetwork ~ 1 + inertia, data = dataTest)
+  expect_s3_class(fitRem$model_spec, "rem_rate_spec")
+  expect_true(fitRem$model_spec$has_intercept)
+  prepRemOrdered <- estimate_rem(
+    depNetwork ~ inertia,
+    data = dataTest, preprocessing_only = TRUE
+  )
+  expect_s3_class(prepRemOrdered$model_spec, "rem_rate_ordered_spec")
+})
+
+test_that("estimate_dynami constructs and forwards the typed spec", {
+  prepRate <- estimate_dynami(
+    dependent.depevents_DyNAMi ~ 1 +
+      intercept(interaction_network_DyNAMi, joining = -1),
+    sub_model = "rate", data = dataDyNAMi,
+    preprocessing_only = TRUE
+  )
+  expect_s3_class(prepRate$model_spec, "dynami_rate_spec")
+  prepChoice <- estimate_dynami(
+    dependent.depevents_DyNAMi ~
+      inertia(past_network_DyNAMi, weighted = TRUE, subType = "count"),
+    sub_model = "choice", data = dataDyNAMi,
+    preprocessing_only = TRUE
+  )
+  expect_s3_class(prepChoice$model_spec, "dynami_choice_spec")
+})
+
 test_that("new_model_spec sender-indexed specs ignore is_two_mode", {
   expect_no_warning(
     spec <- new_model_spec(
