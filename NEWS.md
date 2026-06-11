@@ -1,3 +1,28 @@
+# goldfish 1.7.4
+
+* New exported function `compute_stats()` runs the preprocessing stage of a
+  model and returns the change statistics as a `"preprocessed.goldfish"`
+  object, without estimating the model. The result can be passed to the
+  estimation functions through their `preprocessing_init` argument.
+  Its `output` argument is validated against `"default"`, `"gather"` and
+  `"db"`; only `"default"` is implemented so far, the other two values are
+  reserved for statistics writers under development.
+* `estimate_dynam()` gains `sub_model = "rate_ordered"` to declare the
+  ordinal activity rate model (only the order of the events is modeled,
+  partial likelihood as in the CoxPH model) explicitly. The previous
+  specification of this model, `sub_model = "rate"` with a formula without
+  the time intercept, is deprecated and now emits a warning suggesting
+  `"rate_ordered"`.
+* `estimate_rem()` gains a `sub_model` argument with valid values `"rate"`
+  (full dyadic hazard model, the default) and `"rate_ordered"` (ordinal
+  case). The internal `"choice"` label used so far for REM models is kept
+  as a deprecated alias of `"rate"` and emits a warning.
+* Internal: model variants are now carried through the pipeline as typed
+  `model_spec` S3 objects constructed once from `(model, sub_model,
+  is_two_mode)`; preprocessed and fitted objects store the spec in a
+  `model_spec` field. This is groundwork for dispatching preprocessing and
+  estimation per model variant.
+
 # goldfish 1.7.3
 
 * `make_global_attributes()` (renamed from `make_global_attribute()`) now
