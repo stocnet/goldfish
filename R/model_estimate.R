@@ -491,7 +491,7 @@ estimate_wrapper <- function(x,
     model, sub_model,
     model_list = c("DyNAM", "REM", "DyNAMi"),
     sub_model_list = list(
-      DyNAM = c("choice", "rate", "rate_ordered", "choice_coordination"),
+      DyNAM = c("rate", "rate_ordered", "choice", "choice_coordination"),
       REM = c("rate", "rate_ordered", "choice"),
       DyNAMi = c("choice", "rate")
     )
