@@ -364,6 +364,88 @@ estimate_rem <- function(
   )
 }
 
+#' Compute preprocessed statistics for a model
+#'
+#' Runs the preprocessing stage of a model and returns the change statistics
+#' of the effects for the event sequence, without estimating the model.
+#' The returned object can be passed to the estimation functions
+#' ([estimate_dynam()], [estimate_rem()], [estimate_dynami()]) through their
+#' `preprocessing_init` argument, or used directly by users who want to
+#' work with the sufficient statistics of a model.
+#'
+#' @param formula a formula that defines at the left-hand side the dependent
+#'   network (see [make_dependent_events()]) and at the right-hand side the
+#'   effects and the variables for which the effects are expected to occur
+#'   (see `vignette("goldfishEffects")`).
+#' @param data a `data.goldfish` object created with [make_data()].
+#' @param model a character string specifying the model. Current options are
+#'   `"DyNAM"`, `"REM"` or `"DyNAMi"`, see [estimate_dynam()],
+#'   [estimate_rem()] and [estimate_dynami()].
+#' @param sub_model a character string specifying the sub-model, see
+#'   [estimate_dynam()]. The default value `NULL` resolves to `"choice"`.
+#' @param output a character string specifying the output format of the
+#'   preprocessed statistics. Currently only `"default"` is implemented;
+#'   `"gather"` and `"db"` are reserved for statistics writers under
+#'   development.
+#' @param ... additional arguments passed to the preprocessing stage, e.g.,
+#'   `control_preprocessing` (see [set_preprocessing_opt()]) and `progress`.
+#'
+#' @return an object of class `"preprocessed.goldfish"` with the change
+#'   statistics of the effects for the event sequence and the information
+#'   of the model variant computed. See the `Value` section of
+#'   [estimate_dynam()] for the `preprocessing_only = TRUE` case.
+#'
+#' @seealso [estimate_dynam()], [estimate_rem()], [estimate_dynami()],
+#'   [set_preprocessing_opt()]
+#' @export
+#' @examples
+#' data("Social_Evolution")
+#' callNetwork <- make_network(nodes = actors, directed = TRUE)
+#' callNetwork <- link_events(
+#'   x = callNetwork, change_event = calls, nodes = actors
+#' )
+#' callsDependent <- make_dependent_events(
+#'   events = calls, nodes = actors, default_network = callNetwork
+#' )
+#' \dontshow{
+#' callsDependent <- callsDependent[1:50, ]
+#' }
+#' socialEvData <- make_data(callsDependent, callNetwork, calls, actors)
+#'
+#' prep <- compute_stats(
+#'   callsDependent ~ inertia + recip + trans,
+#'   data = socialEvData,
+#'   model = "DyNAM", sub_model = "choice"
+#' )
+#' prep
+compute_stats <- function(
+    formula,
+    data,
+    model = c("DyNAM", "REM", "DyNAMi"),
+    sub_model = NULL,
+    output = c("default", "gather", "db"),
+    ...) {
+  model <- match.arg(model)
+  if (is.null(sub_model)) sub_model <- "choice"
+  output <- match.arg(output)
+  if (output != "default") {
+    cli::cli_abort(c(
+      "{.arg output} {.val {output}} is not yet implemented.",
+      "i" = "Only {.val default} is currently available. The statistics
+             writers for {.val gather} and {.val db} outputs are under
+             development."
+    ))
+  }
+  estimate_wrapper(
+    x = formula,
+    model = model,
+    sub_model = sub_model,
+    data = data,
+    preprocessing_only = TRUE,
+    ...
+  )
+}
+
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
 #' @importFrom stats as.formula
