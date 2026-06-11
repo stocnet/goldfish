@@ -90,6 +90,159 @@ test_that("build_state_container aborts on unknown attribute or node set", {
   )
 })
 
+build_plan_fixture <- function(
+    formula, model = "DyNAM", sub_model = "choice", stat_kind = "dyad") {
+  env <- rlang::env_clone(dataTest)
+  parsed <- parse_formula(formula, envir = env)
+  effects <- create_effects_functions(
+    parsed$rhs_names, model, sub_model,
+    envir = env
+  )
+  objects_effects_link <- get_objects_effects_link(parsed$rhs_names)
+  events_and_link <- get_events_and_objects_link(
+    parsed$dep_name, parsed$rhs_names, "actorsEx", "actorsEx",
+    envir = env
+  )
+  events_effects_link <- get_events_effects_link(
+    events_and_link[[1]], parsed$rhs_names, events_and_link[[2]]
+  )
+  state <- build_state_container(
+    rownames(objects_effects_link),
+    nodes = "actorsEx", envir = env
+  )
+  plan <- build_update_plan(
+    effects, events_and_link[[2]], events_effects_link,
+    objects_effects_link, state,
+    stat_kind = stat_kind, envir = env
+  )
+  list(
+    plan = plan, events = events_and_link[[1]],
+    events_objects_link = events_and_link[[2]],
+    events_effects_link = events_effects_link,
+    objects_effects_link = objects_effects_link,
+    state = state, env = env, effects = effects
+  )
+}
+
+test_that("build_update_plan registries cover effects and objects", {
+  fixture <- build_plan_fixture(
+    depNetwork ~ inertia + recip + alter(actorsEx$attr1)
+  )
+  plan <- fixture$plan
+  expect_equal(plan$effects$gid, 1:3)
+  expect_equal(plan$effects$effect_name, c("inertia", "recip", "alter"))
+  expect_equal(plan$effects$stat_kind, rep("dyad", 3))
+  expect_equal(plan$objects$name, c("networkState", "actorsEx$attr1"))
+  expect_equal(plan$objects$shape, c("dyad", "node"))
+  expect_equal(plan$objects$component, c("networks", "nodal"))
+})
+
+test_that("build_update_plan routing matches the link matrices", {
+  fixture <- build_plan_fixture(
+    depNetwork ~ inertia + alter(actorsEx$attr1) + outdeg(networkExog)
+  )
+  plan <- fixture$plan
+  expect_equal(plan$routing[[1]], 1L)
+  expect_equal(plan$routing[[2]], 2L)
+  expect_equal(plan$routing[[3]], 3L)
+  expect_equal(
+    plan$objects$name,
+    c("networkState", "actorsEx$attr1", "networkExog")
+  )
+})
+
+test_that("build_update_plan call templates resolve formals once", {
+  fixture <- build_plan_fixture(
+    depNetwork ~ inertia + alter(actorsEx$attr1)
+  )
+  template_inertia <- fixture$plan$templates[[1]]
+  expect_identical(
+    template_inertia$formal_names,
+    names(formals(fixture$effects[[1]][["effect"]]))
+  )
+  expect_true(all(
+    template_inertia$args_by_shape$dyad %in%
+      c(template_inertia$formal_names)
+  ))
+  expect_true("sender" %in% template_inertia$args_by_shape$dyad)
+  expect_false("sender" %in% template_inertia$args_by_shape$node)
+  expect_equal(template_inertia$net_keys, "networkState")
+  expect_equal(template_inertia$n_networks, 1L)
+  expect_equal(template_inertia$n_attributes, 0L)
+  template_alter <- fixture$plan$templates[[2]]
+  expect_equal(template_alter$att_components, "nodal")
+  expect_equal(template_alter$att_keys, "attr1")
+})
+
+test_that("build_update_plan netUpdate positions for two-network effects", {
+  fixture <- build_plan_fixture(
+    depNetwork ~ mixed_trans(list(networkState, networkExog))
+  )
+  plan <- fixture$plan
+  expect_equal(plan$templates[[1]]$n_networks, 2L)
+  expect_equal(
+    plan$templates[[1]]$net_keys,
+    c("networkState", "networkExog")
+  )
+  pairs <- plan$effect_objects
+  expect_equal(pairs$net_update[pairs$oid == 1], 1L)
+  expect_equal(pairs$net_update[pairs$oid == 2], 2L)
+  expect_true(all(is.na(pairs$att_update)))
+  single <- build_plan_fixture(depNetwork ~ inertia)$plan
+  expect_true(all(is.na(single$effect_objects$net_update)))
+})
+
+test_that("build_update_plan flags undirected networks for the second call", {
+  env <- rlang::env_clone(dataTest)
+  undirNet <- make_network(nodes = actorsEx, directed = FALSE)
+  undirEvents <- data.frame(
+    time = c(10, 20), sender = c("Actor 1", "Actor 2"),
+    receiver = c("Actor 2", "Actor 3"), increment = c(1, 1)
+  )
+  undirNet <- link_events(undirNet, undirEvents, nodes = actorsEx)
+  assign("undirNet", undirNet, envir = env)
+  assign("undirEvents", undirEvents, envir = env)
+  parsed <- parse_formula(depNetwork ~ inertia + tie(undirNet), envir = env)
+  effects <- create_effects_functions(
+    parsed$rhs_names, "DyNAM", "choice",
+    envir = env
+  )
+  objects_effects_link <- get_objects_effects_link(parsed$rhs_names)
+  events_and_link <- get_events_and_objects_link(
+    parsed$dep_name, parsed$rhs_names, "actorsEx", "actorsEx",
+    envir = env
+  )
+  events_effects_link <- get_events_effects_link(
+    events_and_link[[1]], parsed$rhs_names, events_and_link[[2]]
+  )
+  state <- build_state_container(
+    rownames(objects_effects_link),
+    nodes = "actorsEx", envir = env
+  )
+  plan <- build_update_plan(
+    effects, events_and_link[[2]], events_effects_link,
+    objects_effects_link, state,
+    stat_kind = "dyad", envir = env
+  )
+  expect_equal(plan$objects$is_undirected, c(FALSE, TRUE))
+})
+
+test_that("build_update_plan aborts on inconsistent link matrices", {
+  fixture <- build_plan_fixture(
+    depNetwork ~ inertia + alter(actorsEx$attr1)
+  )
+  broken <- fixture$events_effects_link
+  broken[2, ] <- rev(broken[2, ])
+  expect_error(
+    build_update_plan(
+      fixture$effects, fixture$events_objects_link, broken,
+      fixture$objects_effects_link, fixture$state,
+      stat_kind = "dyad", envir = fixture$env
+    ),
+    "inconsistent"
+  )
+})
+
 test_that("state container supports in-place update round-trips", {
   env <- enviro_builders()
   state <- build_state_container(

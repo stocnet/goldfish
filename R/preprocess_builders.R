@@ -99,3 +99,159 @@ build_state_container <- function(
   )
   state
 }
+
+#' Build the recipe update plan
+#'
+#' Compiles the gid/fid registries and per-gid call templates that recipe
+#' loops consume (design D21): which effects each object update routes to,
+#' the state keys feeding each effect call in argument order, the effect
+#' function formals matched once, and the `netUpdate` / `attUpdate`
+#' positions per (effect, object) pair. The link matrices produced by the
+#' formula parser are the only inputs — the parser itself is untouched.
+#'
+#' @param effects list of effect functions from `create_effects_functions()`.
+#' @param events_objects_link data.frame from `get_events_and_objects_link()`.
+#' @param events_effects_link matrix from `get_events_effects_link()`.
+#' @param objects_effects_link matrix from `get_objects_effects_link()`.
+#' @param state state container from `build_state_container()`.
+#' @param stat_kind character, shape of the statistic the effects produce;
+#'   part of gid identity so the same effect call with a different statistic
+#'   shape gets a distinct gid.
+#' @param envir environment where the data objects live.
+#'
+#' @return a list with `effects`, `objects`, `effect_objects` registries,
+#'   `routing` (oid-indexed list of gids), and `templates` (gid-indexed call
+#'   templates).
+#' @noRd
+build_update_plan <- function(
+    effects, events_objects_link, events_effects_link, objects_effects_link,
+    state, stat_kind = c("sender", "dyad"), envir = new.env()) {
+  stat_kind <- match.arg(stat_kind)
+  object_keys <- attr(state, "object_keys")
+  object_names <- rownames(objects_effects_link)
+  effect_names <- colnames(objects_effects_link)
+  n_objects <- length(object_names)
+  n_effects <- length(effect_names)
+
+  if (!identical(object_keys$name, object_names)) {
+    cli::cli_abort(
+      "State container objects do not match {.arg objects_effects_link} rows."
+    )
+  }
+
+  is_network <- object_keys$component == "networks"
+  is_undirected <- vapply(
+    seq_len(n_objects),
+    function(oid) {
+      if (!is_network[oid]) {
+        return(FALSE)
+      }
+      object <- get(object_names[oid], envir = envir)
+      inherits(object, "network.goldfish") && !attr(object, "directed")
+    },
+    logical(1)
+  )
+  shape <- ifelse(
+    is_network, "dyad",
+    ifelse(object_keys$component == "globals", "global", "node")
+  )
+
+  objects_registry <- data.frame(
+    oid = seq_len(n_objects),
+    name = object_names,
+    component = object_keys$component,
+    key = object_keys$key,
+    shape = shape,
+    is_undirected = is_undirected,
+    stringsAsFactors = FALSE
+  )
+
+  effects_registry <- data.frame(
+    gid = seq_len(n_effects),
+    effect_name = effect_names,
+    stat_kind = stat_kind,
+    stringsAsFactors = FALSE
+  )
+
+  routing <- lapply(
+    seq_len(n_objects),
+    function(oid) unname(which(!is.na(objects_effects_link[oid, ])))
+  )
+
+  event_streams <- events_objects_link$events[-1]
+  event_targets <- match(events_objects_link$name[-1], object_names)
+  if (anyNA(event_targets)) {
+    cli::cli_abort(
+      "Event stream{?s} {.val {event_streams[is.na(event_targets)]}}
+       update{?s/} object{?s} missing from {.arg objects_effects_link}."
+    )
+  }
+  for (i in seq_along(event_streams)) {
+    linked <- unname(which(!is.na(events_effects_link[i + 1L, ])))
+    if (!identical(linked, routing[[event_targets[i]]])) {
+      cli::cli_abort(
+        "Link matrices are inconsistent: event stream
+         {.val {event_streams[i]}} routes to effects
+         {.val {linked}} but its object
+         {.val {object_names[event_targets[i]]}} is used by effects
+         {.val {routing[[event_targets[i]]]}}."
+      )
+    }
+  }
+
+  arg_pool_common <- c(
+    "network", "attribute", "cache", "n1", "n2", "netUpdate", "attUpdate",
+    "eventOrder", "interEventTime", "replace"
+  )
+  arg_pool <- list(
+    dyad = c(arg_pool_common, "sender", "receiver"),
+    node = c(arg_pool_common, "node"),
+    global = arg_pool_common
+  )
+
+  templates <- vector("list", n_effects)
+  effect_objects <- vector("list", n_effects)
+  for (gid in seq_len(n_effects)) {
+    positions <- objects_effects_link[, gid]
+    used <- which(!is.na(positions))
+    ordered <- used[order(positions[used])]
+    ordered_components <- object_keys$component[ordered]
+    is_net_arg <- ordered_components == "networks"
+    formal_names <- names(formals(effects[[gid]][["effect"]]))
+    templates[[gid]] <- list(
+      fun = effects[[gid]][["effect"]],
+      formal_names = formal_names,
+      args_by_shape = lapply(
+        arg_pool,
+        function(pool) formal_names[formal_names %in% pool]
+      ),
+      net_keys = object_keys$key[ordered][is_net_arg],
+      att_components = ordered_components[!is_net_arg],
+      att_keys = object_keys$key[ordered][!is_net_arg],
+      n_networks = sum(is_net_arg),
+      n_attributes = sum(!is_net_arg)
+    )
+    effect_objects[[gid]] <- data.frame(
+      gid = gid,
+      oid = ordered,
+      position = seq_along(ordered),
+      net_update = ifelse(
+        sum(is_net_arg) > 1L & is_net_arg,
+        seq_along(ordered), NA_integer_
+      ),
+      att_update = ifelse(
+        sum(!is_net_arg) > 1L & !is_net_arg,
+        seq_along(ordered), NA_integer_
+      ),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  list(
+    effects = effects_registry,
+    objects = objects_registry,
+    effect_objects = do.call(rbind, effect_objects),
+    routing = routing,
+    templates = templates
+  )
+}
