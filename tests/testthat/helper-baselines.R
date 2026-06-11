@@ -60,7 +60,8 @@ baselines_model_grid <- function() {
       formula = callsDependent ~ 1 + indeg + outdeg + indeg(friendshipNetwork)
     ),
     se_dynam_rate_ordered = list(
-      dataset = "social_evolution", model = "DyNAM", sub_model = "rate",
+      dataset = "social_evolution", model = "DyNAM",
+      sub_model = "rate_ordered",
       formula = callsDependent ~ indeg + outdeg + indeg(friendshipNetwork)
     ),
     se_dynam_choice = list(
@@ -87,7 +88,7 @@ baselines_model_grid <- function() {
       formula = createBilat ~ 1 + indeg + ego(states$regime)
     ),
     fish_dynam_rate_ordered = list(
-      dataset = "fisheries", model = "DyNAM", sub_model = "rate",
+      dataset = "fisheries", model = "DyNAM", sub_model = "rate_ordered",
       formula = createBilat ~ indeg + ego(states$regime)
     ),
     fish_dynam_choice = list(

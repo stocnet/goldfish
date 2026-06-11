@@ -325,7 +325,7 @@ test_that(
 
     preproData <- estimate_wrapper(
       depNetwork ~ global(seasons$winter),
-      model = "DyNAM", sub_model = "rate",
+      model = "DyNAM", sub_model = "rate_ordered",
       data = dataGlobal,
       preprocessing_only = TRUE
     )

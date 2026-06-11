@@ -565,6 +565,15 @@ estimate_wrapper <- function(x,
   }
   rightCensored <- has_intercept
 
+  if (model == "DyNAM" && sub_model == "rate" && !has_intercept) {
+    cli::cli_warn(c(
+      "!" = "{.code sub_model = \"rate\"} with a formula without the time
+             intercept is deprecated.",
+      "i" = "Use {.code sub_model = \"rate_ordered\"} to model only the order
+             of the events."
+    ))
+  }
+
   legacy_sub_model <- sub_model
   if (sub_model == "rate_ordered") legacy_sub_model <- "rate"
 

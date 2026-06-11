@@ -166,10 +166,13 @@ test_that("estimate_dynam constructs and forwards the typed spec", {
   )
   expect_s3_class(prepRate$model_spec, "dynam_rate_spec")
   expect_true(prepRate$model_spec$has_intercept)
-  prepRateOrdered <- estimate_dynam(
-    depNetwork ~ indeg,
-    sub_model = "rate", data = dataTest,
-    preprocessing_only = TRUE
+  expect_warning(
+    prepRateOrdered <- estimate_dynam(
+      depNetwork ~ indeg,
+      sub_model = "rate", data = dataTest,
+      preprocessing_only = TRUE
+    ),
+    "rate_ordered"
   )
   expect_s3_class(prepRateOrdered$model_spec, "dynam_rate_ordered_spec")
 })
@@ -182,11 +185,11 @@ test_that("estimate_dynam accepts the explicit rate_ordered sub_model", {
   )
   expect_s3_class(prepExplicit$model_spec, "dynam_rate_ordered_spec")
   expect_identical(prepExplicit$subModel, "rate")
-  prepImplicit <- estimate_dynam(
+  prepImplicit <- suppressWarnings(estimate_dynam(
     depNetwork ~ indeg,
     sub_model = "rate", data = dataTest,
     preprocessing_only = TRUE
-  )
+  ))
   expect_equal(prepExplicit, prepImplicit)
   expect_warning(
     estimate_dynam(
