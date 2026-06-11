@@ -122,18 +122,9 @@ baselines_global_model_grid <- function() {
       sub_model = "rate",
       formula = callsDependent ~ 1 + indeg + global(seasons$winter)
     ),
-    global_dynam_rate_ordered = list(
-      dataset = "social_evolution_global", model = "DyNAM",
-      sub_model = "rate",
-      formula = callsDependent ~ indeg + global(seasons$winter)
-    ),
     global_rem = list(
       dataset = "social_evolution_global", model = "REM",
       formula = callsDependent ~ 1 + inertia + global(seasons$winter)
-    ),
-    global_rem_ordered = list(
-      dataset = "social_evolution_global", model = "REM",
-      formula = callsDependent ~ inertia + global(seasons$winter)
     )
   )
 }
