@@ -112,6 +112,33 @@ test_that("new_model_spec two-mode requires both node sets", {
   expect_identical(spec$nodes2, "clubs")
 })
 
+test_that("estimate_dynam constructs and forwards the typed spec", {
+  fitChoice <- estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice", data = dataTest
+  )
+  expect_s3_class(fitChoice$model_spec, "dynam_choice_spec")
+  prepCoord <- estimate_dynam(
+    depNetwork ~ inertia,
+    sub_model = "choice_coordination", data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_s3_class(prepCoord$model_spec, "dynam_choice_coord_spec")
+  prepRate <- estimate_dynam(
+    depNetwork ~ 1 + indeg,
+    sub_model = "rate", data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_s3_class(prepRate$model_spec, "dynam_rate_spec")
+  expect_true(prepRate$model_spec$has_intercept)
+  prepRateOrdered <- estimate_dynam(
+    depNetwork ~ indeg,
+    sub_model = "rate", data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_s3_class(prepRateOrdered$model_spec, "dynam_rate_ordered_spec")
+})
+
 test_that("new_model_spec sender-indexed specs ignore is_two_mode", {
   expect_no_warning(
     spec <- new_model_spec(

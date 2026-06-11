@@ -299,8 +299,9 @@ estimate_dynam <- function(
     progress = getOption("progress", default = FALSE),
     verbose = getOption("verbose", default = FALSE)
     ) {
+  sub_model <- match.arg(sub_model)
   estimate_wrapper(
-    x = x, 
+    x = x,
     model = "DyNAM",
     sub_model = sub_model,
     data = data,
@@ -757,6 +758,21 @@ estimate_wrapper <- function(x,
     prep$nodes2 <- .nodes2
   }
 
+  spec_sub_model <- sub_model
+  if (model %in% c("DyNAM", "DyNAMi") && sub_model == "rate" &&
+      !has_intercept) {
+    spec_sub_model <- "rate_ordered"
+  }
+  if (model == "REM") {
+    spec_sub_model <- if (has_intercept) "rate" else "rate_ordered"
+  }
+  model_spec <- new_model_spec(
+    model = model, sub_model = spec_sub_model,
+    is_two_mode = is_two_mode, nodes = .nodes, nodes2 = .nodes2,
+    has_intercept = has_intercept
+  )
+  prep$model_spec <- model_spec
+
   ## 3.3 Stop here if preprocessingOnly == TRUE
   if (preprocessing_only) {
     return(prep)
@@ -863,6 +879,7 @@ estimate_wrapper <- function(x,
 
   ### 6. RESULTS----
   result$names <- effectDescription
+  result$model_spec <- model_spec
   formulaKeep <- as.formula(Reduce(paste, deparse(formula)),
     env = new.env(parent = emptyenv())
   )
