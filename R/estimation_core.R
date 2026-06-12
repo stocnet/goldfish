@@ -287,7 +287,6 @@ estimate_int_impl <- function(
       statsList = statsList,
       nodes = nodes,
       nodes2 = nodes2,
-      defaultNetworkName = defaultNetworkName,
       updatepresence = hasCompChange1,
       presence = presence,
       compChange1 = compChange1,
@@ -304,11 +303,9 @@ estimate_int_impl <- function(
       allowReflexive = allowReflexive,
       is_two_mode = is_two_mode,
       reduceArrayToMatrix = reduceArrayToMatrix,
-      ignoreRepParameter = ignoreRepParameter,
       impute = impute,
       verbose = verbose,
-      opportunitiesList = opportunitiesList,
-      prepEnvir = prepEnvir
+      opportunitiesList = opportunitiesList
     )
 
     logLikelihood <- res[[1]]
@@ -863,7 +860,6 @@ getIterationStepState <- function(
   statsList,
   nodes,
   nodes2,
-  defaultNetworkName,
   updatepresence,
   presence,
   compChange1,
@@ -880,11 +876,9 @@ getIterationStepState <- function(
   allowReflexive = TRUE,
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
-  ignoreRepParameter = NULL,
   impute = TRUE,
   verbose = FALSE,
-  opportunitiesList = NULL,
-  prepEnvir = new.env()
+  opportunitiesList = NULL
 ) {
   nEvents <- length(statsList$is_dependent)
   is_rate <- length(dim(statsList$initialStats)) == 2L
@@ -927,15 +921,6 @@ getIterationStepState <- function(
   time <- statsList$startTime
   useFlatUpdates <- !is.null(statsList$stat_mat_update)
   flatPointer <- 0L
-
-  hasIgnoreRep <- any(ignoreRepParameter)
-  if (hasIgnoreRep) {
-    net <- get(defaultNetworkName, envir = prepEnvir) # add prepEnvir
-    ignoreRepIds <- which(ignoreRepParameter) + hasIntercept
-    # with intercept, the first effect is the intercept without
-    # ignoreRep option
-    startTime <- -Inf
-  }
 
   # opportunities list initialization
   opportunities <- rep(TRUE, nrow(nodes2))
@@ -1022,23 +1007,6 @@ getIterationStepState <- function(
     }
 
     statsArrayComp <- statsArray
-    # Handle the ignoreRep option
-    if (hasIgnoreRep) {
-      mat <- as.matrix(
-        net,
-        time = statsList$event_time[[i]],
-        startTime = startTime
-      )
-      ones <- which(mat > 0, arr.ind = TRUE)
-      statsArrayComp[cbind(
-        ones[, 1],
-        ones[, 2],
-        rep(ignoreRepIds, each = length(ignoreRepIds) * nrow(ones))
-      )] <- 0
-      # CHANGED SIWEI
-      startTime <- statsList$event_time[[i]]
-      net[seq_len(dim(net)[1]), seq_len(dim(net)[2])] <- mat
-    }
 
     # update opportunity set
     if (updateopportunities) {
