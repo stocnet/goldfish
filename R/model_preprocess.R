@@ -28,8 +28,7 @@ preprocess.dynam_rate_spec <- function(spec, ...) {
   run_sender_recipe_loop(
     spec, ...,
     right_censored = TRUE,
-    intercept_scalars = TRUE,
-    composition_format = TRUE
+    intercept_scalars = TRUE
   )
 }
 
@@ -38,8 +37,7 @@ preprocess.dynam_rate_ordered_spec <- function(spec, ...) {
   run_sender_recipe_loop(
     spec, ...,
     right_censored = FALSE,
-    intercept_scalars = FALSE,
-    composition_format = FALSE
+    intercept_scalars = FALSE
   )
 }
 
@@ -48,8 +46,7 @@ preprocess.dynam_choice_spec <- function(spec, ...) {
   run_dyad_recipe_loop(
     spec, ...,
     right_censored = FALSE,
-    intercept_scalars = FALSE,
-    composition_format = FALSE
+    intercept_scalars = FALSE
   )
 }
 
@@ -58,8 +55,7 @@ preprocess.dynam_choice_coord_spec <- function(spec, ...) {
   run_dyad_recipe_loop(
     spec, ...,
     right_censored = FALSE,
-    intercept_scalars = FALSE,
-    composition_format = FALSE
+    intercept_scalars = FALSE
   )
 }
 
@@ -68,8 +64,7 @@ preprocess.rem_rate_spec <- function(spec, ...) {
   run_dyad_recipe_loop(
     spec, ...,
     right_censored = TRUE,
-    intercept_scalars = TRUE,
-    composition_format = TRUE
+    intercept_scalars = TRUE
   )
 }
 
@@ -78,8 +73,7 @@ preprocess.rem_rate_ordered_spec <- function(spec, ...) {
   run_dyad_recipe_loop(
     spec, ...,
     right_censored = FALSE,
-    intercept_scalars = FALSE,
-    composition_format = FALSE
+    intercept_scalars = FALSE
   )
 }
 
@@ -191,8 +185,6 @@ preprocess.dynami_choice_spec <- function(
 #' @param right_censored logical, whether right-censored events are stored.
 #' @param intercept_scalars logical, whether `n_dep_events`, `total_time`,
 #'   and `avg_active_actors` are computed and stored.
-#' @param composition_format logical, whether presence updates are stored
-#'   in the C format via `C_convert_composition_change()`.
 #' @param ... absorbs arguments of `preprocess_monolith()` that the kernel
 #'   does not consume (`is_two_mode`, `rightCensored`,
 #'   `ignoreRepParameter`, `opportunitiesList`).
@@ -213,7 +205,6 @@ run_sender_recipe_loop <- function(
   endTime = NULL,
   right_censored = FALSE,
   intercept_scalars = FALSE,
-  composition_format = FALSE,
   progress = FALSE,
   prepEnvir = new.env(),
   ...
@@ -688,27 +679,25 @@ run_sender_recipe_loop <- function(
   presence1_update_pointer <- NULL
   presence2_update <- NULL
   presence2_update_pointer <- NULL
-  if (composition_format) {
-    if (length(active_mode1_changes) > 0) {
-      compChange1 <- data.frame(
-        time = vapply(active_mode1_changes, `[[`, double(1), "time"),
-        node = vapply(active_mode1_changes, `[[`, integer(1), "node"),
-        replace = vapply(active_mode1_changes, `[[`, logical(1), "replace")
-      )
-      temp <- C_convert_composition_change(compChange1, event_time)
-      presence1_update <- temp$presenceUpdate
-      presence1_update_pointer <- temp$presenceUpdatePointer
-    }
-    if (length(active_mode2_changes) > 0) {
-      compChange2 <- data.frame(
-        time = vapply(active_mode2_changes, `[[`, double(1), "time"),
-        node = vapply(active_mode2_changes, `[[`, integer(1), "node"),
-        replace = vapply(active_mode2_changes, `[[`, logical(1), "replace")
-      )
-      temp <- C_convert_composition_change(compChange2, event_time)
-      presence2_update <- temp$presenceUpdate
-      presence2_update_pointer <- temp$presenceUpdatePointer
-    }
+  if (length(active_mode1_changes) > 0) {
+    compChange1 <- data.frame(
+      time = vapply(active_mode1_changes, `[[`, double(1), "time"),
+      node = vapply(active_mode1_changes, `[[`, integer(1), "node"),
+      replace = vapply(active_mode1_changes, `[[`, logical(1), "replace")
+    )
+    temp <- C_convert_composition_change(compChange1, event_time)
+    presence1_update <- temp$presenceUpdate
+    presence1_update_pointer <- temp$presenceUpdatePointer
+  }
+  if (length(active_mode2_changes) > 0) {
+    compChange2 <- data.frame(
+      time = vapply(active_mode2_changes, `[[`, double(1), "time"),
+      node = vapply(active_mode2_changes, `[[`, integer(1), "node"),
+      replace = vapply(active_mode2_changes, `[[`, logical(1), "replace")
+    )
+    temp <- C_convert_composition_change(compChange2, event_time)
+    presence2_update <- temp$presenceUpdate
+    presence2_update_pointer <- temp$presenceUpdatePointer
   }
 
   structure(
@@ -774,7 +763,6 @@ run_dyad_recipe_loop <- function(
   endTime = NULL,
   right_censored = FALSE,
   intercept_scalars = FALSE,
-  composition_format = FALSE,
   progress = FALSE,
   prepEnvir = new.env(),
   ...
@@ -1255,27 +1243,25 @@ run_dyad_recipe_loop <- function(
   presence1_update_pointer <- NULL
   presence2_update <- NULL
   presence2_update_pointer <- NULL
-  if (composition_format) {
-    if (length(active_mode1_changes) > 0) {
-      compChange1 <- data.frame(
-        time = vapply(active_mode1_changes, `[[`, double(1), "time"),
-        node = vapply(active_mode1_changes, `[[`, integer(1), "node"),
-        replace = vapply(active_mode1_changes, `[[`, logical(1), "replace")
-      )
-      temp <- C_convert_composition_change(compChange1, event_time)
-      presence1_update <- temp$presenceUpdate
-      presence1_update_pointer <- temp$presenceUpdatePointer
-    }
-    if (length(active_mode2_changes) > 0) {
-      compChange2 <- data.frame(
-        time = vapply(active_mode2_changes, `[[`, double(1), "time"),
-        node = vapply(active_mode2_changes, `[[`, integer(1), "node"),
-        replace = vapply(active_mode2_changes, `[[`, logical(1), "replace")
-      )
-      temp <- C_convert_composition_change(compChange2, event_time)
-      presence2_update <- temp$presenceUpdate
-      presence2_update_pointer <- temp$presenceUpdatePointer
-    }
+  if (length(active_mode1_changes) > 0) {
+    compChange1 <- data.frame(
+      time = vapply(active_mode1_changes, `[[`, double(1), "time"),
+      node = vapply(active_mode1_changes, `[[`, integer(1), "node"),
+      replace = vapply(active_mode1_changes, `[[`, logical(1), "replace")
+    )
+    temp <- C_convert_composition_change(compChange1, event_time)
+    presence1_update <- temp$presenceUpdate
+    presence1_update_pointer <- temp$presenceUpdatePointer
+  }
+  if (length(active_mode2_changes) > 0) {
+    compChange2 <- data.frame(
+      time = vapply(active_mode2_changes, `[[`, double(1), "time"),
+      node = vapply(active_mode2_changes, `[[`, integer(1), "node"),
+      replace = vapply(active_mode2_changes, `[[`, logical(1), "replace")
+    )
+    temp <- C_convert_composition_change(compChange2, event_time)
+    presence2_update <- temp$presenceUpdate
+    presence2_update_pointer <- temp$presenceUpdatePointer
   }
 
   structure(

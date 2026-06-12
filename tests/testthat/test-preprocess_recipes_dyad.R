@@ -35,8 +35,11 @@ test_that("dynam choice recipe stores dependent events only", {
   expect_null(preproData$n_dep_events)
   expect_null(preproData$total_time)
   expect_null(preproData$avg_active_actors)
-  expect_null(preproData$presence1_update)
-  expect_null(preproData$presence1_update_pointer)
+  expect_identical(nrow(preproData$presence1_update), 2L)
+  expect_length(
+    preproData$presence1_update_pointer,
+    length(preproData$is_dependent)
+  )
 })
 
 test_that("dynam choice recipe replay matches the final statistics", {
@@ -181,6 +184,9 @@ test_that("rem rate ordered recipe stores dependent events only", {
   expect_null(preproData$n_dep_events)
   expect_null(preproData$total_time)
   expect_null(preproData$avg_active_actors)
-  expect_null(preproData$presence1_update)
-  expect_null(preproData$presence1_update_pointer)
+  expect_identical(nrow(preproData$presence1_update), 2L)
+  expect_length(
+    preproData$presence1_update_pointer,
+    length(preproData$is_dependent)
+  )
 })

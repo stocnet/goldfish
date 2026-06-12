@@ -148,44 +148,17 @@ estimate_c_int <- function(
     addInterceptEffect = hasIntercept
   )
 
-  ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  hasCompChange1 <- length(statsList$active_mode1_changes) > 0
-  hasCompChange2 <- length(statsList$active_mode2_changes) > 0
-
-  if (hasCompChange1) {
-    compChange1 <- data.frame(
-      time = vapply(statsList$active_mode1_changes, `[[`, double(1), "time"),
-      node = vapply(statsList$active_mode1_changes, `[[`, integer(1), "node"),
-      replace = vapply(
-        statsList$active_mode1_changes,
-        `[[`,
-        logical(1),
-        "replace"
-      )
-    )
-    temp <- C_convert_composition_change(compChange1, statsList$event_time)
-    presence1_update <- temp$presenceUpdate
-    presence1_update_pointer <- temp$presenceUpdatePointer
-  } else {
+  ## PRESENCE UPDATES PRECOMPUTED DURING PREPROCESSING
+  presence1_update <- statsList$presence1_update
+  presence1_update_pointer <- statsList$presence1_update_pointer
+  if (is.null(presence1_update)) {
     presence1_update <- matrix(0, 0, 0)
     presence1_update_pointer <- numeric(1)
   }
 
-  if (hasCompChange2) {
-    compChange2 <- data.frame(
-      time = vapply(statsList$active_mode2_changes, `[[`, double(1), "time"),
-      node = vapply(statsList$active_mode2_changes, `[[`, integer(1), "node"),
-      replace = vapply(
-        statsList$active_mode2_changes,
-        `[[`,
-        logical(1),
-        "replace"
-      )
-    )
-    temp <- C_convert_composition_change(compChange2, statsList$event_time)
-    presence2_update <- temp$presenceUpdate
-    presence2_update_pointer <- temp$presenceUpdatePointer
-  } else {
+  presence2_update <- statsList$presence2_update
+  presence2_update_pointer <- statsList$presence2_update_pointer
+  if (is.null(presence2_update)) {
     presence2_update <- matrix(0, 0, 0)
     presence2_update_pointer <- numeric(1)
   }
@@ -227,73 +200,27 @@ estimate_c_int <- function(
   dep_idx <- statsList$is_dependent == 1L
   rc_idx <- statsList$is_dependent == 0L
 
-  expand_for_c <- function(changes_list) {
-    lapply(changes_list, function(event_changes) {
-      lapply(event_changes, function(ch) {
-        if (is.null(ch)) {
-          return(NULL)
-        }
-        if (!is.matrix(ch)) {
-          ch <- matrix(ch, nrow = 1L, dimnames = list(NULL, names(ch)))
-        }
-        cbind(node1 = ch[, "node1"], node2 = 1L, replace = ch[, "replace"])
-      })
-    })
+  temp <- split_flat_updates(
+    statsList$stat_mat_update, statsList$stat_mat_pointer, dep_idx
+  )
+  stat_mat_update <- temp$mat
+  stat_mat_update_pointer <- temp$pointer
+  if (hasIntercept) {
+    stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
   }
 
-  if (!is.null(statsList$stat_mat_update)) {
-    temp <- split_flat_updates(
-      statsList$stat_mat_update, statsList$stat_mat_pointer, dep_idx
-    )
-    stat_mat_update <- temp$mat
-    stat_mat_update_pointer <- temp$pointer
-    if (hasIntercept) {
-      stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
-    }
-
-    if (sum(rc_idx) == 0L) {
-      stat_mat_rightcensored_update <- matrix(0, 4, 1)
-      stat_mat_rightcensored_update_pointer <- numeric(1)
-    } else {
-      temp <- split_flat_updates(
-        statsList$stat_mat_update, statsList$stat_mat_pointer, rc_idx
-      )
-      stat_mat_rightcensored_update <- temp$mat
-      stat_mat_rightcensored_update_pointer <- temp$pointer
-      if (hasIntercept) {
-        stat_mat_rightcensored_update[3, ] <-
-          stat_mat_rightcensored_update[3, ] + 1
-      }
-    }
+  if (sum(rc_idx) == 0L) {
+    stat_mat_rightcensored_update <- matrix(0, 4, 1)
+    stat_mat_rightcensored_update_pointer <- numeric(1)
   } else {
-    dep_changes <- if (is_rate_model) {
-      expand_for_c(statsList$stats_change[dep_idx])
-    } else {
-      statsList$stats_change[dep_idx]
-    }
-    temp <- convert_change(dep_changes)
-    stat_mat_update <- temp$statMatUpdate
-    stat_mat_update_pointer <- temp$statMatUpdatePointer
+    temp <- split_flat_updates(
+      statsList$stat_mat_update, statsList$stat_mat_pointer, rc_idx
+    )
+    stat_mat_rightcensored_update <- temp$mat
+    stat_mat_rightcensored_update_pointer <- temp$pointer
     if (hasIntercept) {
-      stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
-    }
-
-    if (sum(rc_idx) == 0L) {
-      stat_mat_rightcensored_update <- matrix(0, 4, 1)
-      stat_mat_rightcensored_update_pointer <- numeric(1)
-    } else {
-      rc_changes <- if (is_rate_model) {
-        expand_for_c(statsList$stats_change[rc_idx])
-      } else {
-        statsList$stats_change[rc_idx]
-      }
-      temp <- convert_change(rc_changes)
-      stat_mat_rightcensored_update <- temp$statMatUpdate
-      stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
-      if (hasIntercept) {
-        stat_mat_rightcensored_update[3, ] <-
-          stat_mat_rightcensored_update[3, ] + 1
-      }
+      stat_mat_rightcensored_update[3, ] <-
+        stat_mat_rightcensored_update[3, ] + 1
     }
   }
 
