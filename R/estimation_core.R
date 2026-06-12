@@ -160,10 +160,8 @@ estimate_int_impl <- function(
     cat("Reducing data\n")
   }
 
-  statsList <- modifyStatisticsList(
+  statsList <- prepare_statslist(
     statsList = statsList,
-    modelType = modelType,
-    reduceArrayToMatrix = reduceArrayToMatrix,
     excludeParameters = excludeParameters,
     addInterceptEffect = hasIntercept
   )
@@ -1278,6 +1276,63 @@ getMultinomialProbabilities <- function(
     denominators <- sum(utility)
   }
   utility / denominators
+}
+
+
+#' Prepare the statistics list for estimation
+#'
+#' The only two transformations estimation applies to a preprocessed
+#' object: dropping the effect columns listed in `excludeParameters` from
+#' `initialStats`, and prepending the constant rate-intercept statistic
+#' (a dummy for the theta_0 parameter) when the model carries a time
+#' intercept. Replaces `modifyStatisticsList()` in the estimation entries;
+#' the right-censoring and array reductions of `reduceStatisticsList()`
+#' were no-ops at those call sites.
+#'
+#' @param statsList a `preprocessed.goldfish` object.
+#' @param excludeParameters integer positions of effects to drop.
+#' @param addInterceptEffect logical, whether to prepend the intercept
+#'   statistic.
+#'
+#' @return the modified `statsList`.
+#' @noRd
+prepare_statslist <- function(
+  statsList,
+  excludeParameters = NULL,
+  addInterceptEffect = FALSE
+) {
+  is_sender_stats <- length(dim(statsList$initialStats)) == 2L
+  if (!is.null(excludeParameters)) {
+    nEffects <- if (is_sender_stats) {
+      ncol(statsList$initialStats)
+    } else {
+      dim(statsList$initialStats)[3]
+    }
+    unknownIndexes <- setdiff(excludeParameters, seq_len(nEffects))
+    if (length(unknownIndexes) > 0) {
+      stop(
+        "Unknown parameter indexes in 'excludeIndexes': ",
+        paste(unknownIndexes, collapse = " ")
+      )
+    }
+    statsList$initialStats <- if (is_sender_stats) {
+      statsList$initialStats[, -excludeParameters, drop = FALSE]
+    } else {
+      statsList$initialStats[, , -excludeParameters, drop = FALSE]
+    }
+  }
+  if (addInterceptEffect) {
+    dimensions <- dim(statsList$initialStats)
+    statsList$initialStats <- if (is_sender_stats) {
+      cbind(1, statsList$initialStats)
+    } else {
+      array(
+        c(matrix(1, dimensions[1], dimensions[2]), statsList$initialStats),
+        dim = dimensions + c(0, 0, 1)
+      )
+    }
+  }
+  statsList
 }
 
 

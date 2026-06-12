@@ -145,15 +145,8 @@ estimate_c_int <- function(
     cat("Reducing data\n")
   }
 
-  reduceArrayToMatrix <- modelTypeCall == "DyNAM-M"
-
-  # CHANGED MARION: updated function
-  # for rate model with intercept, add a table of all 1 to the
-  #  statsList$initStats
-  statsList <- modifyStatisticsList(
+  statsList <- prepare_statslist(
     statsList = statsList,
-    modelType = modelTypeCall,
-    reduceArrayToMatrix = reduceArrayToMatrix,
     excludeParameters = excludeParameters,
     addInterceptEffect = hasIntercept
   )
