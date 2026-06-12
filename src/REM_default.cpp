@@ -42,13 +42,6 @@ using namespace arma;
 //'     Then the first 10 colums of stat_mat_update is the update for 
 //'     the first event, the 11th column is  the update for the second event,
 //'     and the 12th to 15th columns are the updates for the third event.
-//' @param stat_mat_rightcensored_update An matrix with four rows,
-//'     which record the updates of the statistics matrix through all 
-//'     right-censored events.
-//'     the structure is similar to stat_mat_update.
-//' @param stat_mat_update_pointer An n_events by 1 matrix that record 
-//'    which update belongs to which rightcensored event.
-//'    The structure is similar to stat_mat_update_pointer.
 //' @param presence1_init An n_actor1 by 1 matrix, which records 
 //'    the initial presence of each actor1.
 //'    If the i-th actor1 is not present in the
@@ -116,8 +109,6 @@ List estimate_REM(
     const arma::mat& stat_mat_init,
     const arma::mat& stat_mat_update,
     const arma::vec& stat_mat_update_pointer,
-    const arma::mat& stat_mat_rightcensored_update,
-    const arma::vec& stat_mat_rightcensored_update_pointer,
     const arma::vec& presence1_init,
     const arma::mat& presence1_update,
     const arma::vec& presence1_update_pointer,
@@ -137,8 +128,6 @@ List estimate_REM(
    arma::rowvec weighted_sum_current_event(n_parameters);
    arma::mat fisher_current_event(n_parameters, n_parameters);
    int stat_mat_update_id = 0;
-   int stat_mat_rightcensored_update_id = 0;
-   int id_dep_event = 0;
    // declare return variables
    arma::mat fisher(n_parameters, n_parameters, fill::zeros);
    arma::mat derivative(1, n_parameters, fill::zeros);
@@ -164,27 +153,14 @@ List estimate_REM(
    
    // Go through all events
    for (int id_event = 0; id_event < n_events; id_event++) {
-     // update stat_mat
-     if (is_dependent(id_event)) {
-       while (stat_mat_update_id < stat_mat_update_pointer(id_dep_event)) {
-         stat_mat(
-           stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
-            stat_mat_update(1, stat_mat_update_id),
-           stat_mat_update(2, stat_mat_update_id)) =
-           stat_mat_update(3, stat_mat_update_id);
-         stat_mat_update_id++;
-       }
-     } else {
-       while (stat_mat_rightcensored_update_id < \
-         stat_mat_rightcensored_update_pointer(id_event - id_dep_event)) {
-         stat_mat(
-           stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id) *
-             n_actors_2 +
-            stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id),
-           stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id)) =
-           stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);
-         stat_mat_rightcensored_update_id++;
-       }
+     // update stat_mat with the combined buffer covering all stored events
+     while (stat_mat_update_id < stat_mat_update_pointer(id_event)) {
+       stat_mat(
+         stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
+          stat_mat_update(1, stat_mat_update_id),
+         stat_mat_update(2, stat_mat_update_id)) =
+         stat_mat_update(3, stat_mat_update_id);
+       stat_mat_update_id++;
      }
      
      // impute the missing statistics if necessary
@@ -263,12 +239,10 @@ List estimate_REM(
      fisher += timespan_current_event * fisher_current_event;
      // logLikelihood
      intervalLogL(id_event) = -timespan_current_event * normalizer;
-     // update id_dep_event
      if (is_dependent(id_event)) {
        intervalLogL(id_event) \
        += dot(stat_mat.row(id_sender * n_actors_2 + id_receiver), parameters);
        derivative += stat_mat.row(id_sender * n_actors_2 + id_receiver);
-       id_dep_event++;
      }
      // loglikelihood
      logLikelihood += intervalLogL(id_event);

@@ -23,8 +23,6 @@ inline arma::mat reduce_mat_to_vector(
      const arma::mat& stat_mat_init,
      const arma::mat& stat_mat_update,
      const arma::vec& stat_mat_update_pointer,
-     const arma::mat& stat_mat_rightcensored_update,
-     const arma::vec& stat_mat_rightcensored_update_pointer,
      const arma::vec& presence1_init,
      const arma::mat& presence1_update,
      const arma::vec& presence1_update_pointer,
@@ -44,8 +42,6 @@ inline arma::mat reduce_mat_to_vector(
    arma::rowvec weighted_sum_current_event(n_parameters);
    arma::mat fisher_current_event(n_parameters, n_parameters);
    int stat_mat_update_id = 0;
-   int stat_mat_rightcensored_update_id = 0;
-   int id_dep_event = 0;
    
    // declare return variables
    arma::mat fisher(n_parameters, n_parameters, fill::zeros);
@@ -71,27 +67,14 @@ inline arma::mat reduce_mat_to_vector(
    
    // Go through all events
    for (int id_event = 0; id_event < n_events; id_event++) {
-     // update stat_mat
-     if (is_dependent(id_event)) {
-       while (stat_mat_update_id < stat_mat_update_pointer(id_dep_event)) {
-         stat_mat(
-           stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
-           stat_mat_update(1, stat_mat_update_id),
-           stat_mat_update(2, stat_mat_update_id))
-         = stat_mat_update(3, stat_mat_update_id);
-         stat_mat_update_id++;
-       }
-     } else {
-       while (stat_mat_rightcensored_update_id <
-         stat_mat_rightcensored_update_pointer(id_event - id_dep_event)) {
-         stat_mat(
-           stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id)
-         * n_actors_2 +
-           stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id),
-           stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id))
-         = stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);
-         stat_mat_rightcensored_update_id++;
-       }
+     // update stat_mat with the combined buffer covering all stored events
+     while (stat_mat_update_id < stat_mat_update_pointer(id_event)) {
+       stat_mat(
+         stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
+         stat_mat_update(1, stat_mat_update_id),
+         stat_mat_update(2, stat_mat_update_id))
+       = stat_mat_update(3, stat_mat_update_id);
+       stat_mat_update_id++;
      }
      
      
@@ -169,14 +152,12 @@ inline arma::mat reduce_mat_to_vector(
      //Rcpp::Rcout << "fisher:" << std::endl << fisher_current_event << std::endl;
      // logLikelihood
      intervalLogL(id_event) = - timespan_current_event * normalizer;
-     // update id_dep_event
      if (is_dependent(id_event)) {
        intervalLogL(id_event) +=
          dot(reduce_stat_mat.row(id_sender), parameters);
        derivative += reduce_stat_mat.row(id_sender);
        //Rcpp::Rcout << "Der +:" << reduce_stat_mat.row(id_sender) << std::endl;
        //Rcpp::Rcout << "sender:" << id_sender << std::endl;
-       id_dep_event++;
      }
      // loglikelihood
      logLikelihood += intervalLogL(id_event);

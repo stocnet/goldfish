@@ -392,30 +392,6 @@ apply_flat_update <- function(statsArray, updates_slice, is_sender) {
 }
 
 
-#' Split the combined flat update buffer by stored-event subset
-#'
-#' Extracts the columns of `stat_mat_update` belonging to a subset of the
-#' stored events (e.g. dependent or right-censored) and recomputes the
-#' end-pointer vector for the subset, preserving the conventions of
-#' `convert_change()` so the current C++ routines can consume the combined
-#' buffer until they accept it directly (task 6.8).
-#'
-#' @param stat_mat_update numeric matrix 4 x K, the combined flat buffer.
-#' @param stat_mat_pointer integer vector, end-column pointer per stored
-#'   event.
-#' @param keep logical vector flagging the stored events to extract.
-#'
-#' @return a list with `mat` (4 x K' matrix, a 4 x 1 zero matrix when the
-#'   subset carries no updates) and `pointer` (cumulative update counts for
-#'   the kept events).
-#' @noRd
-split_flat_updates <- function(stat_mat_update, stat_mat_pointer, keep) {
-  counts <- diff(c(0L, stat_mat_pointer))
-  mat <- stat_mat_update[, rep(keep, counts), drop = FALSE]
-  if (ncol(mat) == 0L) mat <- matrix(0, 4, 1)
-  list(mat = mat, pointer = cumsum(counts[keep]))
-}
-
 #' Merge flat update buffers for reuse of a preprocessed object
 #'
 #' Combines the flat update buffer of a previous preprocessing result with

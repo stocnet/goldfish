@@ -197,31 +197,10 @@ estimate_c_int <- function(
   }
 
   ## CONVERT UPDATES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
-  dep_idx <- statsList$is_dependent == 1L
-  rc_idx <- statsList$is_dependent == 0L
-
-  temp <- split_flat_updates(
-    statsList$stat_mat_update, statsList$stat_mat_pointer, dep_idx
-  )
-  stat_mat_update <- temp$mat
-  stat_mat_update_pointer <- temp$pointer
+  stat_mat_update <- statsList$stat_mat_update
+  stat_mat_update_pointer <- statsList$stat_mat_pointer
   if (hasIntercept) {
     stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
-  }
-
-  if (sum(rc_idx) == 0L) {
-    stat_mat_rightcensored_update <- matrix(0, 4, 1)
-    stat_mat_rightcensored_update_pointer <- numeric(1)
-  } else {
-    temp <- split_flat_updates(
-      statsList$stat_mat_update, statsList$stat_mat_pointer, rc_idx
-    )
-    stat_mat_rightcensored_update <- temp$mat
-    stat_mat_rightcensored_update_pointer <- temp$pointer
-    if (hasIntercept) {
-      stat_mat_rightcensored_update[3, ] <-
-        stat_mat_rightcensored_update[3, ] + 1
-    }
   }
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED
@@ -282,8 +261,6 @@ estimate_c_int <- function(
       stat_mat_init = stat_mat_init,
       stat_mat_update = stat_mat_update,
       stat_mat_update_pointer = stat_mat_update_pointer,
-      stat_mat_rightcensored_update = stat_mat_rightcensored_update,
-      stat_mat_rightcensored_update_pointer = stat_mat_rightcensored_update_pointer,
       presence1_init = presence1_init,
       presence1_update = presence1_update,
       presence1_update_pointer = presence1_update_pointer,
@@ -332,8 +309,6 @@ estimate_c_int <- function(
         stat_mat_init = stat_mat_init,
         stat_mat_update = stat_mat_update,
         stat_mat_update_pointer = stat_mat_update_pointer,
-        stat_mat_rightcensored_update = stat_mat_rightcensored_update,
-        stat_mat_rightcensored_update_pointer = stat_mat_rightcensored_update_pointer,
         presence1_init = presence1_init,
         presence1_update = presence1_update,
         presence1_update_pointer = presence1_update_pointer,
@@ -563,8 +538,6 @@ estimate_ <- function(
   stat_mat_init,
   stat_mat_update,
   stat_mat_update_pointer,
-  stat_mat_rightcensored_update,
-  stat_mat_rightcensored_update_pointer,
   presence1_init,
   presence1_update,
   presence1_update_pointer,
@@ -642,8 +615,6 @@ estimate_ <- function(
       stat_mat_init,
       stat_mat_update,
       stat_mat_update_pointer,
-      stat_mat_rightcensored_update,
-      stat_mat_rightcensored_update_pointer,
       presence1_init,
       presence1_update,
       presence1_update_pointer,
@@ -666,8 +637,6 @@ estimate_ <- function(
       stat_mat_init,
       stat_mat_update,
       stat_mat_update_pointer,
-      stat_mat_rightcensored_update,
-      stat_mat_rightcensored_update_pointer,
       presence1_init,
       presence1_update,
       presence1_update_pointer,
@@ -716,8 +685,6 @@ gather_ <- function(
   presence1_init,
   presence1_update,
   presence1_update_pointer,
-  stat_mat_rightcensored_update,
-  stat_mat_rightcensored_update_pointer,
   presence2_init,
   presence2_update,
   presence2_update_pointer,
@@ -739,8 +706,6 @@ gather_ <- function(
       stat_mat_init,
       stat_mat_update,
       stat_mat_update_pointer,
-      stat_mat_rightcensored_update,
-      stat_mat_rightcensored_update_pointer,
       presence1_init,
       presence1_update,
       presence1_update_pointer,
@@ -779,8 +744,6 @@ gather_ <- function(
       stat_mat_init,
       stat_mat_update,
       stat_mat_update_pointer,
-      stat_mat_rightcensored_update,
-      stat_mat_rightcensored_update_pointer,
       presence1_init,
       presence1_update,
       presence1_update_pointer,

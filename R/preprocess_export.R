@@ -331,15 +331,26 @@ gather_model_data <- function(
   stat_mat_update_pointer <- temp$statMatUpdatePointer
   if (parsed_formula$has_intercept) stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
 
-  if (sum(rc_idx) == 0L) {
-    stat_mat_rightcensored_update <- matrix(0, 4, 1)
-    stat_mat_rightcensored_update_pointer <- numeric(1)
-  } else {
+  if (sum(rc_idx) > 0L) {
     rc_changes <- if (is_rate_model) expand_for_c(preprocessingStat$stats_change[rc_idx]) else preprocessingStat$stats_change[rc_idx]
     temp <- convert_change(rc_changes)
     stat_mat_rightcensored_update <- temp$statMatUpdate
     stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
     if (parsed_formula$has_intercept) stat_mat_rightcensored_update[3, ] <- stat_mat_rightcensored_update[3, ] + 1
+
+    counts_dep <- diff(c(0L, stat_mat_update_pointer))
+    counts_rc <- diff(c(0L, stat_mat_rightcensored_update_pointer))
+    counts <- integer(length(dep_idx))
+    counts[dep_idx] <- counts_dep
+    counts[rc_idx] <- counts_rc
+    ordering <- order(
+      c(rep(which(dep_idx), counts_dep), rep(which(rc_idx), counts_rc)),
+      method = "radix"
+    )
+    stat_mat_update <- cbind(
+      stat_mat_update, stat_mat_rightcensored_update
+    )[, ordering, drop = FALSE]
+    stat_mat_update_pointer <- cumsum(counts)
   }
 
   ## CONVERT COMPOSITION CHANGES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
@@ -411,9 +422,6 @@ gather_model_data <- function(
     stat_mat_init = stat_mat_init,
     stat_mat_update = stat_mat_update,
     stat_mat_update_pointer = stat_mat_update_pointer,
-    stat_mat_rightcensored_update = stat_mat_rightcensored_update,
-    stat_mat_rightcensored_update_pointer =
-      stat_mat_rightcensored_update_pointer,
     presence1_init = presence1_init,
     presence1_update = presence1_update,
     presence1_update_pointer = presence1_update_pointer,

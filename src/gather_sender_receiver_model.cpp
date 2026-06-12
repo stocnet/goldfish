@@ -26,8 +26,6 @@ List gather_sender_receiver_model(
     const arma::mat& stat_mat_init,
     const arma::mat& stat_mat_update,
     const arma::vec& stat_mat_update_pointer,
-    const arma::mat& stat_mat_rightcensored_update,
-    const arma::vec& stat_mat_rightcensored_update_pointer,
     const arma::vec& presence1_init,
     const arma::mat& presence1_update,
     const arma::vec& presence1_update_pointer,
@@ -46,8 +44,6 @@ List gather_sender_receiver_model(
     int n_parameters = stat_mat.n_cols;
     // declare auxilliary variables
     int stat_mat_update_id = 0;
-    int stat_mat_rightcensored_update_id = 0;
-    int id_dep_event = 0;
     int n_total = 0;
 
 
@@ -84,26 +80,15 @@ List gather_sender_receiver_model(
             }
         }
 
-        // stat_mat_update
-        if (is_dependent(id_event)) {
-          while (stat_mat_update_id < stat_mat_update_pointer(id_dep_event)) {
-            stat_mat(
-              stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
-                stat_mat_update(1, stat_mat_update_id),
-                stat_mat_update(2, stat_mat_update_id)) =
-                  stat_mat_update(3, stat_mat_update_id);
-            stat_mat_update_id++;
-          }
-        } else { while (stat_mat_rightcensored_update_id <
-          stat_mat_rightcensored_update_pointer(id_event - id_dep_event)) {
+        // update stat_mat with the combined buffer covering all stored
+        // events
+        while (stat_mat_update_id < stat_mat_update_pointer(id_event)) {
           stat_mat(
-           stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id) *
-            n_actors_2 +
-            stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id),
-           stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id)) =
-           stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);
-          stat_mat_rightcensored_update_id++;
-        }
+            stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
+              stat_mat_update(1, stat_mat_update_id),
+              stat_mat_update(2, stat_mat_update_id)) =
+                stat_mat_update(3, stat_mat_update_id);
+          stat_mat_update_id++;
         }
         // impute the missing statistics if necessary
         if (impute) {
@@ -181,7 +166,6 @@ List gather_sender_receiver_model(
                             selected(id_event) = n_present;
                             selected_actor1(id_event) = n_present_actor1;
                             selected_actor2(id_event) = n_present_actor2;
-                            id_dep_event++;
                         }
                         n_total++;
                         n_present++;

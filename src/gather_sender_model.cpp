@@ -32,8 +32,6 @@ inline arma::mat reduce_mat_to_vector(
      const arma::mat& stat_mat_init,
      const arma::mat& stat_mat_update,
      const arma::vec& stat_mat_update_pointer,
-     const arma::mat& stat_mat_rightcensored_update,
-     const arma::vec& stat_mat_rightcensored_update_pointer,
      const arma::vec& presence1_init,
      const arma::mat& presence1_update,
      const arma::vec& presence1_update_pointer,
@@ -52,8 +50,6 @@ inline arma::mat reduce_mat_to_vector(
    int n_parameters = stat_mat.n_cols;
    // declare auxilliary variables
    int stat_mat_update_id = 0;
-   int stat_mat_rightcensored_update_id = 0;
-   int id_dep_event = 0;
    int n_total = 0;
    
    
@@ -87,27 +83,14 @@ inline arma::mat reduce_mat_to_vector(
        }
      }
      
-     // stat_mat_update
-     if (is_dependent(id_event)) {
-       while (stat_mat_update_id < stat_mat_update_pointer(id_dep_event)) {
-         stat_mat(
-           stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
-             stat_mat_update(1, stat_mat_update_id),
-           stat_mat_update(2, stat_mat_update_id)) =
-           stat_mat_update(3, stat_mat_update_id);
-         stat_mat_update_id++;
-       }
-     } else {
-       while (stat_mat_rightcensored_update_id <
-         stat_mat_rightcensored_update_pointer(id_event - id_dep_event)) {
-         stat_mat(
-           stat_mat_rightcensored_update(0, stat_mat_rightcensored_update_id) *
-            n_actors_2 +
-            stat_mat_rightcensored_update(1, stat_mat_rightcensored_update_id),
-           stat_mat_rightcensored_update(2, stat_mat_rightcensored_update_id)) =
-           stat_mat_rightcensored_update(3, stat_mat_rightcensored_update_id);
-         stat_mat_rightcensored_update_id++;
-       }
+     // update stat_mat with the combined buffer covering all stored events
+     while (stat_mat_update_id < stat_mat_update_pointer(id_event)) {
+       stat_mat(
+         stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
+           stat_mat_update(1, stat_mat_update_id),
+         stat_mat_update(2, stat_mat_update_id)) =
+         stat_mat_update(3, stat_mat_update_id);
+       stat_mat_update_id++;
      }
      // impute the missing statistics if necessary
      if (impute) {
@@ -159,7 +142,6 @@ inline arma::mat reduce_mat_to_vector(
          stat_all_events.row(n_total) = reduced_stat_mat.row(i);
          if (i == id_sender && is_dependent_current_event) {
            chosens(id_event) = n_present;
-           id_dep_event++;
          }
          n_total++;
          n_present++;
