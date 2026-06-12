@@ -519,6 +519,17 @@ estimate_wrapper <- function(x,
 
   if (is.null(progress)) progress <- FALSE
 
+  if (!is.null(preprocessing_init) &&
+      !identical(preprocessing_init$version, PREPROCESSED_GOLDFISH_VERSION)) {
+    cli::cli_abort(c(
+      "The {.arg preprocessing_init} object uses an outdated preprocessing
+       format.",
+      "x" = "Objects preprocessed with a previous goldfish version cannot be
+             reused for estimation.",
+      "i" = "Recompute the preprocessing object with {.fn compute_stats}."
+    ))
+  }
+
   # gather_compute and default_c don't support returnEventProbabilities
   if (control_estimation$return_probabilities &&
       control_estimation$engine != "default") {

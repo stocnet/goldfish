@@ -79,3 +79,23 @@ test_that("compute_stats validates model and sub_model values", {
     )
   )
 })
+
+test_that("preprocessed objects carry the format version", {
+  prep <- compute_stats(
+    depNetwork ~ inertia,
+    data = dataTest,
+    model = "DyNAM", sub_model = "choice"
+  )
+  expect_identical(prep$version, 2L)
+  oldFormat <- prep
+  oldFormat$version <- NULL
+  expect_error(
+    estimate_dynam(
+      depNetwork ~ inertia,
+      sub_model = "choice",
+      data = dataTest,
+      preprocessing_init = oldFormat
+    ),
+    "outdated preprocessing format"
+  )
+})

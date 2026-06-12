@@ -1,3 +1,5 @@
+PREPROCESSED_GOLDFISH_VERSION <- 2L
+
 #' Preprocess a model given its specification
 #'
 #' S3 generic dispatched on the model specification class (design D1).
@@ -111,7 +113,7 @@ run_dynami_monolith <- function(
   groupsNetwork = NULL,
   prepEnvir = new.env()
 ) {
-  preprocessInteraction(
+  prep <- preprocessInteraction(
     subModel = sub_model,
     events = events,
     effects = effects,
@@ -125,6 +127,8 @@ run_dynami_monolith <- function(
     groupsNetwork = groupsNetwork,
     prepEnvir = prepEnvir
   )
+  prep$version <- PREPROCESSED_GOLDFISH_VERSION
+  prep
 }
 
 #' @rdname preprocess_dynami
@@ -730,7 +734,8 @@ run_sender_recipe_loop <- function(
       presence1_update = presence1_update,
       presence1_update_pointer = presence1_update_pointer,
       presence2_update = presence2_update,
-      presence2_update_pointer = presence2_update_pointer
+      presence2_update_pointer = presence2_update_pointer,
+      version = PREPROCESSED_GOLDFISH_VERSION
     ),
     class = "preprocessed.goldfish"
   )
@@ -1296,7 +1301,8 @@ run_dyad_recipe_loop <- function(
       presence1_update = presence1_update,
       presence1_update_pointer = presence1_update_pointer,
       presence2_update = presence2_update,
-      presence2_update_pointer = presence2_update_pointer
+      presence2_update_pointer = presence2_update_pointer,
+      version = PREPROCESSED_GOLDFISH_VERSION
     ),
     class = "preprocessed.goldfish"
   )
