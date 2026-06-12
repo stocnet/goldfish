@@ -681,15 +681,27 @@ estimate_wrapper <- function(x,
   }
 
   ### 3. PREPROCESS statistics----
-  ## 3.1 INITIALIZE OBJECTS for preprocessingInit: remove old effects,
-  ## add new ones
   if (!is.null(preprocessing_init)) {
     # recover the nodesets
     .nodes <- preprocessing_init$nodes
     .nodes2 <- preprocessing_init$nodes2
     is_two_mode <- FALSE
     if (!identical(.nodes, .nodes2)) is_two_mode <- TRUE
+  }
 
+  spec_sub_model <- sub_model
+  if (sub_model == "rate" && !has_intercept) {
+    spec_sub_model <- "rate_ordered"
+  }
+  model_spec <- new_model_spec(
+    model = model, sub_model = spec_sub_model,
+    is_two_mode = is_two_mode, nodes = .nodes, nodes2 = .nodes2,
+    has_intercept = has_intercept
+  )
+
+  ## 3.1 INITIALIZE OBJECTS for preprocessingInit: remove old effects,
+  ## add new ones
+  if (!is.null(preprocessing_init)) {
     # find new effects
     if (min(effects_indexes) == 0) {
       if (progress) cat("Calculating newly added effects.\n")
@@ -715,8 +727,7 @@ estimate_wrapper <- function(x,
       # Preprocess the new effects
       if (progress) cat("Pre-processing additional effects.\n")
       newprep <- preprocess(
-        model,
-        legacy_sub_model,
+        model_spec,
         events = new_events,
         effects = new_effects,
         windowParameters = new_window_parameters,
@@ -847,8 +858,7 @@ estimate_wrapper <- function(x,
       )
   } else {
     prep <- preprocess(
-        model = model,
-        subModel = legacy_sub_model,
+        model_spec,
         events = events,
         effects = effects,
         windowParameters = window_parameters,
@@ -878,15 +888,6 @@ estimate_wrapper <- function(x,
     prep$nodes2 <- .nodes2
   }
 
-  spec_sub_model <- sub_model
-  if (sub_model == "rate" && !has_intercept) {
-    spec_sub_model <- "rate_ordered"
-  }
-  model_spec <- new_model_spec(
-    model = model, sub_model = spec_sub_model,
-    is_two_mode = is_two_mode, nodes = .nodes, nodes2 = .nodes2,
-    has_intercept = has_intercept
-  )
   prep$model_spec <- model_spec
 
   ## 3.3 Stop here if preprocessingOnly == TRUE

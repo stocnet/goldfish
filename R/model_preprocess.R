@@ -1,3 +1,26 @@
+#' Preprocess a model given its specification
+#'
+#' S3 generic dispatched on the model specification class (design D1).
+#' Model variants converted to the recipe architecture implement a dedicated
+#' method; the remaining variants fall back to the monolithic loop through
+#' `preprocess.model_spec()` until their recipe lands.
+#'
+#' @param spec a `model_spec` object from `new_model_spec()`.
+#' @param ... arguments passed to the recipe methods, see
+#'   `preprocess_monolith()` and `run_sender_recipe_loop()`.
+#'
+#' @return a list of class preprocessed.goldfish
+#' @noRd
+preprocess <- function(spec, ...) {
+  UseMethod("preprocess")
+}
+
+#' @noRd
+preprocess.model_spec <- function(spec, ...) {
+  legacy_sub_model <- if (inherits(spec, "sender_spec")) "rate" else "choice"
+  preprocess_monolith(model = spec$model, subModel = legacy_sub_model, ...)
+}
+
 #' preprocess event and related objects describe in the formula to estimate
 #'
 #' Create a preprocess.goldfish class object with the update statistics
@@ -22,7 +45,7 @@
 #' @return a list of class preprocessed.goldfish
 #'
 #' @noRd
-preprocess <- function(
+preprocess_monolith <- function(
   model,
   subModel,
   events,

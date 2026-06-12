@@ -244,7 +244,7 @@ gather_model_data <- function(
   )
 
   ## 3.2 PREPROCESS when preprocessingInit == NULL
-  preprocessingStat <- preprocess(
+  preprocessingStat <- preprocess_monolith(
     model = model,
     subModel = sub_model,
     events = events,
