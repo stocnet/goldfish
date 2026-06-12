@@ -1,3 +1,35 @@
+# goldfish 1.7.5
+
+* Internal: preprocessing now runs through dedicated recipe methods for
+  every model variant, dispatched on the model specification class. The
+  DyNAM rate and rate-ordered variants share a sender-indexed event-loop
+  kernel; DyNAM choice, choice-coordination, REM, and REM-ordered share a
+  dyad-indexed kernel. DyNAMi variants participate in the dispatch but
+  delegate to the existing DyNAMi loop unchanged. Preprocessing output is
+  value-identical to the previous implementation; all coefficient
+  estimates reproduce to within 1e-6 on both estimation engines.
+* Internal: the preprocessing result stores statistics updates in a single
+  flat matrix (`stat_mat_update` with `stat_mat_pointer` and
+  `is_dependent`) covering dependent and right-censored events; the nested
+  `stats_change` list is no longer produced. Rate models additionally
+  store the intercept scalars (`n_dep_events`, `total_time`,
+  `avg_active_actors`) and the presence composition changes in the format
+  the estimation engines consume.
+* `preprocessed.goldfish` objects now carry a format `version`; passing an
+  object preprocessed with a previous goldfish version through
+  `preprocessing_init` errors with a message to recompute it with
+  `compute_stats()`.
+* Effects with `ignore_repetitions = TRUE` now error immediately: the
+  previous implementation computed incorrect statistics (it always masked
+  repetitions using the dependent network instead of the network the
+  effect is applied to). The feature is disabled pending a correct
+  reimplementation (#105).
+* The `global()` effect now errors for `sub_model = "choice"` and
+  `"choice_coordination"`: a global covariate is constant across
+  alternatives, so its main effect is not identified in a multinomial
+  choice model. Support through interaction effects is planned for a
+  future release; rate sub-models keep accepting `global()`.
+
 # goldfish 1.7.4
 
 * New exported function `compute_stats()` runs the preprocessing stage of a
