@@ -757,6 +757,7 @@ estimate_wrapper <- function(x,
         rightCensored = rightCensored,
         opportunitiesList = control_preprocessing$opportunities_list,
         progress = progress,
+        groupsNetwork = parsed_formula$default_network_name,
         prepEnvir = work_env
       )
 
@@ -872,44 +873,27 @@ estimate_wrapper <- function(x,
   ## 3.2 PREPROCESS when preprocessingInit == NULL
   if (is.null(preprocessing_init)) {
     if (progress) cat("Starting preprocessing.\n")
-    if (model == "DyNAMi") {
-      prep <- preprocessInteraction(
-        subModel = sub_model,
-        events = events,
-        effects = effects,
-        eventsObjectsLink = events_objects_link,
-        eventsEffectsLink = events_effects_link,
-        objectsEffectsLink = objects_effects_link,
-        # multipleParameter,
-        nodes = .nodes,
-        nodes2 = .nodes2,
-        rightCensored = rightCensored,
-        progress = progress,
-        groupsNetwork = parsed_formula$default_network_name,
-        prepEnvir = work_env
-      )
-  } else {
     prep <- preprocess(
-        model_spec,
-        events = events,
-        effects = effects,
-        windowParameters = window_parameters,
-        ignoreRepParameter = ignore_rep_parameter,
-        eventsObjectsLink = events_objects_link, # for data update
-        eventsEffectsLink = events_effects_link,
-        objectsEffectsLink = objects_effects_link, # for parameterization
-        # multipleParameter = multipleParameter,
-        nodes = .nodes,
-        nodes2 = .nodes2,
-        is_two_mode = is_two_mode,
-        startTime = control_preprocessing$start_time,
-        endTime = control_preprocessing$end_time,
-        rightCensored = rightCensored,
-        opportunitiesList = control_preprocessing$opportunities_list,
-        progress = progress,
-        prepEnvir = work_env
-      )
-    }
+      model_spec,
+      events = events,
+      effects = effects,
+      windowParameters = window_parameters,
+      ignoreRepParameter = ignore_rep_parameter,
+      eventsObjectsLink = events_objects_link, # for data update
+      eventsEffectsLink = events_effects_link,
+      objectsEffectsLink = objects_effects_link, # for parameterization
+      # multipleParameter = multipleParameter,
+      nodes = .nodes,
+      nodes2 = .nodes2,
+      is_two_mode = is_two_mode,
+      startTime = control_preprocessing$start_time,
+      endTime = control_preprocessing$end_time,
+      rightCensored = rightCensored,
+      opportunitiesList = control_preprocessing$opportunities_list,
+      progress = progress,
+      groupsNetwork = parsed_formula$default_network_name,
+      prepEnvir = work_env
+    )
     # The formula, nodes, nodes2 are added to the preprocessed object so that
     # we can call the estimation with preprocessingInit later
     # (for parsing AND composition changes)

@@ -81,6 +81,94 @@ preprocess.rem_rate_ordered_spec <- function(spec, ...) {
   )
 }
 
+#' DyNAMi recipe wrappers
+#'
+#' Thin wrappers delegating to the existing monolithic DyNAMi preprocessing
+#' loop with unchanged arguments (design D9). The dedicated DyNAMi recipe
+#' (post-event update order, `subType` normalisation) is deferred to the
+#' effects unification change. `preprocessInteraction()` keeps computing its
+#' own start and end times from the event streams, as it did before the
+#' dispatch wiring.
+#'
+#' @inheritParams run_sender_recipe_loop
+#' @param groupsNetwork character, name of the groups network object.
+#' @param ... absorbs the recipe arguments that the DyNAMi loop does not
+#'   consume (`windowParameters`, `ignoreRepParameter`, `is_two_mode`,
+#'   `startTime`, `endTime`, `opportunitiesList`).
+#' @name preprocess_dynami
+#' @noRd
+run_dynami_monolith <- function(
+  sub_model,
+  events,
+  effects,
+  eventsObjectsLink,
+  eventsEffectsLink,
+  objectsEffectsLink,
+  nodes,
+  nodes2 = nodes,
+  rightCensored = FALSE,
+  progress = FALSE,
+  groupsNetwork = NULL,
+  prepEnvir = new.env()
+) {
+  preprocessInteraction(
+    subModel = sub_model,
+    events = events,
+    effects = effects,
+    eventsObjectsLink = eventsObjectsLink,
+    eventsEffectsLink = eventsEffectsLink,
+    objectsEffectsLink = objectsEffectsLink,
+    nodes = nodes,
+    nodes2 = nodes2,
+    rightCensored = rightCensored,
+    progress = progress,
+    groupsNetwork = groupsNetwork,
+    prepEnvir = prepEnvir
+  )
+}
+
+#' @rdname preprocess_dynami
+#' @noRd
+preprocess.dynami_rate_spec <- function(
+  spec, events, effects, eventsObjectsLink, eventsEffectsLink,
+  objectsEffectsLink, nodes, nodes2 = nodes, rightCensored = FALSE,
+  progress = FALSE, groupsNetwork = NULL, prepEnvir = new.env(), ...
+) {
+  run_dynami_monolith(
+    "rate", events, effects, eventsObjectsLink, eventsEffectsLink,
+    objectsEffectsLink, nodes, nodes2, rightCensored, progress,
+    groupsNetwork, prepEnvir
+  )
+}
+
+#' @rdname preprocess_dynami
+#' @noRd
+preprocess.dynami_rate_ordered_spec <- function(
+  spec, events, effects, eventsObjectsLink, eventsEffectsLink,
+  objectsEffectsLink, nodes, nodes2 = nodes, rightCensored = FALSE,
+  progress = FALSE, groupsNetwork = NULL, prepEnvir = new.env(), ...
+) {
+  run_dynami_monolith(
+    "rate", events, effects, eventsObjectsLink, eventsEffectsLink,
+    objectsEffectsLink, nodes, nodes2, rightCensored, progress,
+    groupsNetwork, prepEnvir
+  )
+}
+
+#' @rdname preprocess_dynami
+#' @noRd
+preprocess.dynami_choice_spec <- function(
+  spec, events, effects, eventsObjectsLink, eventsEffectsLink,
+  objectsEffectsLink, nodes, nodes2 = nodes, rightCensored = FALSE,
+  progress = FALSE, groupsNetwork = NULL, prepEnvir = new.env(), ...
+) {
+  run_dynami_monolith(
+    "choice", events, effects, eventsObjectsLink, eventsEffectsLink,
+    objectsEffectsLink, nodes, nodes2, rightCensored, progress,
+    groupsNetwork, prepEnvir
+  )
+}
+
 #' Sender-indexed recipe kernel
 #'
 #' Shared event loop for the sender-indexed model variants (design D22).
