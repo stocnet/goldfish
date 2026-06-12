@@ -993,7 +993,10 @@ estimate_wrapper <- function(x,
     )
   } else {
     tryCatch(
-      result <- do.call("estimate_int", args = argsEstimation),
+      result <- do.call(
+        "estimate_int",
+        args = c(list(spec = model_spec), argsEstimation)
+      ),
       error = \(e) {
         stop("For ", model, " ", sub_model,
           " estimation:\n\t", e$message,

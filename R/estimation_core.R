@@ -6,8 +6,36 @@
 #################### ###
 
 # Estimation
-estimate_int <- function(
+#
+# S3 generic dispatched on the model specification class. The family
+# methods configure the statistic shape knobs once; the shared
+# implementation still receives the legacy modelType string until the
+# per-event helpers dispatch on the spec class (tasks 6.5, 6.10, 6.11).
+estimate_int <- function(spec, ...) {
+  UseMethod("estimate_int")
+}
+
+estimate_int.sender_spec <- function(spec, ...) {
+  estimate_int_impl(
+    is_rate_model = TRUE,
+    reduceArrayToMatrix = FALSE,
+    ...
+  )
+}
+
+estimate_int.dyad_spec <- function(spec, ...) {
+  estimate_int_impl(
+    is_rate_model = FALSE,
+    reduceArrayToMatrix = inherits(spec, "dynam_choice_spec") ||
+      inherits(spec, "dynami_choice_spec"),
+    ...
+  )
+}
+
+estimate_int_impl <- function(
   statsList,
+  is_rate_model,
+  reduceArrayToMatrix,
   nodes,
   nodes2,
   defaultNetworkName,
@@ -49,7 +77,6 @@ estimate_int <- function(
   ## SET VARIABLES
 
   minDampingFactor <- initialDamping
-  is_rate_model <- modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
   nParams <- (if (is_rate_model) {
     ncol(statsList$initialStats)
   } else {
@@ -132,8 +159,6 @@ estimate_int <- function(
   if (verbose) {
     cat("Reducing data\n")
   }
-
-  reduceArrayToMatrix <- modelType == "DyNAM-M"
 
   statsList <- modifyStatisticsList(
     statsList = statsList,
