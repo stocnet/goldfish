@@ -166,3 +166,21 @@ test_that("rem rate recipe stores the intercept scalars and presence format", {
     length(preproData$is_dependent)
   )
 })
+
+test_that("rem rate ordered recipe stores dependent events only", {
+  preproData <- estimate_wrapper(
+    depNetwork ~ inertia(networkState, weighted = TRUE),
+    model = "REM", sub_model = "rate_ordered",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_null(preproData$stats_change)
+  expect_true(is.matrix(preproData$stat_mat_update))
+  expect_true(all(preproData$is_dependent == 1L))
+  expect_length(dim(preproData$initialStats), 3L)
+  expect_null(preproData$n_dep_events)
+  expect_null(preproData$total_time)
+  expect_null(preproData$avg_active_actors)
+  expect_null(preproData$presence1_update)
+  expect_null(preproData$presence1_update_pointer)
+})
