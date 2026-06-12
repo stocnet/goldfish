@@ -79,6 +79,28 @@ test_that("dynam choice recipe replay matches the final statistics", {
   )
 })
 
+test_that("choice coordination recipe matches the choice recipe output", {
+  formulaTest <- depNetwork ~ inertia(networkState, weighted = TRUE) +
+    tie(networkExog, weighted = TRUE)
+  prepChoice <- estimate_wrapper(
+    formulaTest,
+    model = "DyNAM", sub_model = "choice",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )
+  prepCoord <- estimate_wrapper(
+    formulaTest,
+    model = "DyNAM", sub_model = "choice_coordination",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_null(prepCoord$stats_change)
+  expect_equal(prepCoord$initialStats, prepChoice$initialStats)
+  expect_equal(prepCoord$stat_mat_update, prepChoice$stat_mat_update)
+  expect_equal(prepCoord$stat_mat_pointer, prepChoice$stat_mat_pointer)
+  expect_equal(prepCoord$is_dependent, prepChoice$is_dependent)
+})
+
 test_that("flat choice preprocessing reused through preprocessing_init", {
   formulaFull <- depNetwork ~ inertia(networkState, weighted = TRUE) +
     tie(networkExog, weighted = TRUE)

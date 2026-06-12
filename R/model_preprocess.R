@@ -51,6 +51,16 @@ preprocess.dynam_choice_spec <- function(spec, ...) {
   )
 }
 
+#' @noRd
+preprocess.dynam_choice_coord_spec <- function(spec, ...) {
+  run_dyad_recipe_loop(
+    spec, ...,
+    right_censored = FALSE,
+    intercept_scalars = FALSE,
+    composition_format = FALSE
+  )
+}
+
 #' Sender-indexed recipe kernel
 #'
 #' Shared event loop for the sender-indexed model variants (design D22).
