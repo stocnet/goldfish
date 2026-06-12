@@ -274,8 +274,8 @@
 #' partnerModel <- estimate_dynam(
 #'   createBilat ~
 #'     inertia(bilatnet) +
-#'     indeg(bilatnet, ignore_repetitions = TRUE) +
-#'     trans(bilatnet, ignore_repetitions = TRUE) +
+#'     indeg(bilatnet) +
+#'     trans(bilatnet) +
 #'     tie(contignet) +
 #'     alter(states$regime) +
 #'     diff(states$regime) +
@@ -560,15 +560,15 @@ estimate_wrapper <- function(x,
   # DyNAM-i ONLY: creates extra parameter to differentiate joining and
   # leaving rates, and effect subtypes. Added directly to GetDetailPrint
 
-  # # C implementation doesn't have ignore_repetitions option issue #105
-  if (any(unlist(parsed_formula$ignore_rep_parameter)) &&
-      control_estimation$engine %in% c("default_c", "gather_compute")) {
-    warning("engine = ", dQuote(control_estimation$engine),
-            " doesn't support ignore_repetitions effects. engine =",
-            dQuote("default"), " is used instead.",
-      call. = FALSE, immediate. = TRUE
-    )
-    control_estimation$engine <- "default"
+  if (any(unlist(parsed_formula$ignore_rep_parameter))) {
+    cli::cli_abort(c(
+      "Effects with {.code ignore_repetitions = TRUE} are disabled.",
+      "x" = "The previous implementation computed incorrect statistics:
+             it always masked repetitions using the dependent network instead
+             of the network the effect is applied to.",
+      "i" = "Follow the reimplementation progress in
+             {.url https://github.com/stocnet/goldfish/issues/105}."
+    ))
   }
   # Model-specific preprocessing initialization
   if (has_intercept &&

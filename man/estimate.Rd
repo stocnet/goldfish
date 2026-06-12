@@ -310,8 +310,8 @@ fisheriesData <- make_data(
 partnerModel <- estimate_dynam(
   createBilat ~
     inertia(bilatnet) +
-    indeg(bilatnet, ignore_repetitions = TRUE) +
-    trans(bilatnet, ignore_repetitions = TRUE) +
+    indeg(bilatnet) +
+    trans(bilatnet) +
     tie(contignet) +
     alter(states$regime) +
     diff(states$regime) +
