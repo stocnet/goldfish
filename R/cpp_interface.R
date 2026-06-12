@@ -215,39 +215,10 @@ estimate_c_int <- function(
       is.null(initialParameters) &&
       (is.null(fixedParameters) || is.na(fixedParameters[1]))
   ) {
-    totalTime <- sum(statsList$intervals, na.rm = TRUE)
-
-    nActors <- sum(presence1_init)
-
-    if (hasCompChange1) {
-      # CHANGED MARION: remove the use of the events object
-      time <- statsList$startTime
-      previoustime <- -Inf
-      nAvgActors <- 0
-
-      for (i in seq_len(nEvents)) {
-        time <- time + statsList$intervals[[i]]
-
-        changesAtTime <- compChange1$replace[
-          intersect(
-            which(compChange1$time > previoustime),
-            which(compChange1$time <= time)
-          )
-        ]
-
-        # add new present actors and substract non-present
-        nActors <- nActors + sum(changesAtTime) - sum(!changesAtTime)
-        nAvgActors <- nAvgActors + nActors
-        previoustime <- time
-      }
-      nAvgActors <- nAvgActors / nEvents
-    } else {
-      nAvgActors <- nActors
-    }
-
-    # log crude rate event, estimate when not covariates
-    initialInterceptEstimate <- log(nEvents / totalTime / nAvgActors)
-    parameters[1] <- initialInterceptEstimate
+    parameters[1] <- log(
+      statsList$n_dep_events / statsList$total_time /
+        statsList$avg_active_actors
+    )
   }
   ## SET VARIABLES BASED ON STATSLIST
   twomode_or_reflexive <- (allowReflexive || is_two_mode)
