@@ -18,7 +18,7 @@ test_that(
       label = "init indeg stat vector"
     )
     expect_equal(
-      Reduce(rbind, lapply(preproData$stats_change[preproData$is_dependent == 1], "[[", 1)),
+      statsChange[[1]][["dependent"]][, c("node1", "replace")],
       cbind(
         node1   = c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5),
         replace = c(4, 3, 4, 5, 1, 6, 4, 5, 2, 6, 2)
@@ -123,7 +123,7 @@ test_that(
       label = "init indeg stat vector"
     )
     expect_equal(
-      Reduce(rbind, lapply(preproData$stats_change[preproData$is_dependent == 1], "[[", 1)),
+      statsChange[[1]][["dependent"]][, c("node1", "replace")],
       cbind(
         node1   = c(2, 5, 1, 3, 3, 4),
         replace = c(5, 1, 6, 4, 5, 2)
@@ -230,7 +230,7 @@ test_that(
       label = "init indeg stat vector"
     )
     expect_equal(
-      Reduce(rbind, lapply(preproData$stats_change[preproData$is_dependent == 1], "[[", 1)),
+      statsChange[[1]][["dependent"]][, c("node1", "replace")],
       cbind(
         node1   = c(3, 2, 2, 5, 1, 3),
         replace = c(3, 4, 5, 1, 6, 4)
@@ -293,12 +293,12 @@ test_that(
     )
     expect_equal(
       preproData$event_sender,
-      c(3, 4, 2, 2, 2, 5, 1, 4, 3, 3, 4),
+      c(3, 4, 2, 2, 2, 5, 1, 4, 3, 3, 1),
       label = "sender events"
     )
     expect_equal(
       preproData$event_receiver,
-      c(2, 2, 3, 3, 3, 1, 5, 5, 4, 4, 2),
+      c(2, 2, 3, 3, 3, 1, 5, 5, 4, 4, 3),
       label = "receiver events"
     )
     expect_equal(

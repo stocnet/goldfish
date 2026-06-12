@@ -21,6 +21,583 @@ preprocess.model_spec <- function(spec, ...) {
   preprocess_monolith(model = spec$model, subModel = legacy_sub_model, ...)
 }
 
+#' @noRd
+preprocess.dynam_rate_spec <- function(spec, ...) {
+  run_sender_recipe_loop(
+    spec, ...,
+    right_censored = TRUE,
+    intercept_scalars = TRUE,
+    composition_format = TRUE
+  )
+}
+
+#' Sender-indexed recipe kernel
+#'
+#' Shared event loop for the sender-indexed model variants (design D22).
+#' It consumes the three recipe input structures built once before the loop
+#' (design D21): the state container owned by the recipe (design D20), the
+#' merged event schedule, and the compiled update plan. Statistic updates
+#' are written into one flat `stat_mat_update` buffer with doubling growth
+#' covering dependent and right-censored events (design D2); `initialStats`
+#' is kept in the sender-native `n1 x nEffects` form. Global-attribute
+#' events update the `globals` component of the state container and emit
+#' right-censored statistic updates without sender/receiver recording
+#' (design D16).
+#'
+#' @param spec a `sender_spec` model specification.
+#' @inheritParams preprocess_monolith
+#' @param right_censored logical, whether right-censored events are stored.
+#' @param intercept_scalars logical, whether `n_dep_events`, `total_time`,
+#'   and `avg_active_actors` are computed and stored.
+#' @param composition_format logical, whether presence updates are stored
+#'   in the C format via `C_convert_composition_change()`.
+#' @param ... absorbs arguments of `preprocess_monolith()` that the kernel
+#'   does not consume (`is_two_mode`, `rightCensored`,
+#'   `ignoreRepParameter`, `opportunitiesList`).
+#'
+#' @return a list of class preprocessed.goldfish
+#' @noRd
+run_sender_recipe_loop <- function(
+  spec,
+  events,
+  effects,
+  windowParameters,
+  eventsObjectsLink,
+  eventsEffectsLink,
+  objectsEffectsLink,
+  nodes,
+  nodes2 = nodes,
+  startTime = NULL,
+  endTime = NULL,
+  right_censored = FALSE,
+  intercept_scalars = FALSE,
+  composition_format = FALSE,
+  progress = FALSE,
+  prepEnvir = new.env(),
+  ...
+) {
+  n1 <- nrow(get(nodes, envir = prepEnvir))
+  n2 <- nrow(get(nodes2, envir = prepEnvir))
+  nEffects <- length(effects)
+
+  hasEndTime <- FALSE
+  hasStartTime <- FALSE
+  isValidEvent <- TRUE
+
+  isWindowEffect <- !vapply(windowParameters, is.null, logical(1))
+  whichEventNoWindowEffect <- eventsEffectsLink[, !isWindowEffect, drop = FALSE]
+  whichEventNoWindowEffect <- rowSums(!is.na(whichEventNoWindowEffect))
+  whichEventNoWindowEffect <- c(1, which(whichEventNoWindowEffect > 0))
+
+  eventsMin <- min(vapply(
+    events[whichEventNoWindowEffect],
+    function(x) min(x$time),
+    double(1)
+  ))
+  eventsMax <- max(vapply(
+    events[whichEventNoWindowEffect],
+    function(x) max(x$time),
+    double(1)
+  ))
+  if (is.null(endTime)) {
+    endTime <- eventsMax
+    if (any(isWindowEffect)) hasEndTime <- TRUE
+  } else if (endTime != eventsMax) {
+    if (!is.numeric(endTime)) {
+      endTime <- as.numeric(endTime)
+    }
+    if (eventsMin > endTime) {
+      stop("End time smaller than first event time.", call. = FALSE)
+    }
+    hasEndTime <- TRUE
+  }
+  if (is.null(startTime)) {
+    startTime <- eventsMin
+  } else if (startTime != eventsMin) {
+    if (!is.numeric(startTime)) {
+      startTime <- as.numeric(startTime)
+    }
+    if (eventsMax < startTime) {
+      stop("Start time geater than last event time.", call. = FALSE)
+    }
+    hasStartTime <- TRUE
+    if (eventsMin < startTime) isValidEvent <- FALSE
+  }
+
+  imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
+
+  if (progress) {
+    cat("Initializing cache objects and statistical matrices.\n")
+  }
+
+  statCache <- initializeCacheStat(
+    objectsEffectsLink = objectsEffectsLink,
+    effects = effects,
+    groupsNetwork = NULL,
+    windowParameters = windowParameters,
+    n1 = n1,
+    n2 = n2,
+    model = spec$model,
+    subModel = "rate",
+    envir = prepEnvir
+  )
+  initialStats <- do.call(cbind, lapply(statCache, "[[", "stat"))
+  statCache <- lapply(statCache, "[[", "cache")
+
+  nodes_obj <- get(nodes, envir = prepEnvir)
+  nodes2_obj <- get(nodes2, envir = prepEnvir)
+  active_mode1_init <- if (!is.null(nodes_obj$present)) {
+    nodes_obj$present
+  } else {
+    rep(TRUE, n1)
+  }
+  active_mode2_init <- if (!is.null(nodes2_obj$present)) {
+    nodes2_obj$present
+  } else {
+    rep(TRUE, n2)
+  }
+  comp_events1 <- attr(nodes_obj, "events")[
+    attr(nodes_obj, "dynamic_attribute") == "present"
+  ]
+  comp_events2 <- attr(nodes2_obj, "events")[
+    attr(nodes2_obj, "dynamic_attribute") == "present"
+  ]
+  active_mode1_changes <- if (
+    length(comp_events1) > 0 && !is.na(comp_events1[1])
+  ) {
+    cc <- get(comp_events1[1], envir = prepEnvir)
+    node_idx1 <- if (is.character(cc$node)) {
+      match(cc$node, nodes_obj$label)
+    } else {
+      as.integer(cc$node)
+    }
+    lapply(seq_len(nrow(cc)), function(i) {
+      list(time = cc$time[i], node = node_idx1[i], replace = cc$replace[i])
+    })
+  } else {
+    list()
+  }
+  active_mode2_changes <- if (
+    length(comp_events2) > 0 && !is.na(comp_events2[1])
+  ) {
+    cc <- get(comp_events2[1], envir = prepEnvir)
+    node_idx2 <- if (is.character(cc$node)) {
+      match(cc$node, nodes2_obj$label)
+    } else {
+      as.integer(cc$node)
+    }
+    lapply(seq_len(nrow(cc)), function(i) {
+      list(time = cc$time[i], node = node_idx2[i], replace = cc$replace[i])
+    })
+  } else {
+    list()
+  }
+
+  state <- build_state_container(
+    rownames(objectsEffectsLink), nodes, nodes2,
+    envir = prepEnvir
+  )
+  plan <- build_update_plan(
+    effects, eventsObjectsLink, eventsEffectsLink, objectsEffectsLink,
+    state,
+    stat_kind = "sender", envir = prepEnvir
+  )
+  schedule <- build_event_schedule(events, eventsObjectsLink, plan$objects)
+
+  netUpdateLookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
+  attUpdateLookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
+  netUpdateLookup[cbind(plan$effect_objects$oid, plan$effect_objects$gid)] <-
+    plan$effect_objects$net_update
+  attUpdateLookup[cbind(plan$effect_objects$oid, plan$effect_objects$gid)] <-
+    plan$effect_objects$att_update
+
+  call_effect_template <- function(
+    template, gid, shape, event_args, net_update, att_update,
+    event_order, inter_event_time
+  ) {
+    args <- c(
+      list(
+        network = if (template$n_networks == 1L) {
+          state$networks[[template$net_keys]]
+        } else if (template$n_networks > 1L) {
+          lapply(template$net_keys, function(k) state$networks[[k]])
+        } else {
+          list()
+        },
+        attribute = if (template$n_attributes == 1L) {
+          state[[template$att_components]][[template$att_keys]]
+        } else if (template$n_attributes > 1L) {
+          lapply(
+            seq_len(template$n_attributes),
+            function(j) {
+              state[[template$att_components[j]]][[template$att_keys[j]]]
+            }
+          )
+        } else {
+          list()
+        },
+        cache = statCache[[gid]],
+        n1 = n1,
+        n2 = n2,
+        netUpdate = net_update,
+        attUpdate = att_update,
+        eventOrder = event_order,
+        interEventTime = inter_event_time
+      ),
+      event_args
+    )
+    do.call(template$fun, args[template$args_by_shape[[shape]]])
+  }
+
+  buf_capacity <- max(1000L, nEffects * nrow(events[[1L]]))
+  stat_mat_buf <- matrix(0, 4L, buf_capacity)
+  buf_n <- 0L
+
+  write_pending <- function(blocks, n_cols) {
+    if (n_cols > 0L) {
+      while (buf_n + n_cols > buf_capacity) {
+        buf_capacity <<- buf_capacity * 2L
+        new_buf <- matrix(0, 4L, buf_capacity)
+        if (buf_n > 0L) {
+          new_buf[, seq_len(buf_n)] <- stat_mat_buf[, seq_len(buf_n)]
+        }
+        stat_mat_buf <<- new_buf
+      }
+      stat_mat_buf[, buf_n + seq_len(n_cols)] <<- do.call(cbind, blocks)
+      buf_n <<- buf_n + n_cols
+    }
+    invisible(NULL)
+  }
+
+  max_store <- schedule$n + 1L
+  stat_mat_pointer <- integer(max_store)
+  intervals <- numeric(max_store)
+  is_dependent <- integer(max_store)
+  event_time <- numeric(max_store)
+  event_sender <- integer(max_store)
+  event_receiver <- integer(max_store)
+  n_stored <- 0L
+
+  pending_dep <- list()
+  pending_dep_cols <- 0L
+  pending_rc <- list()
+  pending_rc_cols <- 0L
+
+  iTotalEvents <- 0L
+  iDependentEvents <- 0L
+  time <- startTime
+  interval <- 0
+  finalStep <- FALSE
+
+  if (progress) {
+    cat("Preprocessing events.\n", startTime, endTime, schedule$n)
+    pb <- utils::txtProgressBar(max = schedule$n, char = "*", style = 3)
+    dotEvents <- ifelse(schedule$n > 50, ceiling(schedule$n / 50), 1)
+  }
+
+  for (k in seq_len(schedule$n)) {
+    iTotalEvents <- iTotalEvents + 1L
+    nextEventTime <- schedule$time[k]
+    if (hasStartTime || hasEndTime) {
+      if (isValidEvent && nextEventTime <= endTime) {
+        interval <- nextEventTime - time
+      } else if (isValidEvent && nextEventTime > endTime) {
+        interval <- endTime - time
+        nextEventTime <- endTime
+        finalStep <- TRUE
+      } else if (!isValidEvent && nextEventTime >= startTime) {
+        interval <- nextEventTime - startTime
+        isValidEvent <- TRUE
+      }
+    } else {
+      interval <- nextEventTime - time
+    }
+
+    time <- nextEventTime
+
+    isDependent <- schedule$dependent[k] && !finalStep
+
+    if (progress && iTotalEvents %% dotEvents == 0) {
+      utils::setTxtProgressBar(pb, iTotalEvents)
+    }
+
+    if (isValidEvent && isDependent) {
+      iDependentEvents <- 1L + iDependentEvents
+      n_stored <- n_stored + 1L
+      write_pending(pending_dep, pending_dep_cols)
+      stat_mat_pointer[n_stored] <- buf_n
+      intervals[n_stored] <- interval
+      is_dependent[n_stored] <- 1L
+      event_time[n_stored] <- time
+      if (schedule$shape[k] == "node") {
+        event_sender[n_stored] <- schedule$node[k]
+        event_receiver[n_stored] <- schedule$node[k]
+      } else {
+        event_sender[n_stored] <- schedule$sender[k]
+        event_receiver[n_stored] <- schedule$receiver[k]
+      }
+      pending_dep <- list()
+      pending_dep_cols <- 0L
+      pending_rc <- list()
+      pending_rc_cols <- 0L
+    } else if (!isDependent) {
+      if (isValidEvent && right_censored && interval > 0) {
+        n_stored <- n_stored + 1L
+        write_pending(pending_rc, pending_rc_cols)
+        stat_mat_pointer[n_stored] <- buf_n
+        intervals[n_stored] <- interval
+        is_dependent[n_stored] <- 0L
+        event_time[n_stored] <- time
+        if (schedule$shape[k] == "global") {
+          event_sender[n_stored] <- NA_integer_
+          event_receiver[n_stored] <- NA_integer_
+        } else if (schedule$shape[k] == "node") {
+          event_sender[n_stored] <- schedule$node[k]
+          event_receiver[n_stored] <- schedule$node[k]
+        } else {
+          event_sender[n_stored] <- schedule$sender[k]
+          event_receiver[n_stored] <- schedule$receiver[k]
+        }
+        pending_rc <- list()
+        pending_rc_cols <- 0L
+      }
+
+      if (!finalStep) {
+        oid <- schedule$target[k]
+        component <- plan$objects$component[oid]
+        key <- plan$objects$key[oid]
+        shape <- schedule$shape[k]
+        isUndirectedNet <- plan$objects$is_undirected[oid]
+
+        if (shape == "global") {
+          replaceValue <- schedule$value[[k]]
+          if (is.na(replaceValue)) replaceValue <- 0
+          event_args <- list(replace = replaceValue)
+        } else if (shape == "node") {
+          eventNode <- schedule$node[k]
+          if (schedule$semantics[k] == "increment") {
+            incrementValue <- schedule$value[[k]]
+            if (is.na(incrementValue)) incrementValue <- 0
+            replaceValue <-
+              state[[component]][[key]][eventNode] + incrementValue
+          } else {
+            replaceValue <- schedule$value[[k]]
+            if (is.na(replaceValue)) {
+              replaceValue <- mean(
+                state[[component]][[key]][-eventNode],
+                na.rm = TRUE
+              )
+            }
+          }
+          event_args <- list(node = eventNode, replace = replaceValue)
+        } else {
+          eventSender <- schedule$sender[k]
+          eventReceiver <- schedule$receiver[k]
+          if (schedule$semantics[k] == "increment") {
+            incrementValue <- schedule$value[[k]]
+            if (is.na(incrementValue)) incrementValue <- 0
+            replaceValue <-
+              state$networks[[key]][eventSender, eventReceiver] +
+              incrementValue
+          } else {
+            replaceValue <- schedule$value[[k]]
+            if (is.na(replaceValue)) replaceValue <- 0
+          }
+          if (replaceValue < 0) {
+            warning(
+              "You are dissolving a tie which doesn't exist!",
+              call. = FALSE
+            )
+          }
+          event_args <- list(
+            sender = eventSender, receiver = eventReceiver,
+            replace = replaceValue
+          )
+        }
+
+        for (gid in plan$routing[[oid]]) {
+          template <- plan$templates[[gid]]
+          netUpdatePos <- netUpdateLookup[oid, gid]
+          if (is.na(netUpdatePos)) netUpdatePos <- NULL
+          attUpdatePos <- attUpdateLookup[oid, gid]
+          if (is.na(attUpdatePos)) attUpdatePos <- NULL
+
+          effectUpdate <- call_effect_template(
+            template, gid, shape, event_args,
+            netUpdatePos, attUpdatePos,
+            iTotalEvents - iDependentEvents, interval
+          )
+
+          if (!is.null(attr(effectUpdate$cache, "lastUpdate"))) {
+            attr(statCache[[gid]], "lastUpdate") <- attr(
+              effectUpdate$cache,
+              "lastUpdate"
+            )
+          }
+
+          updates <- effectUpdate$changes
+          if (!is.null(effectUpdate$cache) && !is.null(effectUpdate$changes)) {
+            statCache[[gid]] <- effectUpdate$cache
+          }
+
+          if (isUndirectedNet) {
+            event_args2 <- event_args
+            event_args2$sender <- event_args$receiver
+            event_args2$receiver <- event_args$sender
+            effectUpdate2 <- call_effect_template(
+              template, gid, shape, event_args2,
+              netUpdatePos, attUpdatePos,
+              iTotalEvents - iDependentEvents, interval
+            )
+            if (
+              !is.null(effectUpdate2$cache) &&
+                !is.null(effectUpdate2$changes)
+            ) {
+              statCache[[gid]] <- effectUpdate2$cache
+            }
+            updates <- rbind(updates, effectUpdate2$changes)
+          }
+
+          if (!is.null(updates)) {
+            if (hasStartTime && nextEventTime < startTime) {
+              initialStats[cbind(updates[, "node1"], gid)] <-
+                updates[, "replace"]
+            } else {
+              block <- rbind(
+                updates[, "node1"] - 1,
+                0,
+                gid - 1,
+                updates[, "replace"]
+              )
+              pending_dep[[length(pending_dep) + 1L]] <- block
+              pending_dep_cols <- pending_dep_cols + ncol(block)
+              if (right_censored) {
+                pending_rc[[length(pending_rc) + 1L]] <- block
+                pending_rc_cols <- pending_rc_cols + ncol(block)
+              }
+            }
+          }
+        }
+
+        if (shape == "global") {
+          state$globals[[key]] <- event_args$replace
+        } else if (shape == "node") {
+          state[[component]][[key]][event_args$node] <- event_args$replace
+        } else {
+          state$networks[[key]][event_args$sender, event_args$receiver] <-
+            event_args$replace
+          if (isUndirectedNet) {
+            state$networks[[key]][event_args$receiver, event_args$sender] <-
+              event_args$replace
+          }
+        }
+      }
+    }
+
+    if (finalStep) break
+  }
+
+  if (progress) {
+    utils::setTxtProgressBar(pb, schedule$n)
+    close(pb)
+  }
+
+  stat_mat_update <- stat_mat_buf[, seq_len(buf_n), drop = FALSE]
+  keep <- seq_len(n_stored)
+  stat_mat_pointer <- stat_mat_pointer[keep]
+  intervals <- intervals[keep]
+  is_dependent <- is_dependent[keep]
+  event_time <- event_time[keep]
+  event_sender <- event_sender[keep]
+  event_receiver <- event_receiver[keep]
+
+  n_dep_events <- NULL
+  total_time <- NULL
+  avg_active_actors <- NULL
+  if (intercept_scalars) {
+    n_dep_events <- sum(is_dependent == 1L)
+    total_time <- sum(intervals)
+    nActors <- sum(active_mode1_init)
+    if (length(active_mode1_changes) > 0 && n_stored > 0) {
+      changesTime <- vapply(
+        active_mode1_changes, `[[`, double(1), "time"
+      )
+      changesReplace <- vapply(
+        active_mode1_changes, `[[`, logical(1), "replace"
+      )
+      timeAcc <- startTime
+      previousTime <- -Inf
+      activeAcc <- 0
+      for (i in seq_len(n_stored)) {
+        timeAcc <- timeAcc + intervals[i]
+        changesAt <- changesTime > previousTime & changesTime <= timeAcc
+        nActors <- nActors +
+          sum(changesReplace[changesAt]) - sum(!changesReplace[changesAt])
+        activeAcc <- activeAcc + nActors
+        previousTime <- timeAcc
+      }
+      avg_active_actors <- activeAcc / n_stored
+    } else {
+      avg_active_actors <- nActors
+    }
+  }
+
+  presence1_update <- NULL
+  presence1_update_pointer <- NULL
+  presence2_update <- NULL
+  presence2_update_pointer <- NULL
+  if (composition_format) {
+    if (length(active_mode1_changes) > 0) {
+      compChange1 <- data.frame(
+        time = vapply(active_mode1_changes, `[[`, double(1), "time"),
+        node = vapply(active_mode1_changes, `[[`, integer(1), "node"),
+        replace = vapply(active_mode1_changes, `[[`, logical(1), "replace")
+      )
+      temp <- C_convert_composition_change(compChange1, event_time)
+      presence1_update <- temp$presenceUpdate
+      presence1_update_pointer <- temp$presenceUpdatePointer
+    }
+    if (length(active_mode2_changes) > 0) {
+      compChange2 <- data.frame(
+        time = vapply(active_mode2_changes, `[[`, double(1), "time"),
+        node = vapply(active_mode2_changes, `[[`, integer(1), "node"),
+        replace = vapply(active_mode2_changes, `[[`, logical(1), "replace")
+      )
+      temp <- C_convert_composition_change(compChange2, event_time)
+      presence2_update <- temp$presenceUpdate
+      presence2_update_pointer <- temp$presenceUpdatePointer
+    }
+  }
+
+  structure(
+    list(
+      initialStats = initialStats,
+      stat_mat_update = stat_mat_update,
+      stat_mat_pointer = stat_mat_pointer,
+      intervals = intervals,
+      is_dependent = is_dependent,
+      event_time = event_time,
+      event_sender = event_sender,
+      event_receiver = event_receiver,
+      event_pos = seq_len(n_stored),
+      active_mode1_init = active_mode1_init,
+      active_mode1_changes = active_mode1_changes,
+      active_mode2_init = active_mode2_init,
+      active_mode2_changes = active_mode2_changes,
+      startTime = startTime,
+      endTime = endTime,
+      n_dep_events = n_dep_events,
+      total_time = total_time,
+      avg_active_actors = avg_active_actors,
+      presence1_update = presence1_update,
+      presence1_update_pointer = presence1_update_pointer,
+      presence2_update = presence2_update,
+      presence2_update_pointer = presence2_update_pointer
+    ),
+    class = "preprocessed.goldfish"
+  )
+}
+
 #' preprocess event and related objects describe in the formula to estimate
 #'
 #' Create a preprocess.goldfish class object with the update statistics

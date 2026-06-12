@@ -251,20 +251,67 @@ ReducePreprocess <- function(
     ))
   }
 
+  ReduceEffUpdatesFlat <- function(eventsKeep) {
+    counts <- diff(c(0L, preproData$stat_mat_pointer))
+    colEvent <- rep(seq_along(preproData$stat_mat_pointer), counts)
+    colsKeep <- eventsKeep[colEvent]
+    upd <- preproData$stat_mat_update[, colsKeep, drop = FALSE]
+    updEvent <- colEvent[colsKeep]
+    lapply(
+      seq_len(nEffects),
+      function(i) {
+        effCols <- upd[3, ] == (i - 1)
+        if (!any(effCols)) return(NULL)
+        sub <- upd[, effCols, drop = FALSE]
+        subEvent <- updEvent[effCols]
+        key <- if (is_rate) {
+          cbind(subEvent, sub[1, ])
+        } else {
+          cbind(subEvent, sub[1, ], sub[2, ])
+        }
+        keepCol <- !duplicated(key, fromLast = TRUE)
+        sub <- sub[, keepCol, drop = FALSE]
+        subEvent <- subEvent[keepCol]
+        ordering <- if (is_rate) {
+          order(subEvent, sub[1, ])
+        } else {
+          order(subEvent, sub[1, ], sub[2, ])
+        }
+        sub <- sub[, ordering, drop = FALSE]
+        subEvent <- subEvent[ordering]
+        cbind(
+          time = if (type == "withTime") preproData$event_time[subEvent],
+          node1 = sub[1, ] + 1,
+          node2 = if (!is_rate) sub[2, ] + 1,
+          replace = sub[4, ]
+        )
+      }
+    )
+  }
+
   dep_idx <- preproData$is_dependent == 1L
   rc_idx <- preproData$is_dependent == 0L
+  is_flat <- is.null(preproData$stats_change)
 
-  outDependentStatChange <- ReduceEffUpdates(
-    preproData$stats_change[dep_idx],
-    preproData$event_time[dep_idx]
-  )
+  outDependentStatChange <- if (is_flat) {
+    ReduceEffUpdatesFlat(dep_idx)
+  } else {
+    ReduceEffUpdates(
+      preproData$stats_change[dep_idx],
+      preproData$event_time[dep_idx]
+    )
+  }
 
   if ((preproData$subModel == "rate" || preproData$model == "REM") &&
     sum(rc_idx) > 0) {
-    rightCensoredStatChange <- ReduceEffUpdates(
-      preproData$stats_change[rc_idx],
-      preproData$event_time[rc_idx]
-    )
+    rightCensoredStatChange <- if (is_flat) {
+      ReduceEffUpdatesFlat(rc_idx)
+    } else {
+      ReduceEffUpdates(
+        preproData$stats_change[rc_idx],
+        preproData$event_time[rc_idx]
+      )
+    }
 
     reducedPrepro <- list()
     for (ii in seq.int(length(outDependentStatChange))) {
@@ -344,6 +391,74 @@ apply_flat_update <- function(statsArray, updates_slice, is_sender) {
   statsArray
 }
 
+
+#' Split the combined flat update buffer by stored-event subset
+#'
+#' Extracts the columns of `stat_mat_update` belonging to a subset of the
+#' stored events (e.g. dependent or right-censored) and recomputes the
+#' end-pointer vector for the subset, preserving the conventions of
+#' `convert_change()` so the current C++ routines can consume the combined
+#' buffer until they accept it directly (task 6.8).
+#'
+#' @param stat_mat_update numeric matrix 4 x K, the combined flat buffer.
+#' @param stat_mat_pointer integer vector, end-column pointer per stored
+#'   event.
+#' @param keep logical vector flagging the stored events to extract.
+#'
+#' @return a list with `mat` (4 x K' matrix, a 4 x 1 zero matrix when the
+#'   subset carries no updates) and `pointer` (cumulative update counts for
+#'   the kept events).
+#' @noRd
+split_flat_updates <- function(stat_mat_update, stat_mat_pointer, keep) {
+  counts <- diff(c(0L, stat_mat_pointer))
+  mat <- stat_mat_update[, rep(keep, counts), drop = FALSE]
+  if (ncol(mat) == 0L) mat <- matrix(0, 4, 1)
+  list(mat = mat, pointer = cumsum(counts[keep]))
+}
+
+#' Merge flat update buffers for reuse of a preprocessed object
+#'
+#' Combines the flat update buffer of a previous preprocessing result with
+#' the buffer of the newly preprocessed effects, remapping effect indices
+#' to the positions of the new formula. Both objects must cover the same
+#' stored-event sequence.
+#'
+#' @param old_prep `preprocessed.goldfish` object reused through
+#'   `preprocessing_init`.
+#' @param new_prep `preprocessed.goldfish` object with the newly added
+#'   effects, or NULL when the new formula adds no effects.
+#' @param effects_indexes integer vector from `compare_formulas()`: for
+#'   each effect of the new formula, its position in the old formula or 0
+#'   when newly added.
+#'
+#' @return a list with the merged `stat_mat_update` and `stat_mat_pointer`.
+#' @noRd
+merge_flat_updates <- function(old_prep, new_prep, effects_indexes) {
+  n_events <- length(old_prep$stat_mat_pointer)
+  counts_old <- diff(c(0L, old_prep$stat_mat_pointer))
+  event_old <- rep(seq_len(n_events), counts_old)
+  position_old <- match(old_prep$stat_mat_update[3, ] + 1L, effects_indexes)
+  keep <- !is.na(position_old)
+  mat <- old_prep$stat_mat_update[, keep, drop = FALSE]
+  mat[3, ] <- position_old[keep] - 1L
+  event <- event_old[keep]
+
+  if (!is.null(new_prep)) {
+    counts_new <- diff(c(0L, new_prep$stat_mat_pointer))
+    event_new <- rep(seq_len(length(new_prep$stat_mat_pointer)), counts_new)
+    position_new <- which(effects_indexes == 0L)
+    mat_new <- new_prep$stat_mat_update
+    mat_new[3, ] <- position_new[mat_new[3, ] + 1L] - 1L
+    ordering <- order(c(event, event_new), method = "radix")
+    mat <- cbind(mat, mat_new)[, ordering, drop = FALSE]
+    event <- c(event, event_new)[ordering]
+  }
+
+  list(
+    stat_mat_update = mat,
+    stat_mat_pointer = cumsum(tabulate(event, nbins = n_events))
+  )
+}
 
 GetDetailPrint <- function(
     objectsEffectsLink,

@@ -280,33 +280,59 @@ estimate_c_int <- function(
     })
   }
 
-  dep_changes <- if (is_rate_model) {
-    expand_for_c(statsList$stats_change[dep_idx])
-  } else {
-    statsList$stats_change[dep_idx]
-  }
-  temp <- convert_change(dep_changes)
-  stat_mat_update <- temp$statMatUpdate
-  stat_mat_update_pointer <- temp$statMatUpdatePointer
-  if (hasIntercept) {
-    stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
-  }
-
-  if (sum(rc_idx) == 0L) {
-    stat_mat_rightcensored_update <- matrix(0, 4, 1)
-    stat_mat_rightcensored_update_pointer <- numeric(1)
-  } else {
-    rc_changes <- if (is_rate_model) {
-      expand_for_c(statsList$stats_change[rc_idx])
-    } else {
-      statsList$stats_change[rc_idx]
-    }
-    temp <- convert_change(rc_changes)
-    stat_mat_rightcensored_update <- temp$statMatUpdate
-    stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
+  if (!is.null(statsList$stat_mat_update)) {
+    temp <- split_flat_updates(
+      statsList$stat_mat_update, statsList$stat_mat_pointer, dep_idx
+    )
+    stat_mat_update <- temp$mat
+    stat_mat_update_pointer <- temp$pointer
     if (hasIntercept) {
-      stat_mat_rightcensored_update[3, ] <- stat_mat_rightcensored_update[3, ] +
-        1
+      stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
+    }
+
+    if (sum(rc_idx) == 0L) {
+      stat_mat_rightcensored_update <- matrix(0, 4, 1)
+      stat_mat_rightcensored_update_pointer <- numeric(1)
+    } else {
+      temp <- split_flat_updates(
+        statsList$stat_mat_update, statsList$stat_mat_pointer, rc_idx
+      )
+      stat_mat_rightcensored_update <- temp$mat
+      stat_mat_rightcensored_update_pointer <- temp$pointer
+      if (hasIntercept) {
+        stat_mat_rightcensored_update[3, ] <-
+          stat_mat_rightcensored_update[3, ] + 1
+      }
+    }
+  } else {
+    dep_changes <- if (is_rate_model) {
+      expand_for_c(statsList$stats_change[dep_idx])
+    } else {
+      statsList$stats_change[dep_idx]
+    }
+    temp <- convert_change(dep_changes)
+    stat_mat_update <- temp$statMatUpdate
+    stat_mat_update_pointer <- temp$statMatUpdatePointer
+    if (hasIntercept) {
+      stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
+    }
+
+    if (sum(rc_idx) == 0L) {
+      stat_mat_rightcensored_update <- matrix(0, 4, 1)
+      stat_mat_rightcensored_update_pointer <- numeric(1)
+    } else {
+      rc_changes <- if (is_rate_model) {
+        expand_for_c(statsList$stats_change[rc_idx])
+      } else {
+        statsList$stats_change[rc_idx]
+      }
+      temp <- convert_change(rc_changes)
+      stat_mat_rightcensored_update <- temp$statMatUpdate
+      stat_mat_rightcensored_update_pointer <- temp$statMatUpdatePointer
+      if (hasIntercept) {
+        stat_mat_rightcensored_update[3, ] <-
+          stat_mat_rightcensored_update[3, ] + 1
+      }
     }
   }
 

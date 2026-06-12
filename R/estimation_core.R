@@ -900,6 +900,8 @@ getIterationStepState <- function(
   # also changes for dependent and rc events!
   statsArray <- statsList$initialStats
   time <- statsList$startTime
+  useFlatUpdates <- !is.null(statsList$stat_mat_update)
+  flatPointer <- 0L
 
   hasIgnoreRep <- any(ignoreRepParameter)
   if (hasIgnoreRep) {
@@ -935,21 +937,37 @@ getIterationStepState <- function(
 
   for (i in seq_len(nEvents)) {
     isDependent <- statsList$is_dependent[[i]] == 1L
-    pars2update <- !vapply(statsList$stats_change[[i]], is.null, logical(1))
-    for (j in which(pars2update)) {
-      if (is_rate) {
-        statsArray[, j + hasIntercept] <-
-          updFun(
-            statsArray[, j + hasIntercept],
-            statsList$stats_change[[i]][[j]],
-            is_rate_stat = TRUE
-          )
-      } else {
-        statsArray[,, j + hasIntercept] <-
-          updFun(
-            statsArray[,, j + hasIntercept],
-            statsList$stats_change[[i]][[j]]
-          )
+    if (useFlatUpdates) {
+      flatEnd <- statsList$stat_mat_pointer[i]
+      if (flatEnd > flatPointer) {
+        updatesSlice <- statsList$stat_mat_update[
+          , (flatPointer + 1L):flatEnd,
+          drop = FALSE
+        ]
+        if (hasIntercept) updatesSlice[3, ] <- updatesSlice[3, ] + 1L
+        statsArray <- apply_flat_update(
+          statsArray, updatesSlice,
+          is_sender = is_rate
+        )
+      }
+      flatPointer <- flatEnd
+    } else {
+      pars2update <- !vapply(statsList$stats_change[[i]], is.null, logical(1))
+      for (j in which(pars2update)) {
+        if (is_rate) {
+          statsArray[, j + hasIntercept] <-
+            updFun(
+              statsArray[, j + hasIntercept],
+              statsList$stats_change[[i]][[j]],
+              is_rate_stat = TRUE
+            )
+        } else {
+          statsArray[,, j + hasIntercept] <-
+            updFun(
+              statsArray[,, j + hasIntercept],
+              statsList$stats_change[[i]][[j]]
+            )
+        }
       }
     }
     if (hasIntercept) {

@@ -773,6 +773,15 @@ estimate_wrapper <- function(x,
     allprep <- preprocessing_init
     is_rate_model <- preprocessing_init$model == "DyNAM" &&
       preprocessing_init$subModel == "rate"
+    init_is_flat <- is.null(preprocessing_init$stats_change)
+    has_new_effects <- min(effects_indexes) == 0
+    if (has_new_effects && init_is_flat != is.null(newprep$stats_change)) {
+      cli::cli_abort(c(
+        "The {.arg preprocessing_init} object format does not match the
+         format produced by the current preprocessing.",
+        "i" = "Recompute the preprocessing object with {.fn compute_stats}."
+      ))
+    }
     n1_val <- nrow(get(.nodes, envir = work_env))
     n2_val <- nrow(get(.nodes2, envir = work_env))
     nEffectsNew <- length(effects_indexes)
@@ -781,7 +790,6 @@ estimate_wrapper <- function(x,
     } else {
       allprep$initialStats <- array(0, dim = c(n1_val, n2_val, nEffectsNew))
     }
-    allprep$stats_change <- list()
     cptnew <- 1
 
     # initial stats
@@ -806,24 +814,35 @@ estimate_wrapper <- function(x,
     }
 
     # stats updates (unified dependent + right-censored)
-    for (t in seq_along(preprocessing_init$stats_change)) {
-      cptnew <- 1
-      allprep$stats_change[[t]] <-
-        lapply(seq_along(effects_indexes), function(x) NULL)
-      for (e in seq_along(effects_indexes)) {
-        if (effects_indexes[e] == 0) {
-          if (!is.null(newprep$stats_change[[t]][[cptnew]])) {
-            allprep$stats_change[[t]][[e]] <-
-              newprep$stats_change[[t]][[cptnew]]
+    if (init_is_flat) {
+      merged <- merge_flat_updates(
+        preprocessing_init,
+        if (has_new_effects) newprep else NULL,
+        effects_indexes
+      )
+      allprep$stat_mat_update <- merged$stat_mat_update
+      allprep$stat_mat_pointer <- merged$stat_mat_pointer
+    } else {
+      allprep$stats_change <- list()
+      for (t in seq_along(preprocessing_init$stats_change)) {
+        cptnew <- 1
+        allprep$stats_change[[t]] <-
+          lapply(seq_along(effects_indexes), function(x) NULL)
+        for (e in seq_along(effects_indexes)) {
+          if (effects_indexes[e] == 0) {
+            if (!is.null(newprep$stats_change[[t]][[cptnew]])) {
+              allprep$stats_change[[t]][[e]] <-
+                newprep$stats_change[[t]][[cptnew]]
+            }
+            cptnew <- cptnew + 1
           }
-          cptnew <- cptnew + 1
-        }
-        if (effects_indexes[e] > 0) {
-          if (!is.null(
-            preprocessing_init$stats_change[[t]][[effects_indexes[e]]]
-          )) {
-            allprep$stats_change[[t]][[e]] <-
+          if (effects_indexes[e] > 0) {
+            if (!is.null(
               preprocessing_init$stats_change[[t]][[effects_indexes[e]]]
+            )) {
+              allprep$stats_change[[t]][[e]] <-
+                preprocessing_init$stats_change[[t]][[effects_indexes[e]]]
+            }
           }
         }
       }
