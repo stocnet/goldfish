@@ -127,3 +127,42 @@ test_that("flat choice preprocessing reused through preprocessing_init", {
   expect_equal(prepSubset$stat_mat_update, prepDirect$stat_mat_update)
   expect_equal(prepSubset$stat_mat_pointer, prepDirect$stat_mat_pointer)
 })
+
+test_that("rem rate recipe produces the flat preprocessing output", {
+  preproData <- estimate_wrapper(
+    depNetwork ~ 1 + inertia(networkState, weighted = TRUE) +
+      tie(networkExog, weighted = TRUE),
+    model = "REM", sub_model = "rate",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_null(preproData$stats_change)
+  expect_true(is.matrix(preproData$stat_mat_update))
+  expect_identical(nrow(preproData$stat_mat_update), 4L)
+  expect_length(preproData$stat_mat_pointer, length(preproData$is_dependent))
+  expect_length(dim(preproData$initialStats), 3L)
+  expect_identical(dim(preproData$initialStats), c(5L, 5L, 2L))
+  expect_gt(sum(preproData$is_dependent == 0L), 0)
+})
+
+test_that("rem rate recipe stores the intercept scalars and presence format", {
+  preproData <- estimate_wrapper(
+    depNetwork ~ 1 + inertia(networkState, weighted = TRUE),
+    model = "REM", sub_model = "rate",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_identical(
+    preproData$n_dep_events,
+    sum(preproData$is_dependent == 1L)
+  )
+  expect_equal(preproData$total_time, sum(preproData$intervals))
+  expect_gt(preproData$avg_active_actors, 0)
+  expect_lte(preproData$avg_active_actors, 5)
+  expect_identical(nrow(preproData$presence1_update), 2L)
+  expect_identical(ncol(preproData$presence1_update), nrow(compChange))
+  expect_length(
+    preproData$presence1_update_pointer,
+    length(preproData$is_dependent)
+  )
+})
