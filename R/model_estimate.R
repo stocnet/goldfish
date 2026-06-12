@@ -570,6 +570,19 @@ estimate_wrapper <- function(x,
              {.url https://github.com/stocnet/goldfish/issues/105}."
     ))
   }
+
+  if (sub_model %in% c("choice", "choice_coordination") &&
+      "global" %in% vapply(rhs_names, "[[", character(1), 1)) {
+    cli::cli_abort(c(
+      "The {.fn global} effect is not supported for
+       {.code sub_model = {.val {sub_model}}}.",
+      "x" = "A global covariate is constant across alternatives, so its main
+             effect is not identified in a multinomial choice model.",
+      "i" = "Global covariates in choice sub-models will be supported only
+             through interaction effects in a future release. Use a rate
+             sub-model to estimate the main effect of a global covariate."
+    ))
+  }
   # Model-specific preprocessing initialization
   if (has_intercept &&
     ((model %in% c("DyNAM", "DyNAMi") &&

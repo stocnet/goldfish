@@ -61,3 +61,47 @@ test_that("update_REM_choice_global returns NULL changes when value unchanged", 
   )
   expect_null(result$changes)
 })
+
+test_that("global() aborts for choice sub-models and works for rate", {
+  seasons <- make_global_attributes(data.frame(winter = 0))
+  season_change <- data.frame(time = 15, replace = 1)
+  seasons <- link_events(seasons, season_change)
+  dataGlobal <- make_data(depNetwork, seasons)
+
+  expect_error(
+    estimate_dynam(
+      depNetwork ~ inertia + global(seasons$winter),
+      sub_model = "choice",
+      data = dataGlobal
+    ),
+    "interaction"
+  )
+  expect_error(
+    estimate_dynam(
+      depNetwork ~ inertia + global(seasons$winter),
+      sub_model = "choice_coordination",
+      data = dataGlobal
+    ),
+    "interaction"
+  )
+  expect_error(
+    compute_stats(
+      depNetwork ~ inertia + global(seasons$winter),
+      data = dataGlobal,
+      model = "DyNAM", sub_model = "choice"
+    ),
+    "interaction"
+  )
+  prepRate <- compute_stats(
+    depNetwork ~ global(seasons$winter),
+    data = dataGlobal,
+    model = "DyNAM", sub_model = "rate_ordered"
+  )
+  expect_s3_class(prepRate, "preprocessed.goldfish")
+  prepRem <- compute_stats(
+    depNetwork ~ global(seasons$winter),
+    data = dataGlobal,
+    model = "REM", sub_model = "rate_ordered"
+  )
+  expect_s3_class(prepRem, "preprocessed.goldfish")
+})
