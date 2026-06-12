@@ -86,6 +86,24 @@ test_that("dynam rate recipe replay matches the replayed initial stats", {
   )
 })
 
+test_that("dynam rate ordered recipe stores dependent events only", {
+  preproData <- estimate_wrapper(
+    depNetwork ~ outdeg(networkState, weighted = TRUE),
+    model = "DyNAM", sub_model = "rate_ordered",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )
+  expect_null(preproData$stats_change)
+  expect_true(is.matrix(preproData$stat_mat_update))
+  expect_true(all(preproData$is_dependent == 1L))
+  expect_length(dim(preproData$initialStats), 2L)
+  expect_null(preproData$n_dep_events)
+  expect_null(preproData$total_time)
+  expect_null(preproData$avg_active_actors)
+  expect_null(preproData$presence1_update)
+  expect_null(preproData$presence1_update_pointer)
+})
+
 test_that("flat preprocessing reused through preprocessing_init", {
   formulaFull <- depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
     indeg(networkExog, weighted = TRUE)
