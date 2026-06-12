@@ -44,11 +44,20 @@ test_that("inertia/tie weighted preprocessing", {
     initMatrix2,
     label = "initialization of the statistics matrix"
   )
+  expect_null(preproData$stats_change)
+  expect_true(is.matrix(preproData$stat_mat_update))
+  expect_identical(nrow(preproData$stat_mat_update), 4L)
+  expect_length(preproData$stat_mat_pointer, length(preproData$is_dependent))
+  expect_identical(
+    ncol(preproData$stat_mat_update),
+    as.integer(
+      preproData$stat_mat_pointer[length(preproData$stat_mat_pointer)]
+    )
+  )
+  expect_length(dim(preproData$initialStats), 3L)
+  expect_identical(dim(preproData$initialStats), c(5L, 5L, 2L))
   expect_equal(
-    Reduce(
-      rbind,
-      lapply(preproData$stats_change[preproData$is_dependent == 1], "[[", 1)
-    ),
+    ReducePreprocess(preproData, type = "withoutTime")[[1]],
     cbind(
       node1 = c(1, 3, 2, 2, 5, 1, 3, 3, 4, 2, 5),
       node2 = c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2),
@@ -66,11 +75,6 @@ test_that("inertia/tie weighted preprocessing", {
     ),
     label = "updating with increment works"
   ) # n-1 updates
-  expect_equal(
-    preproData$stats_change[preproData$is_dependent == 0],
-    list(),
-    label = "updating with increment works"
-  )
   expect_equal(
     preproData$intervals[preproData$is_dependent == 0],
     numeric(),
@@ -135,10 +139,7 @@ test_that("inertia not weighted preprocessing", {
     label = "initialization of the statistics matrix"
   )
   expect_equal(
-    Reduce(
-      rbind,
-      lapply(preproData$stats_change[preproData$is_dependent == 1], "[[", 1)
-    ),
+    ReducePreprocess(preproData, type = "withoutTime")[[1]],
     cbind(
       node1 = c(3, 5, 1, 4, 5),
       node2 = c(2, 1, 5, 2, 2),
@@ -146,11 +147,7 @@ test_that("inertia not weighted preprocessing", {
     ),
     label = "updating with increment works"
   ) # n-1 updates
-  expect_equal(
-    preproData$stats_change[preproData$is_dependent == 0],
-    list(),
-    label = "updating with increment works"
-  )
+  expect_null(preproData$stats_change)
   expect_equal(
     preproData$intervals[preproData$is_dependent == 0],
     numeric(),
@@ -213,11 +210,7 @@ test_that("inertia windowed and weighted preprocessing", {
     ),
     label = "updating with increment works"
   ) # n-1 updates
-  expect_equal(
-    preproData$stats_change[preproData$is_dependent == 0],
-    list(),
-    label = "updating with increment works"
-  )
+  expect_null(preproData$stats_change)
   expect_equal(
     preproData$intervals[preproData$is_dependent == 0],
     numeric(),
@@ -308,10 +301,7 @@ test_that("inertia/tie startTime endTime preprocessing", {
     label = "initialization of the statistics matrix"
   )
   expect_equal(
-    Reduce(
-      rbind,
-      lapply(preproData$stats_change[preproData$is_dependent == 1], "[[", 1)
-    ),
+    ReducePreprocess(preproData, type = "withoutTime")[[1]],
     cbind(
       node1 = c(2, 5, 1, 3, 3, 4),
       node2 = c(3, 1, 5, 4, 4, 2),
@@ -319,11 +309,7 @@ test_that("inertia/tie startTime endTime preprocessing", {
     ),
     label = "updating with increment works"
   ) # n-1 updates
-  expect_equal(
-    preproData$stats_change[preproData$is_dependent == 0],
-    list(),
-    label = "updating with increment works"
-  )
+  expect_null(preproData$stats_change)
   expect_equal(
     preproData$intervals[preproData$is_dependent == 0],
     numeric(),
@@ -360,10 +346,7 @@ test_that("inertia/tie startTime endTime preprocessing", {
     label = "end Time"
   )
   expect_equal(
-    Reduce(
-      rbind,
-      lapply(preproData$stats_change[preproData$is_dependent == 1], "[[", 1)
-    ),
+    ReducePreprocess(preproData, type = "withoutTime")[[1]],
     cbind(
       node1 = c(2, 5, 1, 3, 3, 4),
       node2 = c(3, 1, 5, 4, 4, 2),
@@ -381,11 +364,7 @@ test_that("inertia/tie startTime endTime preprocessing", {
     ),
     label = "updating with increment works"
   )
-  expect_equal(
-    preproData$stats_change[preproData$is_dependent == 0],
-    list(),
-    label = "updating with increment works"
-  )
+  expect_null(preproData$stats_change)
   expect_equal(
     preproData$intervals[preproData$is_dependent == 0],
     numeric(),
