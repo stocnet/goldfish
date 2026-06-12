@@ -10,7 +10,6 @@ estimate_c_int <- function(
   statsList,
   nodes,
   nodes2,
-  defaultNetworkName,
   modelTypeCall = c(
     "DyNAM-MM",
     "DyNAM-M",
@@ -40,13 +39,11 @@ estimate_c_int <- function(
   cpus = 6,
   verbose = FALSE,
   progress = FALSE,
-  ignoreRepParameter = NULL,
   testing = FALSE,
   get_data_matrix = FALSE,
   impute = FALSE,
   opportunitiesList = NULL,
-  engine = c("default_c", "gather_compute"),
-  prepEnvir = new.env()
+  engine = c("default_c", "gather_compute")
 ) {
   if (!is.null(opportunitiesList)) {
     stop(

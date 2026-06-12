@@ -943,8 +943,6 @@ estimate_wrapper <- function(x,
     )
   }
 
-  EstimateEnvir <- rlang::env_clone(data)
-
   argsEstimation <- list(
     initialParameters = control_estimation$initial_parameters,
     fixedParameters = control_estimation$fixed_parameters,
@@ -958,7 +956,6 @@ estimate_wrapper <- function(x,
     statsList = prep,
     nodes = get(.nodes, envir = data),
     nodes2 = get(.nodes2, envir = data),
-    defaultNetworkName = parsed_formula$default_network_name,
     hasIntercept = has_intercept,
     is_two_mode = is_two_mode,
     modelType = legacy_model_type(model_spec),
@@ -972,9 +969,7 @@ estimate_wrapper <- function(x,
     cpus = 1,
     verbose = verbose,
     progress = progress,
-    ignoreRepParameter = ignore_rep_parameter,
-    opportunitiesList = control_preprocessing$opportunities_list,
-    prepEnvir = EstimateEnvir
+    opportunitiesList = control_preprocessing$opportunities_list
   )
 
   # Call the appropriate estimation engine

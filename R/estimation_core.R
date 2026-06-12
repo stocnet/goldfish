@@ -40,7 +40,6 @@ estimate_int_impl <- function(
   reduceArrayToMatrix,
   nodes,
   nodes2,
-  defaultNetworkName,
   initialParameters = NULL,
   fixedParameters = NULL,
   excludeParameters = NULL,
@@ -63,10 +62,8 @@ estimate_int_impl <- function(
   verbose = FALSE,
   progress = FALSE,
   impute = TRUE,
-  ignoreRepParameter,
   # restrictions of opportunity sets
-  opportunitiesList = NULL,
-  prepEnvir = new.env()
+  opportunitiesList = NULL
 ) {
   ## SET VARIABLES
 
