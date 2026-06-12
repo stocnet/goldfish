@@ -510,3 +510,151 @@ CreateNames <- function(
 
   return(nombres)
 }
+
+
+# Utility function to modify the statistics list
+modifyStatisticsList <- function(
+  statsList,
+  modelType,
+  reduceMatrixToVector = FALSE,
+  reduceArrayToMatrix = FALSE,
+  excludeParameters = NULL,
+  addInterceptEffect = FALSE
+) {
+  # exclude effect statistics
+  if (!is.null(excludeParameters)) {
+    is_rate_stats <- length(dim(statsList$initialStats)) == 2L
+    unknownIndexes <- setdiff(
+      excludeParameters,
+      seq_len(
+        if (is_rate_stats) {
+          ncol(statsList$initialStats)
+        } else {
+          dim(statsList$initialStats)[3]
+        }
+      )
+    )
+    if (length(unknownIndexes) > 0) {
+      stop(
+        "Unknown parameter indexes in 'excludeIndexes': ",
+        paste(unknownIndexes, collapse = " ")
+      )
+    }
+    statsList$initialStats <- if (is_rate_stats) {
+      statsList$initialStats[, -excludeParameters, drop = FALSE]
+    } else {
+      statsList$initialStats[,, -excludeParameters]
+    }
+  }
+
+  if (modelType == "DyNAM-M-Rate") {
+    statsList <- reduceStatisticsList(
+      statsList,
+      addInterceptEffect = addInterceptEffect
+    )
+  }
+
+  if (modelType == "DyNAM-M-Rate-ordered") {
+    statsList <- reduceStatisticsList(statsList, dropRightCensored = FALSE)
+  }
+
+  # reduce for REM (continuous-time)
+  if (modelType == "REM") {
+    statsList <- reduceStatisticsList(
+      statsList,
+      addInterceptEffect = addInterceptEffect
+    )
+  }
+
+  # reduce for dynam-m CHOICE model
+  if (modelType == "DyNAM-M") {
+    # drop the diagonal elements??
+    statsList <- reduceStatisticsList(
+      statsList,
+      reduceArrayToMatrix = TRUE,
+      dropRightCensored = FALSE
+    )
+  }
+
+  # reduce for ORDERED REM
+  if (modelType == "REM-ordered") {
+    statsList <- reduceStatisticsList(statsList, dropRightCensored = FALSE)
+  }
+
+  return(statsList)
+}
+
+reduceStatisticsList <- function(
+  statsList,
+  addInterceptEffect = FALSE,
+  dropRightCensored = FALSE,
+  reduceArrayToMatrix = FALSE,
+  dropZeroTimespans = FALSE
+) {
+  if (dropRightCensored) {
+    is_dep <- statsList$is_dependent == 1L
+    dep_positions <- which(is_dep)
+    new_intervals <- statsList$intervals[is_dep]
+    for (rc_pos in which(!is_dep)) {
+      prev_dep <- max(dep_positions[dep_positions < rc_pos], 0)
+      if (prev_dep > 0) {
+        dep_idx <- which(dep_positions == prev_dep)
+        new_intervals[dep_idx] <- new_intervals[dep_idx] +
+          statsList$intervals[[rc_pos]]
+      }
+    }
+    statsList$stats_change <- statsList$stats_change[is_dep]
+    statsList$intervals <- new_intervals
+    statsList$is_dependent <- rep(1L, sum(is_dep))
+  }
+
+  # This part should be uncommented once we are sure about how to use
+  # these reductions through the whole estimation.
+  # For now we reduce at each step
+
+  # # reduce statistics matrix to a vector
+  # if(reduceMatrixToVector) {
+  #   apply(statsList$initialStats, c(3, 1), function(row) {
+  #     if(min(row, na.rm = TRUE) != max(row, na.rm = TRUE))
+  #       stop("Rate variable varies within event senders.")
+  #   })
+  # generates a matrix from an array
+  #   statsList$initialStats <-
+  #   apply(statsList$initialStats, 3, rowMeans, na.rm = TRUE)
+  # }
+  #
+  # # reduce array to matrices
+  # if(reduceArrayToMatrix) {
+  #   oldDim <- dim(statsList$initialStats)
+  #   statsList$initialStats <-
+  #   matrix(statsList$initialStats[1, , ], oldDim[2], oldDim[3])
+  # }
+
+  # add a rate intercept that is 1 for everyone (dummy for \theta_0)
+  # The format may be a vector or a matrix (see above)
+  if (addInterceptEffect) {
+    dimensions <- dim(statsList$initialStats)
+    # data is in matrix format
+    if (length(dimensions) == 3) {
+      oldValues <- statsList$initialStats
+      newValues <- matrix(1, dimensions[1], dimensions[2])
+      statsList$initialStats <-
+        array(c(newValues, oldValues), dim = dimensions + c(0, 0, 1))
+    }
+    # data is in vector format
+    if (length(dimensions) == 2) {
+      statsList$initialStats <- cbind(1, statsList$initialStats)
+    }
+  }
+
+  if (dropZeroTimespans) {
+    hasZeroTime <- which(
+      statsList$intervals == 0 & statsList$is_dependent == 1L
+    )
+    statsList$stats_change <- statsList$stats_change[-hasZeroTime]
+    statsList$intervals <- statsList$intervals[-hasZeroTime]
+    statsList$is_dependent <- statsList$is_dependent[-hasZeroTime]
+  }
+
+  return(statsList)
+}

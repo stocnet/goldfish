@@ -8,23 +8,24 @@
 # Estimation
 #
 # S3 generic dispatched on the model specification class. The family
-# methods configure the statistic shape knobs once; the shared
-# implementation still receives the legacy modelType string until the
-# per-event helpers dispatch on the spec class (tasks 6.5, 6.10, 6.11).
+# methods configure the statistic shape knobs once and absorb the legacy
+# modelType argument still required by the C++ interface dispatcher.
 estimate_int <- function(spec, ...) {
   UseMethod("estimate_int")
 }
 
-estimate_int.sender_spec <- function(spec, ...) {
+estimate_int.sender_spec <- function(spec, modelType = NULL, ...) {
   estimate_int_impl(
+    spec = spec,
     is_rate_model = TRUE,
     reduceArrayToMatrix = FALSE,
     ...
   )
 }
 
-estimate_int.dyad_spec <- function(spec, ...) {
+estimate_int.dyad_spec <- function(spec, modelType = NULL, ...) {
   estimate_int_impl(
+    spec = spec,
     is_rate_model = FALSE,
     reduceArrayToMatrix = inherits(spec, "dynam_choice_spec") ||
       inherits(spec, "dynami_choice_spec"),
@@ -33,20 +34,13 @@ estimate_int.dyad_spec <- function(spec, ...) {
 }
 
 estimate_int_impl <- function(
+  spec,
   statsList,
   is_rate_model,
   reduceArrayToMatrix,
   nodes,
   nodes2,
   defaultNetworkName,
-  modelType = c(
-    "DyNAM-MM",
-    "DyNAM-M",
-    "REM-ordered",
-    "DyNAM-M-Rate",
-    "REM",
-    "DyNAM-M-Rate-ordered"
-  ),
   initialParameters = NULL,
   fixedParameters = NULL,
   excludeParameters = NULL,
@@ -115,8 +109,6 @@ estimate_int_impl <- function(
     idUnfixedCompnents <- which(is.na(fixedParameters))
     idFixedCompnents <- which(!is.na(fixedParameters))
   }
-
-  modelType <- match.arg(modelType)
 
   ## PARAMETER CHECKS
 
@@ -209,8 +201,7 @@ estimate_int_impl <- function(
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
   if (
-    modelType %in%
-      c("REM", "DyNAM-M-Rate") &&
+    inherits(spec, c("dynam_rate_spec", "dynami_rate_spec", "rem_rate_spec")) &&
       hasIntercept &&
       is.null(initialParameters) &&
       (is.null(fixedParameters) || is.na(fixedParameters[1]))
@@ -225,7 +216,7 @@ estimate_int_impl <- function(
   ## ESTIMATION: INITIALIZATION
 
   if (verbose) {
-    cat("Estimating model type: ", modelType)
+    cat("Estimating model: ", class(spec)[1])
   }
 
   iIteration <- 1
@@ -267,7 +258,7 @@ estimate_int_impl <- function(
       parameters = parameters,
       parallelize = parallelize,
       cpus = cpus,
-      modelType = modelType, # model type case distinction
+      spec = spec,
       returnIntervalLogL = returnIntervalLogL,
       returnEventProbabilities = returnEventProbabilities,
       allowReflexive = allowReflexive,
@@ -287,7 +278,7 @@ estimate_int_impl <- function(
     # add a possibility to return the whole probability matrix: to be make
     if (returnEventProbabilities) {
       eventProbabilities <- if (is.null(res$pMatrix)) {
-        paste("not implemented for model type", modelType)
+        paste("not implemented for model class", class(spec)[1])
       } else {
         res$pMatrix
       }
@@ -537,13 +528,13 @@ getEventValues <- function(
   statsArray,
   activeDyad,
   parameters,
-  modelType,
+  spec,
   isRightCensored,
   timespan,
   allowReflexive,
   is_two_mode
 ) {
-  if (modelType == "DyNAM-MM") {
+  if (inherits(spec, "dynam_choice_coord_spec")) {
     multinomialProbabilities <-
       getMultinomialProbabilities(
         statsArray,
@@ -566,7 +557,7 @@ getEventValues <- function(
     pMatrix <- eventLikelihoods
   }
 
-  if (modelType == "DyNAM-M") {
+  if (inherits(spec, c("dynam_choice_spec", "dynami_choice_spec"))) {
     eventProbabilities <-
       getMultinomialProbabilities(
         statsArray,
@@ -586,7 +577,7 @@ getEventValues <- function(
     pMatrix <- eventProbabilities
   }
 
-  if (modelType == "REM-ordered") {
+  if (inherits(spec, "rem_rate_ordered_spec")) {
     eventProbabilities <-
       getMultinomialProbabilities(
         statsArray,
@@ -605,7 +596,7 @@ getEventValues <- function(
     pMatrix <- eventProbabilities
   }
 
-  if (modelType == "DyNAM-M-Rate-ordered") {
+  if (inherits(spec, c("dynam_rate_ordered_spec", "dynami_rate_ordered_spec"))) {
     # statsMatrix <- reduceArrayToMatrix(statsArray)
     statsMatrix <- statsArray
     activeActor <- activeDyad[1]
@@ -635,10 +626,11 @@ getEventValues <- function(
     pMatrix <- eventProbabilities
   }
 
-  if (modelType %in% c("DyNAM-M-Rate", "REM")) {
+  if (inherits(spec, c("dynam_rate_spec", "dynami_rate_spec", "rem_rate_spec"))) {
+    isREM <- inherits(spec, "rem_rate_spec")
     activeActor <- activeDyad[1]
     dimMatrix <- dim(statsArray)
-    if (modelType == "REM") {
+    if (isREM) {
       activeActor <- activeDyad[1] + (activeDyad[2] - 1) * dimMatrix[1]
       statsArray <- apply(statsArray, 3, c)
     }
@@ -652,7 +644,7 @@ getEventValues <- function(
 
     # Don't consider self-connecting edge when both allowReflexive
     # and  is_two_mode are false
-    dontConsiderSelfConnecting <- (modelType == "REM") &&
+    dontConsiderSelfConnecting <- isREM &&
       !allowReflexive &&
       !is_two_mode
     if (dontConsiderSelfConnecting) {
@@ -679,7 +671,7 @@ getEventValues <- function(
       ) *
         rates
     )
-    if (length(parameters) == 1 && modelType == "DyNAM-M-Rate") {
+    if (length(parameters) == 1 && !isREM) {
       v <- as.vector(statsArray)
       sum <- 0
       for (i in seq_along(v)) {
@@ -699,7 +691,7 @@ getEventValues <- function(
 
     hessian <- -timespan * ratesStatsStatsSum
     pVector <- objectiveFunctions + (-timespan * ratesSum)
-    if (modelType == "REM") {
+    if (isREM) {
       dim(pVector) <- c(dimMatrix[1], dimMatrix[2])
     }
 
@@ -838,7 +830,7 @@ getIterationStepState <- function(
   compChange2,
   hasIntercept,
   parameters,
-  modelType,
+  spec,
   parallelize = FALSE,
   cpus = 4,
   returnIntervalLogL = FALSE,
@@ -894,8 +886,9 @@ getIterationStepState <- function(
 
   # opportunities list initialization
   opportunities <- rep(TRUE, nrow(nodes2))
-  updateopportunities <- !is.null(opportunitiesList) &&
-    !modelType %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
+  updateopportunities <- !is.null(opportunitiesList) && !is_rate
+  correctReflexive <- !allowReflexive &&
+    inherits(spec, c("dynam_choice_spec", "dynami_choice_spec"))
 
   updFun <- function(stat, change, is_rate_stat = FALSE) {
     if (!is.null(change)) {
@@ -1049,7 +1042,7 @@ getIterationStepState <- function(
       # reducing stats array alters the correspondence between row/col
       # it needs to consider the reflexive case to avoid wrong calculation
       # excludes REM and DyNAM-MM
-      if (!allowReflexive && grepl("DyNAM-M(-|$)?", modelType)) {
+      if (correctReflexive) {
         if (!is_two_mode) {
           keepIn[posSender] <- FALSE
         }
@@ -1094,7 +1087,7 @@ getIterationStepState <- function(
       statsArray = statsArrayComp,
       activeDyad = activeDyad,
       parameters = parameters,
-      modelType = modelType,
+      spec = spec,
       isRightCensored = isRightCensored,
       timespan = timespan,
       allowReflexive = allowReflexiveCorrected,
@@ -1333,152 +1326,4 @@ prepare_statslist <- function(
     }
   }
   statsList
-}
-
-
-# Utility function to modify the statistics list
-modifyStatisticsList <- function(
-  statsList,
-  modelType,
-  reduceMatrixToVector = FALSE,
-  reduceArrayToMatrix = FALSE,
-  excludeParameters = NULL,
-  addInterceptEffect = FALSE
-) {
-  # exclude effect statistics
-  if (!is.null(excludeParameters)) {
-    is_rate_stats <- length(dim(statsList$initialStats)) == 2L
-    unknownIndexes <- setdiff(
-      excludeParameters,
-      seq_len(
-        if (is_rate_stats) {
-          ncol(statsList$initialStats)
-        } else {
-          dim(statsList$initialStats)[3]
-        }
-      )
-    )
-    if (length(unknownIndexes) > 0) {
-      stop(
-        "Unknown parameter indexes in 'excludeIndexes': ",
-        paste(unknownIndexes, collapse = " ")
-      )
-    }
-    statsList$initialStats <- if (is_rate_stats) {
-      statsList$initialStats[, -excludeParameters, drop = FALSE]
-    } else {
-      statsList$initialStats[,, -excludeParameters]
-    }
-  }
-
-  if (modelType == "DyNAM-M-Rate") {
-    statsList <- reduceStatisticsList(
-      statsList,
-      addInterceptEffect = addInterceptEffect
-    )
-  }
-
-  if (modelType == "DyNAM-M-Rate-ordered") {
-    statsList <- reduceStatisticsList(statsList, dropRightCensored = FALSE)
-  }
-
-  # reduce for REM (continuous-time)
-  if (modelType == "REM") {
-    statsList <- reduceStatisticsList(
-      statsList,
-      addInterceptEffect = addInterceptEffect
-    )
-  }
-
-  # reduce for dynam-m CHOICE model
-  if (modelType == "DyNAM-M") {
-    # drop the diagonal elements??
-    statsList <- reduceStatisticsList(
-      statsList,
-      reduceArrayToMatrix = TRUE,
-      dropRightCensored = FALSE
-    )
-  }
-
-  # reduce for ORDERED REM
-  if (modelType == "REM-ordered") {
-    statsList <- reduceStatisticsList(statsList, dropRightCensored = FALSE)
-  }
-
-  return(statsList)
-}
-
-reduceStatisticsList <- function(
-  statsList,
-  addInterceptEffect = FALSE,
-  dropRightCensored = FALSE,
-  reduceArrayToMatrix = FALSE,
-  dropZeroTimespans = FALSE
-) {
-  if (dropRightCensored) {
-    is_dep <- statsList$is_dependent == 1L
-    dep_positions <- which(is_dep)
-    new_intervals <- statsList$intervals[is_dep]
-    for (rc_pos in which(!is_dep)) {
-      prev_dep <- max(dep_positions[dep_positions < rc_pos], 0)
-      if (prev_dep > 0) {
-        dep_idx <- which(dep_positions == prev_dep)
-        new_intervals[dep_idx] <- new_intervals[dep_idx] +
-          statsList$intervals[[rc_pos]]
-      }
-    }
-    statsList$stats_change <- statsList$stats_change[is_dep]
-    statsList$intervals <- new_intervals
-    statsList$is_dependent <- rep(1L, sum(is_dep))
-  }
-
-  # This part should be uncommented once we are sure about how to use
-  # these reductions through the whole estimation.
-  # For now we reduce at each step
-
-  # # reduce statistics matrix to a vector
-  # if(reduceMatrixToVector) {
-  #   apply(statsList$initialStats, c(3, 1), function(row) {
-  #     if(min(row, na.rm = TRUE) != max(row, na.rm = TRUE))
-  #       stop("Rate variable varies within event senders.")
-  #   })
-  # generates a matrix from an array
-  #   statsList$initialStats <-
-  #   apply(statsList$initialStats, 3, rowMeans, na.rm = TRUE)
-  # }
-  #
-  # # reduce array to matrices
-  # if(reduceArrayToMatrix) {
-  #   oldDim <- dim(statsList$initialStats)
-  #   statsList$initialStats <-
-  #   matrix(statsList$initialStats[1, , ], oldDim[2], oldDim[3])
-  # }
-
-  # add a rate intercept that is 1 for everyone (dummy for \theta_0)
-  # The format may be a vector or a matrix (see above)
-  if (addInterceptEffect) {
-    dimensions <- dim(statsList$initialStats)
-    # data is in matrix format
-    if (length(dimensions) == 3) {
-      oldValues <- statsList$initialStats
-      newValues <- matrix(1, dimensions[1], dimensions[2])
-      statsList$initialStats <-
-        array(c(newValues, oldValues), dim = dimensions + c(0, 0, 1))
-    }
-    # data is in vector format
-    if (length(dimensions) == 2) {
-      statsList$initialStats <- cbind(1, statsList$initialStats)
-    }
-  }
-
-  if (dropZeroTimespans) {
-    hasZeroTime <- which(
-      statsList$intervals == 0 & statsList$is_dependent == 1L
-    )
-    statsList$stats_change <- statsList$stats_change[-hasZeroTime]
-    statsList$intervals <- statsList$intervals[-hasZeroTime]
-    statsList$is_dependent <- statsList$is_dependent[-hasZeroTime]
-  }
-
-  return(statsList)
 }
