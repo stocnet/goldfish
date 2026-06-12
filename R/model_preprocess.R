@@ -1895,16 +1895,8 @@ preprocess_monolith <- function(
               #   statCache[[id]][["stat"]][position_NA] <- average
               # }
 
-              updatesDependent[[id]] <- ReduceUpdateNonDuplicates(
-                updatesDependent[[id]],
-                updates,
-                rate_mode = is_rate
-              )
-              updatesIntervals[[id]] <- ReduceUpdateNonDuplicates(
-                updatesIntervals[[id]],
-                updates,
-                rate_mode = is_rate
-              )
+              updatesDependent[[id]] <- rbind(updatesDependent[[id]], updates)
+              updatesIntervals[[id]] <- rbind(updatesIntervals[[id]], updates)
             }
           }
         }
@@ -2241,28 +2233,4 @@ imputeMissingData <- function(objectsEffectsLink, envir = new.env()) {
     }
   }
   return(done)
-}
-
-ReduceUpdateNonDuplicates <- function(
-  oldUpdates,
-  newUpdates,
-  rate_mode = FALSE
-) {
-  if (is.null(newUpdates)) {
-    return(oldUpdates)
-  }
-  if (!is.null(oldUpdates)) {
-    if (rate_mode) {
-      idsOld <- oldUpdates[, "node1"]
-      idsNew <- newUpdates[, "node1"]
-    } else {
-      idsOld <- paste(oldUpdates[, "node1"], oldUpdates[, "node2"], sep = "_")
-      idsNew <- paste(newUpdates[, "node1"], newUpdates[, "node2"], sep = "_")
-    }
-    return(rbind(
-      oldUpdates[!idsOld %in% idsNew, , drop = FALSE],
-      newUpdates
-    ))
-  }
-  return(newUpdates)
 }
