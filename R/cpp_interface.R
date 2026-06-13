@@ -674,6 +674,19 @@ estimate_ <- function(
 
 
 ## GATHER FOR DIFFERENT MODELS
+#'
+#' Native R expansion of the flat preprocessing buffer into the gather stack
+#' (one row per event x alternative). This replaces the former C++ routines
+#' `gather_sender_model()`, `gather_receiver_model()`, and
+#' `gather_sender_receiver_model()` (removed in the writer refactor): the
+#' gather stack is now produced once, in R, from `writer_default()`'s flat
+#' output and consumed by both `engine = "gather_compute"` and
+#' `gather_model_data()`. The per-iteration model fitting stays in C++ via
+#' `compute_()`, so the one-time expansion in R does not affect the
+#' estimation hot path. The `verbose` / `impute` arguments are retained for
+#' call-site compatibility; `impute` is always `FALSE` in the current
+#' code paths (the impute machinery was dropped from estimation).
+#' @noRd
 gather_ <- function(
   modelTypeCall,
   event_mat,
@@ -700,65 +713,311 @@ gather_ <- function(
     if (modelTypeCall == "DyNAM-MM") {
       twomode_or_reflexive <- TRUE
     }
-    gathered_data <- gather_sender_receiver_model(
-      event_mat,
-      is_dependent,
-      stat_mat_init,
-      stat_mat_update,
-      stat_mat_update_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
-      n_actors1,
-      n_actors2,
-      twomode_or_reflexive,
-      verbose,
-      impute
+    gathered_data <- gather_sender_receiver_model_r(
+      event_mat, is_dependent, stat_mat_init,
+      stat_mat_update, stat_mat_update_pointer,
+      presence1_init, presence1_update, presence1_update_pointer,
+      presence2_init, presence2_update, presence2_update_pointer,
+      n_actors1, n_actors2, twomode_or_reflexive
     )
-  }
-
-  if (modelTypeCall == "DyNAM-M") {
-    gathered_data <- gather_receiver_model(
-      event_mat,
-      stat_mat_init,
-      stat_mat_update,
-      stat_mat_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
-      n_actors1,
-      n_actors2,
-      twomode_or_reflexive,
-      verbose, # output the progress of data gathering
-      impute
+  } else if (modelTypeCall == "DyNAM-M") {
+    gathered_data <- gather_receiver_model_r(
+      event_mat, stat_mat_init,
+      stat_mat_update, stat_mat_update_pointer,
+      presence2_init, presence2_update, presence2_update_pointer,
+      n_actors1, n_actors2, twomode_or_reflexive
     )
-  }
-
-  if (modelTypeCall %in% c("DyNAM-M-Rate-ordered", "DyNAM-M-Rate")) {
-    gathered_data <- gather_sender_model(
-      event_mat,
-      is_dependent,
-      stat_mat_init,
-      stat_mat_update,
-      stat_mat_update_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
-      n_actors1,
-      n_actors2,
-      twomode_or_reflexive,
-      verbose, # verbose
-      impute
+  } else if (modelTypeCall %in% c("DyNAM-M-Rate-ordered", "DyNAM-M-Rate")) {
+    gathered_data <- gather_sender_model_r(
+      event_mat, is_dependent, stat_mat_init,
+      stat_mat_update, stat_mat_update_pointer,
+      presence1_init, presence1_update, presence1_update_pointer,
+      presence2_init, presence2_update, presence2_update_pointer,
+      n_actors1, n_actors2, twomode_or_reflexive
     )
   }
 
   return(gathered_data)
+}
+
+# Apply the slice of flat stat updates for one event, in place.
+# `upd` is the 4 x k flat buffer (rows node1, node2, effect, replace;
+# all 0-indexed); columns `(from + 1):to` (1-indexed) are applied. Later
+# writes to the same cell win, matching the sequential C++ assignment.
+.gather_apply_stat <- function(stat_mat, upd, from, to, n2) {
+  if (to <= from) {
+    return(stat_mat)
+  }
+  cols <- (from + 1L):to
+  rr <- upd[1, cols] * n2 + upd[2, cols] + 1
+  cc <- upd[3, cols] + 1
+  stat_mat[cbind(rr, cc)] <- upd[4, cols]
+  stat_mat
+}
+
+# Apply the slice of presence (composition-change) updates for one event.
+# `upd` row 1 is the 1-indexed node, row 2 the replacement value.
+.gather_apply_presence <- function(presence, upd, from, to) {
+  if (to <= from) {
+    return(presence)
+  }
+  cols <- (from + 1L):to
+  presence[upd[1, cols]] <- upd[2, cols]
+  presence
+}
+
+# Reduce a n1*n2 x p stacked stat matrix to n1 x p by averaging over the
+# receiver block of each sender (rate models). Mirrors the C++
+# reduce_mat_to_vector(): when receivers are restricted (one-mode, not
+# reflexive) the sender's own diagonal row is dropped and the average is
+# over n2 - 1 receivers.
+.gather_reduce <- function(stat_mat, n1, n2, twomode_or_reflexive) {
+  if (n2 == 1L) {
+    return(stat_mat)
+  }
+  n_parameters <- ncol(stat_mat)
+  reduced <- matrix(0, n1, n_parameters)
+  for (i in seq_len(n1)) {
+    id_start <- (i - 1L) * n2
+    block <- stat_mat[(id_start + 1L):(id_start + n2), , drop = FALSE]
+    temp <- colSums(block)
+    if (!twomode_or_reflexive) {
+      temp <- temp - stat_mat[id_start + i, ]
+      reduced[i, ] <- temp / (n2 - 1L)
+    } else {
+      reduced[i, ] <- temp / n2
+    }
+  }
+  reduced
+}
+
+# Gather data for the sender-receiver models (REM, REM-ordered, DyNAM-MM):
+# all present sender-receiver pairs become rows.
+gather_sender_receiver_model_r <- function(
+  event_mat, is_dependent, stat_mat_init,
+  stat_mat_update, stat_mat_update_pointer,
+  presence1_init, presence1_update, presence1_update_pointer,
+  presence2_init, presence2_update, presence2_update_pointer,
+  n_actors1, n_actors2, twomode_or_reflexive
+) {
+  stat_mat <- stat_mat_init
+  n_events <- length(is_dependent)
+  n_parameters <- ncol(stat_mat)
+  has_cc1 <- length(presence1_update) > 0
+  has_cc2 <- length(presence2_update) > 0
+  presence1 <- presence1_init
+  presence2 <- presence2_init
+  update_id <- 0L
+  p1_id <- 0L
+  p2_id <- 0L
+
+  rows_list <- vector("list", n_events)
+  selected <- numeric(n_events)
+  selected_actor1 <- numeric(n_events)
+  selected_actor2 <- numeric(n_events)
+  n_candidates <- numeric(n_events)
+  n_candidates1 <- numeric(n_events)
+  n_candidates2 <- numeric(n_events)
+
+  for (e in seq_len(n_events)) {
+    ptr <- stat_mat_update_pointer[e]
+    stat_mat <- .gather_apply_stat(
+      stat_mat, stat_mat_update, update_id, ptr, n_actors2
+    )
+    update_id <- ptr
+    if (has_cc1) {
+      ptr1 <- presence1_update_pointer[e]
+      presence1 <- .gather_apply_presence(
+        presence1, presence1_update, p1_id, ptr1
+      )
+      p1_id <- ptr1
+    }
+    if (has_cc2) {
+      ptr2 <- presence2_update_pointer[e]
+      presence2 <- .gather_apply_presence(
+        presence2, presence2_update, p2_id, ptr2
+      )
+      p2_id <- ptr2
+    }
+
+    id_sender <- event_mat[1, e] - 1L
+    id_receiver <- event_mat[2, e] - 1L
+    is_dep <- is_dependent[e]
+
+    present1_ids <- which(presence1 == 1) - 1L
+    present2_ids <- which(presence2 == 1) - 1L
+
+    idx <- integer(0)
+    n_present <- 0L
+    n_p1 <- 0L
+    n_p2_last <- 0L
+    for (i in present1_ids) {
+      not_allowed <- if (!twomode_or_reflexive) i else -1L
+      allowed <- present2_ids[present2_ids != not_allowed]
+      n_all <- length(allowed)
+      idx <- c(idx, i * n_actors2 + allowed + 1L)
+      if (is_dep && i == id_sender) {
+        hit <- which(allowed == id_receiver)
+        if (length(hit) > 0) {
+          selected[e] <- n_present + (hit - 1L)
+          selected_actor1[e] <- n_p1
+          selected_actor2[e] <- hit - 1L
+        }
+      }
+      n_present <- n_present + n_all
+      n_p1 <- n_p1 + 1L
+      n_p2_last <- n_all
+    }
+    rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
+    n_candidates[e] <- n_present
+    n_candidates1[e] <- n_p1
+    n_candidates2[e] <- n_p2_last
+  }
+
+  stat_all_events <- do.call(rbind, rows_list)
+  if (is.null(stat_all_events)) {
+    stat_all_events <- matrix(0, 0, n_parameters)
+  }
+  list(
+    stat_all_events = stat_all_events,
+    n_candidates = n_candidates,
+    n_candidates1 = n_candidates1,
+    n_candidates2 = n_candidates2,
+    selected = selected,
+    selected_actor1 = selected_actor1,
+    selected_actor2 = selected_actor2
+  )
+}
+
+# Gather data for the receiver model (DyNAM-M choice): for each event only the
+# present receivers of the event's sender become rows.
+gather_receiver_model_r <- function(
+  event_mat, stat_mat_init,
+  stat_mat_update, stat_mat_update_pointer,
+  presence2_init, presence2_update, presence2_update_pointer,
+  n_actors1, n_actors2, twomode_or_reflexive
+) {
+  stat_mat <- stat_mat_init
+  n_events <- ncol(event_mat)
+  n_parameters <- ncol(stat_mat)
+  has_cc2 <- length(presence2_update) > 0
+  presence2 <- presence2_init
+  update_id <- 0L
+  p2_id <- 0L
+
+  rows_list <- vector("list", n_events)
+  selected <- numeric(n_events)
+  n_candidates <- numeric(n_events)
+
+  for (e in seq_len(n_events)) {
+    ptr <- stat_mat_update_pointer[e]
+    stat_mat <- .gather_apply_stat(
+      stat_mat, stat_mat_update, update_id, ptr, n_actors2
+    )
+    update_id <- ptr
+    if (has_cc2) {
+      ptr2 <- presence2_update_pointer[e]
+      presence2 <- .gather_apply_presence(
+        presence2, presence2_update, p2_id, ptr2
+      )
+      p2_id <- ptr2
+    }
+
+    id_sender <- event_mat[1, e] - 1L
+    id_receiver <- event_mat[2, e] - 1L
+    not_allowed <- if (!twomode_or_reflexive) id_sender else -1L
+    present2_ids <- which(presence2 == 1) - 1L
+    allowed <- present2_ids[present2_ids != not_allowed]
+    idx <- id_sender * n_actors2 + allowed + 1L
+    rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
+    hit <- which(allowed == id_receiver)
+    if (length(hit) > 0) {
+      selected[e] <- hit - 1L
+    }
+    n_candidates[e] <- length(allowed)
+  }
+
+  stat_all_events <- do.call(rbind, rows_list)
+  if (is.null(stat_all_events)) {
+    stat_all_events <- matrix(0, 0, n_parameters)
+  }
+  list(
+    stat_all_events = stat_all_events,
+    n_candidates = n_candidates,
+    selected = selected
+  )
+}
+
+# Gather data for the sender models (DyNAM-M-Rate, DyNAM-M-Rate-ordered): the
+# stacked stat matrix is reduced per sender, and present senders become rows.
+gather_sender_model_r <- function(
+  event_mat, is_dependent, stat_mat_init,
+  stat_mat_update, stat_mat_update_pointer,
+  presence1_init, presence1_update, presence1_update_pointer,
+  presence2_init, presence2_update, presence2_update_pointer,
+  n_actors1, n_actors2, twomode_or_reflexive
+) {
+  stat_mat <- stat_mat_init
+  n_events <- ncol(event_mat)
+  n_parameters <- ncol(stat_mat)
+  has_cc1 <- length(presence1_update) > 0
+  has_cc2 <- length(presence2_update) > 0
+  presence1 <- presence1_init
+  presence2 <- presence2_init
+  update_id <- 0L
+  p1_id <- 0L
+  p2_id <- 0L
+
+  rows_list <- vector("list", n_events)
+  selected <- numeric(n_events)
+  n_candidates <- numeric(n_events)
+
+  for (e in seq_len(n_events)) {
+    ptr <- stat_mat_update_pointer[e]
+    stat_mat <- .gather_apply_stat(
+      stat_mat, stat_mat_update, update_id, ptr, n_actors2
+    )
+    update_id <- ptr
+    if (has_cc1) {
+      ptr1 <- presence1_update_pointer[e]
+      presence1 <- .gather_apply_presence(
+        presence1, presence1_update, p1_id, ptr1
+      )
+      p1_id <- ptr1
+    }
+    if (has_cc2) {
+      ptr2 <- presence2_update_pointer[e]
+      presence2 <- .gather_apply_presence(
+        presence2, presence2_update, p2_id, ptr2
+      )
+      p2_id <- ptr2
+    }
+
+    reduced <- .gather_reduce(
+      stat_mat, n_actors1, n_actors2, twomode_or_reflexive
+    )
+    id_sender <- event_mat[1, e] - 1L
+    is_dep <- is_dependent[e]
+    present1_ids <- which(presence1 == 1) - 1L
+    rows_list[[e]] <- reduced[present1_ids + 1L, , drop = FALSE]
+    if (is_dep) {
+      hit <- which(present1_ids == id_sender)
+      if (length(hit) > 0) {
+        selected[e] <- hit - 1L
+      }
+    }
+    n_candidates[e] <- length(present1_ids)
+  }
+
+  stat_all_events <- do.call(rbind, rows_list)
+  if (is.null(stat_all_events)) {
+    stat_all_events <- matrix(0, 0, n_parameters)
+  }
+  list(
+    stat_all_events = stat_all_events,
+    n_candidates = n_candidates,
+    selected = selected
+  )
 }
 
 

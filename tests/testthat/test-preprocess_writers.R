@@ -33,7 +33,7 @@ test_that("compute_stats(output = 'gather') matches gather_model_data (REM)", {
   skip_on_cran()
   old <- gather_model_data(
     callsDependent ~ 1 + inertia + recip,
-    model = "REM", sub_model = "choice", data = se_data
+    model = "REM", sub_model = "rate", data = se_data
   )
   new <- compute_stats(
     callsDependent ~ 1 + inertia + recip,
@@ -96,13 +96,13 @@ test_that("compute_stats rejects unknown output values", {
   )
 })
 
-test_that("compute_stats(output = 'db') is not yet implemented", {
+test_that("compute_stats(output = 'db') requires a DBI connection", {
   expect_error(
     compute_stats(
       callsDependent ~ inertia,
       data = se_data, model = "DyNAM", sub_model = "choice",
       output = "db"
     ),
-    "not yet implemented"
+    "DBI connection"
   )
 })
