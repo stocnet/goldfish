@@ -146,6 +146,150 @@ writer_default <- function() {
   )
 }
 
+#' @describeIn preprocess_writers gather-stack writer producing the
+#'   `gather_model_data()`-compatible output (one row per event x alternative).
+#'   It reuses the default writer's per-event accumulation and, in
+#'   `finalize()`, builds the gather stack from the assembled flat buffer.
+#'
+#'   Note (design D15, staged delivery): the gather expansion is currently
+#'   produced by `gather_()` (the existing C++ routine) from the flat buffer
+#'   rather than row-by-row inside `write_event()`. The native in-loop
+#'   expansion that retires `gather_()` lands with the C++ removal task; this
+#'   writer establishes the `output = "gather"` contract and byte-for-byte
+#'   compatibility with `gather_model_data()` first.
+#' @noRd
+writer_gather <- function() {
+  base <- writer_default()
+  structure(
+    list(
+      output = "gather",
+      init = base$init,
+      write_event = base$write_event,
+      finalize = function(tail) {
+        prep <- base$finalize(tail)
+        gather_from_prep(prep, tail$spec)
+      }
+    ),
+    class = c("writer_gather", "preprocess_writer")
+  )
+}
+
+#' Build the gather stack from an assembled flat preprocessing object
+#'
+#' Mirrors the gather-input construction of the `gather_compute` estimation
+#' path (`estimate_c_int`): intercept prepend, presence C-format, flattened
+#' `stat_mat_init`, effect-index shift, and the `gather_()` expansion. The
+#' `twomode_or_reflexive` flag follows `gather_model_data()` (`is_two_mode`),
+#' not the rate-model override used at estimation time, so the output matches
+#' the legacy `gather_model_data()` result. Naming (`namesEffects`,
+#' `effectDescription`) and label resolution are added by the caller, which
+#' holds the parsed formula and node sets.
+#'
+#' @noRd
+gather_from_prep <- function(prep, spec) {
+  modelTypeCall <- legacy_model_type(spec)
+  has_intercept <- modelTypeCall %in% c("DyNAM-M-Rate", "REM")
+  is_rate_model <- modelTypeCall %in%
+    c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
+  is_two_mode <- isTRUE(spec$is_two_mode)
+  # Rate models reduce over a single receiver column; the estimation
+  # gather_compute path forces twomode_or_reflexive = TRUE there (avoiding the
+  # n_actors2 - 1 == 0 reduction that makes the legacy gather_model_data()
+  # error on one-mode rate). Dyad models follow gather_model_data().
+  twomode_or_reflexive <- if (is_rate_model) TRUE else is_two_mode
+
+  statsList <- prepare_statslist(
+    statsList = prep,
+    excludeParameters = NULL,
+    addInterceptEffect = has_intercept
+  )
+
+  presence1_update <- statsList$presence1_update
+  presence1_update_pointer <- statsList$presence1_update_pointer
+  if (is.null(presence1_update)) {
+    presence1_update <- matrix(0, 0, 0)
+    presence1_update_pointer <- numeric(1)
+  }
+  presence2_update <- statsList$presence2_update
+  presence2_update_pointer <- statsList$presence2_update_pointer
+  if (is.null(presence2_update)) {
+    presence2_update <- matrix(0, 0, 0)
+    presence2_update_pointer <- numeric(1)
+  }
+  presence1_init <- statsList$active_mode1_init
+  presence2_init <- statsList$active_mode2_init
+
+  if (is_rate_model) {
+    n_parameters <- ncol(statsList$initialStats)
+    n_actors1 <- nrow(statsList$initialStats)
+    n_actors2 <- 1L
+  } else {
+    n_parameters <- dim(statsList$initialStats)[3]
+    n_actors1 <- dim(statsList$initialStats)[1]
+    n_actors2 <- dim(statsList$initialStats)[2]
+  }
+
+  stat_mat_update <- statsList$stat_mat_update
+  stat_mat_update_pointer <- statsList$stat_mat_pointer
+  if (has_intercept) {
+    stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
+  }
+
+  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM", "DyNAM-MM")) {
+    is_dependent <- as.logical(statsList$is_dependent)
+    timespan <- if (modelTypeCall != "DyNAM-MM") {
+      statsList$intervals
+    } else {
+      numeric(length(is_dependent))
+    }
+  } else {
+    is_dependent <- as.logical(statsList$is_dependent)
+    timespan <- NA
+  }
+
+  event_mat <- rbind(statsList$event_sender, statsList$event_receiver)
+
+  if (is_rate_model) {
+    stat_mat_init <- statsList$initialStats
+  } else {
+    stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
+    for (i in seq_len(n_parameters)) {
+      stat_mat_init[, i] <- t(statsList$initialStats[, , i])
+    }
+  }
+
+  gathered_data <- gather_(
+    modelTypeCall = modelTypeCall,
+    event_mat = event_mat,
+    timespan = timespan,
+    is_dependent = is_dependent,
+    stat_mat_init = stat_mat_init,
+    stat_mat_update = stat_mat_update,
+    stat_mat_update_pointer = stat_mat_update_pointer,
+    presence1_init = presence1_init,
+    presence1_update = presence1_update,
+    presence1_update_pointer = presence1_update_pointer,
+    presence2_init = presence2_init,
+    presence2_update = presence2_update,
+    presence2_update_pointer = presence2_update_pointer,
+    n_actors1 = n_actors1,
+    n_actors2 = n_actors2,
+    twomode_or_reflexive = twomode_or_reflexive,
+    verbose = FALSE,
+    impute = FALSE
+  )
+
+  gathered_data$selected <- gathered_data$selected +
+    if (has_intercept) (1 * is_dependent) else 1
+  gathered_data$has_intercept <- has_intercept
+  attr(gathered_data, "event_sender") <- prep$event_sender
+  attr(gathered_data, "event_receiver") <- prep$event_receiver
+  attr(gathered_data, "is_dependent") <- is_dependent
+  attr(gathered_data, "timespan") <- timespan
+  attr(gathered_data, "model_type_call") <- modelTypeCall
+  gathered_data
+}
+
 #' Assemble the flat-buffer `preprocessed.goldfish` object
 #'
 #' Shared output assembly for the default writer: computes the intercept

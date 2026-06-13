@@ -465,6 +465,48 @@ gather_model_data <- function(
   return(gatheredData)
 }
 
+#' Add labels and effect names to a native gather stack
+#'
+#' Completes the gather output produced by `gather_from_prep()` (via
+#' `writer_gather()`) with the sender/receiver labels, the rate-model
+#' `timespan` / `isDependent` fields, and the `namesEffects` /
+#' `effectDescription` printing metadata, matching the field set and order of
+#' the legacy `gather_model_data()` result. Internal carry attributes are
+#' stripped so the returned list is value-comparable to the legacy output.
+#'
+#' @noRd
+finalize_gather_output <- function(
+  gathered, model, sub_model, has_intercept, nodes, nodes2,
+  objects_effects_link, parsed_formula
+) {
+  event_sender <- attr(gathered, "event_sender")
+  event_receiver <- attr(gathered, "event_receiver")
+  is_dependent <- attr(gathered, "is_dependent")
+  timespan <- attr(gathered, "timespan")
+
+  gathered$sender <- nodes$label[event_sender]
+  if (model == "REM" || (model == "DyNAM" && sub_model != "rate")) {
+    gathered$receiver <- nodes2$label[event_receiver]
+  } else if (model == "DyNAM" && sub_model == "rate" && has_intercept) {
+    gathered$timespan <- timespan
+    gathered$isDependent <- is_dependent
+  }
+
+  effectDescription <- GetDetailPrint(objects_effects_link, parsed_formula)
+  namesEffects <- CreateNames(effectDescription, sep = "_", joiner = "_")
+
+  gathered$namesEffects <- namesEffects
+  colnames(gathered$stat_all_events) <- namesEffects
+  gathered$effectDescription <- effectDescription
+
+  attr(gathered, "event_sender") <- NULL
+  attr(gathered, "event_receiver") <- NULL
+  attr(gathered, "is_dependent") <- NULL
+  attr(gathered, "timespan") <- NULL
+  attr(gathered, "model_type_call") <- NULL
+  gathered
+}
+
 #' Generate names for statistics effects
 #'
 #' Using the names data frame from `goldfish` generate compact names to the

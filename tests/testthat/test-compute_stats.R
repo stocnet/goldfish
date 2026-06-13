@@ -40,14 +40,13 @@ test_that("compute_stats output is usable for estimation", {
 })
 
 test_that("compute_stats validates the output argument", {
-  expect_error(
-    compute_stats(
-      depNetwork ~ inertia,
-      data = dataTest, model = "DyNAM", sub_model = "choice",
-      output = "gather"
-    ),
-    "not yet implemented"
+  gathered <- compute_stats(
+    depNetwork ~ inertia,
+    data = dataTest, model = "DyNAM", sub_model = "choice",
+    output = "gather"
   )
+  expect_true(!is.null(gathered$stat_all_events))
+  expect_true(!is.null(gathered$selected))
   expect_error(
     compute_stats(
       depNetwork ~ inertia,

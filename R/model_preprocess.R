@@ -629,6 +629,7 @@ run_sender_recipe_loop <- function(
   }
 
   writer$finalize(list(
+    spec = spec,
     initialStats = initialStats,
     active_mode1_init = active_mode1_init,
     active_mode1_changes = active_mode1_changes,
@@ -1103,6 +1104,7 @@ run_dyad_recipe_loop <- function(
   }
 
   writer$finalize(list(
+    spec = spec,
     initialStats = initialStats,
     active_mode1_init = active_mode1_init,
     active_mode1_changes = active_mode1_changes,

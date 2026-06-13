@@ -442,12 +442,11 @@ compute_stats <- function(
     sub_model <- if (model == "REM") "rate" else "choice"
   }
   output <- match.arg(output)
-  if (output != "default") {
+  if (output == "db") {
     cli::cli_abort(c(
-      "{.arg output} {.val {output}} is not yet implemented.",
-      "i" = "Only {.val default} is currently available. The statistics
-             writers for {.val gather} and {.val db} outputs are under
-             development."
+      "{.arg output} {.val db} is not yet implemented.",
+      "i" = "Available outputs are {.val default} and {.val gather}. The
+             {.val db} streaming writer is under development."
     ))
   }
   estimate_wrapper(
@@ -455,6 +454,7 @@ compute_stats <- function(
     model = model,
     sub_model = sub_model,
     data = data,
+    output = output,
     preprocessing_only = TRUE,
     ...
   )
@@ -472,9 +472,11 @@ estimate_wrapper <- function(x,
     control_preprocessing = set_preprocessing_opt(),
     preprocessing_init = NULL,
     preprocessing_only = FALSE,
+    output = c("default", "gather", "db"),
     progress = getOption("progress", default = FALSE),
     verbose = getOption("verbose", default = FALSE)
   ) {
+  output <- match.arg(output)
 
   # Steps:
   # 1. Parse the formula
@@ -903,8 +905,19 @@ estimate_wrapper <- function(x,
       opportunitiesList = control_preprocessing$opportunities_list,
       progress = progress,
       groupsNetwork = parsed_formula$default_network_name,
-      prepEnvir = work_env
+      prepEnvir = work_env,
+      writer = switch(output,
+        default = writer_default(),
+        gather = writer_gather()
+      )
     )
+    if (output == "gather") {
+      return(finalize_gather_output(
+        prep, model, sub_model, has_intercept,
+        get(.nodes, envir = data), get(.nodes2, envir = data),
+        objects_effects_link, parsed_formula
+      ))
+    }
     # The formula, nodes, nodes2 are added to the preprocessed object so that
     # we can call the estimation with preprocessingInit later
     # (for parsing AND composition changes)
