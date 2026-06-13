@@ -1,3 +1,24 @@
+# goldfish 1.7.6
+
+* Internal: estimation is now self-contained and dispatches on the model
+  specification class. `estimate_int()`, the per-event contribution
+  (`compute_event_contribution()`, formerly `getEventValues()`), and the
+  per-event update (`compute_step()`) are S3 generics resolved once at the
+  start of estimation; no model-type string comparison or S3 dispatch runs
+  inside the event loop. The Newton-Raphson outer loop is shared through
+  `run_nr_loop()` with the `score_tol` / `step_tol` stopping criteria
+  unchanged.
+* Internal: the R and C++ estimation engines consume the combined flat
+  update buffer directly. The estimation routines no longer reach back into
+  the preprocessing environment (`prepEnvir` / `get()`), re-derive actor
+  counts, or apply the dead per-event mean imputation; statistics are
+  asserted NA-free at estimation entry. The C++ routines take the combined
+  buffer with `is_dependent` instead of separate right-censored matrices.
+* Internal: the `ignore_repetitions` masking, `modifyStatisticsList()` /
+  `reduceStatisticsList()` hot-path calls, and the dual-read shim for the
+  old `stats_change` format are removed; a thin `prepare_statslist()`
+  handles the intercept prepend and `excludeParameters` dropping.
+
 # goldfish 1.7.5
 
 * Internal: preprocessing now runs through dedicated recipe methods for
