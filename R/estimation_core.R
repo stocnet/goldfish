@@ -216,6 +216,140 @@ estimate_int_impl <- function(
     cat("Estimating model: ", class(spec)[1])
   }
 
+  nr <- run_nr_loop(
+    spec = spec,
+    parameters = parameters,
+    initialParameters = initialParameters,
+    nParams = nParams,
+    idUnfixedCompnents = idUnfixedCompnents,
+    idFixedCompnents = idFixedCompnents,
+    likelihoodOnly = likelihoodOnly,
+    minDampingFactor = minDampingFactor,
+    maxIterations = maxIterations,
+    dampingIncreaseFactor = dampingIncreaseFactor,
+    dampingDecreaseFactor = dampingDecreaseFactor,
+    score_tol = score_tol,
+    step_tol = step_tol,
+    returnIntervalLogL = returnIntervalLogL,
+    returnEventProbabilities = returnEventProbabilities,
+    verbose = verbose,
+    progress = progress,
+    step_args = list(
+      statsList = statsList,
+      nodes = nodes,
+      nodes2 = nodes2,
+      updatepresence = hasCompChange1,
+      presence = presence,
+      compChange1 = compChange1,
+      updatepresence2 = hasCompChange2,
+      presence2 = presence2,
+      compChange2 = compChange2,
+      hasIntercept = hasIntercept,
+      spec = spec,
+      parallelize = parallelize,
+      cpus = cpus,
+      returnIntervalLogL = returnIntervalLogL,
+      returnEventProbabilities = returnEventProbabilities,
+      allowReflexive = allowReflexive,
+      is_two_mode = is_two_mode,
+      reduceArrayToMatrix = reduceArrayToMatrix,
+      impute = impute,
+      verbose = verbose,
+      opportunitiesList = opportunitiesList
+    )
+  )
+
+  parameters <- nr$parameters
+  logLikelihood <- nr$logLikelihood
+  score <- nr$score
+  informationMatrix <- nr$informationMatrix
+  inverseInformationUnfixed <- nr$inverseInformationUnfixed
+  isConverged <- nr$isConverged
+  returnCode <- nr$returnCode
+  update <- nr$update
+  iIteration <- nr$nIterations
+  if (returnIntervalLogL) {
+    intervalLogL <- nr$intervalLogL
+  }
+  if (returnEventProbabilities) {
+    eventProbabilities <- nr$eventProbabilities
+  }
+
+  ## ESTIMATION: END
+
+  # if (parallelize && require("snowfall", quietly = TRUE)) {
+  #   snowfall::sfStop()
+  # }
+
+  # calculate standard errors
+  # the variance for the fixed compenents should be 0
+  stdErrors <- rep(0, nParams)
+  stdErrors[idUnfixedCompnents] <- sqrt(diag(inverseInformationUnfixed))
+
+  # define, type and return result
+  estimationResult <- list(
+    parameters = parameters,
+    standardErrors = stdErrors,
+    logLikelihood = logLikelihood,
+    finalScore = score,
+    finalInformationMatrix = informationMatrix,
+    convergence = list(
+      isConverged = isConverged,
+      returnCode = returnCode,
+      maxAbsScore = max(abs(score)),
+      maxAbsUpdate = max(abs(update))
+    ),
+    nIterations = iIteration,
+    nEvents = nEvents
+  )
+  if (returnIntervalLogL) {
+    estimationResult$intervalLogL <- intervalLogL
+  }
+  if (returnEventProbabilities) {
+    estimationResult$eventProbabilities <- eventProbabilities
+  }
+  attr(estimationResult, "class") <- "result.goldfish"
+  estimationResult
+}
+
+#' Newton-Raphson outer loop
+#'
+#' Shared estimation kernel extracted from `estimate_int_impl()` (design
+#' D11). Iterates `compute_iteration_step()` to accumulate the
+#' log-likelihood, score, and information matrix, applies damped Newton
+#' updates, and stops on the dual `score_tol` / `step_tol` criteria with the
+#' documented return codes (1 = gradient close to zero, 2 = step size close
+#' to zero). The convergence logic is unchanged from the in-lined version;
+#' algorithm variants (e.g. the future incremental REM engine) reuse it by
+#' overriding `compute_step()`.
+#'
+#' @param step_args list of arguments forwarded to `compute_iteration_step()`
+#'   each iteration (everything except `parameters`).
+#' @return a list with the converged `parameters`, `logLikelihood`, `score`,
+#'   `informationMatrix`, `inverseInformationUnfixed`, `isConverged`,
+#'   `returnCode`, `update`, `nIterations`, and optional `intervalLogL` /
+#'   `eventProbabilities`.
+#' @noRd
+run_nr_loop <- function(
+  spec,
+  parameters,
+  initialParameters,
+  nParams,
+  idUnfixedCompnents,
+  idFixedCompnents,
+  likelihoodOnly,
+  minDampingFactor,
+  maxIterations,
+  dampingIncreaseFactor,
+  dampingDecreaseFactor,
+  score_tol,
+  step_tol,
+  returnIntervalLogL,
+  returnEventProbabilities,
+  verbose,
+  progress,
+  step_args
+) {
   iIteration <- 1
   informationMatrix <- matrix(0, nParams, nParams)
   score <- rep(0, nParams)
@@ -228,6 +362,8 @@ estimate_int_impl <- function(
   parameters.old <- initialParameters
   score.old <- NULL
   informationMatrix.old <- NULL
+  intervalLogL <- NULL
+  eventProbabilities <- NULL
 
   # if (parallelize && require("snowfall", quietly = TRUE)) {
   #   snowfall::sfStop()
@@ -242,29 +378,9 @@ estimate_int_impl <- function(
   while (TRUE) {
     # MARION to be make: update this function for the new stat list
     # calculate logL, score and information; pass parallel computing parameters
-    res <- getIterationStepState(
-      statsList = statsList,
-      nodes = nodes,
-      nodes2 = nodes2,
-      updatepresence = hasCompChange1,
-      presence = presence,
-      compChange1 = compChange1,
-      updatepresence2 = hasCompChange2,
-      presence2 = presence2,
-      compChange2 = compChange2,
-      hasIntercept = hasIntercept,
-      parameters = parameters,
-      parallelize = parallelize,
-      cpus = cpus,
-      spec = spec,
-      returnIntervalLogL = returnIntervalLogL,
-      returnEventProbabilities = returnEventProbabilities,
-      allowReflexive = allowReflexive,
-      is_two_mode = is_two_mode,
-      reduceArrayToMatrix = reduceArrayToMatrix,
-      impute = impute,
-      verbose = verbose,
-      opportunitiesList = opportunitiesList
+    res <- do.call(
+      compute_iteration_step,
+      c(step_args, list(parameters = parameters))
     )
 
     logLikelihood <- res[[1]]
@@ -433,41 +549,19 @@ estimate_int_impl <- function(
     iIteration <- iIteration + 1
   } # end of while
 
-  ## ESTIMATION: END
-
-  # if (parallelize && require("snowfall", quietly = TRUE)) {
-  #   snowfall::sfStop()
-  # }
-
-  # calculate standard errors
-  # the variance for the fixed compenents should be 0
-  stdErrors <- rep(0, nParams)
-  stdErrors[idUnfixedCompnents] <- sqrt(diag(inverseInformationUnfixed))
-
-  # define, type and return result
-  estimationResult <- list(
+  list(
     parameters = parameters,
-    standardErrors = stdErrors,
     logLikelihood = logLikelihood,
-    finalScore = score,
-    finalInformationMatrix = informationMatrix,
-    convergence = list(
-      isConverged = isConverged,
-      returnCode = returnCode,
-      maxAbsScore = max(abs(score)),
-      maxAbsUpdate = max(abs(update))
-    ),
+    score = score,
+    informationMatrix = informationMatrix,
+    inverseInformationUnfixed = inverseInformationUnfixed,
+    isConverged = isConverged,
+    returnCode = returnCode,
+    update = update,
     nIterations = iIteration,
-    nEvents = nEvents
+    intervalLogL = intervalLogL,
+    eventProbabilities = eventProbabilities
   )
-  if (returnIntervalLogL) {
-    estimationResult$intervalLogL <- intervalLogL
-  }
-  if (returnEventProbabilities) {
-    estimationResult$eventProbabilities <- eventProbabilities
-  }
-  attr(estimationResult, "class") <- "result.goldfish"
-  estimationResult
 }
 
 #' Check Newton-Raphson stopping criteria
@@ -905,10 +999,231 @@ getInformationMatrixREM <- function(eventProbabilities, firstDerivatives) {
 }
 
 
+# Resolve the concrete compute_step() method for a spec once, walking its
+# class vector. Returns a plain function called inside the event loop without
+# further dispatch (design D19).
+bind_compute_step <- function(spec) {
+  for (cls in class(spec)) {
+    fn <- get0(paste0("compute_step.", cls))
+    if (is.function(fn)) {
+      return(fn)
+    }
+  }
+  compute_step.default
+}
+
+# Per-event update of the running estimation state.
+#
+# S3 generic dispatched on the model spec. The default method implements the
+# full-recompute pattern (design D11): apply the flat update slice to the
+# running statsArray via apply_flat_update(), filter the active presence /
+# opportunity set, zero the reflexive diagonal where applicable, call the
+# bound compute_event_contribution(), and accumulate logL / score /
+# information into `state`. Algorithm variants (e.g. the future incremental
+# REM engine) override this method. `ctx` carries the loop-invariant context
+# and `state` the mutable running quantities; the updated `state` is
+# returned.
+compute_step <- function(spec, state, i, ctx) {
+  UseMethod("compute_step")
+}
+
+compute_step.default <- function(spec, state, i, ctx) {
+  statsList <- ctx$statsList
+  is_rate <- ctx$is_rate
+  hasIntercept <- ctx$hasIntercept
+
+  isDependent <- statsList$is_dependent[[i]] == 1L
+  flatEnd <- statsList$stat_mat_pointer[i]
+  if (flatEnd > state$flatPointer) {
+    updatesSlice <- statsList$stat_mat_update[
+      , (state$flatPointer + 1L):flatEnd,
+      drop = FALSE
+    ]
+    if (hasIntercept) updatesSlice[3, ] <- updatesSlice[3, ] + 1L
+    state$statsArray <- apply_flat_update(
+      state$statsArray, updatesSlice,
+      is_sender = is_rate
+    )
+  }
+  state$flatPointer <- flatEnd
+
+  if (hasIntercept) {
+    state$time <- state$time + statsList$intervals[[i]]
+    timespan <- statsList$intervals[[i]]
+  }
+  if (isDependent) {
+    activeDyad <- c(
+      statsList$event_sender[[i]],
+      statsList$event_receiver[[i]]
+    )
+  } else {
+    activeDyad <- NULL
+  }
+
+  # IMPUTE missing statistics with current mean
+  if (ctx$impute && anyNA(state$statsArray)) {
+    imputeFun <- function(m) {
+      m[is.na(m)] <- mean(m, na.rm = TRUE)
+      m
+    }
+    if (is_rate) {
+      for (j in which(apply(state$statsArray, 2, anyNA))) {
+        state$statsArray[, j] <- imputeFun(state$statsArray[, j])
+      }
+    } else {
+      for (j in which(apply(state$statsArray, 3, anyNA))) {
+        state$statsArray[,, j] <- imputeFun(state$statsArray[,, j])
+      }
+    }
+  }
+
+  statsArrayComp <- state$statsArray
+
+  # update opportunity set
+  if (ctx$updateopportunities) {
+    state$opportunities <- seq_len(nrow(ctx$nodes2)) %in%
+      ctx$opportunitiesList[[i]]
+  }
+
+  # update composition
+  # CHANGED SIWEI: fixed errors for composition change update
+  # CHANGED MARION: fixed wrong initialization of compositions,
+  #   removed next lines
+
+  current_time <- statsList$event_time[[i]]
+  if (ctx$updatepresence) {
+    update <-
+      ctx$compChange1[
+        ctx$compChange1$time <= current_time &
+          ctx$compChange1$time > state$oldTime,
+      ]
+    state$presence[update$node] <- update$replace
+  }
+
+  if (ctx$updatepresence2) {
+    update2 <-
+      ctx$compChange2[
+        ctx$compChange2$time <= current_time &
+          ctx$compChange2$time > state$oldTime,
+      ]
+    state$presence2[update2$node] <- update2$replace
+  }
+  state$oldTime <- current_time
+
+  # patch to avoid collision with dropping absent people
+  if (!ctx$is_two_mode && !is_rate) {
+    for (parmPos in seq_len(dim(statsArrayComp)[3])) {
+      diag(statsArrayComp[,, parmPos]) <- 0
+    }
+  }
+
+  # remove potential absent lines and columns from the stats array
+  if (ctx$updatepresence) {
+    # || (updateopportunities && !is_two_mode)
+    keepIn <- state$presence
+    # if (updateopportunities && !is_two_mode)
+    #   keepIn <- presence & opportunities
+    statsArrayComp <- if (is_rate) {
+      statsArrayComp[keepIn, , drop = FALSE]
+    } else {
+      statsArrayComp[keepIn, , , drop = FALSE]
+    }
+    if (isDependent) {
+      position <- which(activeDyad[1] == which(keepIn))
+      if (length(position) == 0) {
+        stop(
+          "Active node ",
+          activeDyad[1],
+          " not present in event ",
+          i,
+          call. = FALSE
+        )
+      }
+
+      posSender <- activeDyad[1]
+      activeDyad[1] <- position
+    }
+  } else {
+    posSender <- activeDyad[1]
+  }
+  if ((ctx$updatepresence2 || ctx$updateopportunities)) {
+    keepIn <- state$presence2 & state$opportunities
+    # reducing stats array alters the correspondence between row/col
+    # it needs to consider the reflexive case to avoid wrong calculation
+    # excludes REM and DyNAM-MM
+    if (ctx$correctReflexive) {
+      if (!ctx$is_two_mode) {
+        keepIn[posSender] <- FALSE
+      }
+      allowReflexiveCorrected <- TRUE
+    } else {
+      allowReflexiveCorrected <- FALSE
+    }
+    statsArrayComp <- statsArrayComp[, keepIn, , drop = FALSE]
+    if (isDependent) {
+      position <- which(activeDyad[2] == which(keepIn))
+      if (length(position) == 0) {
+        stop(
+          "Active node ",
+          activeDyad[2],
+          " not available in event ",
+          i,
+          call. = FALSE
+        )
+      }
+
+      activeDyad[2] <- position
+    }
+  } else {
+    allowReflexiveCorrected <- ctx$allowReflexive
+  }
+
+  # reduce array to matrices
+  if (ctx$reduceArrayToMatrix) {
+    oldDim <- dim(statsArrayComp)
+    statsArrayComp <- matrix(
+      statsArrayComp[activeDyad[1], , ],
+      oldDim[2],
+      oldDim[3]
+    )
+  }
+  # compute loglikelihood, score, information matrix and
+  # pmatrix for the current event
+  # CHANGED SIWEI: add three arguments
+  #  (isRightCensored, timespan and allowReflexive) to eventValues function
+  isRightCensored <- !isDependent
+  eventValues <- ctx$contribution_fn(
+    spec = spec,
+    statsArray = statsArrayComp,
+    activeDyad = activeDyad,
+    parameters = ctx$parameters,
+    isRightCensored = isRightCensored,
+    timespan = timespan,
+    allowReflexive = allowReflexiveCorrected,
+    is_two_mode = ctx$is_two_mode
+  )
+
+  if (ctx$returnIntervalLogL) {
+    state$eventLogL[i] <- eventValues$logLikelihood
+  }
+  if (ctx$returnEventProbabilities) {
+    state$EventProbabilities[[i]] <- eventValues$pMatrix
+  }
+
+  state$logLikelihood <- state$logLikelihood + eventValues$logLikelihood
+  state$score <- state$score + eventValues$score
+  state$informationMatrix <- state$informationMatrix +
+    eventValues$informationMatrix
+
+  state
+}
+
 # Function to return log likelihood, score and information matrix
 # for all events, given a set of parameters
-# for the MM, M, REM, and M-Rate function, and REM-ordered
-getIterationStepState <- function(
+# for the MM, M, REM, and M-Rate function, and REM-ordered.
+# Builds the loop-invariant context and the mutable running state once,
+# resolves the compute_step() method once (design D19), and iterates events.
+compute_iteration_step <- function(
   statsList,
   nodes,
   nodes2,
@@ -940,17 +1255,9 @@ getIterationStepState <- function(
     dim(statsList$initialStats)[3]
   }
 
-  # iterate over all events
-  informationMatrix <- matrix(0, nParams, nParams) # n_effects * n_effects
-  score <- rep(0, nParams)
-  logLikelihood <- 0
-
-  if (returnEventProbabilities) {
-    EventProbabilities <- vector(mode = "list", length = nEvents)
-  }
-  if (returnIntervalLogL) {
-    eventLogL <- numeric(nEvents)
-  }
+  updateopportunities <- !is.null(opportunitiesList) && !is_rate
+  correctReflexive <- !allowReflexive &&
+    inherits(spec, c("dynam_choice_spec", "dynami_choice_spec"))
 
   # check for parallelization
   # if (parallelize && require("snowfall", quietly = TRUE)) {
@@ -959,280 +1266,67 @@ getIterationStepState <- function(
   #   snowfall::sfExport("compute_event_contribution", namespace = "goldfish")
   # }
 
-  # initialize progressbar output
-  # showProgressBar <- FALSE
-  # progressEndReached <- FALSE
-  # if(!silent) {
-  #  showProgressBar <- T
-  #  dotEvents <- seq(1, nEvents, round(nEvents/min(nEvents, 50)))
-  # }
+  # resolve the per-event step + contribution methods once (design D19)
+  step_fn <- bind_compute_step(spec)
+  contribution_fn <- bind_event_contribution(spec)
+
+  ctx <- list(
+    statsList = statsList,
+    nodes2 = nodes2,
+    is_rate = is_rate,
+    hasIntercept = hasIntercept,
+    parameters = parameters,
+    allowReflexive = allowReflexive,
+    is_two_mode = is_two_mode,
+    reduceArrayToMatrix = reduceArrayToMatrix,
+    correctReflexive = correctReflexive,
+    updatepresence = updatepresence,
+    updatepresence2 = updatepresence2,
+    updateopportunities = updateopportunities,
+    compChange1 = compChange1,
+    compChange2 = compChange2,
+    opportunitiesList = opportunitiesList,
+    impute = impute,
+    returnIntervalLogL = returnIntervalLogL,
+    returnEventProbabilities = returnEventProbabilities,
+    contribution_fn = contribution_fn
+  )
 
   # CHANGED Marion: fill in the loop! stats array needs to be computed
   # also changes for dependent and rc events!
-  statsArray <- statsList$initialStats
-  time <- statsList$startTime
-  useFlatUpdates <- !is.null(statsList$stat_mat_update)
-  flatPointer <- 0L
-
-  # resolve the per-event contribution method once (design D19)
-  contribution_fn <- bind_event_contribution(spec)
-
-  # opportunities list initialization
-  opportunities <- rep(TRUE, nrow(nodes2))
-  updateopportunities <- !is.null(opportunitiesList) && !is_rate
-  correctReflexive <- !allowReflexive &&
-    inherits(spec, c("dynam_choice_spec", "dynami_choice_spec"))
-
-  updFun <- function(stat, change, is_rate_stat = FALSE) {
-    if (!is.null(change)) {
-      if (is_rate_stat) {
-        stat[change[, "node1"]] <- change[, "replace"]
-      } else {
-        stat[cbind(change[, "node1"], change[, "node2"])] <- change[, "replace"]
-      }
+  state <- list(
+    statsArray = statsList$initialStats,
+    time = statsList$startTime,
+    flatPointer = 0L,
+    oldTime = -Inf,
+    presence = presence,
+    presence2 = presence2,
+    opportunities = rep(TRUE, nrow(nodes2)),
+    logLikelihood = 0,
+    score = rep(0, nParams),
+    informationMatrix = matrix(0, nParams, nParams),
+    eventLogL = if (returnIntervalLogL) numeric(nEvents) else NULL,
+    EventProbabilities = if (returnEventProbabilities) {
+      vector(mode = "list", length = nEvents)
+    } else {
+      NULL
     }
-    return(stat)
-  }
-
-  # IMPUTE missing statistics with current mean
-  imputeFun <- function(m) {
-    m[is.na(m)] <- mean(m, na.rm = TRUE)
-    m
-  }
-  oldTime <- -Inf
+  )
 
   for (i in seq_len(nEvents)) {
-    isDependent <- statsList$is_dependent[[i]] == 1L
-    if (useFlatUpdates) {
-      flatEnd <- statsList$stat_mat_pointer[i]
-      if (flatEnd > flatPointer) {
-        updatesSlice <- statsList$stat_mat_update[
-          , (flatPointer + 1L):flatEnd,
-          drop = FALSE
-        ]
-        if (hasIntercept) updatesSlice[3, ] <- updatesSlice[3, ] + 1L
-        statsArray <- apply_flat_update(
-          statsArray, updatesSlice,
-          is_sender = is_rate
-        )
-      }
-      flatPointer <- flatEnd
-    } else {
-      pars2update <- !vapply(statsList$stats_change[[i]], is.null, logical(1))
-      for (j in which(pars2update)) {
-        if (is_rate) {
-          statsArray[, j + hasIntercept] <-
-            updFun(
-              statsArray[, j + hasIntercept],
-              statsList$stats_change[[i]][[j]],
-              is_rate_stat = TRUE
-            )
-        } else {
-          statsArray[,, j + hasIntercept] <-
-            updFun(
-              statsArray[,, j + hasIntercept],
-              statsList$stats_change[[i]][[j]]
-            )
-        }
-      }
-    }
-    if (hasIntercept) {
-      time <- time + statsList$intervals[[i]]
-      timespan <- statsList$intervals[[i]]
-    }
-    if (isDependent) {
-      activeDyad <- c(
-        statsList$event_sender[[i]],
-        statsList$event_receiver[[i]]
-      )
-    } else {
-      activeDyad <- NULL
-    }
-
-    # IMPUTE missing statistics with current mean
-    if (impute && anyNA(statsArray)) {
-      if (is_rate) {
-        for (j in which(apply(statsArray, 2, anyNA))) {
-          statsArray[, j] <- imputeFun(statsArray[, j])
-        }
-      } else {
-        for (j in which(apply(statsArray, 3, anyNA))) {
-          statsArray[,, j] <- imputeFun(statsArray[,, j])
-        }
-      }
-    }
-
-    statsArrayComp <- statsArray
-
-    # update opportunity set
-    if (updateopportunities) {
-      opportunities <- seq_len(nrow(nodes2)) %in% opportunitiesList[[i]]
-    }
-
-    # update composition
-    # CHANGED SIWEI: fixed errors for composition change update
-    # CHANGED MARION: fixed wrong initialization of compositions,
-    #   removed next lines
-
-    current_time <- statsList$event_time[[i]]
-    if (updatepresence) {
-      update <-
-        compChange1[
-          compChange1$time <= current_time &
-            compChange1$time > oldTime,
-        ]
-      presence[update$node] <- update$replace
-    }
-
-    if (updatepresence2) {
-      update2 <-
-        compChange2[
-          compChange2$time <= current_time &
-            compChange2$time > oldTime,
-        ]
-      presence2[update2$node] <- update2$replace
-    }
-    oldTime <- current_time
-
-    # patch to avoid collision with dropping absent people
-    if (!is_two_mode && !is_rate) {
-      for (parmPos in seq_len(dim(statsArrayComp)[3])) {
-        diag(statsArrayComp[,, parmPos]) <- 0
-      }
-    }
-
-    # remove potential absent lines and columns from the stats array
-    if (updatepresence) {
-      # || (updateopportunities && !is_two_mode)
-      keepIn <- presence
-      # if (updateopportunities && !is_two_mode)
-      #   keepIn <- presence & opportunities
-      statsArrayComp <- if (is_rate) {
-        statsArrayComp[keepIn, , drop = FALSE]
-      } else {
-        statsArrayComp[keepIn, , , drop = FALSE]
-      }
-      if (isDependent) {
-        position <- which(activeDyad[1] == which(keepIn))
-        if (length(position) == 0) {
-          stop(
-            "Active node ",
-            activeDyad[1],
-            " not present in event ",
-            i,
-            call. = FALSE
-          )
-        }
-
-        posSender <- activeDyad[1]
-        activeDyad[1] <- position
-      }
-    } else {
-      posSender <- activeDyad[1]
-    }
-    if ((updatepresence2 || updateopportunities)) {
-      keepIn <- presence2 & opportunities
-      # reducing stats array alters the correspondence between row/col
-      # it needs to consider the reflexive case to avoid wrong calculation
-      # excludes REM and DyNAM-MM
-      if (correctReflexive) {
-        if (!is_two_mode) {
-          keepIn[posSender] <- FALSE
-        }
-        allowReflexiveCorrected <- TRUE
-      } else {
-        allowReflexiveCorrected <- FALSE
-      }
-      statsArrayComp <- statsArrayComp[, keepIn, , drop = FALSE]
-      if (isDependent) {
-        position <- which(activeDyad[2] == which(keepIn))
-        if (length(position) == 0) {
-          stop(
-            "Active node ",
-            activeDyad[2],
-            " not available in event ",
-            i,
-            call. = FALSE
-          )
-        }
-
-        activeDyad[2] <- position
-      }
-    } else {
-      allowReflexiveCorrected <- allowReflexive
-    }
-
-    # reduce array to matrices
-    if (reduceArrayToMatrix) {
-      oldDim <- dim(statsArrayComp)
-      statsArrayComp <- matrix(
-        statsArrayComp[activeDyad[1], , ],
-        oldDim[2],
-        oldDim[3]
-      )
-    }
-    # compute loglikelihood, score, information matrix and
-    # pmatrix for the current event
-    # CHANGED SIWEI: add three arguments
-    #  (isRightCensored, timespan and allowReflexive) to eventValues function
-    isRightCensored <- !isDependent
-    eventValues <- contribution_fn(
-      spec = spec,
-      statsArray = statsArrayComp,
-      activeDyad = activeDyad,
-      parameters = parameters,
-      isRightCensored = isRightCensored,
-      timespan = timespan,
-      allowReflexive = allowReflexiveCorrected,
-      is_two_mode = is_two_mode
-    )
-
-    # update return list
-    if (returnIntervalLogL) {
-      eventLogL[i] <- eventValues$logLikelihood
-    }
-    if (returnEventProbabilities) {
-      EventProbabilities[[i]] <- eventValues$pMatrix
-    }
-
-    logLikelihood <- logLikelihood + eventValues$logLikelihood
-    score <- score + eventValues$score
-    informationMatrix <- informationMatrix + eventValues$informationMatrix
-
-    # update progress bar
-    # if (showProgressBar && !progressEndReached) {
-    #   if (i %in% dotEvents) {
-    #     pos <- which(i == dotEvents)
-    #     n <- length(dotEvents)
-    #     cat("\r[", rep(".", pos), rep(" ", n - pos), "]", sep = "")
-    #   }
-    #   if (i == nEvents) {
-    #     cat("\n")
-    #     progressEndReached <- T
-    #   }
-    # }
+    state <- step_fn(spec, state, i, ctx)
   }
 
   returnList <- list(
-    logLikelihood = logLikelihood,
-    score = score,
-    informationMatrix = informationMatrix
+    logLikelihood = state$logLikelihood,
+    score = state$score,
+    informationMatrix = state$informationMatrix
   )
-
-  # if (parallelize && require("snowfall", quietly = TRUE)) {
-  #   snowfall::sfStop()
-  # }
-
-  # if(returnIntervalLogL)
-  #   returnList$eventLogL <- sapply(
-  #     eventValues, function(v) v$logLikelihood, simplify = TRUE)
   if (returnIntervalLogL) {
-    returnList$eventLogL <- eventLogL
+    returnList$eventLogL <- state$eventLogL
   }
-  # if(returnEventProbabilities)
-  #   returnList$pMatrix <- lapply(eventValues, getElement, "pMatrix")
   if (returnEventProbabilities) {
-    returnList$pMatrix <- EventProbabilities
+    returnList$pMatrix <- state$EventProbabilities
   }
 
   return(returnList)
