@@ -1,3 +1,25 @@
+# goldfish 1.7.7
+
+* Preprocessing recipes now emit their output exclusively through a writer
+  strategy (`init()` / `write_event()` / `finalize()`), so a single event
+  loop serves every output format. `compute_stats()` gains an `output`
+  argument selecting the writer: `"default"` (the estimation-ready
+  `preprocessed.goldfish` object), `"gather"`, and `"db"`.
+* Native gather output: the gather stack (one row per event × alternative)
+  is now produced in R from the flat preprocessing buffer. The post-hoc C++
+  `gather_()` routines (`gather_sender_model()`, `gather_receiver_model()`,
+  `gather_sender_receiver_model()`) have been removed; both
+  `gather_model_data()` (reimplemented as a thin wrapper over
+  `compute_stats(..., output = "gather")`) and `engine = "gather_compute"`
+  consume the native output. `gather_model_data()` now also handles one-mode
+  rate models, which previously errored.
+* DBI streaming writer: `compute_stats(..., output = "db")` streams the
+  gather rows to the database table configured via
+  `set_preprocessing_opt(db = , db_table = )` in event-aligned batches,
+  returning a lightweight descriptor instead of the in-memory stack. This
+  makes the previously reserved `db` / `db_table` options functional.
+  `RSQLite` is added to Suggests for the round-trip tests.
+
 # goldfish 1.7.6
 
 * Internal: estimation is now self-contained and dispatches on the model
@@ -146,8 +168,9 @@
   via `to_ego()` / `to_alter()` helpers (new `R/utils_effects.R`).
 * New DyNAM-rate effects: `degree()` (undirected), `triangle()` (undirected),
   and `global()` for time-varying global covariates.
-* Added `db` and `db_table` parameters to `set_preprocessing_opt()` for
-  writing statistics to a DBI-compatible database during preprocessing.
+* Added `db` and `db_table` parameters to `set_preprocessing_opt()` (reserved
+  options for streaming statistics to a DBI-compatible database; the streaming
+  writer that consumes them was implemented in a later release).
 * Added `DBI` to package imports.
 
 # goldfish 1.7.1

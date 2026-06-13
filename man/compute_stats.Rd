@@ -30,9 +30,11 @@ effects and the variables for which the effects are expected to occur
 \code{model = "REM"} and \code{"choice"} otherwise.}
 
 \item{output}{a character string specifying the output format of the
-preprocessed statistics. Currently only \code{"default"} is implemented;
-\code{"gather"} and \code{"db"} are reserved for statistics writers under
-development.}
+preprocessed statistics. \code{"default"} returns the estimation-ready
+\code{preprocessed.goldfish} object; \code{"gather"} returns the gather stack (one
+row per event x alternative, as in \code{\link[=gather_model_data]{gather_model_data()}}); \code{"db"} streams
+the gather rows to the database table configured via
+\code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}} (\code{db} / \code{db_table}) and returns a descriptor.}
 
 \item{...}{additional arguments passed to the preprocessing stage, e.g.,
 \code{control_preprocessing} (see \code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}}) and \code{progress}.}
