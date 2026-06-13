@@ -207,6 +207,7 @@ run_sender_recipe_loop <- function(
   intercept_scalars = FALSE,
   progress = FALSE,
   prepEnvir = new.env(),
+  writer = writer_default(),
   ...
 ) {
   n1 <- nrow(get(nodes, envir = prepEnvir))
@@ -382,34 +383,16 @@ run_sender_recipe_loop <- function(
     do.call(template$fun, args[template$args_by_shape[[shape]]])
   }
 
-  buf_capacity <- max(1000L, nEffects * nrow(events[[1L]]))
-  stat_mat_buf <- matrix(0, 4L, buf_capacity)
-  buf_n <- 0L
-
-  write_pending <- function(blocks, n_cols) {
-    if (n_cols > 0L) {
-      while (buf_n + n_cols > buf_capacity) {
-        buf_capacity <<- buf_capacity * 2L
-        new_buf <- matrix(0, 4L, buf_capacity)
-        if (buf_n > 0L) {
-          new_buf[, seq_len(buf_n)] <- stat_mat_buf[, seq_len(buf_n)]
-        }
-        stat_mat_buf <<- new_buf
-      }
-      stat_mat_buf[, buf_n + seq_len(n_cols)] <<- do.call(cbind, blocks)
-      buf_n <<- buf_n + n_cols
-    }
-    invisible(NULL)
-  }
-
-  max_store <- schedule$n + 1L
-  stat_mat_pointer <- integer(max_store)
-  intervals <- numeric(max_store)
-  is_dependent <- integer(max_store)
-  event_time <- numeric(max_store)
-  event_sender <- integer(max_store)
-  event_receiver <- integer(max_store)
-  n_stored <- 0L
+  writer$init(spec, list(
+    nEffects = nEffects,
+    n1 = n1,
+    n2 = n2,
+    is_sender = inherits(spec, "sender_spec"),
+    has_intercept = right_censored,
+    buf_capacity = max(1000L, nEffects * nrow(events[[1L]])),
+    max_store = schedule$n + 1L,
+    initial_stats_fn = function() initialStats
+  ))
 
   pending_dep <- list()
   pending_dep_cols <- 0L
@@ -456,41 +439,51 @@ run_sender_recipe_loop <- function(
 
     if (isValidEvent && isDependent) {
       iDependentEvents <- 1L + iDependentEvents
-      n_stored <- n_stored + 1L
-      write_pending(pending_dep, pending_dep_cols)
-      stat_mat_pointer[n_stored] <- buf_n
-      intervals[n_stored] <- interval
-      is_dependent[n_stored] <- 1L
-      event_time[n_stored] <- time
       if (schedule$shape[k] == "node") {
-        event_sender[n_stored] <- schedule$node[k]
-        event_receiver[n_stored] <- schedule$node[k]
+        evSender <- schedule$node[k]
+        evReceiver <- schedule$node[k]
       } else {
-        event_sender[n_stored] <- schedule$sender[k]
-        event_receiver[n_stored] <- schedule$receiver[k]
+        evSender <- schedule$sender[k]
+        evReceiver <- schedule$receiver[k]
       }
+      writer$write_event(
+        if (pending_dep_cols > 0L) {
+          do.call(cbind, pending_dep)
+        } else {
+          matrix(0, 4L, 0L)
+        },
+        list(
+          is_dependent = 1L, interval = interval, time = time,
+          sender = evSender, receiver = evReceiver
+        )
+      )
       pending_dep <- list()
       pending_dep_cols <- 0L
       pending_rc <- list()
       pending_rc_cols <- 0L
     } else if (!isDependent) {
       if (isValidEvent && right_censored && interval > 0) {
-        n_stored <- n_stored + 1L
-        write_pending(pending_rc, pending_rc_cols)
-        stat_mat_pointer[n_stored] <- buf_n
-        intervals[n_stored] <- interval
-        is_dependent[n_stored] <- 0L
-        event_time[n_stored] <- time
         if (schedule$shape[k] == "global") {
-          event_sender[n_stored] <- NA_integer_
-          event_receiver[n_stored] <- NA_integer_
+          evSender <- NA_integer_
+          evReceiver <- NA_integer_
         } else if (schedule$shape[k] == "node") {
-          event_sender[n_stored] <- schedule$node[k]
-          event_receiver[n_stored] <- schedule$node[k]
+          evSender <- schedule$node[k]
+          evReceiver <- schedule$node[k]
         } else {
-          event_sender[n_stored] <- schedule$sender[k]
-          event_receiver[n_stored] <- schedule$receiver[k]
+          evSender <- schedule$sender[k]
+          evReceiver <- schedule$receiver[k]
         }
+        writer$write_event(
+          if (pending_rc_cols > 0L) {
+            do.call(cbind, pending_rc)
+          } else {
+            matrix(0, 4L, 0L)
+          },
+          list(
+            is_dependent = 0L, interval = interval, time = time,
+            sender = evSender, receiver = evReceiver
+          )
+        )
         pending_rc <- list()
         pending_rc_cols <- 0L
       }
@@ -635,99 +628,16 @@ run_sender_recipe_loop <- function(
     close(pb)
   }
 
-  stat_mat_update <- stat_mat_buf[, seq_len(buf_n), drop = FALSE]
-  keep <- seq_len(n_stored)
-  stat_mat_pointer <- stat_mat_pointer[keep]
-  intervals <- intervals[keep]
-  is_dependent <- is_dependent[keep]
-  event_time <- event_time[keep]
-  event_sender <- event_sender[keep]
-  event_receiver <- event_receiver[keep]
-
-  n_dep_events <- NULL
-  total_time <- NULL
-  avg_active_actors <- NULL
-  if (intercept_scalars) {
-    n_dep_events <- sum(is_dependent == 1L)
-    total_time <- sum(intervals)
-    nActors <- sum(active_mode1_init)
-    if (length(active_mode1_changes) > 0 && n_stored > 0) {
-      changesTime <- vapply(
-        active_mode1_changes, `[[`, double(1), "time"
-      )
-      changesReplace <- vapply(
-        active_mode1_changes, `[[`, logical(1), "replace"
-      )
-      timeAcc <- startTime
-      previousTime <- -Inf
-      activeAcc <- 0
-      for (i in seq_len(n_stored)) {
-        timeAcc <- timeAcc + intervals[i]
-        changesAt <- changesTime > previousTime & changesTime <= timeAcc
-        nActors <- nActors +
-          sum(changesReplace[changesAt]) - sum(!changesReplace[changesAt])
-        activeAcc <- activeAcc + nActors
-        previousTime <- timeAcc
-      }
-      avg_active_actors <- activeAcc / n_stored
-    } else {
-      avg_active_actors <- nActors
-    }
-  }
-
-  presence1_update <- NULL
-  presence1_update_pointer <- NULL
-  presence2_update <- NULL
-  presence2_update_pointer <- NULL
-  if (length(active_mode1_changes) > 0) {
-    compChange1 <- data.frame(
-      time = vapply(active_mode1_changes, `[[`, double(1), "time"),
-      node = vapply(active_mode1_changes, `[[`, integer(1), "node"),
-      replace = vapply(active_mode1_changes, `[[`, logical(1), "replace")
-    )
-    temp <- C_convert_composition_change(compChange1, event_time)
-    presence1_update <- temp$presenceUpdate
-    presence1_update_pointer <- temp$presenceUpdatePointer
-  }
-  if (length(active_mode2_changes) > 0) {
-    compChange2 <- data.frame(
-      time = vapply(active_mode2_changes, `[[`, double(1), "time"),
-      node = vapply(active_mode2_changes, `[[`, integer(1), "node"),
-      replace = vapply(active_mode2_changes, `[[`, logical(1), "replace")
-    )
-    temp <- C_convert_composition_change(compChange2, event_time)
-    presence2_update <- temp$presenceUpdate
-    presence2_update_pointer <- temp$presenceUpdatePointer
-  }
-
-  structure(
-    list(
-      initialStats = initialStats,
-      stat_mat_update = stat_mat_update,
-      stat_mat_pointer = stat_mat_pointer,
-      intervals = intervals,
-      is_dependent = is_dependent,
-      event_time = event_time,
-      event_sender = event_sender,
-      event_receiver = event_receiver,
-      event_pos = seq_len(n_stored),
-      active_mode1_init = active_mode1_init,
-      active_mode1_changes = active_mode1_changes,
-      active_mode2_init = active_mode2_init,
-      active_mode2_changes = active_mode2_changes,
-      startTime = startTime,
-      endTime = endTime,
-      n_dep_events = n_dep_events,
-      total_time = total_time,
-      avg_active_actors = avg_active_actors,
-      presence1_update = presence1_update,
-      presence1_update_pointer = presence1_update_pointer,
-      presence2_update = presence2_update,
-      presence2_update_pointer = presence2_update_pointer,
-      version = PREPROCESSED_GOLDFISH_VERSION
-    ),
-    class = "preprocessed.goldfish"
-  )
+  writer$finalize(list(
+    initialStats = initialStats,
+    active_mode1_init = active_mode1_init,
+    active_mode1_changes = active_mode1_changes,
+    active_mode2_init = active_mode2_init,
+    active_mode2_changes = active_mode2_changes,
+    startTime = startTime,
+    endTime = endTime,
+    intercept_scalars = intercept_scalars
+  ))
 }
 
 #' Dyad-indexed recipe kernel
@@ -765,6 +675,7 @@ run_dyad_recipe_loop <- function(
   intercept_scalars = FALSE,
   progress = FALSE,
   prepEnvir = new.env(),
+  writer = writer_default(),
   ...
 ) {
   n1 <- nrow(get(nodes, envir = prepEnvir))
@@ -943,34 +854,16 @@ run_dyad_recipe_loop <- function(
     do.call(template$fun, args[template$args_by_shape[[shape]]])
   }
 
-  buf_capacity <- max(1000L, nEffects * nrow(events[[1L]]))
-  stat_mat_buf <- matrix(0, 4L, buf_capacity)
-  buf_n <- 0L
-
-  write_pending <- function(blocks, n_cols) {
-    if (n_cols > 0L) {
-      while (buf_n + n_cols > buf_capacity) {
-        buf_capacity <<- buf_capacity * 2L
-        new_buf <- matrix(0, 4L, buf_capacity)
-        if (buf_n > 0L) {
-          new_buf[, seq_len(buf_n)] <- stat_mat_buf[, seq_len(buf_n)]
-        }
-        stat_mat_buf <<- new_buf
-      }
-      stat_mat_buf[, buf_n + seq_len(n_cols)] <<- do.call(cbind, blocks)
-      buf_n <<- buf_n + n_cols
-    }
-    invisible(NULL)
-  }
-
-  max_store <- schedule$n + 1L
-  stat_mat_pointer <- integer(max_store)
-  intervals <- numeric(max_store)
-  is_dependent <- integer(max_store)
-  event_time <- numeric(max_store)
-  event_sender <- integer(max_store)
-  event_receiver <- integer(max_store)
-  n_stored <- 0L
+  writer$init(spec, list(
+    nEffects = nEffects,
+    n1 = n1,
+    n2 = n2,
+    is_sender = inherits(spec, "sender_spec"),
+    has_intercept = right_censored,
+    buf_capacity = max(1000L, nEffects * nrow(events[[1L]])),
+    max_store = schedule$n + 1L,
+    initial_stats_fn = function() initialStats
+  ))
 
   pending_dep <- list()
   pending_dep_cols <- 0L
@@ -1017,41 +910,51 @@ run_dyad_recipe_loop <- function(
 
     if (isValidEvent && isDependent) {
       iDependentEvents <- 1L + iDependentEvents
-      n_stored <- n_stored + 1L
-      write_pending(pending_dep, pending_dep_cols)
-      stat_mat_pointer[n_stored] <- buf_n
-      intervals[n_stored] <- interval
-      is_dependent[n_stored] <- 1L
-      event_time[n_stored] <- time
       if (schedule$shape[k] == "node") {
-        event_sender[n_stored] <- schedule$node[k]
-        event_receiver[n_stored] <- schedule$node[k]
+        evSender <- schedule$node[k]
+        evReceiver <- schedule$node[k]
       } else {
-        event_sender[n_stored] <- schedule$sender[k]
-        event_receiver[n_stored] <- schedule$receiver[k]
+        evSender <- schedule$sender[k]
+        evReceiver <- schedule$receiver[k]
       }
+      writer$write_event(
+        if (pending_dep_cols > 0L) {
+          do.call(cbind, pending_dep)
+        } else {
+          matrix(0, 4L, 0L)
+        },
+        list(
+          is_dependent = 1L, interval = interval, time = time,
+          sender = evSender, receiver = evReceiver
+        )
+      )
       pending_dep <- list()
       pending_dep_cols <- 0L
       pending_rc <- list()
       pending_rc_cols <- 0L
     } else if (!isDependent) {
       if (isValidEvent && right_censored && interval > 0) {
-        n_stored <- n_stored + 1L
-        write_pending(pending_rc, pending_rc_cols)
-        stat_mat_pointer[n_stored] <- buf_n
-        intervals[n_stored] <- interval
-        is_dependent[n_stored] <- 0L
-        event_time[n_stored] <- time
         if (schedule$shape[k] == "global") {
-          event_sender[n_stored] <- NA_integer_
-          event_receiver[n_stored] <- NA_integer_
+          evSender <- NA_integer_
+          evReceiver <- NA_integer_
         } else if (schedule$shape[k] == "node") {
-          event_sender[n_stored] <- schedule$node[k]
-          event_receiver[n_stored] <- schedule$node[k]
+          evSender <- schedule$node[k]
+          evReceiver <- schedule$node[k]
         } else {
-          event_sender[n_stored] <- schedule$sender[k]
-          event_receiver[n_stored] <- schedule$receiver[k]
+          evSender <- schedule$sender[k]
+          evReceiver <- schedule$receiver[k]
         }
+        writer$write_event(
+          if (pending_rc_cols > 0L) {
+            do.call(cbind, pending_rc)
+          } else {
+            matrix(0, 4L, 0L)
+          },
+          list(
+            is_dependent = 0L, interval = interval, time = time,
+            sender = evSender, receiver = evReceiver
+          )
+        )
         pending_rc <- list()
         pending_rc_cols <- 0L
       }
@@ -1199,99 +1102,16 @@ run_dyad_recipe_loop <- function(
     close(pb)
   }
 
-  stat_mat_update <- stat_mat_buf[, seq_len(buf_n), drop = FALSE]
-  keep <- seq_len(n_stored)
-  stat_mat_pointer <- stat_mat_pointer[keep]
-  intervals <- intervals[keep]
-  is_dependent <- is_dependent[keep]
-  event_time <- event_time[keep]
-  event_sender <- event_sender[keep]
-  event_receiver <- event_receiver[keep]
-
-  n_dep_events <- NULL
-  total_time <- NULL
-  avg_active_actors <- NULL
-  if (intercept_scalars) {
-    n_dep_events <- sum(is_dependent == 1L)
-    total_time <- sum(intervals)
-    nActors <- sum(active_mode1_init)
-    if (length(active_mode1_changes) > 0 && n_stored > 0) {
-      changesTime <- vapply(
-        active_mode1_changes, `[[`, double(1), "time"
-      )
-      changesReplace <- vapply(
-        active_mode1_changes, `[[`, logical(1), "replace"
-      )
-      timeAcc <- startTime
-      previousTime <- -Inf
-      activeAcc <- 0
-      for (i in seq_len(n_stored)) {
-        timeAcc <- timeAcc + intervals[i]
-        changesAt <- changesTime > previousTime & changesTime <= timeAcc
-        nActors <- nActors +
-          sum(changesReplace[changesAt]) - sum(!changesReplace[changesAt])
-        activeAcc <- activeAcc + nActors
-        previousTime <- timeAcc
-      }
-      avg_active_actors <- activeAcc / n_stored
-    } else {
-      avg_active_actors <- nActors
-    }
-  }
-
-  presence1_update <- NULL
-  presence1_update_pointer <- NULL
-  presence2_update <- NULL
-  presence2_update_pointer <- NULL
-  if (length(active_mode1_changes) > 0) {
-    compChange1 <- data.frame(
-      time = vapply(active_mode1_changes, `[[`, double(1), "time"),
-      node = vapply(active_mode1_changes, `[[`, integer(1), "node"),
-      replace = vapply(active_mode1_changes, `[[`, logical(1), "replace")
-    )
-    temp <- C_convert_composition_change(compChange1, event_time)
-    presence1_update <- temp$presenceUpdate
-    presence1_update_pointer <- temp$presenceUpdatePointer
-  }
-  if (length(active_mode2_changes) > 0) {
-    compChange2 <- data.frame(
-      time = vapply(active_mode2_changes, `[[`, double(1), "time"),
-      node = vapply(active_mode2_changes, `[[`, integer(1), "node"),
-      replace = vapply(active_mode2_changes, `[[`, logical(1), "replace")
-    )
-    temp <- C_convert_composition_change(compChange2, event_time)
-    presence2_update <- temp$presenceUpdate
-    presence2_update_pointer <- temp$presenceUpdatePointer
-  }
-
-  structure(
-    list(
-      initialStats = initialStats,
-      stat_mat_update = stat_mat_update,
-      stat_mat_pointer = stat_mat_pointer,
-      intervals = intervals,
-      is_dependent = is_dependent,
-      event_time = event_time,
-      event_sender = event_sender,
-      event_receiver = event_receiver,
-      event_pos = seq_len(n_stored),
-      active_mode1_init = active_mode1_init,
-      active_mode1_changes = active_mode1_changes,
-      active_mode2_init = active_mode2_init,
-      active_mode2_changes = active_mode2_changes,
-      startTime = startTime,
-      endTime = endTime,
-      n_dep_events = n_dep_events,
-      total_time = total_time,
-      avg_active_actors = avg_active_actors,
-      presence1_update = presence1_update,
-      presence1_update_pointer = presence1_update_pointer,
-      presence2_update = presence2_update,
-      presence2_update_pointer = presence2_update_pointer,
-      version = PREPROCESSED_GOLDFISH_VERSION
-    ),
-    class = "preprocessed.goldfish"
-  )
+  writer$finalize(list(
+    initialStats = initialStats,
+    active_mode1_init = active_mode1_init,
+    active_mode1_changes = active_mode1_changes,
+    active_mode2_init = active_mode2_init,
+    active_mode2_changes = active_mode2_changes,
+    startTime = startTime,
+    endTime = endTime,
+    intercept_scalars = intercept_scalars
+  ))
 }
 
 #' preprocess event and related objects describe in the formula to estimate
