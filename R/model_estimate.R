@@ -396,9 +396,11 @@ estimate_rem <- function(
 #'   [estimate_dynam()]. The default value `NULL` resolves to `"rate"` for
 #'   `model = "REM"` and `"choice"` otherwise.
 #' @param output a character string specifying the output format of the
-#'   preprocessed statistics. Currently only `"default"` is implemented;
-#'   `"gather"` and `"db"` are reserved for statistics writers under
-#'   development.
+#'   preprocessed statistics. `"default"` returns the estimation-ready
+#'   `preprocessed.goldfish` object; `"gather"` returns the gather stack (one
+#'   row per event x alternative, as in [gather_model_data()]); `"db"` streams
+#'   the gather rows to the database table configured via
+#'   [set_preprocessing_opt()] (`db` / `db_table`) and returns a descriptor.
 #' @param ... additional arguments passed to the preprocessing stage, e.g.,
 #'   `control_preprocessing` (see [set_preprocessing_opt()]) and `progress`.
 #'
@@ -442,13 +444,6 @@ compute_stats <- function(
     sub_model <- if (model == "REM") "rate" else "choice"
   }
   output <- match.arg(output)
-  if (output == "db") {
-    cli::cli_abort(c(
-      "{.arg output} {.val db} is not yet implemented.",
-      "i" = "Available outputs are {.val default} and {.val gather}. The
-             {.val db} streaming writer is under development."
-    ))
-  }
   estimate_wrapper(
     x = formula,
     model = model,
@@ -908,15 +903,24 @@ estimate_wrapper <- function(x,
       prepEnvir = work_env,
       writer = switch(output,
         default = writer_default(),
-        gather = writer_gather()
+        gather = writer_gather(),
+        db = writer_db(
+          control_preprocessing$db, control_preprocessing$db_table
+        )
       )
     )
-    if (output == "gather") {
-      return(finalize_gather_output(
+    if (output %in% c("gather", "db")) {
+      gathered <- finalize_gather_output(
         prep, model, sub_model, has_intercept,
         get(.nodes, envir = data), get(.nodes2, envir = data),
         objects_effects_link, parsed_formula
-      ))
+      )
+      if (output == "db") {
+        return(write_gather_to_db(
+          gathered, control_preprocessing$db, control_preprocessing$db_table
+        ))
+      }
+      return(gathered)
     }
     # The formula, nodes, nodes2 are added to the preprocessed object so that
     # we can call the estimation with preprocessingInit later

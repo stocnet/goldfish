@@ -174,6 +174,120 @@ writer_gather <- function() {
   )
 }
 
+#' @describeIn preprocess_writers DBI streaming writer producing the same
+#'   gather rows as `writer_gather()` but persisting them to a database table
+#'   (`set_preprocessing_opt(db = , db_table = )`) instead of holding the full
+#'   stack in memory. The connection is validated up front (fail fast before
+#'   the event loop); the actual event-aligned batched append happens after
+#'   `finalize()` via `write_gather_to_db()` once the effect names are
+#'   resolved. Reuses `writer_gather()`'s accumulation and finalize.
+#'
+#'   Note (design D15, staged delivery): like `writer_gather()`, the gather
+#'   stack is currently assembled from the flat buffer in `finalize()` (not
+#'   row-by-row during the loop), so the full stack is materialised transiently
+#'   before being written out in event-aligned batches. True per-event
+#'   streaming lands with the native in-loop gather expansion.
+#' @noRd
+writer_db <- function(db = NULL, db_table = "stats") {
+  if (is.null(db)) {
+    cli::cli_abort(c(
+      "A DBI connection is required for {.code output = \"db\"}.",
+      "i" = "Configure one with {.code set_preprocessing_opt(db =
+             <DBIConnection>, db_table = ...)}."
+    ))
+  }
+  if (!inherits(db, "DBIConnection")) {
+    cli::cli_abort("{.arg db} must be a {.cls DBIConnection} object.")
+  }
+  if (!is.character(db_table) || length(db_table) != 1L) {
+    cli::cli_abort("{.arg db_table} must be a single character string.")
+  }
+  base <- writer_gather()
+  structure(
+    list(
+      output = "db",
+      db = db,
+      db_table = db_table,
+      init = base$init,
+      write_event = base$write_event,
+      finalize = base$finalize
+    ),
+    class = c("writer_db", "writer_gather", "preprocess_writer")
+  )
+}
+
+#' Stream a named gather stack to a DBI table in event-aligned batches
+#'
+#' Writes the gather long table (one row per event x alternative) produced by
+#' `finalize_gather_output()` to `db_table` on `db`. Rows are appended in
+#' batches aligned to event boundaries, so on a mid-stream failure the last
+#' fully written event index is known and reported. The returned descriptor
+#' omits `stat_all_events` (now persisted in the table) and keeps the per-event
+#' metadata. The long table has an `event_id` column, an `is_selected` flag
+#' (1 for the chosen alternative of an event, 0 otherwise), and one
+#' `stat_<i>` column per effect statistic.
+#'
+#' @noRd
+write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
+  stat <- gathered$stat_all_events
+  n_candidates <- gathered$n_candidates
+  n_events <- length(n_candidates)
+  n_parameters <- ncol(stat)
+  n_rows <- nrow(stat)
+
+  event_id <- rep.int(seq_len(n_events), n_candidates)
+  ev_starts <- cumsum(c(0L, n_candidates[-n_events]))
+  selected <- gathered$selected
+  has_sel <- selected > 0
+  is_selected <- integer(n_rows)
+  is_selected[ev_starts[has_sel] + selected[has_sel]] <- 1L
+
+  stat_df <- as.data.frame(stat)
+  names(stat_df) <- paste0("stat_", seq_len(n_parameters))
+  long_df <- cbind(
+    data.frame(event_id = event_id, is_selected = is_selected), stat_df
+  )
+
+  row_end <- cumsum(n_candidates)
+  row_start <- c(1L, utils::head(row_end, -1L) + 1L)
+  first <- TRUE
+  last_event <- 0L
+  e <- 1L
+  while (e <= n_events) {
+    e_to <- min(e + batch_events - 1L, n_events)
+    rows <- if (row_end[e_to] >= row_start[e]) row_start[e]:row_end[e_to] else integer(0)
+    batch <- long_df[rows, , drop = FALSE]
+    res <- tryCatch(
+      {
+        if (first) {
+          DBI::dbWriteTable(db, db_table, batch, overwrite = TRUE)
+          first <- FALSE
+        } else {
+          DBI::dbAppendTable(db, db_table, batch)
+        }
+        TRUE
+      },
+      error = function(cnd) cnd
+    )
+    if (!isTRUE(res)) {
+      cli::cli_abort(c(
+        "Failed to write gather rows to table {.val {db_table}}.",
+        "x" = "Last successfully written event index: {.val {last_event}}.",
+        "i" = conditionMessage(res)
+      ))
+    }
+    last_event <- e_to
+    e <- e_to + 1L
+  }
+
+  gathered$stat_all_events <- NULL
+  gathered$db <- db
+  gathered$db_table <- db_table
+  gathered$n_rows <- n_rows
+  gathered$n_parameters <- n_parameters
+  structure(gathered, class = "preprocessed_db.goldfish")
+}
+
 #' Build the gather stack from an assembled flat preprocessing object
 #'
 #' Mirrors the gather-input construction of the `gather_compute` estimation

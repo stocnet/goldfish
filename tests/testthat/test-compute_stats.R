@@ -53,7 +53,7 @@ test_that("compute_stats validates the output argument", {
       data = dataTest, model = "DyNAM", sub_model = "choice",
       output = "db"
     ),
-    "not yet implemented"
+    "DBI connection"
   )
   expect_error(
     compute_stats(
