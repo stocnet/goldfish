@@ -61,11 +61,13 @@ estimate_int_impl <- function(
   cpus = 6,
   verbose = FALSE,
   progress = FALSE,
-  impute = TRUE,
   # restrictions of opportunity sets
   opportunitiesList = NULL
 ) {
   ## SET VARIABLES
+
+  # preprocessing guarantees NA-free statistics (design D13)
+  stopifnot(!anyNA(statsList$initialStats))
 
   minDampingFactor <- initialDamping
   nParams <- (if (is_rate_model) {
@@ -253,7 +255,6 @@ estimate_int_impl <- function(
       allowReflexive = allowReflexive,
       is_two_mode = is_two_mode,
       reduceArrayToMatrix = reduceArrayToMatrix,
-      impute = impute,
       verbose = verbose,
       opportunitiesList = opportunitiesList
     )
@@ -1060,23 +1061,6 @@ compute_step.default <- function(spec, state, i, ctx) {
     activeDyad <- NULL
   }
 
-  # IMPUTE missing statistics with current mean
-  if (ctx$impute && anyNA(state$statsArray)) {
-    imputeFun <- function(m) {
-      m[is.na(m)] <- mean(m, na.rm = TRUE)
-      m
-    }
-    if (is_rate) {
-      for (j in which(apply(state$statsArray, 2, anyNA))) {
-        state$statsArray[, j] <- imputeFun(state$statsArray[, j])
-      }
-    } else {
-      for (j in which(apply(state$statsArray, 3, anyNA))) {
-        state$statsArray[,, j] <- imputeFun(state$statsArray[,, j])
-      }
-    }
-  }
-
   statsArrayComp <- state$statsArray
 
   # update opportunity set
@@ -1243,7 +1227,6 @@ compute_iteration_step <- function(
   allowReflexive = TRUE,
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
-  impute = TRUE,
   verbose = FALSE,
   opportunitiesList = NULL
 ) {
@@ -1286,7 +1269,6 @@ compute_iteration_step <- function(
     compChange1 = compChange1,
     compChange2 = compChange2,
     opportunitiesList = opportunitiesList,
-    impute = impute,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
     contribution_fn = contribution_fn
