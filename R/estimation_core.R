@@ -233,7 +233,8 @@ estimate_int_impl <- function(
   #   snowfall::sfStop()
   #   snowfall::sfInit(parallel = TRUE, cpus = cpus)
   #   snowfall::sfExport(
-  #   "getMultinomialProbabilities", "getLikelihoodMM", "getFirstDerivativeMM",
+  #   "getMultinomialProbabilities", "getLikelihoodMM",
+  #   "compute_first_derivative_choice_coord",
   #   "getMultinomialInformationMatrix", namespace = "goldfish")
   # }
 
@@ -517,207 +518,299 @@ check_convergence <- function(
 }
 
 
-# Function to return log likelihood, score, information matrix,
-# and p vector for each event
+# Per-event contribution to the log-likelihood, score, information matrix,
+# and p vector.
+#
+# S3 generic dispatched on the model specification class. Each method
+# returns the contribution of a single event for its model variant. Per
+# design D19 the concrete method is resolved once before the estimation
+# event loop (via bind_event_contribution()) and bound to a local variable;
+# no S3 dispatch happens per event.
 # CHANGED SIWEI: add three parameters: isRightCensored, timespan and
 #  allowReflexive
-getEventValues <- function(
+compute_event_contribution <- function(
+  spec,
   statsArray,
   activeDyad,
   parameters,
-  spec,
   isRightCensored,
   timespan,
   allowReflexive,
   is_two_mode
 ) {
-  if (inherits(spec, "dynam_choice_coord_spec")) {
-    multinomialProbabilities <-
-      getMultinomialProbabilities(
-        statsArray,
-        activeDyad,
-        parameters,
-        allowReflexive = allowReflexive
-      )
-    eventLikelihoods <- getLikelihoodMM(multinomialProbabilities)
-    logLikelihood <- log(eventLikelihoods[activeDyad[1], activeDyad[2]])
-    firstDerivatives <- getFirstDerivativeMM(
-      statsArray,
-      eventLikelihoods,
-      multinomialProbabilities
-    )
-    score <- firstDerivatives[activeDyad[1], activeDyad[2], ]
-    informationMatrix <- getMultinomialInformationMatrix(
-      eventLikelihoods,
-      firstDerivatives
-    )
-    pMatrix <- eventLikelihoods
+  UseMethod("compute_event_contribution")
+}
+
+compute_event_contribution.default <- function(spec, ...) {
+  cli::cli_abort(
+    "No {.fn compute_event_contribution} method for class
+     {.cls {class(spec)[1]}}."
+  )
+}
+
+# Resolve the concrete compute_event_contribution() method for a spec once,
+# walking its class vector. Returns a plain function to be called inside the
+# event loop without further dispatch (design D19).
+bind_event_contribution <- function(spec) {
+  for (cls in class(spec)) {
+    fn <- get0(paste0("compute_event_contribution.", cls))
+    if (is.function(fn)) {
+      return(fn)
+    }
+  }
+  compute_event_contribution.default
+}
+
+# Shared worker for the rate models (DyNAM-M-Rate and REM). `isREM` is baked
+# in by the calling method so no per-event class check is needed.
+event_contribution_rate <- function(
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode,
+  isREM
+) {
+  activeActor <- activeDyad[1]
+  dimMatrix <- dim(statsArray)
+  if (isREM) {
+    activeActor <- activeDyad[1] + (activeDyad[2] - 1) * dimMatrix[1]
+    statsArray <- apply(statsArray, 3, c)
   }
 
-  if (inherits(spec, c("dynam_choice_spec", "dynami_choice_spec"))) {
-    eventProbabilities <-
-      getMultinomialProbabilities(
-        statsArray,
-        activeDyad,
-        parameters,
-        actorNested = TRUE,
-        allowReflexive = allowReflexive,
-        is_two_mode = is_two_mode
-      )
-    logLikelihood <- log(eventProbabilities[activeDyad[2]])
-    firstDerivatives <- getFirstDerivativeM(statsArray, eventProbabilities)
-    score <- firstDerivatives[activeDyad[2], ]
-    informationMatrix <- getMultinomialInformationMatrixM(
-      eventProbabilities,
-      firstDerivatives
-    )
-    pMatrix <- eventProbabilities
+  parameters <- as.numeric(parameters)
+
+  # test if time interval is NA, to be make
+  if (is.na(timespan)) {
+    timespan <- 0
   }
 
-  if (inherits(spec, "rem_rate_ordered_spec")) {
-    eventProbabilities <-
-      getMultinomialProbabilities(
-        statsArray,
-        activeDyad,
-        parameters,
-        actorNested = FALSE,
-        allowReflexive = FALSE
-      )
-    logLikelihood <- log(eventProbabilities[activeDyad[1], activeDyad[2]])
-    firstDerivatives <- getFirstDerivativeREM(statsArray, eventProbabilities)
-    score <- firstDerivatives[activeDyad[1], activeDyad[2], ]
-    informationMatrix <- getInformationMatrixREM(
-      eventProbabilities,
-      firstDerivatives
-    )
-    pMatrix <- eventProbabilities
+  # Don't consider self-connecting edge when both allowReflexive
+  # and  is_two_mode are false
+  dontConsiderSelfConnecting <- isREM &&
+    !allowReflexive &&
+    !is_two_mode
+  if (dontConsiderSelfConnecting) {
+    idEdgeNotConsidered <- (seq_len(dimMatrix[1]) - 1) *
+      dimMatrix[1] +
+      seq_len(dimMatrix[1])
+  } else {
+    idEdgeNotConsidered <- numeric(0)
+  }
+  # vector of rates
+  objectiveFunctions <- (statsArray %*% parameters)[, 1] # a vector
+  objectiveFunctionOfSender <- objectiveFunctions[activeActor]
+  statsOfSender <- statsArray[activeActor, ]
+  rates <- exp(objectiveFunctions)
+  rates[idEdgeNotConsidered] <- 0
+  ratesSum <- sum(rates)
+  # k vector with all rho * s_k summed over all actors i
+  ratesStats <- rates * statsArray
+  ratesStatsSum <- colSums(rates * statsArray)
+
+  ratesStatsStatsSum <- colSums(
+    t(
+      apply(statsArray, 1, function(x) outer(x, x))
+    ) *
+      rates
+  )
+  if (length(parameters) == 1 && !isREM) {
+    v <- as.vector(statsArray)
+    sum <- 0
+    for (i in seq_along(v)) {
+      sum <- sum + v[i] * v[i] * rates[i]
+    }
+    ratesStatsStatsSum <- sum
+  }
+  dim(ratesStatsStatsSum) <- rep(length(parameters), 2)
+
+  logL <- -timespan *
+    ratesSum +
+    if (!isRightCensored) objectiveFunctionOfSender else 0
+
+  score <- -timespan *
+    ratesStatsSum +
+    if (!isRightCensored) statsOfSender else 0
+
+  hessian <- -timespan * ratesStatsStatsSum
+  pVector <- objectiveFunctions + (-timespan * ratesSum)
+  if (isREM) {
+    dim(pVector) <- c(dimMatrix[1], dimMatrix[2])
   }
 
-  if (inherits(spec, c("dynam_rate_ordered_spec", "dynami_rate_ordered_spec"))) {
-    # statsMatrix <- reduceArrayToMatrix(statsArray)
-    statsMatrix <- statsArray
-    activeActor <- activeDyad[1]
-    parameters <- c(parameters)
+  list(
+    logLikelihood = logL,
+    score = score,
+    informationMatrix = -hessian,
+    pMatrix = pVector
+  )
+}
 
-    rates <- exp(rowSums(t(t(statsMatrix) * parameters)))
-    eventProbabilities <- rates / sum(rates)
-    expectedStatistics <- colSums(statsMatrix * eventProbabilities)
-    # statsMatrix[activeActor, ] * parameters: rate for actor i (i=activeActor)
-    logLikelihood <- sum(statsMatrix[activeActor, ] * parameters) -
-      log(sum(rates))
-    # deviation from actual statistics
-    deviations <- t(t(statsMatrix) - expectedStatistics)
-    score <- deviations[activeActor, ]
-    # Fisher information matrix
-    informationMatrix <- matrix(
-      rowSums(t(
-        t(matrix(
-          apply(deviations, 1, function(x) outer(x, x)),
-          ncol = length(eventProbabilities)
-        )) *
-          eventProbabilities
-      )),
-      length(parameters),
-      length(parameters)
-    )
-    pMatrix <- eventProbabilities
-  }
+compute_event_contribution.dynam_rate_spec <- function(
+  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
+  allowReflexive, is_two_mode
+) {
+  event_contribution_rate(
+    statsArray, activeDyad, parameters, isRightCensored, timespan,
+    allowReflexive, is_two_mode,
+    isREM = FALSE
+  )
+}
 
-  if (inherits(spec, c("dynam_rate_spec", "dynami_rate_spec", "rem_rate_spec"))) {
-    isREM <- inherits(spec, "rem_rate_spec")
-    activeActor <- activeDyad[1]
-    dimMatrix <- dim(statsArray)
-    if (isREM) {
-      activeActor <- activeDyad[1] + (activeDyad[2] - 1) * dimMatrix[1]
-      statsArray <- apply(statsArray, 3, c)
-    }
+compute_event_contribution.rem_rate_spec <- function(
+  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
+  allowReflexive, is_two_mode
+) {
+  event_contribution_rate(
+    statsArray, activeDyad, parameters, isRightCensored, timespan,
+    allowReflexive, is_two_mode,
+    isREM = TRUE
+  )
+}
 
-    parameters <- as.numeric(parameters)
+compute_event_contribution.dynami_rate_spec <-
+  compute_event_contribution.dynam_rate_spec
 
-    # test if time interval is NA, to be make
-    if (is.na(timespan)) {
-      timespan <- 0
-    }
+compute_event_contribution.dynam_rate_ordered_spec <- function(
+  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
+  allowReflexive, is_two_mode
+) {
+  statsMatrix <- statsArray
+  activeActor <- activeDyad[1]
+  parameters <- c(parameters)
 
-    # Don't consider self-connecting edge when both allowReflexive
-    # and  is_two_mode are false
-    dontConsiderSelfConnecting <- isREM &&
-      !allowReflexive &&
-      !is_two_mode
-    if (dontConsiderSelfConnecting) {
-      idEdgeNotConsidered <- (seq_len(dimMatrix[1]) - 1) *
-        dimMatrix[1] +
-        seq_len(dimMatrix[1])
-    } else {
-      idEdgeNotConsidered <- numeric(0)
-    }
-    # vector of rates
-    objectiveFunctions <- (statsArray %*% parameters)[, 1] # a vector
-    objectiveFunctionOfSender <- objectiveFunctions[activeActor]
-    statsOfSender <- statsArray[activeActor, ]
-    rates <- exp(objectiveFunctions)
-    rates[idEdgeNotConsidered] <- 0
-    ratesSum <- sum(rates)
-    # k vector with all rho * s_k summed over all actors i
-    ratesStats <- rates * statsArray
-    ratesStatsSum <- colSums(rates * statsArray)
-
-    ratesStatsStatsSum <- colSums(
-      t(
-        apply(statsArray, 1, function(x) outer(x, x))
-      ) *
-        rates
-    )
-    if (length(parameters) == 1 && !isREM) {
-      v <- as.vector(statsArray)
-      sum <- 0
-      for (i in seq_along(v)) {
-        sum <- sum + v[i] * v[i] * rates[i]
-      }
-      ratesStatsStatsSum <- sum
-    }
-    dim(ratesStatsStatsSum) <- rep(length(parameters), 2)
-
-    logL <- -timespan *
-      ratesSum +
-      if (!isRightCensored) objectiveFunctionOfSender else 0
-
-    score <- -timespan *
-      ratesStatsSum +
-      if (!isRightCensored) statsOfSender else 0
-
-    hessian <- -timespan * ratesStatsStatsSum
-    pVector <- objectiveFunctions + (-timespan * ratesSum)
-    if (isREM) {
-      dim(pVector) <- c(dimMatrix[1], dimMatrix[2])
-    }
-
-    # cat("\ntimespan:", timespan)
-    # cat("\nderivative:")
-    # print(ratesStatsSum)
-    # cat("\nfisher:")
-    # print(ratesStatsStatsSum)
-    return(list(
-      logLikelihood = logL,
-      score = score,
-      informationMatrix = -hessian,
-      pMatrix = pVector
-    ))
-  }
-
-  return(list(
+  rates <- exp(rowSums(t(t(statsMatrix) * parameters)))
+  eventProbabilities <- rates / sum(rates)
+  expectedStatistics <- colSums(statsMatrix * eventProbabilities)
+  # statsMatrix[activeActor, ] * parameters: rate for actor i (i=activeActor)
+  logLikelihood <- sum(statsMatrix[activeActor, ] * parameters) -
+    log(sum(rates))
+  # deviation from actual statistics
+  deviations <- t(t(statsMatrix) - expectedStatistics)
+  score <- deviations[activeActor, ]
+  # Fisher information matrix
+  informationMatrix <- matrix(
+    rowSums(t(
+      t(matrix(
+        apply(deviations, 1, function(x) outer(x, x)),
+        ncol = length(eventProbabilities)
+      )) *
+        eventProbabilities
+    )),
+    length(parameters),
+    length(parameters)
+  )
+  list(
     logLikelihood = logLikelihood,
     score = score,
     informationMatrix = informationMatrix,
-    pMatrix = pMatrix
-  ))
+    pMatrix = eventProbabilities
+  )
+}
+
+compute_event_contribution.dynami_rate_ordered_spec <-
+  compute_event_contribution.dynam_rate_ordered_spec
+
+compute_event_contribution.dynam_choice_spec <- function(
+  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
+  allowReflexive, is_two_mode
+) {
+  eventProbabilities <-
+    getMultinomialProbabilities(
+      statsArray,
+      activeDyad,
+      parameters,
+      actorNested = TRUE,
+      allowReflexive = allowReflexive,
+      is_two_mode = is_two_mode
+    )
+  logLikelihood <- log(eventProbabilities[activeDyad[2]])
+  firstDerivatives <- compute_first_derivative_choice(
+    statsArray, eventProbabilities
+  )
+  score <- firstDerivatives[activeDyad[2], ]
+  informationMatrix <- getMultinomialInformationMatrixM(
+    eventProbabilities,
+    firstDerivatives
+  )
+  list(
+    logLikelihood = logLikelihood,
+    score = score,
+    informationMatrix = informationMatrix,
+    pMatrix = eventProbabilities
+  )
+}
+
+compute_event_contribution.dynami_choice_spec <-
+  compute_event_contribution.dynam_choice_spec
+
+compute_event_contribution.dynam_choice_coord_spec <- function(
+  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
+  allowReflexive, is_two_mode
+) {
+  multinomialProbabilities <-
+    getMultinomialProbabilities(
+      statsArray,
+      activeDyad,
+      parameters,
+      allowReflexive = allowReflexive
+    )
+  eventLikelihoods <- getLikelihoodMM(multinomialProbabilities)
+  logLikelihood <- log(eventLikelihoods[activeDyad[1], activeDyad[2]])
+  firstDerivatives <- compute_first_derivative_choice_coord(
+    statsArray,
+    eventLikelihoods,
+    multinomialProbabilities
+  )
+  score <- firstDerivatives[activeDyad[1], activeDyad[2], ]
+  informationMatrix <- getMultinomialInformationMatrix(
+    eventLikelihoods,
+    firstDerivatives
+  )
+  list(
+    logLikelihood = logLikelihood,
+    score = score,
+    informationMatrix = informationMatrix,
+    pMatrix = eventLikelihoods
+  )
+}
+
+compute_event_contribution.rem_rate_ordered_spec <- function(
+  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
+  allowReflexive, is_two_mode
+) {
+  eventProbabilities <-
+    getMultinomialProbabilities(
+      statsArray,
+      activeDyad,
+      parameters,
+      actorNested = FALSE,
+      allowReflexive = FALSE
+    )
+  logLikelihood <- log(eventProbabilities[activeDyad[1], activeDyad[2]])
+  firstDerivatives <- compute_first_derivative_rem(
+    statsArray, eventProbabilities
+  )
+  score <- firstDerivatives[activeDyad[1], activeDyad[2], ]
+  informationMatrix <- getInformationMatrixREM(
+    eventProbabilities,
+    firstDerivatives
+  )
+  list(
+    logLikelihood = logLikelihood,
+    score = score,
+    informationMatrix = informationMatrix,
+    pMatrix = eventProbabilities
+  )
 }
 
 
 # calculate the score contribution of one event of the M model
 # to the log(!) likelihood
 # The scores are the differences between expected and observed statistics
-getFirstDerivativeM <- function(statsArray, eventProbabilities) {
+compute_first_derivative_choice <- function(statsArray, eventProbabilities) {
   nParams <- dim(statsArray)[2]
   nActors <- dim(statsArray)[1]
 
@@ -736,7 +829,7 @@ getFirstDerivativeM <- function(statsArray, eventProbabilities) {
 #     in the multinomial part
 # 3) calculate the constant that is substracted from each first derivative
 # 4) calculate the derivative based on the values above (see paper)
-getFirstDerivativeMM <- function(
+compute_first_derivative_choice_coord <- function(
   statsArray,
   likelihoods,
   multinomialProbabilities
@@ -772,7 +865,7 @@ getFirstDerivativeMM <- function(
 # calculate the score contribution of one event of the M model
 # to the log(!) likelihood
 # The scores are the differences between expected and observed statistics
-getFirstDerivativeREM <- function(statsArray, eventProbabilities) {
+compute_first_derivative_rem <- function(statsArray, eventProbabilities) {
   # nActors <- dim(statsArray)[1]
   # nParams <- dim(statsArray)[3]
 
@@ -863,7 +956,7 @@ getIterationStepState <- function(
   # if (parallelize && require("snowfall", quietly = TRUE)) {
   #   snowfall::sfStop()
   #   snowfall::sfInit(parallel = TRUE, cpus = cpus)
-  #   snowfall::sfExport("getEventValues", namespace = "goldfish")
+  #   snowfall::sfExport("compute_event_contribution", namespace = "goldfish")
   # }
 
   # initialize progressbar output
@@ -880,6 +973,9 @@ getIterationStepState <- function(
   time <- statsList$startTime
   useFlatUpdates <- !is.null(statsList$stat_mat_update)
   flatPointer <- 0L
+
+  # resolve the per-event contribution method once (design D19)
+  contribution_fn <- bind_event_contribution(spec)
 
   # opportunities list initialization
   opportunities <- rep(TRUE, nrow(nodes2))
@@ -1080,11 +1176,11 @@ getIterationStepState <- function(
     # CHANGED SIWEI: add three arguments
     #  (isRightCensored, timespan and allowReflexive) to eventValues function
     isRightCensored <- !isDependent
-    eventValues <- getEventValues(
+    eventValues <- contribution_fn(
+      spec = spec,
       statsArray = statsArrayComp,
       activeDyad = activeDyad,
       parameters = parameters,
-      spec = spec,
       isRightCensored = isRightCensored,
       timespan = timespan,
       allowReflexive = allowReflexiveCorrected,
