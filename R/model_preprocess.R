@@ -180,6 +180,33 @@ preprocess.dynami_choice_spec <- function(
 #' right-censored statistic updates without sender/receiver recording
 #' (design D16).
 #'
+#' @section Extension points (documented, not implemented):
+#' Two future capabilities attach to this loop and its writer (design
+#' D15/D17); neither is implemented in this change.
+#' \describe{
+#'   \item{Per-event simulation hook (design D17)}{a hook invoked once per
+#'     stored event, positioned immediately after the per-event statistic
+#'     update is emitted to the writer (the `writer$write_event()` call in
+#'     this loop) and before the loop advances to the next scheduled event.
+#'     At that point the visible state is the current state container — the
+#'     networks, nodal/nodal2 attribute frames, and globals row reflecting
+#'     all updates up to and including this event. The hook may read that
+#'     snapshot and append new events to the schedule (an event-stream
+#'     append): appended events must carry a `time` not earlier than the
+#'     current event and are merged respecting the dependent-first tie-break
+#'     so the schedule stays time-sorted. This hook — not a writer — is the
+#'     seam reserved for a future `simulate()` goodness-of-fit method.}
+#'   \item{Parallel chunk preprocessing (design D15)}{the loop plus its
+#'     writer can be run over a contiguous chunk of the event schedule,
+#'     warm-started from the state container at the chunk's first event, with
+#'     per-chunk results merged by a coordinating `finalize()`. The
+#'     obligation is that `writer$write_event` is associative across a chunk
+#'     boundary and the per-chunk flat buffers concatenate in event order.
+#'     See the writer-strategy extension points in [preprocess_writers] for
+#'     the alternatives-sampling gather writer and the parallel/streaming
+#'     writer contracts.}
+#' }
+#'
 #' @param spec a `sender_spec` model specification.
 #' @inheritParams preprocess_monolith
 #' @param right_censored logical, whether right-censored events are stored.
@@ -654,6 +681,10 @@ run_sender_recipe_loop <- function(
 #' exclusively `is_dependent = 1` rows. Global-attribute events are handled
 #' as in the sender kernel (design D16) so future choice-model interaction
 #' support only touches the effects layer.
+#'
+#' The per-event simulation hook and parallel chunk preprocessing extension
+#' points (design D15/D17) attach to this kernel on the same terms documented
+#' for `run_sender_recipe_loop()`.
 #'
 #' @param spec a `dyad_spec` model specification.
 #' @inheritParams run_sender_recipe_loop
