@@ -557,25 +557,37 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
 
   description <- data.frame(
     name = c(
-      "initialStats", "stats_change", "intervals", "is_dependent",
+      "initialStats", "stat_mat_update", "stat_mat_pointer",
+      "intervals", "is_dependent",
       "event_time", "event_sender", "event_receiver", "event_pos",
       "active_mode1_init", "active_mode1_changes",
       "active_mode2_init", "active_mode2_changes",
+      "presence1_update", "presence2_update",
+      "n_dep_events", "total_time", "avg_active_actors",
       "startTime", "endTime", "formula", "nodes", "nodes2"
     ),
     description = c(
       "Initial statistical matrices/vectors for the effects.",
-      "List: for each event (dep + RC), a list with the change statistics.",
+      paste(
+        "Numeric matrix (4 x n): flat buffer of statistic updates across all",
+        "stored events; rows are node1, node2, effect, replace (0-indexed)."
+      ),
+      "Integer vector: cumulative column count in stat_mat_update per event.",
       "Numeric vector: elapsed time before each event (dep + RC merged).",
       "Integer vector: 1 for dependent events, 0 for right-censored.",
       "Time of the event.",
-      "Event sender (-999 for right-censored events).",
-      "Event receiver (-999 for right-censored events).",
+      "Integer index of the event sender (NA for global right-censored events).",
+      "Integer index of the event receiver (NA for non-dyadic events).",
       "Consecutive integer identifying each event position.",
       "Initial presence vector for mode-1 nodes.",
       "List of composition changes for mode-1 nodes.",
       "Initial presence vector for mode-2 nodes.",
       "List of composition changes for mode-2 nodes.",
+      "Presence updates (C-format) for mode-1 nodes; paired pointer suffix.",
+      "Presence updates (C-format) for mode-2 nodes; paired pointer suffix.",
+      "Intercept scalar: number of dependent events (rate / REM models).",
+      "Intercept scalar: total elapsed time (rate / REM models).",
+      "Intercept scalar: average number of active actors (rate / REM models).",
       "Numeric time value of the initial time considered during estimation.",
       "Numeric time value of the final time considered during estimation.",
       "Formula of the model to estimate.",
