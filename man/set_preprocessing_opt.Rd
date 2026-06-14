@@ -38,6 +38,14 @@ The list should have the same length as the number of events in the
 dependent events objects created with \code{make_dependent_events()}.
 Default is \code{NULL}, so the choice set is the set of all nodes present at the
 time of the event.}
+
+\item{db}{A \code{DBIConnection} object or \code{NULL} (default). When supplied
+together with \code{compute_stats(..., output = "db")}, the gather statistics
+are streamed to the database table named by \code{db_table} instead of being
+held in memory.}
+
+\item{db_table}{A single character string naming the database table to
+write to when a \code{db} connection is configured. Default is \code{"stats"}.}
 }
 \value{
 An object of class \code{preprocessing_opt.goldfish} (a list object), with

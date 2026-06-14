@@ -237,6 +237,12 @@ set_estimation_opt <- function(
 #'   dependent events objects created with `make_dependent_events()`.
 #'   Default is `NULL`, so the choice set is the set of all nodes present at the
 #'   time of the event.
+#' @param db A `DBIConnection` object or `NULL` (default). When supplied
+#'   together with `compute_stats(..., output = "db")`, the gather statistics
+#'   are streamed to the database table named by `db_table` instead of being
+#'   held in memory.
+#' @param db_table A single character string naming the database table to
+#'   write to when a `db` connection is configured. Default is `"stats"`.
 # @param keep_sender_index A logical value. If `TRUE`, the sender index,
 #   the index in the nodeset, of the potential senders of the events is
 #   kept in the preprocessed data.   

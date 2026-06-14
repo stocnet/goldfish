@@ -1,87 +1,20 @@
-# goldfish 1.7.7
+# goldfish 1.8.0
 
-* Preprocessing recipes now emit their output exclusively through a writer
-  strategy (`init()` / `write_event()` / `finalize()`), so a single event
-  loop serves every output format. `compute_stats()` gains an `output`
-  argument selecting the writer: `"default"` (the estimation-ready
-  `preprocessed.goldfish` object), `"gather"`, and `"db"`.
-* Native gather output: the gather stack (one row per event × alternative)
-  is now produced in R from the flat preprocessing buffer. The post-hoc C++
-  `gather_()` routines (`gather_sender_model()`, `gather_receiver_model()`,
-  `gather_sender_receiver_model()`) have been removed; both
-  `gather_model_data()` (reimplemented as a thin wrapper over
-  `compute_stats(..., output = "gather")`) and `engine = "gather_compute"`
-  consume the native output. `gather_model_data()` now also handles one-mode
-  rate models, which previously errored.
-* DBI streaming writer: `compute_stats(..., output = "db")` streams the
-  gather rows to the database table configured via
-  `set_preprocessing_opt(db = , db_table = )` in event-aligned batches,
-  returning a lightweight descriptor instead of the in-memory stack. This
-  makes the previously reserved `db` / `db_table` options functional.
-  `RSQLite` is added to Suggests for the round-trip tests.
+This release refactors the preprocessing and estimation pipeline around typed
+model specifications and a writer strategy, and adds a public preprocessing
+entry point. Coefficient estimates reproduce to within 1e-6 of the previous
+implementation on both estimation engines.
 
-# goldfish 1.7.6
-
-* Internal: estimation is now self-contained and dispatches on the model
-  specification class. `estimate_int()`, the per-event contribution
-  (`compute_event_contribution()`, formerly `getEventValues()`), and the
-  per-event update (`compute_step()`) are S3 generics resolved once at the
-  start of estimation; no model-type string comparison or S3 dispatch runs
-  inside the event loop. The Newton-Raphson outer loop is shared through
-  `run_nr_loop()` with the `score_tol` / `step_tol` stopping criteria
-  unchanged.
-* Internal: the R and C++ estimation engines consume the combined flat
-  update buffer directly. The estimation routines no longer reach back into
-  the preprocessing environment (`prepEnvir` / `get()`), re-derive actor
-  counts, or apply the dead per-event mean imputation; statistics are
-  asserted NA-free at estimation entry. The C++ routines take the combined
-  buffer with `is_dependent` instead of separate right-censored matrices.
-* Internal: the `ignore_repetitions` masking, `modifyStatisticsList()` /
-  `reduceStatisticsList()` hot-path calls, and the dual-read shim for the
-  old `stats_change` format are removed; a thin `prepare_statslist()`
-  handles the intercept prepend and `excludeParameters` dropping.
-
-# goldfish 1.7.5
-
-* Internal: preprocessing now runs through dedicated recipe methods for
-  every model variant, dispatched on the model specification class. The
-  DyNAM rate and rate-ordered variants share a sender-indexed event-loop
-  kernel; DyNAM choice, choice-coordination, REM, and REM-ordered share a
-  dyad-indexed kernel. DyNAMi variants participate in the dispatch but
-  delegate to the existing DyNAMi loop unchanged. Preprocessing output is
-  value-identical to the previous implementation; all coefficient
-  estimates reproduce to within 1e-6 on both estimation engines.
-* Internal: the preprocessing result stores statistics updates in a single
-  flat matrix (`stat_mat_update` with `stat_mat_pointer` and
-  `is_dependent`) covering dependent and right-censored events; the nested
-  `stats_change` list is no longer produced. Rate models additionally
-  store the intercept scalars (`n_dep_events`, `total_time`,
-  `avg_active_actors`) and the presence composition changes in the format
-  the estimation engines consume.
-* `preprocessed.goldfish` objects now carry a format `version`; passing an
-  object preprocessed with a previous goldfish version through
-  `preprocessing_init` errors with a message to recompute it with
-  `compute_stats()`.
-* Effects with `ignore_repetitions = TRUE` now error immediately: the
-  previous implementation computed incorrect statistics (it always masked
-  repetitions using the dependent network instead of the network the
-  effect is applied to). The feature is disabled pending a correct
-  reimplementation (#105).
-* The `global()` effect now errors for `sub_model = "choice"` and
-  `"choice_coordination"`: a global covariate is constant across
-  alternatives, so its main effect is not identified in a multinomial
-  choice model. Support through interaction effects is planned for a
-  future release; rate sub-models keep accepting `global()`.
-
-# goldfish 1.7.4
+## New features and user-facing changes
 
 * New exported function `compute_stats()` runs the preprocessing stage of a
   model and returns the change statistics as a `"preprocessed.goldfish"`
   object, without estimating the model. The result can be passed to the
-  estimation functions through their `preprocessing_init` argument.
-  Its `output` argument is validated against `"default"`, `"gather"` and
-  `"db"`; only `"default"` is implemented so far, the other two values are
-  reserved for statistics writers under development.
+  estimation functions through their `preprocessing_init` argument. Its
+  `output` argument selects the statistics writer: `"default"` (the
+  estimation-ready `preprocessed.goldfish` object), `"gather"` (the gather
+  stack, one row per event × alternative), and `"db"` (gather rows streamed
+  to a database table).
 * `estimate_dynam()` gains `sub_model = "rate_ordered"` to declare the
   ordinal activity rate model (only the order of the events is modeled,
   partial likelihood as in the CoxPH model) explicitly. The previous
@@ -92,11 +25,72 @@
   (full dyadic hazard model, the default) and `"rate_ordered"` (ordinal
   case). The internal `"choice"` label used so far for REM models is kept
   as a deprecated alias of `"rate"` and emits a warning.
-* Internal: model variants are now carried through the pipeline as typed
-  `model_spec` S3 objects constructed once from `(model, sub_model,
-  is_two_mode)`; preprocessed and fitted objects store the spec in a
-  `model_spec` field. This is groundwork for dispatching preprocessing and
-  estimation per model variant.
+* The `global()` effect now errors for `sub_model = "choice"` and
+  `"choice_coordination"`: a global covariate is constant across
+  alternatives, so its main effect is not identified in a multinomial
+  choice model. Support through interaction effects is planned for a
+  future release; rate sub-models keep accepting `global()`.
+* Effects with `ignore_repetitions = TRUE` now error immediately: the
+  previous implementation computed incorrect statistics (it always masked
+  repetitions using the dependent network instead of the network the
+  effect is applied to). The feature is disabled pending a correct
+  reimplementation (#105).
+* `gather_model_data()` is reimplemented as a thin wrapper over
+  `compute_stats(..., output = "gather")` and now also handles one-mode
+  rate models, which previously errored.
+* `compute_stats(..., output = "db")` streams the gather rows to the
+  database table configured via `set_preprocessing_opt(db = , db_table = )`
+  in event-aligned batches, returning a lightweight descriptor instead of
+  the in-memory stack. This makes the previously reserved `db` / `db_table`
+  options functional. `RSQLite` is added to Suggests for the round-trip
+  tests.
+* `preprocessed.goldfish` objects now carry a format `version`; passing an
+  object preprocessed with a previous goldfish version through
+  `preprocessing_init` errors with a message to recompute it with
+  `compute_stats()`.
+
+## Internal changes
+
+* Model variants are carried through the pipeline as typed `model_spec` S3
+  objects constructed once from `(model, sub_model, is_two_mode)`;
+  preprocessed and fitted objects store the spec in a `model_spec` field,
+  and preprocessing and estimation dispatch on the spec class.
+* Preprocessing runs through dedicated recipe methods for every model
+  variant. The DyNAM rate and rate-ordered variants share a sender-indexed
+  event-loop kernel; DyNAM choice, choice-coordination, REM, and
+  REM-ordered share a dyad-indexed kernel. DyNAMi variants participate in
+  the dispatch but delegate to the existing DyNAMi loop unchanged.
+* The preprocessing result stores statistics updates in a single flat
+  matrix (`stat_mat_update` with `stat_mat_pointer` and `is_dependent`)
+  covering dependent and right-censored events; the nested `stats_change`
+  list is no longer produced. Rate models additionally store the intercept
+  scalars (`n_dep_events`, `total_time`, `avg_active_actors`) and the
+  presence composition changes in the format the estimation engines consume.
+* Recipes emit their output exclusively through a writer strategy
+  (`init()` / `write_event()` / `finalize()`), so a single event loop
+  serves every output format (`compute_stats(output = )` selects the
+  writer). The gather stack is produced in R from the flat buffer; the
+  post-hoc C++ `gather_()` routines (`gather_sender_model()`,
+  `gather_receiver_model()`, `gather_sender_receiver_model()`) have been
+  removed and `engine = "gather_compute"` consumes the native output.
+* Estimation is self-contained and dispatches on the model specification
+  class. `estimate_int()`, the per-event contribution
+  (`compute_event_contribution()`, formerly `getEventValues()`), and the
+  per-event update (`compute_step()`) are S3 generics resolved once at the
+  start of estimation; no model-type string comparison or S3 dispatch runs
+  inside the event loop. The Newton-Raphson outer loop is shared through
+  `run_nr_loop()` with the `score_tol` / `step_tol` stopping criteria
+  unchanged.
+* The R and C++ estimation engines consume the combined flat update buffer
+  directly. The estimation routines no longer reach back into the
+  preprocessing environment (`prepEnvir` / `get()`), re-derive actor
+  counts, or apply the dead per-event mean imputation; statistics are
+  asserted NA-free at estimation entry. The C++ routines take the combined
+  buffer with `is_dependent` instead of separate right-censored matrices.
+* The `ignore_repetitions` masking, `modifyStatisticsList()` /
+  `reduceStatisticsList()` hot-path calls, and the dual-read shim for the
+  old `stats_change` format are removed; a thin `prepare_statslist()`
+  handles the intercept prepend and `excludeParameters` dropping.
 
 # goldfish 1.7.3
 

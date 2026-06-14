@@ -255,7 +255,11 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
   e <- 1L
   while (e <= n_events) {
     e_to <- min(e + batch_events - 1L, n_events)
-    rows <- if (row_end[e_to] >= row_start[e]) row_start[e]:row_end[e_to] else integer(0)
+    rows <- if (row_end[e_to] >= row_start[e]) {
+      row_start[e]:row_end[e_to]
+    } else {
+      integer(0)
+    }
     batch <- long_df[rows, , drop = FALSE]
     res <- tryCatch(
       {

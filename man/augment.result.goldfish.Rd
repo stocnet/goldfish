@@ -8,6 +8,9 @@ augment.result.goldfish(x, ...)
 }
 \arguments{
 \item{x}{an object of class \code{result.goldfish}}
+
+\item{...}{Additional arguments passed to or from other methods
+(currently unused).}
 }
 \value{
 tibble

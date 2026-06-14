@@ -8,6 +8,9 @@
 }
 \arguments{
 \item{x}{An object of class \code{goldfish.diagnostic}.}
+
+\item{...}{Additional arguments passed to or from other methods
+(currently unused).}
 }
 \value{
 Print diagnostic summary

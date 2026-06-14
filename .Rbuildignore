@@ -17,3 +17,7 @@ vignettes/precompile\.R
 ^README\.Rmd$
 ^\.positai$
 ^\.claude$
+^openspec$
+^\.plan$
+^CLAUDE\.md$
+^myeff\.html$

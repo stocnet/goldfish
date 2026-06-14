@@ -576,7 +576,7 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
       "Numeric vector: elapsed time before each event (dep + RC merged).",
       "Integer vector: 1 for dependent events, 0 for right-censored.",
       "Time of the event.",
-      "Integer index of the event sender (NA for global right-censored events).",
+      "Integer index of the event sender (NA for global RC events).",
       "Integer index of the event receiver (NA for non-dyadic events).",
       "Consecutive integer identifying each event position.",
       "Initial presence vector for mode-1 nodes.",
@@ -764,6 +764,8 @@ glance.result.goldfish <- function(x, ...) {
 #' @title Augment method for goldfish.diagnostic objects
 #' @description Augments results for plotting
 #' @param x an object of class \code{result.goldfish}
+#' @param ... Additional arguments passed to or from other methods
+#'   (currently unused).
 #' @return tibble
 #' @export
 augment.result.goldfish <- function(x, ...) {
@@ -793,6 +795,8 @@ augment.result.goldfish <- function(x, ...) {
 #' @title Print method for goldfish.diagnostic objects
 #' @description Prints a summary of the identified diagnostics.
 #' @param x An object of class \code{goldfish.diagnostic}.
+#' @param ... Additional arguments passed to or from other methods
+#'   (currently unused).
 #' @return Print diagnostic summary
 #' @export
 print.diagnostic.goldfish <- function(x, ...) {
