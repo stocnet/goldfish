@@ -100,6 +100,85 @@ build_state_container <- function(
   state
 }
 
+#' Classify an effect's broadcast kind for the compact fan-out encoding
+#'
+#' Maps an effect to the broadcast `kind` it emits (design D2 / the task-0.2
+#' eligibility audit): `0` = not broadcast-eligible (stays a point update),
+#' `1` = constant over senders holding the alter (`alter`, degree
+#' `type = "alter"`), `2` = constant over alters holding the ego (`ego`, degree
+#' `type = "ego"`), `3` = constant over all actors (`global`). In sender-indexed
+#' (rate) models only `global()` fans out (the per-actor effects emit distinct
+#' values, so they stay point updates); dyad models additionally encode
+#' `alter` / `ego` / degree projections.
+#'
+#' @param effect_name character, the effect's base name.
+#' @param fmls the effect update function's formals (carries a resolved `type`).
+#' @param stat_kind character, `"sender"` or `"dyad"` (plan-level shape).
+#' @return integer broadcast kind in `{0, 1, 2, 3}`.
+#' @noRd
+classify_broadcast_kind <- function(effect_name, fmls, stat_kind) {
+  if (identical(stat_kind, "sender")) {
+    return(if (identical(effect_name, "global")) 3L else 0L)
+  }
+  switch(effect_name,
+    alter = 1L,
+    ego = 2L,
+    global = 3L,
+    indeg = ,
+    outdeg = ,
+    degree = {
+      type <- if ("type" %in% names(fmls)) {
+        tryCatch(eval(fmls[["type"]]), error = function(e) "alter")
+      } else {
+        "alter"
+      }
+      if (identical(type[1], "ego")) 2L else 1L
+    },
+    0L
+  )
+}
+
+#' Collapse a fan-out change matrix into compact broadcast entries
+#'
+#' Re-encodes the expanded `(node1, node2, replace)` change matrix that a
+#' broadcast-eligible effect produces into one `stat_mat_broadcast` column per
+#' held index: `kind = 1` groups by the fixed alter (`node2`), `kind = 2` by the
+#' fixed ego (`node1`), `kind = 3` is a single global entry. Each group must
+#' carry a single `replace` value (constant-value fan-out); a group with mixed
+#' values means the effect is not a pure broadcast and is rejected, enforcing
+#' the spec's "one stat_kind per effect column".
+#'
+#' @param updates numeric matrix with named columns `node1`, `replace` and,
+#'   for dyad models, `node2` (1-indexed actor ids).
+#' @param kind integer broadcast kind in `{1, 2, 3}`.
+#' @param gid integer effect id (1-indexed); stored 0-indexed as `effect`.
+#' @return a 4 x g matrix with rows `kind`, `fixed`, `effect`, `replace`.
+#' @noRd
+broadcast_entries_from_updates <- function(updates, kind, gid) {
+  abort_mixed <- function() {
+    cli::cli_abort(c(
+      "A broadcast-encoded effect produced non-constant fan-out values.",
+      "x" = "One stat_kind per effect column: a broadcast effect must write a
+             single value across its broadcast dimension.",
+      "i" = "Effect id {.val {gid}} is classified as constant-value fan-out
+             but emitted differing values for one held index."
+    ))
+  }
+  if (kind == 3L) {
+    reps <- updates[, "replace"]
+    if (length(unique(reps)) != 1L) abort_mixed()
+    return(rbind(3, 0, gid - 1, reps[1]))
+  }
+  fixed_col <- if (kind == 1L) "node2" else "node1"
+  fixed_vals <- unique(updates[, fixed_col])
+  blocks <- lapply(fixed_vals, function(fv) {
+    rep_v <- updates[updates[, fixed_col] == fv, "replace"]
+    if (length(unique(rep_v)) != 1L) abort_mixed()
+    c(kind, fv - 1, gid - 1, rep_v[1])
+  })
+  do.call(cbind, blocks)
+}
+
 #' Build the recipe update plan
 #'
 #' Compiles the gid/fid registries and per-gid call templates that recipe
@@ -166,10 +245,21 @@ build_update_plan <- function(
     stringsAsFactors = FALSE
   )
 
+  broadcast_kind <- vapply(
+    seq_len(n_effects),
+    function(gid) {
+      classify_broadcast_kind(
+        effect_names[gid], formals(effects[[gid]][["effect"]]), stat_kind
+      )
+    },
+    integer(1)
+  )
+
   effects_registry <- data.frame(
     gid = seq_len(n_effects),
     effect_name = effect_names,
     stat_kind = stat_kind,
+    broadcast_kind = broadcast_kind,
     stringsAsFactors = FALSE
   )
 

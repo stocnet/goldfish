@@ -107,13 +107,21 @@ test_that("compute_stats(output = 'db') requires a DBI connection", {
   )
 })
 
-test_that("preprocessed object carries an empty broadcast buffer (all models)", {
+test_that("preprocessed object carries a well-formed broadcast buffer", {
   data_list <- list(
     social_evolution = baselines_social_evolution_data(),
     fisheries = baselines_fisheries_data(),
     social_evolution_global = baselines_global_data()
   )
   grid <- c(baselines_model_grid(), baselines_global_model_grid())
+  # models whose effects are all cell-specific emit no broadcasts; models with
+  # alter/ego/degree/global fan-out emit a non-empty broadcast buffer.
+  has_broadcast <- c(
+    se_rem = TRUE, se_rem_ordered = TRUE,
+    fish_dynam_choice = TRUE, fish_dynam_choice_coord = TRUE,
+    fish_rem = TRUE, fish_rem_ordered = TRUE,
+    global_dynam_rate = TRUE, global_rem = TRUE
+  )
 
   for (nm in names(grid)) {
     spec <- grid[[nm]]
@@ -126,12 +134,20 @@ test_that("preprocessed object carries an empty broadcast buffer (all models)", 
     n_stored <- length(prep$stat_mat_pointer)
     expect_true(!is.null(prep$stat_mat_broadcast), info = nm)
     expect_equal(nrow(prep$stat_mat_broadcast), 4L, info = nm)
-    expect_equal(ncol(prep$stat_mat_broadcast), 0L, info = nm)
     expect_equal(
       length(prep$stat_mat_broadcast_pointer), n_stored,
       info = nm
     )
-    expect_true(all(prep$stat_mat_broadcast_pointer == 0), info = nm)
+    # pointer is non-decreasing and ends at the buffer column count
+    expect_false(is.unsorted(prep$stat_mat_broadcast_pointer), info = nm)
+    expect_equal(
+      prep$stat_mat_broadcast_pointer[n_stored],
+      ncol(prep$stat_mat_broadcast),
+      info = nm
+    )
     expect_equal(prep$version, 3L, info = nm)
+    if (isTRUE(has_broadcast[nm])) {
+      expect_gt(ncol(prep$stat_mat_broadcast), 0L)
+    }
   }
 })

@@ -425,6 +425,11 @@ run_sender_recipe_loop <- function(
   pending_dep_cols <- 0L
   pending_rc <- list()
   pending_rc_cols <- 0L
+  pending_dep_bc <- list()
+  pending_dep_bc_cols <- 0L
+  pending_rc_bc <- list()
+  pending_rc_bc_cols <- 0L
+  bcast_kind <- plan$effects$broadcast_kind
 
   iTotalEvents <- 0L
   iDependentEvents <- 0L
@@ -482,12 +487,21 @@ run_sender_recipe_loop <- function(
         list(
           is_dependent = 1L, interval = interval, time = time,
           sender = evSender, receiver = evReceiver
-        )
+        ),
+        if (pending_dep_bc_cols > 0L) {
+          do.call(cbind, pending_dep_bc)
+        } else {
+          matrix(0, 4L, 0L)
+        }
       )
       pending_dep <- list()
       pending_dep_cols <- 0L
       pending_rc <- list()
       pending_rc_cols <- 0L
+      pending_dep_bc <- list()
+      pending_dep_bc_cols <- 0L
+      pending_rc_bc <- list()
+      pending_rc_bc_cols <- 0L
     } else if (!isDependent) {
       if (isValidEvent && right_censored && interval > 0) {
         if (schedule$shape[k] == "global") {
@@ -509,10 +523,17 @@ run_sender_recipe_loop <- function(
           list(
             is_dependent = 0L, interval = interval, time = time,
             sender = evSender, receiver = evReceiver
-          )
+          ),
+          if (pending_rc_bc_cols > 0L) {
+            do.call(cbind, pending_rc_bc)
+          } else {
+            matrix(0, 4L, 0L)
+          }
         )
         pending_rc <- list()
         pending_rc_cols <- 0L
+        pending_rc_bc <- list()
+        pending_rc_bc_cols <- 0L
       }
 
       if (!finalStep) {
@@ -615,6 +636,16 @@ run_sender_recipe_loop <- function(
             if (hasStartTime && nextEventTime < startTime) {
               initialStats[cbind(updates[, "node1"], gid)] <-
                 updates[, "replace"]
+            } else if (bcast_kind[gid] != 0L) {
+              bc_block <- broadcast_entries_from_updates(
+                updates, bcast_kind[gid], gid
+              )
+              pending_dep_bc[[length(pending_dep_bc) + 1L]] <- bc_block
+              pending_dep_bc_cols <- pending_dep_bc_cols + ncol(bc_block)
+              if (right_censored) {
+                pending_rc_bc[[length(pending_rc_bc) + 1L]] <- bc_block
+                pending_rc_bc_cols <- pending_rc_bc_cols + ncol(bc_block)
+              }
             } else {
               block <- rbind(
                 updates[, "node1"] - 1,
@@ -901,6 +932,11 @@ run_dyad_recipe_loop <- function(
   pending_dep_cols <- 0L
   pending_rc <- list()
   pending_rc_cols <- 0L
+  pending_dep_bc <- list()
+  pending_dep_bc_cols <- 0L
+  pending_rc_bc <- list()
+  pending_rc_bc_cols <- 0L
+  bcast_kind <- plan$effects$broadcast_kind
 
   iTotalEvents <- 0L
   iDependentEvents <- 0L
@@ -958,12 +994,21 @@ run_dyad_recipe_loop <- function(
         list(
           is_dependent = 1L, interval = interval, time = time,
           sender = evSender, receiver = evReceiver
-        )
+        ),
+        if (pending_dep_bc_cols > 0L) {
+          do.call(cbind, pending_dep_bc)
+        } else {
+          matrix(0, 4L, 0L)
+        }
       )
       pending_dep <- list()
       pending_dep_cols <- 0L
       pending_rc <- list()
       pending_rc_cols <- 0L
+      pending_dep_bc <- list()
+      pending_dep_bc_cols <- 0L
+      pending_rc_bc <- list()
+      pending_rc_bc_cols <- 0L
     } else if (!isDependent) {
       if (isValidEvent && right_censored && interval > 0) {
         if (schedule$shape[k] == "global") {
@@ -985,10 +1030,17 @@ run_dyad_recipe_loop <- function(
           list(
             is_dependent = 0L, interval = interval, time = time,
             sender = evSender, receiver = evReceiver
-          )
+          ),
+          if (pending_rc_bc_cols > 0L) {
+            do.call(cbind, pending_rc_bc)
+          } else {
+            matrix(0, 4L, 0L)
+          }
         )
         pending_rc <- list()
         pending_rc_cols <- 0L
+        pending_rc_bc <- list()
+        pending_rc_bc_cols <- 0L
       }
 
       if (!finalStep) {
@@ -1094,6 +1146,16 @@ run_dyad_recipe_loop <- function(
                 updates[, "node2"],
                 gid
               )] <- updates[, "replace"]
+            } else if (bcast_kind[gid] != 0L) {
+              bc_block <- broadcast_entries_from_updates(
+                updates, bcast_kind[gid], gid
+              )
+              pending_dep_bc[[length(pending_dep_bc) + 1L]] <- bc_block
+              pending_dep_bc_cols <- pending_dep_bc_cols + ncol(bc_block)
+              if (right_censored) {
+                pending_rc_bc[[length(pending_rc_bc) + 1L]] <- bc_block
+                pending_rc_bc_cols <- pending_rc_bc_cols + ncol(bc_block)
+              }
             } else {
               block <- rbind(
                 updates[, "node1"] - 1,
