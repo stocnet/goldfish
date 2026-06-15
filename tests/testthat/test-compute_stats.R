@@ -85,7 +85,7 @@ test_that("preprocessed objects carry the format version", {
     data = dataTest,
     model = "DyNAM", sub_model = "choice"
   )
-  expect_identical(prep$version, 2L)
+  expect_identical(prep$version, 3L)
   oldFormat <- prep
   oldFormat$version <- NULL
   expect_error(
