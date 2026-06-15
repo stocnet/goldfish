@@ -1049,6 +1049,25 @@ compute_step.default <- function(spec, state, i, ctx) {
   }
   state$flatPointer <- flatEnd
 
+  if (!is.null(statsList$stat_mat_broadcast_pointer)) {
+    bcEnd <- statsList$stat_mat_broadcast_pointer[i]
+    if (bcEnd > state$bcPointer) {
+      bcSlice <- statsList$stat_mat_broadcast[
+        , (state$bcPointer + 1L):bcEnd,
+        drop = FALSE
+      ]
+      if (hasIntercept) bcSlice[3, ] <- bcSlice[3, ] + 1L
+      dims <- dim(state$statsArray)
+      state$statsArray <- apply_broadcast_update(
+        state$statsArray, bcSlice,
+        is_sender = is_rate,
+        n1 = dims[1], n2 = if (is_rate) NA_integer_ else dims[2],
+        twomode_or_reflexive = ctx$is_two_mode
+      )
+    }
+    state$bcPointer <- bcEnd
+  }
+
   if (hasIntercept) {
     state$time <- state$time + statsList$intervals[[i]]
     timespan <- statsList$intervals[[i]]
@@ -1281,6 +1300,7 @@ compute_iteration_step <- function(
     statsArray = statsList$initialStats,
     time = statsList$startTime,
     flatPointer = 0L,
+    bcPointer = 0L,
     oldTime = -Inf,
     presence = presence,
     presence2 = presence2,

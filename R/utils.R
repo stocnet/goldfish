@@ -391,6 +391,65 @@ apply_flat_update <- function(statsArray, updates_slice, is_sender) {
   statsArray
 }
 
+#' Apply broadcast (constant-value fan-out) updates to a running stats array
+#'
+#' Decodes a slice of the `stat_mat_broadcast` buffer into the running
+#' statistics array with in-place vectorised slice assignment (design D7).
+#' Each column of `broadcast_slice` is one coded fan-out entry with rows
+#' `(kind, fixed, effect, replace)` where `fixed` and `effect` are 0-indexed.
+#' The decode mirrors the eager `to_alter()` (`kind = 1`), `to_ego()`
+#' (`kind = 2`), and `fillChanges()` (`kind = 3`) expansion, including the
+#' reflexive-diagonal exclusion for one-mode dyad models.
+#'
+#' @param statsArray a numeric matrix `n1 x nEffects` when `is_sender = TRUE`,
+#'   otherwise a numeric array `n1 x n2 x nEffects`.
+#' @param broadcast_slice a numeric matrix 4 x b, columns from
+#'   `stat_mat_broadcast`. An empty slice is a no-op.
+#' @param is_sender logical, whether `statsArray` is sender-indexed (2D).
+#' @param n1,n2 integer dimensions of the dyad statistics array.
+#' @param twomode_or_reflexive logical; when `FALSE` the reflexive diagonal
+#'   cell is excluded, matching `to_ego()` / `to_alter()`.
+#'
+#' @return `statsArray` with the broadcast updates applied.
+#' @noRd
+apply_broadcast_update <- function(
+  statsArray, broadcast_slice, is_sender, n1, n2, twomode_or_reflexive
+) {
+  if (length(broadcast_slice) == 0L) {
+    return(statsArray)
+  }
+  for (b in seq_len(ncol(broadcast_slice))) {
+    kind <- broadcast_slice[1, b]
+    fixed <- broadcast_slice[2, b] + 1L
+    effect <- broadcast_slice[3, b] + 1L
+    value <- broadcast_slice[4, b]
+    if (is_sender) {
+      statsArray[, effect] <- value
+    } else if (kind == 1L) {
+      rows <- if (twomode_or_reflexive) {
+        seq_len(n1)
+      } else {
+        setdiff(seq_len(n1), fixed)
+      }
+      statsArray[rows, fixed, effect] <- value
+    } else if (kind == 2L) {
+      cols <- if (twomode_or_reflexive) {
+        seq_len(n2)
+      } else {
+        setdiff(seq_len(n2), fixed)
+      }
+      statsArray[fixed, cols, effect] <- value
+    } else if (twomode_or_reflexive) {
+      statsArray[, , effect] <- value
+    } else {
+      slice <- statsArray[, , effect]
+      slice[row(slice) != col(slice)] <- value
+      statsArray[, , effect] <- slice
+    }
+  }
+  statsArray
+}
+
 
 #' Merge flat update buffers for reuse of a preprocessed object
 #'
