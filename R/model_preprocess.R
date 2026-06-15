@@ -416,7 +416,7 @@ run_sender_recipe_loop <- function(
     n2 = n2,
     is_sender = inherits(spec, "sender_spec"),
     has_intercept = right_censored,
-    buf_capacity = max(1000L, nEffects * nrow(events[[1L]])),
+    buf_capacity = max(1000, as.double(nEffects) * nrow(events[[1L]])),
     max_store = schedule$n + 1L,
     initial_stats_fn = function() initialStats
   ))
@@ -892,7 +892,7 @@ run_dyad_recipe_loop <- function(
     n2 = n2,
     is_sender = inherits(spec, "sender_spec"),
     has_intercept = right_censored,
-    buf_capacity = max(1000L, nEffects * nrow(events[[1L]])),
+    buf_capacity = max(1000, as.double(nEffects) * nrow(events[[1L]])),
     max_store = schedule$n + 1L,
     initial_stats_fn = function() initialStats
   ))

@@ -62,7 +62,7 @@ NULL
 writer_default <- function() {
   buf_capacity <- NULL
   stat_mat_buf <- NULL
-  buf_n <- 0L
+  buf_n <- 0
   stat_mat_pointer <- NULL
   intervals <- NULL
   is_dependent <- NULL
@@ -76,10 +76,10 @@ writer_default <- function() {
     list(
       output = "default",
       init = function(spec, dims) {
-        buf_capacity <<- dims$buf_capacity
+        buf_capacity <<- min(as.double(dims$buf_capacity), .Machine$integer.max)
         stat_mat_buf <<- matrix(0, 4L, buf_capacity)
-        buf_n <<- 0L
-        stat_mat_pointer <<- integer(dims$max_store)
+        buf_n <<- 0
+        stat_mat_pointer <<- numeric(dims$max_store)
         intervals <<- numeric(dims$max_store)
         is_dependent <<- integer(dims$max_store)
         event_time <<- numeric(dims$max_store)
@@ -92,10 +92,22 @@ writer_default <- function() {
       write_event = function(event_updates, event_info) {
         n_cols <- ncol(event_updates)
         if (n_cols > 0L) {
+          if (buf_n + n_cols > .Machine$integer.max) {
+            cli::cli_abort(c(
+              "The preprocessing statistics buffer would exceed R's matrix
+               column limit.",
+              "x" = "Need {.val {buf_n + n_cols}} update columns but a matrix
+                     can have at most {.val {.Machine$integer.max}}.",
+              "i" = "This model produces too many statistic updates for
+                     in-memory preprocessing. Stream them with
+                     {.code compute_stats(output = \"db\")}, or reduce the
+                     number of effects or window effects."
+            ))
+          }
           while (buf_n + n_cols > buf_capacity) {
-            buf_capacity <<- buf_capacity * 2L
+            buf_capacity <<- min(buf_capacity * 2, .Machine$integer.max)
             new_buf <- matrix(0, 4L, buf_capacity)
-            if (buf_n > 0L) {
+            if (buf_n > 0) {
               new_buf[, seq_len(buf_n)] <- stat_mat_buf[, seq_len(buf_n)]
             }
             stat_mat_buf <<- new_buf

@@ -53,6 +53,13 @@ implementation on both estimation engines.
   norm checked against `score_tol`) and the step (`maxAbsUpdate`, the maximum
   absolute parameter update checked against `step_tol`). `score_rel_norm` is
   also added to the `convergence` list of the fitted object.
+* Fixed an integer overflow when preprocessing very large models: the growing
+  statistics buffer used 32-bit integer arithmetic, so models with more than
+  ~2^31 statistic updates failed with `invalid 'ncol' value (too large or NA)`.
+  Buffer sizing now uses double-precision arithmetic, and a model that would
+  exceed R's hard matrix column limit (2^31 - 1) now stops with an informative
+  error suggesting `compute_stats(output = "db")` or fewer effects instead of a
+  cryptic overflow.
 
 ## Internal changes
 
