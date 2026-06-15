@@ -106,3 +106,32 @@ test_that("compute_stats(output = 'db') requires a DBI connection", {
     "DBI connection"
   )
 })
+
+test_that("preprocessed object carries an empty broadcast buffer (all models)", {
+  data_list <- list(
+    social_evolution = baselines_social_evolution_data(),
+    fisheries = baselines_fisheries_data(),
+    social_evolution_global = baselines_global_data()
+  )
+  grid <- c(baselines_model_grid(), baselines_global_model_grid())
+
+  for (nm in names(grid)) {
+    spec <- grid[[nm]]
+    prep <- compute_stats(
+      spec$formula,
+      data = data_list[[spec$dataset]],
+      model = spec$model,
+      sub_model = if (spec$model == "DyNAM") spec$sub_model else "rate"
+    )
+    n_stored <- length(prep$stat_mat_pointer)
+    expect_true(!is.null(prep$stat_mat_broadcast), info = nm)
+    expect_equal(nrow(prep$stat_mat_broadcast), 4L, info = nm)
+    expect_equal(ncol(prep$stat_mat_broadcast), 0L, info = nm)
+    expect_equal(
+      length(prep$stat_mat_broadcast_pointer), n_stored,
+      info = nm
+    )
+    expect_true(all(prep$stat_mat_broadcast_pointer == 0), info = nm)
+    expect_equal(prep$version, 3L, info = nm)
+  }
+})

@@ -56,6 +56,34 @@
 #' @keywords internal
 NULL
 
+#' Broadcast-update entry format
+#'
+#' Constant-value fan-out updates (an `alter()` / `ego()` / degree projection,
+#' or a `global()` change) are stored as a single coded entry in the
+#' `stat_mat_broadcast` buffer instead of one duplicate column per affected cell
+#' in the point buffer `stat_mat_update`. The buffer is a 4 x M matrix with rows
+#'
+#' \describe{
+#'   \item{`kind`}{`1` = broadcast over `node1` (senders) holding the alter
+#'     index `fixed`; `2` = broadcast over `node2` (alters) holding the ego
+#'     index `fixed`; `3` = broadcast to all actors (`fixed` ignored).}
+#'   \item{`fixed`}{the held index (the changed actor) for kinds 1/2; ignored
+#'     for kind 3. **0-indexed**.}
+#'   \item{`effect`}{the 0-indexed effect column the value is written to.}
+#'   \item{`replace`}{the broadcast value.}
+#' }
+#'
+#' `stat_mat_broadcast_pointer` (length = number of stored events) records the
+#' end-column index in `stat_mat_broadcast` after each stored event, exactly as
+#' `stat_mat_pointer` does for the point buffer. Sender-indexed (rate) models
+#' emit only `kind = 3`. Decode mirrors `to_alter()` (kind 1) / `to_ego()`
+#' (kind 2) / `fillChanges()` (kind 3), including the reflexive-diagonal
+#' exclusion for one-mode dyad models.
+#' @name broadcast_format
+#' @keywords internal
+#' @noRd
+NULL
+
 #' @describeIn preprocess_writers default flat-buffer writer producing the
 #'   `preprocessed.goldfish` object consumed by both estimation engines.
 #' @noRd
@@ -64,6 +92,10 @@ writer_default <- function() {
   stat_mat_buf <- NULL
   buf_n <- 0
   stat_mat_pointer <- NULL
+  bc_capacity <- NULL
+  stat_mat_bc_buf <- NULL
+  bc_n <- 0
+  stat_mat_bc_pointer <- NULL
   intervals <- NULL
   is_dependent <- NULL
   event_time <- NULL
@@ -80,6 +112,10 @@ writer_default <- function() {
         stat_mat_buf <<- matrix(0, 4L, buf_capacity)
         buf_n <<- 0
         stat_mat_pointer <<- numeric(dims$max_store)
+        bc_capacity <<- min(1000, .Machine$integer.max)
+        stat_mat_bc_buf <<- matrix(0, 4L, bc_capacity)
+        bc_n <<- 0
+        stat_mat_bc_pointer <<- numeric(dims$max_store)
         intervals <<- numeric(dims$max_store)
         is_dependent <<- integer(dims$max_store)
         event_time <<- numeric(dims$max_store)
@@ -89,7 +125,9 @@ writer_default <- function() {
         initial_stats_fn <<- dims$initial_stats_fn
         invisible(NULL)
       },
-      write_event = function(event_updates, event_info) {
+      write_event = function(
+        event_updates, event_info, event_broadcast = matrix(0, 4L, 0L)
+      ) {
         n_cols <- ncol(event_updates)
         if (n_cols > 0L) {
           if (buf_n + n_cols > .Machine$integer.max) {
@@ -115,8 +153,34 @@ writer_default <- function() {
           stat_mat_buf[, buf_n + seq_len(n_cols)] <<- event_updates
           buf_n <<- buf_n + n_cols
         }
+        n_bc <- ncol(event_broadcast)
+        if (n_bc > 0L) {
+          if (bc_n + n_bc > .Machine$integer.max) {
+            cli::cli_abort(c(
+              "The preprocessing broadcast buffer would exceed R's matrix
+               column limit.",
+              "x" = "Need {.val {bc_n + n_bc}} broadcast columns but a matrix
+                     can have at most {.val {.Machine$integer.max}}.",
+              "i" = "This model produces too many broadcast updates for
+                     in-memory preprocessing. Stream them with
+                     {.code compute_stats(output = \"db\")}, or reduce the
+                     number of effects or window effects."
+            ))
+          }
+          while (bc_n + n_bc > bc_capacity) {
+            bc_capacity <<- min(bc_capacity * 2, .Machine$integer.max)
+            new_bc <- matrix(0, 4L, bc_capacity)
+            if (bc_n > 0) {
+              new_bc[, seq_len(bc_n)] <- stat_mat_bc_buf[, seq_len(bc_n)]
+            }
+            stat_mat_bc_buf <<- new_bc
+          }
+          stat_mat_bc_buf[, bc_n + seq_len(n_bc)] <<- event_broadcast
+          bc_n <<- bc_n + n_bc
+        }
         n_stored <<- n_stored + 1L
         stat_mat_pointer[n_stored] <<- buf_n
+        stat_mat_bc_pointer[n_stored] <<- bc_n
         intervals[n_stored] <<- event_info$interval
         is_dependent[n_stored] <<- event_info$is_dependent
         event_time[n_stored] <<- event_info$time
@@ -126,8 +190,10 @@ writer_default <- function() {
       },
       finalize = function(tail) {
         stat_mat_update <- stat_mat_buf[, seq_len(buf_n), drop = FALSE]
+        stat_mat_broadcast <- stat_mat_bc_buf[, seq_len(bc_n), drop = FALSE]
         keep <- seq_len(n_stored)
         stat_mat_pointer <- stat_mat_pointer[keep]
+        stat_mat_broadcast_pointer <- stat_mat_bc_pointer[keep]
         intervals <- intervals[keep]
         is_dependent <- is_dependent[keep]
         event_time <- event_time[keep]
@@ -138,6 +204,8 @@ writer_default <- function() {
           initialStats = tail$initialStats,
           stat_mat_update = stat_mat_update,
           stat_mat_pointer = stat_mat_pointer,
+          stat_mat_broadcast = stat_mat_broadcast,
+          stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
           intervals = intervals,
           is_dependent = is_dependent,
           event_time = event_time,
@@ -432,7 +500,9 @@ assemble_default_output <- function(
   initialStats, stat_mat_update, stat_mat_pointer, intervals, is_dependent,
   event_time, event_sender, event_receiver, n_stored,
   active_mode1_init, active_mode1_changes, active_mode2_init,
-  active_mode2_changes, startTime, endTime, intercept_scalars
+  active_mode2_changes, startTime, endTime, intercept_scalars,
+  stat_mat_broadcast = matrix(0, 4L, 0L),
+  stat_mat_broadcast_pointer = numeric(n_stored)
 ) {
   n_dep_events <- NULL
   total_time <- NULL
@@ -493,6 +563,8 @@ assemble_default_output <- function(
       initialStats = initialStats,
       stat_mat_update = stat_mat_update,
       stat_mat_pointer = stat_mat_pointer,
+      stat_mat_broadcast = stat_mat_broadcast,
+      stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
       intervals = intervals,
       is_dependent = is_dependent,
       event_time = event_time,

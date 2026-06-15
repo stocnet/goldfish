@@ -1,4 +1,4 @@
-PREPROCESSED_GOLDFISH_VERSION <- 2L
+PREPROCESSED_GOLDFISH_VERSION <- 3L
 
 #' Preprocess a model given its specification
 #'
