@@ -429,8 +429,17 @@ gather_from_prep <- function(prep, spec) {
 
   stat_mat_update <- statsList$stat_mat_update
   stat_mat_update_pointer <- statsList$stat_mat_pointer
+  stat_mat_broadcast <- statsList$stat_mat_broadcast
+  stat_mat_broadcast_pointer <- statsList$stat_mat_broadcast_pointer
+  if (is.null(stat_mat_broadcast)) {
+    stat_mat_broadcast <- matrix(0, 4L, 0L)
+    stat_mat_broadcast_pointer <- numeric(length(stat_mat_update_pointer))
+  }
   if (has_intercept) {
     stat_mat_update[3, ] <- stat_mat_update[3, ] + 1
+    if (ncol(stat_mat_broadcast) > 0L) {
+      stat_mat_broadcast[3, ] <- stat_mat_broadcast[3, ] + 1
+    }
   }
 
   if (modelTypeCall %in% c("DyNAM-M-Rate", "REM", "DyNAM-MM")) {
@@ -464,6 +473,8 @@ gather_from_prep <- function(prep, spec) {
     stat_mat_init = stat_mat_init,
     stat_mat_update = stat_mat_update,
     stat_mat_update_pointer = stat_mat_update_pointer,
+    stat_mat_broadcast = stat_mat_broadcast,
+    stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
     presence1_init = presence1_init,
     presence1_update = presence1_update,
     presence1_update_pointer = presence1_update_pointer,

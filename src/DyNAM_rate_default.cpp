@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include "broadcast_updates.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -23,6 +24,8 @@ inline arma::mat reduce_mat_to_vector(
      const arma::mat& stat_mat_init,
      const arma::mat& stat_mat_update,
      const arma::vec& stat_mat_update_pointer,
+     const arma::mat& stat_mat_broadcast,
+     const arma::vec& stat_mat_broadcast_pointer,
      const arma::vec& presence1_init,
      const arma::mat& presence1_update,
      const arma::vec& presence1_update_pointer,
@@ -42,7 +45,8 @@ inline arma::mat reduce_mat_to_vector(
    arma::rowvec weighted_sum_current_event(n_parameters);
    arma::mat fisher_current_event(n_parameters, n_parameters);
    int stat_mat_update_id = 0;
-   
+   int stat_mat_broadcast_id = 0;
+
    // declare return variables
    arma::mat fisher(n_parameters, n_parameters, fill::zeros);
    arma::mat derivative(1, n_parameters, fill::zeros);
@@ -76,8 +80,13 @@ inline arma::mat reduce_mat_to_vector(
        = stat_mat_update(3, stat_mat_update_id);
        stat_mat_update_id++;
      }
-     
-     
+     apply_broadcast_updates(
+       stat_mat, stat_mat_broadcast, stat_mat_broadcast_id,
+       stat_mat_broadcast_pointer(id_event), n_actors_1, n_actors_2,
+       twomode_or_reflexive
+     );
+
+
      // impute the missing statistics if necessary
      if (impute) {
        for (int i = 0; i < n_parameters; i++) {

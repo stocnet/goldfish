@@ -103,3 +103,122 @@ test_that("empty broadcast slice is a no-op", {
     apply_broadcast_update(mat0, empty, TRUE, 2L, NA_integer_, TRUE), mat0
   )
 })
+
+# Synthetic C++ cross-check: estimate_DyNAM_choice() fed a non-empty broadcast
+# buffer must match the same model fed the eager point-column expansion. This
+# exercises the C++ apply_broadcast_updates() helper before the recipe goes
+# live (group 5).
+
+# Expand one broadcast entry (kind, fixed0, effect0, value) into 0-indexed
+# point columns (node1, node2, effect, replace) reproducing to_alter/to_ego/
+# fillChanges semantics for a one-mode (diagonal-skipped) dyad model.
+.expand_broadcast_entry <- function(kind, fixed0, effect0, value, n1, n2) {
+  if (kind == 1L) {
+    rows <- setdiff(seq_len(n1) - 1L, fixed0)
+    rbind(rows, fixed0, effect0, value)
+  } else if (kind == 2L) {
+    cols <- setdiff(seq_len(n2) - 1L, fixed0)
+    rbind(fixed0, cols, effect0, value)
+  } else {
+    grid <- expand.grid(i = seq_len(n1) - 1L, j = seq_len(n2) - 1L)
+    grid <- grid[grid$i != grid$j, ]
+    rbind(grid$i, grid$j, effect0, value)
+  }
+}
+
+test_that("C++ choice engine: broadcast buffer matches eager expansion", {
+  skip_on_cran()
+  n1 <- 5L
+  n2 <- 5L
+  p <- 2L
+  parameters <- c(0.3, -0.5)
+  stat_mat_init <- matrix(0, n1 * n2, p)
+  dep_event_mat <- matrix(c(1, 2, 3, 4), nrow = 2)
+  presence2_init <- rep(1, n2)
+  empty_pres <- matrix(0, 0, 0)
+  pres_ptr <- numeric(ncol(dep_event_mat))
+
+  # event 1: kind-1 hold alter 1 (0-idx) on effect 0; event 2: kind-2 hold ego
+  # 2 on effect 1 + kind-3 on effect 0.
+  bc1 <- matrix(c(1L, 1L, 0L, 2.0), nrow = 4)
+  bc2 <- cbind(
+    matrix(c(2L, 2L, 1L, -1.5), nrow = 4),
+    matrix(c(3L, 0L, 0L, 0.7), nrow = 4)
+  )
+  broadcast <- cbind(bc1, bc2)
+  broadcast_ptr <- c(ncol(bc1), ncol(bc1) + ncol(bc2))
+
+  point1 <- .expand_broadcast_entry(1L, 1L, 0L, 2.0, n1, n2)
+  point2 <- cbind(
+    .expand_broadcast_entry(2L, 2L, 1L, -1.5, n1, n2),
+    .expand_broadcast_entry(3L, 0L, 0L, 0.7, n1, n2)
+  )
+  point <- cbind(point1, point2)
+  point_ptr <- c(ncol(point1), ncol(point1) + ncol(point2))
+
+  res_bc <- estimate_DyNAM_choice(
+    parameters, dep_event_mat, stat_mat_init,
+    matrix(0, 4L, 0L), numeric(ncol(dep_event_mat)),
+    broadcast, broadcast_ptr,
+    presence2_init, empty_pres, pres_ptr,
+    n1, n2, FALSE, FALSE
+  )
+  res_pt <- estimate_DyNAM_choice(
+    parameters, dep_event_mat, stat_mat_init,
+    point, point_ptr,
+    matrix(0, 4L, 0L), numeric(ncol(dep_event_mat)),
+    presence2_init, empty_pres, pres_ptr,
+    n1, n2, FALSE, FALSE
+  )
+  expect_equal(res_bc$logLikelihood, res_pt$logLikelihood, tolerance = 1e-12)
+  expect_equal(as.numeric(res_bc$derivative), as.numeric(res_pt$derivative),
+               tolerance = 1e-12)
+  expect_equal(res_bc$fisher, res_pt$fisher, tolerance = 1e-12)
+  # broadcast actually wrote something (not a trivial all-zero match)
+  expect_gt(sum(abs(res_pt$fisher)), 0)
+})
+
+test_that("gather port: broadcast buffer matches eager expansion", {
+  n1 <- 5L
+  n2 <- 5L
+  p <- 2L
+  stat_mat_init <- matrix(0, n1 * n2, p)
+  event_mat <- matrix(c(1, 2, 3, 4), nrow = 2)
+  presence2_init <- rep(1, n2)
+  empty_pres <- matrix(0, 0, 0)
+  pres_ptr <- numeric(ncol(event_mat))
+
+  bc1 <- matrix(c(1L, 1L, 0L, 2.0), nrow = 4)
+  bc2 <- cbind(
+    matrix(c(2L, 2L, 1L, -1.5), nrow = 4),
+    matrix(c(3L, 0L, 0L, 0.7), nrow = 4)
+  )
+  broadcast <- cbind(bc1, bc2)
+  broadcast_ptr <- c(ncol(bc1), ncol(bc1) + ncol(bc2))
+
+  point1 <- .expand_broadcast_entry(1L, 1L, 0L, 2.0, n1, n2)
+  point2 <- cbind(
+    .expand_broadcast_entry(2L, 2L, 1L, -1.5, n1, n2),
+    .expand_broadcast_entry(3L, 0L, 0L, 0.7, n1, n2)
+  )
+  point <- cbind(point1, point2)
+  point_ptr <- c(ncol(point1), ncol(point1) + ncol(point2))
+
+  g_bc <- gather_receiver_model_r(
+    event_mat, stat_mat_init,
+    matrix(0, 4L, 0L), numeric(ncol(event_mat)),
+    broadcast, broadcast_ptr,
+    presence2_init, empty_pres, pres_ptr,
+    n1, n2, FALSE
+  )
+  g_pt <- gather_receiver_model_r(
+    event_mat, stat_mat_init,
+    point, point_ptr,
+    matrix(0, 4L, 0L), numeric(ncol(event_mat)),
+    presence2_init, empty_pres, pres_ptr,
+    n1, n2, FALSE
+  )
+  expect_equal(g_bc$stat_all_events, g_pt$stat_all_events)
+  expect_equal(g_bc$n_candidates, g_pt$n_candidates)
+  expect_gt(sum(abs(g_pt$stat_all_events)), 0)
+})

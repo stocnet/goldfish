@@ -7,26 +7,26 @@
 #'   the log-Likelihood, and the log-likelihood of each event given input data
 #'
 #' @noRd
-estimate_DyNAM_MM <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE) {
-    .Call('_goldfish_estimate_DyNAM_MM', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
+estimate_DyNAM_MM <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE) {
+    .Call('_goldfish_estimate_DyNAM_MM', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
 }
 
 #' Calculation for estimating an DyNAM choice model
 #' @noRd
-estimate_DyNAM_choice <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute) {
-    .Call('_goldfish_estimate_DyNAM_choice', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
+estimate_DyNAM_choice <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute) {
+    .Call('_goldfish_estimate_DyNAM_choice', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
 }
 
 #' Calculation for estimating an DyNAM-rate model
 #' @noRd
-estimate_DyNAM_rate <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE) {
-    .Call('_goldfish_estimate_DyNAM_rate', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
+estimate_DyNAM_rate <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE) {
+    .Call('_goldfish_estimate_DyNAM_rate', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
 }
 
 #' Calculation for estimating an DyNAM-rate-ordered model
 #' @noRd
-estimate_DyNAM_rate_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE) {
-    .Call('_goldfish_estimate_DyNAM_rate_ordered', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
+estimate_DyNAM_rate_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE) {
+    .Call('_goldfish_estimate_DyNAM_rate_ordered', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
 }
 
 #' Calculation for estimating an REM-choice model
@@ -126,14 +126,14 @@ estimate_DyNAM_rate_ordered <- function(parameters, dep_event_mat, stat_mat_init
 #'         given the input parameter and data.}
 #' }
 #' @noRd
-estimate_REM <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute) {
-    .Call('_goldfish_estimate_REM', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
+estimate_REM <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute) {
+    .Call('_goldfish_estimate_REM', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
 }
 
 #' Calculation for estimating an REM-choice-ordered model
 #' @noRd
-estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE) {
-    .Call('_goldfish_estimate_REM_ordered', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
+estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE) {
+    .Call('_goldfish_estimate_REM_ordered', PACKAGE = 'goldfish', parameters, dep_event_mat, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, presence1_init, presence1_update, presence1_update_pointer, presence2_init, presence2_update, presence2_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute)
 }
 
 #' Estimate a DyNAM-coordination model with gathered data
