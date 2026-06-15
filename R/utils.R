@@ -289,12 +289,79 @@ ReducePreprocess <- function(
     )
   }
 
+  ReduceBroadcastFlat <- function(eventsKeep) {
+    bc <- preproData$stat_mat_broadcast
+    bptr <- preproData$stat_mat_broadcast_pointer
+    out <- vector("list", nEffects)
+    if (is.null(bc) || ncol(bc) == 0L) return(out)
+    counts <- diff(c(0L, bptr))
+    colEvent <- rep(seq_along(bptr), counts)
+    colsKeep <- eventsKeep[colEvent]
+    bcK <- bc[, colsKeep, drop = FALSE]
+    bcEvent <- colEvent[colsKeep]
+    n1 <- dim(preproData$initialStats)[1]
+    n2 <- if (is_rate) 1L else dim(preproData$initialStats)[2]
+    is_two_mode <- !identical(preproData$nodes, preproData$nodes2)
+    for (i in seq_len(nEffects)) {
+      effCols <- bcK[3, ] == (i - 1)
+      if (!any(effCols)) next
+      sub <- bcK[, effCols, drop = FALSE]
+      subEvent <- bcEvent[effCols]
+      rows <- do.call(rbind, lapply(seq_len(ncol(sub)), function(cc) {
+        kind <- sub[1, cc]
+        fixed <- sub[2, cc] + 1L
+        val <- sub[4, cc]
+        ev <- subEvent[cc]
+        if (is_rate) {
+          cbind(event = ev, node1 = seq_len(n1), node2 = 0L, replace = val)
+        } else if (kind == 1L) {
+          nodes1 <- if (is_two_mode) seq_len(n1) else setdiff(seq_len(n1), fixed)
+          cbind(event = ev, node1 = nodes1, node2 = fixed, replace = val)
+        } else if (kind == 2L) {
+          nodes2 <- if (is_two_mode) seq_len(n2) else setdiff(seq_len(n2), fixed)
+          cbind(event = ev, node1 = fixed, node2 = nodes2, replace = val)
+        } else {
+          ij <- expand.grid(node1 = seq_len(n1), node2 = seq_len(n2))
+          if (!is_two_mode) ij <- ij[ij$node1 != ij$node2, ]
+          cbind(event = ev, node1 = ij$node1, node2 = ij$node2, replace = val)
+        }
+      }))
+      key <- if (is_rate) {
+        cbind(rows[, "event"], rows[, "node1"])
+      } else {
+        cbind(rows[, "event"], rows[, "node1"], rows[, "node2"])
+      }
+      keep <- !duplicated(key, fromLast = TRUE)
+      rows <- rows[keep, , drop = FALSE]
+      ord <- if (is_rate) {
+        order(rows[, "event"], rows[, "node1"])
+      } else {
+        order(rows[, "event"], rows[, "node1"], rows[, "node2"])
+      }
+      rows <- rows[ord, , drop = FALSE]
+      out[[i]] <- cbind(
+        time = if (type == "withTime") preproData$event_time[rows[, "event"]],
+        node1 = rows[, "node1"],
+        node2 = if (!is_rate) rows[, "node2"],
+        replace = rows[, "replace"]
+      )
+    }
+    out
+  }
+
+  combine_point_broadcast <- function(point_list, eventsKeep) {
+    bcast_list <- ReduceBroadcastFlat(eventsKeep)
+    lapply(seq_len(nEffects), function(i) {
+      if (!is.null(point_list[[i]])) point_list[[i]] else bcast_list[[i]]
+    })
+  }
+
   dep_idx <- preproData$is_dependent == 1L
   rc_idx <- preproData$is_dependent == 0L
   is_flat <- is.null(preproData$stats_change)
 
   outDependentStatChange <- if (is_flat) {
-    ReduceEffUpdatesFlat(dep_idx)
+    combine_point_broadcast(ReduceEffUpdatesFlat(dep_idx), dep_idx)
   } else {
     ReduceEffUpdates(
       preproData$stats_change[dep_idx],
@@ -305,7 +372,7 @@ ReducePreprocess <- function(
   if ((preproData$subModel == "rate" || preproData$model == "REM") &&
     sum(rc_idx) > 0) {
     rightCensoredStatChange <- if (is_flat) {
-      ReduceEffUpdatesFlat(rc_idx)
+      combine_point_broadcast(ReduceEffUpdatesFlat(rc_idx), rc_idx)
     } else {
       ReduceEffUpdates(
         preproData$stats_change[rc_idx],
