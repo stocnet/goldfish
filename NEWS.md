@@ -1,3 +1,28 @@
+# goldfish 1.8.1
+
+This patch release compacts how constant-value fan-out effects are stored
+during preprocessing. Coefficient estimates and log-likelihoods reproduce to
+within 1e-6 of the previous implementation on both estimation engines.
+
+## Internal changes
+
+* Constant-value fan-out effect updates — `alter()`, `ego()`, the degree
+  effects (`indeg` / `outdeg` / `degree`) in their alter/ego projection, and
+  `global()` — are now stored as a single coded entry in a new
+  `stat_mat_broadcast` buffer (with `stat_mat_broadcast_pointer`) instead of
+  one duplicate column per affected cell in `stat_mat_update`. This removes the
+  dominant preprocessing memory cost for dyad models that use these effects
+  (for example, `stat_mat_update` shrinks by more than an order of magnitude on
+  REM models dominated by `alter()` / `ego()`), and avoids the integer overflow
+  that large fan-out models could previously hit. Both estimation engines (the
+  R `default` and the C++ `default_c` / `gather_compute`) decode the broadcast
+  buffer per event, honouring the reflexive-diagonal and two-mode rules; the
+  gather and database writers expand it when materialising the gather stack.
+* The `preprocessed.goldfish` format version is bumped. Objects preprocessed
+  with an earlier goldfish version are rejected by the `preprocessing_init`
+  version check with a message to recompute them; the public R API is
+  unchanged.
+
 # goldfish 1.8.0
 
 This release refactors the preprocessing and estimation pipeline around typed
