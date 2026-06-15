@@ -48,6 +48,11 @@ implementation on both estimation engines.
   object preprocessed with a previous goldfish version through
   `preprocessing_init` errors with a message to recompute it with
   `compute_stats()`.
+* The model summary now reports the two convergence criteria below the return
+  code: the score (`score_rel_norm`, the likelihood-scaled relative gradient
+  norm checked against `score_tol`) and the step (`maxAbsUpdate`, the maximum
+  absolute parameter update checked against `step_tol`). `score_rel_norm` is
+  also added to the `convergence` list of the fitted object.
 
 ## Internal changes
 

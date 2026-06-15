@@ -166,6 +166,18 @@ print.summary.result.goldfish <- function(
   } else if (rc == 2L) {
     cat("  Return code 2: step size close to zero (damped)\n")
   }
+  scoreRel <- x$convergence$score_rel_norm
+  if (is.null(scoreRel) && !is.null(x$convergence$maxAbsScore)) {
+    scoreRel <- x$convergence$maxAbsScore / max(1, abs(x$logLikelihood))
+  }
+  stepAbs <- x$convergence$maxAbsUpdate
+  if (!is.null(scoreRel) && !is.null(stepAbs)) {
+    cat(sprintf(
+      "    score (rel. norm): %s    step (max|update|): %s\n",
+      formatC(scoreRel, format = "e", digits = 2),
+      formatC(stepAbs, format = "e", digits = 2)
+    ))
+  }
   nFree <- x$nParams
   nTotal <- length(x$parameters)
   nFixed <- nTotal - nFree

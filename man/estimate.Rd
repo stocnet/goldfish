@@ -122,11 +122,13 @@ a vector with the final score reach by the parameters during estimation.}
 a matrix with the final values of the negative Fisher information matrix.
 The inverse of this matrix gives the variance-covariance matrix for the
 parameters estimates.}
-\item{convergence}{a list with two elements.
-The first element (\code{isConverged}) is a logical value that indicates
-the convergence of the model.
-The second element (\code{maxAbsScore}) reports the final maximum absolute
-score in the final iteration.}
+\item{convergence}{a list reporting the convergence of the
+Newton-Raphson procedure: \code{isConverged} (logical),
+\code{returnCode} (\code{1} gradient close to zero, \code{2} step size
+close to zero, \code{0} not converged), \code{maxAbsScore} (final maximum
+absolute score), \code{maxAbsUpdate} (final step, the maximum absolute
+parameter update), and \code{score_rel_norm} (the likelihood-scaled
+relative gradient norm compared against \code{score_tol}).}
 \item{nIterations}{
 an integer with the total number of iterations performed during the
 estimation process.}

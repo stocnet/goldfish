@@ -298,7 +298,8 @@ estimate_int_impl <- function(
       isConverged = isConverged,
       returnCode = returnCode,
       maxAbsScore = max(abs(score)),
-      maxAbsUpdate = max(abs(update))
+      maxAbsUpdate = max(abs(update)),
+      score_rel_norm = max(abs(score)) / max(1, abs(logLikelihood))
     ),
     nIterations = iIteration,
     nEvents = nEvents
