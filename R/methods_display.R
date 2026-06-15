@@ -570,6 +570,7 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   description <- data.frame(
     name = c(
       "initialStats", "stat_mat_update", "stat_mat_pointer",
+      "stat_mat_broadcast", "stat_mat_broadcast_pointer",
       "intervals", "is_dependent",
       "event_time", "event_sender", "event_receiver", "event_pos",
       "active_mode1_init", "active_mode1_changes",
@@ -585,6 +586,13 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
         "stored events; rows are node1, node2, effect, replace (0-indexed)."
       ),
       "Integer vector: cumulative column count in stat_mat_update per event.",
+      paste(
+        "Numeric matrix (4 x m): compact broadcast (constant-value fan-out)",
+        "updates; rows are kind, fixed, effect, replace (0-indexed). kind 1",
+        "broadcasts over senders (fixed alter), 2 over alters (fixed ego), 3",
+        "over all actors."
+      ),
+      "Integer vector: cumulative column count in stat_mat_broadcast per event.",
       "Numeric vector: elapsed time before each event (dep + RC merged).",
       "Integer vector: 1 for dependent events, 0 for right-censored.",
       "Time of the event.",

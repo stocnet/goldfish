@@ -15,11 +15,15 @@ model spec and a \code{dims} list describing the problem
 \code{has_intercept}, \code{twomode_or_reflexive}, \code{initial_stats_fn} — a thunk
 returning the recipe's \code{initialStats} once pre-start updates are
 applied).}
-\item{\code{write_event(event_updates, event_info)}}{called once per stored
-event. \code{event_updates} is a 4 x k matrix of flat updates (rows
-\code{node1}, \code{node2}, \code{effect}, \code{replace}; all 0-indexed) accumulated
-since the previous stored event; \code{event_info} is a list with
-\code{is_dependent}, \code{interval}, \code{time}, \code{sender}, \code{receiver}.}
+\item{\code{write_event(event_updates, event_info, event_broadcast)}}{called
+once per stored event. \code{event_updates} is a 4 x k matrix of flat point
+updates (rows \code{node1}, \code{node2}, \code{effect}, \code{replace}; all 0-indexed)
+accumulated since the previous stored event; \code{event_info} is a list with
+\code{is_dependent}, \code{interval}, \code{time}, \code{sender}, \code{receiver};
+\code{event_broadcast} is the optional 4 x b matrix of compact broadcast
+entries (rows \code{kind}, \code{fixed}, \code{effect}, \code{replace}; see the
+broadcast-update entry format documented on \code{writer_default()}),
+defaulting to an empty 4 x 0 matrix.}
 \item{\code{finalize(tail)}}{called once after the loop with a \code{tail} list of
 recipe-computed assembly inputs (\code{initialStats},
 \code{active_mode1_init} / \code{active_mode1_changes},

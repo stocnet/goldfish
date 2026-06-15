@@ -10,11 +10,15 @@
 #'     `has_intercept`, `twomode_or_reflexive`, `initial_stats_fn` — a thunk
 #'     returning the recipe's `initialStats` once pre-start updates are
 #'     applied).}
-#'   \item{`write_event(event_updates, event_info)`}{called once per stored
-#'     event. `event_updates` is a 4 x k matrix of flat updates (rows
-#'     `node1`, `node2`, `effect`, `replace`; all 0-indexed) accumulated
-#'     since the previous stored event; `event_info` is a list with
-#'     `is_dependent`, `interval`, `time`, `sender`, `receiver`.}
+#'   \item{`write_event(event_updates, event_info, event_broadcast)`}{called
+#'     once per stored event. `event_updates` is a 4 x k matrix of flat point
+#'     updates (rows `node1`, `node2`, `effect`, `replace`; all 0-indexed)
+#'     accumulated since the previous stored event; `event_info` is a list with
+#'     `is_dependent`, `interval`, `time`, `sender`, `receiver`;
+#'     `event_broadcast` is the optional 4 x b matrix of compact broadcast
+#'     entries (rows `kind`, `fixed`, `effect`, `replace`; see the
+#'     broadcast-update entry format documented on `writer_default()`),
+#'     defaulting to an empty 4 x 0 matrix.}
 #'   \item{`finalize(tail)`}{called once after the loop with a `tail` list of
 #'     recipe-computed assembly inputs (`initialStats`,
 #'     `active_mode1_init` / `active_mode1_changes`,
