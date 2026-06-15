@@ -592,7 +592,7 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
         "broadcasts over senders (fixed alter), 2 over alters (fixed ego), 3",
         "over all actors."
       ),
-      "Integer vector: cumulative column count in stat_mat_broadcast per event.",
+      "Integer vector: column count in stat_mat_broadcast per event.",
       "Numeric vector: elapsed time before each event (dep + RC merged).",
       "Integer vector: 1 for dependent events, 0 for right-censored.",
       "Time of the event.",

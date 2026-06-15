@@ -206,8 +206,8 @@ broadcast_entries_from_updates <- function(updates, kind, gid) {
 #'
 #' @section Reserved extension point — interaction effects (not implemented):
 #' Interaction terms between effects (e.g. `global(x):alter(y)`) are a reserved
-#' future capability; this change neither parses nor routes them. They matter for
-#' the broadcast encoding because a constant-across-alternatives covariate —
+#' future capability; this change neither parses nor routes them. They matter
+#' for the broadcast encoding because a constant-across-alternatives covariate —
 #' notably `global()` — is **not identified as a main effect** in the DyNAM
 #' choice and choice-coordination sub-models: its column is constant across the
 #' alternatives, so it cancels in the multinomial likelihood. This is why
@@ -221,10 +221,11 @@ broadcast_entries_from_updates <- function(updates, kind, gid) {
 #' main effect** (e.g. `global(x):alter(y)`, which varies across the
 #' alternatives and is identified). When that work is taken up it SHOULD: (1)
 #' recognise interaction syntax in the formula parser; (2) assign the product
-#' effect a `stat_kind` so the recipe can route it as a point or broadcast update
-#' under the broadcast-stat-updates encoding; and (3) keep the bare-`global()`-in-
-#' choice abort until the interaction form exists. See the `broadcast-stat-updates`
-#' eligibility rule and the `formula-parsing-link` capability.
+#' effect a `stat_kind` so the recipe can route it as a point or broadcast
+#' update under the broadcast-stat-updates encoding; and (3) keep the
+#' bare-`global()`-in-choice abort until the interaction form exists. See the
+#' `broadcast-stat-updates` eligibility rule and the `formula-parsing-link`
+#' capability.
 #' @noRd
 build_update_plan <- function(
     effects, events_objects_link, events_effects_link, objects_effects_link,

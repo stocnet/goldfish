@@ -92,6 +92,24 @@ test_that("kind 3 global on a one-mode dyad slice skips the diagonal", {
   expect_true(all(diag(slice) == 0))
 })
 
+test_that("reflexive-allowed one-mode square slice writes the diagonal", {
+  # twomode_or_reflexive = TRUE on a square (n1 == n2) array: the held cell is
+  # written (no diagonal exclusion), matching allowReflexive models.
+  n <- 4L
+  arr0 <- array(0, dim = c(n, n, 1L))
+  # kind 1 holding alter 2 (0-idx) -> full column incl. (2, 2)
+  got1 <- apply_broadcast_update(
+    arr0, matrix(c(1L, 2L, 0L, 5), nrow = 4), FALSE, n, n, TRUE
+  )
+  expect_true(all(got1[, 3L, 1L] == 5))
+  expect_equal(got1[3L, 3L, 1L], 5)
+  # kind 3 global writes every cell incl. the diagonal
+  got3 <- apply_broadcast_update(
+    arr0, matrix(c(3L, 0L, 0L, 7), nrow = 4), FALSE, n, n, TRUE
+  )
+  expect_true(all(got3[, , 1L] == 7))
+})
+
 test_that("empty broadcast slice is a no-op", {
   arr0 <- array(seq_len(2 * 3 * 2), dim = c(2L, 3L, 2L))
   empty <- matrix(0, 4L, 0L)
