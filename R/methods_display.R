@@ -138,13 +138,14 @@ print.summary.result.goldfish <- function(
 
   isFixed <- GetFixed(x)
 
+  displayCols <- !startsWith(colnames(x$names), ".")
   if (!complete && any(isFixed)) {
-    names <- x$names[!isFixed, ]
+    names <- x$names[!isFixed, displayCols, drop = FALSE]
     coefMat <- x$coefMat[!isFixed, ]
     isDetPrint <- !((ncol(names) == 2) &&
       (length(unique(names[, "Object"])) == 1))
   } else {
-    names <- x$names
+    names <- x$names[, displayCols, drop = FALSE]
     coefMat <- x$coefMat
     isDetPrint <- !((ncol(names) == 1) &&
       (length(unique(names[, "Object"])) == 1))
@@ -701,14 +702,16 @@ tidy.result.goldfish <- function(
     colnames(confInterval) <- c("conf.low", "conf.high")
   }
 
+  dispNames <- x$names[, !startsWith(colnames(x$names), "."), drop = FALSE]
+
   if (compact) {
     terms <- paste(
-      x$names[, 1],
-      rownames(x$names),
-      if (ncol(x$names) > 2) {
-        apply(x$names[, -1], 1, paste, collapse = " ")
+      dispNames[, 1],
+      rownames(dispNames),
+      if (ncol(dispNames) > 2) {
+        apply(dispNames[, -1], 1, paste, collapse = " ")
       } else {
-        x$names[, -1]
+        dispNames[, -1]
       }
     )
     terms <- trimws(terms)
@@ -718,7 +721,7 @@ tidy.result.goldfish <- function(
 
     terms <- cbind(term = terms)
   } else {
-    terms <- cbind(term = rownames(x$names), x$names)
+    terms <- cbind(term = rownames(dispNames), dispNames)
     terms[, "Object"] <- gsub("\\$", " ", terms[, "Object"])
 
     if (!complete) terms <- terms[!isFixed, ]

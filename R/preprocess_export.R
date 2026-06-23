@@ -202,6 +202,9 @@ finalize_gather_output <- function(
 #' CreateNames(names, sep = "|")
 CreateNames <- function(
     names, sep = " ", joiner = ", ") {
+  if (!is.null(colnames(names))) {
+    names <- names[, !startsWith(colnames(names), "."), drop = FALSE]
+  }
   isObjectD <- grepl("Object \\d+", colnames(names))
   if (any(isObjectD)) {
     object <- apply(

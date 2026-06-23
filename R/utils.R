@@ -680,6 +680,10 @@ GetDetailPrint <- function(
     )
   }
 
+  effectDescription <- cbind(
+    effectDescription, .decoderColumns(effectDescription)
+  )
+
   attr(effectDescription, "hasWindows") <- hasWindows
   return(effectDescription)
 }
@@ -981,4 +985,39 @@ compact_term_strings <- function(
     }
   }
   stats::setNames(.truncateTerms(terms, width), rownames(names))
+}
+
+.decoderColumns <- function(names) {
+  if (is.null(dim(names))) {
+    names <- as.matrix(names)
+  }
+  cols <- colnames(names)
+  if (is.null(cols)) cols <- "Object"
+  metaCol <- startsWith(cols, ".")
+  objCol <- grepl("^Object( [0-9]+)?$", cols)
+  objCols <- cols[objCol & !metaCol]
+  allObjs <- .trimObject(unlist(lapply(objCols, function(cc) names[, cc])))
+  objLk <- .shortestUniquePrefix(allObjs, 3L, 6L)
+  objShort <- vapply(
+    seq_len(nrow(names)),
+    function(i) {
+      row <- stats::setNames(names[i, ], colnames(names))
+      paste(.objectForms(row, objCols, objLk, TRUE), collapse = "·")
+    },
+    character(1)
+  )
+  cbind(
+    .effect_short = unname(.shortEffect(rownames(names))),
+    .object_short = objShort,
+    .term_export = compact_term_strings(names, "export"),
+    .coef_name = compact_term_strings(names, "coef")
+  )
+}
+
+term_label <- function(names, column, mode, ...) {
+  cols <- colnames(names)
+  if (!is.null(cols) && column %in% cols) {
+    return(unname(names[, column]))
+  }
+  unname(compact_term_strings(names, mode = mode, ...))
 }
