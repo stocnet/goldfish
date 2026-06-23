@@ -162,3 +162,41 @@ test_that("dot-prefixed columns are ignored", {
   out <- compact_term_strings(m, mode = "console", width = 200)
   expect_equal(unname(out), "inertia/friendship [W]")
 })
+
+test_that(".compactLegend keys only present opaque codes", {
+  terms <- c("inertia/net [W]", "recip/net [Fx]", "tie/net [IR]")
+  lines <- .compactLegend(terms, terms)
+  expect_true(any(grepl("^W = weighted", lines)))
+  expect_true(any(grepl("^Fx = fixed", lines)))
+  expect_true(any(grepl("^IR = ignore_rep", lines)))
+  expect_false(any(grepl("window|user-defined|transformer", lines)))
+  expect_false(any(grepl("compact = FALSE", lines)))
+})
+
+test_that(".compactLegend t:/s: line only when both present", {
+  both <- .compactLegend(
+    c("tertius/net [t:sqrt,s:mean]"), c("tertius/net [t:sqrt,s:mean]")
+  )
+  expect_true(any(grepl("t: = transformer, s: = summarizer", both)))
+  expect_false(any(grepl("compact = FALSE", both)))
+
+  oneT <- .compactLegend(c("a/net [sqrt]"), c("a/net [sqrt]"))
+  expect_false(any(grepl("transformer", oneT)))
+  expect_length(oneT, 0)
+})
+
+test_that(".compactLegend pointer appears only for lossy/abbreviated forms", {
+  wdw <- .compactLegend(c("a/net [wdw]"), c("a/net [wdw]"))
+  expect_true(any(grepl("^wdw = window", wdw)))
+  expect_true(any(grepl("compact = FALSE", wdw)))
+
+  fn <- .compactLegend(c("a/net [fn]"), c("a/net [fn]"))
+  expect_true(any(grepl("^fn = user-defined", fn)))
+  expect_true(any(grepl("compact = FALSE", fn)))
+
+  shrunk <- .compactLegend(c("a/n… [W]"), c("aaa/network [W]"))
+  expect_true(any(grepl("compact = FALSE", shrunk)))
+
+  noCode <- .compactLegend(c("a/n…"), c("aaa/network"))
+  expect_length(noCode, 0)
+})

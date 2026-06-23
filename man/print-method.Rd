@@ -26,6 +26,7 @@
   ...,
   digits = max(3, getOption("digits") - 2),
   width = getOption("width"),
+  compact = TRUE,
   complete = FALSE
 )
 
@@ -61,6 +62,18 @@ see  \code{\link[=print.default]{print.default()}}.}
 of effects fixed during estimation using \code{fixedParameters} should be printed.
 The default value is \code{FALSE}. \emph{Note:} applies for objects of class
 \code{result.goldfish} and \code{summary.result.goldfish}.}
+
+\item{compact}{logical. For objects of class \code{summary.result.goldfish},
+when \code{TRUE} (the default) a single coefficients table is printed whose row
+labels are compact term strings and the separate "Effects details" table is
+omitted; when \code{FALSE} the "Effects details" table is printed before the
+coefficients table. The compact labels read \verb{effect/obj·obj2 [args]}:
+\code{/} separates the effect from its object(s), the middle dot \verb{·} joins
+multiple objects, and a single trailing \verb{[ ]} block collects the remaining
+(comma-separated) arguments. A short legend after the coefficients table
+keys any opaque argument codes that appear.
+
+[ ]: R:\%20}
 
 \item{full}{logical. Indicates whether the complete \code{matrix}/\code{data.frame}
 should be printed. The default value \code{FALSE}.}

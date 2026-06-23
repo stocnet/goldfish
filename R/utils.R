@@ -1021,3 +1021,38 @@ term_label <- function(names, column, mode, ...) {
   }
   unname(compact_term_strings(names, mode = mode, ...))
 }
+
+.bracketTokens <- function(terms) {
+  m <- regmatches(terms, regexpr("\\[[^]]*\\]", terms))
+  if (!length(m)) {
+    return(character(0))
+  }
+  m <- gsub("[][]", "", m)
+  unique(unlist(strsplit(m, ",")))
+}
+
+.compactLegend <- function(terms, termsFull) {
+  toks <- .bracketTokens(terms)
+  lines <- character(0)
+  if ("W" %in% toks) lines <- c(lines, "W = weighted")
+  if ("IR" %in% toks) lines <- c(lines, "IR = ignore_rep")
+  if ("Fx" %in% toks) lines <- c(lines, "Fx = fixed")
+  hasWdw <- "wdw" %in% toks
+  if (hasWdw) lines <- c(lines, "wdw = window")
+  hasFn <- any(grepl("^(t:|s:)?fn$", toks))
+  if (hasFn) lines <- c(lines, "fn = user-defined function")
+  if (any(startsWith(toks, "t:")) && any(startsWith(toks, "s:"))) {
+    lines <- c(lines, "t: = transformer, s: = summarizer")
+  }
+  if (length(lines)) {
+    lossy <- hasWdw || hasFn ||
+      !identical(unname(terms), unname(termsFull))
+    if (lossy) {
+      lines <- c(
+        lines,
+        "(use compact = FALSE for full effect/object names & details)"
+      )
+    }
+  }
+  lines
+}

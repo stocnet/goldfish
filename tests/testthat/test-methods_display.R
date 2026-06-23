@@ -21,11 +21,17 @@ test_that("summary goldfish print", {
   expect_output(
     print(summary(resModObject), complete = TRUE), "\nrecip"
   )
+  # compact = TRUE (default): single table, no "Effects details"
   expect_failure(expect_output(
-    print(summary(resModObject)), "\nEffects details"
+    print(summary(resModObject)), "Effects details"
   ))
+  expect_failure(expect_output(
+    print(summary(resModObject), complete = TRUE), "Effects details"
+  ))
+  # compact = FALSE: details table restored (when isDetPrint applies)
   expect_output(
-    print(summary(resModObject), complete = TRUE), "\nEffects details"
+    print(summary(resModObject), compact = FALSE, complete = TRUE),
+    "\nEffects details"
   )
 })
 test_that("result print", {
@@ -37,6 +43,51 @@ test_that("result print", {
   expect_output(
     print(resModObject, complete = TRUE), "\n   inrt      rec    trans"
   )
+})
+test_that("compact summary print: single table + present-code legend", {
+  mod <- estimate_wrapper(
+    depNetwork ~ inertia(networkState, weighted = TRUE) +
+      outdeg(networkExog) + recip,
+    data = dataTest, sub_model = "choice"
+  )
+  out <- capture.output(print(summary(mod), width = 100))
+  expect_false(any(grepl("Effects details", out)))
+  expect_true(any(grepl("inertia/networkState \\[W\\]", out, fixed = FALSE)))
+  expect_true(any(grepl("^W = weighted", out)))
+  expect_false(any(grepl("compact = FALSE", out)))
+})
+test_that("compact = FALSE details table hides decoder columns", {
+  mod <- estimate_wrapper(
+    depNetwork ~ inertia(networkState) + outdeg(networkExog),
+    data = dataTest, sub_model = "choice"
+  )
+  out <- capture.output(print(summary(mod), compact = FALSE, width = 100))
+  expect_true(any(grepl("Effects details", out)))
+  expect_false(any(grepl(
+    "\\.coef_name|\\.term_export|\\.effect_short|\\.object_short", out
+  )))
+})
+test_that("compact summary: no opaque codes means no legend", {
+  mod <- estimate_wrapper(
+    depNetwork ~ inertia(networkState) + outdeg(networkExog),
+    data = dataTest, sub_model = "choice"
+  )
+  out <- capture.output(print(summary(mod), width = 100))
+  expect_false(any(grepl(
+    "= weighted|= window|user-defined|= fixed|= ignore_rep|transformer", out
+  )))
+  expect_false(any(grepl("compact = FALSE", out)))
+})
+test_that("compact legend still prints without significance stars", {
+  mod <- estimate_wrapper(
+    depNetwork ~ inertia(networkState, weighted = TRUE) + recip,
+    data = dataTest, sub_model = "choice"
+  )
+  op <- options(show.signif.stars = FALSE)
+  on.exit(options(op), add = TRUE)
+  out <- capture.output(print(summary(mod), width = 100))
+  expect_false(any(grepl("Signif. codes", out)))
+  expect_true(any(grepl("^W = weighted", out)))
 })
 test_that("nodes print", {
   expect_output(print(actorsEx), paste("Number of nodes:", nrow(actorsEx)))

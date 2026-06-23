@@ -22,6 +22,15 @@
 #' of effects fixed during estimation using `fixedParameters` should be printed.
 #' The default value is `FALSE`. _Note:_ applies for objects of class
 #' `result.goldfish` and `summary.result.goldfish`.
+#' @param compact logical. For objects of class `summary.result.goldfish`,
+#' when `TRUE` (the default) a single coefficients table is printed whose row
+#' labels are compact term strings and the separate "Effects details" table is
+#' omitted; when `FALSE` the "Effects details" table is printed before the
+#' coefficients table. The compact labels read `effect/obj·obj2 [args]`:
+#' `/` separates the effect from its object(s), the middle dot `·` joins
+#' multiple objects, and a single trailing `[ ]` block collects the remaining
+#' (comma-separated) arguments. A short legend after the coefficients table
+#' keys any opaque argument codes that appear.
 #' @param full logical. Indicates whether the complete `matrix`/`data.frame`
 #' should be printed. The default value `FALSE`.
 #' @param ... further arguments to be passed to the respective `default`
@@ -124,7 +133,7 @@ summary.result.goldfish <- function(object, ...) {
 print.summary.result.goldfish <- function(
     x, ...,
     digits = max(3, getOption("digits") - 2),
-    width = getOption("width"), complete = FALSE) {
+    width = getOption("width"), compact = TRUE, complete = FALSE) {
   nParams <- x$nParams
   aicc <- x$AIC + 2 * nParams * (nParams + 1) / (x$nEvents - nParams - 1)
   cat("\nCall:\n")
@@ -151,13 +160,33 @@ print.summary.result.goldfish <- function(
       (length(unique(names[, "Object"])) == 1))
   }
 
-  if (isDetPrint) {
+  legendLines <- character(0)
+  if (compact) {
+    termsFull <- compact_term_strings(names, "console", width = 10000L)
+    tmp <- coefMat
+    rownames(tmp) <- termsFull
+    numericWidth <- max(nchar(utils::capture.output(
+      stats::printCoefmat(tmp, digits = digits, ...)
+    ))) - max(nchar(termsFull))
+    avail <- max(12L, width - numericWidth)
+    terms <- if (max(nchar(termsFull)) <= avail) {
+      termsFull
+    } else {
+      compact_term_strings(names, "console", width = avail)
+    }
+    rownames(coefMat) <- terms
+    legendLines <- .compactLegend(terms, termsFull)
+  } else if (isDetPrint) {
     cat("\nEffects details:\n")
     print.default(names, quote = FALSE, width = width, ...)
   }
 
   cat("\nCoefficients:\n")
   stats::printCoefmat(coefMat, digits = digits, width = width, ...)
+  if (length(legendLines)) {
+    cat("\n")
+    writeLines(strwrap(legendLines, width = width, exdent = 2))
+  }
   cat("\n")
   rc <- x$convergence$returnCode
   if (is.null(rc) || rc == 0L) {
