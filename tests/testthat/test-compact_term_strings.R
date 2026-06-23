@@ -33,7 +33,7 @@ test_that("arguments collected in one bracket block", {
     Object = "friendship", weighted = "W", type = "ego", fixed = "TRUE"
   )
   out <- compact_term_strings(m, mode = "console", width = 200)
-  expect_equal(unname(out), "inertia/friendship [W ego Fx]")
+  expect_equal(unname(out), "inertia/friendship [W,ego,Fx]")
 })
 
 test_that("ignore_repetitions renders as IR", {
@@ -102,7 +102,7 @@ test_that("transformer/summarizer tokens", {
     summarizer_fn = c("mean", "", "")
   )
   out <- compact_term_strings(m, mode = "console", width = 200)
-  expect_match(out[["a"]], "\\[t:sqrt s:mean\\]")
+  expect_match(out[["a"]], "\\[t:sqrt,s:mean\\]")
   expect_match(out[["c"]], "\\[fn\\]")
 })
 

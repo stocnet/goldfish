@@ -819,7 +819,7 @@ checkArgsEstimation <- function(variables) {
 .assembleTerms <- function(
     mat, useShortEffect, useShortObject, forceFn,
     objCols, argCols, objLk, subPref, joinPref,
-    objSep = "·", effSep = "/", tokenSep = " ",
+    objSep = "·", effSep = "/", tokenSep = ",",
     open = " [", close = "]") {
   effects <- rownames(mat)
   effForm <- if (useShortEffect) .shortEffect(effects) else effects
@@ -850,7 +850,7 @@ checkArgsEstimation <- function(variables) {
 
 .sanitizeExport <- function(x, maxLength) {
   x <- gsub("·", "_", x)
-  x <- gsub("[/ :\\[\\]]+", "_", x, perl = TRUE)
+  x <- gsub("[/ ,:\\[\\]]+", "_", x, perl = TRUE)
   x <- make.names(x)
   x <- gsub("[._]+", "_", x)
   x <- sub("_+$", "", x)
