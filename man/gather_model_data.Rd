@@ -10,7 +10,8 @@ gather_model_data(
   sub_model = c("choice", "choice_coordination", "rate"),
   data = NULL,
   control_preprocessing = set_preprocessing_opt(),
-  progress = getOption("progress")
+  progress = getOption("progress"),
+  max_length = 63L
 )
 }
 \arguments{
@@ -67,6 +68,11 @@ the available parameters.}
 \item{progress}{logical indicating whether should print a minimal output
 to the console of the progress of the preprocessing and
 estimation processes.}
+
+\item{max_length}{integer. Maximum number of characters for each produced
+effect/column name in \code{namesEffects} (default \code{63}, a database-safe value).
+Names are made valid and unique; the uniqueness suffix is applied after
+truncation so uniqueness is preserved.}
 }
 \value{
 a list object including:

@@ -42,3 +42,34 @@ test_that("Output", {
   expect_type(out, "list")
   expect_length(out, 8)
 })
+test_that("export names are valid, unique R names", {
+  out <- gather_model_data(
+    depNetwork ~ inertia(networkState, weighted = TRUE) + outdeg(networkExog),
+    data = dataTest
+  )
+  nm <- out$namesEffects
+  expect_equal(nm, colnames(out$stat_all_events))
+  expect_true(all(make.names(nm) == nm))
+  expect_false(any(grepl("[/·\\[\\] ]", nm, perl = TRUE)))
+  expect_false(anyDuplicated(nm) > 0)
+})
+test_that("export name collisions are made unique", {
+  m <- cbind(
+    Object = c("net", "net"),
+    weighted = c("", "")
+  )
+  rownames(m) <- c("inertia", "inertia")
+  nm <- CreateNames(m)
+  expect_false(anyDuplicated(nm) > 0)
+  expect_length(nm, 2)
+})
+test_that("export max_length is enforced and keeps uniqueness", {
+  m <- cbind(
+    Object = c("alpha", "alpha"),
+    weighted = c("W", "")
+  )
+  rownames(m) <- c("inertia", "inertia")
+  nm <- CreateNames(m, max_length = 8L)
+  expect_true(all(nchar(nm) <= 8L))
+  expect_false(anyDuplicated(nm) > 0)
+})

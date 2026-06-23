@@ -471,7 +471,8 @@ estimate_wrapper <- function(x,
     preprocessing_only = FALSE,
     output = c("default", "gather", "db"),
     progress = getOption("progress", default = FALSE),
-    verbose = getOption("verbose", default = FALSE)
+    verbose = getOption("verbose", default = FALSE),
+    max_length = 63L
   ) {
   output <- match.arg(output)
 
@@ -915,7 +916,7 @@ estimate_wrapper <- function(x,
       gathered <- finalize_gather_output(
         prep, model, sub_model, has_intercept,
         get(.nodes, envir = data), get(.nodes2, envir = data),
-        objects_effects_link, parsed_formula
+        objects_effects_link, parsed_formula, max_length = max_length
       )
       if (output == "db") {
         return(write_gather_to_db(

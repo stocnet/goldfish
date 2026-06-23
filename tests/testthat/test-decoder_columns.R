@@ -25,17 +25,19 @@ test_that("decoder columns carried through gather_model_data", {
   ))
 })
 
-test_that("CreateNames ignores dot-prefixed columns", {
-  names <- cbind(
+test_that("CreateNames ignores dot columns (compute) and reads .term_export", {
+  m <- cbind(
     Object = c("bilatnet", "contignet"),
     weighted = c("W", ""),
-    .coef_name = c("foo", "bar"),
-    .term_export = c("baz", "qux")
+    .coef_name = c("foo", "bar")
   )
-  rownames(names) <- c("inertia", "tie")
-  out <- CreateNames(names, sep = "_", joiner = "_")
-  expect_false(any(grepl("foo|bar|baz|qux", out)))
+  rownames(m) <- c("inertia", "tie")
+  out <- CreateNames(m)
+  expect_false(any(grepl("foo|bar", out)))
   expect_equal(out, c("inertia_bilatnet_W", "tie_contignet"))
+
+  m2 <- cbind(m, .term_export = c("inertia_bilatnet_W", "tie_contignet"))
+  expect_equal(CreateNames(m2), c("inertia_bilatnet_W", "tie_contignet"))
 })
 
 test_that("term_label reads dot-column when present, computes when absent", {

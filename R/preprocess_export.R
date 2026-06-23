@@ -46,6 +46,10 @@
 #'   [set_preprocessing_opt()]. This object contains parameters that control
 #'   the data preprocessing. See [set_preprocessing_opt()] for details on
 #'   the available parameters.
+#' @param max_length integer. Maximum number of characters for each produced
+#'   effect/column name in `namesEffects` (default `63`, a database-safe value).
+#'   Names are made valid and unique; the uniqueness suffix is applied after
+#'   truncation so uniqueness is preserved.
 #'
 #' @return a list object including:
 #'  \describe{
@@ -119,7 +123,8 @@ gather_model_data <- function(
     sub_model = c("choice", "choice_coordination", "rate"),
     data = NULL,
     control_preprocessing = set_preprocessing_opt(),
-    progress = getOption("progress")
+    progress = getOption("progress"),
+    max_length = 63L
     ) {
   model <- match.arg(
     arg = if (length(model) > 1) model[1] else model,
@@ -135,7 +140,8 @@ gather_model_data <- function(
     sub_model = sub_model,
     output = "gather",
     control_preprocessing = control_preprocessing,
-    progress = progress
+    progress = progress,
+    max_length = max_length
   )
 }
 
@@ -151,7 +157,7 @@ gather_model_data <- function(
 #' @noRd
 finalize_gather_output <- function(
   gathered, model, sub_model, has_intercept, nodes, nodes2,
-  objects_effects_link, parsed_formula
+  objects_effects_link, parsed_formula, max_length = 63L
 ) {
   event_sender <- attr(gathered, "event_sender")
   event_receiver <- attr(gathered, "event_receiver")
@@ -167,7 +173,7 @@ finalize_gather_output <- function(
   }
 
   effectDescription <- GetDetailPrint(objects_effects_link, parsed_formula)
-  namesEffects <- CreateNames(effectDescription, sep = "_", joiner = "_")
+  namesEffects <- CreateNames(effectDescription, max_length = max_length)
 
   gathered$namesEffects <- namesEffects
   colnames(gathered$stat_all_events) <- namesEffects
@@ -183,57 +189,36 @@ finalize_gather_output <- function(
 
 #' Generate names for statistics effects
 #'
-#' Using the names data frame from `goldfish` generate compact names to the
-#' columns for data frame or matrix
+#' Using the names data frame from `goldfish` generate valid, unique and
+#' length-bounded export names for the columns of a data frame or matrix.
+#' Names are produced by the shared compact-term-string builder in export mode
+#' (reading the persisted `.term_export` column when present), so dot-prefixed
+#' decoder columns never leak into the output.
 #'
 #' @param names data frame from `goldfish`
-#' @param sep string. Separator between different arguments and objects
-#' @param joiner string. Separator to join multiple object names
+#' @param max_length integer. Maximum length of each produced name; the
+#'   uniqueness suffix is applied after truncation so uniqueness is preserved.
 #'
-#' @return a string vector with the names.
+#' @return a string vector with valid, unique names.
 #' @noRd
 #'
 #' @examples
 #' names <- cbind(
 #'   Object = c("bilatnet", "bilatnet", "contignet"),
-#'   Weighted = c("W", "", "W")
+#'   weighted = c("W", "", "W")
 #' )
 #' rownames(names) <- c("inertia", "trans", "tie")
-#' CreateNames(names, sep = "|")
-CreateNames <- function(
-    names, sep = " ", joiner = ", ") {
-  if (!is.null(colnames(names))) {
-    names <- names[, !startsWith(colnames(names), "."), drop = FALSE]
-  }
-  isObjectD <- grepl("Object \\d+", colnames(names))
-  if (any(isObjectD)) {
-    object <- apply(
-      names[, isObjectD], 1,
-      function(z) {
-        ret <- Filter(function(w) !is.na(w) & w != "", z)
-        ret <- paste(ret, collapse = joiner)
-        return(ret)
-      }
+#' CreateNames(names)
+CreateNames <- function(names, max_length = 63L) {
+  hasCache <- !is.null(colnames(names)) &&
+    ".term_export" %in% colnames(names)
+  if (hasCache && isTRUE(max_length == 63L)) {
+    nombres <- unname(names[, ".term_export"])
+  } else {
+    nombres <- unname(
+      compact_term_strings(names, mode = "export", max_length = max_length)
     )
-    newNames <- c("Object", colnames(names)[!isObjectD])
-    names <- cbind(object, names[, !isObjectD])
-    colnames(names) <- newNames
   }
-
-  if ("fixed" %in% colnames(names)) {
-    names[, "fixed"] <- ifelse(names[, "fixed"] == "TRUE", "Fx", "")
-  }
-
-  names <- cbind(effect = rownames(names), names)
-  nombres <- apply(
-    names, 1,
-    function(z) {
-      ret <- Filter(function(w) !is.na(w) & w != "", z)
-      ret <- paste(ret, collapse = sep)
-      return(ret)
-    }
-  )
-  names(nombres) <- NULL
 
   return(nombres)
 }
