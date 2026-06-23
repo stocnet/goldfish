@@ -32,10 +32,10 @@ test_that("result print", {
   expect_output(print(resModObject), "Call:")
   expect_output(print(resModObject), "Coefficients:")
   expect_failure(
-    expect_output(print(resModObject), "\ninertia    recip    trans")
+    expect_output(print(resModObject), "\n   inrt      rec    trans")
   )
   expect_output(
-    print(resModObject, complete = TRUE), "\ninertia    recip    trans"
+    print(resModObject, complete = TRUE), "\n   inrt      rec    trans"
   )
 })
 test_that("nodes print", {

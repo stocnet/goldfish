@@ -15,12 +15,12 @@
 #' @noRd
 #' @return A named numeric vector with the extracted coefficients from the
 #' output of `estimate`.
-#' The naming correspond to the short name of the effect use in the formula.
-#' Coefficients with the same name are produced when the same effect is used
-#' more than one time with different arguments, e.g.,
-#' `dependentEvents ~ indeg + indeg(exogenousNetwork)`.
-#' Duplicates names could produce erroneous results when subsetting the vector
-#' by names.
+#' The naming uses a minimal-unique short form: the curated short effect name,
+#' with the smallest disambiguating suffix (object prefix, then argument codes)
+#' appended to every member of a colliding group, so names stay unique even when
+#' the same effect is used more than once with different arguments, e.g.,
+#' `dependentEvents ~ indeg + indeg(exogenousNetwork)`. This makes name-based
+#' subsetting of the returned vector reliable.
 #' A more comprehensive output can be obtain using [generics::tidy()], see
 #' `vignette("teaching2")`.
 #'
@@ -45,7 +45,7 @@
 #' coef(mod01)
 coef.result.goldfish <- function(object, ..., complete = FALSE) {
   result <- object$parameters
-  names(result) <- rownames(object$names)
+  names(result) <- term_label(object$names, ".coef_name", "coef")
   isFixed <- GetFixed(object)
   if (!complete && any(isFixed)) {
     result <- result[!isFixed]
@@ -111,7 +111,7 @@ logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
 #' @method vcov result.goldfish
 vcov.result.goldfish <- function(object, complete = FALSE, ...) {
   isFixed <- GetFixed(object)
-  namesCoef <- rownames(object$names)
+  namesCoef <- term_label(object$names, ".coef_name", "coef")
 
   vc <- solve(object$finalInformationMatrix[!isFixed, !isFixed])
   vc <- stats::.vcov.aliased(isFixed, vc, complete = complete)

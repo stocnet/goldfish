@@ -13,7 +13,7 @@ test_that("coef function", {
   )
   expect_equal(
     coef.result.goldfish(resModObject),
-    c(inertia = 5.3751, trans = -0.0816),
+    c(inrt = 5.3751, trans = -0.0816),
     label = "correct output"
   )
   expect_type(
@@ -30,7 +30,7 @@ test_that("coef function", {
   )
   expect_equal(
     coef.result.goldfish(resModObject, complete = TRUE),
-    c(inertia = 5.3751, recip = 1, trans = -0.0816),
+    c(inrt = 5.3751, rec = 1, trans = -0.0816),
     label = "correct output when complete = TRUE"
   )
 })
@@ -93,7 +93,7 @@ test_that("vcov function", {
         -0.00230482755796413, 0.0390106272519763
       ),
       ncol = 2, nrow = 2,
-      dimnames = list(c("inertia", "trans"), c("inertia", "trans"))
+      dimnames = list(c("inrt", "trans"), c("inrt", "trans"))
     ),
     label = "correct output"
   )
@@ -119,10 +119,29 @@ test_that("vcov function", {
       ),
       ncol = 3, nrow = 3,
       dimnames = list(
-        c("inertia", "recip", "trans"),
-        c("inertia", "recip", "trans")
+        c("inrt", "rec", "trans"),
+        c("inrt", "rec", "trans")
       )
     ),
     label = "correct output when complete = TRUE"
   )
+})
+
+test_that("coef/vcov names are minimal-unique and match", {
+  mod <- estimate_wrapper(
+    depNetwork ~ inertia(networkState) + inertia(networkExog) + recip,
+    data = dataTest, sub_model = "choice"
+  )
+  cf <- coef(mod)
+  vc <- vcov(mod)
+  expect_false(anyDuplicated(names(cf)) > 0)
+  expect_identical(rownames(vc), names(cf))
+  expect_identical(colnames(vc), names(cf))
+  expect_true(all(make.names(names(cf)) == names(cf)))
+
+  cfC <- coef(mod, complete = TRUE)
+  vcC <- vcov(mod, complete = TRUE)
+  expect_identical(rownames(vcC), names(cfC))
+  expect_identical(colnames(vcC), rownames(vcC))
+  expect_identical(names(cf), names(cfC))
 })
