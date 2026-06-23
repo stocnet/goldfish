@@ -699,3 +699,286 @@ GetFixed <- function(object) {
 checkArgsEstimation <- function(variables) {
 
 }
+
+.goldfishEffectShort <- c(
+  inertia = "inrt", recip = "rec", outdeg = "odeg", indeg = "ideg",
+  common_sender = "cmm_sen", common_receiver = "cmm_rec",
+  mixed_common_sender = "mix_cmm_sen", mixed_common_receiver = "mix_cmm_rec",
+  mixed_cycle = "mix_cycle", mixed_trans = "mix_trans",
+  ego_alter_interaction = "ego_alt", node_trans = "nd_trans",
+  tertius = "tert", tertius_diff = "tert_diff", degree = "deg",
+  global = "glob", triangle = "tri",
+  alterdeg = "altdeg", alterpop = "altpop",
+  dyadXdiff = "dyXdiff", dyadXego = "dyXego",
+  sizeXdiff = "szXdiff", sizeXego = "szXego"
+)
+
+.shortEffect <- function(x) {
+  hit <- x %in% names(.goldfishEffectShort)
+  x[hit] <- .goldfishEffectShort[x[hit]]
+  x
+}
+
+.trimObject <- function(x) sub("^[^$]*\\$", "", x)
+
+.shortestUniquePrefix <- function(x, minLen = 3L, maxLen = 6L) {
+  u <- unique(x[nzchar(x)])
+  if (length(u) == 0) {
+    return(stats::setNames(character(0), character(0)))
+  }
+  maxAvail <- max(nchar(u))
+  hi <- min(maxLen, maxAvail)
+  chosen <- maxAvail
+  if (hi >= minLen) {
+    for (len in seq.int(minLen, hi)) {
+      chosen <- len
+      if (!anyDuplicated(substr(u, 1, len))) break
+    }
+  }
+  stats::setNames(substr(u, 1, chosen), u)
+}
+
+.windowToken <- function(w) {
+  w <- trimws(w)
+  m <- regmatches(w, regexec("^([0-9]{1,3})\\s+([A-Za-z]+)$", w))[[1]]
+  if (length(m) == 3L) {
+    unit <- tolower(m[3])
+    code <- if (unit %in% c("s", "sec", "secs", "second", "seconds")) {
+      "s"
+    } else if (unit %in% c("m", "min", "mins", "minute", "minutes")) {
+      "m"
+    } else if (unit %in% c("h", "hr", "hrs", "hour", "hours")) {
+      "h"
+    } else if (unit %in% c("d", "day", "days")) {
+      "d"
+    } else if (unit %in% c("wk", "wks", "week", "weeks")) {
+      "wk"
+    } else if (unit %in% c("mo", "mon", "month", "months")) {
+      "mo"
+    } else if (unit %in% c("yr", "yrs", "year", "years")) {
+      "yr"
+    } else {
+      NULL
+    }
+    if (!is.null(code)) {
+      return(paste0(m[2], code))
+    }
+  }
+  "wdw"
+}
+
+.fnToken <- function(v, forceFn) {
+  if (isTRUE(forceFn)) {
+    return("fn")
+  }
+  if (grepl("^[A-Za-z.][A-Za-z0-9._]*$", v) && nchar(v) <= 6L) v else "fn"
+}
+
+.isFixedToken <- function(v) {
+  !is.na(v) && (identical(v, "TRUE") || identical(v, TRUE))
+}
+
+.rowTokens <- function(row, argCols, forceFn, subPref, joinPref) {
+  toks <- character(0)
+  has <- function(col) col %in% argCols && nzchar(row[[col]])
+  if (has("weighted")) toks <- c(toks, "W")
+  if (has("type")) toks <- c(toks, row[["type"]])
+  if (has("window")) toks <- c(toks, .windowToken(row[["window"]]))
+  hasT <- has("transformer_fn")
+  hasS <- has("summarizer_fn")
+  if (hasT && hasS) {
+    toks <- c(
+      toks,
+      paste0("t:", .fnToken(row[["transformer_fn"]], forceFn)),
+      paste0("s:", .fnToken(row[["summarizer_fn"]], forceFn))
+    )
+  } else if (hasT) {
+    toks <- c(toks, .fnToken(row[["transformer_fn"]], forceFn))
+  } else if (hasS) {
+    toks <- c(toks, .fnToken(row[["summarizer_fn"]], forceFn))
+  }
+  if (has("subType")) toks <- c(toks, unname(subPref[row[["subType"]]]))
+  if (has("joining")) toks <- c(toks, unname(joinPref[row[["joining"]]]))
+  if (has("history")) toks <- c(toks, substr(row[["history"]], 1, 3))
+  if (has("ignore_repetitions")) toks <- c(toks, "IR")
+  if ("fixed" %in% argCols && .isFixedToken(row[["fixed"]])) {
+    toks <- c(toks, "Fx")
+  }
+  toks
+}
+
+.objectForms <- function(row, objCols, objLk, useShort) {
+  objs <- row[objCols]
+  objs <- .trimObject(objs[nzchar(objs)])
+  if (length(objs) == 0L) {
+    return(character(0))
+  }
+  if (isTRUE(useShort)) unname(objLk[objs]) else objs
+}
+
+.assembleTerms <- function(
+    mat, useShortEffect, useShortObject, forceFn,
+    objCols, argCols, objLk, subPref, joinPref,
+    objSep = "·", effSep = "/", tokenSep = " ",
+    open = " [", close = "]") {
+  effects <- rownames(mat)
+  effForm <- if (useShortEffect) .shortEffect(effects) else effects
+  vapply(
+    seq_len(nrow(mat)),
+    function(i) {
+      row <- stats::setNames(mat[i, ], colnames(mat))
+      objs <- .objectForms(row, objCols, objLk, useShortObject)
+      toks <- .rowTokens(row, argCols, forceFn, subPref, joinPref)
+      out <- effForm[i]
+      if (length(objs)) {
+        out <- paste0(out, effSep, paste(objs, collapse = objSep))
+      }
+      if (length(toks)) {
+        out <- paste0(out, open, paste(toks, collapse = tokenSep), close)
+      }
+      out
+    },
+    character(1)
+  )
+}
+
+.truncateTerms <- function(x, width) {
+  long <- nchar(x) > width
+  x[long] <- paste0(substr(x[long], 1, max(1L, width - 1L)), "…")
+  x
+}
+
+.sanitizeExport <- function(x, maxLength) {
+  x <- gsub("·", "_", x)
+  x <- gsub("[/ :\\[\\]]+", "_", x, perl = TRUE)
+  x <- make.names(x)
+  x <- gsub("[._]+", "_", x)
+  x <- sub("_+$", "", x)
+  if (is.finite(maxLength)) {
+    x <- .uniqueTruncate(x, maxLength)
+  } else {
+    x <- make.unique(x, sep = "_")
+  }
+  x
+}
+
+.uniqueTruncate <- function(x, maxLength) {
+  out <- substr(x, 1, maxLength)
+  if (!anyDuplicated(out)) {
+    return(out)
+  }
+  seen <- new.env(parent = emptyenv())
+  for (i in seq_along(out)) {
+    base <- out[i]
+    if (is.null(seen[[base]])) {
+      assign(base, 1L, envir = seen)
+      next
+    }
+    k <- get(base, envir = seen)
+    repeat {
+      k <- k + 1L
+      suf <- paste0("_", k)
+      cand <- paste0(substr(base, 1, max(1L, maxLength - nchar(suf))), suf)
+      if (is.null(seen[[cand]])) break
+    }
+    assign(base, k, envir = seen)
+    assign(cand, 1L, envir = seen)
+    out[i] <- cand
+  }
+  out
+}
+
+.coefTerms <- function(mat, objCols, argCols, objLk, subPref, joinPref) {
+  base <- .shortEffect(rownames(mat))
+  out <- base
+  dup <- base %in% base[duplicated(base)]
+  if (any(dup)) {
+    objStr <- vapply(
+      seq_len(nrow(mat)),
+      function(i) {
+        row <- stats::setNames(mat[i, ], colnames(mat))
+        paste(.objectForms(row, objCols, objLk, TRUE), collapse = "_")
+      },
+      character(1)
+    )
+    addObj <- dup & nzchar(objStr)
+    out[addObj] <- paste0(base[addObj], "_", objStr[addObj])
+    stillDup <- out %in% out[duplicated(out)]
+    if (any(stillDup)) {
+      argStr <- vapply(
+        seq_len(nrow(mat)),
+        function(i) {
+          row <- stats::setNames(mat[i, ], colnames(mat))
+          paste(.rowTokens(row, argCols, FALSE, subPref, joinPref),
+            collapse = "_"
+          )
+        },
+        character(1)
+      )
+      addArg <- stillDup & nzchar(argStr)
+      out[addArg] <- paste0(out[addArg], "_", argStr[addArg])
+    }
+  }
+  out <- gsub("·", "_", out)
+  out <- make.names(out)
+  out <- gsub("[._]+", "_", out)
+  out <- sub("_+$", "", out)
+  make.unique(out, sep = "_")
+}
+
+compact_term_strings <- function(
+    names, mode = c("console", "export", "coef"),
+    width = getOption("width"), max_length = 63L) {
+  mode <- match.arg(mode)
+  if (is.null(dim(names))) {
+    names <- as.matrix(names)
+  }
+  cols <- colnames(names)
+  if (is.null(cols)) cols <- "Object"
+  metaCol <- startsWith(cols, ".")
+  objCol <- grepl("^Object( [0-9]+)?$", cols)
+  objCols <- cols[objCol & !metaCol]
+  argCols <- cols[!objCol & !metaCol]
+
+  allObjs <- .trimObject(unlist(lapply(objCols, function(cc) names[, cc])))
+  objLk <- .shortestUniquePrefix(allObjs, 3L, 6L)
+
+  subPref <- if ("subType" %in% argCols) {
+    .shortestUniquePrefix(names[, "subType"], 3L, 20L)
+  } else {
+    stats::setNames(character(0), character(0))
+  }
+  joinPref <- if ("joining" %in% argCols) {
+    .shortestUniquePrefix(names[, "joining"], 3L, 20L)
+  } else {
+    stats::setNames(character(0), character(0))
+  }
+
+  if (mode == "export") {
+    terms <- .assembleTerms(
+      names, FALSE, FALSE, FALSE, objCols, argCols, objLk, subPref, joinPref
+    )
+    return(.sanitizeExport(terms, if (is.null(max_length)) Inf else max_length))
+  }
+  if (mode == "coef") {
+    return(.coefTerms(names, objCols, argCols, objLk, subPref, joinPref))
+  }
+
+  configs <- list(
+    c(FALSE, FALSE, FALSE),
+    c(TRUE, FALSE, FALSE),
+    c(TRUE, TRUE, FALSE),
+    c(TRUE, TRUE, TRUE)
+  )
+  terms <- NULL
+  for (cfg in configs) {
+    terms <- .assembleTerms(
+      names, cfg[1], cfg[2], cfg[3],
+      objCols, argCols, objLk, subPref, joinPref
+    )
+    if (max(nchar(terms)) <= width) {
+      return(stats::setNames(terms, rownames(names)))
+    }
+  }
+  stats::setNames(.truncateTerms(terms, width), rownames(names))
+}
