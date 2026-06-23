@@ -1,3 +1,37 @@
+# goldfish 1.8.2
+
+This patch release introduces a shared compact term-string renderer so an
+effect reads identically across the printed summary, `tidy()`, and
+`gather_model_data()` export names.
+
+## User-visible changes
+
+* `print()` on a `summary()` of a fitted model now prints a single
+  coefficients table by default (`compact = TRUE`), with compact term row
+  labels of the form `effect/obj·obj2 [args]` and a short legend keying any
+  opaque argument codes present (for example `W = weighted`, `Fx = fixed`). Pass
+  `compact = FALSE` to restore the previous two-table view with the full
+  "Effects details" table.
+* `coef()` and `vcov()` now name parameters with a minimal-unique short form
+  (curated short effect name plus the smallest disambiguating suffix), so names
+  are always unique — fixing the previous hazard where duplicate bare names
+  broke name-based subsetting. `vcov()` dimnames equal `coef()` names. This
+  changes the names returned by `coef()`/`vcov()`.
+* `tidy(compact = TRUE)`'s `term` column is now produced by the shared builder
+  in export mode (valid, unique R names) instead of an ad-hoc paste.
+* `gather_model_data()` gains a `max_length` argument (default 63, a
+  database-safe value) bounding the length of the produced effect/column names,
+  which are valid and unique within a model.
+
+## Internal changes
+
+* Width-independent decoder renderings (`.effect_short`, `.object_short`,
+  `.term_export`, `.coef_name`) are computed once at construction and stored as
+  dot-prefixed columns on the effect-description matrix carried by
+  `result$names` and `gather_model_data()`'s `effectDescription`; display
+  methods read these (read-if-present-else-compute) and skip dot-prefixed
+  columns when iterating, so the metadata never leaks into rendered output.
+
 # goldfish 1.8.1
 
 This patch release compacts how constant-value fan-out effects are stored
