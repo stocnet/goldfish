@@ -200,16 +200,29 @@ test_that("tidy results", {
   expect_equal(nrow(tidy(resModObject)), 2L)
   expect_equal(
     tidy(resModObject)$term,
-    paste("callNetwork", c("inertia", "trans"), "FALSE")
+    c("inertia_callNetwork", "trans_callNetwork")
   )
   expect_length(tidy(resModObject, conf.int = TRUE), 7)
   expect_equal(
     tidy(resModObject, complete = TRUE)$term,
-    paste("callNetwork", c("inertia", "recip", "trans"), c(FALSE, TRUE, FALSE))
+    c("inertia_callNetwork", "recip_callNetwork_Fx", "trans_callNetwork")
   )
   expect_true(
     anyNA(tidy(resModObject, complete = TRUE, conf.int = TRUE)$statistic)
   )
+})
+test_that("tidy compact term = builder export output; valid names", {
+  compactTerm <- tidy(resModObject, complete = TRUE)$term
+  builderTerm <- compact_term_strings(resModObject$names, "export")
+  expect_equal(compactTerm, unname(builderTerm))
+  expect_true(all(make.names(compactTerm) == compactTerm))
+  expect_false(anyDuplicated(builderTerm) > 0)
+})
+test_that("tidy compact = FALSE keeps multi-column form, no dot columns", {
+  out <- tidy(resModObject, compact = FALSE, complete = TRUE)
+  expect_true(all(c("term", "Object", "fixed") %in% names(out)))
+  expect_false(any(startsWith(names(out), ".")))
+  expect_equal(out$term, c("inertia", "recip", "trans"))
 })
 test_that("glance results", {
   expect_s3_class(glance(resModObject), "tbl_df")

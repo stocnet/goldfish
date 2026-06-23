@@ -734,17 +734,7 @@ tidy.result.goldfish <- function(
   dispNames <- x$names[, !startsWith(colnames(x$names), "."), drop = FALSE]
 
   if (compact) {
-    terms <- paste(
-      dispNames[, 1],
-      rownames(dispNames),
-      if (ncol(dispNames) > 2) {
-        apply(dispNames[, -1], 1, paste, collapse = " ")
-      } else {
-        dispNames[, -1]
-      }
-    )
-    terms <- trimws(terms)
-    terms <- gsub("\\$", " ", terms)
+    terms <- term_label(x$names, ".term_export", "export")
 
     if (!complete) terms <- terms[!isFixed]
 
