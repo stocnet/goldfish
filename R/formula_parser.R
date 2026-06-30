@@ -291,17 +291,43 @@ create_windowed_events <- function(object_events, window) {
   return(new_events)
 }
 
-extract_formula_terms <- function(rhs) {
-  if (is.symbol(rhs)) {
-    return(rhs)
+# Detect an explicit leading intercept (`1`) on the RHS.
+# stats::terms() records the intercept in attr(., "intercept") (default 1 for
+# every formula) and drops the literal `1` term, so it cannot distinguish an
+# implicit intercept from an explicit one. goldfish's convention is the
+# opposite of R's default: `has_intercept` is opt-in via an explicit leading
+# `1` (see parse_intercept, which is order-sensitive). We therefore re-derive
+# it by descending the leftmost operand of the `+`-tree and testing for a
+# literal 1 -- the same term parse_intercept inspected under the old walker.
+has_explicit_intercept <- function(rhs) {
+  node <- rhs
+  while (is.call(node) && length(node) == 3L &&
+    identical(node[[1]], as.name("+"))) {
+    node <- node[[2]]
   }
-  if (!is.call(rhs[[1]]) &&
-    rhs[[1]] != "+" &&
-    rhs[[1]] != "*") {
-    return(rhs)
-  } else {
-    return(c(extract_formula_terms(rhs[[2]]), rhs[[3]]))
+  is.numeric(node) && length(node) == 1L && node == 1
+}
+
+# stats::terms() admits constructs goldfish cannot dispatch (I(), |) as opaque
+# term labels instead of rejecting them, so guard explicitly (design D2).
+reject_unsupported_terms <- function(variables) {
+  heads <- vapply(
+    variables,
+    function(e) if (is.call(e)) deparse(e[[1]]) else "",
+    character(1)
+  )
+  bad <- heads %in% c("I", "|")
+  if (any(bad)) {
+    offenders <- vapply(variables[bad], deparse1, character(1))
+    cli::cli_abort(c(
+      "Unsupported term{?s} in the model formula: {.code {offenders}}.",
+      "x" = "{.code I()} and {.code |} are not goldfish effects and cannot be
+             dispatched to an effect function.",
+      "i" = "Use goldfish effect functions and combine them with {.code +},
+             {.code :}, or {.code *}."
+    ))
   }
+  invisible(NULL)
 }
 
 get_dependent_name <- function(formula) {
@@ -432,9 +458,39 @@ get_objects_effects_link <- function(rhs_names) {
 }
 
 get_rhs_names <- function(formula) {
-  rhs <- extract_formula_terms(formula[[3]])
-  if (!is.list(rhs)) rhs <- list(rhs)
-  rhs_names <- lapply(rhs, function(term) lapply(term, deparse))
+  parsed <- stats::terms(formula, keep.order = TRUE)
+
+  # attr "variables" is the call list(resp, term1, ...): each unique effect call
+  # as a language object -- the same objects the old walker produced for
+  # non-interaction formulas (verified term-for-term in discovery 0.3).
+  variables <- as.list(attr(parsed, "variables"))[-1]
+  response <- attr(parsed, "response")
+  if (response > 0) variables <- variables[-response]
+
+  reject_unsupported_terms(variables)
+
+  # Interaction terms (`a:b`, `a*b`) expand correctly via terms() but their
+  # interaction-term object / product statistic land with the interaction-terms
+  # capability (tasks 2.5-2.6). Until then, recognize and reject them rather
+  # than silently returning the operands as standalone main effects.
+  if (any(attr(parsed, "order") > 1L)) {
+    interactions <- attr(parsed, "term.labels")[attr(parsed, "order") > 1L]
+    cli::cli_abort(c(
+      "Interaction term{?s} {.code {interactions}} {?is/are} not yet supported.",
+      "i" = "Interaction effects ({.code :} and {.code *}) will be supported in
+             an upcoming release."
+    ))
+  }
+
+  rhs_names <- lapply(variables, function(term) lapply(term, deparse))
+
+  # terms() folds an explicit leading `1` into attr "intercept"; re-insert it as
+  # the first term so parse_intercept() detects it exactly as before.
+  if (has_explicit_intercept(formula[[length(formula)]])) {
+    rhs_names <- c(list(list("1")), rhs_names)
+  }
+
+  rhs_names
 }
 
 parse_intercept <- function(rhs_names) {
