@@ -723,6 +723,14 @@ estimate_wrapper <- function(x,
     has_intercept = has_intercept
   )
 
+  # Recipe (DyNAM/REM) models build the update plan + call templates upfront
+  # (design D8); DyNAMi keeps the monolithic preprocessing path. The spec_map
+  # is threaded into preprocess(), which consumes it instead of rebuilding the
+  # plan/templates each call (compat shim — preprocess still rebuilds them when
+  # not supplied).
+  is_recipe_model <- model %in% c("DyNAM", "REM")
+  stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
+
   ## 3.1 INITIALIZE OBJECTS for preprocessingInit: remove old effects,
   ## add new ones
   if (!is.null(preprocessing_init)) {
@@ -748,6 +756,17 @@ estimate_wrapper <- function(x,
         new_events, new_rhs_names, new_events_objects_link
       )
 
+      new_spec_map <- if (is_recipe_model) {
+        build_spec_map(
+          parsed_formula, new_effects, new_objects_effects_link,
+          new_events_objects_link, new_events_effects_link,
+          stat_kind = stat_kind, nodes = .nodes, nodes2 = .nodes2,
+          envir = work_env
+        )
+      } else {
+        NULL
+      }
+
       # Preprocess the new effects
       if (progress) cat("Pre-processing additional effects.\n")
       newprep <- preprocess(
@@ -759,6 +778,8 @@ estimate_wrapper <- function(x,
         eventsObjectsLink = new_events_objects_link, # for data update
         eventsEffectsLink = new_events_effects_link,
         objectsEffectsLink = new_objects_effects_link, # for parameterization
+        plan = new_spec_map$plan,
+        effects_template = new_spec_map$effects_template,
         # multipleParameter = multipleParameter,
         nodes = .nodes,
         nodes2 = .nodes2,
@@ -884,6 +905,16 @@ estimate_wrapper <- function(x,
   ## 3.2 PREPROCESS when preprocessingInit == NULL
   if (is.null(preprocessing_init)) {
     if (progress) cat("Starting preprocessing.\n")
+    spec_map <- if (is_recipe_model) {
+      build_spec_map(
+        parsed_formula, effects, objects_effects_link,
+        events_objects_link, events_effects_link,
+        stat_kind = stat_kind, nodes = .nodes, nodes2 = .nodes2,
+        envir = work_env
+      )
+    } else {
+      NULL
+    }
     prep <- preprocess(
       model_spec,
       events = events,
@@ -893,6 +924,8 @@ estimate_wrapper <- function(x,
       eventsObjectsLink = events_objects_link, # for data update
       eventsEffectsLink = events_effects_link,
       objectsEffectsLink = objects_effects_link, # for parameterization
+      plan = spec_map$plan,
+      effects_template = spec_map$effects_template,
       # multipleParameter = multipleParameter,
       nodes = .nodes,
       nodes2 = .nodes2,

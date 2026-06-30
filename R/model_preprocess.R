@@ -235,6 +235,8 @@ run_sender_recipe_loop <- function(
   progress = FALSE,
   prepEnvir = new.env(),
   writer = writer_default(),
+  plan = NULL,
+  effects_template = NULL,
   ...
 ) {
   n1 <- nrow(get(nodes, envir = prepEnvir))
@@ -358,14 +360,18 @@ run_sender_recipe_loop <- function(
     rownames(objectsEffectsLink), nodes, nodes2,
     envir = prepEnvir
   )
-  plan <- build_update_plan(
-    effects, eventsObjectsLink, eventsEffectsLink, objectsEffectsLink,
-    state,
-    stat_kind = "sender", envir = prepEnvir
-  )
-  effects_template <- build_effects_template(
-    effects, objectsEffectsLink, state
-  )
+  if (is.null(plan)) {
+    plan <- build_update_plan(
+      effects, eventsObjectsLink, eventsEffectsLink, objectsEffectsLink,
+      state,
+      stat_kind = "sender", envir = prepEnvir
+    )
+  }
+  if (is.null(effects_template)) {
+    effects_template <- build_effects_template(
+      effects, objectsEffectsLink, state
+    )
+  }
   schedule <- build_event_schedule(events, eventsObjectsLink, plan$objects)
 
   netUpdateLookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
@@ -742,6 +748,8 @@ run_dyad_recipe_loop <- function(
   progress = FALSE,
   prepEnvir = new.env(),
   writer = writer_default(),
+  plan = NULL,
+  effects_template = NULL,
   ...
 ) {
   n1 <- nrow(get(nodes, envir = prepEnvir))
@@ -868,14 +876,18 @@ run_dyad_recipe_loop <- function(
     rownames(objectsEffectsLink), nodes, nodes2,
     envir = prepEnvir
   )
-  plan <- build_update_plan(
-    effects, eventsObjectsLink, eventsEffectsLink, objectsEffectsLink,
-    state,
-    stat_kind = "dyad", envir = prepEnvir
-  )
-  effects_template <- build_effects_template(
-    effects, objectsEffectsLink, state
-  )
+  if (is.null(plan)) {
+    plan <- build_update_plan(
+      effects, eventsObjectsLink, eventsEffectsLink, objectsEffectsLink,
+      state,
+      stat_kind = "dyad", envir = prepEnvir
+    )
+  }
+  if (is.null(effects_template)) {
+    effects_template <- build_effects_template(
+      effects, objectsEffectsLink, state
+    )
+  }
   schedule <- build_event_schedule(events, eventsObjectsLink, plan$objects)
 
   netUpdateLookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)

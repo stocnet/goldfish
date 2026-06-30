@@ -193,6 +193,64 @@ compare_formulas <- function(
   return(effects_indexes)
 }
 
+#' Build the upfront specification mapping
+#'
+#' Umbrella that compiles the data-light engine structures once as the outcome
+#' of parsing (design D8), so `preprocess()` consumes them instead of rebuilding
+#' the update plan and call templates on every call. It orchestrates the trio:
+#' the `parsed_terms` bundle (from `parse_formula()`), the per-effect call
+#' templates (`build_effects_template()`), and the registries-only update plan
+#' (`build_update_plan()`).
+#'
+#' Stage 1 / S2 scope: the plan and templates move upfront behind a compat shim
+#' (`preprocess()` still rebuilds them when not supplied). The full
+#' metadata/data boundary — keeping this mapping free of event/network tables
+#' and relocating `sanitizeEvents`/windowing to state creation — is design D8's
+#' later slice (tasks 2.3b–2.3d). The link matrices and effect closures are
+#' built in `model_estimate.R` and threaded in here for now; they become
+#' internal to the compile when the `preprocess(spec_map, data)` signature
+#' lands.
+#'
+#' @param parsed_formula the list returned by `parse_formula()`.
+#' @param effects list of effect functions from `create_effects_functions()`.
+#' @param objects_effects_link matrix from `get_objects_effects_link()`.
+#' @param events_objects_link,events_effects_link link structures from
+#'   `get_events_and_objects_link()` / `get_events_effects_link()`.
+#' @param stat_kind character, `"sender"` or `"dyad"`.
+#' @param nodes,nodes2 names of the dependent events' node sets.
+#' @param envir environment where the data objects live.
+#'
+#' @return an S3 `spec_map.goldfish` list with `parsed_terms`, `plan`, and
+#'   `effects_template`.
+#' @noRd
+build_spec_map <- function(
+    parsed_formula, effects, objects_effects_link,
+    events_objects_link, events_effects_link,
+    stat_kind = c("sender", "dyad"), nodes, nodes2 = nodes,
+    envir = new.env()) {
+  stat_kind <- match.arg(stat_kind)
+  state <- build_state_container(
+    rownames(objects_effects_link), nodes, nodes2,
+    envir = envir
+  )
+  plan <- build_update_plan(
+    effects, events_objects_link, events_effects_link, objects_effects_link,
+    state,
+    stat_kind = stat_kind, envir = envir
+  )
+  effects_template <- build_effects_template(
+    effects, objects_effects_link, state
+  )
+  structure(
+    list(
+      parsed_terms = parsed_formula,
+      plan = plan,
+      effects_template = effects_template
+    ),
+    class = "spec_map.goldfish"
+  )
+}
+
 create_effects_functions <- function(effect_init, model, sub_model,
                                    envir = environment()) {
   .stat_method <- paste("init", model, sub_model, sep = "_")
