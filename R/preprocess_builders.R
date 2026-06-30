@@ -179,14 +179,70 @@ broadcast_entries_from_updates <- function(updates, kind, gid) {
   do.call(cbind, blocks)
 }
 
+#' Build the per-effect call templates
+#'
+#' Compiles the gid-indexed call templates the recipe loops dispatch through
+#' (design D8): the effect function with its formals matched once, the
+#' per-shape argument lists, and the state keys feeding each call in argument
+#' order. Split out of `build_update_plan()` so the templates are a distinct
+#' `effects_template` object the upfront specification mapping
+#' (`build_spec_map()`) owns, while the plan carries registries only.
+#'
+#' @param effects list of effect functions from `create_effects_functions()`.
+#' @param objects_effects_link matrix from `get_objects_effects_link()`.
+#' @param state state container from `build_state_container()`; only its
+#'   `object_keys` attribute (name/component/key mapping) is consumed.
+#'
+#' @return a gid-indexed list; each element carries `fun`, `formal_names`,
+#'   `args_by_shape`, `net_keys`, `att_components`, `att_keys`, `n_networks`,
+#'   and `n_attributes`.
+#' @noRd
+build_effects_template <- function(effects, objects_effects_link, state) {
+  object_keys <- attr(state, "object_keys")
+  n_effects <- ncol(objects_effects_link)
+
+  arg_pool_common <- c(
+    "network", "attribute", "cache", "n1", "n2", "netUpdate", "attUpdate",
+    "eventOrder", "interEventTime", "replace"
+  )
+  arg_pool <- list(
+    dyad = c(arg_pool_common, "sender", "receiver"),
+    node = c(arg_pool_common, "node"),
+    global = arg_pool_common
+  )
+
+  templates <- vector("list", n_effects)
+  for (gid in seq_len(n_effects)) {
+    positions <- objects_effects_link[, gid]
+    used <- which(!is.na(positions))
+    ordered <- used[order(positions[used])]
+    ordered_components <- object_keys$component[ordered]
+    is_net_arg <- ordered_components == "networks"
+    formal_names <- names(formals(effects[[gid]][["effect"]]))
+    templates[[gid]] <- list(
+      fun = effects[[gid]][["effect"]],
+      formal_names = formal_names,
+      args_by_shape = lapply(
+        arg_pool,
+        function(pool) formal_names[formal_names %in% pool]
+      ),
+      net_keys = object_keys$key[ordered][is_net_arg],
+      att_components = ordered_components[!is_net_arg],
+      att_keys = object_keys$key[ordered][!is_net_arg],
+      n_networks = sum(is_net_arg),
+      n_attributes = sum(!is_net_arg)
+    )
+  }
+  templates
+}
+
 #' Build the recipe update plan
 #'
-#' Compiles the gid/fid registries and per-gid call templates that recipe
-#' loops consume (design D21): which effects each object update routes to,
-#' the state keys feeding each effect call in argument order, the effect
-#' function formals matched once, and the `netUpdate` / `attUpdate`
+#' Compiles the gid/fid registries that recipe loops consume (design D21):
+#' which effects each object update routes to and the `netUpdate` / `attUpdate`
 #' positions per (effect, object) pair. The link matrices produced by the
-#' formula parser are the only inputs — the parser itself is untouched.
+#' formula parser are the only inputs — the parser itself is untouched. The
+#' per-effect call templates are split into `build_effects_template()`.
 #'
 #' @param effects list of effect functions from `create_effects_functions()`.
 #' @param events_objects_link data.frame from `get_events_and_objects_link()`.
@@ -198,11 +254,12 @@ broadcast_entries_from_updates <- function(updates, kind, gid) {
 #'   shape gets a distinct gid.
 #' @param envir environment where the data objects live.
 #'
-#' @return a list with `effects`, `objects`, `effect_objects` registries,
-#'   `routing` (oid-indexed list of gids), and `templates` (gid-indexed call
-#'   templates). The `effects` registry carries a `broadcast_kind` column (see
-#'   `classify_broadcast_kind()`) that the recipe uses to route constant-value
-#'   fan-out effects to the compact `stat_mat_broadcast` buffer.
+#' @return a list with `effects`, `objects`, `effect_objects` registries and
+#'   `routing` (oid-indexed list of gids). The per-effect call templates are
+#'   returned separately by `build_effects_template()`. The `effects` registry
+#'   carries a `broadcast_kind` column (see `classify_broadcast_kind()`) that
+#'   the recipe uses to route constant-value fan-out effects to the compact
+#'   `stat_mat_broadcast` buffer.
 #'
 #' @section Reserved extension point — interaction effects (not implemented):
 #' Interaction terms between effects (e.g. `global(x):alter(y)`) are a reserved
@@ -314,17 +371,6 @@ build_update_plan <- function(
     }
   }
 
-  arg_pool_common <- c(
-    "network", "attribute", "cache", "n1", "n2", "netUpdate", "attUpdate",
-    "eventOrder", "interEventTime", "replace"
-  )
-  arg_pool <- list(
-    dyad = c(arg_pool_common, "sender", "receiver"),
-    node = c(arg_pool_common, "node"),
-    global = arg_pool_common
-  )
-
-  templates <- vector("list", n_effects)
   effect_objects <- vector("list", n_effects)
   for (gid in seq_len(n_effects)) {
     positions <- objects_effects_link[, gid]
@@ -332,20 +378,6 @@ build_update_plan <- function(
     ordered <- used[order(positions[used])]
     ordered_components <- object_keys$component[ordered]
     is_net_arg <- ordered_components == "networks"
-    formal_names <- names(formals(effects[[gid]][["effect"]]))
-    templates[[gid]] <- list(
-      fun = effects[[gid]][["effect"]],
-      formal_names = formal_names,
-      args_by_shape = lapply(
-        arg_pool,
-        function(pool) formal_names[formal_names %in% pool]
-      ),
-      net_keys = object_keys$key[ordered][is_net_arg],
-      att_components = ordered_components[!is_net_arg],
-      att_keys = object_keys$key[ordered][!is_net_arg],
-      n_networks = sum(is_net_arg),
-      n_attributes = sum(!is_net_arg)
-    )
     effect_objects[[gid]] <- data.frame(
       gid = gid,
       oid = ordered,
@@ -366,8 +398,7 @@ build_update_plan <- function(
     effects = effects_registry,
     objects = objects_registry,
     effect_objects = do.call(rbind, effect_objects),
-    routing = routing,
-    templates = templates
+    routing = routing
   )
 }
 

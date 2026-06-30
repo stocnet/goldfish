@@ -363,6 +363,9 @@ run_sender_recipe_loop <- function(
     state,
     stat_kind = "sender", envir = prepEnvir
   )
+  effects_template <- build_effects_template(
+    effects, objectsEffectsLink, state
+  )
   schedule <- build_event_schedule(events, eventsObjectsLink, plan$objects)
 
   netUpdateLookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
@@ -590,7 +593,7 @@ run_sender_recipe_loop <- function(
         }
 
         for (gid in plan$routing[[oid]]) {
-          template <- plan$templates[[gid]]
+          template <- effects_template[[gid]]
           netUpdatePos <- netUpdateLookup[oid, gid]
           if (is.na(netUpdatePos)) netUpdatePos <- NULL
           attUpdatePos <- attUpdateLookup[oid, gid]
@@ -870,6 +873,9 @@ run_dyad_recipe_loop <- function(
     state,
     stat_kind = "dyad", envir = prepEnvir
   )
+  effects_template <- build_effects_template(
+    effects, objectsEffectsLink, state
+  )
   schedule <- build_event_schedule(events, eventsObjectsLink, plan$objects)
 
   netUpdateLookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
@@ -1097,7 +1103,7 @@ run_dyad_recipe_loop <- function(
         }
 
         for (gid in plan$routing[[oid]]) {
-          template <- plan$templates[[gid]]
+          template <- effects_template[[gid]]
           netUpdatePos <- netUpdateLookup[oid, gid]
           if (is.na(netUpdatePos)) netUpdatePos <- NULL
           attUpdatePos <- attUpdateLookup[oid, gid]

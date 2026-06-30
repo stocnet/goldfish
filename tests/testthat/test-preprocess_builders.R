@@ -115,8 +115,12 @@ build_plan_fixture <- function(
     objects_effects_link, state,
     stat_kind = stat_kind, envir = env
   )
+  effects_template <- build_effects_template(
+    effects, objects_effects_link, state
+  )
   list(
-    plan = plan, events = events_and_link[[1]],
+    plan = plan, effects_template = effects_template,
+    events = events_and_link[[1]],
     events_objects_link = events_and_link[[2]],
     events_effects_link = events_effects_link,
     objects_effects_link = objects_effects_link,
@@ -151,11 +155,11 @@ test_that("build_update_plan routing matches the link matrices", {
   )
 })
 
-test_that("build_update_plan call templates resolve formals once", {
+test_that("build_effects_template call templates resolve formals once", {
   fixture <- build_plan_fixture(
     depNetwork ~ inertia + alter(actorsEx$attr1)
   )
-  template_inertia <- fixture$plan$templates[[1]]
+  template_inertia <- fixture$effects_template[[1]]
   expect_identical(
     template_inertia$formal_names,
     names(formals(fixture$effects[[1]][["effect"]]))
@@ -169,7 +173,7 @@ test_that("build_update_plan call templates resolve formals once", {
   expect_equal(template_inertia$net_keys, "networkState")
   expect_equal(template_inertia$n_networks, 1L)
   expect_equal(template_inertia$n_attributes, 0L)
-  template_alter <- fixture$plan$templates[[2]]
+  template_alter <- fixture$effects_template[[2]]
   expect_equal(template_alter$att_components, "nodal")
   expect_equal(template_alter$att_keys, "attr1")
 })
@@ -179,9 +183,9 @@ test_that("build_update_plan netUpdate positions for two-network effects", {
     depNetwork ~ mixed_trans(list(networkState, networkExog))
   )
   plan <- fixture$plan
-  expect_equal(plan$templates[[1]]$n_networks, 2L)
+  expect_equal(fixture$effects_template[[1]]$n_networks, 2L)
   expect_equal(
-    plan$templates[[1]]$net_keys,
+    fixture$effects_template[[1]]$net_keys,
     c("networkState", "networkExog")
   )
   pairs <- plan$effect_objects
