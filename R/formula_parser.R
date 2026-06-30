@@ -220,8 +220,9 @@ compare_formulas <- function(
 #' @param nodes,nodes2 names of the dependent events' node sets.
 #' @param envir environment where the data objects live.
 #'
-#' @return an S3 `spec_map.goldfish` list with `parsed_terms`, `plan`, and
-#'   `effects_template`.
+#' @return an S3 `spec_map.goldfish` list with `parsed_terms`, `plan`,
+#'   `effects_template`, and `effect_description` (the single source of truth for
+#'   print/naming metadata, design D8).
 #' @noRd
 build_spec_map <- function(
     parsed_formula, effects, objects_effects_link,
@@ -241,11 +242,17 @@ build_spec_map <- function(
   effects_template <- build_effects_template(
     effects, objects_effects_link, state
   )
+  # Print/naming metadata is formula-derived, so it is owned here once (design
+  # D8) and rendered on demand per context (console / db / export) by
+  # CreateNames; the fixed-coefficient marking stays an estimation concern
+  # appended downstream (offset terms, group 5).
+  effect_description <- GetDetailPrint(objects_effects_link, parsed_formula)
   structure(
     list(
       parsed_terms = parsed_formula,
       plan = plan,
-      effects_template = effects_template
+      effects_template = effects_template,
+      effect_description = effect_description
     ),
     class = "spec_map.goldfish"
   )

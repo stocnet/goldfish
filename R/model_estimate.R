@@ -730,6 +730,7 @@ estimate_wrapper <- function(x,
   # not supplied).
   is_recipe_model <- model %in% c("DyNAM", "REM")
   stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
+  spec_map <- NULL
 
   ## 3.1 INITIALIZE OBJECTS for preprocessingInit: remove old effects,
   ## add new ones
@@ -949,7 +950,8 @@ estimate_wrapper <- function(x,
       gathered <- finalize_gather_output(
         prep, model, sub_model, has_intercept,
         get(.nodes, envir = data), get(.nodes2, envir = data),
-        objects_effects_link, parsed_formula, max_length = max_length
+        objects_effects_link, parsed_formula, max_length = max_length,
+        effect_description = spec_map$effect_description
       )
       if (output == "db") {
         return(write_gather_to_db(
@@ -977,11 +979,20 @@ estimate_wrapper <- function(x,
 
   ### 4. PREPARE PRINTING----
   # functions_utility.R
+  # Reuse the spec_map's single-source-of-truth description when available
+  # (recipe models, no fixed-coefficient marking); otherwise compute it (the
+  # fixed-coefficient case adds a column, and the DyNAMi / preprocessing_init
+  # paths have no spec_map). Behaviour is identical to the unconditional call.
   effectDescription <-
-    GetDetailPrint(
-      objects_effects_link, parsed_formula,
-      control_estimation$fixed_parameters 
-    )
+    if (!is.null(spec_map$effect_description) &&
+      is.null(control_estimation$fixed_parameters)) {
+      spec_map$effect_description
+    } else {
+      GetDetailPrint(
+        objects_effects_link, parsed_formula,
+        control_estimation$fixed_parameters
+      )
+    }
   hasWindows <- attr(effectDescription, "hasWindows")
   if (is.null(hasWindows)) {
     hasWindows <- !all(vapply(window_parameters, is.null, logical(1)))

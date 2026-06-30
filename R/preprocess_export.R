@@ -157,7 +157,8 @@ gather_model_data <- function(
 #' @noRd
 finalize_gather_output <- function(
   gathered, model, sub_model, has_intercept, nodes, nodes2,
-  objects_effects_link, parsed_formula, max_length = 63L
+  objects_effects_link, parsed_formula, max_length = 63L,
+  effect_description = NULL
 ) {
   event_sender <- attr(gathered, "event_sender")
   event_receiver <- attr(gathered, "event_receiver")
@@ -172,7 +173,12 @@ finalize_gather_output <- function(
     gathered$isDependent <- is_dependent
   }
 
-  effectDescription <- GetDetailPrint(objects_effects_link, parsed_formula)
+  # Single source of truth from the spec mapping (design D8) when supplied;
+  # recomputed only for callers without a spec_map (DyNAMi / legacy paths).
+  effectDescription <- effect_description
+  if (is.null(effectDescription)) {
+    effectDescription <- GetDetailPrint(objects_effects_link, parsed_formula)
+  }
   namesEffects <- CreateNames(effectDescription, max_length = max_length)
 
   gathered$namesEffects <- namesEffects
