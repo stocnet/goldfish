@@ -737,21 +737,6 @@ estimate_wrapper <- function(
     ))
   }
 
-  if (
-    sub_model %in%
-      c("choice", "choice_coordination") &&
-      "global" %in% vapply(rhs_names, "[[", character(1), 1)
-  ) {
-    cli::cli_abort(c(
-      "The {.fn global} effect is not supported for
-       {.code sub_model = {.val {sub_model}}}.",
-      "x" = "A global covariate is constant across alternatives, so its main
-             effect is not identified in a multinomial choice model.",
-      "i" = "Global covariates in choice sub-models will be supported only
-             through interaction effects in a future release. Use a rate
-             sub-model to estimate the main effect of a global covariate."
-    ))
-  }
   # Model-specific preprocessing initialization
   if (
     has_intercept &&
@@ -772,6 +757,25 @@ estimate_wrapper <- function(
     parsed_formula$has_intercept <- has_intercept <- FALSE
   }
   rightCensored <- has_intercept
+
+  # Per-(model, sub_model) main-effect validity (design D3). Unavailable effects
+  # (no bare implementation, e.g. global in choice) abort in every phase;
+  # computable-but-unidentified effects stay producible via preprocessing
+  # (compute_stats, as design columns for interactions / random effects) and are
+  # rejected only when estimating. Uses the effective sub_model (a rate formula
+  # without the time intercept is the ordinal case) and runs after `*` expansion.
+  # All effects are main until interaction terms land (task 2.5).
+  validity_sub_model <- sub_model
+  if (sub_model == "rate" && !has_intercept) {
+    validity_sub_model <- "rate_ordered"
+  }
+  validate_effects(
+    model,
+    validity_sub_model,
+    vapply(rhs_names, "[[", character(1), 1),
+    vapply(parsed_formula$type_parameter, as.character, character(1)),
+    estimating = !preprocessing_only
+  )
 
   if (model == "DyNAM" && sub_model == "rate" && !has_intercept) {
     cli::cli_warn(c(

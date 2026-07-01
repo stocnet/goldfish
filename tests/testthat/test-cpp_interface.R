@@ -196,9 +196,12 @@ test_that("DyNAM-choice_coordination", {
   model <- "DyNAM"
   subModel <- "choice_coordination"
   # endogenous and right-censored events
+  # NB: choice_coordination rejects an ego-perspective main effect (design D3,
+  # group 3), so this engine-consistency vector uses the default alter
+  # perspective — the effect only needs to be valid and non-trivial here.
   formula <- depNetwork ~ inertia +
     indeg +
-    indeg(networkExog, type = "ego", weighted = TRUE)
+    indeg(networkExog, weighted = TRUE)
   modR <- estimate_wrapper(
     formula,
     model = model,
