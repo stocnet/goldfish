@@ -543,8 +543,7 @@ test_that("events, objects & effects links", {
     envir = envirTest
   )
   events_effects_link <- get_events_effects_link(
-    events_objects_link[[1]], parsed_formula$rhs_names,
-    events_objects_link[[2]]
+    parsed_formula$rhs_names, events_objects_link[[2]]
   )
   
   expect_vector(events_objects_link, ptype = list(), size = 2)

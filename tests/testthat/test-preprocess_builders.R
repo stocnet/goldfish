@@ -150,7 +150,7 @@ build_plan_fixture <- function(
     envir = env
   )
   events_effects_link <- get_events_effects_link(
-    events_and_link[[1]], parsed$rhs_names, events_and_link[[2]]
+    parsed$rhs_names, events_and_link[[2]]
   )
   state <- build_state_container(
     rownames(objects_effects_link),
@@ -263,7 +263,7 @@ test_that("build_update_plan flags undirected networks for the second call", {
     envir = env
   )
   events_effects_link <- get_events_effects_link(
-    events_and_link[[1]], parsed$rhs_names, events_and_link[[2]]
+    parsed$rhs_names, events_and_link[[2]]
   )
   state <- build_state_container(
     rownames(objects_effects_link),

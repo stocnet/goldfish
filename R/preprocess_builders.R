@@ -334,7 +334,8 @@ build_effects_template <- function(effects, objects_effects_link, state) {
 #' @noRd
 build_update_plan <- function(
     effects, events_objects_link, events_effects_link, objects_effects_link,
-    state, stat_kind = c("sender", "dyad"), envir = new.env()) {
+    state, stat_kind = c("sender", "dyad"), envir = new.env(),
+    derivations = NULL) {
   stat_kind <- match.arg(stat_kind)
   object_keys <- attr(state, "object_keys")
   object_names <- rownames(objects_effects_link)
@@ -348,6 +349,10 @@ build_update_plan <- function(
     )
   }
 
+  # A derived (windowed) network inherits its class + `directed` from its source
+  # and may not be realized yet on the recipe path (design D8, task 2.3f), so
+  # read the direction flag from the source object via the recipe.
+  src_map <- derived_source_map(derivations)
   is_network <- object_keys$component == "networks"
   is_undirected <- vapply(
     seq_len(n_objects),
@@ -355,7 +360,9 @@ build_update_plan <- function(
       if (!is_network[oid]) {
         return(FALSE)
       }
-      object <- get(object_names[oid], envir = envir)
+      name <- object_names[oid]
+      lookup <- if (name %in% names(src_map)) src_map[[name]] else name
+      object <- get(lookup, envir = envir)
       inherits(object, "network.goldfish") && !attr(object, "directed")
     },
     logical(1)

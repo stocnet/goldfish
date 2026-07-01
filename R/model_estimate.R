@@ -469,16 +469,18 @@ compute_stats <- function(
 #' @noRd
 preprocess_recipe <- function(
     parsed_formula, model_spec, effects, window_parameters,
-    objects_effects_link, events_objects_link, events_effects_link, events,
+    objects_effects_link, events_objects_link, events_effects_link, fetch_plan,
     control_preprocessing, progress, work_env, writer = writer_default()) {
   spec_map <- build_spec_map(
     parsed_formula, model_spec, effects, window_parameters,
-    objects_effects_link, events_objects_link, events_effects_link,
+    objects_effects_link, events_objects_link, events_effects_link, fetch_plan,
     envir = work_env
   )
+  # The recipe loop realizes derived inputs (from plan$derivations) and fetches
+  # events (from spec$fetch_plan) inside state creation (design D8, task 2.3f),
+  # so no pre-fetched events list is threaded here.
   prep <- preprocess(
     spec_map,
-    events = events,
     startTime = control_preprocessing$start_time,
     endTime = control_preprocessing$end_time,
     progress = progress,
@@ -641,18 +643,16 @@ estimate_wrapper <- function(x,
   ## 1.1 PARSE for all cases: preprocessingInit or not
   # On the fresh recipe (DyNAM/REM) path the shared parser stays free of
   # environment mutations (design D8): parse_formula() records the window
-  # derivation recipe but does not realize it, and the recipe front-end realizes
-  # it explicitly below. DyNAMi and the preprocessing_init path keep the eager
-  # parse-time realization (byte-identical) via realize_windows = TRUE.
+  # derivation recipe but does not realize it, and the recipe state container
+  # realizes it from `plan$derivations` (task 2.3f). DyNAMi and the
+  # preprocessing_init path keep the eager parse-time realization
+  # (byte-identical) via realize_windows = TRUE.
   recipe_deferred_windows <- model %in% c("DyNAM", "REM") &&
     is.null(preprocessing_init)
   parsed_formula <- parse_formula(
     formula,
     envir = work_env, realize_windows = !recipe_deferred_windows
   )
-  if (recipe_deferred_windows) {
-    realize_windows_recipe(parsed_formula$window_derivations, work_env)
-  }
   rhs_names <- parsed_formula$rhs_names
   dep_name <- parsed_formula$dep_name
   has_intercept <- parsed_formula$has_intercept
@@ -770,18 +770,24 @@ estimate_wrapper <- function(x,
 
   ## 2.2 INITIALIZE OBJECTS for preprocessing_init == NULL
   if (is.null(preprocessing_init)) {
-    # Initialize events list and link to objects
-    events <- get_events_and_objects_link(
+    # Build the event-stream link metadata + fetch plan (no tables). The recipe
+    # (DyNAM/REM) path defers fetching to state creation (design D8, task 2.3f);
+    # DyNAMi realizes windows eagerly at parse time and fetches here (its
+    # front-end cleans the fetched events before its monolith loop).
+    link <- build_events_objects_link(
       dep_name, rhs_names, .nodes, .nodes2,
       envir = work_env, derivations = parsed_formula$window_derivations
-    )[[1]]
-    events_objects_link <- get_events_and_objects_link(
-      dep_name, rhs_names, .nodes, .nodes2,
-      envir = work_env, derivations = parsed_formula$window_derivations
-    )[[2]]
-    events_effects_link <- get_events_effects_link(
-      events, rhs_names, events_objects_link
     )
+    events_objects_link <- link$events_objects_link
+    fetch_plan <- link$fetch_plan
+    events_effects_link <- get_events_effects_link(
+      rhs_names, events_objects_link
+    )
+    events <- if (model == "DyNAMi") {
+      fetch_events(fetch_plan, envir = work_env)
+    } else {
+      NULL
+    }
   }
 
   ### 3. PREPROCESS statistics----
@@ -823,16 +829,14 @@ estimate_wrapper <- function(x,
         envir = work_env, derivations = parsed_formula$window_derivations
       )
       new_objects_effects_link <- get_objects_effects_link(new_rhs_names)
-      new_events <- get_events_and_objects_link(
+      new_link <- build_events_objects_link(
         dep_name, new_rhs_names, .nodes, .nodes2,
         envir = work_env, derivations = parsed_formula$window_derivations
-      )[[1]]
-      new_events_objects_link <- get_events_and_objects_link(
-        dep_name, new_rhs_names, .nodes, .nodes2,
-        envir = work_env, derivations = parsed_formula$window_derivations
-      )[[2]]
+      )
+      new_events_objects_link <- new_link$events_objects_link
+      new_fetch_plan <- new_link$fetch_plan
       new_events_effects_link <- get_events_effects_link(
-        new_events, new_rhs_names, new_events_objects_link
+        new_rhs_names, new_events_objects_link
       )
 
       # Preprocess the new effects through the model's front-end (task 2.3e):
@@ -840,7 +844,8 @@ estimate_wrapper <- function(x,
       if (progress) cat("Pre-processing additional effects.\n")
       newprep <- if (model == "DyNAMi") {
         preprocess_dynami(
-          model_spec, new_events, new_effects, new_window_parameters,
+          model_spec, fetch_events(new_fetch_plan, envir = work_env),
+          new_effects, new_window_parameters,
           new_events_objects_link, new_events_effects_link,
           new_objects_effects_link, sub_model, dep_name, .nodes, .nodes2,
           is_two_mode, ignore_rep_parameter, rightCensored,
@@ -850,7 +855,7 @@ estimate_wrapper <- function(x,
         preprocess_recipe(
           parsed_formula, model_spec, new_effects, new_window_parameters,
           new_objects_effects_link, new_events_objects_link,
-          new_events_effects_link, new_events, control_preprocessing,
+          new_events_effects_link, new_fetch_plan, control_preprocessing,
           progress, work_env
         )$prep
       }
@@ -989,7 +994,7 @@ estimate_wrapper <- function(x,
       recipe_out <- preprocess_recipe(
         parsed_formula, model_spec, effects, window_parameters,
         objects_effects_link, events_objects_link, events_effects_link,
-        events, control_preprocessing, progress, work_env, writer
+        fetch_plan, control_preprocessing, progress, work_env, writer
       )
       prep <- recipe_out$prep
       spec_map <- recipe_out$spec_map

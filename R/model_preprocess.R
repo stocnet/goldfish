@@ -222,7 +222,6 @@ preprocess.dynami_choice_spec <- function(
 #' @noRd
 run_sender_recipe_loop <- function(
   spec,
-  events,
   startTime = NULL,
   endTime = NULL,
   right_censored = FALSE,
@@ -244,6 +243,13 @@ run_sender_recipe_loop <- function(
   effects_template <- spec$effects_template
   nodes <- spec$nodes
   nodes2 <- spec$nodes2
+
+  # State creation owns the derived-input data (design D8, task 2.3f): realize
+  # each derived object (e.g. windowed networks + dissolve streams) from
+  # plan$derivations, then fetch the event streams from spec$fetch_plan — both
+  # into prepEnvir, before any cache/state/schedule reads them.
+  realize_derivations(plan$derivations, prepEnvir)
+  events <- fetch_events(spec$fetch_plan, envir = prepEnvir)
 
   n1 <- nrow(get(nodes, envir = prepEnvir))
   n2 <- nrow(get(nodes2, envir = prepEnvir))
@@ -729,7 +735,6 @@ run_sender_recipe_loop <- function(
 #' @noRd
 run_dyad_recipe_loop <- function(
   spec,
-  events,
   startTime = NULL,
   endTime = NULL,
   right_censored = FALSE,
@@ -751,6 +756,13 @@ run_dyad_recipe_loop <- function(
   effects_template <- spec$effects_template
   nodes <- spec$nodes
   nodes2 <- spec$nodes2
+
+  # State creation owns the derived-input data (design D8, task 2.3f): realize
+  # each derived object (e.g. windowed networks + dissolve streams) from
+  # plan$derivations, then fetch the event streams from spec$fetch_plan — both
+  # into prepEnvir, before any cache/state/schedule reads them.
+  realize_derivations(plan$derivations, prepEnvir)
+  events <- fetch_events(spec$fetch_plan, envir = prepEnvir)
 
   n1 <- nrow(get(nodes, envir = prepEnvir))
   n2 <- nrow(get(nodes2, envir = prepEnvir))

@@ -247,7 +247,10 @@ compare_formulas <- function(
 #'   formula), aligned with `effects`.
 #' @param objects_effects_link matrix from `get_objects_effects_link()`.
 #' @param events_objects_link,events_effects_link link structures from
-#'   `get_events_and_objects_link()` / `get_events_effects_link()`.
+#'   `build_events_objects_link()` / `get_events_effects_link()`.
+#' @param fetch_plan the ordered event-stream fetch plan from
+#'   `build_events_objects_link()`; carried on the spec_map so the recipe loop
+#'   fetches events inside state creation (design D8, task 2.3f).
 #' @param envir environment where the data objects live.
 #'
 #' @return an S3 object of class `c(class(model_spec), "spec_map.goldfish")`
@@ -258,7 +261,7 @@ compare_formulas <- function(
 #' @noRd
 build_spec_map <- function(
     parsed_formula, model_spec, effects, window_parameters,
-    objects_effects_link, events_objects_link, events_effects_link,
+    objects_effects_link, events_objects_link, events_effects_link, fetch_plan,
     envir = new.env()) {
   stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
   nodes <- model_spec$nodes
@@ -274,7 +277,8 @@ build_spec_map <- function(
   plan <- build_update_plan(
     effects, events_objects_link, events_effects_link, objects_effects_link,
     state_keys,
-    stat_kind = stat_kind, envir = envir
+    stat_kind = stat_kind, envir = envir,
+    derivations = parsed_formula$window_derivations
   )
   # Derived-input registry (design D8, task 2.3d): one entry per derived object,
   # filled from metadata only. Today the sole `kind` is "window"; the effect
@@ -304,7 +308,8 @@ build_spec_map <- function(
         window_parameters = window_parameters,
         events_objects_link = events_objects_link,
         events_effects_link = events_effects_link,
-        objects_effects_link = objects_effects_link
+        objects_effects_link = objects_effects_link,
+        fetch_plan = fetch_plan
       )
     ),
     class = c(class(model_spec), "spec_map.goldfish")
@@ -659,11 +664,16 @@ get_events_and_objects_link <- function(
   list(events, link$events_objects_link)
 }
 
-get_events_effects_link <- function(events, rhs_names, events_objects_link) {
+# The events_effects_link shape (one row per event stream) is derived from the
+# events_objects_link incidence (its `events` column lists the streams in fetch
+# order) rather than a pre-fetched events list, so it needs no data (design D8,
+# task 2.3f): the recipe path fetches events only inside state creation.
+get_events_effects_link <- function(rhs_names, events_objects_link) {
+  stream_names <- events_objects_link$events
   events_effects_link <- matrix(
-    data = NA, nrow = length(events), ncol = length(rhs_names),
+    data = NA, nrow = length(stream_names), ncol = length(rhs_names),
     dimnames = list(
-      names(events),
+      stream_names,
       vapply(rhs_names, FUN = "[[", FUN.VALUE = character(1), i = 1)
     )
   )
@@ -996,6 +1006,21 @@ realize_windows_recipe <- function(window_derivations, envir) {
   for (d in window_derivations) {
     if (identical(d$kind, "window")) {
       realize_windowed_network(d$source_name, d$derived_name, d$window, envir)
+    }
+  }
+  invisible(NULL)
+}
+
+# State-creation realizer (design D8, task 2.3f) driven by the `plan$derivations`
+# registry (not the raw parse recipe): materialize each derived input into the
+# recipe state container's environment before the loop reads it. Dispatches on
+# `kind`; the only kind today is "window" (empty net + windowed dissolve
+# streams). Idempotent — re-realizing from the unchanged source rebuilds an
+# identical derived object.
+realize_derivations <- function(derivations, envir) {
+  for (d in derivations) {
+    if (identical(d$kind, "window")) {
+      realize_windowed_network(d$source, d$derived_name, d$params$window, envir)
     }
   }
   invisible(NULL)
