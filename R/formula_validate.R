@@ -48,16 +48,10 @@ effect_variation <- function(name, type) {
 
 # Variation axes with no bare effect implementation for a (model, sub_model)
 # pair: rejected in every phase (preprocessing included), because the statistic
-# cannot even be computed. Today that is only `global` in the DyNAM choice
-# sub-models (there is no `init_DyNAM_choice.global`).
+# cannot even be computed. Empty now that `global` is computable in DyNAM choice
+# (task 1.5 added `init_DyNAM_choice.global`); kept as the seam for any future
+# genuinely-unavailable effect.
 unavailable_variations <- function(model, sub_model) {
-  if (
-    model %in%
-      c("DyNAM", "DyNAMi") &&
-      sub_model %in% c("choice", "choice_coordination")
-  ) {
-    return("global")
-  }
   character(0)
 }
 
@@ -66,10 +60,12 @@ unavailable_variations <- function(model, sub_model) {
 # as bare main effects, so they are rejected only when actually estimating.
 unidentified_variations <- function(model, sub_model) {
   is_dynam <- model %in% c("DyNAM", "DyNAMi")
-  # DyNAM choice: ego-perspective columns are constant across the receiver
-  # alternatives (`global` is caught earlier as unavailable).
+  # DyNAM choice: both `global` and ego-perspective columns are constant across
+  # the receiver alternatives, so neither is identified as a bare main effect
+  # (both remain computable via compute_stats and usable as interaction
+  # operands).
   if (is_dynam && sub_model %in% c("choice", "choice_coordination")) {
-    return("ego")
+    return(c("global", "ego"))
   }
   # DyNAM rate is sender-indexed: no receiver axis (alter), and the ordinal case
   # additionally drops the constant global covariate.

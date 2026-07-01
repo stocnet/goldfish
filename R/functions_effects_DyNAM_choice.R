@@ -3536,3 +3536,33 @@ update_DyNAM_choice_ego_alter_interaction <- function(
     return(res)
   }
 }
+
+# global ------------------------------------------------------------------
+# Make `global` computable in DyNAM choice / choice_coordination by aliasing the
+# shared REM-choice global (design D1 route, task 1.5), exactly as the degree
+# family aliases REM. The statistic is a global covariate broadcast to the dyad
+# (via `to_ego`); it is not identified as a bare main effect in choice, so
+# `validate_effects()` rejects it at estimation while `compute_stats()` still
+# produces the column (a design column for interactions / random effects).
+#' @export
+init_DyNAM_choice.global <- function(effectFun, attribute, n1, n2, ...) {
+  init_REM_choice.global(effectFun, attribute, n1, n2, ...)
+}
+
+update_DyNAM_choice_global <- function(
+  attribute,
+  replace,
+  n1,
+  n2,
+  is_two_mode = FALSE,
+  ...
+) {
+  update_REM_choice_global(
+    attribute = attribute,
+    replace = replace,
+    n1 = n1,
+    n2 = n2,
+    is_two_mode = is_two_mode,
+    ...
+  )
+}

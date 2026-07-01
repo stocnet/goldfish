@@ -75,12 +75,14 @@ test_that("update_REM_choice_global returns NULL changes when value unchanged", 
   expect_null(result$changes)
 })
 
-test_that("global() aborts for choice sub-models and works for rate", {
+test_that("global() is rejected at choice estimation but computable (task 1.5)", {
   seasons <- make_global_attributes(data.frame(winter = 0))
   season_change <- data.frame(time = 15, replace = 1)
   seasons <- link_events(seasons, season_change)
   dataGlobal <- make_data(depNetwork, seasons)
 
+  # Estimation rejects a bare global main effect in the choice sub-models
+  # (not identified across the alternatives) ...
   expect_error(
     estimate_dynam(
       depNetwork ~ inertia + global(seasons$winter),
@@ -97,15 +99,15 @@ test_that("global() aborts for choice sub-models and works for rate", {
     ),
     "interaction"
   )
-  expect_error(
-    compute_stats(
-      depNetwork ~ inertia + global(seasons$winter),
-      data = dataGlobal,
-      model = "DyNAM",
-      sub_model = "choice"
-    ),
-    "interaction"
+  # ... but the statistic is now computable in choice (task 1.5), so
+  # compute_stats() produces the column (a design column for interactions).
+  prepChoice <- compute_stats(
+    depNetwork ~ inertia + global(seasons$winter),
+    data = dataGlobal,
+    model = "DyNAM",
+    sub_model = "choice"
   )
+  expect_s3_class(prepChoice, "preprocessed.goldfish")
   prepRate <- compute_stats(
     depNetwork ~ global(seasons$winter),
     data = dataGlobal,

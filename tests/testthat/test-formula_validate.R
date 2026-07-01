@@ -85,10 +85,13 @@ test_that("preprocessing keeps computable columns; only estimation rejects them"
     validate_effects("DyNAM", "choice", "indeg", "ego", estimating = TRUE),
     "Unsupported main effect"
   )
-  # global in choice is unavailable (no choice implementation): rejected in
-  # every phase, so the message stands even for preprocessing.
+  # global in choice is computable too (task 1.5): permitted in preprocessing,
+  # rejected only when estimating.
+  expect_no_error(
+    validate_effects("DyNAM", "choice", "global", "", estimating = FALSE)
+  )
   expect_error(
-    validate_effects("DyNAM", "choice", "global", "", estimating = FALSE),
+    validate_effects("DyNAM", "choice", "global", "", estimating = TRUE),
     "Unsupported main effect"
   )
 })
@@ -132,6 +135,42 @@ test_that("REM rejects a global main effect only in the ordinal sub-model", {
       sub_model = "rate_ordered",
       data = dataGlobal
     )),
+    "Unsupported main effect"
+  )
+})
+
+test_that("choice global is computable and equals the REM expansion (task 1.5)", {
+  seasons <- make_global_attributes(data.frame(winter = 0))
+  season_change <- data.frame(time = 15, replace = 1)
+  seasons <- link_events(seasons, season_change)
+  dataGlobal <- make_data(depNetwork, seasons)
+  form <- depNetwork ~ global(seasons$winter)
+
+  choice <- compute_stats(
+    form,
+    data = dataGlobal,
+    model = "DyNAM",
+    sub_model = "choice"
+  )
+  # REM rate_ordered uses the same dependent-only dyad loop + the same global
+  # effect functions the new choice wrappers delegate to, so the statistic is
+  # identical (mirrors the Group-1 ego equivalence, task 1.3).
+  rem <- compute_stats(
+    form,
+    data = dataGlobal,
+    model = "REM",
+    sub_model = "rate_ordered"
+  )
+  expect_s3_class(choice, "preprocessed.goldfish")
+  expect_equal(choice$initialStats, rem$initialStats, tolerance = 1e-6)
+  expect_equal(
+    ReducePreprocess(choice),
+    ReducePreprocess(rem),
+    tolerance = 1e-6
+  )
+  # estimation still rejects the bare global main effect (not identified).
+  expect_error(
+    estimate_dynam(form, sub_model = "choice", data = dataGlobal),
     "Unsupported main effect"
   )
 })
