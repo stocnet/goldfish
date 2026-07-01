@@ -457,6 +457,84 @@ compute_stats <- function(
   )
 }
 
+#' Recipe (DyNAM/REM) preprocessing front-end
+#'
+#' Compiles the `spec_map` upfront (design D8) and runs the shared recipe loop
+#' via `preprocess(spec_map, …)`. Returns both `prep` and the `spec_map` (the
+#' latter carries the single-source-of-truth `effect_description` consumed by the
+#' printing step). Isolated from the DyNAMi front-end (task 2.3e) so the shared
+#' estimate path carries no model conditionals in its preprocessing.
+#'
+#' @return a list with `prep` (preprocessed.goldfish) and `spec_map`.
+#' @noRd
+preprocess_recipe <- function(
+    parsed_formula, model_spec, effects, window_parameters,
+    objects_effects_link, events_objects_link, events_effects_link, events,
+    control_preprocessing, progress, work_env, writer = writer_default()) {
+  spec_map <- build_spec_map(
+    parsed_formula, model_spec, effects, window_parameters,
+    objects_effects_link, events_objects_link, events_effects_link,
+    envir = work_env
+  )
+  prep <- preprocess(
+    spec_map,
+    events = events,
+    startTime = control_preprocessing$start_time,
+    endTime = control_preprocessing$end_time,
+    progress = progress,
+    prepEnvir = work_env,
+    writer = writer
+  )
+  list(prep = prep, spec_map = spec_map)
+}
+
+#' DyNAMi preprocessing front-end (isolated)
+#'
+#' The DyNAMi-only path: the extra `cleanInteractionEvents` cleaning step (window
+#' class tagging + leaving-event removal for the choice estimation) followed by
+#' the monolithic `preprocessInteraction` loop via `preprocess.dynami_*`. It keeps
+#' the bridge-argument signature (no `spec_map`); the recipe/`spec_map` unification
+#' is deferred to `refactor-dynami-engine`. Fenced here (task 2.3e) so the shared
+#' recipe path (`preprocess_recipe()`) is DyNAMi-free.
+#'
+#' @return a preprocessed.goldfish object.
+#' @noRd
+preprocess_dynami <- function(
+    model_spec, events, effects, window_parameters,
+    events_objects_link, events_effects_link, objects_effects_link,
+    sub_model, dep_name, nodes, nodes2, is_two_mode, ignore_rep_parameter,
+    rightCensored, control_preprocessing, parsed_formula, progress, work_env,
+    writer = writer_default()) {
+  # DyNAM-i ONLY: assign an extra class to the windowed events and remove
+  # leaving events for the choice estimation.
+  events <- cleanInteractionEvents(
+    events, events_effects_link, window_parameters, sub_model, dep_name,
+    events_objects_link,
+    envir = work_env
+  )
+  preprocess(
+    model_spec,
+    events = events,
+    effects = effects,
+    windowParameters = window_parameters,
+    ignoreRepParameter = ignore_rep_parameter,
+    eventsObjectsLink = events_objects_link, # for data update
+    eventsEffectsLink = events_effects_link,
+    objectsEffectsLink = objects_effects_link, # for parameterization
+    nodes = nodes,
+    nodes2 = nodes2,
+    is_two_mode = is_two_mode,
+    startTime = control_preprocessing$start_time,
+    endTime = control_preprocessing$end_time,
+    rightCensored = rightCensored,
+    opportunitiesList = control_preprocessing$opportunities_list,
+    progress = progress,
+    groupsNetwork = parsed_formula$default_network_name,
+    prepEnvir = work_env,
+    writer = writer
+  )
+}
+
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
 #' @importFrom stats as.formula
@@ -693,17 +771,6 @@ estimate_wrapper <- function(x,
     )
   }
 
-  # DyNAM-i ONLY: extra cleaning step
-  # we assign an extra class to the windowed events,
-  # and remove leaving events for the choice estimation
-  if (model == "DyNAMi") {
-    events <- cleanInteractionEvents(
-      events, events_effects_link, window_parameters, sub_model, dep_name,
-      events_objects_link,
-      envir = work_env
-    )
-  }
-
   ### 3. PREPROCESS statistics----
   if (!is.null(preprocessing_init)) {
     # recover the nodesets
@@ -723,11 +790,11 @@ estimate_wrapper <- function(x,
     has_intercept = has_intercept
   )
 
-  # Recipe (DyNAM/REM) models compile the spec_map upfront (design D8): the
-  # update plan + call templates + effects/links ride on it, and preprocess()
-  # dispatches on it directly (task 2.3b). DyNAMi keeps the monolithic
-  # preprocessing path with the bridge arguments.
-  is_recipe_model <- model %in% c("DyNAM", "REM")
+  # Recipe (DyNAM/REM) models compile the spec_map upfront (design D8) and
+  # dispatch preprocess() on it (`preprocess_recipe()`); DyNAMi runs its own
+  # isolated front-end (`preprocess_dynami()`, task 2.3e). `spec_map` stays NULL
+  # for DyNAMi and for the preprocessing_init path (the printing step falls back
+  # to `GetDetailPrint`).
   spec_map <- NULL
 
   ## 3.1 INITIALIZE OBJECTS for preprocessingInit: remove old effects,
@@ -755,51 +822,24 @@ estimate_wrapper <- function(x,
         new_events, new_rhs_names, new_events_objects_link
       )
 
-      new_spec_map <- if (is_recipe_model) {
-        build_spec_map(
-          parsed_formula, model_spec, new_effects, new_window_parameters,
-          new_objects_effects_link,
-          new_events_objects_link, new_events_effects_link,
-          envir = work_env
-        )
-      } else {
-        NULL
-      }
-
-      # Preprocess the new effects. Recipe (DyNAM/REM) models dispatch on the
-      # spec_map, which carries the compiled plan/templates + effects/links;
-      # DyNAMi keeps the monolithic signature with the bridge arguments.
+      # Preprocess the new effects through the model's front-end (task 2.3e):
+      # recipe (DyNAM/REM) compiles the spec_map; DyNAMi runs its isolated path.
       if (progress) cat("Pre-processing additional effects.\n")
-      newprep <- if (is_recipe_model) {
-        preprocess(
-          new_spec_map,
-          events = new_events,
-          startTime = control_preprocessing$start_time,
-          endTime = control_preprocessing$end_time,
-          progress = progress,
-          prepEnvir = work_env
+      newprep <- if (model == "DyNAMi") {
+        preprocess_dynami(
+          model_spec, new_events, new_effects, new_window_parameters,
+          new_events_objects_link, new_events_effects_link,
+          new_objects_effects_link, sub_model, dep_name, .nodes, .nodes2,
+          is_two_mode, ignore_rep_parameter, rightCensored,
+          control_preprocessing, parsed_formula, progress, work_env
         )
       } else {
-        preprocess(
-          model_spec,
-          events = new_events,
-          effects = new_effects,
-          windowParameters = new_window_parameters,
-          ignoreRepParameter = ignore_rep_parameter,
-          eventsObjectsLink = new_events_objects_link, # for data update
-          eventsEffectsLink = new_events_effects_link,
-          objectsEffectsLink = new_objects_effects_link, # parameterization
-          nodes = .nodes,
-          nodes2 = .nodes2,
-          is_two_mode = is_two_mode,
-          startTime = control_preprocessing$start_time,
-          endTime = control_preprocessing$end_time,
-          rightCensored = rightCensored,
-          opportunitiesList = control_preprocessing$opportunities_list,
-          progress = progress,
-          groupsNetwork = parsed_formula$default_network_name,
-          prepEnvir = work_env
-        )
+        preprocess_recipe(
+          parsed_formula, model_spec, new_effects, new_window_parameters,
+          new_objects_effects_link, new_events_objects_link,
+          new_events_effects_link, new_events, control_preprocessing,
+          progress, work_env
+        )$prep
       }
 
       if (sum(preprocessing_init$is_dependent == 1L) !=
@@ -914,16 +954,6 @@ estimate_wrapper <- function(x,
   ## 3.2 PREPROCESS when preprocessingInit == NULL
   if (is.null(preprocessing_init)) {
     if (progress) cat("Starting preprocessing.\n")
-    spec_map <- if (is_recipe_model) {
-      build_spec_map(
-        parsed_formula, model_spec, effects, window_parameters,
-        objects_effects_link,
-        events_objects_link, events_effects_link,
-        envir = work_env
-      )
-    } else {
-      NULL
-    }
     writer <- switch(output,
       default = writer_default(),
       gather = writer_gather(),
@@ -931,41 +961,25 @@ estimate_wrapper <- function(x,
         control_preprocessing$db, control_preprocessing$db_table
       )
     )
-    # Recipe (DyNAM/REM) models dispatch on the spec_map (compiled plan/
-    # templates + effects/links ride on it); DyNAMi keeps the monolithic
-    # signature with the bridge arguments.
-    prep <- if (is_recipe_model) {
-      preprocess(
-        spec_map,
-        events = events,
-        startTime = control_preprocessing$start_time,
-        endTime = control_preprocessing$end_time,
-        progress = progress,
-        prepEnvir = work_env,
-        writer = writer
+    # Preprocess through the model's front-end (task 2.3e): recipe (DyNAM/REM)
+    # compiles + dispatches on the spec_map; DyNAMi runs its isolated path and
+    # leaves `spec_map` NULL (the printing step falls back to `GetDetailPrint`).
+    if (model == "DyNAMi") {
+      prep <- preprocess_dynami(
+        model_spec, events, effects, window_parameters,
+        events_objects_link, events_effects_link, objects_effects_link,
+        sub_model, dep_name, .nodes, .nodes2, is_two_mode,
+        ignore_rep_parameter, rightCensored, control_preprocessing,
+        parsed_formula, progress, work_env, writer
       )
     } else {
-      preprocess(
-        model_spec,
-        events = events,
-        effects = effects,
-        windowParameters = window_parameters,
-        ignoreRepParameter = ignore_rep_parameter,
-        eventsObjectsLink = events_objects_link, # for data update
-        eventsEffectsLink = events_effects_link,
-        objectsEffectsLink = objects_effects_link, # for parameterization
-        nodes = .nodes,
-        nodes2 = .nodes2,
-        is_two_mode = is_two_mode,
-        startTime = control_preprocessing$start_time,
-        endTime = control_preprocessing$end_time,
-        rightCensored = rightCensored,
-        opportunitiesList = control_preprocessing$opportunities_list,
-        progress = progress,
-        groupsNetwork = parsed_formula$default_network_name,
-        prepEnvir = work_env,
-        writer = writer
+      recipe_out <- preprocess_recipe(
+        parsed_formula, model_spec, effects, window_parameters,
+        objects_effects_link, events_objects_link, events_effects_link,
+        events, control_preprocessing, progress, work_env, writer
       )
+      prep <- recipe_out$prep
+      spec_map <- recipe_out$spec_map
     }
     if (output %in% c("gather", "db")) {
       gathered <- finalize_gather_output(
