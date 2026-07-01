@@ -12,7 +12,8 @@ test_that("build_state_container assembles networks and nodal attributes", {
   env <- enviro_builders()
   state <- build_state_container(
     c("networkState", "networkExog", "actorsEx$attr1"),
-    nodes = "actorsEx", envir = env
+    nodes = "actorsEx",
+    envir = env
   )
   expect_named(state, c("networks", "nodal", "nodal2", "globals"))
   expect_named(state$networks, c("networkState", "networkExog"))
@@ -23,7 +24,8 @@ test_that("build_state_container assembles networks and nodal attributes", {
     state$networks$networkState,
     matrix(
       networkState,
-      nrow(networkState), ncol(networkState),
+      nrow(networkState),
+      ncol(networkState),
       dimnames = dimnames(networkState)
     ),
     ignore_attr = FALSE
@@ -37,7 +39,8 @@ test_that("build_state_container assembles globals", {
   env <- enviro_builders()
   state <- build_state_container(
     c("networkState", "seasons$winter"),
-    nodes = "actorsEx", envir = env
+    nodes = "actorsEx",
+    envir = env
   )
   expect_equal(nrow(state$globals), 1L)
   expect_equal(state$globals$winter, 0)
@@ -47,10 +50,14 @@ test_that("build_state_container records object keys for routing", {
   env <- enviro_builders()
   state <- build_state_container(
     c("networkState", "actorsEx$attr1", "seasons$winter"),
-    nodes = "actorsEx", envir = env
+    nodes = "actorsEx",
+    envir = env
   )
   objectKeys <- attr(state, "object_keys")
-  expect_equal(objectKeys$name, c("networkState", "actorsEx$attr1", "seasons$winter"))
+  expect_equal(
+    objectKeys$name,
+    c("networkState", "actorsEx$attr1", "seasons$winter")
+  )
   expect_equal(objectKeys$component, c("networks", "nodal", "globals"))
   expect_equal(objectKeys$key, c("networkState", "attr1", "winter"))
 })
@@ -64,7 +71,9 @@ test_that("build_state_container builds nodal2 for two-mode node sets", {
   assign("clubsEx", clubsEx, envir = env)
   state <- build_state_container(
     c("networkState", "actorsEx$attr1", "clubsEx$size"),
-    nodes = "actorsEx", nodes2 = "clubsEx", envir = env
+    nodes = "actorsEx",
+    nodes2 = "clubsEx",
+    envir = env
   )
   expect_equal(state$nodal2$size, c(10, 20, 30))
   expect_equal(nrow(state$nodal), 5L)
@@ -75,7 +84,8 @@ test_that("build_state_container aborts on unknown attribute or node set", {
   expect_error(
     build_state_container(
       "actorsEx$missing",
-      nodes = "actorsEx", envir = env
+      nodes = "actorsEx",
+      envir = env
     ),
     "not found"
   )
@@ -84,7 +94,8 @@ test_that("build_state_container aborts on unknown attribute or node set", {
   expect_error(
     build_state_container(
       "otherNodes$weight",
-      nodes = "actorsEx", envir = env
+      nodes = "actorsEx",
+      envir = env
     ),
     "neither"
   )
@@ -94,7 +105,8 @@ test_that("build_object_keys maps components without materialising data", {
   env <- enviro_builders()
   keys <- build_object_keys(
     c("networkState", "actorsEx$attr1", "seasons$winter"),
-    nodes = "actorsEx", envir = env
+    nodes = "actorsEx",
+    envir = env
   )
   expect_s3_class(keys, "data.frame")
   expect_equal(keys$name, c("networkState", "actorsEx$attr1", "seasons$winter"))
@@ -105,7 +117,8 @@ test_that("build_object_keys maps components without materialising data", {
     attr(
       build_state_container(
         c("networkState", "actorsEx$attr1", "seasons$winter"),
-        nodes = "actorsEx", envir = env
+        nodes = "actorsEx",
+        envir = env
       ),
       "object_keys"
     )
@@ -117,7 +130,8 @@ test_that("build_object_keys reads metadata only (mutates nothing, design D8)", 
   before <- sort(ls(env))
   build_object_keys(
     c("networkState", "networkExog", "actorsEx$attr1"),
-    nodes = "actorsEx", envir = env
+    nodes = "actorsEx",
+    envir = env
   )
   expect_equal(sort(ls(env)), before)
 })
@@ -137,40 +151,60 @@ test_that("build_object_keys aborts on unknown attribute or node set", {
 })
 
 build_plan_fixture <- function(
-    formula, model = "DyNAM", sub_model = "choice", stat_kind = "dyad") {
+  formula,
+  model = "DyNAM",
+  sub_model = "choice",
+  stat_kind = "dyad"
+) {
   env <- rlang::env_clone(dataTest)
   parsed <- parse_formula(formula, envir = env)
   effects <- create_effects_functions(
-    parsed$rhs_names, model, sub_model,
+    parsed$rhs_names,
+    model,
+    sub_model,
     envir = env
   )
   objects_effects_link <- get_objects_effects_link(parsed$rhs_names)
   events_and_link <- get_events_and_objects_link(
-    parsed$dep_name, parsed$rhs_names, "actorsEx", "actorsEx",
+    parsed$dep_name,
+    parsed$rhs_names,
+    "actorsEx",
+    "actorsEx",
     envir = env
   )
   events_effects_link <- get_events_effects_link(
-    parsed$rhs_names, events_and_link[[2]]
+    parsed$rhs_names,
+    events_and_link[[2]]
   )
   state <- build_state_container(
     rownames(objects_effects_link),
-    nodes = "actorsEx", envir = env
+    nodes = "actorsEx",
+    envir = env
   )
   plan <- build_update_plan(
-    effects, events_and_link[[2]], events_effects_link,
-    objects_effects_link, state,
-    stat_kind = stat_kind, envir = env
+    effects,
+    events_and_link[[2]],
+    events_effects_link,
+    objects_effects_link,
+    state,
+    stat_kind = stat_kind,
+    envir = env
   )
   effects_template <- build_effects_template(
-    effects, objects_effects_link, state
+    effects,
+    objects_effects_link,
+    state
   )
   list(
-    plan = plan, effects_template = effects_template,
+    plan = plan,
+    effects_template = effects_template,
     events = events_and_link[[1]],
     events_objects_link = events_and_link[[2]],
     events_effects_link = events_effects_link,
     objects_effects_link = objects_effects_link,
-    state = state, env = env, effects = effects
+    state = state,
+    env = env,
+    effects = effects
   )
 }
 
@@ -267,33 +301,46 @@ test_that("build_update_plan flags undirected networks for the second call", {
   env <- rlang::env_clone(dataTest)
   undirNet <- make_network(nodes = actorsEx, directed = FALSE)
   undirEvents <- data.frame(
-    time = c(10, 20), sender = c("Actor 1", "Actor 2"),
-    receiver = c("Actor 2", "Actor 3"), increment = c(1, 1)
+    time = c(10, 20),
+    sender = c("Actor 1", "Actor 2"),
+    receiver = c("Actor 2", "Actor 3"),
+    increment = c(1, 1)
   )
   undirNet <- link_events(undirNet, undirEvents, nodes = actorsEx)
   assign("undirNet", undirNet, envir = env)
   assign("undirEvents", undirEvents, envir = env)
   parsed <- parse_formula(depNetwork ~ inertia + tie(undirNet), envir = env)
   effects <- create_effects_functions(
-    parsed$rhs_names, "DyNAM", "choice",
+    parsed$rhs_names,
+    "DyNAM",
+    "choice",
     envir = env
   )
   objects_effects_link <- get_objects_effects_link(parsed$rhs_names)
   events_and_link <- get_events_and_objects_link(
-    parsed$dep_name, parsed$rhs_names, "actorsEx", "actorsEx",
+    parsed$dep_name,
+    parsed$rhs_names,
+    "actorsEx",
+    "actorsEx",
     envir = env
   )
   events_effects_link <- get_events_effects_link(
-    parsed$rhs_names, events_and_link[[2]]
+    parsed$rhs_names,
+    events_and_link[[2]]
   )
   state <- build_state_container(
     rownames(objects_effects_link),
-    nodes = "actorsEx", envir = env
+    nodes = "actorsEx",
+    envir = env
   )
   plan <- build_update_plan(
-    effects, events_and_link[[2]], events_effects_link,
-    objects_effects_link, state,
-    stat_kind = "dyad", envir = env
+    effects,
+    events_and_link[[2]],
+    events_effects_link,
+    objects_effects_link,
+    state,
+    stat_kind = "dyad",
+    envir = env
   )
   expect_equal(plan$objects$is_undirected, c(FALSE, TRUE))
 })
@@ -306,9 +353,13 @@ test_that("build_update_plan aborts on inconsistent link matrices", {
   broken[2, ] <- rev(broken[2, ])
   expect_error(
     build_update_plan(
-      fixture$effects, fixture$events_objects_link, broken,
-      fixture$objects_effects_link, fixture$state,
-      stat_kind = "dyad", envir = fixture$env
+      fixture$effects,
+      fixture$events_objects_link,
+      broken,
+      fixture$objects_effects_link,
+      fixture$state,
+      stat_kind = "dyad",
+      envir = fixture$env
     ),
     "inconsistent"
   )
@@ -319,7 +370,9 @@ test_that("build_event_schedule merges streams into a sorted timeline", {
     depNetwork ~ inertia + alter(actorsEx$attr1) + outdeg(networkExog)
   )
   schedule <- build_event_schedule(
-    fixture$events, fixture$events_objects_link, fixture$plan$objects
+    fixture$events,
+    fixture$events_objects_link,
+    fixture$plan$objects
   )
   expect_equal(schedule$n, sum(vapply(fixture$events, nrow, integer(1))))
   expect_false(is.unsorted(schedule$time))
@@ -332,11 +385,15 @@ test_that("build_event_schedule merges streams into a sorted timeline", {
 
 test_that("build_event_schedule breaks timestamp ties dependent first", {
   depEvents <- data.frame(
-    time = c(10, 20), sender = c(1L, 2L), receiver = c(2L, 3L),
+    time = c(10, 20),
+    sender = c(1L, 2L),
+    receiver = c(2L, 3L),
     increment = c(1, 1)
   )
   streamA <- data.frame(
-    time = c(10, 20), sender = c(4L, 4L), receiver = c(5L, 1L),
+    time = c(10, 20),
+    sender = c(4L, 4L),
+    receiver = c(5L, 1L),
     increment = c(1, 1)
   )
   streamB <- data.frame(time = c(10, 10), node = c(1L, 2L), replace = c(5, 6))
@@ -373,17 +430,21 @@ test_that("build_event_schedule merges window expiry pseudo-events", {
   windowedEvents <- fixture$events[[windowedStream]]
   expect_equal(nrow(windowedEvents), 2L * nrow(eventsIncrement))
   schedule <- build_event_schedule(
-    fixture$events, fixture$events_objects_link, fixture$plan$objects
+    fixture$events,
+    fixture$events_objects_link,
+    fixture$plan$objects
   )
   windowedStreamId <- match(windowedStream, names(fixture$events))
   fromWindowed <- schedule$stream == windowedStreamId
   expect_equal(sum(fromWindowed), nrow(windowedEvents))
   creations <- vapply(
-    schedule$value[fromWindowed & unlist(schedule$value) > 0], identity,
+    schedule$value[fromWindowed & unlist(schedule$value) > 0],
+    identity,
     numeric(1)
   )
   expiries <- vapply(
-    schedule$value[fromWindowed & unlist(schedule$value) < 0], identity,
+    schedule$value[fromWindowed & unlist(schedule$value) < 0],
+    identity,
     numeric(1)
   )
   expect_equal(sort(-expiries), sort(creations))
@@ -402,10 +463,14 @@ test_that("build_event_schedule rebuilds deterministically", {
     depNetwork ~ inertia + alter(actorsEx$attr1)
   )
   first <- build_event_schedule(
-    fixture$events, fixture$events_objects_link, fixture$plan$objects
+    fixture$events,
+    fixture$events_objects_link,
+    fixture$plan$objects
   )
   second <- build_event_schedule(
-    fixture$events, fixture$events_objects_link, fixture$plan$objects
+    fixture$events,
+    fixture$events_objects_link,
+    fixture$plan$objects
   )
   expect_identical(first, second)
 })
@@ -416,7 +481,9 @@ test_that("build_event_schedule aborts on streams missing from the plan", {
   brokenRegistry$name <- "otherNetwork"
   expect_error(
     build_event_schedule(
-      fixture$events, fixture$events_objects_link, brokenRegistry
+      fixture$events,
+      fixture$events_objects_link,
+      brokenRegistry
     ),
     "missing from the update plan"
   )
@@ -426,7 +493,8 @@ test_that("state container supports in-place update round-trips", {
   env <- enviro_builders()
   state <- build_state_container(
     c("networkState", "actorsEx$attr1", "seasons$winter"),
-    nodes = "actorsEx", envir = env
+    nodes = "actorsEx",
+    envir = env
   )
   before <- state$networks$networkState[1, 2]
   state$networks$networkState[1, 2] <- before + 5

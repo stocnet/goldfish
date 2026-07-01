@@ -145,9 +145,14 @@ set_estimation_opt <- function(
   if (!is.null(fixed_parameters) && !is.numeric(fixed_parameters)) {
     stop("'fixed_parameters' must be a numeric vector or NULL.", call. = FALSE)
   }
-  if (!rlang::is_scalar_integerish(max_iterations, finite = TRUE) ||
-      max_iterations < 0) {
-    stop("'max_iterations' must be a single non-negative integer.", call. = FALSE)
+  if (
+    !rlang::is_scalar_integerish(max_iterations, finite = TRUE) ||
+      max_iterations < 0
+  ) {
+    stop(
+      "'max_iterations' must be a single non-negative integer.",
+      call. = FALSE
+    )
   }
   if (!rlang::is_scalar_double(score_tol) || score_tol <= 0) {
     stop("'score_tol' must be a single positive numeric value.", call. = FALSE)
@@ -155,22 +160,32 @@ set_estimation_opt <- function(
   if (!rlang::is_scalar_double(step_tol) || step_tol <= 0) {
     stop("'step_tol' must be a single positive numeric value.", call. = FALSE)
   }
-  if (!is.null(initial_damping) && (!is.numeric(initial_damping) ||
-      length(initial_damping) != 1 || initial_damping <= 0)) {
+  if (
+    !is.null(initial_damping) &&
+      (!is.numeric(initial_damping) ||
+        length(initial_damping) != 1 ||
+        initial_damping <= 0)
+  ) {
     stop(
       "'initial_damping' must be a single positive numeric value or NULL.",
       call. = FALSE
     )
   }
-  if (!is.numeric(damping_increase_factor) ||
-      length(damping_increase_factor) != 1 || damping_increase_factor < 1) {
+  if (
+    !is.numeric(damping_increase_factor) ||
+      length(damping_increase_factor) != 1 ||
+      damping_increase_factor < 1
+  ) {
     stop(
       "'damping_increase_factor' must be a single numeric value >= 1.",
       call. = FALSE
     )
   }
-  if (!is.numeric(damping_decrease_factor) ||
-      length(damping_decrease_factor) != 1 || damping_decrease_factor < 1) {
+  if (
+    !is.numeric(damping_decrease_factor) ||
+      length(damping_decrease_factor) != 1 ||
+      damping_decrease_factor < 1
+  ) {
     stop(
       "'damping_decrease_factor' must be a single numeric value >= 1.",
       call. = FALSE
@@ -245,7 +260,7 @@ set_estimation_opt <- function(
 #'   write to when a `db` connection is configured. Default is `"stats"`.
 # @param keep_sender_index A logical value. If `TRUE`, the sender index,
 #   the index in the nodeset, of the potential senders of the events is
-#   kept in the preprocessed data.   
+#   kept in the preprocessed data.
 # @param keep_receiver_index A logical value. If `TRUE`, the receiver index,
 #  the index in the nodeset, of the potential receivers of the events is
 #  kept in the preprocessed data.
@@ -266,7 +281,8 @@ set_preprocessing_opt <- function(
   end_time = NULL,
   opportunities_list = NULL,
   db = NULL,
-  db_table = "stats") {
+  db_table = "stats"
+) {
   # Argument checks
   classesAllowed <- c("numeric", "character", "POSIXlt", "POSIXct", "POSIXt")
   if (!is.null(start_time)) {
@@ -276,7 +292,8 @@ set_preprocessing_opt <- function(
     if (!any(check_classes(start_time, classesAllowed))) {
       stop(
         "'start_time' must be NULL or an object of class: ",
-        paste(classesAllowed, collapse = ", "), ".",
+        paste(classesAllowed, collapse = ", "),
+        ".",
         call. = FALSE
       )
     }
@@ -288,7 +305,8 @@ set_preprocessing_opt <- function(
     if (!any(check_classes(end_time, classesAllowed))) {
       stop(
         "'end_time' must be NULL or an object of class: ",
-        paste(classesAllowed, collapse = ", "), ".",
+        paste(classesAllowed, collapse = ", "),
+        ".",
         call. = FALSE
       )
     }
@@ -304,7 +322,8 @@ set_preprocessing_opt <- function(
     is_vector <- vapply(
       opportunities_list,
       \(x) any(check_classes(x, c("integer", "character"))),
-      logical(1))
+      logical(1)
+    )
     if (!all(is_vector)) {
       stop(
         "'opportunities_list' must be a list of integer or character vectors.",
@@ -319,7 +338,7 @@ set_preprocessing_opt <- function(
   #     call. = FALSE
   #   )
   # }
-  # 
+  #
   # if (!rlang::is_scalar_logical(keep_receiver_index)) {
   #   stop(
   #     "'keep_receiver_index' must be a single logical value.",

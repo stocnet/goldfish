@@ -89,10 +89,13 @@ test_that("vcov function", {
     vcov.result.goldfish(resModObject),
     matrix(
       c(
-        0.0241456179209463, -0.00230482755796413,
-        -0.00230482755796413, 0.0390106272519763
+        0.0241456179209463,
+        -0.00230482755796413,
+        -0.00230482755796413,
+        0.0390106272519763
       ),
-      ncol = 2, nrow = 2,
+      ncol = 2,
+      nrow = 2,
       dimnames = list(c("inrt", "trans"), c("inrt", "trans"))
     ),
     label = "correct output"
@@ -113,11 +116,18 @@ test_that("vcov function", {
     vcov.result.goldfish(resModObject, complete = TRUE),
     matrix(
       c(
-        0.0241456179209463, NA, -0.00230482755796413,
-        NA, NA, NA,
-        -0.00230482755796413, NA, 0.0390106272519763
+        0.0241456179209463,
+        NA,
+        -0.00230482755796413,
+        NA,
+        NA,
+        NA,
+        -0.00230482755796413,
+        NA,
+        0.0390106272519763
       ),
-      ncol = 3, nrow = 3,
+      ncol = 3,
+      nrow = 3,
       dimnames = list(
         c("inrt", "rec", "trans"),
         c("inrt", "rec", "trans")
@@ -130,7 +140,8 @@ test_that("vcov function", {
 test_that("coef/vcov names are minimal-unique and match", {
   mod <- estimate_wrapper(
     depNetwork ~ inertia(networkState) + inertia(networkExog) + recip,
-    data = dataTest, sub_model = "choice"
+    data = dataTest,
+    sub_model = "choice"
   )
   cf <- coef(mod)
   vc <- vcov(mod)

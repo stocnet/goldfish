@@ -179,7 +179,8 @@ estimate_c_int <- function(
       (is.null(fixedParameters) || is.na(fixedParameters[1]))
   ) {
     parameters[1] <- log(
-      statsList$n_dep_events / statsList$total_time /
+      statsList$n_dep_events /
+        statsList$total_time /
         statsList$avg_active_actors
     )
   }
@@ -744,29 +745,56 @@ gather_ <- function(
       twomode_or_reflexive <- TRUE
     }
     gathered_data <- gather_sender_receiver_model_r(
-      event_mat, is_dependent, stat_mat_init,
-      stat_mat_update, stat_mat_update_pointer,
-      stat_mat_broadcast, stat_mat_broadcast_pointer,
-      presence1_init, presence1_update, presence1_update_pointer,
-      presence2_init, presence2_update, presence2_update_pointer,
-      n_actors1, n_actors2, twomode_or_reflexive
+      event_mat,
+      is_dependent,
+      stat_mat_init,
+      stat_mat_update,
+      stat_mat_update_pointer,
+      stat_mat_broadcast,
+      stat_mat_broadcast_pointer,
+      presence1_init,
+      presence1_update,
+      presence1_update_pointer,
+      presence2_init,
+      presence2_update,
+      presence2_update_pointer,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
   } else if (modelTypeCall == "DyNAM-M") {
     gathered_data <- gather_receiver_model_r(
-      event_mat, stat_mat_init,
-      stat_mat_update, stat_mat_update_pointer,
-      stat_mat_broadcast, stat_mat_broadcast_pointer,
-      presence2_init, presence2_update, presence2_update_pointer,
-      n_actors1, n_actors2, twomode_or_reflexive
+      event_mat,
+      stat_mat_init,
+      stat_mat_update,
+      stat_mat_update_pointer,
+      stat_mat_broadcast,
+      stat_mat_broadcast_pointer,
+      presence2_init,
+      presence2_update,
+      presence2_update_pointer,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
   } else if (modelTypeCall %in% c("DyNAM-M-Rate-ordered", "DyNAM-M-Rate")) {
     gathered_data <- gather_sender_model_r(
-      event_mat, is_dependent, stat_mat_init,
-      stat_mat_update, stat_mat_update_pointer,
-      stat_mat_broadcast, stat_mat_broadcast_pointer,
-      presence1_init, presence1_update, presence1_update_pointer,
-      presence2_init, presence2_update, presence2_update_pointer,
-      n_actors1, n_actors2, twomode_or_reflexive
+      event_mat,
+      is_dependent,
+      stat_mat_init,
+      stat_mat_update,
+      stat_mat_update_pointer,
+      stat_mat_broadcast,
+      stat_mat_broadcast_pointer,
+      presence1_init,
+      presence1_update,
+      presence1_update_pointer,
+      presence2_init,
+      presence2_update,
+      presence2_update_pointer,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
   }
 
@@ -796,7 +824,13 @@ gather_ <- function(
 # over alters holding ego `fixed`, kind 3 over all actors, skipping the
 # reflexive diagonal cell when `!twomode_or_reflexive`.
 .gather_apply_broadcast <- function(
-  stat_mat, bc, from, to, n1, n2, twomode_or_reflexive
+  stat_mat,
+  bc,
+  from,
+  to,
+  n1,
+  n2,
+  twomode_or_reflexive
 ) {
   if (to <= from) {
     return(stat_mat)
@@ -822,7 +856,9 @@ gather_ <- function(
       stat_mat[fixed * n2 + cols + 1L, effect] <- value
     } else {
       ij <- expand.grid(i = seq_len(n1) - 1L, j = seq_len(n2) - 1L)
-      if (!twomode_or_reflexive) ij <- ij[ij$i != ij$j, ]
+      if (!twomode_or_reflexive) {
+        ij <- ij[ij$i != ij$j, ]
+      }
       stat_mat[ij$i * n2 + ij$j + 1L, effect] <- value
     }
   }
@@ -868,12 +904,22 @@ gather_ <- function(
 # Gather data for the sender-receiver models (REM, REM-ordered, DyNAM-MM):
 # all present sender-receiver pairs become rows.
 gather_sender_receiver_model_r <- function(
-  event_mat, is_dependent, stat_mat_init,
-  stat_mat_update, stat_mat_update_pointer,
-  stat_mat_broadcast, stat_mat_broadcast_pointer,
-  presence1_init, presence1_update, presence1_update_pointer,
-  presence2_init, presence2_update, presence2_update_pointer,
-  n_actors1, n_actors2, twomode_or_reflexive
+  event_mat,
+  is_dependent,
+  stat_mat_init,
+  stat_mat_update,
+  stat_mat_update_pointer,
+  stat_mat_broadcast,
+  stat_mat_broadcast_pointer,
+  presence1_init,
+  presence1_update,
+  presence1_update_pointer,
+  presence2_init,
+  presence2_update,
+  presence2_update_pointer,
+  n_actors1,
+  n_actors2,
+  twomode_or_reflexive
 ) {
   stat_mat <- stat_mat_init
   n_events <- length(is_dependent)
@@ -898,26 +944,41 @@ gather_sender_receiver_model_r <- function(
   for (e in seq_len(n_events)) {
     ptr <- stat_mat_update_pointer[e]
     stat_mat <- .gather_apply_stat(
-      stat_mat, stat_mat_update, update_id, ptr, n_actors2
+      stat_mat,
+      stat_mat_update,
+      update_id,
+      ptr,
+      n_actors2
     )
     update_id <- ptr
     bc_ptr <- stat_mat_broadcast_pointer[e]
     stat_mat <- .gather_apply_broadcast(
-      stat_mat, stat_mat_broadcast, bc_id, bc_ptr,
-      n_actors1, n_actors2, twomode_or_reflexive
+      stat_mat,
+      stat_mat_broadcast,
+      bc_id,
+      bc_ptr,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
     bc_id <- bc_ptr
     if (has_cc1) {
       ptr1 <- presence1_update_pointer[e]
       presence1 <- .gather_apply_presence(
-        presence1, presence1_update, p1_id, ptr1
+        presence1,
+        presence1_update,
+        p1_id,
+        ptr1
       )
       p1_id <- ptr1
     }
     if (has_cc2) {
       ptr2 <- presence2_update_pointer[e]
       presence2 <- .gather_apply_presence(
-        presence2, presence2_update, p2_id, ptr2
+        presence2,
+        presence2_update,
+        p2_id,
+        ptr2
       )
       p2_id <- ptr2
     }
@@ -974,11 +1035,18 @@ gather_sender_receiver_model_r <- function(
 # Gather data for the receiver model (DyNAM-M choice): for each event only the
 # present receivers of the event's sender become rows.
 gather_receiver_model_r <- function(
-  event_mat, stat_mat_init,
-  stat_mat_update, stat_mat_update_pointer,
-  stat_mat_broadcast, stat_mat_broadcast_pointer,
-  presence2_init, presence2_update, presence2_update_pointer,
-  n_actors1, n_actors2, twomode_or_reflexive
+  event_mat,
+  stat_mat_init,
+  stat_mat_update,
+  stat_mat_update_pointer,
+  stat_mat_broadcast,
+  stat_mat_broadcast_pointer,
+  presence2_init,
+  presence2_update,
+  presence2_update_pointer,
+  n_actors1,
+  n_actors2,
+  twomode_or_reflexive
 ) {
   stat_mat <- stat_mat_init
   n_events <- ncol(event_mat)
@@ -996,19 +1064,31 @@ gather_receiver_model_r <- function(
   for (e in seq_len(n_events)) {
     ptr <- stat_mat_update_pointer[e]
     stat_mat <- .gather_apply_stat(
-      stat_mat, stat_mat_update, update_id, ptr, n_actors2
+      stat_mat,
+      stat_mat_update,
+      update_id,
+      ptr,
+      n_actors2
     )
     update_id <- ptr
     bc_ptr <- stat_mat_broadcast_pointer[e]
     stat_mat <- .gather_apply_broadcast(
-      stat_mat, stat_mat_broadcast, bc_id, bc_ptr,
-      n_actors1, n_actors2, twomode_or_reflexive
+      stat_mat,
+      stat_mat_broadcast,
+      bc_id,
+      bc_ptr,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
     bc_id <- bc_ptr
     if (has_cc2) {
       ptr2 <- presence2_update_pointer[e]
       presence2 <- .gather_apply_presence(
-        presence2, presence2_update, p2_id, ptr2
+        presence2,
+        presence2_update,
+        p2_id,
+        ptr2
       )
       p2_id <- ptr2
     }
@@ -1041,12 +1121,22 @@ gather_receiver_model_r <- function(
 # Gather data for the sender models (DyNAM-M-Rate, DyNAM-M-Rate-ordered): the
 # stacked stat matrix is reduced per sender, and present senders become rows.
 gather_sender_model_r <- function(
-  event_mat, is_dependent, stat_mat_init,
-  stat_mat_update, stat_mat_update_pointer,
-  stat_mat_broadcast, stat_mat_broadcast_pointer,
-  presence1_init, presence1_update, presence1_update_pointer,
-  presence2_init, presence2_update, presence2_update_pointer,
-  n_actors1, n_actors2, twomode_or_reflexive
+  event_mat,
+  is_dependent,
+  stat_mat_init,
+  stat_mat_update,
+  stat_mat_update_pointer,
+  stat_mat_broadcast,
+  stat_mat_broadcast_pointer,
+  presence1_init,
+  presence1_update,
+  presence1_update_pointer,
+  presence2_init,
+  presence2_update,
+  presence2_update_pointer,
+  n_actors1,
+  n_actors2,
+  twomode_or_reflexive
 ) {
   stat_mat <- stat_mat_init
   n_events <- ncol(event_mat)
@@ -1067,32 +1157,50 @@ gather_sender_model_r <- function(
   for (e in seq_len(n_events)) {
     ptr <- stat_mat_update_pointer[e]
     stat_mat <- .gather_apply_stat(
-      stat_mat, stat_mat_update, update_id, ptr, n_actors2
+      stat_mat,
+      stat_mat_update,
+      update_id,
+      ptr,
+      n_actors2
     )
     update_id <- ptr
     bc_ptr <- stat_mat_broadcast_pointer[e]
     stat_mat <- .gather_apply_broadcast(
-      stat_mat, stat_mat_broadcast, bc_id, bc_ptr,
-      n_actors1, n_actors2, twomode_or_reflexive
+      stat_mat,
+      stat_mat_broadcast,
+      bc_id,
+      bc_ptr,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
     bc_id <- bc_ptr
     if (has_cc1) {
       ptr1 <- presence1_update_pointer[e]
       presence1 <- .gather_apply_presence(
-        presence1, presence1_update, p1_id, ptr1
+        presence1,
+        presence1_update,
+        p1_id,
+        ptr1
       )
       p1_id <- ptr1
     }
     if (has_cc2) {
       ptr2 <- presence2_update_pointer[e]
       presence2 <- .gather_apply_presence(
-        presence2, presence2_update, p2_id, ptr2
+        presence2,
+        presence2_update,
+        p2_id,
+        ptr2
       )
       p2_id <- ptr2
     }
 
     reduced <- .gather_reduce(
-      stat_mat, n_actors1, n_actors2, twomode_or_reflexive
+      stat_mat,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
     id_sender <- event_mat[1, e] - 1L
     is_dep <- is_dependent[e]

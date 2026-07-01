@@ -23,11 +23,14 @@ for (modelName in names(baselinesGlobalGrid)) {
         expected <- baselinesGlobal[[modelName]][[engine]]
         expect_true(fit$convergence$isConverged)
         expect_equal(
-          coef(fit), expected$coef,
-          tolerance = 1e-6, ignore_attr = TRUE
+          coef(fit),
+          expected$coef,
+          tolerance = 1e-6,
+          ignore_attr = TRUE
         )
         expect_equal(
-          as.numeric(logLik(fit)), expected$logLik,
+          as.numeric(logLik(fit)),
+          expected$logLik,
           tolerance = 1e-6
         )
       }

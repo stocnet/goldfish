@@ -15,7 +15,8 @@ test_that("Args check", {
     gather_model_data(
       depNetwork ~ 1 + inertia(networkState),
       model = "smh",
-      data = dataTest)
+      data = dataTest
+    )
   )
   expect_error(
     gather_model_data(
@@ -28,9 +29,11 @@ test_that("Args check", {
 test_that("Printing", {
   expect_output(
     gather_model_data(
-      depNetwork ~ inertia(networkState),,
+      depNetwork ~ inertia(networkState),
+      ,
       data = dataTest,
-      progress = TRUE),
+      progress = TRUE
+    ),
     "Preprocessing events."
   )
 })

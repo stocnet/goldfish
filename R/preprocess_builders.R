@@ -31,8 +31,12 @@
 #' @return a `data.frame` with `name`, `component`, `key` columns.
 #' @noRd
 build_object_keys <- function(
-    object_names, nodes, nodes2 = nodes, envir = new.env(),
-    derivations = NULL) {
+  object_names,
+  nodes,
+  nodes2 = nodes,
+  envir = new.env(),
+  derivations = NULL
+) {
   objects_table <- getDataObjects(list(object_names), removeFirst = FALSE)
   components <- character(nrow(objects_table))
   keys <- character(nrow(objects_table))
@@ -93,7 +97,11 @@ build_object_keys <- function(
 }
 
 build_state_container <- function(
-    object_names, nodes, nodes2 = nodes, envir = new.env()) {
+  object_names,
+  nodes,
+  nodes2 = nodes,
+  envir = new.env()
+) {
   objects_table <- getDataObjects(list(object_names), removeFirst = FALSE)
   object_keys <- build_object_keys(object_names, nodes, nodes2, envir = envir)
   n1 <- nrow(get(nodes, envir = envir))
@@ -168,7 +176,8 @@ classify_broadcast_kind <- function(effect_name, fmls, stat_kind) {
   if (identical(stat_kind, "sender")) {
     return(if (identical(effect_name, "global")) 3L else 0L)
   }
-  switch(effect_name,
+  switch(
+    effect_name,
     alter = 1L,
     ego = 2L,
     global = 3L,
@@ -214,14 +223,18 @@ broadcast_entries_from_updates <- function(updates, kind, gid) {
   }
   if (kind == 3L) {
     reps <- updates[, "replace"]
-    if (length(unique(reps)) != 1L) abort_mixed()
+    if (length(unique(reps)) != 1L) {
+      abort_mixed()
+    }
     return(rbind(3, 0, gid - 1, reps[1]))
   }
   fixed_col <- if (kind == 1L) "node2" else "node1"
   fixed_vals <- unique(updates[, fixed_col])
   blocks <- lapply(fixed_vals, function(fv) {
     rep_v <- updates[updates[, fixed_col] == fv, "replace"]
-    if (length(unique(rep_v)) != 1L) abort_mixed()
+    if (length(unique(rep_v)) != 1L) {
+      abort_mixed()
+    }
     c(kind, fv - 1, gid - 1, rep_v[1])
   })
   do.call(cbind, blocks)
@@ -250,8 +263,16 @@ build_effects_template <- function(effects, objects_effects_link, state) {
   n_effects <- ncol(objects_effects_link)
 
   arg_pool_common <- c(
-    "network", "attribute", "cache", "n1", "n2", "netUpdate", "attUpdate",
-    "eventOrder", "interEventTime", "replace"
+    "network",
+    "attribute",
+    "cache",
+    "n1",
+    "n2",
+    "netUpdate",
+    "attUpdate",
+    "eventOrder",
+    "interEventTime",
+    "replace"
   )
   arg_pool <- list(
     dyad = c(arg_pool_common, "sender", "receiver"),
@@ -338,9 +359,15 @@ build_effects_template <- function(effects, objects_effects_link, state) {
 #' capability.
 #' @noRd
 build_update_plan <- function(
-    effects, events_objects_link, events_effects_link, objects_effects_link,
-    state, stat_kind = c("sender", "dyad"), envir = new.env(),
-    derivations = NULL) {
+  effects,
+  events_objects_link,
+  events_effects_link,
+  objects_effects_link,
+  state,
+  stat_kind = c("sender", "dyad"),
+  envir = new.env(),
+  derivations = NULL
+) {
   stat_kind <- match.arg(stat_kind)
   object_keys <- attr(state, "object_keys")
   object_names <- rownames(objects_effects_link)
@@ -373,7 +400,8 @@ build_update_plan <- function(
     logical(1)
   )
   shape <- ifelse(
-    is_network, "dyad",
+    is_network,
+    "dyad",
     ifelse(object_keys$component == "globals", "global", "node")
   )
 
@@ -391,7 +419,9 @@ build_update_plan <- function(
     seq_len(n_effects),
     function(gid) {
       classify_broadcast_kind(
-        effect_names[gid], formals(effects[[gid]][["effect"]]), stat_kind
+        effect_names[gid],
+        formals(effects[[gid]][["effect"]]),
+        stat_kind
       )
     },
     integer(1)
@@ -452,11 +482,13 @@ build_update_plan <- function(
       position = seq_along(ordered),
       net_update = ifelse(
         sum(is_net_arg) > 1L & is_net_arg,
-        seq_along(ordered), NA_integer_
+        seq_along(ordered),
+        NA_integer_
       ),
       att_update = ifelse(
         sum(!is_net_arg) > 1L & !is_net_arg,
-        seq_along(ordered), NA_integer_
+        seq_along(ordered),
+        NA_integer_
       ),
       stringsAsFactors = FALSE
     )
@@ -471,7 +503,9 @@ build_update_plan <- function(
   interactions <- stats::setNames(list(), character(0))
   operand_of <- stats::setNames(list(), character(0))
   stat_state_spec <- data.frame(
-    gid = integer(0), slot = character(0), column = integer(0),
+    gid = integer(0),
+    slot = character(0),
+    column = integer(0),
     stringsAsFactors = FALSE
   )
   # Multivariate seam (design D10): (fid, lid, gid) per effect. Single-formula
@@ -516,7 +550,11 @@ build_update_plan <- function(
 #'   `semantics`, `sender`, `receiver`, `node`, `value`, `dependent`,
 #'   `stream`, and the scalar `n`.
 #' @noRd
-build_event_schedule <- function(events, events_objects_link, objects_registry) {
+build_event_schedule <- function(
+  events,
+  events_objects_link,
+  objects_registry
+) {
   n_streams <- length(events)
   stream_rows <- vapply(events, nrow, integer(1))
   n_total <- sum(stream_rows)
@@ -544,7 +582,9 @@ build_event_schedule <- function(events, events_objects_link, objects_registry) 
   offset <- 0L
   for (s in seq_len(n_streams)) {
     rows <- stream_rows[s]
-    if (rows == 0L) next
+    if (rows == 0L) {
+      next
+    }
     idx <- offset + seq_len(rows)
     stream_df <- events[[s]]
     cols <- names(stream_df)

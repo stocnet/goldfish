@@ -2,7 +2,7 @@ test_that("compositional change", {
   compositionalEvents <- find_presence(actorsEx)
   expect_true(inherits(compositionalEvents, "character"))
   expect_equal(compositionalEvents, "compChange")
-  
+
   expect_null(find_presence(data.frame(label = "a", present = TRUE)))
   expect_null(find_presence(
     structure(
@@ -22,17 +22,25 @@ test_that("last presence", {
 })
 test_that("check classes", {
   checks <- check_classes(
-    c(1L, 3L), c("character", "numeric", "integer", "factor", "POSIXct")
+    c(1L, 3L),
+    c("character", "numeric", "integer", "factor", "POSIXct")
   )
   expect_vector(checks, ptype = logical(), size = 5)
-  expect_equal(checks, c(FALSE, TRUE, TRUE, FALSE, FALSE),
-               ignore_attr = "names")
-})  
+  expect_equal(
+    checks,
+    c(FALSE, TRUE, TRUE, FALSE, FALSE),
+    ignore_attr = "names"
+  )
+})
 
 test_that("assign category object", {
   assignment <- assign_category_object(list(
-    logical(2), numeric(4), character(6),
-    matrix(FALSE, 2, 2), matrix(0L, 1, 1), matrix(0, 2, 2)
+    logical(2),
+    numeric(4),
+    character(6),
+    matrix(FALSE, 2, 2),
+    matrix(0L, 1, 1),
+    matrix(0, 2, 2)
   ))
   expect_type(assignment, "character")
   expect_length(assignment, 6)
@@ -134,7 +142,8 @@ test_that("network", {
     structure(
       networkState,
       class = c("network.goldfish", "matrix", "array"),
-      nodes = "actorsEx", directed = FALSE
+      nodes = "actorsEx",
+      directed = FALSE
     ),
     nodes = actorsEx,
     nodes_name = "actorsEx"
@@ -146,15 +155,18 @@ test_that("events nodes", {
   assign("actorsEx", actorsEx, envir = envirTest)
   assign("compChange", compChange, envir = envirTest)
   assign("attrChange", attrChange, envir = envirTest)
-  base::local({
-    node_object <- structure(
-      actorsEx,
-      class = c("nodes.goldfish", "data.frame"),
-      dynamic_attributes = c("present", "attr1"),
-      events = c("compChange", "attrChange")
-    )    
-  }, envir = envirTest)
-  
+  base::local(
+    {
+      node_object <- structure(
+        actorsEx,
+        class = c("nodes.goldfish", "data.frame"),
+        dynamic_attributes = c("present", "attr1"),
+        events = c("compChange", "attrChange")
+      )
+    },
+    envir = envirTest
+  )
+
   expect_error(check_events.nodes.goldfish(
     object = envirTest$node_object,
     events = list(replace = character(2)),
@@ -164,23 +176,34 @@ test_that("events nodes", {
     attribute = "present"
   ))
   expect_error(check_events.nodes.goldfish(
-    object = structure(data.frame(
-      label = "a", present = TRUE, attr1 = 1
-    ), class = c("nodes.goldfish", "data.frame")),
-    events = envirTest$compChange,,
+    object = structure(
+      data.frame(
+        label = "a",
+        present = TRUE,
+        attr1 = 1
+      ),
+      class = c("nodes.goldfish", "data.frame")
+    ),
+    events = envirTest$compChange,
+    ,
     events_name = "compChange",
     update_column = TRUE,
     environment = envirTest,
     attribute = "present"
   ))
   expect_error(check_events.nodes.goldfish(
-    object = structure(data.frame(
-      label = "a", present = TRUE, attr1 = 1
-    ), class = c("nodes.goldfish", "data.frame"),
-    dynamic_attributes = c("present", NA_character_),
-    events = c("compChange", "attrChange")
+    object = structure(
+      data.frame(
+        label = "a",
+        present = TRUE,
+        attr1 = 1
+      ),
+      class = c("nodes.goldfish", "data.frame"),
+      dynamic_attributes = c("present", NA_character_),
+      events = c("compChange", "attrChange")
     ),
-    events = envirTest$compChange,,
+    events = envirTest$compChange,
+    ,
     events_name = "compChange",
     update_column = TRUE,
     environment = envirTest,
@@ -249,7 +272,7 @@ test_that("events nodes", {
 #       events = c("eventsIncrement")
 #     )
 #   }, envir = envirTest)
-#   
+#
 #   expect_error(check_events.network.goldfish(
 #     object = envirTest$network_object,
 #     events = envirTest$eventsIncrement,
@@ -259,4 +282,3 @@ test_that("events nodes", {
 #     nodes = "node_object"
 #   ))
 # })
-

@@ -2,7 +2,8 @@ test_that("dynam choice recipe produces the flat preprocessing output", {
   preproData <- estimate_wrapper(
     depNetwork ~ inertia(networkState, weighted = TRUE) +
       tie(networkExog, weighted = TRUE),
-    model = "DyNAM", sub_model = "choice",
+    model = "DyNAM",
+    sub_model = "choice",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -27,7 +28,8 @@ test_that("dynam choice recipe produces the flat preprocessing output", {
 test_that("dynam choice recipe stores dependent events only", {
   preproData <- estimate_wrapper(
     depNetwork ~ inertia(networkState, weighted = TRUE),
-    model = "DyNAM", sub_model = "choice",
+    model = "DyNAM",
+    sub_model = "choice",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -46,7 +48,8 @@ test_that("dynam choice recipe replay matches the final statistics", {
   preproData <- estimate_wrapper(
     depNetwork ~ inertia(networkState, weighted = TRUE) +
       tie(networkExog, weighted = TRUE),
-    model = "DyNAM", sub_model = "choice",
+    model = "DyNAM",
+    sub_model = "choice",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -64,7 +67,7 @@ test_that("dynam choice recipe replay matches the final statistics", {
     pointer <- upto
   }
   expect_equal(
-    statsArray[, , 1],
+    statsArray[,, 1],
     matrix(
       # fmt: skip
       c(
@@ -87,13 +90,15 @@ test_that("choice coordination recipe matches the choice recipe output", {
     tie(networkExog, weighted = TRUE)
   prepChoice <- estimate_wrapper(
     formulaTest,
-    model = "DyNAM", sub_model = "choice",
+    model = "DyNAM",
+    sub_model = "choice",
     data = dataTest,
     preprocessing_only = TRUE
   )
   prepCoord <- estimate_wrapper(
     formulaTest,
-    model = "DyNAM", sub_model = "choice_coordination",
+    model = "DyNAM",
+    sub_model = "choice_coordination",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -109,20 +114,23 @@ test_that("flat choice preprocessing reused through preprocessing_init", {
     tie(networkExog, weighted = TRUE)
   preproData <- estimate_wrapper(
     formulaFull,
-    model = "DyNAM", sub_model = "choice",
+    model = "DyNAM",
+    sub_model = "choice",
     data = dataTest,
     preprocessing_only = TRUE
   )
   prepSubset <- estimate_wrapper(
     depNetwork ~ tie(networkExog, weighted = TRUE),
-    model = "DyNAM", sub_model = "choice",
+    model = "DyNAM",
+    sub_model = "choice",
     data = dataTest,
     preprocessing_init = preproData,
     preprocessing_only = TRUE
   )
   prepDirect <- estimate_wrapper(
     depNetwork ~ tie(networkExog, weighted = TRUE),
-    model = "DyNAM", sub_model = "choice",
+    model = "DyNAM",
+    sub_model = "choice",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -133,9 +141,11 @@ test_that("flat choice preprocessing reused through preprocessing_init", {
 
 test_that("rem rate recipe produces the flat preprocessing output", {
   preproData <- estimate_wrapper(
-    depNetwork ~ 1 + inertia(networkState, weighted = TRUE) +
+    depNetwork ~ 1 +
+      inertia(networkState, weighted = TRUE) +
       tie(networkExog, weighted = TRUE),
-    model = "REM", sub_model = "rate",
+    model = "REM",
+    sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -151,7 +161,8 @@ test_that("rem rate recipe produces the flat preprocessing output", {
 test_that("rem rate recipe stores the intercept scalars and presence format", {
   preproData <- estimate_wrapper(
     depNetwork ~ 1 + inertia(networkState, weighted = TRUE),
-    model = "REM", sub_model = "rate",
+    model = "REM",
+    sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -173,7 +184,8 @@ test_that("rem rate recipe stores the intercept scalars and presence format", {
 test_that("rem rate ordered recipe stores dependent events only", {
   preproData <- estimate_wrapper(
     depNetwork ~ inertia(networkState, weighted = TRUE),
-    model = "REM", sub_model = "rate_ordered",
+    model = "REM",
+    sub_model = "rate_ordered",
     data = dataTest,
     preprocessing_only = TRUE
   )

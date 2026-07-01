@@ -14,7 +14,10 @@ test_that("init_DyNAM_rate.global replicates the scalar across all n1 actors", {
 
 test_that("update_DyNAM_rate_global returns 2-column changes for all n1 actors", {
   result <- update_DyNAM_rate_global(
-    attribute = 0, replace = 1, n1 = 4, n2 = 4
+    attribute = 0,
+    replace = 1,
+    n1 = 4,
+    n2 = 4
   )
   expect_equal(nrow(result$changes), 4L)
   expect_equal(colnames(result$changes), c("node1", "replace"))
@@ -24,7 +27,10 @@ test_that("update_DyNAM_rate_global returns 2-column changes for all n1 actors",
 
 test_that("update_DyNAM_rate_global returns NULL changes when value unchanged", {
   result <- update_DyNAM_rate_global(
-    attribute = 1, replace = 1, n1 = 3, n2 = 3
+    attribute = 1,
+    replace = 1,
+    n1 = 3,
+    n2 = 3
   )
   expect_null(result$changes)
 })
@@ -48,7 +54,11 @@ test_that("init_REM_choice.global fills off-diagonal with attribute value", {
 
 test_that("update_REM_choice_global produces 3-column dyadic changes via to_ego", {
   result <- update_REM_choice_global(
-    attribute = 0, replace = 1, n1 = 3, n2 = 3, is_two_mode = FALSE
+    attribute = 0,
+    replace = 1,
+    n1 = 3,
+    n2 = 3,
+    is_two_mode = FALSE
   )
   expect_equal(colnames(result$changes), c("node1", "node2", "replace"))
   expect_equal(nrow(result$changes), 3L * (3L - 1L))
@@ -57,7 +67,10 @@ test_that("update_REM_choice_global produces 3-column dyadic changes via to_ego"
 
 test_that("update_REM_choice_global returns NULL changes when value unchanged", {
   result <- update_REM_choice_global(
-    attribute = 1, replace = 1, n1 = 3, n2 = 3
+    attribute = 1,
+    replace = 1,
+    n1 = 3,
+    n2 = 3
   )
   expect_null(result$changes)
 })
@@ -88,20 +101,23 @@ test_that("global() aborts for choice sub-models and works for rate", {
     compute_stats(
       depNetwork ~ inertia + global(seasons$winter),
       data = dataGlobal,
-      model = "DyNAM", sub_model = "choice"
+      model = "DyNAM",
+      sub_model = "choice"
     ),
     "interaction"
   )
   prepRate <- compute_stats(
     depNetwork ~ global(seasons$winter),
     data = dataGlobal,
-    model = "DyNAM", sub_model = "rate_ordered"
+    model = "DyNAM",
+    sub_model = "rate_ordered"
   )
   expect_s3_class(prepRate, "preprocessed.goldfish")
   prepRem <- compute_stats(
     depNetwork ~ global(seasons$winter),
     data = dataGlobal,
-    model = "REM", sub_model = "rate_ordered"
+    model = "REM",
+    sub_model = "rate_ordered"
   )
   expect_s3_class(prepRem, "preprocessed.goldfish")
 })

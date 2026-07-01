@@ -17,9 +17,13 @@ test_that("kind 1 (to_alter) reproduces eager expansion, one-mode", {
   got <- apply_broadcast_update(arr0, bc, FALSE, n1, n2, FALSE)
 
   eager <- to_alter(
-    matrix(c(node1 = fixed0 + 1L, replace = value), nrow = 1,
-           dimnames = list(NULL, c("node1", "replace"))),
-    n1, is_two_mode = FALSE
+    matrix(
+      c(node1 = fixed0 + 1L, replace = value),
+      nrow = 1,
+      dimnames = list(NULL, c("node1", "replace"))
+    ),
+    n1,
+    is_two_mode = FALSE
   )
   upd <- rbind(eager[, "node1"] - 1L, eager[, "node2"] - 1L, effect0, value)
   want <- apply_flat_update(arr0, upd, is_sender = FALSE)
@@ -41,9 +45,13 @@ test_that("kind 2 (to_ego) reproduces eager expansion, one-mode", {
   got <- apply_broadcast_update(arr0, bc, FALSE, n1, n2, FALSE)
 
   eager <- to_ego(
-    matrix(c(node1 = fixed0 + 1L, replace = value), nrow = 1,
-           dimnames = list(NULL, c("node1", "replace"))),
-    n2, is_two_mode = FALSE
+    matrix(
+      c(node1 = fixed0 + 1L, replace = value),
+      nrow = 1,
+      dimnames = list(NULL, c("node1", "replace"))
+    ),
+    n2,
+    is_two_mode = FALSE
   )
   upd <- rbind(eager[, "node1"] - 1L, eager[, "node2"] - 1L, effect0, value)
   want <- apply_flat_update(arr0, upd, is_sender = FALSE)
@@ -87,7 +95,7 @@ test_that("kind 3 global on a one-mode dyad slice skips the diagonal", {
   arr0 <- array(0, dim = c(n1, n2, p))
   bc <- matrix(c(3L, 0L, 0L, 2), nrow = 4)
   got <- apply_broadcast_update(arr0, bc, FALSE, n1, n2, FALSE)
-  slice <- got[, , 1L]
+  slice <- got[,, 1L]
   expect_true(all(slice[row(slice) != col(slice)] == 2))
   expect_true(all(diag(slice) == 0))
 })
@@ -99,26 +107,38 @@ test_that("reflexive-allowed one-mode square slice writes the diagonal", {
   arr0 <- array(0, dim = c(n, n, 1L))
   # kind 1 holding alter 2 (0-idx) -> full column incl. (2, 2)
   got1 <- apply_broadcast_update(
-    arr0, matrix(c(1L, 2L, 0L, 5), nrow = 4), FALSE, n, n, TRUE
+    arr0,
+    matrix(c(1L, 2L, 0L, 5), nrow = 4),
+    FALSE,
+    n,
+    n,
+    TRUE
   )
   expect_true(all(got1[, 3L, 1L] == 5))
   expect_equal(got1[3L, 3L, 1L], 5)
   # kind 3 global writes every cell incl. the diagonal
   got3 <- apply_broadcast_update(
-    arr0, matrix(c(3L, 0L, 0L, 7), nrow = 4), FALSE, n, n, TRUE
+    arr0,
+    matrix(c(3L, 0L, 0L, 7), nrow = 4),
+    FALSE,
+    n,
+    n,
+    TRUE
   )
-  expect_true(all(got3[, , 1L] == 7))
+  expect_true(all(got3[,, 1L] == 7))
 })
 
 test_that("empty broadcast slice is a no-op", {
   arr0 <- array(seq_len(2 * 3 * 2), dim = c(2L, 3L, 2L))
   empty <- matrix(0, 4L, 0L)
   expect_identical(
-    apply_broadcast_update(arr0, empty, FALSE, 2L, 3L, FALSE), arr0
+    apply_broadcast_update(arr0, empty, FALSE, 2L, 3L, FALSE),
+    arr0
   )
   mat0 <- matrix(seq_len(6), 2L, 3L)
   expect_identical(
-    apply_broadcast_update(mat0, empty, TRUE, 2L, NA_integer_, TRUE), mat0
+    apply_broadcast_update(mat0, empty, TRUE, 2L, NA_integer_, TRUE),
+    mat0
   )
 })
 
@@ -175,22 +195,43 @@ test_that("C++ choice engine: broadcast buffer matches eager expansion", {
   point_ptr <- c(ncol(point1), ncol(point1) + ncol(point2))
 
   res_bc <- estimate_DyNAM_choice(
-    parameters, dep_event_mat, stat_mat_init,
-    matrix(0, 4L, 0L), numeric(ncol(dep_event_mat)),
-    broadcast, broadcast_ptr,
-    presence2_init, empty_pres, pres_ptr,
-    n1, n2, FALSE, FALSE
+    parameters,
+    dep_event_mat,
+    stat_mat_init,
+    matrix(0, 4L, 0L),
+    numeric(ncol(dep_event_mat)),
+    broadcast,
+    broadcast_ptr,
+    presence2_init,
+    empty_pres,
+    pres_ptr,
+    n1,
+    n2,
+    FALSE,
+    FALSE
   )
   res_pt <- estimate_DyNAM_choice(
-    parameters, dep_event_mat, stat_mat_init,
-    point, point_ptr,
-    matrix(0, 4L, 0L), numeric(ncol(dep_event_mat)),
-    presence2_init, empty_pres, pres_ptr,
-    n1, n2, FALSE, FALSE
+    parameters,
+    dep_event_mat,
+    stat_mat_init,
+    point,
+    point_ptr,
+    matrix(0, 4L, 0L),
+    numeric(ncol(dep_event_mat)),
+    presence2_init,
+    empty_pres,
+    pres_ptr,
+    n1,
+    n2,
+    FALSE,
+    FALSE
   )
   expect_equal(res_bc$logLikelihood, res_pt$logLikelihood, tolerance = 1e-12)
-  expect_equal(as.numeric(res_bc$derivative), as.numeric(res_pt$derivative),
-               tolerance = 1e-12)
+  expect_equal(
+    as.numeric(res_bc$derivative),
+    as.numeric(res_pt$derivative),
+    tolerance = 1e-12
+  )
   expect_equal(res_bc$fisher, res_pt$fisher, tolerance = 1e-12)
   # broadcast actually wrote something (not a trivial all-zero match)
   expect_gt(sum(abs(res_pt$fisher)), 0)
@@ -223,18 +264,32 @@ test_that("gather port: broadcast buffer matches eager expansion", {
   point_ptr <- c(ncol(point1), ncol(point1) + ncol(point2))
 
   g_bc <- gather_receiver_model_r(
-    event_mat, stat_mat_init,
-    matrix(0, 4L, 0L), numeric(ncol(event_mat)),
-    broadcast, broadcast_ptr,
-    presence2_init, empty_pres, pres_ptr,
-    n1, n2, FALSE
+    event_mat,
+    stat_mat_init,
+    matrix(0, 4L, 0L),
+    numeric(ncol(event_mat)),
+    broadcast,
+    broadcast_ptr,
+    presence2_init,
+    empty_pres,
+    pres_ptr,
+    n1,
+    n2,
+    FALSE
   )
   g_pt <- gather_receiver_model_r(
-    event_mat, stat_mat_init,
-    point, point_ptr,
-    matrix(0, 4L, 0L), numeric(ncol(event_mat)),
-    presence2_init, empty_pres, pres_ptr,
-    n1, n2, FALSE
+    event_mat,
+    stat_mat_init,
+    point,
+    point_ptr,
+    matrix(0, 4L, 0L),
+    numeric(ncol(event_mat)),
+    presence2_init,
+    empty_pres,
+    pres_ptr,
+    n1,
+    n2,
+    FALSE
   )
   expect_equal(g_bc$stat_all_events, g_pt$stat_all_events)
   expect_equal(g_bc$n_candidates, g_pt$n_candidates)

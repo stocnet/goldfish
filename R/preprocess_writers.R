@@ -130,7 +130,9 @@ writer_default <- function() {
         invisible(NULL)
       },
       write_event = function(
-        event_updates, event_info, event_broadcast = matrix(0, 4L, 0L)
+        event_updates,
+        event_info,
+        event_broadcast = matrix(0, 4L, 0L)
       ) {
         n_cols <- ncol(event_updates)
         if (n_cols > 0L) {
@@ -329,7 +331,8 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
   stat_df <- as.data.frame(stat)
   names(stat_df) <- paste0("stat_", seq_len(n_parameters))
   long_df <- cbind(
-    data.frame(event_id = event_id, is_selected = is_selected), stat_df
+    data.frame(event_id = event_id, is_selected = is_selected),
+    stat_df
   )
 
   row_end <- cumsum(n_candidates)
@@ -465,7 +468,7 @@ gather_from_prep <- function(prep, spec) {
   } else {
     stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
     for (i in seq_len(n_parameters)) {
-      stat_mat_init[, i] <- t(statsList$initialStats[, , i])
+      stat_mat_init[, i] <- t(statsList$initialStats[,, i])
     }
   }
 
@@ -512,10 +515,22 @@ gather_from_prep <- function(prep, spec) {
 #'
 #' @noRd
 assemble_default_output <- function(
-  initialStats, stat_mat_update, stat_mat_pointer, intervals, is_dependent,
-  event_time, event_sender, event_receiver, n_stored,
-  active_mode1_init, active_mode1_changes, active_mode2_init,
-  active_mode2_changes, startTime, endTime, intercept_scalars,
+  initialStats,
+  stat_mat_update,
+  stat_mat_pointer,
+  intervals,
+  is_dependent,
+  event_time,
+  event_sender,
+  event_receiver,
+  n_stored,
+  active_mode1_init,
+  active_mode1_changes,
+  active_mode2_init,
+  active_mode2_changes,
+  startTime,
+  endTime,
+  intercept_scalars,
   stat_mat_broadcast = matrix(0, 4L, 0L),
   stat_mat_broadcast_pointer = numeric(n_stored)
 ) {
@@ -529,7 +544,10 @@ assemble_default_output <- function(
     if (length(active_mode1_changes) > 0 && n_stored > 0) {
       changesTime <- vapply(active_mode1_changes, `[[`, double(1), "time")
       changesReplace <- vapply(
-        active_mode1_changes, `[[`, logical(1), "replace"
+        active_mode1_changes,
+        `[[`,
+        logical(1),
+        "replace"
       )
       timeAcc <- startTime
       previousTime <- -Inf
@@ -538,7 +556,8 @@ assemble_default_output <- function(
         timeAcc <- timeAcc + intervals[i]
         changesAt <- changesTime > previousTime & changesTime <= timeAcc
         nActors <- nActors +
-          sum(changesReplace[changesAt]) - sum(!changesReplace[changesAt])
+          sum(changesReplace[changesAt]) -
+          sum(!changesReplace[changesAt])
         activeAcc <- activeAcc + nActors
         previousTime <- timeAcc
       }

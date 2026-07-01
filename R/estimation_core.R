@@ -206,7 +206,8 @@ estimate_int_impl <- function(
       (is.null(fixedParameters) || is.na(fixedParameters[1]))
   ) {
     parameters[1] <- log(
-      statsList$n_dep_events / statsList$total_time /
+      statsList$n_dep_events /
+        statsList$total_time /
         statsList$avg_active_actors
     )
   }
@@ -608,7 +609,13 @@ check_convergence <- function(
   step_converged <- isTRUE(max(abs(update)) <= step_tol)
   list(
     converged = score_converged || step_converged,
-    return_code = if (score_converged) 1L else if (step_converged) 2L else 0L,
+    return_code = if (score_converged) {
+      1L
+    } else if (step_converged) {
+      2L
+    } else {
+      0L
+    },
     score_rel_norm = score_rel_norm
   )
 }
@@ -745,23 +752,45 @@ event_contribution_rate <- function(
 }
 
 compute_event_contribution.dynam_rate_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode
 ) {
   event_contribution_rate(
-    statsArray, activeDyad, parameters, isRightCensored, timespan,
-    allowReflexive, is_two_mode,
+    statsArray,
+    activeDyad,
+    parameters,
+    isRightCensored,
+    timespan,
+    allowReflexive,
+    is_two_mode,
     isREM = FALSE
   )
 }
 
 compute_event_contribution.rem_rate_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode
 ) {
   event_contribution_rate(
-    statsArray, activeDyad, parameters, isRightCensored, timespan,
-    allowReflexive, is_two_mode,
+    statsArray,
+    activeDyad,
+    parameters,
+    isRightCensored,
+    timespan,
+    allowReflexive,
+    is_two_mode,
     isREM = TRUE
   )
 }
@@ -770,8 +799,14 @@ compute_event_contribution.dynami_rate_spec <-
   compute_event_contribution.dynam_rate_spec
 
 compute_event_contribution.dynam_rate_ordered_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode
 ) {
   statsMatrix <- statsArray
   activeActor <- activeDyad[1]
@@ -810,8 +845,14 @@ compute_event_contribution.dynami_rate_ordered_spec <-
   compute_event_contribution.dynam_rate_ordered_spec
 
 compute_event_contribution.dynam_choice_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode
 ) {
   eventProbabilities <-
     getMultinomialProbabilities(
@@ -824,7 +865,8 @@ compute_event_contribution.dynam_choice_spec <- function(
     )
   logLikelihood <- log(eventProbabilities[activeDyad[2]])
   firstDerivatives <- compute_first_derivative_choice(
-    statsArray, eventProbabilities
+    statsArray,
+    eventProbabilities
   )
   score <- firstDerivatives[activeDyad[2], ]
   informationMatrix <- getMultinomialInformationMatrixM(
@@ -843,8 +885,14 @@ compute_event_contribution.dynami_choice_spec <-
   compute_event_contribution.dynam_choice_spec
 
 compute_event_contribution.dynam_choice_coord_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode
 ) {
   multinomialProbabilities <-
     getMultinomialProbabilities(
@@ -874,8 +922,14 @@ compute_event_contribution.dynam_choice_coord_spec <- function(
 }
 
 compute_event_contribution.rem_rate_ordered_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode
 ) {
   eventProbabilities <-
     getMultinomialProbabilities(
@@ -887,7 +941,8 @@ compute_event_contribution.rem_rate_ordered_spec <- function(
     )
   logLikelihood <- log(eventProbabilities[activeDyad[1], activeDyad[2]])
   firstDerivatives <- compute_first_derivative_rem(
-    statsArray, eventProbabilities
+    statsArray,
+    eventProbabilities
   )
   score <- firstDerivatives[activeDyad[1], activeDyad[2], ]
   informationMatrix <- getInformationMatrixREM(
@@ -1037,13 +1092,16 @@ compute_step.default <- function(spec, state, i, ctx) {
   isDependent <- statsList$is_dependent[[i]] == 1L
   flatEnd <- statsList$stat_mat_pointer[i]
   if (flatEnd > state$flatPointer) {
-    updatesSlice <- statsList$stat_mat_update[
-      , (state$flatPointer + 1L):flatEnd,
+    updatesSlice <- statsList$stat_mat_update[,
+      (state$flatPointer + 1L):flatEnd,
       drop = FALSE
     ]
-    if (hasIntercept) updatesSlice[3, ] <- updatesSlice[3, ] + 1L
+    if (hasIntercept) {
+      updatesSlice[3, ] <- updatesSlice[3, ] + 1L
+    }
     state$statsArray <- apply_flat_update(
-      state$statsArray, updatesSlice,
+      state$statsArray,
+      updatesSlice,
       is_sender = is_rate
     )
   }
@@ -1052,16 +1110,20 @@ compute_step.default <- function(spec, state, i, ctx) {
   if (!is.null(statsList$stat_mat_broadcast_pointer)) {
     bcEnd <- statsList$stat_mat_broadcast_pointer[i]
     if (bcEnd > state$bcPointer) {
-      bcSlice <- statsList$stat_mat_broadcast[
-        , (state$bcPointer + 1L):bcEnd,
+      bcSlice <- statsList$stat_mat_broadcast[,
+        (state$bcPointer + 1L):bcEnd,
         drop = FALSE
       ]
-      if (hasIntercept) bcSlice[3, ] <- bcSlice[3, ] + 1L
+      if (hasIntercept) {
+        bcSlice[3, ] <- bcSlice[3, ] + 1L
+      }
       dims <- dim(state$statsArray)
       state$statsArray <- apply_broadcast_update(
-        state$statsArray, bcSlice,
+        state$statsArray,
+        bcSlice,
         is_sender = is_rate,
-        n1 = dims[1], n2 = if (is_rate) NA_integer_ else dims[2],
+        n1 = dims[1],
+        n2 = if (is_rate) NA_integer_ else dims[2],
         twomode_or_reflexive = ctx$is_two_mode
       )
     }
@@ -1501,7 +1563,7 @@ prepare_statslist <- function(
     statsList$initialStats <- if (is_sender_stats) {
       statsList$initialStats[, -excludeParameters, drop = FALSE]
     } else {
-      statsList$initialStats[, , -excludeParameters, drop = FALSE]
+      statsList$initialStats[,, -excludeParameters, drop = FALSE]
     }
   }
   if (addInterceptEffect) {

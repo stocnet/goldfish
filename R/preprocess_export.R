@@ -4,7 +4,6 @@
 # #
 # # Description: Helper functions to gather the preprocess data from a model
 
-
 #' Gather model data from a formula
 #'
 #' Gather the preprocess data from a formula given a model and sub model,
@@ -110,7 +109,7 @@
 #' )
 #'
 #' fisheriesData <- make_data(createBilat)
-#' 
+#'
 #' gatheredData <- gather_model_data(
 #'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet),
 #'   model = "DyNAM", sub_model = "choice_coordination",
@@ -118,20 +117,22 @@
 #' )
 #'
 gather_model_data <- function(
-    formula,
-    model = c("DyNAM", "REM"),
-    sub_model = c("choice", "choice_coordination", "rate"),
-    data = NULL,
-    control_preprocessing = set_preprocessing_opt(),
-    progress = getOption("progress"),
-    max_length = 63L
-    ) {
+  formula,
+  model = c("DyNAM", "REM"),
+  sub_model = c("choice", "choice_coordination", "rate"),
+  data = NULL,
+  control_preprocessing = set_preprocessing_opt(),
+  progress = getOption("progress"),
+  max_length = 63L
+) {
   model <- match.arg(
     arg = if (length(model) > 1) model[1] else model,
     choices = c("DyNAM", "REM")
   )
   sub_model <- match.arg(sub_model)
-  if (is.null(progress)) progress <- FALSE
+  if (is.null(progress)) {
+    progress <- FALSE
+  }
 
   compute_stats(
     formula = formula,
@@ -156,8 +157,15 @@ gather_model_data <- function(
 #'
 #' @noRd
 finalize_gather_output <- function(
-  gathered, model, sub_model, has_intercept, nodes, nodes2,
-  objects_effects_link, parsed_formula, max_length = 63L,
+  gathered,
+  model,
+  sub_model,
+  has_intercept,
+  nodes,
+  nodes2,
+  objects_effects_link,
+  parsed_formula,
+  max_length = 63L,
   effect_description = NULL
 ) {
   event_sender <- attr(gathered, "event_sender")

@@ -16,22 +16,23 @@
 #'
 #' @noRd
 preprocessInteraction <- function(
-    subModel,
-    events,
-    effects,
-    eventsObjectsLink,
-    eventsEffectsLink,
-    objectsEffectsLink,
-    # multipleParameter,
-    nodes,
-    nodes2 = nodes,
-    # add more parameters
-    startTime = min(vapply(events, function(x) min(x$time), double(1))),
-    endTime = max(vapply(events, function(x) max(x$time), double(1))),
-    rightCensored = FALSE,
-    progress = FALSE,
-    groupsNetwork = groupsNetwork,
-    prepEnvir = environment()) {
+  subModel,
+  events,
+  effects,
+  eventsObjectsLink,
+  eventsEffectsLink,
+  objectsEffectsLink,
+  # multipleParameter,
+  nodes,
+  nodes2 = nodes,
+  # add more parameters
+  startTime = min(vapply(events, function(x) min(x$time), double(1))),
+  endTime = max(vapply(events, function(x) max(x$time), double(1))),
+  rightCensored = FALSE,
+  progress = FALSE,
+  groupsNetwork = groupsNetwork,
+  prepEnvir = environment()
+) {
   # For debugging
   # if (identical(environment(), globalenv())) {
   #   startTime <- min(vapply(events, function(x) min(x$time), double(1)))
@@ -50,18 +51,24 @@ preprocessInteraction <- function(
   # impute missing data in objects: 0 for networks and mean for attributes
   imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
 
-  if (progress) cat("Initializing cache objects and statistical matrices.\n")
+  if (progress) {
+    cat("Initializing cache objects and statistical matrices.\n")
+  }
   model <- "DyNAMi"
   stats <- initializeCacheStat(
-    objectsEffectsLink = objectsEffectsLink, effects = effects,
-    groupsNetwork = groupsNetworkObject, windowParameters = NULL,
-    n1 = n1, n2 = n2, model = model, subModel = subModel, envir = prepEnvir
+    objectsEffectsLink = objectsEffectsLink,
+    effects = effects,
+    groupsNetwork = groupsNetworkObject,
+    windowParameters = NULL,
+    n1 = n1,
+    n2 = n2,
+    model = model,
+    subModel = subModel,
+    envir = prepEnvir
   )
 
   # We put the initial stats to the previous format of 3 dimensional array
-  initialStats <- array(unlist(stats),
-    dim = c(n1, n2, nEffects)
-  )
+  initialStats <- array(unlist(stats), dim = c(n1, n2, nEffects))
 
   # statCache <- lapply(statCache, "[[", "cache")
 
@@ -94,7 +101,8 @@ preprocessInteraction <- function(
     stop(
       dQuote("DyNAMi"),
       " doesn't support setting the ",
-      dQuote("endTime"), "parameter",
+      dQuote("endTime"),
+      "parameter",
       call. = FALSE
     )
   }
@@ -103,7 +111,8 @@ preprocessInteraction <- function(
     stop(
       dQuote("DyNAMi"),
       " doesn't support setting the ",
-      dQuote("StartTime"), "parameter",
+      dQuote("StartTime"),
+      "parameter",
       call. = FALSE
     )
   }
@@ -126,7 +135,8 @@ preprocessInteraction <- function(
   # PATCH Marion: the depdendent.depevents_DyNAMi is not sanitized yet
   dnameObject <- sanitizeEvents(
     get(dname, envir = prepEnvir),
-    nodes, nodes2,
+    nodes,
+    nodes2,
     envir = prepEnvir
   )
   assign(dname, dnameObject, envir = prepEnvir)
@@ -141,16 +151,22 @@ preprocessInteraction <- function(
   if (length(events) > 0) {
     for (e in seq.int(length(events))) {
       ev <- events[[e]]
-      if (inherits(ev, "interaction.groups.updates") &&
-        all(get(dname, envir = prepEnvir) == ev)) {
+      if (
+        inherits(ev, "interaction.groups.updates") &&
+          all(get(dname, envir = prepEnvir) == ev)
+      ) {
         depindex <- e
         deporder <- attr(ev, "order")
-      } else if (inherits(ev, "interaction.groups.updates") &&
-        !all(get(dname, envir = prepEnvir) == ev)) {
+      } else if (
+        inherits(ev, "interaction.groups.updates") &&
+          !all(get(dname, envir = prepEnvir) == ev)
+      ) {
         exoindex <- e
         exoorder <- attr(ev, "order")
-      } else if (inherits(ev, "interaction.network.updates") &&
-        !is.null(attr(ev, "order"))) {
+      } else if (
+        inherits(ev, "interaction.network.updates") &&
+          !is.null(attr(ev, "order"))
+      ) {
         numpast <- numpast + 1
         pastindexes[numpast] <- e
         pastorders[[numpast]] <- attr(ev, "order")
@@ -168,19 +184,25 @@ preprocessInteraction <- function(
     # PATCH Marion: the groups update events were not sanitized
     groupsupdates1Object <- sanitizeEvents(
       get(groupsupdates[1], envir = prepEnvir),
-      nodes, nodes2,
+      nodes,
+      nodes2,
       envir = prepEnvir
     )
     assign(groupsupdates[1], groupsupdates1Object, envir = prepEnvir)
     groupsupdates2Object <- sanitizeEvents(
       get(groupsupdates[2], envir = prepEnvir),
-      nodes, nodes2,
+      nodes,
+      nodes2,
       envir = prepEnvir
     )
     assign(groupsupdates[2], groupsupdates2Object, envir = prepEnvir)
 
-    if (all(get(dname, envir = prepEnvir) ==
-      get(groupsupdates[1], envir = prepEnvir))) {
+    if (
+      all(
+        get(dname, envir = prepEnvir) ==
+          get(groupsupdates[1], envir = prepEnvir)
+      )
+    ) {
       depn <- groupsupdates[1]
       exon <- groupsupdates[2]
     } else {
@@ -207,12 +229,14 @@ preprocessInteraction <- function(
     }
     events[[depindex]] <- sanitizeEvents(
       events[[depindex]],
-      nodes, nodes2,
+      nodes,
+      nodes2,
       envir = prepEnvir
     )
     events[[exoindex]] <- sanitizeEvents(
       events[[exoindex]],
-      nodes, nodes2,
+      nodes,
+      nodes2,
       envir = prepEnvir
     )
 
@@ -241,7 +265,6 @@ preprocessInteraction <- function(
     pointers <- rep(1, length(events))
     validPointers <- rep(TRUE, length(events))
   }
-
 
   # Set the counter for the ordered events
   cptorder <- 0
@@ -311,7 +334,8 @@ preprocessInteraction <- function(
           if (p %in% pastindexes) {
             return(pastorders[[which(pastindexes == p)]][pointers[p]])
           }
-        }, prioritypointers
+        },
+        prioritypointers
       ) |>
         vapply(identity, numeric(1))
 
@@ -320,24 +344,29 @@ preprocessInteraction <- function(
       } else {
         nextcpt <- min(cpts[cpts > cptorder])
         cptorder <- nextcpt
-        if (cptorder %in% deporder) nextEvent <- depindex
-        if (cptorder %in% exoorder) nextEvent <- exoindex
+        if (cptorder %in% deporder) {
+          nextEvent <- depindex
+        }
+        if (cptorder %in% exoorder) {
+          nextEvent <- exoindex
+        }
         if (length(pastorders) > 0 && cptorder %in% pastorders[[1]]) {
           cptindexes <- prioritypointers[cpts == nextcpt]
           nextEvent <- cptindexes[1]
           if (length(cptindexes) > 1) cptorder <- cptorder - 1
         }
       }
-    } else { # otherwise we take the first next event
+    } else {
+      # otherwise we take the first next event
       nextEvent <- currentpointers[1]
     }
     interval <- times[nextEvent] - time
     time <- min(times[validPointers])
 
-
     # changed Marion: for choice, only joining events are dependent events
     isDependent <- (subModel == "rate" && nextEvent == depindex) ||
-      (subModel == "choice" && nextEvent == depindex &&
+      (subModel == "choice" &&
+        nextEvent == depindex &&
         events[[depindex]][pointers[nextEvent], "increment"] > 0)
 
     # # CHANGED ALVARO: progress bar
@@ -404,7 +433,6 @@ preprocessInteraction <- function(
       groupsNetworkObject[event$sender, event$receiver] <-
         groupsNetworkObject[event$sender, event$receiver] + event$increment
       assign(groupsNetwork, groupsNetworkObject, envir = prepEnvir)
-
 
       pointerDependent <- pointerDependent + 1
     }
@@ -474,7 +502,9 @@ preprocessInteraction <- function(
         )
         event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
 
-        if (isNodeEvent[nextEvent]) oldValue <- object[event$node]
+        if (isNodeEvent[nextEvent]) {
+          oldValue <- object[event$node]
+        }
         if (!isNodeEvent[nextEvent]) {
           oldValue <- object[event$sender, event$receiver]
         }
@@ -492,9 +522,10 @@ preprocessInteraction <- function(
       #  warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
       # }
 
-
       # b. Update the data object
-      if (isNodeEvent[nextEvent]) object[event$node] <- event$replace
+      if (isNodeEvent[nextEvent]) {
+        object[event$node] <- event$replace
+      }
       if (!isNodeEvent[nextEvent]) {
         # [sender, receiver] value: replace value of the event
         object[event$sender, event$receiver] <- event$replace
@@ -526,12 +557,12 @@ preprocessInteraction <- function(
       # if EXOGENOUS JOINING OR LEAVING, everything is recalculated
       if (isgroupupdate) {
         effIds <- seq.int(dim(eventsEffectsLink)[2])
-      } else { # OTHERWISE (PAST UPDATE or ATTRIBUTE UPDATE),
+      } else {
+        # OTHERWISE (PAST UPDATE or ATTRIBUTE UPDATE),
         # only statistics related to the object
         effIds <- which(!is.na(eventsEffectsLink[nextEvent + 1, ]))
       }
       groupsNetworkObject <- get(groupsNetwork, envir = prepEnvir)
-
 
       for (id in effIds) {
         # create the ordered list for the objects
@@ -553,7 +584,8 @@ preprocessInteraction <- function(
           c(
             unnamedOrderedParameters,
             statistics = stats[id],
-            event, list(n1 = n1, n2 = n2, groupsNetwork = groupsNetworkObject)
+            event,
+            list(n1 = n1, n2 = n2, groupsNetwork = groupsNetworkObject)
           )
         )
 
@@ -581,7 +613,6 @@ preprocessInteraction <- function(
         }
       }
     } # end 3. (!dependent)
-
 
     pointers[nextEvent] <- 1 + pointers[nextEvent]
     validPointers <- pointers <= vapply(events, nrow, numeric(1))

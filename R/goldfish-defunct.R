@@ -5,7 +5,7 @@
 #'
 #' goldfish 1.7.0 renamed a number of functions that aims to: align function
 #' naming to match tidyverse conventions (using `snake_case`),
-#' and foster a common and intuitive interface across the 
+#' and foster a common and intuitive interface across the
 #' \href{https://github.com/stocnet}{stocnet}
 #' ecosystem, promoting consistency and easier transitions between
 #' related packages.
@@ -16,7 +16,7 @@
 #' * `defineGlobalAttribute()` -> `make_global_attributes()`
 #' * `defineGroups_interaction()` -> `make_groups_interaction()`
 #' * `linkEvents(x)` -> `link_events(x)`
-#' * `estimate()` -> `estimate_dynam()`, `estimate_rem()` & `estimate_dynami()` 
+#' * `estimate()` -> `estimate_dynam()`, `estimate_rem()` & `estimate_dynami()`
 #' * `examineOutliers()` -> `examine_outliers()`
 #' * `examineChangepoints()` -> `examine_changepoints()`
 #' * `egoAlterInt()` -> `ego_alter_interaction()`
@@ -59,33 +59,44 @@ defineNodes <- function(nodes) {
 #' @rdname defunct
 #' @export
 defineNetwork <- function(
-    matrix = NULL,
-    nodes, nodes2 = NULL, directed = TRUE, envir = environment()
-  ) {
+  matrix = NULL,
+  nodes,
+  nodes2 = NULL,
+  directed = TRUE,
+  envir = environment()
+) {
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "defineNetwork()",
     with = "make_network()"
   )
   make_network(
-    matrix = matrix, nodes = nodes, nodes2 = nodes2,
-    directed = directed, envir = envir
+    matrix = matrix,
+    nodes = nodes,
+    nodes2 = nodes2,
+    directed = directed,
+    envir = envir
   )
 }
 
 #' @rdname defunct
 #' @export
 defineDependentEvents <- function(
-    events, nodes, nodes2 = NULL, default_network = NULL,
-    envir = environment()
-  ) {
+  events,
+  nodes,
+  nodes2 = NULL,
+  default_network = NULL,
+  envir = environment()
+) {
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "defineDependentEvents()",
     with = "make_dependent_events()"
   )
   make_dependent_events(
-    events = events, nodes = nodes, nodes2 = nodes2,
+    events = events,
+    nodes = nodes,
+    nodes2 = nodes2,
     default_network = default_network,
     envir = envir
   )
@@ -105,17 +116,21 @@ defineGlobalAttribute <- function(global) {
 #' @rdname defunct
 #' @export
 defineGroups_interaction <- function(
-    records, actors, seed_randomization = NULL,
-    progress = getOption("progress")
-  ) {
+  records,
+  actors,
+  seed_randomization = NULL,
+  progress = getOption("progress")
+) {
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "defineGroups_interaction()",
     with = "make_groups_interaction()"
   )
   make_groups_interaction(
-    records = records, actors = actors,
-    seed_randomization = seed_randomization, progress = progress
+    records = records,
+    actors = actors,
+    seed_randomization = seed_randomization,
+    progress = progress
   )
 }
 
@@ -133,31 +148,44 @@ linkEvents <- function(x, ...) {
 #' @rdname defunct
 #' @export
 examineOutliers <- function(
-    x, method = c("Hampel", "IQR", "Top"), parameter = 3, window = NULL
-  ) {
+  x,
+  method = c("Hampel", "IQR", "Top"),
+  parameter = 3,
+  window = NULL
+) {
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "examineOutliers()",
     with = "examine_outliers()"
   )
   examine_outliers(
-    x = x, method = method, parameter = parameter, window = window
+    x = x,
+    method = method,
+    parameter = parameter,
+    window = window
   )
 }
 
 #' @rdname defunct
 #' @export
 examineChangepoints <- function(
-    x, moment = c("mean", "variance"), method = c("PELT", "AMOC", "BinSeg"),
-    window = NULL, ...
-  ) {
+  x,
+  moment = c("mean", "variance"),
+  method = c("PELT", "AMOC", "BinSeg"),
+  window = NULL,
+  ...
+) {
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "examineChangepoints()",
     with = "examine_changepoints()"
   )
   examine_changepoints(
-    x = x, moment = moment, method = method, window = window, ...
+    x = x,
+    moment = moment,
+    method = method,
+    window = window,
+    ...
   )
 }
 
@@ -261,5 +289,3 @@ tertiusDiff <- function(...) {
   )
   update_DyNAM_choice_tertius_diff(...)
 }
-
-

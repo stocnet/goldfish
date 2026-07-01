@@ -26,7 +26,8 @@ preprocess.model_spec <- function(spec, ...) {
 #' @noRd
 preprocess.dynam_rate_spec <- function(spec, ...) {
   run_sender_recipe_loop(
-    spec, ...,
+    spec,
+    ...,
     right_censored = TRUE,
     intercept_scalars = TRUE
   )
@@ -35,7 +36,8 @@ preprocess.dynam_rate_spec <- function(spec, ...) {
 #' @noRd
 preprocess.dynam_rate_ordered_spec <- function(spec, ...) {
   run_sender_recipe_loop(
-    spec, ...,
+    spec,
+    ...,
     right_censored = FALSE,
     intercept_scalars = FALSE
   )
@@ -44,7 +46,8 @@ preprocess.dynam_rate_ordered_spec <- function(spec, ...) {
 #' @noRd
 preprocess.dynam_choice_spec <- function(spec, ...) {
   run_dyad_recipe_loop(
-    spec, ...,
+    spec,
+    ...,
     right_censored = FALSE,
     intercept_scalars = FALSE
   )
@@ -53,7 +56,8 @@ preprocess.dynam_choice_spec <- function(spec, ...) {
 #' @noRd
 preprocess.dynam_choice_coord_spec <- function(spec, ...) {
   run_dyad_recipe_loop(
-    spec, ...,
+    spec,
+    ...,
     right_censored = FALSE,
     intercept_scalars = FALSE
   )
@@ -62,7 +66,8 @@ preprocess.dynam_choice_coord_spec <- function(spec, ...) {
 #' @noRd
 preprocess.rem_rate_spec <- function(spec, ...) {
   run_dyad_recipe_loop(
-    spec, ...,
+    spec,
+    ...,
     right_censored = TRUE,
     intercept_scalars = TRUE
   )
@@ -71,7 +76,8 @@ preprocess.rem_rate_spec <- function(spec, ...) {
 #' @noRd
 preprocess.rem_rate_ordered_spec <- function(spec, ...) {
   run_dyad_recipe_loop(
-    spec, ...,
+    spec,
+    ...,
     right_censored = FALSE,
     intercept_scalars = FALSE
   )
@@ -128,42 +134,99 @@ run_dynami_monolith <- function(
 #' @rdname preprocess_dynami
 #' @noRd
 preprocess.dynami_rate_spec <- function(
-  spec, events, effects, eventsObjectsLink, eventsEffectsLink,
-  objectsEffectsLink, nodes, nodes2 = nodes, rightCensored = FALSE,
-  progress = FALSE, groupsNetwork = NULL, prepEnvir = new.env(), ...
+  spec,
+  events,
+  effects,
+  eventsObjectsLink,
+  eventsEffectsLink,
+  objectsEffectsLink,
+  nodes,
+  nodes2 = nodes,
+  rightCensored = FALSE,
+  progress = FALSE,
+  groupsNetwork = NULL,
+  prepEnvir = new.env(),
+  ...
 ) {
   run_dynami_monolith(
-    "rate", events, effects, eventsObjectsLink, eventsEffectsLink,
-    objectsEffectsLink, nodes, nodes2, rightCensored, progress,
-    groupsNetwork, prepEnvir
+    "rate",
+    events,
+    effects,
+    eventsObjectsLink,
+    eventsEffectsLink,
+    objectsEffectsLink,
+    nodes,
+    nodes2,
+    rightCensored,
+    progress,
+    groupsNetwork,
+    prepEnvir
   )
 }
 
 #' @rdname preprocess_dynami
 #' @noRd
 preprocess.dynami_rate_ordered_spec <- function(
-  spec, events, effects, eventsObjectsLink, eventsEffectsLink,
-  objectsEffectsLink, nodes, nodes2 = nodes, rightCensored = FALSE,
-  progress = FALSE, groupsNetwork = NULL, prepEnvir = new.env(), ...
+  spec,
+  events,
+  effects,
+  eventsObjectsLink,
+  eventsEffectsLink,
+  objectsEffectsLink,
+  nodes,
+  nodes2 = nodes,
+  rightCensored = FALSE,
+  progress = FALSE,
+  groupsNetwork = NULL,
+  prepEnvir = new.env(),
+  ...
 ) {
   run_dynami_monolith(
-    "rate", events, effects, eventsObjectsLink, eventsEffectsLink,
-    objectsEffectsLink, nodes, nodes2, rightCensored, progress,
-    groupsNetwork, prepEnvir
+    "rate",
+    events,
+    effects,
+    eventsObjectsLink,
+    eventsEffectsLink,
+    objectsEffectsLink,
+    nodes,
+    nodes2,
+    rightCensored,
+    progress,
+    groupsNetwork,
+    prepEnvir
   )
 }
 
 #' @rdname preprocess_dynami
 #' @noRd
 preprocess.dynami_choice_spec <- function(
-  spec, events, effects, eventsObjectsLink, eventsEffectsLink,
-  objectsEffectsLink, nodes, nodes2 = nodes, rightCensored = FALSE,
-  progress = FALSE, groupsNetwork = NULL, prepEnvir = new.env(), ...
+  spec,
+  events,
+  effects,
+  eventsObjectsLink,
+  eventsEffectsLink,
+  objectsEffectsLink,
+  nodes,
+  nodes2 = nodes,
+  rightCensored = FALSE,
+  progress = FALSE,
+  groupsNetwork = NULL,
+  prepEnvir = new.env(),
+  ...
 ) {
   run_dynami_monolith(
-    "choice", events, effects, eventsObjectsLink, eventsEffectsLink,
-    objectsEffectsLink, nodes, nodes2, rightCensored, progress,
-    groupsNetwork, prepEnvir
+    "choice",
+    events,
+    effects,
+    eventsObjectsLink,
+    eventsEffectsLink,
+    objectsEffectsLink,
+    nodes,
+    nodes2,
+    rightCensored,
+    progress,
+    groupsNetwork,
+    prepEnvir
   )
 }
 
@@ -369,7 +432,9 @@ run_sender_recipe_loop <- function(
   }
 
   state <- build_state_container(
-    rownames(objectsEffectsLink), nodes, nodes2,
+    rownames(objectsEffectsLink),
+    nodes,
+    nodes2,
     envir = prepEnvir
   )
   schedule <- build_event_schedule(events, eventsObjectsLink, plan$objects)
@@ -382,8 +447,14 @@ run_sender_recipe_loop <- function(
     plan$effect_objects$att_update
 
   call_effect_template <- function(
-    template, gid, shape, event_args, net_update, att_update,
-    event_order, inter_event_time
+    template,
+    gid,
+    shape,
+    event_args,
+    net_update,
+    att_update,
+    event_order,
+    inter_event_time
   ) {
     args <- c(
       list(
@@ -419,16 +490,19 @@ run_sender_recipe_loop <- function(
     do.call(template$fun, args[template$args_by_shape[[shape]]])
   }
 
-  writer$init(spec, list(
-    nEffects = nEffects,
-    n1 = n1,
-    n2 = n2,
-    is_sender = inherits(spec, "sender_spec"),
-    has_intercept = right_censored,
-    buf_capacity = max(1000, as.double(nEffects) * nrow(events[[1L]])),
-    max_store = schedule$n + 1L,
-    initial_stats_fn = function() initialStats
-  ))
+  writer$init(
+    spec,
+    list(
+      nEffects = nEffects,
+      n1 = n1,
+      n2 = n2,
+      is_sender = inherits(spec, "sender_spec"),
+      has_intercept = right_censored,
+      buf_capacity = max(1000, as.double(nEffects) * nrow(events[[1L]])),
+      max_store = schedule$n + 1L,
+      initial_stats_fn = function() initialStats
+    )
+  )
 
   pending_dep <- list()
   pending_dep_cols <- 0L
@@ -494,8 +568,11 @@ run_sender_recipe_loop <- function(
           matrix(0, 4L, 0L)
         },
         list(
-          is_dependent = 1L, interval = interval, time = time,
-          sender = evSender, receiver = evReceiver
+          is_dependent = 1L,
+          interval = interval,
+          time = time,
+          sender = evSender,
+          receiver = evReceiver
         ),
         if (pending_dep_bc_cols > 0L) {
           do.call(cbind, pending_dep_bc)
@@ -530,8 +607,11 @@ run_sender_recipe_loop <- function(
             matrix(0, 4L, 0L)
           },
           list(
-            is_dependent = 0L, interval = interval, time = time,
-            sender = evSender, receiver = evReceiver
+            is_dependent = 0L,
+            interval = interval,
+            time = time,
+            sender = evSender,
+            receiver = evReceiver
           ),
           if (pending_rc_bc_cols > 0L) {
             do.call(cbind, pending_rc_bc)
@@ -554,13 +634,17 @@ run_sender_recipe_loop <- function(
 
         if (shape == "global") {
           replaceValue <- schedule$value[[k]]
-          if (is.na(replaceValue)) replaceValue <- 0
+          if (is.na(replaceValue)) {
+            replaceValue <- 0
+          }
           event_args <- list(replace = replaceValue)
         } else if (shape == "node") {
           eventNode <- schedule$node[k]
           if (schedule$semantics[k] == "increment") {
             incrementValue <- schedule$value[[k]]
-            if (is.na(incrementValue)) incrementValue <- 0
+            if (is.na(incrementValue)) {
+              incrementValue <- 0
+            }
             replaceValue <-
               state[[component]][[key]][eventNode] + incrementValue
           } else {
@@ -578,7 +662,9 @@ run_sender_recipe_loop <- function(
           eventReceiver <- schedule$receiver[k]
           if (schedule$semantics[k] == "increment") {
             incrementValue <- schedule$value[[k]]
-            if (is.na(incrementValue)) incrementValue <- 0
+            if (is.na(incrementValue)) {
+              incrementValue <- 0
+            }
             replaceValue <-
               state$networks[[key]][eventSender, eventReceiver] +
               incrementValue
@@ -593,7 +679,8 @@ run_sender_recipe_loop <- function(
             )
           }
           event_args <- list(
-            sender = eventSender, receiver = eventReceiver,
+            sender = eventSender,
+            receiver = eventReceiver,
             replace = replaceValue
           )
         }
@@ -601,14 +688,23 @@ run_sender_recipe_loop <- function(
         for (gid in plan$routing[[oid]]) {
           template <- effects_template[[gid]]
           netUpdatePos <- netUpdateLookup[oid, gid]
-          if (is.na(netUpdatePos)) netUpdatePos <- NULL
+          if (is.na(netUpdatePos)) {
+            netUpdatePos <- NULL
+          }
           attUpdatePos <- attUpdateLookup[oid, gid]
-          if (is.na(attUpdatePos)) attUpdatePos <- NULL
+          if (is.na(attUpdatePos)) {
+            attUpdatePos <- NULL
+          }
 
           effectUpdate <- call_effect_template(
-            template, gid, shape, event_args,
-            netUpdatePos, attUpdatePos,
-            iTotalEvents - iDependentEvents, interval
+            template,
+            gid,
+            shape,
+            event_args,
+            netUpdatePos,
+            attUpdatePos,
+            iTotalEvents - iDependentEvents,
+            interval
           )
 
           if (!is.null(attr(effectUpdate$cache, "lastUpdate"))) {
@@ -628,9 +724,14 @@ run_sender_recipe_loop <- function(
             event_args2$sender <- event_args$receiver
             event_args2$receiver <- event_args$sender
             effectUpdate2 <- call_effect_template(
-              template, gid, shape, event_args2,
-              netUpdatePos, attUpdatePos,
-              iTotalEvents - iDependentEvents, interval
+              template,
+              gid,
+              shape,
+              event_args2,
+              netUpdatePos,
+              attUpdatePos,
+              iTotalEvents - iDependentEvents,
+              interval
             )
             if (
               !is.null(effectUpdate2$cache) &&
@@ -647,7 +748,9 @@ run_sender_recipe_loop <- function(
                 updates[, "replace"]
             } else if (bcast_kind[gid] != 0L) {
               bc_block <- broadcast_entries_from_updates(
-                updates, bcast_kind[gid], gid
+                updates,
+                bcast_kind[gid],
+                gid
               )
               pending_dep_bc[[length(pending_dep_bc) + 1L]] <- bc_block
               pending_dep_bc_cols <- pending_dep_bc_cols + ncol(bc_block)
@@ -885,7 +988,9 @@ run_dyad_recipe_loop <- function(
   }
 
   state <- build_state_container(
-    rownames(objectsEffectsLink), nodes, nodes2,
+    rownames(objectsEffectsLink),
+    nodes,
+    nodes2,
     envir = prepEnvir
   )
   schedule <- build_event_schedule(events, eventsObjectsLink, plan$objects)
@@ -898,8 +1003,14 @@ run_dyad_recipe_loop <- function(
     plan$effect_objects$att_update
 
   call_effect_template <- function(
-    template, gid, shape, event_args, net_update, att_update,
-    event_order, inter_event_time
+    template,
+    gid,
+    shape,
+    event_args,
+    net_update,
+    att_update,
+    event_order,
+    inter_event_time
   ) {
     args <- c(
       list(
@@ -935,16 +1046,19 @@ run_dyad_recipe_loop <- function(
     do.call(template$fun, args[template$args_by_shape[[shape]]])
   }
 
-  writer$init(spec, list(
-    nEffects = nEffects,
-    n1 = n1,
-    n2 = n2,
-    is_sender = inherits(spec, "sender_spec"),
-    has_intercept = right_censored,
-    buf_capacity = max(1000, as.double(nEffects) * nrow(events[[1L]])),
-    max_store = schedule$n + 1L,
-    initial_stats_fn = function() initialStats
-  ))
+  writer$init(
+    spec,
+    list(
+      nEffects = nEffects,
+      n1 = n1,
+      n2 = n2,
+      is_sender = inherits(spec, "sender_spec"),
+      has_intercept = right_censored,
+      buf_capacity = max(1000, as.double(nEffects) * nrow(events[[1L]])),
+      max_store = schedule$n + 1L,
+      initial_stats_fn = function() initialStats
+    )
+  )
 
   pending_dep <- list()
   pending_dep_cols <- 0L
@@ -1010,8 +1124,11 @@ run_dyad_recipe_loop <- function(
           matrix(0, 4L, 0L)
         },
         list(
-          is_dependent = 1L, interval = interval, time = time,
-          sender = evSender, receiver = evReceiver
+          is_dependent = 1L,
+          interval = interval,
+          time = time,
+          sender = evSender,
+          receiver = evReceiver
         ),
         if (pending_dep_bc_cols > 0L) {
           do.call(cbind, pending_dep_bc)
@@ -1046,8 +1163,11 @@ run_dyad_recipe_loop <- function(
             matrix(0, 4L, 0L)
           },
           list(
-            is_dependent = 0L, interval = interval, time = time,
-            sender = evSender, receiver = evReceiver
+            is_dependent = 0L,
+            interval = interval,
+            time = time,
+            sender = evSender,
+            receiver = evReceiver
           ),
           if (pending_rc_bc_cols > 0L) {
             do.call(cbind, pending_rc_bc)
@@ -1070,13 +1190,17 @@ run_dyad_recipe_loop <- function(
 
         if (shape == "global") {
           replaceValue <- schedule$value[[k]]
-          if (is.na(replaceValue)) replaceValue <- 0
+          if (is.na(replaceValue)) {
+            replaceValue <- 0
+          }
           event_args <- list(replace = replaceValue)
         } else if (shape == "node") {
           eventNode <- schedule$node[k]
           if (schedule$semantics[k] == "increment") {
             incrementValue <- schedule$value[[k]]
-            if (is.na(incrementValue)) incrementValue <- 0
+            if (is.na(incrementValue)) {
+              incrementValue <- 0
+            }
             replaceValue <-
               state[[component]][[key]][eventNode] + incrementValue
           } else {
@@ -1094,7 +1218,9 @@ run_dyad_recipe_loop <- function(
           eventReceiver <- schedule$receiver[k]
           if (schedule$semantics[k] == "increment") {
             incrementValue <- schedule$value[[k]]
-            if (is.na(incrementValue)) incrementValue <- 0
+            if (is.na(incrementValue)) {
+              incrementValue <- 0
+            }
             replaceValue <-
               state$networks[[key]][eventSender, eventReceiver] +
               incrementValue
@@ -1109,7 +1235,8 @@ run_dyad_recipe_loop <- function(
             )
           }
           event_args <- list(
-            sender = eventSender, receiver = eventReceiver,
+            sender = eventSender,
+            receiver = eventReceiver,
             replace = replaceValue
           )
         }
@@ -1117,14 +1244,23 @@ run_dyad_recipe_loop <- function(
         for (gid in plan$routing[[oid]]) {
           template <- effects_template[[gid]]
           netUpdatePos <- netUpdateLookup[oid, gid]
-          if (is.na(netUpdatePos)) netUpdatePos <- NULL
+          if (is.na(netUpdatePos)) {
+            netUpdatePos <- NULL
+          }
           attUpdatePos <- attUpdateLookup[oid, gid]
-          if (is.na(attUpdatePos)) attUpdatePos <- NULL
+          if (is.na(attUpdatePos)) {
+            attUpdatePos <- NULL
+          }
 
           effectUpdate <- call_effect_template(
-            template, gid, shape, event_args,
-            netUpdatePos, attUpdatePos,
-            iTotalEvents - iDependentEvents, interval
+            template,
+            gid,
+            shape,
+            event_args,
+            netUpdatePos,
+            attUpdatePos,
+            iTotalEvents - iDependentEvents,
+            interval
           )
 
           if (!is.null(attr(effectUpdate$cache, "lastUpdate"))) {
@@ -1144,9 +1280,14 @@ run_dyad_recipe_loop <- function(
             event_args2$sender <- event_args$receiver
             event_args2$receiver <- event_args$sender
             effectUpdate2 <- call_effect_template(
-              template, gid, shape, event_args2,
-              netUpdatePos, attUpdatePos,
-              iTotalEvents - iDependentEvents, interval
+              template,
+              gid,
+              shape,
+              event_args2,
+              netUpdatePos,
+              attUpdatePos,
+              iTotalEvents - iDependentEvents,
+              interval
             )
             if (
               !is.null(effectUpdate2$cache) &&
@@ -1166,7 +1307,9 @@ run_dyad_recipe_loop <- function(
               )] <- updates[, "replace"]
             } else if (bcast_kind[gid] != 0L) {
               bc_block <- broadcast_entries_from_updates(
-                updates, bcast_kind[gid], gid
+                updates,
+                bcast_kind[gid],
+                gid
               )
               pending_dep_bc[[length(pending_dep_bc) + 1L]] <- bc_block
               pending_dep_bc_cols <- pending_dep_bc_cols + ncol(bc_block)

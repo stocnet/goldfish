@@ -8,39 +8,66 @@ init_DyNAM_choice_coordination <- function(effectFun, ...) {
 # tie ---------------------------------------------------------------------
 
 update_DyNAM_choice_coordination_tie <- function(
-    network,
-    sender, receiver, replace,
-    weighted = FALSE, transformer_fn = identity) {
+  network,
+  sender,
+  receiver,
+  replace,
+  weighted = FALSE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_tie(
     network = network,
-    sender = sender, receiver = receiver, replace = replace,
-    weighted = weighted, transformer_fn = transformer_fn
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    weighted = weighted,
+    transformer_fn = transformer_fn
   )
 }
 
 # inertia -----------------------------------------------------------------
 update_DyNAM_choice_coordination_inertia <- function(
-    network,
-    sender, receiver, replace,
-    weighted = FALSE, transformer_fn = identity) {
+  network,
+  sender,
+  receiver,
+  replace,
+  weighted = FALSE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_coordination_tie(
     network = network,
-    sender = sender, receiver = receiver, replace = replace,
-    weighted = weighted, transformer_fn = transformer_fn
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    weighted = weighted,
+    transformer_fn = transformer_fn
   )
 }
 
 # indeg -------------------------------------------------------------------
 update_DyNAM_choice_coordination_indeg <- function(
-    network,
-    sender, receiver, replace, cache,
-    n1, n2, is_two_mode = FALSE,
-    weighted = FALSE, transformer_fn = identity) {
+  network,
+  sender,
+  receiver,
+  replace,
+  cache,
+  n1,
+  n2,
+  is_two_mode = FALSE,
+  weighted = FALSE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_indeg(
     network = network,
-    sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, is_two_mode = is_two_mode,
-    weighted = weighted, transformer_fn = transformer_fn
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    cache = cache,
+    n1 = n1,
+    n2 = n2,
+    is_two_mode = is_two_mode,
+    weighted = weighted,
+    transformer_fn = transformer_fn
   )
 }
 
@@ -60,45 +87,63 @@ update_DyNAM_choice_coordination_indeg <- function(
 
 # trans -------------------------------------------------------------------
 update_DyNAM_choice_coordination_trans <- function(
-    network,
-    sender,
-    receiver,
-    replace, cache,
-    is_two_mode = FALSE,
-    transformer_fn = identity) {
+  network,
+  sender,
+  receiver,
+  replace,
+  cache,
+  is_two_mode = FALSE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_trans(
     network = network,
-    sender = sender, receiver = receiver, replace = replace, cache = cache,
-    is_two_mode = is_two_mode, transformer_fn = transformer_fn
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    cache = cache,
+    is_two_mode = is_two_mode,
+    transformer_fn = transformer_fn
   )
 }
 
 # mixed_trans --------------------------------------------------------------
 update_DyNAM_choice_coordination_mixed_trans <- function(
-    network,
-    sender,
-    receiver,
-    replace, netUpdate, cache,
-    is_two_mode = FALSE,
-    transformer_fn = identity) {
+  network,
+  sender,
+  receiver,
+  replace,
+  netUpdate,
+  cache,
+  is_two_mode = FALSE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_mixed_trans(
     network = network,
-    sender = sender, receiver = receiver, replace = replace,
-    netUpdate = netUpdate, cache = cache,
-    is_two_mode = is_two_mode, transformer_fn = transformer_fn
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    netUpdate = netUpdate,
+    cache = cache,
+    is_two_mode = is_two_mode,
+    transformer_fn = transformer_fn
   )
 }
 
 # four --------------------------------------------------------------------
 update_DyNAM_choice_coordination_four <- function(
-    network,
-    sender, receiver, replace,
-    cache,
-    is_two_mode = FALSE,
-    transformer_fn = identity) {
+  network,
+  sender,
+  receiver,
+  replace,
+  cache,
+  is_two_mode = FALSE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_four(
     network = network,
-    sender = sender, receiver = receiver, replace = replace,
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
     cache = cache,
     is_two_mode = is_two_mode,
     transformer_fn = transformer_fn
@@ -107,17 +152,19 @@ update_DyNAM_choice_coordination_four <- function(
 
 # tertius ----------------------------------------------------------------
 update_DyNAM_choice_coordination_tertius <- function(
-    network,
-    attribute,
-    sender = NULL,
-    receiver = NULL,
-    node = NULL,
-    replace,
-    cache,
-    is_two_mode = FALSE,
-    n1 = n1, n2 = n2,
-    transformer_fn = identity,
-    summarizer_fn = function(x) mean(x, na.rm = TRUE)) {
+  network,
+  attribute,
+  sender = NULL,
+  receiver = NULL,
+  node = NULL,
+  replace,
+  cache,
+  is_two_mode = FALSE,
+  n1 = n1,
+  n2 = n2,
+  transformer_fn = identity,
+  summarizer_fn = function(x) mean(x, na.rm = TRUE)
+) {
   update_DyNAM_choice_tertius(
     network = network,
     attribute = attribute,
@@ -127,7 +174,8 @@ update_DyNAM_choice_coordination_tertius <- function(
     replace = replace,
     cache = cache,
     is_two_mode = is_two_mode,
-    n1 = n1, n2 = n2,
+    n1 = n1,
+    n2 = n2,
     transformer_fn = transformer_fn,
     summarizer_fn = summarizer_fn
   )
@@ -191,17 +239,19 @@ update_DyNAM_choice_coordination_tertius <- function(
 #' )
 #' }
 update_DyNAM_choice_coordination_tertius_diff <- function(
-    network,
-    attribute,
-    sender = NULL,
-    receiver = NULL,
-    node = NULL,
-    replace,
-    cache,
-    is_two_mode = FALSE,
-    n1 = n1, n2 = n2,
-    transformer_fn = abs,
-    summarizer_fn = function(x) mean(x, na.rm = TRUE)) {
+  network,
+  attribute,
+  sender = NULL,
+  receiver = NULL,
+  node = NULL,
+  replace,
+  cache,
+  is_two_mode = FALSE,
+  n1 = n1,
+  n2 = n2,
+  transformer_fn = abs,
+  summarizer_fn = function(x) mean(x, na.rm = TRUE)
+) {
   update_DyNAM_choice_tertius_diff(
     network = network,
     attribute = attribute,
@@ -211,7 +261,8 @@ update_DyNAM_choice_coordination_tertius_diff <- function(
     replace = replace,
     cache = cache,
     is_two_mode = is_two_mode,
-    n1 = n1, n2 = n2,
+    n1 = n1,
+    n2 = n2,
     transformer_fn = transformer_fn,
     summarizer_fn = summarizer_fn
   )
@@ -219,18 +270,25 @@ update_DyNAM_choice_coordination_tertius_diff <- function(
 
 # nodeTrans ------------------------------------------------------------------
 update_DyNAM_choice_coordination_node_trans <- function(
-    network,
-    sender,
-    receiver,
-    replace,
-    cache,
-    n1, n2,
-    is_two_mode = FALSE,
-    transformer_fn = identity) {
+  network,
+  sender,
+  receiver,
+  replace,
+  cache,
+  n1,
+  n2,
+  is_two_mode = FALSE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_node_trans(
     network = network,
-    sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, is_two_mode = is_two_mode,
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    cache = cache,
+    n1 = n1,
+    n2 = n2,
+    is_two_mode = is_two_mode,
     transformer_fn = transformer_fn
   )
 }
@@ -238,40 +296,54 @@ update_DyNAM_choice_coordination_node_trans <- function(
 # Covariate effects -------------------------------------------------------
 # alter -------------------------------------------------------------------
 update_DyNAM_choice_coordination_alter <- function(
-    attribute,
-    node, replace,
-    n1, n2,
-    is_two_mode = FALSE) {
+  attribute,
+  node,
+  replace,
+  n1,
+  n2,
+  is_two_mode = FALSE
+) {
   update_DyNAM_choice_alter(
     attribute = attribute,
-    node = node, replace = replace,
-    n1 = n1, n2 = n2,
+    node = node,
+    replace = replace,
+    n1 = n1,
+    n2 = n2,
     is_two_mode = is_two_mode
   )
 }
 
 # same --------------------------------------------------------------------
 update_DyNAM_choice_coordination_same <- function(
-    attribute,
-    node, replace,
-    is_two_mode = FALSE) {
+  attribute,
+  node,
+  replace,
+  is_two_mode = FALSE
+) {
   update_DyNAM_choice_same(
     attribute = attribute,
-    node = node, replace = replace,
+    node = node,
+    replace = replace,
     is_two_mode = is_two_mode
   )
 }
 
 # diff --------------------------------------------------------------------
 update_DyNAM_choice_coordination_diff <- function(
-    attribute, node, replace,
-    n1, n2,
-    is_two_mode = FALSE,
-    transformer_fn = abs) {
+  attribute,
+  node,
+  replace,
+  n1,
+  n2,
+  is_two_mode = FALSE,
+  transformer_fn = abs
+) {
   update_DyNAM_choice_diff(
     attribute = attribute,
-    node = node, replace = replace,
-    n1 = n1, n2 = n2,
+    node = node,
+    replace = replace,
+    n1 = n1,
+    n2 = n2,
     is_two_mode = is_two_mode,
     transformer_fn = transformer_fn
   )
@@ -279,14 +351,20 @@ update_DyNAM_choice_coordination_diff <- function(
 
 # sim ---------------------------------------------------------------------
 update_DyNAM_choice_coordination_sim <- function(
-    attribute, node, replace,
-    n1, n2,
-    is_two_mode = FALSE,
-    transformer_fn = abs) {
+  attribute,
+  node,
+  replace,
+  n1,
+  n2,
+  is_two_mode = FALSE,
+  transformer_fn = abs
+) {
   update_DyNAM_choice_sim(
     attribute = attribute,
-    node = node, replace = replace,
-    n1 = n1, n2 = n2,
+    node = node,
+    replace = replace,
+    n1 = n1,
+    n2 = n2,
     is_two_mode = is_two_mode,
     transformer_fn = transformer_fn
   )
@@ -294,16 +372,22 @@ update_DyNAM_choice_coordination_sim <- function(
 
 # ego alter interaction ---------------------------------------------------
 update_DyNAM_choice_coordination_ego_alter_interaction <- function(
-    attribute, node, replace,
-    attUpdate,
-    n1, n2,
-    is_two_mode = FALSE,
-    transformer_fn = identity) {
+  attribute,
+  node,
+  replace,
+  attUpdate,
+  n1,
+  n2,
+  is_two_mode = FALSE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_ego_alter_interaction(
     attribute = attribute,
-    node = node, replace = replace,
+    node = node,
+    replace = replace,
     attUpdate = attUpdate,
-    n1 = n1, n2 = n2,
+    n1 = n1,
+    n2 = n2,
     is_two_mode = is_two_mode,
     transformer_fn = transformer_fn
   )

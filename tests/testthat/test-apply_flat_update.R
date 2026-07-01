@@ -2,8 +2,14 @@ test_that("apply_flat_update writes sender-indexed updates", {
   statsArray <- matrix(0, nrow = 3, ncol = 2)
   updates <- matrix(
     c(
-      0, 0, 0, 1.5,
-      2, 1, 1, -2
+      0,
+      0,
+      0,
+      1.5,
+      2,
+      1,
+      1,
+      -2
     ),
     nrow = 4
   )
@@ -17,8 +23,14 @@ test_that("apply_flat_update writes dyad-indexed updates", {
   statsArray <- array(0, dim = c(3, 3, 2))
   updates <- matrix(
     c(
-      0, 1, 0, 1.5,
-      2, 0, 1, -2
+      0,
+      1,
+      0,
+      1.5,
+      2,
+      0,
+      1,
+      -2
     ),
     nrow = 4
   )
@@ -32,8 +44,14 @@ test_that("apply_flat_update with duplicated cells keeps the last value", {
   statsArray <- matrix(0, nrow = 2, ncol = 1)
   updates <- matrix(
     c(
-      0, 0, 0, 1,
-      0, 0, 0, 7
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      7
     ),
     nrow = 4
   )

@@ -34,7 +34,8 @@
 parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
   dep_name <- get_dependent_name(formula)
   if (!inherits(get(dep_name, envir = envir), "dependent.goldfish")) {
-    stop("The left hand side of the formula should contain dependent events",
+    stop(
+      "The left hand side of the formula should contain dependent events",
       " (check the function 'make_dependent_events()').",
       call. = FALSE
     )
@@ -53,11 +54,12 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
       rhs_names[[i]][[2]] <- default_network_name
     }
   }
-  
+
   window_parameters <- lapply(rhs_names, getElement, "window")
   rhs_names <- parse_time_windows(
     rhs_names,
-    envir = envir, realize_windows = realize_windows
+    envir = envir,
+    realize_windows = realize_windows
   )
   # Metadata recipe for the windowed derivations (design D8): each windowed
   # effect's derived-network/dissolve-stream recipe, carried on parsed_formula so
@@ -72,16 +74,21 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
   # FALSE (recipe path); parse_multiple_effects() must recognize them as networks
   # from the recipe instead of fetching the (absent) object.
   derived_names <- vapply(
-    window_derivations, function(d) d$derived_name, character(1)
+    window_derivations,
+    function(d) d$derived_name,
+    character(1)
   )
   mult <- parse_multiple_effects(
     rhs_names,
-    envir = envir, derived_names = derived_names
+    envir = envir,
+    derived_names = derived_names
   )
   rhs_names <- mult[[1]]
   ignore_rep_parameter <- mult[[2]]
   if (any(unlist(ignore_rep_parameter)) && is.null(default_network_name)) {
-    stop("No default network defined, thus ", dQuote("ignore_repetitions = TRUE"),
+    stop(
+      "No default network defined, thus ",
+      dQuote("ignore_repetitions = TRUE"),
       " effects cannot be used.",
       call. = FALSE
     )
@@ -100,7 +107,8 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
     v <- gsub("['\" ]", "", v) # replace quotation marks
     v <- ifelse(
       grepl("function.?\\(", v) || nchar(v) > 12,
-      "userDefined", v
+      "userDefined",
+      v
     ) # if it is a function, it is replace by short text
   }
   trans_parameter <- lapply(rhs_names, get_fun_name, "transformer_fn")
@@ -113,13 +121,13 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
     v <- getElement(x, "subType")
     ifelse(!is.null(v), v, "")
   })
-  
+
   # history parameter closure effects
   history_parameter <- lapply(rhs_names, function(x) {
     v <- getElement(x, "history")
     ifelse(!is.null(v), eval(parse(text = v), envir = envir), "")
   })
-  
+
   res <- list(
     rhs_names = rhs_names,
     dep_name = dep_name,
@@ -148,7 +156,11 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
 #    are new, and with the
 #    the index of the effect in the old formula if the effect was already there
 compare_formulas <- function(
-    old_parsed_formula, new_parsed_formula, model, sub_model) {
+  old_parsed_formula,
+  new_parsed_formula,
+  model,
+  sub_model
+) {
   # global check
   if (identical(old_parsed_formula, new_parsed_formula)) {
     return(seq_along(new_parsed_formula$rhs_names))
@@ -160,10 +172,12 @@ compare_formulas <- function(
       " the preprocessed object given in preprocessingInit."
     )
   }
-  if (!identical(
-    old_parsed_formula$default_network_name,
-    new_parsed_formula$default_network_name
-  )) {
+  if (
+    !identical(
+      old_parsed_formula$default_network_name,
+      new_parsed_formula$default_network_name
+    )
+  ) {
     stop(
       "The default network in the formula is not the one used in",
       " the preprocessed object given in preprocessingInit."
@@ -171,8 +185,12 @@ compare_formulas <- function(
   }
   old_has_intercept <- old_parsed_formula$has_intercept
   new_has_intercept <- new_parsed_formula$has_intercept
-  if (model %in% "DyNAM" && sub_model %in% c("choice", "choice_coordination") &&
-    old_has_intercept) {
+  if (
+    model %in%
+      "DyNAM" &&
+      sub_model %in% c("choice", "choice_coordination") &&
+      old_has_intercept
+  ) {
     old_has_intercept <- FALSE
     new_has_intercept <- FALSE
   }
@@ -191,21 +209,28 @@ compare_formulas <- function(
   size_old <- length(old_parsed_formula$rhs_names)
   size_new <- length(new_parsed_formula$rhs_names)
   effects_indexes <- rep(0, size_new)
-  slot_compare <- names(old_parsed_formula) 
-  slot_compare <- slot_compare[!slot_compare %in% c(
-    "dep_name", "has_intercept", "default_network_name",
-    # window_derivations is one row per windowed network, not per effect, so it
-    # cannot be compared elementwise against the effect indices below.
-    "window_derivations"
-  )]
+  slot_compare <- names(old_parsed_formula)
+  slot_compare <- slot_compare[
+    !slot_compare %in%
+      c(
+        "dep_name",
+        "has_intercept",
+        "default_network_name",
+        # window_derivations is one row per windowed network, not per effect, so it
+        # cannot be compared elementwise against the effect indices below.
+        "window_derivations"
+      )
+  ]
   for (i in seq.int(size_new)) {
     for (j in seq.int(size_old)) {
       flag <- FALSE
       for (slot_name in slot_compare) {
-        if (!identical(
-          old_parsed_formula[[slot_name]][[j]],
-          new_parsed_formula[[slot_name]][[i]]
-        )) {
+        if (
+          !identical(
+            old_parsed_formula[[slot_name]][[j]],
+            new_parsed_formula[[slot_name]][[i]]
+          )
+        ) {
           flag <- TRUE
         }
       }
@@ -260,9 +285,16 @@ compare_formulas <- function(
 #'   link inputs the recipe loops consume.
 #' @noRd
 build_spec_map <- function(
-    parsed_formula, model_spec, effects, window_parameters,
-    objects_effects_link, events_objects_link, events_effects_link, fetch_plan,
-    envir = new.env()) {
+  parsed_formula,
+  model_spec,
+  effects,
+  window_parameters,
+  objects_effects_link,
+  events_objects_link,
+  events_effects_link,
+  fetch_plan,
+  envir = new.env()
+) {
   stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
   nodes <- model_spec$nodes
   nodes2 <- model_spec$nodes2
@@ -270,14 +302,21 @@ build_spec_map <- function(
   # only the object-keys mapping, so read it directly (class/structure only) —
   # do NOT materialise a state container here (no network/nodal data copied).
   object_keys <- build_object_keys(
-    rownames(objects_effects_link), nodes, nodes2,
-    envir = envir, derivations = parsed_formula$window_derivations
+    rownames(objects_effects_link),
+    nodes,
+    nodes2,
+    envir = envir,
+    derivations = parsed_formula$window_derivations
   )
   state_keys <- structure(list(), object_keys = object_keys)
   plan <- build_update_plan(
-    effects, events_objects_link, events_effects_link, objects_effects_link,
+    effects,
+    events_objects_link,
+    events_effects_link,
+    objects_effects_link,
     state_keys,
-    stat_kind = stat_kind, envir = envir,
+    stat_kind = stat_kind,
+    envir = envir,
     derivations = parsed_formula$window_derivations
   )
   # Derived-input registry (design D8, task 2.3d): one entry per derived object,
@@ -286,10 +325,14 @@ build_spec_map <- function(
   # State creation iterates this to realize each derived object (no tables or
   # assign happen here).
   plan$derivations <- build_derivations(
-    parsed_formula$window_derivations, objects_effects_link, envir = envir
+    parsed_formula$window_derivations,
+    objects_effects_link,
+    envir = envir
   )
   effects_template <- build_effects_template(
-    effects, objects_effects_link, state_keys
+    effects,
+    objects_effects_link,
+    state_keys
   )
   # Print/naming metadata is formula-derived, so it is owned here once (design
   # D8) and rendered on demand per context (console / db / export) by
@@ -325,8 +368,11 @@ build_spec_map <- function(
 # `{derived_name, kind, source, source_streams, params, gids}`, or `NULL` when
 # there are no derivations, which state creation iterates to realize each
 # derived object into the state container.
-build_derivations <- function(window_derivations, objects_effects_link,
-                              envir = new.env()) {
+build_derivations <- function(
+  window_derivations,
+  objects_effects_link,
+  envir = new.env()
+) {
   if (length(window_derivations) == 0) {
     return(NULL)
   }
@@ -374,8 +420,13 @@ find_derivation <- function(name, window_derivations) {
   NULL
 }
 
-create_effects_functions <- function(effect_init, model, sub_model,
-                                   envir = environment(), derivations = NULL) {
+create_effects_functions <- function(
+  effect_init,
+  model,
+  sub_model,
+  envir = environment(),
+  derivations = NULL
+) {
   .stat_method <- paste("init", model, sub_model, sep = "_")
   # Two-mode guard (below) evaluates the effect's network argument to read its
   # nodesets. On the recipe path a windowed effect's network arg is the *derived*
@@ -391,14 +442,16 @@ create_effects_functions <- function(effect_init, model, sub_model,
       source_name <- src_map[[derived_name]]
       if (!already_realized && exists(source_name, envir = envir)) {
         assign(
-          derived_name, get(source_name, envir = envir),
+          derived_name,
+          get(source_name, envir = envir),
           envir = probe_envir
         )
       }
     }
   }
   effects <- lapply(
-    effect_init, function(x, model, sub_model) {
+    effect_init,
+    function(x, model, sub_model) {
       fun_text <- paste("update", model, sub_model, x[[1]], sep = "_")
       FUN <- tryCatch(
         eval(parse(text = fun_text), envir = environment()),
@@ -412,12 +465,16 @@ create_effects_functions <- function(effect_init, model, sub_model,
           error = function(e) stop("Unknown effect ", x[[1]])
         )
       }
-      .FUN_stat <- utils::getS3method(.stat_method, x[[1]],
+      .FUN_stat <- utils::getS3method(
+        .stat_method,
+        x[[1]],
         optional = TRUE,
         envir = environment()
       )
       if (is.null(.FUN_stat)) {
-        .FUN_stat <- utils::getS3method(.stat_method, "default",
+        .FUN_stat <- utils::getS3method(
+          .stat_method,
+          "default",
           optional = TRUE,
           envir = envir
         )
@@ -437,7 +494,9 @@ create_effects_functions <- function(effect_init, model, sub_model,
         ))
       }
       name_arg <- parms_to_set[[1]]
-      parms_to_set <- lapply(parms_to_set, function(s) call("eval", parse(text = s)))
+      parms_to_set <- lapply(parms_to_set, function(s) {
+        call("eval", parse(text = s))
+      })
       .args_replace <- pmatch(names(parms_to_set), .args_names)
       names_ <- names(parms_to_set)[named_params]
       .signature[na.omit(.args_replace)] <- parms_to_set[!is.na(.args_replace)]
@@ -446,30 +505,42 @@ create_effects_functions <- function(effect_init, model, sub_model,
       .signature[is_condition] <- parms_to_set[!named_params]
       if ("network" %in% .args_names && "is_two_mode" %in% .args_names) {
         is_two_mode <- length(attr(
-          eval(.signature[["network"]], envir = probe_envir), "nodes"
-        )) > 1
-        if (!is.null(parms_to_set[["is_two_mode"]]) &&
-          eval(parms_to_set[["is_two_mode"]], envir = envir) != is_two_mode) {
+          eval(.signature[["network"]], envir = probe_envir),
+          "nodes"
+        )) >
+          1
+        if (
+          !is.null(parms_to_set[["is_two_mode"]]) &&
+            eval(parms_to_set[["is_two_mode"]], envir = envir) != is_two_mode
+        ) {
           warning(
             "The \"is_two_mode\" parameter in effect ",
-            x[[1]], " has a different value than",
+            x[[1]],
+            " has a different value than",
             " the attributes on network argument '",
-            x[[2]], "'",
-            call. = FALSE, immediate. = TRUE
+            x[[2]],
+            "'",
+            call. = FALSE,
+            immediate. = TRUE
           )
         } else if (is_two_mode && is.null(parms_to_set[["is_two_mode"]])) {
           .signature[["is_two_mode"]] <- is_two_mode
           warning(
-            "Setting 'is_two_mode' parameter in effect ", x[[1]],
-            " to TRUE for network '", x[[2]], "'",
-            call. = FALSE, immediate. = TRUE
+            "Setting 'is_two_mode' parameter in effect ",
+            x[[1]],
+            " to TRUE for network '",
+            x[[2]],
+            "'",
+            call. = FALSE,
+            immediate. = TRUE
           )
         }
       }
       formals(FUN) <- .signature
       return(list(effect = FUN, initEffect = .FUN_stat))
     },
-    model, sub_model
+    model,
+    sub_model
   )
   structure(effects, class = "goldfish.formulae")
 }
@@ -502,8 +573,9 @@ create_windowed_events <- function(object_events, window) {
 # literal 1 -- the same term parse_intercept inspected under the old walker.
 has_explicit_intercept <- function(rhs) {
   node <- rhs
-  while (is.call(node) && length(node) == 3L &&
-    identical(node[[1]], as.name("+"))) {
+  while (
+    is.call(node) && length(node) == 3L && identical(node[[1]], as.name("+"))
+  ) {
     node <- node[[2]]
   }
   is.numeric(node) && length(node) == 1L && node == 1
@@ -544,18 +616,27 @@ get_dependent_name <- function(formula) {
 # incidence rows (and thus with the events list produced by fetch_events()), in
 # the same order, so downstream indexing is unchanged.
 build_events_objects_link <- function(
-    dep_name, rhs_names, nodes = NULL, nodes2 = NULL,
-    envir = environment(), derivations = NULL) {
+  dep_name,
+  rhs_names,
+  nodes = NULL,
+  nodes2 = NULL,
+  envir = environment(),
+  derivations = NULL
+) {
   object_names <- getDataObjects(rhs_names)
   events_objects_link <- data.frame(
     events = dep_name,
     name = NA,
     object = NA,
     nodeset = NA,
-    attribute = NA, stringsAsFactors = FALSE
+    attribute = NA,
+    stringsAsFactors = FALSE
   )
   fetch_plan <- list(list(
-    stream = dep_name, sanitize = TRUE, s_nodes = nodes, s_nodes2 = nodes2
+    stream = dep_name,
+    sanitize = TRUE,
+    s_nodes = nodes,
+    s_nodes2 = nodes2
   ))
 
   is_attribute <- is.na(object_names$object)
@@ -587,9 +668,15 @@ build_events_objects_link <- function(
         cbind(events = ev_name, object_names[i, ])
       )
       for (en in ev_name) {
-        fetch_plan <- c(fetch_plan, list(list(
-          stream = en, sanitize = TRUE, s_nodes = node_set, s_nodes2 = node_set
-        )))
+        fetch_plan <- c(
+          fetch_plan,
+          list(list(
+            stream = en,
+            sanitize = TRUE,
+            s_nodes = node_set,
+            s_nodes2 = node_set
+          ))
+        )
       }
     }
   }
@@ -604,13 +691,17 @@ build_events_objects_link <- function(
     if (!is.null(derivation)) {
       source_object <- get(derivation$source_name, envir = envir)
       ev_names <- paste(
-        attr(source_object, "events"), derivation$window,
+        attr(source_object, "events"),
+        derivation$window,
         sep = "_"
       )
       nodes_object <- attr(source_object, "nodes")
     } else {
       ev_names <- attr(get(object_names[i, ]$object, envir = envir), "events")
-      nodes_object <- attr(get(object_names[i, ]$object, envir = envir), "nodes")
+      nodes_object <- attr(
+        get(object_names[i, ]$object, envir = envir),
+        "nodes"
+      )
     }
     if (length(nodes_object) > 1) {
       net_nodes <- nodes_object[1]
@@ -625,10 +716,15 @@ build_events_objects_link <- function(
         cbind(events = ev_names, object_names[i, ], row.names = NULL)
       )
       for (en in ev_names) {
-        fetch_plan <- c(fetch_plan, list(list(
-          stream = en, sanitize = TRUE,
-          s_nodes = net_nodes, s_nodes2 = net_nodes2
-        )))
+        fetch_plan <- c(
+          fetch_plan,
+          list(list(
+            stream = en,
+            sanitize = TRUE,
+            s_nodes = net_nodes,
+            s_nodes2 = net_nodes2
+          ))
+        )
       }
     }
   }
@@ -654,11 +750,20 @@ fetch_events <- function(fetch_plan, envir = environment()) {
 }
 
 get_events_and_objects_link <- function(
-    dep_name, rhs_names, nodes = NULL, nodes2 = NULL,
-    envir = environment(), derivations = NULL) {
+  dep_name,
+  rhs_names,
+  nodes = NULL,
+  nodes2 = NULL,
+  envir = environment(),
+  derivations = NULL
+) {
   link <- build_events_objects_link(
-    dep_name, rhs_names, nodes, nodes2,
-    envir = envir, derivations = derivations
+    dep_name,
+    rhs_names,
+    nodes,
+    nodes2,
+    envir = envir,
+    derivations = derivations
   )
   events <- fetch_events(link$fetch_plan, envir = envir)
   list(events, link$events_objects_link)
@@ -671,7 +776,9 @@ get_events_and_objects_link <- function(
 get_events_effects_link <- function(rhs_names, events_objects_link) {
   stream_names <- events_objects_link$events
   events_effects_link <- matrix(
-    data = NA, nrow = length(stream_names), ncol = length(rhs_names),
+    data = NA,
+    nrow = length(stream_names),
+    ncol = length(rhs_names),
     dimnames = list(
       stream_names,
       vapply(rhs_names, FUN = "[[", FUN.VALUE = character(1), i = 1)
@@ -689,7 +796,9 @@ get_objects_effects_link <- function(rhs_names) {
   obj_names <- getDataObjects(rhs_names)$name
   eff_names <- vapply(rhs_names, FUN = "[[", FUN.VALUE = character(1), i = 1)
   objects_effects_link <- matrix(
-    data = NA, nrow = length(obj_names), ncol = length(eff_names),
+    data = NA,
+    nrow = length(obj_names),
+    ncol = length(eff_names),
     dimnames = list(obj_names, eff_names)
   )
   obj_as_params <- lapply(rhs_names, function(x) getDataObjects(list(x)))
@@ -708,7 +817,9 @@ get_rhs_names <- function(formula) {
   # non-interaction formulas (verified term-for-term in discovery 0.3).
   variables <- as.list(attr(parsed, "variables"))[-1]
   response <- attr(parsed, "response")
-  if (response > 0) variables <- variables[-response]
+  if (response > 0) {
+    variables <- variables[-response]
+  }
 
   reject_unsupported_terms(variables)
 
@@ -741,8 +852,7 @@ parse_intercept <- function(rhs_names) {
   v <- NA
   tryCatch(
     v <- as.numeric(rhs_names[[1]][[1]]),
-    warning = function(x) {
-    }
+    warning = function(x) {}
   )
   if (!is.na(v) && v == 1) {
     intercept <- TRUE
@@ -752,8 +862,11 @@ parse_intercept <- function(rhs_names) {
 }
 
 parse_multiple_effects <- function(
-    rhs_names, default = FALSE, envir = environment(),
-    derived_names = character(0)) {
+  rhs_names,
+  default = FALSE,
+  envir = environment(),
+  derived_names = character(0)
+) {
   multiple <- list()
   multiple_names <- character(0)
   for (i in seq_along(rhs_names)) {
@@ -789,20 +902,35 @@ parse_multiple_effects <- function(
     }
     # A derived (windowed) network is a valid object even before it is realized
     # on the recipe path, so it is exempt from the existence guard.
-    if (!is.na(name) && name != "" && !(name %in% derived_names) &&
-      !exists(name, envir = envir)) {
-      stop("Unknown object in 'ignore_repetitions' parameter: ", name, call. = FALSE)
+    if (
+      !is.na(name) &&
+        name != "" &&
+        !(name %in% derived_names) &&
+        !exists(name, envir = envir)
+    ) {
+      stop(
+        "Unknown object in 'ignore_repetitions' parameter: ",
+        name,
+        call. = FALSE
+      )
     }
     multiple <- append(multiple, multiple_param)
     multiple_names <- c(multiple_names, name)
-    rhs_names[[i]] <- if (length(id) > 0) rhs_names[[i]][-id] else rhs_names[[i]]
+    rhs_names[[i]] <- if (length(id) > 0) {
+      rhs_names[[i]][-id]
+    } else {
+      rhs_names[[i]]
+    }
   }
   names(multiple) <- multiple_names
   return(list(rhs_names, multiple))
 }
 
-parse_time_windows <- function(rhs_names, envir = new.env(),
-                               realize_windows = TRUE) {
+parse_time_windows <- function(
+  rhs_names,
+  envir = new.env(),
+  realize_windows = TRUE
+) {
   object_names <- getDataObjects(rhs_names)
   has_windows <- which(
     vapply(rhs_names, function(x) !is.null(getElement(x, "window")), logical(1))
@@ -822,31 +950,44 @@ parse_time_windows <- function(rhs_names, envir = new.env(),
       error = function(e) {
         e$message <- paste(
           "Invalid window parameter for effect ",
-          rhs_names[[i]][[1]], " ", rhs_names[[i]][[2]],
-          ":\n", e$message
+          rhs_names[[i]][[1]],
+          " ",
+          rhs_names[[i]][[2]],
+          ":\n",
+          e$message
         )
         stop(e)
       }
     )
     is_valid_name <- grepl("^[[:alpha:]][[:alnum:]_.]+$", window_name)
-    if (inherits(window, c("Period", "Duration")) &&
-      "lubridate" %in% attr(attr(window, "class"), "package")) {
+    if (
+      inherits(window, c("Period", "Duration")) &&
+        "lubridate" %in% attr(attr(window, "class"), "package")
+    ) {
       if (!is_valid_name) {
         window_name <- gsub("\\s", "", as.character(window))
         if (inherits(window, "Duration")) {
           window_name <- gsub(
-            "^(\\d+s)\\s*(\\(.+\\))$", "\\1",
+            "^(\\d+s)\\s*(\\(.+\\))$",
+            "\\1",
             as.character(window)
           )
         }
       }
     } else if (inherits(window, "character")) {
-      if (!is_valid_name) window_name <- gsub(" ", "", window)
-      if (!is.numeric(window) &&
-        !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)) {
+      if (!is_valid_name) {
+        window_name <- gsub(" ", "", window)
+      }
+      if (
+        !is.numeric(window) &&
+          !grepl("^\\d+ (sec|min|hour|day|week|month|year)", window)
+      ) {
         stop(
-          "The window effect specified with the effect ", rhs_names[[i]][[1]],
-          " ", rhs_names[[i]][[2]], " is not in the form 'number unit'\n",
+          "The window effect specified with the effect ",
+          rhs_names[[i]][[1]],
+          " ",
+          rhs_names[[i]][[2]],
+          " is not in the form 'number unit'\n",
           " or the number is not an integer number\n",
           " or the unit is not between the accepted options:\n\t",
           "seconds, minutes, hours, weeks, months, years"
@@ -867,17 +1008,22 @@ parse_time_windows <- function(rhs_names, envir = new.env(),
       if (grepl("week", window)) {
         window <- as.numeric(strsplit(window, " ")[[1]][1]) * 604800
       }
-      if (grepl("month", window)) { # lubridate approximation
+      if (grepl("month", window)) {
+        # lubridate approximation
         window <- as.numeric(strsplit(window, " ")[[1]][1]) * 2629800
       }
-      if (grepl("year", window)) { # lubridate approximation
+      if (grepl("year", window)) {
+        # lubridate approximation
         window <- as.numeric(strsplit(window, " ")[[1]][1]) * 31557600
       }
-    } else if (is.numeric(window)) { # check numeric type
+    } else if (is.numeric(window)) {
+      # check numeric type
       if (window < 0) {
         stop(
           "The window specified with the effect ",
-          rhs_names[[i]][[1]], " ", rhs_names[[i]][[2]],
+          rhs_names[[i]][[1]],
+          " ",
+          rhs_names[[i]][[2]],
           " is not a positive numeric value"
         )
       }
@@ -893,7 +1039,10 @@ parse_time_windows <- function(rhs_names, envir = new.env(),
       attr_inners <- inner_names[grepl("\\$", inner_names)]
       for (attr_ref in attr_inners) {
         msg <- paste0(
-          "Effect {.code ", effect_name, "} on {.code ", attr_ref,
+          "Effect {.code ",
+          effect_name,
+          "} on {.code ",
+          attr_ref,
           "} must not have a {.arg window} argument,",
           " remove it from the formula."
         )
@@ -903,7 +1052,10 @@ parse_time_windows <- function(rhs_names, envir = new.env(),
       objects <- object_names[object_names$name == name, ]
       if (nrow(objects) > 0 && !is.na(objects$attribute[1])) {
         msg <- paste0(
-          "Effect {.code ", effect_name, "} on {.code ", name,
+          "Effect {.code ",
+          effect_name,
+          "} on {.code ",
+          name,
           "} must not have a {.arg window} argument,",
           " remove it from the formula."
         )
@@ -943,8 +1095,10 @@ parse_time_windows <- function(rhs_names, envir = new.env(),
         net_name <- inner_names[j]
         new_net_name <- paste(net_name, window_name, sep = "_")
         derivations[[length(derivations) + 1L]] <- list(
-          derived_name = new_net_name, source_name = net_name,
-          window = window, kind = "window"
+          derived_name = new_net_name,
+          source_name = net_name,
+          window = window,
+          kind = "window"
         )
         if (realize_windows) {
           realize_windowed_network(net_name, new_net_name, window, envir)
@@ -956,8 +1110,10 @@ parse_time_windows <- function(rhs_names, envir = new.env(),
     } else {
       new_name <- paste(name, window_name, sep = "_")
       derivations[[length(derivations) + 1L]] <- list(
-        derived_name = new_name, source_name = name,
-        window = window, kind = "window"
+        derived_name = new_name,
+        source_name = name,
+        window = window,
+        kind = "window"
       )
       if (realize_windows) {
         realize_windowed_network(name, new_name, window, envir)

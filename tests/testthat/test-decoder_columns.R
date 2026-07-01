@@ -2,7 +2,8 @@ test_that("decoder columns persisted on result$names", {
   mod <- estimate_wrapper(
     depNetwork ~ inertia(networkState) +
       outdeg(networkExog, weighted = TRUE),
-    data = dataTest, sub_model = "choice"
+    data = dataTest,
+    sub_model = "choice"
   )
   cols <- colnames(mod$names)
   expect_true(all(
@@ -44,7 +45,8 @@ test_that("term_label reads dot-column when present, computes when absent", {
   mod <- estimate_wrapper(
     depNetwork ~ inertia(networkState) +
       outdeg(networkExog, weighted = TRUE),
-    data = dataTest, sub_model = "choice"
+    data = dataTest,
+    sub_model = "choice"
   )
   fromCache <- term_label(mod$names, ".coef_name", "coef")
   stripped <- mod$names[, !startsWith(colnames(mod$names), "."), drop = FALSE]

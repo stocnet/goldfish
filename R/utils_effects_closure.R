@@ -18,8 +18,8 @@ apply_two_path_update <- function(res, ids, replace, oldValue, transformer_fn) {
     )
     res$cache[cbind(ids[, 1], ids[, 2])] <- replaceValues
     res$changes <- cbind(
-      node1   = ids[, 1],
-      node2   = ids[, 2],
+      node1 = ids[, 1],
+      node2 = ids[, 2],
       replace = forceAndCall(1, transformer_fn, replaceValues)
     )
   }

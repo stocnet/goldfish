@@ -1,8 +1,10 @@
 test_that("dynam rate recipe produces the flat preprocessing output", {
   preproData <- estimate_wrapper(
-    depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
+    depNetwork ~ 1 +
+      outdeg(networkState, weighted = TRUE) +
       indeg(networkExog, weighted = TRUE),
-    model = "DyNAM", sub_model = "rate",
+    model = "DyNAM",
+    sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -27,7 +29,8 @@ test_that("dynam rate recipe produces the flat preprocessing output", {
 test_that("dynam rate recipe stores the intercept scalars", {
   preproData <- estimate_wrapper(
     depNetwork ~ 1 + outdeg(networkState, weighted = TRUE),
-    model = "DyNAM", sub_model = "rate",
+    model = "DyNAM",
+    sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -43,7 +46,8 @@ test_that("dynam rate recipe stores the intercept scalars", {
 test_that("dynam rate recipe stores presence updates in C format", {
   preproData <- estimate_wrapper(
     depNetwork ~ 1 + outdeg(networkState, weighted = TRUE),
-    model = "DyNAM", sub_model = "rate",
+    model = "DyNAM",
+    sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -60,9 +64,11 @@ test_that("dynam rate recipe stores presence updates in C format", {
 
 test_that("dynam rate recipe replay matches the replayed initial stats", {
   preproData <- estimate_wrapper(
-    depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
+    depNetwork ~ 1 +
+      outdeg(networkState, weighted = TRUE) +
       indeg(networkExog, weighted = TRUE),
-    model = "DyNAM", sub_model = "rate",
+    model = "DyNAM",
+    sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -89,7 +95,8 @@ test_that("dynam rate recipe replay matches the replayed initial stats", {
 test_that("dynam rate ordered recipe stores dependent events only", {
   preproData <- estimate_wrapper(
     depNetwork ~ outdeg(networkState, weighted = TRUE),
-    model = "DyNAM", sub_model = "rate_ordered",
+    model = "DyNAM",
+    sub_model = "rate_ordered",
     data = dataTest,
     preprocessing_only = TRUE
   )
@@ -108,24 +115,28 @@ test_that("dynam rate ordered recipe stores dependent events only", {
 })
 
 test_that("flat preprocessing reused through preprocessing_init", {
-  formulaFull <- depNetwork ~ 1 + outdeg(networkState, weighted = TRUE) +
+  formulaFull <- depNetwork ~ 1 +
+    outdeg(networkState, weighted = TRUE) +
     indeg(networkExog, weighted = TRUE)
   preproData <- estimate_wrapper(
     formulaFull,
-    model = "DyNAM", sub_model = "rate",
+    model = "DyNAM",
+    sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   )
   prepSubset <- estimate_wrapper(
     depNetwork ~ 1 + indeg(networkExog, weighted = TRUE),
-    model = "DyNAM", sub_model = "rate",
+    model = "DyNAM",
+    sub_model = "rate",
     data = dataTest,
     preprocessing_init = preproData,
     preprocessing_only = TRUE
   )
   prepDirect <- estimate_wrapper(
     depNetwork ~ 1 + indeg(networkExog, weighted = TRUE),
-    model = "DyNAM", sub_model = "rate",
+    model = "DyNAM",
+    sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   )

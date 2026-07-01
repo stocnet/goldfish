@@ -1,22 +1,36 @@
 # define methods ----------------------------------------------------------
 # init cache data structure: vector or matrix
 init_DyNAMi_rate <- function(
-    effectFun, network, attribute, groupsNetwork, window, n1, n2) {
+  effectFun,
+  network,
+  attribute,
+  groupsNetwork,
+  window,
+  n1,
+  n2
+) {
   UseMethod("init_DyNAMi_rate", effectFun)
 }
 
 # default -----------------------------------------------------------------
 #' @export
 init_DyNAMi_rate.default <- function(
-    effectFun,
-    network = NULL, attribute = NULL,
-    groupsNetwork, window,
-    n1, n2) {
+  effectFun,
+  network = NULL,
+  attribute = NULL,
+  groupsNetwork,
+  window,
+  n1,
+  n2
+) {
   init_DyNAMi_choice.default(
     effectFun = effectFun,
-    network = network, attribute = attribute,
-    groupsNetwork = groupsNetwork, window = window,
-    n1 = n1, n2 = n2
+    network = network,
+    attribute = attribute,
+    groupsNetwork = groupsNetwork,
+    window = window,
+    n1 = n1,
+    n2 = n2
   )
 }
 
@@ -25,12 +39,17 @@ init_DyNAMi_rate.default <- function(
 # initStat_DyNAMi_rate_intercept <- function()
 
 update_DyNAMi_rate_intercept <- function(
-    network,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    weighted = FALSE,
-    joining = 1) {
+  network,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  weighted = FALSE,
+  joining = 1
+) {
   reptotal <- NULL
 
   # JOINING RATE
@@ -97,18 +116,29 @@ update_DyNAMi_rate_intercept <- function(
 # initStat_DyNAMi_rate_inertia <- function()
 
 update_DyNAMi_rate_inertia <- function(
-    network,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    weighted = TRUE, subType = "proportion",
-    joining = -1) {
+  network,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  weighted = TRUE,
+  subType = "proportion",
+  joining = -1
+) {
   update_DyNAMi_rate_tie(
     network = network,
     groupsNetwork = groupsNetwork,
-    sender = sender, receiver = receiver, replace = replace,
-    n1 = n1, n2 = n2, statistics = statistics,
-    weighted = weighted, subType = subType,
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    n1 = n1,
+    n2 = n2,
+    statistics = statistics,
+    weighted = weighted,
+    subType = subType,
     joining = joining
   )
 }
@@ -117,12 +147,18 @@ update_DyNAMi_rate_inertia <- function(
 # initStat_DyNAMi_rate_tie <- function()
 
 update_DyNAMi_rate_tie <- function(
-    network,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    weighted = FALSE, subType = "proportion",
-    joining = -1) {
+  network,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  weighted = FALSE,
+  subType = "proportion",
+  joining = -1
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -184,12 +220,18 @@ update_DyNAMi_rate_tie <- function(
 # initStat_DyNAMi_rate_egodeg <- function()
 
 update_DyNAMi_rate_egodeg <- function(
-    network,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    weighted = TRUE, subType = "identity",
-    joining = 1) {
+  network,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  weighted = TRUE,
+  subType = "identity",
+  joining = 1
+) {
   reptotal <- NULL
   meandeg <- mean(rowSums(network))
   sddeg <- sd(rowSums(network))
@@ -290,18 +332,29 @@ update_DyNAMi_rate_egodeg <- function(
 # initStat_DyNAMi_rate_egopop <- function()
 
 update_DyNAMi_rate_egopop <- function(
-    network,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    weighted = TRUE, subType = "normalized",
-    joining = 1) {
+  network,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  weighted = TRUE,
+  subType = "normalized",
+  joining = 1
+) {
   update_DyNAMi_rate_egodeg(
     network = network,
     groupsNetwork = groupsNetwork,
-    sender = sender, receiver = receiver, replace = replace,
-    n1 = n1, n2 = n2, statistics = statistics,
-    weighted = weighted, subType = subType,
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    n1 = n1,
+    n2 = n2,
+    statistics = statistics,
+    weighted = weighted,
+    subType = subType,
     joining = joining
   )
 }
@@ -310,12 +363,18 @@ update_DyNAMi_rate_egopop <- function(
 # initStat_DyNAMi_rate_alterdeg <- function()
 
 update_DyNAMi_rate_alterdeg <- function(
-    network,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    weighted = TRUE, subType = "mean",
-    joining = -1) {
+  network,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  weighted = TRUE,
+  subType = "mean",
+  joining = -1
+) {
   reptotal <- NULL
   meandeg <- mean(rowSums(network))
   maxdeg <- max(rowSums(network))
@@ -405,18 +464,29 @@ update_DyNAMi_rate_alterdeg <- function(
 # initStat_DyNAMi_rate_alterpop <- function()
 
 update_DyNAMi_rate_alterpop <- function(
-    network,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    weighted = TRUE, subType = "mean_normalized",
-    joining = -1) {
+  network,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  weighted = TRUE,
+  subType = "mean_normalized",
+  joining = -1
+) {
   update_DyNAMi_rate_alterdeg(
     network = network,
     groupsNetwork = groupsNetwork,
-    sender = sender, receiver = receiver, replace = replace,
-    n1 = n1, n2 = n2, statistics = statistics,
-    weighted = weighted, subType = subType,
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    n1 = n1,
+    n2 = n2,
+    statistics = statistics,
+    weighted = weighted,
+    subType = subType,
     joining = joining
   )
 }
@@ -425,12 +495,18 @@ update_DyNAMi_rate_alterpop <- function(
 # initStat_DyNAMi_rate_size <- function()
 
 update_DyNAMi_rate_size <- function(
-    network,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    weighted = FALSE, subType = "identity",
-    joining = -1) {
+  network,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  weighted = FALSE,
+  subType = "identity",
+  joining = -1
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -484,12 +560,18 @@ update_DyNAMi_rate_size <- function(
 # initStat_DyNAMi_rate_dyad <- function()
 
 update_DyNAMi_rate_dyad <- function(
-    network,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    weighted = FALSE, subType = "identity",
-    joining = -1) {
+  network,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  weighted = FALSE,
+  subType = "identity",
+  joining = -1
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -539,18 +621,22 @@ update_DyNAMi_rate_dyad <- function(
 
 # Covariate effects -------------------------------------------------------
 
-
 # ego -------------------------------------------------------------------
 # initStat_DyNAMi_rate_ego <- function()
 
 update_DyNAMi_rate_ego <- function(
-    attribute,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    subType = "identity",
-    joining = 1,
-    node = 0) {
+  attribute,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  subType = "identity",
+  joining = 1,
+  node = 0
+) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -656,13 +742,18 @@ update_DyNAMi_rate_ego <- function(
 # initStat_DyNAMi_rate_alter <- function()
 
 update_DyNAMi_rate_alter <- function(
-    attribute,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    subType = "mean",
-    joining = -1,
-    node = 0) {
+  attribute,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  subType = "mean",
+  joining = -1,
+  node = 0
+) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -756,13 +847,18 @@ update_DyNAMi_rate_alter <- function(
 # initStat_DyNAMi_rate_same <- function()
 
 update_DyNAMi_rate_same <- function(
-    attribute,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    subType = "proportion",
-    joining = -1,
-    node = 0) {
+  attribute,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  subType = "proportion",
+  joining = -1,
+  node = 0
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -817,13 +913,18 @@ update_DyNAMi_rate_same <- function(
 # initStat_DyNAMi_rate_diff <- function()
 
 update_DyNAMi_rate_diff <- function(
-    attribute,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    subType = "averaged_sum",
-    joining = -1,
-    node = 0) {
+  attribute,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  subType = "averaged_sum",
+  joining = -1,
+  node = 0
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -891,13 +992,18 @@ update_DyNAMi_rate_diff <- function(
 # initStat_DyNAMi_rate_sim <- function()
 
 update_DyNAMi_rate_sim <- function(
-    attribute,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    subType = "averaged_sum",
-    joining = -1,
-    node = 0) {
+  attribute,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  subType = "averaged_sum",
+  joining = -1,
+  node = 0
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -958,13 +1064,18 @@ update_DyNAMi_rate_sim <- function(
 # initStat_DyNAMi_rate_sizeXdiff <- function()
 
 update_DyNAMi_rate_sizeXdiff <- function(
-    attribute,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    subType = "averaged_sum",
-    joining = -1,
-    node = 0) {
+  attribute,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  subType = "averaged_sum",
+  joining = -1,
+  node = 0
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -995,7 +1106,8 @@ update_DyNAMi_rate_sizeXdiff <- function(
 
       if (subType == "averaged_sum") {
         rep <- nmembers *
-          sum(abs(attribute[smembers] - attribute[i])) / snmembers
+          sum(abs(attribute[smembers] - attribute[i])) /
+          snmembers
       }
       if (subType == "mean") {
         rep <- nmembers * abs(mean(attribute[smembers]) - attribute[i])
@@ -1024,13 +1136,18 @@ update_DyNAMi_rate_sizeXdiff <- function(
 # initStat_DyNAMi_rate_dyadXdiff <- function()
 
 update_DyNAMi_rate_dyadXdiff <- function(
-    attribute,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    subType = "averaged_sum",
-    joining = -1,
-    node = 0) {
+  attribute,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  subType = "averaged_sum",
+  joining = -1,
+  node = 0
+) {
   reptotal <- NULL
 
   # LEAVING MODEL
@@ -1094,13 +1211,18 @@ update_DyNAMi_rate_dyadXdiff <- function(
 # initStat_DyNAMi_rate_sizeXego <- function()
 
 update_DyNAMi_rate_sizeXego <- function(
-    attribute,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    subType = "identity",
-    joining = -1,
-    node = 0) {
+  attribute,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  subType = "identity",
+  joining = -1,
+  node = 0
+) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)
@@ -1165,13 +1287,18 @@ update_DyNAMi_rate_sizeXego <- function(
 # initStat_DyNAMi_rate_dyadXego <- function()
 
 update_DyNAMi_rate_dyadXego <- function(
-    attribute,
-    groupsNetwork,
-    sender, receiver, replace,
-    n1, n2, statistics,
-    subType = "identity",
-    joining = -1,
-    node = 0) {
+  attribute,
+  groupsNetwork,
+  sender,
+  receiver,
+  replace,
+  n1,
+  n2,
+  statistics,
+  subType = "identity",
+  joining = -1,
+  node = 0
+) {
   reptotal <- NULL
   meanatt <- mean(attribute)
   sdatt <- sd(attribute)

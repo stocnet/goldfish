@@ -4,20 +4,44 @@
 # Defaults
 m <- matrix(
   c(
-    0, 1, 1, 0, 0,
-    1, 0, 1, 0, 0,
-    0, 1, 0, 2, 0,
-    2, 0, 0, 0, 1,
-    NA, 0, 0, 0, 0
+    0,
+    1,
+    1,
+    0,
+    0,
+    1,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1,
+    0,
+    2,
+    0,
+    2,
+    0,
+    0,
+    0,
+    1,
+    NA,
+    0,
+    0,
+    0,
+    0
   ),
-  nrow = 5, ncol = 5, byrow = TRUE,
+  nrow = 5,
+  ncol = 5,
+  byrow = TRUE,
   dimnames = list(
     sprintf("Actor %d", 1:5),
     sprintf("Actor %d", 1:5)
   )
 )
-m0 <- matrix(0,
-  nrow = 5, ncol = 5,
+m0 <- matrix(
+  0,
+  nrow = 5,
+  ncol = 5,
   dimnames = list(
     sprintf("Actor %d", 1:5),
     sprintf("Actor %d", 1:5)
@@ -25,13 +49,35 @@ m0 <- matrix(0,
 )
 m1 <- matrix(
   c(
-    0, 1, 1, 1, 0,
-    1, 0, 1, 0, 0,
-    0, 1, 0, 2, 0,
-    2, 0, 0, 0, 1,
-    0, 0, 0, 0, 0
+    0,
+    1,
+    1,
+    1,
+    0,
+    1,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1,
+    0,
+    2,
+    0,
+    2,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
   ),
-  nrow = 5, ncol = 5, byrow = TRUE,
+  nrow = 5,
+  ncol = 5,
+  byrow = TRUE,
   dimnames = list(
     sprintf("Actor %d", 1:5),
     sprintf("Actor %d", 1:5)
@@ -60,13 +106,35 @@ mBiparStats[1, 4] <- 1
 # Caches ------------------------------------------------------------
 mCache <- matrix(
   c(
-    0, 2, 1, 0, 0,
-    1, 0, 1, 0, 0,
-    0, 1, 1, 1, 0,
-    0, 0, 0, 0, 1,
-    NA, 0, 0, 0, 0
+    0,
+    2,
+    1,
+    0,
+    0,
+    1,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    NA,
+    0,
+    0,
+    0,
+    0
   ),
-  nrow = 5, ncol = 5, byrow = TRUE,
+  nrow = 5,
+  ncol = 5,
+  byrow = TRUE,
   dimnames = list(
     sprintf("Actor %d", 1:5),
     sprintf("Actor %d", 1:5)
@@ -77,8 +145,14 @@ vCache <- c(0, 2, 3, 1, 0)
 # Attributes  -------------------------------------------------------
 testAttr <- data.frame(
   label = c(
-    "Christoph", "James", "Per", "Timon", "Marion", "Mepham",
-    "Xiaolei", "Federica"
+    "Christoph",
+    "James",
+    "Per",
+    "Timon",
+    "Marion",
+    "Mepham",
+    "Xiaolei",
+    "Federica"
   ),
   fishingSkill = c(10, NA, 5, 10, 8, 8, 3, NA),
   fishCaught = c(1, 99, 15, 12, 15, 8, 0, 2),
@@ -88,80 +162,118 @@ testAttr <- data.frame(
 
 # Effect Functions  -------------------------------------------------
 effectFUN <- function(
-    network, sender, receiver, replace, cache, weighted = FALSE,
-    is_two_mode = FALSE,
-    transformer_fn = identity) {}
+  network,
+  sender,
+  receiver,
+  replace,
+  cache,
+  weighted = FALSE,
+  is_two_mode = FALSE,
+  transformer_fn = identity
+) {}
 
 effectFUN_tie <- function(
-    network,
-    sender, receiver, replace,
-    weighted = FALSE, transformer_fn = identity) {
+  network,
+  sender,
+  receiver,
+  replace,
+  weighted = FALSE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_tie(
     network = network,
-    sender = sender, receiver = receiver, replace = replace,
-    weighted = weighted, transformer_fn = transformer_fn
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    weighted = weighted,
+    transformer_fn = transformer_fn
   )
 }
 
 effectFUN_tie_weighted <- function(
-    network,
-    sender, receiver, replace,
-    weighted = TRUE, transformer_fn = identity) {
+  network,
+  sender,
+  receiver,
+  replace,
+  weighted = TRUE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_tie(
     network = network,
-    sender = sender, receiver = receiver, replace = replace,
-    weighted = weighted, transformer_fn = transformer_fn
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    weighted = weighted,
+    transformer_fn = transformer_fn
   )
 }
 
 effectFUN_same <- function(
-    attribute,
-    node, replace,
-    is_two_mode = FALSE) {
+  attribute,
+  node,
+  replace,
+  is_two_mode = FALSE
+) {
   update_DyNAM_choice_same(
     attribute = attribute,
-    node = node, replace = replace,
+    node = node,
+    replace = replace,
     is_two_mode = is_two_mode
   )
 }
 
 effectFUN_indeg <- function(
-    network,
-    sender, receiver, replace,
-    cache, n1, n2,
-    is_two_mode = FALSE,
-    weighted = FALSE, transformer_fn = identity) {
+  network,
+  sender,
+  receiver,
+  replace,
+  cache,
+  n1,
+  n2,
+  is_two_mode = FALSE,
+  weighted = FALSE,
+  transformer_fn = identity
+) {
   update_DyNAM_choice_indeg(
     network = network,
-    sender = sender, receiver = receiver, replace = replace, cache = cache,
-    n1 = n1, n2 = n2, is_two_mode = is_two_mode,
-    weighted = weighted, transformer_fn = transformer_fn
+    sender = sender,
+    receiver = receiver,
+    replace = replace,
+    cache = cache,
+    n1 = n1,
+    n2 = n2,
+    is_two_mode = is_two_mode,
+    weighted = weighted,
+    transformer_fn = transformer_fn
   )
 }
 
 effectFUN_closure <- function(
-    network,
-    sender,
-    receiver,
-    replace, cache,
-    is_two_mode = FALSE,
-    transformer_fn = identity,
-    history = "pooled") {
-}
+  network,
+  sender,
+  receiver,
+  replace,
+  cache,
+  is_two_mode = FALSE,
+  transformer_fn = identity,
+  history = "pooled"
+) {}
 
 
 effectFUN_tertius <- function(
-    network,
-    attribute,
-    sender = NULL,
-    receiver = NULL,
-    node = NULL,
-    replace,
-    cache,
-    is_two_mode = FALSE,
-    n1 = n1, n2 = n2,
-    transformer_fn = abs,
-    summarizer_fn = function(x) mean(x, na.rm = TRUE)) {
+  network,
+  attribute,
+  sender = NULL,
+  receiver = NULL,
+  node = NULL,
+  replace,
+  cache,
+  is_two_mode = FALSE,
+  n1 = n1,
+  n2 = n2,
+  transformer_fn = abs,
+  summarizer_fn = function(x) mean(x, na.rm = TRUE)
+) {
   update_DyNAM_choice_tertius_diff(
     network = network,
     attribute = attribute,
@@ -171,46 +283,61 @@ effectFUN_tertius <- function(
     replace = replace,
     cache = cache,
     is_two_mode = is_two_mode,
-    n1 = n1, n2 = n2,
+    n1 = n1,
+    n2 = n2,
     transformer_fn = transformer_fn,
     summarizer_fn = summarizer_fn
   )
 }
 
 effectFUN_REM_ego <- function(
-    attribute,
-    node, replace,
-    n1, n2,
-    is_two_mode = FALSE) {
+  attribute,
+  node,
+  replace,
+  n1,
+  n2,
+  is_two_mode = FALSE
+) {
   update_REM_choice_ego(
     attribute = attribute,
-    node = node, replace = replace,
-    n1 = n1, n2 = n2,
+    node = node,
+    replace = replace,
+    n1 = n1,
+    n2 = n2,
     is_two_mode = is_two_mode
   )
 }
 
 effectFUN_REM_diff <- function(
-    attribute, node, replace,
-    n1, n2,
-    is_two_mode = FALSE,
-    transformer_fn = abs) {
+  attribute,
+  node,
+  replace,
+  n1,
+  n2,
+  is_two_mode = FALSE,
+  transformer_fn = abs
+) {
   update_DyNAM_choice_diff(
     attribute = attribute,
-    node = node, replace = replace,
+    node = node,
+    replace = replace,
     is_two_mode = is_two_mode,
-    n1 = n1, n2 = n2,
+    n1 = n1,
+    n2 = n2,
     transformer_fn = transformer_fn
   )
 }
 
 effectFUN_REM_sim <- function(
-    attribute,
-    node, replace,
-    is_two_mode = FALSE) {
+  attribute,
+  node,
+  replace,
+  is_two_mode = FALSE
+) {
   update_DyNAM_choice_same(
     attribute = attribute,
-    node = node, replace = replace,
+    node = node,
+    replace = replace,
     is_two_mode = is_two_mode
   )
 }
@@ -273,13 +400,35 @@ clubsEx <- link_events(
 # direct network
 networkState <- matrix(
   c(
-    0, 3, 0, 0, 0,
-    1, 0, 1, 1, 0,
-    0, 0, 0, 1, 0,
-    0, 0, 1, 0, 0,
-    0, 0, 0, 0, 0
+    0,
+    3,
+    0,
+    0,
+    0,
+    1,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
   ),
-  nrow = 5, ncol = 5, byrow = TRUE,
+  nrow = 5,
+  ncol = 5,
+  byrow = TRUE,
   dimnames = list(
     sprintf("Actor %d", 1:5),
     sprintf("Actor %d", 1:5)
@@ -298,13 +447,13 @@ eventsIncrement <- data.frame(
     "Actor %d",
     c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)
   ),
-  increment =
-    c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
+  increment = c(1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1),
   stringsAsFactors = FALSE
 )
 
 networkState <- make_network(
-  matrix = networkState, nodes = actorsEx,
+  matrix = networkState,
+  nodes = actorsEx,
   directed = TRUE
 )
 networkState <- link_events(
@@ -322,13 +471,35 @@ depNetwork <- make_dependent_events(
 
 networkStateTrans <- matrix(
   c(
-    0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
   ),
-  nrow = 5, ncol = 5, byrow = TRUE,
+  nrow = 5,
+  ncol = 5,
+  byrow = TRUE,
   dimnames = list(
     sprintf("Actor %d", 1:5),
     sprintf("Actor %d", 1:5)
@@ -347,13 +518,13 @@ eventsIncrementTrans <- data.frame(
     "Actor %d",
     c(2, 2, 3, 3, 1, 5, 4, 4, 2, 3, 2, 2)
   ),
-  increment =
-    c(1, 2, 0, 0, 1, 2, 1, -1, 1, 1, 1, 1),
+  increment = c(1, 2, 0, 0, 1, 2, 1, -1, 1, 1, 1, 1),
   stringsAsFactors = FALSE
 )
 
 networkStateTrans <- make_network(
-  matrix = networkStateTrans, nodes = actorsEx,
+  matrix = networkStateTrans,
+  nodes = actorsEx,
   directed = TRUE
 )
 networkStateTrans <- link_events(
@@ -372,13 +543,35 @@ dataTrans <- make_data(depNetworkTrans)
 # exogenous network
 networkExog <- matrix(
   c(
-    0, 0, 0, 1, 0,
-    0, 0, 0, 0, 0,
-    0, 2, 0, 0, 0,
-    1, 0, 0, 0, 0,
-    1, 2, 0, 0, 0
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    2,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    2,
+    0,
+    0,
+    0
   ),
-  nrow = 5, ncol = 5, byrow = TRUE,
+  nrow = 5,
+  ncol = 5,
+  byrow = TRUE,
   dimnames = list(
     sprintf("Actor %d", 1:5),
     sprintf("Actor %d", 1:5)
@@ -386,8 +579,7 @@ networkExog <- matrix(
 )
 
 eventsExogenous <- data.frame(
-  time =
-    c(7, 14, 15, 18, 18, 25, 25),
+  time = c(7, 14, 15, 18, 18, 25, 25),
   sender = sprintf(
     "Actor %d",
     c(4, 2, 5, 4, 4, 1, 3)
@@ -396,15 +588,15 @@ eventsExogenous <- data.frame(
     "Actor %d",
     c(2, 3, 1, 5, 2, 3, 5)
   ),
-  increment =
-    c(1, 1, 3, 1, -1, 2, 3),
+  increment = c(1, 1, 3, 1, -1, 2, 3),
   stringsAsFactors = FALSE
 )
 
 # define goldfish objects
 networkExog <- make_network(
   matrix = networkExog,
-  nodes = actorsEx, directed = TRUE
+  nodes = actorsEx,
+  directed = TRUE
 )
 networkExog <- link_events(
   x = networkExog,
@@ -417,13 +609,25 @@ dataTest <- make_data(depNetwork, networkExog)
 
 networkActorClub <- matrix(
   c(
-    1, 0, 0,
-    1, 0, 1,
-    0, 0, 0,
-    0, 1, 0,
-    0, 1, 0
+    1,
+    0,
+    0,
+    1,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0
   ),
-  nrow = 5, ncol = 3, byrow = TRUE,
+  nrow = 5,
+  ncol = 3,
+  byrow = TRUE,
   dimnames = list(
     sprintf("Actor %d", 1:5),
     sprintf("Club %d", 1:3)
@@ -431,8 +635,7 @@ networkActorClub <- matrix(
 )
 
 eventsActorClub <- data.frame(
-  time =
-    c(3, 8, 12, 17, 20, 30, 35),
+  time = c(3, 8, 12, 17, 20, 30, 35),
   sender = sprintf(
     "Actor %d",
     c(1, 4, 5, 2, 3, 1, 3)
@@ -441,18 +644,20 @@ eventsActorClub <- data.frame(
     "Club %d",
     c(2, 1, 2, 2, 1, 1, 3)
   ),
-  replace =
-    c(1, 1, 0, 1, 1, 0, 1)
+  replace = c(1, 1, 0, 1, 1, 0, 1)
 )
 
 networkActorClub <- make_network(
   matrix = networkActorClub,
-  nodes = actorsEx, nodes2 = clubsEx, directed = TRUE
+  nodes = actorsEx,
+  nodes2 = clubsEx,
+  directed = TRUE
 )
 networkActorClub <- link_events(
   x = networkActorClub,
   change_events = eventsActorClub,
-  nodes = actorsEx, nodes2 = clubsEx
+  nodes = actorsEx,
+  nodes2 = clubsEx
 )
 
 # DyNAM-i -----------------------------------------------------------
@@ -481,12 +686,26 @@ compchanges_DyNAMi <- data.frame(
 # Actor x Group matrix ----------------------------------------------
 covnetwork_DyNAMi <- matrix(
   c(
-    0, 1, 1, 0,
-    1, 0, 1, 0,
-    1, 1, 0, 0,
-    0, 0, 0, 0
+    0,
+    1,
+    1,
+    0,
+    1,
+    0,
+    1,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
   ),
-  nrow = 4, ncol = 4, byrow = TRUE,
+  nrow = 4,
+  ncol = 4,
+  byrow = TRUE,
   dimnames = list(
     sprintf("Actor %d", 1:4),
     sprintf("Group %d", 1:4)
@@ -541,27 +760,35 @@ initnetwork_DyNAMi <- structure(
 
 interaction_network_DyNAMi <- make_network(
   matrix = initnetwork_DyNAMi,
-  nodes = actors_DyNAMi, nodes2 = groups_DyNAMi, directed = TRUE
+  nodes = actors_DyNAMi,
+  nodes2 = groups_DyNAMi,
+  directed = TRUE
 )
 
 interaction_network_DyNAMi <- link_events(
-  x = interaction_network_DyNAMi, change_events = depevents_DyNAMi,
-  nodes = actors_DyNAMi, nodes2 = groups_DyNAMi
+  x = interaction_network_DyNAMi,
+  change_events = depevents_DyNAMi,
+  nodes = actors_DyNAMi,
+  nodes2 = groups_DyNAMi
 )
 interaction_network_DyNAMi <- link_events(
-  x = interaction_network_DyNAMi, change_events = exoevents_DyNAMi,
-  nodes = actors_DyNAMi, nodes2 = groups_DyNAMi
+  x = interaction_network_DyNAMi,
+  change_events = exoevents_DyNAMi,
+  nodes = actors_DyNAMi,
+  nodes2 = groups_DyNAMi
 )
 
 past_network_DyNAMi <- make_network(nodes = actors_DyNAMi, directed = FALSE)
 past_network_DyNAMi <- link_events(
-  x = past_network_DyNAMi, change_events = pastupdates_DyNAMi,
+  x = past_network_DyNAMi,
+  change_events = pastupdates_DyNAMi,
   nodes = actors_DyNAMi
 )
 
 dependent.depevents_DyNAMi <- make_dependent_events(
   events = depevents_DyNAMi,
-  nodes = actors_DyNAMi, nodes2 = groups_DyNAMi,
+  nodes = actors_DyNAMi,
+  nodes2 = groups_DyNAMi,
   default_network = interaction_network_DyNAMi
 )
 
@@ -574,21 +801,30 @@ resModObject <- structure(
     finalScore = c(0.000200290995642893, 0, 1.49135840820103e-05),
     finalInformationMatrix = matrix(
       c(
-        41.6502772825771, 20.354755811421, 2.46078347465864, 20.354755811421,
-        49.9909036131337, 10.6250978238344, 2.46078347465864, 10.6250978238344,
+        41.6502772825771,
+        20.354755811421,
+        2.46078347465864,
+        20.354755811421,
+        49.9909036131337,
+        10.6250978238344,
+        2.46078347465864,
+        10.6250978238344,
         25.7794286431431
       ),
-      ncol = 3, nrow = 3
+      ncol = 3,
+      nrow = 3
     ),
     convergence = list(isConverged = TRUE, maxAbsScore = 0.000200291),
     nIterations = 7L,
     nEvents = 439L,
     names = matrix(
       c(rep("callNetwork", 3), c("FALSE", "TRUE", "FALSE")),
-      ncol = 2, nrow = 3,
+      ncol = 2,
+      nrow = 3,
       dimnames = list(c("inertia", "recip", "trans"), c("Object", "fixed"))
     ),
-    formula = as.formula("callsDependent ~ inertia + recip + trans",
+    formula = as.formula(
+      "callsDependent ~ inertia + recip + trans",
       env = new.env(parent = emptyenv())
     ),
     model = "DyNAM",

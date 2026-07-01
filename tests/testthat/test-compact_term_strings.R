@@ -1,9 +1,14 @@
 mkNames <- function(effects, ...) {
   cols <- list(...)
-  mat <- matrix("", nrow = length(effects), ncol = length(cols),
+  mat <- matrix(
+    "",
+    nrow = length(effects),
+    ncol = length(cols),
     dimnames = list(effects, names(cols))
   )
-  for (nm in names(cols)) mat[, nm] <- cols[[nm]]
+  for (nm in names(cols)) {
+    mat[, nm] <- cols[[nm]]
+  }
   mat
 }
 
@@ -21,7 +26,9 @@ test_that("object-less effect omits the slash", {
 })
 
 test_that("multiple objects joined with middle dot", {
-  m <- matrix(c("friendship", "advice"), nrow = 1,
+  m <- matrix(
+    c("friendship", "advice"),
+    nrow = 1,
     dimnames = list("mixed_trans", c("Object 1", "Object 2"))
   )
   out <- compact_term_strings(m, mode = "console", width = 200)
@@ -29,8 +36,12 @@ test_that("multiple objects joined with middle dot", {
 })
 
 test_that("arguments collected in one bracket block", {
-  m <- mkNames("inertia",
-    Object = "friendship", weighted = "W", type = "ego", fixed = "TRUE"
+  m <- mkNames(
+    "inertia",
+    Object = "friendship",
+    weighted = "W",
+    type = "ego",
+    fixed = "TRUE"
   )
   out <- compact_term_strings(m, mode = "console", width = 200)
   expect_equal(unname(out), "inertia/friendship [W,ego,Fx]")
@@ -49,24 +60,21 @@ test_that("object trimming drops data-frame prefix", {
 })
 
 test_that("network names shortened to unique prefix on overflow", {
-  m <- mkNames(c("inertia", "recip"),
-    Object = c("friendship", "friendsXX")
-  )
+  m <- mkNames(c("inertia", "recip"), Object = c("friendship", "friendsXX"))
   out <- compact_term_strings(m, mode = "console", width = 16)
   expect_false(any(duplicated(sub("^[^/]+/", "", out))))
 })
 
 test_that("no abbreviation when the column fits", {
-  m <- mkNames(c("inertia", "common_sender"),
-    Object = c("net", "net")
-  )
+  m <- mkNames(c("inertia", "common_sender"), Object = c("net", "net"))
   out <- compact_term_strings(m, mode = "console", width = 200)
   expect_true(any(grepl("inertia", out)))
   expect_true(any(grepl("common_sender", out)))
 })
 
 test_that("column-uniform abbreviation when overflowing", {
-  m <- mkNames(c("inertia", "common_receiver"),
+  m <- mkNames(
+    c("inertia", "common_receiver"),
     Object = c("friendshipNetwork", "collaborationNetwork")
   )
   out <- compact_term_strings(m, mode = "console", width = 18)
@@ -75,7 +83,8 @@ test_that("column-uniform abbreviation when overflowing", {
 })
 
 test_that("inertia and tie remain distinguishable", {
-  m <- mkNames(c("inertia", "tie"),
+  m <- mkNames(
+    c("inertia", "tie"),
     Object = c("friendshipNetwork", "friendshipNetwork")
   )
   out <- compact_term_strings(m, mode = "console", width = 12)
@@ -85,7 +94,8 @@ test_that("inertia and tie remain distinguishable", {
 })
 
 test_that("window short forms", {
-  m <- mkNames(c("inertia", "recip", "outdeg"),
+  m <- mkNames(
+    c("inertia", "recip", "outdeg"),
     Object = c("net", "net", "net"),
     window = c("7 days", "2 weeks", "30")
   )
@@ -96,7 +106,8 @@ test_that("window short forms", {
 })
 
 test_that("transformer/summarizer tokens", {
-  m <- mkNames(c("a", "b", "c"),
+  m <- mkNames(
+    c("a", "b", "c"),
     Object = c("net", "net", "net"),
     transformer_fn = c("sqrt", "", "verylongfunctionname"),
     summarizer_fn = c("mean", "", "")
@@ -107,7 +118,8 @@ test_that("transformer/summarizer tokens", {
 })
 
 test_that("subType uses shortest unique prefix", {
-  m <- mkNames(c("a", "b"),
+  m <- mkNames(
+    c("a", "b"),
     Object = c("net", "net"),
     subType = c("proximity", "popularity")
   )
@@ -123,9 +135,12 @@ test_that("history uses first three characters", {
 })
 
 test_that("ellipsis truncation as final fallback", {
-  m <- mkNames("common_receiver",
+  m <- mkNames(
+    "common_receiver",
     Object = "averyveryverylongnetworkname",
-    weighted = "W", type = "alter", history = "consecutive"
+    weighted = "W",
+    type = "alter",
+    history = "consecutive"
   )
   out <- compact_term_strings(m, mode = "console", width = 12)
   expect_true(nchar(out) <= 12)
@@ -133,7 +148,8 @@ test_that("ellipsis truncation as final fallback", {
 })
 
 test_that("export names are valid, unique, length-bounded", {
-  m <- mkNames(c("inertia", "inertia", "recip"),
+  m <- mkNames(
+    c("inertia", "inertia", "recip"),
     Object = c("friendship", "friendship", "advice"),
     weighted = c("W", "W", "")
   )
@@ -145,7 +161,8 @@ test_that("export names are valid, unique, length-bounded", {
 })
 
 test_that("coef minimal-unique short names", {
-  m <- mkNames(c("indeg", "indeg", "recip"),
+  m <- mkNames(
+    c("indeg", "indeg", "recip"),
     Object = c("callNetwork", "otherNetwork", "callNetwork")
   )
   out <- compact_term_strings(m, mode = "coef")
@@ -155,9 +172,7 @@ test_that("coef minimal-unique short names", {
 })
 
 test_that("dot-prefixed columns are ignored", {
-  m <- mkNames("inertia",
-    Object = "friendship", weighted = "W"
-  )
+  m <- mkNames("inertia", Object = "friendship", weighted = "W")
   m <- cbind(m, .coef_name = "inrt", .term_export = "inertia_friendship")
   out <- compact_term_strings(m, mode = "console", width = 200)
   expect_equal(unname(out), "inertia/friendship [W]")
@@ -175,7 +190,8 @@ test_that(".compactLegend keys only present opaque codes", {
 
 test_that(".compactLegend t:/s: line only when both present", {
   both <- .compactLegend(
-    c("tertius/net [t:sqrt,s:mean]"), c("tertius/net [t:sqrt,s:mean]")
+    c("tertius/net [t:sqrt,s:mean]"),
+    c("tertius/net [t:sqrt,s:mean]")
   )
   expect_true(any(grepl("t: = transformer, s: = summarizer", both)))
   expect_false(any(grepl("compact = FALSE", both)))
