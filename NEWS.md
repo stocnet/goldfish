@@ -1,3 +1,26 @@
+# goldfish 1.8.3
+
+This release completes Stage 1 of the formula-parsing refactor: an internal,
+behaviour-preserving reorganisation of how a model formula is compiled into the
+preprocessing recipe. There are no user-visible changes — fitted coefficients,
+standard errors, and printed output are identical to 1.8.2.
+
+## Internal changes
+
+* Model formulas are now compiled once, up front, into a specification map
+  (`build_spec_map()`) that separates *metadata* (the effects, links, and a
+  registry of derived inputs) from *data*. The shared formula parser no longer
+  mutates the caller's data environment.
+* Windowed networks and their dissolve-event streams are realised, and event
+  streams fetched, inside preprocessing state creation (driven by the derived-
+  input registry) rather than eagerly during parsing. A derived object's
+  inherited metadata (node sets, event streams, direction) is resolved from its
+  source object.
+* The update plan carries new registries reserved for interaction terms and
+  multivariate models (`role`/`estimate`/`fid`/`lid`, `interactions`,
+  `operand_of`, `stat_state_spec`, `formula_effects`); these are populated
+  trivially for now and activated in Stage 2.
+
 # goldfish 1.8.2
 
 This patch release introduces a shared compact term-string renderer so an
