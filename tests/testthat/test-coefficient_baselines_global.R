@@ -11,15 +11,18 @@ baselines_get_global_data <- function(dataset) {
   mget(dataset, envir = baselinesGlobalDataEnv)
 }
 
+baselinesGlobalFits <- baselines_precompute_fits(
+  baselinesGlobalGrid,
+  baselines_get_global_data
+)
+
 for (modelName in names(baselinesGlobalGrid)) {
   for (engine in baselines_engines) {
     test_that(
       sprintf("global baseline coefficients: %s engine %s", modelName, engine),
       {
         skip_on_cran()
-        spec <- baselinesGlobalGrid[[modelName]]
-        dataList <- baselines_get_global_data(spec$dataset)
-        fit <- suppressWarnings(baselines_fit(spec, engine, dataList))
+        fit <- baselines_fits_cell(baselinesGlobalFits, modelName, engine)
         expected <- baselinesGlobal[[modelName]][[engine]]
         expect_true(fit$convergence$isConverged)
         expect_equal(

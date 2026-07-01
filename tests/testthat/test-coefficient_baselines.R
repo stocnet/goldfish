@@ -13,15 +13,18 @@ baselines_get_data <- function(dataset) {
   mget(dataset, envir = baselinesDataEnv)
 }
 
+# Fit every (model, engine) cell up front, in parallel; the blocks below only
+# assert (fast, serial). skip_on_cran() stays authoritative — see
+# baselines_precompute_fits().
+baselinesFits <- baselines_precompute_fits(baselinesGrid, baselines_get_data)
+
 for (modelName in names(baselinesGrid)) {
   for (engine in baselines_engines) {
     test_that(
       sprintf("baseline coefficients: %s engine %s", modelName, engine),
       {
         skip_on_cran()
-        spec <- baselinesGrid[[modelName]]
-        dataList <- baselines_get_data(spec$dataset)
-        fit <- suppressWarnings(baselines_fit(spec, engine, dataList))
+        fit <- baselines_fits_cell(baselinesFits, modelName, engine)
         expected <- baselines[[modelName]][[engine]]
         expect_true(fit$convergence$isConverged)
         expect_equal(

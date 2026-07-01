@@ -196,3 +196,104 @@ baselines_fit <- function(spec, engine, data_list) {
     do.call(estimate_rem, args)
   }
 }
+
+# Worker count for parallel baseline fitting. Serial on Windows (no fork) and
+# for a tiny grid; otherwise detectCores(), overridable via TESTTHAT_CPUS. The
+# baseline blocks are skip_on_cran(), so CRAN's 2-core limit does not apply.
+baselines_cores <- function(n_jobs) {
+  if (.Platform$OS.type == "windows") {
+    return(1L)
+  }
+  env <- Sys.getenv("TESTTHAT_CPUS", "")
+  n <- if (nzchar(env)) {
+    suppressWarnings(as.integer(env))
+  } else {
+    parallel::detectCores()
+  }
+  if (is.na(n) || n < 1L) {
+    n <- 1L
+  }
+  max(1L, min(n, n_jobs))
+}
+
+# Fit every (model, engine) cell of a baseline grid up front, in parallel, so
+# the per-cell test_that() blocks only assert. The independent fits are the
+# suite's dominant cost; forking them (copy-on-write over the parent-loaded
+# datasets) collapses that wall time without touching the frozen baselines.
+# Returns a named list keyed "<model>::<engine>" holding each fit, or the
+# captured error condition so the owning test can re-raise it with the right
+# attribution. `run` gates fitting to when the tests will actually execute
+# (skip_on_cran() stays authoritative): nothing is fit on CRAN.
+baselines_precompute_fits <- function(
+  grid,
+  get_data,
+  engines = baselines_engines,
+  run = interactive() || identical(Sys.getenv("NOT_CRAN"), "true")
+) {
+  keys <- expand.grid(
+    model = names(grid),
+    engine = engines,
+    stringsAsFactors = FALSE
+  )
+  labels <- paste(keys$model, keys$engine, sep = "::")
+  if (!run) {
+    return(stats::setNames(vector("list", length(labels)), labels))
+  }
+  # Load each dataset once in the parent so forked workers inherit it via
+  # copy-on-write rather than re-reading it per cell.
+  for (ds in unique(vapply(grid, `[[`, character(1), "dataset"))) {
+    get_data(ds)
+  }
+  fit_cell <- function(i) {
+    tryCatch(
+      {
+        spec <- grid[[keys$model[i]]]
+        suppressWarnings(
+          baselines_fit(spec, keys$engine[i], get_data(spec$dataset))
+        )
+      },
+      error = function(e) e
+    )
+  }
+  cores <- baselines_cores(nrow(keys))
+  results <- if (cores > 1L) {
+    parallel::mclapply(
+      seq_len(nrow(keys)),
+      fit_cell,
+      mc.cores = cores,
+      mc.preschedule = FALSE
+    )
+  } else {
+    lapply(seq_len(nrow(keys)), fit_cell)
+  }
+  stats::setNames(results, labels)
+}
+
+# Retrieve a precomputed fit, re-raising a worker-side failure (error condition,
+# try-error, or NULL from a crashed fork) as a test failure attributed here.
+baselines_fits_cell <- function(fits, model, engine) {
+  key <- paste(model, engine, sep = "::")
+  fit <- fits[[key]]
+  if (is.null(fit)) {
+    stop("baseline fit missing or crashed for ", key, call. = FALSE)
+  }
+  if (inherits(fit, "condition")) {
+    stop(
+      "baseline fit errored for ",
+      key,
+      ": ",
+      conditionMessage(fit),
+      call. = FALSE
+    )
+  }
+  if (inherits(fit, "try-error")) {
+    stop(
+      "baseline fit errored for ",
+      key,
+      ": ",
+      as.character(fit),
+      call. = FALSE
+    )
+  }
+  fit
+}
