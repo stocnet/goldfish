@@ -369,7 +369,13 @@ update_DyNAM_choice_inertia <- function(
 #' init_DyNAM_choice.indeg(effectFUN, network, NULL, 5, 6)
 #' }
 init_DyNAM_choice.indeg <- function(effectFun, network, window, n1, n2, ...) {
-  formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
+  # A formula-parsed effect already carries the resolved `type` (native ego/alter
+  # in choice, design D1); only inject the alter default for a direct init call
+  # whose closure has no `type` formal. The shared REM init keeps the two-mode
+  # ego guard (task 1.2).
+  if (!"type" %in% names(formals(effectFun))) {
+    formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
+  }
   init_REM_choice.indeg(
     effectFun = effectFun,
     network = network,
@@ -429,7 +435,8 @@ update_DyNAM_choice_indeg <- function(
   n2,
   is_two_mode = FALSE,
   weighted = FALSE,
-  transformer_fn = identity
+  transformer_fn = identity,
+  type = c("alter", "ego")
 ) {
   update_REM_choice_indeg(
     network = network,
@@ -442,7 +449,7 @@ update_DyNAM_choice_indeg <- function(
     is_two_mode = is_two_mode,
     weighted = weighted,
     transformer_fn = transformer_fn,
-    type = "alter"
+    type = type
   )
 }
 
@@ -482,7 +489,11 @@ update_DyNAM_choice_indeg <- function(
 #' init_DyNAM_choice.outdeg(effectFUN, network, 1, 5, 6)
 #' }
 init_DyNAM_choice.outdeg <- function(effectFun, network, window, n1, n2, ...) {
-  formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
+  # See init_DyNAM_choice.indeg: pass a formula-parsed `type` through, inject the
+  # alter default only for a type-less direct init call (design D1).
+  if (!"type" %in% names(formals(effectFun))) {
+    formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
+  }
   init_REM_choice.outdeg(
     effectFun = effectFun,
     network = network,
@@ -542,7 +553,8 @@ update_DyNAM_choice_outdeg <- function(
   n2,
   is_two_mode = FALSE,
   weighted = FALSE,
-  transformer_fn = identity
+  transformer_fn = identity,
+  type = c("alter", "ego")
 ) {
   update_REM_choice_outdeg(
     network = network,
@@ -555,7 +567,7 @@ update_DyNAM_choice_outdeg <- function(
     is_two_mode = is_two_mode,
     weighted = weighted,
     transformer_fn = transformer_fn,
-    type = "alter"
+    type = type
   )
 }
 
@@ -712,7 +724,11 @@ init_DyNAM_choice.node_trans <- function(
   n2,
   ...
 ) {
-  formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
+  # See init_DyNAM_choice.indeg: pass a formula-parsed `type` through, inject the
+  # alter default only for a type-less direct init call (design D1).
+  if (!"type" %in% names(formals(effectFun))) {
+    formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
+  }
   init_REM_choice.node_trans(
     effectFun = effectFun,
     network = network,
@@ -732,7 +748,8 @@ update_DyNAM_choice_node_trans <- function(
   n1,
   n2,
   is_two_mode = FALSE,
-  transformer_fn = identity
+  transformer_fn = identity,
+  type = c("alter", "ego")
 ) {
   update_REM_choice_node_trans(
     network = network,
@@ -744,7 +761,7 @@ update_DyNAM_choice_node_trans <- function(
     n2 = n2,
     is_two_mode = is_two_mode,
     transformer_fn = transformer_fn,
-    type = "alter"
+    type = type
   )
 }
 
@@ -2871,7 +2888,11 @@ init_DyNAM_choice.tertius <- function(
   n2,
   ...
 ) {
-  formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
+  # See init_DyNAM_choice.indeg: pass a formula-parsed `type` through, inject the
+  # alter default only for a type-less direct init call (design D1).
+  if (!"type" %in% names(formals(effectFun))) {
+    formals(effectFun) <- c(formals(effectFun), list(type = "alter"))
+  }
   init_REM_choice.tertius(
     effectFun = effectFun,
     network = network,
@@ -2895,7 +2916,8 @@ update_DyNAM_choice_tertius <- function(
   n1 = n1,
   n2 = n2,
   transformer_fn = identity,
-  summarizer_fn = function(x) mean(x, na.rm = TRUE)
+  summarizer_fn = function(x) mean(x, na.rm = TRUE),
+  type = c("alter", "ego")
 ) {
   update_REM_choice_tertius(
     network = network,
@@ -2910,7 +2932,7 @@ update_DyNAM_choice_tertius <- function(
     n2 = n2,
     transformer_fn = transformer_fn,
     summarizer_fn = summarizer_fn,
-    type = "alter"
+    type = type
   )
 }
 
