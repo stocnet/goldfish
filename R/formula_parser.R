@@ -31,7 +31,7 @@
 #'     indeg(callNetwork, type = "alter")
 #' )
 #' }
-parse_formula <- function(formula, envir = new.env()) {
+parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
   dep_name <- get_dependent_name(formula)
   if (!inherits(get(dep_name, envir = envir), "dependent.goldfish")) {
     stop("The left hand side of the formula should contain dependent events",
@@ -55,7 +55,19 @@ parse_formula <- function(formula, envir = new.env()) {
   }
   
   window_parameters <- lapply(rhs_names, getElement, "window")
-  rhs_names <- parse_time_windows(rhs_names, envir = envir)
+  rhs_names <- parse_time_windows(
+    rhs_names,
+    envir = envir, realize_windows = realize_windows
+  )
+  # Metadata recipe for the windowed derivations (design D8): each windowed
+  # effect's derived-network/dissolve-stream recipe, carried on parsed_formula so
+  # `build_spec_map()` can fill plan$derivations from it. Unlike the other slots
+  # it is NOT per-effect aligned (one row per windowed network), so it is excluded
+  # from the elementwise slot comparison in compare_formulas(). The rewrite of the
+  # effect object refs already happened in parse_time_windows(); realization is
+  # deferred to state creation on the recipe path (realize_windows = FALSE).
+  window_derivations <- attr(rhs_names, "window_derivations")
+  attr(rhs_names, "window_derivations") <- NULL
   mult <- parse_multiple_effects(rhs_names, envir = envir)
   rhs_names <- mult[[1]]
   ignore_rep_parameter <- mult[[2]]
@@ -112,7 +124,8 @@ parse_formula <- function(formula, envir = new.env()) {
     summ_parameter = summ_parameter,
     joining_parameter = joining_parameter,
     sub_type_parameter = sub_type_parameter,
-    history_parameter = history_parameter
+    history_parameter = history_parameter,
+    window_derivations = window_derivations
   )
   return(res)
 }
@@ -171,7 +184,10 @@ compare_formulas <- function(
   effects_indexes <- rep(0, size_new)
   slot_compare <- names(old_parsed_formula) 
   slot_compare <- slot_compare[!slot_compare %in% c(
-    "dep_name", "has_intercept", "default_network_name"
+    "dep_name", "has_intercept", "default_network_name",
+    # window_derivations is one row per windowed network, not per effect, so it
+    # cannot be compared elementwise against the effect indices below.
+    "window_derivations"
   )]
   for (i in seq.int(size_new)) {
     for (j in seq.int(size_old)) {
@@ -628,7 +644,8 @@ parse_multiple_effects <- function(
   return(list(rhs_names, multiple))
 }
 
-parse_time_windows <- function(rhs_names, envir = new.env()) {
+parse_time_windows <- function(rhs_names, envir = new.env(),
+                               realize_windows = TRUE) {
   object_names <- getDataObjects(rhs_names)
   has_windows <- which(
     vapply(rhs_names, function(x) !is.null(getElement(x, "window")), logical(1))
@@ -746,7 +763,14 @@ parse_time_windows <- function(rhs_names, envir = new.env()) {
     ))
   }
 
-  # Phase 2: process network windowing (only reached when no violations found).
+  # Phase 2: rewrite each windowed effect's object reference to the derived
+  # windowed-network name and record a derivation recipe (metadata, design D8).
+  # Realizing the derived network + dissolve-event streams into `envir` is gated
+  # on `realize_windows`: the DyNAMi and legacy paths realize eagerly here so
+  # behaviour is byte-identical; the recipe (DyNAM/REM) path passes FALSE and
+  # defers realization to state creation, driven by plan$derivations. Only
+  # reached when no attribute+window violations were found in Phase 1.
+  derivations <- list()
   for (idx in seq_along(has_windows)) {
     i <- has_windows[idx]
     window <- windows_parsed[[idx]]$window
@@ -760,49 +784,57 @@ parse_time_windows <- function(rhs_names, envir = new.env()) {
       new_inner_names <- character(length(inner_names))
       for (j in seq_along(inner_names)) {
         net_name <- inner_names[j]
-        network <- get(net_name, envir = envir)
         new_net_name <- paste(net_name, window_name, sep = "_")
-        new_network <- matrix(0, nrow = nrow(network), ncol = ncol(network))
-        attr(new_network, "events") <- NULL
-        attr(new_network, "nodes") <- attr(network, "nodes")
-        attr(new_network, "directed") <- attr(network, "directed")
-        dimnames(new_network) <- dimnames(network)
-        class(new_network) <- class(network)
-        all_events <- attr(network, "events")
-        for (events in all_events) {
-          object_events <- get(events, envir = envir)
-          new_events <- create_windowed_events(object_events, window)
-          name_new_events <- paste(events, window, sep = "_")
-          attr(new_network, "events") <-
-            c(attr(new_network, "events"), name_new_events)
-          assign(name_new_events, new_events, envir = envir)
+        derivations[[length(derivations) + 1L]] <- list(
+          derived_name = new_net_name, source_name = net_name,
+          window = window, kind = "window"
+        )
+        if (realize_windows) {
+          realize_windowed_network(net_name, new_net_name, window, envir)
         }
-        assign(new_net_name, new_network, envir = envir)
         new_inner_names[j] <- new_net_name
       }
       rhs_names[[i]][[2]] <-
         paste0("list(", paste(new_inner_names, collapse = ", "), ")")
     } else {
-      rhs_names[[i]][[2]] <- paste(name, window_name, sep = "_")
-      network <- get(name, envir = envir)
-      new_network <- matrix(0, nrow = nrow(network), ncol = ncol(network))
       new_name <- paste(name, window_name, sep = "_")
-      attr(new_network, "events") <- NULL
-      attr(new_network, "nodes") <- attr(network, "nodes")
-      attr(new_network, "directed") <- attr(network, "directed")
-      dimnames(new_network) <- dimnames(network)
-      class(new_network) <- class(network)
-      all_events <- attr(network, "events")
-      for (events in all_events) {
-        object_events <- get(events, envir = envir)
-        new_events <- create_windowed_events(object_events, window)
-        name_new_events <- paste(events, window, sep = "_")
-        attr(new_network, "events") <-
-          c(attr(new_network, "events"), name_new_events)
-        assign(name_new_events, new_events, envir = envir)
+      derivations[[length(derivations) + 1L]] <- list(
+        derived_name = new_name, source_name = name,
+        window = window, kind = "window"
+      )
+      if (realize_windows) {
+        realize_windowed_network(name, new_name, window, envir)
       }
-      assign(new_name, new_network, envir = envir)
+      rhs_names[[i]][[2]] <- new_name
     }
   }
+  attr(rhs_names, "window_derivations") <- derivations
   return(rhs_names)
+}
+
+# Realize a windowed-network derivation into `envir` (design D8 realizer). Builds
+# an empty network with the source network's structure (dims, nodes, directed,
+# class) and, for each source event stream, a windowed dissolve-event table
+# (`create_windowed_events`) named `<stream>_<window>`; the derived network's
+# `events` attribute lists those streams. Both the derived network and its
+# dissolve streams are `assign()`ed into `envir`. Called eagerly by
+# parse_time_windows() (legacy/DyNAMi) and by the recipe state-creation realizer.
+realize_windowed_network <- function(source_name, derived_name, window, envir) {
+  network <- get(source_name, envir = envir)
+  new_network <- matrix(0, nrow = nrow(network), ncol = ncol(network))
+  attr(new_network, "events") <- NULL
+  attr(new_network, "nodes") <- attr(network, "nodes")
+  attr(new_network, "directed") <- attr(network, "directed")
+  dimnames(new_network) <- dimnames(network)
+  class(new_network) <- class(network)
+  all_events <- attr(network, "events")
+  for (events in all_events) {
+    object_events <- get(events, envir = envir)
+    new_events <- create_windowed_events(object_events, window)
+    name_new_events <- paste(events, window, sep = "_")
+    attr(new_network, "events") <-
+      c(attr(new_network, "events"), name_new_events)
+    assign(name_new_events, new_events, envir = envir)
+  }
+  assign(derived_name, new_network, envir = envir)
 }

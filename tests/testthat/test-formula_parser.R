@@ -52,7 +52,7 @@ test_that("choice formula", {
   
   # rhs_names <- parse_multiple_effects(rhs_names, envir = envirTest)
   
-  expect_vector(parsed_formula, ptype = list(), size = 13)
+  expect_vector(parsed_formula, ptype = list(), size = 14)
   expect_setequal(
     names(parsed_formula),
     c("rhs_names", "dep_name", "has_intercept", "default_network_name",
@@ -60,7 +60,7 @@ test_that("choice formula", {
       "type_parameter",
       "trans_parameter", "summ_parameter",
       "joining_parameter", "sub_type_parameter",
-      "history_parameter")
+      "history_parameter", "window_derivations")
   )
   expect_true(which(!sapply(parsed_formula$window_parameters, is.null)) == 5)
   expect_true(which(as.logical(parsed_formula$ignore_rep_parameter)) == 6)
@@ -72,8 +72,42 @@ test_that("choice formula", {
   expect_true(all(parsed_formula$sub_type_parameter == ""))
 })
 
+test_that("parse_time_windows records a derivation recipe and gates realization", {
+  envirTest <- new.env()
+  base::local({
+    callNetwork <- structure(
+      matrix(0, nrow(actors), nrow(actors),
+        dimnames = list(actors$label, actors$label)
+      ),
+      class = c("network.goldfish", "matrix", "array"),
+      nodes = c("actors", "actors"), directed = TRUE,
+      events = c("calls")
+    )
+    calls <- calls
+  }, envir = envirTest)
+  assign("calls", calls, envir = envirTest)
+
+  rhs_names <- list(list("recip", "callNetwork", window = "300"))
+
+  # realize_windows = FALSE: rewrite + recipe only, no assign into envir.
+  rewritten <- parse_time_windows(rhs_names, envir = envirTest, realize_windows = FALSE)
+  expect_equal(rewritten[[1]][[2]], "callNetwork_300")
+  expect_false(any(c("callNetwork_300", "calls_300") %in% ls(envirTest)))
+
+  derivations <- attr(rewritten, "window_derivations")
+  expect_length(derivations, 1)
+  expect_equal(derivations[[1]]$derived_name, "callNetwork_300")
+  expect_equal(derivations[[1]]$source_name, "callNetwork")
+  expect_equal(derivations[[1]]$window, 300)
+  expect_equal(derivations[[1]]$kind, "window")
+
+  # realize_windows = TRUE: derived network + dissolve stream materialized.
+  parse_time_windows(rhs_names, envir = envirTest, realize_windows = TRUE)
+  expect_contains(ls(envirTest), c("callNetwork_300", "calls_300"))
+})
+
 test_that("rate formula", {
-  formStat <- callsDependent ~ 1 + indeg + outdeg + 
+  formStat <- callsDependent ~ 1 + indeg + outdeg +
     node_trans(callNetwork, transformer_fn = log1p) +
     tertius(callNetwork, actors$floor, summarizer_fn = median) +
     indeg(callNetwork, window = "5 minutos") +
