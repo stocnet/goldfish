@@ -476,13 +476,17 @@ get_dependent_name <- function(formula) {
   unlist(lapply(dep, deparse))
 }
 
-get_events_and_objects_link <- function(
+# Metadata half of the event-stream link (design D8, task 2.3c): builds the
+# events_objects_link incidence data.frame AND an ordered fetch plan describing
+# each event stream to materialize (stream name + per-stream sanitize nodesets),
+# reading only object attributes (event-stream NAMES, nodesets) — it fetches NO
+# event tables and runs NO sanitizeEvents. The fetch plan rows are 1:1 with the
+# incidence rows (and thus with the events list produced by fetch_events()), in
+# the same order, so downstream indexing is unchanged.
+build_events_objects_link <- function(
     dep_name, rhs_names, nodes = NULL, nodes2 = NULL,
     envir = environment()) {
   object_names <- getDataObjects(rhs_names)
-  events <- list()
-  events[[1]] <- get(dep_name, envir = envir)
-  names(events) <- dep_name
   events_objects_link <- data.frame(
     events = dep_name,
     name = NA,
@@ -490,9 +494,10 @@ get_events_and_objects_link <- function(
     nodeset = NA,
     attribute = NA, stringsAsFactors = FALSE
   )
+  fetch_plan <- list(list(
+    stream = dep_name, sanitize = TRUE, s_nodes = nodes, s_nodes2 = nodes2
+  ))
 
-  # replace dependent labels with ids
-  events[[1]] <- sanitizeEvents(events[[1]], nodes, nodes2, envir = envir)
   is_attribute <- is.na(object_names$object)
   for (i in which(is_attribute)) {
     nodeset_obj <- get(object_names[i, ]$nodeset, envir = envir)
@@ -506,11 +511,9 @@ get_events_and_objects_link <- function(
           events_objects_link,
           cbind(events = event_list_names, object_names[i, ])
         )
-        evs <- lapply(event_list_names, get, envir = envir)
-        events <- append(events, evs)
-        names(events)[
-          (length(events) - length(event_list_names) + 1):length(events)
-        ] <- event_list_names
+        for (en in event_list_names) {
+          fetch_plan <- c(fetch_plan, list(list(stream = en, sanitize = FALSE)))
+        }
       }
       next
     }
@@ -523,48 +526,66 @@ get_events_and_objects_link <- function(
         events_objects_link,
         cbind(events = ev_name, object_names[i, ])
       )
-      evs <- lapply(
-        ev_name,
-        function(x) {
-          sanitizeEvents(get(x, envir = envir), node_set, envir = envir)
-        }
-      )
-
-      events <- append(events, evs)
-      names(events)[(length(events) - length(ev_name) + 1):length(events)] <-
-        ev_name
+      for (en in ev_name) {
+        fetch_plan <- c(fetch_plan, list(list(
+          stream = en, sanitize = TRUE, s_nodes = node_set, s_nodes2 = node_set
+        )))
+      }
     }
   }
   for (i in which(!is_attribute)) {
     ev_names <- attr(get(object_names[i, ]$object, envir = envir), "events")
-    evs <- lapply(ev_names, get, envir = envir)
     nodes_object <- attr(get(object_names[i, ]$object, envir = envir), "nodes")
     if (length(nodes_object) > 1) {
-      nodes <- nodes_object[1]
-      nodes2 <- nodes_object[2]
+      net_nodes <- nodes_object[1]
+      net_nodes2 <- nodes_object[2]
     } else {
-      nodes <- nodes2 <- nodes_object
+      net_nodes <- net_nodes2 <- nodes_object
     }
 
-    # replace labels with ids
     if (length(ev_names) > 0) {
-      for (j in seq_along(evs)) {
-        evs[[j]] <- sanitizeEvents(evs[[j]], nodes, nodes2, envir = envir)
-      }
       events_objects_link <- rbind(
         events_objects_link,
         cbind(events = ev_names, object_names[i, ], row.names = NULL)
       )
-      events <- append(events, evs)
-      names(events)[(length(events) - length(evs) + 1):length(events)] <-
-        ev_names
+      for (en in ev_names) {
+        fetch_plan <- c(fetch_plan, list(list(
+          stream = en, sanitize = TRUE,
+          s_nodes = net_nodes, s_nodes2 = net_nodes2
+        )))
+      }
     }
   }
 
-  return(list(
-    events,
-    events_objects_link
-  ))
+  list(events_objects_link = events_objects_link, fetch_plan = fetch_plan)
+}
+
+# Data half (design D8, task 2.3c): materializes the events list from a fetch
+# plan by fetching each stream's table and running sanitizeEvents (label -> id)
+# per its recorded nodesets. This is the data work relocated out of parsing; the
+# streams it fetches must already exist in `envir` (including any windowed
+# dissolve streams realized by the derivation realizer).
+fetch_events <- function(fetch_plan, envir = environment()) {
+  events <- lapply(fetch_plan, function(p) {
+    ev <- get(p$stream, envir = envir)
+    if (isTRUE(p$sanitize)) {
+      ev <- sanitizeEvents(ev, p$s_nodes, p$s_nodes2, envir = envir)
+    }
+    ev
+  })
+  names(events) <- vapply(fetch_plan, `[[`, character(1), "stream")
+  events
+}
+
+get_events_and_objects_link <- function(
+    dep_name, rhs_names, nodes = NULL, nodes2 = NULL,
+    envir = environment()) {
+  link <- build_events_objects_link(
+    dep_name, rhs_names, nodes, nodes2,
+    envir = envir
+  )
+  events <- fetch_events(link$fetch_plan, envir = envir)
+  list(events, link$events_objects_link)
 }
 
 get_events_effects_link <- function(events, rhs_names, events_objects_link) {
