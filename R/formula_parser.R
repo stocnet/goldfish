@@ -267,6 +267,14 @@ build_spec_map <- function(
     state_keys,
     stat_kind = stat_kind, envir = envir
   )
+  # Derived-input registry (design D8, task 2.3d): one entry per derived object,
+  # filled from metadata only. Today the sole `kind` is "window"; the effect
+  # object refs were already rewired to `derived_name` in parse_time_windows().
+  # State creation iterates this to realize each derived object (no tables or
+  # assign happen here).
+  plan$derivations <- build_derivations(
+    parsed_formula$window_derivations, objects_effects_link, envir = envir
+  )
   effects_template <- build_effects_template(
     effects, objects_effects_link, state_keys
   )
@@ -292,6 +300,38 @@ build_spec_map <- function(
     ),
     class = c(class(model_spec), "spec_map.goldfish")
   )
+}
+
+# Build the derived-input registry (design D8) from the window derivation recipe
+# recorded by parse_time_windows(). Metadata only: reads the source objects'
+# event-stream NAMES (`attr(obj, "events")`) and the effect columns that
+# reference each derived object (already rewired to `derived_name` in
+# objects_effects_link) — it fetches no event/network tables and assigns
+# nothing. Returns a list with one entry per derived object
+# `{derived_name, kind, source, source_streams, params, gids}`, or `NULL` when
+# there are no derivations, which state creation iterates to realize each
+# derived object into the state container.
+build_derivations <- function(window_derivations, objects_effects_link,
+                              envir = new.env()) {
+  if (length(window_derivations) == 0) {
+    return(NULL)
+  }
+  lapply(window_derivations, function(d) {
+    source_streams <- attr(get(d$source_name, envir = envir), "events")
+    gids <- if (d$derived_name %in% rownames(objects_effects_link)) {
+      which(!is.na(objects_effects_link[d$derived_name, ]))
+    } else {
+      integer(0)
+    }
+    list(
+      derived_name = d$derived_name,
+      kind = d$kind,
+      source = d$source_name,
+      source_streams = source_streams,
+      params = list(window = d$window),
+      gids = unname(gids)
+    )
+  })
 }
 
 create_effects_functions <- function(effect_init, model, sub_model,

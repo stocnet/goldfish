@@ -106,6 +106,45 @@ test_that("parse_time_windows records a derivation recipe and gates realization"
   expect_contains(ls(envirTest), c("callNetwork_300", "calls_300"))
 })
 
+test_that("build_derivations builds the derived-input registry from metadata", {
+  envirTest <- new.env()
+  base::local({
+    callNetwork <- structure(
+      matrix(0, nrow(actors), nrow(actors),
+        dimnames = list(actors$label, actors$label)
+      ),
+      class = c("network.goldfish", "matrix", "array"),
+      nodes = c("actors", "actors"), directed = TRUE,
+      events = c("calls")
+    )
+  }, envir = envirTest)
+
+  window_derivations <- list(
+    list(
+      derived_name = "callNetwork_300", source_name = "callNetwork",
+      window = 300, kind = "window"
+    )
+  )
+  objects_effects_link <- matrix(
+    c(NA, 1), nrow = 2,
+    dimnames = list(c("callNetwork", "callNetwork_300"), c("inertia", "recip"))
+  )
+
+  derivations <- build_derivations(
+    window_derivations, objects_effects_link,
+    envir = envirTest
+  )
+  expect_length(derivations, 1)
+  expect_equal(derivations[[1]]$derived_name, "callNetwork_300")
+  expect_equal(derivations[[1]]$kind, "window")
+  expect_equal(derivations[[1]]$source, "callNetwork")
+  expect_equal(derivations[[1]]$source_streams, "calls")
+  expect_equal(derivations[[1]]$params$window, 300)
+  expect_equal(derivations[[1]]$gids, 2L)
+
+  expect_null(build_derivations(list(), objects_effects_link, envir = envirTest))
+})
+
 test_that("rate formula", {
   formStat <- callsDependent ~ 1 + indeg + outdeg +
     node_trans(callNetwork, transformer_fn = log1p) +
