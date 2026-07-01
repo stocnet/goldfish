@@ -31,14 +31,25 @@
 #' @return a `data.frame` with `name`, `component`, `key` columns.
 #' @noRd
 build_object_keys <- function(
-    object_names, nodes, nodes2 = nodes, envir = new.env()) {
+    object_names, nodes, nodes2 = nodes, envir = new.env(),
+    derivations = NULL) {
   objects_table <- getDataObjects(list(object_names), removeFirst = FALSE)
   components <- character(nrow(objects_table))
   keys <- character(nrow(objects_table))
+  # Derived (windowed) networks may not be realized yet on the recipe path
+  # (design D8, task 2.3f): classify them as networks from the recipe instead of
+  # get()-ing the absent object. The source is a matrix, so the realized derived
+  # network is too — no validation is lost.
+  derived_net_names <- names(derived_source_map(derivations))
 
   for (i in seq_len(nrow(objects_table))) {
     entry <- objects_table[i, ]
     if (!is.na(entry$object)) {
+      if (entry$object %in% derived_net_names) {
+        components[i] <- "networks"
+        keys[i] <- entry$object
+        next
+      }
       mat <- get(entry$object, envir = envir)
       if (!is.matrix(mat)) {
         cli::cli_abort(

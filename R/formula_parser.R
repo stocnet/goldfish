@@ -268,7 +268,7 @@ build_spec_map <- function(
   # do NOT materialise a state container here (no network/nodal data copied).
   object_keys <- build_object_keys(
     rownames(objects_effects_link), nodes, nodes2,
-    envir = envir
+    envir = envir, derivations = parsed_formula$window_derivations
   )
   state_keys <- structure(list(), object_keys = object_keys)
   plan <- build_update_plan(
@@ -343,9 +343,55 @@ build_derivations <- function(window_derivations, objects_effects_link,
   })
 }
 
+# Shared derived -> source resolver (design D8, task 2.3f). A derived object
+# (today only a windowed network) inherits its structural metadata (nodesets,
+# event-stream names) from a source object. Consumers that must read that
+# metadata *before* the derived object is realized use this to read from the
+# source instead of get()-ing the (possibly absent) derived object. Returns a
+# named character vector derived_name -> source_name.
+derived_source_map <- function(window_derivations) {
+  if (length(window_derivations) == 0) {
+    return(character(0))
+  }
+  stats::setNames(
+    vapply(window_derivations, `[[`, character(1), "source_name"),
+    vapply(window_derivations, `[[`, character(1), "derived_name")
+  )
+}
+
+# Look up a single derivation entry by its derived name (or NULL if none).
+find_derivation <- function(name, window_derivations) {
+  for (d in window_derivations) {
+    if (identical(d$derived_name, name)) {
+      return(d)
+    }
+  }
+  NULL
+}
+
 create_effects_functions <- function(effect_init, model, sub_model,
-                                   envir = environment()) {
+                                   envir = environment(), derivations = NULL) {
   .stat_method <- paste("init", model, sub_model, sep = "_")
+  # Two-mode guard (below) evaluates the effect's network argument to read its
+  # nodesets. On the recipe path a windowed effect's network arg is the *derived*
+  # name, which may not be realized yet (design D8, task 2.3f); resolve it against
+  # a probe environment that binds each unrealized derived name to its source
+  # object (identical nodesets), leaving realized/plain objects untouched.
+  probe_envir <- envir
+  src_map <- derived_source_map(derivations)
+  if (length(src_map) > 0) {
+    probe_envir <- new.env(parent = envir)
+    for (derived_name in names(src_map)) {
+      already_realized <- exists(derived_name, envir = envir, inherits = FALSE)
+      source_name <- src_map[[derived_name]]
+      if (!already_realized && exists(source_name, envir = envir)) {
+        assign(
+          derived_name, get(source_name, envir = envir),
+          envir = probe_envir
+        )
+      }
+    }
+  }
   effects <- lapply(
     effect_init, function(x, model, sub_model) {
       fun_text <- paste("update", model, sub_model, x[[1]], sep = "_")
@@ -395,7 +441,7 @@ create_effects_functions <- function(effect_init, model, sub_model,
       .signature[is_condition] <- parms_to_set[!named_params]
       if ("network" %in% .args_names && "is_two_mode" %in% .args_names) {
         is_two_mode <- length(attr(
-          eval(.signature[["network"]], envir = envir), "nodes"
+          eval(.signature[["network"]], envir = probe_envir), "nodes"
         )) > 1
         if (!is.null(parms_to_set[["is_two_mode"]]) &&
           eval(parms_to_set[["is_two_mode"]], envir = envir) != is_two_mode) {
@@ -494,7 +540,7 @@ get_dependent_name <- function(formula) {
 # the same order, so downstream indexing is unchanged.
 build_events_objects_link <- function(
     dep_name, rhs_names, nodes = NULL, nodes2 = NULL,
-    envir = environment()) {
+    envir = environment(), derivations = NULL) {
   object_names <- getDataObjects(rhs_names)
   events_objects_link <- data.frame(
     events = dep_name,
@@ -543,8 +589,24 @@ build_events_objects_link <- function(
     }
   }
   for (i in which(!is_attribute)) {
-    ev_names <- attr(get(object_names[i, ]$object, envir = envir), "events")
-    nodes_object <- attr(get(object_names[i, ]$object, envir = envir), "nodes")
+    # A derived (windowed) network may not be realized yet on the recipe path
+    # (design D8, task 2.3f): resolve its event-stream names and nodesets from
+    # the source object + window instead of get()-ing the absent derived object.
+    # The realized derived network names its dissolve streams identically
+    # (paste(source stream, window, sep = "_")) and copies the source nodesets,
+    # so the incidence + fetch plan are unchanged.
+    derivation <- find_derivation(object_names[i, ]$object, derivations)
+    if (!is.null(derivation)) {
+      source_object <- get(derivation$source_name, envir = envir)
+      ev_names <- paste(
+        attr(source_object, "events"), derivation$window,
+        sep = "_"
+      )
+      nodes_object <- attr(source_object, "nodes")
+    } else {
+      ev_names <- attr(get(object_names[i, ]$object, envir = envir), "events")
+      nodes_object <- attr(get(object_names[i, ]$object, envir = envir), "nodes")
+    }
     if (length(nodes_object) > 1) {
       net_nodes <- nodes_object[1]
       net_nodes2 <- nodes_object[2]
@@ -588,10 +650,10 @@ fetch_events <- function(fetch_plan, envir = environment()) {
 
 get_events_and_objects_link <- function(
     dep_name, rhs_names, nodes = NULL, nodes2 = NULL,
-    envir = environment()) {
+    envir = environment(), derivations = NULL) {
   link <- build_events_objects_link(
     dep_name, rhs_names, nodes, nodes2,
-    envir = envir
+    envir = envir, derivations = derivations
   )
   events <- fetch_events(link$fetch_plan, envir = envir)
   list(events, link$events_objects_link)

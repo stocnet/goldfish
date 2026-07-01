@@ -181,6 +181,125 @@ test_that("parse_formula(realize_windows = FALSE) leaves the env unmutated", {
   expect_contains(ls(envirTest), c("callNetwork_300", "calls_300"))
 })
 
+test_that("create_effects_functions resolves the two-mode guard from source (task 2.3f)", {
+  # A windowed effect on a two-mode network: with the derived network left
+  # unrealized (recipe path), the two-mode guard must still read the nodesets
+  # from the *source* network via the derivation recipe (design D8, task 2.3f).
+  envirTest <- new.env()
+  assign("actors", actors, envir = envirTest)
+  assign("calls", calls, envir = envirTest)
+  base::local({
+    callNetwork <- structure(
+      matrix(0, nrow(actors), nrow(actors),
+        dimnames = list(actors$label, actors$label)
+      ),
+      class = c("network.goldfish", "matrix", "array"),
+      nodes = c("actors", "actors"), directed = TRUE,
+      events = c("calls")
+    )
+    callsDependent <- structure(
+      calls,
+      class = c("dependent.goldfish", "data.frame"),
+      nodes = c("actors", "actors"), events = c("calls"),
+      default_network = "callNetwork", type = "dyadic"
+    )
+  }, envir = envirTest)
+
+  parsed <- parse_formula(
+    callsDependent ~ trans(callNetwork, window = 300),
+    envir = envirTest, realize_windows = FALSE
+  )
+  # derived network is NOT realized: the guard cannot get() it.
+  expect_false("callNetwork_300" %in% ls(envirTest))
+
+  expect_warning(
+    effects <- create_effects_functions(
+      parsed$rhs_names, "DyNAM", "choice",
+      envir = envirTest, derivations = parsed$window_derivations
+    ),
+    "Setting 'is_two_mode' parameter"
+  )
+  # the guard resolved is_two_mode = TRUE from the source's nodesets.
+  expect_true(eval(formals(effects[[1]]$effect)[["is_two_mode"]]))
+  # and it did not fabricate the derived network as a side effect.
+  expect_false("callNetwork_300" %in% ls(envirTest))
+})
+
+test_that("build_object_keys classifies an unrealized derived network from the recipe (task 2.3f)", {
+  envirTest <- new.env()
+  assign("actors", actors, envir = envirTest)
+  assign("calls", calls, envir = envirTest)
+  base::local({
+    callNetwork <- structure(
+      matrix(0, nrow(actors), nrow(actors),
+        dimnames = list(actors$label, actors$label)
+      ),
+      class = c("network.goldfish", "matrix", "array"),
+      nodes = c("actors"), directed = TRUE,
+      events = c("calls")
+    )
+    callsDependent <- structure(
+      calls,
+      class = c("dependent.goldfish", "data.frame"),
+      nodes = c("actors"), events = c("calls"),
+      default_network = "callNetwork", type = "dyadic"
+    )
+  }, envir = envirTest)
+
+  parsed <- parse_formula(
+    callsDependent ~ inertia + recip(callNetwork, window = 300),
+    envir = envirTest, realize_windows = FALSE
+  )
+  objects_effects_link <- get_objects_effects_link(parsed$rhs_names)
+
+  keys <- build_object_keys(
+    rownames(objects_effects_link), "actors", "actors",
+    envir = envirTest, derivations = parsed$window_derivations
+  )
+  derived_row <- keys[keys$name == "callNetwork_300", ]
+  expect_equal(derived_row$component, "networks")
+  expect_equal(derived_row$key, "callNetwork_300")
+  # classification read the recipe only, not the (absent) derived network.
+  expect_false("callNetwork_300" %in% ls(envirTest))
+})
+
+test_that("build_events_objects_link resolves derived streams from source (task 2.3f)", {
+  envirTest <- new.env()
+  assign("actors", actors, envir = envirTest)
+  assign("calls", calls, envir = envirTest)
+  base::local({
+    callNetwork <- structure(
+      matrix(0, nrow(actors), nrow(actors),
+        dimnames = list(actors$label, actors$label)
+      ),
+      class = c("network.goldfish", "matrix", "array"),
+      nodes = c("actors"), directed = TRUE,
+      events = c("calls")
+    )
+    callsDependent <- structure(
+      calls,
+      class = c("dependent.goldfish", "data.frame"),
+      nodes = c("actors"), events = c("calls"),
+      default_network = "callNetwork", type = "dyadic"
+    )
+  }, envir = envirTest)
+
+  parsed <- parse_formula(
+    callsDependent ~ recip(callNetwork, window = 300),
+    envir = envirTest, realize_windows = FALSE
+  )
+  link <- build_events_objects_link(
+    parsed$dep_name, parsed$rhs_names, "actors", "actors",
+    envir = envirTest, derivations = parsed$window_derivations
+  )
+  # the derived dissolve stream name is reconstructed from the source
+  # (paste(source stream, window, sep = "_")) without realizing anything.
+  expect_true("calls_300" %in% link$events_objects_link$events)
+  stream_names <- vapply(link$fetch_plan, `[[`, character(1), "stream")
+  expect_true("calls_300" %in% stream_names)
+  expect_false("calls_300" %in% ls(envirTest))
+})
+
 test_that("rate formula", {
   formStat <- callsDependent ~ 1 + indeg + outdeg +
     node_trans(callNetwork, transformer_fn = log1p) +

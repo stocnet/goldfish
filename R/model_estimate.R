@@ -764,7 +764,7 @@ estimate_wrapper <- function(x,
 
   effects <- create_effects_functions(
     rhs_names, model, legacy_sub_model,
-    envir = work_env
+    envir = work_env, derivations = parsed_formula$window_derivations
   )
   objects_effects_link <- get_objects_effects_link(rhs_names)
 
@@ -773,11 +773,11 @@ estimate_wrapper <- function(x,
     # Initialize events list and link to objects
     events <- get_events_and_objects_link(
       dep_name, rhs_names, .nodes, .nodes2,
-      envir = work_env
+      envir = work_env, derivations = parsed_formula$window_derivations
     )[[1]]
     events_objects_link <- get_events_and_objects_link(
       dep_name, rhs_names, .nodes, .nodes2,
-      envir = work_env
+      envir = work_env, derivations = parsed_formula$window_derivations
     )[[2]]
     events_effects_link <- get_events_effects_link(
       events, rhs_names, events_objects_link
@@ -820,16 +820,16 @@ estimate_wrapper <- function(x,
       new_window_parameters <- window_parameters[which(effects_indexes == 0)]
       new_effects <- create_effects_functions(
         new_rhs_names, model, legacy_sub_model,
-        envir = work_env
+        envir = work_env, derivations = parsed_formula$window_derivations
       )
       new_objects_effects_link <- get_objects_effects_link(new_rhs_names)
       new_events <- get_events_and_objects_link(
         dep_name, new_rhs_names, .nodes, .nodes2,
-        envir = work_env
+        envir = work_env, derivations = parsed_formula$window_derivations
       )[[1]]
       new_events_objects_link <- get_events_and_objects_link(
         dep_name, new_rhs_names, .nodes, .nodes2,
-        envir = work_env
+        envir = work_env, derivations = parsed_formula$window_derivations
       )[[2]]
       new_events_effects_link <- get_events_effects_link(
         new_events, new_rhs_names, new_events_objects_link
