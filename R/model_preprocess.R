@@ -207,7 +207,9 @@ preprocess.dynami_choice_spec <- function(
 #'     writer contracts.}
 #' }
 #'
-#' @param spec a `sender_spec` model specification.
+#' @param spec a `spec_map` (built by `build_spec_map()`) carrying a
+#'   `sender_spec` class; the effect closures, per-term window parameters, link
+#'   matrices, plan, call templates, and node sets are unpacked from it.
 #' @inheritParams preprocess_monolith
 #' @param right_censored logical, whether right-censored events are stored.
 #' @param intercept_scalars logical, whether `n_dep_events`, `total_time`,
@@ -221,13 +223,6 @@ preprocess.dynami_choice_spec <- function(
 run_sender_recipe_loop <- function(
   spec,
   events,
-  effects,
-  windowParameters,
-  eventsObjectsLink,
-  eventsEffectsLink,
-  objectsEffectsLink,
-  nodes,
-  nodes2 = nodes,
   startTime = NULL,
   endTime = NULL,
   right_censored = FALSE,
@@ -235,10 +230,21 @@ run_sender_recipe_loop <- function(
   progress = FALSE,
   prepEnvir = new.env(),
   writer = writer_default(),
-  plan = NULL,
-  effects_template = NULL,
   ...
 ) {
+  # The compiled recipe inputs ride on `spec` (a spec_map, task 2.3b): the
+  # effect closures, per-term window parameters, link matrices, plan, and call
+  # templates are unpacked here instead of threaded as separate arguments.
+  effects <- spec$effects
+  windowParameters <- spec$window_parameters
+  eventsObjectsLink <- spec$events_objects_link
+  eventsEffectsLink <- spec$events_effects_link
+  objectsEffectsLink <- spec$objects_effects_link
+  plan <- spec$plan
+  effects_template <- spec$effects_template
+  nodes <- spec$nodes
+  nodes2 <- spec$nodes2
+
   n1 <- nrow(get(nodes, envir = prepEnvir))
   n2 <- nrow(get(nodes2, envir = prepEnvir))
   nEffects <- length(effects)
@@ -360,18 +366,6 @@ run_sender_recipe_loop <- function(
     rownames(objectsEffectsLink), nodes, nodes2,
     envir = prepEnvir
   )
-  if (is.null(plan)) {
-    plan <- build_update_plan(
-      effects, eventsObjectsLink, eventsEffectsLink, objectsEffectsLink,
-      state,
-      stat_kind = "sender", envir = prepEnvir
-    )
-  }
-  if (is.null(effects_template)) {
-    effects_template <- build_effects_template(
-      effects, objectsEffectsLink, state
-    )
-  }
   schedule <- build_event_schedule(events, eventsObjectsLink, plan$objects)
 
   netUpdateLookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
@@ -726,7 +720,9 @@ run_sender_recipe_loop <- function(
 #' points (design D15/D17) attach to this kernel on the same terms documented
 #' for `run_sender_recipe_loop()`.
 #'
-#' @param spec a `dyad_spec` model specification.
+#' @param spec a `spec_map` (built by `build_spec_map()`) carrying a `dyad_spec`
+#'   class; the effect closures, per-term window parameters, link matrices,
+#'   plan, call templates, and node sets are unpacked from it.
 #' @inheritParams run_sender_recipe_loop
 #'
 #' @return a list of class preprocessed.goldfish
@@ -734,13 +730,6 @@ run_sender_recipe_loop <- function(
 run_dyad_recipe_loop <- function(
   spec,
   events,
-  effects,
-  windowParameters,
-  eventsObjectsLink,
-  eventsEffectsLink,
-  objectsEffectsLink,
-  nodes,
-  nodes2 = nodes,
   startTime = NULL,
   endTime = NULL,
   right_censored = FALSE,
@@ -748,10 +737,21 @@ run_dyad_recipe_loop <- function(
   progress = FALSE,
   prepEnvir = new.env(),
   writer = writer_default(),
-  plan = NULL,
-  effects_template = NULL,
   ...
 ) {
+  # The compiled recipe inputs ride on `spec` (a spec_map, task 2.3b): the
+  # effect closures, per-term window parameters, link matrices, plan, and call
+  # templates are unpacked here instead of threaded as separate arguments.
+  effects <- spec$effects
+  windowParameters <- spec$window_parameters
+  eventsObjectsLink <- spec$events_objects_link
+  eventsEffectsLink <- spec$events_effects_link
+  objectsEffectsLink <- spec$objects_effects_link
+  plan <- spec$plan
+  effects_template <- spec$effects_template
+  nodes <- spec$nodes
+  nodes2 <- spec$nodes2
+
   n1 <- nrow(get(nodes, envir = prepEnvir))
   n2 <- nrow(get(nodes2, envir = prepEnvir))
   nEffects <- length(effects)
@@ -876,18 +876,6 @@ run_dyad_recipe_loop <- function(
     rownames(objectsEffectsLink), nodes, nodes2,
     envir = prepEnvir
   )
-  if (is.null(plan)) {
-    plan <- build_update_plan(
-      effects, eventsObjectsLink, eventsEffectsLink, objectsEffectsLink,
-      state,
-      stat_kind = "dyad", envir = prepEnvir
-    )
-  }
-  if (is.null(effects_template)) {
-    effects_template <- build_effects_template(
-      effects, objectsEffectsLink, state
-    )
-  }
   schedule <- build_event_schedule(events, eventsObjectsLink, plan$objects)
 
   netUpdateLookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)

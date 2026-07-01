@@ -202,34 +202,42 @@ compare_formulas <- function(
 #' templates (`build_effects_template()`), and the registries-only update plan
 #' (`build_update_plan()`).
 #'
-#' Stage 1 / S2 scope: the plan and templates move upfront behind a compat shim
-#' (`preprocess()` still rebuilds them when not supplied). The full
-#' metadata/data boundary — keeping this mapping free of event/network tables
-#' and relocating `sanitizeEvents`/windowing to state creation — is design D8's
-#' later slice (tasks 2.3b–2.3d). The link matrices and effect closures are
-#' built in `model_estimate.R` and threaded in here for now; they become
-#' internal to the compile when the `preprocess(spec_map, data)` signature
-#' lands.
+#' The `spec_map` merges the dispatch `model_spec` (its fields and class vector)
+#' so `preprocess()` dispatches directly on the returned object (task 2.3b): the
+#' effect closures, per-term window parameters, and the link matrices ride on it
+#' rather than being threaded into `preprocess()` as separate bridge arguments.
+#' The recipe loops unpack them from the `spec` they receive.
+#'
+#' Stage 1 scope: this still builds a throwaway state container to read object
+#' keys, so it is not yet metadata-pure. The full metadata/data boundary —
+#' keeping this mapping free of event/network tables and relocating
+#' `sanitizeEvents`/windowing to state creation — is design D8's later slice
+#' (tasks 2.3c–2.3d).
 #'
 #' @param parsed_formula the list returned by `parse_formula()`.
+#' @param model_spec the dispatch `model_spec` from `new_model_spec()`; its
+#'   fields (`model`, `nodes`, ...) and class vector are merged onto the result.
 #' @param effects list of effect functions from `create_effects_functions()`.
+#' @param window_parameters per-term window parameters (from the parsed
+#'   formula), aligned with `effects`.
 #' @param objects_effects_link matrix from `get_objects_effects_link()`.
 #' @param events_objects_link,events_effects_link link structures from
 #'   `get_events_and_objects_link()` / `get_events_effects_link()`.
-#' @param stat_kind character, `"sender"` or `"dyad"`.
-#' @param nodes,nodes2 names of the dependent events' node sets.
 #' @param envir environment where the data objects live.
 #'
-#' @return an S3 `spec_map.goldfish` list with `parsed_terms`, `plan`,
-#'   `effects_template`, and `effect_description` (the single source of truth for
-#'   print/naming metadata, design D8).
+#' @return an S3 object of class `c(class(model_spec), "spec_map.goldfish")`
+#'   carrying the `model_spec` fields plus `parsed_terms`, `plan`,
+#'   `effects_template`, `effect_description` (the single source of truth for
+#'   print/naming metadata, design D8), and the `effects`/`window_parameters`/
+#'   link inputs the recipe loops consume.
 #' @noRd
 build_spec_map <- function(
-    parsed_formula, effects, objects_effects_link,
-    events_objects_link, events_effects_link,
-    stat_kind = c("sender", "dyad"), nodes, nodes2 = nodes,
+    parsed_formula, model_spec, effects, window_parameters,
+    objects_effects_link, events_objects_link, events_effects_link,
     envir = new.env()) {
-  stat_kind <- match.arg(stat_kind)
+  stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
+  nodes <- model_spec$nodes
+  nodes2 <- model_spec$nodes2
   state <- build_state_container(
     rownames(objects_effects_link), nodes, nodes2,
     envir = envir
@@ -248,13 +256,21 @@ build_spec_map <- function(
   # appended downstream (offset terms, group 5).
   effect_description <- GetDetailPrint(objects_effects_link, parsed_formula)
   structure(
-    list(
-      parsed_terms = parsed_formula,
-      plan = plan,
-      effects_template = effects_template,
-      effect_description = effect_description
+    c(
+      unclass(model_spec),
+      list(
+        parsed_terms = parsed_formula,
+        plan = plan,
+        effects_template = effects_template,
+        effect_description = effect_description,
+        effects = effects,
+        window_parameters = window_parameters,
+        events_objects_link = events_objects_link,
+        events_effects_link = events_effects_link,
+        objects_effects_link = objects_effects_link
+      )
     ),
-    class = "spec_map.goldfish"
+    class = c(class(model_spec), "spec_map.goldfish")
   )
 }
 
