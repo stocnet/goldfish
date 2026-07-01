@@ -15,17 +15,24 @@
 #' @return a list with components `networks`, `nodal`, `nodal2` (NULL for
 #'   one-mode), and `globals`.
 #' @noRd
-build_state_container <- function(
+#' Classify the effects' data objects into the state-container mapping
+#'
+#' Metadata-only companion to [build_state_container]: it resolves each data
+#' object to its state `component` (`networks` / `nodal` / `nodal2` / `globals`)
+#' and its `key`, reading object **class/structure only** — it copies no network
+#' or nodal data. This is the single source of the `object_keys` mapping so the
+#' upfront compile (`build_spec_map()`) can build the update plan + call templates
+#' without materialising the state (design D8 metadata/data boundary); the same
+#' validations (non-matrix network, missing attribute, foreign node set) fire
+#' here.
+#'
+#' @param object_names character vector of data object names.
+#' @inheritParams build_state_container
+#' @return a `data.frame` with `name`, `component`, `key` columns.
+#' @noRd
+build_object_keys <- function(
     object_names, nodes, nodes2 = nodes, envir = new.env()) {
   objects_table <- getDataObjects(list(object_names), removeFirst = FALSE)
-  n1 <- nrow(get(nodes, envir = envir))
-  n2 <- nrow(get(nodes2, envir = envir))
-  is_one_mode <- identical(nodes, nodes2)
-
-  networks <- list()
-  nodal_cols <- list()
-  nodal2_cols <- list()
-  global_cols <- list()
   components <- character(nrow(objects_table))
   keys <- character(nrow(objects_table))
 
@@ -38,8 +45,6 @@ build_state_container <- function(
           "Object {.val {entry$object}} must be a matrix network."
         )
       }
-      attributes(mat) <- attributes(mat)[c("dim", "dimnames")]
-      networks[[entry$object]] <- mat
       components[i] <- "networks"
       keys[i] <- entry$object
     } else {
@@ -52,13 +57,10 @@ build_state_container <- function(
         )
       }
       if (inherits(container_obj, "global.goldfish")) {
-        global_cols[[entry$attribute]] <- value
         components[i] <- "globals"
       } else if (entry$nodeset == nodes) {
-        nodal_cols[[entry$attribute]] <- value
         components[i] <- "nodal"
       } else if (entry$nodeset == nodes2) {
-        nodal2_cols[[entry$attribute]] <- value
         components[i] <- "nodal2"
       } else {
         cli::cli_abort(
@@ -68,6 +70,46 @@ build_state_container <- function(
         )
       }
       keys[i] <- entry$attribute
+    }
+  }
+
+  data.frame(
+    name = objects_table$name,
+    component = components,
+    key = keys,
+    stringsAsFactors = FALSE
+  )
+}
+
+build_state_container <- function(
+    object_names, nodes, nodes2 = nodes, envir = new.env()) {
+  objects_table <- getDataObjects(list(object_names), removeFirst = FALSE)
+  object_keys <- build_object_keys(object_names, nodes, nodes2, envir = envir)
+  n1 <- nrow(get(nodes, envir = envir))
+  n2 <- nrow(get(nodes2, envir = envir))
+  is_one_mode <- identical(nodes, nodes2)
+
+  networks <- list()
+  nodal_cols <- list()
+  nodal2_cols <- list()
+  global_cols <- list()
+
+  for (i in seq_len(nrow(objects_table))) {
+    entry <- objects_table[i, ]
+    component <- object_keys$component[i]
+    if (component == "networks") {
+      mat <- get(entry$object, envir = envir)
+      attributes(mat) <- attributes(mat)[c("dim", "dimnames")]
+      networks[[entry$object]] <- mat
+    } else {
+      value <- get(entry$nodeset, envir = envir)[[entry$attribute]]
+      if (component == "globals") {
+        global_cols[[entry$attribute]] <- value
+      } else if (component == "nodal") {
+        nodal_cols[[entry$attribute]] <- value
+      } else {
+        nodal2_cols[[entry$attribute]] <- value
+      }
     }
   }
 
@@ -91,12 +133,7 @@ build_state_container <- function(
     state$globals <- data.frame(matrix(nrow = 1, ncol = 0))
   }
 
-  attr(state, "object_keys") <- data.frame(
-    name = objects_table$name,
-    component = components,
-    key = keys,
-    stringsAsFactors = FALSE
-  )
+  attr(state, "object_keys") <- object_keys
   state
 }
 

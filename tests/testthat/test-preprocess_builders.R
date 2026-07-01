@@ -90,6 +90,52 @@ test_that("build_state_container aborts on unknown attribute or node set", {
   )
 })
 
+test_that("build_object_keys maps components without materialising data", {
+  env <- enviro_builders()
+  keys <- build_object_keys(
+    c("networkState", "actorsEx$attr1", "seasons$winter"),
+    nodes = "actorsEx", envir = env
+  )
+  expect_s3_class(keys, "data.frame")
+  expect_equal(keys$name, c("networkState", "actorsEx$attr1", "seasons$winter"))
+  expect_equal(keys$component, c("networks", "nodal", "globals"))
+  expect_equal(keys$key, c("networkState", "attr1", "winter"))
+  expect_equal(
+    keys,
+    attr(
+      build_state_container(
+        c("networkState", "actorsEx$attr1", "seasons$winter"),
+        nodes = "actorsEx", envir = env
+      ),
+      "object_keys"
+    )
+  )
+})
+
+test_that("build_object_keys reads metadata only (mutates nothing, design D8)", {
+  env <- enviro_builders()
+  before <- sort(ls(env))
+  build_object_keys(
+    c("networkState", "networkExog", "actorsEx$attr1"),
+    nodes = "actorsEx", envir = env
+  )
+  expect_equal(sort(ls(env)), before)
+})
+
+test_that("build_object_keys aborts on unknown attribute or node set", {
+  env <- enviro_builders()
+  expect_error(
+    build_object_keys("actorsEx$missing", nodes = "actorsEx", envir = env),
+    "not found"
+  )
+  otherNodes <- make_nodes(data.frame(label = "A", weight = 1))
+  assign("otherNodes", otherNodes, envir = env)
+  expect_error(
+    build_object_keys("otherNodes$weight", nodes = "actorsEx", envir = env),
+    "neither"
+  )
+})
+
 build_plan_fixture <- function(
     formula, model = "DyNAM", sub_model = "choice", stat_kind = "dyad") {
   env <- rlang::env_clone(dataTest)

@@ -238,17 +238,21 @@ build_spec_map <- function(
   stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
   nodes <- model_spec$nodes
   nodes2 <- model_spec$nodes2
-  state <- build_state_container(
+  # Metadata/data boundary (design D8, task 2.3c): the plan + call templates need
+  # only the object-keys mapping, so read it directly (class/structure only) —
+  # do NOT materialise a state container here (no network/nodal data copied).
+  object_keys <- build_object_keys(
     rownames(objects_effects_link), nodes, nodes2,
     envir = envir
   )
+  state_keys <- structure(list(), object_keys = object_keys)
   plan <- build_update_plan(
     effects, events_objects_link, events_effects_link, objects_effects_link,
-    state,
+    state_keys,
     stat_kind = stat_kind, envir = envir
   )
   effects_template <- build_effects_template(
-    effects, objects_effects_link, state
+    effects, objects_effects_link, state_keys
   )
   # Print/naming metadata is formula-derived, so it is owned here once (design
   # D8) and rendered on demand per context (console / db / export) by
