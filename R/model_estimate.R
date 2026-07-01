@@ -639,7 +639,20 @@ estimate_wrapper <- function(x,
   work_env <- rlang::env_clone(data)
 
   ## 1.1 PARSE for all cases: preprocessingInit or not
-  parsed_formula <- parse_formula(formula, envir = work_env)
+  # On the fresh recipe (DyNAM/REM) path the shared parser stays free of
+  # environment mutations (design D8): parse_formula() records the window
+  # derivation recipe but does not realize it, and the recipe front-end realizes
+  # it explicitly below. DyNAMi and the preprocessing_init path keep the eager
+  # parse-time realization (byte-identical) via realize_windows = TRUE.
+  recipe_deferred_windows <- model %in% c("DyNAM", "REM") &&
+    is.null(preprocessing_init)
+  parsed_formula <- parse_formula(
+    formula,
+    envir = work_env, realize_windows = !recipe_deferred_windows
+  )
+  if (recipe_deferred_windows) {
+    realize_windows_recipe(parsed_formula$window_derivations, work_env)
+  }
   rhs_names <- parsed_formula$rhs_names
   dep_name <- parsed_formula$dep_name
   has_intercept <- parsed_formula$has_intercept

@@ -68,7 +68,16 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
   # deferred to state creation on the recipe path (realize_windows = FALSE).
   window_derivations <- attr(rhs_names, "window_derivations")
   attr(rhs_names, "window_derivations") <- NULL
-  mult <- parse_multiple_effects(rhs_names, envir = envir)
+  # Derived windowed networks may not be realized yet when realize_windows =
+  # FALSE (recipe path); parse_multiple_effects() must recognize them as networks
+  # from the recipe instead of fetching the (absent) object.
+  derived_names <- vapply(
+    window_derivations, function(d) d$derived_name, character(1)
+  )
+  mult <- parse_multiple_effects(
+    rhs_names,
+    envir = envir, derived_names = derived_names
+  )
   rhs_names <- mult[[1]]
   ignore_rep_parameter <- mult[[2]]
   if (any(unlist(ignore_rep_parameter)) && is.null(default_network_name)) {
@@ -671,7 +680,8 @@ parse_intercept <- function(rhs_names) {
 }
 
 parse_multiple_effects <- function(
-    rhs_names, default = FALSE, envir = environment()) {
+    rhs_names, default = FALSE, envir = environment(),
+    derived_names = character(0)) {
   multiple <- list()
   multiple_names <- character(0)
   for (i in seq_along(rhs_names)) {
@@ -683,18 +693,32 @@ parse_multiple_effects <- function(
     }
     if (!multiple_param) {
       table <- getDataObjects(rhs_names[i])
-      net_ids <- vapply(getElementFromDataObjectTable(table, envir = envir),
-        FUN = inherits,
-        FUN.VALUE = logical(1),
-        what = "network.goldfish"
-      )
+      # A derived (windowed) network may not be realized yet on the recipe path;
+      # it is always a network, so recognize it from the recipe without fetching.
+      is_derived <- table$name %in% derived_names
+      net_ids <- logical(nrow(table))
+      net_ids[is_derived] <- TRUE
+      if (any(!is_derived)) {
+        net_ids[!is_derived] <- vapply(
+          getElementFromDataObjectTable(
+            table[!is_derived, , drop = FALSE],
+            envir = envir
+          ),
+          FUN = inherits,
+          FUN.VALUE = logical(1),
+          what = "network.goldfish"
+        )
+      }
       name <- table[net_ids, "name"][1]
     }
     if (is.character(multiple_param)) {
       name <- multiple_param
       multiple_param <- FALSE
     }
-    if (!is.na(name) && name != "" && !exists(name, envir = envir)) {
+    # A derived (windowed) network is a valid object even before it is realized
+    # on the recipe path, so it is exempt from the existence guard.
+    if (!is.na(name) && name != "" && !(name %in% derived_names) &&
+      !exists(name, envir = envir)) {
       stop("Unknown object in 'ignore_repetitions' parameter: ", name, call. = FALSE)
     }
     multiple <- append(multiple, multiple_param)
@@ -898,4 +922,19 @@ realize_windowed_network <- function(source_name, derived_name, window, envir) {
     assign(name_new_events, new_events, envir = envir)
   }
   assign(derived_name, new_network, envir = envir)
+}
+
+# Registry-driven realizer (design D8, task 2.3d): materialize every window
+# derivation recorded by parse_time_windows() into `envir`. On the recipe path
+# parse_time_windows() runs with realize_windows = FALSE (leaving the shared
+# parser free of environment mutations); the recipe front-end calls this once
+# from the recorded recipe so the eager assign() is driven by the derivation
+# registry at a single controlled point instead of interleaved with parsing.
+realize_windows_recipe <- function(window_derivations, envir) {
+  for (d in window_derivations) {
+    if (identical(d$kind, "window")) {
+      realize_windowed_network(d$source_name, d$derived_name, d$window, envir)
+    }
+  }
+  invisible(NULL)
 }

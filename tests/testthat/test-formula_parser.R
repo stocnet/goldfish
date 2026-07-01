@@ -126,7 +126,7 @@ test_that("build_derivations builds the derived-input registry from metadata", {
     )
   )
   objects_effects_link <- matrix(
-    c(NA, 1), nrow = 2,
+    c(NA, NA, NA, 1), nrow = 2,
     dimnames = list(c("callNetwork", "callNetwork_300"), c("inertia", "recip"))
   )
 
@@ -143,6 +143,42 @@ test_that("build_derivations builds the derived-input registry from metadata", {
   expect_equal(derivations[[1]]$gids, 2L)
 
   expect_null(build_derivations(list(), objects_effects_link, envir = envirTest))
+})
+
+test_that("parse_formula(realize_windows = FALSE) leaves the env unmutated", {
+  envirTest <- new.env()
+  assign("actors", actors, envir = envirTest)
+  assign("calls", calls, envir = envirTest)
+  base::local({
+    callNetwork <- structure(
+      matrix(0, nrow(actors), nrow(actors),
+        dimnames = list(actors$label, actors$label)
+      ),
+      class = c("network.goldfish", "matrix", "array"),
+      nodes = c("actors", "actors"), directed = TRUE,
+      events = c("calls")
+    )
+    callsDependent <- structure(
+      calls,
+      class = c("dependent.goldfish", "data.frame"),
+      nodes = c("actors", "actors"), events = c("calls"),
+      default_network = "callNetwork", type = "dyadic"
+    )
+  }, envir = envirTest)
+
+  before <- ls(envirTest)
+  parsed <- parse_formula(
+    callsDependent ~ inertia + recip(callNetwork, window = 300),
+    envir = envirTest, realize_windows = FALSE
+  )
+  # the shared parser did not fabricate the windowed network/dissolve stream ...
+  expect_setequal(ls(envirTest), before)
+  expect_equal(parsed$rhs_names[[2]][[2]], "callNetwork_300")
+  expect_length(parsed$window_derivations, 1)
+
+  # ... and the registry-driven realizer materializes them on demand.
+  realize_windows_recipe(parsed$window_derivations, envirTest)
+  expect_contains(ls(envirTest), c("callNetwork_300", "calls_300"))
 })
 
 test_that("rate formula", {
