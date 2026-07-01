@@ -187,6 +187,27 @@ test_that("build_update_plan registries cover effects and objects", {
   expect_equal(plan$objects$component, c("networks", "nodal"))
 })
 
+test_that("build_update_plan populates the interaction/multivariate schema (design D9/D10)", {
+  fixture <- build_plan_fixture(
+    depNetwork ~ inertia + recip + alter(actorsEx$attr1)
+  )
+  plan <- fixture$plan
+  # single-formula main effects: role/estimate/fid/lid trivial (task 2.4)
+  expect_equal(plan$effects$role, rep("main", 3))
+  expect_true(all(plan$effects$estimate))
+  expect_equal(plan$effects$fid, rep(1L, 3))
+  expect_equal(plan$effects$lid, 1:3)
+  # interaction registries stay empty until the interaction parser (task 2.5)
+  expect_length(plan$interactions, 0)
+  expect_length(plan$operand_of, 0)
+  expect_equal(nrow(plan$stat_state_spec), 0)
+  expect_named(plan$stat_state_spec, c("gid", "slot", "column"))
+  # formula_effects seam: (fid, lid, gid) with fid = 1 for the single formula
+  expect_equal(plan$formula_effects$fid, rep(1L, 3))
+  expect_equal(plan$formula_effects$lid, 1:3)
+  expect_equal(plan$formula_effects$gid, 1:3)
+})
+
 test_that("build_update_plan routing matches the link matrices", {
   fixture <- build_plan_fixture(
     depNetwork ~ inertia + alter(actorsEx$attr1) + outdeg(networkExog)

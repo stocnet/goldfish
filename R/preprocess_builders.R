@@ -303,11 +303,16 @@ build_effects_template <- function(effects, objects_effects_link, state) {
 #' @param envir environment where the data objects live.
 #'
 #' @return a list with `effects`, `objects`, `effect_objects` registries and
-#'   `routing` (oid-indexed list of gids). The per-effect call templates are
-#'   returned separately by `build_effects_template()`. The `effects` registry
-#'   carries a `broadcast_kind` column (see `classify_broadcast_kind()`) that
-#'   the recipe uses to route constant-value fan-out effects to the compact
-#'   `stat_mat_broadcast` buffer.
+#'   `routing` (oid-indexed list of gids), plus the interaction/multivariate
+#'   schema (design D9/D10): `interactions` (interaction gid -> ordered operand
+#'   gids), `operand_of` (operand gid -> interaction gids), `stat_state_spec`
+#'   (gid -> broadcast slot + column), and `formula_effects` (`fid`, `lid`,
+#'   `gid`). The per-effect call templates are returned separately by
+#'   `build_effects_template()`. The `effects` registry carries a
+#'   `broadcast_kind` column (see `classify_broadcast_kind()`) that the recipe
+#'   uses to route constant-value fan-out effects to the compact
+#'   `stat_mat_broadcast` buffer, plus `role`/`estimate`/`fid`/`lid` columns
+#'   (single-formula main effects until the interaction parser, task 2.5).
 #'
 #' @section Reserved extension point — interaction effects (not implemented):
 #' Interaction terms between effects (e.g. `global(x):alter(y)`) are a reserved
@@ -392,11 +397,19 @@ build_update_plan <- function(
     integer(1)
   )
 
+  # Interaction/multivariate schema (design D9/D10). Populated trivially here —
+  # every term is an estimated main effect of the single formula (fid = 1); the
+  # interaction parser (task 2.5) sets `role`/`estimate` on operands and fills
+  # the `interactions`/`operand_of`/`stat_state_spec` registries.
   effects_registry <- data.frame(
     gid = seq_len(n_effects),
     effect_name = effect_names,
     stat_kind = stat_kind,
     broadcast_kind = broadcast_kind,
+    role = rep("main", n_effects),
+    estimate = rep(TRUE, n_effects),
+    fid = rep(1L, n_effects),
+    lid = seq_len(n_effects),
     stringsAsFactors = FALSE
   )
 
@@ -449,11 +462,36 @@ build_update_plan <- function(
     )
   }
 
+  # Interaction registries (design D9), n-ary, keyed by gid; empty until the
+  # interaction parser (task 2.5) fills them from the `factors` column.
+  #   interactions: interaction gid -> ordered operand gids
+  #   operand_of:   operand gid     -> interaction gids it feeds
+  #   stat_state_spec: for each gid needing a live stat_state (operands ∪
+  #     interactions), the broadcast `slot` and `column` it occupies.
+  interactions <- stats::setNames(list(), character(0))
+  operand_of <- stats::setNames(list(), character(0))
+  stat_state_spec <- data.frame(
+    gid = integer(0), slot = character(0), column = integer(0),
+    stringsAsFactors = FALSE
+  )
+  # Multivariate seam (design D10): (fid, lid, gid) per effect. Single-formula
+  # here, so fid = 1 and lid = gid.
+  formula_effects <- data.frame(
+    fid = rep(1L, n_effects),
+    lid = seq_len(n_effects),
+    gid = seq_len(n_effects),
+    stringsAsFactors = FALSE
+  )
+
   list(
     effects = effects_registry,
     objects = objects_registry,
     effect_objects = do.call(rbind, effect_objects),
-    routing = routing
+    routing = routing,
+    interactions = interactions,
+    operand_of = operand_of,
+    stat_state_spec = stat_state_spec,
+    formula_effects = formula_effects
   )
 }
 
