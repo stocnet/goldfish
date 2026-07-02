@@ -310,6 +310,20 @@ estimate_dynam <- function(
   verbose = getOption("verbose", default = FALSE)
 ) {
   sub_model <- match.arg(sub_model)
+  if (inherits(x, "specification.goldfish")) {
+    return(estimate_from_specification(
+      spec = x,
+      model = "DyNAM",
+      sub_model = sub_model,
+      data = data,
+      control_estimation = control_estimation,
+      control_preprocessing = control_preprocessing,
+      preprocessing_init = preprocessing_init,
+      preprocessing_only = preprocessing_only,
+      progress = progress,
+      verbose = verbose
+    ))
+  }
   estimate_wrapper(
     x = x,
     model = "DyNAM",
@@ -366,6 +380,20 @@ estimate_rem <- function(
   verbose = getOption("verbose", default = FALSE)
 ) {
   sub_model <- match.arg(sub_model)
+  if (inherits(x, "specification.goldfish")) {
+    return(estimate_from_specification(
+      spec = x,
+      model = "REM",
+      sub_model = sub_model,
+      data = data,
+      control_estimation = control_estimation,
+      control_preprocessing = control_preprocessing,
+      preprocessing_init = preprocessing_init,
+      preprocessing_only = preprocessing_only,
+      progress = progress,
+      verbose = verbose
+    ))
+  }
   estimate_wrapper(
     x = x,
     model = "REM",
@@ -377,6 +405,61 @@ estimate_rem <- function(
     preprocessing_only = preprocessing_only,
     progress = progress,
     verbose = verbose
+  )
+}
+
+# Estimate from a specification.goldfish object (task 4.4). Selects the submodel
+# bundle matching the requested sub_model's family (rate vs choice), reuses its
+# parsed formula bundle so estimation does not re-parse, and forwards to the
+# shared estimator with the bundle's own sub_model. Results are identical to
+# estimating the equivalent `layer ~ rhs` formula.
+estimate_from_specification <- function(
+  spec,
+  model,
+  sub_model,
+  data = NULL,
+  control_estimation,
+  control_preprocessing,
+  preprocessing_init,
+  preprocessing_only,
+  progress,
+  verbose
+) {
+  if (!identical(spec$model, model)) {
+    cli::cli_abort(c(
+      "This specification is for model {.val {spec$model}}.",
+      "x" = "It cannot be estimated with {.fn {paste0('estimate_',
+             tolower(model))}}."
+    ))
+  }
+  family <- if (sub_model %in% c("rate", "rate_ordered")) "rate" else "choice"
+  bundle <- spec$submodels[[family]]
+  if (is.null(bundle)) {
+    cli::cli_abort(c(
+      "This specification has no {.field {family}} sub-model.",
+      "i" = "Available sub-model{?s}: {.field {names(spec$submodels)}}."
+    ))
+  }
+
+  est_data <- if (is.null(data)) spec$data else data
+  # Reuse the parsed bundle only when it matches the data it was parsed against
+  # and no incremental preprocessing_init re-parse is involved; otherwise let the
+  # wrapper parse afresh against the supplied data.
+  reuse_parsed <- is.null(preprocessing_init) &&
+    (is.null(data) || identical(data, spec$data))
+
+  estimate_wrapper(
+    x = bundle$formula,
+    model = model,
+    sub_model = bundle$sub_model,
+    data = est_data,
+    control_estimation = control_estimation,
+    control_preprocessing = control_preprocessing,
+    preprocessing_init = preprocessing_init,
+    preprocessing_only = preprocessing_only,
+    progress = progress,
+    verbose = verbose,
+    parsed_formula = if (reuse_parsed) bundle$parsed else NULL
   )
 }
 
@@ -592,7 +675,8 @@ estimate_wrapper <- function(
   output = c("default", "gather", "db"),
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
-  max_length = 63L
+  max_length = 63L,
+  parsed_formula = NULL
 ) {
   output <- match.arg(output)
 
@@ -712,11 +796,16 @@ estimate_wrapper <- function(
   recipe_deferred_windows <- model %in%
     c("DyNAM", "REM") &&
     is.null(preprocessing_init)
-  parsed_formula <- parse_formula(
-    formula,
-    envir = work_env,
-    realize_windows = !recipe_deferred_windows
-  )
+  # A specification.goldfish object supplies its parsed bundle so estimation
+  # reuses it rather than re-parsing (task 4.4); it was parsed with the same
+  # recipe-deferred window semantics. Otherwise parse the formula here.
+  if (is.null(parsed_formula)) {
+    parsed_formula <- parse_formula(
+      formula,
+      envir = work_env,
+      realize_windows = !recipe_deferred_windows
+    )
+  }
   rhs_names <- parsed_formula$rhs_names
   dep_name <- parsed_formula$dep_name
   has_intercept <- parsed_formula$has_intercept
@@ -1322,9 +1411,15 @@ estimate_wrapper <- function(
   result$subModel <- sub_model
   result$rightCensored <- has_intercept
   result$nParams <- sum(!GetFixed(result))
-  result$call <- match.call(
-    call = sys.call(-1L),
-    expand.dots = TRUE
+  # The specification path adds an extra `estimate_from_specification` hop whose
+  # signature differs from the estimator's, so match.call() against this
+  # definition would fail; fall back to the raw caller expression in that case.
+  result$call <- tryCatch(
+    match.call(
+      call = sys.call(-1L),
+      expand.dots = TRUE
+    ),
+    error = function(e) sys.call(-1L)
   )
   result$call[[2]] <- formulaKeep
   ## added to allow printing/plotting of rate models with rightCnesoredEvents

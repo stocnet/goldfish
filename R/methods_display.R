@@ -407,6 +407,69 @@ print.dependent.goldfish <- function(x, ..., full = FALSE, n = 6) {
 
 #' @export
 #' @rdname print-method
+#' @return For objects of class `specification.goldfish` print a single-glance
+#'   overview of the model, dependent process, and formulas.
+print.specification.goldfish <- function(x, ...) {
+  submodels <- names(x$submodels)
+  cli::cli_rule(left = "{.cls specification.goldfish}")
+  cli::cli_text("Model {.val {x$model}} · sub-model{?s} {.field {submodels}}")
+
+  dep <- x$dependent
+  time_span <- if (!is.null(dep$time_span)) {
+    paste(format(dep$time_span), collapse = " – ")
+  } else {
+    "unknown"
+  }
+  nodes_line <- if (dep$is_two_mode) {
+    sprintf("%s → %s", dep$nodes, dep$nodes2)
+  } else {
+    dep$nodes
+  }
+  network_line <- if (!is.null(dep$network) && nzchar(dep$network)) {
+    dep$network
+  } else {
+    NA_character_
+  }
+  cli::cli_text("")
+  cli::cli_text("{.strong Dependent}")
+  dep_bullets <- c(
+    "*" = "Layer: {.val {dep$layer}}",
+    "*" = "Events: {.val {dep$n_events}}",
+    "*" = "Time span: {.val {time_span}}",
+    "*" = "Nodes: {.field {nodes_line}}"
+  )
+  if (!is.na(network_line)) {
+    dep_bullets <- c(dep_bullets, "*" = "Network: {.val {network_line}}")
+  }
+  cli::cli_bullets(dep_bullets)
+
+  cli::cli_text("")
+  formula_dl <- character(0)
+  if (!is.null(x$submodels$rate)) {
+    rate_str <- deparse1(x$submodels$rate$input_formula)
+    formula_dl <- c(formula_dl, Rate = "{.code {rate_str}}")
+  }
+  if (!is.null(x$submodels$choice)) {
+    choice_str <- deparse1(x$submodels$choice$input_formula)
+    formula_dl <- c(formula_dl, Choice = "{.code {choice_str}}")
+  }
+  if (!is.null(x$support_constraint)) {
+    support_str <- deparse1(x$support_constraint)
+    formula_dl <- c(formula_dl, Support = "{.code {support_str}}")
+  }
+  cli::cli_dl(formula_dl)
+
+  cli::cli_text("")
+  if (isTRUE(x$valid)) {
+    cli::cli_alert_success("Specification is valid.")
+  } else {
+    cli::cli_alert_danger("Specification is not valid.")
+  }
+  invisible(x)
+}
+
+#' @export
+#' @rdname print-method
 print.data.goldfish <- function(x, ...) {
   cat("Goldfish Data Environment\n")
   cat("=========================\n\n")

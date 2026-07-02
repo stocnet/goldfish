@@ -7,6 +7,7 @@
 \alias{print.nodes.goldfish}
 \alias{print.network.goldfish}
 \alias{print.dependent.goldfish}
+\alias{print.specification.goldfish}
 \alias{print.data.goldfish}
 \alias{print.preprocessed.goldfish}
 \alias{print.estimation_opt.goldfish}
@@ -35,6 +36,8 @@
 \method{print}{network.goldfish}(x, ..., full = FALSE, n = 6L)
 
 \method{print}{dependent.goldfish}(x, ..., full = FALSE, n = 6)
+
+\method{print}{specification.goldfish}(x, ...)
 
 \method{print}{data.goldfish}(x, ...)
 
@@ -121,6 +124,9 @@ total number of events in the object, linked nodes set(s),
 linked default network
 and a printing of the first rows in the events data frame.
 See \code{\link[=make_dependent_events]{make_dependent_events()}}.
+
+For objects of class \code{specification.goldfish} print a single-glance
+overview of the model, dependent process, and formulas.
 
 For objects of class \code{estimation_opt.goldfish}, print a summary of the estimation control options.
 
