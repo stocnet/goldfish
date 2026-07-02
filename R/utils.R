@@ -730,12 +730,14 @@ GetDetailPrint <- function(
       history = parsedformula$historyParameter
     )
   }
-  # Interaction columns (design D9) have no object/attribute of their own, so
+  # Interaction columns (design D9/D5) have no object/attribute of their own, so
   # they are absent from objectsEffectsLink; append one row per interaction after
-  # the function-effect rows, labelled by the interaction's term string (the
-  # compact `effect/obj·obj2` rendering is refined in the interaction-rendering
-  # task). Their statistic is the product of the operand rows above.
-  if (length(parsedformula$interactions) > 0) {
+  # the function-effect rows. The row keeps the term string as its (readable)
+  # rowname; the compact `coef()` / export names are derived below from the
+  # operand rows (an interaction's name is the join of its operands' names), so
+  # the object columns are left empty here.
+  nInter <- length(parsedformula$interactions)
+  if (nInter > 0) {
     labels <- vapply(
       parsedformula$interactions,
       function(x) x$label,
@@ -747,7 +749,6 @@ GetDetailPrint <- function(
       ncol = ncol(effectDescription),
       dimnames = list(labels, colnames(effectDescription))
     )
-    inter_mat[, 1] <- labels
     effectDescription <- rbind(effectDescription, inter_mat)
   }
   # rownames(effectDescription) <- NULL
@@ -763,10 +764,30 @@ GetDetailPrint <- function(
     )
   }
 
-  effectDescription <- cbind(
-    effectDescription,
-    .decoderColumns(effectDescription)
-  )
+  decoder <- .decoderColumns(effectDescription)
+  # Interaction rendering (design D5): each interaction's compact names are the
+  # `:`-join of its operands' rendered names, so they inherit the operands' short
+  # forms and object disambiguation. Operand rhs index j maps to function row
+  # j + intercept_offset; the interaction rows are the final nInter rows.
+  if (nInter > 0) {
+    intercept_offset <- if (parsedformula$has_intercept) 1L else 0L
+    n_total <- nrow(effectDescription)
+    join_cols <- c(
+      ".effect_short",
+      ".object_short",
+      ".term_export",
+      ".coef_name"
+    )
+    for (i in seq_len(nInter)) {
+      inter_row <- n_total - nInter + i
+      op_rows <- parsedformula$interactions[[i]]$operands + intercept_offset
+      for (col in join_cols) {
+        decoder[inter_row, col] <- paste(decoder[op_rows, col], collapse = ":")
+      }
+    }
+  }
+
+  effectDescription <- cbind(effectDescription, decoder)
 
   attr(effectDescription, "hasWindows") <- hasWindows
   return(effectDescription)
