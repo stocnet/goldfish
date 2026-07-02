@@ -812,6 +812,11 @@ estimate_wrapper <- function(
   window_parameters <- parsed_formula$window_parameters
   ignore_rep_parameter <- unlist(parsed_formula$ignore_rep_parameter)
 
+  # Interaction terms parse into an operand + interaction structure (task 2.5)
+  # but their product statistic is computed in the recipe loop by task 2.6; guard
+  # until then so an interaction formula does not silently drop to its operands.
+  abort_if_interactions_unsupported(parsed_formula)
+
   # DyNAM-i ONLY: creates extra parameter to differentiate joining and
   # leaving rates, and effect subtypes. Added directly to GetDetailPrint
 

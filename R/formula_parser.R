@@ -44,18 +44,38 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
   if (length(rhs_names) == 0) {
     stop("A model without effects cannot be estimated.", call. = FALSE)
   }
-  # Per-term offset (fixed-coefficient) flag from get_rhs_names (design D7),
-  # kept aligned with rhs_names through the intercept drop below.
+  # Per-term flags from get_rhs_names: offset (fixed-coefficient, design D7) and
+  # the interaction roles is_main / is_operand + the interaction structure
+  # (design D9). All are kept aligned with rhs_names through the intercept drop
+  # below; interaction operand indices are in the variable frame (i.e. the
+  # rhs_names frame after the `1` is dropped).
   is_offset <- attr(rhs_names, "offset")
   if (is.null(is_offset)) {
     is_offset <- logical(length(rhs_names))
   }
+  is_main <- attr(rhs_names, "is_main")
+  if (is.null(is_main)) {
+    is_main <- rep(TRUE, length(rhs_names))
+  }
+  is_operand <- attr(rhs_names, "is_operand")
+  if (is.null(is_operand)) {
+    is_operand <- logical(length(rhs_names))
+  }
+  interactions <- attr(rhs_names, "interactions")
+  if (is.null(interactions)) {
+    interactions <- list()
+  }
   attr(rhs_names, "offset") <- NULL
+  attr(rhs_names, "is_main") <- NULL
+  attr(rhs_names, "is_operand") <- NULL
+  attr(rhs_names, "interactions") <- NULL
   int <- parse_intercept(rhs_names)
   rhs_names <- int[[1]]
   has_intercept <- int[[2]]
   if (has_intercept) {
     is_offset <- is_offset[-1]
+    is_main <- is_main[-1]
+    is_operand <- is_operand[-1]
   }
   default_network_name <- attr(get(dep_name, envir = envir), "default_network")
   if (!is.null(default_network_name)) {
@@ -153,6 +173,14 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
     sub_type_parameter = sub_type_parameter,
     history_parameter = history_parameter,
     offset_parameter = as.list(is_offset),
+    # Interaction roles (design D9): an operand-only term is retained but not
+    # freely estimated; a requested main effect (and an offset, fixed via
+    # `fixedParameters`) is an estimated column. `interactions` lists each
+    # interaction's ordered operand indices (rhs_names frame), label, and arity.
+    is_main_parameter = as.list(is_main),
+    is_operand_parameter = as.list(is_operand),
+    estimate_parameter = as.list(is_main | is_offset),
+    interactions = interactions,
     window_derivations = window_derivations
   )
   return(res)
@@ -229,7 +257,10 @@ compare_formulas <- function(
         "default_network_name",
         # window_derivations is one row per windowed network, not per effect, so it
         # cannot be compared elementwise against the effect indices below.
-        "window_derivations"
+        "window_derivations",
+        # interactions is one row per interaction term, not per effect, so it is
+        # likewise excluded from the elementwise effect comparison.
+        "interactions"
       )
   ]
   for (i in seq.int(size_new)) {
@@ -849,30 +880,65 @@ get_rhs_names <- function(formula) {
 
   reject_unsupported_terms(variables)
 
-  # Interaction terms (`a:b`, `a*b`) expand correctly via terms() but their
-  # interaction-term object / product statistic land with the interaction-terms
-  # capability (tasks 2.5-2.6). Until then, recognize and reject them rather
-  # than silently returning the operands as standalone main effects.
-  if (any(attr(parsed, "order") > 1L)) {
-    interactions <- attr(parsed, "term.labels")[attr(parsed, "order") > 1L]
-    cli::cli_abort(c(
-      "Interaction term{?s} {.code {interactions}} {?is/are} not yet supported.",
-      "i" = "Interaction effects ({.code :} and {.code *}) will be supported in
-             an upcoming release."
-    ))
+  # Interaction terms (`a:b`, `a*b`) expand correctly via terms() (design D2):
+  # `a*b` -> a + b + a:b, and each `:` term references its operand *variables*
+  # (read off the `factors` incidence). The unique operand/main variables become
+  # the returned rhs terms (each parsed once, args preserved); the interaction
+  # structure is carried on the `interactions` attribute (variable-index frame),
+  # with per-variable `is_main` / `is_operand` roles (design D9). rhs_names for a
+  # non-interaction formula is byte-identical to before.
+  factors <- attr(parsed, "factors")
+  term_order <- attr(parsed, "order")
+  term_labels <- attr(parsed, "term.labels")
+  n_vars <- length(variables)
+
+  # factors rows are 1:1 with attr "variables" (response included); map each
+  # factors row back to its rhs-variable index (response dropped, offsets kept
+  # in place — offsets have all-zero factor rows, so are never operands).
+  row_to_rhs <- integer(nrow(factors))
+  kept_rows <- if (response > 0) {
+    seq_len(nrow(factors))[-response]
+  } else {
+    seq_len(nrow(factors))
+  }
+  row_to_rhs[kept_rows] <- seq_along(kept_rows)
+
+  is_main <- logical(n_vars)
+  is_operand <- logical(n_vars)
+  interactions <- list()
+  if (length(term_order) > 0) {
+    for (cix in which(term_order == 1L)) {
+      is_main[row_to_rhs[which(factors[, cix] != 0)]] <- TRUE
+    }
+    for (cix in which(term_order > 1L)) {
+      operands <- row_to_rhs[which(factors[, cix] != 0)]
+      is_operand[operands] <- TRUE
+      interactions[[length(interactions) + 1L]] <- list(
+        operands = operands,
+        label = term_labels[cix],
+        order = term_order[cix]
+      )
+    }
   }
 
   rhs_names <- lapply(variables, function(term) lapply(term, deparse))
 
   # terms() folds an explicit leading `1` into attr "intercept"; re-insert it as
   # the first term so parse_intercept() detects it exactly as before. The
-  # intercept is never an offset, so prepend FALSE to keep the flag aligned.
+  # intercept is never an offset / operand / interaction, so prepend FALSE to
+  # keep the per-variable flags aligned; interaction operand indices are read in
+  # the variable frame (after parse_intercept drops the `1` again).
   if (has_explicit_intercept(formula[[length(formula)]])) {
     rhs_names <- c(list(list("1")), rhs_names)
     is_offset <- c(FALSE, is_offset)
+    is_main <- c(FALSE, is_main)
+    is_operand <- c(FALSE, is_operand)
   }
 
   attr(rhs_names, "offset") <- is_offset
+  attr(rhs_names, "is_main") <- is_main
+  attr(rhs_names, "is_operand") <- is_operand
+  attr(rhs_names, "interactions") <- interactions
   rhs_names
 }
 

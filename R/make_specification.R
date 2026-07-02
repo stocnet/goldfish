@@ -173,6 +173,9 @@ build_specification_bundle <- function(
 
   parsed <- parse_formula(full_formula, envir = envir, realize_windows = FALSE)
 
+  # Interaction computation lands with task 2.6; guard until then (task 2.5).
+  abort_if_interactions_unsupported(parsed)
+
   # Effective sub_model mirrors estimate_wrapper: a rate formula without the time
   # intercept is the ordinal case; choice / choice_coordination and rate_ordered
   # ignore the intercept entirely.

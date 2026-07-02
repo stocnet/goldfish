@@ -144,6 +144,23 @@ validate_effects <- function(
   ))
 }
 
+# Temporary guard while the interaction engine lands incrementally: the parser
+# builds the interaction structure (task 2.5) before the recipe loop computes the
+# product statistic (task 2.6). Until 2.6, abort rather than silently estimating
+# only the operands. Removed when interaction computation is wired in.
+abort_if_interactions_unsupported <- function(parsed_formula) {
+  interactions <- parsed_formula$interactions
+  if (length(interactions) == 0) {
+    return(invisible(NULL))
+  }
+  labels <- vapply(interactions, function(x) x$label, character(1))
+  cli::cli_abort(c(
+    "Interaction term{?s} {.code {labels}} {?is/are} not yet supported.",
+    "i" = "Interaction effects ({.code :} and {.code *}) will be supported in an
+           upcoming release."
+  ))
+}
+
 # Assemble the positional `fixedParameters` vector (design D7) held by the
 # Newton-Raphson core: NA marks a coefficient to estimate, a value fixes it.
 # `offset()` terms fix their coefficient by NAME (their formula-order position),
