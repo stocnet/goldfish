@@ -98,12 +98,15 @@ test_that("a non-interaction formula carries an empty interaction structure", {
   expect_identical(unlist(parsed$is_operand_parameter), c(FALSE, FALSE))
 })
 
-test_that("estimating an interaction formula aborts until computation lands", {
+test_that("interactions abort for sender-indexed (rate) models", {
   d <- make_interaction_fixture()
+  # dyad models (choice / REM) compute interactions (see
+  # test-interaction_computation.R); sender-indexed rate models are not yet
+  # supported.
   expect_error(
     estimate_dynam(
-      callsDependent ~ inertia:recip,
-      sub_model = "choice",
+      callsDependent ~ 1 + indeg:outdeg,
+      sub_model = "rate",
       data = d
     ),
     "not yet supported"

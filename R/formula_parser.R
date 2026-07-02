@@ -361,6 +361,10 @@ build_spec_map <- function(
     envir = envir,
     derivations = parsed_formula$window_derivations
   )
+  # Interaction columns (design D9): append one estimated product column per
+  # interaction and set operand roles / estimate flags. No-op when the formula
+  # has no interactions (registries stay empty, effects unchanged).
+  plan <- augment_interactions(plan, parsed_formula, stat_kind)
   # Derived-input registry (design D8, task 2.3d): one entry per derived object,
   # filled from metadata only. Today the sole `kind` is "window"; the effect
   # object refs were already rewired to `derived_name` in parse_time_windows().

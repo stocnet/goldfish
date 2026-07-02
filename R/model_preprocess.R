@@ -811,6 +811,45 @@ run_sender_recipe_loop <- function(
   ))
 }
 
+# Expand an operand effect's `(node1, node2, replace)` delta into the full-matrix
+# cells + values it changes, per its broadcast kind (design D9): a point (0)
+# delta touches its own cells; an alter (1) delta sets whole receiver columns;
+# an ego (2) delta sets whole sender rows; a global (3) delta sets the whole
+# matrix. Used to keep an operand's live matrix current so interaction products
+# can be recomputed.
+expand_operand_update <- function(updates, kind, n1, n2) {
+  node1 <- updates[, "node1"]
+  node2 <- updates[, "node2"]
+  repl <- updates[, "replace"]
+  if (kind == 0L) {
+    return(list(cells = cbind(node1, node2), vals = repl))
+  }
+  if (kind == 3L) {
+    cells <- cbind(rep(seq_len(n1), times = n2), rep(seq_len(n2), each = n1))
+    return(list(cells = cells, vals = rep(repl[length(repl)], n1 * n2)))
+  }
+  if (kind == 1L) {
+    cells <- cbind(
+      rep(seq_len(n1), times = length(node2)),
+      rep(node2, each = n1)
+    )
+    return(list(cells = cells, vals = rep(repl, each = n1)))
+  }
+  cells <- cbind(
+    rep(node1, each = n2),
+    rep(seq_len(n2), times = length(node1))
+  )
+  list(cells = cells, vals = rep(repl, each = n2))
+}
+
+# Deduplicate the accumulated interaction cell matrix (rows are (i, j) pairs)
+# via a single linear key, so a cell touched by several operands in one event is
+# emitted once.
+dedup_cells <- function(cells, n1) {
+  key <- cells[, 1] + (cells[, 2] - 1) * n1
+  cells[!duplicated(key), , drop = FALSE]
+}
+
 #' Dyad-indexed recipe kernel
 #'
 #' Shared event loop for the dyad-indexed model variants (design D22).
@@ -932,11 +971,52 @@ run_dyad_recipe_loop <- function(
     subModel = "choice",
     envir = prepEnvir
   )
-  initialStats <- array(
+  # Function-effects (operands + mains) have a closure each; interaction columns
+  # (design D9) are appended after them as derived product columns computed from
+  # their operands' live state. nFun = closures, nInter = interactions,
+  # nEffects = total output columns.
+  nFun <- length(effects)
+  inter_ids <- if (length(plan$interactions) > 0) {
+    as.integer(names(plan$interactions))
+  } else {
+    integer(0)
+  }
+  nInter <- length(inter_ids)
+  nEffects <- nFun + nInter
+
+  initialStats <- array(0, dim = c(n1, n2, nEffects))
+  initialStats[,, seq_len(nFun)] <- array(
     unlist(lapply(statCache, "[[", "stat")),
-    dim = c(n1, n2, nEffects)
+    dim = c(n1, n2, nFun)
   )
   statCache <- lapply(statCache, "[[", "cache")
+
+  # Interaction state (design D9). Keep a live full n1 x n2 value for every
+  # operand feeding an interaction, seeded from its initial slice, and updated in
+  # place as its effect emits deltas (per its broadcast kind). Each interaction's
+  # column is the elementwise product of its operands' live matrices; its
+  # initial slice is seeded here and its deltas are emitted as point updates when
+  # any operand changes (second-hop routing).
+  op_kind <- plan$effects$broadcast_kind
+  op_state <- new.env(parent = emptyenv())
+  # Per-event accumulator of interaction operand cells touched (design D9), keyed
+  # by interaction gid; refilled in the routing loop, emptied after each event's
+  # interaction emission.
+  dirty_inter <- list()
+  if (nInter > 0) {
+    operand_gids <- sort(unique(unlist(plan$interactions)))
+    for (og in operand_gids) {
+      assign(as.character(og), initialStats[,, og], envir = op_state)
+    }
+    for (ig in inter_ids) {
+      ops <- plan$interactions[[as.character(ig)]]
+      prod_mat <- get(as.character(ops[1]), envir = op_state)
+      for (o in ops[-1]) {
+        prod_mat <- prod_mat * get(as.character(o), envir = op_state)
+      }
+      initialStats[,, ig] <- prod_mat
+    }
+  }
 
   nodes_obj <- get(nodes, envir = prepEnvir)
   nodes2_obj <- get(nodes2, envir = prepEnvir)
@@ -1299,6 +1379,23 @@ run_dyad_recipe_loop <- function(
           }
 
           if (!is.null(updates)) {
+            # Interaction second-hop (design D9): if this effect is an operand,
+            # apply its delta to its live matrix and record the touched cells for
+            # each interaction it feeds, so the product columns are refreshed
+            # after the routing loop.
+            if (nInter > 0L && gid <= nFun) {
+              feeds <- plan$operand_of[[as.character(gid)]]
+              if (!is.null(feeds)) {
+                exp <- expand_operand_update(updates, op_kind[gid], n1, n2)
+                om <- get(as.character(gid), envir = op_state)
+                om[exp$cells] <- exp$vals
+                assign(as.character(gid), om, envir = op_state)
+                for (ig in feeds) {
+                  igc <- as.character(ig)
+                  dirty_inter[[igc]] <- rbind(dirty_inter[[igc]], exp$cells)
+                }
+              }
+            }
             if (hasStartTime && nextEventTime < startTime) {
               initialStats[cbind(
                 updates[, "node1"],
@@ -1332,6 +1429,34 @@ run_dyad_recipe_loop <- function(
               }
             }
           }
+        }
+
+        # Emit each touched interaction's product delta (design D9): recompute
+        # the product over its operands at the union of cells changed this event
+        # and route it as a point update (its own column). Emitted after the
+        # routing loop so all operand deltas for the event are applied first.
+        if (nInter > 0L && length(dirty_inter) > 0L) {
+          for (igc in names(dirty_inter)) {
+            ig <- as.integer(igc)
+            cells <- dedup_cells(dirty_inter[[igc]], n1)
+            ops <- plan$interactions[[igc]]
+            prodv <- get(as.character(ops[1]), envir = op_state)[cells]
+            for (o in ops[-1]) {
+              prodv <- prodv * get(as.character(o), envir = op_state)[cells]
+            }
+            if (hasStartTime && nextEventTime < startTime) {
+              initialStats[cbind(cells[, 1], cells[, 2], ig)] <- prodv
+            } else {
+              block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
+              pending_dep[[length(pending_dep) + 1L]] <- block
+              pending_dep_cols <- pending_dep_cols + ncol(block)
+              if (right_censored) {
+                pending_rc[[length(pending_rc) + 1L]] <- block
+                pending_rc_cols <- pending_rc_cols + ncol(block)
+              }
+            }
+          }
+          dirty_inter <- list()
         }
 
         if (shape == "global") {

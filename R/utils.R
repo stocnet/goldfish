@@ -730,6 +730,26 @@ GetDetailPrint <- function(
       history = parsedformula$historyParameter
     )
   }
+  # Interaction columns (design D9) have no object/attribute of their own, so
+  # they are absent from objectsEffectsLink; append one row per interaction after
+  # the function-effect rows, labelled by the interaction's term string (the
+  # compact `effect/obj·obj2` rendering is refined in the interaction-rendering
+  # task). Their statistic is the product of the operand rows above.
+  if (length(parsedformula$interactions) > 0) {
+    labels <- vapply(
+      parsedformula$interactions,
+      function(x) x$label,
+      character(1)
+    )
+    inter_mat <- matrix(
+      "",
+      nrow = length(labels),
+      ncol = ncol(effectDescription),
+      dimnames = list(labels, colnames(effectDescription))
+    )
+    inter_mat[, 1] <- labels
+    effectDescription <- rbind(effectDescription, inter_mat)
+  }
   # rownames(effectDescription) <- NULL
   if (parsedformula$has_intercept) {
     effectDescription <- rbind("", effectDescription)

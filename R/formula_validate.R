@@ -144,31 +144,48 @@ validate_effects <- function(
   ))
 }
 
-# Temporary guard while the interaction engine lands incrementally: the parser
-# builds the interaction structure (task 2.5) before the recipe loop computes the
-# product statistic (task 2.6). Until 2.6, abort rather than silently estimating
-# only the operands. Removed when interaction computation is wired in.
-abort_if_interactions_unsupported <- function(parsed_formula) {
+# Interaction products are computed in the dyad-indexed recipe loop (design D9):
+# DyNAM choice / choice_coordination and REM. Sender-indexed (DyNAM/DyNAMi rate)
+# and DyNAMi models are not yet supported, so guard those; the dyad models
+# proceed to the interaction computation.
+abort_if_interactions_unsupported <- function(
+  parsed_formula,
+  model = NULL,
+  sub_model = NULL
+) {
   interactions <- parsed_formula$interactions
   if (length(interactions) == 0) {
     return(invisible(NULL))
   }
+  is_dyad <- !is.null(model) &&
+    (identical(model, "REM") ||
+      (identical(model, "DyNAM") &&
+        sub_model %in% c("choice", "choice_coordination")))
+  if (is_dyad) {
+    return(invisible(NULL))
+  }
   labels <- vapply(interactions, function(x) x$label, character(1))
   cli::cli_abort(c(
-    "Interaction term{?s} {.code {labels}} {?is/are} not yet supported.",
-    "i" = "Interaction effects ({.code :} and {.code *}) will be supported in an
-           upcoming release."
+    "Interaction terms are not yet supported for {.code model = {.val {model}}},
+     {.code sub_model = {.val {sub_model}}}.",
+    "x" = "Offending term{?s}: {.code {labels}}.",
+    "i" = "Interaction effects are currently available for DyNAM choice /
+           choice_coordination and REM models."
   ))
 }
 
-# Assemble the positional `fixedParameters` vector (design D7) held by the
-# Newton-Raphson core: NA marks a coefficient to estimate, a value fixes it.
-# `offset()` terms fix their coefficient by NAME (their formula-order position),
-# aligned to `offset_coef`. The parameter vector is [intercept?, effects...], so
-# an offset at rhs position j maps to parameter j (+1 when the intercept is
-# prepended). Returns the legacy `fixed_parameters` unchanged when there are no
-# offsets, or `NULL` when neither is in play. A constant-across-alternatives
-# offset in choice cancels in the softmax, so it warns rather than aborts.
+# Assemble the positional `fixedParameters` vector (designs D7 + D9) held by the
+# Newton-Raphson core: NA marks a coefficient to estimate, a value fixes it. Two
+# sources fix a coefficient: `offset()` terms (fixed at `offset_coef`, aligned by
+# formula order) and interaction operand-only terms (kept in the design but held
+# out of estimation by fixing at 0 — a 0 coefficient contributes 0 * stat, i.e.
+# the column is excluded from the model while retained for downstream). The
+# parameter vector is [intercept?, function-effects..., interactions...], so an
+# effect at rhs position j maps to parameter j (+1 when the intercept is
+# prepended); interaction columns are estimated (NA). Returns the legacy
+# `fixed_parameters` unchanged when nothing here fixes a coefficient, or `NULL`
+# when no coefficient is fixed. A constant-across-alternatives offset in choice
+# cancels in the softmax, so it warns rather than aborts.
 assemble_fixed_parameters <- function(
   parsed_formula,
   rhs_names,
@@ -182,8 +199,14 @@ assemble_fixed_parameters <- function(
   if (is.null(is_offset)) {
     is_offset <- logical(length(rhs_names))
   }
+  estimate <- unlist(parsed_formula$estimate_parameter)
+  if (is.null(estimate)) {
+    estimate <- rep(TRUE, length(rhs_names))
+  }
+  n_inter <- length(parsed_formula$interactions)
+  has_operand_only <- any(!estimate)
 
-  if (!any(is_offset)) {
+  if (!any(is_offset) && !has_operand_only) {
     if (!is.null(offset_coef)) {
       cli::cli_abort(c(
         "{.arg offset_coef} was supplied but the formula has no
@@ -194,18 +217,30 @@ assemble_fixed_parameters <- function(
     return(fixed_parameters)
   }
 
-  offset_positions <- which(is_offset) + as.integer(has_intercept)
-  n_params <- length(rhs_names) + as.integer(has_intercept)
-  if (length(offset_coef) != length(offset_positions)) {
+  intercept_shift <- as.integer(has_intercept)
+  n_params <- length(rhs_names) + n_inter + intercept_shift
+  fixed <- rep(NA_real_, n_params)
+  # Operand-only interaction terms: kept, held out of estimation (fixed at 0).
+  fixed[which(!estimate) + intercept_shift] <- 0
+
+  offset_positions <- which(is_offset) + intercept_shift
+  if (length(offset_positions) > 0) {
+    if (length(offset_coef) != length(offset_positions)) {
+      cli::cli_abort(c(
+        "{.arg offset_coef} must supply one value per {.fn offset} term.",
+        "x" = "The formula has {length(offset_positions)} offset term{?s} but
+               {.arg offset_coef} has {length(offset_coef)} value{?s}.",
+        "i" = "Set it via {.code set_estimation_opt(offset_coef = ...)}."
+      ))
+    }
+    fixed[offset_positions] <- offset_coef
+  } else if (!is.null(offset_coef)) {
     cli::cli_abort(c(
-      "{.arg offset_coef} must supply one value per {.fn offset} term.",
-      "x" = "The formula has {length(offset_positions)} offset term{?s} but
-             {.arg offset_coef} has {length(offset_coef)} value{?s}.",
-      "i" = "Set it via {.code set_estimation_opt(offset_coef = ...)}."
+      "{.arg offset_coef} was supplied but the formula has no
+       {.fn offset} terms.",
+      "i" = "Wrap a term in {.fn offset} to fix its coefficient."
     ))
   }
-  fixed <- rep(NA_real_, n_params)
-  fixed[offset_positions] <- offset_coef
 
   if (
     model %in%

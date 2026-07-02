@@ -195,6 +195,104 @@ classify_broadcast_kind <- function(effect_name, fmls, stat_kind) {
   )
 }
 
+#' Broadcast kind of an interaction product = the union of operand axes
+#'
+#' Each broadcast kind names the dyad-grid axis a statistic varies on (design
+#' D2): `3` global = neither axis, `2` ego = row (sender), `1` alter = col
+#' (receiver), `0` point = both. An elementwise product varies on an axis iff
+#' *either* operand does, so the product kind is the union of the operands'
+#' axes: `global` is the identity, `point` is absorbing, and two different
+#' single axes (ego x alter) union to point.
+#'
+#' @param kinds integer vector of operand broadcast kinds.
+#' @return the integer broadcast kind of the product.
+#' @noRd
+axis_union_kind <- function(kinds) {
+  has_row <- any(kinds == 2L | kinds == 0L)
+  has_col <- any(kinds == 1L | kinds == 0L)
+  if (has_row && has_col) {
+    0L
+  } else if (has_row) {
+    2L
+  } else if (has_col) {
+    1L
+  } else {
+    3L
+  }
+}
+
+#' Augment the update plan with interaction terms (design D9)
+#'
+#' Appends one estimated column per interaction after the function-effect
+#' columns (gids `n_fun + 1 ...`), sets the `role` / `estimate` flags on the
+#' function effects (an operand-only term is retained but held out of
+#' estimation), and fills the `interactions` (interaction gid -> ordered operand
+#' gids) and `operand_of` (operand gid -> interaction gids) registries. An
+#' operand gid equals its rhs-term position, which is its function-effect gid.
+#'
+#' @param plan the registries-only plan from `build_update_plan()`.
+#' @param parsed_formula the parsed formula carrying `interactions` and the
+#'   per-term `is_main` / `is_operand` / `estimate` flags.
+#' @param stat_kind character, `"sender"` or `"dyad"`.
+#' @return the plan with interaction columns + registries filled.
+#' @noRd
+augment_interactions <- function(plan, parsed_formula, stat_kind) {
+  n_fun <- nrow(plan$effects)
+  is_main <- unlist(parsed_formula$is_main_parameter)
+  is_operand <- unlist(parsed_formula$is_operand_parameter)
+  estimate <- unlist(parsed_formula$estimate_parameter)
+  if (length(estimate) == n_fun) {
+    plan$effects$estimate <- estimate
+    plan$effects$role <- ifelse(is_operand & !is_main, "operand", "main")
+  }
+
+  interactions <- parsed_formula$interactions
+  if (length(interactions) == 0) {
+    return(plan)
+  }
+
+  bc <- plan$effects$broadcast_kind
+  inter_rows <- lapply(seq_along(interactions), function(i) {
+    ops <- interactions[[i]]$operands
+    data.frame(
+      gid = n_fun + i,
+      effect_name = interactions[[i]]$label,
+      stat_kind = stat_kind,
+      broadcast_kind = axis_union_kind(bc[ops]),
+      role = "interaction",
+      estimate = TRUE,
+      fid = 1L,
+      lid = n_fun + i,
+      stringsAsFactors = FALSE
+    )
+  })
+  plan$effects <- rbind(plan$effects, do.call(rbind, inter_rows))
+
+  inter_gids <- n_fun + seq_along(interactions)
+  plan$interactions <- stats::setNames(
+    lapply(interactions, function(x) x$operands),
+    as.character(inter_gids)
+  )
+  operand_of <- list()
+  for (i in seq_along(interactions)) {
+    for (op in interactions[[i]]$operands) {
+      key <- as.character(op)
+      operand_of[[key]] <- c(operand_of[[key]], inter_gids[i])
+    }
+  }
+  plan$operand_of <- operand_of
+  plan$formula_effects <- rbind(
+    plan$formula_effects,
+    data.frame(
+      fid = 1L,
+      lid = inter_gids,
+      gid = inter_gids,
+      stringsAsFactors = FALSE
+    )
+  )
+  plan
+}
+
 #' Collapse a fan-out change matrix into compact broadcast entries
 #'
 #' Re-encodes the expanded `(node1, node2, replace)` change matrix that a
