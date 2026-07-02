@@ -143,3 +143,81 @@ validate_effects <- function(
            the time intercept) to estimate a global main effect."
   ))
 }
+
+# Assemble the positional `fixedParameters` vector (design D7) held by the
+# Newton-Raphson core: NA marks a coefficient to estimate, a value fixes it.
+# `offset()` terms fix their coefficient by NAME (their formula-order position),
+# aligned to `offset_coef`. The parameter vector is [intercept?, effects...], so
+# an offset at rhs position j maps to parameter j (+1 when the intercept is
+# prepended). Returns the legacy `fixed_parameters` unchanged when there are no
+# offsets, or `NULL` when neither is in play. A constant-across-alternatives
+# offset in choice cancels in the softmax, so it warns rather than aborts.
+assemble_fixed_parameters <- function(
+  parsed_formula,
+  rhs_names,
+  has_intercept,
+  model,
+  sub_model,
+  fixed_parameters,
+  offset_coef
+) {
+  is_offset <- unlist(parsed_formula$offset_parameter)
+  if (is.null(is_offset)) {
+    is_offset <- logical(length(rhs_names))
+  }
+
+  if (!any(is_offset)) {
+    if (!is.null(offset_coef)) {
+      cli::cli_abort(c(
+        "{.arg offset_coef} was supplied but the formula has no
+         {.fn offset} terms.",
+        "i" = "Wrap a term in {.fn offset} to fix its coefficient."
+      ))
+    }
+    return(fixed_parameters)
+  }
+
+  offset_positions <- which(is_offset) + as.integer(has_intercept)
+  n_params <- length(rhs_names) + as.integer(has_intercept)
+  if (length(offset_coef) != length(offset_positions)) {
+    cli::cli_abort(c(
+      "{.arg offset_coef} must supply one value per {.fn offset} term.",
+      "x" = "The formula has {length(offset_positions)} offset term{?s} but
+             {.arg offset_coef} has {length(offset_coef)} value{?s}.",
+      "i" = "Set it via {.code set_estimation_opt(offset_coef = ...)}."
+    ))
+  }
+  fixed <- rep(NA_real_, n_params)
+  fixed[offset_positions] <- offset_coef
+
+  if (
+    model %in%
+      c("DyNAM", "DyNAMi") &&
+      sub_model %in% c("choice", "choice_coordination")
+  ) {
+    offset_names <- vapply(rhs_names[is_offset], "[[", character(1), 1)
+    offset_types <- vapply(
+      parsed_formula$type_parameter[is_offset],
+      as.character,
+      character(1)
+    )
+    variations <- mapply(
+      effect_variation,
+      offset_names,
+      offset_types,
+      SIMPLIFY = TRUE,
+      USE.NAMES = FALSE
+    )
+    constant <- variations %in% c("ego", "global")
+    if (any(constant)) {
+      cli::cli_warn(c(
+        "!" = "Offset term{?s} {.code {offset_names[constant]}} {?is/are}
+               constant across the choice alternatives.",
+        "i" = "Such offsets cancel in the multinomial softmax and have no
+               effect on the estimates."
+      ))
+    }
+  }
+
+  fixed
+}

@@ -190,11 +190,18 @@ build_specification_bundle <- function(
 
   # A specification is built to be estimated, so validate at estimation strength
   # (rejects unidentified bare main effects such as ego/global in choice).
+  # Offset (fixed-coefficient) terms are not estimated main effects (design D7),
+  # so exclude them from the check.
+  is_offset <- unlist(parsed$offset_parameter)
+  if (is.null(is_offset)) {
+    is_offset <- logical(length(parsed$rhs_names))
+  }
+  main_effect <- !is_offset
   validate_effects(
     model,
     validity_sub_model,
-    vapply(parsed$rhs_names, "[[", character(1), 1),
-    vapply(parsed$type_parameter, as.character, character(1)),
+    vapply(parsed$rhs_names[main_effect], "[[", character(1), 1),
+    vapply(parsed$type_parameter[main_effect], as.character, character(1)),
     estimating = TRUE
   )
 

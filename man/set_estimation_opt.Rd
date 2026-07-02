@@ -7,6 +7,7 @@
 set_estimation_opt(
   initial_parameters = NULL,
   fixed_parameters = NULL,
+  offset_coef = NULL,
   max_iterations = 20,
   convergence_criterion = deprecated(),
   score_tol = 1e-06,
@@ -25,13 +26,22 @@ values used to initialize the estimation process.
 Default is \code{NULL}, which means parameters are initialized at zero,
 except for the rate intercept when present.}
 
-\item{fixed_parameters}{A numeric vector of the same length
-as the number of parameters to be estimated in the model.
+\item{fixed_parameters}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#superseded}{\figure{lifecycle-superseded.svg}{options: alt='[Superseded]'}}}{\strong{[Superseded]}} A numeric vector
+of the same length as the number of parameters to be estimated in the model.
 \code{NA} values indicate parameters to be estimated,
 while numeric values indicate parameters to be fixed at the given value.
 For example, if the vector is \code{c(2, NA)} then the first component of the
 parameter is fixed to 2 during the estimation process.
-Default is \code{NULL} (all parameters are estimated).}
+Default is \code{NULL} (all parameters are estimated).
+Superseded by wrapping the term in \code{offset()} in the model formula and
+supplying its value through \code{offset_coef}, which aligns values to terms by
+name instead of by counting coefficient positions.}
+
+\item{offset_coef}{A numeric vector giving the fixed coefficient value(s) for
+the \code{offset()} term(s) in the model formula, aligned to the offset terms in
+formula order. For example, \code{~ inertia + offset(ego(sex)) + recip} with
+\code{offset_coef = 2} holds the \code{ego(sex)} coefficient at 2 while estimating the
+rest. Default is \code{NULL} (no offsets).}
 
 \item{max_iterations}{An integer non-negative.
 The maximum number of iterations in the Gauss-Fisher scoring algorithm.

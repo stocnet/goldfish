@@ -858,11 +858,24 @@ estimate_wrapper <- function(
   if (sub_model == "rate" && !has_intercept) {
     validity_sub_model <- "rate_ordered"
   }
+  # Offset (fixed-coefficient) terms are not estimated main effects, so the D3
+  # identification matrix does not reject them (design D7): a constant-across-
+  # alternatives offset warns rather than aborts (handled in the fixedParameters
+  # assembly below). Exclude them from the main-effect validity check.
+  is_offset <- unlist(parsed_formula$offset_parameter)
+  if (is.null(is_offset)) {
+    is_offset <- logical(length(rhs_names))
+  }
+  main_effect <- !is_offset
   validate_effects(
     model,
     validity_sub_model,
-    vapply(rhs_names, "[[", character(1), 1),
-    vapply(parsed_formula$type_parameter, as.character, character(1)),
+    vapply(rhs_names[main_effect], "[[", character(1), 1),
+    vapply(
+      parsed_formula$type_parameter[main_effect],
+      as.character,
+      character(1)
+    ),
     estimating = !preprocessing_only
   )
 
@@ -1295,6 +1308,23 @@ estimate_wrapper <- function(
     return(prep)
   }
 
+  ### 3.4 Assemble the fixed-coefficient (offset) vector----
+  # offset() terms fix their coefficient rather than estimate it (design D7).
+  # The parameter vector is [intercept?, effects...], so an offset at rhs
+  # position j fixes parameter j (+1 when the intercept is prepended); the
+  # existing positional `fixedParameters` (Newton-Raphson) is reused unchanged.
+  # Constant-across-alternatives offsets in choice cancel in the softmax, so
+  # they warn rather than abort (design D3 axis).
+  effective_fixed_parameters <- assemble_fixed_parameters(
+    parsed_formula,
+    rhs_names,
+    has_intercept,
+    model,
+    sub_model,
+    control_estimation$fixed_parameters,
+    control_estimation$offset_coef
+  )
+
   ### 4. PREPARE PRINTING----
   # functions_utility.R
   # Reuse the spec_map's single-source-of-truth description when available
@@ -1304,14 +1334,14 @@ estimate_wrapper <- function(
   effectDescription <-
     if (
       !is.null(spec_map$effect_description) &&
-        is.null(control_estimation$fixed_parameters)
+        is.null(effective_fixed_parameters)
     ) {
       spec_map$effect_description
     } else {
       GetDetailPrint(
         objects_effects_link,
         parsed_formula,
-        control_estimation$fixed_parameters
+        effective_fixed_parameters
       )
     }
   hasWindows <- attr(effectDescription, "hasWindows")
@@ -1333,7 +1363,7 @@ estimate_wrapper <- function(
 
   argsEstimation <- list(
     initialParameters = control_estimation$initial_parameters,
-    fixedParameters = control_estimation$fixed_parameters,
+    fixedParameters = effective_fixed_parameters,
     maxIterations = as.integer(control_estimation$max_iterations),
     score_tol = control_estimation$score_tol,
     step_tol = control_estimation$step_tol,

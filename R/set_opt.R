@@ -23,13 +23,21 @@
 #'   values used to initialize the estimation process.
 #'   Default is `NULL`, which means parameters are initialized at zero,
 #'   except for the rate intercept when present.
-#' @param fixed_parameters A numeric vector of the same length
-#'   as the number of parameters to be estimated in the model.
+#' @param fixed_parameters `r lifecycle::badge("superseded")` A numeric vector
+#'   of the same length as the number of parameters to be estimated in the model.
 #'   `NA` values indicate parameters to be estimated,
 #'   while numeric values indicate parameters to be fixed at the given value.
 #'   For example, if the vector is `c(2, NA)` then the first component of the
 #'   parameter is fixed to 2 during the estimation process.
 #'   Default is `NULL` (all parameters are estimated).
+#'   Superseded by wrapping the term in `offset()` in the model formula and
+#'   supplying its value through `offset_coef`, which aligns values to terms by
+#'   name instead of by counting coefficient positions.
+#' @param offset_coef A numeric vector giving the fixed coefficient value(s) for
+#'   the `offset()` term(s) in the model formula, aligned to the offset terms in
+#'   formula order. For example, `~ inertia + offset(ego(sex)) + recip` with
+#'   `offset_coef = 2` holds the `ego(sex)` coefficient at 2 while estimating the
+#'   rest. Default is `NULL` (no offsets).
 #' @param max_iterations An integer non-negative.
 #'   The maximum number of iterations in the Gauss-Fisher scoring algorithm.
 #'   Default is `20`.
@@ -111,6 +119,7 @@
 set_estimation_opt <- function(
   initial_parameters = NULL,
   fixed_parameters = NULL,
+  offset_coef = NULL,
   max_iterations = 20,
   convergence_criterion = deprecated(),
   score_tol = 1e-6,
@@ -142,8 +151,33 @@ set_estimation_opt <- function(
       call. = FALSE
     )
   }
-  if (!is.null(fixed_parameters) && !is.numeric(fixed_parameters)) {
-    stop("'fixed_parameters' must be a numeric vector or NULL.", call. = FALSE)
+  if (!is.null(fixed_parameters)) {
+    if (!is.numeric(fixed_parameters)) {
+      stop(
+        "'fixed_parameters' must be a numeric vector or NULL.",
+        call. = FALSE
+      )
+    }
+    lifecycle::deprecate_soft(
+      when = "1.8.4",
+      what = "set_estimation_opt(fixed_parameters)",
+      details = c(
+        "!" = "Wrap the term in `offset()` in the model formula and supply its
+               value through `offset_coef` instead.",
+        "i" = "`offset()` aligns fixed values to terms by name rather than by
+               counting coefficient positions."
+      )
+    )
+  }
+  if (!is.null(offset_coef) && !is.numeric(offset_coef)) {
+    stop("'offset_coef' must be a numeric vector or NULL.", call. = FALSE)
+  }
+  if (!is.null(fixed_parameters) && !is.null(offset_coef)) {
+    cli::cli_abort(c(
+      "{.arg fixed_parameters} and {.arg offset_coef} cannot both be supplied.",
+      "i" = "Use {.arg offset_coef} with {.fn offset} terms in the formula
+             ({.arg fixed_parameters} is superseded)."
+    ))
   }
   if (
     !rlang::is_scalar_integerish(max_iterations, finite = TRUE) ||
@@ -207,6 +241,7 @@ set_estimation_opt <- function(
   control_list <- list(
     initial_parameters = initial_parameters,
     fixed_parameters = fixed_parameters,
+    offset_coef = offset_coef,
     max_iterations = max_iterations,
     score_tol = score_tol,
     step_tol = step_tol,

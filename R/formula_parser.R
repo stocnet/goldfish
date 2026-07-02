@@ -44,9 +44,19 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
   if (length(rhs_names) == 0) {
     stop("A model without effects cannot be estimated.", call. = FALSE)
   }
+  # Per-term offset (fixed-coefficient) flag from get_rhs_names (design D7),
+  # kept aligned with rhs_names through the intercept drop below.
+  is_offset <- attr(rhs_names, "offset")
+  if (is.null(is_offset)) {
+    is_offset <- logical(length(rhs_names))
+  }
+  attr(rhs_names, "offset") <- NULL
   int <- parse_intercept(rhs_names)
   rhs_names <- int[[1]]
   has_intercept <- int[[2]]
+  if (has_intercept) {
+    is_offset <- is_offset[-1]
+  }
   default_network_name <- attr(get(dep_name, envir = envir), "default_network")
   if (!is.null(default_network_name)) {
     no_object_ids <- which(1 == vapply(rhs_names, length, integer(1)))
@@ -142,6 +152,7 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
     joining_parameter = joining_parameter,
     sub_type_parameter = sub_type_parameter,
     history_parameter = history_parameter,
+    offset_parameter = as.list(is_offset),
     window_derivations = window_derivations
   )
   return(res)
@@ -817,8 +828,23 @@ get_rhs_names <- function(formula) {
   # non-interaction formulas (verified term-for-term in discovery 0.3).
   variables <- as.list(attr(parsed, "variables"))[-1]
   response <- attr(parsed, "response")
+
+  # `offset()` terms are recorded in attr "offset" as indices into the variables
+  # list (1-based, response included). Unlike GLM model.matrix we KEEP the
+  # statistic column and only TAG the term as fixed-coefficient (design D7): the
+  # inner call is unwrapped and parsed like any effect, and `offset = TRUE` is
+  # carried per term so the estimation front-end can assemble `fixedParameters`.
+  offset_pos <- attr(parsed, "offset")
   if (response > 0) {
     variables <- variables[-response]
+    offset_pos <- offset_pos - response
+  }
+  is_offset <- logical(length(variables))
+  if (length(offset_pos) > 0) {
+    is_offset[offset_pos] <- TRUE
+    for (i in offset_pos) {
+      variables[[i]] <- variables[[i]][[2]]
+    }
   }
 
   reject_unsupported_terms(variables)
@@ -839,11 +865,14 @@ get_rhs_names <- function(formula) {
   rhs_names <- lapply(variables, function(term) lapply(term, deparse))
 
   # terms() folds an explicit leading `1` into attr "intercept"; re-insert it as
-  # the first term so parse_intercept() detects it exactly as before.
+  # the first term so parse_intercept() detects it exactly as before. The
+  # intercept is never an offset, so prepend FALSE to keep the flag aligned.
   if (has_explicit_intercept(formula[[length(formula)]])) {
     rhs_names <- c(list(list("1")), rhs_names)
+    is_offset <- c(FALSE, is_offset)
   }
 
+  attr(rhs_names, "offset") <- is_offset
   rhs_names
 }
 
