@@ -1,3 +1,22 @@
+# goldfish 1.8.5
+
+## New features
+
+* Interaction terms (`:`/`*`) are now supported in DyNAM `rate` / `rate_ordered`
+  models, extending the dyad-model support added in 1.8.4. A rate interaction's
+  statistic is the per-sender elementwise product of its operands. Interaction
+  operands must vary on the sender axis (`ego`, `global`, degree `type = "ego"`);
+  an `alter`-perspective operand is rejected because a rate model has no receiver
+  axis. `global()` is permitted as an interaction operand even in `rate_ordered`,
+  where it is not identified as a bare main effect, because the interaction
+  restores per-sender variation.
+
+## Bug fixes
+
+* An interaction whose operand is a non-identified effect (e.g. `global(x):outdeg`
+  in a choice model) no longer aborts: interaction operands are validated by a
+  role-aware rule rather than as bare main effects.
+
 # goldfish 1.8.4
 
 This release completes Stage 2 of the formula-parsing refactor, adding several
