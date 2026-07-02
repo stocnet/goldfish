@@ -1,3 +1,38 @@
+# goldfish 1.8.4
+
+This release completes Stage 2 of the formula-parsing refactor, adding several
+formula features on top of the Stage 1 compile reorganisation. Existing formulas
+and their fitted coefficients are unchanged.
+
+## New features
+
+* Interaction terms in model formulas. `a:b` adds the interaction only and `a*b`
+  expands to `a + b + a:b`, following R's formula conventions. An interaction's
+  statistic is the elementwise product of its operands' statistics, computed
+  incrementally during preprocessing, and its name composes from the operands
+  (e.g. `inrt:rec` in `coef()`). Operands of a bare `a:b` are kept in the design
+  but not estimated. Available for DyNAM `choice` / `choice_coordination` and REM.
+* `make_specification()` (experimental) bundles the rate and/or choice formulas
+  of a model with its `model`, sub-model(s), the dependent process (named by
+  `layer`, with an empty formula left-hand side), and `data` into a reusable
+  `specification.goldfish` object with a `cli`-rendered overview. It can be passed
+  directly to `estimate_dynam()` / `estimate_rem()` in place of a formula.
+* `offset()` fixed-coefficient terms. Wrapping a term in `offset()` holds its
+  coefficient fixed (rather than estimating it), with the value(s) supplied via a
+  new `offset_coef` argument to `set_estimation_opt()`. The statistic column is
+  kept and contributes to the linear predictor.
+* Native `type = "ego"` in DyNAM `choice` / `choice_coordination` degree-family
+  effects (`indeg`, `outdeg`, `node_trans`, `tertius`), numerically identical to
+  the equivalent REM expansion, and `global()` is now computable in choice
+  (produced by `compute_stats()` as a design column). Both are usable as
+  interaction operands; they remain unidentified as bare main effects in choice.
+
+## Deprecations
+
+* `set_estimation_opt(fixed_parameters = )` is superseded by wrapping the term in
+  `offset()` and supplying `offset_coef`. The positional vector still works with a
+  soft-deprecation message.
+
 # goldfish 1.8.3
 
 This release completes Stage 1 of the formula-parsing refactor: an internal,
