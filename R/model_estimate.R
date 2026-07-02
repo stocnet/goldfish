@@ -862,15 +862,27 @@ estimate_wrapper <- function(
   if (sub_model == "rate" && !has_intercept) {
     validity_sub_model <- "rate_ordered"
   }
-  # Offset (fixed-coefficient) terms are not estimated main effects, so the D3
-  # identification matrix does not reject them (design D7): a constant-across-
-  # alternatives offset warns rather than aborts (handled in the fixedParameters
-  # assembly below). Exclude them from the main-effect validity check.
+  # Validity is role-aware (design D3). Offset (fixed-coefficient) terms and
+  # interaction operand-only terms are NOT bare main effects, so they are held
+  # out of the main-effect identification check: an offset warns rather than
+  # aborts (handled in the fixedParameters assembly below), and an operand
+  # (e.g. `global`/`ego` feeding an interaction that restores variation) follows
+  # the separate operand rule. A term that is both a requested main effect and an
+  # operand (the `a*b` case, is_main) stays in the main-effect check.
   is_offset <- unlist(parsed_formula$offset_parameter)
   if (is.null(is_offset)) {
     is_offset <- logical(length(rhs_names))
   }
-  main_effect <- !is_offset
+  is_main <- unlist(parsed_formula$is_main_parameter)
+  if (is.null(is_main)) {
+    is_main <- rep(TRUE, length(rhs_names))
+  }
+  is_operand <- unlist(parsed_formula$is_operand_parameter)
+  if (is.null(is_operand)) {
+    is_operand <- logical(length(rhs_names))
+  }
+  operand_only <- is_operand & !is_main
+  main_effect <- !is_offset & !operand_only
   validate_effects(
     model,
     validity_sub_model,
@@ -881,6 +893,16 @@ estimate_wrapper <- function(
       character(1)
     ),
     estimating = !preprocessing_only
+  )
+  validate_operands(
+    model,
+    validity_sub_model,
+    vapply(rhs_names[operand_only], "[[", character(1), 1),
+    vapply(
+      parsed_formula$type_parameter[operand_only],
+      as.character,
+      character(1)
+    )
   )
 
   if (model == "DyNAM" && sub_model == "rate" && !has_intercept) {

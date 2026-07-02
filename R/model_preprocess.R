@@ -379,8 +379,50 @@ run_sender_recipe_loop <- function(
     subModel = "rate",
     envir = prepEnvir
   )
-  initialStats <- do.call(cbind, lapply(statCache, "[[", "stat"))
+  # Function-effects (operands + mains) have a closure each; interaction columns
+  # (design D9 / sender-interaction-terms) are appended after them as derived
+  # per-sender product columns with no closure. nFun = closures, nInter =
+  # interactions, nEffects = total output columns.
+  nFun <- length(effects)
+  inter_ids <- if (length(plan$interactions) > 0) {
+    as.integer(names(plan$interactions))
+  } else {
+    integer(0)
+  }
+  nInter <- length(inter_ids)
+  nEffects <- nFun + nInter
+
+  initialStats <- matrix(0, nrow = n1, ncol = nEffects)
+  initialStats[, seq_len(nFun)] <- do.call(
+    cbind,
+    lapply(statCache, "[[", "stat")
+  )
   statCache <- lapply(statCache, "[[", "cache")
+
+  # Interaction state (sender kernel): keep a live per-sender vector for every
+  # operand feeding an interaction, seeded from its initial column and updated in
+  # place as its effect emits deltas. Each interaction column is the elementwise
+  # per-sender product of its operands; its initial column is seeded here and its
+  # deltas are emitted as per-sender point updates when any operand changes.
+  op_kind <- plan$effects$broadcast_kind
+  op_state <- new.env(parent = emptyenv())
+  # Per-event accumulator of interaction operand senders touched, keyed by
+  # interaction gid; emptied after each event's interaction emission.
+  dirty_inter <- list()
+  if (nInter > 0) {
+    operand_gids <- sort(unique(unlist(plan$interactions)))
+    for (og in operand_gids) {
+      assign(as.character(og), initialStats[, og], envir = op_state)
+    }
+    for (ig in inter_ids) {
+      ops <- plan$interactions[[as.character(ig)]]
+      prod_vec <- get(as.character(ops[1]), envir = op_state)
+      for (o in ops[-1]) {
+        prod_vec <- prod_vec * get(as.character(o), envir = op_state)
+      }
+      initialStats[, ig] <- prod_vec
+    }
+  }
 
   nodes_obj <- get(nodes, envir = prepEnvir)
   nodes2_obj <- get(nodes2, envir = prepEnvir)
@@ -743,6 +785,26 @@ run_sender_recipe_loop <- function(
           }
 
           if (!is.null(updates)) {
+            # Interaction second-hop (sender kernel): if this effect is an
+            # operand, apply its per-sender delta to its live vector and record
+            # the touched senders for each interaction it feeds. Sender deltas
+            # carry a unique node1 per row (discovery 0.1), so no per-operand
+            # dedup is needed.
+            if (nInter > 0L && gid <= nFun) {
+              feeds <- plan$operand_of[[as.character(gid)]]
+              if (!is.null(feeds)) {
+                ov <- get(as.character(gid), envir = op_state)
+                ov[updates[, "node1"]] <- updates[, "replace"]
+                assign(as.character(gid), ov, envir = op_state)
+                for (ig in feeds) {
+                  igc <- as.character(ig)
+                  dirty_inter[[igc]] <- c(
+                    dirty_inter[[igc]],
+                    updates[, "node1"]
+                  )
+                }
+              }
+            }
             if (hasStartTime && nextEventTime < startTime) {
               initialStats[cbind(updates[, "node1"], gid)] <-
                 updates[, "replace"]
@@ -773,6 +835,35 @@ run_sender_recipe_loop <- function(
               }
             }
           }
+        }
+
+        # Emit each touched interaction's product delta (sender kernel):
+        # recompute the per-sender product over its operands at the union of
+        # senders changed this event and route it as a per-sender point update.
+        # Emitted after the routing loop so all operand deltas are applied first;
+        # a trivial unique() covers the cross-operand overlap (design D1).
+        if (nInter > 0L && length(dirty_inter) > 0L) {
+          for (igc in names(dirty_inter)) {
+            ig <- as.integer(igc)
+            senders <- unique(dirty_inter[[igc]])
+            ops <- plan$interactions[[igc]]
+            prodv <- get(as.character(ops[1]), envir = op_state)[senders]
+            for (o in ops[-1]) {
+              prodv <- prodv * get(as.character(o), envir = op_state)[senders]
+            }
+            if (hasStartTime && nextEventTime < startTime) {
+              initialStats[cbind(senders, ig)] <- prodv
+            } else {
+              block <- rbind(senders - 1, 0, ig - 1, prodv)
+              pending_dep[[length(pending_dep) + 1L]] <- block
+              pending_dep_cols <- pending_dep_cols + ncol(block)
+              if (right_censored) {
+                pending_rc[[length(pending_rc) + 1L]] <- block
+                pending_rc_cols <- pending_rc_cols + ncol(block)
+              }
+            }
+          }
+          dirty_inter <- list()
         }
 
         if (shape == "global") {

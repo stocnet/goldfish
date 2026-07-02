@@ -104,14 +104,16 @@ test_that("REM supports interaction terms", {
   expect_equal(m[, 3], m[, 1] * m[, 2], tolerance = 1e-6)
 })
 
-test_that("interactions are rejected for sender-indexed (rate) models", {
+test_that("sender-indexed (rate) interactions are now supported", {
+  # rate interactions landed in the sender-interaction-terms change; the product
+  # is per-sender (see test-sender_interaction.R). Only DyNAMi stays unsupported.
   d <- make_interaction_fixture()
-  expect_error(
-    estimate_dynam(
+  expect_no_error(
+    compute_stats(
       callsDependent ~ 1 + indeg:outdeg,
-      sub_model = "rate",
-      data = d
-    ),
-    "not yet supported"
+      data = d,
+      model = "DyNAM",
+      sub_model = "rate"
+    )
   )
 })

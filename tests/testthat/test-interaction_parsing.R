@@ -98,14 +98,13 @@ test_that("a non-interaction formula carries an empty interaction structure", {
   expect_identical(unlist(parsed$is_operand_parameter), c(FALSE, FALSE))
 })
 
-test_that("interactions abort for sender-indexed (rate) models", {
+test_that("interactions abort only for DyNAMi (unsupported kernel)", {
   d <- make_interaction_fixture()
-  # dyad models (choice / REM) compute interactions (see
-  # test-interaction_computation.R); sender-indexed rate models are not yet
-  # supported.
+  # DyNAM (dyad + sender kernels) and REM compute interactions; DyNAMi routes to
+  # the preprocessInteraction monolith and is not yet supported.
   expect_error(
-    estimate_dynam(
-      callsDependent ~ 1 + indeg:outdeg,
+    estimate_dynami(
+      callsDependent ~ indeg:outdeg,
       sub_model = "rate",
       data = d
     ),

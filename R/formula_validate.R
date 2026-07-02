@@ -144,10 +144,54 @@ validate_effects <- function(
   ))
 }
 
-# Interaction products are computed in the dyad-indexed recipe loop (design D9):
-# DyNAM choice / choice_coordination and REM. Sender-indexed (DyNAM/DyNAMi rate)
-# and DyNAMi models are not yet supported, so guard those; the dyad models
-# proceed to the interaction computation.
+# Validate interaction *operands* (design D3, role-aware). Operands are held out
+# of the main-effect check (an operand is not a bare main effect); instead a
+# sender-indexed (DyNAM / DyNAMi rate / rate_ordered) model requires each operand
+# to vary on the sender axis, so an `alter`-perspective operand is rejected (a
+# rate model has no receiver axis for it to vary on). `global` is permitted as an
+# operand even in `rate_ordered`, where it is rejected as a bare main effect,
+# because interacting it with a sender-varying operand restores identified
+# per-sender variation. Dyad-indexed models place no operand restriction here.
+validate_operands <- function(model, sub_model, operand_names, operand_types) {
+  is_sender <- model %in%
+    c("DyNAM", "DyNAMi") &&
+    sub_model %in% c("rate", "rate_ordered")
+  if (!is_sender || length(operand_names) == 0) {
+    return(invisible(NULL))
+  }
+  variations <- mapply(
+    effect_variation,
+    operand_names,
+    operand_types,
+    SIMPLIFY = TRUE,
+    USE.NAMES = FALSE
+  )
+  bad <- which(variations == "alter")
+  if (length(bad) == 0) {
+    return(invisible(NULL))
+  }
+  offenders <- stats::setNames(
+    sprintf(
+      "{.code %s}: an alter-perspective statistic with no sender axis.",
+      operand_names[bad]
+    ),
+    rep("x", length(bad))
+  )
+  cli::cli_abort(c(
+    "Unsupported interaction operand in {.code model = {.val {model}}},
+     {.code sub_model = {.val {sub_model}}}:",
+    offenders,
+    "i" = "A sender-indexed (rate) model has no receiver axis, so interaction
+           operands must vary on the sender axis
+           ({.code ego}, {.code global}, degree {.code type = \"ego\"})."
+  ))
+}
+
+# Interaction products are computed in the recipe loops: the dyad-indexed kernel
+# (DyNAM choice / choice_coordination, REM) and the sender-indexed kernel (DyNAM
+# rate / rate_ordered). Only DyNAMi, whose preprocessing routes to the
+# `preprocessInteraction` monolith rather than a recipe loop, is not yet
+# supported (deferred to `refactor-dynami-engine`).
 abort_if_interactions_unsupported <- function(
   parsed_formula,
   model = NULL,
@@ -157,11 +201,8 @@ abort_if_interactions_unsupported <- function(
   if (length(interactions) == 0) {
     return(invisible(NULL))
   }
-  is_dyad <- !is.null(model) &&
-    (identical(model, "REM") ||
-      (identical(model, "DyNAM") &&
-        sub_model %in% c("choice", "choice_coordination")))
-  if (is_dyad) {
+  is_supported <- !is.null(model) && model %in% c("DyNAM", "REM")
+  if (is_supported) {
     return(invisible(NULL))
   }
   labels <- vapply(interactions, function(x) x$label, character(1))
@@ -169,8 +210,8 @@ abort_if_interactions_unsupported <- function(
     "Interaction terms are not yet supported for {.code model = {.val {model}}},
      {.code sub_model = {.val {sub_model}}}.",
     "x" = "Offending term{?s}: {.code {labels}}.",
-    "i" = "Interaction effects are currently available for DyNAM choice /
-           choice_coordination and REM models."
+    "i" = "Interaction effects are currently available for DyNAM and REM models
+           (DyNAMi is not yet supported)."
   ))
 }
 
