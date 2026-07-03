@@ -28,9 +28,13 @@
 #'   `"choice"` or `"choice_coordination"`.
 #' @param layer a character string naming the dependent process. It MUST resolve
 #'   in `data` to a [make_dependent_events()] object.
-#' @param support_constraint a one-sided formula constraining the risk set. It is
-#'   parsed and stored but does not yet alter the risk set (that engine is
-#'   delivered by a separate change); `NULL` by default.
+#' @param support_constraint a one-sided formula constraining the risk set,
+#'   written in the restricted boolean-tree grammar (effect atoms combined with
+#'   `& | !`, comparisons `> < >= <= == !=`, and elementwise arithmetic
+#'   `+ - * /`; a bare effect means `effect != 0`). It is parsed and validated
+#'   at construction; the risk-set restriction it defines is applied during
+#'   estimation. Inside a constraint `*` is elementwise arithmetic, never the
+#'   effects formula's interaction expansion. `NULL` by default.
 #' @param data a `data.goldfish` object created with [make_data()].
 #'
 #' @return an S3 object of class `specification.goldfish`.
@@ -133,12 +137,22 @@ make_specification <- function(
     )
   }
 
+  constraint_plan <- NULL
   if (!is.null(support_constraint)) {
     if (!inherits(support_constraint, "formula")) {
       cli::cli_abort(
         "{.arg support_constraint} must be a formula or {.val NULL}."
       )
     }
+    # One constraint serves both submodels; dyadic atoms are legal when the spec
+    # has a dyad-indexed part (a choice submodel, or REM), rejected for a
+    # rate-only spec (D13 sender-axis rule).
+    has_dyad_part <- model == "REM" || !is.null(choice)
+    constraint_plan <- parse_and_validate_constraint(
+      support_constraint,
+      has_dyad_part = has_dyad_part,
+      envir = work_env
+    )
   }
 
   structure(
@@ -148,6 +162,7 @@ make_specification <- function(
       layer = layer,
       dependent = spec_dependent_info(dep_obj, layer),
       support_constraint = support_constraint,
+      constraint = constraint_plan,
       valid = TRUE,
       data = data,
       call = match.call()

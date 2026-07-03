@@ -237,6 +237,78 @@ reject_availability_atoms <- function(
   invisible(atom_labels)
 }
 
+#' Build a one-sided additive formula from a list of atom call objects
+#'
+#' Turns the distinct atoms extracted from the boolean tree into a plain
+#' `~ a + b + ...` formula so the existing `get_rhs_names()` machinery normalises
+#' them into the same per-effect shape main effects use (reuse verbatim).
+#' @noRd
+atoms_to_formula <- function(atoms) {
+  rhs <- Reduce(function(a, b) call("+", a, b), atoms)
+  stats::as.formula(call("~", rhs))
+}
+
+#' Parse and validate a support_constraint into a plan-ready structure
+#'
+#' Runs the boolean-tree parse, the anti-cycle guard, and — for a
+#' sender-indexed-only specification (`has_dyad_part = FALSE`) — the D13 dyadic
+#' rejection. Classifies each atom's broadcast kind (dyad classification) so the
+#' mask storage kind is known up front. The result carries everything downstream
+#' preprocessing needs without re-parsing.
+#'
+#' @param constraint a one-sided `support_constraint` formula.
+#' @param has_dyad_part `TRUE` when the specification has a dyad-indexed part (a
+#'   choice submodel, or REM) so dyadic atoms are legal; `FALSE` for a rate-only
+#'   spec, where dyadic atoms are rejected (D13).
+#' @param envir environment where the constraint's objects live.
+#' @return a `support_constraint_plan` object: the original `formula`, the
+#'   `atoms` / `atom_labels` / `atom_names`, per-atom `atom_kinds`, the mask
+#'   `expr`, and the derived `mask_kind`.
+#' @noRd
+parse_and_validate_constraint <- function(
+  constraint,
+  has_dyad_part,
+  envir = parent.frame()
+) {
+  pc <- parse_support_constraint(constraint, envir = envir)
+  reject_availability_atoms(pc$atom_labels, pc$atom_names)
+
+  # Normalise atoms through get_rhs_names, then classify each on the dyad grid:
+  # point (0) / alter (1) need the dyad kernel; ego (2) / global (3) are
+  # sender-axis. `type` (deparsed in the rhs entry) is re-parsed for degree
+  # effects so an ego-perspective degree classifies as sender-axis.
+  constraint_rhs <- get_rhs_names(atoms_to_formula(pc$atoms))
+  atom_kinds <- vapply(
+    constraint_rhs,
+    function(entry) {
+      fmls <- if (!is.null(entry$type)) {
+        list(type = str2lang(entry$type))
+      } else {
+        list()
+      }
+      classify_broadcast_kind(entry[[1L]], fmls, "dyad")
+    },
+    integer(1)
+  )
+
+  if (!has_dyad_part) {
+    reject_dyadic_sender_only(pc$atom_labels, atom_kinds)
+  }
+
+  structure(
+    list(
+      formula = constraint,
+      atoms = pc$atoms,
+      atom_labels = pc$atom_labels,
+      atom_names = pc$atom_names,
+      atom_kinds = atom_kinds,
+      expr = pc$expr,
+      mask_kind = axis_union_kind(atom_kinds)
+    ),
+    class = "support_constraint_plan"
+  )
+}
+
 #' Tag a constraint sub-plan and derive its mask storage kind
 #'
 #' A `support_constraint` is carried as a sibling sub-plan, never mixed into the

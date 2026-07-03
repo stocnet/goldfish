@@ -178,7 +178,7 @@ test_that("specification print omits absent sub-model and shows support", {
   d <- make_spec_fixture()
   spec <- make_specification(
     choice = ~ inertia + recip,
-    support_constraint = ~present,
+    support_constraint = ~ tie(callNetwork),
     model = "DyNAM",
     data = d,
     layer = "callsDependent"
@@ -189,4 +189,83 @@ test_that("specification print omits absent sub-model and shows support", {
     unicode = FALSE
   )
   expect_snapshot(print(spec))
+})
+
+# ---- support_constraint parsing + validation (support-constraint change) ----
+
+test_that("dyadic support_constraint parses into a plan-ready structure", {
+  d <- make_spec_fixture()
+  spec <- make_specification(
+    choice = ~ inertia + recip,
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    support_constraint = ~ tie(callNetwork),
+    layer = "callsDependent",
+    data = d
+  )
+  cp <- spec$constraint
+  expect_s3_class(cp, "support_constraint_plan")
+  expect_identical(cp$atom_labels, "tie(callNetwork)")
+  expect_identical(cp$expr, quote(.a1 != 0))
+  # a genuinely dyadic (point) atom stores the mask dense
+  expect_identical(cp$mask_kind, 0L)
+  # the display field stays the formula
+  expect_s3_class(spec$support_constraint, "formula")
+})
+
+test_that("multi-term boolean constraint records all atoms and the tree", {
+  d <- make_spec_fixture()
+  spec <- make_specification(
+    choice = ~inertia,
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    support_constraint = ~ tie(callNetwork) & indeg(callNetwork) > 1,
+    layer = "callsDependent",
+    data = d
+  )
+  cp <- spec$constraint
+  expect_identical(cp$atom_labels, c("tie(callNetwork)", "indeg(callNetwork)"))
+  expect_identical(cp$expr, quote(.a1 != 0 & .a2 > 1))
+})
+
+test_that("rate-only spec rejects a dyadic constraint atom (D13)", {
+  d <- make_spec_fixture()
+  expect_error(
+    make_specification(
+      rate = ~ 1 + indeg(callNetwork, type = "ego"),
+      model = "DyNAM",
+      rate_sub_model = "rate",
+      support_constraint = ~ tie(callNetwork),
+      layer = "callsDependent",
+      data = d
+    ),
+    "sender-axis atoms only"
+  )
+})
+
+test_that("out-of-grammar constraint is rejected at construction", {
+  d <- make_spec_fixture()
+  expect_error(
+    make_specification(
+      choice = ~inertia,
+      model = "DyNAM",
+      choice_sub_model = "choice",
+      support_constraint = ~ log(indeg(callNetwork)) > 1,
+      layer = "callsDependent",
+      data = d
+    ),
+    "Unsupported construct"
+  )
+})
+
+test_that("unconstrained specification carries no constraint plan", {
+  d <- make_spec_fixture()
+  spec <- make_specification(
+    choice = ~inertia,
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    layer = "callsDependent",
+    data = d
+  )
+  expect_null(spec$constraint)
 })

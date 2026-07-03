@@ -34,9 +34,13 @@ deferred to its own preprocessing-path change.}
 \item{layer}{a character string naming the dependent process. It MUST resolve
 in \code{data} to a \code{\link[=make_dependent_events]{make_dependent_events()}} object.}
 
-\item{support_constraint}{a one-sided formula constraining the risk set. It is
-parsed and stored but does not yet alter the risk set (that engine is
-delivered by a separate change); \code{NULL} by default.}
+\item{support_constraint}{a one-sided formula constraining the risk set,
+written in the restricted boolean-tree grammar (effect atoms combined with
+\verb{& | !}, comparisons \verb{> < >= <= == !=}, and elementwise arithmetic
+\verb{+ - * /}; a bare effect means \code{effect != 0}). It is parsed and validated
+at construction; the risk-set restriction it defines is applied during
+estimation. Inside a constraint \code{*} is elementwise arithmetic, never the
+effects formula's interaction expansion. \code{NULL} by default.}
 
 \item{data}{a \code{data.goldfish} object created with \code{\link[=make_data]{make_data()}}.}
 }

@@ -34,7 +34,7 @@
       * Network: "callNetwork"
       
       Choice: `~inertia + recip`
-      Support: `~present`
+      Support: `~tie(callNetwork)`
       
       v Specification is valid.
 
