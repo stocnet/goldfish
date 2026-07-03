@@ -189,3 +189,63 @@ test_that("sender-axis atoms pass the D13 guard", {
     )
   )
 })
+
+# ---- augment_constraints: role tagging + mask storage kind ----
+
+# Minimal constraint sub-plan as build_update_plan would return for the atoms.
+fake_constraint_plan <- function(broadcast_kinds) {
+  list(
+    effects = data.frame(
+      gid = seq_along(broadcast_kinds),
+      effect_name = paste0("atom", seq_along(broadcast_kinds)),
+      stat_kind = "dyad",
+      broadcast_kind = as.integer(broadcast_kinds),
+      role = "main",
+      estimate = TRUE,
+      stringsAsFactors = FALSE
+    ),
+    effect_objects = NULL,
+    routing = list(),
+    objects = NULL
+  )
+}
+
+test_that("constraint atoms are tagged role = constraint, not estimated", {
+  out <- augment_constraints(
+    fake_constraint_plan(c(0L)),
+    mask_expr = quote(.a1 != 0),
+    atom_labels = "tie(net)"
+  )
+  expect_true(all(out$effects$role == "constraint"))
+  expect_true(all(!out$effects$estimate))
+  expect_identical(out$expr, quote(.a1 != 0))
+  expect_identical(out$atom_labels, "tie(net)")
+})
+
+test_that("mask storage kind is the axis-union of atom broadcast kinds", {
+  # point atom -> dense n1xn2 (kind 0)
+  expect_identical(
+    augment_constraints(fake_constraint_plan(0L), NULL, NULL)$mask_kind,
+    0L
+  )
+  # ego-only -> length-n1 vector (kind 2)
+  expect_identical(
+    augment_constraints(fake_constraint_plan(2L), NULL, NULL)$mask_kind,
+    2L
+  )
+  # global-only -> scalar (kind 3)
+  expect_identical(
+    augment_constraints(fake_constraint_plan(3L), NULL, NULL)$mask_kind,
+    3L
+  )
+  # ego x alter -> point / dense (kind 0)
+  expect_identical(
+    augment_constraints(fake_constraint_plan(c(2L, 1L)), NULL, NULL)$mask_kind,
+    0L
+  )
+  # ego + global -> ego vector (global is the identity)
+  expect_identical(
+    augment_constraints(fake_constraint_plan(c(2L, 3L)), NULL, NULL)$mask_kind,
+    2L
+  )
+})

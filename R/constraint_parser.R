@@ -237,6 +237,41 @@ reject_availability_atoms <- function(
   invisible(atom_labels)
 }
 
+#' Tag a constraint sub-plan and derive its mask storage kind
+#'
+#' A `support_constraint` is carried as a sibling sub-plan, never mixed into the
+#' estimated `plan$effects`: its atoms produce no estimated column, so keeping
+#' them out of the estimated registry leaves the coefficient columns (and the
+#' 1e-6 baselines) bit-identical, and sidesteps the flat-update-stream reindexing
+#' that holding a column out of estimation would require. The atoms are still
+#' first-class plan entries, tagged `role = "constraint"`, `estimate = FALSE`.
+#'
+#' The mask's storage kind is the axis-union of its atoms' broadcast kinds (the
+#' same rule interaction products use): `3` global -> scalar, `2` ego -> length-n1
+#' vector, `1` alter -> length-n2 vector, `0` point -> dense n1xn2 matrix. A dense
+#' matrix is allocated only when a genuinely dyadic (point) atom is present.
+#'
+#' @param constraint_plan a plan built by `build_update_plan()` over the
+#'   constraint atoms alone (its `effects`/`routing`/`effect_objects`/`objects`).
+#' @param mask_expr the evaluable mask expression over `.a{k}` placeholders.
+#' @param atom_labels the atoms' deparsed labels, aligned with `.a{k}`.
+#' @return the constraint sub-plan with atoms tagged `role = "constraint"`, the
+#'   mask expression, atom labels, and the derived `mask_kind`.
+#' @noRd
+augment_constraints <- function(constraint_plan, mask_expr, atom_labels) {
+  constraint_plan$effects$role <- "constraint"
+  constraint_plan$effects$estimate <- FALSE
+  list(
+    effects = constraint_plan$effects,
+    effect_objects = constraint_plan$effect_objects,
+    routing = constraint_plan$routing,
+    objects = constraint_plan$objects,
+    expr = mask_expr,
+    atom_labels = atom_labels,
+    mask_kind = axis_union_kind(constraint_plan$effects$broadcast_kind)
+  )
+}
+
 #' D13: reject dyadic atoms in a sender-indexed-only specification
 #'
 #' The sender kernel has no dyad matrix machinery, so a rate / rate_ordered spec
