@@ -127,3 +127,65 @@ test_that("a two-sided formula is rejected", {
     "one-sided"
   )
 })
+
+test_that("parser reports atom head names", {
+  parsed <- parse_support_constraint(
+    ~ indeg(net) > outdeg(net),
+    is_effect = known(c("indeg", "outdeg"))
+  )
+  expect_identical(parsed$atom_names, c("indeg", "outdeg"))
+})
+
+# ---- anti-cycle rule (availability-derived atoms) ----
+
+test_that("availability-derived atom is rejected", {
+  # Inject an availability registry so the guard's error path is exercised even
+  # though no availability-derived effect ships today.
+  is_avail <- function(name) name %in% "n_available"
+  expect_error(
+    reject_availability_atoms(
+      atom_labels = c("tie(net)", "n_available(x)"),
+      atom_names = c("tie", "n_available"),
+      is_availability = is_avail
+    ),
+    "may not depend on the risk set"
+  )
+})
+
+test_that("ordinary atoms pass the anti-cycle guard", {
+  expect_invisible(
+    reject_availability_atoms(
+      atom_labels = c("tie(net)", "same(dept)"),
+      atom_names = c("tie", "same")
+    )
+  )
+})
+
+# ---- D13: dyadic atoms rejected in sender-indexed-only specs ----
+
+test_that("dyadic / alter atoms are rejected in a rate-only spec", {
+  # kinds: point = 0, alter = 1 (need the dyad kernel); ego = 2, global = 3 ok.
+  expect_error(
+    reject_dyadic_sender_only(
+      atom_labels = c("tie(net)", "ego(x)"),
+      atom_kinds = c(0L, 2L)
+    ),
+    "sender-axis atoms only"
+  )
+  expect_error(
+    reject_dyadic_sender_only(
+      atom_labels = "alter(x)",
+      atom_kinds = 1L
+    ),
+    "sender-axis atoms only"
+  )
+})
+
+test_that("sender-axis atoms pass the D13 guard", {
+  expect_invisible(
+    reject_dyadic_sender_only(
+      atom_labels = c("ego(x)", "global(g)"),
+      atom_kinds = c(2L, 3L)
+    )
+  )
+})

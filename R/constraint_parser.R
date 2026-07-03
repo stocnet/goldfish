@@ -179,9 +179,91 @@ parse_support_constraint <- function(
   rhs <- constraint[[2L]]
   expr <- walk_bool(rhs)
 
+  atom_names <- vapply(
+    registry$atoms,
+    function(a) as.character(a[[1L]]),
+    character(1)
+  )
+
   list(
     atoms = registry$atoms,
     atom_labels = registry$labels,
+    atom_names = atom_names,
     expr = expr
   )
+}
+
+# ==== Context-dependent constraint validators ==============================
+# Out-of-grammar rejection is intrinsic to the parser above; these two guards
+# need model context (an availability registry / the atoms' axes), so the
+# wiring supplies their inputs.
+
+# Effects that read the availability mask / risk set. Empty today (no such
+# effect exists); the anti-cycle guard below activates when one is added.
+.constraint_availability_effects <- character(0)
+
+#' Anti-cycle rule: a constraint atom may not read the mask it defines
+#'
+#' An atom whose statistic reads the active/risk set makes
+#' `mask -> atom -> mask` a fixpoint rather than a DAG. Keeps the data flow a
+#' two-layer DAG (atoms -> mask).
+#'
+#' @param atom_labels,atom_names deparsed labels and head names of the atoms.
+#' @param is_availability predicate flagging availability-derived effect names;
+#'   defaults to membership in `.constraint_availability_effects`.
+#' @noRd
+reject_availability_atoms <- function(
+  atom_labels,
+  atom_names,
+  is_availability = NULL
+) {
+  if (is.null(is_availability)) {
+    is_availability <- function(name) {
+      name %in% .constraint_availability_effects
+    }
+  }
+  bad <- vapply(atom_names, is_availability, logical(1))
+  if (any(bad)) {
+    cli::cli_abort(
+      c(
+        "A {.arg support_constraint} atom may not depend on the risk set it
+         defines.",
+        "x" = "Availability-derived atom{?s}: {.code {atom_labels[bad]}}.",
+        "i" = "Constrain on networks or attributes, not on the active/risk set."
+      ),
+      call = NULL
+    )
+  }
+  invisible(atom_labels)
+}
+
+#' D13: reject dyadic atoms in a sender-indexed-only specification
+#'
+#' The sender kernel has no dyad matrix machinery, so a rate / rate_ordered spec
+#' with no choice formula must express its constraint on the sender axis. No
+#' automatic rewrite: `rowAny` does not distribute over `&`/`!` and
+#' `outdeg(net) > 0` ignores receiver presence, so `tie -> outdeg` is only a
+#' guidance-level equivalence.
+#'
+#' @param atom_labels deparsed atom labels.
+#' @param atom_kinds their broadcast kinds under dyad classification
+#'   (`0` point / `1` alter need the dyad kernel; `2` ego / `3` global are fine).
+#' @noRd
+reject_dyadic_sender_only <- function(atom_labels, atom_kinds) {
+  bad <- atom_kinds %in% c(0L, 1L)
+  if (any(bad)) {
+    cli::cli_abort(
+      c(
+        "A rate-only specification's {.arg support_constraint} must use
+         sender-axis atoms only.",
+        "x" = "Dyadic atom{?s}: {.code {atom_labels[bad]}}.",
+        "i" = "Reformulate on the sender axis, e.g. {.code ~ tie(net)} becomes
+               {.code ~ outdeg(net) > 0}.",
+        "!" = "That equivalence ignores receiver presence and breaks under
+               composition changes; rewrite it deliberately."
+      ),
+      call = NULL
+    )
+  }
+  invisible(atom_labels)
 }
