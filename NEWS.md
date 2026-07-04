@@ -1,3 +1,27 @@
+# goldfish 1.8.6
+
+## New features
+
+* `support_constraint`: a first-class, per-event risk-set restriction for DyNAM
+  models, supplied as a one-sided formula on `estimate_dynam()` (and carried by
+  `make_specification()`). It uses a restricted boolean-tree grammar — effect
+  atoms (`tie(net)`, `indeg(net)`, ...) combined with `&`, `|`, `!`, comparisons
+  (`> < >= <= == !=`), and elementwise arithmetic (`+ - * /`); a bare effect
+  means `effect != 0`. Inside a constraint `*` is elementwise arithmetic, never
+  the effects formula's interaction expansion.
+  * `DyNAM` `choice` / `choice_coordination`: the constraint restricts each
+    event's receiver set, shrinking the candidate set and reindexing the chosen
+    alternative. A constraint over an allowed-dyad network reproduces the
+    coefficients of the (deprecated) opportunity list.
+  * `DyNAM` `rate`: the constraint reduces to a per-event sender gate (a sender
+    is at risk only with at least one allowed, present receiver) and drives the
+    constrained intercept denominator.
+  * Mis-specified constraints fail fast in preprocessing (an observed dyad
+    excluded, or an empty risk set, errors; a forced choice or never-active node
+    warns).
+  * This release wires the default (R) engine; `REM` and the compiled engines
+    follow.
+
 # goldfish 1.8.5
 
 ## New features
