@@ -66,7 +66,10 @@ estimate_int_impl <- function(
   # per-event sender gate from a support_constraint (rate models)
   senderGate = NULL,
   # per-event dyad mask from a support_constraint (REM)
-  remMask = NULL
+  remMask = NULL,
+  # per-event support mask for the gather engine (consumed only there); accepted
+  # here so the shared argument list can be dispatched to either engine.
+  supportMask = NULL
 ) {
   ## SET VARIABLES
 

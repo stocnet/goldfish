@@ -45,6 +45,7 @@ estimate_c_int <- function(
   opportunitiesList = NULL,
   senderGate = NULL,
   remMask = NULL,
+  supportMask = NULL,
   engine = c("default_c", "gather_compute")
 ) {
   if (!is.null(opportunitiesList)) {
@@ -53,9 +54,14 @@ estimate_c_int <- function(
       call. = FALSE
     )
   }
-  if (!is.null(senderGate) || !is.null(remMask)) {
+  # The R gather (gather_compute) consumes the mask natively; the C default_c
+  # engine (estimate_()) does not yet, so a mask there is a caller error.
+  if (
+    (!is.null(senderGate) || !is.null(remMask)) ||
+      (!is.null(supportMask) && identical(engine, "default_c"))
+  ) {
     stop(
-      "support_constraint is not supported in the C interface.",
+      "support_constraint is not supported in this C interface engine.",
       call. = FALSE
     )
   }
@@ -291,7 +297,8 @@ estimate_c_int <- function(
       n_actors2 = n_actors2,
       twomode_or_reflexive = twomode_or_reflexive,
       verbose = progress, # output the progress of data gathering
-      impute = impute
+      impute = impute,
+      support = supportMask
     )
     size_gathered_data <- utils::object.size(gathered_data)
   }
@@ -744,7 +751,8 @@ gather_ <- function(
   n_actors2,
   twomode_or_reflexive,
   verbose,
-  impute
+  impute,
+  support = NULL
 ) {
   if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
     # For DyNAM-MM, we deal with twomode_or_reflexive in the estimation
@@ -783,7 +791,8 @@ gather_ <- function(
       presence2_update_pointer,
       n_actors1,
       n_actors2,
-      twomode_or_reflexive
+      twomode_or_reflexive,
+      support = support
     )
   } else if (modelTypeCall %in% c("DyNAM-M-Rate-ordered", "DyNAM-M-Rate")) {
     gathered_data <- gather_sender_model_r(
@@ -1054,7 +1063,8 @@ gather_receiver_model_r <- function(
   presence2_update_pointer,
   n_actors1,
   n_actors2,
-  twomode_or_reflexive
+  twomode_or_reflexive,
+  support = NULL
 ) {
   stat_mat <- stat_mat_init
   n_events <- ncol(event_mat)
@@ -1106,6 +1116,11 @@ gather_receiver_model_r <- function(
     not_allowed <- if (!twomode_or_reflexive) id_sender else -1L
     present2_ids <- which(presence2 == 1) - 1L
     allowed <- present2_ids[present2_ids != not_allowed]
+    # support_constraint: keep only the sender's allowed receivers (design D5),
+    # shrinking n_candidates and reindexing selected within the constrained set.
+    if (!is.null(support)) {
+      allowed <- allowed[support[[e]][id_sender + 1L, allowed + 1L]]
+    }
     idx <- id_sender * n_actors2 + allowed + 1L
     rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
     hit <- which(allowed == id_receiver)

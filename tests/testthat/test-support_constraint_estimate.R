@@ -80,6 +80,27 @@ test_that("a support_constraint matches the opportunities_list restriction (D5/D
   expect_equal(coef(m_cstr), coef(m_ref), tolerance = 1e-6)
 })
 
+test_that("gather_compute consumes the choice constraint natively (== default)", {
+  fx <- make_estimate_fixture()
+  m_def <- estimate_dynam(
+    callsDependent ~ inertia + recip,
+    sub_model = "choice",
+    data = fx$data,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "default")
+  )
+  # the R gather filters candidates directly, so no downgrade warning fires
+  m_gc <- estimate_dynam(
+    callsDependent ~ inertia + recip,
+    sub_model = "choice",
+    data = fx$data,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "gather_compute")
+  )
+  expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
+  expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+})
+
 test_that("a support_constraint actually restricts the risk set (vs unconstrained)", {
   fx <- make_estimate_fixture()
   m_cstr <- estimate_dynam(

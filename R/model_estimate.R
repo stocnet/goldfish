@@ -1580,6 +1580,7 @@ estimate_wrapper <- function(
   opportunities_effective <- control_preprocessing$opportunities_list
   sender_gate <- NULL
   rem_mask <- NULL
+  support_gather <- NULL
   if (!is.null(constraint_plan) && !is.null(prep$support_mask)) {
     is_choice_family <- model == "DyNAM" &&
       sub_model %in% c("choice", "choice_coordination")
@@ -1598,13 +1599,6 @@ estimate_wrapper <- function(
                is available in {.code prep$support_mask}."
       ))
     }
-    if (control_estimation$engine != "default") {
-      cli::cli_warn(c(
-        "!" = "engine {.val {control_estimation$engine}} does not yet consume
-               {.arg support_constraint}; using engine {.val default}."
-      ))
-      control_estimation$engine <- "default"
-    }
     # Fail fast (design D8) before the likelihood: excluded observed dyads / empty
     # risk sets error; forced choices and never-active nodes warn. Rate uses the
     # sender-gate policy; choice and REM both check the observed dyad directly.
@@ -1617,27 +1611,42 @@ estimate_wrapper <- function(
       prep$active_mode2_init,
       family = if (is_rate_family) "rate" else "choice"
     )
-    if (is_choice_family) {
-      opportunities_effective <- mask_to_opportunities(
-        prep$support_mask,
-        prep,
-        opportunities_effective
-      )
-    } else if (is_rate_family) {
-      sender_gate <- mask_to_sender_gate(
-        prep$support_mask,
-        prep$active_mode2_init
-      )
-      # The constrained active set feeds the intercept init (design D4/D5.2).
-      if (has_intercept && !is.null(prep$avg_active_actors)) {
-        prep$avg_active_actors <- constrained_avg_active_actors(
-          sender_gate,
-          prep$active_mode1_init
-        )
-      }
+    # The gather_compute engine consumes the mask natively for DyNAM-choice (the R
+    # gather filters candidates). Other engine/model combinations fall back to the
+    # default (R) engine, which consumes the mask via the sender/receiver filters.
+    if (control_estimation$engine == "gather_compute" && is_choice_family) {
+      support_gather <- prep$support_mask$support
     } else {
-      # REM: the contribution zeroes disallowed dyads from the 2D risk set.
-      rem_mask <- prep$support_mask$support
+      if (control_estimation$engine != "default") {
+        cli::cli_warn(c(
+          "!" = "engine {.val {control_estimation$engine}} does not yet consume
+                 {.arg support_constraint} for this model; using engine
+                 {.val default}."
+        ))
+        control_estimation$engine <- "default"
+      }
+      if (is_choice_family) {
+        opportunities_effective <- mask_to_opportunities(
+          prep$support_mask,
+          prep,
+          opportunities_effective
+        )
+      } else if (is_rate_family) {
+        sender_gate <- mask_to_sender_gate(
+          prep$support_mask,
+          prep$active_mode2_init
+        )
+        # The constrained active set feeds the intercept init (design D4/D5.2).
+        if (has_intercept && !is.null(prep$avg_active_actors)) {
+          prep$avg_active_actors <- constrained_avg_active_actors(
+            sender_gate,
+            prep$active_mode1_init
+          )
+        }
+      } else {
+        # REM: the contribution zeroes disallowed dyads from the 2D risk set.
+        rem_mask <- prep$support_mask$support
+      }
     }
   }
 
@@ -1669,7 +1678,8 @@ estimate_wrapper <- function(
     progress = progress,
     opportunitiesList = opportunities_effective,
     senderGate = sender_gate,
-    remMask = rem_mask
+    remMask = rem_mask,
+    supportMask = support_gather
   )
 
   # Call the appropriate estimation engine
