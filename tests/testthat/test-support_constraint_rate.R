@@ -125,7 +125,10 @@ test_that("a restricting rate gate changes the estimate vs unconstrained", {
     support_constraint = ~ tie(allowedNet),
     data = d
   )
-  m_cstr <- estimate_dynam(spec, sub_model = "rate", control_estimation = opt)
+  # the 5 gated-out senders are never at risk -> a case-E warning (design D8)
+  m_cstr <- suppressWarnings(
+    estimate_dynam(spec, sub_model = "rate", control_estimation = opt)
+  )
   m_unc <- estimate_dynam(
     callsDependent ~ 1 + indeg,
     sub_model = "rate",

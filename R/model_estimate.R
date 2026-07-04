@@ -608,6 +608,97 @@ constrained_avg_active_actors <- function(sender_gate, active_1) {
   ))
 }
 
+# Preprocessing-time set-size validation for a support_constraint (design D8).
+# Fails fast — before the C++ likelihood — with event context. Cases:
+#   A observed dyad excluded (choice) / observed sender gated out (rate) -> error
+#   B dependent event's own sender has 0 live receivers                  -> error
+#   D the whole risk set is empty at a dependent event                   -> error
+#   C the risk set has exactly 1 candidate (forced choice)               -> warn
+#   E a node is never live across the whole sequence                     -> warn
+# Rate nuance: a NON-observed sender with 0 live receivers is gated out (normal,
+# not an error) — only the dependent event's own sender triggers A/B.
+validate_support_constraint <- function(
+  support_mask,
+  event_sender,
+  event_receiver,
+  is_dependent,
+  active_1,
+  active_2,
+  family
+) {
+  support <- support_mask$support
+  dep <- which(is_dependent == 1L)
+  n1 <- length(active_1)
+  n2 <- length(active_2)
+  forced <- integer(0)
+
+  if (family == "choice") {
+    ever_candidate <- logical(n2)
+    for (e in dep) {
+      allowed <- which(support[[e]][event_sender[[e]], ] & active_2)
+      ever_candidate[allowed] <- TRUE
+      if (length(allowed) == 0L) {
+        cli::cli_abort(c(
+          "{.arg support_constraint}: empty risk set at event {e}.",
+          "x" = "Sender {event_sender[[e]]} has no allowed, present receiver."
+        ))
+      }
+      if (!(event_receiver[[e]] %in% allowed)) {
+        cli::cli_abort(c(
+          "{.arg support_constraint}: the observed dyad is excluded.",
+          "x" = "Event {e}: receiver {event_receiver[[e]]} is not allowed for
+                 sender {event_sender[[e]]}."
+        ))
+      }
+      if (length(allowed) == 1L) {
+        forced <- c(forced, e)
+      }
+    }
+    never <- which(active_2 & !ever_candidate)
+    if (length(never) > 0) {
+      cli::cli_warn(c(
+        "!" = "{.arg support_constraint}: {length(never)} present receiver{?s}
+               never an allowed candidate.",
+        "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
+      ))
+    }
+  } else {
+    ever_active <- logical(n1)
+    for (e in dep) {
+      gate <- rowSums(support[[e]] & rep(active_2, each = n1)) > 0
+      ever_active <- ever_active | (active_1 & gate)
+      if (!gate[event_sender[[e]]]) {
+        cli::cli_abort(c(
+          "{.arg support_constraint}: the observed sender is gated out.",
+          "x" = "Event {e}: sender {event_sender[[e]]} has no allowed, present
+                 receiver."
+        ))
+      }
+      if (sum(active_1 & gate) == 1L) {
+        forced <- c(forced, e)
+      }
+    }
+    never <- which(active_1 & !ever_active)
+    if (length(never) > 0) {
+      cli::cli_warn(c(
+        "!" = "{.arg support_constraint}: {length(never)} present sender{?s}
+               never at risk (always gated out).",
+        "i" = "{cli::qty(length(never))}Node{?s}: {.val {never}}."
+      ))
+    }
+  }
+
+  if (length(forced) > 0) {
+    cli::cli_warn(c(
+      "!" = "{.arg support_constraint}: {length(forced)} event{?s} with a
+             single candidate (forced choice; contributes 0 to the
+             log-likelihood).",
+      "i" = "{cli::qty(length(forced))}Event{?s}: {.val {forced}}."
+    ))
+  }
+  invisible(NULL)
+}
+
 #' Recipe (DyNAM/REM) preprocessing front-end
 #'
 #' Compiles the `spec_map` upfront (design D8) and runs the shared recipe loop
@@ -1507,6 +1598,17 @@ estimate_wrapper <- function(
       ))
       control_estimation$engine <- "default"
     }
+    # Fail fast (design D8) before the likelihood: excluded observed dyads / empty
+    # risk sets error; forced choices and never-active nodes warn.
+    validate_support_constraint(
+      prep$support_mask,
+      prep$event_sender,
+      prep$event_receiver,
+      prep$is_dependent,
+      prep$active_mode1_init,
+      prep$active_mode2_init,
+      family = if (is_choice_family) "choice" else "rate"
+    )
     if (is_choice_family) {
       opportunities_effective <- mask_to_opportunities(
         prep$support_mask,
