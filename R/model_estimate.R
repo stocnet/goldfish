@@ -585,6 +585,29 @@ mask_to_opportunities <- function(support_mask, statsList, user_opp = NULL) {
   })
 }
 
+# Reduce the support mask to a per-event sender gate for a DyNAM-rate model
+# (design D3/D10): a sender is at risk iff it has at least one allowed receiver
+# that is present. `active_2` is the receiver-presence vector (initial mode-2
+# presence); the gate conjoins it so a sender whose only allowed receivers are
+# absent is gated out. Returns one logical n1 vector per stored event.
+mask_to_sender_gate <- function(support_mask, active_2) {
+  lapply(support_mask$support, function(s) {
+    rowSums(s & rep(active_2, each = nrow(s))) > 0
+  })
+}
+
+# Constraint-aware `avg_active_actors` (design D4/D5.2): the intercept baseline
+# denominator counts the post-constraint active senders (present AND gated in),
+# averaged over the stored events. Overrides the presence-only value computed by
+# the writer when a rate model carries a support_constraint.
+constrained_avg_active_actors <- function(sender_gate, active_1) {
+  mean(vapply(
+    sender_gate,
+    function(g) sum(active_1 & g),
+    numeric(1)
+  ))
+}
+
 #' Recipe (DyNAM/REM) preprocessing front-end
 #'
 #' Compiles the `spec_map` upfront (design D8) and runs the shared recipe loop
@@ -1452,23 +1475,29 @@ estimate_wrapper <- function(
     )
   }
 
-  # Consume a support_constraint on the R (default) engine for the choice family:
-  # the mask reduces to a per-event receiver filter routed through the existing
-  # opportunities machinery (shrinks n_candidates, reindexes selected, design D5).
-  # REM / rate 2D-mask consumption and the C++ gather engines land in a later
-  # slice, so they abort here rather than silently ignore the constraint.
+  # Consume a support_constraint on the R (default) engine. DyNAM-choice reduces
+  # the mask to a per-event receiver filter routed through the existing
+  # opportunities machinery (shrinks n_candidates, reindexes selected, design D5);
+  # DyNAM-rate reduces it to a per-event sender gate (a sender is at risk only
+  # with >= 1 allowed present receiver, D3/D10) and recomputes the constrained
+  # intercept denominator. REM 2D-mask consumption and the C++ gather engines
+  # land in a later slice, so they abort rather than silently ignore the
+  # constraint.
   opportunities_effective <- control_preprocessing$opportunities_list
+  sender_gate <- NULL
   if (!is.null(constraint_plan) && !is.null(prep$support_mask)) {
-    if (
-      !(model == "DyNAM" &&
-        sub_model %in% c("choice", "choice_coordination"))
-    ) {
+    is_choice_family <- model == "DyNAM" &&
+      sub_model %in% c("choice", "choice_coordination")
+    is_rate_family <- model == "DyNAM" &&
+      sub_model %in% c("rate", "rate_ordered")
+    if (!is_choice_family && !is_rate_family) {
       cli::cli_abort(c(
         "{.arg support_constraint} is not yet consumed for {.val {model}}
          {.val {sub_model}} estimation.",
         "i" = "Risk-set restriction is currently wired for the DyNAM
-               {.val choice} / {.val choice_coordination} sub-models; the
-               preprocessed mask is available in {.code prep$support_mask}."
+               {.val choice} / {.val choice_coordination} / {.val rate}
+               sub-models; the preprocessed mask is available in
+               {.code prep$support_mask}."
       ))
     }
     if (control_estimation$engine != "default") {
@@ -1478,11 +1507,25 @@ estimate_wrapper <- function(
       ))
       control_estimation$engine <- "default"
     }
-    opportunities_effective <- mask_to_opportunities(
-      prep$support_mask,
-      prep,
-      opportunities_effective
-    )
+    if (is_choice_family) {
+      opportunities_effective <- mask_to_opportunities(
+        prep$support_mask,
+        prep,
+        opportunities_effective
+      )
+    } else {
+      sender_gate <- mask_to_sender_gate(
+        prep$support_mask,
+        prep$active_mode2_init
+      )
+      # The constrained active set feeds the intercept init (design D4/D5.2).
+      if (has_intercept && !is.null(prep$avg_active_actors)) {
+        prep$avg_active_actors <- constrained_avg_active_actors(
+          sender_gate,
+          prep$active_mode1_init
+        )
+      }
+    }
   }
 
   argsEstimation <- list(
@@ -1511,7 +1554,8 @@ estimate_wrapper <- function(
     cpus = 1,
     verbose = verbose,
     progress = progress,
-    opportunitiesList = opportunities_effective
+    opportunitiesList = opportunities_effective,
+    senderGate = sender_gate
   )
 
   # Call the appropriate estimation engine

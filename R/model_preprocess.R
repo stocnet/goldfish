@@ -911,8 +911,7 @@ run_sender_recipe_loop <- function(
       nodes = nodes,
       nodes2 = nodes2,
       symmetric = FALSE,
-      startTime = startTime,
-      endTime = endTime,
+      snapshot_times = out$event_time,
       prepEnvir = prepEnvir
     )
   }
@@ -1612,8 +1611,7 @@ run_dyad_recipe_loop <- function(
       nodes = nodes,
       nodes2 = nodes2,
       symmetric = identical(spec$sub_model, "choice_coordination"),
-      startTime = startTime,
-      endTime = endTime,
+      snapshot_times = out$event_time,
       prepEnvir = prepEnvir
     )
   }

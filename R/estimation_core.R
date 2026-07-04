@@ -62,7 +62,9 @@ estimate_int_impl <- function(
   verbose = FALSE,
   progress = FALSE,
   # restrictions of opportunity sets
-  opportunitiesList = NULL
+  opportunitiesList = NULL,
+  # per-event sender gate from a support_constraint (rate models)
+  senderGate = NULL
 ) {
   ## SET VARIABLES
 
@@ -257,7 +259,8 @@ estimate_int_impl <- function(
       is_two_mode = is_two_mode,
       reduceArrayToMatrix = reduceArrayToMatrix,
       verbose = verbose,
-      opportunitiesList = opportunitiesList
+      opportunitiesList = opportunitiesList,
+      senderGate = senderGate
     )
   )
 
@@ -1184,9 +1187,17 @@ compute_step.default <- function(spec, state, i, ctx) {
   }
 
   # remove potential absent lines and columns from the stats array
-  if (ctx$updatepresence) {
+  # Sender-axis filter: presence, and — under a support_constraint on a rate
+  # model — the per-event sender gate (a sender is at risk only if it has at
+  # least one allowed receiver, design D3/D10). The gate branch is entered only
+  # when a gate is supplied, so the unconstrained path is byte-identical.
+  hasGate <- !is.null(ctx$senderGate)
+  if (ctx$updatepresence || hasGate) {
     # || (updateopportunities && !is_two_mode)
     keepIn <- state$presence
+    if (hasGate) {
+      keepIn <- keepIn & ctx$senderGate[[i]]
+    }
     # if (updateopportunities && !is_two_mode)
     #   keepIn <- presence & opportunities
     statsArrayComp <- if (is_rate) {
@@ -1310,7 +1321,8 @@ compute_iteration_step <- function(
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
   verbose = FALSE,
-  opportunitiesList = NULL
+  opportunitiesList = NULL,
+  senderGate = NULL
 ) {
   nEvents <- length(statsList$is_dependent)
   is_rate <- length(dim(statsList$initialStats)) == 2L
@@ -1351,6 +1363,7 @@ compute_iteration_step <- function(
     compChange1 = compChange1,
     compChange2 = compChange2,
     opportunitiesList = opportunitiesList,
+    senderGate = senderGate,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
     contribution_fn = contribution_fn

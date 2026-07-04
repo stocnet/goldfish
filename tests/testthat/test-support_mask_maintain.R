@@ -67,6 +67,7 @@ run_mask_pass <- function(fx) {
     nodes = "actors",
     nodes2 = "actors",
     symmetric = FALSE,
+    snapshot_times = fx$dep_times,
     prepEnvir = d
   )
 }
@@ -75,7 +76,7 @@ test_that("the initial mask is empty for an initially-empty tie network", {
   fx <- make_mask_fixture()
   mt <- run_mask_pass(fx)
   expect_false(any(mt$initial))
-  expect_identical(mt$n_dependent, fx$n_events)
+  expect_identical(mt$n_stored, fx$n_events)
   expect_length(mt$support, fx$n_events)
 })
 
@@ -88,7 +89,7 @@ test_that("incrementally maintained mask equals from-scratch at every event", {
   }
 })
 
-test_that("the rate (sender) loop realizes the same dyad support (D13 aux state)", {
+test_that("the rate (sender) loop realizes the same dyad support at all events (D13)", {
   fx <- make_mask_fixture()
   spec <- make_specification(
     rate = ~ 1 + indeg,
@@ -106,11 +107,13 @@ test_that("the rate (sender) loop realizes the same dyad support (D13 aux state)
     preprocessing_only = TRUE
   )
   expect_false(is.null(prep_rate$support_mask))
-  expect_length(prep_rate$support_mask$support, fx$n_events)
-  # the rate pass derives the same dyad support as the from-scratch reference
-  for (e in seq_len(fx$n_events)) {
-    ref <- tie_support_from_scratch(fx, fx$dep_times[e])
-    expect_equal(unname(prep_rate$support_mask$support[[e]]), unname(ref))
+  # the mask timeline aligns with the preprocessed object's (right-censored +
+  # dependent) events, and each equals the from-scratch reference at its time
+  sm <- prep_rate$support_mask
+  expect_identical(sm$n_stored, length(prep_rate$event_time))
+  for (e in seq_along(prep_rate$event_time)) {
+    ref <- tie_support_from_scratch(fx, prep_rate$event_time[e])
+    expect_equal(unname(sm$support[[e]]), unname(ref))
   }
 })
 

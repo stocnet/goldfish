@@ -43,11 +43,18 @@ estimate_c_int <- function(
   get_data_matrix = FALSE,
   impute = FALSE,
   opportunitiesList = NULL,
+  senderGate = NULL,
   engine = c("default_c", "gather_compute")
 ) {
   if (!is.null(opportunitiesList)) {
     stop(
       "opportunitiesList is not supported in the C interface.",
+      call. = FALSE
+    )
+  }
+  if (!is.null(senderGate)) {
+    stop(
+      "support_constraint is not supported in the C interface.",
       call. = FALSE
     )
   }
