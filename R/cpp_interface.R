@@ -811,7 +811,8 @@ gather_ <- function(
       presence2_update_pointer,
       n_actors1,
       n_actors2,
-      twomode_or_reflexive
+      twomode_or_reflexive,
+      support = support
     )
   }
 
@@ -1159,7 +1160,8 @@ gather_sender_model_r <- function(
   presence2_update_pointer,
   n_actors1,
   n_actors2,
-  twomode_or_reflexive
+  twomode_or_reflexive,
+  support = NULL
 ) {
   stat_mat <- stat_mat_init
   n_events <- ncol(event_mat)
@@ -1228,6 +1230,12 @@ gather_sender_model_r <- function(
     id_sender <- event_mat[1, e] - 1L
     is_dep <- is_dependent[e]
     present1_ids <- which(presence1 == 1) - 1L
+    # support_constraint (rate): gate senders to those with >= 1 allowed present
+    # receiver (design D3/D10), removing them from the rate denominator.
+    if (!is.null(support)) {
+      gate <- rowSums(support[[e]][, presence2 == 1, drop = FALSE]) > 0
+      present1_ids <- present1_ids[gate[present1_ids + 1L]]
+    }
     rows_list[[e]] <- reduced[present1_ids + 1L, , drop = FALSE]
     if (is_dep) {
       hit <- which(present1_ids == id_sender)

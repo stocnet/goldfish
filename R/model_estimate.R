@@ -1611,10 +1611,21 @@ estimate_wrapper <- function(
       prep$active_mode2_init,
       family = if (is_rate_family) "rate" else "choice"
     )
-    # The gather_compute engine consumes the mask natively for DyNAM-choice (the R
-    # gather filters candidates). Other engine/model combinations fall back to the
-    # default (R) engine, which consumes the mask via the sender/receiver filters.
-    if (control_estimation$engine == "gather_compute" && is_choice_family) {
+    # The constrained active set feeds the rate intercept init (design D4/D5.2),
+    # independent of the estimation engine.
+    if (is_rate_family && has_intercept && !is.null(prep$avg_active_actors)) {
+      prep$avg_active_actors <- constrained_avg_active_actors(
+        mask_to_sender_gate(prep$support_mask, prep$active_mode2_init),
+        prep$active_mode1_init
+      )
+    }
+    # The gather_compute engine consumes the mask natively for DyNAM choice / rate
+    # (the R gather filters candidates); other engine/model combinations fall back
+    # to the default (R) engine, which consumes the mask via the sender/receiver
+    # filters or the REM contribution.
+    native_gather <- control_estimation$engine == "gather_compute" &&
+      (is_choice_family || is_rate_family)
+    if (native_gather) {
       support_gather <- prep$support_mask$support
     } else {
       if (control_estimation$engine != "default") {
@@ -1636,13 +1647,6 @@ estimate_wrapper <- function(
           prep$support_mask,
           prep$active_mode2_init
         )
-        # The constrained active set feeds the intercept init (design D4/D5.2).
-        if (has_intercept && !is.null(prep$avg_active_actors)) {
-          prep$avg_active_actors <- constrained_avg_active_actors(
-            sender_gate,
-            prep$active_mode1_init
-          )
-        }
       } else {
         # REM: the contribution zeroes disallowed dyads from the 2D risk set.
         rem_mask <- prep$support_mask$support

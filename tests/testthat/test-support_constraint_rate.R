@@ -138,6 +138,32 @@ test_that("a restricting rate gate changes the estimate vs unconstrained", {
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
 
+test_that("gather_compute consumes the rate constraint natively (== default)", {
+  fx <- make_rate_fixture()
+  gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
+  d <- rate_data_with_gate(fx, gated)
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    model = "DyNAM",
+    layer = "callsDependent",
+    support_constraint = ~ tie(allowedNet),
+    data = d
+  )
+  m_def <- suppressWarnings(estimate_dynam(
+    spec,
+    sub_model = "rate",
+    control_estimation = set_estimation_opt(engine = "default")
+  ))
+  m_gc <- suppressWarnings(estimate_dynam(
+    spec,
+    sub_model = "rate",
+    control_estimation = set_estimation_opt(engine = "gather_compute")
+  ))
+  expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
+  expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+})
+
 test_that("a dependent event whose own sender is gated out errors (design D8)", {
   fx <- make_rate_fixture()
   # gate out an OBSERVED sender: the event where it acts has an empty risk set.
