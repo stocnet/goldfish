@@ -16,11 +16,14 @@
   * `DyNAM` `rate`: the constraint reduces to a per-event sender gate (a sender
     is at risk only with at least one allowed, present receiver) and drives the
     constrained intercept denominator.
+  * `REM` (with a time intercept): the constraint removes disallowed dyads from
+    the 2D risk set (their event rate is zeroed), so an all-allowing constraint
+    reproduces the unconstrained fit.
   * Mis-specified constraints fail fast in preprocessing (an observed dyad
     excluded, or an empty risk set, errors; a forced choice or never-active node
     warns).
-  * This release wires the default (R) engine; `REM` and the compiled engines
-    follow.
+  * This release wires the default (R) engine; ordinal REM and the compiled
+    engines (`default_c` / `gather_compute`) follow.
 
 # goldfish 1.8.5
 
