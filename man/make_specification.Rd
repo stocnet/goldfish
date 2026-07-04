@@ -34,13 +34,28 @@ deferred to its own preprocessing-path change.}
 \item{layer}{a character string naming the dependent process. It MUST resolve
 in \code{data} to a \code{\link[=make_dependent_events]{make_dependent_events()}} object.}
 
-\item{support_constraint}{a one-sided formula constraining the risk set,
-written in the restricted boolean-tree grammar (effect atoms combined with
-\verb{& | !}, comparisons \verb{> < >= <= == !=}, and elementwise arithmetic
-\verb{+ - * /}; a bare effect means \code{effect != 0}). It is parsed and validated
-at construction; the risk-set restriction it defines is applied during
-estimation. Inside a constraint \code{*} is elementwise arithmetic, never the
-effects formula's interaction expansion. \code{NULL} by default.}
+\item{support_constraint}{a one-sided formula restricting the per-event risk
+set, written in a restricted boolean-tree grammar. The leaves are effect
+\emph{atoms} (\code{tie(net)}, \code{indeg(net)}, ...) combined into a logical expression
+with:
+\itemize{
+\item boolean operators \code{&}, \code{|}, \code{!};
+\item comparisons \verb{> < >= <= == !=}, either effect-vs-constant
+(\code{indeg(net) > 2}) or effect-vs-effect (\code{indeg(net) > outdeg(net)});
+\item elementwise arithmetic \verb{+ - * /} (with parentheses);
+\item a bare effect, which means \code{effect != 0}.
+}
+
+A cell \verb{(i, j)} is in the risk set when the expression evaluates \code{TRUE}
+there. It is parsed and validated at construction; the restriction is
+applied during estimation.
+
+\strong{\code{*} is elementwise arithmetic here, not interaction expansion.} In an
+\emph{effects} formula \code{a * b} expands to \code{a + b + a:b} (estimated interaction
+columns); in a \emph{constraint} \code{a * b} is the elementwise product of the two
+atoms' values, with no columns and no coefficients. For 0/1 indicators
+\code{a * b} coincides with \code{a & b}, and \code{&} is the clearer idiom — prefer
+\code{tie(a) & tie(b)} over \code{tie(a) * tie(b)}. \code{NULL} by default.}
 
 \item{data}{a \code{data.goldfish} object created with \code{\link[=make_data]{make_data()}}.}
 }

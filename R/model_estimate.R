@@ -119,13 +119,16 @@
 #' @param preprocessing_only logical. If `TRUE`, the function will only run
 #'  the preprocessing stage and return an object of class
 #'  `preprocessed.goldfish`. Default to `FALSE`.
-#' @param support_constraint a one-sided formula constraining the per-event
-#'   risk set, written in the restricted boolean-tree grammar (effect atoms
-#'   combined with `& | !`, comparisons `> < >= <= == !=`, and elementwise
-#'   arithmetic `+ - * /`; a bare effect means `effect != 0`). Inside a
-#'   constraint `*` is elementwise arithmetic, never the effects formula's
-#'   interaction expansion. Ignored when `x` is a `specification.goldfish`
-#'   object (which carries its own constraint). `NULL` by default.
+#' @param support_constraint a one-sided formula restricting the per-event risk
+#'   set, written in the restricted boolean-tree grammar: effect atoms
+#'   (`tie(net)`, `indeg(net)`, ...) combined with `& | !`, comparisons
+#'   `> < >= <= == !=` (effect-vs-constant or effect-vs-effect), and elementwise
+#'   arithmetic `+ - * /`; a bare effect means `effect != 0`. Inside a constraint
+#'   `*` is elementwise arithmetic, never the effects formula's interaction
+#'   expansion; for 0/1 indicators prefer `&` over `*` (`tie(a) & tie(b)`).
+#'   Ignored when `x` is a `specification.goldfish` object (which carries its own
+#'   constraint). See [make_specification()] for the full grammar. `NULL` by
+#'   default.
 #' @param verbose logical indicating whether should print
 #'   very detailed intermediate results of the iterative Newton-Raphson
 #'   procedure; slows down the routine significantly.

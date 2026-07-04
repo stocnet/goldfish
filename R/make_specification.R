@@ -28,13 +28,26 @@
 #'   `"choice"` or `"choice_coordination"`.
 #' @param layer a character string naming the dependent process. It MUST resolve
 #'   in `data` to a [make_dependent_events()] object.
-#' @param support_constraint a one-sided formula constraining the risk set,
-#'   written in the restricted boolean-tree grammar (effect atoms combined with
-#'   `& | !`, comparisons `> < >= <= == !=`, and elementwise arithmetic
-#'   `+ - * /`; a bare effect means `effect != 0`). It is parsed and validated
-#'   at construction; the risk-set restriction it defines is applied during
-#'   estimation. Inside a constraint `*` is elementwise arithmetic, never the
-#'   effects formula's interaction expansion. `NULL` by default.
+#' @param support_constraint a one-sided formula restricting the per-event risk
+#'   set, written in a restricted boolean-tree grammar. The leaves are effect
+#'   *atoms* (`tie(net)`, `indeg(net)`, ...) combined into a logical expression
+#'   with:
+#'   * boolean operators `&`, `|`, `!`;
+#'   * comparisons `> < >= <= == !=`, either effect-vs-constant
+#'     (`indeg(net) > 2`) or effect-vs-effect (`indeg(net) > outdeg(net)`);
+#'   * elementwise arithmetic `+ - * /` (with parentheses);
+#'   * a bare effect, which means `effect != 0`.
+#'
+#'   A cell `(i, j)` is in the risk set when the expression evaluates `TRUE`
+#'   there. It is parsed and validated at construction; the restriction is
+#'   applied during estimation.
+#'
+#'   **`*` is elementwise arithmetic here, not interaction expansion.** In an
+#'   *effects* formula `a * b` expands to `a + b + a:b` (estimated interaction
+#'   columns); in a *constraint* `a * b` is the elementwise product of the two
+#'   atoms' values, with no columns and no coefficients. For 0/1 indicators
+#'   `a * b` coincides with `a & b`, and `&` is the clearer idiom — prefer
+#'   `tie(a) & tie(b)` over `tie(a) * tie(b)`. `NULL` by default.
 #' @param data a `data.goldfish` object created with [make_data()].
 #'
 #' @return an S3 object of class `specification.goldfish`.

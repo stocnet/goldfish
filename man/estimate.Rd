@@ -99,13 +99,16 @@ present in the object and only preprocess the new effects. Default to
 the preprocessing stage and return an object of class
 \code{preprocessed.goldfish}. Default to \code{FALSE}.}
 
-\item{support_constraint}{a one-sided formula constraining the per-event
-risk set, written in the restricted boolean-tree grammar (effect atoms
-combined with \verb{& | !}, comparisons \verb{> < >= <= == !=}, and elementwise
-arithmetic \verb{+ - * /}; a bare effect means \code{effect != 0}). Inside a
-constraint \code{*} is elementwise arithmetic, never the effects formula's
-interaction expansion. Ignored when \code{x} is a \code{specification.goldfish}
-object (which carries its own constraint). \code{NULL} by default.}
+\item{support_constraint}{a one-sided formula restricting the per-event risk
+set, written in the restricted boolean-tree grammar: effect atoms
+(\code{tie(net)}, \code{indeg(net)}, ...) combined with \verb{& | !}, comparisons
+\verb{> < >= <= == !=} (effect-vs-constant or effect-vs-effect), and elementwise
+arithmetic \verb{+ - * /}; a bare effect means \code{effect != 0}. Inside a constraint
+\code{*} is elementwise arithmetic, never the effects formula's interaction
+expansion; for 0/1 indicators prefer \code{&} over \code{*} (\code{tie(a) & tie(b)}).
+Ignored when \code{x} is a \code{specification.goldfish} object (which carries its own
+constraint). See \code{\link[=make_specification]{make_specification()}} for the full grammar. \code{NULL} by
+default.}
 
 \item{progress}{logical indicating whether should print a minimal output
 to the console of the progress of the preprocessing and
