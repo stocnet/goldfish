@@ -1573,7 +1573,7 @@ run_dyad_recipe_loop <- function(
     close(pb)
   }
 
-  writer$finalize(list(
+  out <- writer$finalize(list(
     spec = spec,
     initialStats = initialStats,
     active_mode1_init = active_mode1_init,
@@ -1584,6 +1584,23 @@ run_dyad_recipe_loop <- function(
     endTime = endTime,
     intercept_scalars = intercept_scalars
   ))
+  # The support-constraint mask is realized in a self-contained pass over the
+  # constraint sub-plan (design D7). It is attached additively so the statistics
+  # output above is untouched; the gather consumer reads it per event. A NULL
+  # sub-plan (no constraint) leaves the output unchanged.
+  if (!is.null(plan$support_constraint)) {
+    out$support_mask <- preprocess_support_mask(
+      plan$support_constraint,
+      model = spec$model,
+      nodes = nodes,
+      nodes2 = nodes2,
+      symmetric = identical(spec$sub_model, "choice_coordination"),
+      startTime = startTime,
+      endTime = endTime,
+      prepEnvir = prepEnvir
+    )
+  }
+  out
 }
 
 #' preprocess event and related objects describe in the formula to estimate

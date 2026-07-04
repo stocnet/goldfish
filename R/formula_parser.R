@@ -549,6 +549,7 @@ compile_support_constraint <- function(
     list(
       effect_functions = effects,
       atom_rhs_names = atom_rhs_names,
+      atom_sub_model = atom_sub_model,
       atom_kinds = constraint_plan$atom_kinds,
       events_objects_link = link$events_objects_link,
       events_effects_link = events_effects_link,
