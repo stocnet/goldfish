@@ -556,6 +556,35 @@ compute_stats <- function(
   )
 }
 
+# Reduce the support mask to a per-event receiver filter for the DyNAM-choice
+# default engine (design D5/D10). A choice event has a single sender, so its
+# allowed receivers are the sender's row of the support mask conjoined with
+# receiver presence downstream; the resulting per-event id list is consumed by
+# the existing opportunities machinery in `compute_iteration_step()`, which
+# shrinks `n_candidates` and reindexes `selected` within the constrained set. A
+# user-supplied `opportunities_list` is intersected in (both restrict the set).
+mask_to_opportunities <- function(support_mask, statsList, user_opp = NULL) {
+  support <- support_mask$support
+  senders <- statsList$event_sender
+  if (length(support) != length(senders)) {
+    cli::cli_abort(
+      "The support mask ({length(support)}) and event count
+       ({length(senders)}) are misaligned."
+    )
+  }
+  lapply(seq_along(support), function(e) {
+    allowed <- which(support[[e]][senders[[e]], ])
+    if (
+      !is.null(user_opp) &&
+        length(user_opp) >= e &&
+        !is.null(user_opp[[e]])
+    ) {
+      allowed <- intersect(allowed, user_opp[[e]])
+    }
+    allowed
+  })
+}
+
 #' Recipe (DyNAM/REM) preprocessing front-end
 #'
 #' Compiles the `spec_map` upfront (design D8) and runs the shared recipe loop
@@ -1423,6 +1452,39 @@ estimate_wrapper <- function(
     )
   }
 
+  # Consume a support_constraint on the R (default) engine for the choice family:
+  # the mask reduces to a per-event receiver filter routed through the existing
+  # opportunities machinery (shrinks n_candidates, reindexes selected, design D5).
+  # REM / rate 2D-mask consumption and the C++ gather engines land in a later
+  # slice, so they abort here rather than silently ignore the constraint.
+  opportunities_effective <- control_preprocessing$opportunities_list
+  if (!is.null(constraint_plan) && !is.null(prep$support_mask)) {
+    if (
+      !(model == "DyNAM" &&
+        sub_model %in% c("choice", "choice_coordination"))
+    ) {
+      cli::cli_abort(c(
+        "{.arg support_constraint} is not yet consumed for {.val {model}}
+         {.val {sub_model}} estimation.",
+        "i" = "Risk-set restriction is currently wired for the DyNAM
+               {.val choice} / {.val choice_coordination} sub-models; the
+               preprocessed mask is available in {.code prep$support_mask}."
+      ))
+    }
+    if (control_estimation$engine != "default") {
+      cli::cli_warn(c(
+        "!" = "engine {.val {control_estimation$engine}} does not yet consume
+               {.arg support_constraint}; using engine {.val default}."
+      ))
+      control_estimation$engine <- "default"
+    }
+    opportunities_effective <- mask_to_opportunities(
+      prep$support_mask,
+      prep,
+      opportunities_effective
+    )
+  }
+
   argsEstimation <- list(
     initialParameters = control_estimation$initial_parameters,
     fixedParameters = effective_fixed_parameters,
@@ -1449,7 +1511,7 @@ estimate_wrapper <- function(
     cpus = 1,
     verbose = verbose,
     progress = progress,
-    opportunitiesList = control_preprocessing$opportunities_list
+    opportunitiesList = opportunities_effective
   )
 
   # Call the appropriate estimation engine
