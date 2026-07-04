@@ -54,11 +54,16 @@ estimate_c_int <- function(
       call. = FALSE
     )
   }
-  # The R gather (gather_compute) consumes the mask natively; the C default_c
-  # engine (estimate_()) does not yet, so a mask there is a caller error.
+  # gather_compute consumes the mask via the R gather; default_c consumes it in
+  # the per-model C++ estimator, wired for DyNAM-M (choice) only. Other
+  # combinations are a caller error (they downgrade to the default engine
+  # upstream).
+  default_c_support_ok <- identical(modelTypeCall, "DyNAM-M")
   if (
     (!is.null(senderGate) || !is.null(remMask)) ||
-      (!is.null(supportMask) && identical(engine, "default_c"))
+      (!is.null(supportMask) &&
+        identical(engine, "default_c") &&
+        !default_c_support_ok)
   ) {
     stop(
       "support_constraint is not supported in this C interface engine.",
@@ -327,6 +332,16 @@ estimate_c_int <- function(
 
     ### DEFAULT_C ENGINE
     if (engine == "default_c") {
+      # DyNAM-M (choice): reduce the per-event mask to the sender's allowed-
+      # receiver column (n_actors2 x n_events) the C++ estimator consumes.
+      support_c <- NULL
+      if (!is.null(supportMask) && modelTypeCall == "DyNAM-M") {
+        support_c <- vapply(
+          seq_len(ncol(event_mat)),
+          function(e) supportMask[[e]][event_mat[1, e], ],
+          numeric(n_actors2)
+        )
+      }
       res <- estimate_(
         modelTypeCall = modelTypeCall,
         parameters = parameters,
@@ -347,7 +362,8 @@ estimate_c_int <- function(
         n_actors1 = n_actors1,
         n_actors2 = n_actors2,
         twomode_or_reflexive = twomode_or_reflexive,
-        impute = impute
+        impute = impute,
+        support = support_c
       )
     }
 
@@ -579,8 +595,13 @@ estimate_ <- function(
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
-  impute
+  impute,
+  support = NULL
 ) {
+  # The per-model C++ estimators take a support matrix (empty = no constraint);
+  # only the wired ones (DyNAM-M) receive it. An empty matrix leaves the risk set
+  # unrestricted.
+  empty_support <- matrix(numeric(0), 0, 0)
   if (modelTypeCall == "DyNAM-MM") {
     res <- estimate_DyNAM_MM(
       parameters,
@@ -618,7 +639,8 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      support = if (is.null(support)) empty_support else support
     )
   }
 

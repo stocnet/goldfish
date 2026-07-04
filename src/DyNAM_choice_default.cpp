@@ -23,7 +23,8 @@ List estimate_DyNAM_choice(
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
-    bool impute
+    bool impute,
+    const arma::mat& support
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -48,6 +49,15 @@ List estimate_DyNAM_choice(
         has_composition_change = false;
     }
     arma::vec presence2 = presence2_init;
+    // A support_constraint supplies, per event, the sender's allowed-receiver
+    // mask as a column of `support` (n_actors_2 x n_events). Empty means no
+    // constraint, leaving the risk set unrestricted.
+    const bool has_support = support.n_elem > 0;
+    if (has_support &&
+        (support.n_rows != (arma::uword) n_actors_2 ||
+         support.n_cols != (arma::uword) n_events)) {
+        Rcpp::stop("support must be n_actors_2 x n_events");
+    }
 
 
     // Go through all events
@@ -112,7 +122,8 @@ List estimate_DyNAM_choice(
         if (!twomode_or_reflexive) not_allowed_receiver = id_sender;
         // go through all actor2
         for (int j = 0; j < n_actors_2; j++) {
-            if (presence2(j) == 1 && (j != not_allowed_receiver) ) {
+            if (presence2(j) == 1 && (j != not_allowed_receiver) &&
+                (!has_support || support(j, id_event) == 1)) {
                 // exp_current_receiver is \exp(\beta^T s)
                 double exp_current_receiver =
                   std::exp(dot(current_data_matrix.row(j), parameters));

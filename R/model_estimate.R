@@ -1619,13 +1619,16 @@ estimate_wrapper <- function(
         prep$active_mode1_init
       )
     }
-    # The gather_compute engine consumes the mask natively for DyNAM choice / rate
-    # (the R gather filters candidates); other engine/model combinations fall back
-    # to the default (R) engine, which consumes the mask via the sender/receiver
-    # filters or the REM contribution.
-    native_gather <- control_estimation$engine == "gather_compute" &&
-      (is_choice_family || is_rate_family)
-    if (native_gather) {
+    # The compiled engines consume the mask natively where wired: gather_compute
+    # for DyNAM choice / rate (the R gather filters candidates), and default_c for
+    # DyNAM choice (the C++ estimator filters receivers). Other engine/model
+    # combinations fall back to the default (R) engine, which consumes the mask via
+    # the sender/receiver filters or the REM contribution.
+    native_compiled <-
+      (control_estimation$engine == "gather_compute" &&
+        (is_choice_family || is_rate_family)) ||
+      (control_estimation$engine == "default_c" && is_choice_family)
+    if (native_compiled) {
       support_gather <- prep$support_mask$support
     } else {
       if (control_estimation$engine != "default") {

@@ -101,6 +101,27 @@ test_that("gather_compute consumes the choice constraint natively (== default)",
   expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
 })
 
+test_that("default_c consumes the choice constraint natively (== default)", {
+  fx <- make_estimate_fixture()
+  m_def <- estimate_dynam(
+    callsDependent ~ inertia + recip,
+    sub_model = "choice",
+    data = fx$data,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "default")
+  )
+  # the C++ estimator filters receivers directly (no downgrade)
+  m_dc <- estimate_dynam(
+    callsDependent ~ inertia + recip,
+    sub_model = "choice",
+    data = fx$data,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "default_c")
+  )
+  expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-6)
+  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-6)
+})
+
 test_that("a support_constraint actually restricts the risk set (vs unconstrained)", {
   fx <- make_estimate_fixture()
   m_cstr <- estimate_dynam(
