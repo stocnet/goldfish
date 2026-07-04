@@ -335,6 +335,7 @@ build_spec_map <- function(
   events_objects_link,
   events_effects_link,
   fetch_plan,
+  support_constraint = NULL,
   envir = new.env()
 ) {
   stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
@@ -375,6 +376,28 @@ build_spec_map <- function(
     objects_effects_link,
     envir = envir
   )
+  # A supplied support_constraint compiles into a sibling sub-plan (its atoms'
+  # closures/links/update-plan) plus a `kind = "support_mask"` derivation; the
+  # recipe loop realizes/updates the mask from the atoms' stat_state. When no
+  # constraint is present this is a pure no-op, so unconstrained models stay
+  # bit-identical.
+  if (!is.null(support_constraint)) {
+    plan$support_constraint <- compile_support_constraint(
+      support_constraint,
+      model = model_spec$model,
+      sub_model = model_spec$sub_model,
+      stat_kind = stat_kind,
+      dep_name = parsed_formula$dep_name,
+      nodes = nodes,
+      nodes2 = nodes2,
+      window_derivations = parsed_formula$window_derivations,
+      envir = envir
+    )
+    plan$derivations <- c(
+      plan$derivations,
+      list(support_mask_derivation(plan$support_constraint))
+    )
+  }
   effects_template <- build_effects_template(
     effects,
     objects_effects_link,
@@ -438,6 +461,118 @@ build_derivations <- function(
       gids = unname(gids)
     )
   })
+}
+
+# Compile a parsed support_constraint into an engine-ready sibling sub-plan.
+#
+# The constraint atoms are plain effects, so they reuse the same builders the
+# estimated formula uses (`create_effects_functions`, `get_objects_effects_link`,
+# `build_events_objects_link`, `get_events_effects_link`, `build_update_plan`) —
+# but they are carried as a SIBLING sub-plan, never mixed into the estimated
+# `plan$effects` (they produce no coefficient column, so keeping them out leaves
+# the estimated columns and the 1e-6 baselines bit-identical). The atom kernel
+# maps onto the three existing init kernels: the sender kernel materialises
+# sender-axis atoms for a rate-only spec, the choice/REM kernel materialises
+# dyadic atoms; the coordination/undirected symmetry is applied later at mask
+# assembly, not at atom-compute time. Returns the augmented sub-plan plus the
+# atom closures / link metadata / fetch plan the recipe loop needs to seed and
+# update the atoms' `stat_state`.
+compile_support_constraint <- function(
+  constraint_plan,
+  model,
+  sub_model,
+  stat_kind,
+  dep_name,
+  nodes,
+  nodes2,
+  window_derivations,
+  envir
+) {
+  atom_rhs_names <- get_rhs_names(atoms_to_formula(constraint_plan$atoms))
+  atom_sub_model <- if (model == "REM") {
+    "choice"
+  } else if (stat_kind == "sender") {
+    "rate"
+  } else {
+    "choice"
+  }
+  effects <- create_effects_functions(
+    atom_rhs_names,
+    model,
+    atom_sub_model,
+    envir = envir,
+    derivations = window_derivations
+  )
+  objects_effects_link <- get_objects_effects_link(atom_rhs_names)
+  link <- build_events_objects_link(
+    dep_name,
+    atom_rhs_names,
+    nodes,
+    nodes2,
+    envir = envir,
+    derivations = window_derivations
+  )
+  events_effects_link <- get_events_effects_link(
+    atom_rhs_names,
+    link$events_objects_link
+  )
+  object_keys <- build_object_keys(
+    rownames(objects_effects_link),
+    nodes,
+    nodes2,
+    envir = envir,
+    derivations = window_derivations
+  )
+  state_keys <- structure(list(), object_keys = object_keys)
+  sub_plan <- build_update_plan(
+    effects,
+    link$events_objects_link,
+    events_effects_link,
+    objects_effects_link,
+    state_keys,
+    stat_kind = stat_kind,
+    envir = envir,
+    derivations = window_derivations
+  )
+  augmented <- augment_constraints(
+    sub_plan,
+    constraint_plan$expr,
+    constraint_plan$atom_labels
+  )
+  # The atoms are seeded and updated by the recipe loop like main effects, so
+  # carry their closures, link metadata, and fetch plan alongside the update
+  # plan the mask evaluation consumes. `augmented$effects` is the tagged effect
+  # registry (data.frame); the closures ride under a distinct name to avoid
+  # shadowing it.
+  c(
+    augmented,
+    list(
+      effect_functions = effects,
+      atom_rhs_names = atom_rhs_names,
+      atom_kinds = constraint_plan$atom_kinds,
+      events_objects_link = link$events_objects_link,
+      events_effects_link = events_effects_link,
+      objects_effects_link = objects_effects_link,
+      fetch_plan = link$fetch_plan
+    )
+  )
+}
+
+# The support mask is a derived object (design D7): one `plan$derivations` entry,
+# `kind = "support_mask"`, source = its atoms, stored at the axis-union broadcast
+# kind so a dense n1xn2 matrix is allocated only for a genuinely dyadic (point)
+# constraint. The recipe loop realizes/updates it from the atoms' `stat_state`.
+support_mask_derivation <- function(constraint_subplan) {
+  list(
+    derived_name = "__support_mask__",
+    kind = "support_mask",
+    source = constraint_subplan$atom_labels,
+    params = list(
+      expr = constraint_subplan$expr,
+      mask_kind = constraint_subplan$mask_kind
+    ),
+    gids = integer(0)
+  )
 }
 
 # Shared derived -> source resolver (design D8, task 2.3f). A derived object

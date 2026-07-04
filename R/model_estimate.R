@@ -119,6 +119,13 @@
 #' @param preprocessing_only logical. If `TRUE`, the function will only run
 #'  the preprocessing stage and return an object of class
 #'  `preprocessed.goldfish`. Default to `FALSE`.
+#' @param support_constraint a one-sided formula constraining the per-event
+#'   risk set, written in the restricted boolean-tree grammar (effect atoms
+#'   combined with `& | !`, comparisons `> < >= <= == !=`, and elementwise
+#'   arithmetic `+ - * /`; a bare effect means `effect != 0`). Inside a
+#'   constraint `*` is elementwise arithmetic, never the effects formula's
+#'   interaction expansion. Ignored when `x` is a `specification.goldfish`
+#'   object (which carries its own constraint). `NULL` by default.
 #' @param verbose logical indicating whether should print
 #'   very detailed intermediate results of the iterative Newton-Raphson
 #'   procedure; slows down the routine significantly.
@@ -306,6 +313,7 @@ estimate_dynam <- function(
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
+  support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE)
 ) {
@@ -334,7 +342,8 @@ estimate_dynam <- function(
     preprocessing_init = preprocessing_init,
     preprocessing_only = preprocessing_only,
     progress = progress,
-    verbose = verbose
+    verbose = verbose,
+    support_constraint = support_constraint
   )
 }
 
@@ -376,6 +385,7 @@ estimate_rem <- function(
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
+  support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE)
 ) {
@@ -404,7 +414,8 @@ estimate_rem <- function(
     preprocessing_init = preprocessing_init,
     preprocessing_only = preprocessing_only,
     progress = progress,
-    verbose = verbose
+    verbose = verbose,
+    support_constraint = support_constraint
   )
 }
 
@@ -459,7 +470,8 @@ estimate_from_specification <- function(
     preprocessing_only = preprocessing_only,
     progress = progress,
     verbose = verbose,
-    parsed_formula = if (reuse_parsed) bundle$parsed else NULL
+    parsed_formula = if (reuse_parsed) bundle$parsed else NULL,
+    support_constraint = spec$constraint
   )
 }
 
@@ -566,6 +578,7 @@ preprocess_recipe <- function(
   control_preprocessing,
   progress,
   work_env,
+  support_constraint = NULL,
   writer = writer_default()
 ) {
   spec_map <- build_spec_map(
@@ -577,6 +590,7 @@ preprocess_recipe <- function(
     events_objects_link,
     events_effects_link,
     fetch_plan,
+    support_constraint = support_constraint,
     envir = work_env
   )
   # The recipe loop realizes derived inputs (from plan$derivations) and fetches
@@ -676,7 +690,8 @@ estimate_wrapper <- function(
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
   max_length = 63L,
-  parsed_formula = NULL
+  parsed_formula = NULL,
+  support_constraint = NULL
 ) {
   output <- match.arg(output)
 
@@ -785,6 +800,26 @@ estimate_wrapper <- function(
 
   # Create a working copy of the data environment to avoid side-effects
   work_env <- rlang::env_clone(data)
+
+  # Resolve the support_constraint to a parsed sub-plan the recipe consumes. A
+  # specification supplies an already-parsed `support_constraint_plan`; the
+  # formula surface supplies a one-sided formula parsed here against the working
+  # data. Dyadic atoms are legal only when the spec has a dyad-indexed part (a
+  # choice submodel, or REM); a rate-only spec rejects them (design D13).
+  constraint_plan <- NULL
+  if (!is.null(support_constraint)) {
+    if (inherits(support_constraint, "support_constraint_plan")) {
+      constraint_plan <- support_constraint
+    } else {
+      has_dyad_part <- model == "REM" ||
+        sub_model %in% c("choice", "choice_coordination")
+      constraint_plan <- parse_and_validate_constraint(
+        support_constraint,
+        has_dyad_part = has_dyad_part,
+        envir = work_env
+      )
+    }
+  }
 
   ## 1.1 PARSE for all cases: preprocessingInit or not
   # On the fresh recipe (DyNAM/REM) path the shared parser stays free of
@@ -1290,7 +1325,8 @@ estimate_wrapper <- function(
         control_preprocessing,
         progress,
         work_env,
-        writer
+        support_constraint = constraint_plan,
+        writer = writer
       )
       prep <- recipe_out$prep
       spec_map <- recipe_out$spec_map
