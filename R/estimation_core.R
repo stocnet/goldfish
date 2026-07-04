@@ -64,7 +64,9 @@ estimate_int_impl <- function(
   # restrictions of opportunity sets
   opportunitiesList = NULL,
   # per-event sender gate from a support_constraint (rate models)
-  senderGate = NULL
+  senderGate = NULL,
+  # per-event dyad mask from a support_constraint (REM)
+  remMask = NULL
 ) {
   ## SET VARIABLES
 
@@ -260,7 +262,8 @@ estimate_int_impl <- function(
       reduceArrayToMatrix = reduceArrayToMatrix,
       verbose = verbose,
       opportunitiesList = opportunitiesList,
-      senderGate = senderGate
+      senderGate = senderGate,
+      remMask = remMask
     )
   )
 
@@ -677,10 +680,21 @@ event_contribution_rate <- function(
   timespan,
   allowReflexive,
   is_two_mode,
-  isREM
+  isREM,
+  riskMask = NULL
 ) {
   activeActor <- activeDyad[1]
   dimMatrix <- dim(statsArray)
+  # A support_constraint (REM) removes disallowed dyads from the risk set exactly
+  # as the reflexive-edge exclusion does: their rate is zeroed, so they leave the
+  # denominator (and the score / information sums) but the observed dyad's own
+  # term is untouched. `riskMask` is the per-event mask reduced to the presence-
+  # kept dyads, flattened column-major to match the rate vector.
+  maskedOut <- if (isREM && !is.null(riskMask)) {
+    which(!as.vector(riskMask))
+  } else {
+    integer(0)
+  }
   if (isREM) {
     activeActor <- activeDyad[1] + (activeDyad[2] - 1) * dimMatrix[1]
     statsArray <- apply(statsArray, 3, c)
@@ -711,6 +725,7 @@ event_contribution_rate <- function(
   statsOfSender <- statsArray[activeActor, ]
   rates <- exp(objectiveFunctions)
   rates[idEdgeNotConsidered] <- 0
+  rates[maskedOut] <- 0
   ratesSum <- sum(rates)
   # k vector with all rho * s_k summed over all actors i
   ratesStats <- rates * statsArray
@@ -784,7 +799,8 @@ compute_event_contribution.rem_rate_spec <- function(
   isRightCensored,
   timespan,
   allowReflexive,
-  is_two_mode
+  is_two_mode,
+  riskMask = NULL
 ) {
   event_contribution_rate(
     statsArray,
@@ -794,7 +810,8 @@ compute_event_contribution.rem_rate_spec <- function(
     timespan,
     allowReflexive,
     is_two_mode,
-    isREM = TRUE
+    isREM = TRUE,
+    riskMask = riskMask
   )
 }
 
@@ -1133,6 +1150,11 @@ compute_step.default <- function(spec, state, i, ctx) {
     state$bcPointer <- bcEnd
   }
 
+  # `timespan` is only meaningful with a time intercept (rate / REM); the
+  # choice contribution ignores it. Define it unconditionally so the contribution
+  # arguments can be assembled eagerly (previously it was passed as an unforced
+  # promise for the no-intercept case).
+  timespan <- NA_real_
   if (hasIntercept) {
     state$time <- state$time + statsList$intervals[[i]]
     timespan <- statsList$intervals[[i]]
@@ -1191,6 +1213,11 @@ compute_step.default <- function(spec, state, i, ctx) {
   # model — the per-event sender gate (a sender is at risk only if it has at
   # least one allowed receiver, design D3/D10). The gate branch is entered only
   # when a gate is supplied, so the unconstrained path is byte-identical.
+  # Track which senders/receivers survive presence reduction so a REM
+  # support_constraint mask can be reduced to the same dyads before the
+  # contribution zeroes the disallowed ones. NULL means "no reduction" (all kept).
+  sender_keep <- NULL
+  receiver_keep <- NULL
   hasGate <- !is.null(ctx$senderGate)
   if (ctx$updatepresence || hasGate) {
     # || (updateopportunities && !is_two_mode)
@@ -1198,6 +1225,7 @@ compute_step.default <- function(spec, state, i, ctx) {
     if (hasGate) {
       keepIn <- keepIn & ctx$senderGate[[i]]
     }
+    sender_keep <- keepIn
     # if (updateopportunities && !is_two_mode)
     #   keepIn <- presence & opportunities
     statsArrayComp <- if (is_rate) {
@@ -1236,6 +1264,7 @@ compute_step.default <- function(spec, state, i, ctx) {
     } else {
       allowReflexiveCorrected <- FALSE
     }
+    receiver_keep <- keepIn
     statsArrayComp <- statsArrayComp[, keepIn, , drop = FALSE]
     if (isDependent) {
       position <- which(activeDyad[2] == which(keepIn))
@@ -1269,7 +1298,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   # CHANGED SIWEI: add three arguments
   #  (isRightCensored, timespan and allowReflexive) to eventValues function
   isRightCensored <- !isDependent
-  eventValues <- ctx$contribution_fn(
+  contrib_args <- list(
     spec = spec,
     statsArray = statsArrayComp,
     activeDyad = activeDyad,
@@ -1279,6 +1308,21 @@ compute_step.default <- function(spec, state, i, ctx) {
     allowReflexive = allowReflexiveCorrected,
     is_two_mode = ctx$is_two_mode
   )
+  # REM support_constraint: reduce the per-event mask to the presence-kept dyads
+  # (rows/cols dropped above) and pass it so the contribution zeroes disallowed
+  # dyads from the risk set. Only the REM contribution accepts `riskMask`, and it
+  # is passed only when a mask is present, so other paths are unaffected.
+  if (!is.null(ctx$remMask)) {
+    reduced_mask <- ctx$remMask[[i]]
+    if (!is.null(sender_keep)) {
+      reduced_mask <- reduced_mask[sender_keep, , drop = FALSE]
+    }
+    if (!is.null(receiver_keep)) {
+      reduced_mask <- reduced_mask[, receiver_keep, drop = FALSE]
+    }
+    contrib_args$riskMask <- reduced_mask
+  }
+  eventValues <- do.call(ctx$contribution_fn, contrib_args)
 
   if (ctx$returnIntervalLogL) {
     state$eventLogL[i] <- eventValues$logLikelihood
@@ -1322,7 +1366,8 @@ compute_iteration_step <- function(
   reduceArrayToMatrix = FALSE,
   verbose = FALSE,
   opportunitiesList = NULL,
-  senderGate = NULL
+  senderGate = NULL,
+  remMask = NULL
 ) {
   nEvents <- length(statsList$is_dependent)
   is_rate <- length(dim(statsList$initialStats)) == 2L
@@ -1364,6 +1409,7 @@ compute_iteration_step <- function(
     compChange2 = compChange2,
     opportunitiesList = opportunitiesList,
     senderGate = senderGate,
+    remMask = remMask,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
     contribution_fn = contribution_fn

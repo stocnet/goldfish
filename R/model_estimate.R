@@ -1574,24 +1574,28 @@ estimate_wrapper <- function(
   # opportunities machinery (shrinks n_candidates, reindexes selected, design D5);
   # DyNAM-rate reduces it to a per-event sender gate (a sender is at risk only
   # with >= 1 allowed present receiver, D3/D10) and recomputes the constrained
-  # intercept denominator. REM 2D-mask consumption and the C++ gather engines
-  # land in a later slice, so they abort rather than silently ignore the
-  # constraint.
+  # intercept denominator; REM keeps the full per-event dyad mask (the risk set is
+  # 2D). DyNAM rate_ordered and the compiled engines land with the C++ gather
+  # rewrite, so they abort rather than silently ignore the constraint.
   opportunities_effective <- control_preprocessing$opportunities_list
   sender_gate <- NULL
+  rem_mask <- NULL
   if (!is.null(constraint_plan) && !is.null(prep$support_mask)) {
     is_choice_family <- model == "DyNAM" &&
       sub_model %in% c("choice", "choice_coordination")
-    is_rate_family <- model == "DyNAM" &&
-      sub_model %in% c("rate", "rate_ordered")
-    if (!is_choice_family && !is_rate_family) {
+    is_rate_family <- model == "DyNAM" && sub_model == "rate"
+    # Only standard REM (with the time intercept, `rem_rate_spec`) is wired: its
+    # contribution zeroes disallowed dyads. Ordinal REM (`rem_rate_ordered_spec`,
+    # no intercept) uses the multinomial path and is not wired yet.
+    is_rem_family <- model == "REM" && sub_model == "rate" && has_intercept
+    if (!is_choice_family && !is_rate_family && !is_rem_family) {
       cli::cli_abort(c(
         "{.arg support_constraint} is not yet consumed for {.val {model}}
          {.val {sub_model}} estimation.",
         "i" = "Risk-set restriction is currently wired for the DyNAM
-               {.val choice} / {.val choice_coordination} / {.val rate}
-               sub-models; the preprocessed mask is available in
-               {.code prep$support_mask}."
+               {.val choice} / {.val choice_coordination} / {.val rate} and
+               {.val REM} sub-models on the default engine; the preprocessed mask
+               is available in {.code prep$support_mask}."
       ))
     }
     if (control_estimation$engine != "default") {
@@ -1602,7 +1606,8 @@ estimate_wrapper <- function(
       control_estimation$engine <- "default"
     }
     # Fail fast (design D8) before the likelihood: excluded observed dyads / empty
-    # risk sets error; forced choices and never-active nodes warn.
+    # risk sets error; forced choices and never-active nodes warn. Rate uses the
+    # sender-gate policy; choice and REM both check the observed dyad directly.
     validate_support_constraint(
       prep$support_mask,
       prep$event_sender,
@@ -1610,7 +1615,7 @@ estimate_wrapper <- function(
       prep$is_dependent,
       prep$active_mode1_init,
       prep$active_mode2_init,
-      family = if (is_choice_family) "choice" else "rate"
+      family = if (is_rate_family) "rate" else "choice"
     )
     if (is_choice_family) {
       opportunities_effective <- mask_to_opportunities(
@@ -1618,7 +1623,7 @@ estimate_wrapper <- function(
         prep,
         opportunities_effective
       )
-    } else {
+    } else if (is_rate_family) {
       sender_gate <- mask_to_sender_gate(
         prep$support_mask,
         prep$active_mode2_init
@@ -1630,6 +1635,9 @@ estimate_wrapper <- function(
           prep$active_mode1_init
         )
       }
+    } else {
+      # REM: the contribution zeroes disallowed dyads from the 2D risk set.
+      rem_mask <- prep$support_mask$support
     }
   }
 
@@ -1660,7 +1668,8 @@ estimate_wrapper <- function(
     verbose = verbose,
     progress = progress,
     opportunitiesList = opportunities_effective,
-    senderGate = sender_gate
+    senderGate = sender_gate,
+    remMask = rem_mask
   )
 
   # Call the appropriate estimation engine

@@ -44,6 +44,7 @@ estimate_c_int <- function(
   impute = FALSE,
   opportunitiesList = NULL,
   senderGate = NULL,
+  remMask = NULL,
   engine = c("default_c", "gather_compute")
 ) {
   if (!is.null(opportunitiesList)) {
@@ -52,7 +53,7 @@ estimate_c_int <- function(
       call. = FALSE
     )
   }
-  if (!is.null(senderGate)) {
+  if (!is.null(senderGate) || !is.null(remMask)) {
     stop(
       "support_constraint is not supported in the C interface.",
       call. = FALSE

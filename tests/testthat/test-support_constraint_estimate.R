@@ -112,8 +112,10 @@ test_that("an observed dyad excluded by its own constraint errors (design D8)", 
   )
 })
 
-test_that("support_constraint aborts on a not-yet-wired sub-model (REM)", {
+test_that("support_constraint aborts on ordinal REM (no intercept, unwired)", {
   fx <- make_estimate_fixture(n_events = 60L)
+  # `~ inertia + recip` (no time intercept) is ordinal REM (rem_rate_ordered),
+  # which uses the multinomial path and is not yet wired.
   expect_error(
     estimate_rem(
       callsDependent ~ inertia + recip,

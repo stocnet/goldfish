@@ -1,0 +1,143 @@
+# support_constraint consumption for REM on the default engine (task 4.4, REM
+# part). REM's risk set is 2D (every dyad), so the mask cannot reduce to a
+# separable sender/receiver filter; instead the contribution zeroes the
+# disallowed dyads' rates — the same mechanism REM already uses to exclude
+# reflexive edges. An all-allowing mask is therefore an identity; a restricting
+# one changes the estimate; an observed dyad excluded by its own constraint
+# errors (design D8).
+
+make_rem_fixture <- function(n_events = 100L, seed = 1L) {
+  data("Social_Evolution", package = "goldfish", envir = environment())
+  actors <- get("actors", environment())
+  calls <- get("calls", environment())
+  lab <- actors$label
+  n <- nrow(actors)
+  callNetwork <- make_network(nodes = actors, directed = TRUE)
+  callNetwork <- link_events(
+    x = callNetwork,
+    change_event = calls,
+    nodes = actors
+  )
+  callsDependent <- make_dependent_events(
+    events = calls,
+    nodes = actors,
+    default_network = callNetwork
+  )
+  callsDependent <- callsDependent[seq_len(n_events), ]
+  obs <- cbind(
+    match(as.data.frame(callsDependent)$sender, lab),
+    match(as.data.frame(callsDependent)$receiver, lab)
+  )
+  list(
+    actors = actors,
+    calls = calls,
+    callNetwork = callNetwork,
+    callsDependent = callsDependent,
+    lab = lab,
+    n = n,
+    obs = obs,
+    seed = seed
+  )
+}
+
+# All dyads allowed except `n_excluded` never-observed ones (so no observed dyad
+# is excluded). `full = TRUE` allows every non-reflexive dyad (identity mask).
+rem_data <- function(fx, n_excluded = 0L) {
+  allowed <- matrix(1, fx$n, fx$n, dimnames = list(fx$lab, fx$lab))
+  diag(allowed) <- 0
+  if (n_excluded > 0) {
+    set.seed(fx$seed)
+    drawn <- 0L
+    while (drawn < n_excluded) {
+      i <- sample(fx$n, 1)
+      j <- sample(fx$n, 1)
+      if (i != j && !any(fx$obs[, 1] == i & fx$obs[, 2] == j)) {
+        allowed[i, j] <- 0
+        drawn <- drawn + 1L
+      }
+    }
+  }
+  allowedNet <- make_network(
+    matrix = allowed,
+    nodes = fx$actors,
+    directed = TRUE
+  )
+  actors <- fx$actors
+  calls <- fx$calls
+  callNetwork <- fx$callNetwork
+  callsDependent <- fx$callsDependent
+  make_data(callsDependent, callNetwork, calls, actors, allowedNet)
+}
+
+test_that("an all-allowing REM constraint is an identity (equals unconstrained)", {
+  fx <- make_rem_fixture()
+  d <- rem_data(fx)
+  opt <- set_estimation_opt(engine = "default")
+  m_cstr <- estimate_rem(
+    callsDependent ~ 1 + inertia + recip,
+    sub_model = "rate",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = opt
+  )
+  m_unc <- estimate_rem(
+    callsDependent ~ 1 + inertia + recip,
+    sub_model = "rate",
+    data = d,
+    control_estimation = opt
+  )
+  expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-8)
+  expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-8)
+})
+
+test_that("a restricting REM constraint changes the estimate", {
+  fx <- make_rem_fixture()
+  d <- rem_data(fx, n_excluded = 400L)
+  opt <- set_estimation_opt(engine = "default")
+  m_cstr <- suppressWarnings(estimate_rem(
+    callsDependent ~ 1 + inertia + recip,
+    sub_model = "rate",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = opt
+  ))
+  m_unc <- estimate_rem(
+    callsDependent ~ 1 + inertia + recip,
+    sub_model = "rate",
+    data = d,
+    control_estimation = opt
+  )
+  expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
+})
+
+test_that("an observed dyad excluded by its own REM constraint errors (design D8)", {
+  fx <- make_rem_fixture(n_events = 60L)
+  d <- rem_data(fx)
+  opt <- set_estimation_opt(engine = "default")
+  # `~ tie(callNetwork)` excludes the first event (no prior tie exists yet).
+  expect_error(
+    estimate_rem(
+      callsDependent ~ 1 + inertia + recip,
+      sub_model = "rate",
+      data = d,
+      support_constraint = ~ tie(callNetwork),
+      control_estimation = opt
+    )
+  )
+})
+
+test_that("support_constraint still aborts for REM rate_ordered (unwired)", {
+  fx <- make_rem_fixture(n_events = 60L)
+  d <- rem_data(fx)
+  opt <- set_estimation_opt(engine = "default")
+  expect_error(
+    estimate_rem(
+      callsDependent ~ inertia + recip,
+      sub_model = "rate_ordered",
+      data = d,
+      support_constraint = ~ tie(allowedNet),
+      control_estimation = opt
+    ),
+    "not yet consumed"
+  )
+})
