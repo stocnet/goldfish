@@ -889,7 +889,7 @@ run_sender_recipe_loop <- function(
     close(pb)
   }
 
-  writer$finalize(list(
+  out <- writer$finalize(list(
     spec = spec,
     initialStats = initialStats,
     active_mode1_init = active_mode1_init,
@@ -900,6 +900,23 @@ run_sender_recipe_loop <- function(
     endTime = endTime,
     intercept_scalars = intercept_scalars
   ))
+  # Rate models gate on the sender axis (design D3): the constraint mask is
+  # realized dyad-shaped here (the same self-contained pass, D13 aux dyad state)
+  # and attached additively; the gather consumer reduces it to a per-sender gate.
+  # A NULL sub-plan leaves the output unchanged.
+  if (!is.null(plan$support_constraint)) {
+    out$support_mask <- preprocess_support_mask(
+      plan$support_constraint,
+      model = spec$model,
+      nodes = nodes,
+      nodes2 = nodes2,
+      symmetric = FALSE,
+      startTime = startTime,
+      endTime = endTime,
+      prepEnvir = prepEnvir
+    )
+  }
+  out
 }
 
 # Expand an operand effect's `(node1, node2, replace)` delta into the full-matrix

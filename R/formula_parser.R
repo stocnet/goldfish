@@ -385,8 +385,6 @@ build_spec_map <- function(
     plan$support_constraint <- compile_support_constraint(
       support_constraint,
       model = model_spec$model,
-      sub_model = model_spec$sub_model,
-      stat_kind = stat_kind,
       dep_name = parsed_formula$dep_name,
       nodes = nodes,
       nodes2 = nodes2,
@@ -470,18 +468,15 @@ build_derivations <- function(
 # `build_events_objects_link`, `get_events_effects_link`, `build_update_plan`) —
 # but they are carried as a SIBLING sub-plan, never mixed into the estimated
 # `plan$effects` (they produce no coefficient column, so keeping them out leaves
-# the estimated columns and the 1e-6 baselines bit-identical). The atom kernel
-# maps onto the three existing init kernels: the sender kernel materialises
-# sender-axis atoms for a rate-only spec, the choice/REM kernel materialises
-# dyadic atoms; the coordination/undirected symmetry is applied later at mask
-# assembly, not at atom-compute time. Returns the augmented sub-plan plus the
-# atom closures / link metadata / fetch plan the recipe loop needs to seed and
-# update the atoms' `stat_state`.
+# the estimated columns and the 1e-6 baselines bit-identical). The atoms always
+# use the dyad (`choice`) kernel — the mask is dyad-shaped aux state (D13) — with
+# the coordination/undirected symmetry applied later at mask assembly, not at
+# atom-compute time. Returns the augmented sub-plan plus the atom closures / link
+# metadata / fetch plan the recipe loop needs to seed and update the atoms'
+# `stat_state`.
 compile_support_constraint <- function(
   constraint_plan,
   model,
-  sub_model,
-  stat_kind,
   dep_name,
   nodes,
   nodes2,
@@ -489,13 +484,13 @@ compile_support_constraint <- function(
   envir
 ) {
   atom_rhs_names <- get_rhs_names(atoms_to_formula(constraint_plan$atoms))
-  atom_sub_model <- if (model == "REM") {
-    "choice"
-  } else if (stat_kind == "sender") {
-    "rate"
-  } else {
-    "choice"
-  }
+  # Constraint atoms always use the dyad kernel (`init_*_choice`): a dyadic atom
+  # needs the dyad machinery, and a sender-axis atom (ego/global) works under it
+  # too (broadcasting to an ego row). This is D13's constraint-scoped auxiliary
+  # dyad state — the atoms' kernel is chosen by the constraint, not by the
+  # estimated submodel, so a rate pass over a two-formula spec still derives its
+  # sender gate from the dyad support.
+  atom_sub_model <- "choice"
   effects <- create_effects_functions(
     atom_rhs_names,
     model,
@@ -524,13 +519,15 @@ compile_support_constraint <- function(
     derivations = window_derivations
   )
   state_keys <- structure(list(), object_keys = object_keys)
+  # The mask is always a dyad object (D13 aux dyad state), so the sub-plan is
+  # built dyad-shaped regardless of the estimated submodel's `stat_kind`.
   sub_plan <- build_update_plan(
     effects,
     link$events_objects_link,
     events_effects_link,
     objects_effects_link,
     state_keys,
-    stat_kind = stat_kind,
+    stat_kind = "dyad",
     envir = envir,
     derivations = window_derivations
   )

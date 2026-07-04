@@ -35,8 +35,6 @@ test_that("compile_support_constraint builds a role-tagged sibling sub-plan", {
   sub <- compile_support_constraint(
     cp,
     model = "DyNAM",
-    sub_model = "choice",
-    stat_kind = "dyad",
     dep_name = "callNetwork",
     nodes = "actors",
     nodes2 = "actors",
@@ -64,8 +62,6 @@ test_that("support_mask_derivation registers a support_mask derived object", {
   sub <- compile_support_constraint(
     cp,
     model = "DyNAM",
-    sub_model = "choice",
-    stat_kind = "dyad",
     dep_name = "callNetwork",
     nodes = "actors",
     nodes2 = "actors",

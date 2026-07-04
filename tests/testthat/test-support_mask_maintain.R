@@ -55,8 +55,6 @@ run_mask_pass <- function(fx) {
   sub <- compile_support_constraint(
     cp,
     model = "DyNAM",
-    sub_model = "choice",
-    stat_kind = "dyad",
     dep_name = "callsDependent",
     nodes = "actors",
     nodes2 = "actors",
@@ -87,6 +85,32 @@ test_that("incrementally maintained mask equals from-scratch at every event", {
   for (e in seq_len(fx$n_events)) {
     ref <- tie_support_from_scratch(fx, fx$dep_times[e])
     expect_equal(unname(mt$support[[e]]), unname(ref))
+  }
+})
+
+test_that("the rate (sender) loop realizes the same dyad support (D13 aux state)", {
+  fx <- make_mask_fixture()
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    model = "DyNAM",
+    rate_sub_model = "rate",
+    choice_sub_model = "choice",
+    layer = "callsDependent",
+    support_constraint = ~ tie(callNetwork),
+    data = fx$data
+  )
+  prep_rate <- estimate_dynam(
+    spec,
+    sub_model = "rate",
+    preprocessing_only = TRUE
+  )
+  expect_false(is.null(prep_rate$support_mask))
+  expect_length(prep_rate$support_mask$support, fx$n_events)
+  # the rate pass derives the same dyad support as the from-scratch reference
+  for (e in seq_len(fx$n_events)) {
+    ref <- tie_support_from_scratch(fx, fx$dep_times[e])
+    expect_equal(unname(prep_rate$support_mask$support[[e]]), unname(ref))
   }
 })
 
