@@ -9,7 +9,7 @@
 # plain effects, so they are maintained with the SAME recipe builders the
 # estimated formula uses (state container, event schedule, effect templates,
 # stat cache, per-object routing) — but over the constraint sub-plan alone, in a
-# self-contained pass that shares no state with the main statistics loop. Keeping
+# self-contained pass sharing no state with the main statistics loop. Keeping
 # it separate means the unconstrained statistics path is untouched, so the 1e-6
 # baselines cannot move; the pass only runs when a `support_constraint` is
 # present.
@@ -26,17 +26,17 @@
 #'
 #' Runs a stripped recipe pass over the constraint sub-plan, snapshotting the
 #' support mask (the dyadic constraint before presence conjunction, design D10)
-#' at each requested snapshot time. Presence (`active_1`/`active_2`) is conjoined
+#' at each requested snapshot time. Presence (`active_1`/`active_2`) is joined
 #' later by the gather / rate consumer via [assemble_model_mask()].
 #'
 #' The support changes only at constraint-atom object events, so it is
 #' piecewise-constant in time. The pass advances the atoms over their own event
 #' streams and snapshots the support at every `snapshot_times[e]` using the atom
-#' state STRICTLY before that time (the risk set for an event is lagged — its own
+#' state STRICTLY before that time (an event's risk set is lagged — its own
 #' change is not yet applied, design D12). Passing the preprocessed object's
 #' stored-event times aligns the timeline with its events by construction, even
-#' though the right-censored events come from the main model's streams (which the
-#' constraint sub-plan does not carry).
+#' though the right-censored events come from the main model's streams (not
+#' carried by the constraint sub-plan).
 #'
 #' @param sub_plan the compiled constraint sub-plan from
 #'   `compile_support_constraint()` (its `effect_functions`, registries, links,
@@ -282,7 +282,7 @@ preprocess_support_mask <- function(
   }
 
   support_init <- eval_mask()
-  # The support is piecewise-constant, changing only at the atoms' object events.
+  # The support is piecewise-constant, changing only at the atoms' events.
   # Snapshot it at each requested time using the atoms strictly before that time
   # (a lagged risk set, design D12). Snapshots are taken in time order (mapping
   # back to the caller's event order) so the atom stream is advanced once.
