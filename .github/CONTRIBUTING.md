@@ -11,7 +11,7 @@ By contributing to this project, you agree to abide by its terms.
 
 ## Issues
 
-Please use the issue tracker on Gitlab to identify problems or suggest new functionality, before submitting changes to the code.
+Please use the issue tracker on GitHub to identify problems or suggest new functionality, before submitting changes to the code.
 We use issues to identify bugs and tasks, discuss feature requests, and to track implementation of changes.
 
 When submitting an issue, please provide at least a 'Type' label that best describes what the issue is about.
@@ -26,11 +26,10 @@ To run the `lintr` and `goodpractice` checks or use `styler` in a file run:
 
 ```r
 # basic lintr checking
-lintr::lint_package(path = "goldfish package/")
+lintr::lint_package(path = ".")
 
 # goodpractices checks. Exclude length 80
-goodpractice::gp(path = "GESS-SN/goldfish package/",
-   checks = all_checks()[-c(8)])
+goodpractice::gp(path = ".", checks = all_checks()[-c(8)])
 
 # styler fix some of the styling issues
 styler::style_file("filePath")
@@ -41,8 +40,8 @@ If you develop new code in `C++`, please follow the [Google C++ Style Guide](htt
 ### Branches
 We use two **main branches** in this project:
 
-1. The `origin/master` branch is reserved for fully functional releases of the model. 
-When the `develop` branch reaches a stable point, a code maintainer merges it back into to the `master` branch, and tags it with a release number there. 
+1. The `origin/main` branch is reserved for fully functional releases of the model. 
+When the `develop` branch reaches a stable point, a code maintainer merges it back into the `main` branch, and tags it with a release number there. 
 
 2. The `origin/develop` branch reflects the latest model development stage.
 Contributers are encouraged to submit minor changes to this branch that enhance existing functionality.
@@ -52,18 +51,18 @@ We use two types of **supporting branches**:
 
 3. *Feature branches* are used to develop new functionality. They exist as long as the feature is developed, and are then either merged into the `develop` branch for incorporation in a release, or deleted if the feature is abandoned. Feature branches should branch off from `origin/develop`.
 
-4. *Hotfix branches* are used to provide fixes to severe bugs in the `master` branch. That way, the code maintainer does not have to incorporate (potentially unstable) changes from the `develop` branch to fix an issue. Branch names should be prefixed with `hotfix-`.
+4. *Hotfix branches* are used to provide fixes to severe bugs in the `main` branch. That way, the code maintainer does not have to incorporate (potentially unstable) changes from the `develop` branch to fix an issue. Branch names should be prefixed with `hotfix-`.
 
 This branching model is based on: https://nvie.com/posts/a-successful-git-branching-model/.
 
-### Master Branch (code maintainer only)
+### Main Branch (code maintainer only)
 To create a release version of the code:
 
 1. Ensure that the repository is up-to-date: `git pull`.
-2. Switch to the **master** branch: `git checkout master`.
+2. Switch to the **main** branch: `git checkout main`.
 3. Merge changes to the **develop** branch: `git merge --no-ff develop`.
 4. Tag release version: `git tag -a VX.Y.Z -m "VERSION-NAME"`.
-5. Push changes to this repository `git push origin master --tags`.
+5. Push changes to this repository `git push origin main --tags`.
 
 ### Develop Branch (minor changes to existing functionality)
 To make minor changes directly to the `develop` branch, follow standard git procedures:
@@ -87,14 +86,14 @@ git push origin develop
 ```
 
 ### Hotfix Branches (to fix critical bugs in release versions)
-To create a new hotfix branch: `git checkout -b hotfix-VERSION master`.
+To create a new hotfix branch: `git checkout -b hotfix-VERSION main`.
 
-To merge a hotfix back into `master` (code maintainer only):
+To merge a hotfix back into `main` (code maintainer only):
 ```
-git checkout master
-git merge --no-ff hotfix-VERSION 
+git checkout main
+git merge --no-ff hotfix-VERSION
 git tag -a VERSION
-git push origin develop
+git push origin main --tags
 ```
 And into develop:
 ```
@@ -104,7 +103,7 @@ git merge --no-ff hotfix-VERSION
 
 Every hotfix should increment the [PATCH digit of the version number](#versioning): a hotfix branch for `V1.3.0` is named `hotfix-V1.3.1`, and the new release is tagged as `V1.3.1`.
 
-Once merged into `master` and `develop`, the hotfix branch can be deleted: `git branch -d hotfix-VERSION`.
+Once merged into `main` and `develop`, the hotfix branch can be deleted: `git branch -d hotfix-VERSION`.
 
 ### Commit messages
 Commits that relate to existing issues should reference the updated status of those issues, and mention the issue number (preceded by a hash symbol: #) in the commit description:
@@ -115,11 +114,11 @@ Where the issue hash (i.e. #31) is preceded by `resolve`, `resolves`, `resolved`
 Our current syntactical standard is to mention the issue first and then provide a short description of what the committed changes do in relation to that issue.
 Any ancillary changes can be mentioned after a comma.
 
-It should all be written in a single line, like so: #`{verb} {issue} {describe main action/changes}, {additional actions/changes}`.
+It should all be written in a single line, like so: `{verb} #{issue} {describe main action/changes}, {additional actions/changes}`.
 
 ### Testing 
 We use the [testthat](https://testthat.r-lib.org/) package to write unit tests.
-By convention, tests are located in [testthat/tests/](goldfish package/tests/testthat).
+By convention, tests are located in [tests/testthat/](../tests/testthat).
 
 You should verify that all tests pass before issuing a commit to existing code.
 To run all tests for the latest version manually:
@@ -134,7 +133,7 @@ We follow several conventions for writing tests:
 
 - A unit test file should test one or more aspects of a single function. This makes it easier to identify the source of bugs, and prevents lower-level tests from failing when higher-level functions change.
 
-- The [naming convention](https://www.tidyverse.org/articles/2019/04/testthat-2-1-0/) for test files is: ``test-FILENAME_IN_R_DIRECTORY-FUNCTION_NAME.R``, i.e. test files are named after the file containing the original function in the [R](goldfish package/R) directory, pre-fixed with "test", and optionally post-fixed with the name of the function that is being tested.
+- The [naming convention](https://www.tidyverse.org/articles/2019/04/testthat-2-1-0/) for test files is: ``test-FILENAME_IN_R_DIRECTORY-FUNCTION_NAME.R``, i.e. test files are named after the file containing the original function in the [R](../R) directory, pre-fixed with "test", and optionally post-fixed with the name of the function that is being tested.
 
 - If a test requires auxiliary functions from the package, e.g. to initialize a network with sample data, these belong in a helper file. There should be only one helper file for each `R` file, named ``helper-FILENAME_IN_R_DIRECTORY-FUNCTION_NAME.R``. Re-using existing test data is preferable to creating new data for every test.
 
@@ -149,7 +148,22 @@ This means that versions follow the Major.Minor.Patch semantic format.
 Each minor or major level version is also given a new version name, which should be updated in the `zzz.R` file, and follows [this list of 33 types of goldfish](https://www.caringpets.org/how-to-take-care-of-a-goldfish/types/).
 This convention began with version 1.3.0 "American Shubunkins".
 
-## For developers using MacOS
-Develops using MacOS might meet problems compiling the packages since the compiling configuration of R in MacOS is usually incorrect. If one meet an error with error info "/usr/bin/ld: cannot find -lgfortran", then he can either correct the configuration himself or follows the following steps to solve the problem:
-1. Run ".libPaths()" command in R and get a path, e.g. one might get "/Library/Frameworks/R.framework/Versions/3.6/Resources/library"
-2. If the path one get in the first step is "something/library",  then open the file "something/etc/Makeconf" and comment out the line starting with "FLIBS".  e.g. one might open the file  " /Library/Frameworks/R.framework/Versions/3.6/Resources/etc/Makeconf" and change the line "FLIBS =  -L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin15/6.1.0 -L/usr/local/gfortran/lib -lgfortran -lquadmath -lm" to "#FLIBS =  -L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin15/6.1.0 -L/usr/local/gfortran/lib -lgfortran -lquadmath - lm"
+## For developers using macOS
+
+Compiling the C++ code on macOS requires a correctly configured toolchain. If you
+hit a linker error such as `ld: library not found for -lgfortran`, install the
+official R toolchain that matches your R version rather than hand-editing
+`Makeconf`:
+
+- Install R from CRAN (<https://cran.r-project.org/bin/macosx/>), the Xcode
+  Command Line Tools (`xcode-select --install`), and the gfortran build published
+  with R's macOS tools (<https://mac.r-project.org/tools/>).
+- Alternatively, the [`macrtools`](https://github.com/coatless-mac/macrtools)
+  package automates this:
+  ```r
+  remotes::install_github("coatless-mac/macrtools")
+  macrtools::macos_rtools_install()
+  ```
+
+Verify the toolchain with `pkgbuild::check_build_tools()` and
+`pkgbuild::has_build_tools(debug = TRUE)`.
