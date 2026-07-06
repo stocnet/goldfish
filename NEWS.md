@@ -25,6 +25,15 @@
   * This release wires the default (R) engine; ordinal REM and the compiled
     engines (`default_c` / `gather_compute`) follow.
 
+## Deprecations
+
+* `set_preprocessing_opt(opportunities_list = )` is soft-deprecated in favour of
+  the `support_constraint` argument of `estimate_dynam()` / `make_specification()`,
+  which generalizes the per-event choice-set restriction to a per-`(sender,
+  receiver)` risk-set constraint that works on every engine. It still works (with
+  a one-time warning); an equivalent `support_constraint` over an allowed-dyad
+  network reproduces the opportunity-list coefficients.
+
 # goldfish 1.8.5
 
 ## New features

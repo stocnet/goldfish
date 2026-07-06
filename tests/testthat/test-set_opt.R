@@ -103,7 +103,8 @@ test_that("set_preprocessing_opt works correctly", {
   expect_null(default_opts$end_time)
   expect_null(default_opts$opportunities_list)
 
-  # Test setting specific parameters
+  # Test setting specific parameters (opportunities_list is soft-deprecated)
+  withr::local_options(lifecycle_verbosity = "quiet")
   dummy_opportunities <- list(c("A", "B"), c("C", "D"))
   custom_opts <- set_preprocessing_opt(
     start_time = 10,
@@ -123,7 +124,20 @@ test_that("set_preprocessing_opt works correctly", {
   expect_equal(custom_opts$opportunities_list, dummy_opportunities)
 })
 test_that("set_preprocessing_opt throw errors", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   expect_error(set_preprocessing_opt(start_time = character(3)))
   expect_error(set_preprocessing_opt(end_time = character(3)))
   expect_error(set_preprocessing_opt(opportunities_list = -1))
+})
+
+test_that("opportunities_list is deprecated in favour of support_constraint", {
+  # Fires the once-per-session lifecycle warning pointing to support_constraint.
+  withr::local_options(lifecycle_verbosity = "warning")
+  expect_snapshot(
+    invisible(set_preprocessing_opt(opportunities_list = list(c("A", "B"))))
+  )
+  # It still works (soft deprecation): the value is retained.
+  withr::local_options(lifecycle_verbosity = "quiet")
+  opt <- set_preprocessing_opt(opportunities_list = list(c("A", "B")))
+  expect_equal(opt$opportunities_list, list(c("A", "B")))
 })

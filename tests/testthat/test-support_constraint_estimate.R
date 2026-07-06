@@ -58,6 +58,8 @@ make_estimate_fixture <- function(n_events = 120L, seed = 1L) {
 }
 
 test_that("a support_constraint matches the opportunities_list restriction (D5/D6)", {
+  # opportunities_list is soft-deprecated but still the reference restriction here
+  withr::local_options(lifecycle_verbosity = "quiet")
   fx <- make_estimate_fixture()
   opp <- lapply(
     seq_len(fx$n_events),

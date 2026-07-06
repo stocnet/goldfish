@@ -280,13 +280,17 @@ set_estimation_opt <- function(
 #'   The preprocessing stage won't stop at this time and will continue
 #'   processing events after this time.
 #'   Default is `NULL` (end with the last event).
-#' @param opportunities_list A list object. For choice models,
-#'   this list specifies, for each dependent event,
+#' @param opportunities_list `r lifecycle::badge("deprecated")` A list object.
+#'   For choice models, this list specifies, for each dependent event,
 #'   the set of available nodes in the choice set.
 #'   The list should have the same length as the number of events in the
 #'   dependent events objects created with `make_dependent_events()`.
 #'   Default is `NULL`, so the choice set is the set of all nodes present at the
-#'   time of the event.
+#'   time of the event. Superseded by the `support_constraint` argument of
+#'   [estimate_dynam()] / [make_specification()], which generalizes it to a
+#'   per-`(sender, receiver)` risk-set restriction and works on every engine; an
+#'   equivalent constraint over an allowed-dyad network reproduces the
+#'   opportunity-list coefficients.
 #' @param db A `DBIConnection` object or `NULL` (default). When supplied
 #'   together with `compute_stats(..., output = "db")`, the gather statistics
 #'   are streamed to the database table named by `db_table` instead of being
@@ -347,6 +351,16 @@ set_preprocessing_opt <- function(
     }
   }
   if (!is.null(opportunities_list)) {
+    lifecycle::deprecate_warn(
+      when = "1.8.6",
+      what = "set_preprocessing_opt(opportunities_list)",
+      details = c(
+        i = paste(
+          "Use the `support_constraint` argument of `estimate_dynam()` /",
+          "`make_specification()` instead."
+        )
+      )
+    )
     if (!is.list(opportunities_list)) {
       stop(
         "'opportunities_list' must be a list or NULL.",
