@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
+#include "flat_updates.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -63,14 +64,10 @@ List estimate_DyNAM_choice(
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
         // update stat_mat
-        while (stat_mat_update_id < stat_mat_update_pointer(id_event)) {
-          stat_mat(
-            stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
-              stat_mat_update(1, stat_mat_update_id),
-            stat_mat_update(2, stat_mat_update_id)) =
-            stat_mat_update(3, stat_mat_update_id);
-          stat_mat_update_id++;
-        }
+        apply_flat_updates(
+          stat_mat, stat_mat_update, stat_mat_update_id,
+          stat_mat_update_pointer(id_event), n_actors_2
+        );
         apply_broadcast_updates(
           stat_mat, stat_mat_broadcast, stat_mat_broadcast_id,
           stat_mat_broadcast_pointer(id_event), n_actors_1, n_actors_2,
