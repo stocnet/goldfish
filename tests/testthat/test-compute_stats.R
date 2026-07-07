@@ -105,9 +105,10 @@ test_that("preprocessed objects carry the format version", {
     model = "DyNAM",
     sub_model = "choice"
   )
-  expect_identical(prep$version, 3L)
+  expect_identical(prep$version, 4L)
+  expect_identical(prep$active_dyad_encoding, "alter")
   oldFormat <- prep
-  oldFormat$version <- NULL
+  oldFormat$version <- 3L
   expect_error(
     estimate_dynam(
       depNetwork ~ inertia,
