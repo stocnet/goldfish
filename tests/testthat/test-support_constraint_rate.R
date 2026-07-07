@@ -95,10 +95,10 @@ test_that("a restricting rate gate gives the hand-computed avg_active_actors (D4
     data = d
   )
   prep <- estimate_dynam(spec, sub_model = "rate", preprocessing_only = TRUE)
-  gate <- mask_to_sender_gate(prep$support_mask, prep$active_mode1_init)
+  gate <- mask_to_sender_gate(prep$support_mask, prep$active_sender_init)
   hand_avg <- mean(vapply(
     gate,
-    function(g) sum(prep$active_mode1_init & g),
+    function(g) sum(prep$active_sender_init & g),
     numeric(1)
   ))
   # all actors present, 5 gated out -> 79 active senders at every event
@@ -106,7 +106,7 @@ test_that("a restricting rate gate gives the hand-computed avg_active_actors (D4
   expect_equal(
     constrained_avg_active_actors(
       gate,
-      prep$active_mode1_init
+      prep$active_sender_init
     ),
     hand_avg
   )

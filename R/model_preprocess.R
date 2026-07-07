@@ -426,7 +426,7 @@ run_sender_recipe_loop <- function(
 
   nodes_obj <- get(nodes, envir = prepEnvir)
   nodes2_obj <- get(nodes2, envir = prepEnvir)
-  active_mode1_init <- if (!is.null(nodes_obj$present)) {
+  active_sender_init <- if (!is.null(nodes_obj$present)) {
     nodes_obj$present
   } else {
     rep(TRUE, n1)
@@ -442,7 +442,7 @@ run_sender_recipe_loop <- function(
   comp_events2 <- attr(nodes2_obj, "events")[
     attr(nodes2_obj, "dynamic_attribute") == "present"
   ]
-  active_mode1_changes <- if (
+  active_sender_changes <- if (
     length(comp_events1) > 0 && !is.na(comp_events1[1])
   ) {
     cc <- get(comp_events1[1], envir = prepEnvir)
@@ -892,8 +892,8 @@ run_sender_recipe_loop <- function(
   out <- writer$finalize(list(
     spec = spec,
     initialStats = initialStats,
-    active_mode1_init = active_mode1_init,
-    active_mode1_changes = active_mode1_changes,
+    active_sender_init = active_sender_init,
+    active_sender_changes = active_sender_changes,
     active_mode2_init = active_mode2_init,
     active_mode2_changes = active_mode2_changes,
     startTime = startTime,
@@ -1127,7 +1127,7 @@ run_dyad_recipe_loop <- function(
 
   nodes_obj <- get(nodes, envir = prepEnvir)
   nodes2_obj <- get(nodes2, envir = prepEnvir)
-  active_mode1_init <- if (!is.null(nodes_obj$present)) {
+  active_sender_init <- if (!is.null(nodes_obj$present)) {
     nodes_obj$present
   } else {
     rep(TRUE, n1)
@@ -1143,7 +1143,7 @@ run_dyad_recipe_loop <- function(
   comp_events2 <- attr(nodes2_obj, "events")[
     attr(nodes2_obj, "dynamic_attribute") == "present"
   ]
-  active_mode1_changes <- if (
+  active_sender_changes <- if (
     length(comp_events1) > 0 && !is.na(comp_events1[1])
   ) {
     cc <- get(comp_events1[1], envir = prepEnvir)
@@ -1592,8 +1592,8 @@ run_dyad_recipe_loop <- function(
   out <- writer$finalize(list(
     spec = spec,
     initialStats = initialStats,
-    active_mode1_init = active_mode1_init,
-    active_mode1_changes = active_mode1_changes,
+    active_sender_init = active_sender_init,
+    active_sender_changes = active_sender_changes,
     active_mode2_init = active_mode2_init,
     active_mode2_changes = active_mode2_changes,
     startTime = startTime,
@@ -1825,7 +1825,7 @@ preprocess_monolith <- function(
   finalStep <- FALSE
   nodes_obj <- get(nodes, envir = prepEnvir)
   nodes2_obj <- get(nodes2, envir = prepEnvir)
-  active_mode1_init <- if (!is.null(nodes_obj$present)) {
+  active_sender_init <- if (!is.null(nodes_obj$present)) {
     nodes_obj$present
   } else {
     rep(TRUE, n1)
@@ -1841,7 +1841,7 @@ preprocess_monolith <- function(
   comp_events2 <- attr(nodes2_obj, "events")[
     attr(nodes2_obj, "dynamic_attribute") == "present"
   ]
-  active_mode1_changes <- if (
+  active_sender_changes <- if (
     length(comp_events1) > 0 && !is.na(comp_events1[1])
   ) {
     cc <- get(comp_events1[1], envir = prepEnvir)
@@ -2261,8 +2261,8 @@ preprocess_monolith <- function(
       event_sender = event_sender,
       event_receiver = event_receiver,
       event_pos = seq_len(length(stats_change)),
-      active_mode1_init = active_mode1_init,
-      active_mode1_changes = active_mode1_changes,
+      active_sender_init = active_sender_init,
+      active_sender_changes = active_sender_changes,
       active_mode2_init = active_mode2_init,
       active_mode2_changes = active_mode2_changes,
       startTime = startTime,

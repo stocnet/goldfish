@@ -21,7 +21,7 @@
 #'     defaulting to an empty 4 x 0 matrix.}
 #'   \item{`finalize(tail)`}{called once after the loop with a `tail` list of
 #'     recipe-computed assembly inputs (`initialStats`,
-#'     `active_mode1_init` / `active_mode1_changes`,
+#'     `active_sender_init` / `active_sender_changes`,
 #'     `active_mode2_init` / `active_mode2_changes`, `startTime`, `endTime`,
 #'     `intercept_scalars`). Returns the writer's output.}
 #' }
@@ -218,8 +218,8 @@ writer_default <- function() {
           event_sender = event_sender,
           event_receiver = event_receiver,
           n_stored = n_stored,
-          active_mode1_init = tail$active_mode1_init,
-          active_mode1_changes = tail$active_mode1_changes,
+          active_sender_init = tail$active_sender_init,
+          active_sender_changes = tail$active_sender_changes,
           active_mode2_init = tail$active_mode2_init,
           active_mode2_changes = tail$active_mode2_changes,
           startTime = tail$startTime,
@@ -409,11 +409,11 @@ gather_from_prep <- function(prep, spec) {
     addInterceptEffect = has_intercept
   )
 
-  presence1_update <- statsList$presence1_update
-  presence1_update_pointer <- statsList$presence1_update_pointer
-  if (is.null(presence1_update)) {
-    presence1_update <- matrix(0, 0, 0)
-    presence1_update_pointer <- numeric(1)
+  active_sender_update <- statsList$active_sender_update
+  active_sender_update_pointer <- statsList$active_sender_update_pointer
+  if (is.null(active_sender_update)) {
+    active_sender_update <- matrix(0, 0, 0)
+    active_sender_update_pointer <- numeric(1)
   }
   presence2_update <- statsList$presence2_update
   presence2_update_pointer <- statsList$presence2_update_pointer
@@ -421,7 +421,7 @@ gather_from_prep <- function(prep, spec) {
     presence2_update <- matrix(0, 0, 0)
     presence2_update_pointer <- numeric(1)
   }
-  presence1_init <- statsList$active_mode1_init
+  active_sender_init <- statsList$active_sender_init
   presence2_init <- statsList$active_mode2_init
 
   if (is_rate_model) {
@@ -482,9 +482,9 @@ gather_from_prep <- function(prep, spec) {
     stat_mat_update_pointer = stat_mat_update_pointer,
     stat_mat_broadcast = stat_mat_broadcast,
     stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
-    presence1_init = presence1_init,
-    presence1_update = presence1_update,
-    presence1_update_pointer = presence1_update_pointer,
+    active_sender_init = active_sender_init,
+    active_sender_update = active_sender_update,
+    active_sender_update_pointer = active_sender_update_pointer,
     presence2_init = presence2_init,
     presence2_update = presence2_update,
     presence2_update_pointer = presence2_update_pointer,
@@ -524,8 +524,8 @@ assemble_default_output <- function(
   event_sender,
   event_receiver,
   n_stored,
-  active_mode1_init,
-  active_mode1_changes,
+  active_sender_init,
+  active_sender_changes,
   active_mode2_init,
   active_mode2_changes,
   startTime,
@@ -540,11 +540,11 @@ assemble_default_output <- function(
   if (intercept_scalars) {
     n_dep_events <- sum(is_dependent == 1L)
     total_time <- sum(intervals)
-    nActors <- sum(active_mode1_init)
-    if (length(active_mode1_changes) > 0 && n_stored > 0) {
-      changesTime <- vapply(active_mode1_changes, `[[`, double(1), "time")
+    nActors <- sum(active_sender_init)
+    if (length(active_sender_changes) > 0 && n_stored > 0) {
+      changesTime <- vapply(active_sender_changes, `[[`, double(1), "time")
       changesReplace <- vapply(
-        active_mode1_changes,
+        active_sender_changes,
         `[[`,
         logical(1),
         "replace"
@@ -567,19 +567,19 @@ assemble_default_output <- function(
     }
   }
 
-  presence1_update <- NULL
-  presence1_update_pointer <- NULL
+  active_sender_update <- NULL
+  active_sender_update_pointer <- NULL
   presence2_update <- NULL
   presence2_update_pointer <- NULL
-  if (length(active_mode1_changes) > 0) {
+  if (length(active_sender_changes) > 0) {
     compChange1 <- data.frame(
-      time = vapply(active_mode1_changes, `[[`, double(1), "time"),
-      node = vapply(active_mode1_changes, `[[`, integer(1), "node"),
-      replace = vapply(active_mode1_changes, `[[`, logical(1), "replace")
+      time = vapply(active_sender_changes, `[[`, double(1), "time"),
+      node = vapply(active_sender_changes, `[[`, integer(1), "node"),
+      replace = vapply(active_sender_changes, `[[`, logical(1), "replace")
     )
     temp <- C_convert_composition_change(compChange1, event_time)
-    presence1_update <- temp$presenceUpdate
-    presence1_update_pointer <- temp$presenceUpdatePointer
+    active_sender_update <- temp$presenceUpdate
+    active_sender_update_pointer <- temp$presenceUpdatePointer
   }
   if (length(active_mode2_changes) > 0) {
     compChange2 <- data.frame(
@@ -605,8 +605,8 @@ assemble_default_output <- function(
       event_sender = event_sender,
       event_receiver = event_receiver,
       event_pos = seq_len(n_stored),
-      active_mode1_init = active_mode1_init,
-      active_mode1_changes = active_mode1_changes,
+      active_sender_init = active_sender_init,
+      active_sender_changes = active_sender_changes,
       active_mode2_init = active_mode2_init,
       active_mode2_changes = active_mode2_changes,
       startTime = startTime,
@@ -614,8 +614,8 @@ assemble_default_output <- function(
       n_dep_events = n_dep_events,
       total_time = total_time,
       avg_active_actors = avg_active_actors,
-      presence1_update = presence1_update,
-      presence1_update_pointer = presence1_update_pointer,
+      active_sender_update = active_sender_update,
+      active_sender_update_pointer = active_sender_update_pointer,
       presence2_update = presence2_update,
       presence2_update_pointer = presence2_update_pointer,
       version = PREPROCESSED_GOLDFISH_VERSION

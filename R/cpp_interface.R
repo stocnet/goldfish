@@ -168,11 +168,11 @@ estimate_c_int <- function(
   )
 
   ## PRESENCE UPDATES PRECOMPUTED DURING PREPROCESSING
-  presence1_update <- statsList$presence1_update
-  presence1_update_pointer <- statsList$presence1_update_pointer
-  if (is.null(presence1_update)) {
-    presence1_update <- matrix(0, 0, 0)
-    presence1_update_pointer <- numeric(1)
+  active_sender_update <- statsList$active_sender_update
+  active_sender_update_pointer <- statsList$active_sender_update_pointer
+  if (is.null(active_sender_update)) {
+    active_sender_update <- matrix(0, 0, 0)
+    active_sender_update_pointer <- numeric(1)
   }
 
   presence2_update <- statsList$presence2_update
@@ -182,7 +182,7 @@ estimate_c_int <- function(
     presence2_update_pointer <- numeric(1)
   }
 
-  presence1_init <- statsList$active_mode1_init
+  active_sender_init <- statsList$active_sender_init
   presence2_init <- statsList$active_mode2_init
 
   nEvents <- length(statsList$is_dependent)
@@ -292,9 +292,9 @@ estimate_c_int <- function(
       stat_mat_update_pointer = stat_mat_update_pointer,
       stat_mat_broadcast = stat_mat_broadcast,
       stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
-      presence1_init = presence1_init,
-      presence1_update = presence1_update,
-      presence1_update_pointer = presence1_update_pointer,
+      active_sender_init = active_sender_init,
+      active_sender_update = active_sender_update,
+      active_sender_update_pointer = active_sender_update_pointer,
       presence2_init = presence2_init,
       presence2_update = presence2_update,
       presence2_update_pointer = presence2_update_pointer,
@@ -353,9 +353,9 @@ estimate_c_int <- function(
         stat_mat_update_pointer = stat_mat_update_pointer,
         stat_mat_broadcast = stat_mat_broadcast,
         stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
-        presence1_init = presence1_init,
-        presence1_update = presence1_update,
-        presence1_update_pointer = presence1_update_pointer,
+        active_sender_init = active_sender_init,
+        active_sender_update = active_sender_update,
+        active_sender_update_pointer = active_sender_update_pointer,
         presence2_init = presence2_init,
         presence2_update = presence2_update,
         presence2_update_pointer = presence2_update_pointer,
@@ -586,9 +586,9 @@ estimate_ <- function(
   stat_mat_update_pointer,
   stat_mat_broadcast,
   stat_mat_broadcast_pointer,
-  presence1_init,
-  presence1_update,
-  presence1_update_pointer,
+  active_sender_init,
+  active_sender_update,
+  active_sender_update_pointer,
   presence2_init,
   presence2_update,
   presence2_update_pointer,
@@ -611,9 +611,9 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
       presence2_init,
       presence2_update,
       presence2_update_pointer,
@@ -653,9 +653,9 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
       presence2_init,
       presence2_update,
       presence2_update_pointer,
@@ -677,9 +677,9 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
       presence2_init,
       presence2_update,
       presence2_update_pointer,
@@ -701,9 +701,9 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
       presence2_init,
       presence2_update,
       presence2_update_pointer,
@@ -723,9 +723,9 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
       presence2_init,
       presence2_update,
       presence2_update_pointer,
@@ -763,9 +763,9 @@ gather_ <- function(
   stat_mat_update_pointer,
   stat_mat_broadcast,
   stat_mat_broadcast_pointer,
-  presence1_init,
-  presence1_update,
-  presence1_update_pointer,
+  active_sender_init,
+  active_sender_update,
+  active_sender_update_pointer,
   presence2_init,
   presence2_update,
   presence2_update_pointer,
@@ -790,9 +790,9 @@ gather_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
       presence2_init,
       presence2_update,
       presence2_update_pointer,
@@ -825,9 +825,9 @@ gather_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
       presence2_init,
       presence2_update,
       presence2_update_pointer,
@@ -951,9 +951,9 @@ gather_sender_receiver_model_r <- function(
   stat_mat_update_pointer,
   stat_mat_broadcast,
   stat_mat_broadcast_pointer,
-  presence1_init,
-  presence1_update,
-  presence1_update_pointer,
+  active_sender_init,
+  active_sender_update,
+  active_sender_update_pointer,
   presence2_init,
   presence2_update,
   presence2_update_pointer,
@@ -964,9 +964,9 @@ gather_sender_receiver_model_r <- function(
   stat_mat <- stat_mat_init
   n_events <- length(is_dependent)
   n_parameters <- ncol(stat_mat)
-  has_cc1 <- length(presence1_update) > 0
+  has_cc1 <- length(active_sender_update) > 0
   has_cc2 <- length(presence2_update) > 0
-  presence1 <- presence1_init
+  active_sender <- active_sender_init
   presence2 <- presence2_init
   update_id <- 0L
   bc_id <- 0L
@@ -1003,10 +1003,10 @@ gather_sender_receiver_model_r <- function(
     )
     bc_id <- bc_ptr
     if (has_cc1) {
-      ptr1 <- presence1_update_pointer[e]
-      presence1 <- .gather_apply_presence(
-        presence1,
-        presence1_update,
+      ptr1 <- active_sender_update_pointer[e]
+      active_sender <- .gather_apply_presence(
+        active_sender,
+        active_sender_update,
         p1_id,
         ptr1
       )
@@ -1027,7 +1027,7 @@ gather_sender_receiver_model_r <- function(
     id_receiver <- event_mat[2, e] - 1L
     is_dep <- is_dependent[e]
 
-    present1_ids <- which(presence1 == 1) - 1L
+    present1_ids <- which(active_sender == 1) - 1L
     present2_ids <- which(presence2 == 1) - 1L
 
     idx <- integer(0)
@@ -1174,9 +1174,9 @@ gather_sender_model_r <- function(
   stat_mat_update_pointer,
   stat_mat_broadcast,
   stat_mat_broadcast_pointer,
-  presence1_init,
-  presence1_update,
-  presence1_update_pointer,
+  active_sender_init,
+  active_sender_update,
+  active_sender_update_pointer,
   presence2_init,
   presence2_update,
   presence2_update_pointer,
@@ -1188,9 +1188,9 @@ gather_sender_model_r <- function(
   stat_mat <- stat_mat_init
   n_events <- ncol(event_mat)
   n_parameters <- ncol(stat_mat)
-  has_cc1 <- length(presence1_update) > 0
+  has_cc1 <- length(active_sender_update) > 0
   has_cc2 <- length(presence2_update) > 0
-  presence1 <- presence1_init
+  active_sender <- active_sender_init
   presence2 <- presence2_init
   update_id <- 0L
   bc_id <- 0L
@@ -1223,10 +1223,10 @@ gather_sender_model_r <- function(
     )
     bc_id <- bc_ptr
     if (has_cc1) {
-      ptr1 <- presence1_update_pointer[e]
-      presence1 <- .gather_apply_presence(
-        presence1,
-        presence1_update,
+      ptr1 <- active_sender_update_pointer[e]
+      active_sender <- .gather_apply_presence(
+        active_sender,
+        active_sender_update,
         p1_id,
         ptr1
       )
@@ -1251,7 +1251,7 @@ gather_sender_model_r <- function(
     )
     id_sender <- event_mat[1, e] - 1L
     is_dep <- is_dependent[e]
-    present1_ids <- which(presence1 == 1) - 1L
+    present1_ids <- which(active_sender == 1) - 1L
     # support_constraint (rate): gate senders to those with >= 1 allowed present
     # receiver (design D3/D10), removing them from the rate denominator.
     if (!is.null(support)) {

@@ -37,9 +37,9 @@ test_that("dynam choice recipe stores dependent events only", {
   expect_null(preproData$n_dep_events)
   expect_null(preproData$total_time)
   expect_null(preproData$avg_active_actors)
-  expect_identical(nrow(preproData$presence1_update), 2L)
+  expect_identical(nrow(preproData$active_sender_update), 2L)
   expect_length(
-    preproData$presence1_update_pointer,
+    preproData$active_sender_update_pointer,
     length(preproData$is_dependent)
   )
 })
@@ -173,10 +173,10 @@ test_that("rem rate recipe stores the intercept scalars and presence format", {
   expect_equal(preproData$total_time, sum(preproData$intervals))
   expect_gt(preproData$avg_active_actors, 0)
   expect_lte(preproData$avg_active_actors, 5)
-  expect_identical(nrow(preproData$presence1_update), 2L)
-  expect_identical(ncol(preproData$presence1_update), nrow(compChange))
+  expect_identical(nrow(preproData$active_sender_update), 2L)
+  expect_identical(ncol(preproData$active_sender_update), nrow(compChange))
   expect_length(
-    preproData$presence1_update_pointer,
+    preproData$active_sender_update_pointer,
     length(preproData$is_dependent)
   )
 })
@@ -196,9 +196,9 @@ test_that("rem rate ordered recipe stores dependent events only", {
   expect_null(preproData$n_dep_events)
   expect_null(preproData$total_time)
   expect_null(preproData$avg_active_actors)
-  expect_identical(nrow(preproData$presence1_update), 2L)
+  expect_identical(nrow(preproData$active_sender_update), 2L)
   expect_length(
-    preproData$presence1_update_pointer,
+    preproData$active_sender_update_pointer,
     length(preproData$is_dependent)
   )
 })

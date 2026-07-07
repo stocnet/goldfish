@@ -165,16 +165,16 @@ estimate_int_impl <- function(
   )
 
   ## GET COMPOSITION CHANGES
-  hasCompChange1 <- length(statsList$active_mode1_changes) > 0
+  hasCompChange1 <- length(statsList$active_sender_changes) > 0
   hasCompChange2 <- length(statsList$active_mode2_changes) > 0 &&
     !is_rate_model
 
   compChange1 <- if (hasCompChange1) {
     data.frame(
-      time = vapply(statsList$active_mode1_changes, `[[`, double(1), "time"),
-      node = vapply(statsList$active_mode1_changes, `[[`, integer(1), "node"),
+      time = vapply(statsList$active_sender_changes, `[[`, double(1), "time"),
+      node = vapply(statsList$active_sender_changes, `[[`, integer(1), "node"),
       replace = vapply(
-        statsList$active_mode1_changes,
+        statsList$active_sender_changes,
         `[[`,
         logical(1),
         "replace"
@@ -198,7 +198,7 @@ estimate_int_impl <- function(
     NULL
   }
 
-  presence <- statsList$active_mode1_init
+  presence <- statsList$active_sender_init
   presence2 <- statsList$active_mode2_init
 
   nEvents <- length(statsList$is_dependent)

@@ -1607,7 +1607,7 @@ estimate_wrapper <- function(
       prep$event_sender,
       prep$event_receiver,
       prep$is_dependent,
-      prep$active_mode1_init,
+      prep$active_sender_init,
       prep$active_mode2_init,
       family = if (is_rate_family) "rate" else "choice"
     )
@@ -1616,7 +1616,7 @@ estimate_wrapper <- function(
     if (is_rate_family && has_intercept && !is.null(prep$avg_active_actors)) {
       prep$avg_active_actors <- constrained_avg_active_actors(
         mask_to_sender_gate(prep$support_mask, prep$active_mode2_init),
-        prep$active_mode1_init
+        prep$active_sender_init
       )
     }
     # The compiled engines consume the mask natively where wired: gather_compute

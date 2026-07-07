@@ -26,9 +26,9 @@ List estimate_DyNAM_rate_ordered(
     const arma::vec& stat_mat_update_pointer,
     const arma::mat& stat_mat_broadcast,
     const arma::vec& stat_mat_broadcast_pointer,
-    const arma::vec& presence1_init,
-    const arma::mat& presence1_update,
-    const arma::vec& presence1_update_pointer,
+    const arma::vec& active_sender_init,
+    const arma::mat& active_sender_update,
+    const arma::vec& active_sender_update_pointer,
     const arma::vec& presence2_init,
     const arma::mat& presence2_update,
     const arma::vec& presence2_update_pointer,
@@ -56,11 +56,11 @@ List estimate_DyNAM_rate_ordered(
     // Check whether there are composition change and initialize 
     // the presence of actor1 and actor2 
     bool has_composition_change1 = true;
-    int presence1_update_id = 0;
-    if (presence1_update.n_elem == 0) {
+    int active_sender_update_id = 0;
+    if (active_sender_update.n_elem == 0) {
         has_composition_change1 = false;
     }
-    arma::vec presence1 = presence1_init;
+    arma::vec active_sender = active_sender_init;
 
     bool has_composition_change2 = true;
     int presence2_update_id = 0;
@@ -99,10 +99,10 @@ List estimate_DyNAM_rate_ordered(
 
         // update presence
         if (has_composition_change1) {
-            while (presence1_update_id < presence1_update_pointer(id_event)) {
-                presence1(presence1_update(0, presence1_update_id) - 1) =
-                  presence1_update(1, presence1_update_id);
-                presence1_update_id++;
+            while (active_sender_update_id < active_sender_update_pointer(id_event)) {
+                active_sender(active_sender_update(0, active_sender_update_id) - 1) =
+                  active_sender_update(1, active_sender_update_id);
+                active_sender_update_id++;
             }
         }
         if (has_composition_change2) {
@@ -126,7 +126,7 @@ List estimate_DyNAM_rate_ordered(
                                twomode_or_reflexive);
         // go through all actor1
         for (int i = 0; i < n_actors_1; ++i) {
-            if (presence1(i) == 1) {
+            if (active_sender(i) == 1) {
                 // exp_current_sender is \exp(\beta^T s)
                 double exp_current_sender =
                   std::exp(dot(reduced_stat_mat.row(i), parameters));
