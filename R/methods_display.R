@@ -722,7 +722,7 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
       "active_dyad_encoding",
       "n_dep_events",
       "total_time",
-      "avg_active_actors",
+      "avg_active_entity",
       "startTime",
       "endTime",
       "formula",

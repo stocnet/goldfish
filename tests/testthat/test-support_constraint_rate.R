@@ -3,7 +3,7 @@
 # at risk only with >= 1 allowed present receiver, design D3/D10), routed through
 # the same sender `keepIn` filter presence uses. An all-allowing constraint is an
 # identity (equals unconstrained); a restricting one excludes gated-out senders
-# from the rate denominator and the constrained `avg_active_actors`; a dependent
+# from the rate denominator and the constrained `avg_active_entity`; a dependent
 # event whose own sender is gated out errors (design D8).
 
 make_rate_fixture <- function(n_events = 120L) {
@@ -82,7 +82,7 @@ test_that("an all-allowing rate constraint is an identity (equals unconstrained)
   expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-8)
 })
 
-test_that("a restricting rate gate gives the hand-computed avg_active_actors (D4/5.4)", {
+test_that("a restricting rate gate gives the hand-computed avg_active_entity (D4/5.4)", {
   fx <- make_rate_fixture()
   gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
   d <- rate_data_with_gate(fx, gated)
@@ -104,7 +104,7 @@ test_that("a restricting rate gate gives the hand-computed avg_active_actors (D4
   # all actors present, 5 gated out -> 79 active senders at every event
   expect_equal(hand_avg, fx$n - length(gated))
   expect_equal(
-    constrained_avg_active_actors(
+    constrained_avg_active_entity(
       gate,
       prep$active_sender_init
     ),

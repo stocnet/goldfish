@@ -276,7 +276,7 @@ preprocess.dynami_choice_spec <- function(
 #' @inheritParams preprocess_monolith
 #' @param right_censored logical, whether right-censored events are stored.
 #' @param intercept_scalars logical, whether `n_dep_events`, `total_time`,
-#'   and `avg_active_actors` are computed and stored.
+#'   and `avg_active_entity` are computed and stored.
 #' @param ... absorbs arguments of `preprocess_monolith()` that the kernel
 #'   does not consume (`is_two_mode`, `rightCensored`,
 #'   `ignoreRepParameter`, `opportunitiesList`).

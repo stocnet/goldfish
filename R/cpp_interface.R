@@ -200,7 +200,7 @@ estimate_c_int <- function(
     parameters[1] <- log(
       statsList$n_dep_events /
         statsList$total_time /
-        statsList$avg_active_actors
+        statsList$avg_active_entity
     )
   }
   ## SET VARIABLES BASED ON STATSLIST

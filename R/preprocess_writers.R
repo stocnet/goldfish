@@ -580,7 +580,7 @@ active_dyad_count <- function(encoding, active_dyad, active_sender = NULL) {
 #' Assemble the flat-buffer `preprocessed.goldfish` object
 #'
 #' Shared output assembly for the default writer: computes the intercept
-#' scalars (`n_dep_events`, `total_time`, `avg_active_actors`) and the
+#' scalars (`n_dep_events`, `total_time`, `avg_active_entity`) and the
 #' composition-change C-format presence matrices, then wraps the per-event
 #' fields produced by the writer into a `preprocessed.goldfish` object.
 #'
@@ -608,7 +608,7 @@ assemble_default_output <- function(
 ) {
   n_dep_events <- NULL
   total_time <- NULL
-  avg_active_actors <- NULL
+  avg_active_entity <- NULL
   if (intercept_scalars) {
     n_dep_events <- sum(is_dependent == 1L)
     total_time <- sum(intervals)
@@ -633,9 +633,9 @@ assemble_default_output <- function(
         activeAcc <- activeAcc + nActors
         previousTime <- timeAcc
       }
-      avg_active_actors <- activeAcc / n_stored
+      avg_active_entity <- activeAcc / n_stored
     } else {
-      avg_active_actors <- nActors
+      avg_active_entity <- nActors
     }
   }
 
@@ -686,7 +686,7 @@ assemble_default_output <- function(
       endTime = endTime,
       n_dep_events = n_dep_events,
       total_time = total_time,
-      avg_active_actors = avg_active_actors,
+      avg_active_entity = avg_active_entity,
       active_sender_update = active_sender_update,
       active_sender_update_pointer = active_sender_update_pointer,
       active_dyad_update = active_dyad_update,

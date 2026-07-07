@@ -39,8 +39,8 @@ test_that("dynam rate recipe stores the intercept scalars", {
     sum(preproData$is_dependent == 1L)
   )
   expect_equal(preproData$total_time, sum(preproData$intervals))
-  expect_gt(preproData$avg_active_actors, 0)
-  expect_lte(preproData$avg_active_actors, 5)
+  expect_gt(preproData$avg_active_entity, 0)
+  expect_lte(preproData$avg_active_entity, 5)
 })
 
 test_that("dynam rate recipe stores presence updates in C format", {
@@ -106,7 +106,7 @@ test_that("dynam rate ordered recipe stores dependent events only", {
   expect_length(dim(preproData$initialStats), 2L)
   expect_null(preproData$n_dep_events)
   expect_null(preproData$total_time)
-  expect_null(preproData$avg_active_actors)
+  expect_null(preproData$avg_active_entity)
   expect_identical(nrow(preproData$active_sender_update), 2L)
   expect_length(
     preproData$active_sender_update_pointer,

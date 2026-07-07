@@ -599,11 +599,11 @@ mask_to_sender_gate <- function(support_mask, active_2) {
   })
 }
 
-# Constraint-aware `avg_active_actors` (design D4/D5.2): the intercept baseline
+# Constraint-aware `avg_active_entity` (design D4/D5.2): the intercept baseline
 # denominator counts the post-constraint active senders (present AND gated in),
 # averaged over the stored events. Overrides the presence-only value computed by
 # the writer when a rate model carries a support_constraint.
-constrained_avg_active_actors <- function(sender_gate, active_1) {
+constrained_avg_active_entity <- function(sender_gate, active_1) {
   mean(vapply(
     sender_gate,
     function(g) sum(active_1 & g),
@@ -1613,8 +1613,8 @@ estimate_wrapper <- function(
     )
     # The constrained active set feeds the rate intercept init (design D4/D5.2),
     # independent of the estimation engine.
-    if (is_rate_family && has_intercept && !is.null(prep$avg_active_actors)) {
-      prep$avg_active_actors <- constrained_avg_active_actors(
+    if (is_rate_family && has_intercept && !is.null(prep$avg_active_entity)) {
+      prep$avg_active_entity <- constrained_avg_active_entity(
         mask_to_sender_gate(prep$support_mask, prep$active_dyad_init),
         prep$active_sender_init
       )
