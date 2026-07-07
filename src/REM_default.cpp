@@ -60,14 +60,14 @@ using namespace arma;
 //'    And the second column means the
 //'    the 3+1 th actor1 becomes absent. 
 //'    The +1 is due to the difference between the numberings in R and C.
-//' @param presence2_update_pointer An n_events by 1 matrix that record 
+//' @param active_dyad_update_pointer An n_events by 1 matrix that record 
 //'    which update belongs to which (dependent+ rightcensored) event.
 //'    The structure is similar to stat_mat_update_pointer.
-//' @param presence2_init An n_actors2 by 1 matrix, which records the
+//' @param active_dyad_init An n_actors2 by 1 matrix, which records the
 //'    initial presence of each actor2.
 //'    If the i-th actor2 is not present in the beginning then the i-th entry
-//'    of presence2_init is 0, otherwise it's 1.
-//' @param presence2_update An matrix with two rows, which record the updates
+//'    of active_dyad_init is 0, otherwise it's 1.
+//' @param active_dyad_update An matrix with two rows, which record the updates
 //'    of the presence of actor2 through all events.
 //'    The following is an example.
 //'     \tabular{rrrrr}{
@@ -78,7 +78,7 @@ using namespace arma;
 //'    the 0+1-th actor2 becomes present.
 //'    And the second column means the 3+1 th actor2 becomes absent.
 //'    The +1 is due to the difference between the numberings in R and C.
-//' @param presence2_update_pointer An n_events by 1 matrix that record
+//' @param active_dyad_update_pointer An n_events by 1 matrix that record
 //'    which update belongs to which (dependent+ rightcensored) event.
 //'    The structure is similar to stat_mat_update_pointer.
 //' @param n_actors_1 An integer which is the number of actor1
@@ -116,9 +116,9 @@ List estimate_REM(
     const arma::vec& active_sender_init,
     const arma::mat& active_sender_update,
     const arma::vec& active_sender_update_pointer,
-    const arma::vec& presence2_init,
-    const arma::mat& presence2_update,
-    const arma::vec& presence2_update_pointer,
+    const arma::vec& active_dyad_init,
+    const arma::mat& active_dyad_update,
+    const arma::vec& active_dyad_update_pointer,
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
@@ -150,11 +150,11 @@ List estimate_REM(
    arma::vec active_sender = active_sender_init;
    
    bool has_composition_change2 = true;
-   int presence2_update_id = 0;
-   if (presence2_update.n_elem == 0) {
+   int active_dyad_update_id = 0;
+   if (active_dyad_update.n_elem == 0) {
      has_composition_change2 = false;
    }
-   arma::vec presence2 = presence2_init;
+   arma::vec active_dyad = active_dyad_init;
    
    // Go through all events
    for (int id_event = 0; id_event < n_events; id_event++) {
@@ -193,10 +193,10 @@ List estimate_REM(
        }
      }
      if (has_composition_change2) {
-       while (presence2_update_id < presence2_update_pointer(id_event)) {
-         presence2(presence2_update(0, presence2_update_id) - 1) \
-         = presence2_update(1, presence2_update_id);
-         presence2_update_id++;
+       while (active_dyad_update_id < active_dyad_update_pointer(id_event)) {
+         active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) \
+         = active_dyad_update(1, active_dyad_update_id);
+         active_dyad_update_id++;
        }
      }
      
@@ -224,7 +224,7 @@ List estimate_REM(
          if (!twomode_or_reflexive) not_allowed_receiver = i;
          // go through all receiver
          for (int j = 0; j < n_actors_2; j++) {
-           if (presence2(j) == 1 && (j != not_allowed_receiver)) {
+           if (active_dyad(j) == 1 && (j != not_allowed_receiver)) {
              // exp_current_receiver is \exp(\beta^T s)
              double exp_current_receiver \
              = std::exp(dot(current_data_matrix.row(j), parameters));

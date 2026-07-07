@@ -21,9 +21,9 @@ List estimate_REM_ordered(
     const arma::vec& active_sender_init,
     const arma::mat& active_sender_update,
     const arma::vec& active_sender_update_pointer,
-    const arma::vec& presence2_init,
-    const arma::mat& presence2_update,
-    const arma::vec& presence2_update_pointer,
+    const arma::vec& active_dyad_init,
+    const arma::mat& active_dyad_update,
+    const arma::vec& active_dyad_update_pointer,
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
@@ -55,11 +55,11 @@ List estimate_REM_ordered(
     arma::vec active_sender = active_sender_init;
 
     bool has_composition_change2 = true;
-    int presence2_update_id = 0;
-    if (presence2_update.n_elem == 0) {
+    int active_dyad_update_id = 0;
+    if (active_dyad_update.n_elem == 0) {
         has_composition_change2 = false;
     }
-    arma::vec presence2 = presence2_init;
+    arma::vec active_dyad = active_dyad_init;
 
 
     // Go through all events
@@ -98,10 +98,10 @@ List estimate_REM_ordered(
             }
         }
         if (has_composition_change2) {
-            while (presence2_update_id < presence2_update_pointer(id_event)) {
-                presence2(presence2_update(0, presence2_update_id) - 1) =
-                  presence2_update(1, presence2_update_id);
-                presence2_update_id++;
+            while (active_dyad_update_id < active_dyad_update_pointer(id_event)) {
+                active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
+                  active_dyad_update(1, active_dyad_update_id);
+                active_dyad_update_id++;
             }
         }
 
@@ -129,7 +129,7 @@ List estimate_REM_ordered(
             if (!twomode_or_reflexive) not_allowed_receiver = i;
             // go through all receiver
             for (int j = 0; j < n_actors_2; j++) {
-              if (presence2(j) == 1 && (j != not_allowed_receiver)) {
+              if (active_dyad(j) == 1 && (j != not_allowed_receiver)) {
                 // exp_current_receiver is \exp(\beta^T s)
                 double exp_current_receiver =
                   std::exp(dot(current_data_matrix.row(j), parameters));

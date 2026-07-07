@@ -22,7 +22,7 @@
 #'   \item{`finalize(tail)`}{called once after the loop with a `tail` list of
 #'     recipe-computed assembly inputs (`initialStats`,
 #'     `active_sender_init` / `active_sender_changes`,
-#'     `active_mode2_init` / `active_mode2_changes`, `startTime`, `endTime`,
+#'     `active_dyad_init` / `active_dyad_changes`, `startTime`, `endTime`,
 #'     `intercept_scalars`). Returns the writer's output.}
 #' }
 #'
@@ -220,8 +220,9 @@ writer_default <- function() {
           n_stored = n_stored,
           active_sender_init = tail$active_sender_init,
           active_sender_changes = tail$active_sender_changes,
-          active_mode2_init = tail$active_mode2_init,
-          active_mode2_changes = tail$active_mode2_changes,
+          active_dyad_init = tail$active_dyad_init,
+          active_dyad_changes = tail$active_dyad_changes,
+          active_dyad_encoding = active_dyad_encoding_for(tail$spec),
           startTime = tail$startTime,
           endTime = tail$endTime,
           intercept_scalars = tail$intercept_scalars
@@ -415,14 +416,14 @@ gather_from_prep <- function(prep, spec) {
     active_sender_update <- matrix(0, 0, 0)
     active_sender_update_pointer <- numeric(1)
   }
-  presence2_update <- statsList$presence2_update
-  presence2_update_pointer <- statsList$presence2_update_pointer
-  if (is.null(presence2_update)) {
-    presence2_update <- matrix(0, 0, 0)
-    presence2_update_pointer <- numeric(1)
+  active_dyad_update <- statsList$active_dyad_update
+  active_dyad_update_pointer <- statsList$active_dyad_update_pointer
+  if (is.null(active_dyad_update)) {
+    active_dyad_update <- matrix(0, 0, 0)
+    active_dyad_update_pointer <- numeric(1)
   }
   active_sender_init <- statsList$active_sender_init
-  presence2_init <- statsList$active_mode2_init
+  active_dyad_init <- statsList$active_dyad_init
 
   if (is_rate_model) {
     n_parameters <- ncol(statsList$initialStats)
@@ -485,9 +486,9 @@ gather_from_prep <- function(prep, spec) {
     active_sender_init = active_sender_init,
     active_sender_update = active_sender_update,
     active_sender_update_pointer = active_sender_update_pointer,
-    presence2_init = presence2_init,
-    presence2_update = presence2_update,
-    presence2_update_pointer = presence2_update_pointer,
+    active_dyad_init = active_dyad_init,
+    active_dyad_update = active_dyad_update,
+    active_dyad_update_pointer = active_dyad_update_pointer,
     n_actors1 = n_actors1,
     n_actors2 = n_actors2,
     twomode_or_reflexive = twomode_or_reflexive,
@@ -504,6 +505,76 @@ gather_from_prep <- function(prep, spec) {
   attr(gathered_data, "timespan") <- timespan
   attr(gathered_data, "model_type_call") <- modelTypeCall
   gathered_data
+}
+
+#' Static `active_dyad` encoding for a model spec
+#'
+#' The dyad-loop availability object is stored at its minimal encoding (design
+#' D13). In this representation only two encodings arise: `"outer"` for the
+#' models whose risk set is genuinely dyadic (REM, REM-ordered, DyNAM-MM), where
+#' `active_dyad` is the outer product of the sender-axis vector (`active_sender`)
+#' and the receiver-axis vector; and `"alter"` otherwise (DyNAM-M choice/rate),
+#' where the receiver-axis vector alone drives availability. The scalar/ego/point
+#' encodings land with the constraint-folding phases.
+#' @noRd
+active_dyad_encoding_for <- function(spec) {
+  if (legacy_model_type(spec) %in% c("REM", "REM-ordered", "DyNAM-MM")) {
+    "outer"
+  } else {
+    "alter"
+  }
+}
+
+#' `active_dyad` read accessors (design D13)
+#'
+#' Consumers read per-event availability through these helpers and never branch
+#' on the encoding. `active_dyad` is the receiver-axis logical vector at every
+#' encoding; at the `"outer"` encoding cell `(i, j)` additionally requires the
+#' sender-axis vector `active_sender[i]`, so those accessors take it too.
+#' `active_dyad_row()` returns the length-n2 availability for a given sender,
+#' `active_dyad_cell()` a single dyad, and `active_dyad_count()` the number of
+#' available dyads (the intercept denominator's per-event TRUE-count).
+#' @noRd
+active_dyad_row <- function(
+  encoding,
+  sender_i,
+  active_dyad,
+  active_sender = NULL
+) {
+  if (identical(encoding, "outer")) {
+    if (isTRUE(active_sender[sender_i] == 1)) {
+      active_dyad
+    } else {
+      active_dyad & FALSE
+    }
+  } else {
+    active_dyad
+  }
+}
+
+#' @noRd
+active_dyad_cell <- function(
+  encoding,
+  sender_i,
+  receiver_j,
+  active_dyad,
+  active_sender = NULL
+) {
+  avail_j <- active_dyad[receiver_j]
+  if (identical(encoding, "outer")) {
+    avail_j & isTRUE(active_sender[sender_i] == 1)
+  } else {
+    avail_j
+  }
+}
+
+#' @noRd
+active_dyad_count <- function(encoding, active_dyad, active_sender = NULL) {
+  if (identical(encoding, "outer")) {
+    sum(active_sender == 1) * sum(active_dyad == 1)
+  } else {
+    sum(active_dyad == 1)
+  }
 }
 
 #' Assemble the flat-buffer `preprocessed.goldfish` object
@@ -526,8 +597,9 @@ assemble_default_output <- function(
   n_stored,
   active_sender_init,
   active_sender_changes,
-  active_mode2_init,
-  active_mode2_changes,
+  active_dyad_init,
+  active_dyad_changes,
+  active_dyad_encoding,
   startTime,
   endTime,
   intercept_scalars,
@@ -569,8 +641,8 @@ assemble_default_output <- function(
 
   active_sender_update <- NULL
   active_sender_update_pointer <- NULL
-  presence2_update <- NULL
-  presence2_update_pointer <- NULL
+  active_dyad_update <- NULL
+  active_dyad_update_pointer <- NULL
   if (length(active_sender_changes) > 0) {
     compChange1 <- data.frame(
       time = vapply(active_sender_changes, `[[`, double(1), "time"),
@@ -581,15 +653,15 @@ assemble_default_output <- function(
     active_sender_update <- temp$presenceUpdate
     active_sender_update_pointer <- temp$presenceUpdatePointer
   }
-  if (length(active_mode2_changes) > 0) {
+  if (length(active_dyad_changes) > 0) {
     compChange2 <- data.frame(
-      time = vapply(active_mode2_changes, `[[`, double(1), "time"),
-      node = vapply(active_mode2_changes, `[[`, integer(1), "node"),
-      replace = vapply(active_mode2_changes, `[[`, logical(1), "replace")
+      time = vapply(active_dyad_changes, `[[`, double(1), "time"),
+      node = vapply(active_dyad_changes, `[[`, integer(1), "node"),
+      replace = vapply(active_dyad_changes, `[[`, logical(1), "replace")
     )
     temp <- C_convert_composition_change(compChange2, event_time)
-    presence2_update <- temp$presenceUpdate
-    presence2_update_pointer <- temp$presenceUpdatePointer
+    active_dyad_update <- temp$presenceUpdate
+    active_dyad_update_pointer <- temp$presenceUpdatePointer
   }
 
   structure(
@@ -607,8 +679,9 @@ assemble_default_output <- function(
       event_pos = seq_len(n_stored),
       active_sender_init = active_sender_init,
       active_sender_changes = active_sender_changes,
-      active_mode2_init = active_mode2_init,
-      active_mode2_changes = active_mode2_changes,
+      active_dyad_init = active_dyad_init,
+      active_dyad_changes = active_dyad_changes,
+      active_dyad_encoding = active_dyad_encoding,
       startTime = startTime,
       endTime = endTime,
       n_dep_events = n_dep_events,
@@ -616,8 +689,8 @@ assemble_default_output <- function(
       avg_active_actors = avg_active_actors,
       active_sender_update = active_sender_update,
       active_sender_update_pointer = active_sender_update_pointer,
-      presence2_update = presence2_update,
-      presence2_update_pointer = presence2_update_pointer,
+      active_dyad_update = active_dyad_update,
+      active_dyad_update_pointer = active_dyad_update_pointer,
       version = PREPROCESSED_GOLDFISH_VERSION
     ),
     class = "preprocessed.goldfish"

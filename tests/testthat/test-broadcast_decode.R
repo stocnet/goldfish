@@ -172,7 +172,7 @@ test_that("C++ choice engine: broadcast buffer matches eager expansion", {
   parameters <- c(0.3, -0.5)
   stat_mat_init <- matrix(0, n1 * n2, p)
   dep_event_mat <- matrix(c(1, 2, 3, 4), nrow = 2)
-  presence2_init <- rep(1, n2)
+  active_dyad_init <- rep(1, n2)
   empty_pres <- matrix(0, 0, 0)
   pres_ptr <- numeric(ncol(dep_event_mat))
 
@@ -202,13 +202,14 @@ test_that("C++ choice engine: broadcast buffer matches eager expansion", {
     numeric(ncol(dep_event_mat)),
     broadcast,
     broadcast_ptr,
-    presence2_init,
+    active_dyad_init,
     empty_pres,
     pres_ptr,
     n1,
     n2,
     FALSE,
-    FALSE
+    FALSE,
+    matrix(numeric(0), 0, 0)
   )
   res_pt <- estimate_DyNAM_choice(
     parameters,
@@ -218,13 +219,14 @@ test_that("C++ choice engine: broadcast buffer matches eager expansion", {
     point_ptr,
     matrix(0, 4L, 0L),
     numeric(ncol(dep_event_mat)),
-    presence2_init,
+    active_dyad_init,
     empty_pres,
     pres_ptr,
     n1,
     n2,
     FALSE,
-    FALSE
+    FALSE,
+    matrix(numeric(0), 0, 0)
   )
   expect_equal(res_bc$logLikelihood, res_pt$logLikelihood, tolerance = 1e-12)
   expect_equal(
@@ -243,7 +245,7 @@ test_that("gather port: broadcast buffer matches eager expansion", {
   p <- 2L
   stat_mat_init <- matrix(0, n1 * n2, p)
   event_mat <- matrix(c(1, 2, 3, 4), nrow = 2)
-  presence2_init <- rep(1, n2)
+  active_dyad_init <- rep(1, n2)
   empty_pres <- matrix(0, 0, 0)
   pres_ptr <- numeric(ncol(event_mat))
 
@@ -270,7 +272,7 @@ test_that("gather port: broadcast buffer matches eager expansion", {
     numeric(ncol(event_mat)),
     broadcast,
     broadcast_ptr,
-    presence2_init,
+    active_dyad_init,
     empty_pres,
     pres_ptr,
     n1,
@@ -284,7 +286,7 @@ test_that("gather port: broadcast buffer matches eager expansion", {
     point_ptr,
     matrix(0, 4L, 0L),
     numeric(ncol(event_mat)),
-    presence2_init,
+    active_dyad_init,
     empty_pres,
     pres_ptr,
     n1,

@@ -1608,14 +1608,14 @@ estimate_wrapper <- function(
       prep$event_receiver,
       prep$is_dependent,
       prep$active_sender_init,
-      prep$active_mode2_init,
+      prep$active_dyad_init,
       family = if (is_rate_family) "rate" else "choice"
     )
     # The constrained active set feeds the rate intercept init (design D4/D5.2),
     # independent of the estimation engine.
     if (is_rate_family && has_intercept && !is.null(prep$avg_active_actors)) {
       prep$avg_active_actors <- constrained_avg_active_actors(
-        mask_to_sender_gate(prep$support_mask, prep$active_mode2_init),
+        mask_to_sender_gate(prep$support_mask, prep$active_dyad_init),
         prep$active_sender_init
       )
     }
@@ -1648,7 +1648,7 @@ estimate_wrapper <- function(
       } else if (is_rate_family) {
         sender_gate <- mask_to_sender_gate(
           prep$support_mask,
-          prep$active_mode2_init
+          prep$active_dyad_init
         )
       } else {
         # REM: the contribution zeroes disallowed dyads from the 2D risk set.

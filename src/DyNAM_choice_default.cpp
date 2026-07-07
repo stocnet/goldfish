@@ -18,9 +18,9 @@ List estimate_DyNAM_choice(
     const arma::vec& stat_mat_update_pointer,
     const arma::mat& stat_mat_broadcast,
     const arma::vec& stat_mat_broadcast_pointer,
-    const arma::vec& presence2_init,
-    const arma::mat& presence2_update,
-    const arma::vec& presence2_update_pointer,
+    const arma::vec& active_dyad_init,
+    const arma::mat& active_dyad_update,
+    const arma::vec& active_dyad_update_pointer,
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
@@ -45,11 +45,11 @@ List estimate_DyNAM_choice(
     // Check whether there are composition change and initialize 
     // the presence of actor2
     bool has_composition_change = true;
-    int presence2_update_id = 0;
-    if (presence2_update.n_elem == 0) {
+    int active_dyad_update_id = 0;
+    if (active_dyad_update.n_elem == 0) {
         has_composition_change = false;
     }
-    arma::vec presence2 = presence2_init;
+    arma::vec active_dyad = active_dyad_init;
     // A support_constraint supplies, per event, the sender's allowed-receiver
     // mask as a column of `support` (n_actors_2 x n_events). Empty means no
     // constraint, leaving the risk set unrestricted.
@@ -91,10 +91,10 @@ List estimate_DyNAM_choice(
 
         // update presence
         if (has_composition_change) {
-            while (presence2_update_id < presence2_update_pointer(id_event)) {
-                presence2(presence2_update(0, presence2_update_id) - 1) =
-                  presence2_update(1, presence2_update_id);
-                presence2_update_id++;
+            while (active_dyad_update_id < active_dyad_update_pointer(id_event)) {
+                active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
+                  active_dyad_update(1, active_dyad_update_id);
+                active_dyad_update_id++;
             }
         }
 
@@ -119,7 +119,7 @@ List estimate_DyNAM_choice(
         if (!twomode_or_reflexive) not_allowed_receiver = id_sender;
         // go through all actor2
         for (int j = 0; j < n_actors_2; j++) {
-            if (presence2(j) == 1 && (j != not_allowed_receiver) &&
+            if (active_dyad(j) == 1 && (j != not_allowed_receiver) &&
                 (!has_support || support(j, id_event) == 1)) {
                 // exp_current_receiver is \exp(\beta^T s)
                 double exp_current_receiver =

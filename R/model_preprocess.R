@@ -431,7 +431,7 @@ run_sender_recipe_loop <- function(
   } else {
     rep(TRUE, n1)
   }
-  active_mode2_init <- if (!is.null(nodes2_obj$present)) {
+  active_dyad_init <- if (!is.null(nodes2_obj$present)) {
     nodes2_obj$present
   } else {
     rep(TRUE, n2)
@@ -457,7 +457,7 @@ run_sender_recipe_loop <- function(
   } else {
     list()
   }
-  active_mode2_changes <- if (
+  active_dyad_changes <- if (
     length(comp_events2) > 0 && !is.na(comp_events2[1])
   ) {
     cc <- get(comp_events2[1], envir = prepEnvir)
@@ -894,8 +894,8 @@ run_sender_recipe_loop <- function(
     initialStats = initialStats,
     active_sender_init = active_sender_init,
     active_sender_changes = active_sender_changes,
-    active_mode2_init = active_mode2_init,
-    active_mode2_changes = active_mode2_changes,
+    active_dyad_init = active_dyad_init,
+    active_dyad_changes = active_dyad_changes,
     startTime = startTime,
     endTime = endTime,
     intercept_scalars = intercept_scalars
@@ -1132,7 +1132,7 @@ run_dyad_recipe_loop <- function(
   } else {
     rep(TRUE, n1)
   }
-  active_mode2_init <- if (!is.null(nodes2_obj$present)) {
+  active_dyad_init <- if (!is.null(nodes2_obj$present)) {
     nodes2_obj$present
   } else {
     rep(TRUE, n2)
@@ -1158,7 +1158,7 @@ run_dyad_recipe_loop <- function(
   } else {
     list()
   }
-  active_mode2_changes <- if (
+  active_dyad_changes <- if (
     length(comp_events2) > 0 && !is.na(comp_events2[1])
   ) {
     cc <- get(comp_events2[1], envir = prepEnvir)
@@ -1594,8 +1594,8 @@ run_dyad_recipe_loop <- function(
     initialStats = initialStats,
     active_sender_init = active_sender_init,
     active_sender_changes = active_sender_changes,
-    active_mode2_init = active_mode2_init,
-    active_mode2_changes = active_mode2_changes,
+    active_dyad_init = active_dyad_init,
+    active_dyad_changes = active_dyad_changes,
     startTime = startTime,
     endTime = endTime,
     intercept_scalars = intercept_scalars
@@ -1830,7 +1830,7 @@ preprocess_monolith <- function(
   } else {
     rep(TRUE, n1)
   }
-  active_mode2_init <- if (!is.null(nodes2_obj$present)) {
+  active_dyad_init <- if (!is.null(nodes2_obj$present)) {
     nodes2_obj$present
   } else {
     rep(TRUE, n2)
@@ -1856,7 +1856,7 @@ preprocess_monolith <- function(
   } else {
     list()
   }
-  active_mode2_changes <- if (
+  active_dyad_changes <- if (
     length(comp_events2) > 0 && !is.na(comp_events2[1])
   ) {
     cc <- get(comp_events2[1], envir = prepEnvir)
@@ -2263,8 +2263,9 @@ preprocess_monolith <- function(
       event_pos = seq_len(length(stats_change)),
       active_sender_init = active_sender_init,
       active_sender_changes = active_sender_changes,
-      active_mode2_init = active_mode2_init,
-      active_mode2_changes = active_mode2_changes,
+      active_dyad_init = active_dyad_init,
+      active_dyad_changes = active_dyad_changes,
+      active_dyad_encoding = if (identical(model, "REM")) "outer" else "alter",
       startTime = startTime,
       endTime = endTime
     ),

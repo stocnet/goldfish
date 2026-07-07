@@ -175,15 +175,15 @@ estimate_c_int <- function(
     active_sender_update_pointer <- numeric(1)
   }
 
-  presence2_update <- statsList$presence2_update
-  presence2_update_pointer <- statsList$presence2_update_pointer
-  if (is.null(presence2_update)) {
-    presence2_update <- matrix(0, 0, 0)
-    presence2_update_pointer <- numeric(1)
+  active_dyad_update <- statsList$active_dyad_update
+  active_dyad_update_pointer <- statsList$active_dyad_update_pointer
+  if (is.null(active_dyad_update)) {
+    active_dyad_update <- matrix(0, 0, 0)
+    active_dyad_update_pointer <- numeric(1)
   }
 
   active_sender_init <- statsList$active_sender_init
-  presence2_init <- statsList$active_mode2_init
+  active_dyad_init <- statsList$active_dyad_init
 
   nEvents <- length(statsList$is_dependent)
 
@@ -295,9 +295,9 @@ estimate_c_int <- function(
       active_sender_init = active_sender_init,
       active_sender_update = active_sender_update,
       active_sender_update_pointer = active_sender_update_pointer,
-      presence2_init = presence2_init,
-      presence2_update = presence2_update,
-      presence2_update_pointer = presence2_update_pointer,
+      active_dyad_init = active_dyad_init,
+      active_dyad_update = active_dyad_update,
+      active_dyad_update_pointer = active_dyad_update_pointer,
       n_actors1 = n_actors1,
       n_actors2 = n_actors2,
       twomode_or_reflexive = twomode_or_reflexive,
@@ -356,9 +356,9 @@ estimate_c_int <- function(
         active_sender_init = active_sender_init,
         active_sender_update = active_sender_update,
         active_sender_update_pointer = active_sender_update_pointer,
-        presence2_init = presence2_init,
-        presence2_update = presence2_update,
-        presence2_update_pointer = presence2_update_pointer,
+        active_dyad_init = active_dyad_init,
+        active_dyad_update = active_dyad_update,
+        active_dyad_update_pointer = active_dyad_update_pointer,
         n_actors1 = n_actors1,
         n_actors2 = n_actors2,
         twomode_or_reflexive = twomode_or_reflexive,
@@ -589,9 +589,9 @@ estimate_ <- function(
   active_sender_init,
   active_sender_update,
   active_sender_update_pointer,
-  presence2_init,
-  presence2_update,
-  presence2_update_pointer,
+  active_dyad_init,
+  active_dyad_update,
+  active_dyad_update_pointer,
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
@@ -614,9 +614,9 @@ estimate_ <- function(
       active_sender_init,
       active_sender_update,
       active_sender_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
@@ -633,9 +633,9 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
@@ -656,9 +656,9 @@ estimate_ <- function(
       active_sender_init,
       active_sender_update,
       active_sender_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
@@ -680,9 +680,9 @@ estimate_ <- function(
       active_sender_init,
       active_sender_update,
       active_sender_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
@@ -704,9 +704,9 @@ estimate_ <- function(
       active_sender_init,
       active_sender_update,
       active_sender_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
@@ -726,9 +726,9 @@ estimate_ <- function(
       active_sender_init,
       active_sender_update,
       active_sender_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
@@ -766,9 +766,9 @@ gather_ <- function(
   active_sender_init,
   active_sender_update,
   active_sender_update_pointer,
-  presence2_init,
-  presence2_update,
-  presence2_update_pointer,
+  active_dyad_init,
+  active_dyad_update,
+  active_dyad_update_pointer,
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
@@ -793,9 +793,9 @@ gather_ <- function(
       active_sender_init,
       active_sender_update,
       active_sender_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive
@@ -808,9 +808,9 @@ gather_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
@@ -828,9 +828,9 @@ gather_ <- function(
       active_sender_init,
       active_sender_update,
       active_sender_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
@@ -954,9 +954,9 @@ gather_sender_receiver_model_r <- function(
   active_sender_init,
   active_sender_update,
   active_sender_update_pointer,
-  presence2_init,
-  presence2_update,
-  presence2_update_pointer,
+  active_dyad_init,
+  active_dyad_update,
+  active_dyad_update_pointer,
   n_actors1,
   n_actors2,
   twomode_or_reflexive
@@ -965,9 +965,9 @@ gather_sender_receiver_model_r <- function(
   n_events <- length(is_dependent)
   n_parameters <- ncol(stat_mat)
   has_cc1 <- length(active_sender_update) > 0
-  has_cc2 <- length(presence2_update) > 0
+  has_cc2 <- length(active_dyad_update) > 0
   active_sender <- active_sender_init
-  presence2 <- presence2_init
+  active_dyad <- active_dyad_init
   update_id <- 0L
   bc_id <- 0L
   p1_id <- 0L
@@ -1013,10 +1013,10 @@ gather_sender_receiver_model_r <- function(
       p1_id <- ptr1
     }
     if (has_cc2) {
-      ptr2 <- presence2_update_pointer[e]
-      presence2 <- .gather_apply_presence(
-        presence2,
-        presence2_update,
+      ptr2 <- active_dyad_update_pointer[e]
+      active_dyad <- .gather_apply_presence(
+        active_dyad,
+        active_dyad_update,
         p2_id,
         ptr2
       )
@@ -1028,7 +1028,7 @@ gather_sender_receiver_model_r <- function(
     is_dep <- is_dependent[e]
 
     present1_ids <- which(active_sender == 1) - 1L
-    present2_ids <- which(presence2 == 1) - 1L
+    present2_ids <- which(active_dyad == 1) - 1L
 
     idx <- integer(0)
     n_present <- 0L
@@ -1081,9 +1081,9 @@ gather_receiver_model_r <- function(
   stat_mat_update_pointer,
   stat_mat_broadcast,
   stat_mat_broadcast_pointer,
-  presence2_init,
-  presence2_update,
-  presence2_update_pointer,
+  active_dyad_init,
+  active_dyad_update,
+  active_dyad_update_pointer,
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
@@ -1092,8 +1092,8 @@ gather_receiver_model_r <- function(
   stat_mat <- stat_mat_init
   n_events <- ncol(event_mat)
   n_parameters <- ncol(stat_mat)
-  has_cc2 <- length(presence2_update) > 0
-  presence2 <- presence2_init
+  has_cc2 <- length(active_dyad_update) > 0
+  active_dyad <- active_dyad_init
   update_id <- 0L
   bc_id <- 0L
   p2_id <- 0L
@@ -1124,10 +1124,10 @@ gather_receiver_model_r <- function(
     )
     bc_id <- bc_ptr
     if (has_cc2) {
-      ptr2 <- presence2_update_pointer[e]
-      presence2 <- .gather_apply_presence(
-        presence2,
-        presence2_update,
+      ptr2 <- active_dyad_update_pointer[e]
+      active_dyad <- .gather_apply_presence(
+        active_dyad,
+        active_dyad_update,
         p2_id,
         ptr2
       )
@@ -1137,7 +1137,7 @@ gather_receiver_model_r <- function(
     id_sender <- event_mat[1, e] - 1L
     id_receiver <- event_mat[2, e] - 1L
     not_allowed <- if (!twomode_or_reflexive) id_sender else -1L
-    present2_ids <- which(presence2 == 1) - 1L
+    present2_ids <- which(active_dyad == 1) - 1L
     allowed <- present2_ids[present2_ids != not_allowed]
     # support_constraint: keep only the sender's allowed receivers (design D5),
     # shrinking n_candidates and reindexing selected within the constrained set.
@@ -1177,9 +1177,9 @@ gather_sender_model_r <- function(
   active_sender_init,
   active_sender_update,
   active_sender_update_pointer,
-  presence2_init,
-  presence2_update,
-  presence2_update_pointer,
+  active_dyad_init,
+  active_dyad_update,
+  active_dyad_update_pointer,
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
@@ -1189,9 +1189,9 @@ gather_sender_model_r <- function(
   n_events <- ncol(event_mat)
   n_parameters <- ncol(stat_mat)
   has_cc1 <- length(active_sender_update) > 0
-  has_cc2 <- length(presence2_update) > 0
+  has_cc2 <- length(active_dyad_update) > 0
   active_sender <- active_sender_init
-  presence2 <- presence2_init
+  active_dyad <- active_dyad_init
   update_id <- 0L
   bc_id <- 0L
   p1_id <- 0L
@@ -1233,10 +1233,10 @@ gather_sender_model_r <- function(
       p1_id <- ptr1
     }
     if (has_cc2) {
-      ptr2 <- presence2_update_pointer[e]
-      presence2 <- .gather_apply_presence(
-        presence2,
-        presence2_update,
+      ptr2 <- active_dyad_update_pointer[e]
+      active_dyad <- .gather_apply_presence(
+        active_dyad,
+        active_dyad_update,
         p2_id,
         ptr2
       )
@@ -1255,7 +1255,7 @@ gather_sender_model_r <- function(
     # support_constraint (rate): gate senders to those with >= 1 allowed present
     # receiver (design D3/D10), removing them from the rate denominator.
     if (!is.null(support)) {
-      gate <- rowSums(support[[e]][, presence2 == 1, drop = FALSE]) > 0
+      gate <- rowSums(support[[e]][, active_dyad == 1, drop = FALSE]) > 0
       present1_ids <- present1_ids[gate[present1_ids + 1L]]
     }
     rows_list[[e]] <- reduced[present1_ids + 1L, , drop = FALSE]
