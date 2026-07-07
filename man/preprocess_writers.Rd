@@ -26,8 +26,8 @@ broadcast-update entry format documented on \code{writer_default()}),
 defaulting to an empty 4 x 0 matrix.}
 \item{\code{finalize(tail)}}{called once after the loop with a \code{tail} list of
 recipe-computed assembly inputs (\code{initialStats},
-\code{active_mode1_init} / \code{active_mode1_changes},
-\code{active_mode2_init} / \code{active_mode2_changes}, \code{startTime}, \code{endTime},
+\code{active_sender_init} / \code{active_sender_changes},
+\code{active_dyad_init} / \code{active_dyad_changes}, \code{startTime}, \code{endTime},
 \code{intercept_scalars}). Returns the writer's output.}
 }
 
