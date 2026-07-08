@@ -723,6 +723,7 @@ preprocess_recipe <- function(
     spec_map,
     startTime = control_preprocessing$start_time,
     endTime = control_preprocessing$end_time,
+    opportunitiesList = control_preprocessing$opportunities_list,
     progress = progress,
     prepEnvir = work_env,
     writer = writer
@@ -1555,6 +1556,18 @@ estimate_wrapper <- function(
   # 2D). DyNAM rate_ordered and the compiled engines land with the C++ gather
   # rewrite, so they abort rather than silently ignore the constraint.
   opportunities_effective <- control_preprocessing$opportunities_list
+  # A constraint-free opportunity list is folded into `active_dyad` at the point
+  # encoding during preprocessing (design D10): the default engine reads it
+  # through the point accessor, so it is not also passed as a per-iteration
+  # opportunity recompute. (With a support_constraint the mask path below
+  # carries the intersection, so the list still rides there.)
+  if (
+    is.null(constraint_plan) &&
+      !is.null(opportunities_effective) &&
+      isTRUE(prep$active_dyad_folded)
+  ) {
+    opportunities_effective <- NULL
+  }
   sender_gate <- NULL
   rem_mask <- NULL
   support_gather <- NULL

@@ -1205,14 +1205,24 @@ compute_step.default <- function(spec, state, i, ctx) {
   }
 
   if (ctx$active_dyad_folded) {
-    # Maintain the folded receiver-axis `active_dyad` by its per-event crossings
-    # slice (design D7), applied before this event's likelihood.
+    # Maintain the folded `active_dyad` by its per-event crossings slice
+    # (design D7), applied before this event's likelihood. At the point encoding
+    # `state$presence2` is the dense n1 x n2 matrix and the buffer carries
+    # (node1, node2, replace); the broadcast encodings maintain a length-n2
+    # vector with a (node, replace) buffer.
     hi <- ctx$active_dyad_update_pointer[i]
     lo <- if (i > 1L) ctx$active_dyad_update_pointer[i - 1L] else 0L
     if (hi > lo) {
       cols <- (lo + 1L):hi
-      state$presence2[ctx$active_dyad_update[1L, cols]] <-
-        as.logical(ctx$active_dyad_update[2L, cols])
+      if (identical(ctx$active_dyad_encoding, "point")) {
+        state$presence2[cbind(
+          ctx$active_dyad_update[1L, cols],
+          ctx$active_dyad_update[2L, cols]
+        )] <- as.logical(ctx$active_dyad_update[3L, cols])
+      } else {
+        state$presence2[ctx$active_dyad_update[1L, cols]] <-
+          as.logical(ctx$active_dyad_update[2L, cols])
+      }
     }
   } else if (ctx$updatepresence2) {
     update2 <-

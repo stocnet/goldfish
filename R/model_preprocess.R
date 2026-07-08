@@ -1186,6 +1186,70 @@ fold_active_dyad_support <- function(out, support_mask, model_type, mask_kind) {
   out
 }
 
+# Fold the deprecated opportunity list into `active_dyad` at the point encoding
+# (design D10/D13). Opportunity is event-indexed and sender-specific: for each
+# stored (choice) event `e` with sender `s`, the allowed receiver set is the
+# folded receiver availability intersected with `opportunitiesList[[e]]`.
+# Because the choice risk set reads only sender `s`'s row per event, the
+# maintained dense n1 x n2 buffer is updated in row `s` alone — the first
+# event's set lands in the init and each later event emits net
+# `(node1 = s, node2 = j, replace)` flips against that row's previous stored
+# value. Rows for senders not yet observed are never read before their first
+# event overwrites them, so their init value is immaterial (seeded with the
+# event-1 receiver presence).
+fold_active_dyad_opportunity <- function(out, opportunitiesList) {
+  n_stored <- length(out$event_time)
+  if (n_stored == 0L) {
+    return(out)
+  }
+  n1 <- length(out$active_sender_init)
+  n2 <- length(out$active_dyad_init)
+  recv <- walk_presence_buffer(
+    out$active_dyad_init,
+    out$active_dyad_update,
+    out$active_dyad_update_pointer,
+    n_stored
+  )
+  senders <- out$event_sender
+  # `seq_len(n2) %in% opportunitiesList[[e]]` mirrors the estimation-time
+  # recompute exactly (an all-TRUE row when the event has no restriction).
+  desired <- lapply(seq_len(n_stored), function(e) {
+    opp <- opportunitiesList[[e]]
+    if (is.null(opp)) recv[[e]] else recv[[e]] & (seq_len(n2) %in% opp)
+  })
+
+  cur <- matrix(recv[[1L]], nrow = n1, ncol = n2, byrow = TRUE)
+  cur[senders[[1L]], ] <- desired[[1L]]
+  init <- cur
+  n_changes <- integer(n_stored)
+  node1 <- vector("list", n_stored)
+  node2 <- vector("list", n_stored)
+  repl <- vector("list", n_stored)
+  for (e in seq_len(n_stored)[-1L]) {
+    s <- senders[[e]]
+    ch <- which(cur[s, ] != desired[[e]])
+    n_changes[e] <- length(ch)
+    node1[[e]] <- rep.int(s, length(ch))
+    node2[[e]] <- ch
+    repl[[e]] <- as.numeric(desired[[e]][ch])
+    cur[s, ] <- desired[[e]]
+  }
+  n1v <- unlist(node1, use.names = FALSE)
+  n2v <- unlist(node2, use.names = FALSE)
+  rv <- unlist(repl, use.names = FALSE)
+
+  out$active_dyad_init <- init
+  out$active_dyad_update <- if (length(n1v) > 0L) {
+    rbind(n1v, n2v, rv)
+  } else {
+    matrix(0, 3L, 0L)
+  }
+  out$active_dyad_update_pointer <- cumsum(n_changes)
+  out$active_dyad_encoding <- "point"
+  out$active_dyad_folded <- TRUE
+  out
+}
+
 run_dyad_recipe_loop <- function(
   spec,
   startTime = NULL,
@@ -1195,6 +1259,7 @@ run_dyad_recipe_loop <- function(
   progress = FALSE,
   prepEnvir = new.env(),
   writer = writer_default(),
+  opportunitiesList = NULL,
   ...
 ) {
   # The compiled recipe inputs ride on `spec` (a spec_map, task 2.3b): the
@@ -1827,6 +1892,19 @@ run_dyad_recipe_loop <- function(
       legacy_model_type(spec),
       plan$support_constraint$mask_kind
     )
+  } else if (
+    !is.null(opportunitiesList) &&
+      spec$sub_model %in% c("choice", "choice_coordination")
+  ) {
+    # The deprecated opportunity list is a point-kind availability contribution
+    # (design D10/D13): fold it into the `active_dyad` point buffer during the
+    # preprocessing pass so estimation reads it through the point accessor
+    # instead of recomputing `seq_len(n2) %in% opportunitiesList[[i]]` on every
+    # Newton-Raphson iteration. Only the constraint-free case folds here — when a
+    # support_constraint is present its (still standalone) mask path intersects
+    # the user opportunity list, so both ride together until the mask path is
+    # retired with the engine wiring.
+    out <- fold_active_dyad_opportunity(out, opportunitiesList)
   }
   out
 }
