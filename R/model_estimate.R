@@ -1594,7 +1594,13 @@ estimate_wrapper <- function(
       prep$event_receiver,
       prep$is_dependent,
       validate_active_1,
-      prep$active_dyad_init,
+      # Raw receiver presence: the dyad fold overwrites `active_dyad_init` with
+      # the folded object, so validation reads the stashed unfolded vector.
+      if (!is.null(prep$support_mask$receiver_presence_init)) {
+        prep$support_mask$receiver_presence_init
+      } else {
+        prep$active_dyad_init
+      },
       family = if (is_rate_family) "rate" else "choice"
     )
     # `avg_active_entity` (the rate intercept init) is now computed during

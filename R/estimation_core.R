@@ -1204,7 +1204,17 @@ compute_step.default <- function(spec, state, i, ctx) {
     state$presence[update$node] <- update$replace
   }
 
-  if (ctx$updatepresence2) {
+  if (ctx$active_dyad_folded) {
+    # Maintain the folded receiver-axis `active_dyad` by its per-event crossings
+    # slice (design D7), applied before this event's likelihood.
+    hi <- ctx$active_dyad_update_pointer[i]
+    lo <- if (i > 1L) ctx$active_dyad_update_pointer[i - 1L] else 0L
+    if (hi > lo) {
+      cols <- (lo + 1L):hi
+      state$presence2[ctx$active_dyad_update[1L, cols]] <-
+        as.logical(ctx$active_dyad_update[2L, cols])
+    }
+  } else if (ctx$updatepresence2) {
     update2 <-
       ctx$compChange2[
         ctx$compChange2$time <= current_time &
@@ -1266,8 +1276,22 @@ compute_step.default <- function(spec, state, i, ctx) {
   } else {
     posSender <- activeDyad[1]
   }
-  if ((ctx$updatepresence2 || ctx$updateopportunities)) {
-    keepIn <- state$presence2 & state$opportunities
+  if (
+    ctx$updatepresence2 || ctx$updateopportunities || ctx$active_dyad_folded
+  ) {
+    # When folded, the receiver filter is read through the encoding accessor
+    # (design D7/D13): `state$presence2` is the folded receiver availability and
+    # already includes the support, so `opportunities` is not conjoined.
+    keepIn <- if (ctx$active_dyad_folded) {
+      active_dyad_row(
+        ctx$active_dyad_encoding,
+        posSender,
+        state$presence2,
+        state$presence
+      )
+    } else {
+      state$presence2 & state$opportunities
+    }
     # reducing stats array alters the correspondence between row/col
     # it needs to consider the reflexive case to avoid wrong calculation
     # excludes REM and DyNAM-MM
@@ -1402,6 +1426,12 @@ compute_iteration_step <- function(
   # maintains it by walking its flat buffer per event (by index) and uses it
   # directly as the sender filter — no separate `senderGate` recombination.
   active_sender_folded <- isTRUE(statsList$active_sender_folded)
+  # A DyNAM-choice support_constraint is folded into `active_dyad` at
+  # preprocessing (design D4/D11): the receiver-axis availability already
+  # carries receiver presence AND the folded support, so the engine maintains
+  # it by walking its flat buffer per event and reads the receiver filter
+  # through the encoding accessor — no separate opportunities/compChange2 step.
+  active_dyad_folded <- isTRUE(statsList$active_dyad_folded)
 
   # check for parallelization
   # if (parallelize && require("snowfall", quietly = TRUE)) {
@@ -1434,6 +1464,10 @@ compute_iteration_step <- function(
     active_sender_folded = active_sender_folded,
     active_sender_update = statsList$active_sender_update,
     active_sender_update_pointer = statsList$active_sender_update_pointer,
+    active_dyad_folded = active_dyad_folded,
+    active_dyad_update = statsList$active_dyad_update,
+    active_dyad_update_pointer = statsList$active_dyad_update_pointer,
+    active_dyad_encoding = statsList$active_dyad_encoding,
     remMask = remMask,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,

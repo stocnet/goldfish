@@ -1061,6 +1061,131 @@ dedup_cells <- function(cells, n1) {
 #'
 #' @return a list of class preprocessed.goldfish
 #' @noRd
+NULL
+
+# Walk a flat presence crossings buffer (init + (node, replace) updates keyed by
+# a per-event cumulative pointer) to the per-event length-n logical vector it
+# encodes. Shared by the sender/dyad availability folds.
+walk_presence_buffer <- function(init, update, pointer, n_stored) {
+  cur <- init
+  res <- vector("list", n_stored)
+  prev <- 0L
+  for (e in seq_len(n_stored)) {
+    hi <- if (!is.null(pointer)) pointer[e] else 0L
+    if (hi > prev) {
+      cols <- (prev + 1L):hi
+      cur[update[1L, cols]] <- as.logical(update[2L, cols])
+    }
+    prev <- hi
+    res[[e]] <- cur
+  }
+  res
+}
+
+# Re-encode a per-event sequence of length-n logical vectors as init + net
+# crossings (node, replace) with a per-event cumulative pointer (event 1 in the
+# init, its slice empty; later events emit only changed entries).
+crossings_from_vectors <- function(vecs) {
+  n_stored <- length(vecs)
+  n_changes <- integer(n_stored)
+  nodes <- vector("list", n_stored)
+  repl <- vector("list", n_stored)
+  for (e in seq_len(n_stored)[-1L]) {
+    ch <- which(vecs[[e]] != vecs[[e - 1L]])
+    n_changes[e] <- length(ch)
+    nodes[[e]] <- ch
+    repl[[e]] <- as.numeric(vecs[[e]][ch])
+  }
+  nv <- unlist(nodes, use.names = FALSE)
+  rv <- unlist(repl, use.names = FALSE)
+  list(
+    init = vecs[[1L]],
+    update = if (length(nv) > 0L) rbind(nv, rv) else matrix(0, 2L, 0L),
+    pointer = cumsum(n_changes)
+  )
+}
+
+# Fold a dyad-loop support_constraint into `active_dyad` at its minimal encoding
+# (design D4/D11/D13), during preprocessing, from the per-event mask snapshots.
+# Per family (D11): DyNAM-choice/coordination fold receiver presence ∩ support
+# (NOT sender presence); REM folds BOTH presences ∩ support. The stored encoding
+# (D13) is decided statically from `mask_kind`:
+#   alter  (choice, alter/scalar support): one length-n2 receiver vector;
+#   outer  (REM, or choice + ego support): two factor vectors (active_sender f1,
+#          active_dyad f2), cell (i,j) = f1[i] & f2[j];
+#   point  (a point support atom): dense n1 x n2 init + net (node1, node2)
+#          point flips.
+# Operands stay loop-internal; only net effective flips (or factor flips) are
+# emitted. The raw receiver presence is stashed on `support_mask` for the
+# fail-fast validation, which needs it unfolded.
+fold_active_dyad_support <- function(out, support_mask, model_type, mask_kind) {
+  n_stored <- length(out$event_time)
+  if (n_stored == 0L) {
+    return(out)
+  }
+  n1 <- length(out$active_sender_init)
+  n2 <- length(out$active_dyad_init)
+  support <- support_mask$support
+  encoding <- active_dyad_encoding_decide(model_type, mask_kind)
+  is_rem <- model_type %in% c("REM", "REM-ordered", "DyNAM-MM")
+
+  # The point encoding is a dense n1 x n2 object; its maintenance and
+  # consumption (including the C++ dense point buffer) land with the engine
+  # wiring (§5). Until then a point-kind constraint stays on the standalone
+  # `support_mask` path, so `active_dyad` is left as the receiver-presence
+  # vector the current engines read. REM's outer/point consumption (the
+  # `riskMask` replacement) is likewise §5, so REM constraints stay on the
+  # standalone mask path for now; only the DyNAM choice/coordination dyad loop
+  # folds here (its receiver filter is rewired below).
+  if (!identical(encoding, "alter") || is_rem) {
+    return(out)
+  }
+
+  recv <- walk_presence_buffer(
+    out$active_dyad_init,
+    out$active_dyad_update,
+    out$active_dyad_update_pointer,
+    n_stored
+  )
+  out$support_mask$receiver_presence_init <- out$active_dyad_init
+
+  if (identical(encoding, "alter")) {
+    # An alter/scalar mask is column-broadcast, so any row is the alter vector.
+    folded <- lapply(
+      seq_len(n_stored),
+      function(e) recv[[e]] & support[[e]][1L, ]
+    )
+    cr <- crossings_from_vectors(folded)
+    out$active_dyad_init <- cr$init
+    out$active_dyad_update <- cr$update
+    out$active_dyad_update_pointer <- cr$pointer
+  } else {
+    # outer (choice + a pure ego-kind atom): the receiver factor stays the
+    # receiver presence; the sender factor carries the ego-support row gate. A
+    # choice model does not fold sender presence, so f1's base is all-TRUE.
+    row_factor <- function(e) {
+      if (mask_kind == 2L) support[[e]][, 1L] else rep(TRUE, n1)
+    }
+    col_factor <- function(e) {
+      if (mask_kind == 2L) rep(TRUE, n2) else support[[e]][1L, ]
+    }
+    f1 <- lapply(seq_len(n_stored), function(e) rep(TRUE, n1) & row_factor(e))
+    f2 <- lapply(seq_len(n_stored), function(e) recv[[e]] & col_factor(e))
+    c1 <- crossings_from_vectors(f1)
+    c2 <- crossings_from_vectors(f2)
+    out$active_sender_init <- c1$init
+    out$active_sender_update <- c1$update
+    out$active_sender_update_pointer <- c1$pointer
+    out$active_dyad_init <- c2$init
+    out$active_dyad_update <- c2$update
+    out$active_dyad_update_pointer <- c2$pointer
+  }
+
+  out$active_dyad_encoding <- encoding
+  out$active_dyad_folded <- TRUE
+  out
+}
+
 run_dyad_recipe_loop <- function(
   spec,
   startTime = NULL,
@@ -1692,6 +1817,15 @@ run_dyad_recipe_loop <- function(
       symmetric = identical(spec$sub_model, "choice_coordination"),
       snapshot_times = out$event_time,
       prepEnvir = prepEnvir
+    )
+    # Fold the constraint into `active_dyad` at its minimal encoding during
+    # preprocessing (design D4/D11/D13); estimation consumes it via the
+    # encoding accessors (design D7).
+    out <- fold_active_dyad_support(
+      out,
+      out$support_mask,
+      legacy_model_type(spec),
+      plan$support_constraint$mask_kind
     )
   }
   out

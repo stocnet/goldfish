@@ -507,33 +507,61 @@ gather_from_prep <- function(prep, spec) {
   gathered_data
 }
 
-#' Static `active_dyad` encoding for a model spec
+#' Decide the `active_dyad` minimal encoding (design D13)
 #'
-#' The dyad-loop availability object is stored at its minimal encoding (design
-#' D13). In this representation only two encodings arise: `"outer"` for the
-#' models whose risk set is genuinely dyadic (REM, REM-ordered, DyNAM-MM), where
-#' `active_dyad` is the outer product of the sender-axis vector (`active_sender`)
-#' and the receiver-axis vector; and `"alter"` otherwise (DyNAM-M choice/rate),
-#' where the receiver-axis vector alone drives availability. The scalar/ego/point
-#' encodings land with the constraint-folding phases.
+#' The dyad-loop availability object is stored at its minimal encoding, decided
+#' statically at spec time from the model family's folded presences (design
+#' D11), the support constraint's axis-union `mask_kind` (design D2), and the
+#' presence of an opportunity list (design D10). The receiver presence (col
+#' axis) is folded by every dyad-loop family, so only three encodings arise:
+#' \describe{
+#'   \item{`"point"`}{a genuinely dyadic (point) support atom or an opportunity
+#'     list is present — a dense `n1 x n2` init plus point flips.}
+#'   \item{`"outer"`}{both axes are dynamic but separable — the risk set is
+#'     dyadic (REM / REM-ordered / DyNAM-MM fold both presences) or a pure
+#'     ego-kind support atom adds a sender-axis factor; stored as two factor
+#'     vectors with cell `(i, j) = f1[i] & f2[j]`.}
+#'   \item{`"alter"`}{only the receiver axis is dynamic (DyNAM-M choice/rate
+#'     with no constraint, or a pure alter-/scalar-kind support atom) — one
+#'     length-n2 vector.}
+#' }
+#' `mask_kind` codes: `0` point, `1` alter, `2` ego, `3` scalar; `NULL` when
+#' unconstrained. With `mask_kind = NULL` and `has_opportunity = FALSE` this
+#' reproduces the pre-fold assignment (REM/MM outer, otherwise alter).
 #' @noRd
-active_dyad_encoding_for <- function(spec) {
-  if (legacy_model_type(spec) %in% c("REM", "REM-ordered", "DyNAM-MM")) {
+active_dyad_encoding_decide <- function(
+  model_type,
+  mask_kind = NULL,
+  has_opportunity = FALSE
+) {
+  base_row <- model_type %in% c("REM", "REM-ordered", "DyNAM-MM")
+  has_point <- (!is.null(mask_kind) && mask_kind == 0L) ||
+    isTRUE(has_opportunity)
+  row_from_atom <- !is.null(mask_kind) && mask_kind == 2L
+  if (has_point) {
+    "point"
+  } else if (base_row || row_from_atom) {
     "outer"
   } else {
     "alter"
   }
 }
 
+#' @noRd
+active_dyad_encoding_for <- function(spec) {
+  active_dyad_encoding_decide(legacy_model_type(spec))
+}
+
 #' `active_dyad` read accessors (design D13)
 #'
 #' Consumers read per-event availability through these helpers and never branch
-#' on the encoding. `active_dyad` is the receiver-axis logical vector at every
-#' encoding; at the `"outer"` encoding cell `(i, j)` additionally requires the
-#' sender-axis vector `active_sender[i]`, so those accessors take it too.
-#' `active_dyad_row()` returns the length-n2 availability for a given sender,
-#' `active_dyad_cell()` a single dyad, and `active_dyad_count()` the number of
-#' available dyads (the intercept denominator's per-event TRUE-count).
+#' on the encoding. At `"alter"` `active_dyad` is the receiver-axis logical
+#' vector; at `"outer"` cell `(i, j) = active_sender[i] & active_dyad[j]` (two
+#' factor vectors); at `"point"` `active_dyad` is the dense `n1 x n2` logical
+#' and the cell is read directly. `active_dyad_row()` returns the length-n2
+#' availability for a given sender, `active_dyad_cell()` a single dyad, and
+#' `active_dyad_count()` the number of available dyads (the intercept
+#' denominator's per-event TRUE-count).
 #' @noRd
 active_dyad_row <- function(
   encoding,
@@ -541,7 +569,9 @@ active_dyad_row <- function(
   active_dyad,
   active_sender = NULL
 ) {
-  if (identical(encoding, "outer")) {
+  if (identical(encoding, "point")) {
+    active_dyad[sender_i, ]
+  } else if (identical(encoding, "outer")) {
     if (isTRUE(active_sender[sender_i] == 1)) {
       active_dyad
     } else {
@@ -560,6 +590,9 @@ active_dyad_cell <- function(
   active_dyad,
   active_sender = NULL
 ) {
+  if (identical(encoding, "point")) {
+    return(as.logical(active_dyad[sender_i, receiver_j]))
+  }
   avail_j <- active_dyad[receiver_j]
   if (identical(encoding, "outer")) {
     avail_j & isTRUE(active_sender[sender_i] == 1)
@@ -570,7 +603,9 @@ active_dyad_cell <- function(
 
 #' @noRd
 active_dyad_count <- function(encoding, active_dyad, active_sender = NULL) {
-  if (identical(encoding, "outer")) {
+  if (identical(encoding, "point")) {
+    sum(active_dyad == 1)
+  } else if (identical(encoding, "outer")) {
     sum(active_sender == 1) * sum(active_dyad == 1)
   } else {
     sum(active_dyad == 1)
