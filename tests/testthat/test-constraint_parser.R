@@ -161,34 +161,48 @@ test_that("ordinary atoms pass the anti-cycle guard", {
   )
 })
 
-# ---- D13: dyadic atoms rejected in sender-indexed-only specs ----
+# ---- D12: dyadic atoms accepted (row-reduction) in sender-indexed-only specs ----
 
-test_that("dyadic / alter atoms are rejected in a rate-only spec", {
-  # kinds: point = 0, alter = 1 (need the dyad kernel); ego = 2, global = 3 ok.
-  expect_error(
-    reject_dyadic_sender_only(
+test_that("dyadic / alter atoms inform about the row-reduction in a rate-only spec", {
+  # kinds: point = 0, alter = 1 (fold via the row-reduction); ego = 2,
+  # global = 3 fold directly and emit no message.
+  expect_message(
+    inform_dyadic_sender_reduction(
       atom_labels = c("tie(net)", "ego(x)"),
       atom_kinds = c(0L, 2L)
     ),
-    "sender-axis atoms only"
+    "row-reduction"
   )
-  expect_error(
-    reject_dyadic_sender_only(
+  expect_message(
+    inform_dyadic_sender_reduction(
       atom_labels = "alter(x)",
       atom_kinds = 1L
     ),
-    "sender-axis atoms only"
+    "at least one allowed, present receiver"
   )
 })
 
-test_that("sender-axis atoms pass the D13 guard", {
-  expect_invisible(
-    reject_dyadic_sender_only(
+test_that("sender-axis atoms fold silently (no message)", {
+  expect_no_message(
+    inform_dyadic_sender_reduction(
       atom_labels = c("ego(x)", "global(g)"),
       atom_kinds = c(2L, 3L)
     )
   )
 })
+
+cli::test_that_cli(
+  "the row-reduction message reads correctly",
+  configs = "plain",
+  {
+    expect_snapshot(
+      inform_dyadic_sender_reduction(
+        atom_labels = c("tie(net)", "alter(x)"),
+        atom_kinds = c(0L, 1L)
+      )
+    )
+  }
+)
 
 # ---- augment_constraints: role tagging + mask storage kind ----
 

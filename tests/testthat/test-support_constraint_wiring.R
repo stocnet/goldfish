@@ -94,18 +94,20 @@ test_that("constrained choice preprocessing is unchanged until the mask is consu
   expect_equal(prep1$stat_mat_update, prep0$stat_mat_update)
 })
 
-test_that("a rate-only spec rejects a dyadic support_constraint (design D13)", {
+test_that("a rate-only spec accepts a dyadic support_constraint via the row-reduction (design D12)", {
   d <- make_constraint_fixture()
-  expect_error(
-    estimate_dynam(
+  expect_message(
+    prep <- estimate_dynam(
       callsDependent ~ 1 + indeg,
       sub_model = "rate",
       data = d,
       preprocessing_only = TRUE,
       support_constraint = ~ tie(callNetwork)
     ),
-    "sender-axis"
+    "row-reduction"
   )
+  expect_s3_class(prep, "preprocessed.goldfish")
+  expect_true(isTRUE(prep$active_sender_folded))
 })
 
 test_that("a specification threads its support_constraint into estimation", {

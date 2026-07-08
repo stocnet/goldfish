@@ -258,8 +258,9 @@ atoms_to_formula <- function(atoms) {
 #'
 #' @param constraint a one-sided `support_constraint` formula.
 #' @param has_dyad_part `TRUE` when the specification has a dyad-indexed part (a
-#'   choice submodel, or REM) so dyadic atoms are legal; `FALSE` for a rate-only
-#'   spec, where dyadic atoms are rejected (D13).
+#'   choice submodel, or REM); `FALSE` for a rate-only spec, where dyadic atoms
+#'   are accepted and folded on the sender axis via the row-reduction (D12),
+#'   with a one-time informational message.
 #' @param envir environment where the constraint's objects live.
 #' @return a `support_constraint_plan` object: the original `formula`, the
 #'   `atoms` / `atom_labels` / `atom_names`, per-atom `atom_kinds`, the mask
@@ -292,7 +293,7 @@ parse_and_validate_constraint <- function(
   )
 
   if (!has_dyad_part) {
-    reject_dyadic_sender_only(pc$atom_labels, atom_kinds)
+    inform_dyadic_sender_reduction(pc$atom_labels, atom_kinds)
   }
 
   structure(
@@ -344,33 +345,39 @@ augment_constraints <- function(constraint_plan, mask_expr, atom_labels) {
   )
 }
 
-#' D13: reject dyadic atoms in a sender-indexed-only specification
+#' D12: accept dyadic atoms in a sender-indexed-only specification via the
+#' row-reduction, informing about the reduction
 #'
-#' The sender kernel has no dyad matrix machinery, so a rate / rate_ordered spec
-#' with no choice formula must express its constraint on the sender axis. No
-#' automatic rewrite: `rowAny` does not distribute over `&`/`!` and
-#' `outdeg(net) > 0` ignores receiver presence, so `tie -> outdeg` is only a
-#' guidance-level equivalence.
+#' A dyadic (`point`- or `alter`-kind) `support_constraint` on a rate / rate
+#' _ordered spec with no choice formula is consumed on the sender axis by the
+#' row-reduction (folded into `active_sender` during preprocessing): a sender is
+#' at risk iff it has at least one allowed, present receiver. This is the same
+#' definition the joint specification uses,
+#' so rejecting it would be a capability regression and a semantic break.
+#' A one-time informational message explains the reduction and the cheaper
+#' ego-kind reformulation, WITHOUT overclaiming: `outdeg(net) > 0` matches
+#' `tie(net)` only under static receiver composition (outdeg counts ties to
+#' absent receivers; the row-reduction does not).
 #'
 #' @param atom_labels deparsed atom labels.
 #' @param atom_kinds their broadcast kinds under dyad classification
-#'   (`0` point / `1` alter need the dyad kernel; `2` ego / `3` global are fine).
+#'   (`0` point / `1` alter fold via the row-reduction; `2` ego / `3` global
+#'   fold directly).
 #' @noRd
-reject_dyadic_sender_only <- function(atom_labels, atom_kinds) {
-  bad <- atom_kinds %in% c(0L, 1L)
-  if (any(bad)) {
-    cli::cli_abort(
-      c(
-        "A rate-only specification's {.arg support_constraint} must use
-         sender-axis atoms only.",
-        "x" = "Dyadic atom{?s}: {.code {atom_labels[bad]}}.",
-        "i" = "Reformulate on the sender axis, e.g. {.code ~ tie(net)} becomes
-               {.code ~ outdeg(net) > 0}.",
-        "!" = "That equivalence ignores receiver presence and breaks under
-               composition changes; rewrite it deliberately."
-      ),
-      call = NULL
-    )
+inform_dyadic_sender_reduction <- function(atom_labels, atom_kinds) {
+  dyadic <- atom_kinds %in% c(0L, 1L)
+  if (any(dyadic)) {
+    cli::cli_inform(c(
+      "i" = "{.arg support_constraint}: {cli::qty(sum(dyadic))}the dyadic
+             atom{?s} {.code {atom_labels[dyadic]}} {?is/are} consumed on the
+             sender axis by row-reduction — a sender is at risk iff it has
+             at least one allowed, present receiver.",
+      "i" = "For a cheaper sender-axis formulation, use an ego-kind atom, e.g.
+             {.code ~ tie(net)} becomes {.code ~ outdeg(net) > 0}.",
+      "!" = "That reformulation is equivalent only under static receiver
+             composition: {.fn outdeg} counts ties to absent receivers, the
+             row-reduction does not."
+    ))
   }
   invisible(atom_labels)
 }

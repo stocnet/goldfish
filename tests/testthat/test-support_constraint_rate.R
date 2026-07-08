@@ -82,7 +82,28 @@ test_that("an all-allowing rate constraint is an identity (equals unconstrained)
   expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-8)
 })
 
-test_that("a restricting rate gate gives the hand-computed avg_active_entity (D4/5.4)", {
+# Reconstruct the per-event folded active_sender from the stored crossings
+# buffer (init + per-event flip slices), the same walk the engine performs.
+folded_active_sender_per_event <- function(prep) {
+  n_stored <- length(prep$event_time)
+  cur <- prep$active_sender_init
+  upd <- prep$active_sender_update
+  ptr <- prep$active_sender_update_pointer
+  out <- vector("list", n_stored)
+  prev <- 0L
+  for (e in seq_len(n_stored)) {
+    hi <- if (!is.null(ptr)) ptr[e] else 0L
+    if (hi > prev) {
+      cols <- (prev + 1L):hi
+      cur[upd[1L, cols]] <- as.logical(upd[2L, cols])
+    }
+    prev <- hi
+    out[[e]] <- cur
+  }
+  out
+}
+
+test_that("the folded active_sender equals the from-scratch gate reduction (D12)", {
   fx <- make_rate_fixture()
   gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
   d <- rate_data_with_gate(fx, gated)
@@ -95,21 +116,44 @@ test_that("a restricting rate gate gives the hand-computed avg_active_entity (D4
     data = d
   )
   prep <- estimate_dynam(spec, sub_model = "rate", preprocessing_only = TRUE)
-  gate <- mask_to_sender_gate(prep$support_mask, prep$active_sender_init)
-  hand_avg <- mean(vapply(
-    gate,
-    function(g) sum(prep$active_sender_init & g),
-    numeric(1)
-  ))
-  # all actors present, 5 gated out -> 79 active senders at every event
-  expect_equal(hand_avg, fx$n - length(gated))
+
+  # From-scratch predecessor reduction: presence AND
+  # (rowSums(support & receiver-availability) > 0), per stored event.
+  n1 <- length(prep$active_dyad_init)
+  presence <- prep$support_mask$sender_presence_init
+  reference <- lapply(prep$support_mask$support, function(s) {
+    presence & (rowSums(s & rep(prep$active_dyad_init, each = n1)) > 0)
+  })
+  folded <- folded_active_sender_per_event(prep)
+  expect_equal(folded, reference)
+
+  # avg_active_entity is the event-averaged active-sender count, computed
+  # in-loop (no estimation-time recombination). All actors present, 5 gated
+  # out -> 79 active senders at every event.
   expect_equal(
-    constrained_avg_active_entity(
-      gate,
-      prep$active_sender_init
-    ),
-    hand_avg
+    prep$avg_active_entity,
+    mean(vapply(reference, sum, numeric(1)))
   )
+  expect_equal(prep$avg_active_entity, fx$n - length(gated))
+})
+
+test_that("the folded active_sender buffer carries only crossings (D12)", {
+  fx <- make_rate_fixture()
+  gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
+  d <- rate_data_with_gate(fx, gated)
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    model = "DyNAM",
+    layer = "callsDependent",
+    support_constraint = ~ tie(allowedNet),
+    data = d
+  )
+  prep <- estimate_dynam(spec, sub_model = "rate", preprocessing_only = TRUE)
+  # A static gate over a static (present) composition never crosses after the
+  # init, so no flip is emitted.
+  expect_true(isTRUE(prep$active_sender_folded))
+  expect_equal(ncol(prep$active_sender_update), 0L)
 })
 
 test_that("a restricting rate gate changes the estimate vs unconstrained", {

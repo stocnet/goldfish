@@ -228,10 +228,10 @@ test_that("multi-term boolean constraint records all atoms and the tree", {
   expect_identical(cp$expr, quote(.a1 != 0 & .a2 > 1))
 })
 
-test_that("rate-only spec rejects a dyadic constraint atom (D13)", {
+test_that("rate-only spec accepts a dyadic constraint atom via the row-reduction (D12)", {
   d <- make_spec_fixture()
-  expect_error(
-    make_specification(
+  expect_message(
+    spec <- make_specification(
       rate = ~ 1 + indeg(callNetwork, type = "ego"),
       model = "DyNAM",
       rate_sub_model = "rate",
@@ -239,8 +239,9 @@ test_that("rate-only spec rejects a dyadic constraint atom (D13)", {
       layer = "callsDependent",
       data = d
     ),
-    "sender-axis atoms only"
+    "row-reduction"
   )
+  expect_s3_class(spec$constraint, "support_constraint_plan")
 })
 
 test_that("out-of-grammar constraint is rejected at construction", {

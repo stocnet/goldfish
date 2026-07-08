@@ -588,29 +588,6 @@ mask_to_opportunities <- function(support_mask, statsList, user_opp = NULL) {
   })
 }
 
-# Reduce the support mask to a per-event sender gate for a DyNAM-rate model
-# (design D3/D10): a sender is at risk iff it has at least one allowed receiver
-# that is present. `active_2` is the receiver-presence vector (initial mode-2
-# presence); the gate conjoins it so a sender whose only allowed receivers are
-# absent is gated out. Returns one logical n1 vector per stored event.
-mask_to_sender_gate <- function(support_mask, active_2) {
-  lapply(support_mask$support, function(s) {
-    rowSums(s & rep(active_2, each = nrow(s))) > 0
-  })
-}
-
-# Constraint-aware `avg_active_entity` (design D4/D5.2): the intercept baseline
-# denominator counts the post-constraint active senders (present AND gated in),
-# averaged over the stored events. Overrides the presence-only value computed by
-# the writer when a rate model carries a support_constraint.
-constrained_avg_active_entity <- function(sender_gate, active_1) {
-  mean(vapply(
-    sender_gate,
-    function(g) sum(active_1 & g),
-    numeric(1)
-  ))
-}
-
 # Preprocessing-time set-size validation for a support_constraint (design D8).
 # Fails fast — before the C++ likelihood — with event context. Cases:
 #   A observed dyad excluded (choice) / observed sender gated out (rate) -> error
@@ -1602,23 +1579,27 @@ estimate_wrapper <- function(
     # Fail fast (design D8) before the likelihood: excluded observed dyads / empty
     # risk sets error; forced choices and never-active nodes warn. Rate uses the
     # sender-gate policy; choice and REM both check the observed dyad directly.
+    # Rate uses the raw sender presence stashed by the fold (design D4/D12); the
+    # object's own `active_sender_init` is already the folded availability.
+    validate_active_1 <- if (
+      is_rate_family && !is.null(prep$support_mask$sender_presence_init)
+    ) {
+      prep$support_mask$sender_presence_init
+    } else {
+      prep$active_sender_init
+    }
     validate_support_constraint(
       prep$support_mask,
       prep$event_sender,
       prep$event_receiver,
       prep$is_dependent,
-      prep$active_sender_init,
+      validate_active_1,
       prep$active_dyad_init,
       family = if (is_rate_family) "rate" else "choice"
     )
-    # The constrained active set feeds the rate intercept init (design D4/D5.2),
-    # independent of the estimation engine.
-    if (is_rate_family && has_intercept && !is.null(prep$avg_active_entity)) {
-      prep$avg_active_entity <- constrained_avg_active_entity(
-        mask_to_sender_gate(prep$support_mask, prep$active_dyad_init),
-        prep$active_sender_init
-      )
-    }
+    # `avg_active_entity` (the rate intercept init) is now computed during
+    # preprocessing from the folded `active_sender` (design D4/D14); no
+    # estimation-time recombination.
     # The compiled engines consume the mask natively where wired: gather_compute
     # for DyNAM choice / rate (the R gather filters candidates), and default_c for
     # DyNAM choice (the C++ estimator filters receivers). Other engine/model
@@ -1646,10 +1627,8 @@ estimate_wrapper <- function(
           opportunities_effective
         )
       } else if (is_rate_family) {
-        sender_gate <- mask_to_sender_gate(
-          prep$support_mask,
-          prep$active_dyad_init
-        )
+        # The default engine consumes the folded `active_sender` directly as its
+        # sender filter (design D4/D12); no separate sender gate is passed.
       } else {
         # REM: the contribution zeroes disallowed dyads from the 2D risk set.
         rem_mask <- prep$support_mask$support

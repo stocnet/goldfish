@@ -283,6 +283,81 @@ preprocess.dynami_choice_spec <- function(
 #'
 #' @return a list of class preprocessed.goldfish
 #' @noRd
+# Fold a sender-loop support_constraint into `active_sender` (design D4/D12).
+# The per-event effective availability is the row-reduction a sender is at risk
+# iff it has >= 1 allowed, present receiver:
+#   active_sender[i] at event e = presence_e[i] & (rowSums(support_e &
+#     active_dyad_init) > 0)
+# — computed here (during preprocessing) and stored on the availability object
+# as net crossings (a flip is emitted only on a 0 <-> positive change of the
+# per-sender available-receiver count, so the buffer stays tiny), REPLACING the
+# estimation-time recombination. `support_mask$support` carries the per-event
+# dyadic mask snapshots (lagged, aligned to the stored events);
+# `active_dyad_init` is the receiver presence used for the row-reduction
+# (matching the predecessor's static receiver availability). Returns `out` with
+# `active_sender_init`/`_update`/`_update_pointer` rewritten to the folded
+# object, `active_sender_folded = TRUE`, and (when intercept scalars are stored)
+# `avg_active_entity` recomputed as the event-averaged active-sender count.
+fold_active_sender_support <- function(out, support_mask, active_dyad_init) {
+  support <- support_mask$support
+  n_stored <- length(out$event_time)
+  if (n_stored == 0L) {
+    return(out)
+  }
+  n1 <- length(out$active_sender_init)
+
+  # Walk the presence crossings buffer in event order to recover presence_e,
+  # intersect with the per-event sender gate, and record the folded vector.
+  presence <- out$active_sender_init
+  upd <- out$active_sender_update
+  ptr <- out$active_sender_update_pointer
+  folded <- vector("list", n_stored)
+  prev_ptr <- 0L
+  for (e in seq_len(n_stored)) {
+    this_ptr <- if (!is.null(ptr)) ptr[e] else 0L
+    if (this_ptr > prev_ptr) {
+      cols <- (prev_ptr + 1L):this_ptr
+      presence[upd[1L, cols]] <- as.logical(upd[2L, cols])
+    }
+    prev_ptr <- this_ptr
+    gate <- rowSums(support[[e]] & rep(active_dyad_init, each = n1)) > 0
+    folded[[e]] <- presence & gate
+  }
+
+  # Re-encode the folded timeline as crossings: the init carries the first
+  # event's value (its slice is empty) and each later event emits only the
+  # senders whose folded availability changed since the previous event.
+  n_changes <- integer(n_stored)
+  change_nodes <- vector("list", n_stored)
+  change_repl <- vector("list", n_stored)
+  for (e in seq_len(n_stored)[-1L]) {
+    ch <- which(folded[[e]] != folded[[e - 1L]])
+    n_changes[e] <- length(ch)
+    change_nodes[[e]] <- ch
+    change_repl[[e]] <- as.numeric(folded[[e]][ch])
+  }
+  node_vec <- unlist(change_nodes, use.names = FALSE)
+  repl_vec <- unlist(change_repl, use.names = FALSE)
+  # Preserve the raw sender presence for the fail-fast constraint validation
+  # (its "present but always gated out" warning is defined on raw presence, not
+  # the folded object); estimation engines never read it.
+  out$support_mask$sender_presence_init <- out$active_sender_init
+  out$active_sender_init <- folded[[1L]]
+  out$active_sender_update <- if (length(node_vec) > 0L) {
+    rbind(node_vec, repl_vec)
+  } else {
+    matrix(0, 2L, 0L)
+  }
+  out$active_sender_update_pointer <- cumsum(n_changes)
+  out$active_sender_changes <- list()
+  out$active_sender_folded <- TRUE
+
+  if (!is.null(out$avg_active_entity)) {
+    out$avg_active_entity <- mean(vapply(folded, sum, numeric(1)))
+  }
+  out
+}
+
 run_sender_recipe_loop <- function(
   spec,
   startTime = NULL,
@@ -914,6 +989,10 @@ run_sender_recipe_loop <- function(
       snapshot_times = out$event_time,
       prepEnvir = prepEnvir
     )
+    # Fold the constraint into `active_sender` during preprocessing (design
+    # D4/D12): the row-reduction becomes net crossings on the availability
+    # object, and the estimation-time recombination is dropped.
+    out <- fold_active_sender_support(out, out$support_mask, active_dyad_init)
   }
   out
 }

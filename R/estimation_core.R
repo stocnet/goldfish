@@ -1185,7 +1185,17 @@ compute_step.default <- function(spec, state, i, ctx) {
   #   removed next lines
 
   current_time <- statsList$event_time[[i]]
-  if (ctx$updatepresence) {
+  if (ctx$active_sender_folded) {
+    # Maintain the folded `active_sender` by walking its per-event crossings
+    # slice (design D7): apply this event's flips before its likelihood.
+    hi <- ctx$active_sender_update_pointer[i]
+    lo <- if (i > 1L) ctx$active_sender_update_pointer[i - 1L] else 0L
+    if (hi > lo) {
+      cols <- (lo + 1L):hi
+      state$presence[ctx$active_sender_update[1L, cols]] <-
+        as.logical(ctx$active_sender_update[2L, cols])
+    }
+  } else if (ctx$updatepresence) {
     update <-
       ctx$compChange1[
         ctx$compChange1$time <= current_time &
@@ -1222,8 +1232,10 @@ compute_step.default <- function(spec, state, i, ctx) {
   sender_keep <- NULL
   receiver_keep <- NULL
   hasGate <- !is.null(ctx$senderGate)
-  if (ctx$updatepresence || hasGate) {
+  if (ctx$updatepresence || hasGate || ctx$active_sender_folded) {
     # || (updateopportunities && !is_two_mode)
+    # When folded, `state$presence` already carries presence AND the sender
+    # gate (design D4/D12), so it is the sender filter directly.
     keepIn <- state$presence
     if (hasGate) {
       keepIn <- keepIn & ctx$senderGate[[i]]
@@ -1384,6 +1396,13 @@ compute_iteration_step <- function(
   correctReflexive <- !allowReflexive &&
     inherits(spec, c("dynam_choice_spec", "dynami_choice_spec"))
 
+  # A sender-loop support_constraint is folded into `active_sender` at
+  # preprocessing (design D4/D12): the availability object already carries
+  # presence AND the per-event sender gate as net crossings, so the engine
+  # maintains it by walking its flat buffer per event (by index) and uses it
+  # directly as the sender filter — no separate `senderGate` recombination.
+  active_sender_folded <- isTRUE(statsList$active_sender_folded)
+
   # check for parallelization
   # if (parallelize && require("snowfall", quietly = TRUE)) {
   #   snowfall::sfStop()
@@ -1412,6 +1431,9 @@ compute_iteration_step <- function(
     compChange2 = compChange2,
     opportunitiesList = opportunitiesList,
     senderGate = senderGate,
+    active_sender_folded = active_sender_folded,
+    active_sender_update = statsList$active_sender_update,
+    active_sender_update_pointer = statsList$active_sender_update_pointer,
     remMask = remMask,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
