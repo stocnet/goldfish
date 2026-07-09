@@ -208,6 +208,31 @@ test_that("gather_compute consumes the rate constraint natively (== default)", {
   expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
 })
 
+test_that("default_c consumes the rate constraint natively (== default)", {
+  fx <- make_rate_fixture()
+  gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
+  d <- rate_data_with_gate(fx, gated)
+  spec <- callsDependent ~ 1 + indeg + outdeg
+  m_def <- suppressWarnings(estimate_dynam(
+    spec,
+    sub_model = "rate",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "default")
+  ))
+  # estimate_DyNAM_rate filters senders by the folded active_sender directly, so
+  # no downgrade warning fires.
+  m_dc <- suppressWarnings(estimate_dynam(
+    spec,
+    sub_model = "rate",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "default_c")
+  ))
+  expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-8)
+  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+})
+
 test_that("a dependent event whose own sender is gated out errors (design D8)", {
   fx <- make_rate_fixture()
   # gate out an OBSERVED sender: the event where it acts has an empty risk set.

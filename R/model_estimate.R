@@ -1632,10 +1632,14 @@ estimate_wrapper <- function(
     # and still rides the standalone mask path.
     choice_folded <- is_choice_family && isTRUE(prep$active_dyad_folded)
     rate_folded <- is_rate_family && isTRUE(prep$active_sender_folded)
+    # A folded rate constraint rides `active_sender` (design D12), which
+    # `estimate_DyNAM_rate` already consumes as its sender filter, so `default_c`
+    # runs it natively too.
     native_compiled <-
       (control_estimation$engine == "gather_compute" &&
         (is_choice_family || is_rate_family)) ||
-      (control_estimation$engine == "default_c" && is_choice_family)
+      (control_estimation$engine == "default_c" &&
+        (is_choice_family || (is_rate_family && rate_folded)))
     if (native_compiled) {
       if (!choice_folded && !rate_folded) {
         support_gather <- prep$support_mask$support
