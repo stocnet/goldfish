@@ -915,14 +915,16 @@ compute_event_contribution.dynam_choice_coord_spec <- function(
   isRightCensored,
   timespan,
   allowReflexive,
-  is_two_mode
+  is_two_mode,
+  riskMask = NULL
 ) {
   multinomialProbabilities <-
     getMultinomialProbabilities(
       statsArray,
       activeDyad,
       parameters,
-      allowReflexive = allowReflexive
+      allowReflexive = allowReflexive,
+      riskMask = riskMask
     )
   eventLikelihoods <- getLikelihoodMM(multinomialProbabilities)
   logLikelihood <- log(eventLikelihoods[activeDyad[1], activeDyad[2]])
@@ -1254,12 +1256,14 @@ compute_step.default <- function(spec, state, i, ctx) {
   sender_keep <- NULL
   receiver_keep <- NULL
   hasGate <- !is.null(ctx$senderGate)
-  # A folded REM constraint carries both presences ∩ support in the maintained
-  # dense `active_dyad` (used whole as `riskMask` below), so neither axis is
-  # reduced — an absent or disallowed dyad is zeroed by the mask, not dropped.
-  folded_rem <- ctx$active_dyad_folded && ctx$is_rem
+  # A folded REM or coordination constraint carries both presences ∩ support in
+  # the maintained dense `active_dyad` (used whole as `riskMask` below), so neither
+  # axis is reduced — an absent or disallowed dyad is zeroed by the mask, not
+  # dropped. Coordination joins REM here because its two-sided likelihood needs the
+  # full matrix, not a per-sender row (design D15).
+  folded_full <- ctx$active_dyad_folded && (ctx$is_rem || ctx$is_coord)
   if (
-    (ctx$updatepresence || hasGate || ctx$active_sender_folded) && !folded_rem
+    (ctx$updatepresence || hasGate || ctx$active_sender_folded) && !folded_full
   ) {
     # || (updateopportunities && !is_two_mode)
     # When folded, `state$presence` already carries presence AND the sender
@@ -1298,7 +1302,7 @@ compute_step.default <- function(spec, state, i, ctx) {
     (ctx$updatepresence2 ||
       ctx$updateopportunities ||
       ctx$active_dyad_folded) &&
-      !folded_rem
+      !folded_full
   ) {
     # When folded, the receiver filter is read through the encoding accessor
     # (design D7/D13): `state$presence2` is the folded receiver availability and
@@ -1368,10 +1372,11 @@ compute_step.default <- function(spec, state, i, ctx) {
     allowReflexive = allowReflexiveCorrected,
     is_two_mode = ctx$is_two_mode
   )
-  # REM support_constraint: the contribution zeroes disallowed dyads from the
-  # risk set. Only the REM contribution accepts `riskMask`, and it is passed only
-  # when a mask is present, so other paths are unaffected.
-  if (folded_rem) {
+  # REM / coordination support_constraint: the contribution zeroes disallowed
+  # dyads from the risk set. Only the REM and coordination contributions accept
+  # `riskMask`, and it is passed only when a mask is present, so other paths are
+  # unaffected.
+  if (folded_full) {
     # The maintained dense `active_dyad` is the per-event mask (design D7), kept
     # whole because no axis reduction was applied above.
     contrib_args$riskMask <- state$presence2
@@ -1463,6 +1468,11 @@ compute_iteration_step <- function(
   # per-event risk mask, so the presence axis-reductions are skipped and it is
   # consumed directly as `riskMask`, replacing the standalone per-event mask.
   is_rem <- inherits(spec, c("rem_rate_spec", "rem_rate_ordered_spec"))
+  # DyNAM coordination is two-sided (`getLikelihoodMM` pairs both directed
+  # choices), so a folded coordination constraint — symmetrised into the dense
+  # point `active_dyad` (design D15) — is consumed as the full risk mask exactly
+  # like REM, NOT via the one-sided-choice row accessor.
+  is_coord <- inherits(spec, "dynam_choice_coord_spec")
 
   # check for parallelization
   # if (parallelize && require("snowfall", quietly = TRUE)) {
@@ -1500,6 +1510,7 @@ compute_iteration_step <- function(
     active_dyad_update_pointer = statsList$active_dyad_update_pointer,
     active_dyad_encoding = statsList$active_dyad_encoding,
     is_rem = is_rem,
+    is_coord = is_coord,
     remMask = remMask,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
@@ -1655,11 +1666,13 @@ getMultinomialProbabilities <- function(
     if (!allowReflexive && !is_two_mode) {
       diag(utility) <- 0
     }
-    # A support_constraint (ordinal REM) removes disallowed dyads from the risk
-    # set exactly as the reflexive diagonal does: zeroing their utility drops them
-    # from the denominator (and the probability-weighted score / information sums),
-    # while the observed dyad's own term is untouched. `riskMask` is the maintained
-    # dense n1 x n2 availability aligned with the [sender, receiver] utility.
+    # A support_constraint (ordinal REM / coordination) removes disallowed dyads
+    # from the risk set exactly as the reflexive diagonal does: zeroing their
+    # utility drops them from the denominator (and the probability-weighted score /
+    # information sums), while the observed dyad's own term is untouched.
+    # `riskMask` is the maintained dense n1 x n2 availability aligned with the
+    # [sender, receiver] utility (coordination folds both presences, so a masked
+    # row is an absent / fully-gated sender).
     if (!is.null(riskMask)) {
       utility[!riskMask] <- 0
     }
@@ -1679,7 +1692,17 @@ getMultinomialProbabilities <- function(
     }
     denominators <- sum(utility)
   }
-  utility / denominators
+  probabilities <- utility / denominators
+  # A row-normalised model (coordination / DyNAM-choice, `actorNested`) under a
+  # folded support mask can zero every receiver of an absent or fully-gated
+  # sender, making its row denominator 0 → 0/0. Such a sender contributes nothing
+  # to the two-sided likelihood (its paired column is masked too), so map the row
+  # to 0 rather than NaN — matching the pre-fold path, which dropped absent senders
+  # before normalising.
+  if (nDimensions == 3 && actorNested && !is.null(riskMask)) {
+    probabilities[denominators == 0, ] <- 0
+  }
+  probabilities
 }
 
 

@@ -31,7 +31,8 @@ List estimate_DyNAM_MM(
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
-    bool impute = true
+    bool impute = true,
+    const bool active_dyad_is_point = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -65,6 +66,12 @@ List estimate_DyNAM_MM(
     if (active_dyad_update.n_elem == 0) {
         has_composition_change2 = false;
     }
+    // `active_dyad` is the folded per-event risk mask. At the outer encoding it is
+    // the length-n2 receiver vector (dyad (i, j) available iff active_sender(i) &
+    // active_dyad(j)). At the point encoding it is a flattened n1 x n2 mask
+    // (sender-major: dyad (i, j) at i * n_actors_2 + j) — a symmetrised support
+    // constraint folded in (design D15) — maintained by a (node1, node2, replace)
+    // buffer and read cell-wise.
     arma::vec active_dyad = active_dyad_init;
 
 
@@ -105,8 +112,15 @@ List estimate_DyNAM_MM(
         }
         if (has_composition_change2) {
             while (active_dyad_update_id < active_dyad_update_pointer(id_event)) {
-                active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
-                  active_dyad_update(1, active_dyad_update_id);
+                if (active_dyad_is_point) {
+                    active_dyad(
+                      (active_dyad_update(0, active_dyad_update_id) - 1) * n_actors_2 +
+                      (active_dyad_update(1, active_dyad_update_id) - 1)
+                    ) = active_dyad_update(2, active_dyad_update_id);
+                } else {
+                    active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
+                      active_dyad_update(1, active_dyad_update_id);
+                }
                 active_dyad_update_id++;
             }
         }
@@ -131,8 +145,12 @@ List estimate_DyNAM_MM(
         // We don't consider any self-connected edge
         if (!twomode_or_reflexive) p.diag().zeros();
         for (int i = 0; i < n_actors_1; ++i) {
+            // point encoding: dyad (i, j) availability at i * n_actors_2 + j
+            // (a symmetrised support mask, design D15); outer: receiver vector.
+            const int dyad_offset = active_dyad_is_point ? i * n_actors_2 : 0;
             for (int j = 0; j < n_actors_2; ++j) {
-                if (active_sender[i] == false || active_dyad[j] == false) {
+                if (active_sender[i] == false ||
+                    active_dyad[dyad_offset + j] == false) {
                     p(j, i) = 0;
                 }
             }

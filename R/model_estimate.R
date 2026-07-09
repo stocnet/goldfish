@@ -1574,6 +1574,12 @@ estimate_wrapper <- function(
   if (!is.null(constraint_plan) && !is.null(prep$support_mask)) {
     is_choice_family <- model == "DyNAM" &&
       sub_model %in% c("choice", "choice_coordination")
+    # Coordination (`choice_coordination` / `DyNAM-MM`) is a dyad-part choice
+    # family for the guard + validation, but its two-sided likelihood consumes a
+    # symmetrised FULL mask like REM, not the one-sided-choice row (design D15) —
+    # so folding/consumption below splits it from one-sided choice.
+    is_coord_family <- model == "DyNAM" && sub_model == "choice_coordination"
+    is_one_sided_choice <- is_choice_family && !is_coord_family
     is_rate_family <- model == "DyNAM" && sub_model == "rate"
     # Standard REM (`rem_rate_spec`, time intercept) zeroes disallowed dyads in the
     # Poisson contribution; ordinal REM (`rem_rate_ordered_spec`, no intercept)
@@ -1638,41 +1644,63 @@ estimate_wrapper <- function(
     # directly, so neither the standalone mask nor the per-event opportunity
     # reduction is passed. An ego-kind (outer) choice constraint is not yet folded
     # and still rides the standalone mask path.
-    choice_folded <- is_choice_family && isTRUE(prep$active_dyad_folded)
+    choice_folded <- is_one_sided_choice && isTRUE(prep$active_dyad_folded)
     rate_folded <- is_rate_family && isTRUE(prep$active_sender_folded)
     # A folded standard- or ordinal-REM constraint rides the dense point
     # `active_dyad` (design D11), which `estimate_REM` / `estimate_REM_ordered`
     # consume cell-wise, so `default_c` runs it natively; the gather likewise
     # builds masked candidates. A folded rate constraint rides `active_sender`
     # (design D12), which `estimate_DyNAM_rate` already consumes as its sender
-    # filter.
+    # filter. A folded coordination constraint rides the symmetrised dense point
+    # `active_dyad` (design D15), consumed as the full mask by `estimate_DyNAM_MM`
+    # and the encoding-aware gather.
     rem_folded <- is_rem_family && isTRUE(prep$active_dyad_folded)
     rem_ordered_folded <- is_rem_ordered_family &&
       isTRUE(prep$active_dyad_folded)
+    coord_folded <- is_coord_family && isTRUE(prep$active_dyad_folded)
+    # The gather coordination kernel (`compute_coordination_selection`) needs a
+    # square n x n candidate matrix (`P = p * p^T`), which a per-sender-restricted
+    # risk set cannot form. A constrained coordination model therefore runs on
+    # `default_c` — which reads the folded mask cell-wise and is identical to the
+    # default engine (design D15) — instead of `gather_compute`.
+    if (coord_folded && control_estimation$engine == "gather_compute") {
+      cli::cli_inform(c(
+        "i" = "{.arg support_constraint} on a {.val choice_coordination} model is
+               not supported by {.val gather_compute}; using {.val default_c}
+               (identical results)."
+      ))
+      control_estimation$engine <- "default_c"
+    }
     native_compiled <-
       (control_estimation$engine == "gather_compute" &&
-        (is_choice_family ||
+        (is_one_sided_choice ||
           is_rate_family ||
           (is_rem_family && rem_folded) ||
           (is_rem_ordered_family && rem_ordered_folded))) ||
       (control_estimation$engine == "default_c" &&
-        (is_choice_family ||
+        (is_one_sided_choice ||
           (is_rate_family && rate_folded) ||
           (is_rem_family && rem_folded) ||
-          (is_rem_ordered_family && rem_ordered_folded)))
+          (is_rem_ordered_family && rem_ordered_folded) ||
+          (is_coord_family && coord_folded)))
     if (native_compiled) {
       if (
-        !choice_folded && !rate_folded && !rem_folded && !rem_ordered_folded
+        !choice_folded &&
+          !rate_folded &&
+          !rem_folded &&
+          !rem_ordered_folded &&
+          !coord_folded
       ) {
         support_gather <- prep$support_mask$support
       }
     } else {
       # Non-native path = the default (R) engine only: every reachable constrained
-      # model (DyNAM choice / rate, standard REM) folds its availability and runs
-      # natively on gather_compute / default_c above, and the other families abort
-      # at the guard before this branch — so the former "engine does not yet
-      # consume … using default" downgrade is dead and has been lifted (design D8).
-      if (is_choice_family) {
+      # model (DyNAM choice / rate / coordination, standard + ordinal REM) folds
+      # its availability and runs natively on gather_compute / default_c above, and
+      # the other families abort at the guard before this branch — so the former
+      # "engine does not yet consume … using default" downgrade is dead and has
+      # been lifted (design D8).
+      if (is_one_sided_choice) {
         if (!choice_folded) {
           # An unfolded (ego-kind / outer) choice constraint still reduces to the
           # per-event opportunity list for the default engine.
@@ -1685,6 +1713,10 @@ estimate_wrapper <- function(
       } else if (is_rate_family) {
         # The default engine consumes the folded `active_sender` directly as its
         # sender filter (design D4/D12); no separate sender gate is passed.
+      } else if (is_coord_family) {
+        # Coordination consumes the folded symmetrised dense `active_dyad` as its
+        # full risk mask on the default engine (the `folded_full` path); nothing
+        # separate is passed (design D15).
       } else if (!isTRUE(prep$active_dyad_folded)) {
         # REM (standard or ordinal): the contribution zeroes disallowed dyads from
         # the risk set. A REM constraint is folded into `active_dyad` during

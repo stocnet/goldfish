@@ -1138,18 +1138,28 @@ fold_active_dyad_support <- function(
     mask_kind,
     has_opportunity
   )
-  # Standard and ordinal REM both fold BOTH presences ∩ their support atoms into
-  # a dense point `active_dyad` — the risk-set mask each engine consumes directly,
-  # replacing the per-event `riskMask` snapshot. The two REM variants share the
-  # dyadic risk set (only the normalizer differs: timespan-weighted Poisson vs.
-  # multinomial), so the same fold serves both. DyNAM-MM constraint consumption is
-  # not wired (it aborts at estimation), and the choice ego-kind (outer) fold is
-  # still pending, so those stay on the standalone `support_mask` path. The DyNAM
-  # choice/coordination alter and point encodings fold below.
-  if (model_type %in% c("REM", "REM-ordered")) {
-    return(fold_active_dyad_support_rem(out, support, n1, n2, n_stored))
+  # Standard/ordinal REM and DyNAM coordination all fold BOTH presences ∩ their
+  # support atoms into a dense point `active_dyad` — the risk-set mask each engine
+  # consumes directly, replacing the per-event `riskMask` snapshot. These families
+  # share a dyadic / two-sided risk set (only the normalizer differs:
+  # timespan-weighted Poisson, multinomial, or the mutual `getLikelihoodMM`
+  # product), so one fold serves them. Coordination (`DyNAM-MM`) is additionally
+  # symmetrised (design D15) so `(i, j)` is available iff both directions are
+  # allowed — required for the mutual likelihood. The one-mode choice ego-kind
+  # (outer) fold is still pending, so an outer-encoded choice constraint stays on
+  # the standalone `support_mask` path; the DyNAM choice alter and point encodings
+  # fold below.
+  if (model_type %in% c("REM", "REM-ordered", "DyNAM-MM")) {
+    return(fold_active_dyad_support_rem(
+      out,
+      support,
+      n1,
+      n2,
+      n_stored,
+      symmetric = identical(model_type, "DyNAM-MM")
+    ))
   }
-  if (identical(model_type, "DyNAM-MM") || identical(encoding, "outer")) {
+  if (identical(encoding, "outer")) {
     return(out)
   }
 
@@ -1202,7 +1212,14 @@ fold_active_dyad_support <- function(
 # the default engine consumes it directly as the per-event risk mask, replacing
 # the standalone `riskMask` snapshot. The raw presences are stashed on
 # `support_mask` for the fail-fast validation, which needs them unfolded.
-fold_active_dyad_support_rem <- function(out, support, n1, n2, n_stored) {
+fold_active_dyad_support_rem <- function(
+  out,
+  support,
+  n1,
+  n2,
+  n_stored,
+  symmetric = FALSE
+) {
   p1 <- walk_presence_buffer(
     out$active_sender_init,
     out$active_sender_update,
@@ -1217,9 +1234,19 @@ fold_active_dyad_support_rem <- function(out, support, n1, n2, n_stored) {
   )
   out$support_mask$sender_presence_init <- out$active_sender_init
   out$support_mask$receiver_presence_init <- out$active_dyad_init
+  # Coordination (design D15): the mutual likelihood needs `(i, j)` active iff
+  # both directions are allowed, so symmetrise the per-event mask. The presence
+  # product `outer(p1, p2)` is symmetric for a one-mode model, so `m & t(m)`
+  # reduces to symmetrising the support atoms.
   masks <- lapply(
     seq_len(n_stored),
-    function(e) outer(p1[[e]], p2[[e]]) & (support[[e]] == 1)
+    function(e) {
+      m <- outer(p1[[e]], p2[[e]]) & (support[[e]] == 1)
+      if (symmetric) {
+        m <- m & t(m)
+      }
+      m
+    }
   )
   build_active_dyad_point_full(out, masks, n1, n2)
 }
