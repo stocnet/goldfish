@@ -141,3 +141,23 @@ test_that("support_constraint still aborts for REM rate_ordered (unwired)", {
     "not yet consumed"
   )
 })
+
+test_that("a REM support_constraint folds active_dyad at the point encoding", {
+  fx <- make_rem_fixture(n_events = 40L)
+  d <- rem_data(fx, n_excluded = 50L)
+  prep <- estimate_rem(
+    callsDependent ~ 1 + inertia + recip,
+    sub_model = "rate",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    preprocessing_only = TRUE
+  )
+  # Both presences n support fold into a dense n1 x n2 point active_dyad — the
+  # per-event risk mask the default engine consumes directly (no standalone
+  # riskMask). Static presence + a static allowedNet keeps the mask constant, so
+  # the reflexive diagonal and every excluded dyad are FALSE in the init.
+  expect_identical(prep$active_dyad_encoding, "point")
+  expect_identical(dim(prep$active_dyad_init), c(fx$n, fx$n))
+  expect_equal(sum(diag(prep$active_dyad_init)), 0)
+  expect_false(is.null(prep$support_mask$receiver_presence_init))
+})

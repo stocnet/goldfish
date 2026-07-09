@@ -1138,15 +1138,19 @@ fold_active_dyad_support <- function(
     mask_kind,
     has_opportunity
   )
-  is_rem <- model_type %in% c("REM", "REM-ordered", "DyNAM-MM")
-
-  # REM folds BOTH presences and its support atoms into `active_dyad` (the
-  # `riskMask` replacement) and the choice ego-kind atom folds at the outer
-  # encoding; both land with the REM engine step, so those constraints stay on
-  # the standalone `support_mask` path for now. The DyNAM choice/coordination
-  # alter and point encodings fold here (their receiver filter is rewired to the
-  # accessor across the default, gather, and default_c engines).
-  if (is_rem || identical(encoding, "outer")) {
+  # Standard REM folds BOTH presences ∩ its support atoms into a dense point
+  # `active_dyad` — the risk-set mask the default engine consumes directly,
+  # replacing the per-event `riskMask` snapshot. REM-ordered / DyNAM-MM
+  # constraint consumption is not wired (they abort at estimation), and the
+  # choice ego-kind (outer) fold is still pending, so those stay on the
+  # standalone `support_mask` path. The DyNAM choice/coordination alter and
+  # point encodings fold below.
+  if (identical(model_type, "REM")) {
+    return(fold_active_dyad_support_rem(out, support, n1, n2, n_stored))
+  }
+  if (
+    model_type %in% c("REM-ordered", "DyNAM-MM") || identical(encoding, "outer")
+  ) {
     return(out)
   }
 
@@ -1190,6 +1194,72 @@ fold_active_dyad_support <- function(
     out <- build_active_dyad_point(out, recv, desired, senders, n1, n2)
   }
 
+  out
+}
+
+# Fold a standard-REM support_constraint into a dense point `active_dyad` (design
+# D11/D13). The REM risk set is the whole dyad matrix, so per event the mask is
+# `presence1[i] & presence2[j] & support[i, j]` — both presences folded in — and
+# the default engine consumes it directly as the per-event risk mask, replacing
+# the standalone `riskMask` snapshot. The raw presences are stashed on
+# `support_mask` for the fail-fast validation, which needs them unfolded.
+fold_active_dyad_support_rem <- function(out, support, n1, n2, n_stored) {
+  p1 <- walk_presence_buffer(
+    out$active_sender_init,
+    out$active_sender_update,
+    out$active_sender_update_pointer,
+    n_stored
+  )
+  p2 <- walk_presence_buffer(
+    out$active_dyad_init,
+    out$active_dyad_update,
+    out$active_dyad_update_pointer,
+    n_stored
+  )
+  out$support_mask$sender_presence_init <- out$active_sender_init
+  out$support_mask$receiver_presence_init <- out$active_dyad_init
+  masks <- lapply(
+    seq_len(n_stored),
+    function(e) outer(p1[[e]], p2[[e]]) & (support[[e]] == 1)
+  )
+  build_active_dyad_point_full(out, masks, n1, n2)
+}
+
+# Assemble the `active_dyad` point encoding from per-event dense n1 x n2 masks
+# (REM). Unlike the choice point fold (one sender row per event), the REM risk
+# set spans the whole matrix, so every changed cell between consecutive events
+# is emitted as a net `(node1, node2, replace)` flip; the first event's mask
+# seeds the dense init and each later event emits its diff (design D7 ordering).
+build_active_dyad_point_full <- function(out, masks, n1, n2) {
+  n_stored <- length(masks)
+  init <- masks[[1L]]
+  cur <- init
+  n_changes <- integer(n_stored)
+  node1 <- vector("list", n_stored)
+  node2 <- vector("list", n_stored)
+  repl <- vector("list", n_stored)
+  for (e in seq_len(n_stored)[-1L]) {
+    d <- masks[[e]]
+    ch <- which(cur != d)
+    n_changes[e] <- length(ch)
+    node1[[e]] <- ((ch - 1L) %% n1) + 1L
+    node2[[e]] <- ((ch - 1L) %/% n1) + 1L
+    repl[[e]] <- as.numeric(d[ch])
+    cur <- d
+  }
+  n1v <- unlist(node1, use.names = FALSE)
+  n2v <- unlist(node2, use.names = FALSE)
+  rv <- unlist(repl, use.names = FALSE)
+
+  out$active_dyad_init <- init
+  out$active_dyad_update <- if (length(n1v) > 0L) {
+    rbind(n1v, n2v, rv)
+  } else {
+    matrix(0, 3L, 0L)
+  }
+  out$active_dyad_update_pointer <- cumsum(n_changes)
+  out$active_dyad_encoding <- "point"
+  out$active_dyad_folded <- TRUE
   out
 }
 

@@ -1658,8 +1658,11 @@ estimate_wrapper <- function(
       } else if (is_rate_family) {
         # The default engine consumes the folded `active_sender` directly as its
         # sender filter (design D4/D12); no separate sender gate is passed.
-      } else {
-        # REM: the contribution zeroes disallowed dyads from the 2D risk set.
+      } else if (!isTRUE(prep$active_dyad_folded)) {
+        # REM: the contribution zeroes disallowed dyads from the 2D risk set. A
+        # standard-REM constraint is folded into `active_dyad` during
+        # preprocessing (design D11) and consumed as the maintained risk mask; the
+        # standalone mask remains only as a fallback when the fold did not apply.
         rem_mask <- prep$support_mask$support
       }
     }
