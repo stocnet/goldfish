@@ -184,6 +184,11 @@ estimate_c_int <- function(
 
   active_sender_init <- statsList$active_sender_init
   active_dyad_init <- statsList$active_dyad_init
+  active_dyad_encoding <- if (is.null(statsList$active_dyad_encoding)) {
+    "alter"
+  } else {
+    statsList$active_dyad_encoding
+  }
 
   nEvents <- length(statsList$is_dependent)
 
@@ -303,7 +308,8 @@ estimate_c_int <- function(
       twomode_or_reflexive = twomode_or_reflexive,
       verbose = progress, # output the progress of data gathering
       impute = impute,
-      support = supportMask
+      support = supportMask,
+      active_dyad_encoding = active_dyad_encoding
     )
     size_gathered_data <- utils::object.size(gathered_data)
   }
@@ -332,10 +338,33 @@ estimate_c_int <- function(
 
     ### DEFAULT_C ENGINE
     if (engine == "default_c") {
-      # DyNAM-M (choice): reduce the per-event mask to the sender's allowed-
-      # receiver column (n_actors2 x n_events) the C++ estimator consumes.
+      # DyNAM-M (choice): the C++ estimator filters receivers by a per-event
+      # sender-allowed-receiver column (n_actors2 x n_events). Its source is the
+      # folded `active_dyad` at the point encoding (a dense n1 x n2 buffer walked
+      # to the sender's row per event, design D7) — the receiver availability is
+      # already folded into those rows, so `active_dyad_init` is passed as
+      # all-present. At the alter encoding `active_dyad` is the length-n2 receiver
+      # vector the estimator consumes directly (no `support`).
       support_c <- NULL
-      if (!is.null(supportMask) && modelTypeCall == "DyNAM-M") {
+      dyad_init_c <- active_dyad_init
+      dyad_update_c <- active_dyad_update
+      dyad_ptr_c <- active_dyad_update_pointer
+      if (
+        modelTypeCall == "DyNAM-M" &&
+          identical(active_dyad_encoding, "point")
+      ) {
+        support_c <- active_dyad_point_sender_rows(
+          active_dyad_init,
+          active_dyad_update,
+          active_dyad_update_pointer,
+          event_mat[1, ],
+          ncol(event_mat),
+          n_actors2
+        )
+        dyad_init_c <- rep(1, n_actors2)
+        dyad_update_c <- matrix(0, 0, 0)
+        dyad_ptr_c <- numeric(ncol(event_mat))
+      } else if (!is.null(supportMask) && modelTypeCall == "DyNAM-M") {
         support_c <- vapply(
           seq_len(ncol(event_mat)),
           function(e) supportMask[[e]][event_mat[1, e], ],
@@ -356,9 +385,9 @@ estimate_c_int <- function(
         active_sender_init = active_sender_init,
         active_sender_update = active_sender_update,
         active_sender_update_pointer = active_sender_update_pointer,
-        active_dyad_init = active_dyad_init,
-        active_dyad_update = active_dyad_update,
-        active_dyad_update_pointer = active_dyad_update_pointer,
+        active_dyad_init = dyad_init_c,
+        active_dyad_update = dyad_update_c,
+        active_dyad_update_pointer = dyad_ptr_c,
         n_actors1 = n_actors1,
         n_actors2 = n_actors2,
         twomode_or_reflexive = twomode_or_reflexive,
@@ -774,7 +803,8 @@ gather_ <- function(
   twomode_or_reflexive,
   verbose,
   impute,
-  support = NULL
+  support = NULL,
+  active_dyad_encoding = "alter"
 ) {
   if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
     # For DyNAM-MM, we deal with twomode_or_reflexive in the estimation
@@ -814,7 +844,7 @@ gather_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      support = support
+      active_dyad_encoding = active_dyad_encoding
     )
   } else if (modelTypeCall %in% c("DyNAM-M-Rate-ordered", "DyNAM-M-Rate")) {
     gathered_data <- gather_sender_model_r(
@@ -914,6 +944,46 @@ gather_ <- function(
   cols <- (from + 1L):to
   presence[upd[1, cols]] <- upd[2, cols]
   presence
+}
+
+# Apply one event's slice of a point-encoded `active_dyad` buffer into the dense
+# n1 x n2 availability matrix. `upd` rows are (node1, node2, replace), all
+# 1-indexed on the node axes; later writes to the same cell win.
+.gather_apply_presence_point <- function(active_dyad, upd, from, to) {
+  if (to <= from) {
+    return(active_dyad)
+  }
+  cols <- (from + 1L):to
+  active_dyad[cbind(upd[1, cols], upd[2, cols])] <- upd[3, cols]
+  active_dyad
+}
+
+# Walk a point-encoded `active_dyad` buffer and return, for each event, the dense
+# availability row of that event's sender as an n2 x n_events matrix. Each
+# event's update slice is applied before its row is read (design D7), so event 1
+# reads the init. Feeds the C++ DyNAM-M choice estimator's per-event `support`
+# column, which is the shape it already consumes.
+active_dyad_point_sender_rows <- function(
+  init,
+  update,
+  pointer,
+  senders,
+  n_events,
+  n2
+) {
+  cur <- init
+  out <- matrix(0, n2, n_events)
+  applied <- 0L
+  for (e in seq_len(n_events)) {
+    hi <- pointer[e]
+    if (hi > applied) {
+      cols <- (applied + 1L):hi
+      cur[cbind(update[1L, cols], update[2L, cols])] <- update[3L, cols]
+      applied <- hi
+    }
+    out[, e] <- cur[senders[e], ]
+  }
+  out
 }
 
 # Reduce a n1*n2 x p stacked stat matrix to n1 x p by averaging over the
@@ -1087,12 +1157,17 @@ gather_receiver_model_r <- function(
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
-  support = NULL
+  active_dyad_encoding = "alter"
 ) {
   stat_mat <- stat_mat_init
   n_events <- ncol(event_mat)
   n_parameters <- ncol(stat_mat)
   has_cc2 <- length(active_dyad_update) > 0
+  # A folded `support_constraint` / opportunity list rides `active_dyad` at the
+  # point encoding (design D7/D13): a dense n1 x n2 availability maintained by a
+  # (node1, node2, replace) buffer, read as the event sender's row. The alter
+  # encoding keeps the length-n2 receiver vector.
+  is_point <- identical(active_dyad_encoding, "point")
   active_dyad <- active_dyad_init
   update_id <- 0L
   bc_id <- 0L
@@ -1125,25 +1200,25 @@ gather_receiver_model_r <- function(
     bc_id <- bc_ptr
     if (has_cc2) {
       ptr2 <- active_dyad_update_pointer[e]
-      active_dyad <- .gather_apply_presence(
-        active_dyad,
-        active_dyad_update,
-        p2_id,
-        ptr2
-      )
+      active_dyad <- if (is_point) {
+        .gather_apply_presence_point(
+          active_dyad,
+          active_dyad_update,
+          p2_id,
+          ptr2
+        )
+      } else {
+        .gather_apply_presence(active_dyad, active_dyad_update, p2_id, ptr2)
+      }
       p2_id <- ptr2
     }
 
     id_sender <- event_mat[1, e] - 1L
     id_receiver <- event_mat[2, e] - 1L
     not_allowed <- if (!twomode_or_reflexive) id_sender else -1L
-    present2_ids <- which(active_dyad == 1) - 1L
+    dyad_row <- if (is_point) active_dyad[id_sender + 1L, ] else active_dyad
+    present2_ids <- which(dyad_row == 1) - 1L
     allowed <- present2_ids[present2_ids != not_allowed]
-    # support_constraint: keep only the sender's allowed receivers (design D5),
-    # shrinking n_candidates and reindexing selected within the constrained set.
-    if (!is.null(support)) {
-      allowed <- allowed[support[[e]][id_sender + 1L, allowed + 1L]]
-    }
     idx <- id_sender * n_actors2 + allowed + 1L
     rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
     hit <- which(allowed == id_receiver)

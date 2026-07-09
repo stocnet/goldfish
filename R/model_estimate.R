@@ -1624,12 +1624,20 @@ estimate_wrapper <- function(
     # DyNAM choice (the C++ estimator filters receivers). Other engine/model
     # combinations fall back to the default (R) engine, which consumes the mask via
     # the sender/receiver filters or the REM contribution.
+    # A DyNAM-choice constraint (alter or point) is folded into `active_dyad`
+    # during preprocessing (design D4/D11): every engine reads it through the
+    # encoding accessor, so neither the standalone mask nor the per-event
+    # opportunity reduction is passed. An ego-kind (outer) constraint is not yet
+    # folded and still rides the standalone mask path.
+    choice_folded <- is_choice_family && isTRUE(prep$active_dyad_folded)
     native_compiled <-
       (control_estimation$engine == "gather_compute" &&
         (is_choice_family || is_rate_family)) ||
       (control_estimation$engine == "default_c" && is_choice_family)
     if (native_compiled) {
-      support_gather <- prep$support_mask$support
+      if (!choice_folded) {
+        support_gather <- prep$support_mask$support
+      }
     } else {
       if (control_estimation$engine != "default") {
         cli::cli_warn(c(
@@ -1640,11 +1648,13 @@ estimate_wrapper <- function(
         control_estimation$engine <- "default"
       }
       if (is_choice_family) {
-        opportunities_effective <- mask_to_opportunities(
-          prep$support_mask,
-          prep,
-          opportunities_effective
-        )
+        if (!choice_folded) {
+          opportunities_effective <- mask_to_opportunities(
+            prep$support_mask,
+            prep,
+            opportunities_effective
+          )
+        }
       } else if (is_rate_family) {
         # The default engine consumes the folded `active_sender` directly as its
         # sender filter (design D4/D12); no separate sender gate is passed.
@@ -1652,6 +1662,11 @@ estimate_wrapper <- function(
         # REM: the contribution zeroes disallowed dyads from the 2D risk set.
         rem_mask <- prep$support_mask$support
       }
+    }
+    if (choice_folded) {
+      # The folded `active_dyad` already carries any user opportunity list, so
+      # the per-iteration opportunity recompute is skipped (design D10).
+      opportunities_effective <- NULL
     }
   }
 

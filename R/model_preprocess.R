@@ -1118,7 +1118,13 @@ crossings_from_vectors <- function(vecs) {
 # Operands stay loop-internal; only net effective flips (or factor flips) are
 # emitted. The raw receiver presence is stashed on `support_mask` for the
 # fail-fast validation, which needs it unfolded.
-fold_active_dyad_support <- function(out, support_mask, model_type, mask_kind) {
+fold_active_dyad_support <- function(
+  out,
+  support_mask,
+  model_type,
+  mask_kind,
+  opportunitiesList = NULL
+) {
   n_stored <- length(out$event_time)
   if (n_stored == 0L) {
     return(out)
@@ -1126,18 +1132,21 @@ fold_active_dyad_support <- function(out, support_mask, model_type, mask_kind) {
   n1 <- length(out$active_sender_init)
   n2 <- length(out$active_dyad_init)
   support <- support_mask$support
-  encoding <- active_dyad_encoding_decide(model_type, mask_kind)
+  has_opportunity <- !is.null(opportunitiesList)
+  encoding <- active_dyad_encoding_decide(
+    model_type,
+    mask_kind,
+    has_opportunity
+  )
   is_rem <- model_type %in% c("REM", "REM-ordered", "DyNAM-MM")
 
-  # The point encoding is a dense n1 x n2 object; its maintenance and
-  # consumption (including the C++ dense point buffer) land with the engine
-  # wiring (§5). Until then a point-kind constraint stays on the standalone
-  # `support_mask` path, so `active_dyad` is left as the receiver-presence
-  # vector the current engines read. REM's outer/point consumption (the
-  # `riskMask` replacement) is likewise §5, so REM constraints stay on the
-  # standalone mask path for now; only the DyNAM choice/coordination dyad loop
-  # folds here (its receiver filter is rewired below).
-  if (!identical(encoding, "alter") || is_rem) {
+  # REM folds BOTH presences and its support atoms into `active_dyad` (the
+  # `riskMask` replacement) and the choice ego-kind atom folds at the outer
+  # encoding; both land with the REM engine step, so those constraints stay on
+  # the standalone `support_mask` path for now. The DyNAM choice/coordination
+  # alter and point encodings fold here (their receiver filter is rewired to the
+  # accessor across the default, gather, and default_c engines).
+  if (is_rem || identical(encoding, "outer")) {
     return(out)
   }
 
@@ -1159,30 +1168,28 @@ fold_active_dyad_support <- function(out, support_mask, model_type, mask_kind) {
     out$active_dyad_init <- cr$init
     out$active_dyad_update <- cr$update
     out$active_dyad_update_pointer <- cr$pointer
+    out$active_dyad_encoding <- "alter"
+    out$active_dyad_folded <- TRUE
   } else {
-    # outer (choice + a pure ego-kind atom): the receiver factor stays the
-    # receiver presence; the sender factor carries the ego-support row gate. A
-    # choice model does not fold sender presence, so f1's base is all-TRUE.
-    row_factor <- function(e) {
-      if (mask_kind == 2L) support[[e]][, 1L] else rep(TRUE, n1)
+    # point (a genuinely dyadic support atom, or any support atom together with a
+    # user opportunity list): fold receiver presence ∩ the sender's support row ∩
+    # opportunity into the dense point buffer (design D10/D11/D13). The choice
+    # risk set reads only the event sender's row, so only that row is emitted.
+    senders <- out$event_sender
+    opp_row <- function(e) {
+      if (!has_opportunity) {
+        return(rep(TRUE, n2))
+      }
+      opp <- opportunitiesList[[e]]
+      if (is.null(opp)) rep(TRUE, n2) else seq_len(n2) %in% opp
     }
-    col_factor <- function(e) {
-      if (mask_kind == 2L) rep(TRUE, n2) else support[[e]][1L, ]
-    }
-    f1 <- lapply(seq_len(n_stored), function(e) rep(TRUE, n1) & row_factor(e))
-    f2 <- lapply(seq_len(n_stored), function(e) recv[[e]] & col_factor(e))
-    c1 <- crossings_from_vectors(f1)
-    c2 <- crossings_from_vectors(f2)
-    out$active_sender_init <- c1$init
-    out$active_sender_update <- c1$update
-    out$active_sender_update_pointer <- c1$pointer
-    out$active_dyad_init <- c2$init
-    out$active_dyad_update <- c2$update
-    out$active_dyad_update_pointer <- c2$pointer
+    desired <- lapply(
+      seq_len(n_stored),
+      function(e) recv[[e]] & support[[e]][senders[[e]], ] & opp_row(e)
+    )
+    out <- build_active_dyad_point(out, recv, desired, senders, n1, n2)
   }
 
-  out$active_dyad_encoding <- encoding
-  out$active_dyad_folded <- TRUE
   out
 }
 
@@ -1217,7 +1224,18 @@ fold_active_dyad_opportunity <- function(out, opportunitiesList) {
     opp <- opportunitiesList[[e]]
     if (is.null(opp)) recv[[e]] else recv[[e]] & (seq_len(n2) %in% opp)
   })
+  build_active_dyad_point(out, recv, desired, senders, n1, n2)
+}
 
+# Assemble the `active_dyad` point encoding from per-event desired receiver rows
+# (design D10/D13). Shared by the opportunity fold and the point-kind support
+# fold. Because the choice risk set reads only the event sender's row, only that
+# row is emitted: the first event's row seeds the dense `n1 x n2` init (all other
+# rows carry the event-1 receiver presence, immaterial until each sender's first
+# event overwrites its row) and each later event emits net
+# `(node1 = sender, node2 = j, replace)` flips against the row's stored value.
+build_active_dyad_point <- function(out, recv, desired, senders, n1, n2) {
+  n_stored <- length(desired)
   cur <- matrix(recv[[1L]], nrow = n1, ncol = n2, byrow = TRUE)
   cur[senders[[1L]], ] <- desired[[1L]]
   init <- cur
@@ -1890,7 +1908,8 @@ run_dyad_recipe_loop <- function(
       out,
       out$support_mask,
       legacy_model_type(spec),
-      plan$support_constraint$mask_kind
+      plan$support_constraint$mask_kind,
+      opportunitiesList = opportunitiesList
     )
   } else if (
     !is.null(opportunitiesList) &&
