@@ -3566,3 +3566,35 @@ update_DyNAM_choice_global <- function(
     ...
   )
 }
+
+# ego ---------------------------------------------------------------------
+# Make `ego` computable in DyNAM choice / choice_coordination by aliasing the
+# shared REM-choice ego binding, exactly as `global` aliases the REM-choice
+# global. The statistic broadcasts the sender's attribute across that sender's
+# receivers (the REM `to_ego` expansion); like `global` it is not identified as
+# a bare main effect in choice (constant across the receiver alternatives, so it
+# cancels in the softmax), so `validate_effects()` rejects it at estimation
+# while it stays dispatchable as an interaction operand and a support_constraint
+# atom.
+#' @export
+init_DyNAM_choice.ego <- function(effectFun, attribute, n1, n2, ...) {
+  init_REM_choice.ego(effectFun, attribute, n1, n2, ...)
+}
+
+update_DyNAM_choice_ego <- function(
+  attribute,
+  node,
+  replace,
+  n1,
+  n2,
+  is_two_mode = FALSE
+) {
+  update_REM_choice_ego(
+    attribute = attribute,
+    node = node,
+    replace = replace,
+    n1 = n1,
+    n2 = n2,
+    is_two_mode = is_two_mode
+  )
+}
