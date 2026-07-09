@@ -1624,18 +1624,20 @@ estimate_wrapper <- function(
     # DyNAM choice (the C++ estimator filters receivers). Other engine/model
     # combinations fall back to the default (R) engine, which consumes the mask via
     # the sender/receiver filters or the REM contribution.
-    # A DyNAM-choice constraint (alter or point) is folded into `active_dyad`
-    # during preprocessing (design D4/D11): every engine reads it through the
-    # encoding accessor, so neither the standalone mask nor the per-event
-    # opportunity reduction is passed. An ego-kind (outer) constraint is not yet
-    # folded and still rides the standalone mask path.
+    # A DyNAM-choice constraint (alter or point) folds into `active_dyad`, and a
+    # DyNAM-rate constraint folds its sender gate into `active_sender`, during
+    # preprocessing (design D4/D11/D12): every engine reads the folded object
+    # directly, so neither the standalone mask nor the per-event opportunity
+    # reduction is passed. An ego-kind (outer) choice constraint is not yet folded
+    # and still rides the standalone mask path.
     choice_folded <- is_choice_family && isTRUE(prep$active_dyad_folded)
+    rate_folded <- is_rate_family && isTRUE(prep$active_sender_folded)
     native_compiled <-
       (control_estimation$engine == "gather_compute" &&
         (is_choice_family || is_rate_family)) ||
       (control_estimation$engine == "default_c" && is_choice_family)
     if (native_compiled) {
-      if (!choice_folded) {
+      if (!choice_folded && !rate_folded) {
         support_gather <- prep$support_mask$support
       }
     } else {

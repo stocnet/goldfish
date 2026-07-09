@@ -863,8 +863,7 @@ gather_ <- function(
       active_dyad_update_pointer,
       n_actors1,
       n_actors2,
-      twomode_or_reflexive,
-      support = support
+      twomode_or_reflexive
     )
   }
 
@@ -1257,20 +1256,16 @@ gather_sender_model_r <- function(
   active_dyad_update_pointer,
   n_actors1,
   n_actors2,
-  twomode_or_reflexive,
-  support = NULL
+  twomode_or_reflexive
 ) {
   stat_mat <- stat_mat_init
   n_events <- ncol(event_mat)
   n_parameters <- ncol(stat_mat)
   has_cc1 <- length(active_sender_update) > 0
-  has_cc2 <- length(active_dyad_update) > 0
   active_sender <- active_sender_init
-  active_dyad <- active_dyad_init
   update_id <- 0L
   bc_id <- 0L
   p1_id <- 0L
-  p2_id <- 0L
 
   rows_list <- vector("list", n_events)
   selected <- numeric(n_events)
@@ -1307,16 +1302,6 @@ gather_sender_model_r <- function(
       )
       p1_id <- ptr1
     }
-    if (has_cc2) {
-      ptr2 <- active_dyad_update_pointer[e]
-      active_dyad <- .gather_apply_presence(
-        active_dyad,
-        active_dyad_update,
-        p2_id,
-        ptr2
-      )
-      p2_id <- ptr2
-    }
 
     reduced <- .gather_reduce(
       stat_mat,
@@ -1326,13 +1311,10 @@ gather_sender_model_r <- function(
     )
     id_sender <- event_mat[1, e] - 1L
     is_dep <- is_dependent[e]
+    # A rate support_constraint folds the "has >= 1 allowed present receiver"
+    # sender gate into `active_sender` during preprocessing (design D4/D12), so
+    # `active_sender` is the gated sender filter directly — no separate mask.
     present1_ids <- which(active_sender == 1) - 1L
-    # support_constraint (rate): gate senders to those with >= 1 allowed present
-    # receiver (design D3/D10), removing them from the rate denominator.
-    if (!is.null(support)) {
-      gate <- rowSums(support[[e]][, active_dyad == 1, drop = FALSE]) > 0
-      present1_ids <- present1_ids[gate[present1_ids + 1L]]
-    }
     rows_list[[e]] <- reduced[present1_ids + 1L, , drop = FALSE]
     if (is_dep) {
       hit <- which(present1_ids == id_sender)
