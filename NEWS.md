@@ -1,3 +1,42 @@
+# goldfish 1.8.7
+
+## New features
+
+* `support_constraint` now runs **natively on every engine** for every wired
+  family — the compiled `default_c` and `gather_compute` engines no longer
+  downgrade to the default (R) engine when a constraint is supplied:
+  * `DyNAM` `choice`, `rate`, and `REM` (standard and ordinal) constrained
+    estimation is native on `default` / `gather_compute` / `default_c`, matching
+    the default engine to numerical precision.
+  * `DyNAM` `choice_coordination` gains `support_constraint` support: the
+    constraint is symmetrised (`support[i, j] & support[j, i]`) so both
+    directions of the mutual likelihood are masked consistently, and it runs
+    natively on `default` / `default_c` (a constrained `gather_compute` request
+    is redirected to `default_c`, which is identical, with an informational
+    message).
+* A dyadic (`tie(net)`-kind) `support_constraint` on a `DyNAM` `rate` model is
+  now **accepted** (previously rejected): a sender is at risk when it has at
+  least one allowed, present receiver (`rowSums(support & available) > 0`). A
+  one-time informational message explains the reduction and the cheaper
+  `ego()`-kind reformulation (equivalent only under static receiver composition).
+* `ego(attribute)` is now dispatchable in `DyNAM` `choice` / `choice_coordination`
+  (previously `Unknown effect ego`): it is usable as an interaction operand
+  (`~ ... + ego(x):inertia`) and as a `support_constraint` atom. Identification is
+  unchanged — a bare `ego()` main effect is still rejected in choice as
+  unidentified in the softmax.
+
+## Internal
+
+* The support mask and per-event availability are now maintained as
+  encoding-aware flat statistics: one availability object per preprocessing loop
+  — `active_sender` (sender loop) or `active_dyad` (dyad loop) — stored at its
+  minimal encoding (scalar / ego / alter / outer / point; dense only at the point
+  encoding). This replaces the per-event list of dense mask matrices and the
+  scattered `presence*` / `active_mode*` objects, and lets the mask cross the
+  R↔C++ boundary through the same channel as the model statistics. The deprecated
+  `opportunities_list` is folded into `active_dyad` during preprocessing instead
+  of being recomputed per estimation iteration.
+
 # goldfish 1.8.6
 
 ## New features
