@@ -338,14 +338,16 @@ estimate_c_int <- function(
 
     ### DEFAULT_C ENGINE
     if (engine == "default_c") {
-      # DyNAM-M (choice) consumes the folded `active_dyad` directly (design D7):
-      # the C++ estimator maintains it from its flat buffer and reads the event
-      # sender's availability. At the point encoding `active_dyad_init` is a dense
-      # n1 x n2 mask (folded receiver presence n support n opportunity); flatten it
-      # sender-major (dyad (i, j) at (i - 1) * n2 + j) so the estimator maintains
-      # it via the (node1, node2, replace) buffer and reads the sender's row. At
-      # the alter encoding it is the length-n2 receiver vector consumed directly.
-      dyad_is_point <- modelTypeCall == "DyNAM-M" &&
+      # DyNAM-M (choice) and REM consume the folded `active_dyad` directly (design
+      # D7): the C++ estimator maintains it from its flat buffer and reads the
+      # event dyad's availability. At the point encoding `active_dyad_init` is a
+      # dense n1 x n2 mask (choice: folded receiver presence n support n
+      # opportunity; REM: both presences n support); flatten it sender-major (dyad
+      # (i, j) at (i - 1) * n2 + j) so the estimator maintains it via the
+      # (node1, node2, replace) buffer and reads cell-wise. Otherwise it is the
+      # length-n2 receiver vector (choice alter / REM outer) consumed directly.
+      dyad_is_point <- modelTypeCall %in%
+        c("DyNAM-M", "REM") &&
         identical(active_dyad_encoding, "point")
       dyad_init_c <- if (dyad_is_point) {
         as.vector(t(active_dyad_init))
@@ -695,7 +697,8 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      active_dyad_is_point = active_dyad_is_point
     )
   }
 
@@ -808,7 +811,8 @@ gather_ <- function(
       active_dyad_update_pointer,
       n_actors1,
       n_actors2,
-      twomode_or_reflexive
+      twomode_or_reflexive,
+      active_dyad_encoding = active_dyad_encoding
     )
   } else if (modelTypeCall == "DyNAM-M") {
     gathered_data <- gather_receiver_model_r(
@@ -980,13 +984,19 @@ gather_sender_receiver_model_r <- function(
   active_dyad_update_pointer,
   n_actors1,
   n_actors2,
-  twomode_or_reflexive
+  twomode_or_reflexive,
+  active_dyad_encoding = "outer"
 ) {
   stat_mat <- stat_mat_init
   n_events <- length(is_dependent)
   n_parameters <- ncol(stat_mat)
   has_cc1 <- length(active_sender_update) > 0
   has_cc2 <- length(active_dyad_update) > 0
+  # A folded standard-REM constraint rides `active_dyad` at the point encoding
+  # (design D7/D11): a dense n1 x n2 risk mask (both presences n support)
+  # maintained by a (node1, node2, replace) buffer, read per sender as its row.
+  # The outer encoding keeps the length-n2 receiver vector (cell = f1[i] & f2[j]).
+  is_point <- identical(active_dyad_encoding, "point")
   active_sender <- active_sender_init
   active_dyad <- active_dyad_init
   update_id <- 0L
@@ -1035,12 +1045,16 @@ gather_sender_receiver_model_r <- function(
     }
     if (has_cc2) {
       ptr2 <- active_dyad_update_pointer[e]
-      active_dyad <- .gather_apply_presence(
-        active_dyad,
-        active_dyad_update,
-        p2_id,
-        ptr2
-      )
+      active_dyad <- if (is_point) {
+        .gather_apply_presence_point(
+          active_dyad,
+          active_dyad_update,
+          p2_id,
+          ptr2
+        )
+      } else {
+        .gather_apply_presence(active_dyad, active_dyad_update, p2_id, ptr2)
+      }
       p2_id <- ptr2
     }
 
@@ -1049,7 +1063,9 @@ gather_sender_receiver_model_r <- function(
     is_dep <- is_dependent[e]
 
     present1_ids <- which(active_sender == 1) - 1L
-    present2_ids <- which(active_dyad == 1) - 1L
+    # Outer: one receiver vector shared by every sender. Point: each sender reads
+    # its own dense mask row (both presences n support already folded in).
+    present2_ids <- if (is_point) NULL else which(active_dyad == 1) - 1L
 
     idx <- integer(0)
     n_present <- 0L
@@ -1057,7 +1073,12 @@ gather_sender_receiver_model_r <- function(
     n_p2_last <- 0L
     for (i in present1_ids) {
       not_allowed <- if (!twomode_or_reflexive) i else -1L
-      allowed <- present2_ids[present2_ids != not_allowed]
+      present2_i <- if (is_point) {
+        which(active_dyad[i + 1L, ] == 1) - 1L
+      } else {
+        present2_ids
+      }
+      allowed <- present2_i[present2_i != not_allowed]
       n_all <- length(allowed)
       idx <- c(idx, i * n_actors2 + allowed + 1L)
       if (is_dep && i == id_sender) {

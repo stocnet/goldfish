@@ -110,6 +110,39 @@ test_that("a restricting REM constraint changes the estimate", {
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
 
+test_that("gather_compute / default_c consume the REM constraint natively", {
+  fx <- make_rem_fixture(n_events = 40L)
+  d <- rem_data(fx, n_excluded = 50L)
+  spec <- callsDependent ~ 1 + inertia + recip
+  m_def <- suppressWarnings(estimate_rem(
+    spec,
+    sub_model = "rate",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "default")
+  ))
+  # both compiled engines read the folded dense point active_dyad (design D11),
+  # so they match the default engine with no downgrade fallback.
+  m_gc <- suppressWarnings(estimate_rem(
+    spec,
+    sub_model = "rate",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "gather_compute")
+  ))
+  m_dc <- suppressWarnings(estimate_rem(
+    spec,
+    sub_model = "rate",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "default_c")
+  ))
+  expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
+  expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-8)
+  expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+})
+
 test_that("an observed dyad excluded by its own REM constraint errors (design D8)", {
   fx <- make_rem_fixture(n_events = 60L)
   d <- rem_data(fx)
