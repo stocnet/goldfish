@@ -1651,16 +1651,15 @@ estimate_wrapper <- function(
         support_gather <- prep$support_mask$support
       }
     } else {
-      if (control_estimation$engine != "default") {
-        cli::cli_warn(c(
-          "!" = "engine {.val {control_estimation$engine}} does not yet consume
-                 {.arg support_constraint} for this model; using engine
-                 {.val default}."
-        ))
-        control_estimation$engine <- "default"
-      }
+      # Non-native path = the default (R) engine only: every reachable constrained
+      # model (DyNAM choice / rate, standard REM) folds its availability and runs
+      # natively on gather_compute / default_c above, and the other families abort
+      # at the guard before this branch — so the former "engine does not yet
+      # consume … using default" downgrade is dead and has been lifted (design D8).
       if (is_choice_family) {
         if (!choice_folded) {
+          # An unfolded (ego-kind / outer) choice constraint still reduces to the
+          # per-event opportunity list for the default engine.
           opportunities_effective <- mask_to_opportunities(
             prep$support_mask,
             prep,

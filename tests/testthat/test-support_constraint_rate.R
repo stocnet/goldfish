@@ -233,6 +233,32 @@ test_that("default_c consumes the rate constraint natively (== default)", {
   expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
 })
 
+test_that("constrained rate runs natively with no engine-downgrade warning (5.5)", {
+  fx <- make_rate_fixture()
+  gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
+  d <- rate_data_with_gate(fx, gated)
+  spec <- callsDependent ~ 1 + indeg + outdeg
+  downgrade_warnings <- function(engine) {
+    w <- character(0)
+    withCallingHandlers(
+      estimate_dynam(
+        spec,
+        sub_model = "rate",
+        data = d,
+        support_constraint = ~ tie(allowedNet),
+        control_estimation = set_estimation_opt(engine = engine)
+      ),
+      warning = function(cnd) {
+        w <<- c(w, conditionMessage(cnd))
+        invokeRestart("muffleWarning")
+      }
+    )
+    grep("does not yet consume", w, value = TRUE)
+  }
+  expect_identical(downgrade_warnings("gather_compute"), character(0))
+  expect_identical(downgrade_warnings("default_c"), character(0))
+})
+
 test_that("a dependent event whose own sender is gated out errors (design D8)", {
   fx <- make_rate_fixture()
   # gate out an OBSERVED sender: the event where it acts has an empty risk set.
