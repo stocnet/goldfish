@@ -209,7 +209,7 @@ test_that("C++ choice engine: broadcast buffer matches eager expansion", {
     n2,
     FALSE,
     FALSE,
-    matrix(numeric(0), 0, 0)
+    FALSE
   )
   res_pt <- estimate_DyNAM_choice(
     parameters,
@@ -226,7 +226,7 @@ test_that("C++ choice engine: broadcast buffer matches eager expansion", {
     n2,
     FALSE,
     FALSE,
-    matrix(numeric(0), 0, 0)
+    FALSE
   )
   expect_equal(res_bc$logLikelihood, res_pt$logLikelihood, tolerance = 1e-12)
   expect_equal(

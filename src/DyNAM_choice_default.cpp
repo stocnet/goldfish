@@ -25,7 +25,7 @@ List estimate_DyNAM_choice(
     const int n_actors_2,
     const bool twomode_or_reflexive,
     bool impute,
-    const arma::mat& support
+    const bool active_dyad_is_point
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -50,16 +50,12 @@ List estimate_DyNAM_choice(
         has_composition_change = false;
     }
     arma::vec active_dyad = active_dyad_init;
-    // A support_constraint supplies, per event, the sender's allowed-receiver
-    // mask as a column of `support` (n_actors_2 x n_events). Empty means no
-    // constraint, leaving the risk set unrestricted.
-    const bool has_support = support.n_elem > 0;
-    if (has_support &&
-        (support.n_rows != (arma::uword) n_actors_2 ||
-         support.n_cols != (arma::uword) n_events)) {
-        Rcpp::stop("support must be n_actors_2 x n_events");
-    }
-
+    // `active_dyad` is the folded per-event availability (design D7). At the alter
+    // encoding it is the length-n2 receiver vector maintained by a (node, replace)
+    // buffer. At the point encoding it is a flattened n1 x n2 mask (sender-major:
+    // dyad (i, j) at i * n_actors_2 + j) — the folded receiver presence n support
+    // n opportunity — maintained by a (node1, node2, replace) buffer; the risk set
+    // reads the current sender's row, so no separate support matrix is needed.
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -89,11 +85,19 @@ List estimate_DyNAM_choice(
             }
         }
 
-        // update presence
+        // update presence / availability (applied before this event's likelihood)
         if (has_composition_change) {
             while (active_dyad_update_id < active_dyad_update_pointer(id_event)) {
-                active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
-                  active_dyad_update(1, active_dyad_update_id);
+                if (active_dyad_is_point) {
+                    active_dyad(
+                      (active_dyad_update(0, active_dyad_update_id) - 1) *
+                        n_actors_2 +
+                      (active_dyad_update(1, active_dyad_update_id) - 1)
+                    ) = active_dyad_update(2, active_dyad_update_id);
+                } else {
+                    active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
+                      active_dyad_update(1, active_dyad_update_id);
+                }
                 active_dyad_update_id++;
             }
         }
@@ -117,10 +121,14 @@ List estimate_DyNAM_choice(
         double normalizer = 0;
         int not_allowed_receiver = -1;
         if (!twomode_or_reflexive) not_allowed_receiver = id_sender;
+        // At the point encoding the sender's row starts at id_sender * n_actors_2;
+        // at the alter encoding the receiver vector is read directly (offset 0).
+        const int dyad_offset =
+          active_dyad_is_point ? id_sender * n_actors_2 : 0;
         // go through all actor2
         for (int j = 0; j < n_actors_2; j++) {
-            if (active_dyad(j) == 1 && (j != not_allowed_receiver) &&
-                (!has_support || support(j, id_event) == 1)) {
+            if (active_dyad(dyad_offset + j) == 1 &&
+                (j != not_allowed_receiver)) {
                 // exp_current_receiver is \exp(\beta^T s)
                 double exp_current_receiver =
                   std::exp(dot(current_data_matrix.row(j), parameters));

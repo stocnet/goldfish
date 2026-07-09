@@ -338,38 +338,19 @@ estimate_c_int <- function(
 
     ### DEFAULT_C ENGINE
     if (engine == "default_c") {
-      # DyNAM-M (choice): the C++ estimator filters receivers by a per-event
-      # sender-allowed-receiver column (n_actors2 x n_events). Its source is the
-      # folded `active_dyad` at the point encoding (a dense n1 x n2 buffer walked
-      # to the sender's row per event, design D7) — the receiver availability is
-      # already folded into those rows, so `active_dyad_init` is passed as
-      # all-present. At the alter encoding `active_dyad` is the length-n2 receiver
-      # vector the estimator consumes directly (no `support`).
-      support_c <- NULL
-      dyad_init_c <- active_dyad_init
-      dyad_update_c <- active_dyad_update
-      dyad_ptr_c <- active_dyad_update_pointer
-      if (
-        modelTypeCall == "DyNAM-M" &&
-          identical(active_dyad_encoding, "point")
-      ) {
-        support_c <- active_dyad_point_sender_rows(
-          active_dyad_init,
-          active_dyad_update,
-          active_dyad_update_pointer,
-          event_mat[1, ],
-          ncol(event_mat),
-          n_actors2
-        )
-        dyad_init_c <- rep(1, n_actors2)
-        dyad_update_c <- matrix(0, 0, 0)
-        dyad_ptr_c <- numeric(ncol(event_mat))
-      } else if (!is.null(supportMask) && modelTypeCall == "DyNAM-M") {
-        support_c <- vapply(
-          seq_len(ncol(event_mat)),
-          function(e) supportMask[[e]][event_mat[1, e], ],
-          numeric(n_actors2)
-        )
+      # DyNAM-M (choice) consumes the folded `active_dyad` directly (design D7):
+      # the C++ estimator maintains it from its flat buffer and reads the event
+      # sender's availability. At the point encoding `active_dyad_init` is a dense
+      # n1 x n2 mask (folded receiver presence n support n opportunity); flatten it
+      # sender-major (dyad (i, j) at (i - 1) * n2 + j) so the estimator maintains
+      # it via the (node1, node2, replace) buffer and reads the sender's row. At
+      # the alter encoding it is the length-n2 receiver vector consumed directly.
+      dyad_is_point <- modelTypeCall == "DyNAM-M" &&
+        identical(active_dyad_encoding, "point")
+      dyad_init_c <- if (dyad_is_point) {
+        as.vector(t(active_dyad_init))
+      } else {
+        active_dyad_init
       }
       res <- estimate_(
         modelTypeCall = modelTypeCall,
@@ -386,13 +367,13 @@ estimate_c_int <- function(
         active_sender_update = active_sender_update,
         active_sender_update_pointer = active_sender_update_pointer,
         active_dyad_init = dyad_init_c,
-        active_dyad_update = dyad_update_c,
-        active_dyad_update_pointer = dyad_ptr_c,
+        active_dyad_update = active_dyad_update,
+        active_dyad_update_pointer = active_dyad_update_pointer,
         n_actors1 = n_actors1,
         n_actors2 = n_actors2,
         twomode_or_reflexive = twomode_or_reflexive,
         impute = impute,
-        support = support_c
+        active_dyad_is_point = dyad_is_point
       )
     }
 
@@ -625,12 +606,11 @@ estimate_ <- function(
   n_actors2,
   twomode_or_reflexive,
   impute,
-  support = NULL
+  active_dyad_is_point = FALSE
 ) {
-  # The per-model C++ estimators take a support matrix (empty = no constraint);
-  # only the wired ones (DyNAM-M) receive it. An empty matrix leaves the risk set
-  # unrestricted.
-  empty_support <- matrix(numeric(0), 0, 0)
+  # DyNAM-M (choice) consumes the folded `active_dyad` directly (design D7): at
+  # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
+  # (node1, node2, replace) buffer; otherwise it is the length-n2 receiver vector.
   if (modelTypeCall == "DyNAM-MM") {
     res <- estimate_DyNAM_MM(
       parameters,
@@ -669,7 +649,7 @@ estimate_ <- function(
       n_actors2,
       twomode_or_reflexive,
       impute,
-      support = if (is.null(support)) empty_support else support
+      active_dyad_is_point = active_dyad_is_point
     )
   }
 
@@ -955,34 +935,6 @@ gather_ <- function(
   cols <- (from + 1L):to
   active_dyad[cbind(upd[1, cols], upd[2, cols])] <- upd[3, cols]
   active_dyad
-}
-
-# Walk a point-encoded `active_dyad` buffer and return, for each event, the dense
-# availability row of that event's sender as an n2 x n_events matrix. Each
-# event's update slice is applied before its row is read (design D7), so event 1
-# reads the init. Feeds the C++ DyNAM-M choice estimator's per-event `support`
-# column, which is the shape it already consumes.
-active_dyad_point_sender_rows <- function(
-  init,
-  update,
-  pointer,
-  senders,
-  n_events,
-  n2
-) {
-  cur <- init
-  out <- matrix(0, n2, n_events)
-  applied <- 0L
-  for (e in seq_len(n_events)) {
-    hi <- pointer[e]
-    if (hi > applied) {
-      cols <- (applied + 1L):hi
-      cur[cbind(update[1L, cols], update[2L, cols])] <- update[3L, cols]
-      applied <- hi
-    }
-    out[, e] <- cur[senders[e], ]
-  }
-  out
 }
 
 # Reduce a n1*n2 x p stacked stat matrix to n1 x p by averaging over the
