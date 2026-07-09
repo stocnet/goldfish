@@ -1,8 +1,8 @@
-# `ego(attribute)` reachable in DyNAM choice (design D9). `init_DyNAM_choice.ego`
-# / `update_DyNAM_choice_ego` are thin aliases of the REM-choice binding, closing
-# the `Unknown effect ego` dispatch hole so `ego()` works as an interaction
-# operand and a support_constraint atom, WITHOUT changing identification (a bare
-# `ego` main effect stays rejected in the softmax).
+# `ego(attribute)` reachable in DyNAM choice (design D9).
+# `init_DyNAM_choice.ego` / `update_DyNAM_choice_ego` are thin aliases of the
+# REM-choice binding, closing the `Unknown effect ego` dispatch hole so `ego()`
+# works as an interaction operand and a support_constraint atom, WITHOUT a
+# change in identification (a bare `ego` main effect stays rejected in softmax).
 
 test_that("DyNAM choice ego(covariate) equals the REM-derived expansion", {
   form <- depNetwork ~ ego(actorsEx$attr1)
@@ -34,7 +34,7 @@ test_that("DyNAM choice ego(covariate) equals the REM-derived expansion", {
   )
 })
 
-test_that("the ego covariate broadcasts the sender's attribute across receivers", {
+test_that("the ego covariate broadcasts the sender attribute to receivers", {
   choice_ego <- estimate_wrapper(
     depNetwork ~ ego(actorsEx$attr1),
     model = "DyNAM",
@@ -89,10 +89,10 @@ make_ego_choice_fixture <- function(n_events = 120L) {
   make_data(callsDependent, callNetwork, calls, actors, allowedNet)
 }
 
-test_that("an ego() atom in a choice support_constraint parses and constrains", {
+test_that("an ego() atom in a choice support_constraint parses/constrains", {
   data <- make_ego_choice_fixture()
-  # `ego(active_flag)` is all-TRUE, so the constraint reduces to `tie(allowedNet)`
-  # (all off-diagonal dyads allowed) — the same dispatch path, now unblocked.
+  # `ego(active_flag)` is all-TRUE, so the constraint reduces to
+  # `tie(allowedNet)` (all off-diagonal dyads allowed) — same path, unblocked.
   m_cstr <- estimate_dynam(
     callsDependent ~ inertia + recip,
     sub_model = "choice",
@@ -110,7 +110,7 @@ test_that("an ego() atom in a choice support_constraint parses and constrains", 
   expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-6)
 })
 
-test_that("a bare ego() main effect in DyNAM choice is still rejected (softmax)", {
+test_that("a bare ego() main effect in choice is still rejected (softmax)", {
   data <- make_ego_choice_fixture(n_events = 60L)
   # dispatch succeeds (preprocessing computes the column), identification fails.
   expect_no_error(

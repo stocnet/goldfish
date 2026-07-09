@@ -1,5 +1,5 @@
-# Event-1 ordering (design D7): the FIRST dependent event's availability rides in
-# the init (`active_dyad_init`), each later event's change in its pre-likelihood
+# Event-1 ordering (design D7): the FIRST dependent event's availability rides
+# in the init (`active_dyad_init`), each later event's change in its likelihood
 # slice. A fixture restricts the first event's receivers to a strict subset and
 # leaves every later event unconstrained (the event-1 sender is observed only
 # once), so the constraint's entire effect is the event-1 normalizer. If an
@@ -59,7 +59,7 @@ test_that("the event-1 restriction lands (constrained != unconstrained)", {
   fx <- make_ordering_fixture()
   m_cstr <- fit_ordering(fx, "default")
   m_unc <- fit_ordering(fx, "default", constrained = FALSE)
-  # Reading event 1 from the init (not the unconstrained full set) moves the fit.
+  # Reading event 1 from the init (not the unconstrained set) moves the fit.
   expect_gt(abs(m_cstr$logLikelihood - m_unc$logLikelihood), 1e-3)
 })
 
