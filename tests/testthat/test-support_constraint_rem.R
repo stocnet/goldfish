@@ -159,20 +159,80 @@ test_that("an observed dyad excluded by its own REM constraint errors (design D8
   )
 })
 
-test_that("support_constraint still aborts for REM rate_ordered (unwired)", {
-  fx <- make_rem_fixture(n_events = 60L)
+test_that("an all-allowing REM rate_ordered constraint is an identity", {
+  fx <- make_rem_fixture()
   d <- rem_data(fx)
   opt <- set_estimation_opt(engine = "default")
-  expect_error(
-    estimate_rem(
-      callsDependent ~ inertia + recip,
-      sub_model = "rate_ordered",
-      data = d,
-      support_constraint = ~ tie(allowedNet),
-      control_estimation = opt
-    ),
-    "not yet consumed"
+  m_cstr <- estimate_rem(
+    callsDependent ~ inertia + recip,
+    sub_model = "rate_ordered",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = opt
   )
+  m_unc <- estimate_rem(
+    callsDependent ~ inertia + recip,
+    sub_model = "rate_ordered",
+    data = d,
+    control_estimation = opt
+  )
+  expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-8)
+  expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-8)
+})
+
+test_that("a restricting REM rate_ordered constraint changes the estimate", {
+  fx <- make_rem_fixture()
+  d <- rem_data(fx, n_excluded = 400L)
+  opt <- set_estimation_opt(engine = "default")
+  m_cstr <- suppressWarnings(estimate_rem(
+    callsDependent ~ inertia + recip,
+    sub_model = "rate_ordered",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = opt
+  ))
+  m_unc <- estimate_rem(
+    callsDependent ~ inertia + recip,
+    sub_model = "rate_ordered",
+    data = d,
+    control_estimation = opt
+  )
+  expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
+})
+
+test_that("REM rate_ordered constraint runs natively on gather / default_c", {
+  fx <- make_rem_fixture(n_events = 40L)
+  d <- rem_data(fx, n_excluded = 50L)
+  spec <- callsDependent ~ inertia + recip
+  m_def <- suppressWarnings(estimate_rem(
+    spec,
+    sub_model = "rate_ordered",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "default")
+  ))
+  # Ordinal REM masks the disallowed dyads' utility before the multinomial
+  # normalizer (and the probability-weighted score / information sums). Both
+  # compiled engines read the folded dense point active_dyad (design D11), so
+  # they match the default engine with no downgrade fallback.
+  m_gc <- suppressWarnings(estimate_rem(
+    spec,
+    sub_model = "rate_ordered",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "gather_compute")
+  ))
+  m_dc <- suppressWarnings(estimate_rem(
+    spec,
+    sub_model = "rate_ordered",
+    data = d,
+    support_constraint = ~ tie(allowedNet),
+    control_estimation = set_estimation_opt(engine = "default_c")
+  ))
+  expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
+  expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-8)
+  expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
 })
 
 test_that("a REM support_constraint folds active_dyad at the point encoding", {

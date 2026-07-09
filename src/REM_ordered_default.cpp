@@ -27,7 +27,8 @@ List estimate_REM_ordered(
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
-    bool impute = true
+    bool impute = true,
+    const bool active_dyad_is_point = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -59,6 +60,12 @@ List estimate_REM_ordered(
     if (active_dyad_update.n_elem == 0) {
         has_composition_change2 = false;
     }
+    // `active_dyad` is the folded per-event risk mask (design D7/D11). At the
+    // outer encoding it is the length-n2 receiver vector (cell (i, j) available
+    // iff active_sender(i) & active_dyad(j)). At the point encoding it is a
+    // flattened n1 x n2 mask (sender-major: dyad (i, j) at i * n_actors_2 + j)
+    // with both presences n support folded in, maintained by a
+    // (node1, node2, replace) buffer and read cell-wise.
     arma::vec active_dyad = active_dyad_init;
 
 
@@ -99,8 +106,15 @@ List estimate_REM_ordered(
         }
         if (has_composition_change2) {
             while (active_dyad_update_id < active_dyad_update_pointer(id_event)) {
-                active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
-                  active_dyad_update(1, active_dyad_update_id);
+                if (active_dyad_is_point) {
+                    active_dyad(
+                      (active_dyad_update(0, active_dyad_update_id) - 1) * n_actors_2 +
+                      (active_dyad_update(1, active_dyad_update_id) - 1)
+                    ) = active_dyad_update(2, active_dyad_update_id);
+                } else {
+                    active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
+                      active_dyad_update(1, active_dyad_update_id);
+                }
                 active_dyad_update_id++;
             }
         }
@@ -127,9 +141,13 @@ List estimate_REM_ordered(
             // deal with twomode and allow reflexive
             int not_allowed_receiver = -1;
             if (!twomode_or_reflexive) not_allowed_receiver = i;
+            // point encoding: sender i's row starts at i * n_actors_2; outer
+            // encoding: the receiver vector is read directly (offset 0).
+            const int dyad_offset = active_dyad_is_point ? i * n_actors_2 : 0;
             // go through all receiver
             for (int j = 0; j < n_actors_2; j++) {
-              if (active_dyad(j) == 1 && (j != not_allowed_receiver)) {
+              if (active_dyad(dyad_offset + j) == 1 &&
+                  (j != not_allowed_receiver)) {
                 // exp_current_receiver is \exp(\beta^T s)
                 double exp_current_receiver =
                   std::exp(dot(current_data_matrix.row(j), parameters));

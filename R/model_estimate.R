@@ -1575,11 +1575,19 @@ estimate_wrapper <- function(
     is_choice_family <- model == "DyNAM" &&
       sub_model %in% c("choice", "choice_coordination")
     is_rate_family <- model == "DyNAM" && sub_model == "rate"
-    # Only standard REM (with the time intercept, `rem_rate_spec`) is wired: its
-    # contribution zeroes disallowed dyads. Ordinal REM (`rem_rate_ordered_spec`,
-    # no intercept) uses the multinomial path and is not wired yet.
+    # Standard REM (`rem_rate_spec`, time intercept) zeroes disallowed dyads in the
+    # Poisson contribution; ordinal REM (`rem_rate_ordered_spec`, no intercept)
+    # zeroes their utility before the multinomial normalizer. Both fold both
+    # presences ∩ support into a dense point `active_dyad` (design D11) and consume
+    # it as the maintained risk mask.
     is_rem_family <- model == "REM" && sub_model == "rate" && has_intercept
-    if (!is_choice_family && !is_rate_family && !is_rem_family) {
+    is_rem_ordered_family <- model == "REM" && sub_model == "rate_ordered"
+    if (
+      !is_choice_family &&
+        !is_rate_family &&
+        !is_rem_family &&
+        !is_rem_ordered_family
+    ) {
       cli::cli_abort(c(
         "{.arg support_constraint} is not yet consumed for {.val {model}}
          {.val {sub_model}} estimation.",
@@ -1632,22 +1640,30 @@ estimate_wrapper <- function(
     # and still rides the standalone mask path.
     choice_folded <- is_choice_family && isTRUE(prep$active_dyad_folded)
     rate_folded <- is_rate_family && isTRUE(prep$active_sender_folded)
-    # A folded standard-REM constraint rides the dense point `active_dyad`
-    # (design D11), which `estimate_REM` consumes cell-wise, so `default_c` runs
-    # it natively. A folded rate constraint rides `active_sender` (design D12),
-    # which `estimate_DyNAM_rate` already consumes as its sender filter.
+    # A folded standard- or ordinal-REM constraint rides the dense point
+    # `active_dyad` (design D11), which `estimate_REM` / `estimate_REM_ordered`
+    # consume cell-wise, so `default_c` runs it natively; the gather likewise
+    # builds masked candidates. A folded rate constraint rides `active_sender`
+    # (design D12), which `estimate_DyNAM_rate` already consumes as its sender
+    # filter.
     rem_folded <- is_rem_family && isTRUE(prep$active_dyad_folded)
+    rem_ordered_folded <- is_rem_ordered_family &&
+      isTRUE(prep$active_dyad_folded)
     native_compiled <-
       (control_estimation$engine == "gather_compute" &&
         (is_choice_family ||
           is_rate_family ||
-          (is_rem_family && rem_folded))) ||
+          (is_rem_family && rem_folded) ||
+          (is_rem_ordered_family && rem_ordered_folded))) ||
       (control_estimation$engine == "default_c" &&
         (is_choice_family ||
           (is_rate_family && rate_folded) ||
-          (is_rem_family && rem_folded)))
+          (is_rem_family && rem_folded) ||
+          (is_rem_ordered_family && rem_ordered_folded)))
     if (native_compiled) {
-      if (!choice_folded && !rate_folded && !rem_folded) {
+      if (
+        !choice_folded && !rate_folded && !rem_folded && !rem_ordered_folded
+      ) {
         support_gather <- prep$support_mask$support
       }
     } else {
@@ -1670,8 +1686,8 @@ estimate_wrapper <- function(
         # The default engine consumes the folded `active_sender` directly as its
         # sender filter (design D4/D12); no separate sender gate is passed.
       } else if (!isTRUE(prep$active_dyad_folded)) {
-        # REM: the contribution zeroes disallowed dyads from the 2D risk set. A
-        # standard-REM constraint is folded into `active_dyad` during
+        # REM (standard or ordinal): the contribution zeroes disallowed dyads from
+        # the risk set. A REM constraint is folded into `active_dyad` during
         # preprocessing (design D11) and consumed as the maintained risk mask; the
         # standalone mask remains only as a fallback when the fold did not apply.
         rem_mask <- prep$support_mask$support

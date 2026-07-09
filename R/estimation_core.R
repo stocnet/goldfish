@@ -952,7 +952,8 @@ compute_event_contribution.rem_rate_ordered_spec <- function(
   isRightCensored,
   timespan,
   allowReflexive,
-  is_two_mode
+  is_two_mode,
+  riskMask = NULL
 ) {
   eventProbabilities <-
     getMultinomialProbabilities(
@@ -960,7 +961,8 @@ compute_event_contribution.rem_rate_ordered_spec <- function(
       activeDyad,
       parameters,
       actorNested = FALSE,
-      allowReflexive = FALSE
+      allowReflexive = FALSE,
+      riskMask = riskMask
     )
   logLikelihood <- log(eventProbabilities[activeDyad[1], activeDyad[2]])
   firstDerivatives <- compute_first_derivative_rem(
@@ -1456,11 +1458,11 @@ compute_iteration_step <- function(
   # it by walking its flat buffer per event and reads the receiver filter
   # through the encoding accessor — no separate opportunities/compChange2 step.
   active_dyad_folded <- isTRUE(statsList$active_dyad_folded)
-  # A standard-REM support_constraint folds both presences ∩ support into a dense
-  # point `active_dyad` (design D11): the maintained matrix IS the per-event risk
-  # mask, so the presence axis-reductions are skipped and it is consumed directly
-  # as `riskMask`, replacing the standalone per-event mask.
-  is_rem <- inherits(spec, "rem_rate_spec")
+  # A standard- or ordinal-REM support_constraint folds both presences ∩ support
+  # into a dense point `active_dyad` (design D11): the maintained matrix IS the
+  # per-event risk mask, so the presence axis-reductions are skipped and it is
+  # consumed directly as `riskMask`, replacing the standalone per-event mask.
+  is_rem <- inherits(spec, c("rem_rate_spec", "rem_rate_ordered_spec"))
 
   # check for parallelization
   # if (parallelize && require("snowfall", quietly = TRUE)) {
@@ -1626,7 +1628,8 @@ getMultinomialProbabilities <- function(
   parameters,
   actorNested = TRUE,
   allowReflexive = TRUE,
-  is_two_mode = FALSE
+  is_two_mode = FALSE,
+  riskMask = NULL
 ) {
   # allow this for a two- OR a three-dimensional array provided as input,
   # to be make
@@ -1651,6 +1654,14 @@ getMultinomialProbabilities <- function(
     utility <- exp(apply(weightedStatsArray, c(1, 2), sum))
     if (!allowReflexive && !is_two_mode) {
       diag(utility) <- 0
+    }
+    # A support_constraint (ordinal REM) removes disallowed dyads from the risk
+    # set exactly as the reflexive diagonal does: zeroing their utility drops them
+    # from the denominator (and the probability-weighted score / information sums),
+    # while the observed dyad's own term is untouched. `riskMask` is the maintained
+    # dense n1 x n2 availability aligned with the [sender, receiver] utility.
+    if (!is.null(riskMask)) {
+      utility[!riskMask] <- 0
     }
     if (actorNested) {
       denominators <- rowSums(utility)

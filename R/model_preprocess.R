@@ -1138,19 +1138,18 @@ fold_active_dyad_support <- function(
     mask_kind,
     has_opportunity
   )
-  # Standard REM folds BOTH presences ∩ its support atoms into a dense point
-  # `active_dyad` — the risk-set mask the default engine consumes directly,
-  # replacing the per-event `riskMask` snapshot. REM-ordered / DyNAM-MM
-  # constraint consumption is not wired (they abort at estimation), and the
-  # choice ego-kind (outer) fold is still pending, so those stay on the
-  # standalone `support_mask` path. The DyNAM choice/coordination alter and
-  # point encodings fold below.
-  if (identical(model_type, "REM")) {
+  # Standard and ordinal REM both fold BOTH presences ∩ their support atoms into
+  # a dense point `active_dyad` — the risk-set mask each engine consumes directly,
+  # replacing the per-event `riskMask` snapshot. The two REM variants share the
+  # dyadic risk set (only the normalizer differs: timespan-weighted Poisson vs.
+  # multinomial), so the same fold serves both. DyNAM-MM constraint consumption is
+  # not wired (it aborts at estimation), and the choice ego-kind (outer) fold is
+  # still pending, so those stay on the standalone `support_mask` path. The DyNAM
+  # choice/coordination alter and point encodings fold below.
+  if (model_type %in% c("REM", "REM-ordered")) {
     return(fold_active_dyad_support_rem(out, support, n1, n2, n_stored))
   }
-  if (
-    model_type %in% c("REM-ordered", "DyNAM-MM") || identical(encoding, "outer")
-  ) {
+  if (identical(model_type, "DyNAM-MM") || identical(encoding, "outer")) {
     return(out)
   }
 

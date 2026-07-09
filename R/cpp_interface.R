@@ -347,7 +347,7 @@ estimate_c_int <- function(
       # (node1, node2, replace) buffer and reads cell-wise. Otherwise it is the
       # length-n2 receiver vector (choice alter / REM outer) consumed directly.
       dyad_is_point <- modelTypeCall %in%
-        c("DyNAM-M", "REM") &&
+        c("DyNAM-M", "REM", "REM-ordered") &&
         identical(active_dyad_encoding, "point")
       dyad_init_c <- if (dyad_is_point) {
         as.vector(t(active_dyad_init))
@@ -673,7 +673,8 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      active_dyad_is_point = active_dyad_is_point
     )
   }
 
