@@ -830,7 +830,7 @@ compute_event_contribution.dynam_rate_ordered_spec <- function(
   activeActor <- activeDyad[1]
   parameters <- c(parameters)
 
-  rates <- exp(rowSums(t(t(statsMatrix) * parameters)))
+  rates <- exp((statsMatrix %*% parameters)[, 1])
   eventProbabilities <- rates / sum(rates)
   expectedStatistics <- colSums(statsMatrix * eventProbabilities)
   # statsMatrix[activeActor, ] * parameters: rate for actor i (i=activeActor)
@@ -1653,11 +1653,13 @@ getMultinomialProbabilities <- function(
   nActors2 <- dim(statsArray)[2]
   if (nDimensions == 3) {
     matrixSize <- nActors1 * nActors2
-    # multiply parameters with the statistics; slice by slice
-    # the cube has to be transposed for third-dimension-wise multyplication
-    weightedStatsArray <- statsArray * rep(parameters, each = matrixSize)
-    # get utility = exp( value of objective function )
-    utility <- exp(apply(weightedStatsArray, c(1, 2), sum))
+    # Linear predictor as one matrix product: reshape the n1 x n2 x p cube to
+    # (n1*n2) x p without copying (column-major), multiply by the parameters,
+    # and fold back to n1 x n2. Replaces the per-cell apply(., c(1,2), sum) over
+    # a parameter-broadcast copy of the cube.
+    dim(statsArray) <- c(matrixSize, length(parameters))
+    utility <- exp(statsArray %*% parameters)
+    dim(utility) <- c(nActors1, nActors2)
     if (!allowReflexive && !is_two_mode) {
       diag(utility) <- 0
     }
@@ -1679,8 +1681,7 @@ getMultinomialProbabilities <- function(
     }
   }
   if (nDimensions == 2) {
-    weightedStatsArray <- sweep(statsArray, MARGIN = 2, parameters, "*")
-    utility <- exp(rowSums(weightedStatsArray))
+    utility <- exp((statsArray %*% parameters)[, 1])
     # allow reflexive?
     if (!allowReflexive && !is_two_mode) {
       utility[activeDyad[1]] <- 0
