@@ -700,7 +700,11 @@ event_contribution_rate <- function(
   }
   if (isREM) {
     activeActor <- activeDyad[1] + (activeDyad[2] - 1) * dimMatrix[1]
-    statsArray <- apply(statsArray, 3, c)
+    # Merge the dyad axes (n1 x n2) into the rows without copying: R is
+    # column-major, so reinterpreting the n1 x n2 x nParams cube as
+    # (n1 * n2) x nParams is byte-identical to apply(statsArray, 3, c) but
+    # avoids materialising every slice.
+    dim(statsArray) <- c(dimMatrix[1] * dimMatrix[2], dimMatrix[3])
   }
 
   parameters <- as.numeric(parameters)
@@ -734,21 +738,12 @@ event_contribution_rate <- function(
   ratesStats <- rates * statsArray
   ratesStatsSum <- colSums(rates * statsArray)
 
-  ratesStatsStatsSum <- colSums(
-    t(
-      apply(statsArray, 1, function(x) outer(x, x))
-    ) *
-      rates
-  )
-  if (length(parameters) == 1 && !isREM) {
-    v <- as.vector(statsArray)
-    sum <- 0
-    for (i in seq_along(v)) {
-      sum <- sum + v[i] * v[i] * rates[i]
-    }
-    ratesStatsStatsSum <- sum
-  }
-  dim(ratesStatsStatsSum) <- rep(length(parameters), 2)
+  # Rate-weighted Fisher information sum_i rho_i s_i s_i^T as a single weighted
+  # cross-product: crossprod(S, S * rates) = S^T diag(rates) S. This preserves
+  # the nParams x nParams shape for every parameter count, so the former
+  # single-parameter special-case loop (which patched the degenerate outer())
+  # is no longer needed.
+  ratesStatsStatsSum <- crossprod(statsArray, statsArray * rates)
 
   logL <- -timespan *
     ratesSum +
