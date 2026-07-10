@@ -90,3 +90,85 @@ for (modelName in names(equivalenceGrid)) {
     }
   )
 }
+
+# Direct old-vs-new checks for the rate/REM core (event_contribution_rate)
+# scenarios the baseline grid does not exercise: the REM riskMask zeroing and
+# reflexive-edge exclusion (§2.1 dim<- reshape, §2.2 crossprod), and the
+# single-parameter rate path (the removed special-case Fisher loop).
+expect_contribution_equal <- function(live, ref) {
+  expect_equal(live$logLikelihood, ref$logLikelihood, tolerance = 1e-10)
+  expect_equal(live$score, ref$score, tolerance = 1e-10)
+  expect_equal(live$informationMatrix, ref$informationMatrix, tolerance = 1e-10)
+  expect_equal(live$pMatrix, ref$pMatrix, tolerance = 1e-10)
+}
+
+test_that("rate/REM core: riskMask and reflexive zeroing match the reference", {
+  live_rate <- getFromNamespace("event_contribution_rate", "goldfish")
+  set.seed(42)
+  n1 <- 5L
+  n2 <- 5L
+  p <- 3L
+  statsArray <- array(stats::rnorm(n1 * n2 * p), dim = c(n1, n2, p))
+  parameters <- c(0.3, -0.5, 0.8)
+  activeDyad <- c(2L, 4L)
+  riskMask <- matrix(TRUE, n1, n2)
+  riskMask[cbind(c(1L, 4L, 5L), c(3L, 2L, 5L))] <- FALSE
+
+  scenarios <- list(
+    list(irc = FALSE, ts = 1.5, refl = FALSE, mask = riskMask),
+    list(irc = TRUE, ts = 2.0, refl = TRUE, mask = riskMask),
+    list(irc = FALSE, ts = 0.7, refl = FALSE, mask = NULL)
+  )
+  for (sc in scenarios) {
+    live <- live_rate(
+      statsArray,
+      activeDyad,
+      parameters,
+      sc$irc,
+      sc$ts,
+      sc$refl,
+      is_two_mode = FALSE,
+      isREM = TRUE,
+      riskMask = sc$mask
+    )
+    ref <- event_contribution_rate_ref(
+      statsArray,
+      activeDyad,
+      parameters,
+      sc$irc,
+      sc$ts,
+      sc$refl,
+      is_two_mode = FALSE,
+      isREM = TRUE,
+      riskMask = sc$mask
+    )
+    expect_contribution_equal(live, ref)
+  }
+})
+
+test_that("rate core: single-parameter path matches the reference", {
+  live_rate <- getFromNamespace("event_contribution_rate", "goldfish")
+  set.seed(7)
+  statsArray <- matrix(stats::rnorm(6L), 6L, 1L)
+  live <- live_rate(
+    statsArray,
+    c(3L, NA),
+    0.6,
+    FALSE,
+    1.2,
+    TRUE,
+    is_two_mode = FALSE,
+    isREM = FALSE
+  )
+  ref <- event_contribution_rate_ref(
+    statsArray,
+    c(3L, NA),
+    0.6,
+    FALSE,
+    1.2,
+    TRUE,
+    is_two_mode = FALSE,
+    isREM = FALSE
+  )
+  expect_contribution_equal(live, ref)
+})
