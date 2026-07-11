@@ -64,6 +64,21 @@ capture_contribution_events <- function(
 # UseMethod(); the replay does the same to reach the concrete method.
 live_bind <- getFromNamespace("bind_event_contribution", "goldfish")
 
+# The reference methods are plain S3 methods defined in a helper file;
+# UseMethod() dispatch does not resolve them under the full test runner
+# (devtools::test() / test_check), only under an isolated test_file(). Resolve
+# the concrete reference method by class name the same way the engine (and
+# live_bind above) does, so the equivalence gate actually runs in CI.
+ref_bind <- function(spec) {
+  for (cls in class(spec)) {
+    fn <- get0(paste0("contribution_reference.", cls))
+    if (is.function(fn)) {
+      return(fn)
+    }
+  }
+  contribution_reference.default
+}
+
 for (modelName in names(equivalenceGrid)) {
   test_that(
     sprintf("contribution equivalence (old-vs-old): %s", modelName),
@@ -77,7 +92,7 @@ for (modelName in names(equivalenceGrid)) {
       expect_gt(length(events), 0)
       for (ev in events) {
         live <- do.call(live_bind(ev$spec), ev)
-        ref <- do.call(contribution_reference, ev)
+        ref <- do.call(ref_bind(ev$spec), ev)
         expect_equal(live$logLikelihood, ref$logLikelihood, tolerance = 1e-10)
         expect_equal(live$score, ref$score, tolerance = 1e-10)
         expect_equal(
