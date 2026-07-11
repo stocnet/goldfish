@@ -912,6 +912,32 @@ estimate_wrapper <- function(
     ))
   }
 
+  # Optimizers other than the built-in Newton-Raphson are maxLik-backed
+  # (design D10): they run only on the default_c evaluator and require the
+  # Suggests-only maxLik package. Both are resolved before any preprocessing so
+  # the abort is free of side effects.
+  optimizer <- control_estimation$optimizer
+  if (is.null(optimizer)) {
+    optimizer <- "newton_raphson"
+  }
+  if (!identical(optimizer, "newton_raphson")) {
+    if (control_estimation$engine != "default_c") {
+      cli::cli_abort(c(
+        "{.arg optimizer} {.val {optimizer}} requires
+         {.code engine = \"default_c\"}.",
+        "x" = "It is not available with
+               {.code engine = {.val {control_estimation$engine}}}.",
+        "i" = "maxLik-backed optimizers run only on the default_c evaluator."
+      ))
+    }
+    if (!requireNamespace("maxLik", quietly = TRUE)) {
+      cli::cli_abort(c(
+        "{.arg optimizer} {.val {optimizer}} requires the {.pkg maxLik} package.",
+        "i" = "Install it with {.run install.packages(\"maxLik\")}."
+      ))
+    }
+  }
+
   # gather_compute and default_c don't support restrictions of opportunity sets
   if (
     !is.null(control_preprocessing$opportunities_list) &&
@@ -1779,7 +1805,10 @@ estimate_wrapper <- function(
     tryCatch(
       result <- do.call(
         "estimate_c_int",
-        args = c(argsEstimation, list(engine = control_estimation$engine))
+        args = c(
+          argsEstimation,
+          list(engine = control_estimation$engine, optimizer = optimizer)
+        )
       ),
       error = \(e) {
         stop(

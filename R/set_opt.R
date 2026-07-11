@@ -88,6 +88,19 @@
 #'   drift over the event sequence, and event-influence measures. Only the
 #'   `"default_c"` and `"default"` engines support it; `"gather_compute"` aborts.
 #'   Default is `FALSE`.
+#' @param optimizer `r lifecycle::badge("experimental")` A character string
+#'   naming the optimization algorithm. Options are:
+#'   \describe{
+#'      \item{newton_raphson}{The built-in damped Newton-Raphson / Fisher
+#'       scoring loop (default).}
+#'      \item{bfgs}{Quasi-Newton BFGS, via `maxLik::maxLik()`.}
+#'      \item{bhhh}{Berndt-Hall-Hall-Hausman, using the per-event score matrix
+#'       as observation-level gradients, via `maxLik::maxLik()`.}
+#'      \item{nelder_mead}{Derivative-free Nelder-Mead, via `maxLik::maxLik()`.}
+#'    }
+#'   Any value other than `"newton_raphson"` requires the \pkg{maxLik} package
+#'   (in `Suggests`) and runs only on the `"default_c"` engine. Default is
+#'   `"newton_raphson"`.
 #' @param engine A character string specifying the estimation engine.
 #'   Options are:
 #'   \describe{
@@ -122,6 +135,7 @@
 #'      return the log-likelihood for each event.}
 #'   \item{return_event_scores}{Logical value indicating whether to
 #'      return the per-event score matrix.}
+#'   \item{optimizer}{Optimization algorithm used in the estimation process.}
 #'   \item{engine}{Estimation engine used in the estimation process.}
 #' @export
 #' @examples
@@ -144,9 +158,11 @@ set_estimation_opt <- function(
   return_interval_loglik = TRUE,
   return_probabilities = FALSE,
   return_event_scores = FALSE,
+  optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
   engine = c("default_c", "default", "gather_compute")
 ) {
   engine <- match.arg(engine)
+  optimizer <- match.arg(optimizer)
 
   if (lifecycle::is_present(convergence_criterion)) {
     lifecycle::deprecate_warn(
@@ -272,6 +288,7 @@ set_estimation_opt <- function(
     return_interval_loglik = return_interval_loglik,
     return_probabilities = return_probabilities,
     return_event_scores = return_event_scores,
+    optimizer = optimizer,
     engine = engine
   )
 

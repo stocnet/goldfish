@@ -18,6 +18,7 @@ set_estimation_opt(
   return_interval_loglik = TRUE,
   return_probabilities = FALSE,
   return_event_scores = FALSE,
+  optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
   engine = c("default_c", "default", "gather_compute")
 )
 }
@@ -106,6 +107,20 @@ drift over the event sequence, and event-influence measures. Only the
 \code{"default_c"} and \code{"default"} engines support it; \code{"gather_compute"} aborts.
 Default is \code{FALSE}.}
 
+\item{optimizer}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A character string
+naming the optimization algorithm. Options are:
+\describe{
+\item{newton_raphson}{The built-in damped Newton-Raphson / Fisher
+scoring loop (default).}
+\item{bfgs}{Quasi-Newton BFGS, via \code{maxLik::maxLik()}.}
+\item{bhhh}{Berndt-Hall-Hall-Hausman, using the per-event score matrix
+as observation-level gradients, via \code{maxLik::maxLik()}.}
+\item{nelder_mead}{Derivative-free Nelder-Mead, via \code{maxLik::maxLik()}.}
+}
+Any value other than \code{"newton_raphson"} requires the \pkg{maxLik} package
+(in \code{Suggests}) and runs only on the \code{"default_c"} engine. Default is
+\code{"newton_raphson"}.}
+
 \item{engine}{A character string specifying the estimation engine.
 Options are:
 \describe{
@@ -141,6 +156,7 @@ decreased when no improvements in the estimation are found.}
 return the log-likelihood for each event.}
 \item{return_event_scores}{Logical value indicating whether to
 return the per-event score matrix.}
+\item{optimizer}{Optimization algorithm used in the estimation process.}
 \item{engine}{Estimation engine used in the estimation process.}
 }
 \description{

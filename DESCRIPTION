@@ -63,7 +63,8 @@ Suggests:
     broom,
     lmtest,
     RSQLite,
-    ggplot2
+    ggplot2,
+    maxLik
 VignetteBuilder: knitr 
 LazyData: true
 RoxygenNote: 7.3.3

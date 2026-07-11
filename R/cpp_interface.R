@@ -47,7 +47,8 @@ estimate_c_int <- function(
   senderGate = NULL,
   remMask = NULL,
   supportMask = NULL,
-  engine = c("default_c", "gather_compute")
+  engine = c("default_c", "gather_compute"),
+  optimizer = "newton_raphson"
 ) {
   if (!is.null(opportunitiesList)) {
     stop(
@@ -315,6 +316,63 @@ estimate_c_int <- function(
     size_gathered_data <- utils::object.size(gathered_data)
   }
 
+  # Parameter-independent default_c buffer layout, hoisted out of the loop so
+  # both the Newton-Raphson iterations and the maxLik adapter reuse it (design
+  # D7): at the point encoding `active_dyad_init` is flattened sender-major to a
+  # dense n1 x n2 mask; otherwise it is the length-n2 receiver vector.
+  dyad_is_point <- modelTypeCall %in%
+    c("DyNAM-M", "REM", "REM-ordered", "DyNAM-MM") &&
+    identical(active_dyad_encoding, "point")
+  dyad_init_c <- if (dyad_is_point) {
+    as.vector(t(active_dyad_init))
+  } else {
+    active_dyad_init
+  }
+  evaluate_default_c <- function(pars, need_scores) {
+    estimate_(
+      modelTypeCall = modelTypeCall,
+      parameters = pars,
+      event_mat = event_mat,
+      timespan = timespan,
+      is_dependent = is_dependent,
+      stat_mat_init = stat_mat_init,
+      stat_mat_update = stat_mat_update,
+      stat_mat_update_pointer = stat_mat_update_pointer,
+      stat_mat_broadcast = stat_mat_broadcast,
+      stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
+      active_sender_init = active_sender_init,
+      active_sender_update = active_sender_update,
+      active_sender_update_pointer = active_sender_update_pointer,
+      active_dyad_init = dyad_init_c,
+      active_dyad_update = active_dyad_update,
+      active_dyad_update_pointer = active_dyad_update_pointer,
+      n_actors1 = n_actors1,
+      n_actors2 = n_actors2,
+      twomode_or_reflexive = twomode_or_reflexive,
+      impute = impute,
+      active_dyad_is_point = dyad_is_point,
+      return_event_scores = need_scores
+    )
+  }
+
+  # maxLik-backed optimizers (design D10) replace the Newton-Raphson loop below:
+  # the preprocessed data is fixed, the C++ evaluator is fed to maxLik through
+  # memoized closures, and the maxLik result maps back into the standard result
+  # object. Runs on the default_c evaluator only (guarded upstream).
+  if (!identical(optimizer, "newton_raphson")) {
+    return(estimate_via_maxlik(
+      evaluate = evaluate_default_c,
+      optimizer = optimizer,
+      start = parameters,
+      id_fixed = idFixedCompnents,
+      n_params = nParams,
+      n_events = nEvents,
+      return_interval_loglik = returnIntervalLogL,
+      return_event_scores = return_event_scores,
+      verbose = verbose
+    ))
+  }
+
   while (TRUE) {
     ## CALCULATE THE LOGLIKELIHOOD,
     ## THE FISHER INFORMATION MATRIX, AND THE DERIVATIVE
@@ -337,46 +395,7 @@ estimate_c_int <- function(
 
     ### DEFAULT_C ENGINE
     if (engine == "default_c") {
-      # DyNAM-M (choice) and REM consume the folded `active_dyad` directly (design
-      # D7): the C++ estimator maintains it from its flat buffer and reads the
-      # event dyad's availability. At the point encoding `active_dyad_init` is a
-      # dense n1 x n2 mask (choice: folded receiver presence n support n
-      # opportunity; REM: both presences n support); flatten it sender-major (dyad
-      # (i, j) at (i - 1) * n2 + j) so the estimator maintains it via the
-      # (node1, node2, replace) buffer and reads cell-wise. Otherwise it is the
-      # length-n2 receiver vector (choice alter / REM outer) consumed directly.
-      dyad_is_point <- modelTypeCall %in%
-        c("DyNAM-M", "REM", "REM-ordered", "DyNAM-MM") &&
-        identical(active_dyad_encoding, "point")
-      dyad_init_c <- if (dyad_is_point) {
-        as.vector(t(active_dyad_init))
-      } else {
-        active_dyad_init
-      }
-      res <- estimate_(
-        modelTypeCall = modelTypeCall,
-        parameters = parameters,
-        event_mat = event_mat,
-        timespan = timespan,
-        is_dependent = is_dependent,
-        stat_mat_init = stat_mat_init,
-        stat_mat_update = stat_mat_update,
-        stat_mat_update_pointer = stat_mat_update_pointer,
-        stat_mat_broadcast = stat_mat_broadcast,
-        stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
-        active_sender_init = active_sender_init,
-        active_sender_update = active_sender_update,
-        active_sender_update_pointer = active_sender_update_pointer,
-        active_dyad_init = dyad_init_c,
-        active_dyad_update = active_dyad_update,
-        active_dyad_update_pointer = active_dyad_update_pointer,
-        n_actors1 = n_actors1,
-        n_actors2 = n_actors2,
-        twomode_or_reflexive = twomode_or_reflexive,
-        impute = impute,
-        active_dyad_is_point = dyad_is_point,
-        return_event_scores = return_event_scores
-      )
+      res <- evaluate_default_c(parameters, return_event_scores)
     }
 
     logLikelihood <- res$logLikelihood
@@ -590,6 +609,151 @@ estimate_c_int <- function(
   }
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
+}
+
+# Memoize a single evaluator call per parameter vector so the log-likelihood and
+# gradient closures maxLik calls separately share one C++ pass (design D10). The
+# cache holds the most recent evaluation, keyed by the (unnamed) parameter
+# vector; the common logLik-then-grad-at-the-same-point call pattern hits it.
+make_memoized_evaluator <- function(evaluate, need_scores) {
+  cache <- new.env(parent = emptyenv())
+  cache$key <- NULL
+  cache$res <- NULL
+  function(pars) {
+    key <- unname(as.numeric(pars))
+    if (is.null(cache$key) || !identical(cache$key, key)) {
+      cache$res <- evaluate(pars, need_scores)
+      cache$key <- key
+    }
+    cache$res
+  }
+}
+
+#' maxLik-backed estimation adapter (design D10)
+#'
+#' Drives `maxLik::maxLik()` over the fixed preprocessed data through memoized
+#' closures on the `default_c` evaluator, then maps the result into the standard
+#' `result.goldfish` object so `summary()` / `vcov()` / `logLik()` and the
+#' post-estimation methods work unchanged. Only reached for
+#' `optimizer != "newton_raphson"`, guarded upstream to the default_c engine
+#' with maxLik installed.
+#'
+#' @param evaluate closure `function(pars, need_scores)` returning the C++
+#'   evaluator list (`logLikelihood`, `derivative`, `fisher`, and, when
+#'   `need_scores`, `event_scores` / `intervalLogL`).
+#' @param optimizer one of `"bfgs"`, `"bhhh"`, `"nelder_mead"`.
+#' @param start full-length initial parameter vector (fixed components already
+#'   set to their values).
+#' @param id_fixed integer indices of parameters held fixed (may be empty/NULL).
+#' @param n_params,n_events problem dimensions.
+#' @param return_interval_loglik,return_event_scores whether to attach the
+#'   per-event outputs, evaluated at the optimum.
+#' @param verbose passed through as the maxLik print level.
+#' @return a `result.goldfish` list, structurally identical to the NR path.
+#' @noRd
+estimate_via_maxlik <- function(
+  evaluate,
+  optimizer,
+  start,
+  id_fixed,
+  n_params,
+  n_events,
+  return_interval_loglik,
+  return_event_scores,
+  verbose
+) {
+  method <- switch(optimizer, bfgs = "BFGS", bhhh = "BHHH", nelder_mead = "NM")
+  # BHHH needs observation-level gradients (the per-event score matrix); the
+  # other methods use the aggregate score (BFGS) or none (Nelder-Mead), so the
+  # extra score work runs only when BHHH requires it.
+  use_scores <- identical(optimizer, "bhhh")
+  eval_cached <- make_memoized_evaluator(evaluate, use_scores)
+
+  loglik_fn <- function(pars) eval_cached(pars)$logLikelihood
+  grad_fn <- if (identical(optimizer, "nelder_mead")) {
+    NULL
+  } else if (use_scores) {
+    function(pars) eval_cached(pars)$event_scores
+  } else {
+    function(pars) as.numeric(eval_cached(pars)$derivative)
+  }
+
+  id_free <- setdiff(seq_len(n_params), id_fixed)
+  if (length(id_free) == 0L) {
+    # All parameters fixed: nothing to optimize, mirror the NR likelihood-only
+    # exit and evaluate once at the fixed vector.
+    fit_pars <- start
+    n_iter <- 0L
+    is_converged <- TRUE
+    return_code <- 1L
+  } else {
+    ml <- maxLik::maxLik(
+      logLik = loglik_fn,
+      grad = grad_fn,
+      start = start,
+      method = method,
+      fixed = if (length(id_fixed)) id_fixed else NULL,
+      finalHessian = FALSE,
+      printLevel = if (verbose) 2L else 0L
+    )
+    fit_pars <- as.numeric(stats::coef(ml))
+    n_iter <- tryCatch(
+      as.integer(maxLik::nIter(ml))[1],
+      error = function(e) NA_integer_
+    )
+    return_code <- tryCatch(
+      as.integer(maxLik::returnCode(ml)),
+      error = function(e) NA_integer_
+    )
+    # maxLik success codes: 0 (optim-based BFGS/NM), 1 (gradient ~ 0) and 2
+    # (successive params within tol) for the maxNR family, and 8 (successive
+    # function values within relative tolerance).
+    is_converged <- !is.na(return_code) &&
+      return_code %in% c(0L, 1L, 2L, 8L)
+  }
+
+  # One evaluation at the optimum for the Fisher-based vcov and the optional
+  # per-event outputs (vcov from the information at the optimum, as on the NR
+  # path).
+  final <- evaluate(fit_pars, return_event_scores)
+  score <- as.numeric(final$derivative)
+  score[id_fixed] <- 0
+  information_matrix <- final$fisher
+  log_likelihood <- final$logLikelihood
+
+  std_errors <- rep(0, n_params)
+  inverse_information_unfixed <- try(
+    solve(information_matrix[id_free, id_free, drop = FALSE]),
+    silent = TRUE
+  )
+  if (!inherits(inverse_information_unfixed, "try-error")) {
+    std_errors[id_free] <- sqrt(diag(inverse_information_unfixed))
+  }
+
+  estimation_result <- list(
+    parameters = fit_pars,
+    standardErrors = std_errors,
+    logLikelihood = log_likelihood,
+    finalScore = score,
+    finalInformationMatrix = information_matrix,
+    convergence = list(
+      isConverged = is_converged,
+      returnCode = return_code,
+      maxAbsScore = max(abs(score)),
+      maxAbsUpdate = NA_real_,
+      score_rel_norm = max(abs(score)) / max(1, abs(log_likelihood))
+    ),
+    nIterations = n_iter,
+    nEvents = n_events
+  )
+  if (return_interval_loglik) {
+    estimation_result$intervalLogL <- as.numeric(final$intervalLogL)
+  }
+  if (return_event_scores) {
+    estimation_result$event_scores <- final$event_scores
+  }
+  attr(estimation_result, "class") <- "result.goldfish"
+  estimation_result
 }
 
 ## ESTIMATE FOR DIFFERENT MODELS
