@@ -57,6 +57,7 @@ estimate_int_impl <- function(
   # additional parameter for DyNAM-M-Rate
   hasIntercept = FALSE,
   returnIntervalLogL = FALSE,
+  return_event_scores = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -242,6 +243,7 @@ estimate_int_impl <- function(
     step_tol = step_tol,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
+    return_event_scores = return_event_scores,
     verbose = verbose,
     progress = progress,
     step_args = list(
@@ -260,6 +262,7 @@ estimate_int_impl <- function(
       cpus = cpus,
       returnIntervalLogL = returnIntervalLogL,
       returnEventProbabilities = returnEventProbabilities,
+      return_event_scores = return_event_scores,
       allowReflexive = allowReflexive,
       is_two_mode = is_two_mode,
       reduceArrayToMatrix = reduceArrayToMatrix,
@@ -281,6 +284,9 @@ estimate_int_impl <- function(
   iIteration <- nr$nIterations
   if (returnIntervalLogL) {
     intervalLogL <- nr$intervalLogL
+  }
+  if (return_event_scores) {
+    event_scores <- nr$event_scores
   }
   if (returnEventProbabilities) {
     eventProbabilities <- nr$eventProbabilities
@@ -317,6 +323,9 @@ estimate_int_impl <- function(
   if (returnIntervalLogL) {
     estimationResult$intervalLogL <- intervalLogL
   }
+  if (return_event_scores) {
+    estimationResult$event_scores <- event_scores
+  }
   if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
   }
@@ -340,7 +349,7 @@ estimate_int_impl <- function(
 #' @return a list with the converged `parameters`, `logLikelihood`, `score`,
 #'   `informationMatrix`, `inverseInformationUnfixed`, `isConverged`,
 #'   `returnCode`, `update`, `nIterations`, and optional `intervalLogL` /
-#'   `eventProbabilities`.
+#'   `event_scores` / `eventProbabilities`.
 #' @noRd
 run_nr_loop <- function(
   spec,
@@ -358,6 +367,7 @@ run_nr_loop <- function(
   step_tol,
   returnIntervalLogL,
   returnEventProbabilities,
+  return_event_scores,
   verbose,
   progress,
   step_args
@@ -375,6 +385,7 @@ run_nr_loop <- function(
   score.old <- NULL
   informationMatrix.old <- NULL
   intervalLogL <- NULL
+  event_scores <- NULL
   eventProbabilities <- NULL
 
   # if (parallelize && require("snowfall", quietly = TRUE)) {
@@ -400,6 +411,9 @@ run_nr_loop <- function(
     informationMatrix <- res[[3]]
     if (returnIntervalLogL) {
       intervalLogL <- res[[4]]
+    }
+    if (return_event_scores) {
+      event_scores <- res$event_scores
     }
     # add a possibility to return the whole probability matrix: to be make
     if (returnEventProbabilities) {
@@ -572,6 +586,7 @@ run_nr_loop <- function(
     update = update,
     nIterations = iIteration,
     intervalLogL = intervalLogL,
+    event_scores = event_scores,
     eventProbabilities = eventProbabilities
   )
 }
@@ -1392,6 +1407,9 @@ compute_step.default <- function(spec, state, i, ctx) {
   if (ctx$returnIntervalLogL) {
     state$eventLogL[i] <- eventValues$logLikelihood
   }
+  if (ctx$return_event_scores) {
+    state$event_scores[i, ] <- eventValues$score
+  }
   if (ctx$returnEventProbabilities) {
     state$EventProbabilities[[i]] <- eventValues$pMatrix
   }
@@ -1426,6 +1444,7 @@ compute_iteration_step <- function(
   cpus = 4,
   returnIntervalLogL = FALSE,
   returnEventProbabilities = FALSE,
+  return_event_scores = FALSE,
   allowReflexive = TRUE,
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
@@ -1509,6 +1528,7 @@ compute_iteration_step <- function(
     remMask = remMask,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
+    return_event_scores = return_event_scores,
     contribution_fn = contribution_fn
   )
 
@@ -1527,6 +1547,11 @@ compute_iteration_step <- function(
     score = rep(0, nParams),
     informationMatrix = matrix(0, nParams, nParams),
     eventLogL = if (returnIntervalLogL) numeric(nEvents) else NULL,
+    event_scores = if (return_event_scores) {
+      matrix(0, nEvents, nParams)
+    } else {
+      NULL
+    },
     EventProbabilities = if (returnEventProbabilities) {
       vector(mode = "list", length = nEvents)
     } else {
@@ -1545,6 +1570,9 @@ compute_iteration_step <- function(
   )
   if (returnIntervalLogL) {
     returnList$eventLogL <- state$eventLogL
+  }
+  if (return_event_scores) {
+    returnList$event_scores <- state$event_scores
   }
   if (returnEventProbabilities) {
     returnList$pMatrix <- state$EventProbabilities

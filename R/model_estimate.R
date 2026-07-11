@@ -897,6 +897,21 @@ estimate_wrapper <- function(
     control_estimation$engine <- "default"
   }
 
+  # The per-event score matrix is produced by the two per-event engines
+  # (default_c via the C++ evaluator flag, default in its contribution loop);
+  # gather_compute has no per-event decomposition to expose.
+  if (
+    isTRUE(control_estimation$return_event_scores) &&
+      control_estimation$engine == "gather_compute"
+  ) {
+    cli::cli_abort(c(
+      "{.arg return_event_scores} is not supported with
+       {.code engine = \"gather_compute\"}.",
+      "i" = "Use {.code engine = \"default_c\"} or {.code engine = \"default\"}
+             to return the per-event score matrix."
+    ))
+  }
+
   # gather_compute and default_c don't support restrictions of opportunity sets
   if (
     !is.null(control_preprocessing$opportunities_list) &&
@@ -1736,6 +1751,7 @@ estimate_wrapper <- function(
     dampingDecreaseFactor = control_estimation$damping_decrease_factor,
     returnEventProbabilities = control_estimation$return_probabilities,
     returnIntervalLogL = control_estimation$return_interval_loglik,
+    return_event_scores = isTRUE(control_estimation$return_event_scores),
     statsList = prep,
     nodes = get(.nodes, envir = data),
     nodes2 = get(.nodes2, envir = data),
@@ -1799,6 +1815,14 @@ estimate_wrapper <- function(
 
   ### 6. RESULTS----
   result$names <- effectDescription
+  # Name the per-event score columns by effect (rows of effectDescription are
+  # the coefficients, in the same order as the score vector).
+  if (
+    !is.null(result$event_scores) &&
+      ncol(result$event_scores) == nrow(effectDescription)
+  ) {
+    colnames(result$event_scores) <- rownames(effectDescription)
+  }
   result$model_spec <- model_spec
   formulaKeep <- as.formula(
     Reduce(paste, deparse(formula)),

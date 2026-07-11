@@ -76,6 +76,18 @@
 #'   * When `model = "REM"` the probabilities correspond to all dyads present at
 #'     the time of the event.
 #'   Default is `FALSE`.
+#' @param return_event_scores A logical value.
+#'   Whether to keep and return the per-event score matrix (one row per
+#'   dependent event, one column per effect) evaluated at the returned
+#'   parameter estimates, stored as the `event_scores` component of the result.
+#'   Each row is the observation-level gradient contribution whose column sums
+#'   equal the aggregate score. The matrix supports downstream diagnostics
+#'   (implemented by other tools, not here): robust sandwich and clustered
+#'   standard errors from the outer product of gradients `crossprod(event_scores)`,
+#'   per-effect score-process diagnostics that localize where individual effects
+#'   drift over the event sequence, and event-influence measures. Only the
+#'   `"default_c"` and `"default"` engines support it; `"gather_compute"` aborts.
+#'   Default is `FALSE`.
 #' @param engine A character string specifying the estimation engine.
 #'   Options are:
 #'   \describe{
@@ -108,6 +120,8 @@
 #'      decreased when no improvements in the estimation are found.}
 #'   \item{return_interval_loglik}{Logical value indicating whether to
 #'      return the log-likelihood for each event.}
+#'   \item{return_event_scores}{Logical value indicating whether to
+#'      return the per-event score matrix.}
 #'   \item{engine}{Estimation engine used in the estimation process.}
 #' @export
 #' @examples
@@ -129,6 +143,7 @@ set_estimation_opt <- function(
   damping_decrease_factor = 3,
   return_interval_loglik = TRUE,
   return_probabilities = FALSE,
+  return_event_scores = FALSE,
   engine = c("default_c", "default", "gather_compute")
 ) {
   engine <- match.arg(engine)
@@ -237,6 +252,12 @@ set_estimation_opt <- function(
       call. = FALSE
     )
   }
+  if (!rlang::is_scalar_logical(return_event_scores)) {
+    stop(
+      "'return_event_scores' must be a single logical value.",
+      call. = FALSE
+    )
+  }
 
   control_list <- list(
     initial_parameters = initial_parameters,
@@ -250,6 +271,7 @@ set_estimation_opt <- function(
     damping_decrease_factor = damping_decrease_factor,
     return_interval_loglik = return_interval_loglik,
     return_probabilities = return_probabilities,
+    return_event_scores = return_event_scores,
     engine = engine
   )
 

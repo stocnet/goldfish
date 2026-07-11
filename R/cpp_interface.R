@@ -35,6 +35,7 @@ estimate_c_int <- function(
   # additional parameter for DyNAM-M-Rate
   hasIntercept = FALSE,
   returnIntervalLogL = FALSE,
+  return_event_scores = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -373,7 +374,8 @@ estimate_c_int <- function(
         n_actors2 = n_actors2,
         twomode_or_reflexive = twomode_or_reflexive,
         impute = impute,
-        active_dyad_is_point = dyad_is_point
+        active_dyad_is_point = dyad_is_point,
+        return_event_scores = return_event_scores
       )
     }
 
@@ -382,6 +384,9 @@ estimate_c_int <- function(
     informationMatrix <- res$fisher
     if (returnIntervalLogL) {
       intervalLogL <- as.numeric(res$intervalLogL)
+    }
+    if (return_event_scores) {
+      event_scores <- res$event_scores
     }
 
     if (returnEventProbabilities) {
@@ -577,6 +582,9 @@ estimate_c_int <- function(
   if (returnIntervalLogL) {
     estimationResult$intervalLogL <- intervalLogL
   }
+  if (return_event_scores) {
+    estimationResult$event_scores <- event_scores
+  }
   if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
   }
@@ -606,7 +614,8 @@ estimate_ <- function(
   n_actors2,
   twomode_or_reflexive,
   impute,
-  active_dyad_is_point = FALSE
+  active_dyad_is_point = FALSE,
+  return_event_scores = FALSE
 ) {
   # DyNAM-M (choice) consumes the folded `active_dyad` directly (design D7): at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
@@ -630,7 +639,8 @@ estimate_ <- function(
       n_actors2,
       twomode_or_reflexive,
       impute,
-      active_dyad_is_point = active_dyad_is_point
+      active_dyad_is_point = active_dyad_is_point,
+      return_event_scores = return_event_scores
     )
   }
 
@@ -650,7 +660,8 @@ estimate_ <- function(
       n_actors2,
       twomode_or_reflexive,
       impute,
-      active_dyad_is_point = active_dyad_is_point
+      active_dyad_is_point = active_dyad_is_point,
+      return_event_scores = return_event_scores
     )
   }
 
@@ -673,7 +684,8 @@ estimate_ <- function(
       n_actors2,
       twomode_or_reflexive,
       impute,
-      active_dyad_is_point = active_dyad_is_point
+      active_dyad_is_point = active_dyad_is_point,
+      return_event_scores = return_event_scores
     )
   }
 
@@ -698,7 +710,8 @@ estimate_ <- function(
       n_actors2,
       twomode_or_reflexive,
       impute,
-      active_dyad_is_point = active_dyad_is_point
+      active_dyad_is_point = active_dyad_is_point,
+      return_event_scores = return_event_scores
     )
   }
 
@@ -722,7 +735,8 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      return_event_scores = return_event_scores
     )
   }
 
@@ -744,7 +758,8 @@ estimate_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      return_event_scores = return_event_scores
     )
   }
   return(res)
