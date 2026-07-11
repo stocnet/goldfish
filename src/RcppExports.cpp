@@ -179,21 +179,18 @@ BEGIN_RCPP
 END_RCPP
 }
 // compute_coordination_selection
-List compute_coordination_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& n_candidates1, const arma::uvec& n_candidates2, const arma::uvec& selected, const arma::uvec& selected_actor1, const arma::uvec& selected_actor2, const bool twomode_or_reflexive);
-RcppExport SEXP _goldfish_compute_coordination_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP n_candidates1SEXP, SEXP n_candidates2SEXP, SEXP selectedSEXP, SEXP selected_actor1SEXP, SEXP selected_actor2SEXP, SEXP twomode_or_reflexiveSEXP) {
+List compute_coordination_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::uvec& sender_of_row, const arma::uvec& dyad_partner);
+RcppExport SEXP _goldfish_compute_coordination_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP sender_of_rowSEXP, SEXP dyad_partnerSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::colvec& >::type parameters(parametersSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type stat_all_events(stat_all_eventsSEXP);
     Rcpp::traits::input_parameter< const arma::uvec& >::type n_candidates(n_candidatesSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type n_candidates1(n_candidates1SEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type n_candidates2(n_candidates2SEXP);
     Rcpp::traits::input_parameter< const arma::uvec& >::type selected(selectedSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type selected_actor1(selected_actor1SEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type selected_actor2(selected_actor2SEXP);
-    Rcpp::traits::input_parameter< const bool >::type twomode_or_reflexive(twomode_or_reflexiveSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_coordination_selection(parameters, stat_all_events, n_candidates, n_candidates1, n_candidates2, selected, selected_actor1, selected_actor2, twomode_or_reflexive));
+    Rcpp::traits::input_parameter< const arma::uvec& >::type sender_of_row(sender_of_rowSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type dyad_partner(dyad_partnerSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_coordination_selection(parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -270,7 +267,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_goldfish_estimate_DyNAM_rate_ordered", (DL_FUNC) &_goldfish_estimate_DyNAM_rate_ordered, 17},
     {"_goldfish_estimate_REM", (DL_FUNC) &_goldfish_estimate_REM, 20},
     {"_goldfish_estimate_REM_ordered", (DL_FUNC) &_goldfish_estimate_REM_ordered, 18},
-    {"_goldfish_compute_coordination_selection", (DL_FUNC) &_goldfish_compute_coordination_selection, 9},
+    {"_goldfish_compute_coordination_selection", (DL_FUNC) &_goldfish_compute_coordination_selection, 6},
     {"_goldfish_compute_multinomial_selection", (DL_FUNC) &_goldfish_compute_multinomial_selection, 4},
     {"_goldfish_compute_poisson_selection", (DL_FUNC) &_goldfish_compute_poisson_selection, 6},
     {"_goldfish_C_convert_composition_change", (DL_FUNC) &_goldfish_C_convert_composition_change, 2},

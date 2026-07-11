@@ -1658,25 +1658,19 @@ estimate_wrapper <- function(
     rem_ordered_folded <- is_rem_ordered_family &&
       isTRUE(prep$active_dyad_folded)
     coord_folded <- is_coord_family && isTRUE(prep$active_dyad_folded)
-    # The gather coordination kernel (`compute_coordination_selection`) needs a
-    # square n x n candidate matrix (`P = p * p^T`), which a per-sender-restricted
-    # risk set cannot form. A constrained coordination model therefore runs on
-    # `default_c` — which reads the folded mask cell-wise and is identical to the
-    # default engine (design D15) — instead of `gather_compute`.
-    if (coord_folded && control_estimation$engine == "gather_compute") {
-      cli::cli_inform(c(
-        "i" = "{.arg support_constraint} on a {.val choice_coordination} model is
-               not supported by {.val gather_compute}; using {.val default_c}
-               (identical results)."
-      ))
-      control_estimation$engine <- "default_c"
-    }
+    # A constrained coordination model now runs natively on `gather_compute`:
+    # the gather emits the symmetrically-folded off-diagonal dyad list (only
+    # mask-allowed rows) plus the per-sender groups and (i,j)<->(j,i) pairing,
+    # and the dyad-triangle kernel reads that ragged list directly — no square
+    # n x n candidate matrix is required (design D9/D13). The former redirect to
+    # `default_c` is retired.
     native_compiled <-
       (control_estimation$engine == "gather_compute" &&
         (is_one_sided_choice ||
           is_rate_family ||
           (is_rem_family && rem_folded) ||
-          (is_rem_ordered_family && rem_ordered_folded))) ||
+          (is_rem_ordered_family && rem_ordered_folded) ||
+          (is_coord_family && coord_folded))) ||
       (control_estimation$engine == "default_c" &&
         (is_one_sided_choice ||
           (is_rate_family && rate_folded) ||

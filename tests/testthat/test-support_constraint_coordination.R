@@ -151,7 +151,7 @@ test_that("coordination constraint runs natively on default_c", {
   expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-6)
 })
 
-test_that("gather_compute coordination constraint runs on default_c instead", {
+test_that("gather_compute runs a coordination constraint natively", {
   skip_on_cran()
   d <- make_coord_fixture(n_excluded = 1000L)
   opt <- function(engine) {
@@ -168,20 +168,22 @@ test_that("gather_compute coordination constraint runs on default_c instead", {
     support_constraint = ~ tie(allowedNet),
     control_estimation = opt("default_c")
   ))
-  # gather_compute needs a square candidate matrix, which a restricted risk set
-  # cannot form; the model is redirected to default_c with an informational
-  # message (identical results, design D15).
-  expect_message(
+  # The gather now emits the symmetrically-folded off-diagonal dyad list (only
+  # mask-allowed rows) plus the per-sender groups and (i,j)<->(j,i) pairing, and
+  # the dyad-triangle kernel reads that ragged list directly — no square
+  # candidate matrix, no redirect to default_c, no informational message
+  # (design D9/D13).
+  expect_no_message(
     m_gc <- suppressWarnings(estimate_dynam(
       coord_formula,
       sub_model = "choice_coordination",
       data = d,
       support_constraint = ~ tie(allowedNet),
       control_estimation = opt("gather_compute")
-    )),
-    "gather_compute"
+    ))
   )
   expect_equal(coef(m_gc), coef(m_dc), tolerance = 1e-6)
+  expect_equal(m_gc$logLikelihood, m_dc$logLikelihood, tolerance = 1e-6)
 })
 
 test_that("a coordination constraint folds active_dyad symmetric point", {

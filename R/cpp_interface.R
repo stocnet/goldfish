@@ -332,7 +332,9 @@ estimate_c_int <- function(
         n_candidates2 = gathered_data$n_candidates2,
         timespan = timespan,
         is_dependent = is_dependent,
-        twomode_or_reflexive = twomode_or_reflexive
+        twomode_or_reflexive = twomode_or_reflexive,
+        sender_of_row = gathered_data$sender_of_row,
+        dyad_partner = gathered_data$dyad_partner
       )
     }
 
@@ -792,11 +794,11 @@ gather_ <- function(
   active_dyad_encoding = "alter"
 ) {
   if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
-    # For DyNAM-MM, we deal with twomode_or_reflexive in the estimation
-    # for convenience.
-    if (modelTypeCall == "DyNAM-MM") {
-      twomode_or_reflexive <- TRUE
-    }
+    # DyNAM-MM (coordination) now emits the off-diagonal directed dyad list — no
+    # forced `twomode_or_reflexive` and no reflexive rows (design D9/D13). The
+    # dyad-triangle kernel reads the emitted index structures (per-sender groups
+    # + the (i,j)<->(j,i) pairing), so a one-mode coordination model no longer
+    # relies on a square n x n candidate grid.
     gathered_data <- gather_sender_receiver_model_r(
       event_mat,
       is_dependent,
@@ -814,7 +816,8 @@ gather_ <- function(
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      active_dyad_encoding = active_dyad_encoding
+      active_dyad_encoding = active_dyad_encoding,
+      is_coordination = (modelTypeCall == "DyNAM-MM")
     )
   } else if (modelTypeCall == "DyNAM-M") {
     gathered_data <- gather_receiver_model_r(
@@ -987,7 +990,8 @@ gather_sender_receiver_model_r <- function(
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
-  active_dyad_encoding = "outer"
+  active_dyad_encoding = "outer",
+  is_coordination = FALSE
 ) {
   stat_mat <- stat_mat_init
   n_events <- length(is_dependent)
@@ -1007,6 +1011,17 @@ gather_sender_receiver_model_r <- function(
   p2_id <- 0L
 
   rows_list <- vector("list", n_events)
+  # Per-row actor identity in the shared index vocabulary (design D13): every
+  # dyad row carries the sanitized 1-based sender / receiver ids.
+  index_i_list <- vector("list", n_events)
+  index_j_list <- vector("list", n_events)
+  # Coordination-only ragged structures (design D9): `sender_of_row` groups each
+  # event's rows by sender (0-based within event; the CSR grouping the per-sender
+  # softmax consumes), and `dyad_partner` maps each directed row (i -> j) to the
+  # within-event position of its partner (j -> i) so the kernel can form the
+  # unordered-dyad log-weights. The symmetric fold guarantees the partner exists.
+  sender_of_row_list <- vector("list", n_events)
+  dyad_partner_list <- vector("list", n_events)
   selected <- numeric(n_events)
   selected_actor1 <- numeric(n_events)
   selected_actor2 <- numeric(n_events)
@@ -1096,6 +1111,19 @@ gather_sender_receiver_model_r <- function(
       n_p2_last <- n_all
     }
     rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
+    # Decode the flat row indices (i * n2 + j, 1-based) back to per-row sender /
+    # receiver ids for the shared index vocabulary (design D13).
+    flat0 <- idx - 1L
+    i_vec <- flat0 %/% n_actors2
+    j_vec <- flat0 %% n_actors2
+    index_i_list[[e]] <- i_vec + 1L
+    index_j_list[[e]] <- j_vec + 1L
+    if (is_coordination) {
+      # sender group (0-based position among present senders) and the
+      # (i, j) -> (j, i) pairing, both 0-based within this event's row block.
+      sender_of_row_list[[e]] <- match(i_vec, present1_ids) - 1L
+      dyad_partner_list[[e]] <- match(j_vec * n_actors2 + i_vec, flat0) - 1L
+    }
     n_candidates[e] <- n_present
     n_candidates1[e] <- n_p1
     n_candidates2[e] <- n_p2_last
@@ -1105,15 +1133,22 @@ gather_sender_receiver_model_r <- function(
   if (is.null(stat_all_events)) {
     stat_all_events <- matrix(0, 0, n_parameters)
   }
-  list(
+  out <- list(
     stat_all_events = stat_all_events,
     n_candidates = n_candidates,
     n_candidates1 = n_candidates1,
     n_candidates2 = n_candidates2,
     selected = selected,
     selected_actor1 = selected_actor1,
-    selected_actor2 = selected_actor2
+    selected_actor2 = selected_actor2,
+    index_i = as.integer(unlist(index_i_list)),
+    index_j = as.integer(unlist(index_j_list))
   )
+  if (is_coordination) {
+    out$sender_of_row <- as.integer(unlist(sender_of_row_list))
+    out$dyad_partner <- as.integer(unlist(dyad_partner_list))
+  }
+  out
 }
 
 # Gather data for the receiver model (DyNAM-M choice): for each event only the
@@ -1325,7 +1360,9 @@ compute_ <- function(
   n_candidates2,
   timespan,
   is_dependent,
-  twomode_or_reflexive
+  twomode_or_reflexive,
+  sender_of_row = NULL,
+  dyad_partner = NULL
 ) {
   if (modelTypeCall %in% c("DyNAM-M", "REM-ordered", "DyNAM-M-Rate-ordered")) {
     res <- compute_multinomial_selection(
@@ -1352,12 +1389,9 @@ compute_ <- function(
       parameters,
       stat_all_events,
       n_candidates,
-      n_candidates1,
-      n_candidates2,
       selected,
-      selected_actor1,
-      selected_actor2,
-      twomode_or_reflexive
+      sender_of_row,
+      dyad_partner
     )
   }
 

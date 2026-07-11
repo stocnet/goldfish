@@ -178,14 +178,6 @@ estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_
 #'       2.4 \tab 4.7\cr
 #'       9.2 \tab 5.6\cr
 #'     }
-#' @param n_candidates1 An n_events by 1 matrix, which is only used
-#'     for estimating the DyNAM-coordination model.
-#'     It record how many candidate sender are in each event.
-#'     And we have n_candidates1 * n_candidates2 = n_candidates.
-#' @param n_candidates2 An n_events by 1 matrix, which is only used
-#'     for estimating the DyNAM-coordination model.
-#'     It record how many candidate receiver are in each event.
-#'     And we have n_candidates1 * n_candidates2 = n_candidates.
 #' @param selected An n_events by 1 matrix.
 #'     It records the position of the selected candidate sender-receiver pair
 #'     in each event.
@@ -205,15 +197,20 @@ estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_
 #'       2.4 \tab 4.7\cr
 #'       9.2 \tab 5.6\cr
 #'     }
-#' @param selected_actor1 An n_events by 1 matrix.
-#'     It records the index of the selected candidate sender among
-#'     all candidate sender in each event.
-#' @param selected_actor2 An n_events by 1 matrix.
-#'     It records the index of the selected candidate receiver among
-#'     all candidate receiver in each event.
+#'     `selected` is the within-event 0-based position of the observed directed
+#'     dyad (sender -> receiver) row.
+#' @param sender_of_row An integer vector, one entry per row of
+#'     `stat_all_events`: the 0-based sender-group index of that row WITHIN its
+#'     event (the CSR grouping the per-sender softmax consumes; rows are stored
+#'     grouped by sender, so this is non-decreasing within an event).
+#' @param dyad_partner An integer vector, one entry per row of
+#'     `stat_all_events`: the within-event 0-based position of the partner row
+#'     (j -> i) of each directed row (i -> j). The symmetric risk-set fold
+#'     guarantees the partner exists, so each unordered dyad has exactly two
+#'     rows pointing at each other.
 #' @noRd
-compute_coordination_selection <- function(parameters, stat_all_events, n_candidates, n_candidates1, n_candidates2, selected, selected_actor1, selected_actor2, twomode_or_reflexive) {
-    .Call('_goldfish_compute_coordination_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, n_candidates1, n_candidates2, selected, selected_actor1, selected_actor2, twomode_or_reflexive)
+compute_coordination_selection <- function(parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner) {
+    .Call('_goldfish_compute_coordination_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner)
 }
 
 #' Estimate a multinomial selection model with gathered data
