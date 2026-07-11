@@ -839,18 +839,9 @@ compute_event_contribution.dynam_rate_ordered_spec <- function(
   # deviation from actual statistics
   deviations <- t(t(statsMatrix) - expectedStatistics)
   score <- deviations[activeActor, ]
-  # Fisher information matrix
-  informationMatrix <- matrix(
-    rowSums(t(
-      t(matrix(
-        apply(deviations, 1, function(x) outer(x, x)),
-        ncol = length(eventProbabilities)
-      )) *
-        eventProbabilities
-    )),
-    length(parameters),
-    length(parameters)
-  )
+  # Fisher information matrix: sum_i p_i d_i d_i^T = D^T diag(p) D, a weighted
+  # cross-product replacing the per-row outer(x, x) closures.
+  informationMatrix <- crossprod(deviations, deviations * eventProbabilities)
   list(
     logLikelihood = logLikelihood,
     score = score,
@@ -1020,13 +1011,16 @@ compute_first_derivative_choice_coord <- function(
     c(apply(expectedStatistics, 2, rep, nActors))
 
   # 3)
-  # symmetrize the deviations from expectations
+  # symmetrize the deviations from expectations. The aperm transpose of the
+  # first two dimensions is a C-level layout swap and stays as-is.
   symDeviations <- deviationFromExpectation +
     aperm(deviationFromExpectation, c(2, 1, 3))
   # the likelihoods have to divided by 2
-  # as the matrix sum is 2 (it includes all likelihoods twice)
+  # as the matrix sum is 2 (it includes all likelihoods twice).
+  # colSums(., dims = 2) reduces each parameter slice in one C pass, replacing
+  # the per-slice apply(., 3, sum) closure.
   constantWeightedDeviations <-
-    apply(symDeviations * c(likelihoods / 2), 3, sum)
+    colSums(symDeviations * c(likelihoods / 2), dims = 2)
 
   # 4)
   derivatives <- symDeviations -
@@ -1054,27 +1048,16 @@ compute_first_derivative_rem <- function(statsArray, eventProbabilities) {
 
 
 getInformationMatrixREM <- function(eventProbabilities, firstDerivatives) {
-  nParams <- dim(firstDerivatives)[3]
-  # nActors <- dim(firstDerivatives)[1]
+  arrayDim <- dim(firstDerivatives)
+  nParams <- arrayDim[3]
 
-  # all indexes: 1-1, 1-2, ..., nParams-nParams
-  indexes <- expand.grid(seq_len(nParams), seq_len(nParams))
-  # indexes <- indexes[indexes[, 1] <= indexes[, 2], ]
-
-  values <- colSums(apply(
-    indexes,
-    1,
-    \(ind) {
-      firstDerivatives[,, ind[1]] *
-        firstDerivatives[,, ind[2]] *
-        eventProbabilities
-    }
-  ))
-  information <- matrix(values, nParams, nParams)
-  # symmetrize
-  # information[lower.tri(information)] <- information[upper.tri(information)]
-
-  information
+  # Flatten the n1 x n2 x p derivative cube to (n1*n2) x p (column-major, no
+  # copy of the data layout) and form the weighted cross-product
+  # sum_c p_c d_c d_c^T = D^T diag(w) D, replacing the expand.grid + p^2 apply
+  # closures over n^2 slices.
+  dim(firstDerivatives) <- c(arrayDim[1] * arrayDim[2], nParams)
+  weights <- as.vector(eventProbabilities)
+  crossprod(firstDerivatives, firstDerivatives * weights)
 }
 
 
@@ -1567,32 +1550,20 @@ getLikelihoodMM <- function(multinomialProbabilities) {
 # The derivatives are of the log likelihood and need to be transformed by
 #  multiplying with P
 getMultinomialInformationMatrix <- function(likelihoods, derivatives) {
-  nParams <- dim(derivatives)[3]
-  nActors <- dim(derivatives)[1]
-  matrixSize <- nActors * nActors
+  arrayDim <- dim(derivatives)
+  nParams <- arrayDim[3]
 
   # take upper triangle of the likelihoods matrix so
   # that we do not count probabilities twice
   likelihoodsTriangle <- likelihoods * upper.tri(likelihoods)
 
-  # In the Hessian formula H_{ijh} (7.11), p.111,
-  # we include the log likelihood derivatives and
-  #  multiply each of the two with P_{is}
-
-  # Multiply each pair of slices of the log likelihood with
-  # each other times the likelihood
-  indexes <- cbind(seq_len(nParams), rep(seq_len(nParams), each = nParams))
-
-  values <- apply(
-    indexes,
-    1,
-    \(ind) {
-      sum(derivatives[,, ind[1]] * derivatives[,, ind[2]] * likelihoodsTriangle)
-    }
-  )
-  informationMatrix <- matrix(values, nParams, nParams, byrow = FALSE)
-
-  informationMatrix
+  # In the Hessian formula H_{ijh} (7.11), p.111, each pair of derivative
+  # slices is weighted by the (upper-triangle-masked) likelihood. Folding that
+  # mask into the weight vector, the p^2 sum() closures over n^2 slices become
+  # one weighted cross-product D^T diag(w) D on the flattened derivative cube.
+  dim(derivatives) <- c(arrayDim[1] * arrayDim[2], nParams)
+  weights <- as.vector(likelihoodsTriangle)
+  crossprod(derivatives, derivatives * weights)
 }
 
 
@@ -1600,28 +1571,10 @@ getMultinomialInformationMatrixM <- function(
   eventProbabilities,
   firstDerivatives
 ) {
-  nParams <- dim(firstDerivatives)[2]
-  # nActors <- dim(firstDerivatives)[1]
-
-  # all indexes: 1-1, 1-2, ..., nParams-nParams
-  indexes <- expand.grid(seq_len(nParams), seq_len(nParams))
-
-  temp <- apply(
-    indexes,
-    1,
-    \(ind) {
-      firstDerivatives[, ind[1]] *
-        firstDerivatives[, ind[2]] *
-        eventProbabilities
-    }
-  )
-  if (!is.null(dim(temp))) {
-    values <- colSums(temp)
-  } else {
-    # in case that temp is a scalar
-    values <- temp
-  }
-  information <- matrix(values, nParams, nParams)
+  # firstDerivatives is the nActors x p matrix of log-likelihood derivatives;
+  # sum_i p_i d_i d_i^T = D^T diag(p) D. crossprod preserves the p x p shape so
+  # the single-parameter special case (dropped dims) no longer needs a branch.
+  crossprod(firstDerivatives, firstDerivatives * eventProbabilities)
 }
 
 
