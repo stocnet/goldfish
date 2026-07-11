@@ -123,7 +123,8 @@ List estimate_REM(
     const int n_actors_2,
     const bool twomode_or_reflexive,
     bool impute,
-    const bool active_dyad_is_point
+    const bool active_dyad_is_point,
+    const bool return_event_scores = false
 ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -139,9 +140,15 @@ List estimate_REM(
    arma::mat derivative(1, n_parameters, fill::zeros);
    double logLikelihood = 0;
    arma::vec intervalLogL(n_events, fill::zeros);
-   
-   
-   // Check whether there are composition change and initialize 
+   // Opt-in per-event score matrix (design D11). Each row is the per-event
+   // increment already accumulated into `derivative` (the timed weighted sum
+   // plus the observed statistic on dependent events); allocated only when
+   // requested so the default path pays nothing.
+   arma::mat event_scores;
+   if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+
+
+   // Check whether there are composition change and initialize
    // the presence of actor1 and actor2
    bool has_composition_change1 = true;
    int active_sender_update_id = 0;
@@ -253,6 +260,8 @@ List estimate_REM(
      fisher_current_event = (stat_mat.each_col() % e).t() * stat_mat;
      // add the quantities of a current event to the variables to be returned
      // derivative
+     arma::rowvec score_before;
+     if (return_event_scores) score_before = derivative.row(0);
      derivative -= timespan_current_event * weighted_sum_current_event;
      // fisher matrix
      fisher += timespan_current_event * fisher_current_event;
@@ -263,6 +272,9 @@ List estimate_REM(
        intervalLogL(id_event) += lin_pred(id_obs);
        derivative += stat_mat.row(id_obs);
      }
+     if (return_event_scores) {
+       event_scores.row(id_event) = derivative.row(0) - score_before;
+     }
      // loglikelihood
      logLikelihood += intervalLogL(id_event);
    }
@@ -271,6 +283,7 @@ List estimate_REM(
      Named("derivative") = derivative,
      Named("fisher") = fisher,
      Named("intervalLogL") = intervalLogL,
-     Named("logLikelihood") = logLikelihood
+     Named("logLikelihood") = logLikelihood,
+     Named("event_scores") = event_scores
    );
  }

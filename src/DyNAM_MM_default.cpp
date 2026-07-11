@@ -33,7 +33,8 @@ List estimate_DyNAM_MM(
     const int n_actors_2,
     const bool twomode_or_reflexive,
     bool impute = true,
-    const bool active_dyad_is_point = false
+    const bool active_dyad_is_point = false,
+    const bool return_event_scores = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -60,9 +61,15 @@ List estimate_DyNAM_MM(
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
+    // Opt-in per-event score matrix (design D11). Each row is the per-event
+    // increment already accumulated into `derivative` (the dyad-triangle
+    // observed-minus-expected deviation D.row(idx_obs) - g); allocated only when
+    // requested so the default path pays nothing.
+    arma::mat event_scores;
+    if (return_event_scores) event_scores.set_size(n_events, n_parameters);
 
 
-    // Check whether there are composition change and initialize 
+    // Check whether there are composition change and initialize
     // the presence of actor1 and actor2
     bool has_composition_change1 = true;
     int active_sender_update_id = 0;
@@ -221,6 +228,9 @@ List estimate_DyNAM_MM(
         const int idx_obs = a_obs * (a_obs - 1) / 2 + b_obs;
         // expected gradient g = sum_d P_d D_d; score = grad log w_obs - g
         arma::rowvec g = (dyad_weights.t() * D) / normalizer;
+        if (return_event_scores) {
+            event_scores.row(id_event) = D.row(idx_obs) - g;
+        }
         derivative += D.row(idx_obs) - g;
         // Fisher: sum_d P_d D_d D_d^T - g^T g
         fisher += (D.each_col() % dyad_weights).t() * D / normalizer -
@@ -234,7 +244,8 @@ List estimate_DyNAM_MM(
       Named("derivative") = derivative,
       Named("fisher") = fisher,
       Named("logLikelihood") = logLikelihood,
-      Named("intervalLogL") = intervalLogL
+      Named("intervalLogL") = intervalLogL,
+      Named("event_scores") = event_scores
     );
 }
 

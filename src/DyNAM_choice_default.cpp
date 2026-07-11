@@ -26,7 +26,8 @@ List estimate_DyNAM_choice(
     const int n_actors_2,
     const bool twomode_or_reflexive,
     bool impute,
-    const bool active_dyad_is_point
+    const bool active_dyad_is_point,
+    const bool return_event_scores = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -42,7 +43,12 @@ List estimate_DyNAM_choice(
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
-    // Check whether there are composition change and initialize 
+    // Opt-in per-event score matrix (design D11). Each row is the per-event
+    // increment already accumulated into `derivative` (observed minus expected
+    // statistic); allocated only when requested so the default path pays nothing.
+    arma::mat event_scores;
+    if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+    // Check whether there are composition change and initialize
     // the presence of actor2
     bool has_composition_change = true;
     int active_dyad_update_id = 0;
@@ -138,8 +144,13 @@ List estimate_DyNAM_choice(
         expected_stat_current_event = (weights.t() * current_data_matrix) /
           normalizer;
         // derivative
+        arma::rowvec score_before;
+        if (return_event_scores) score_before = derivative.row(0);
         derivative += current_data_matrix.row(id_receiver);
         derivative -= expected_stat_current_event;
+        if (return_event_scores) {
+            event_scores.row(id_event) = derivative.row(0) - score_before;
+        }
         // fisher matrix: sum_j p_j s_j s_j^T - E E^T
         fisher_current_event =
           (current_data_matrix.each_col() % weights).t() * current_data_matrix /
@@ -155,7 +166,8 @@ List estimate_DyNAM_choice(
       Named("derivative") = derivative,
       Named("fisher") = fisher,
       Named("logLikelihood") = logLikelihood,
-      Named("intervalLogL") = intervalLogL
+      Named("intervalLogL") = intervalLogL,
+      Named("event_scores") = event_scores
     );
 }
 

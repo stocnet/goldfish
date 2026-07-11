@@ -36,7 +36,8 @@ List estimate_DyNAM_rate_ordered(
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
-    bool impute = true
+    bool impute = true,
+    const bool return_event_scores = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -52,9 +53,14 @@ List estimate_DyNAM_rate_ordered(
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
+    // Opt-in per-event score matrix (design D11). Each row is the per-event
+    // increment already accumulated into `derivative` (observed minus expected
+    // statistic); allocated only when requested so the default path pays nothing.
+    arma::mat event_scores;
+    if (return_event_scores) event_scores.set_size(n_events, n_parameters);
 
 
-    // Check whether there are composition change and initialize 
+    // Check whether there are composition change and initialize
     // the presence of actor1 and actor2 
     bool has_composition_change1 = true;
     int active_sender_update_id = 0;
@@ -137,8 +143,13 @@ List estimate_DyNAM_rate_ordered(
         expected_stat_current_event = (weights.t() * reduced_stat_mat) /
           normalizer;
         // derivative
+        arma::rowvec score_before;
+        if (return_event_scores) score_before = derivative.row(0);
         derivative += reduced_stat_mat.row(id_sender);
         derivative -= expected_stat_current_event;
+        if (return_event_scores) {
+            event_scores.row(id_event) = derivative.row(0) - score_before;
+        }
         // fisher matrix: sum_i p_i s_i s_i^T - E E^T
         fisher_current_event =
           (reduced_stat_mat.each_col() % weights).t() * reduced_stat_mat /
@@ -154,7 +165,8 @@ List estimate_DyNAM_rate_ordered(
       Named("derivative") = derivative,
       Named("fisher") = fisher,
       Named("intervalLogL") = intervalLogL,
-      Named("logLikelihood") = logLikelihood
+      Named("logLikelihood") = logLikelihood,
+      Named("event_scores") = event_scores
     );
 }
 
