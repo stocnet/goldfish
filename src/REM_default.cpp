@@ -216,46 +216,41 @@ List estimate_REM(
      
      
      
-     // We calculate the derivative, log-Likelihood,
-     //   and fisher matrix of a current event according to the paper.
-     // Reset auxilliary variables
-     weighted_sum_current_event.zeros();
-     fisher_current_event.zeros();
-     double normalizer = 0;
+     // We calculate the derivative, log-Likelihood, and fisher matrix of a
+     // current event. Staged BLAS form (design D8): one GEMV for the linear
+     // predictors, a masked exp vector (presence / reflexive / risk-set fold in
+     // as zeros), a GEMV weighted sum, and one weighted-crossprod GEMM for the
+     // Fisher. The timed hazard keeps PLAIN exp() with no max-shift: its
+     // -timespan * sum(exp) enters the likelihood absolutely (Non-Goal), so the
+     // scale must not shift.
      double timespan_current_event = timespan(id_event);
      // declare the ids of the sender and the receiver,
      const int id_sender = dep_event_mat(0, id_event) - 1;
      const int id_receiver = dep_event_mat(1, id_event) - 1;
-     // Go through all actor1-actor2 pairs
+     // build the risk-set mask over all n1 * n2 dyads (sender-major)
+     arma::vec allowed(n_actors_1 * n_actors_2, fill::zeros);
      for (int i = 0; i < n_actors_1; ++i) {
        if (active_sender(i) == 1) {
-         // declare the subviews of th stat mat corresponding
-         //   to the first sender
-         const arma::mat& current_data_matrix \
-         = stat_mat.rows(i * n_actors_2, (i + 1) * n_actors_2 - 1);
-         // deal with twomode and allow reflexive
-         int not_allowed_receiver = -1;
-         if (!twomode_or_reflexive) not_allowed_receiver = i;
+         int not_allowed_receiver = twomode_or_reflexive ? -1 : i;
          // point encoding: sender i's row starts at i * n_actors_2; outer
          // encoding: the receiver vector is read directly (offset 0).
-         const int dyad_offset = active_dyad_is_point ? i * n_actors_2 : 0;
-         // go through all receiver
+         int dyad_offset = active_dyad_is_point ? i * n_actors_2 : 0;
          for (int j = 0; j < n_actors_2; j++) {
-           if (active_dyad(dyad_offset + j) == 1 &&
-               (j != not_allowed_receiver)) {
-             // exp_current_receiver is \exp(\beta^T s)
-             double exp_current_receiver \
-             = std::exp(dot(current_data_matrix.row(j), parameters));
-             normalizer += exp_current_receiver;
-             weighted_sum_current_event \
-             += exp_current_receiver * (current_data_matrix.row(j));
-             fisher_current_event += exp_current_receiver *
-               ((current_data_matrix.row(j).t()) *
-               (current_data_matrix.row(j)));
+           if (active_dyad(dyad_offset + j) == 1 && (j != not_allowed_receiver)) {
+             allowed(i * n_actors_2 + j) = 1;
            }
          }
        }
      }
+     arma::vec lin_pred = stat_mat * parameters;
+     // exp() first, then zero the masked dyads (avoids Inf * 0 = NaN when a
+     // masked row overflows); an allowed dyad may legitimately overflow — that
+     // is the divergence signal the damping handles.
+     arma::vec e = arma::exp(lin_pred);
+     e.elem(arma::find(allowed < 0.5)).zeros();
+     double normalizer = accu(e);
+     weighted_sum_current_event = e.t() * stat_mat;
+     fisher_current_event = (stat_mat.each_col() % e).t() * stat_mat;
      // add the quantities of a current event to the variables to be returned
      // derivative
      derivative -= timespan_current_event * weighted_sum_current_event;
@@ -264,9 +259,9 @@ List estimate_REM(
      // logLikelihood
      intervalLogL(id_event) = -timespan_current_event * normalizer;
      if (is_dependent(id_event)) {
-       intervalLogL(id_event) \
-       += dot(stat_mat.row(id_sender * n_actors_2 + id_receiver), parameters);
-       derivative += stat_mat.row(id_sender * n_actors_2 + id_receiver);
+       const int id_obs = id_sender * n_actors_2 + id_receiver;
+       intervalLogL(id_event) += lin_pred(id_obs);
+       derivative += stat_mat.row(id_obs);
      }
      // loglikelihood
      logLikelihood += intervalLogL(id_event);

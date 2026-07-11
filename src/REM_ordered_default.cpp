@@ -1,6 +1,7 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
 #include "flat_updates.h"
+#include "stable_softmax.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -35,7 +36,6 @@ List estimate_REM_ordered(
     int n_events = dep_event_mat.n_cols;
     int n_parameters = stat_mat.n_cols;
     // declare auxilliary variables
-    double probability_current_receiver;
     arma::rowvec expected_stat_current_event(n_parameters);
     arma::mat fisher_current_event(n_parameters, n_parameters);
     int stat_mat_update_id = 0;
@@ -122,62 +122,47 @@ List estimate_REM_ordered(
         // TO check(gutian): handle ignorant
 
 
-        // We calculate the derivative, log-Likelihood,
-        // and fisher information matrix of a current event
-        // Reset auxiliary variables
-        expected_stat_current_event.zeros();
-        fisher_current_event.zeros();
-        double normalizer = 0;
-        // declare the ids of the sender and the receiver,
+        // We calculate the derivative, log-Likelihood, and fisher information
+        // matrix of a current event. Staged, numerically stable softmax over the
+        // active dyads (design D7/D8): one GEMV for the linear predictors, the
+        // shared max-shift helper for the weights, and one weighted-crossprod
+        // GEMM for the Fisher. The observed dyad's logL comes from the shifted
+        // predictor (finite under underflow).
         const int id_sender = dep_event_mat(0, id_event) - 1;
         const int id_receiver = dep_event_mat(1, id_event) - 1;
-        // go through all actor1-actor2 paris
+        // build the risk-set mask over all n1 * n2 dyads (sender-major)
+        arma::vec allowed(n_actors_1 * n_actors_2, fill::zeros);
         for (int i = 0; i < n_actors_1; ++i) {
           if (active_sender(i) == 1) {
-            // declare the subviews of th stat mat corresponding
-            // to the first sender
-            const arma::mat& current_data_matrix =
-              stat_mat.rows(i * n_actors_2, (i + 1) * n_actors_2 - 1);
-            // deal with twomode and allow reflexive
-            int not_allowed_receiver = -1;
-            if (!twomode_or_reflexive) not_allowed_receiver = i;
+            int not_allowed_receiver = twomode_or_reflexive ? -1 : i;
             // point encoding: sender i's row starts at i * n_actors_2; outer
             // encoding: the receiver vector is read directly (offset 0).
-            const int dyad_offset = active_dyad_is_point ? i * n_actors_2 : 0;
-            // go through all receiver
+            int dyad_offset = active_dyad_is_point ? i * n_actors_2 : 0;
             for (int j = 0; j < n_actors_2; j++) {
               if (active_dyad(dyad_offset + j) == 1 &&
                   (j != not_allowed_receiver)) {
-                // exp_current_receiver is \exp(\beta^T s)
-                double exp_current_receiver =
-                  std::exp(dot(current_data_matrix.row(j), parameters));
-                normalizer += exp_current_receiver;
-                probability_current_receiver = exp_current_receiver;
-                expected_stat_current_event +=
-                  probability_current_receiver * (current_data_matrix.row(j));
-                fisher_current_event +=
-                  probability_current_receiver *
-                  ((current_data_matrix.row(j).t()) *
-                  (current_data_matrix.row(j)));
+                allowed(i * n_actors_2 + j) = 1;
               }
             }
           }
         }
-        // add the quantities of a current event to the variables to be returned
+        arma::vec lin_pred = stat_mat * parameters;
+        arma::vec weights;
+        double log_normalizer =
+          stable_softmax_masked(lin_pred, allowed, weights);
+        double normalizer = accu(weights);
+        const int id_obs = id_sender * n_actors_2 + id_receiver;
+        expected_stat_current_event = (weights.t() * stat_mat) / normalizer;
         // derivative
-        expected_stat_current_event /= normalizer;
-        derivative += stat_mat.row( id_sender * n_actors_2 + id_receiver);
+        derivative += stat_mat.row(id_obs);
         derivative -= expected_stat_current_event;
-        // fisher matrix
-        fisher_current_event /= normalizer;
-        fisher_current_event -=
+        // fisher matrix: sum_d p_d s_d s_d^T - E^T E
+        fisher_current_event =
+          (stat_mat.each_col() % weights).t() * stat_mat / normalizer -
           expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
-        // logLikelihood
-        intervalLogL(id_event) =
-          log(std::exp(dot(
-              stat_mat.row( id_sender * n_actors_2 + id_receiver), parameters
-          )) / normalizer);
+        // logLikelihood from the shifted predictor (finite under underflow)
+        intervalLogL(id_event) = lin_pred(id_obs) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
     }
 
