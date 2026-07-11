@@ -35,6 +35,49 @@ test_that("compute_stats(output = 'db') round-trips against the gather writer", 
     as.integer(table(tbl$event_id)),
     as.integer(gathered$n_candidates)
   )
+  # the index vocabulary is written to SQL and round-trips (design D13)
+  expect_true(all(c("index_i", "index_j") %in% names(tbl)))
+  expect_equal(tbl$index_i, gathered$index_i)
+  expect_equal(tbl$index_j, gathered$index_j)
+})
+
+test_that("gather index columns decode to node labels; coordination is filtered", {
+  skip_on_cran()
+  nodes <- get("actors", envir = se_data)
+  # DyNAM choice: index_i is the (constant) event sender, index_j the receiver;
+  # the selected row decodes to the observed sender/receiver labels.
+  gc <- compute_stats(
+    callsDependent ~ inertia + recip,
+    data = se_data,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  )
+  ev_start <- cumsum(c(0L, utils::head(gc$n_candidates, -1L)))
+  sel_row <- ev_start + gc$selected
+  expect_equal(nodes$label[gc$index_i[sel_row]], gc$sender)
+  expect_equal(nodes$label[gc$index_j[sel_row]], gc$receiver)
+
+  # Coordination: no reflexive diagonal rows (index_i != index_j everywhere),
+  # and the observed row's unordered pair matches {sender, receiver}.
+  cc <- compute_stats(
+    callsDependent ~ inertia + trans,
+    data = se_data,
+    model = "DyNAM",
+    sub_model = "choice_coordination",
+    output = "gather"
+  )
+  expect_true(all(cc$index_i != cc$index_j))
+  cc_start <- cumsum(c(0L, utils::head(cc$n_candidates, -1L)))
+  cc_sel <- cc_start + cc$selected
+  obs_pair <- cbind(
+    nodes$label[cc$index_i[cc_sel]],
+    nodes$label[cc$index_j[cc_sel]]
+  )
+  expect_true(all(
+    (obs_pair[, 1] == cc$sender & obs_pair[, 2] == cc$receiver) |
+      (obs_pair[, 1] == cc$receiver & obs_pair[, 2] == cc$sender)
+  ))
 })
 
 test_that("compute_stats(output = 'db') errors when no connection is configured", {

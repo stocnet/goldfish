@@ -67,6 +67,15 @@
 #'    selected actor (choice model), sender actor (rate model), or
 #'    active dyad (choice-coordination model, REM model).
 #'    Indexing start at 1 for each event.}
+#'   \item{index_i, index_j}{integer vectors, one entry per row of
+#'    `stat_all_events`, giving each candidate row's actor identity as
+#'    (1-based) node indices. Dyad rows (choice, REM, choice-coordination)
+#'    carry both the sender `index_i` and the receiver `index_j`; sender-set
+#'    rate rows carry `index_i` with `index_j = NA`. These decode each row to
+#'    its actor(s) after the risk set has been filtered, where the positional
+#'    `sender`/`receiver` (which name only the observed dyad) cannot. For
+#'    one-mode choice-coordination the reflexive diagonal rows are not emitted,
+#'    and a `support_constraint` emits only allowed rows.}
 #'   \item{sender, receiver}{
 #'    a character vector with the label of the sender/receiver actor.
 #'    For right-censored events the receiver values is not meaningful.}

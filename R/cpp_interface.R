@@ -325,11 +325,7 @@ estimate_c_int <- function(
         parameters = parameters,
         stat_all_events = gathered_data$stat_all_events,
         selected = gathered_data$selected,
-        selected_actor1 = gathered_data$selected_actor1,
-        selected_actor2 = gathered_data$selected_actor2,
         n_candidates = gathered_data$n_candidates,
-        n_candidates1 = gathered_data$n_candidates1,
-        n_candidates2 = gathered_data$n_candidates2,
         timespan = timespan,
         is_dependent = is_dependent,
         twomode_or_reflexive = twomode_or_reflexive,
@@ -1023,11 +1019,7 @@ gather_sender_receiver_model_r <- function(
   sender_of_row_list <- vector("list", n_events)
   dyad_partner_list <- vector("list", n_events)
   selected <- numeric(n_events)
-  selected_actor1 <- numeric(n_events)
-  selected_actor2 <- numeric(n_events)
   n_candidates <- numeric(n_events)
-  n_candidates1 <- numeric(n_events)
-  n_candidates2 <- numeric(n_events)
 
   for (e in seq_len(n_events)) {
     ptr <- stat_mat_update_pointer[e]
@@ -1086,8 +1078,6 @@ gather_sender_receiver_model_r <- function(
 
     idx <- integer(0)
     n_present <- 0L
-    n_p1 <- 0L
-    n_p2_last <- 0L
     for (i in present1_ids) {
       not_allowed <- if (!twomode_or_reflexive) i else -1L
       present2_i <- if (is_point) {
@@ -1102,13 +1092,9 @@ gather_sender_receiver_model_r <- function(
         hit <- which(allowed == id_receiver)
         if (length(hit) > 0) {
           selected[e] <- n_present + (hit - 1L)
-          selected_actor1[e] <- n_p1
-          selected_actor2[e] <- hit - 1L
         }
       }
       n_present <- n_present + n_all
-      n_p1 <- n_p1 + 1L
-      n_p2_last <- n_all
     }
     rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
     # Decode the flat row indices (i * n2 + j, 1-based) back to per-row sender /
@@ -1125,22 +1111,20 @@ gather_sender_receiver_model_r <- function(
       dyad_partner_list[[e]] <- match(j_vec * n_actors2 + i_vec, flat0) - 1L
     }
     n_candidates[e] <- n_present
-    n_candidates1[e] <- n_p1
-    n_candidates2[e] <- n_p2_last
   }
 
   stat_all_events <- do.call(rbind, rows_list)
   if (is.null(stat_all_events)) {
     stat_all_events <- matrix(0, 0, n_parameters)
   }
+  # The rectangularity metadata (n_candidates1/n_candidates2, selected_actor1/2)
+  # is retired (design D13): the ragged dyad list has no rectangular grid, and
+  # the per-row index_i/index_j plus the coordination CSR groups / dyad pairing
+  # carry all the row identity the kernel and the exports need.
   out <- list(
     stat_all_events = stat_all_events,
     n_candidates = n_candidates,
-    n_candidates1 = n_candidates1,
-    n_candidates2 = n_candidates2,
     selected = selected,
-    selected_actor1 = selected_actor1,
-    selected_actor2 = selected_actor2,
     index_i = as.integer(unlist(index_i_list)),
     index_j = as.integer(unlist(index_j_list))
   )
@@ -1183,6 +1167,11 @@ gather_receiver_model_r <- function(
   p2_id <- 0L
 
   rows_list <- vector("list", n_events)
+  # Per-row actor identity (design D13): choice rows are the candidate receivers
+  # of the event's (fixed) sender, so index_i is that constant sender and
+  # index_j the receiver, both sanitized 1-based ids.
+  index_i_list <- vector("list", n_events)
+  index_j_list <- vector("list", n_events)
   selected <- numeric(n_events)
   n_candidates <- numeric(n_events)
 
@@ -1230,6 +1219,8 @@ gather_receiver_model_r <- function(
     allowed <- present2_ids[present2_ids != not_allowed]
     idx <- id_sender * n_actors2 + allowed + 1L
     rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
+    index_i_list[[e]] <- rep(id_sender + 1L, length(allowed))
+    index_j_list[[e]] <- allowed + 1L
     hit <- which(allowed == id_receiver)
     if (length(hit) > 0) {
       selected[e] <- hit - 1L
@@ -1244,7 +1235,9 @@ gather_receiver_model_r <- function(
   list(
     stat_all_events = stat_all_events,
     n_candidates = n_candidates,
-    selected = selected
+    selected = selected,
+    index_i = as.integer(unlist(index_i_list)),
+    index_j = as.integer(unlist(index_j_list))
   )
 }
 
@@ -1278,6 +1271,10 @@ gather_sender_model_r <- function(
   p1_id <- 0L
 
   rows_list <- vector("list", n_events)
+  # Per-row actor identity (design D13): rate rows are the candidate senders, a
+  # sender-set layout, so each row carries index_i (the sanitized 1-based sender)
+  # and index_j = NA (no receiver axis after the per-sender reduction).
+  index_i_list <- vector("list", n_events)
   selected <- numeric(n_events)
   n_candidates <- numeric(n_events)
 
@@ -1326,6 +1323,7 @@ gather_sender_model_r <- function(
     # `active_sender` is the gated sender filter directly — no separate mask.
     present1_ids <- which(active_sender == 1) - 1L
     rows_list[[e]] <- reduced[present1_ids + 1L, , drop = FALSE]
+    index_i_list[[e]] <- present1_ids + 1L
     if (is_dep) {
       hit <- which(present1_ids == id_sender)
       if (length(hit) > 0) {
@@ -1339,10 +1337,13 @@ gather_sender_model_r <- function(
   if (is.null(stat_all_events)) {
     stat_all_events <- matrix(0, 0, n_parameters)
   }
+  index_i <- as.integer(unlist(index_i_list))
   list(
     stat_all_events = stat_all_events,
     n_candidates = n_candidates,
-    selected = selected
+    selected = selected,
+    index_i = index_i,
+    index_j = rep(NA_integer_, length(index_i))
   )
 }
 
@@ -1353,11 +1354,7 @@ compute_ <- function(
   parameters,
   stat_all_events,
   selected,
-  selected_actor1,
-  selected_actor2,
   n_candidates,
-  n_candidates1,
-  n_candidates2,
   timespan,
   is_dependent,
   twomode_or_reflexive,

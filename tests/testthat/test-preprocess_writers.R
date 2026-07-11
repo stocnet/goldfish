@@ -59,10 +59,8 @@ test_that("compute_stats(output = 'gather') matches gather_model_data (REM)", {
     "stat_all_events",
     "selected",
     "n_candidates",
-    "n_candidates1",
-    "n_candidates2",
-    "selected_actor1",
-    "selected_actor2",
+    "index_i",
+    "index_j",
     "sender",
     "receiver",
     "namesEffects"
@@ -90,6 +88,8 @@ test_that("compute_stats(output = 'gather') matches gather_model_data (coordinat
     "stat_all_events",
     "selected",
     "n_candidates",
+    "index_i",
+    "index_j",
     "sender",
     "receiver",
     "namesEffects"

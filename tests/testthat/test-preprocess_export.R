@@ -43,7 +43,8 @@ test_that("Output", {
     data = dataTest
   )
   expect_type(out, "list")
-  expect_length(out, 8)
+  # +2 vs the legacy 8: the shared index vocabulary index_i / index_j (design D13)
+  expect_length(out, 10)
 })
 test_that("export names are valid, unique R names", {
   out <- gather_model_data(

@@ -331,10 +331,16 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
 
   stat_df <- as.data.frame(stat)
   names(stat_df) <- paste0("stat_", seq_len(n_parameters))
-  long_df <- cbind(
-    data.frame(event_id = event_id, is_selected = is_selected),
-    stat_df
-  )
+  # Row identity in SQL (design D13): without index_i/index_j the long table
+  # (event_id / is_selected / stat_<i>) leaves each candidate row unidentifiable
+  # once the risk set is filtered. The index columns decode to the sanitized
+  # actor ids (index_j is NA for sender-set rate rows).
+  id_df <- data.frame(event_id = event_id, is_selected = is_selected)
+  if (!is.null(gathered$index_i)) {
+    id_df$index_i <- gathered$index_i
+    id_df$index_j <- gathered$index_j
+  }
+  long_df <- cbind(id_df, stat_df)
 
   row_end <- cumsum(n_candidates)
   row_start <- c(1L, utils::head(row_end, -1L) + 1L)
@@ -498,6 +504,11 @@ gather_from_prep <- function(prep, spec) {
 
   gathered_data$selected <- gathered_data$selected +
     if (has_intercept) (1 * is_dependent) else 1
+  # `sender_of_row` / `dyad_partner` are the coordination kernel's internal
+  # consumption structures (design D9); the export surfaces only the shared
+  # index vocabulary (index_i / index_j), so drop them here.
+  gathered_data$sender_of_row <- NULL
+  gathered_data$dyad_partner <- NULL
   gathered_data$has_intercept <- has_intercept
   attr(gathered_data, "event_sender") <- prep$event_sender
   attr(gathered_data, "event_receiver") <- prep$event_receiver
