@@ -830,12 +830,14 @@ compute_event_contribution.dynam_rate_ordered_spec <- function(
   activeActor <- activeDyad[1]
   parameters <- c(parameters)
 
-  rates <- exp((statsMatrix %*% parameters)[, 1])
-  eventProbabilities <- rates / sum(rates)
+  # Sender softmax through the single-pass max-shift helper (design D7): finite
+  # probabilities under overflow, and the observed sender's log-likelihood
+  # log(p_i) = x_i - logNormalizer stays finite even when p_i underflows.
+  linearPredictor <- (statsMatrix %*% parameters)[, 1]
+  softmax <- stable_softmax(linearPredictor)
+  eventProbabilities <- softmax$probabilities
   expectedStatistics <- colSums(statsMatrix * eventProbabilities)
-  # statsMatrix[activeActor, ] * parameters: rate for actor i (i=activeActor)
-  logLikelihood <- sum(statsMatrix[activeActor, ] * parameters) -
-    log(sum(rates))
+  logLikelihood <- softmax$logProbabilities[activeActor]
   # deviation from actual statistics
   deviations <- t(t(statsMatrix) - expectedStatistics)
   score <- deviations[activeActor, ]
@@ -863,7 +865,7 @@ compute_event_contribution.dynam_choice_spec <- function(
   allowReflexive,
   is_two_mode
 ) {
-  eventProbabilities <-
+  multinomial <-
     getMultinomialProbabilities(
       statsArray,
       activeDyad,
@@ -872,7 +874,9 @@ compute_event_contribution.dynam_choice_spec <- function(
       allowReflexive = allowReflexive,
       is_two_mode = is_two_mode
     )
-  logLikelihood <- log(eventProbabilities[activeDyad[2]])
+  eventProbabilities <- multinomial$probabilities
+  # log-space observed logL (finite under underflow, design D7)
+  logLikelihood <- multinomial$logProbabilities[activeDyad[2]]
   firstDerivatives <- compute_first_derivative_choice(
     statsArray,
     eventProbabilities
@@ -904,7 +908,7 @@ compute_event_contribution.dynam_choice_coord_spec <- function(
   is_two_mode,
   riskMask = NULL
 ) {
-  multinomialProbabilities <-
+  multinomial <-
     getMultinomialProbabilities(
       statsArray,
       activeDyad,
@@ -912,8 +916,19 @@ compute_event_contribution.dynam_choice_coord_spec <- function(
       allowReflexive = allowReflexive,
       riskMask = riskMask
     )
+  multinomialProbabilities <- multinomial$probabilities
   eventLikelihoods <- getLikelihoodMM(multinomialProbabilities)
-  logLikelihood <- log(eventLikelihoods[activeDyad[1], activeDyad[2]])
+  # Observed dyad log-likelihood in log-space (finite under underflow, design
+  # D7): the coordination likelihood is a softmax over unordered dyads with
+  # log-weight log w_{ij} = log P(i->j) + log P(j->i); logL = log w_obs -
+  # logSumExp over dyads. The upper/lower symmetry double-counts each unordered
+  # dyad, matching getLikelihoodMM's denominator / 2.
+  logSymmetric <- multinomial$logProbabilities + t(multinomial$logProbabilities)
+  diag(logSymmetric) <- -Inf
+  finiteWeights <- logSymmetric[is.finite(logSymmetric)]
+  shift <- if (length(finiteWeights)) max(finiteWeights) else 0
+  logDenominator <- shift + log(sum(exp(logSymmetric - shift))) - log(2)
+  logLikelihood <- logSymmetric[activeDyad[1], activeDyad[2]] - logDenominator
   firstDerivatives <- compute_first_derivative_choice_coord(
     statsArray,
     eventLikelihoods,
@@ -943,7 +958,7 @@ compute_event_contribution.rem_rate_ordered_spec <- function(
   is_two_mode,
   riskMask = NULL
 ) {
-  eventProbabilities <-
+  multinomial <-
     getMultinomialProbabilities(
       statsArray,
       activeDyad,
@@ -952,7 +967,9 @@ compute_event_contribution.rem_rate_ordered_spec <- function(
       allowReflexive = FALSE,
       riskMask = riskMask
     )
-  logLikelihood <- log(eventProbabilities[activeDyad[1], activeDyad[2]])
+  eventProbabilities <- multinomial$probabilities
+  # log-space observed logL (finite under underflow, design D7)
+  logLikelihood <- multinomial$logProbabilities[activeDyad[1], activeDyad[2]]
   firstDerivatives <- compute_first_derivative_rem(
     statsArray,
     eventProbabilities
@@ -1578,9 +1595,55 @@ getMultinomialInformationMatrixM <- function(
 }
 
 
+# Single-pass max-shift softmax (design D7). Given linear predictors `x` with
+# excluded alternatives encoded as -Inf, returns in ONE exp pass both outputs
+# the multinomial likelihood needs: the normalized `probabilities` and the
+# log-probabilities log(p) = x - logNormalizer. Because the observed
+# alternative's log-likelihood is then x_sel - logNormalizer rather than
+# log(probabilities[sel]), it stays finite even when that probability underflows
+# to 0 (where log(p_sel) would be -Inf). `rowwise = TRUE` normalizes each row of
+# a matrix independently (per-sender choice); FALSE normalizes over all entries
+# (global choice / REM). A fully-excluded row/vector (denominator 0) maps to
+# probability 0 and log-probability -Inf, matching the pre-fold path that
+# dropped absent senders before normalising.
+stable_softmax <- function(x, rowwise = FALSE) {
+  if (rowwise) {
+    shift <- apply(x, 1L, max)
+    zeroRow <- !is.finite(shift)
+    shift[zeroRow] <- 0 # avoid -Inf shift on a fully-excluded row
+    # column-major recycling subtracts shift[i] / divides by norm[i] per row i
+    expShifted <- exp(x - shift)
+    rowSum <- rowSums(expShifted)
+    probabilities <- expShifted / rowSum
+    logProbabilities <- x - (shift + log(rowSum))
+    empty <- zeroRow | rowSum == 0
+    if (any(empty)) {
+      probabilities[empty, ] <- 0
+      logProbabilities[empty, ] <- -Inf
+    }
+  } else {
+    shift <- max(x)
+    if (!is.finite(shift)) {
+      shift <- 0
+    }
+    expShifted <- exp(x - shift)
+    total <- sum(expShifted)
+    probabilities <- expShifted / total
+    logProbabilities <- x - (shift + log(total))
+    if (total == 0) {
+      probabilities[] <- 0
+      logProbabilities[] <- -Inf
+    }
+  }
+  list(probabilities = probabilities, logProbabilities = logProbabilities)
+}
+
 # Function to calculate a matrix of i->j multinomial choice probabilities
-# (non-logged)
-# for one term of the
+# (non-logged) for one term of the model. Returns a list with `probabilities`
+# and the matching stable `logProbabilities` (design D7): the excluded
+# alternatives (reflexive diagonal, `riskMask`) enter as -Inf linear predictors,
+# so the max-shift is taken over the included set only and they drop from the
+# normalizer exactly as zeroing their utility did before.
 getMultinomialProbabilities <- function(
   statsArray,
   activeDyad,
@@ -1611,47 +1674,31 @@ getMultinomialProbabilities <- function(
     # and fold back to n1 x n2. Replaces the per-cell apply(., c(1,2), sum) over
     # a parameter-broadcast copy of the cube.
     dim(statsArray) <- c(matrixSize, length(parameters))
-    utility <- exp(statsArray %*% parameters)
-    dim(utility) <- c(nActors1, nActors2)
+    linearPredictor <- statsArray %*% parameters
+    dim(linearPredictor) <- c(nActors1, nActors2)
     if (!allowReflexive && !is_two_mode) {
-      diag(utility) <- 0
+      diag(linearPredictor) <- -Inf
     }
     # A support_constraint (ordinal REM / coordination) removes disallowed dyads
-    # from the risk set exactly as the reflexive diagonal does: zeroing their
-    # utility drops them from the denominator (and the probability-weighted score /
+    # from the risk set exactly as the reflexive diagonal does: -Inf predictor
+    # drops them from the denominator (and the probability-weighted score /
     # information sums), while the observed dyad's own term is untouched.
     # `riskMask` is the maintained dense n1 x n2 availability aligned with the
-    # [sender, receiver] utility (coordination folds both presences, so a masked
-    # row is an absent / fully-gated sender).
+    # [sender, receiver] predictor (coordination folds both presences, so a
+    # masked row is an absent / fully-gated sender).
     if (!is.null(riskMask)) {
-      utility[!riskMask] <- 0
+      linearPredictor[!riskMask] <- -Inf
     }
-    if (actorNested) {
-      denominators <- rowSums(utility)
-    } else {
-      # for REM
-      denominators <- sum(utility)
-    }
-  }
-  if (nDimensions == 2) {
-    utility <- exp((statsArray %*% parameters)[, 1])
+    # actorNested: per-sender row softmax; else the global REM normalizer.
+    stable_softmax(linearPredictor, rowwise = actorNested)
+  } else {
+    linearPredictor <- (statsArray %*% parameters)[, 1]
     # allow reflexive?
     if (!allowReflexive && !is_two_mode) {
-      utility[activeDyad[1]] <- 0
+      linearPredictor[activeDyad[1]] <- -Inf
     }
-    denominators <- sum(utility)
+    stable_softmax(linearPredictor, rowwise = FALSE)
   }
-  probabilities <- utility / denominators
-  # A row-normalised model (coordination / DyNAM-choice, `actorNested`) under a
-  # folded support mask can zero every receiver of an absent or fully-gated
-  # sender, making its row denominator 0 → 0/0. Such a sender contributes nothing
-  # to the two-sided likelihood (its paired column is masked too), so map the row
-  # to 0 rather than NaN — matching the pre-fold path, which dropped absent senders
-  # before normalising.
-  if (nDimensions == 3 && actorNested && !is.null(riskMask)) {
-    probabilities[denominators == 0, ] <- 0
-  }
-  probabilities
 }
 
 
