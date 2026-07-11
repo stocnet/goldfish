@@ -1,6 +1,7 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
 #include "flat_updates.h"
+#include "stable_softmax.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -32,7 +33,6 @@ List estimate_DyNAM_choice(
     int n_events = dep_event_mat.n_cols;
     int n_parameters = stat_mat.n_cols;
     // declare auxilliary variables
-    double probability_current_receiver;
     arma::rowvec expected_stat_current_event(n_parameters);
     arma::mat fisher_current_event(n_parameters, n_parameters);
     int stat_mat_update_id = 0;
@@ -106,9 +106,6 @@ List estimate_DyNAM_choice(
 
         // We calculate the derivative, logLikelihood,
         //  and hessian matrix of a current event according to the paper.
-        // Reset auxilliary variables
-        expected_stat_current_event.zeros();
-        fisher_current_event.zeros();
         // declare the ids of the sender and the receiver,
         const int id_sender = dep_event_mat(0, id_event) - 1;
         const int id_receiver = dep_event_mat(1, id_event) - 1;
@@ -118,44 +115,39 @@ List estimate_DyNAM_choice(
             id_sender * n_actors_2,
             (id_sender + 1) * n_actors_2 - 1
           );
-        double normalizer = 0;
         int not_allowed_receiver = -1;
         if (!twomode_or_reflexive) not_allowed_receiver = id_sender;
         // At the point encoding the sender's row starts at id_sender * n_actors_2;
         // at the alter encoding the receiver vector is read directly (offset 0).
         const int dyad_offset =
           active_dyad_is_point ? id_sender * n_actors_2 : 0;
-        // go through all actor2
+        // Staged, numerically stable softmax over the receivers (design D7/D8):
+        // one GEMV for the linear predictors, the shared max-shift helper for the
+        // weights, then a weighted cross-product for the Fisher.
+        arma::vec lin_pred = current_data_matrix * parameters;
+        arma::vec allowed(n_actors_2, fill::zeros);
         for (int j = 0; j < n_actors_2; j++) {
             if (active_dyad(dyad_offset + j) == 1 &&
                 (j != not_allowed_receiver)) {
-                // exp_current_receiver is \exp(\beta^T s)
-                double exp_current_receiver =
-                  std::exp(dot(current_data_matrix.row(j), parameters));
-                normalizer += exp_current_receiver;
-                probability_current_receiver = exp_current_receiver;
-                expected_stat_current_event +=
-                  probability_current_receiver * (current_data_matrix.row(j));
-                fisher_current_event +=
-                  probability_current_receiver *
-                  ((current_data_matrix.row(j).t()) *
-                  (current_data_matrix.row(j)));
+                allowed(j) = 1;
             }
         }
-        // add the quantities of a current event to the variables to be returned
+        arma::vec weights;
+        double log_normalizer = stable_softmax_masked(lin_pred, allowed, weights);
+        double normalizer = accu(weights);
+        expected_stat_current_event = (weights.t() * current_data_matrix) /
+          normalizer;
         // derivative
-        expected_stat_current_event /= normalizer;
         derivative += current_data_matrix.row(id_receiver);
         derivative -= expected_stat_current_event;
-        // fisher matrix
-        fisher_current_event /= normalizer;
-        fisher_current_event -=
+        // fisher matrix: sum_j p_j s_j s_j^T - E E^T
+        fisher_current_event =
+          (current_data_matrix.each_col() % weights).t() * current_data_matrix /
+          normalizer -
           expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
-        // logLikelihood
-        intervalLogL(id_event) =
-          log(std::exp(dot(current_data_matrix.row(id_receiver), parameters)) /
-            normalizer);
+        // logLikelihood from the shifted predictor (finite under underflow)
+        intervalLogL(id_event) = lin_pred(id_receiver) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
     }
 

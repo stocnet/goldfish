@@ -1,6 +1,7 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
 #include "flat_updates.h"
+#include "stable_softmax.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -115,43 +116,37 @@ List estimate_DyNAM_rate_ordered(
 
         // We calculate the derivative, log-Likelihood,
         //  and fisher information matrix of a current event
-        // Reset auxiliary variables
-        expected_stat_current_event.zeros();
-        fisher_current_event.zeros();
-        double normalizer = 0;
         // declare the ids of the sender and the receiver,
         const int id_sender = dep_event_mat(0, id_event) - 1;
         arma::mat reduced_stat_mat =
           reduce_mat_to_vector(stat_mat, n_actors_1, n_actors_2,
                                twomode_or_reflexive);
-        // go through all actor1
+        // Staged, numerically stable softmax over the senders (design D7/D8):
+        // one GEMV for the linear predictors, the shared max-shift helper for the
+        // weights, then a weighted cross-product for the Fisher.
+        arma::vec lin_pred = reduced_stat_mat * parameters;
+        arma::vec allowed(n_actors_1, fill::zeros);
         for (int i = 0; i < n_actors_1; ++i) {
             if (active_sender(i) == 1) {
-                // exp_current_sender is \exp(\beta^T s)
-                double exp_current_sender =
-                  std::exp(dot(reduced_stat_mat.row(i), parameters));
-                normalizer += exp_current_sender;
-                expected_stat_current_event +=
-                  exp_current_sender * (reduced_stat_mat.row(i));
-                fisher_current_event +=
-                  exp_current_sender *
-                  ((reduced_stat_mat.row(i).t()) * (reduced_stat_mat.row(i)));
+                allowed(i) = 1;
             }
         }
-        // add the quantities of a current event to the variables to be returned
+        arma::vec weights;
+        double log_normalizer = stable_softmax_masked(lin_pred, allowed, weights);
+        double normalizer = accu(weights);
+        expected_stat_current_event = (weights.t() * reduced_stat_mat) /
+          normalizer;
         // derivative
-        expected_stat_current_event /= normalizer;
         derivative += reduced_stat_mat.row(id_sender);
         derivative -= expected_stat_current_event;
-        // fisher matrix
-        fisher_current_event /= normalizer;
-        fisher_current_event -=
+        // fisher matrix: sum_i p_i s_i s_i^T - E E^T
+        fisher_current_event =
+          (reduced_stat_mat.each_col() % weights).t() * reduced_stat_mat /
+          normalizer -
           expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
-        // logLikelihood
-        intervalLogL(id_event) =
-          log(std::exp(dot(reduced_stat_mat.row(id_sender), parameters)) /
-            normalizer);
+        // logLikelihood from the shifted predictor (finite under underflow)
+        intervalLogL(id_event) = lin_pred(id_sender) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
     }
 
