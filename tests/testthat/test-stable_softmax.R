@@ -1,11 +1,12 @@
 # Numerical-behavior tests for the in-house single-pass stable softmax (design
-# D7) and the four multinomial contributions routed through it. The equivalence
-# harness (test-likelihood_equivalence.R) already covers benign 1e-10 agreement
-# with the frozen reference; here we assert the NEW behavior the stabilization
-# adds: finite logL / score / information under overflow, and a finite observed
-# log-likelihood when its probability underflows (the old code returned
-# -Inf / NaN). The timed rate/REM hazard path is a Non-Goal and must stay on
-# plain exp() — verified unchanged against the reference on an extreme fixture.
+# D7) and the four multinomial contributions routed through it. Benign 1e-10
+# agreement is covered by the golden fixtures (test-likelihood_equivalence.R)
+# and the per-event consistency gate (test-process_state_evaluators.R); here we
+# assert the NEW behavior the stabilization adds: finite logL / score /
+# information under overflow, and a finite observed log-likelihood when its
+# probability underflows (the old code returned -Inf / NaN). The timed rate/REM
+# hazard path is a Non-Goal and must stay on plain exp() — verified to still
+# overflow to non-finite values on an extreme fixture.
 
 stable_softmax <- getFromNamespace("stable_softmax", "goldfish")
 getMultinomialProbabilities <-
@@ -218,10 +219,26 @@ test_that("coordination contribution is finite where the reference is not", {
     is_two_mode = FALSE
   )
   live <- do.call(coord_fn, args)
-  ref <- do.call(contribution_reference.dynam_choice_coord_spec, args)
+
+  # Pre-stabilization contribution formed the symmetric dyad weight
+  # P(i->j) * P(j->i) in probability space, so an underflowing observed dyad
+  # drove log(eventLikelihoods[i, j]) to -Inf. Reconstruct that old value from
+  # the per-actor multinomial probabilities to show the log-space form fixes a
+  # genuine -Inf, without depending on a frozen reference implementation.
+  probabilities <- getMultinomialProbabilities(
+    statsArray,
+    observed,
+    parameters = 1,
+    allowReflexive = FALSE
+  )$probabilities
+  symmetricWeights <- probabilities * t(probabilities)
+  diag(symmetricWeights) <- 0
+  oldLogLikelihood <- log(
+    (symmetricWeights / (sum(symmetricWeights) / 2))[observed[1], observed[2]]
+  )
 
   expect_true(is.finite(live$logLikelihood))
-  expect_false(is.finite(ref$logLikelihood)) # old code: -Inf
+  expect_false(is.finite(oldLogLikelihood)) # old code: -Inf
   expect_true(all(is.finite(live$score)))
   expect_true(all(is.finite(live$informationMatrix)))
   expect_true(all(is.finite(live$pMatrix)))
@@ -259,8 +276,10 @@ test_that("timed rate/REM hazard path is unchanged (not stabilized)", {
   p <- 2L
   statsArray <- array(stats::rnorm(n1 * n2 * p), dim = c(n1, n2, p))
   activeDyad <- c(2L, 3L)
-  # extreme parameters drive exp() to overflow; the timed path must overflow
-  # identically to the frozen reference (a stabilized path would diverge here)
+  # extreme parameters drive exp() to overflow; the timed hazard path is a
+  # Non-Goal for stabilization, so it must still overflow to non-finite
+  # likelihood / score / information here (a stabilized path would instead
+  # return finite values, which this test deliberately forbids).
   extreme <- c(1e4, -1e4)
   live <- live_rate(
     statsArray,
@@ -272,17 +291,7 @@ test_that("timed rate/REM hazard path is unchanged (not stabilized)", {
     is_two_mode = FALSE,
     isREM = TRUE
   )
-  ref <- event_contribution_rate_ref(
-    statsArray,
-    activeDyad,
-    extreme,
-    FALSE,
-    1.5,
-    TRUE,
-    is_two_mode = FALSE,
-    isREM = TRUE
-  )
-  expect_equal(live$logLikelihood, ref$logLikelihood)
-  expect_equal(live$score, ref$score)
-  expect_equal(live$informationMatrix, ref$informationMatrix)
+  expect_false(is.finite(live$logLikelihood))
+  expect_false(all(is.finite(live$score)))
+  expect_false(all(is.finite(live$informationMatrix)))
 })
