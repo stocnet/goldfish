@@ -1,3 +1,49 @@
+# goldfish 1.8.8
+
+## New features
+
+* Estimation gains an **experimental `optimizer` argument**
+  (`set_estimation_opt(optimizer = c("newton_raphson", "bfgs", "bhhh",
+  "nelder_mead"))`). The default `"newton_raphson"` is the existing damped
+  Newton–Raphson loop; `"bfgs"`, `"bhhh"`, and `"nelder_mead"` are backed by the
+  [maxLik](https://CRAN.R-project.org/package=maxLik) package (added to
+  `Suggests`, **not** `Imports`) and run on the compiled `default_c` engine.
+  `"bhhh"` uses the new per-event score matrix as its gradient. The result is
+  mapped into the standard goldfish result object, so `summary()`, `vcov()`, and
+  `logLik()` behave unchanged.
+* `set_estimation_opt(return_event_scores = TRUE)` returns a new `event_scores`
+  result component: the per-event score contributions (`n_events` ×
+  `n_parameters`, columns named by effect) whose column sums equal the aggregate
+  score at convergence. Useful for sandwich / clustered standard errors,
+  score-process diagnostics, and event-influence measures. Available on the
+  `default` (R) and `default_c` (C++) engines.
+* `gather_model_data()` and the `write_gather_to_db()` long table now carry
+  `index_i` / `index_j` columns identifying the candidate dyad of each row, so
+  rows in a filtered (constrained) risk set remain decodable to their node
+  labels. One-mode `DyNAM` `choice_coordination` export no longer emits the
+  reflexive (diagonal) self-dyad rows.
+
+## Improvements
+
+* **Numerically stable multinomial likelihoods.** The `choice`,
+  `choice_coordination`, ordinal `rate`, and ordinal `REM` contributions now use
+  an in-house single-pass stable softmax on both the `default` (R) and
+  `default_c` (C++) engines, so the log-likelihood, score, and information matrix
+  stay finite under extreme linear predictors that previously produced `-Inf` or
+  `NaN`. The timed hazard path (`rate` and timed `REM`) is deliberately unchanged.
+* **Faster default-engine estimation.** The per-event contribution helpers were
+  rewritten to BLAS-level operations — information matrices as weighted
+  cross-products (`crossprod(D, D * w)`), no-copy `dim<-` reshapes, and
+  single matrix-product linear predictors — and the compiled `default_c` REM and
+  coordination kernels to a staged BLAS (GEMV/GEMM) form. On the bundled
+  fixtures, timed `REM` estimation on the `default` engine is roughly 30× faster
+  and the compiled coordination kernel about 2× faster. No new package
+  dependencies were added.
+* Constrained `DyNAM` `choice_coordination` now runs **natively on the
+  `gather_compute` engine**: the redirect to `default_c` (and its informational
+  message) introduced in 1.8.7 is removed. The coordination gather path is now
+  index-based and ragged-safe on every engine.
+
 # goldfish 1.8.7
 
 ## New features
