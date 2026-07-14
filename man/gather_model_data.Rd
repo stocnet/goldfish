@@ -19,7 +19,7 @@ gather_model_data(
 left-hand side the dependent
 network (see \code{\link[=make_dependent_events]{make_dependent_events()}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
-(see \code{vignette("goldfishEffects")}).}
+(see \code{vignette("goldfish_effects")}).}
 
 \item{model}{a character string defining the model type.
 Current options include \code{"DyNAM"}, \code{"DyNAMi"} or \code{"REM"}
@@ -109,7 +109,7 @@ a logical value indicating if the model has an intercept.}
 \item{namesEffects}{a character vector with a short name of the effect.
 It includes the name of the object used to calculate the effects and
 modifiers of the effect, e.g., the type of effect, weighted effect.}
-\item{effectDescription}{
+\item{effect_description}{
 a character matrix with the description of the effects.
 It includes the name of the object used to calculate the effects and
 additional information of the effect, e.g., the type of effect,
@@ -155,17 +155,17 @@ states <- link_events(states, gdpchanges, attribute = "gdp")
 bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
 bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 
-createBilat <- make_dependent_events(
+create_bilat <- make_dependent_events(
   events = bilatchanges[bilatchanges$increment == 1, ],
   nodes = states, default_network = bilatnet
 )
 
-fisheriesData <- make_data(createBilat)
+fisheries_data <- make_data(create_bilat)
 
 gatheredData <- gather_model_data(
-  createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet),
+  create_bilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet),
   model = "DyNAM", sub_model = "choice_coordination",
-  data = fisheriesData
+  data = fisheries_data
 )
 
 }

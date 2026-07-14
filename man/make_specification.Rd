@@ -82,22 +82,22 @@ the call surface.
 }
 \examples{
 data("Social_Evolution")
-callNetwork <- make_network(nodes = actors, directed = TRUE)
-callNetwork <- link_events(
-  x = callNetwork, change_event = calls, nodes = actors
+call_network <- make_network(nodes = actors, directed = TRUE)
+call_network <- link_events(
+  x = call_network, change_event = calls, nodes = actors
 )
-callsDependent <- make_dependent_events(
-  events = calls, nodes = actors, default_network = callNetwork
+calls_dependent <- make_dependent_events(
+  events = calls, nodes = actors, default_network = call_network
 )
 \dontshow{
-callsDependent <- callsDependent[1:50, ]
+calls_dependent <- calls_dependent[1:50, ]
 }
-socialEvData <- make_data(callsDependent, callNetwork, calls, actors)
+social_ev_data <- make_data(calls_dependent, call_network, calls, actors)
 
 spec <- make_specification(
   choice = ~ inertia + recip + trans,
   model = "DyNAM", choice_sub_model = "choice",
-  layer = "callsDependent", data = socialEvData
+  layer = "calls_dependent", data = social_ev_data
 )
 spec
 }

@@ -140,7 +140,7 @@ List estimate_REM(
    arma::mat derivative(1, n_parameters, fill::zeros);
    double logLikelihood = 0;
    arma::vec intervalLogL(n_events, fill::zeros);
-   // Opt-in per-event score matrix (design D11). Each row is the per-event
+   // Opt-in per-event score matrix. Each row is the per-event
    // increment already accumulated into `derivative` (the timed weighted sum
    // plus the observed statistic on dependent events); allocated only when
    // requested so the default path pays nothing.
@@ -162,7 +162,7 @@ List estimate_REM(
    if (active_dyad_update.n_elem == 0) {
      has_composition_change2 = false;
    }
-   // `active_dyad` is the folded per-event risk mask (design D7/D11). At the
+   // `active_dyad` is the folded per-event risk mask. At the
    // outer encoding it is the length-n2 receiver vector (cell (i, j) available iff
    // active_sender(i) & active_dyad(j)). At the point encoding it is a flattened
    // n1 x n2 mask (sender-major: dyad (i, j) at i * n_actors_2 + j) with both
@@ -224,7 +224,7 @@ List estimate_REM(
      
      
      // We calculate the derivative, log-Likelihood, and fisher matrix of a
-     // current event. Staged BLAS form (design D8): one GEMV for the linear
+     // current event. Staged BLAS form: one GEMV for the linear
      // predictors, a masked exp vector (presence / reflexive / risk-set fold in
      // as zeros), a GEMV weighted sum, and one weighted-crossprod GEMM for the
      // Fisher. The timed hazard keeps PLAIN exp() with no max-shift: its

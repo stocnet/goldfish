@@ -1,10 +1,10 @@
 # support_constraint consumption for DyNAM-rate on the default engine (tasks
 # 4.3, 5.2, 5.3, 5.4). The mask reduces to a per-event sender gate (a sender is
-# at risk only with >= 1 allowed present receiver, design D3/D10), routed through
+# at risk only with >= 1 allowed present receiver), routed through
 # the same sender `keepIn` filter presence uses. An all-allowing constraint is an
 # identity (equals unconstrained); a restricting one excludes gated-out senders
 # from the rate denominator and the constrained `avg_active_entity`; a dependent
-# event whose own sender is gated out errors (design D8).
+# event whose own sender is gated out errors.
 
 make_rate_fixture <- function(n_events = 120L) {
   data("Social_Evolution", package = "goldfish", envir = environment())
@@ -12,27 +12,27 @@ make_rate_fixture <- function(n_events = 120L) {
   calls <- get("calls", environment())
   lab <- actors$label
   n <- nrow(actors)
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
-  callsDependent <- make_dependent_events(
+  calls_dependent <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
-  callsDependent <- callsDependent[seq_len(n_events), ]
+  calls_dependent <- calls_dependent[seq_len(n_events), ]
   observed_senders <- unique(match(
-    as.data.frame(callsDependent)$sender,
+    as.data.frame(calls_dependent)$sender,
     lab
   ))
   list(
     actors = actors,
     calls = calls,
-    callNetwork = callNetwork,
-    callsDependent = callsDependent,
+    call_network = call_network,
+    calls_dependent = calls_dependent,
     lab = lab,
     n = n,
     observed_senders = observed_senders
@@ -54,9 +54,9 @@ rate_data_with_gate <- function(fx, gated = integer(0)) {
   )
   actors <- fx$actors
   calls <- fx$calls
-  callNetwork <- fx$callNetwork
-  callsDependent <- fx$callsDependent
-  make_data(callsDependent, callNetwork, calls, actors, allowedNet)
+  call_network <- fx$call_network
+  calls_dependent <- fx$calls_dependent
+  make_data(calls_dependent, call_network, calls, actors, allowedNet)
 }
 
 test_that("an all-allowing rate constraint is an identity (equals unconstrained)", {
@@ -67,13 +67,13 @@ test_that("an all-allowing rate constraint is an identity (equals unconstrained)
     rate = ~ 1 + indeg,
     choice = ~inertia,
     model = "DyNAM",
-    layer = "callsDependent",
+    layer = "calls_dependent",
     support_constraint = ~ tie(allowedNet),
     data = d
   )
   m_cstr <- estimate_dynam(spec, sub_model = "rate", control_estimation = opt)
   m_unc <- estimate_dynam(
-    callsDependent ~ 1 + indeg,
+    calls_dependent ~ 1 + indeg,
     sub_model = "rate",
     data = d,
     control_estimation = opt
@@ -103,7 +103,7 @@ folded_active_sender_per_event <- function(prep) {
   out
 }
 
-test_that("the folded active_sender equals the from-scratch gate reduction (D12)", {
+test_that("the folded active_sender equals the from-scratch gate reduction", {
   fx <- make_rate_fixture()
   gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
   d <- rate_data_with_gate(fx, gated)
@@ -111,7 +111,7 @@ test_that("the folded active_sender equals the from-scratch gate reduction (D12)
     rate = ~ 1 + indeg,
     choice = ~inertia,
     model = "DyNAM",
-    layer = "callsDependent",
+    layer = "calls_dependent",
     support_constraint = ~ tie(allowedNet),
     data = d
   )
@@ -137,7 +137,7 @@ test_that("the folded active_sender equals the from-scratch gate reduction (D12)
   expect_equal(prep$avg_active_entity, fx$n - length(gated))
 })
 
-test_that("the folded active_sender buffer carries only crossings (D12)", {
+test_that("the folded active_sender buffer carries only crossings", {
   fx <- make_rate_fixture()
   gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
   d <- rate_data_with_gate(fx, gated)
@@ -145,7 +145,7 @@ test_that("the folded active_sender buffer carries only crossings (D12)", {
     rate = ~ 1 + indeg,
     choice = ~inertia,
     model = "DyNAM",
-    layer = "callsDependent",
+    layer = "calls_dependent",
     support_constraint = ~ tie(allowedNet),
     data = d
   )
@@ -165,16 +165,16 @@ test_that("a restricting rate gate changes the estimate vs unconstrained", {
     rate = ~ 1 + indeg,
     choice = ~inertia,
     model = "DyNAM",
-    layer = "callsDependent",
+    layer = "calls_dependent",
     support_constraint = ~ tie(allowedNet),
     data = d
   )
-  # the 5 gated-out senders are never at risk -> a case-E warning (design D8)
+  # the 5 gated-out senders are never at risk -> a case-E warning
   m_cstr <- suppressWarnings(
     estimate_dynam(spec, sub_model = "rate", control_estimation = opt)
   )
   m_unc <- estimate_dynam(
-    callsDependent ~ 1 + indeg,
+    calls_dependent ~ 1 + indeg,
     sub_model = "rate",
     data = d,
     control_estimation = opt
@@ -190,7 +190,7 @@ test_that("gather_compute consumes the rate constraint natively (== default)", {
     rate = ~ 1 + indeg,
     choice = ~inertia,
     model = "DyNAM",
-    layer = "callsDependent",
+    layer = "calls_dependent",
     support_constraint = ~ tie(allowedNet),
     data = d
   )
@@ -212,7 +212,7 @@ test_that("default_c consumes the rate constraint natively (== default)", {
   fx <- make_rate_fixture()
   gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
   d <- rate_data_with_gate(fx, gated)
-  spec <- callsDependent ~ 1 + indeg + outdeg
+  spec <- calls_dependent ~ 1 + indeg + outdeg
   m_def <- suppressWarnings(estimate_dynam(
     spec,
     sub_model = "rate",
@@ -237,7 +237,7 @@ test_that("constrained rate runs natively with no engine-downgrade warning (5.5)
   fx <- make_rate_fixture()
   gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
   d <- rate_data_with_gate(fx, gated)
-  spec <- callsDependent ~ 1 + indeg + outdeg
+  spec <- calls_dependent ~ 1 + indeg + outdeg
   downgrade_warnings <- function(engine) {
     w <- character(0)
     withCallingHandlers(
@@ -259,7 +259,7 @@ test_that("constrained rate runs natively with no engine-downgrade warning (5.5)
   expect_identical(downgrade_warnings("default_c"), character(0))
 })
 
-test_that("a dependent event whose own sender is gated out errors (design D8)", {
+test_that("a dependent event whose own sender is gated out errors", {
   fx <- make_rate_fixture()
   # gate out an OBSERVED sender: the event where it acts has an empty risk set.
   gated <- fx$observed_senders[1]
@@ -269,7 +269,7 @@ test_that("a dependent event whose own sender is gated out errors (design D8)", 
     rate = ~ 1 + indeg,
     choice = ~inertia,
     model = "DyNAM",
-    layer = "callsDependent",
+    layer = "calls_dependent",
     support_constraint = ~ tie(allowedNet),
     data = d
   )

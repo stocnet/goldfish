@@ -1,4 +1,4 @@
-# Preprocessing-time set-size validation (task 6, design D8). Unit tests over
+# Preprocessing-time set-size validation. Unit tests over
 # validate_support_constraint() with synthetic masks so each case A-E (and the
 # rate silent gated-out case) is exercised in isolation, under a pinned cli
 # context for reproducible conditions.

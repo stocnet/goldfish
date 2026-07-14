@@ -1,6 +1,6 @@
 enviro_builders <- function() {
   env <- new.env()
-  assign("actorsEx", actorsEx, envir = env)
+  assign("actors_ex", actors_ex, envir = env)
   assign("networkState", networkState, envir = env)
   assign("networkExog", networkExog, envir = env)
   seasons <- make_global_attributes(data.frame(winter = 0))
@@ -11,8 +11,8 @@ enviro_builders <- function() {
 test_that("build_state_container assembles networks and nodal attributes", {
   env <- enviro_builders()
   state <- build_state_container(
-    c("networkState", "networkExog", "actorsEx$attr1"),
-    nodes = "actorsEx",
+    c("networkState", "networkExog", "actors_ex$attr1"),
+    nodes = "actors_ex",
     envir = env
   )
   expect_named(state, c("networks", "nodal", "nodal2", "globals"))
@@ -30,7 +30,7 @@ test_that("build_state_container assembles networks and nodal attributes", {
     ),
     ignore_attr = FALSE
   )
-  expect_equal(state$nodal$attr1, actorsEx$attr1)
+  expect_equal(state$nodal$attr1, actors_ex$attr1)
   expect_null(state$nodal2)
   expect_equal(ncol(state$globals), 0L)
 })
@@ -39,7 +39,7 @@ test_that("build_state_container assembles globals", {
   env <- enviro_builders()
   state <- build_state_container(
     c("networkState", "seasons$winter"),
-    nodes = "actorsEx",
+    nodes = "actors_ex",
     envir = env
   )
   expect_equal(nrow(state$globals), 1L)
@@ -49,14 +49,14 @@ test_that("build_state_container assembles globals", {
 test_that("build_state_container records object keys for routing", {
   env <- enviro_builders()
   state <- build_state_container(
-    c("networkState", "actorsEx$attr1", "seasons$winter"),
-    nodes = "actorsEx",
+    c("networkState", "actors_ex$attr1", "seasons$winter"),
+    nodes = "actors_ex",
     envir = env
   )
   objectKeys <- attr(state, "object_keys")
   expect_equal(
     objectKeys$name,
-    c("networkState", "actorsEx$attr1", "seasons$winter")
+    c("networkState", "actors_ex$attr1", "seasons$winter")
   )
   expect_equal(objectKeys$component, c("networks", "nodal", "globals"))
   expect_equal(objectKeys$key, c("networkState", "attr1", "winter"))
@@ -70,8 +70,8 @@ test_that("build_state_container builds nodal2 for two-mode node sets", {
   ))
   assign("clubsEx", clubsEx, envir = env)
   state <- build_state_container(
-    c("networkState", "actorsEx$attr1", "clubsEx$size"),
-    nodes = "actorsEx",
+    c("networkState", "actors_ex$attr1", "clubsEx$size"),
+    nodes = "actors_ex",
     nodes2 = "clubsEx",
     envir = env
   )
@@ -83,8 +83,8 @@ test_that("build_state_container aborts on unknown attribute or node set", {
   env <- enviro_builders()
   expect_error(
     build_state_container(
-      "actorsEx$missing",
-      nodes = "actorsEx",
+      "actors_ex$missing",
+      nodes = "actors_ex",
       envir = env
     ),
     "not found"
@@ -94,7 +94,7 @@ test_that("build_state_container aborts on unknown attribute or node set", {
   expect_error(
     build_state_container(
       "otherNodes$weight",
-      nodes = "actorsEx",
+      nodes = "actors_ex",
       envir = env
     ),
     "neither"
@@ -104,20 +104,20 @@ test_that("build_state_container aborts on unknown attribute or node set", {
 test_that("build_object_keys maps components without materialising data", {
   env <- enviro_builders()
   keys <- build_object_keys(
-    c("networkState", "actorsEx$attr1", "seasons$winter"),
-    nodes = "actorsEx",
+    c("networkState", "actors_ex$attr1", "seasons$winter"),
+    nodes = "actors_ex",
     envir = env
   )
   expect_s3_class(keys, "data.frame")
-  expect_equal(keys$name, c("networkState", "actorsEx$attr1", "seasons$winter"))
+  expect_equal(keys$name, c("networkState", "actors_ex$attr1", "seasons$winter"))
   expect_equal(keys$component, c("networks", "nodal", "globals"))
   expect_equal(keys$key, c("networkState", "attr1", "winter"))
   expect_equal(
     keys,
     attr(
       build_state_container(
-        c("networkState", "actorsEx$attr1", "seasons$winter"),
-        nodes = "actorsEx",
+        c("networkState", "actors_ex$attr1", "seasons$winter"),
+        nodes = "actors_ex",
         envir = env
       ),
       "object_keys"
@@ -125,12 +125,12 @@ test_that("build_object_keys maps components without materialising data", {
   )
 })
 
-test_that("build_object_keys reads metadata only (mutates nothing, design D8)", {
+test_that("build_object_keys reads metadata only (mutates nothing)", {
   env <- enviro_builders()
   before <- sort(ls(env))
   build_object_keys(
-    c("networkState", "networkExog", "actorsEx$attr1"),
-    nodes = "actorsEx",
+    c("networkState", "networkExog", "actors_ex$attr1"),
+    nodes = "actors_ex",
     envir = env
   )
   expect_equal(sort(ls(env)), before)
@@ -139,13 +139,13 @@ test_that("build_object_keys reads metadata only (mutates nothing, design D8)", 
 test_that("build_object_keys aborts on unknown attribute or node set", {
   env <- enviro_builders()
   expect_error(
-    build_object_keys("actorsEx$missing", nodes = "actorsEx", envir = env),
+    build_object_keys("actors_ex$missing", nodes = "actors_ex", envir = env),
     "not found"
   )
   otherNodes <- make_nodes(data.frame(label = "A", weight = 1))
   assign("otherNodes", otherNodes, envir = env)
   expect_error(
-    build_object_keys("otherNodes$weight", nodes = "actorsEx", envir = env),
+    build_object_keys("otherNodes$weight", nodes = "actors_ex", envir = env),
     "neither"
   )
 })
@@ -168,8 +168,8 @@ build_plan_fixture <- function(
   events_and_link <- get_events_and_objects_link(
     parsed$dep_name,
     parsed$rhs_names,
-    "actorsEx",
-    "actorsEx",
+    "actors_ex",
+    "actors_ex",
     envir = env
   )
   events_effects_link <- get_events_effects_link(
@@ -178,7 +178,7 @@ build_plan_fixture <- function(
   )
   state <- build_state_container(
     rownames(objects_effects_link),
-    nodes = "actorsEx",
+    nodes = "actors_ex",
     envir = env
   )
   plan <- build_update_plan(
@@ -210,28 +210,28 @@ build_plan_fixture <- function(
 
 test_that("build_update_plan registries cover effects and objects", {
   fixture <- build_plan_fixture(
-    depNetwork ~ inertia + recip + alter(actorsEx$attr1)
+    depNetwork ~ inertia + recip + alter(actors_ex$attr1)
   )
   plan <- fixture$plan
   expect_equal(plan$effects$gid, 1:3)
   expect_equal(plan$effects$effect_name, c("inertia", "recip", "alter"))
   expect_equal(plan$effects$stat_kind, rep("dyad", 3))
-  expect_equal(plan$objects$name, c("networkState", "actorsEx$attr1"))
+  expect_equal(plan$objects$name, c("networkState", "actors_ex$attr1"))
   expect_equal(plan$objects$shape, c("dyad", "node"))
   expect_equal(plan$objects$component, c("networks", "nodal"))
 })
 
-test_that("build_update_plan populates the interaction/multivariate schema (design D9/D10)", {
+test_that("build_update_plan populates the interaction/multivariate schema", {
   fixture <- build_plan_fixture(
-    depNetwork ~ inertia + recip + alter(actorsEx$attr1)
+    depNetwork ~ inertia + recip + alter(actors_ex$attr1)
   )
   plan <- fixture$plan
-  # single-formula main effects: role/estimate/fid/lid trivial (task 2.4)
+  # single-formula main effects: role/estimate/fid/lid trivial
   expect_equal(plan$effects$role, rep("main", 3))
   expect_true(all(plan$effects$estimate))
   expect_equal(plan$effects$fid, rep(1L, 3))
   expect_equal(plan$effects$lid, 1:3)
-  # interaction registries stay empty until the interaction parser (task 2.5)
+  # interaction registries stay empty until the interaction parser
   expect_length(plan$interactions, 0)
   expect_length(plan$operand_of, 0)
   expect_equal(nrow(plan$stat_state_spec), 0)
@@ -244,7 +244,7 @@ test_that("build_update_plan populates the interaction/multivariate schema (desi
 
 test_that("build_update_plan routing matches the link matrices", {
   fixture <- build_plan_fixture(
-    depNetwork ~ inertia + alter(actorsEx$attr1) + outdeg(networkExog)
+    depNetwork ~ inertia + alter(actors_ex$attr1) + outdeg(networkExog)
   )
   plan <- fixture$plan
   expect_equal(plan$routing[[1]], 1L)
@@ -252,13 +252,13 @@ test_that("build_update_plan routing matches the link matrices", {
   expect_equal(plan$routing[[3]], 3L)
   expect_equal(
     plan$objects$name,
-    c("networkState", "actorsEx$attr1", "networkExog")
+    c("networkState", "actors_ex$attr1", "networkExog")
   )
 })
 
 test_that("build_effects_template call templates resolve formals once", {
   fixture <- build_plan_fixture(
-    depNetwork ~ inertia + alter(actorsEx$attr1)
+    depNetwork ~ inertia + alter(actors_ex$attr1)
   )
   template_inertia <- fixture$effects_template[[1]]
   expect_identical(
@@ -279,7 +279,7 @@ test_that("build_effects_template call templates resolve formals once", {
   expect_equal(template_alter$att_keys, "attr1")
 })
 
-test_that("build_update_plan netUpdate positions for two-network effects", {
+test_that("build_update_plan net_update positions for two-network effects", {
   fixture <- build_plan_fixture(
     depNetwork ~ mixed_trans(list(networkState, networkExog))
   )
@@ -299,14 +299,14 @@ test_that("build_update_plan netUpdate positions for two-network effects", {
 
 test_that("build_update_plan flags undirected networks for the second call", {
   env <- rlang::env_clone(dataTest)
-  undirNet <- make_network(nodes = actorsEx, directed = FALSE)
+  undirNet <- make_network(nodes = actors_ex, directed = FALSE)
   undirEvents <- data.frame(
     time = c(10, 20),
     sender = c("Actor 1", "Actor 2"),
     receiver = c("Actor 2", "Actor 3"),
     increment = c(1, 1)
   )
-  undirNet <- link_events(undirNet, undirEvents, nodes = actorsEx)
+  undirNet <- link_events(undirNet, undirEvents, nodes = actors_ex)
   assign("undirNet", undirNet, envir = env)
   assign("undirEvents", undirEvents, envir = env)
   parsed <- parse_formula(depNetwork ~ inertia + tie(undirNet), envir = env)
@@ -320,8 +320,8 @@ test_that("build_update_plan flags undirected networks for the second call", {
   events_and_link <- get_events_and_objects_link(
     parsed$dep_name,
     parsed$rhs_names,
-    "actorsEx",
-    "actorsEx",
+    "actors_ex",
+    "actors_ex",
     envir = env
   )
   events_effects_link <- get_events_effects_link(
@@ -330,7 +330,7 @@ test_that("build_update_plan flags undirected networks for the second call", {
   )
   state <- build_state_container(
     rownames(objects_effects_link),
-    nodes = "actorsEx",
+    nodes = "actors_ex",
     envir = env
   )
   plan <- build_update_plan(
@@ -347,7 +347,7 @@ test_that("build_update_plan flags undirected networks for the second call", {
 
 test_that("build_update_plan aborts on inconsistent link matrices", {
   fixture <- build_plan_fixture(
-    depNetwork ~ inertia + alter(actorsEx$attr1)
+    depNetwork ~ inertia + alter(actors_ex$attr1)
   )
   broken <- fixture$events_effects_link
   broken[2, ] <- rev(broken[2, ])
@@ -367,7 +367,7 @@ test_that("build_update_plan aborts on inconsistent link matrices", {
 
 test_that("build_event_schedule merges streams into a sorted timeline", {
   fixture <- build_plan_fixture(
-    depNetwork ~ inertia + alter(actorsEx$attr1) + outdeg(networkExog)
+    depNetwork ~ inertia + alter(actors_ex$attr1) + outdeg(networkExog)
   )
   schedule <- build_event_schedule(
     fixture$events,
@@ -398,7 +398,7 @@ test_that("build_event_schedule breaks timestamp ties dependent first", {
   )
   streamB <- data.frame(time = c(10, 10), node = c(1L, 2L), replace = c(5, 6))
   events <- list(dep = depEvents, streamA = streamA, streamB = streamB)
-  eventsObjectsLink <- data.frame(
+  events_objects_link <- data.frame(
     events = c("dep", "streamA", "streamB"),
     name = c(NA, "netX", "actors$attr"),
     object = c(NA, "netX", NA),
@@ -412,7 +412,7 @@ test_that("build_event_schedule breaks timestamp ties dependent first", {
     shape = c("dyad", "node"),
     stringsAsFactors = FALSE
   )
-  schedule <- build_event_schedule(events, eventsObjectsLink, objectsRegistry)
+  schedule <- build_event_schedule(events, events_objects_link, objectsRegistry)
   at10 <- which(schedule$time == 10)
   expect_equal(schedule$stream[at10], c(1L, 2L, 3L, 3L))
   expect_true(schedule$dependent[at10][1])
@@ -460,7 +460,7 @@ test_that("build_event_schedule merges window expiry pseudo-events", {
 
 test_that("build_event_schedule rebuilds deterministically", {
   fixture <- build_plan_fixture(
-    depNetwork ~ inertia + alter(actorsEx$attr1)
+    depNetwork ~ inertia + alter(actors_ex$attr1)
   )
   first <- build_event_schedule(
     fixture$events,
@@ -492,8 +492,8 @@ test_that("build_event_schedule aborts on streams missing from the plan", {
 test_that("state container supports in-place update round-trips", {
   env <- enviro_builders()
   state <- build_state_container(
-    c("networkState", "actorsEx$attr1", "seasons$winter"),
-    nodes = "actorsEx",
+    c("networkState", "actors_ex$attr1", "seasons$winter"),
+    nodes = "actors_ex",
     envir = env
   )
   before <- state$networks$networkState[1, 2]
@@ -504,5 +504,5 @@ test_that("state container supports in-place update round-trips", {
   state$globals$winter <- 1
   expect_equal(state$globals$winter, 1)
   expect_equal(get("networkState", envir = env)[1, 2], before)
-  expect_equal(get("actorsEx", envir = env)$attr1[3], actorsEx$attr1[3])
+  expect_equal(get("actors_ex", envir = env)$attr1[3], actors_ex$attr1[3])
 })

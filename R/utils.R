@@ -10,7 +10,7 @@
 #'
 #' @param namedList list
 #' @param keepOrder logical.
-#' @param removeFirst logical.
+#' @param remove_first logical.
 #'
 #' @return a
 #' @noRd
@@ -18,21 +18,21 @@
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_events = calls, nodes = actors
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_events = calls, nodes = actors
 #' )
-#' callsDependent <- defineDependentEvents(
-#'   events = calls, nodes = actors, default_network = callNetwork
+#' calls_dependent <- defineDependentEvents(
+#'   events = calls, nodes = actors, default_network = call_network
 #' )
-#' parsedformula <- parseFormula(callsDependent ~ ego(actors$floor))
-#' objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames, 1L)
-#' getDataObjects(list(rownames(objectsEffectsLink)), removeFirst = FALSE)
+#' parsedformula <- parseFormula(calls_dependent ~ ego(actors$floor))
+#' objects_effects_link <- get_objects_effects_link(parsedformula$rhs_names, 1L)
+#' get_data_objects(list(rownames(objects_effects_link)), remove_first = FALSE)
 #' }
-getDataObjects <- function(namedList, keepOrder = FALSE, removeFirst = TRUE) {
+get_data_objects <- function(namedList, keepOrder = FALSE, remove_first = TRUE) {
   # strip function names
   objNames <- unlist(namedList)
-  if (removeFirst) {
+  if (remove_first) {
     objNames <- unlist(lapply(namedList, "[", -1))
   }
 
@@ -89,7 +89,7 @@ getDataObjects <- function(namedList, keepOrder = FALSE, removeFirst = TRUE) {
 }
 
 
-getElementFromDataObjectTable <- function(x, envir = environment()) {
+get_element_from_data_object_table <- function(x, envir = environment()) {
   elements <- list()
   if (nrow(x) == 0) {
     return(elements)
@@ -184,13 +184,13 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
 #'
 #' It took a preprocess object and return a matrix with all the
 #' change statistics together for each effect.
-#' `effectPos` argument allows to reduce just for a subset of effects,
+#' `effect_pos` argument allows to reduce just for a subset of effects,
 #' it won't reduce the time or memory space used.
 #'
 #' @param preproData a preprocess data object from preprocess.
 #' @param type a character. `"withTime"` returns the dependent stats changes
 #' with the time where they occur.
-#' @param effectPos a vector of integers of the effects to keep.
+#' @param effect_pos a vector of integers of the effects to keep.
 #'
 #' @return a list with a matrix for each effect.
 #' @noRd
@@ -198,14 +198,14 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = T)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_events = calls, nodes = actors
+#' call_network <- make_network(nodes = actors, directed = T)
+#' call_network <- link_events(
+#'   x = call_network, change_events = calls, nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
-#'   events = calls, nodes = actors, default_network = callNetwork
+#' calls_dependent <- make_dependent_events(
+#'   events = calls, nodes = actors, default_network = call_network
 #' )
-#' prep <- estimate_dynam(callsDependent ~ inertia + trans,
+#' prep <- estimate_dynam(calls_dependent ~ inertia + trans,
 #'   sub_model = "choice",
 #'   preprocessing_only = TRUE, silent = TRUE
 #' )
@@ -216,10 +216,10 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
 ReducePreprocess <- function(
   preproData,
   type = c("withTime", "withoutTime"),
-  effectPos = NULL
+  effect_pos = NULL
 ) {
   stopifnot(
-    is.null(effectPos) || !is.null(effectPos) && inherits(effectPos, "integer")
+    is.null(effect_pos) || !is.null(effect_pos) && inherits(effect_pos, "integer")
   )
   type <- match.arg(type)
 
@@ -231,10 +231,10 @@ ReducePreprocess <- function(
   }
 
   stopifnot(
-    is.null(effectPos) || !is.null(effectPos) && max(effectPos) <= nEffects
+    is.null(effect_pos) || !is.null(effect_pos) && max(effect_pos) <= nEffects
   )
 
-  ReduceEffUpdates <- function(statsChange, eventTime) {
+  ReduceEffUpdates <- function(statsChange, event_time) {
     reduce <- Map(
       \(x, y) {
         lapply(
@@ -266,7 +266,7 @@ ReducePreprocess <- function(
         )
       },
       statsChange,
-      eventTime
+      event_time
     )
 
     return(lapply(
@@ -413,7 +413,7 @@ ReducePreprocess <- function(
   }
 
   if (
-    (preproData$subModel == "rate" || preproData$model == "REM") &&
+    (preproData$sub_model == "rate" || preproData$model == "REM") &&
       sum(rc_idx) > 0
   ) {
     rightCensoredStatChange <- if (is_flat) {
@@ -429,16 +429,16 @@ ReducePreprocess <- function(
     for (ii in seq.int(length(outDependentStatChange))) {
       reducedPrepro[[ii]] <- list(
         dependent = outDependentStatChange[[ii]],
-        rightCensored = rightCensoredStatChange[[ii]]
+        right_censored = rightCensoredStatChange[[ii]]
       )
     }
 
-    if (!is.null(effectPos)) {
-      return(reducedPrepro[effectPos])
+    if (!is.null(effect_pos)) {
+      return(reducedPrepro[effect_pos])
     }
     return(reducedPrepro)
-  } else if (!is.null(effectPos)) {
-    return(outDependentStatChange[effectPos])
+  } else if (!is.null(effect_pos)) {
+    return(outDependentStatChange[effect_pos])
   } else {
     return(outDependentStatChange)
   }
@@ -508,7 +508,7 @@ apply_flat_update <- function(statsArray, updates_slice, is_sender) {
 #' Apply broadcast (constant-value fan-out) updates to a running stats array
 #'
 #' Decodes a slice of the `stat_mat_broadcast` buffer into the running
-#' statistics array with in-place vectorised slice assignment (design D7).
+#' statistics array with in-place vectorised slice assignment.
 #' Each column of `broadcast_slice` is one coded fan-out entry with rows
 #' `(kind, fixed, effect, replace)` where `fixed` and `effect` are 0-indexed.
 #' The decode mirrors the eager `to_alter()` (`kind = 1`), `to_ego()`
@@ -615,17 +615,17 @@ merge_flat_updates <- function(old_prep, new_prep, effects_indexes) {
 }
 
 GetDetailPrint <- function(
-  objectsEffectsLink,
+  objects_effects_link,
   parsedformula,
   fixedParameters = NULL
 ) {
   # matrix with the effects in rows and objects in columns,
   # which net or actor att
-  maxObjs <- max(objectsEffectsLink, na.rm = TRUE)
-  effectDescription <- matrix(
+  maxObjs <- max(objects_effects_link, na.rm = TRUE)
+  effect_description <- matrix(
     t(
       apply(
-        objectsEffectsLink,
+        objects_effects_link,
         2,
         function(x) {
           notNA <- !is.na(x)
@@ -635,51 +635,51 @@ GetDetailPrint <- function(
         }
       )
     ),
-    nrow = ncol(objectsEffectsLink),
+    nrow = ncol(objects_effects_link),
     ncol = maxObjs
   )
   # # handle degenerate case one effect one object
-  dimnames(effectDescription) <- list(
-    colnames(objectsEffectsLink),
-    if (ncol(effectDescription) == 1) {
+  dimnames(effect_description) <- list(
+    colnames(objects_effects_link),
+    if (ncol(effect_description) == 1) {
       "Object"
     } else {
-      sprintf("Object %d", seq_len(ncol(effectDescription)))
+      sprintf("Object %d", seq_len(ncol(effect_description)))
     }
   )
 
-  objectsName <- colnames(effectDescription)
+  objectsName <- colnames(effect_description)
   # adding other parameters: each effect refers to which network
   # or actor attribute
 
-  # effectDescription <- cbind(
-  #   effect = rownames(effectDescription),
-  #   effectDescription
+  # effect_description <- cbind(
+  #   effect = rownames(effect_description),
+  #   effect_description
   # )
 
   if (any(unlist(parsedformula$ignore_rep_parameter))) {
-    effectDescription <- cbind(
-      effectDescription,
+    effect_description <- cbind(
+      effect_description,
       ignore_repetitions = ifelse(parsedformula$ignore_rep_parameter, "B", "")
     )
   }
   if (any(unlist(parsedformula$weighted_parameter))) {
-    effectDescription <- cbind(
-      effectDescription,
+    effect_description <- cbind(
+      effect_description,
       weighted = ifelse(parsedformula$weighted_parameter, "W", "")
     )
   }
   if (any(parsedformula$type_parameter != "")) {
-    effectDescription <- cbind(
-      effectDescription,
+    effect_description <- cbind(
+      effect_description,
       type = parsedformula$type_parameter
     )
   }
-  hasWindows <- FALSE
+  has_windows <- FALSE
   if (!all(vapply(parsedformula$window_parameters, is.null, logical(1)))) {
-    hasWindows <- TRUE
-    effectDescription <- cbind(
-      effectDescription,
+    has_windows <- TRUE
+    effect_description <- cbind(
+      effect_description,
       window = vapply(
         parsedformula$window_parameters,
         function(x) ifelse(is.null(x), "", gsub("['\"]", "", x)),
@@ -687,8 +687,8 @@ GetDetailPrint <- function(
       )
     )
     # reduce object name
-    effectDescription[, objectsName] <- t(apply(
-      effectDescription,
+    effect_description[, objectsName] <- t(apply(
+      effect_description,
       1,
       \(x) {
         gsub(
@@ -700,44 +700,44 @@ GetDetailPrint <- function(
     ))
   }
   if (any(parsedformula$trans_parameter != "")) {
-    effectDescription <- cbind(
-      effectDescription,
+    effect_description <- cbind(
+      effect_description,
       transformer_fn = parsedformula$trans_parameter
     )
   }
   if (any(parsedformula$summ_parameter != "")) {
-    effectDescription <- cbind(
-      effectDescription,
+    effect_description <- cbind(
+      effect_description,
       summarizer_fn = parsedformula$summ_parameter
     )
   }
   # DyNAMi
   if (any(parsedformula$joining_parameter != "")) {
-    effectDescription <- cbind(
-      effectDescription,
+    effect_description <- cbind(
+      effect_description,
       joining = parsedformula$joining_parameter
     )
   }
   if (any(parsedformula$sub_type_parameter != "")) {
-    effectDescription <- cbind(
-      effectDescription,
-      subType = parsedformula$sub_type_parameter
+    effect_description <- cbind(
+      effect_description,
+      sub_type = parsedformula$sub_type_parameter
     )
   }
   if (any(parsedformula$historyParameter != "")) {
-    effectDescription <- cbind(
-      effectDescription,
+    effect_description <- cbind(
+      effect_description,
       history = parsedformula$historyParameter
     )
   }
-  # Interaction columns (design D9/D5) have no object/attribute of their own, so
-  # they are absent from objectsEffectsLink; append one row per interaction after
+  # Interaction columns have no object/attribute of their own, so
+  # they are absent from objects_effects_link; append one row per interaction after
   # the function-effect rows. The row keeps the term string as its (readable)
   # rowname; the compact `coef()` / export names are derived below from the
   # operand rows (an interaction's name is the join of its operands' names), so
   # the object columns are left empty here.
-  nInter <- length(parsedformula$interactions)
-  if (nInter > 0) {
+  n_inter <- length(parsedformula$interactions)
+  if (n_inter > 0) {
     labels <- vapply(
       parsedformula$interactions,
       function(x) x$label,
@@ -746,40 +746,40 @@ GetDetailPrint <- function(
     inter_mat <- matrix(
       "",
       nrow = length(labels),
-      ncol = ncol(effectDescription),
-      dimnames = list(labels, colnames(effectDescription))
+      ncol = ncol(effect_description),
+      dimnames = list(labels, colnames(effect_description))
     )
-    effectDescription <- rbind(effectDescription, inter_mat)
+    effect_description <- rbind(effect_description, inter_mat)
   }
-  # rownames(effectDescription) <- NULL
+  # rownames(effect_description) <- NULL
   if (parsedformula$has_intercept) {
-    effectDescription <- rbind("", effectDescription)
-    rownames(effectDescription)[1] <- "Intercept"
+    effect_description <- rbind("", effect_description)
+    rownames(effect_description)[1] <- "Intercept"
   }
 
   if (!is.null(fixedParameters)) {
-    effectDescription <- cbind(
-      effectDescription,
+    effect_description <- cbind(
+      effect_description,
       fixed = !is.na(fixedParameters)
     )
   }
 
-  decoder <- .decoderColumns(effectDescription)
-  # Interaction rendering (design D5): each interaction's compact names are the
+  decoder <- .decoderColumns(effect_description)
+  # Interaction rendering: each interaction's compact names are the
   # `:`-join of its operands' rendered names, so they inherit the operands' short
   # forms and object disambiguation. Operand rhs index j maps to function row
-  # j + intercept_offset; the interaction rows are the final nInter rows.
-  if (nInter > 0) {
+  # j + intercept_offset; the interaction rows are the final n_inter rows.
+  if (n_inter > 0) {
     intercept_offset <- if (parsedformula$has_intercept) 1L else 0L
-    n_total <- nrow(effectDescription)
+    n_total <- nrow(effect_description)
     join_cols <- c(
       ".effect_short",
       ".object_short",
       ".term_export",
       ".coef_name"
     )
-    for (i in seq_len(nInter)) {
-      inter_row <- n_total - nInter + i
+    for (i in seq_len(n_inter)) {
+      inter_row <- n_total - n_inter + i
       op_rows <- parsedformula$interactions[[i]]$operands + intercept_offset
       for (col in join_cols) {
         decoder[inter_row, col] <- paste(decoder[op_rows, col], collapse = ":")
@@ -787,10 +787,10 @@ GetDetailPrint <- function(
     }
   }
 
-  effectDescription <- cbind(effectDescription, decoder)
+  effect_description <- cbind(effect_description, decoder)
 
-  attr(effectDescription, "hasWindows") <- hasWindows
-  return(effectDescription)
+  attr(effect_description, "has_windows") <- has_windows
+  return(effect_description)
 }
 
 GetFixed <- function(object) {
@@ -923,8 +923,8 @@ checkArgsEstimation <- function(variables) {}
   } else if (hasS) {
     toks <- c(toks, .fnToken(row[["summarizer_fn"]], forceFn))
   }
-  if (has("subType")) {
-    toks <- c(toks, unname(subPref[row[["subType"]]]))
+  if (has("sub_type")) {
+    toks <- c(toks, unname(subPref[row[["sub_type"]]]))
   }
   if (has("joining")) {
     toks <- c(toks, unname(joinPref[row[["joining"]]]))
@@ -1094,8 +1094,8 @@ compact_term_strings <- function(
   allObjs <- .trimObject(unlist(lapply(objCols, function(cc) names[, cc])))
   objLk <- .shortestUniquePrefix(allObjs, 3L, 6L)
 
-  subPref <- if ("subType" %in% argCols) {
-    .shortestUniquePrefix(names[, "subType"], 3L, 20L)
+  subPref <- if ("sub_type" %in% argCols) {
+    .shortestUniquePrefix(names[, "sub_type"], 3L, 20L)
   } else {
     stats::setNames(character(0), character(0))
   }

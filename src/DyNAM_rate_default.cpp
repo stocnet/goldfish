@@ -54,7 +54,7 @@ inline arma::mat reduce_mat_to_vector(
    arma::mat derivative(1, n_parameters, fill::zeros);
    double logLikelihood = 0;
    arma::vec intervalLogL(n_events, fill::zeros);
-   // Opt-in per-event score matrix (design D11). Each row is the per-event
+   // Opt-in per-event score matrix. Each row is the per-event
    // increment already accumulated into `derivative` (the timed weighted sum
    // plus the observed statistic on dependent events); allocated only when
    // requested so the default path pays nothing.

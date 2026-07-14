@@ -100,8 +100,8 @@ List compute_coordination_selection(
     // GEMV); the staged dyad-triangle softmax below works in log space.
     arma::vec lin_pred_all = stat_all_events * parameters;
 
-    // Ragged dyad-triangle buffers sized to the largest event and reused (design
-    // D9/D13): the kernel reads ONLY the emitted index structures — the risk set
+    // Ragged dyad-triangle buffers sized to the largest event and reused: the
+    // kernel reads ONLY the emitted index structures — the risk set
     // (off-diagonal directed dyads, masked rows already dropped at emit) is the
     // row list itself, grouped by sender via `sender_of_row` and paired via
     // `dyad_partner`; there is no n1 x n2 assumption and no square reshape.
@@ -126,7 +126,7 @@ List compute_coordination_selection(
         const int n_rows = n_candidates(id_event);
         const int id_end = id_start + n_rows;
 
-        // per-sender softmax over the contiguous sender groups (design D9):
+        // per-sender softmax over the contiguous sender groups:
         // log-normalizer logZ_g and expected statistic E_g via one GEMV each.
         int row = 0;
         while (row < n_rows) {

@@ -87,7 +87,7 @@ log-likelihood for each event. Default is \code{FALSE}.}
 Whether to keep and return the
 probabilities for all alternatives for each event.
 \itemize{
-\item When \code{subModel = "choice"} the probabilities correspond to all actors in
+\item When \code{sub_model = "choice"} the probabilities correspond to all actors in
 the choice set present at the time of the event.
 \item When \code{model = "REM"} the probabilities correspond to all dyads present at
 the time of the event.

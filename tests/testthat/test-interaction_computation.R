@@ -1,5 +1,5 @@
-# Interaction statistic computation in the dyad recipe loop (design D9, task
-# 2.6). An interaction column equals the elementwise product of its operands
+# Interaction statistic computation in the dyad recipe loop. An interaction
+# column equals the elementwise product of its operands
 # over the whole event sequence; operands are kept but (for `:`) held out of
 # estimation by fixing at 0; `a*b` estimates both operands and the product.
 
@@ -7,25 +7,25 @@ make_interaction_fixture <- function() {
   data("Social_Evolution", package = "goldfish", envir = environment())
   actors <- get("actors", environment())
   calls <- get("calls", environment())
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
-  callsDependent <- make_dependent_events(
+  calls_dependent <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
-  callsDependent <- callsDependent[1:120, ]
-  make_data(callsDependent, callNetwork, calls, actors)
+  calls_dependent <- calls_dependent[1:120, ]
+  make_data(calls_dependent, call_network, calls, actors)
 }
 
 test_that("a:b column equals the operand product over the full sequence", {
   d <- make_interaction_fixture()
   g <- compute_stats(
-    callsDependent ~ inertia:recip,
+    calls_dependent ~ inertia:recip,
     data = d,
     model = "DyNAM",
     sub_model = "choice",
@@ -40,7 +40,7 @@ test_that("a:b column equals the operand product over the full sequence", {
 test_that("a 3-way interaction equals the product of all operands", {
   d <- make_interaction_fixture()
   g <- compute_stats(
-    callsDependent ~ inertia:recip:trans,
+    calls_dependent ~ inertia:recip:trans,
     data = d,
     model = "DyNAM",
     sub_model = "choice",
@@ -56,7 +56,7 @@ test_that("a broadcast (ego) operand interaction equals the product", {
   # outdeg(type = "ego") varies across senders (broadcast kind 2); its product
   # with a dyadic operand exercises the whole-row operand-state update.
   g <- compute_stats(
-    callsDependent ~ outdeg(callNetwork, type = "ego"):inertia,
+    calls_dependent ~ outdeg(call_network, type = "ego"):inertia,
     data = d,
     model = "DyNAM",
     sub_model = "choice",
@@ -69,7 +69,7 @@ test_that("a broadcast (ego) operand interaction equals the product", {
 test_that("a*b estimates both operands and the product", {
   d <- make_interaction_fixture()
   m <- estimate_dynam(
-    callsDependent ~ inertia * recip,
+    calls_dependent ~ inertia * recip,
     sub_model = "choice",
     data = d
   )
@@ -81,7 +81,7 @@ test_that("a*b estimates both operands and the product", {
 test_that("a:b keeps operands but estimates only the product", {
   d <- make_interaction_fixture()
   m <- estimate_dynam(
-    callsDependent ~ inertia:recip,
+    calls_dependent ~ inertia:recip,
     sub_model = "choice",
     data = d
   )
@@ -94,7 +94,7 @@ test_that("a:b keeps operands but estimates only the product", {
 test_that("REM supports interaction terms", {
   d <- make_interaction_fixture()
   g <- compute_stats(
-    callsDependent ~ inertia:recip,
+    calls_dependent ~ inertia:recip,
     data = d,
     model = "REM",
     sub_model = "rate",
@@ -105,12 +105,12 @@ test_that("REM supports interaction terms", {
 })
 
 test_that("sender-indexed (rate) interactions are now supported", {
-  # rate interactions landed in the sender-interaction-terms change; the product
+  # rate interactions landed with sender interaction terms; the product
   # is per-sender (see test-sender_interaction.R). Only DyNAMi stays unsupported.
   d <- make_interaction_fixture()
   expect_no_error(
     compute_stats(
-      callsDependent ~ 1 + indeg:outdeg,
+      calls_dependent ~ 1 + indeg:outdeg,
       data = d,
       model = "DyNAM",
       sub_model = "rate"

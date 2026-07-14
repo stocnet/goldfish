@@ -62,7 +62,7 @@ to the function. The list object has the following components:
 \description{
 Specifies control parameters for the data preprocessing stage,
 used by \code{estimate_dynam()}, \code{estimate_rem()} and \code{estimate_dynami()}
-(when \code{preprocessingInit} is not a
+(when \code{preprocessing_init} is not a
 \code{preprocessed.goldfish} object) and \code{gather_model_data()}.
 }
 \examples{

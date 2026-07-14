@@ -1,23 +1,23 @@
 test_that("mixed_cycle returns a valid object on update", {
-  # Testing netUpdate = 1
+  # Testing net_update = 1
   expect_type(
     update_DyNAM_choice_mixed_cycle(list(m, m1), 4, 3, 5, 1, m0),
     "list"
   )
-  # Testing netUpdate = 2
+  # Testing net_update = 2
   expect_type(
     update_DyNAM_choice_mixed_cycle(list(m, m1), 1, 5, 5, 2, m0),
     "list"
   )
 })
 
-test_that("mixed_cycle doesn't update when replace == oldValue", {
-  # Testing netUpdate = 1
+test_that("mixed_cycle doesn't update when replace == old_value", {
+  # Testing net_update = 1
   expect_equal(
     update_DyNAM_choice_mixed_cycle(list(m, m1), 4, 3, 0, 1, m0)$cache,
     m0
   )
-  # Testing netUpdate = 2
+  # Testing net_update = 2
   expect_equal(
     update_DyNAM_choice_mixed_cycle(list(m, m1), 1, 5, 0, 2, m0)$cache,
     m0
@@ -31,7 +31,7 @@ test_that("update_mixed_cycle doesn't update when sender == receiver", {
   )
 })
 
-test_that("update_mixed_cycle throws error for wrong netUpdate", {
+test_that("update_mixed_cycle throws error for wrong net_update", {
   expect_error(
     update_DyNAM_choice_mixed_cycle(list(m, m1), 4, 3, 5, 3, m0),
     "Check that you only declare two networks as argument."
@@ -67,7 +67,7 @@ test_that("mixed_cycle returns a valid object on update", {
   )
 })
 
-test_that("mixed_cycle doesn't update when replace == oldValue", {
+test_that("mixed_cycle doesn't update when replace == old_value", {
   expect_equal(
     update_DyNAM_choice_mixed_cycle(list(m, m1), 4, 3, 0, 1, m0)$cache,
     m0
@@ -85,7 +85,7 @@ test_that("update_mixed_cycle doesn't update when sender == receiver", {
   )
 })
 
-test_that("update_mixed_cycle throws error for wrong netUpdate", {
+test_that("update_mixed_cycle throws error for wrong net_update", {
   expect_error(
     update_DyNAM_choice_mixed_cycle(list(m, m1), 4, 3, 5, 3, m0),
     "Check that you only declare two networks as argument."

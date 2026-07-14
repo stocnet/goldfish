@@ -1,7 +1,7 @@
 #' Preprocessing output writers
 #'
-#' A writer decouples the recipe event loops (design D22) from the output
-#' format they produce (design D15). Every writer exposes three hooks:
+#' A writer decouples the recipe event loops from the output
+#' format they produce. Every writer exposes three hooks:
 #'
 #' \describe{
 #'   \item{`init(spec, dims)`}{called once before the event loop with the
@@ -32,7 +32,7 @@
 #'
 #' @section Future extension points (documented, not implemented):
 #' The writer contract is the seam for three planned output strategies that
-#' are deliberately out of scope for this change (design D15/D17):
+#' are deliberately out of scope for this change:
 #' \describe{
 #'   \item{Alternatives-sampling gather writer}{a `writer_gather()` variant
 #'     that keeps gather rows for only a sample of the alternatives per
@@ -48,7 +48,7 @@
 #'     that `write_event` is associative across a contiguous chunk boundary
 #'     and `finalize` can stitch ordered chunk results.}
 #'   \item{Per-event simulation hook}{a hook on the recipe loop (not a
-#'     writer, design D17) invoked after the stats update for event i and
+#'     writer) invoked after the stats update for event i and
 #'     before advancing: it sees the visible state and may append to the
 #'     event stream, reserved for a future `simulate()` goodness-of-fit
 #'     method. Its interface obligation is the position in the loop, the
@@ -238,7 +238,7 @@ writer_default <- function() {
 #'   It reuses the default writer's per-event accumulation and, in
 #'   `finalize()`, builds the gather stack from the assembled flat buffer.
 #'
-#'   Note (design D15, staged delivery): the gather expansion is currently
+#'   Note (staged delivery): the gather expansion is currently
 #'   produced by `gather_()` (the existing C++ routine) from the flat buffer
 #'   rather than row-by-row inside `write_event()`. The native in-loop
 #'   expansion that retires `gather_()` lands with the C++ removal task; this
@@ -269,7 +269,7 @@ writer_gather <- function() {
 #'   `finalize()` via `write_gather_to_db()` once the effect names are
 #'   resolved. Reuses `writer_gather()`'s accumulation and finalize.
 #'
-#'   Note (design D15, staged delivery): like `writer_gather()`, the gather
+#'   Note (staged delivery): like `writer_gather()`, the gather
 #'   stack is currently assembled from the flat buffer in `finalize()` (not
 #'   row-by-row during the loop), so the full stack is materialised transiently
 #'   before being written out in event-aligned batches. True per-event
@@ -331,7 +331,7 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
 
   stat_df <- as.data.frame(stat)
   names(stat_df) <- paste0("stat_", seq_len(n_parameters))
-  # Row identity in SQL (design D13): without index_i/index_j the long table
+  # Row identity in SQL: without index_i/index_j the long table
   # (event_id / is_selected / stat_<i>) leaves each candidate row unidentifiable
   # once the risk set is filtered. The index columns decode to the sanitized
   # actor ids (index_j is NA for sender-set rate rows).
@@ -394,7 +394,7 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
 #' `twomode_or_reflexive` flag follows `gather_model_data()` (`is_two_mode`),
 #' not the rate-model override used at estimation time, so the output matches
 #' the legacy `gather_model_data()` result. Naming (`namesEffects`,
-#' `effectDescription`) and label resolution are added by the caller, which
+#' `effect_description`) and label resolution are added by the caller, which
 #' holds the parsed formula and node sets.
 #'
 #' @noRd
@@ -505,7 +505,7 @@ gather_from_prep <- function(prep, spec) {
   gathered_data$selected <- gathered_data$selected +
     if (has_intercept) (1 * is_dependent) else 1
   # `sender_of_row` / `dyad_partner` are the coordination kernel's internal
-  # consumption structures (design D9); the export surfaces only the shared
+  # consumption structures; the export surfaces only the shared
   # index vocabulary (index_i / index_j), so drop them here.
   gathered_data$sender_of_row <- NULL
   gathered_data$dyad_partner <- NULL
@@ -518,12 +518,12 @@ gather_from_prep <- function(prep, spec) {
   gathered_data
 }
 
-#' Decide the `active_dyad` minimal encoding (design D13)
+#' Decide the `active_dyad` minimal encoding
 #'
 #' The dyad-loop availability object is stored at its minimal encoding, decided
-#' statically at spec time from the model family's folded presences (design
-#' D11), the support constraint's axis-union `mask_kind` (design D2), and the
-#' presence of an opportunity list (design D10). The receiver presence (col
+#' statically at spec time from the model family's folded presences, the
+#' support constraint's axis-union `mask_kind`, and the
+#' presence of an opportunity list. The receiver presence (col
 #' axis) is folded by every dyad-loop family, so only three encodings arise:
 #' \describe{
 #'   \item{`"point"`}{a genuinely dyadic (point) support atom or an opportunity
@@ -563,7 +563,7 @@ active_dyad_encoding_for <- function(spec) {
   active_dyad_encoding_decide(legacy_model_type(spec))
 }
 
-#' `active_dyad` read accessors (design D13)
+#' `active_dyad` read accessors
 #'
 #' Consumers read per-event availability through these helpers and never branch
 #' on the encoding. At `"alter"` `active_dyad` is the receiver-axis logical

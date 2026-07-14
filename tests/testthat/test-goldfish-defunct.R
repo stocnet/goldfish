@@ -63,7 +63,7 @@ test_that("defineNetwork deprecated", {
   expect_warning(
     defineNetwork(
       matrix = networkState,
-      nodes = actorsEx,
+      nodes = actors_ex,
       directed = TRUE
     ),
     "deprecated in goldfish 1.7.0."
@@ -74,7 +74,7 @@ test_that("defineDependentEvents deprecated", {
   expect_warning(
     defineDependentEvents(
       events = eventsIncrement,
-      nodes = actorsEx,
+      nodes = actors_ex,
       default_network = networkState
     ),
     "deprecated in goldfish 1.7.0."
@@ -98,7 +98,7 @@ test_that("linkEvents deprecated", {
   )
   expect_warning(
     linkEvents(
-      x = actorsEx,
+      x = actors_ex,
       change_events = compChange1,
       attribute = "present"
     ),
@@ -148,12 +148,12 @@ test_that("examineChangepoints deprecated", {
 
 test_that("egoAlterInt deprecated", {
   expect_warning(
-    # update_REM_choice_ego_alter_interaction(list(testAttr$fishingSkill,testAttr$fishCaught), node = 1, replace = 0, attUpdate = 1, n1 = 8, n2 = 0)
+    # update_REM_choice_ego_alter_interaction(list(testAttr$fishingSkill,testAttr$fishCaught), node = 1, replace = 0, att_update = 1, n1 = 8, n2 = 0)
     egoAlterInt(
       list(testAttr$fishingSkill, testAttr$fishCaught),
       node = 1,
       replace = 0,
-      attUpdate = 1,
+      att_update = 1,
       n1 = 8,
       n2 = 0
     ),

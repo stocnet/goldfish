@@ -27,20 +27,20 @@
 #' @examples
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_events = calls,
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_events = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' calls_dependent <- make_dependent_events(
 #'   events = calls, nodes = actors,
-#'   default_network = callNetwork
+#'   default_network = call_network
 #' )
 #' \dontshow{
-#' callsDependent <- callsDependent[1:50, ]
+#' calls_dependent <- calls_dependent[1:50, ]
 #' }
-#' mod01 <- estimate_dynam(callsDependent ~ inertia + recip + trans,
-#'  subModel = "choice"
+#' mod01 <- estimate_dynam(calls_dependent ~ inertia + recip + trans,
+#'  sub_model = "choice"
 #' )
 #' coef(mod01)
 coef.result.goldfish <- function(object, ..., complete = FALSE) {
@@ -84,7 +84,7 @@ coef.result.goldfish <- function(object, ..., complete = FALSE) {
 #'     the model}
 #'   \item{nobs}{the number of observations used in estimation.
 #'     In general, it corresponds to the number of dependent events used in
-#'     estimation. For a `subModel = "rate"` or `model = "REM"` with intercept,
+#'     estimation. For a `sub_model = "rate"` or `model = "REM"` with intercept,
 #'     it corresponds to the number of dependent events plus right-censored
 #'     events due to exogenous or endogenous changes.}
 #'

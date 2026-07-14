@@ -21,7 +21,7 @@ test_that("Args check", {
   expect_error(
     gather_model_data(
       depNetwork ~ 1 + inertia(networkState),
-      subModel = "smh",
+      sub_model = "smh",
       data = dataTest
     )
   )
@@ -43,7 +43,7 @@ test_that("Output", {
     data = dataTest
   )
   expect_type(out, "list")
-  # +2 vs the legacy 8: the shared index vocabulary index_i / index_j (design D13)
+  # +2 vs the legacy 8: the shared index vocabulary index_i / index_j
   expect_length(out, 10)
 })
 test_that("export names are valid, unique R names", {

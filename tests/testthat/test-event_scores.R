@@ -1,5 +1,5 @@
 # Per-event score matrix: set_estimation_opt(return_event_scores) and the
-# `event_scores` result component (design D11). The per-event score is the same
+# `event_scores` result component. The per-event score is the same
 # observed-minus-expected statistic the estimators accumulate into the aggregate
 # derivative each event; here we assert the two engines expose it consistently.
 

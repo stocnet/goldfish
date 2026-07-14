@@ -161,7 +161,7 @@ test_that("ordinary atoms pass the anti-cycle guard", {
   )
 })
 
-# ---- D12: dyadic atoms accepted (row-reduction) in sender-indexed-only specs ----
+# ---- Dyadic atoms accepted (row-reduction) in sender-indexed-only specs ----
 
 test_that("dyadic / alter atoms inform about the row-reduction in a rate-only spec", {
   # kinds: point = 0, alter = 1 (fold via the row-reduction); ego = 2,

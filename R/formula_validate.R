@@ -1,10 +1,10 @@
-# Per-(model, sub_model) main-effect validity (design D3).
+# Per-(model, sub_model) main-effect validity.
 #
 # A single local rule table encoding the softmax-identification rule: an effect
 # is a valid *main* effect only if its statistic varies on the axis the
 # sub_model estimates over; otherwise it is constant across the compared
 # alternatives/units and cancels, so it is not identified. Rejected as *main*
-# effects (but permitted inside interaction terms once those land, task 2.5):
+# effects (but permitted inside interaction terms once those land):
 #
 #   - DyNAM / DyNAMi choice, choice_coordination: `global` and ego-perspective
 #     effects (`ego()`, degree `type = "ego"`) — constant across the receiver
@@ -15,8 +15,8 @@
 #     `type = "alter"`) — a rate model is sender-indexed, there is no receiver
 #     axis for an alter statistic to vary on.
 #
-# This local table mirrors the design D3 identification matrix; it is intended to
-# be superseded by `effect-term-registry` metadata (task 7.1). It runs after the
+# This local table mirrors the identification matrix; it is intended to
+# be superseded by a future effect-term registry's metadata. It runs after the
 # formula's `*` expansion (the parser uses `stats::terms()`), so an interaction
 # that expands to an illegal bare main effect is still caught.
 
@@ -49,14 +49,14 @@ effect_variation <- function(name, type) {
 # Variation axes with no bare effect implementation for a (model, sub_model)
 # pair: rejected in every phase (preprocessing included), because the statistic
 # cannot even be computed. Empty now that `global` is computable in DyNAM choice
-# (task 1.5 added `init_DyNAM_choice.global`); kept as the seam for any future
+# (`init_DyNAM_choice.global` was added later); kept as the seam for any future
 # genuinely-unavailable effect.
 unavailable_variations <- function(model, sub_model) {
   character(0)
 }
 
 # Variation axes that ARE computable (available via compute_stats() as design
-# columns for interactions / random effects, design D3) but are not identified
+# columns for interactions / random effects) but are not identified
 # as bare main effects, so they are rejected only when actually estimating.
 unidentified_variations <- function(model, sub_model) {
   is_dynam <- model %in% c("DyNAM", "DyNAMi")
@@ -83,12 +83,12 @@ unidentified_variations <- function(model, sub_model) {
   character(0)
 }
 
-# Validate the parsed main effects against the D3 rule table, aborting once with
+# Validate the parsed main effects against the rule table, aborting once with
 # every violation. `effect_names` / `effect_types` are aligned per-term vectors
 # (effect name and resolved `type`, `""` when absent), typically
 # `vapply(rhs_names, "[[", character(1), 1)` and the parser's `type_parameter`.
 # `estimating = FALSE` (preprocessing) checks only the unavailable effects, so
-# computable-but-unidentified columns can still be produced (design D3).
+# computable-but-unidentified columns can still be produced.
 validate_effects <- function(
   model,
   sub_model,
@@ -144,7 +144,7 @@ validate_effects <- function(
   ))
 }
 
-# Validate interaction *operands* (design D3, role-aware). Operands are held out
+# Validate interaction *operands* (role-aware). Operands are held out
 # of the main-effect check (an operand is not a bare main effect); instead a
 # sender-indexed (DyNAM / DyNAMi rate / rate_ordered) model requires each operand
 # to vary on the sender axis, so an `alter`-perspective operand is rejected (a
@@ -190,8 +190,8 @@ validate_operands <- function(model, sub_model, operand_names, operand_types) {
 # Interaction products are computed in the recipe loops: the dyad-indexed kernel
 # (DyNAM choice / choice_coordination, REM) and the sender-indexed kernel (DyNAM
 # rate / rate_ordered). Only DyNAMi, whose preprocessing routes to the
-# `preprocessInteraction` monolith rather than a recipe loop, is not yet
-# supported (deferred to `refactor-dynami-engine`).
+# `preprocess_interaction` monolith rather than a recipe loop, is not yet
+# supported (deferred to a future DyNAMi engine refactor).
 abort_if_interactions_unsupported <- function(
   parsed_formula,
   model = NULL,
@@ -215,7 +215,7 @@ abort_if_interactions_unsupported <- function(
   ))
 }
 
-# Assemble the positional `fixedParameters` vector (designs D7 + D9) held by the
+# Assemble the positional `fixedParameters` vector held by the
 # Newton-Raphson core: NA marks a coefficient to estimate, a value fixes it. Two
 # sources fix a coefficient: `offset()` terms (fixed at `offset_coef`, aligned by
 # formula order) and interaction operand-only terms (kept in the design but held

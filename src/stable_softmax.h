@@ -4,7 +4,7 @@
 #include <RcppArmadillo.h>
 
 // Single-pass max-shift softmax over the allowed entries of a linear-predictor
-// vector (design D7), mirroring the R `stable_softmax()` helper so the `default`
+// vector, mirroring the R `stable_softmax()` helper so the `default`
 // and `default_c` engines share the same numerics. `lin_pred` (length N) holds
 // x_k = beta^T s_k; `allowed` (length N) is a 0/1 risk-set mask. On return
 // `weights` (length N) holds exp(x_k - m) for allowed entries and 0 elsewhere,

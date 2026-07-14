@@ -145,7 +145,7 @@ test_that("empty broadcast slice is a no-op", {
 # Synthetic C++ cross-check: estimate_DyNAM_choice() fed a non-empty broadcast
 # buffer must match the same model fed the eager point-column expansion. This
 # exercises the C++ apply_broadcast_updates() helper before the recipe goes
-# live (group 5).
+# live.
 
 # Expand one broadcast entry (kind, fixed0, effect0, value) into 0-indexed
 # point columns (node1, node2, effect, replace) reproducing to_alter/to_ego/

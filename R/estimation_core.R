@@ -74,7 +74,7 @@ estimate_int_impl <- function(
 ) {
   ## SET VARIABLES
 
-  # preprocessing guarantees NA-free statistics (design D13)
+  # preprocessing guarantees NA-free statistics
   stopifnot(!anyNA(statsList$initialStats))
 
   minDampingFactor <- initialDamping
@@ -335,8 +335,8 @@ estimate_int_impl <- function(
 
 #' Newton-Raphson outer loop
 #'
-#' Shared estimation kernel extracted from `estimate_int_impl()` (design
-#' D11). Iterates `compute_iteration_step()` to accumulate the
+#' Shared estimation kernel extracted from `estimate_int_impl()`. Iterates
+#' `compute_iteration_step()` to accumulate the
 #' log-likelihood, score, and information matrix, applies damped Newton
 #' updates, and stops on the dual `score_tol` / `step_tol` criteria with the
 #' documented return codes (1 = gradient close to zero, 2 = step size close
@@ -649,8 +649,8 @@ check_convergence <- function(
 # and p vector.
 #
 # S3 generic dispatched on the model specification class. Each method
-# returns the contribution of a single event for its model variant. Per
-# design D19 the concrete method is resolved once before the estimation
+# returns the contribution of a single event for its model variant. The
+# concrete method is resolved once before the estimation
 # event loop (via bind_event_contribution()) and bound to a local variable;
 # no S3 dispatch happens per event.
 # CHANGED SIWEI: add three parameters: isRightCensored, timespan and
@@ -677,7 +677,7 @@ compute_event_contribution.default <- function(spec, ...) {
 
 # Resolve the concrete compute_event_contribution() method for a spec once,
 # walking its class vector. Returns a plain function to be called inside the
-# event loop without further dispatch (design D19).
+# event loop without further dispatch.
 bind_event_contribution <- function(spec) {
   for (cls in class(spec)) {
     fn <- get0(paste0("compute_event_contribution.", cls))
@@ -845,7 +845,7 @@ compute_event_contribution.dynam_rate_ordered_spec <- function(
   activeActor <- activeDyad[1]
   parameters <- c(parameters)
 
-  # Sender softmax through the single-pass max-shift helper (design D7): finite
+  # Sender softmax through the single-pass max-shift helper: finite
   # probabilities under overflow, and the observed sender's log-likelihood
   # log(p_i) = x_i - logNormalizer stays finite even when p_i underflows.
   linearPredictor <- (statsMatrix %*% parameters)[, 1]
@@ -890,7 +890,7 @@ compute_event_contribution.dynam_choice_spec <- function(
       is_two_mode = is_two_mode
     )
   eventProbabilities <- multinomial$probabilities
-  # log-space observed logL (finite under underflow, design D7)
+  # log-space observed logL (finite under underflow)
   logLikelihood <- multinomial$logProbabilities[activeDyad[2]]
   firstDerivatives <- compute_first_derivative_choice(
     statsArray,
@@ -933,8 +933,8 @@ compute_event_contribution.dynam_choice_coord_spec <- function(
     )
   multinomialProbabilities <- multinomial$probabilities
   eventLikelihoods <- getLikelihoodMM(multinomialProbabilities)
-  # Observed dyad log-likelihood in log-space (finite under underflow, design
-  # D7): the coordination likelihood is a softmax over unordered dyads with
+  # Observed dyad log-likelihood in log-space (finite under underflow): the
+  # coordination likelihood is a softmax over unordered dyads with
   # log-weight log w_{ij} = log P(i->j) + log P(j->i); logL = log w_obs -
   # logSumExp over dyads. The upper/lower symmetry double-counts each unordered
   # dyad, matching getLikelihoodMM's denominator / 2.
@@ -983,7 +983,7 @@ compute_event_contribution.rem_rate_ordered_spec <- function(
       riskMask = riskMask
     )
   eventProbabilities <- multinomial$probabilities
-  # log-space observed logL (finite under underflow, design D7)
+  # log-space observed logL (finite under underflow)
   logLikelihood <- multinomial$logProbabilities[activeDyad[1], activeDyad[2]]
   firstDerivatives <- compute_first_derivative_rem(
     statsArray,
@@ -1095,7 +1095,7 @@ getInformationMatrixREM <- function(eventProbabilities, firstDerivatives) {
 
 # Resolve the concrete compute_step() method for a spec once, walking its
 # class vector. Returns a plain function called inside the event loop without
-# further dispatch (design D19).
+# further dispatch.
 bind_compute_step <- function(spec) {
   for (cls in class(spec)) {
     fn <- get0(paste0("compute_step.", cls))
@@ -1109,7 +1109,7 @@ bind_compute_step <- function(spec) {
 # Per-event update of the running estimation state.
 #
 # S3 generic dispatched on the model spec. The default method implements the
-# full-recompute pattern (design D11): apply the flat update slice to the
+# full-recompute pattern: apply the flat update slice to the
 # running statsArray via apply_flat_update(), filter the active presence /
 # opportunity set, zero the reflexive diagonal where applicable, call the
 # bound compute_event_contribution(), and accumulate logL / score /
@@ -1201,7 +1201,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   current_time <- statsList$event_time[[i]]
   if (ctx$active_sender_folded) {
     # Maintain the folded `active_sender` by walking its per-event crossings
-    # slice (design D7): apply this event's flips before its likelihood.
+    # slice: apply this event's flips before its likelihood.
     hi <- ctx$active_sender_update_pointer[i]
     lo <- if (i > 1L) ctx$active_sender_update_pointer[i - 1L] else 0L
     if (hi > lo) {
@@ -1220,7 +1220,7 @@ compute_step.default <- function(spec, state, i, ctx) {
 
   if (ctx$active_dyad_folded) {
     # Maintain the folded `active_dyad` by its per-event crossings slice
-    # (design D7), applied before this event's likelihood. At the point encoding
+    # applied before this event's likelihood. At the point encoding
     # `state$presence2` is the dense n1 x n2 matrix and the buffer carries
     # (node1, node2, replace); the broadcast encodings maintain a length-n2
     # vector with a (node, replace) buffer.
@@ -1258,7 +1258,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   # remove potential absent lines and columns from the stats array
   # Sender-axis filter: presence, and — under a support_constraint on a rate
   # model — the per-event sender gate (a sender is at risk only if it has at
-  # least one allowed receiver, design D3/D10). The gate branch is entered only
+  # least one allowed receiver). The gate branch is entered only
   # when a gate is supplied, so the unconstrained path is byte-identical.
   # Track which senders/receivers survive presence reduction so a REM
   # support_constraint mask can be reduced to the same dyads before the
@@ -1270,14 +1270,14 @@ compute_step.default <- function(spec, state, i, ctx) {
   # the maintained dense `active_dyad` (used whole as `riskMask` below), so neither
   # axis is reduced — an absent or disallowed dyad is zeroed by the mask, not
   # dropped. Coordination joins REM here because its two-sided likelihood needs the
-  # full matrix, not a per-sender row (design D15).
+  # full matrix, not a per-sender row.
   folded_full <- ctx$active_dyad_folded && (ctx$is_rem || ctx$is_coord)
   if (
     (ctx$updatepresence || hasGate || ctx$active_sender_folded) && !folded_full
   ) {
     # || (updateopportunities && !is_two_mode)
     # When folded, `state$presence` already carries presence AND the sender
-    # gate (design D4/D12), so it is the sender filter directly.
+    # gate, so it is the sender filter directly.
     keepIn <- state$presence
     if (hasGate) {
       keepIn <- keepIn & ctx$senderGate[[i]]
@@ -1315,7 +1315,7 @@ compute_step.default <- function(spec, state, i, ctx) {
       !folded_full
   ) {
     # When folded, the receiver filter is read through the encoding accessor
-    # (design D7/D13): `state$presence2` is the folded receiver availability and
+    # `state$presence2` is the folded receiver availability and
     # already includes the support, so `opportunities` is not conjoined.
     keepIn <- if (ctx$active_dyad_folded) {
       active_dyad_row(
@@ -1387,7 +1387,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   # `riskMask`, and it is passed only when a mask is present, so other paths are
   # unaffected.
   if (folded_full) {
-    # The maintained dense `active_dyad` is the per-event mask (design D7), kept
+    # The maintained dense `active_dyad` is the per-event mask, kept
     # whole because no axis reduction was applied above.
     contrib_args$riskMask <- state$presence2
   } else if (!is.null(ctx$remMask)) {
@@ -1426,7 +1426,7 @@ compute_step.default <- function(spec, state, i, ctx) {
 # for all events, given a set of parameters
 # for the MM, M, REM, and M-Rate function, and REM-ordered.
 # Builds the loop-invariant context and the mutable running state once,
-# resolves the compute_step() method once (design D19), and iterates events.
+# resolves the compute_step() method once, and iterates events.
 compute_iteration_step <- function(
   statsList,
   nodes,
@@ -1466,25 +1466,25 @@ compute_iteration_step <- function(
     inherits(spec, c("dynam_choice_spec", "dynami_choice_spec"))
 
   # A sender-loop support_constraint is folded into `active_sender` at
-  # preprocessing (design D4/D12): the availability object already carries
+  # preprocessing: the availability object already carries
   # presence AND the per-event sender gate as net crossings, so the engine
   # maintains it by walking its flat buffer per event (by index) and uses it
   # directly as the sender filter — no separate `senderGate` recombination.
   active_sender_folded <- isTRUE(statsList$active_sender_folded)
   # A DyNAM-choice support_constraint is folded into `active_dyad` at
-  # preprocessing (design D4/D11): the receiver-axis availability already
+  # preprocessing: the receiver-axis availability already
   # carries receiver presence AND the folded support, so the engine maintains
   # it by walking its flat buffer per event and reads the receiver filter
   # through the encoding accessor — no separate opportunities/compChange2 step.
   active_dyad_folded <- isTRUE(statsList$active_dyad_folded)
   # A standard- or ordinal-REM support_constraint folds both presences ∩ support
-  # into a dense point `active_dyad` (design D11): the maintained matrix IS the
+  # into a dense point `active_dyad`: the maintained matrix IS the
   # per-event risk mask, so the presence axis-reductions are skipped and it is
   # consumed directly as `riskMask`, replacing the standalone per-event mask.
   is_rem <- inherits(spec, c("rem_rate_spec", "rem_rate_ordered_spec"))
   # DyNAM coordination is two-sided (`getLikelihoodMM` pairs both directed
   # choices), so a folded coordination constraint — symmetrised into the dense
-  # point `active_dyad` (design D15) — is consumed as the full risk mask exactly
+  # point `active_dyad` — is consumed as the full risk mask exactly
   # like REM, NOT via the one-sided-choice row accessor.
   is_coord <- inherits(spec, "dynam_choice_coord_spec")
 
@@ -1495,7 +1495,7 @@ compute_iteration_step <- function(
   #   snowfall::sfExport("compute_event_contribution", namespace = "goldfish")
   # }
 
-  # resolve the per-event step + contribution methods once (design D19)
+  # resolve the per-event step + contribution methods once
   step_fn <- bind_compute_step(spec)
   contribution_fn <- bind_event_contribution(spec)
 
@@ -1623,7 +1623,7 @@ getMultinomialInformationMatrixM <- function(
 }
 
 
-# Single-pass max-shift softmax (design D7). Given linear predictors `x` with
+# Single-pass max-shift softmax. Given linear predictors `x` with
 # excluded alternatives encoded as -Inf, returns in ONE exp pass both outputs
 # the multinomial likelihood needs: the normalized `probabilities` and the
 # log-probabilities log(p) = x - logNormalizer. Because the observed
@@ -1668,7 +1668,7 @@ stable_softmax <- function(x, rowwise = FALSE) {
 
 # Function to calculate a matrix of i->j multinomial choice probabilities
 # (non-logged) for one term of the model. Returns a list with `probabilities`
-# and the matching stable `logProbabilities` (design D7): the excluded
+# and the matching stable `logProbabilities`: the excluded
 # alternatives (reflexive diagonal, `riskMask`) enter as -Inf linear predictors,
 # so the max-shift is taken over the included set only and they drop from the
 # normalizer exactly as zeroing their utility did before.

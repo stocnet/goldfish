@@ -1,5 +1,5 @@
 # support_constraint consumption for DyNAM choice_coordination (DyNAM-MM) across
-# the default / gather_compute / default_c engines (design D15). Coordination's
+# the default / gather_compute / default_c engines. Coordination's
 # likelihood is two-sided (`getLikelihoodMM` pairs both directed choices), so
 # constraint is symmetrised (`support[i, j] & support[j, i]`) and folded into a
 # dense point `active_dyad` consumed as the FULL risk mask — never a per-sender
@@ -24,7 +24,7 @@ make_coord_fixture <- function(n_excluded = 0L, seed = 1L) {
   contignet <- make_network(contignet, nodes = states, directed = FALSE)
   contignet <- link_events(contignet, contigchanges, nodes = states)
   dep <- bilatchanges[bilatchanges$increment == 1, ]
-  createBilat <- make_dependent_events(
+  create_bilat <- make_dependent_events(
     events = dep,
     nodes = states,
     default_network = bilatnet
@@ -55,7 +55,7 @@ make_coord_fixture <- function(n_excluded = 0L, seed = 1L) {
   allowedNet <- make_network(matrix = allowed, nodes = states, directed = FALSE)
 
   make_data(
-    createBilat,
+    create_bilat,
     bilatnet,
     contignet,
     allowedNet,
@@ -68,7 +68,7 @@ make_coord_fixture <- function(n_excluded = 0L, seed = 1L) {
   )
 }
 
-coord_formula <- createBilat ~
+coord_formula <- create_bilat ~
   inertia + indeg + trans + tie(contignet)
 
 test_that("an all-allowing coordination constraint is an identity", {
@@ -135,7 +135,7 @@ test_that("coordination constraint runs natively on default_c", {
     )
   ))
   # estimate_DyNAM_MM reads the symmetrised dense point active_dyad cell-wise,
-  # default_c matches the default engine exactly (design D15).
+  # default_c matches the default engine exactly.
   m_dc <- suppressWarnings(estimate_dynam(
     coord_formula,
     sub_model = "choice_coordination",
@@ -171,8 +171,7 @@ test_that("gather_compute runs a coordination constraint natively", {
   # The gather now emits the symmetrically-folded off-diagonal dyad list (only
   # mask-allowed rows) plus the per-sender groups and (i,j)<->(j,i) pairing, and
   # the dyad-triangle kernel reads that ragged list directly — no square
-  # candidate matrix, no redirect to default_c, no informational message
-  # (design D9/D13).
+  # candidate matrix, no redirect to default_c, no informational message.
   expect_no_message(
     m_gc <- suppressWarnings(estimate_dynam(
       coord_formula,

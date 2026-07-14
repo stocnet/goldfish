@@ -127,7 +127,7 @@ summary.result.goldfish <- function(object, ...) {
 #' \item{Effect details:}{a table with additional information of the effects.
 #' The information corresponds to the  values of the effects arguments when
 #' they are modified and if they where fixed during estimation, see
-#' `vignette("goldfishEffects")` for the complete list of arguments, and
+#' `vignette("goldfish_effects")` for the complete list of arguments, and
 #' [estimate] on how to fix coefficients during estimation.}
 #' \item{Coefficients:}{a table with the estimated coefficients, their
 #'   approximate standard error obtain from the inverse of the negative Fisher
@@ -137,7 +137,7 @@ summary.result.goldfish <- function(object, ...) {
 #'   convergence of the iterative Newton-Raphson procedure and the score value
 #'   in the last iteration. Information criteria as the AIC, BIC and the AIC
 #'   corrected for small sample size AICc are reported.}
-#' \item{Model and subModel:}{the values set during estimation.}
+#' \item{Model and sub_model:}{the values set during estimation.}
 print.summary.result.goldfish <- function(
   x,
   ...,
@@ -245,7 +245,7 @@ print.summary.result.goldfish <- function(
     signif(x$BIC, digits),
     "\n"
   )
-  cat("  model:", dQuote(x$model), "subModel:", dQuote(x$subModel), "\n")
+  cat("  model:", dQuote(x$model), "sub_model:", dQuote(x$sub_model), "\n")
   invisible(x)
 }
 
@@ -957,8 +957,8 @@ augment.result.goldfish <- function(x, ...) {
   tib <- tibble::as_tibble(data)
   N <- nrow(tib)
   tib$rightCensoredEvent <- rep(FALSE, N)
-  if (x$rightCensored) {
-    censoredTime <- x$eventTime[x$rightCensoredEvents]
+  if (x$right_censored) {
+    censoredTime <- x$event_time[x$right_censored_events]
     tibCen <- tibble::as_tibble(censoredTime)
     names(tibCen) <- c("time")
     N_censored <- nrow(tibCen)

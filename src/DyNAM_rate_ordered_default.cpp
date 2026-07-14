@@ -53,7 +53,7 @@ List estimate_DyNAM_rate_ordered(
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
-    // Opt-in per-event score matrix (design D11). Each row is the per-event
+    // Opt-in per-event score matrix. Each row is the per-event
     // increment already accumulated into `derivative` (observed minus expected
     // statistic); allocated only when requested so the default path pays nothing.
     arma::mat event_scores;
@@ -127,7 +127,7 @@ List estimate_DyNAM_rate_ordered(
         arma::mat reduced_stat_mat =
           reduce_mat_to_vector(stat_mat, n_actors_1, n_actors_2,
                                twomode_or_reflexive);
-        // Staged, numerically stable softmax over the senders (design D7/D8):
+        // Staged, numerically stable softmax over the senders:
         // one GEMV for the linear predictors, the shared max-shift helper for the
         // weights, then a weighted cross-product for the Fisher.
         arma::vec lin_pred = reduced_stat_mat * parameters;

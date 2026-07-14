@@ -1,6 +1,6 @@
 test_that("Imputation of missing data when numerical data is missing.", {
   # redefine ActorsEx with NA data
-  actorsEx <- data.frame(
+  actors_ex <- data.frame(
     label = sprintf("Actor %d", 1:5),
     present = c(rep(TRUE, 5)),
     attr1 = c(1, 0, 1, NA, 1),
@@ -16,31 +16,31 @@ test_that("Imputation of missing data when numerical data is missing.", {
   )
 
   # have to relink here
-  actorsEx <- make_nodes(actorsEx)
-  actorsEx <- link_events(
-    x = actorsEx,
+  actors_ex <- make_nodes(actors_ex)
+  actors_ex <- link_events(
+    x = actors_ex,
     change_events = compChange,
     attribute = "present"
   )
-  actorsEx <- link_events(
-    x = actorsEx,
+  actors_ex <- link_events(
+    x = actors_ex,
     change_events = attrChange,
     attribute = "attr1"
   )
 
   networkState <- make_network(
     matrix = networkState,
-    nodes = actorsEx,
+    nodes = actors_ex,
     directed = TRUE
   )
   networkState <- link_events(
     x = networkState,
     change_events = eventsIncrement,
-    nodes = actorsEx
+    nodes = actors_ex
   )
   depNetwork <- make_dependent_events(
     events = eventsIncrement,
-    nodes = actorsEx,
+    nodes = actors_ex,
     default_network = networkState
   )
 
@@ -49,17 +49,17 @@ test_that("Imputation of missing data when numerical data is missing.", {
   effectTableTest <- data.frame(
     inertia = c(1, NA),
     same = c(NA, 1),
-    row.names = c("networkState", "actorsEx$attr1")
+    row.names = c("networkState", "actors_ex$attr1")
   )
   expect_warning(
-    imputeMissingData(effectTableTest, envir = environment()),
+    impute_missing_data(effectTableTest, envir = environment()),
     "Missing data has been detected. Mean is used to impute for numerical values"
   )
 })
 
 test_that("Imputation of missing data when categorical/string data is missing.", {
   # redefine ActorsEx with NA data
-  actorsEx <- data.frame(
+  actors_ex <- data.frame(
     label = sprintf("Actor %d", 1:5),
     present = c(rep(TRUE, 4), FALSE),
     # String values for categorical grouping
@@ -84,31 +84,31 @@ test_that("Imputation of missing data when categorical/string data is missing.",
   )
 
   # have to relink here
-  actorsEx <- make_nodes(actorsEx)
-  actorsEx <- link_events(
-    x = actorsEx,
+  actors_ex <- make_nodes(actors_ex)
+  actors_ex <- link_events(
+    x = actors_ex,
     change_events = compChange,
     attribute = "present"
   )
-  actorsEx <- link_events(
-    x = actorsEx,
+  actors_ex <- link_events(
+    x = actors_ex,
     change_events = attrChange,
     attribute = "attr1"
   )
 
   networkState <- make_network(
     matrix = networkState,
-    nodes = actorsEx,
+    nodes = actors_ex,
     directed = TRUE
   )
   networkState <- link_events(
     x = networkState,
     change_events = eventsIncrement,
-    nodes = actorsEx
+    nodes = actors_ex
   )
   depNetwork <- make_dependent_events(
     events = eventsIncrement,
-    nodes = actorsEx,
+    nodes = actors_ex,
     default_network = networkState
   )
 
@@ -117,10 +117,10 @@ test_that("Imputation of missing data when categorical/string data is missing.",
   effectTableTest <- data.frame(
     inertia = c(1, NA),
     same = c(NA, 1),
-    row.names = c("networkState", "actorsEx$attr1")
+    row.names = c("networkState", "actors_ex$attr1")
   )
   expect_warning(
-    imputeMissingData(effectTableTest, envir = environment()),
+    impute_missing_data(effectTableTest, envir = environment()),
     "Missing data has been detected. Mode is used to impute for categorical values"
   )
 })

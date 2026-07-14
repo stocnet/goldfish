@@ -1,13 +1,13 @@
 test_that("DyNAM-rate", {
   skip_on_cran()
   model <- "DyNAM"
-  subModel <- "rate"
+  sub_model <- "rate"
   # endogenous and right-censored events
   formula <- depNetwork ~ 1 + indeg + outdeg(networkExog, weighted = TRUE)
   modR <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(
@@ -20,7 +20,7 @@ test_that("DyNAM-rate", {
   modCd <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(
@@ -31,7 +31,7 @@ test_that("DyNAM-rate", {
   modCgc <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "gather_compute")
@@ -45,13 +45,13 @@ test_that("DyNAM-rate", {
 test_that("DyNAM-rate ordered", {
   skip_on_cran()
   model <- "DyNAM"
-  subModel <- "rate_ordered"
+  sub_model <- "rate_ordered"
   # endogenous and right-censored events
   formula <- depNetwork ~ indeg + outdeg(networkExog, weighted = TRUE)
   modR <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "default")
@@ -59,7 +59,7 @@ test_that("DyNAM-rate ordered", {
   modCd <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "default_c")
@@ -67,7 +67,7 @@ test_that("DyNAM-rate ordered", {
   modCgc <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "gather_compute")
@@ -81,13 +81,13 @@ test_that("DyNAM-rate ordered", {
 test_that("DyNAM-choice", {
   skip_on_cran()
   model <- "DyNAM"
-  subModel <- "choice"
+  sub_model <- "choice"
   # endogenous and right-censored events
   formula <- depNetwork ~ inertia + indeg + outdeg(networkExog, weighted = TRUE)
   modR <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "default")
@@ -95,7 +95,7 @@ test_that("DyNAM-choice", {
   modCd <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "default_c")
@@ -103,7 +103,7 @@ test_that("DyNAM-choice", {
   modCgc <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "gather_compute")
@@ -117,7 +117,7 @@ test_that("DyNAM-choice", {
 test_that("REM", {
   skip_on_cran()
   model <- "REM"
-  subModel <- "rate"
+  sub_model <- "rate"
   # endogenous and right-censored events
   formula <- depNetwork ~ 1 +
     inertia +
@@ -126,7 +126,7 @@ test_that("REM", {
   modR <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "default")
@@ -134,7 +134,7 @@ test_that("REM", {
   modCd <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "default_c")
@@ -142,7 +142,7 @@ test_that("REM", {
   modCgc <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "gather_compute")
@@ -156,7 +156,7 @@ test_that("REM", {
 test_that("REM ordered", {
   skip_on_cran()
   model <- "REM"
-  subModel <- "rate_ordered"
+  sub_model <- "rate_ordered"
   # endogenous and right-censored events
   formula <- depNetwork ~ inertia +
     indeg +
@@ -164,7 +164,7 @@ test_that("REM ordered", {
   modR <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "default")
@@ -172,7 +172,7 @@ test_that("REM ordered", {
   modCd <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "default_c")
@@ -180,7 +180,7 @@ test_that("REM ordered", {
   modCgc <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "gather_compute")
@@ -194,10 +194,10 @@ test_that("REM ordered", {
 test_that("DyNAM-choice_coordination", {
   skip_on_cran()
   model <- "DyNAM"
-  subModel <- "choice_coordination"
+  sub_model <- "choice_coordination"
   # endogenous and right-censored events
-  # NB: choice_coordination rejects an ego-perspective main effect (design D3,
-  # group 3), so this engine-consistency vector uses the default alter
+  # NB: choice_coordination rejects an ego-perspective main effect, so this
+  # engine-consistency vector uses the default alter
   # perspective — the effect only needs to be valid and non-trivial here.
   formula <- depNetwork ~ inertia +
     indeg +
@@ -205,7 +205,7 @@ test_that("DyNAM-choice_coordination", {
   modR <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "default")
@@ -213,7 +213,7 @@ test_that("DyNAM-choice_coordination", {
   modCd <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "default_c")
@@ -221,7 +221,7 @@ test_that("DyNAM-choice_coordination", {
   modCgc <- estimate_wrapper(
     formula,
     model = model,
-    sub_model = subModel,
+    sub_model = sub_model,
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0),
     control_estimation = set_estimation_opt(engine = "gather_compute")

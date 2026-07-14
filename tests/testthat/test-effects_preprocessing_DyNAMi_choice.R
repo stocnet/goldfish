@@ -1,21 +1,21 @@
-# context("Effects for model = 'DyNAMi' and subModel = 'choice'")
+# context("Effects for model = 'DyNAMi' and sub_model = 'choice'")
 
 # test inertia and tie with different subtypes ----
 test_that("inertia/tie with objects weighted with all possible options", {
   preproData <- estimate_wrapper(
     dependent.depevents_DyNAMi ~
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "count") +
-      tie(covnetwork_DyNAMi, weighted = TRUE, subType = "count") +
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "proportion") +
-      tie(covnetwork_DyNAMi, weighted = TRUE, subType = "proportion") +
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "presence") +
-      tie(covnetwork_DyNAMi, weighted = TRUE, subType = "presence") +
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "min") +
-      tie(covnetwork_DyNAMi, weighted = TRUE, subType = "min") +
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "mean") +
-      tie(covnetwork_DyNAMi, weighted = TRUE, subType = "mean") +
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "max") +
-      tie(covnetwork_DyNAMi, weighted = TRUE, subType = "max"),
+      inertia(past_network_DyNAMi, weighted = TRUE, sub_type = "count") +
+      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "count") +
+      inertia(past_network_DyNAMi, weighted = TRUE, sub_type = "proportion") +
+      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "proportion") +
+      inertia(past_network_DyNAMi, weighted = TRUE, sub_type = "presence") +
+      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "presence") +
+      inertia(past_network_DyNAMi, weighted = TRUE, sub_type = "min") +
+      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "min") +
+      inertia(past_network_DyNAMi, weighted = TRUE, sub_type = "mean") +
+      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "mean") +
+      inertia(past_network_DyNAMi, weighted = TRUE, sub_type = "max") +
+      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "max"),
     model = "DyNAMi",
     sub_model = "choice",
     data = dataDyNAMi,
@@ -835,25 +835,25 @@ test_that("alterpop/alterdeg with objects weighted with all possible options", {
       alterpop(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "mean_normalized"
+        sub_type = "mean_normalized"
       ) +
       alterdeg(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "mean_normalized"
+        sub_type = "mean_normalized"
       ) +
-      alterpop(past_network_DyNAMi, weighted = TRUE, subType = "min") +
-      alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "min") +
-      alterpop(past_network_DyNAMi, weighted = TRUE, subType = "mean") +
-      alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "mean") +
-      alterpop(past_network_DyNAMi, weighted = TRUE, subType = "max") +
-      alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "max") +
+      alterpop(past_network_DyNAMi, weighted = TRUE, sub_type = "min") +
+      alterdeg(covnetwork_DyNAMi, weighted = TRUE, sub_type = "min") +
+      alterpop(past_network_DyNAMi, weighted = TRUE, sub_type = "mean") +
+      alterdeg(covnetwork_DyNAMi, weighted = TRUE, sub_type = "mean") +
+      alterpop(past_network_DyNAMi, weighted = TRUE, sub_type = "max") +
+      alterdeg(covnetwork_DyNAMi, weighted = TRUE, sub_type = "max") +
       alterpop(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "mean_centered"
+        sub_type = "mean_centered"
       ) +
-      alterdeg(covnetwork_DyNAMi, weighted = TRUE, subType = "mean_centered"),
+      alterdeg(covnetwork_DyNAMi, weighted = TRUE, sub_type = "mean_centered"),
     model = "DyNAMi",
     sub_model = "choice",
     data = dataDyNAMi,
@@ -1400,8 +1400,8 @@ test_that("alterpop/alterdeg with objects weighted with all possible options", {
 test_that("size with objects weighted with all possible options", {
   preproData <- estimate_wrapper(
     dependent.depevents_DyNAMi ~
-      size(interaction_network_DyNAMi, subType = "identity") +
-      size(interaction_network_DyNAMi, subType = "squared"),
+      size(interaction_network_DyNAMi, sub_type = "identity") +
+      size(interaction_network_DyNAMi, sub_type = "squared"),
     model = "DyNAMi",
     sub_model = "choice",
     data = dataDyNAMi,
@@ -1655,13 +1655,13 @@ test_that("size with objects weighted with all possible options", {
 # test alter ----
 test_that("alter with objects weighted with all possible options", {
   preproData <- estimate_wrapper(
-    dependent.depevents_DyNAMi ~ alter(actors_DyNAMi$attr1, subType = "mean") +
-      alter(actors_DyNAMi$attr1, subType = "mean_normalized") +
-      alter(actors_DyNAMi$attr1, subType = "mean_squared") +
-      alter(actors_DyNAMi$attr1, subType = "min") +
-      alter(actors_DyNAMi$attr1, subType = "max") +
-      alter(actors_DyNAMi$attr1, subType = "range") +
-      alter(actors_DyNAMi$attr1, subType = "mean_centered"),
+    dependent.depevents_DyNAMi ~ alter(actors_DyNAMi$attr1, sub_type = "mean") +
+      alter(actors_DyNAMi$attr1, sub_type = "mean_normalized") +
+      alter(actors_DyNAMi$attr1, sub_type = "mean_squared") +
+      alter(actors_DyNAMi$attr1, sub_type = "min") +
+      alter(actors_DyNAMi$attr1, sub_type = "max") +
+      alter(actors_DyNAMi$attr1, sub_type = "range") +
+      alter(actors_DyNAMi$attr1, sub_type = "mean_centered"),
     model = "DyNAMi",
     sub_model = "choice",
     data = dataDyNAMi,
@@ -2160,17 +2160,17 @@ test_that("alter with objects weighted with all possible options", {
 test_that("same/diff/sim with objects weighted with all possible options", {
   preproData <- estimate_wrapper(
     dependent.depevents_DyNAMi ~
-      same(actors_DyNAMi$attr2, subType = "proportion") +
-      same(actors_DyNAMi$attr2, subType = "count") +
-      same(actors_DyNAMi$attr2, subType = "presence") +
-      diff(actors_DyNAMi$attr1, subType = "averaged_sum") +
-      diff(actors_DyNAMi$attr1, subType = "mean") +
-      diff(actors_DyNAMi$attr1, subType = "min") +
-      diff(actors_DyNAMi$attr1, subType = "max") +
-      sim(actors_DyNAMi$attr1, subType = "averaged_sum") +
-      sim(actors_DyNAMi$attr1, subType = "mean") +
-      sim(actors_DyNAMi$attr1, subType = "min") +
-      sim(actors_DyNAMi$attr1, subType = "max"),
+      same(actors_DyNAMi$attr2, sub_type = "proportion") +
+      same(actors_DyNAMi$attr2, sub_type = "count") +
+      same(actors_DyNAMi$attr2, sub_type = "presence") +
+      diff(actors_DyNAMi$attr1, sub_type = "averaged_sum") +
+      diff(actors_DyNAMi$attr1, sub_type = "mean") +
+      diff(actors_DyNAMi$attr1, sub_type = "min") +
+      diff(actors_DyNAMi$attr1, sub_type = "max") +
+      sim(actors_DyNAMi$attr1, sub_type = "averaged_sum") +
+      sim(actors_DyNAMi$attr1, sub_type = "mean") +
+      sim(actors_DyNAMi$attr1, sub_type = "min") +
+      sim(actors_DyNAMi$attr1, sub_type = "max"),
     model = "DyNAMi",
     sub_model = "choice",
     data = dataDyNAMi,

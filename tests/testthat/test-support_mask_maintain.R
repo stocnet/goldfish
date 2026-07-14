@@ -1,5 +1,5 @@
-# Incremental support-mask maintenance (task 3.1) + from-scratch equivalence
-# (task 3.3). The constraint sub-plan is maintained in a self-contained recipe
+# Incremental support-mask maintenance + from-scratch equivalence.
+# The constraint sub-plan is maintained in a self-contained recipe
 # pass; at every dependent event its support mask must equal a from-scratch
 # evaluation of the constraint on the atoms' current statistics. The pass is
 # attached additively to the preprocessed object, so an unconstrained model is
@@ -9,23 +9,23 @@ make_mask_fixture <- function(n_events = 80L) {
   data("Social_Evolution", package = "goldfish", envir = environment())
   actors <- get("actors", environment())
   calls <- get("calls", environment())
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
-  callsDependent <- make_dependent_events(
+  calls_dependent <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
-  callsDependent <- callsDependent[seq_len(n_events), ]
+  calls_dependent <- calls_dependent[seq_len(n_events), ]
   list(
-    data = make_data(callsDependent, callNetwork, calls, actors),
+    data = make_data(calls_dependent, call_network, calls, actors),
     actors = actors,
     calls = as.data.frame(calls),
-    dep_times = callsDependent$time,
+    dep_times = calls_dependent$time,
     n_events = n_events
   )
 }
@@ -48,14 +48,14 @@ tie_support_from_scratch <- function(fx, event_time) {
 run_mask_pass <- function(fx) {
   d <- fx$data
   cp <- parse_and_validate_constraint(
-    ~ tie(callNetwork),
+    ~ tie(call_network),
     has_dyad_part = TRUE,
     envir = d
   )
   sub <- compile_support_constraint(
     cp,
     model = "DyNAM",
-    dep_name = "callsDependent",
+    dep_name = "calls_dependent",
     nodes = "actors",
     nodes2 = "actors",
     window_derivations = NULL,
@@ -68,7 +68,7 @@ run_mask_pass <- function(fx) {
     nodes2 = "actors",
     symmetric = FALSE,
     snapshot_times = fx$dep_times,
-    prepEnvir = d
+    prep_envir = d
   )
 }
 
@@ -89,7 +89,7 @@ test_that("incrementally maintained mask equals from-scratch at every event", {
   }
 })
 
-test_that("the rate (sender) loop realizes the same dyad support at all events (D13)", {
+test_that("the rate (sender) loop realizes the same dyad support at all events", {
   fx <- make_mask_fixture()
   spec <- make_specification(
     rate = ~ 1 + indeg,
@@ -97,8 +97,8 @@ test_that("the rate (sender) loop realizes the same dyad support at all events (
     model = "DyNAM",
     rate_sub_model = "rate",
     choice_sub_model = "choice",
-    layer = "callsDependent",
-    support_constraint = ~ tie(callNetwork),
+    layer = "calls_dependent",
+    support_constraint = ~ tie(call_network),
     data = fx$data
   )
   prep_rate <- estimate_dynam(
@@ -120,14 +120,14 @@ test_that("the rate (sender) loop realizes the same dyad support at all events (
 test_that("a constrained model attaches support_mask; unconstrained does not", {
   fx <- make_mask_fixture()
   prep_c <- estimate_dynam(
-    callsDependent ~ inertia + recip,
+    calls_dependent ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
     preprocessing_only = TRUE,
-    support_constraint = ~ tie(callNetwork)
+    support_constraint = ~ tie(call_network)
   )
   prep_u <- estimate_dynam(
-    callsDependent ~ inertia + recip,
+    calls_dependent ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
     preprocessing_only = TRUE

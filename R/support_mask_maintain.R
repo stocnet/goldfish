@@ -5,7 +5,7 @@
 #
 ####################### #
 
-# The support mask is realized as a derived object (design D7): its atoms are
+# The support mask is realized as a derived object: its atoms are
 # plain effects, so they are maintained with the SAME recipe builders the
 # estimated formula uses (state container, event schedule, effect templates,
 # stat cache, per-object routing) — but over the constraint sub-plan alone, in a
@@ -16,7 +16,7 @@
 #
 # The atoms' live per-cell values are kept dense here (one n1 x n2 matrix per
 # atom) and the boolean tree is evaluated over them. The axis-union storage kind
-# (design D2: vector/scalar for separable ego/global constraints) is a memory
+# (vector/scalar for separable ego/global constraints) is a memory
 # optimization deferred to a later slice; correctness of the mask timeline does
 # not depend on it. Likewise the atoms are re-derived from their update closures
 # per touched cell — the same locality as the interaction second-hop — rather
@@ -25,7 +25,7 @@
 #' Maintain the support-constraint mask across the event sequence
 #'
 #' Runs a stripped recipe pass over the constraint sub-plan, snapshotting the
-#' support mask (the dyadic constraint before presence conjunction, design D10)
+#' support mask (the dyadic constraint before presence conjunction)
 #' at each requested snapshot time. Presence (`active_1`/`active_2`) is joined
 #' later by the gather / rate consumer via [assemble_model_mask()].
 #'
@@ -33,7 +33,7 @@
 #' piecewise-constant in time. The pass advances the atoms over their own event
 #' streams and snapshots the support at every `snapshot_times[e]` using the atom
 #' state STRICTLY before that time (an event's risk set is lagged — its own
-#' change is not yet applied, design D12). Passing the preprocessed object's
+#' change is not yet applied). Passing the preprocessed object's
 #' stored-event times aligns the timeline with its events by construction, even
 #' though the right-censored events come from the main model's streams (not
 #' carried by the constraint sub-plan).
@@ -42,11 +42,11 @@
 #'   `compile_support_constraint()` (its `effect_functions`, registries, links,
 #'   `expr`, `atom_kinds`, `mask_kind`, and `fetch_plan`).
 #' @param model the model string (`"DyNAM"` / `"REM"`).
-#' @param nodes,nodes2 sender/receiver nodeset names, resolved in `prepEnvir`.
-#' @param symmetric symmetrise the support (coordination / undirected REM, D11).
+#' @param nodes,nodes2 sender/receiver nodeset names, resolved in `prep_envir`.
+#' @param symmetric symmetrise the support (coordination / undirected REM).
 #' @param snapshot_times numeric vector of times (the preprocessed object's
 #'   stored-event times, in event order) at which to snapshot the support.
-#' @param prepEnvir environment holding the realized data objects.
+#' @param prep_envir environment holding the realized data objects.
 #' @return a list with `support` (one n1 x n2 logical per snapshot time, aligned
 #'   with the preprocessed object's events), `initial` (the mask before any
 #'   event), `mask_kind`, `n_stored`, and `symmetric`.
@@ -58,7 +58,7 @@ preprocess_support_mask <- function(
   nodes2,
   symmetric = FALSE,
   snapshot_times = numeric(0),
-  prepEnvir = new.env()
+  prep_envir = new.env()
 ) {
   effects <- sub_plan$effect_functions
   objects_effects_link <- sub_plan$objects_effects_link
@@ -67,10 +67,10 @@ preprocess_support_mask <- function(
   expr <- sub_plan$expr
   n_atoms <- length(effects)
 
-  n1 <- nrow(get(nodes, envir = prepEnvir))
-  n2 <- nrow(get(nodes2, envir = prepEnvir))
+  n1 <- nrow(get(nodes, envir = prep_envir))
+  n2 <- nrow(get(nodes2, envir = prep_envir))
 
-  events <- fetch_events(sub_plan$fetch_plan, envir = prepEnvir)
+  events <- fetch_events(sub_plan$fetch_plan, envir = prep_envir)
   schedule <- build_event_schedule(
     events,
     events_objects_link,
@@ -81,7 +81,7 @@ preprocess_support_mask <- function(
     rownames(objects_effects_link),
     nodes,
     nodes2,
-    envir = prepEnvir
+    envir = prep_envir
   )
   effects_template <- build_effects_template(
     effects,
@@ -91,34 +91,34 @@ preprocess_support_mask <- function(
 
   # Initial atom values (dense n1 x n2 each) and their live caches, seeded from
   # the objects' state before any event.
-  statCache <- initializeCacheStat(
-    objectsEffectsLink = objects_effects_link,
+  stat_cache <- initialize_cache_stat(
+    objects_effects_link = objects_effects_link,
     effects = effects,
-    groupsNetwork = NULL,
-    windowParameters = vector("list", n_atoms),
+    groups_network = NULL,
+    window_parameters = vector("list", n_atoms),
     n1 = n1,
     n2 = n2,
     model = model,
-    subModel = sub_plan$atom_sub_model,
-    envir = prepEnvir
+    sub_model = sub_plan$atom_sub_model,
+    envir = prep_envir
   )
   atom_state <- new.env(parent = emptyenv())
   for (a in seq_len(n_atoms)) {
     assign(
       as.character(a),
-      matrix(statCache[[a]]$stat, n1, n2),
+      matrix(stat_cache[[a]]$stat, n1, n2),
       envir = atom_state
     )
   }
-  statCache <- lapply(statCache, "[[", "cache")
+  stat_cache <- lapply(stat_cache, "[[", "cache")
 
-  netUpdateLookup <- matrix(NA_integer_, nrow(sub_plan$objects), n_atoms)
-  attUpdateLookup <- matrix(NA_integer_, nrow(sub_plan$objects), n_atoms)
-  netUpdateLookup[cbind(
+  net_update_lookup <- matrix(NA_integer_, nrow(sub_plan$objects), n_atoms)
+  att_update_lookup <- matrix(NA_integer_, nrow(sub_plan$objects), n_atoms)
+  net_update_lookup[cbind(
     sub_plan$effect_objects$oid,
     sub_plan$effect_objects$gid
   )] <- sub_plan$effect_objects$net_update
-  attUpdateLookup[cbind(
+  att_update_lookup[cbind(
     sub_plan$effect_objects$oid,
     sub_plan$effect_objects$gid
   )] <- sub_plan$effect_objects$att_update
@@ -152,13 +152,13 @@ preprocess_support_mask <- function(
         } else {
           list()
         },
-        cache = statCache[[gid]],
+        cache = stat_cache[[gid]],
         n1 = n1,
         n2 = n2,
-        netUpdate = net_update,
-        attUpdate = att_update,
-        eventOrder = 0L,
-        interEventTime = 0
+        net_update = net_update,
+        att_update = att_update,
+        event_order = 0L,
+        inter_event_time = 0
       ),
       event_args
     )
@@ -188,74 +188,74 @@ preprocess_support_mask <- function(
     component <- sub_plan$objects$component[oid]
     key <- sub_plan$objects$key[oid]
     shape <- schedule$shape[k]
-    isUndirectedNet <- sub_plan$objects$is_undirected[oid]
+    is_undirected_net <- sub_plan$objects$is_undirected[oid]
 
     if (shape == "global") {
-      replaceValue <- schedule$value[[k]]
-      if (is.na(replaceValue)) {
-        replaceValue <- 0
+      replace_value <- schedule$value[[k]]
+      if (is.na(replace_value)) {
+        replace_value <- 0
       }
-      event_args <- list(replace = replaceValue)
+      event_args <- list(replace = replace_value)
     } else if (shape == "node") {
-      eventNode <- schedule$node[k]
+      event_node <- schedule$node[k]
       if (schedule$semantics[k] == "increment") {
-        incrementValue <- schedule$value[[k]]
-        if (is.na(incrementValue)) {
-          incrementValue <- 0
+        increment_value <- schedule$value[[k]]
+        if (is.na(increment_value)) {
+          increment_value <- 0
         }
-        replaceValue <- state[[component]][[key]][eventNode] + incrementValue
+        replace_value <- state[[component]][[key]][event_node] + increment_value
       } else {
-        replaceValue <- schedule$value[[k]]
+        replace_value <- schedule$value[[k]]
       }
-      event_args <- list(node = eventNode, replace = replaceValue)
+      event_args <- list(node = event_node, replace = replace_value)
     } else {
-      eventSender <- schedule$sender[k]
-      eventReceiver <- schedule$receiver[k]
+      event_sender <- schedule$sender[k]
+      event_receiver <- schedule$receiver[k]
       if (schedule$semantics[k] == "increment") {
-        incrementValue <- schedule$value[[k]]
-        if (is.na(incrementValue)) {
-          incrementValue <- 0
+        increment_value <- schedule$value[[k]]
+        if (is.na(increment_value)) {
+          increment_value <- 0
         }
-        replaceValue <-
-          state$networks[[key]][eventSender, eventReceiver] + incrementValue
+        replace_value <-
+          state$networks[[key]][event_sender, event_receiver] + increment_value
       } else {
-        replaceValue <- schedule$value[[k]]
+        replace_value <- schedule$value[[k]]
       }
       event_args <- list(
-        sender = eventSender,
-        receiver = eventReceiver,
-        replace = replaceValue
+        sender = event_sender,
+        receiver = event_receiver,
+        replace = replace_value
       )
     }
 
     for (gid in sub_plan$routing[[oid]]) {
-      netUpdatePos <- netUpdateLookup[oid, gid]
-      if (is.na(netUpdatePos)) {
-        netUpdatePos <- NULL
+      net_update_pos <- net_update_lookup[oid, gid]
+      if (is.na(net_update_pos)) {
+        net_update_pos <- NULL
       }
-      attUpdatePos <- attUpdateLookup[oid, gid]
-      if (is.na(attUpdatePos)) {
-        attUpdatePos <- NULL
+      att_update_pos <- att_update_lookup[oid, gid]
+      if (is.na(att_update_pos)) {
+        att_update_pos <- NULL
       }
 
-      effectUpdate <- call_atom_template(
+      effect_update <- call_atom_template(
         gid,
         shape,
         event_args,
-        netUpdatePos,
-        attUpdatePos
+        net_update_pos,
+        att_update_pos
       )
-      if (!is.null(effectUpdate$cache)) {
-        statCache[[gid]] <<- effectUpdate$cache
+      if (!is.null(effect_update$cache)) {
+        stat_cache[[gid]] <<- effect_update$cache
       }
-      updates <- effectUpdate$changes
-      if (isUndirectedNet) {
+      updates <- effect_update$changes
+      if (is_undirected_net) {
         ea2 <- event_args
         ea2$sender <- event_args$receiver
         ea2$receiver <- event_args$sender
-        eu2 <- call_atom_template(gid, shape, ea2, netUpdatePos, attUpdatePos)
+        eu2 <- call_atom_template(gid, shape, ea2, net_update_pos, att_update_pos)
         if (!is.null(eu2$cache)) {
-          statCache[[gid]] <<- eu2$cache
+          stat_cache[[gid]] <<- eu2$cache
         }
         updates <- rbind(updates, eu2$changes)
       }
@@ -274,7 +274,7 @@ preprocess_support_mask <- function(
     } else {
       state$networks[[key]][event_args$sender, event_args$receiver] <<-
         event_args$replace
-      if (isUndirectedNet) {
+      if (is_undirected_net) {
         state$networks[[key]][event_args$receiver, event_args$sender] <<-
           event_args$replace
       }
@@ -284,7 +284,7 @@ preprocess_support_mask <- function(
   support_init <- eval_mask()
   # The support is piecewise-constant, changing only at the atoms' events.
   # Snapshot it at each requested time using the atoms strictly before that time
-  # (a lagged risk set, design D12). Snapshots are taken in time order (mapping
+  # (a lagged risk set). Snapshots are taken in time order (mapping
   # back to the caller's event order) so the atom stream is advanced once.
   atom_ks <- which(!is.na(schedule$target))
   atom_times <- schedule$time[atom_ks]

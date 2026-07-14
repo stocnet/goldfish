@@ -1,4 +1,4 @@
-# Native `type = "ego"` in DyNAM choice degree-family effects (design D1).
+# Native `type = "ego"` in DyNAM choice degree-family effects.
 # The choice effects delegate to the shared REM machinery, so a choice
 # `type = "ego"` statistic must equal the REM-derived expansion (to 1e-6), the
 # default must stay the alter perspective, and the two-mode ego guard must be

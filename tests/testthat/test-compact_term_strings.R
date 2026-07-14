@@ -117,11 +117,11 @@ test_that("transformer/summarizer tokens", {
   expect_match(out[["c"]], "\\[fn\\]")
 })
 
-test_that("subType uses shortest unique prefix", {
+test_that("sub_type uses shortest unique prefix", {
   m <- mkNames(
     c("a", "b"),
     Object = c("net", "net"),
-    subType = c("proximity", "popularity")
+    sub_type = c("proximity", "popularity")
   )
   out <- compact_term_strings(m, mode = "console", width = 200)
   expect_match(out[["a"]], "\\[pro\\]")
@@ -163,7 +163,7 @@ test_that("export names are valid, unique, length-bounded", {
 test_that("coef minimal-unique short names", {
   m <- mkNames(
     c("indeg", "indeg", "recip"),
-    Object = c("callNetwork", "otherNetwork", "callNetwork")
+    Object = c("call_network", "otherNetwork", "call_network")
   )
   out <- compact_term_strings(m, mode = "coef")
   expect_equal(unname(out[3]), "rec")

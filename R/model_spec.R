@@ -208,8 +208,8 @@ rem_rate_ordered_spec <- function(
 #' @param sub_model character, a valid sub model for `model`.
 #' @param engine character, the estimation algorithm variant. Only
 #'   `"default"` (full-recompute) is currently implemented. `"incremental"`
-#'   is reserved for the future `rem_rate_fast_spec` REM variant (design
-#'   D14), which will reuse the shared preprocessing recipe and override
+#'   is reserved for the future `rem_rate_fast_spec` REM variant, which will
+#'   reuse the shared preprocessing recipe and override
 #'   `compute_step()` with cached partial sums.
 #'
 #' @return an object of class `model_spec`.

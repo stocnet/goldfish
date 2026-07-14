@@ -22,8 +22,8 @@ test_that("preprocess init", {
     "names",
     "formula",
     "model",
-    "subModel",
-    "rightCensored",
+    "sub_model",
+    "right_censored",
     "nParams"
   )
   expect_equal(

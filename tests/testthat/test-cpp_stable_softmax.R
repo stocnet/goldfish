@@ -1,9 +1,9 @@
-# Cross-engine agreement for the shared C++ stable-softmax helper (design D7).
+# Cross-engine agreement for the shared C++ stable-softmax helper.
 # The converged-coefficient cross-engine checks in test-cpp_interface.R only
 # exercise benign predictors at the optimum; here we drive the exported
 # default_c multinomial estimators at a FIXED extreme parameter and confirm they
 # agree with the R stable-softmax contribution path (finite logL / score /
-# information where the pre-D7 code overflowed to NaN or underflowed to -Inf).
+# information where the earlier code overflowed to NaN or underflowed to -Inf).
 
 choice_cpp <- getFromNamespace("estimate_DyNAM_choice", "goldfish")
 rate_ordered_cpp <- getFromNamespace("estimate_DyNAM_rate_ordered", "goldfish")

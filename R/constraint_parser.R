@@ -251,7 +251,7 @@ atoms_to_formula <- function(atoms) {
 #' Parse and validate a support_constraint into a plan-ready structure
 #'
 #' Runs the boolean-tree parse, the anti-cycle guard, and — for a
-#' sender-indexed-only specification (`has_dyad_part = FALSE`) — the D13 dyadic
+#' sender-indexed-only specification (`has_dyad_part = FALSE`) — the dyadic
 #' rejection. Classifies each atom's broadcast kind (dyad classification) so the
 #' mask storage kind is known up front. The result carries everything downstream
 #' preprocessing needs without re-parsing.
@@ -259,7 +259,7 @@ atoms_to_formula <- function(atoms) {
 #' @param constraint a one-sided `support_constraint` formula.
 #' @param has_dyad_part `TRUE` when the specification has a dyad-indexed part (a
 #'   choice submodel, or REM); `FALSE` for a rate-only spec, where dyadic atoms
-#'   are accepted and folded on the sender axis via the row-reduction (D12),
+#'   are accepted and folded on the sender axis via the row-reduction,
 #'   with a one-time informational message.
 #' @param envir environment where the constraint's objects live.
 #' @return a `support_constraint_plan` object: the original `formula`, the
@@ -345,7 +345,7 @@ augment_constraints <- function(constraint_plan, mask_expr, atom_labels) {
   )
 }
 
-#' D12: accept dyadic atoms in a sender-indexed-only specification via the
+#' Accept dyadic atoms in a sender-indexed-only specification via the
 #' row-reduction, informing about the reduction
 #'
 #' A dyadic (`point`- or `alter`-kind) `support_constraint` on a rate / rate

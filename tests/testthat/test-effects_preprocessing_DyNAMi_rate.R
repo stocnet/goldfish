@@ -1,4 +1,4 @@
-# context("Effects for model = 'DyNAMi' and subModel = 'rate'")
+# context("Effects for model = 'DyNAMi' and sub_model = 'rate'")
 
 # test interecept leaving ----
 test_that("intercept with objects weighted with all possible options", {
@@ -267,55 +267,55 @@ test_that("inertia/tie with objects weighted with all possible options", {
       inertia(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "count",
+        sub_type = "count",
         joining = -1
       ) +
-      tie(covnetwork_DyNAMi, weighted = TRUE, subType = "count", joining = -1) +
+      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "count", joining = -1) +
       inertia(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "proportion",
+        sub_type = "proportion",
         joining = -1
       ) +
       tie(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "proportion",
+        sub_type = "proportion",
         joining = -1
       ) +
       inertia(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "presence",
+        sub_type = "presence",
         joining = -1
       ) +
       tie(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "presence",
+        sub_type = "presence",
         joining = -1
       ) +
       inertia(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "min",
+        sub_type = "min",
         joining = -1
       ) +
-      tie(covnetwork_DyNAMi, weighted = TRUE, subType = "min", joining = -1) +
+      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "min", joining = -1) +
       inertia(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "mean",
+        sub_type = "mean",
         joining = -1
       ) +
-      tie(covnetwork_DyNAMi, weighted = TRUE, subType = "mean", joining = -1) +
+      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "mean", joining = -1) +
       inertia(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "max",
+        sub_type = "max",
         joining = -1
       ) +
-      tie(covnetwork_DyNAMi, weighted = TRUE, subType = "max", joining = -1),
+      tie(covnetwork_DyNAMi, weighted = TRUE, sub_type = "max", joining = -1),
     model = "DyNAMi",
     sub_model = "rate",
     data = dataDyNAMi,
@@ -889,20 +889,20 @@ test_that("inertia computes correct preprocessing objects with window", {
       inertia(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "count",
+        sub_type = "count",
         joining = -1
       ) +
       inertia(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "count",
+        sub_type = "count",
         joining = -1,
         window = 2
       ) +
       inertia(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "count",
+        sub_type = "count",
         joining = -1,
         window = 7
       ),
@@ -1582,73 +1582,73 @@ test_that("egopop/egodeg for joining and leaving", {
       egopop(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "identity",
+        sub_type = "identity",
         joining = 1
       ) +
       egodeg(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "identity",
-        joining = 1
-      ) +
-      egopop(
-        past_network_DyNAMi,
-        weighted = TRUE,
-        subType = "normalized",
-        joining = 1
-      ) +
-      egodeg(
-        covnetwork_DyNAMi,
-        weighted = TRUE,
-        subType = "normalized",
+        sub_type = "identity",
         joining = 1
       ) +
       egopop(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "identity",
-        joining = -1
-      ) +
-      egodeg(
-        covnetwork_DyNAMi,
-        weighted = TRUE,
-        subType = "identity",
-        joining = -1
-      ) +
-      egopop(
-        past_network_DyNAMi,
-        weighted = TRUE,
-        subType = "normalized",
-        joining = -1
-      ) +
-      egodeg(
-        covnetwork_DyNAMi,
-        weighted = TRUE,
-        subType = "normalized",
-        joining = -1
-      ) +
-      egopop(
-        past_network_DyNAMi,
-        weighted = TRUE,
-        subType = "centered",
+        sub_type = "normalized",
         joining = 1
       ) +
       egodeg(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "centered",
+        sub_type = "normalized",
         joining = 1
       ) +
       egopop(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "centered",
+        sub_type = "identity",
         joining = -1
       ) +
       egodeg(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "centered",
+        sub_type = "identity",
+        joining = -1
+      ) +
+      egopop(
+        past_network_DyNAMi,
+        weighted = TRUE,
+        sub_type = "normalized",
+        joining = -1
+      ) +
+      egodeg(
+        covnetwork_DyNAMi,
+        weighted = TRUE,
+        sub_type = "normalized",
+        joining = -1
+      ) +
+      egopop(
+        past_network_DyNAMi,
+        weighted = TRUE,
+        sub_type = "centered",
+        joining = 1
+      ) +
+      egodeg(
+        covnetwork_DyNAMi,
+        weighted = TRUE,
+        sub_type = "centered",
+        joining = 1
+      ) +
+      egopop(
+        past_network_DyNAMi,
+        weighted = TRUE,
+        sub_type = "centered",
+        joining = -1
+      ) +
+      egodeg(
+        covnetwork_DyNAMi,
+        weighted = TRUE,
+        sub_type = "centered",
         joining = -1
       ),
     model = "DyNAMi",
@@ -2683,61 +2683,61 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
       alterpop(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "mean",
+        sub_type = "mean",
         joining = -1
       ) +
       alterdeg(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "mean",
+        sub_type = "mean",
         joining = -1
       ) +
       alterpop(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "mean_normalized",
+        sub_type = "mean_normalized",
         joining = -1
       ) +
       alterdeg(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "mean_normalized",
+        sub_type = "mean_normalized",
         joining = -1
       ) +
       alterpop(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "min",
+        sub_type = "min",
         joining = -1
       ) +
       alterdeg(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "min",
+        sub_type = "min",
         joining = -1
       ) +
       alterpop(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "max",
+        sub_type = "max",
         joining = -1
       ) +
       alterdeg(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "max",
+        sub_type = "max",
         joining = -1
       ) +
       alterpop(
         past_network_DyNAMi,
         weighted = TRUE,
-        subType = "mean_centered",
+        sub_type = "mean_centered",
         joining = -1
       ) +
       alterdeg(
         covnetwork_DyNAMi,
         weighted = TRUE,
-        subType = "mean_centered",
+        sub_type = "mean_centered",
         joining = -1
       ),
     model = "DyNAMi",
@@ -3485,14 +3485,14 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
 test_that("ego for joining and leaving objects weighted with all possible options", {
   preproData <- estimate_wrapper(
     dependent.depevents_DyNAMi ~
-      ego(actors_DyNAMi$attr1, subType = "identity", joining = 1) +
-      ego(actors_DyNAMi$attr1, subType = "identity", joining = -1) +
-      ego(actors_DyNAMi$attr1, subType = "normalized", joining = 1) +
-      ego(actors_DyNAMi$attr1, subType = "normalized", joining = -1) +
-      ego(actors_DyNAMi$attr1, subType = "squared", joining = 1) +
-      ego(actors_DyNAMi$attr1, subType = "squared", joining = -1) +
-      ego(actors_DyNAMi$attr1, subType = "centered", joining = 1) +
-      ego(actors_DyNAMi$attr1, subType = "centered", joining = -1),
+      ego(actors_DyNAMi$attr1, sub_type = "identity", joining = 1) +
+      ego(actors_DyNAMi$attr1, sub_type = "identity", joining = -1) +
+      ego(actors_DyNAMi$attr1, sub_type = "normalized", joining = 1) +
+      ego(actors_DyNAMi$attr1, sub_type = "normalized", joining = -1) +
+      ego(actors_DyNAMi$attr1, sub_type = "squared", joining = 1) +
+      ego(actors_DyNAMi$attr1, sub_type = "squared", joining = -1) +
+      ego(actors_DyNAMi$attr1, sub_type = "centered", joining = 1) +
+      ego(actors_DyNAMi$attr1, sub_type = "centered", joining = -1),
     model = "DyNAMi",
     sub_model = "rate",
     data = dataDyNAMi,
@@ -4278,12 +4278,12 @@ test_that("ego for joining and leaving objects weighted with all possible option
 test_that("alter for leaving with objects weighted with all possible options", {
   preproData <- estimate_wrapper(
     dependent.depevents_DyNAMi ~
-      alter(actors_DyNAMi$attr1, subType = "mean", joining = -1) +
-      alter(actors_DyNAMi$attr1, subType = "mean_squared", joining = -1) +
-      alter(actors_DyNAMi$attr1, subType = "mean_normalized", joining = -1) +
-      alter(actors_DyNAMi$attr1, subType = "min", joining = -1) +
-      alter(actors_DyNAMi$attr1, subType = "max", joining = -1) +
-      alter(actors_DyNAMi$attr1, subType = "mean_centered", joining = -1),
+      alter(actors_DyNAMi$attr1, sub_type = "mean", joining = -1) +
+      alter(actors_DyNAMi$attr1, sub_type = "mean_squared", joining = -1) +
+      alter(actors_DyNAMi$attr1, sub_type = "mean_normalized", joining = -1) +
+      alter(actors_DyNAMi$attr1, sub_type = "min", joining = -1) +
+      alter(actors_DyNAMi$attr1, sub_type = "max", joining = -1) +
+      alter(actors_DyNAMi$attr1, sub_type = "mean_centered", joining = -1),
     model = "DyNAMi",
     sub_model = "rate",
     data = dataDyNAMi,
@@ -4729,9 +4729,9 @@ test_that("alter for leaving with objects weighted with all possible options", {
 test_that("same for leaving with objects weighted with all possible options", {
   preproData <- estimate_wrapper(
     dependent.depevents_DyNAMi ~
-      same(actors_DyNAMi$attr2, subType = "count", joining = -1) +
-      same(actors_DyNAMi$attr2, subType = "proportion", joining = -1) +
-      same(actors_DyNAMi$attr2, subType = "presence", joining = -1),
+      same(actors_DyNAMi$attr2, sub_type = "count", joining = -1) +
+      same(actors_DyNAMi$attr2, sub_type = "proportion", joining = -1) +
+      same(actors_DyNAMi$attr2, sub_type = "presence", joining = -1),
     model = "DyNAMi",
     sub_model = "rate",
     data = dataDyNAMi,
@@ -5059,10 +5059,10 @@ test_that("same for leaving with objects weighted with all possible options", {
 test_that("diff for leaving with objects weighted with all possible options", {
   preproData <- estimate_wrapper(
     dependent.depevents_DyNAMi ~
-      diff(actors_DyNAMi$attr1, subType = "averaged_sum", joining = -1) +
-      diff(actors_DyNAMi$attr1, subType = "mean", joining = -1) +
-      diff(actors_DyNAMi$attr1, subType = "min", joining = -1) +
-      diff(actors_DyNAMi$attr1, subType = "max", joining = -1),
+      diff(actors_DyNAMi$attr1, sub_type = "averaged_sum", joining = -1) +
+      diff(actors_DyNAMi$attr1, sub_type = "mean", joining = -1) +
+      diff(actors_DyNAMi$attr1, sub_type = "min", joining = -1) +
+      diff(actors_DyNAMi$attr1, sub_type = "max", joining = -1),
     model = "DyNAMi",
     sub_model = "rate",
     data = dataDyNAMi,

@@ -127,16 +127,16 @@ actors <- data.frame(
   present = TRUE, gender = sample.int(2, 5, replace = TRUE)
 )
 actors <- make_nodes(nodes = actors)
-callNetwork <- make_network(nodes = actors)
+call_network <- make_network(nodes = actors)
 
 # Link events to a nodeset
-compositionChangeEvents <- data.frame(
+composition_change_events <- data.frame(
   time = c(14, 60),
   node = "Actor 4",
   replace = c(FALSE, TRUE)
 )
 actorsnew <- link_events(
-  x = actors, attribute = "present", change_events = compositionChangeEvents
+  x = actors, attribute = "present", change_events = composition_change_events
 )
 
 # Link events to a Network
@@ -146,8 +146,8 @@ calls <- data.frame(
   receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)),
   increment = rep(1, 7)
 )
-callNetwork <- link_events(
-  x = callNetwork, change_events = calls, nodes = actors
+call_network <- link_events(
+  x = call_network, change_events = calls, nodes = actors
 )
 }
 \seealso{

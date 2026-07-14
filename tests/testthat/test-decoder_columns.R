@@ -22,7 +22,7 @@ test_that("decoder columns carried through gather_model_data", {
   )
   expect_true(all(
     c(".effect_short", ".object_short", ".term_export", ".coef_name") %in%
-      colnames(out$effectDescription)
+      colnames(out$effect_description)
   ))
 })
 

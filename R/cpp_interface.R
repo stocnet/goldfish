@@ -317,8 +317,8 @@ estimate_c_int <- function(
   }
 
   # Parameter-independent default_c buffer layout, hoisted out of the loop so
-  # both the Newton-Raphson iterations and the maxLik adapter reuse it (design
-  # D7): at the point encoding `active_dyad_init` is flattened sender-major to a
+  # both the Newton-Raphson iterations and the maxLik adapter reuse it: at the
+  # point encoding `active_dyad_init` is flattened sender-major to a
   # dense n1 x n2 mask; otherwise it is the length-n2 receiver vector.
   dyad_is_point <- modelTypeCall %in%
     c("DyNAM-M", "REM", "REM-ordered", "DyNAM-MM") &&
@@ -355,7 +355,7 @@ estimate_c_int <- function(
     )
   }
 
-  # maxLik-backed optimizers (design D10) replace the Newton-Raphson loop below:
+  # maxLik-backed optimizers replace the Newton-Raphson loop below:
   # the preprocessed data is fixed, the C++ evaluator is fed to maxLik through
   # memoized closures, and the maxLik result maps back into the standard result
   # object. Runs on the default_c evaluator only (guarded upstream).
@@ -612,7 +612,7 @@ estimate_c_int <- function(
 }
 
 # Memoize a single evaluator call per parameter vector so the log-likelihood and
-# gradient closures maxLik calls separately share one C++ pass (design D10). The
+# gradient closures maxLik calls separately share one C++ pass. The
 # cache holds the most recent evaluation, keyed by the (unnamed) parameter
 # vector; the common logLik-then-grad-at-the-same-point call pattern hits it.
 make_memoized_evaluator <- function(evaluate, need_scores) {
@@ -629,7 +629,7 @@ make_memoized_evaluator <- function(evaluate, need_scores) {
   }
 }
 
-#' maxLik-backed estimation adapter (design D10)
+#' maxLik-backed estimation adapter
 #'
 #' Drives `maxLik::maxLik()` over the fixed preprocessed data through memoized
 #' closures on the `default_c` evaluator, then maps the result into the standard
@@ -781,7 +781,7 @@ estimate_ <- function(
   active_dyad_is_point = FALSE,
   return_event_scores = FALSE
 ) {
-  # DyNAM-M (choice) consumes the folded `active_dyad` directly (design D7): at
+  # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
   # (node1, node2, replace) buffer; otherwise it is the length-n2 receiver vector.
   if (modelTypeCall == "DyNAM-MM") {
@@ -970,7 +970,7 @@ gather_ <- function(
 ) {
   if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
     # DyNAM-MM (coordination) now emits the off-diagonal directed dyad list — no
-    # forced `twomode_or_reflexive` and no reflexive rows (design D9/D13). The
+    # forced `twomode_or_reflexive` and no reflexive rows. The
     # dyad-triangle kernel reads the emitted index structures (per-sender groups
     # + the (i,j)<->(j,i) pairing), so a one-mode coordination model no longer
     # relies on a square n x n candidate grid.
@@ -1174,7 +1174,7 @@ gather_sender_receiver_model_r <- function(
   has_cc1 <- length(active_sender_update) > 0
   has_cc2 <- length(active_dyad_update) > 0
   # A folded standard-REM constraint rides `active_dyad` at the point encoding
-  # (design D7/D11): a dense n1 x n2 risk mask (both presences n support)
+  # a dense n1 x n2 risk mask (both presences n support)
   # maintained by a (node1, node2, replace) buffer, read per sender as its row.
   # The outer encoding keeps the length-n2 receiver vector (cell = f1[i] & f2[j]).
   is_point <- identical(active_dyad_encoding, "point")
@@ -1186,11 +1186,11 @@ gather_sender_receiver_model_r <- function(
   p2_id <- 0L
 
   rows_list <- vector("list", n_events)
-  # Per-row actor identity in the shared index vocabulary (design D13): every
+  # Per-row actor identity in the shared index vocabulary: every
   # dyad row carries the sanitized 1-based sender / receiver ids.
   index_i_list <- vector("list", n_events)
   index_j_list <- vector("list", n_events)
-  # Coordination-only ragged structures (design D9): `sender_of_row` groups each
+  # Coordination-only ragged structures: `sender_of_row` groups each
   # event's rows by sender (0-based within event; the CSR grouping the per-sender
   # softmax consumes), and `dyad_partner` maps each directed row (i -> j) to the
   # within-event position of its partner (j -> i) so the kernel can form the
@@ -1277,7 +1277,7 @@ gather_sender_receiver_model_r <- function(
     }
     rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
     # Decode the flat row indices (i * n2 + j, 1-based) back to per-row sender /
-    # receiver ids for the shared index vocabulary (design D13).
+    # receiver ids for the shared index vocabulary.
     flat0 <- idx - 1L
     i_vec <- flat0 %/% n_actors2
     j_vec <- flat0 %% n_actors2
@@ -1297,7 +1297,7 @@ gather_sender_receiver_model_r <- function(
     stat_all_events <- matrix(0, 0, n_parameters)
   }
   # The rectangularity metadata (n_candidates1/n_candidates2, selected_actor1/2)
-  # is retired (design D13): the ragged dyad list has no rectangular grid, and
+  # is retired: the ragged dyad list has no rectangular grid, and
   # the per-row index_i/index_j plus the coordination CSR groups / dyad pairing
   # carry all the row identity the kernel and the exports need.
   out <- list(
@@ -1336,7 +1336,7 @@ gather_receiver_model_r <- function(
   n_parameters <- ncol(stat_mat)
   has_cc2 <- length(active_dyad_update) > 0
   # A folded `support_constraint` / opportunity list rides `active_dyad` at the
-  # point encoding (design D7/D13): a dense n1 x n2 availability maintained by a
+  # point encoding: a dense n1 x n2 availability maintained by a
   # (node1, node2, replace) buffer, read as the event sender's row. The alter
   # encoding keeps the length-n2 receiver vector.
   is_point <- identical(active_dyad_encoding, "point")
@@ -1346,7 +1346,7 @@ gather_receiver_model_r <- function(
   p2_id <- 0L
 
   rows_list <- vector("list", n_events)
-  # Per-row actor identity (design D13): choice rows are the candidate receivers
+  # Per-row actor identity: choice rows are the candidate receivers
   # of the event's (fixed) sender, so index_i is that constant sender and
   # index_j the receiver, both sanitized 1-based ids.
   index_i_list <- vector("list", n_events)
@@ -1450,7 +1450,7 @@ gather_sender_model_r <- function(
   p1_id <- 0L
 
   rows_list <- vector("list", n_events)
-  # Per-row actor identity (design D13): rate rows are the candidate senders, a
+  # Per-row actor identity: rate rows are the candidate senders, a
   # sender-set layout, so each row carries index_i (the sanitized 1-based sender)
   # and index_j = NA (no receiver axis after the per-sender reduction).
   index_i_list <- vector("list", n_events)
@@ -1498,7 +1498,7 @@ gather_sender_model_r <- function(
     id_sender <- event_mat[1, e] - 1L
     is_dep <- is_dependent[e]
     # A rate support_constraint folds the "has >= 1 allowed present receiver"
-    # sender gate into `active_sender` during preprocessing (design D4/D12), so
+    # sender gate into `active_sender` during preprocessing, so
     # `active_sender` is the gated sender filter directly — no separate mask.
     present1_ids <- which(active_sender == 1) - 1L
     rows_list[[e]] <- reduced[present1_ids + 1L, , drop = FALSE]

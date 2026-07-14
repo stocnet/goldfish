@@ -101,13 +101,13 @@ test_that("compact legend still prints without significance stars", {
   expect_true(any(grepl("^W = weighted", out)))
 })
 test_that("nodes print", {
-  expect_output(print(actorsEx), paste("Number of nodes:", nrow(actorsEx)))
+  expect_output(print(actors_ex), paste("Number of nodes:", nrow(actors_ex)))
   expect_output(
-    print(actorsEx),
-    paste("Number of present nodes:", sum(actorsEx$present))
+    print(actors_ex),
+    paste("Number of present nodes:", sum(actors_ex$present))
   )
-  expect_output(print(actorsEx), "Dynamic attribute")
-  expect_failure(expect_output(print(actorsEx, full = TRUE), "First \\d rows"))
+  expect_output(print(actors_ex), "Dynamic attribute")
+  expect_failure(expect_output(print(actors_ex, full = TRUE), "First \\d rows"))
   expect_output(
     print(make_nodes(testAttr)),
     paste("Number of nodes:", nrow(testAttr))
@@ -132,7 +132,7 @@ test_that("network print", {
     print(networkState),
     paste("Number of ties \\(no weighted\\):", sum(networkState > 0))
   )
-  expect_output(print(networkState), "Nodes set\\(s\\): actorsEx")
+  expect_output(print(networkState), "Nodes set\\(s\\): actors_ex")
   expect_output(print(networkState), "It is a one-mode and directed network")
   expect_output(print(networkState), "Linked events: eventsIncrement")
   expect_output(print(networkState), "First \\d rows and columns")
@@ -143,7 +143,7 @@ test_that("network print", {
     )
   )
 
-  netTest <- make_network(matrix = m, nodes = actorsEx)
+  netTest <- make_network(matrix = m, nodes = actors_ex)
   expect_output(
     print(netTest),
     paste("Dimensions:", paste(dim(netTest), collapse = " "))
@@ -152,7 +152,7 @@ test_that("network print", {
     print(netTest),
     paste("Number of ties \\(no weighted\\):", sum(netTest > 0, na.rm = TRUE))
   )
-  expect_output(print(netTest), "Nodes set\\(s\\): actorsEx")
+  expect_output(print(netTest), "Nodes set\\(s\\): actors_ex")
   expect_output(print(netTest), "It is a one-mode and directed network")
   expect_failure(
     expect_output(print(netTest), "Linked events: eventsIncrement")
@@ -173,7 +173,7 @@ test_that("network print", {
     print(networkActorClub),
     paste("Number of ties \\(no weighted\\):", sum(networkActorClub))
   )
-  expect_output(print(networkActorClub), "Nodes set\\(s\\): actorsEx clubsEx")
+  expect_output(print(networkActorClub), "Nodes set\\(s\\): actors_ex clubsEx")
   expect_output(
     print(networkActorClub),
     "It is a two-mode and directed network"
@@ -189,7 +189,7 @@ test_that("network print", {
 })
 test_that("dependent events", {
   expect_output(print(depNetwork), paste("Number of events:", nrow(depNetwork)))
-  expect_output(print(depNetwork), "Nodes set\\(s\\): actorsEx")
+  expect_output(print(depNetwork), "Nodes set\\(s\\): actors_ex")
   expect_output(print(depNetwork), "Default network: networkState")
   expect_output(print(depNetwork), "First \\d rows")
   expect_failure(
@@ -212,12 +212,12 @@ test_that("tidy results", {
   expect_equal(nrow(tidy(resModObject)), 2L)
   expect_equal(
     tidy(resModObject)$term,
-    c("inertia_callNetwork", "trans_callNetwork")
+    c("inertia_call_network", "trans_call_network")
   )
   expect_length(tidy(resModObject, conf.int = TRUE), 7)
   expect_equal(
     tidy(resModObject, complete = TRUE)$term,
-    c("inertia_callNetwork", "recip_callNetwork_Fx", "trans_callNetwork")
+    c("inertia_call_network", "recip_call_network_Fx", "trans_call_network")
   )
   expect_true(
     anyNA(tidy(resModObject, complete = TRUE, conf.int = TRUE)$statistic)

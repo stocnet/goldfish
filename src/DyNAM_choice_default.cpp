@@ -43,7 +43,7 @@ List estimate_DyNAM_choice(
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
-    // Opt-in per-event score matrix (design D11). Each row is the per-event
+    // Opt-in per-event score matrix. Each row is the per-event
     // increment already accumulated into `derivative` (observed minus expected
     // statistic); allocated only when requested so the default path pays nothing.
     arma::mat event_scores;
@@ -56,7 +56,7 @@ List estimate_DyNAM_choice(
         has_composition_change = false;
     }
     arma::vec active_dyad = active_dyad_init;
-    // `active_dyad` is the folded per-event availability (design D7). At the alter
+    // `active_dyad` is the folded per-event availability. At the alter
     // encoding it is the length-n2 receiver vector maintained by a (node, replace)
     // buffer. At the point encoding it is a flattened n1 x n2 mask (sender-major:
     // dyad (i, j) at i * n_actors_2 + j) — the folded receiver presence n support
@@ -127,7 +127,7 @@ List estimate_DyNAM_choice(
         // at the alter encoding the receiver vector is read directly (offset 0).
         const int dyad_offset =
           active_dyad_is_point ? id_sender * n_actors_2 : 0;
-        // Staged, numerically stable softmax over the receivers (design D7/D8):
+        // Staged, numerically stable softmax over the receivers:
         // one GEMV for the linear predictors, the shared max-shift helper for the
         // weights, then a weighted cross-product for the Fisher.
         arma::vec lin_pred = current_data_matrix * parameters;

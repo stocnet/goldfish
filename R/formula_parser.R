@@ -24,11 +24,11 @@
 #'   list(time = 1, sender = "a", receiver = "b", replace = 1),
 #'   class = "dependent.goldfish"
 #' )
-#' callNetwork <- structure(matrix(0, 3, 3), class = "network.goldfish")
+#' call_network <- structure(matrix(0, 3, 3), class = "network.goldfish")
 #'
 #' parse_formula(
-#'   calls ~ outdeg(callNetwork, type = "ego") +
-#'     indeg(callNetwork, type = "alter")
+#'   calls ~ outdeg(call_network, type = "ego") +
+#'     indeg(call_network, type = "alter")
 #' )
 #' }
 parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
@@ -44,9 +44,9 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
   if (length(rhs_names) == 0) {
     stop("A model without effects cannot be estimated.", call. = FALSE)
   }
-  # Per-term flags from get_rhs_names: offset (fixed-coefficient, design D7) and
-  # the interaction roles is_main / is_operand + the interaction structure
-  # (design D9). All are kept aligned with rhs_names through the intercept drop
+  # Per-term flags from get_rhs_names: offset (fixed-coefficient) and
+  # the interaction roles is_main / is_operand + the interaction structure.
+  # All are kept aligned with rhs_names through the intercept drop
   # below; interaction operand indices are in the variable frame (i.e. the
   # rhs_names frame after the `1` is dropped).
   is_offset <- attr(rhs_names, "offset")
@@ -91,7 +91,7 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
     envir = envir,
     realize_windows = realize_windows
   )
-  # Metadata recipe for the windowed derivations (design D8): each windowed
+  # Metadata recipe for the windowed derivations: each windowed
   # effect's derived-network/dissolve-stream recipe, carried on parsed_formula so
   # `build_spec_map()` can fill plan$derivations from it. Unlike the other slots
   # it is NOT per-effect aligned (one row per windowed network), so it is excluded
@@ -148,7 +148,7 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
     ifelse(!is.null(v), v, "")
   })
   sub_type_parameter <- lapply(rhs_names, function(x) {
-    v <- getElement(x, "subType")
+    v <- getElement(x, "sub_type")
     ifelse(!is.null(v), v, "")
   })
 
@@ -173,7 +173,7 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
     sub_type_parameter = sub_type_parameter,
     history_parameter = history_parameter,
     offset_parameter = as.list(is_offset),
-    # Interaction roles (design D9): an operand-only term is retained but not
+    # Interaction roles: an operand-only term is retained but not
     # freely estimated; a requested main effect (and an offset, fixed via
     # `fixedParameters`) is an estimated column. `interactions` lists each
     # interaction's ordered operand indices (rhs_names frame), label, and arity.
@@ -187,7 +187,7 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
 }
 
 
-# Comparison of two parsed formulas for preprocessingInit
+# Comparison of two parsed formulas for preprocessing_init
 # throws errors when: dependent events or default network are not the same,
 #  when there is righ-censoring
 # for one and not the other
@@ -208,7 +208,7 @@ compare_formulas <- function(
   if (old_parsed_formula$dep_name != new_parsed_formula$dep_name) {
     stop(
       "The dependent events in the formula are not the ones used in",
-      " the preprocessed object given in preprocessingInit."
+      " the preprocessed object given in preprocessing_init."
     )
   }
   if (
@@ -219,7 +219,7 @@ compare_formulas <- function(
   ) {
     stop(
       "The default network in the formula is not the one used in",
-      " the preprocessed object given in preprocessingInit."
+      " the preprocessed object given in preprocessing_init."
     )
   }
   old_has_intercept <- old_parsed_formula$has_intercept
@@ -235,13 +235,13 @@ compare_formulas <- function(
   }
   if (old_has_intercept && !new_has_intercept) {
     stop(
-      "The preprocessing for the object in preprocessingInit was not done",
+      "The preprocessing for the object in preprocessing_init was not done",
       " with the right-censored intervals that this formula requires."
     )
   }
   if (!old_has_intercept && new_has_intercept) {
     stop(
-      "The preprocessing for the object in preprocessingInit was done",
+      "The preprocessing for the object in preprocessing_init was done",
       " with right-censored intervals and this formula does not include those."
     )
   }
@@ -288,14 +288,14 @@ compare_formulas <- function(
 #' Build the upfront specification mapping
 #'
 #' Umbrella that compiles the data-light engine structures once as the outcome
-#' of parsing (design D8), so `preprocess()` consumes them instead of rebuilding
+#' of parsing, so `preprocess()` consumes them instead of rebuilding
 #' the update plan and call templates on every call. It orchestrates the trio:
 #' the `parsed_terms` bundle (from `parse_formula()`), the per-effect call
 #' templates (`build_effects_template()`), and the registries-only update plan
 #' (`build_update_plan()`).
 #'
 #' The `spec_map` merges the dispatch `model_spec` (its fields and class vector)
-#' so `preprocess()` dispatches directly on the returned object (task 2.3b): the
+#' so `preprocess()` dispatches directly on the returned object: the
 #' effect closures, per-term window parameters, and the link matrices ride on it
 #' rather than being threaded into `preprocess()` as separate bridge arguments.
 #' The recipe loops unpack them from the `spec` they receive.
@@ -303,8 +303,7 @@ compare_formulas <- function(
 #' Stage 1 scope: this still builds a throwaway state container to read object
 #' keys, so it is not yet metadata-pure. The full metadata/data boundary —
 #' keeping this mapping free of event/network tables and relocating
-#' `sanitizeEvents`/windowing to state creation — is design D8's later slice
-#' (tasks 2.3c–2.3d).
+#' `sanitizeEvents`/windowing to state creation — is a later, deferred slice.
 #'
 #' @param parsed_formula the list returned by `parse_formula()`.
 #' @param model_spec the dispatch `model_spec` from `new_model_spec()`; its
@@ -317,13 +316,13 @@ compare_formulas <- function(
 #'   `build_events_objects_link()` / `get_events_effects_link()`.
 #' @param fetch_plan the ordered event-stream fetch plan from
 #'   `build_events_objects_link()`; carried on the spec_map so the recipe loop
-#'   fetches events inside state creation (design D8, task 2.3f).
+#'   fetches events inside state creation.
 #' @param envir environment where the data objects live.
 #'
 #' @return an S3 object of class `c(class(model_spec), "spec_map.goldfish")`
 #'   carrying the `model_spec` fields plus `parsed_terms`, `plan`,
 #'   `effects_template`, `effect_description` (the single source of truth for
-#'   print/naming metadata, design D8), and the `effects`/`window_parameters`/
+#'   print/naming metadata), and the `effects`/`window_parameters`/
 #'   link inputs the recipe loops consume.
 #' @noRd
 build_spec_map <- function(
@@ -341,7 +340,7 @@ build_spec_map <- function(
   stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
   nodes <- model_spec$nodes
   nodes2 <- model_spec$nodes2
-  # Metadata/data boundary (design D8, task 2.3c): the plan + call templates need
+  # Metadata/data boundary: the plan + call templates need
   # only the object-keys mapping, so read it directly (class/structure only) —
   # do NOT materialise a state container here (no network/nodal data copied).
   object_keys <- build_object_keys(
@@ -362,11 +361,11 @@ build_spec_map <- function(
     envir = envir,
     derivations = parsed_formula$window_derivations
   )
-  # Interaction columns (design D9): append one estimated product column per
+  # Interaction columns: append one estimated product column per
   # interaction and set operand roles / estimate flags. No-op when the formula
   # has no interactions (registries stay empty, effects unchanged).
   plan <- augment_interactions(plan, parsed_formula, stat_kind)
-  # Derived-input registry (design D8, task 2.3d): one entry per derived object,
+  # Derived-input registry: one entry per derived object,
   # filled from metadata only. Today the sole `kind` is "window"; the effect
   # object refs were already rewired to `derived_name` in parse_time_windows().
   # State creation iterates this to realize each derived object (no tables or
@@ -401,10 +400,10 @@ build_spec_map <- function(
     objects_effects_link,
     state_keys
   )
-  # Print/naming metadata is formula-derived, so it is owned here once (design
-  # D8) and rendered on demand per context (console / db / export) by
+  # Print/naming metadata is formula-derived, so it is owned here once and
+  # rendered on demand per context (console / db / export) by
   # CreateNames; the fixed-coefficient marking stays an estimation concern
-  # appended downstream (offset terms, group 5).
+  # appended downstream (offset terms).
   effect_description <- GetDetailPrint(objects_effects_link, parsed_formula)
   structure(
     c(
@@ -426,7 +425,7 @@ build_spec_map <- function(
   )
 }
 
-# Build the derived-input registry (design D8) from the window derivation recipe
+# Build the derived-input registry from the window derivation recipe
 # recorded by parse_time_windows(). Metadata only: reads the source objects'
 # event-stream NAMES (`attr(obj, "events")`) and the effect columns that
 # reference each derived object (already rewired to `derived_name` in
@@ -469,7 +468,7 @@ build_derivations <- function(
 # but they are carried as a SIBLING sub-plan, never mixed into the estimated
 # `plan$effects` (they produce no coefficient column, so keeping them out leaves
 # the estimated columns and the 1e-6 baselines bit-identical). The atoms always
-# use the dyad (`choice`) kernel — the mask is dyad-shaped aux state (D13) — with
+# use the dyad (`choice`) kernel — the mask is dyad-shaped aux state — with
 # the coordination/undirected symmetry applied later at mask assembly, not at
 # atom-compute time. Returns the augmented sub-plan plus the atom closures / link
 # metadata / fetch plan the recipe loop needs to seed and update the atoms'
@@ -486,7 +485,7 @@ compile_support_constraint <- function(
   atom_rhs_names <- get_rhs_names(atoms_to_formula(constraint_plan$atoms))
   # Constraint atoms always use the dyad kernel (`init_*_choice`): a dyadic atom
   # needs the dyad machinery, and a sender-axis atom (ego/global) works under it
-  # too (broadcasting to an ego row). This is D13's constraint-scoped auxiliary
+  # too (broadcasting to an ego row). This is the constraint-scoped auxiliary
   # dyad state — the atoms' kernel is chosen by the constraint, not by the
   # estimated submodel, so a rate pass over a two-formula spec still derives its
   # sender gate from the dyad support.
@@ -519,7 +518,7 @@ compile_support_constraint <- function(
     derivations = window_derivations
   )
   state_keys <- structure(list(), object_keys = object_keys)
-  # The mask is always a dyad object (D13 aux dyad state), so the sub-plan is
+  # The mask is always a dyad object (aux dyad state), so the sub-plan is
   # built dyad-shaped regardless of the estimated submodel's `stat_kind`.
   sub_plan <- build_update_plan(
     effects,
@@ -556,7 +555,7 @@ compile_support_constraint <- function(
   )
 }
 
-# The support mask is a derived object (design D7): one `plan$derivations` entry,
+# The support mask is a derived object: one `plan$derivations` entry,
 # `kind = "support_mask"`, source = its atoms, stored at the axis-union broadcast
 # kind so a dense n1xn2 matrix is allocated only for a genuinely dyadic (point)
 # constraint. The recipe loop realizes/updates it from the atoms' `stat_state`.
@@ -573,7 +572,7 @@ support_mask_derivation <- function(constraint_subplan) {
   )
 }
 
-# Shared derived -> source resolver (design D8, task 2.3f). A derived object
+# Shared derived -> source resolver. A derived object
 # (today only a windowed network) inherits its structural metadata (nodesets,
 # event-stream names) from a source object. Consumers that must read that
 # metadata *before* the derived object is realized use this to read from the
@@ -609,7 +608,7 @@ create_effects_functions <- function(
   .stat_method <- paste("init", model, sub_model, sep = "_")
   # Two-mode guard (below) evaluates the effect's network argument to read its
   # nodesets. On the recipe path a windowed effect's network arg is the *derived*
-  # name, which may not be realized yet (design D8, task 2.3f); resolve it against
+  # name, which may not be realized yet; resolve it against
   # a probe environment that binds each unrealized derived name to its source
   # object (identical nodesets), leaving realized/plain objects untouched.
   probe_envir <- envir
@@ -716,7 +715,7 @@ create_effects_functions <- function(
         }
       }
       formals(FUN) <- .signature
-      return(list(effect = FUN, initEffect = .FUN_stat))
+      return(list(effect = FUN, init_effect = .FUN_stat))
     },
     model,
     sub_model
@@ -761,7 +760,7 @@ has_explicit_intercept <- function(rhs) {
 }
 
 # stats::terms() admits constructs goldfish cannot dispatch (I(), |) as opaque
-# term labels instead of rejecting them, so guard explicitly (design D2).
+# term labels instead of rejecting them, so guard explicitly.
 reject_unsupported_terms <- function(variables) {
   heads <- vapply(
     variables,
@@ -787,7 +786,7 @@ get_dependent_name <- function(formula) {
   unlist(lapply(dep, deparse))
 }
 
-# Metadata half of the event-stream link (design D8, task 2.3c): builds the
+# Metadata half of the event-stream link: builds the
 # events_objects_link incidence data.frame AND an ordered fetch plan describing
 # each event stream to materialize (stream name + per-stream sanitize nodesets),
 # reading only object attributes (event-stream NAMES, nodesets) — it fetches NO
@@ -802,7 +801,7 @@ build_events_objects_link <- function(
   envir = environment(),
   derivations = NULL
 ) {
-  object_names <- getDataObjects(rhs_names)
+  object_names <- get_data_objects(rhs_names)
   events_objects_link <- data.frame(
     events = dep_name,
     name = NA,
@@ -861,7 +860,7 @@ build_events_objects_link <- function(
   }
   for (i in which(!is_attribute)) {
     # A derived (windowed) network may not be realized yet on the recipe path
-    # (design D8, task 2.3f): resolve its event-stream names and nodesets from
+    # resolve its event-stream names and nodesets from
     # the source object + window instead of get()-ing the absent derived object.
     # The realized derived network names its dissolve streams identically
     # (paste(source stream, window, sep = "_")) and copies the source nodesets,
@@ -911,7 +910,7 @@ build_events_objects_link <- function(
   list(events_objects_link = events_objects_link, fetch_plan = fetch_plan)
 }
 
-# Data half (design D8, task 2.3c): materializes the events list from a fetch
+# Data half: materializes the events list from a fetch
 # plan by fetching each stream's table and running sanitizeEvents (label -> id)
 # per its recorded nodesets. This is the data work relocated out of parsing; the
 # streams it fetches must already exist in `envir` (including any windowed
@@ -950,8 +949,8 @@ get_events_and_objects_link <- function(
 
 # The events_effects_link shape (one row per event stream) is derived from the
 # events_objects_link incidence (its `events` column lists the streams in fetch
-# order) rather than a pre-fetched events list, so it needs no data (design D8,
-# task 2.3f): the recipe path fetches events only inside state creation.
+# order) rather than a pre-fetched events list, so it needs no data: the
+# recipe path fetches events only inside state creation.
 get_events_effects_link <- function(rhs_names, events_objects_link) {
   stream_names <- events_objects_link$events
   events_effects_link <- matrix(
@@ -964,7 +963,7 @@ get_events_effects_link <- function(rhs_names, events_objects_link) {
     )
   )
   for (i in seq_along(rhs_names)) {
-    obj <- getDataObjects(rhs_names[i])$name
+    obj <- get_data_objects(rhs_names[i])$name
     event_ids <- which(events_objects_link$name %in% obj)
     events_effects_link[event_ids, i] <- 1
   }
@@ -972,7 +971,7 @@ get_events_effects_link <- function(rhs_names, events_objects_link) {
 }
 
 get_objects_effects_link <- function(rhs_names) {
-  obj_names <- getDataObjects(rhs_names)$name
+  obj_names <- get_data_objects(rhs_names)$name
   eff_names <- vapply(rhs_names, FUN = "[[", FUN.VALUE = character(1), i = 1)
   objects_effects_link <- matrix(
     data = NA,
@@ -980,7 +979,7 @@ get_objects_effects_link <- function(rhs_names) {
     ncol = length(eff_names),
     dimnames = list(obj_names, eff_names)
   )
-  obj_as_params <- lapply(rhs_names, function(x) getDataObjects(list(x)))
+  obj_as_params <- lapply(rhs_names, function(x) get_data_objects(list(x)))
   for (i in seq_along(obj_as_params)) {
     names_ <- obj_as_params[[i]]$name
     objects_effects_link[names_, i] <- seq_along(names_)
@@ -999,7 +998,7 @@ get_rhs_names <- function(formula) {
 
   # `offset()` terms are recorded in attr "offset" as indices into the variables
   # list (1-based, response included). Unlike GLM model.matrix we KEEP the
-  # statistic column and only TAG the term as fixed-coefficient (design D7): the
+  # statistic column and only TAG the term as fixed-coefficient: the
   # inner call is unwrapped and parsed like any effect, and `offset = TRUE` is
   # carried per term so the estimation front-end can assemble `fixedParameters`.
   offset_pos <- attr(parsed, "offset")
@@ -1017,12 +1016,12 @@ get_rhs_names <- function(formula) {
 
   reject_unsupported_terms(variables)
 
-  # Interaction terms (`a:b`, `a*b`) expand correctly via terms() (design D2):
+  # Interaction terms (`a:b`, `a*b`) expand correctly via terms():
   # `a*b` -> a + b + a:b, and each `:` term references its operand *variables*
   # (read off the `factors` incidence). The unique operand/main variables become
   # the returned rhs terms (each parsed once, args preserved); the interaction
   # structure is carried on the `interactions` attribute (variable-index frame),
-  # with per-variable `is_main` / `is_operand` roles (design D9). rhs_names for a
+  # with per-variable `is_main` / `is_operand` roles. rhs_names for a
   # non-interaction formula is byte-identical to before.
   factors <- attr(parsed, "factors")
   term_order <- attr(parsed, "order")
@@ -1109,7 +1108,7 @@ parse_multiple_effects <- function(
       multiple_param <- as.logical(multiple_param)
     }
     if (!multiple_param) {
-      table <- getDataObjects(rhs_names[i])
+      table <- get_data_objects(rhs_names[i])
       # A derived (windowed) network may not be realized yet on the recipe path;
       # it is always a network, so recognize it from the recipe without fetching.
       is_derived <- table$name %in% derived_names
@@ -1117,7 +1116,7 @@ parse_multiple_effects <- function(
       net_ids[is_derived] <- TRUE
       if (any(!is_derived)) {
         net_ids[!is_derived] <- vapply(
-          getElementFromDataObjectTable(
+          get_element_from_data_object_table(
             table[!is_derived, , drop = FALSE],
             envir = envir
           ),
@@ -1163,7 +1162,7 @@ parse_time_windows <- function(
   envir = new.env(),
   realize_windows = TRUE
 ) {
-  object_names <- getDataObjects(rhs_names)
+  object_names <- get_data_objects(rhs_names)
   has_windows <- which(
     vapply(rhs_names, function(x) !is.null(getElement(x, "window")), logical(1))
   )
@@ -1305,7 +1304,7 @@ parse_time_windows <- function(
   }
 
   # Phase 2: rewrite each windowed effect's object reference to the derived
-  # windowed-network name and record a derivation recipe (metadata, design D8).
+  # windowed-network name and record a derivation recipe (metadata).
   # Realizing the derived network + dissolve-event streams into `envir` is gated
   # on `realize_windows`: the DyNAMi and legacy paths realize eagerly here so
   # behaviour is byte-identical; the recipe (DyNAM/REM) path passes FALSE and
@@ -1357,7 +1356,7 @@ parse_time_windows <- function(
   return(rhs_names)
 }
 
-# Realize a windowed-network derivation into `envir` (design D8 realizer). Builds
+# Realize a windowed-network derivation into `envir`. Builds
 # an empty network with the source network's structure (dims, nodes, directed,
 # class) and, for each source event stream, a windowed dissolve-event table
 # (`create_windowed_events`) named `<stream>_<window>`; the derived network's
@@ -1384,7 +1383,7 @@ realize_windowed_network <- function(source_name, derived_name, window, envir) {
   assign(derived_name, new_network, envir = envir)
 }
 
-# Registry-driven realizer (design D8, task 2.3d): materialize every window
+# Registry-driven realizer: materialize every window
 # derivation recorded by parse_time_windows() into `envir`. On the recipe path
 # parse_time_windows() runs with realize_windows = FALSE (leaving the shared
 # parser free of environment mutations); the recipe front-end calls this once
@@ -1399,7 +1398,7 @@ realize_windows_recipe <- function(window_derivations, envir) {
   invisible(NULL)
 }
 
-# State-creation realizer (design D8, task 2.3f) driven by the `plan$derivations`
+# State-creation realizer driven by the `plan$derivations`
 # registry (not the raw parse recipe): materialize each derived input into the
 # recipe state container's environment before the loop reads it. Dispatches on
 # `kind`; the only kind today is "window" (empty net + windowed dissolve

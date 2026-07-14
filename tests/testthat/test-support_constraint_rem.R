@@ -1,10 +1,10 @@
-# support_constraint consumption for REM on the default engine (task 4.4, REM
-# part). REM's risk set is 2D (every dyad), so the mask cannot reduce to a
+# support_constraint consumption for REM on the default engine. REM's risk
+# set is 2D (every dyad), so the mask cannot reduce to a
 # separable sender/receiver filter; instead the contribution zeroes the
 # disallowed dyads' rates — the same mechanism REM already uses to exclude
 # reflexive edges. An all-allowing mask is therefore an identity; a restricting
 # one changes the estimate; an observed dyad excluded by its own constraint
-# errors (design D8).
+# errors.
 
 make_rem_fixture <- function(n_events = 100L, seed = 1L) {
   data("Social_Evolution", package = "goldfish", envir = environment())
@@ -12,27 +12,27 @@ make_rem_fixture <- function(n_events = 100L, seed = 1L) {
   calls <- get("calls", environment())
   lab <- actors$label
   n <- nrow(actors)
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
-  callsDependent <- make_dependent_events(
+  calls_dependent <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
-  callsDependent <- callsDependent[seq_len(n_events), ]
+  calls_dependent <- calls_dependent[seq_len(n_events), ]
   obs <- cbind(
-    match(as.data.frame(callsDependent)$sender, lab),
-    match(as.data.frame(callsDependent)$receiver, lab)
+    match(as.data.frame(calls_dependent)$sender, lab),
+    match(as.data.frame(calls_dependent)$receiver, lab)
   )
   list(
     actors = actors,
     calls = calls,
-    callNetwork = callNetwork,
-    callsDependent = callsDependent,
+    call_network = call_network,
+    calls_dependent = calls_dependent,
     lab = lab,
     n = n,
     obs = obs,
@@ -64,9 +64,9 @@ rem_data <- function(fx, n_excluded = 0L) {
   )
   actors <- fx$actors
   calls <- fx$calls
-  callNetwork <- fx$callNetwork
-  callsDependent <- fx$callsDependent
-  make_data(callsDependent, callNetwork, calls, actors, allowedNet)
+  call_network <- fx$call_network
+  calls_dependent <- fx$calls_dependent
+  make_data(calls_dependent, call_network, calls, actors, allowedNet)
 }
 
 test_that("an all-allowing REM constraint is an identity (equals unconstrained)", {
@@ -74,14 +74,14 @@ test_that("an all-allowing REM constraint is an identity (equals unconstrained)"
   d <- rem_data(fx)
   opt <- set_estimation_opt(engine = "default")
   m_cstr <- estimate_rem(
-    callsDependent ~ 1 + inertia + recip,
+    calls_dependent ~ 1 + inertia + recip,
     sub_model = "rate",
     data = d,
     support_constraint = ~ tie(allowedNet),
     control_estimation = opt
   )
   m_unc <- estimate_rem(
-    callsDependent ~ 1 + inertia + recip,
+    calls_dependent ~ 1 + inertia + recip,
     sub_model = "rate",
     data = d,
     control_estimation = opt
@@ -95,14 +95,14 @@ test_that("a restricting REM constraint changes the estimate", {
   d <- rem_data(fx, n_excluded = 400L)
   opt <- set_estimation_opt(engine = "default")
   m_cstr <- suppressWarnings(estimate_rem(
-    callsDependent ~ 1 + inertia + recip,
+    calls_dependent ~ 1 + inertia + recip,
     sub_model = "rate",
     data = d,
     support_constraint = ~ tie(allowedNet),
     control_estimation = opt
   ))
   m_unc <- estimate_rem(
-    callsDependent ~ 1 + inertia + recip,
+    calls_dependent ~ 1 + inertia + recip,
     sub_model = "rate",
     data = d,
     control_estimation = opt
@@ -113,7 +113,7 @@ test_that("a restricting REM constraint changes the estimate", {
 test_that("gather_compute / default_c consume the REM constraint natively", {
   fx <- make_rem_fixture(n_events = 40L)
   d <- rem_data(fx, n_excluded = 50L)
-  spec <- callsDependent ~ 1 + inertia + recip
+  spec <- calls_dependent ~ 1 + inertia + recip
   m_def <- suppressWarnings(estimate_rem(
     spec,
     sub_model = "rate",
@@ -121,7 +121,7 @@ test_that("gather_compute / default_c consume the REM constraint natively", {
     support_constraint = ~ tie(allowedNet),
     control_estimation = set_estimation_opt(engine = "default")
   ))
-  # both compiled engines read the folded dense point active_dyad (design D11),
+  # both compiled engines read the folded dense point active_dyad,
   # so they match the default engine with no downgrade fallback.
   m_gc <- suppressWarnings(estimate_rem(
     spec,
@@ -143,17 +143,17 @@ test_that("gather_compute / default_c consume the REM constraint natively", {
   expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
 })
 
-test_that("an observed dyad excluded by its own REM constraint errors (design D8)", {
+test_that("an observed dyad excluded by its own REM constraint errors", {
   fx <- make_rem_fixture(n_events = 60L)
   d <- rem_data(fx)
   opt <- set_estimation_opt(engine = "default")
-  # `~ tie(callNetwork)` excludes the first event (no prior tie exists yet).
+  # `~ tie(call_network)` excludes the first event (no prior tie exists yet).
   expect_error(
     estimate_rem(
-      callsDependent ~ 1 + inertia + recip,
+      calls_dependent ~ 1 + inertia + recip,
       sub_model = "rate",
       data = d,
-      support_constraint = ~ tie(callNetwork),
+      support_constraint = ~ tie(call_network),
       control_estimation = opt
     )
   )
@@ -164,14 +164,14 @@ test_that("an all-allowing REM rate_ordered constraint is an identity", {
   d <- rem_data(fx)
   opt <- set_estimation_opt(engine = "default")
   m_cstr <- estimate_rem(
-    callsDependent ~ inertia + recip,
+    calls_dependent ~ inertia + recip,
     sub_model = "rate_ordered",
     data = d,
     support_constraint = ~ tie(allowedNet),
     control_estimation = opt
   )
   m_unc <- estimate_rem(
-    callsDependent ~ inertia + recip,
+    calls_dependent ~ inertia + recip,
     sub_model = "rate_ordered",
     data = d,
     control_estimation = opt
@@ -185,14 +185,14 @@ test_that("a restricting REM rate_ordered constraint changes the estimate", {
   d <- rem_data(fx, n_excluded = 400L)
   opt <- set_estimation_opt(engine = "default")
   m_cstr <- suppressWarnings(estimate_rem(
-    callsDependent ~ inertia + recip,
+    calls_dependent ~ inertia + recip,
     sub_model = "rate_ordered",
     data = d,
     support_constraint = ~ tie(allowedNet),
     control_estimation = opt
   ))
   m_unc <- estimate_rem(
-    callsDependent ~ inertia + recip,
+    calls_dependent ~ inertia + recip,
     sub_model = "rate_ordered",
     data = d,
     control_estimation = opt
@@ -203,7 +203,7 @@ test_that("a restricting REM rate_ordered constraint changes the estimate", {
 test_that("REM rate_ordered constraint runs natively on gather / default_c", {
   fx <- make_rem_fixture(n_events = 40L)
   d <- rem_data(fx, n_excluded = 50L)
-  spec <- callsDependent ~ inertia + recip
+  spec <- calls_dependent ~ inertia + recip
   m_def <- suppressWarnings(estimate_rem(
     spec,
     sub_model = "rate_ordered",
@@ -213,7 +213,7 @@ test_that("REM rate_ordered constraint runs natively on gather / default_c", {
   ))
   # Ordinal REM masks the disallowed dyads' utility before the multinomial
   # normalizer (and the probability-weighted score / information sums). Both
-  # compiled engines read the folded dense point active_dyad (design D11), so
+  # compiled engines read the folded dense point active_dyad, so
   # they match the default engine with no downgrade fallback.
   m_gc <- suppressWarnings(estimate_rem(
     spec,
@@ -239,7 +239,7 @@ test_that("a REM support_constraint folds active_dyad at the point encoding", {
   fx <- make_rem_fixture(n_events = 40L)
   d <- rem_data(fx, n_excluded = 50L)
   prep <- estimate_rem(
-    callsDependent ~ 1 + inertia + recip,
+    calls_dependent ~ 1 + inertia + recip,
     sub_model = "rate",
     data = d,
     support_constraint = ~ tie(allowedNet),

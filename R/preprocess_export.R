@@ -30,7 +30,7 @@
 #' left-hand side the dependent
 #' network (see [make_dependent_events()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
-#' (see `vignette("goldfishEffects")`).
+#' (see `vignette("goldfish_effects")`).
 #' @param model a character string defining the model type.
 #' Current options include `"DyNAM"`, `"DyNAMi"` or `"REM"`
 #' \describe{
@@ -84,7 +84,7 @@
 #'   \item{namesEffects}{a character vector with a short name of the effect.
 #'   It includes the name of the object used to calculate the effects and
 #'   modifiers of the effect, e.g., the type of effect, weighted effect.}
-#'   \item{effectDescription}{
+#'   \item{effect_description}{
 #'    a character matrix with the description of the effects.
 #'    It includes the name of the object used to calculate the effects and
 #'    additional information of the effect, e.g., the type of effect,
@@ -112,17 +112,17 @@
 #' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
 #' bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 #'
-#' createBilat <- make_dependent_events(
+#' create_bilat <- make_dependent_events(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, default_network = bilatnet
 #' )
 #'
-#' fisheriesData <- make_data(createBilat)
+#' fisheries_data <- make_data(create_bilat)
 #'
 #' gatheredData <- gather_model_data(
-#'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet),
+#'   create_bilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet),
 #'   model = "DyNAM", sub_model = "choice_coordination",
-#'   data = fisheriesData
+#'   data = fisheries_data
 #' )
 #'
 gather_model_data <- function(
@@ -160,7 +160,7 @@ gather_model_data <- function(
 #' Completes the gather output produced by `gather_from_prep()` (via
 #' `writer_gather()`) with the sender/receiver labels, the rate-model
 #' `timespan` / `isDependent` fields, and the `namesEffects` /
-#' `effectDescription` printing metadata, matching the field set and order of
+#' `effect_description` printing metadata, matching the field set and order of
 #' the legacy `gather_model_data()` result. Internal carry attributes are
 #' stripped so the returned list is value-comparable to the legacy output.
 #'
@@ -190,17 +190,17 @@ finalize_gather_output <- function(
     gathered$isDependent <- is_dependent
   }
 
-  # Single source of truth from the spec mapping (design D8) when supplied;
+  # Single source of truth from the spec mapping when supplied;
   # recomputed only for callers without a spec_map (DyNAMi / legacy paths).
-  effectDescription <- effect_description
-  if (is.null(effectDescription)) {
-    effectDescription <- GetDetailPrint(objects_effects_link, parsed_formula)
+  effect_description <- effect_description
+  if (is.null(effect_description)) {
+    effect_description <- GetDetailPrint(objects_effects_link, parsed_formula)
   }
-  namesEffects <- CreateNames(effectDescription, max_length = max_length)
+  namesEffects <- CreateNames(effect_description, max_length = max_length)
 
   gathered$namesEffects <- namesEffects
   colnames(gathered$stat_all_events) <- namesEffects
-  gathered$effectDescription <- effectDescription
+  gathered$effect_description <- effect_description
 
   attr(gathered, "event_sender") <- NULL
   attr(gathered, "event_receiver") <- NULL

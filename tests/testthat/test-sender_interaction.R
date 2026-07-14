@@ -1,5 +1,5 @@
-# Interaction terms in sender-indexed (DyNAM rate / rate_ordered) models
-# (sender-interaction-terms change). A rate interaction's statistic is the
+# Interaction terms in sender-indexed (DyNAM rate / rate_ordered) models.
+# A rate interaction's statistic is the
 # per-sender elementwise product of its operands; operand validity is role-aware
 # (sender-varying operands only; `global` allowed as an operand even where it is
 # rejected as a bare main effect); DyNAMi interactions remain unsupported.
@@ -8,25 +8,25 @@ make_rate_fixture <- function() {
   data("Social_Evolution", package = "goldfish", envir = environment())
   actors <- get("actors", environment())
   calls <- get("calls", environment())
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
-  callsDependent <- make_dependent_events(
+  calls_dependent <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
-  callsDependent <- callsDependent[1:150, ]
-  make_data(callsDependent, callNetwork, calls, actors)
+  calls_dependent <- calls_dependent[1:150, ]
+  make_data(calls_dependent, call_network, calls, actors)
 }
 
 test_that("rate a:b column equals the per-sender operand product", {
   d <- make_rate_fixture()
   g <- compute_stats(
-    callsDependent ~ 1 + indeg:outdeg,
+    calls_dependent ~ 1 + indeg:outdeg,
     data = d,
     model = "DyNAM",
     sub_model = "rate",
@@ -42,7 +42,7 @@ test_that("rate a:b column equals the per-sender operand product", {
 test_that("rate a*b estimates the intercept, both operands, and the product", {
   d <- make_rate_fixture()
   m <- estimate_dynam(
-    callsDependent ~ 1 + indeg * outdeg,
+    calls_dependent ~ 1 + indeg * outdeg,
     sub_model = "rate",
     data = d
   )
@@ -54,7 +54,7 @@ test_that("rate a*b estimates the intercept, both operands, and the product", {
 test_that("rate a:b keeps operands (fixed at 0) and estimates the product", {
   d <- make_rate_fixture()
   m <- estimate_dynam(
-    callsDependent ~ 1 + indeg:outdeg,
+    calls_dependent ~ 1 + indeg:outdeg,
     sub_model = "rate",
     data = d
   )
@@ -69,7 +69,7 @@ test_that("an alter operand is rejected in a rate interaction", {
   d <- make_rate_fixture()
   expect_error(
     estimate_dynam(
-      callsDependent ~ 1 + alter(actors$floor):indeg,
+      calls_dependent ~ 1 + alter(actors$floor):indeg,
       sub_model = "rate",
       data = d
     ),
@@ -81,25 +81,25 @@ test_that("global is permitted as a rate_ordered operand but not as a main", {
   data("Social_Evolution", package = "goldfish", envir = environment())
   actors <- get("actors", environment())
   calls <- get("calls", environment())
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
-  callsDependent <- make_dependent_events(
+  calls_dependent <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
-  callsDependent <- callsDependent[1:150, ]
+  calls_dependent <- calls_dependent[1:150, ]
   seasons <- make_global_attributes(data.frame(winter = 2))
-  d <- make_data(callsDependent, callNetwork, calls, actors, seasons)
+  d <- make_data(calls_dependent, call_network, calls, actors, seasons)
 
   # bare global() main effect is rejected in rate_ordered ...
   expect_error(
     estimate_dynam(
-      callsDependent ~ global(seasons$winter) + indeg,
+      calls_dependent ~ global(seasons$winter) + indeg,
       sub_model = "rate_ordered",
       data = d
     ),
@@ -108,7 +108,7 @@ test_that("global is permitted as a rate_ordered operand but not as a main", {
   # ... but the same global as an interaction operand is allowed (it restores
   # per-sender variation), so preprocessing produces the columns.
   prep <- compute_stats(
-    callsDependent ~ global(seasons$winter):indeg,
+    calls_dependent ~ global(seasons$winter):indeg,
     data = d,
     model = "DyNAM",
     sub_model = "rate_ordered"
@@ -120,7 +120,7 @@ test_that("DyNAMi interactions remain unsupported", {
   d <- make_rate_fixture()
   expect_error(
     estimate_dynami(
-      callsDependent ~ indeg:outdeg,
+      calls_dependent ~ indeg:outdeg,
       sub_model = "rate",
       data = d
     ),

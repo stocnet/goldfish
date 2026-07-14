@@ -1,5 +1,5 @@
 # optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead") and the
-# maxLik-backed adapter (design D10). newton_raphson is the built-in loop; the
+# maxLik-backed adapter. newton_raphson is the built-in loop; the
 # other three run maxLik::maxLik() over the default_c evaluator.
 
 test_that("set_estimation_opt validates the optimizer against the flat list", {

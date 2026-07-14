@@ -49,7 +49,7 @@ estimate_rem(
 \item{x}{a formula that defines at the left-hand side the dependent
 network (see \code{\link[=make_dependent_events]{make_dependent_events()}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
-(see \code{vignette("goldfishEffects")}).}
+(see \code{vignette("goldfish_effects")}).}
 
 \item{sub_model}{A character string specifying the sub-model to be estimated.
 It can be \code{"rate"} to model the waiting times between events,
@@ -154,14 +154,14 @@ additional parameter description.}
 \item{formula}{a formula with the information of the model fitted.}
 \item{model}{a character value of the model type.}
 \item{sub_model}{a character value of the sub_model type.}
-\item{rightCensored}{
+\item{right_censored}{
 a logical value indicating if the estimation process considered
 right-censored events.
 Only it is considered for \code{estimate_dynam(x, sub_model = "rate")} or
 REM (\code{estimate_rem()}), when the model includes the intercept.}
-\item{rightCensoredEvents}{a logical vector indicating whether or not an
+\item{right_censored_events}{a logical vector indicating whether or not an
 event is a right censored event}
-\item{eventTimes}{
+\item{event_times}{
 a numerical vector of times of events (including right censored events)
 }
 }
@@ -256,33 +256,33 @@ multinomial probability (Butts, 2008).
 \examples{
 # A DyNAM modeling rate and choice steps
 data("Social_Evolution")
-callNetwork <- make_network(nodes = actors, directed = TRUE)
-callNetwork <- link_events(
-  x = callNetwork, change_event = calls,
+call_network <- make_network(nodes = actors, directed = TRUE)
+call_network <- link_events(
+  x = call_network, change_event = calls,
   nodes = actors
 )
-callsDependent <- make_dependent_events(
+calls_dependent <- make_dependent_events(
   events = calls, nodes = actors,
-  default_network = callNetwork
+  default_network = call_network
 )
 
 \dontshow{
-callsDependent <- callsDependent[1:50, ]
+calls_dependent <- calls_dependent[1:50, ]
 }
 
-socialEvData <- make_data(callsDependent, callNetwork, call, actors)
+social_ev_data <- make_data(calls_dependent, call_network, call, actors)
 
-mod01 <- estimate_dynam(callsDependent ~ inertia + recip + trans,
+mod01 <- estimate_dynam(calls_dependent ~ inertia + recip + trans,
   sub_model = "choice",
-  data = socialEvData,
+  data = social_ev_data,
   control_estimation = set_estimation_opt(engine = "gather_compute")
 )
 summary(mod01)
 
 # A individual activity rates model
-mod02 <- estimate_dynam(callsDependent ~ 1 + node_trans + indeg + outdeg,
+mod02 <- estimate_dynam(calls_dependent ~ 1 + node_trans + indeg + outdeg,
   sub_model = "rate",
-  data = socialEvData,
+  data = social_ev_data,
   control_estimation = set_estimation_opt(engine = "gather_compute")
 )
 summary(mod02)
@@ -290,10 +290,10 @@ summary(mod02)
 # A REM
 
 mod03 <- estimate_rem(
-  callsDependent ~ 1 + node_trans(callNetwork, type = "ego") +
-    indeg(callNetwork, type = "ego") + outdeg(callNetwork, type = "ego") +
+  calls_dependent ~ 1 + node_trans(call_network, type = "ego") +
+    indeg(call_network, type = "ego") + outdeg(call_network, type = "ego") +
     inertia + recip + trans,
-    data = socialEvData,
+    data = social_ev_data,
     control_estimation = set_estimation_opt(engine = "gather_compute")
 )
 summary(mod03)
@@ -313,17 +313,17 @@ bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 contignet <- make_network(contignet, nodes = states, directed = FALSE)
 contignet <- link_events(contignet, contigchanges, nodes = states)
 
-createBilat <- make_dependent_events(
+create_bilat <- make_dependent_events(
   events = bilatchanges[bilatchanges$increment == 1, ],
   nodes = states, default_network = bilatnet
 )
 
-fisheriesData <- make_data(
-  createBilat, contignet, bilatnet, contigchanges, bilatchanges,
+fisheries_data <- make_data(
+  create_bilat, contignet, bilatnet, contigchanges, bilatchanges,
   states, sovchanges, regchanges, gdpchanges
  )
-partnerModel <- estimate_dynam(
-  createBilat ~
+partner_model <- estimate_dynam(
+  create_bilat ~
     inertia(bilatnet) +
     indeg(bilatnet) +
     trans(bilatnet) +
@@ -333,14 +333,14 @@ partnerModel <- estimate_dynam(
     alter(states$gdp) +
     diff(states$gdp),
   sub_model = "choice_coordination",
-  data = fisheriesData,
+  data = fisheries_data,
   control_estimation =
     set_estimation_opt(
       initial_damping = 40, max_iterations = 30,
       engine = "default"
     )
 )
-summary(partnerModel)
+summary(partner_model)
 }
 
 }

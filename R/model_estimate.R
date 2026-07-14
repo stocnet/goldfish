@@ -138,7 +138,7 @@
 #' @param x a formula that defines at the left-hand side the dependent
 #'   network (see [make_dependent_events()]) and at the right-hand side the
 #'   effects and the variables for which the effects are expected to occur
-#'   (see `vignette("goldfishEffects")`).
+#'   (see `vignette("goldfish_effects")`).
 #' @param data a `data.goldfish` object created with [make_data()].
 #' It is an environment that contains the nodesets, networks,
 #' attributes and dependent events objects. Default to `NULL`.
@@ -178,14 +178,14 @@
 #'   \item{formula}{a formula with the information of the model fitted.}
 #'   \item{model}{a character value of the model type.}
 #'   \item{sub_model}{a character value of the sub_model type.}
-#'   \item{rightCensored}{
+#'   \item{right_censored}{
 #'   a logical value indicating if the estimation process considered
 #'   right-censored events.
 #'   Only it is considered for `estimate_dynam(x, sub_model = "rate")` or
 #'   REM (`estimate_rem()`), when the model includes the intercept.}
-#'   \item{rightCensoredEvents}{a logical vector indicating whether or not an
+#'   \item{right_censored_events}{a logical vector indicating whether or not an
 #'   event is a right censored event}
-#'   \item{eventTimes}{
+#'   \item{event_times}{
 #'   a numerical vector of times of events (including right censored events)
 #'   }
 #'
@@ -217,33 +217,33 @@
 #' @examples
 #' # A DyNAM modeling rate and choice steps
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_event = calls,
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_event = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' calls_dependent <- make_dependent_events(
 #'   events = calls, nodes = actors,
-#'   default_network = callNetwork
+#'   default_network = call_network
 #' )
 #'
 #' \dontshow{
-#' callsDependent <- callsDependent[1:50, ]
+#' calls_dependent <- calls_dependent[1:50, ]
 #' }
 #'
-#' socialEvData <- make_data(callsDependent, callNetwork, call, actors)
+#' social_ev_data <- make_data(calls_dependent, call_network, call, actors)
 #'
-#' mod01 <- estimate_dynam(callsDependent ~ inertia + recip + trans,
+#' mod01 <- estimate_dynam(calls_dependent ~ inertia + recip + trans,
 #'   sub_model = "choice",
-#'   data = socialEvData,
+#'   data = social_ev_data,
 #'   control_estimation = set_estimation_opt(engine = "gather_compute")
 #' )
 #' summary(mod01)
 #'
 #' # A individual activity rates model
-#' mod02 <- estimate_dynam(callsDependent ~ 1 + node_trans + indeg + outdeg,
+#' mod02 <- estimate_dynam(calls_dependent ~ 1 + node_trans + indeg + outdeg,
 #'   sub_model = "rate",
-#'   data = socialEvData,
+#'   data = social_ev_data,
 #'   control_estimation = set_estimation_opt(engine = "gather_compute")
 #' )
 #' summary(mod02)
@@ -251,10 +251,10 @@
 #' # A REM
 #'
 #' mod03 <- estimate_rem(
-#'   callsDependent ~ 1 + node_trans(callNetwork, type = "ego") +
-#'     indeg(callNetwork, type = "ego") + outdeg(callNetwork, type = "ego") +
+#'   calls_dependent ~ 1 + node_trans(call_network, type = "ego") +
+#'     indeg(call_network, type = "ego") + outdeg(call_network, type = "ego") +
 #'     inertia + recip + trans,
-#'     data = socialEvData,
+#'     data = social_ev_data,
 #'     control_estimation = set_estimation_opt(engine = "gather_compute")
 #' )
 #' summary(mod03)
@@ -274,17 +274,17 @@
 #' contignet <- make_network(contignet, nodes = states, directed = FALSE)
 #' contignet <- link_events(contignet, contigchanges, nodes = states)
 #'
-#' createBilat <- make_dependent_events(
+#' create_bilat <- make_dependent_events(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, default_network = bilatnet
 #' )
 #'
-#' fisheriesData <- make_data(
-#'   createBilat, contignet, bilatnet, contigchanges, bilatchanges,
+#' fisheries_data <- make_data(
+#'   create_bilat, contignet, bilatnet, contigchanges, bilatchanges,
 #'   states, sovchanges, regchanges, gdpchanges
 #'  )
-#' partnerModel <- estimate_dynam(
-#'   createBilat ~
+#' partner_model <- estimate_dynam(
+#'   create_bilat ~
 #'     inertia(bilatnet) +
 #'     indeg(bilatnet) +
 #'     trans(bilatnet) +
@@ -294,14 +294,14 @@
 #'     alter(states$gdp) +
 #'     diff(states$gdp),
 #'   sub_model = "choice_coordination",
-#'   data = fisheriesData,
+#'   data = fisheries_data,
 #'   control_estimation =
 #'     set_estimation_opt(
 #'       initial_damping = 40, max_iterations = 30,
 #'       engine = "default"
 #'     )
 #' )
-#' summary(partnerModel)
+#' summary(partner_model)
 #' }
 #'
 NULL
@@ -422,7 +422,7 @@ estimate_rem <- function(
   )
 }
 
-# Estimate from a specification.goldfish object (task 4.4). Selects the submodel
+# Estimate from a specification.goldfish object. Selects the submodel
 # bundle matching the requested sub_model's family (rate vs choice), reuses its
 # parsed formula bundle so estimation does not re-parse, and forwards to the
 # shared estimator with the bundle's own sub_model. Results are identical to
@@ -490,7 +490,7 @@ estimate_from_specification <- function(
 #' @param formula a formula that defines at the left-hand side the dependent
 #'   network (see [make_dependent_events()]) and at the right-hand side the
 #'   effects and the variables for which the effects are expected to occur
-#'   (see `vignette("goldfishEffects")`).
+#'   (see `vignette("goldfish_effects")`).
 #' @param data a `data.goldfish` object created with [make_data()].
 #' @param model a character string specifying the model. Current options are
 #'   `"DyNAM"`, `"REM"` or `"DyNAMi"`, see [estimate_dynam()],
@@ -517,21 +517,21 @@ estimate_from_specification <- function(
 #' @export
 #' @examples
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_event = calls, nodes = actors
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_event = calls, nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
-#'   events = calls, nodes = actors, default_network = callNetwork
+#' calls_dependent <- make_dependent_events(
+#'   events = calls, nodes = actors, default_network = call_network
 #' )
 #' \dontshow{
-#' callsDependent <- callsDependent[1:50, ]
+#' calls_dependent <- calls_dependent[1:50, ]
 #' }
-#' socialEvData <- make_data(callsDependent, callNetwork, calls, actors)
+#' social_ev_data <- make_data(calls_dependent, call_network, calls, actors)
 #'
 #' prep <- compute_stats(
-#'   callsDependent ~ inertia + recip + trans,
-#'   data = socialEvData,
+#'   calls_dependent ~ inertia + recip + trans,
+#'   data = social_ev_data,
 #'   model = "DyNAM", sub_model = "choice"
 #' )
 #' prep
@@ -560,7 +560,7 @@ compute_stats <- function(
 }
 
 # Reduce the support mask to a per-event receiver filter for the DyNAM-choice
-# default engine (design D5/D10). A choice event has a single sender, so its
+# default engine. A choice event has a single sender, so its
 # allowed receivers are the sender's row of the support mask conjoined with
 # receiver presence downstream; the resulting per-event id list is consumed by
 # the existing opportunities machinery in `compute_iteration_step()`, which
@@ -588,7 +588,7 @@ mask_to_opportunities <- function(support_mask, statsList, user_opp = NULL) {
   })
 }
 
-# Preprocessing-time set-size validation for a support_constraint (design D8).
+# Preprocessing-time set-size validation for a support_constraint.
 # Fails fast — before the C++ likelihood — with event context. Cases:
 #   A observed dyad excluded (choice) / observed sender gated out (rate) -> error
 #   B dependent event's own sender has 0 live receivers                  -> error
@@ -681,10 +681,10 @@ validate_support_constraint <- function(
 
 #' Recipe (DyNAM/REM) preprocessing front-end
 #'
-#' Compiles the `spec_map` upfront (design D8) and runs the shared recipe loop
+#' Compiles the `spec_map` upfront and runs the shared recipe loop
 #' via `preprocess(spec_map, …)`. Returns both `prep` and the `spec_map` (the
 #' latter carries the single-source-of-truth `effect_description` consumed by the
-#' printing step). Isolated from the DyNAMi front-end (task 2.3e) so the shared
+#' printing step). Isolated from the DyNAMi front-end so the shared
 #' estimate path carries no model conditionals in its preprocessing.
 #'
 #' @return a list with `prep` (preprocessed.goldfish) and `spec_map`.
@@ -717,7 +717,7 @@ preprocess_recipe <- function(
     envir = work_env
   )
   # The recipe loop realizes derived inputs (from plan$derivations) and fetches
-  # events (from spec$fetch_plan) inside state creation (design D8, task 2.3f),
+  # events (from spec$fetch_plan) inside state creation,
   # so no pre-fetched events list is threaded here.
   prep <- preprocess(
     spec_map,
@@ -725,7 +725,7 @@ preprocess_recipe <- function(
     endTime = control_preprocessing$end_time,
     opportunitiesList = control_preprocessing$opportunities_list,
     progress = progress,
-    prepEnvir = work_env,
+    prep_envir = work_env,
     writer = writer
   )
   list(prep = prep, spec_map = spec_map)
@@ -733,11 +733,11 @@ preprocess_recipe <- function(
 
 #' DyNAMi preprocessing front-end (isolated)
 #'
-#' The DyNAMi-only path: the extra `cleanInteractionEvents` cleaning step (window
+#' The DyNAMi-only path: the extra `clean_interaction_events` cleaning step (window
 #' class tagging + leaving-event removal for the choice estimation) followed by
-#' the monolithic `preprocessInteraction` loop via `preprocess.dynami_*`. It keeps
+#' the monolithic `preprocess_interaction` loop via `preprocess.dynami_*`. It keeps
 #' the bridge-argument signature (no `spec_map`); the recipe/`spec_map` unification
-#' is deferred to `refactor-dynami-engine`. Fenced here (task 2.3e) so the shared
+#' is deferred to a future DyNAMi engine refactor. Fenced here so the shared
 #' recipe path (`preprocess_recipe()`) is DyNAMi-free.
 #'
 #' @return a preprocessed.goldfish object.
@@ -756,7 +756,7 @@ preprocess_dynami <- function(
   nodes2,
   is_two_mode,
   ignore_rep_parameter,
-  rightCensored,
+  right_censored,
   control_preprocessing,
   parsed_formula,
   progress,
@@ -765,7 +765,7 @@ preprocess_dynami <- function(
 ) {
   # DyNAM-i ONLY: assign an extra class to the windowed events and remove
   # leaving events for the choice estimation.
-  events <- cleanInteractionEvents(
+  events <- clean_interaction_events(
     events,
     events_effects_link,
     window_parameters,
@@ -778,21 +778,21 @@ preprocess_dynami <- function(
     model_spec,
     events = events,
     effects = effects,
-    windowParameters = window_parameters,
-    ignoreRepParameter = ignore_rep_parameter,
-    eventsObjectsLink = events_objects_link, # for data update
-    eventsEffectsLink = events_effects_link,
-    objectsEffectsLink = objects_effects_link, # for parameterization
+    window_parameters = window_parameters,
+    ignore_rep_parameter = ignore_rep_parameter,
+    events_objects_link = events_objects_link, # for data update
+    events_effects_link = events_effects_link,
+    objects_effects_link = objects_effects_link, # for parameterization
     nodes = nodes,
     nodes2 = nodes2,
     is_two_mode = is_two_mode,
     startTime = control_preprocessing$start_time,
     endTime = control_preprocessing$end_time,
-    rightCensored = rightCensored,
+    right_censored = right_censored,
     opportunitiesList = control_preprocessing$opportunities_list,
     progress = progress,
-    groupsNetwork = parsed_formula$default_network_name,
-    prepEnvir = work_env,
+    groups_network = parsed_formula$default_network_name,
+    prep_envir = work_env,
     writer = writer
   )
 }
@@ -829,7 +829,7 @@ estimate_wrapper <- function(
   model <- match.arg(model)
   sub_model <- match.arg(sub_model)
 
-  ### check model and subModel
+  ### check model and sub_model
   check_model_par(
     model,
     sub_model,
@@ -912,8 +912,8 @@ estimate_wrapper <- function(
     ))
   }
 
-  # Optimizers other than the built-in Newton-Raphson are maxLik-backed
-  # (design D10): they run only on the default_c evaluator and require the
+  # Optimizers other than the built-in Newton-Raphson are maxLik-backed:
+  # they run only on the default_c evaluator and require the
   # Suggests-only maxLik package. Both are resolved before any preprocessing so
   # the abort is free of side effects.
   optimizer <- control_estimation$optimizer
@@ -970,7 +970,7 @@ estimate_wrapper <- function(
   # specification supplies an already-parsed `support_constraint_plan`; the
   # formula surface supplies a one-sided formula parsed here against the working
   # data. Dyadic atoms are legal only when the spec has a dyad-indexed part (a
-  # choice submodel, or REM); a rate-only spec rejects them (design D13).
+  # choice submodel, or REM); a rate-only spec rejects them.
   constraint_plan <- NULL
   if (!is.null(support_constraint)) {
     if (inherits(support_constraint, "support_constraint_plan")) {
@@ -986,18 +986,18 @@ estimate_wrapper <- function(
     }
   }
 
-  ## 1.1 PARSE for all cases: preprocessingInit or not
+  ## 1.1 PARSE for all cases: preprocessing_init or not
   # On the fresh recipe (DyNAM/REM) path the shared parser stays free of
-  # environment mutations (design D8): parse_formula() records the window
+  # environment mutations: parse_formula() records the window
   # derivation recipe but does not realize it, and the recipe state container
-  # realizes it from `plan$derivations` (task 2.3f). DyNAMi and the
+  # realizes it from `plan$derivations`. DyNAMi and the
   # preprocessing_init path keep the eager parse-time realization
   # (byte-identical) via realize_windows = TRUE.
   recipe_deferred_windows <- model %in%
     c("DyNAM", "REM") &&
     is.null(preprocessing_init)
   # A specification.goldfish object supplies its parsed bundle so estimation
-  # reuses it rather than re-parsing (task 4.4); it was parsed with the same
+  # reuses it rather than re-parsing; it was parsed with the same
   # recipe-deferred window semantics. Otherwise parse the formula here.
   if (is.null(parsed_formula)) {
     parsed_formula <- parse_formula(
@@ -1012,7 +1012,7 @@ estimate_wrapper <- function(
   window_parameters <- parsed_formula$window_parameters
   ignore_rep_parameter <- unlist(parsed_formula$ignore_rep_parameter)
 
-  # Interaction terms compute their product in the dyad recipe loop (design D9);
+  # Interaction terms compute their product in the dyad recipe loop;
   # guard the not-yet-supported model families (sender / DyNAMi).
   abort_if_interactions_unsupported(parsed_formula, model, sub_model)
 
@@ -1049,20 +1049,20 @@ estimate_wrapper <- function(
     )
     parsed_formula$has_intercept <- has_intercept <- FALSE
   }
-  rightCensored <- has_intercept
+  right_censored <- has_intercept
 
-  # Per-(model, sub_model) main-effect validity (design D3). Unavailable effects
+  # Per-(model, sub_model) main-effect validity. Unavailable effects
   # (no bare implementation, e.g. global in choice) abort in every phase;
   # computable-but-unidentified effects stay producible via preprocessing
   # (compute_stats, as design columns for interactions / random effects) and are
   # rejected only when estimating. Uses the effective sub_model (a rate formula
   # without the time intercept is the ordinal case) and runs after `*` expansion.
-  # All effects are main until interaction terms land (task 2.5).
+  # All effects are main until interaction terms land.
   validity_sub_model <- sub_model
   if (sub_model == "rate" && !has_intercept) {
     validity_sub_model <- "rate_ordered"
   }
-  # Validity is role-aware (design D3). Offset (fixed-coefficient) terms and
+  # Validity is role-aware. Offset (fixed-coefficient) terms and
   # interaction operand-only terms are NOT bare main effects, so they are held
   # out of the main-effect identification check: an offset warns rather than
   # aborts (handled in the fixedParameters assembly below), and an operand
@@ -1134,10 +1134,10 @@ estimate_wrapper <- function(
       sep = ""
     )
   }
-  # if (progress && !all(vapply(windowParameters, is.null, logical(1))))
+  # if (progress && !all(vapply(window_parameters, is.null, logical(1))))
   #   cat("Creating window objects in global environment.")
 
-  ## 1.2 PARSE for preprocessingInit: check the formula consistency
+  ## 1.2 PARSE for preprocessing_init: check the formula consistency
   if (!is.null(preprocessing_init)) {
     # find the old and new effects indexes, do basic consistency checks
     old_parsed_formula <- parse_formula(
@@ -1178,7 +1178,7 @@ estimate_wrapper <- function(
     .nodes2 <- .nodes
   }
 
-  ## 2.1 INITIALIZE OBJECTS for all cases: preprocessingInit or not
+  ## 2.1 INITIALIZE OBJECTS for all cases: preprocessing_init or not
   # enviroment from which get the objects
 
   effects <- create_effects_functions(
@@ -1193,7 +1193,7 @@ estimate_wrapper <- function(
   ## 2.2 INITIALIZE OBJECTS for preprocessing_init == NULL
   if (is.null(preprocessing_init)) {
     # Build the event-stream link metadata + fetch plan (no tables). The recipe
-    # (DyNAM/REM) path defers fetching to state creation (design D8, task 2.3f);
+    # (DyNAM/REM) path defers fetching to state creation;
     # DyNAMi realizes windows eagerly at parse time and fetches here (its
     # front-end cleans the fetched events before its monolith loop).
     link <- build_events_objects_link(
@@ -1239,14 +1239,14 @@ estimate_wrapper <- function(
     has_intercept = has_intercept
   )
 
-  # Recipe (DyNAM/REM) models compile the spec_map upfront (design D8) and
+  # Recipe (DyNAM/REM) models compile the spec_map upfront and
   # dispatch preprocess() on it (`preprocess_recipe()`); DyNAMi runs its own
-  # isolated front-end (`preprocess_dynami()`, task 2.3e). `spec_map` stays NULL
+  # isolated front-end (`preprocess_dynami()`). `spec_map` stays NULL
   # for DyNAMi and for the preprocessing_init path (the printing step falls back
   # to `GetDetailPrint`).
   spec_map <- NULL
 
-  ## 3.1 INITIALIZE OBJECTS for preprocessingInit: remove old effects,
+  ## 3.1 INITIALIZE OBJECTS for preprocessing_init: remove old effects,
   ## add new ones
   if (!is.null(preprocessing_init)) {
     # find new effects
@@ -1279,7 +1279,7 @@ estimate_wrapper <- function(
         new_events_objects_link
       )
 
-      # Preprocess the new effects through the model's front-end (task 2.3e):
+      # Preprocess the new effects through the model's front-end:
       # recipe (DyNAM/REM) compiles the spec_map; DyNAMi runs its isolated path.
       if (progress) {
         cat("Pre-processing additional effects.\n")
@@ -1299,7 +1299,7 @@ estimate_wrapper <- function(
           .nodes2,
           is_two_mode,
           ignore_rep_parameter,
-          rightCensored,
+          right_censored,
           control_preprocessing,
           parsed_formula,
           progress,
@@ -1328,7 +1328,7 @@ estimate_wrapper <- function(
         stop(
           "The numbers of dependent events in the formula and in the ",
           "preprocessed object are not consistent.\n",
-          "\tPlease check whether these events have changed.",
+          "\t_please check whether these events have changed.",
           call. = FALSE
         )
       }
@@ -1340,7 +1340,7 @@ estimate_wrapper <- function(
         stop(
           "The numbers of right-censored events in the formula and in the ",
           "preprocessed object are not consistent.\n",
-          "\tPlease check whether some windows have been changed.",
+          "\t_please check whether some windows have been changed.",
           call. = FALSE
         )
       }
@@ -1352,7 +1352,7 @@ estimate_wrapper <- function(
     }
     allprep <- preprocessing_init
     is_rate_model <- preprocessing_init$model == "DyNAM" &&
-      preprocessing_init$subModel == "rate"
+      preprocessing_init$sub_model == "rate"
     init_is_flat <- is.null(preprocessing_init$stats_change)
     has_new_effects <- min(effects_indexes) == 0
     if (has_new_effects && init_is_flat != is.null(newprep$stats_change)) {
@@ -1364,11 +1364,11 @@ estimate_wrapper <- function(
     }
     n1_val <- nrow(get(.nodes, envir = work_env))
     n2_val <- nrow(get(.nodes2, envir = work_env))
-    nEffectsNew <- length(effects_indexes)
+    n_effects_new <- length(effects_indexes)
     if (is_rate_model) {
-      allprep$initialStats <- matrix(0, nrow = n1_val, ncol = nEffectsNew)
+      allprep$initialStats <- matrix(0, nrow = n1_val, ncol = n_effects_new)
     } else {
-      allprep$initialStats <- array(0, dim = c(n1_val, n2_val, nEffectsNew))
+      allprep$initialStats <- array(0, dim = c(n1_val, n2_val, n_effects_new))
     }
     cptnew <- 1
 
@@ -1433,12 +1433,12 @@ estimate_wrapper <- function(
     prep <- allprep
     prep$formula <- formula
     prep$model <- model
-    prep$subModel <- legacy_sub_model
+    prep$sub_model <- legacy_sub_model
     prep$nodes <- .nodes
     prep$nodes2 <- .nodes2
   }
 
-  ## 3.2 PREPROCESS when preprocessingInit == NULL
+  ## 3.2 PREPROCESS when preprocessing_init == NULL
   if (is.null(preprocessing_init)) {
     if (progress) {
       cat("Starting preprocessing.\n")
@@ -1452,7 +1452,7 @@ estimate_wrapper <- function(
         control_preprocessing$db_table
       )
     )
-    # Preprocess through the model's front-end (task 2.3e): recipe (DyNAM/REM)
+    # Preprocess through the model's front-end: recipe (DyNAM/REM)
     # compiles + dispatches on the spec_map; DyNAMi runs its isolated path and
     # leaves `spec_map` NULL (the printing step falls back to `GetDetailPrint`).
     if (model == "DyNAMi") {
@@ -1470,7 +1470,7 @@ estimate_wrapper <- function(
         .nodes2,
         is_two_mode,
         ignore_rep_parameter,
-        rightCensored,
+        right_censored,
         control_preprocessing,
         parsed_formula,
         progress,
@@ -1519,29 +1519,29 @@ estimate_wrapper <- function(
       return(gathered)
     }
     # The formula, nodes, nodes2 are added to the preprocessed object so that
-    # we can call the estimation with preprocessingInit later
+    # we can call the estimation with preprocessing_init later
     # (for parsing AND composition changes)
     prep$formula <- formula
     prep$model <- model
-    prep$subModel <- legacy_sub_model
+    prep$sub_model <- legacy_sub_model
     prep$nodes <- .nodes
     prep$nodes2 <- .nodes2
   }
 
   prep$model_spec <- model_spec
 
-  ## 3.3 Stop here if preprocessingOnly == TRUE
+  ## 3.3 Stop here if preprocessing_only == TRUE
   if (preprocessing_only) {
     return(prep)
   }
 
   ### 3.4 Assemble the fixed-coefficient (offset) vector----
-  # offset() terms fix their coefficient rather than estimate it (design D7).
+  # offset() terms fix their coefficient rather than estimate it.
   # The parameter vector is [intercept?, effects...], so an offset at rhs
   # position j fixes parameter j (+1 when the intercept is prepended); the
   # existing positional `fixedParameters` (Newton-Raphson) is reused unchanged.
   # Constant-across-alternatives offsets in choice cancel in the softmax, so
-  # they warn rather than abort (design D3 axis).
+  # they warn rather than abort.
   effective_fixed_parameters <- assemble_fixed_parameters(
     parsed_formula,
     rhs_names,
@@ -1558,7 +1558,7 @@ estimate_wrapper <- function(
   # (recipe models, no fixed-coefficient marking); otherwise compute it (the
   # fixed-coefficient case adds a column, and the DyNAMi / preprocessing_init
   # paths have no spec_map). Behaviour is identical to the unconditional call.
-  effectDescription <-
+  effect_description <-
     if (
       !is.null(spec_map$effect_description) &&
         is.null(effective_fixed_parameters)
@@ -1571,17 +1571,17 @@ estimate_wrapper <- function(
         effective_fixed_parameters
       )
     }
-  hasWindows <- attr(effectDescription, "hasWindows")
-  if (is.null(hasWindows)) {
-    hasWindows <- !all(vapply(window_parameters, is.null, logical(1)))
+  has_windows <- attr(effect_description, "has_windows")
+  if (is.null(has_windows)) {
+    has_windows <- !all(vapply(window_parameters, is.null, logical(1)))
   }
-  attr(effectDescription, "hasWindows") <- NULL
+  attr(effect_description, "has_windows") <- NULL
   ### 5. ESTIMATE----
   if (progress) {
     cat(
       "Estimating a model: ",
       dQuote(model),
-      ", subModel: ",
+      ", sub_model: ",
       dQuote(sub_model),
       ".\n",
       sep = ""
@@ -1590,15 +1590,15 @@ estimate_wrapper <- function(
 
   # Consume a support_constraint on the R (default) engine. DyNAM-choice reduces
   # the mask to a per-event receiver filter routed through the existing
-  # opportunities machinery (shrinks n_candidates, reindexes selected, design D5);
+  # opportunities machinery (shrinks n_candidates, reindexes selected);
   # DyNAM-rate reduces it to a per-event sender gate (a sender is at risk only
-  # with >= 1 allowed present receiver, D3/D10) and recomputes the constrained
+  # with >= 1 allowed present receiver) and recomputes the constrained
   # intercept denominator; REM keeps the full per-event dyad mask (the risk set is
   # 2D). DyNAM rate_ordered and the compiled engines land with the C++ gather
   # rewrite, so they abort rather than silently ignore the constraint.
   opportunities_effective <- control_preprocessing$opportunities_list
   # A constraint-free opportunity list is folded into `active_dyad` at the point
-  # encoding during preprocessing (design D10): the default engine reads it
+  # encoding during preprocessing: the default engine reads it
   # through the point accessor, so it is not also passed as a per-iteration
   # opportunity recompute. (With a support_constraint the mask path below
   # carries the intersection, so the list still rides there.)
@@ -1617,7 +1617,7 @@ estimate_wrapper <- function(
       sub_model %in% c("choice", "choice_coordination")
     # Coordination (`choice_coordination` / `DyNAM-MM`) is a dyad-part choice
     # family for the guard + validation, but its two-sided likelihood consumes a
-    # symmetrised FULL mask like REM, not the one-sided-choice row (design D15) —
+    # symmetrised FULL mask like REM, not the one-sided-choice row —
     # so folding/consumption below splits it from one-sided choice.
     is_coord_family <- model == "DyNAM" && sub_model == "choice_coordination"
     is_one_sided_choice <- is_choice_family && !is_coord_family
@@ -1625,7 +1625,7 @@ estimate_wrapper <- function(
     # Standard REM (`rem_rate_spec`, time intercept) zeroes disallowed dyads in the
     # Poisson contribution; ordinal REM (`rem_rate_ordered_spec`, no intercept)
     # zeroes their utility before the multinomial normalizer. Both fold both
-    # presences ∩ support into a dense point `active_dyad` (design D11) and consume
+    # presences ∩ support into a dense point `active_dyad` and consume
     # it as the maintained risk mask.
     is_rem_family <- model == "REM" && sub_model == "rate" && has_intercept
     is_rem_ordered_family <- model == "REM" && sub_model == "rate_ordered"
@@ -1644,10 +1644,10 @@ estimate_wrapper <- function(
                is available in {.code prep$support_mask}."
       ))
     }
-    # Fail fast (design D8) before the likelihood: excluded observed dyads / empty
+    # Fail fast before the likelihood: excluded observed dyads / empty
     # risk sets error; forced choices and never-active nodes warn. Rate uses the
     # sender-gate policy; choice and REM both check the observed dyad directly.
-    # Rate uses the raw sender presence stashed by the fold (design D4/D12); the
+    # Rate uses the raw sender presence stashed by the fold; the
     # object's own `active_sender_init` is already the folded availability.
     validate_active_1 <- if (
       is_rate_family && !is.null(prep$support_mask$sender_presence_init)
@@ -1672,7 +1672,7 @@ estimate_wrapper <- function(
       family = if (is_rate_family) "rate" else "choice"
     )
     # `avg_active_entity` (the rate intercept init) is now computed during
-    # preprocessing from the folded `active_sender` (design D4/D14); no
+    # preprocessing from the folded `active_sender`; no
     # estimation-time recombination.
     # The compiled engines consume the mask natively where wired: gather_compute
     # for DyNAM choice / rate (the R gather filters candidates), and default_c for
@@ -1681,19 +1681,19 @@ estimate_wrapper <- function(
     # the sender/receiver filters or the REM contribution.
     # A DyNAM-choice constraint (alter or point) folds into `active_dyad`, and a
     # DyNAM-rate constraint folds its sender gate into `active_sender`, during
-    # preprocessing (design D4/D11/D12): every engine reads the folded object
+    # preprocessing: every engine reads the folded object
     # directly, so neither the standalone mask nor the per-event opportunity
     # reduction is passed. An ego-kind (outer) choice constraint is not yet folded
     # and still rides the standalone mask path.
     choice_folded <- is_one_sided_choice && isTRUE(prep$active_dyad_folded)
     rate_folded <- is_rate_family && isTRUE(prep$active_sender_folded)
     # A folded standard- or ordinal-REM constraint rides the dense point
-    # `active_dyad` (design D11), which `estimate_REM` / `estimate_REM_ordered`
+    # `active_dyad`, which `estimate_REM` / `estimate_REM_ordered`
     # consume cell-wise, so `default_c` runs it natively; the gather likewise
-    # builds masked candidates. A folded rate constraint rides `active_sender`
-    # (design D12), which `estimate_DyNAM_rate` already consumes as its sender
+    # builds masked candidates. A folded rate constraint rides `active_sender`,
+    # which `estimate_DyNAM_rate` already consumes as its sender
     # filter. A folded coordination constraint rides the symmetrised dense point
-    # `active_dyad` (design D15), consumed as the full mask by `estimate_DyNAM_MM`
+    # `active_dyad`, consumed as the full mask by `estimate_DyNAM_MM`
     # and the encoding-aware gather.
     rem_folded <- is_rem_family && isTRUE(prep$active_dyad_folded)
     rem_ordered_folded <- is_rem_ordered_family &&
@@ -1703,7 +1703,7 @@ estimate_wrapper <- function(
     # the gather emits the symmetrically-folded off-diagonal dyad list (only
     # mask-allowed rows) plus the per-sender groups and (i,j)<->(j,i) pairing,
     # and the dyad-triangle kernel reads that ragged list directly — no square
-    # n x n candidate matrix is required (design D9/D13). The former redirect to
+    # n x n candidate matrix is required. The former redirect to
     # `default_c` is retired.
     native_compiled <-
       (control_estimation$engine == "gather_compute" &&
@@ -1734,7 +1734,7 @@ estimate_wrapper <- function(
       # its availability and runs natively on gather_compute / default_c above, and
       # the other families abort at the guard before this branch — so the former
       # "engine does not yet consume … using default" downgrade is dead and has
-      # been lifted (design D8).
+      # been lifted.
       if (is_one_sided_choice) {
         if (!choice_folded) {
           # An unfolded (ego-kind / outer) choice constraint still reduces to the
@@ -1747,27 +1747,27 @@ estimate_wrapper <- function(
         }
       } else if (is_rate_family) {
         # The default engine consumes the folded `active_sender` directly as its
-        # sender filter (design D4/D12); no separate sender gate is passed.
+        # sender filter; no separate sender gate is passed.
       } else if (is_coord_family) {
         # Coordination consumes the folded symmetrised dense `active_dyad` as its
         # full risk mask on the default engine (the `folded_full` path); nothing
-        # separate is passed (design D15).
+        # separate is passed.
       } else if (!isTRUE(prep$active_dyad_folded)) {
         # REM (standard or ordinal): the contribution zeroes disallowed dyads from
         # the risk set. A REM constraint is folded into `active_dyad` during
-        # preprocessing (design D11) and consumed as the maintained risk mask; the
+        # preprocessing and consumed as the maintained risk mask; the
         # standalone mask remains only as a fallback when the fold did not apply.
         rem_mask <- prep$support_mask$support
       }
     }
     if (choice_folded) {
       # The folded `active_dyad` already carries any user opportunity list, so
-      # the per-iteration opportunity recompute is skipped (design D10).
+      # the per-iteration opportunity recompute is skipped.
       opportunities_effective <- NULL
     }
   }
 
-  argsEstimation <- list(
+  args_estimation <- list(
     initialParameters = control_estimation$initial_parameters,
     fixedParameters = effective_fixed_parameters,
     maxIterations = as.integer(control_estimation$max_iterations),
@@ -1788,7 +1788,7 @@ estimate_wrapper <- function(
     initialDamping = if (!is.null(control_estimation$initial_damping)) {
       control_estimation$initial_damping
     } else {
-      ifelse(hasWindows, 30, 10)
+      ifelse(has_windows, 30, 10)
     },
     parallelize = FALSE,
     cpus = 1,
@@ -1806,7 +1806,7 @@ estimate_wrapper <- function(
       result <- do.call(
         "estimate_c_int",
         args = c(
-          argsEstimation,
+          args_estimation,
           list(engine = control_estimation$engine, optimizer = optimizer)
         )
       ),
@@ -1826,7 +1826,7 @@ estimate_wrapper <- function(
     tryCatch(
       result <- do.call(
         "estimate_int",
-        args = c(list(spec = model_spec), argsEstimation)
+        args = c(list(spec = model_spec), args_estimation)
       ),
       error = \(e) {
         stop(
@@ -1843,24 +1843,24 @@ estimate_wrapper <- function(
   }
 
   ### 6. RESULTS----
-  result$names <- effectDescription
-  # Name the per-event score columns by effect (rows of effectDescription are
+  result$names <- effect_description
+  # Name the per-event score columns by effect (rows of effect_description are
   # the coefficients, in the same order as the score vector).
   if (
     !is.null(result$event_scores) &&
-      ncol(result$event_scores) == nrow(effectDescription)
+      ncol(result$event_scores) == nrow(effect_description)
   ) {
-    colnames(result$event_scores) <- rownames(effectDescription)
+    colnames(result$event_scores) <- rownames(effect_description)
   }
   result$model_spec <- model_spec
-  formulaKeep <- as.formula(
+  formula_keep <- as.formula(
     Reduce(paste, deparse(formula)),
     env = new.env(parent = emptyenv())
   )
-  result$formula <- formulaKeep
+  result$formula <- formula_keep
   result$model <- model
-  result$subModel <- sub_model
-  result$rightCensored <- has_intercept
+  result$sub_model <- sub_model
+  result$right_censored <- has_intercept
   result$nParams <- sum(!GetFixed(result))
   # The specification path adds an extra `estimate_from_specification` hop whose
   # signature differs from the estimator's, so match.call() against this
@@ -1872,10 +1872,10 @@ estimate_wrapper <- function(
     ),
     error = function(e) sys.call(-1L)
   )
-  result$call[[2]] <- formulaKeep
+  result$call[[2]] <- formula_keep
   ## added to allow printing/plotting of rate models with rightCnesoredEvents
-  result$eventTime <- prep$event_time
-  result$rightCensoredEvents <- prep$is_dependent == 0L
+  result$event_time <- prep$event_time
+  result$right_censored_events <- prep$is_dependent == 0L
 
   return(result)
 }

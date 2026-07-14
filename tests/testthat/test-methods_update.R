@@ -223,17 +223,17 @@ test_that("as.matrix: mixed replace+increment is caught by link_events", {
 test_that("as.matrix: Social_Evolution increment equals row-by-row reference", {
   skip_on_cran()
   data("Social_Evolution")
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
   mid <- median(calls$time)
 
-  result_new <- as.matrix(callNetwork, time = mid, envir = environment())
+  result_new <- as.matrix(call_network, time = mid, envir = environment())
 
-  net_ref <- callNetwork[seq_len(nrow(actors)), seq_len(nrow(actors))]
+  net_ref <- call_network[seq_len(nrow(actors)), seq_len(nrow(actors))]
   calls_san <- sanitizeEvents(calls, actors, envir = environment())
   df <- calls_san[calls_san$time < mid, ]
   for (t in sort(unique(df$time))) {

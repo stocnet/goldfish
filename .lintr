@@ -1,6 +1,18 @@
 linters: linters_with_defaults(
   cyclocomp_linter = NULL,
-  object_name_linter = NULL,
+  # Strict snake_case for all functions/arguments/objects. The `regexes`
+  # allowlist exempts legacy S3 method names that encode class names / model
+  # acronyms in the method: the goldfish S3 classes (`print.data.goldfish`,
+  # `check_events.nodes.goldfish`, `coef.result.goldfish`, ...) and the
+  # model-keyed effect-init dispatchers (`init_DyNAM_choice.ego`,
+  # `init_REM_choice.alter`, `init_DyNAMi_rate.default`, `getLikelihoodMM`).
+  # Remaining camelCase (the frozen estimation/optimizer/C++ contract names in
+  # estimation_core.R / cpp_interface.R / model_preprocess.R) is reported as
+  # known legacy, pending its own migration.
+  object_name_linter(
+    styles = "snake_case",
+    regexes = c("goldfish", "DyNAM", "REM", "^[A-Z][A-Z0-9_]*$")
+  ),
   line_length_linter(80),
   commented_code_linter = NULL,
   object_usage_linter = NULL,

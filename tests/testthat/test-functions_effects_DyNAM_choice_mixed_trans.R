@@ -90,7 +90,7 @@ test_that("update_mixed_trans doesn't update when sender == receiver", {
   )
 })
 
-test_that("update_mixed_trans doesn't update when replace == oldValue", {
+test_that("update_mixed_trans doesn't update when replace == old_value", {
   expect_equal(
     update_DyNAM_choice_mixed_trans(
       list(m, m1),
@@ -101,7 +101,7 @@ test_that("update_mixed_trans doesn't update when replace == oldValue", {
       m0
     )$cache,
     m0,
-    label = "When netUpdate = 1"
+    label = "When net_update = 1"
   )
   expect_equal(
     update_DyNAM_choice_mixed_trans(
@@ -113,11 +113,11 @@ test_that("update_mixed_trans doesn't update when replace == oldValue", {
       m0
     )$cache,
     m0,
-    label = "When netUpdate = 2"
+    label = "When net_update = 2"
   )
 })
 
-test_that("update_mixed_trans throws an error when netUpdate is not 1 or 2. ", {
+test_that("update_mixed_trans throws an error when net_update is not 1 or 2. ", {
   expect_error(
     update_DyNAM_choice_mixed_trans(
       list(m, m1),
@@ -128,7 +128,7 @@ test_that("update_mixed_trans throws an error when netUpdate is not 1 or 2. ", {
       m0
     ),
     "Check you declare only two networks in network argument",
-    label = "netUpdate is an unsuitable integer"
+    label = "net_update is an unsuitable integer"
   )
   expect_error(
     update_DyNAM_choice_mixed_trans(
@@ -140,7 +140,7 @@ test_that("update_mixed_trans throws an error when netUpdate is not 1 or 2. ", {
       m0
     ),
     "Check you declare only two networks in network argument",
-    label = "netUpdate is not an integer"
+    label = "net_update is not an integer"
   )
 })
 

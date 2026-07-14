@@ -35,22 +35,22 @@
 # contignet <- make_network(contignet, nodes = states, directed = FALSE)
 # contignet <- link_events(contignet, contigchanges, nodes = states)
 #
-# createBilat <- make_dependent_events(
+# create_bilat <- make_dependent_events(
 #   events = bilatchanges[bilatchanges$increment == 1, ],
 #   nodes = states, default_network = bilatnet
 # )
 #
-# goldfishObjects()
-# goldfishObjects <- function(envir = .GlobalEnv) {
+# goldfish_objects()
+# goldfish_objects <- function(envir = .GlobalEnv) {
 #   y = ls(envir = envir)
 #   tryCatch({
 #     # identify goldfish objects
-#     classesToKeep <- c(
+#     classes_to_keep <- c(
 #       "nodes.goldfish", "network.goldfish", "dependent.goldfish",
 #       "global.goldfish"
 #     )
 #     ClassFilter <- function(x)
-#       any(check_classes(get(x, envir = envir), classes = classesToKeep))
+#       any(check_classes(get(x, envir = envir), classes = classes_to_keep))
 #
 #     object <- Filter(ClassFilter, y)
 #     # if(is.null(object)) stop("No goldfish objects defined.")
@@ -59,8 +59,8 @@
 #     classes <- vapply(
 #       object,
 #       FUN = function(x)
-#         check_classes(get(x, envir = envir), classes = classesToKeep),
-#       FUN.VALUE = logical(length(classesToKeep))
+#         check_classes(get(x, envir = envir), classes = classes_to_keep),
+#       FUN.VALUE = logical(length(classes_to_keep))
 #     )
 #
 #     if (any(classes["nodes.goldfish", ])) {
@@ -185,12 +185,12 @@
 #' @export
 #' @seealso [make_network()], [link_events()]
 #' @examples
-#' nodesAttr <- data.frame(
+#' nodes_attr <- data.frame(
 #'   label = paste("Actor", 1:5),
 #'   present = c(TRUE, FALSE, TRUE, TRUE, FALSE),
 #'   gender = c(1, 2, 1, 1, 2)
 #' )
-#' nodesAttr <- make_nodes(nodes = nodesAttr)
+#' nodes_attr <- make_nodes(nodes = nodes_attr)
 #'
 #' # Social evolution nodes definition
 #' data("Social_Evolution")
@@ -281,7 +281,7 @@ make_nodes_goldfish <- make_nodes
 #' @examples
 #' # If no intial matrix is provided
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors)
+#' call_network <- make_network(nodes = actors)
 #'
 #' # If a initial matrix is provided
 #' data("Fisheries_Treaties_6070")
@@ -371,19 +371,19 @@ make_network <- function(
   class(matrix) <- unique(c("network.goldfish", class(matrix)))
 
   # create attributes
-  nodesName <- c(
+  nodes_name <- c(
     as.character(substitute(nodes, env = envir)),
     as.character(substitute(nodes2, env = envir))
   )
 
-  attr(matrix, "nodes") <- nodesName
+  attr(matrix, "nodes") <- nodes_name
   attr(matrix, "directed") <- directed
   attr(matrix, "is_two_mode") <- is_two_mode
   attr(matrix, "events") <- vector("character")
 
   # check format
   tryCatch(
-    check_network(matrix, nodes, nodesName, nodes2 = nodes2),
+    check_network(matrix, nodes, nodes_name, nodes2 = nodes2),
     error = function(e) {
       scalls <- sys.calls()
       e$call <- scalls[[1]]
@@ -456,14 +456,14 @@ make_network_goldfish <- make_network
 #'   sender = paste("Actor", c(1, 3, 5, 2, 3, 4, 2)),
 #'   receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)), increment = rep(1, 7)
 #' )
-#' callNetwork <- make_network(nodes = actors)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_events = calls, nodes = actors
+#' call_network <- make_network(nodes = actors)
+#' call_network <- link_events(
+#'   x = call_network, change_events = calls, nodes = actors
 #' )
 #'
 #' # Defining the dependent events:
-#' callDependent <- make_dependent_events(
-#'   events = calls, nodes = actors, default_network = callNetwork
+#' call_dependent <- make_dependent_events(
+#'   events = calls, nodes = actors, default_network = call_network
 #' )
 make_dependent_events <- function(
   events,
@@ -530,33 +530,33 @@ make_dependent_events <- function(
   }
 
   # link objects
-  nodesName <- c(
+  nodes_name <- c(
     as.character(substitute(nodes, envir)),
     as.character(substitute(nodes2, envir))
   )
-  objEvents <- as.character(substitute(events, envir))
-  objDefNet <- as.character(substitute(default_network, envir))
+  obj_events <- as.character(substitute(events, envir))
+  obj_def_net <- as.character(substitute(default_network, envir))
 
-  attr(events, "nodes") <- nodesName
+  attr(events, "nodes") <- nodes_name
 
   # define class
   class(events) <- unique(c("dependent.goldfish", class(events)))
 
   # link events if default_network
   if (!is.null(default_network)) {
-    if (!all(attr(default_network, "nodes") == nodesName)) {
+    if (!all(attr(default_network, "nodes") == nodes_name)) {
       stop(
         "Node sets of default networks differ from",
         " node sets of dependent event data frame."
       )
     }
 
-    attr(events, "default_network") <- objDefNet
+    attr(events, "default_network") <- obj_def_net
     attr(events, "type") <- "dyadic"
 
     # check default_network is defined with the same events
     events_network <- attr(default_network, "events")
-    if (!any(objEvents %in% events_network)) {
+    if (!any(obj_events %in% events_network)) {
       warning(
         "The events data frame is not linked to the default_network",
         "\nEvents attached to the ",
@@ -567,8 +567,8 @@ make_dependent_events <- function(
         } else {
           "no events linked"
         },
-        "\nDependent events: ",
-        paste(objEvents, collapse = ""),
+        "\n_dependent events: ",
+        paste(obj_events, collapse = ""),
         "\n"
       )
     }
@@ -580,7 +580,7 @@ make_dependent_events <- function(
   tryCatch(
     check_dependent_events(
       events = events,
-      events_name = objEvents,
+      events_name = obj_events,
       nodes = nodes,
       nodes2 = nodes2,
       default_network = default_network,
@@ -692,17 +692,17 @@ make_global_attributes_goldfish <- make_global_attributes
 #' @export
 #' @examples
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_event = calls,
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_event = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' calls_dependent <- make_dependent_events(
 #'   events = calls, nodes = actors,
-#'   default_network = callNetwork
+#'   default_network = call_network
 #' )
-#' socialEvolutionData <- make_data(
-#'   callNetwork, callsDependent, actors
+#' social_evolution_data <- make_data(
+#'   call_network, calls_dependent, actors
 #' )
 #'
 #' data("Fisheries_Treaties_6070")
@@ -717,13 +717,13 @@ make_global_attributes_goldfish <- make_global_attributes
 #' contignet <- make_network(contignet, nodes = states, directed = FALSE)
 #' contignet <- link_events(contignet, contigchanges, nodes = states)
 #'
-#' createBilat <- make_dependent_events(
+#' create_bilat <- make_dependent_events(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, default_network = bilatnet
 #' )
 #'
-#' fisheriesData <- make_data(
-#'   bilatnet, createBilat, states,
+#' fisheries_data <- make_data(
+#'   bilatnet, create_bilat, states,
 #'   contignet, sovchanges, regchanges, gdpchanges
 #' )
 #'
@@ -966,16 +966,16 @@ make_data_goldfish <- make_data
 #'   present = TRUE, gender = sample.int(2, 5, replace = TRUE)
 #' )
 #' actors <- make_nodes(nodes = actors)
-#' callNetwork <- make_network(nodes = actors)
+#' call_network <- make_network(nodes = actors)
 #'
 #' # Link events to a nodeset
-#' compositionChangeEvents <- data.frame(
+#' composition_change_events <- data.frame(
 #'   time = c(14, 60),
 #'   node = "Actor 4",
 #'   replace = c(FALSE, TRUE)
 #' )
 #' actorsnew <- link_events(
-#'   x = actors, attribute = "present", change_events = compositionChangeEvents
+#'   x = actors, attribute = "present", change_events = composition_change_events
 #' )
 #'
 #' # Link events to a Network
@@ -985,8 +985,8 @@ make_data_goldfish <- make_data
 #'   receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)),
 #'   increment = rep(1, 7)
 #' )
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_events = calls, nodes = actors
+#' call_network <- link_events(
+#'   x = call_network, change_events = calls, nodes = actors
 #' )
 link_events <- function(x, ...) {
   UseMethod("link_events", x)
@@ -1007,8 +1007,8 @@ link_events.nodes.goldfish <- function(x, change_events, attribute, ...) {
   }
 
   # data frame has to be passed as a variable name
-  linkEnvir <- environment()
-  if (!is.name(substitute(change_events, linkEnvir))) {
+  link_envir <- environment()
+  if (!is.name(substitute(change_events, link_envir))) {
     stop(
       "Parameter change events has to be the name of a data frame",
       " (rather than a data frame)"
@@ -1017,19 +1017,19 @@ link_events.nodes.goldfish <- function(x, change_events, attribute, ...) {
 
   # link data
   # initial <- object
-  objEventsPrev <- attr(x, "events")
-  objEventCurr <- as.character(substitute(change_events, linkEnvir))
+  obj_events_prev <- attr(x, "events")
+  obj_event_curr <- as.character(substitute(change_events, link_envir))
 
-  if (length(objEventsPrev) > 0 && objEventCurr %in% objEventsPrev) {
+  if (length(obj_events_prev) > 0 && obj_event_curr %in% obj_events_prev) {
     warning(
       "The event ",
-      dQuote(objEventCurr),
+      dQuote(obj_event_curr),
       " were already linked to this object."
     )
     return(x)
   }
 
-  attr(x, "events") <- c(objEventsPrev, objEventCurr)
+  attr(x, "events") <- c(obj_events_prev, obj_event_curr)
   attr(x, "dynamic_attributes") <- c(attr(x, "dynamic_attributes"), attribute)
 
   # check format
@@ -1038,8 +1038,8 @@ link_events.nodes.goldfish <- function(x, change_events, attribute, ...) {
       check_events(
         object = x,
         events = change_events,
-        events_name = objEventCurr,
-        environment = linkEnvir,
+        events_name = obj_event_curr,
+        environment = link_envir,
         attribute = attribute
       )
     },
@@ -1090,8 +1090,8 @@ link_events.network.goldfish <- function(
   }
 
   # data frame has to be passed as a variable name
-  linkEnvir <- environment()
-  if (!is.name(substitute(change_events, linkEnvir))) {
+  link_envir <- environment()
+  if (!is.name(substitute(change_events, link_envir))) {
     stop(
       "Parameter change events has to be the name of a data frame",
       " (rather than a data frame)"
@@ -1100,18 +1100,18 @@ link_events.network.goldfish <- function(
 
   # link data
   # initial <- x
-  objEventsPrev <- attr(x, "events")
-  objEventCurr <- as.character(substitute(change_events, linkEnvir))
+  obj_events_prev <- attr(x, "events")
+  obj_event_curr <- as.character(substitute(change_events, link_envir))
 
-  if (length(objEventsPrev) > 0 && objEventCurr %in% objEventsPrev) {
+  if (length(obj_events_prev) > 0 && obj_event_curr %in% obj_events_prev) {
     warning(
       "The event ",
-      dQuote(objEventCurr),
+      dQuote(obj_event_curr),
       " were already linked to this object."
     )
     return(x)
   }
-  attr(x, "events") <- c(objEventsPrev, objEventCurr)
+  attr(x, "events") <- c(obj_events_prev, obj_event_curr)
 
   # check format
   tryCatch(
@@ -1119,8 +1119,8 @@ link_events.network.goldfish <- function(
       check_events(
         object = x,
         events = change_events,
-        events_name = objEventCurr,
-        environment = linkEnvir,
+        events_name = obj_event_curr,
+        environment = link_envir,
         nodes = nodes,
         nodes2 = nodes2
       )
@@ -1151,8 +1151,8 @@ link_events.global.goldfish <- function(
     )
   }
 
-  linkEnvir <- environment()
-  if (!is.name(substitute(change_events, linkEnvir))) {
+  link_envir <- environment()
+  if (!is.name(substitute(change_events, link_envir))) {
     cli::cli_abort(c(
       "{.arg change_events} must be the name of a data frame,",
       "i" = "not a data frame literal."
@@ -1182,21 +1182,21 @@ link_events.global.goldfish <- function(
 
   check_global_attribute(x)
 
-  objEventsPrev <- attr(x, "events")
-  objEventCurr <- as.character(substitute(change_events, linkEnvir))
+  obj_events_prev <- attr(x, "events")
+  obj_event_curr <- as.character(substitute(change_events, link_envir))
 
-  if (length(objEventsPrev) > 0 && objEventCurr %in% objEventsPrev) {
+  if (length(obj_events_prev) > 0 && obj_event_curr %in% obj_events_prev) {
     warning(
       "The event ",
-      dQuote(objEventCurr),
+      dQuote(obj_event_curr),
       " was already linked to this object."
     )
     return(x)
   }
 
   attr(change_events, "replace") <- replace
-  assign(objEventCurr, change_events, envir = parent.frame())
-  attr(x, "events") <- c(objEventsPrev, objEventCurr)
+  assign(obj_event_curr, change_events, envir = parent.frame())
+  attr(x, "events") <- c(obj_events_prev, obj_event_curr)
 
   return(invisible(x))
 }

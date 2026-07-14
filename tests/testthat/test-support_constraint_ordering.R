@@ -1,4 +1,4 @@
-# Event-1 ordering (design D7): the FIRST dependent event's availability rides
+# Event-1 ordering: the FIRST dependent event's availability rides
 # in the init (`active_dyad_init`), each later event's change in its likelihood
 # slice. A fixture restricts the first event's receivers to a strict subset and
 # leaves every later event unconstrained (the event-1 sender is observed only
@@ -12,16 +12,16 @@ make_ordering_fixture <- function(n_events = 60L) {
   calls <- get("calls", environment())
   lab <- actors$label
   n <- nrow(actors)
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
   callsDep <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
   callsDep <- callsDep[seq_len(n_events), ]
   df <- as.data.frame(callsDep)
@@ -30,7 +30,7 @@ make_ordering_fixture <- function(n_events = 60L) {
   # receivers isolates the effect to event 1's normalizer.
   stopifnot(sum(match(df$sender, lab) == sender1) == 1L)
   # A strict subset of receivers for the first event: the observed receiver plus
-  # two others (so the observed dyad is never excluded, design D8).
+  # two others (so the observed dyad is never excluded).
   subset_recv <- unique(c(match(df$receiver[1], lab), 10L, 11L))
   allowed <- matrix(1, n, n, dimnames = list(lab, lab))
   diag(allowed) <- 0
@@ -38,7 +38,7 @@ make_ordering_fixture <- function(n_events = 60L) {
   allowed[sender1, subset_recv] <- 1
   allowedNet <- make_network(matrix = allowed, nodes = actors, directed = TRUE)
   list(
-    data = make_data(callsDep, callNetwork, calls, actors, allowedNet),
+    data = make_data(callsDep, call_network, calls, actors, allowedNet),
     subset_recv = subset_recv,
     n = n,
     n_events = n_events
@@ -63,7 +63,7 @@ test_that("the event-1 restriction lands (constrained != unconstrained)", {
   expect_gt(abs(m_cstr$logLikelihood - m_unc$logLikelihood), 1e-3)
 })
 
-test_that("every wired engine consumes the event-1 slice identically (D7)", {
+test_that("every wired engine consumes the event-1 slice identically", {
   fx <- make_ordering_fixture()
   m_def <- fit_ordering(fx, "default")
   m_gc <- fit_ordering(fx, "gather_compute")

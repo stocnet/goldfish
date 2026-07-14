@@ -970,26 +970,26 @@ make_groups_interaction <- function(
 
 ## For the estimation
 # Function that remove extra attributes to windowed events
-cleanInteractionEvents <- function(
+clean_interaction_events <- function(
   events,
-  eventsEffectsLink,
-  windowParameters,
-  subModel,
+  events_effects_link,
+  window_parameters,
+  sub_model,
   depName,
-  eventsObjectsLink,
+  events_objects_link,
   envir
 ) {
-  done.events <- rep(FALSE, dim(eventsEffectsLink)[1])
+  done.events <- rep(FALSE, dim(events_effects_link)[1])
 
   # Windowed events: we remove the order of the events
-  for (e in seq.int(dim(eventsEffectsLink)[1])) {
-    for (eff in seq.int(dim(eventsEffectsLink)[2])) {
+  for (e in seq.int(dim(events_effects_link)[1])) {
+    for (eff in seq.int(dim(events_effects_link)[2])) {
       if (
         !done.events[e] &&
-          !is.na(eventsEffectsLink[e, eff]) &&
-          !is.null(windowParameters[[eff]])
+          !is.na(events_effects_link[e, eff]) &&
+          !is.null(window_parameters[[eff]])
       ) {
-        eventsobject <- get(rownames(eventsEffectsLink)[e], envir = envir)
+        eventsobject <- get(rownames(events_effects_link)[e], envir = envir)
 
         # correct the order of events
         oldorder <- attr(eventsobject, "order")
@@ -1010,14 +1010,14 @@ cleanInteractionEvents <- function(
         )
 
         # reassign object
-        assign(rownames(eventsEffectsLink)[e], eventsobject, pos = envir)
+        assign(rownames(events_effects_link)[e], eventsobject, pos = envir)
 
         # sanitize events
         objPos <- which(
-          eventsObjectsLink$events == rownames(eventsEffectsLink)[e]
+          events_objects_link$events == rownames(events_effects_link)[e]
         )
         nodesObject <- attr(
-          get(eventsObjectsLink[objPos, ]$object, envir = envir),
+          get(events_objects_link[objPos, ]$object, envir = envir),
           "nodes"
         )
 
@@ -1044,7 +1044,7 @@ cleanInteractionEvents <- function(
 setopportunities_interaction <- function(
   nodes,
   nodes2,
-  eventsObjectsLink,
+  events_objects_link,
   groups.network
 ) {
   # get objects
@@ -1052,7 +1052,7 @@ setopportunities_interaction <- function(
   getgroups <- get(nodes2)
   groups.network.object <- get(groups.network)
   events <- attr(groups.network.object, "events")
-  dname <- eventsObjectsLink[1, 1]
+  dname <- events_objects_link[1, 1]
 
   # get events
   for (e in events) {

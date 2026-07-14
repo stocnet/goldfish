@@ -1,4 +1,4 @@
-# Per-(model, sub_model) main-effect validity matrix (design D3, group 3).
+# Per-(model, sub_model) main-effect validity matrix.
 
 test_that("effect_variation classifies effects by variation axis", {
   expect_equal(effect_variation("global", ""), "global")
@@ -11,7 +11,7 @@ test_that("effect_variation classifies effects by variation axis", {
   expect_equal(effect_variation("inertia", ""), "other")
 })
 
-test_that("validate_effects enforces the D3 rule matrix when estimating", {
+test_that("validate_effects enforces the rule matrix when estimating", {
   ok <- function(model, sm, names, types = rep("", length(names))) {
     expect_no_error(validate_effects(
       model,
@@ -76,7 +76,7 @@ test_that("validate_effects reports every offender at once", {
 })
 
 test_that("preprocessing keeps computable columns; only estimation rejects them", {
-  # ego in choice is computable (design D3 design-column use), so estimating =
+  # ego in choice is computable (a design-column use), so estimating =
   # FALSE permits it; estimating = TRUE rejects the unidentified main effect.
   expect_no_error(
     validate_effects("DyNAM", "choice", "indeg", "ego", estimating = FALSE)
@@ -85,7 +85,7 @@ test_that("preprocessing keeps computable columns; only estimation rejects them"
     validate_effects("DyNAM", "choice", "indeg", "ego", estimating = TRUE),
     "Unsupported main effect"
   )
-  # global in choice is computable too (task 1.5): permitted in preprocessing,
+  # global in choice is computable too: permitted in preprocessing,
   # rejected only when estimating.
   expect_no_error(
     validate_effects("DyNAM", "choice", "global", "", estimating = FALSE)
@@ -96,7 +96,7 @@ test_that("preprocessing keeps computable columns; only estimation rejects them"
   )
 })
 
-test_that("choice type = 'ego' is rejected at estimation but computable (D3)", {
+test_that("choice type = 'ego' is rejected at estimation but computable", {
   # estimation rejects the unidentified ego main effect ...
   expect_error(
     suppressWarnings(estimate_dynam(
@@ -139,7 +139,7 @@ test_that("REM rejects a global main effect only in the ordinal sub-model", {
   )
 })
 
-test_that("choice global is computable and equals the REM expansion (task 1.5)", {
+test_that("choice global is computable and equals the REM expansion", {
   seasons <- make_global_attributes(data.frame(winter = 0))
   season_change <- data.frame(time = 15, replace = 1)
   seasons <- link_events(seasons, season_change)
@@ -154,7 +154,7 @@ test_that("choice global is computable and equals the REM expansion (task 1.5)",
   )
   # REM rate_ordered uses the same dependent-only dyad loop + the same global
   # effect functions the new choice wrappers delegate to, so the statistic is
-  # identical (mirrors the Group-1 ego equivalence, task 1.3).
+  # identical (mirrors the Group-1 ego equivalence).
   rem <- compute_stats(
     form,
     data = dataGlobal,

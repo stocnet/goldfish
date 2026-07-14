@@ -93,7 +93,7 @@ test_that("cycle returns NULL if there is no change", {
     )$changes,
     label = "when sequential and the only two paths the new tie forms are not sequential"
   )
-  attr(m1, "lastUpdate") <- c(sender = 0, receiver = 0, eventorder = 0)
+  attr(m1, "last_update") <- c(sender = 0, receiver = 0, eventorder = 0)
   expect_null(
     update_DyNAM_choice_cycle(
       m1,
@@ -102,7 +102,7 @@ test_that("cycle returns NULL if there is no change", {
       replace = 1,
       cache = m1,
       history = "cons",
-      eventOrder = 2
+      event_order = 2
     )$changes,
     label = "when consecutive and the only two paths the new tie forms are not consecutive"
   )
@@ -139,7 +139,7 @@ test_that("cycle recognises tie creation correctly", {
     ),
     label = "when history = sequential"
   )
-  attr(mCache, "lastUpdate") <- c(sender = 3, receiver = 4, eventOrder = 0)
+  attr(mCache, "last_update") <- c(sender = 3, receiver = 4, event_order = 0)
   expect_equal(
     update_DyNAM_choice_cycle(
       `[<-`(m1, 4, 5, 0),
@@ -148,7 +148,7 @@ test_that("cycle recognises tie creation correctly", {
       replace = 1,
       cache = mCache,
       history = "cons",
-      eventOrder = 1
+      event_order = 1
     )$changes,
     rbind(
       "sender" = c(node1 = 5, node2 = 3, replace = 1)
@@ -224,7 +224,7 @@ test_that("cycle recognizes tie deletion correctly ", {
       replace = 0,
       cache = mCache,
       history = "cons",
-      eventOrder = 2
+      event_order = 2
     )$changes,
     rbind(
       "Actor 1" = c(node1 = 1, node2 = 1, replace = 0),
@@ -321,9 +321,9 @@ test_that("cycle init is correctly performed for history = consecutive", {
         5,
         history = "cons"
       )$cache,
-      "lastUpdate"
+      "last_update"
     ),
-    c(sender = 0, receiver = 0, eventOrder = 0)
+    c(sender = 0, receiver = 0, event_order = 0)
   )
 })
 

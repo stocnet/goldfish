@@ -1,5 +1,5 @@
-# Numerical-behavior tests for the in-house single-pass stable softmax (design
-# D7) and the four multinomial contributions routed through it. Benign 1e-10
+# Numerical-behavior tests for the in-house single-pass stable softmax and the
+# four multinomial contributions routed through it. Benign 1e-10
 # agreement is covered by the golden fixtures (test-likelihood_equivalence.R)
 # and the per-event consistency gate (test-process_state_evaluators.R); here we
 # assert the NEW behavior the stabilization adds: finite logL / score /
@@ -83,7 +83,7 @@ test_that("stable_softmax gives a finite log-prob for an underflowing event", {
   expect_equal(sm$probabilities[1], 0) # underflows to exactly 0
   expect_true(is.finite(sm$logProbabilities[1]))
   expect_equal(sm$logProbabilities[1], x[1] - stable_lse(x), tolerance = 1e-9)
-  # what the pre-D7 code computed instead:
+  # what the earlier code computed instead:
   expect_true(is.infinite(log(sm$probabilities[1])))
 })
 

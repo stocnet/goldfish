@@ -1,14 +1,14 @@
 #' Build the recipe state container
 #'
 #' Assembles the named-list state container that recipe loops own and update
-#' in place (design D20): evolving networks as plain matrices in a named
+#' in place: evolving networks as plain matrices in a named
 #' sub-list, nodal attributes as one data frame per node set, and global
 #' attributes as a one-row data frame. The mapping from each formula object
 #' name to its container location is attached as the `object_keys` attribute
 #' (columns `name`, `component`, `key`), consumed by `build_update_plan()`.
 #'
 #' @param object_names character vector with the formula object names,
-#'   typically `rownames(objectsEffectsLink)`.
+#'   typically `rownames(objects_effects_link)`.
 #' @param nodes,nodes2 names of the node sets of the dependent events.
 #' @param envir environment where the data objects live.
 #'
@@ -22,7 +22,7 @@
 #' and its `key`, reading object **class/structure only** — it copies no network
 #' or nodal data. This is the single source of the `object_keys` mapping so the
 #' upfront compile (`build_spec_map()`) can build the update plan + call templates
-#' without materialising the state (design D8 metadata/data boundary); the same
+#' without materialising the state (the metadata/data boundary); the same
 #' validations (non-matrix network, missing attribute, foreign node set) fire
 #' here.
 #'
@@ -37,11 +37,11 @@ build_object_keys <- function(
   envir = new.env(),
   derivations = NULL
 ) {
-  objects_table <- getDataObjects(list(object_names), removeFirst = FALSE)
+  objects_table <- get_data_objects(list(object_names), remove_first = FALSE)
   components <- character(nrow(objects_table))
   keys <- character(nrow(objects_table))
   # Derived (windowed) networks may not be realized yet on the recipe path
-  # (design D8, task 2.3f): classify them as networks from the recipe instead of
+  # classify them as networks from the recipe instead of
   # get()-ing the absent object. The source is a matrix, so the realized derived
   # network is too — no validation is lost.
   derived_net_names <- names(derived_source_map(derivations))
@@ -102,7 +102,7 @@ build_state_container <- function(
   nodes2 = nodes,
   envir = new.env()
 ) {
-  objects_table <- getDataObjects(list(object_names), removeFirst = FALSE)
+  objects_table <- get_data_objects(list(object_names), remove_first = FALSE)
   object_keys <- build_object_keys(object_names, nodes, nodes2, envir = envir)
   n1 <- nrow(get(nodes, envir = envir))
   n2 <- nrow(get(nodes2, envir = envir))
@@ -158,8 +158,8 @@ build_state_container <- function(
 
 #' Classify an effect's broadcast kind for the compact fan-out encoding
 #'
-#' Maps an effect to the broadcast `kind` it emits (design D2 / the task-0.2
-#' eligibility audit): `0` = not broadcast-eligible (stays a point update),
+#' Maps an effect to the broadcast `kind` it emits (per the broadcast-eligibility
+#' audit): `0` = not broadcast-eligible (stays a point update),
 #' `1` = constant over senders holding the alter (`alter`, degree
 #' `type = "alter"`), `2` = constant over alters holding the ego (`ego`, degree
 #' `type = "ego"`), `3` = constant over all actors (`global`). In sender-indexed
@@ -197,8 +197,8 @@ classify_broadcast_kind <- function(effect_name, fmls, stat_kind) {
 
 #' Broadcast kind of an interaction product = the union of operand axes
 #'
-#' Each broadcast kind names the dyad-grid axis a statistic varies on (design
-#' D2): `3` global = neither axis, `2` ego = row (sender), `1` alter = col
+#' Each broadcast kind names the dyad-grid axis a statistic varies on: `3`
+#' global = neither axis, `2` ego = row (sender), `1` alter = col
 #' (receiver), `0` point = both. An elementwise product varies on an axis iff
 #' *either* operand does, so the product kind is the union of the operands'
 #' axes: `global` is the identity, `point` is absorbing, and two different
@@ -221,7 +221,7 @@ axis_union_kind <- function(kinds) {
   }
 }
 
-#' Augment the update plan with interaction terms (design D9)
+#' Augment the update plan with interaction terms
 #'
 #' Appends one estimated column per interaction after the function-effect
 #' columns (gids `n_fun + 1 ...`), sets the `role` / `estimate` flags on the
@@ -341,7 +341,7 @@ broadcast_entries_from_updates <- function(updates, kind, gid) {
 #' Build the per-effect call templates
 #'
 #' Compiles the gid-indexed call templates the recipe loops dispatch through
-#' (design D8): the effect function with its formals matched once, the
+#' the effect function with its formals matched once, the
 #' per-shape argument lists, and the state keys feeding each call in argument
 #' order. Split out of `build_update_plan()` so the templates are a distinct
 #' `effects_template` object the upfront specification mapping
@@ -366,10 +366,10 @@ build_effects_template <- function(effects, objects_effects_link, state) {
     "cache",
     "n1",
     "n2",
-    "netUpdate",
-    "attUpdate",
-    "eventOrder",
-    "interEventTime",
+    "net_update",
+    "att_update",
+    "event_order",
+    "inter_event_time",
     "replace"
   )
   arg_pool <- list(
@@ -405,8 +405,8 @@ build_effects_template <- function(effects, objects_effects_link, state) {
 
 #' Build the recipe update plan
 #'
-#' Compiles the gid/fid registries that recipe loops consume (design D21):
-#' which effects each object update routes to and the `netUpdate` / `attUpdate`
+#' Compiles the gid/fid registries that recipe loops consume:
+#' which effects each object update routes to and the `net_update` / `att_update`
 #' positions per (effect, object) pair. The link matrices produced by the
 #' formula parser are the only inputs — the parser itself is untouched. The
 #' per-effect call templates are split into `build_effects_template()`.
@@ -423,7 +423,7 @@ build_effects_template <- function(effects, objects_effects_link, state) {
 #'
 #' @return a list with `effects`, `objects`, `effect_objects` registries and
 #'   `routing` (oid-indexed list of gids), plus the interaction/multivariate
-#'   schema (design D9/D10): `interactions` (interaction gid -> ordered operand
+#'   schema: `interactions` (interaction gid -> ordered operand
 #'   gids), `operand_of` (operand gid -> interaction gids), `stat_state_spec`
 #'   (gid -> broadcast slot + column), and `formula_effects` (`fid`, `lid`,
 #'   `gid`). The per-effect call templates are returned separately by
@@ -431,7 +431,7 @@ build_effects_template <- function(effects, objects_effects_link, state) {
 #'   `broadcast_kind` column (see `classify_broadcast_kind()`) that the recipe
 #'   uses to route constant-value fan-out effects to the compact
 #'   `stat_mat_broadcast` buffer, plus `role`/`estimate`/`fid`/`lid` columns
-#'   (single-formula main effects until the interaction parser, task 2.5).
+#'   (single-formula main effects until the interaction parser).
 #'
 #' @section Reserved extension point — interaction effects (not implemented):
 #' Interaction terms between effects (e.g. `global(x):alter(y)`) are a reserved
@@ -480,7 +480,7 @@ build_update_plan <- function(
   }
 
   # A derived (windowed) network inherits its class + `directed` from its source
-  # and may not be realized yet on the recipe path (design D8, task 2.3f), so
+  # and may not be realized yet on the recipe path, so
   # read the direction flag from the source object via the recipe.
   src_map <- derived_source_map(derivations)
   is_network <- object_keys$component == "networks"
@@ -525,9 +525,9 @@ build_update_plan <- function(
     integer(1)
   )
 
-  # Interaction/multivariate schema (design D9/D10). Populated trivially here —
+  # Interaction/multivariate schema. Populated trivially here —
   # every term is an estimated main effect of the single formula (fid = 1); the
-  # interaction parser (task 2.5) sets `role`/`estimate` on operands and fills
+  # interaction parser sets `role`/`estimate` on operands and fills
   # the `interactions`/`operand_of`/`stat_state_spec` registries.
   effects_registry <- data.frame(
     gid = seq_len(n_effects),
@@ -592,8 +592,8 @@ build_update_plan <- function(
     )
   }
 
-  # Interaction registries (design D9), n-ary, keyed by gid; empty until the
-  # interaction parser (task 2.5) fills them from the `factors` column.
+  # Interaction registries, n-ary, keyed by gid; empty until the
+  # interaction parser fills them from the `factors` column.
   #   interactions: interaction gid -> ordered operand gids
   #   operand_of:   operand gid     -> interaction gids it feeds
   #   stat_state_spec: for each gid needing a live stat_state (operands ∪
@@ -606,7 +606,7 @@ build_update_plan <- function(
     column = integer(0),
     stringsAsFactors = FALSE
   )
-  # Multivariate seam (design D10): (fid, lid, gid) per effect. Single-formula
+  # Multivariate seam: (fid, lid, gid) per effect. Single-formula
   # here, so fid = 1 and lid = gid.
   formula_effects <- data.frame(
     fid = rep(1L, n_effects),
@@ -630,7 +630,7 @@ build_update_plan <- function(
 #' Build the merged event schedule
 #'
 #' Merges all event streams into a single time-sorted structure of aligned
-#' vectors (design D21), replacing the per-stream pointer search of the
+#' vectors, replacing the per-stream pointer search of the
 #' monolithic loop. At equal timestamps dependent events come first and
 #' remaining streams keep their list order (matching the pointer
 #' semantics); within a stream the original row order is preserved. Window

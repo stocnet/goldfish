@@ -343,7 +343,7 @@ effectFUN_REM_sim <- function(
 }
 
 # Preprocessing DyNAM ---------------------------------------------------------
-actorsEx <- data.frame(
+actors_ex <- data.frame(
   label = sprintf("Actor %d", 1:5),
   present = c(rep(TRUE, 4), FALSE),
   attr1 = c(9.9, 0.1, 0.5, 0.45, 0.25),
@@ -356,9 +356,9 @@ compChange <- data.frame(
   replace = c(TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE)
 )
 
-actorsEx <- make_nodes(actorsEx)
-actorsEx <- link_events(
-  x = actorsEx,
+actors_ex <- make_nodes(actors_ex)
+actors_ex <- link_events(
+  x = actors_ex,
   change_events = compChange,
   attribute = "present"
 )
@@ -369,8 +369,8 @@ attrChange <- data.frame(
   time = c(11, 18, 23, 31, 32, 33, 35),
   replace = c(1.2, 1.67, 2.46, 7.89, 3.32, 2.32, 3.44)
 )
-actorsEx <- link_events(
-  x = actorsEx,
+actors_ex <- link_events(
+  x = actors_ex,
   change_events = attrChange,
   attribute = "attr1"
 )
@@ -453,17 +453,17 @@ eventsIncrement <- data.frame(
 
 networkState <- make_network(
   matrix = networkState,
-  nodes = actorsEx,
+  nodes = actors_ex,
   directed = TRUE
 )
 networkState <- link_events(
   x = networkState,
   change_events = eventsIncrement,
-  nodes = actorsEx
+  nodes = actors_ex
 )
 depNetwork <- make_dependent_events(
   events = eventsIncrement,
-  nodes = actorsEx,
+  nodes = actors_ex,
   default_network = networkState
 )
 
@@ -524,17 +524,17 @@ eventsIncrementTrans <- data.frame(
 
 networkStateTrans <- make_network(
   matrix = networkStateTrans,
-  nodes = actorsEx,
+  nodes = actors_ex,
   directed = TRUE
 )
 networkStateTrans <- link_events(
   x = networkStateTrans,
   change_event = eventsIncrementTrans,
-  nodes = actorsEx
+  nodes = actors_ex
 )
 depNetworkTrans <- make_dependent_events(
   events = eventsIncrementTrans,
-  nodes = actorsEx,
+  nodes = actors_ex,
   default_network = networkStateTrans
 )
 
@@ -595,13 +595,13 @@ eventsExogenous <- data.frame(
 # define goldfish objects
 networkExog <- make_network(
   matrix = networkExog,
-  nodes = actorsEx,
+  nodes = actors_ex,
   directed = TRUE
 )
 networkExog <- link_events(
   x = networkExog,
   change_events = eventsExogenous,
-  nodes = actorsEx
+  nodes = actors_ex
 )
 
 dataTest <- make_data(depNetwork, networkExog)
@@ -649,14 +649,14 @@ eventsActorClub <- data.frame(
 
 networkActorClub <- make_network(
   matrix = networkActorClub,
-  nodes = actorsEx,
+  nodes = actors_ex,
   nodes2 = clubsEx,
   directed = TRUE
 )
 networkActorClub <- link_events(
   x = networkActorClub,
   change_events = eventsActorClub,
-  nodes = actorsEx,
+  nodes = actors_ex,
   nodes2 = clubsEx
 )
 
@@ -818,21 +818,21 @@ resModObject <- structure(
     nIterations = 7L,
     nEvents = 439L,
     names = matrix(
-      c(rep("callNetwork", 3), c("FALSE", "TRUE", "FALSE")),
+      c(rep("call_network", 3), c("FALSE", "TRUE", "FALSE")),
       ncol = 2,
       nrow = 3,
       dimnames = list(c("inertia", "recip", "trans"), c("Object", "fixed"))
     ),
     formula = as.formula(
-      "callsDependent ~ inertia + recip + trans",
+      "calls_dependent ~ inertia + recip + trans",
       env = new.env(parent = emptyenv())
     ),
     model = "DyNAM",
-    subModel = "choice",
-    rightCensored = FALSE,
+    sub_model = "choice",
+    right_censored = FALSE,
     nParams = 3L,
     call = str2lang(
-      "estimate(x = callsDependent ~ inertia + recip + trans,
+      "estimate(x = calls_dependent ~ inertia + recip + trans,
        control_estimation = estimation_options(fixedParameters = c(NA, 1, NA)))"
     )
   ),

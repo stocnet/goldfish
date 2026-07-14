@@ -46,7 +46,7 @@ test_that("out/in/deg weighted right censored preprocessing", {
     label = "updating indeg times with increment works"
   )
   expect_equal(
-    statsChange[[1]][["rightCensored"]],
+    statsChange[[1]][["right_censored"]],
     cbind(
       time = c(7, 14, 18, 25),
       node1 = c(3, 2, 1, 3),
@@ -55,7 +55,7 @@ test_that("out/in/deg weighted right censored preprocessing", {
     label = "updating outdeg times right censored"
   )
   expect_null(
-    statsChange[[2]][["rightCensored"]],
+    statsChange[[2]][["right_censored"]],
     label = "updating indeg times right censored"
   )
   expect_equal(
@@ -152,7 +152,7 @@ test_that("in/out/deg startTime endTime preprocessing", {
     label = "updating indeg times with increment works"
   )
   expect_equal(
-    statsChange[[1]][["rightCensored"]],
+    statsChange[[1]][["right_censored"]],
     cbind(
       time = c(14, 18, 25, 30),
       node1 = c(2, 1, 3, 2),
@@ -161,7 +161,7 @@ test_that("in/out/deg startTime endTime preprocessing", {
     label = "updating outdeg times right censored"
   )
   expect_null(
-    statsChange[[2]][["rightCensored"]],
+    statsChange[[2]][["right_censored"]],
     label = "updating indeg times right censored"
   )
   expect_equal(
@@ -257,7 +257,7 @@ test_that("in/out/deg startTime endTime exact preprocessing", {
     label = "updating indeg times with increment works"
   )
   expect_equal(
-    statsChange[[1]][["rightCensored"]],
+    statsChange[[1]][["right_censored"]],
     cbind(
       time = c(7, 14, 18, 24),
       node1 = c(3, 2, 1, 3),
@@ -266,7 +266,7 @@ test_that("in/out/deg startTime endTime exact preprocessing", {
     label = "updating outdeg times right censored"
   )
   expect_null(
-    statsChange[[2]][["rightCensored"]],
+    statsChange[[2]][["right_censored"]],
     label = "updating indeg times right censored"
   )
   expect_equal(

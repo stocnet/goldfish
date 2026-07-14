@@ -2,9 +2,9 @@ baselines_engines <- c("default", "default_c")
 
 baselines_social_evolution_data <- function() {
   data("Social_Evolution", envir = environment())
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
@@ -14,14 +14,14 @@ baselines_social_evolution_data <- function() {
     change_event = friendship,
     nodes = actors
   )
-  callsDependent <- make_dependent_events(
+  calls_dependent <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
   make_data(
-    callsDependent,
-    callNetwork,
+    calls_dependent,
+    call_network,
     friendshipNetwork,
     calls,
     friendship,
@@ -39,13 +39,13 @@ baselines_fisheries_data <- function() {
   bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
   contignet <- make_network(contignet, nodes = states, directed = FALSE)
   contignet <- link_events(contignet, contigchanges, nodes = states)
-  createBilat <- make_dependent_events(
+  create_bilat <- make_dependent_events(
     events = bilatchanges[bilatchanges$increment == 1, ],
     nodes = states,
     default_network = bilatnet
   )
   make_data(
-    createBilat,
+    create_bilat,
     bilatnet,
     contignet,
     states,
@@ -59,21 +59,21 @@ baselines_fisheries_data <- function() {
 
 baselines_global_data <- function() {
   data("Social_Evolution", envir = environment())
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
-  callsDependent <- make_dependent_events(
+  calls_dependent <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
   seasons <- make_global_attributes(data.frame(winter = 0))
   seasonChange <- data.frame(time = 1222553311, replace = 1)
   seasons <- link_events(seasons, seasonChange)
-  make_data(callsDependent, callNetwork, calls, actors, seasons)
+  make_data(calls_dependent, call_network, calls, actors, seasons)
 }
 
 baselines_model_grid <- function() {
@@ -82,38 +82,38 @@ baselines_model_grid <- function() {
       dataset = "social_evolution",
       model = "DyNAM",
       sub_model = "rate",
-      formula = callsDependent ~ 1 + indeg + outdeg + indeg(friendshipNetwork)
+      formula = calls_dependent ~ 1 + indeg + outdeg + indeg(friendshipNetwork)
     ),
     se_dynam_rate_ordered = list(
       dataset = "social_evolution",
       model = "DyNAM",
       sub_model = "rate_ordered",
-      formula = callsDependent ~ indeg + outdeg + indeg(friendshipNetwork)
+      formula = calls_dependent ~ indeg + outdeg + indeg(friendshipNetwork)
     ),
     se_dynam_choice = list(
       dataset = "social_evolution",
       model = "DyNAM",
       sub_model = "choice",
-      formula = callsDependent ~ inertia + recip + trans
+      formula = calls_dependent ~ inertia + recip + trans
     ),
     se_dynam_choice_coord = list(
       dataset = "social_evolution",
       model = "DyNAM",
       sub_model = "choice_coordination",
-      formula = callsDependent ~ inertia + trans
+      formula = calls_dependent ~ inertia + trans
     ),
     se_rem = list(
       dataset = "social_evolution",
       model = "REM",
-      formula = callsDependent ~ 1 +
-        indeg(callNetwork, type = "ego") +
+      formula = calls_dependent ~ 1 +
+        indeg(call_network, type = "ego") +
         inertia +
         recip
     ),
     se_rem_ordered = list(
       dataset = "social_evolution",
       model = "REM",
-      formula = callsDependent ~ indeg(callNetwork, type = "ego") +
+      formula = calls_dependent ~ indeg(call_network, type = "ego") +
         inertia +
         recip
     ),
@@ -121,19 +121,19 @@ baselines_model_grid <- function() {
       dataset = "fisheries",
       model = "DyNAM",
       sub_model = "rate",
-      formula = createBilat ~ 1 + indeg + ego(states$regime)
+      formula = create_bilat ~ 1 + indeg + ego(states$regime)
     ),
     fish_dynam_rate_ordered = list(
       dataset = "fisheries",
       model = "DyNAM",
       sub_model = "rate_ordered",
-      formula = createBilat ~ indeg + ego(states$regime)
+      formula = create_bilat ~ indeg + ego(states$regime)
     ),
     fish_dynam_choice = list(
       dataset = "fisheries",
       model = "DyNAM",
       sub_model = "choice",
-      formula = createBilat ~ inertia +
+      formula = create_bilat ~ inertia +
         tie(contignet) +
         alter(states$regime) +
         diff(states$regime)
@@ -142,7 +142,7 @@ baselines_model_grid <- function() {
       dataset = "fisheries",
       model = "DyNAM",
       sub_model = "choice_coordination",
-      formula = createBilat ~ inertia +
+      formula = create_bilat ~ inertia +
         tie(contignet) +
         alter(states$regime) +
         diff(states$regime),
@@ -151,7 +151,7 @@ baselines_model_grid <- function() {
     fish_rem = list(
       dataset = "fisheries",
       model = "REM",
-      formula = createBilat ~ 1 +
+      formula = create_bilat ~ 1 +
         inertia +
         tie(contignet) +
         alter(states$regime)
@@ -159,7 +159,7 @@ baselines_model_grid <- function() {
     fish_rem_ordered = list(
       dataset = "fisheries",
       model = "REM",
-      formula = createBilat ~ inertia + tie(contignet) + alter(states$regime)
+      formula = create_bilat ~ inertia + tie(contignet) + alter(states$regime)
     )
   )
 }
@@ -170,12 +170,12 @@ baselines_global_model_grid <- function() {
       dataset = "social_evolution_global",
       model = "DyNAM",
       sub_model = "rate",
-      formula = callsDependent ~ 1 + indeg + global(seasons$winter)
+      formula = calls_dependent ~ 1 + indeg + global(seasons$winter)
     ),
     global_rem = list(
       dataset = "social_evolution_global",
       model = "REM",
-      formula = callsDependent ~ 1 + inertia + global(seasons$winter)
+      formula = calls_dependent ~ 1 + inertia + global(seasons$winter)
     )
   )
 }

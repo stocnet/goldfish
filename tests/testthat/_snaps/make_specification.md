@@ -7,11 +7,11 @@
       Model "DyNAM" · sub-model rate and choice
       
       Dependent
-      * Layer: "callsDependent"
+      * Layer: "calls_dependent"
       * Events: 120
       * Time span: "1220733470 – 1223140151"
       * Nodes: actors
-      * Network: "callNetwork"
+      * Network: "call_network"
       
       Rate: `~1 + indeg + outdeg`
       Choice: `~inertia + recip + trans`
@@ -27,14 +27,14 @@
       Model "DyNAM" · sub-model choice
       
       Dependent
-      * Layer: "callsDependent"
+      * Layer: "calls_dependent"
       * Events: 120
       * Time span: "1220733470 – 1223140151"
       * Nodes: actors
-      * Network: "callNetwork"
+      * Network: "call_network"
       
       Choice: `~inertia + recip`
-      Support: `~tie(callNetwork)`
+      Support: `~tie(call_network)`
       
       v Specification is valid.
 

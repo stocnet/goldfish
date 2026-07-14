@@ -14,23 +14,23 @@
 #' @examples
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_event = calls,
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_event = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' calls_dependent <- make_dependent_events(
 #'   events = calls, nodes = actors,
-#'   default_network = callNetwork
+#'   default_network = call_network
 #' )
 #' \dontshow{
-#' callsDependent <- callsDependent[1:50, ]
+#' calls_dependent <- calls_dependent[1:50, ]
 #' }
-#' socialEvolutionData <- make_data(callsDependent, callNetwork, calls, actors)
+#' social_evolution_data <- make_data(calls_dependent, call_network, calls, actors)
 #' mod01 <- estimate_dynam(
-#'   callsDependent ~ inertia + recip + trans,
+#'   calls_dependent ~ inertia + recip + trans,
 #'   sub_model = "choice",
-#'   data = socialEvolutionData,
+#'   data = social_evolution_data,
 #'   control_estimation = set_estimation_opt(
 #'     return_interval_loglik = TRUE,
 #'     engine = "default_c"

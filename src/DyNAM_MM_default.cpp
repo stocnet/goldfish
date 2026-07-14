@@ -40,7 +40,7 @@ List estimate_DyNAM_MM(
     arma::mat stat_mat = stat_mat_init;
     int n_events = dep_event_mat.n_cols;
     int n_parameters = stat_mat.n_cols;
-    // dyad-triangle buffers reused across events (design D9). The coordination
+    // dyad-triangle buffers reused across events. The coordination
     // likelihood is a softmax over the d = n(n-1)/2 unordered dyads; `E` holds
     // the per-sender expected statistics (row i = E_i), `logZ` the per-sender
     // softmax log-normalizers, and `D` the compact d x p deviation buffer
@@ -61,7 +61,7 @@ List estimate_DyNAM_MM(
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
-    // Opt-in per-event score matrix (design D11). Each row is the per-event
+    // Opt-in per-event score matrix. Each row is the per-event
     // increment already accumulated into `derivative` (the dyad-triangle
     // observed-minus-expected deviation D.row(idx_obs) - g); allocated only when
     // requested so the default path pays nothing.
@@ -87,7 +87,7 @@ List estimate_DyNAM_MM(
     // the length-n2 receiver vector (dyad (i, j) available iff active_sender(i) &
     // active_dyad(j)). At the point encoding it is a flattened n1 x n2 mask
     // (sender-major: dyad (i, j) at i * n_actors_2 + j) — a symmetrised support
-    // constraint folded in (design D15) — maintained by a (node1, node2, replace)
+    // constraint folded in — maintained by a (node1, node2, replace)
     // buffer and read cell-wise.
     arma::vec active_dyad = active_dyad_init;
 
@@ -146,7 +146,7 @@ List estimate_DyNAM_MM(
 
 
         // We calculate the derivative, log-Likelihood, and fisher information
-        // matrix of a current event. Staged dyad-triangle softmax (design D9):
+        // matrix of a current event. Staged dyad-triangle softmax:
         // a per-sender stable softmax gives the log-normalizers and expected
         // statistics; the coordination likelihood is then a d-alternative
         // softmax over the unordered dyads with log-weight

@@ -1,4 +1,4 @@
-# support_constraint estimate-path wiring (tasks 1.4 threading + 2.1). The
+# support_constraint estimate-path wiring. The
 # parsed constraint threads from the estimate surfaces / a specification into
 # build_spec_map(), which compiles a sibling sub-plan over the atoms and
 # registers a `kind = "support_mask"` derivation. Until the recipe loop consumes
@@ -10,32 +10,32 @@ make_constraint_fixture <- function() {
   data("Social_Evolution", package = "goldfish", envir = environment())
   actors <- get("actors", environment())
   calls <- get("calls", environment())
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
-  callsDependent <- make_dependent_events(
+  calls_dependent <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
-  callsDependent <- callsDependent[1:80, ]
-  make_data(callsDependent, callNetwork, calls, actors)
+  calls_dependent <- calls_dependent[1:80, ]
+  make_data(calls_dependent, call_network, calls, actors)
 }
 
 test_that("compile_support_constraint builds a role-tagged sibling sub-plan", {
   d <- make_constraint_fixture()
   cp <- parse_and_validate_constraint(
-    ~ tie(callNetwork),
+    ~ tie(call_network),
     has_dyad_part = TRUE,
     envir = d
   )
   sub <- compile_support_constraint(
     cp,
     model = "DyNAM",
-    dep_name = "callNetwork",
+    dep_name = "call_network",
     nodes = "actors",
     nodes2 = "actors",
     window_derivations = NULL,
@@ -43,7 +43,7 @@ test_that("compile_support_constraint builds a role-tagged sibling sub-plan", {
   )
   expect_identical(unique(sub$effects$role), "constraint")
   expect_false(any(sub$effects$estimate))
-  expect_identical(sub$atom_labels, "tie(callNetwork)")
+  expect_identical(sub$atom_labels, "tie(call_network)")
   expect_false(is.null(sub$expr))
   # a genuinely dyadic (tie) atom stores the mask dense: point kind (0)
   expect_identical(sub$mask_kind, 0L)
@@ -55,14 +55,14 @@ test_that("compile_support_constraint builds a role-tagged sibling sub-plan", {
 test_that("support_mask_derivation registers a support_mask derived object", {
   d <- make_constraint_fixture()
   cp <- parse_and_validate_constraint(
-    ~ tie(callNetwork),
+    ~ tie(call_network),
     has_dyad_part = TRUE,
     envir = d
   )
   sub <- compile_support_constraint(
     cp,
     model = "DyNAM",
-    dep_name = "callNetwork",
+    dep_name = "call_network",
     nodes = "actors",
     nodes2 = "actors",
     window_derivations = NULL,
@@ -72,37 +72,37 @@ test_that("support_mask_derivation registers a support_mask derived object", {
   expect_identical(der$kind, "support_mask")
   expect_identical(der$derived_name, "__support_mask__")
   expect_identical(der$params$mask_kind, 0L)
-  expect_identical(der$source, "tie(callNetwork)")
+  expect_identical(der$source, "tie(call_network)")
 })
 
 test_that("constrained choice preprocessing is unchanged until the mask is consumed", {
   d <- make_constraint_fixture()
   prep0 <- estimate_dynam(
-    callsDependent ~ inertia + recip,
+    calls_dependent ~ inertia + recip,
     sub_model = "choice",
     data = d,
     preprocessing_only = TRUE
   )
   prep1 <- estimate_dynam(
-    callsDependent ~ inertia + recip,
+    calls_dependent ~ inertia + recip,
     sub_model = "choice",
     data = d,
     preprocessing_only = TRUE,
-    support_constraint = ~ tie(callNetwork)
+    support_constraint = ~ tie(call_network)
   )
   expect_equal(prep1$initialStats, prep0$initialStats)
   expect_equal(prep1$stat_mat_update, prep0$stat_mat_update)
 })
 
-test_that("a rate-only spec accepts a dyadic support_constraint via the row-reduction (design D12)", {
+test_that("a rate-only spec accepts a dyadic support_constraint via the row-reduction", {
   d <- make_constraint_fixture()
   expect_message(
     prep <- estimate_dynam(
-      callsDependent ~ 1 + indeg,
+      calls_dependent ~ 1 + indeg,
       sub_model = "rate",
       data = d,
       preprocessing_only = TRUE,
-      support_constraint = ~ tie(callNetwork)
+      support_constraint = ~ tie(call_network)
     ),
     "row-reduction"
   )
@@ -116,8 +116,8 @@ test_that("a specification threads its support_constraint into estimation", {
     choice = ~ inertia + recip,
     model = "DyNAM",
     choice_sub_model = "choice",
-    layer = "callsDependent",
-    support_constraint = ~ tie(callNetwork),
+    layer = "calls_dependent",
+    support_constraint = ~ tie(call_network),
     data = d
   )
   expect_s3_class(spec$constraint, "support_constraint_plan")

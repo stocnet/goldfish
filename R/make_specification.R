@@ -57,22 +57,22 @@
 #' @export
 #' @examples
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_event = calls, nodes = actors
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_event = calls, nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
-#'   events = calls, nodes = actors, default_network = callNetwork
+#' calls_dependent <- make_dependent_events(
+#'   events = calls, nodes = actors, default_network = call_network
 #' )
 #' \dontshow{
-#' callsDependent <- callsDependent[1:50, ]
+#' calls_dependent <- calls_dependent[1:50, ]
 #' }
-#' socialEvData <- make_data(callsDependent, callNetwork, calls, actors)
+#' social_ev_data <- make_data(calls_dependent, call_network, calls, actors)
 #'
 #' spec <- make_specification(
 #'   choice = ~ inertia + recip + trans,
 #'   model = "DyNAM", choice_sub_model = "choice",
-#'   layer = "callsDependent", data = socialEvData
+#'   layer = "calls_dependent", data = social_ev_data
 #' )
 #' spec
 make_specification <- function(
@@ -114,7 +114,7 @@ make_specification <- function(
   }
 
   # Parse against a working clone so the specification carries no side effects
-  # on the caller's data (design D8: the parse is pure on the DyNAM/REM path).
+  # on the caller's data (the parse is pure on the DyNAM/REM path).
   work_env <- rlang::env_clone(data)
 
   # Resolve `layer` to a dependent-events object (bridge-era lookup; task 4.2).
@@ -159,7 +159,7 @@ make_specification <- function(
     }
     # One constraint serves both submodels; dyadic atoms are legal when the spec
     # has a dyad-indexed part (a choice submodel, or REM), rejected for a
-    # rate-only spec (D13 sender-axis rule).
+    # rate-only spec (sender-axis rule).
     has_dyad_part <- model == "REM" || !is.null(choice)
     constraint_plan <- parse_and_validate_constraint(
       support_constraint,
@@ -185,8 +185,8 @@ make_specification <- function(
 }
 
 # Parse a one-sided submodel formula into the bundle preprocessing consumes,
-# enforcing the empty-LHS contract (task 4.2) and the D3 validity matrix
-# (task 4.1). Windows are recorded but not realized (recipe path, design D8), so
+# enforcing the empty-LHS contract and the validity matrix.
+# Windows are recorded but not realized (recipe path), so
 # the parse is pure; realization happens later at state creation.
 build_specification_bundle <- function(
   one_sided,
@@ -201,7 +201,7 @@ build_specification_bundle <- function(
 
   parsed <- parse_formula(full_formula, envir = envir, realize_windows = FALSE)
 
-  # Interaction products compute in the dyad recipe loop (design D9); guard the
+  # Interaction products compute in the dyad recipe loop; guard the
   # not-yet-supported model families (sender / DyNAMi).
   abort_if_interactions_unsupported(parsed, model, sub_model)
 
@@ -222,7 +222,7 @@ build_specification_bundle <- function(
 
   # A specification is built to be estimated, so validate at estimation strength
   # (rejects unidentified bare main effects such as ego/global in choice).
-  # Offset (fixed-coefficient) terms are not estimated main effects (design D7),
+  # Offset (fixed-coefficient) terms are not estimated main effects,
   # so exclude them from the check.
   is_offset <- unlist(parsed$offset_parameter)
   if (is.null(is_offset)) {
@@ -247,7 +247,7 @@ build_specification_bundle <- function(
 }
 
 # Enforce the empty-LHS contract; a dependent-events object on the LHS gets a
-# targeted message pointing at `layer` (task 4.2).
+# targeted message pointing at `layer`.
 enforce_empty_lhs <- function(f, arg, layer, envir) {
   if (!inherits(f, "formula")) {
     cli::cli_abort("{.arg {arg}} must be a one-sided formula.")
@@ -286,7 +286,7 @@ build_layer_formula <- function(one_sided, layer) {
   )
 }
 
-# Dependent-process facts for the print overview (task 4.3), read from the
+# Dependent-process facts for the print overview, read from the
 # resolved dependent-events object.
 spec_dependent_info <- function(dep_obj, layer) {
   nodes <- attr(dep_obj, "nodes")

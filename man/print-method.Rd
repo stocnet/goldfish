@@ -94,7 +94,7 @@ For \code{summary.result.goldfish} print:
 \item{Effect details:}{a table with additional information of the effects.
 The information corresponds to the  values of the effects arguments when
 they are modified and if they where fixed during estimation, see
-\code{vignette("goldfishEffects")} for the complete list of arguments, and
+\code{vignette("goldfish_effects")} for the complete list of arguments, and
 \link{estimate} on how to fix coefficients during estimation.}
 \item{Coefficients:}{a table with the estimated coefficients, their
 approximate standard error obtain from the inverse of the negative Fisher
@@ -104,7 +104,7 @@ Wald test to test the hypothesis that the parameter is 0.}
 convergence of the iterative Newton-Raphson procedure and the score value
 in the last iteration. Information criteria as the AIC, BIC and the AIC
 corrected for small sample size AICc are reported.}
-\item{Model and subModel:}{the values set during estimation.}
+\item{Model and sub_model:}{the values set during estimation.}
 
 For objects of class \code{nodes.goldfish} print information of the total
 number of nodes in the object, the number of nodes present at the beginning

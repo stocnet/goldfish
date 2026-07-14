@@ -1,10 +1,10 @@
 test_that("choice formula", {
-  formStat <- callsDependent ~ inertia +
-    recip(callNetwork, weighted = TRUE) +
-    trans(callNetwork, transformer_fn = log1p) +
-    tertius_diff(callNetwork, actors$floor, summarizer_fn = median) +
-    recip(callNetwork, window = "5 minutos") +
-    indeg(callNetwork, ignore_repetitions = TRUE)
+  formStat <- calls_dependent ~ inertia +
+    recip(call_network, weighted = TRUE) +
+    trans(call_network, transformer_fn = log1p) +
+    tertius_diff(call_network, actors$floor, summarizer_fn = median) +
+    recip(call_network, window = "5 minutos") +
+    indeg(call_network, ignore_repetitions = TRUE)
 
   n_terms <- length(labels(terms(formStat)))
 
@@ -13,7 +13,7 @@ test_that("choice formula", {
   assign("calls", calls, envir = envirTest)
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -26,12 +26,12 @@ test_that("choice formula", {
         events = c("calls")
       )
 
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors", "actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
     },
@@ -40,7 +40,7 @@ test_that("choice formula", {
 
   parsed_formula <- parse_formula(formStat, envir = envirTest)
 
-  expect_equal(get_dependent_name(formStat), "callsDependent")
+  expect_equal(get_dependent_name(formStat), "calls_dependent")
 
   rhs_names <- get_rhs_names(formStat)
   expect_type(rhs_names, "list")
@@ -55,9 +55,9 @@ test_that("choice formula", {
   expect_length(rhs_names, n_terms)
 
   # check window effect change name network argument
-  expect_equal(rhs_names[[5]][[2]], "callNetwork_5minutos")
+  expect_equal(rhs_names[[5]][[2]], "call_network_5minutos")
   # check auxiliar data for window effect is created
-  expect_contains(ls(envirTest), c("callNetwork_5minutos", "calls_300"))
+  expect_contains(ls(envirTest), c("call_network_5minutos", "calls_300"))
 
   # rhs_names <- parse_multiple_effects(rhs_names, envir = envirTest)
 
@@ -100,7 +100,7 @@ test_that("parse_time_windows records a derivation recipe and gates realization"
   envirTest <- new.env()
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -118,7 +118,7 @@ test_that("parse_time_windows records a derivation recipe and gates realization"
   )
   assign("calls", calls, envir = envirTest)
 
-  rhs_names <- list(list("recip", "callNetwork", window = "300"))
+  rhs_names <- list(list("recip", "call_network", window = "300"))
 
   # realize_windows = FALSE: rewrite + recipe only, no assign into envir.
   rewritten <- parse_time_windows(
@@ -126,26 +126,26 @@ test_that("parse_time_windows records a derivation recipe and gates realization"
     envir = envirTest,
     realize_windows = FALSE
   )
-  expect_equal(rewritten[[1]][[2]], "callNetwork_300")
-  expect_false(any(c("callNetwork_300", "calls_300") %in% ls(envirTest)))
+  expect_equal(rewritten[[1]][[2]], "call_network_300")
+  expect_false(any(c("call_network_300", "calls_300") %in% ls(envirTest)))
 
   derivations <- attr(rewritten, "window_derivations")
   expect_length(derivations, 1)
-  expect_equal(derivations[[1]]$derived_name, "callNetwork_300")
-  expect_equal(derivations[[1]]$source_name, "callNetwork")
+  expect_equal(derivations[[1]]$derived_name, "call_network_300")
+  expect_equal(derivations[[1]]$source_name, "call_network")
   expect_equal(derivations[[1]]$window, 300)
   expect_equal(derivations[[1]]$kind, "window")
 
   # realize_windows = TRUE: derived network + dissolve stream materialized.
   parse_time_windows(rhs_names, envir = envirTest, realize_windows = TRUE)
-  expect_contains(ls(envirTest), c("callNetwork_300", "calls_300"))
+  expect_contains(ls(envirTest), c("call_network_300", "calls_300"))
 })
 
 test_that("build_derivations builds the derived-input registry from metadata", {
   envirTest <- new.env()
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -163,8 +163,8 @@ test_that("build_derivations builds the derived-input registry from metadata", {
 
   window_derivations <- list(
     list(
-      derived_name = "callNetwork_300",
-      source_name = "callNetwork",
+      derived_name = "call_network_300",
+      source_name = "call_network",
       window = 300,
       kind = "window"
     )
@@ -172,7 +172,7 @@ test_that("build_derivations builds the derived-input registry from metadata", {
   objects_effects_link <- matrix(
     c(NA, NA, NA, 1),
     nrow = 2,
-    dimnames = list(c("callNetwork", "callNetwork_300"), c("inertia", "recip"))
+    dimnames = list(c("call_network", "call_network_300"), c("inertia", "recip"))
   )
 
   derivations <- build_derivations(
@@ -181,9 +181,9 @@ test_that("build_derivations builds the derived-input registry from metadata", {
     envir = envirTest
   )
   expect_length(derivations, 1)
-  expect_equal(derivations[[1]]$derived_name, "callNetwork_300")
+  expect_equal(derivations[[1]]$derived_name, "call_network_300")
   expect_equal(derivations[[1]]$kind, "window")
-  expect_equal(derivations[[1]]$source, "callNetwork")
+  expect_equal(derivations[[1]]$source, "call_network")
   expect_equal(derivations[[1]]$source_streams, "calls")
   expect_equal(derivations[[1]]$params$window, 300)
   expect_equal(derivations[[1]]$gids, 2L)
@@ -201,7 +201,7 @@ test_that("parse_formula(realize_windows = FALSE) leaves the env unmutated", {
   assign("calls", calls, envir = envirTest)
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -213,12 +213,12 @@ test_that("parse_formula(realize_windows = FALSE) leaves the env unmutated", {
         directed = TRUE,
         events = c("calls")
       )
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors", "actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
     },
@@ -227,30 +227,30 @@ test_that("parse_formula(realize_windows = FALSE) leaves the env unmutated", {
 
   before <- ls(envirTest)
   parsed <- parse_formula(
-    callsDependent ~ inertia + recip(callNetwork, window = 300),
+    calls_dependent ~ inertia + recip(call_network, window = 300),
     envir = envirTest,
     realize_windows = FALSE
   )
   # the shared parser did not fabricate the windowed network/dissolve stream ...
   expect_setequal(ls(envirTest), before)
-  expect_equal(parsed$rhs_names[[2]][[2]], "callNetwork_300")
+  expect_equal(parsed$rhs_names[[2]][[2]], "call_network_300")
   expect_length(parsed$window_derivations, 1)
 
   # ... and the registry-driven realizer materializes them on demand.
   realize_windows_recipe(parsed$window_derivations, envirTest)
-  expect_contains(ls(envirTest), c("callNetwork_300", "calls_300"))
+  expect_contains(ls(envirTest), c("call_network_300", "calls_300"))
 })
 
-test_that("create_effects_functions resolves the two-mode guard from source (task 2.3f)", {
+test_that("create_effects_functions resolves the two-mode guard from source", {
   # A windowed effect on a two-mode network: with the derived network left
   # unrealized (recipe path), the two-mode guard must still read the nodesets
-  # from the *source* network via the derivation recipe (design D8, task 2.3f).
+  # from the *source* network via the derivation recipe.
   envirTest <- new.env()
   assign("actors", actors, envir = envirTest)
   assign("calls", calls, envir = envirTest)
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -262,12 +262,12 @@ test_that("create_effects_functions resolves the two-mode guard from source (tas
         directed = TRUE,
         events = c("calls")
       )
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors", "actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
     },
@@ -275,12 +275,12 @@ test_that("create_effects_functions resolves the two-mode guard from source (tas
   )
 
   parsed <- parse_formula(
-    callsDependent ~ trans(callNetwork, window = 300),
+    calls_dependent ~ trans(call_network, window = 300),
     envir = envirTest,
     realize_windows = FALSE
   )
   # derived network is NOT realized: the guard cannot get() it.
-  expect_false("callNetwork_300" %in% ls(envirTest))
+  expect_false("call_network_300" %in% ls(envirTest))
 
   expect_warning(
     effects <- create_effects_functions(
@@ -295,16 +295,16 @@ test_that("create_effects_functions resolves the two-mode guard from source (tas
   # the guard resolved is_two_mode = TRUE from the source's nodesets.
   expect_true(eval(formals(effects[[1]]$effect)[["is_two_mode"]]))
   # and it did not fabricate the derived network as a side effect.
-  expect_false("callNetwork_300" %in% ls(envirTest))
+  expect_false("call_network_300" %in% ls(envirTest))
 })
 
-test_that("build_object_keys classifies an unrealized derived network from the recipe (task 2.3f)", {
+test_that("build_object_keys classifies an unrealized derived network from the recipe", {
   envirTest <- new.env()
   assign("actors", actors, envir = envirTest)
   assign("calls", calls, envir = envirTest)
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -316,12 +316,12 @@ test_that("build_object_keys classifies an unrealized derived network from the r
         directed = TRUE,
         events = c("calls")
       )
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
     },
@@ -329,7 +329,7 @@ test_that("build_object_keys classifies an unrealized derived network from the r
   )
 
   parsed <- parse_formula(
-    callsDependent ~ inertia + recip(callNetwork, window = 300),
+    calls_dependent ~ inertia + recip(call_network, window = 300),
     envir = envirTest,
     realize_windows = FALSE
   )
@@ -342,20 +342,20 @@ test_that("build_object_keys classifies an unrealized derived network from the r
     envir = envirTest,
     derivations = parsed$window_derivations
   )
-  derived_row <- keys[keys$name == "callNetwork_300", ]
+  derived_row <- keys[keys$name == "call_network_300", ]
   expect_equal(derived_row$component, "networks")
-  expect_equal(derived_row$key, "callNetwork_300")
+  expect_equal(derived_row$key, "call_network_300")
   # classification read the recipe only, not the (absent) derived network.
-  expect_false("callNetwork_300" %in% ls(envirTest))
+  expect_false("call_network_300" %in% ls(envirTest))
 })
 
-test_that("build_events_objects_link resolves derived streams from source (task 2.3f)", {
+test_that("build_events_objects_link resolves derived streams from source", {
   envirTest <- new.env()
   assign("actors", actors, envir = envirTest)
   assign("calls", calls, envir = envirTest)
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -367,12 +367,12 @@ test_that("build_events_objects_link resolves derived streams from source (task 
         directed = TRUE,
         events = c("calls")
       )
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
     },
@@ -380,7 +380,7 @@ test_that("build_events_objects_link resolves derived streams from source (task 
   )
 
   parsed <- parse_formula(
-    callsDependent ~ recip(callNetwork, window = 300),
+    calls_dependent ~ recip(call_network, window = 300),
     envir = envirTest,
     realize_windows = FALSE
   )
@@ -401,15 +401,15 @@ test_that("build_events_objects_link resolves derived streams from source (task 
 })
 
 test_that("rate formula", {
-  formStat <- callsDependent ~ 1 +
+  formStat <- calls_dependent ~ 1 +
     indeg +
     outdeg +
-    node_trans(callNetwork, transformer_fn = log1p) +
-    tertius(callNetwork, actors$floor, summarizer_fn = median) +
-    indeg(callNetwork, window = "5 minutos") +
-    outdeg(callNetwork, ignore_repetitions = TRUE)
+    node_trans(call_network, transformer_fn = log1p) +
+    tertius(call_network, actors$floor, summarizer_fn = median) +
+    indeg(call_network, window = "5 minutos") +
+    outdeg(call_network, ignore_repetitions = TRUE)
 
-  expect_equal(get_dependent_name(formStat), "callsDependent")
+  expect_equal(get_dependent_name(formStat), "calls_dependent")
 
   rhs_names <- get_rhs_names(formStat)
   expect_type(rhs_names, "list")
@@ -421,12 +421,12 @@ test_that("rate formula", {
 })
 
 test_that("get effects functions", {
-  formStat <- callsDependent ~ inertia +
-    recip(callNetwork, weighted = TRUE) +
-    trans(callNetwork, transformer_fn = log1p) +
-    tertius_diff(callNetwork, actors$floor, summarizer_fn = median) +
-    recip(callNetwork, window = "5 minutos") +
-    indeg(callNetwork, ignore_repetitions = TRUE)
+  formStat <- calls_dependent ~ inertia +
+    recip(call_network, weighted = TRUE) +
+    trans(call_network, transformer_fn = log1p) +
+    tertius_diff(call_network, actors$floor, summarizer_fn = median) +
+    recip(call_network, window = "5 minutos") +
+    indeg(call_network, ignore_repetitions = TRUE)
 
   n_terms <- length(labels(terms(formStat)))
 
@@ -435,7 +435,7 @@ test_that("get effects functions", {
   assign("calls", calls, envir = envirTest)
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -448,12 +448,12 @@ test_that("get effects functions", {
         events = c("calls")
       )
 
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
     },
@@ -471,16 +471,16 @@ test_that("get effects functions", {
 
   expect_type(effects, "list")
   expect_length(effects, n_terms)
-  expect_true(all(sapply(effects, names) == c("effect", "initEffect")))
+  expect_true(all(sapply(effects, names) == c("effect", "init_effect")))
 })
 
 test_that("unknown effect", {
-  formStat <- callsDependent ~ inertia +
-    recip(callNetwork, weighted = TRUE) +
-    trans(callNetwork, transformer_fn = log1p) +
-    tertius_diff(callNetwork, actors$floor, summarizer_fn = median) +
-    recip(callNetwork, window = "5 minutos") +
-    indegree(callNetwork, ignore_repetitions = TRUE)
+  formStat <- calls_dependent ~ inertia +
+    recip(call_network, weighted = TRUE) +
+    trans(call_network, transformer_fn = log1p) +
+    tertius_diff(call_network, actors$floor, summarizer_fn = median) +
+    recip(call_network, window = "5 minutos") +
+    indegree(call_network, ignore_repetitions = TRUE)
 
   n_terms <- length(labels(terms(formStat)))
 
@@ -489,7 +489,7 @@ test_that("unknown effect", {
   assign("calls", calls, envir = envirTest)
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -502,12 +502,12 @@ test_that("unknown effect", {
         events = c("calls")
       )
 
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
     },
@@ -528,8 +528,8 @@ test_that("unknown effect", {
 })
 
 test_that("warning two mode", {
-  formStat <- callsDependent ~ inertia +
-    trans(callNetwork, transformer_fn = log1p)
+  formStat <- calls_dependent ~ inertia +
+    trans(call_network, transformer_fn = log1p)
 
   n_terms <- length(labels(terms(formStat)))
 
@@ -538,7 +538,7 @@ test_that("warning two mode", {
   assign("calls", calls, envir = envirTest)
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -551,12 +551,12 @@ test_that("warning two mode", {
         events = c("calls")
       )
 
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors", "actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
     },
@@ -577,13 +577,13 @@ test_that("warning two mode", {
 })
 
 test_that("objects effects link", {
-  formStat <- callsDependent ~ inertia +
+  formStat <- calls_dependent ~ inertia +
     indeg +
     outdeg(networkExog, weighted = TRUE) +
-    node_trans(callNetwork, transformer_fn = log1p) +
-    tertius(callNetwork, actors$floor, summarizer_fn = median) +
-    indeg(callNetwork, window = "5 minutos") +
-    outdeg(callNetwork, ignore_repetitions = TRUE)
+    node_trans(call_network, transformer_fn = log1p) +
+    tertius(call_network, actors$floor, summarizer_fn = median) +
+    indeg(call_network, window = "5 minutos") +
+    outdeg(call_network, ignore_repetitions = TRUE)
 
   n_terms <- length(labels(terms(formStat)))
 
@@ -592,7 +592,7 @@ test_that("objects effects link", {
   assign("calls", calls, envir = envirTest)
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -605,12 +605,12 @@ test_that("objects effects link", {
         events = c("calls")
       )
 
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors", "actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
 
@@ -644,13 +644,13 @@ test_that("objects effects link", {
 })
 
 test_that("events, objects & effects links", {
-  formStat <- callsDependent ~ inertia +
+  formStat <- calls_dependent ~ inertia +
     indeg +
     outdeg(network_exog, weighted = TRUE) +
-    node_trans(callNetwork, transformer_fn = log1p) +
-    tertius(callNetwork, actors$floor, summarizer_fn = median) +
-    indeg(callNetwork, window = "5 minutos") +
-    outdeg(callNetwork, ignore_repetitions = TRUE)
+    node_trans(call_network, transformer_fn = log1p) +
+    tertius(call_network, actors$floor, summarizer_fn = median) +
+    indeg(call_network, window = "5 minutos") +
+    outdeg(call_network, ignore_repetitions = TRUE)
 
   n_terms <- length(labels(terms(formStat)))
 
@@ -659,7 +659,7 @@ test_that("events, objects & effects links", {
   assign("calls", calls, envir = envirTest)
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -672,12 +672,12 @@ test_that("events, objects & effects links", {
         events = c("calls")
       )
 
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors", "actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
 
@@ -717,7 +717,7 @@ test_that("events, objects & effects links", {
   expect_length(events_objects_link[[1]], 4)
   expect_equal(
     names(events_objects_link[[1]]),
-    c("callsDependent", "calls", "calls", "calls_300")
+    c("calls_dependent", "calls", "calls", "calls_300")
   )
   expect_s3_class(events_objects_link[[2]], "data.frame")
   expect_equal(dim(events_objects_link[[2]]), c(4, 5))
@@ -729,7 +729,7 @@ test_that("events, objects & effects links", {
 test_that("window on single attribute effect raises cli error", {
   expect_error(
     estimate_wrapper(
-      depNetwork ~ alter(actorsEx$attr1, window = 5),
+      depNetwork ~ alter(actors_ex$attr1, window = 5),
       model = "DyNAM",
       sub_model = "choice",
       data = dataTest,
@@ -740,7 +740,7 @@ test_that("window on single attribute effect raises cli error", {
   )
   expect_error(
     estimate_wrapper(
-      depNetwork ~ alter(actorsEx$attr1, window = 5),
+      depNetwork ~ alter(actors_ex$attr1, window = 5),
       model = "DyNAM",
       sub_model = "choice",
       data = dataTest,
@@ -751,13 +751,13 @@ test_that("window on single attribute effect raises cli error", {
   )
   expect_error(
     estimate_wrapper(
-      depNetwork ~ alter(actorsEx$attr1, window = 5),
+      depNetwork ~ alter(actors_ex$attr1, window = 5),
       model = "DyNAM",
       sub_model = "choice",
       data = dataTest,
       preprocessing_only = TRUE
     ),
-    "actorsEx\\$attr1",
+    "actors_ex\\$attr1",
     label = "violation names the attribute reference"
   )
 })
@@ -766,7 +766,7 @@ test_that("window on list attribute effect raises cli error", {
   expect_error(
     estimate_wrapper(
       depNetwork ~ ego_alter_interaction(
-        list(actorsEx$attr1, actorsEx$attr1),
+        list(actors_ex$attr1, actors_ex$attr1),
         window = 5
       ),
       model = "DyNAM",
@@ -780,7 +780,7 @@ test_that("window on list attribute effect raises cli error", {
   expect_error(
     estimate_wrapper(
       depNetwork ~ ego_alter_interaction(
-        list(actorsEx$attr1, actorsEx$attr1),
+        list(actors_ex$attr1, actors_ex$attr1),
         window = 5
       ),
       model = "DyNAM",
@@ -796,8 +796,8 @@ test_that("window on list attribute effect raises cli error", {
 test_that("multiple attribute+window violations are all reported in one error", {
   err <- tryCatch(
     estimate_wrapper(
-      depNetwork ~ alter(actorsEx$attr1, window = 5) +
-        same(actorsEx$attr1, window = 5),
+      depNetwork ~ alter(actors_ex$attr1, window = 5) +
+        same(actors_ex$attr1, window = 5),
       model = "DyNAM",
       sub_model = "choice",
       data = dataTest,
@@ -842,7 +842,7 @@ test_that("get_events_and_objects_link handles global.goldfish without error", {
 
   base::local(
     {
-      callNetwork <- structure(
+      call_network <- structure(
         matrix(
           0,
           nrow(actors),
@@ -854,12 +854,12 @@ test_that("get_events_and_objects_link handles global.goldfish without error", {
         directed = TRUE,
         events = c("calls")
       )
-      callsDependent <- structure(
+      calls_dependent <- structure(
         calls,
         class = c("dependent.goldfish", "data.frame"),
         nodes = c("actors", "actors"),
         events = c("calls"),
-        default_network = "callNetwork",
+        default_network = "call_network",
         type = "dyadic"
       )
       seasons <- make_global_attributes(data.frame(winter = 1))
@@ -870,7 +870,7 @@ test_that("get_events_and_objects_link handles global.goldfish without error", {
 
   assign("season_changes", season_changes, envir = envirTest)
 
-  formStat <- callsDependent ~ indeg(callNetwork) + global(seasons$winter)
+  formStat <- calls_dependent ~ indeg(call_network) + global(seasons$winter)
   parsed_formula <- parse_formula(formStat, envir = envirTest)
 
   expect_no_error(

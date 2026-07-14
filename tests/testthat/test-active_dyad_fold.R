@@ -1,5 +1,5 @@
-# active_dyad encoding decision (design D13, task 4.1) and the DyNAM-choice
-# alter-encoding fold + default-engine consumption (design D4/D11, task 4.2).
+# active_dyad encoding decision and the DyNAM-choice
+# alter-encoding fold + default-engine consumption.
 # The point encoding (dense) and the REM/outer folds are wired with the engine
 # consumption phase (§5); here choice folds a receiver-axis (alter/scalar) mask
 # into `active_dyad` at the alter encoding.
@@ -14,7 +14,7 @@ test_that("active_dyad_encoding_decide reproduces the pre-fold assignment", {
   expect_identical(active_dyad_encoding_decide("DyNAM-MM"), "outer")
 })
 
-test_that("active_dyad_encoding_decide folds the constraint axis-union kind (D13)", {
+test_that("active_dyad_encoding_decide folds the constraint axis-union kind", {
   # mask_kind: 0 point, 1 alter, 2 ego, 3 scalar.
   # choice (receiver axis only): alter/scalar stay alter; ego adds a sender
   # factor -> outer; point -> point.
@@ -28,7 +28,7 @@ test_that("active_dyad_encoding_decide folds the constraint axis-union kind (D13
   expect_identical(active_dyad_encoding_decide("REM", 0L), "point")
 })
 
-test_that("an opportunity list forces the point encoding (D10/D13)", {
+test_that("an opportunity list forces the point encoding", {
   expect_identical(
     active_dyad_encoding_decide("DyNAM-M", 1L, has_opportunity = TRUE),
     "point"
@@ -45,21 +45,21 @@ make_choice_fold_fixture <- function(n_events = 80L) {
   data("Social_Evolution", package = "goldfish", envir = environment())
   actors <- get("actors", environment())
   calls <- get("calls", environment())
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
   callsDep <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
   callsDep <- callsDep[seq_len(n_events), ]
   list(
-    data = make_data(callsDep, callNetwork, calls, actors),
-    callNetwork = callNetwork,
+    data = make_data(callsDep, call_network, calls, actors),
+    call_network = call_network,
     n2 = nrow(actors)
   )
 }
@@ -70,7 +70,7 @@ test_that("a receiver-axis constraint folds active_dyad at the alter encoding", 
     callsDep ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    support_constraint = ~ indeg(callNetwork) > 0,
+    support_constraint = ~ indeg(call_network) > 0,
     preprocessing_only = TRUE
   )
   expect_identical(prep$active_dyad_encoding, "alter")
@@ -86,7 +86,7 @@ test_that("the folded active_dyad equals the from-scratch intersection every eve
     callsDep ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    support_constraint = ~ indeg(callNetwork) > 0,
+    support_constraint = ~ indeg(call_network) > 0,
     preprocessing_only = TRUE
   )
   supp <- prep$support_mask$support
@@ -114,7 +114,7 @@ test_that("a vacuous alter constraint reproduces the unconstrained fit (fold con
     callsDep ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    support_constraint = ~ indeg(callNetwork) >= 0,
+    support_constraint = ~ indeg(call_network) >= 0,
     control_estimation = opt
   )
   m_unc <- estimate_dynam(
@@ -137,16 +137,16 @@ make_opp_fold_fixture <- function(n_events = 60L) {
   data("Social_Evolution", package = "goldfish", envir = environment())
   actors <- get("actors", environment())
   calls <- get("calls", environment())
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
   callsDep <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
   callsDep <- callsDep[seq_len(n_events), ]
   n <- nrow(actors)
@@ -155,7 +155,7 @@ make_opp_fold_fixture <- function(n_events = 60L) {
   # and its cyclic successor — so `active_dyad`'s row genuinely varies by event.
   opp <- lapply(senders, function(s) setdiff(seq_len(n), c(s, (s %% n) + 1L)))
   list(
-    data = make_data(callsDep, callNetwork, calls, actors),
+    data = make_data(callsDep, call_network, calls, actors),
     opp = opp,
     n = n,
     senders = senders
@@ -212,7 +212,7 @@ test_that("folded point buffer equals from-scratch intersection every event", {
     hi <- ptr[e]
     if (hi > prev) {
       cols <- (prev + 1L):hi
-      # Apply this event's pre-likelihood slice (D7) before the read.
+      # Apply this event's pre-likelihood slice before the read.
       cur[cbind(upd[1L, cols], upd[2L, cols])] <- as.logical(upd[3L, cols])
     }
     prev <- hi
@@ -227,20 +227,20 @@ make_rem_fold_fixture <- function(n_events = 60L) {
   data("Social_Evolution", package = "goldfish", envir = environment())
   actors <- get("actors", environment())
   calls <- get("calls", environment())
-  callNetwork <- make_network(nodes = actors, directed = TRUE)
-  callNetwork <- link_events(
-    x = callNetwork,
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    x = call_network,
     change_event = calls,
     nodes = actors
   )
-  callsDependent <- make_dependent_events(
+  calls_dependent <- make_dependent_events(
     events = calls,
     nodes = actors,
-    default_network = callNetwork
+    default_network = call_network
   )
-  callsDependent <- callsDependent[seq_len(n_events), ]
+  calls_dependent <- calls_dependent[seq_len(n_events), ]
   list(
-    data = make_data(callsDependent, callNetwork, calls, actors),
+    data = make_data(calls_dependent, call_network, calls, actors),
     present = actors$present,
     n = nrow(actors)
   )
@@ -249,7 +249,7 @@ make_rem_fold_fixture <- function(n_events = 60L) {
 test_that("unconstrained REM: active_dyad outer, factors == presences", {
   fx <- make_rem_fold_fixture()
   prep <- estimate_rem(
-    callsDependent ~ 1 + inertia + recip,
+    calls_dependent ~ 1 + inertia + recip,
     sub_model = "rate",
     data = fx$data,
     preprocessing_only = TRUE
@@ -258,7 +258,7 @@ test_that("unconstrained REM: active_dyad outer, factors == presences", {
   # No dense allocation for a non-point encoding: both factors are vectors.
   expect_true(is.null(dim(prep$active_dyad_init)))
   expect_true(is.null(dim(prep$active_sender_init)))
-  # The two outer factors ARE today's two presence vectors (D5): sender presence
+  # The two outer factors ARE today's two presence vectors: sender presence
   # (f1 = active_sender) and receiver presence (f2 = active_dyad).
   expect_identical(as.logical(prep$active_sender_init), fx$present)
   expect_identical(as.logical(prep$active_dyad_init), fx$present)
@@ -267,7 +267,7 @@ test_that("unconstrained REM: active_dyad outer, factors == presences", {
 test_that("outer-encoded active_dyad never receives point flips", {
   fx <- make_rem_fold_fixture()
   prep <- estimate_rem(
-    callsDependent ~ 1 + inertia + recip,
+    calls_dependent ~ 1 + inertia + recip,
     sub_model = "rate",
     data = fx$data,
     preprocessing_only = TRUE

@@ -3,7 +3,7 @@ se_data <- baselines_social_evolution_data()
 test_that("compute_stats(output = 'db') round-trips against the gather writer", {
   skip_on_cran()
   skip_if_not_installed("RSQLite")
-  formula <- callsDependent ~ inertia + recip + trans
+  formula <- calls_dependent ~ inertia + recip + trans
   gathered <- compute_stats(
     formula,
     data = se_data,
@@ -35,7 +35,7 @@ test_that("compute_stats(output = 'db') round-trips against the gather writer", 
     as.integer(table(tbl$event_id)),
     as.integer(gathered$n_candidates)
   )
-  # the index vocabulary is written to SQL and round-trips (design D13)
+  # the index vocabulary is written to SQL and round-trips
   expect_true(all(c("index_i", "index_j") %in% names(tbl)))
   expect_equal(tbl$index_i, gathered$index_i)
   expect_equal(tbl$index_j, gathered$index_j)
@@ -47,7 +47,7 @@ test_that("gather index columns decode to node labels; coordination is filtered"
   # DyNAM choice: index_i is the (constant) event sender, index_j the receiver;
   # the selected row decodes to the observed sender/receiver labels.
   gc <- compute_stats(
-    callsDependent ~ inertia + recip,
+    calls_dependent ~ inertia + recip,
     data = se_data,
     model = "DyNAM",
     sub_model = "choice",
@@ -61,7 +61,7 @@ test_that("gather index columns decode to node labels; coordination is filtered"
   # Coordination: no reflexive diagonal rows (index_i != index_j everywhere),
   # and the observed row's unordered pair matches {sender, receiver}.
   cc <- compute_stats(
-    callsDependent ~ inertia + trans,
+    calls_dependent ~ inertia + trans,
     data = se_data,
     model = "DyNAM",
     sub_model = "choice_coordination",
@@ -84,7 +84,7 @@ test_that("compute_stats(output = 'db') errors when no connection is configured"
   skip_on_cran()
   expect_error(
     compute_stats(
-      callsDependent ~ inertia,
+      calls_dependent ~ inertia,
       data = se_data,
       model = "DyNAM",
       sub_model = "choice",
@@ -97,7 +97,7 @@ test_that("compute_stats(output = 'db') errors when no connection is configured"
 test_that("db writer round-trips for a rate model", {
   skip_on_cran()
   skip_if_not_installed("RSQLite")
-  formula <- callsDependent ~ 1 + indeg + outdeg
+  formula <- calls_dependent ~ 1 + indeg + outdeg
   gathered <- compute_stats(
     formula,
     data = se_data,

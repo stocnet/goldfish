@@ -1,7 +1,7 @@
 # define methods ----------------------------------------------------------
 # init the statistical matrix
-init_DyNAM_choice_coordination <- function(effectFun, ...) {
-  UseMethod("init_DyNAM_choice", effectFun)
+init_DyNAM_choice_coordination <- function(effect_fun, ...) {
+  UseMethod("init_DyNAM_choice", effect_fun)
 }
 
 # Structural effects ------------------------------------------------------
@@ -112,7 +112,7 @@ update_DyNAM_choice_coordination_mixed_trans <- function(
   sender,
   receiver,
   replace,
-  netUpdate,
+  net_update,
   cache,
   is_two_mode = FALSE,
   transformer_fn = identity
@@ -122,7 +122,7 @@ update_DyNAM_choice_coordination_mixed_trans <- function(
     sender = sender,
     receiver = receiver,
     replace = replace,
-    netUpdate = netUpdate,
+    net_update = net_update,
     cache = cache,
     is_two_mode = is_two_mode,
     transformer_fn = transformer_fn
@@ -375,7 +375,7 @@ update_DyNAM_choice_coordination_ego_alter_interaction <- function(
   attribute,
   node,
   replace,
-  attUpdate,
+  att_update,
   n1,
   n2,
   is_two_mode = FALSE,
@@ -385,7 +385,7 @@ update_DyNAM_choice_coordination_ego_alter_interaction <- function(
     attribute = attribute,
     node = node,
     replace = replace,
-    attUpdate = attUpdate,
+    att_update = att_update,
     n1 = n1,
     n2 = n2,
     is_two_mode = is_two_mode,

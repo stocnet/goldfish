@@ -383,7 +383,7 @@ check_nodes <- function(nodes) {
 #'     class = c("network.goldfish", "matrix", "array"),
 #'     nodes = c("n1", "n2")
 #'   ),
-#'   nodes = data.frame(label = sprintf("A%d", 1:2)), nodesName = c("n1", "n2"),
+#'   nodes = data.frame(label = sprintf("A%d", 1:2)), nodes_name = c("n1", "n2"),
 #'   nodes2 = data.frame(label = sprintf("B%d", 1:3))
 #' )
 check_network <- function(matrix, nodes, nodes_name, nodes2 = NULL) {
@@ -934,12 +934,12 @@ check_events.network.goldfish <- function(
   }
   if (!is.null(composition_changes)) {
     tryCatch(
-      check_presence(events, nodes, composition_changes, onlyReceiver = FALSE)
+      check_presence(events, nodes, composition_changes, only_receiver = FALSE)
     )
   }
   if (is_two_mode && !is.null(composition_changes2)) {
     tryCatch(
-      check_presence(events, nodes2, composition_changes2, onlyReceiver = TRUE)
+      check_presence(events, nodes2, composition_changes2, only_receiver = TRUE)
     )
   }
   if (!is_two_mode) {
@@ -999,7 +999,7 @@ check_presence <- function(
   events,
   nodes,
   composition_changes,
-  onlyReceiver = FALSE
+  only_receiver = FALSE
 ) {
   for (r in seq_len(nrow(events))) {
     # find time and nodes for this event
@@ -1028,7 +1028,7 @@ check_presence <- function(
       }
     }
     if (length(event_nodes) == 2) {
-      if (!onlyReceiver) {
+      if (!only_receiver) {
         node <- event_nodes[1]
         presence <- find_last_presence(node, time, nodes, composition_changes)
         if (presence == -1) {
@@ -1060,15 +1060,15 @@ check_presence <- function(
   }
 }
 
-#' check if model and subModel parameters are conformable
+#' check if model and sub_model parameters are conformable
 #'
 #' @param model character string defining the model type
-#' @param sub_model character string defining the subModel type
+#' @param sub_model character string defining the sub_model type
 #' @param model_list character string vector defining allowed options
 #' @param sub_model_list list with character string vectors defining allowed
 #'    sub_model options by each model
 #'
-#' @return invisible TRUE if model and subModel check conditions
+#' @return invisible TRUE if model and sub_model check conditions
 #'
 #' @examples
 #' checkModelPar(
@@ -1094,7 +1094,7 @@ check_model_par <- function(model, sub_model, model_list, sub_model_list) {
     stop(
       "model: '",
       model,
-      "' doesn't allow subModel: '",
+      "' doesn't allow sub_model: '",
       sub_model,
       "' available options '",
       paste(sub_model_list[[model]], collapse = ", "),

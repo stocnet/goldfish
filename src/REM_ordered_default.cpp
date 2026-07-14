@@ -46,7 +46,7 @@ List estimate_REM_ordered(
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
-    // Opt-in per-event score matrix (design D11). Each row is the per-event
+    // Opt-in per-event score matrix. Each row is the per-event
     // increment already accumulated into `derivative` (observed minus expected
     // statistic); allocated only when requested so the default path pays nothing.
     arma::mat event_scores;
@@ -66,7 +66,7 @@ List estimate_REM_ordered(
     if (active_dyad_update.n_elem == 0) {
         has_composition_change2 = false;
     }
-    // `active_dyad` is the folded per-event risk mask (design D7/D11). At the
+    // `active_dyad` is the folded per-event risk mask. At the
     // outer encoding it is the length-n2 receiver vector (cell (i, j) available
     // iff active_sender(i) & active_dyad(j)). At the point encoding it is a
     // flattened n1 x n2 mask (sender-major: dyad (i, j) at i * n_actors_2 + j)
@@ -130,7 +130,7 @@ List estimate_REM_ordered(
 
         // We calculate the derivative, log-Likelihood, and fisher information
         // matrix of a current event. Staged, numerically stable softmax over the
-        // active dyads (design D7/D8): one GEMV for the linear predictors, the
+        // active dyads: one GEMV for the linear predictors, the
         // shared max-shift helper for the weights, and one weighted-crossprod
         // GEMM for the Fisher. The observed dyad's logL comes from the shifted
         // predictor (finite under underflow).

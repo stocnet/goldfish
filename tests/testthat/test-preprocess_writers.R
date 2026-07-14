@@ -2,7 +2,7 @@ se_data <- baselines_social_evolution_data()
 
 test_that("compute_stats(output = 'default') returns a preprocessed object", {
   prep <- compute_stats(
-    callsDependent ~ inertia + recip + trans,
+    calls_dependent ~ inertia + recip + trans,
     data = se_data,
     model = "DyNAM",
     sub_model = "choice"
@@ -15,13 +15,13 @@ test_that("compute_stats(output = 'default') returns a preprocessed object", {
 test_that("compute_stats(output = 'gather') matches gather_model_data (choice)", {
   skip_on_cran()
   old <- gather_model_data(
-    callsDependent ~ inertia + recip + trans,
+    calls_dependent ~ inertia + recip + trans,
     model = "DyNAM",
     sub_model = "choice",
     data = se_data
   )
   new <- compute_stats(
-    callsDependent ~ inertia + recip + trans,
+    calls_dependent ~ inertia + recip + trans,
     model = "DyNAM",
     sub_model = "choice",
     data = se_data,
@@ -43,13 +43,13 @@ test_that("compute_stats(output = 'gather') matches gather_model_data (choice)",
 test_that("compute_stats(output = 'gather') matches gather_model_data (REM)", {
   skip_on_cran()
   old <- gather_model_data(
-    callsDependent ~ 1 + inertia + recip,
+    calls_dependent ~ 1 + inertia + recip,
     model = "REM",
     sub_model = "rate",
     data = se_data
   )
   new <- compute_stats(
-    callsDependent ~ 1 + inertia + recip,
+    calls_dependent ~ 1 + inertia + recip,
     model = "REM",
     sub_model = "rate",
     data = se_data,
@@ -72,13 +72,13 @@ test_that("compute_stats(output = 'gather') matches gather_model_data (REM)", {
 test_that("compute_stats(output = 'gather') matches gather_model_data (coordination)", {
   skip_on_cran()
   old <- gather_model_data(
-    callsDependent ~ inertia + trans,
+    calls_dependent ~ inertia + trans,
     model = "DyNAM",
     sub_model = "choice_coordination",
     data = se_data
   )
   new <- compute_stats(
-    callsDependent ~ inertia + trans,
+    calls_dependent ~ inertia + trans,
     model = "DyNAM",
     sub_model = "choice_coordination",
     data = se_data,
@@ -104,7 +104,7 @@ test_that("gather output for rate models is internally consistent", {
   # with a single receiver column); the gather writer follows the working
   # gather_compute estimation path (twomode_or_reflexive = TRUE) instead.
   gathered <- compute_stats(
-    callsDependent ~ 1 + indeg + outdeg,
+    calls_dependent ~ 1 + indeg + outdeg,
     model = "DyNAM",
     sub_model = "rate",
     data = se_data,
@@ -119,7 +119,7 @@ test_that("gather output for rate models is internally consistent", {
 test_that("compute_stats rejects unknown output values", {
   expect_error(
     compute_stats(
-      callsDependent ~ inertia,
+      calls_dependent ~ inertia,
       data = se_data,
       model = "DyNAM",
       sub_model = "choice",
@@ -132,7 +132,7 @@ test_that("compute_stats rejects unknown output values", {
 test_that("compute_stats(output = 'db') requires a DBI connection", {
   expect_error(
     compute_stats(
-      callsDependent ~ inertia,
+      calls_dependent ~ inertia,
       data = se_data,
       model = "DyNAM",
       sub_model = "choice",

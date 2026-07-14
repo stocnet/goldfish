@@ -213,7 +213,7 @@ test_that("estimate_dynam accepts the explicit rate_ordered sub_model", {
     preprocessing_only = TRUE
   )
   expect_s3_class(prepExplicit$model_spec, "dynam_rate_ordered_spec")
-  expect_identical(prepExplicit$subModel, "rate")
+  expect_identical(prepExplicit$sub_model, "rate")
   prepImplicit <- suppressWarnings(estimate_dynam(
     depNetwork ~ indeg,
     sub_model = "rate",
@@ -240,7 +240,7 @@ test_that("estimate_rem accepts explicit rate and rate_ordered sub_models", {
     preprocessing_only = TRUE
   )
   expect_s3_class(prepRate$model_spec, "rem_rate_spec")
-  expect_identical(prepRate$subModel, "choice")
+  expect_identical(prepRate$sub_model, "choice")
   prepOrdered <- estimate_rem(
     depNetwork ~ inertia,
     sub_model = "rate_ordered",
@@ -273,7 +273,7 @@ test_that("estimate_dynami constructs and forwards the typed spec", {
   expect_s3_class(prepRate$model_spec, "dynami_rate_spec")
   prepChoice <- estimate_dynami(
     dependent.depevents_DyNAMi ~
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "count"),
+      inertia(past_network_DyNAMi, weighted = TRUE, sub_type = "count"),
     sub_model = "choice",
     data = dataDyNAMi,
     preprocessing_only = TRUE

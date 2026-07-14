@@ -9,29 +9,29 @@
 #' for estimation of a DyNAM-i model.
 #'
 #' @inheritParams preprocess
-#' @param groupsNetwork a character with the object that contains the
+#' @param groups_network a character with the object that contains the
 #' groups network information
 #'
 #' @return a list of class preprocessed.goldfish
 #'
 #' @noRd
-preprocessInteraction <- function(
-  subModel,
+preprocess_interaction <- function(
+  sub_model,
   events,
   effects,
-  eventsObjectsLink,
-  eventsEffectsLink,
-  objectsEffectsLink,
-  # multipleParameter,
+  events_objects_link,
+  events_effects_link,
+  objects_effects_link,
+  # multiple_parameter,
   nodes,
   nodes2 = nodes,
   # add more parameters
   startTime = min(vapply(events, function(x) min(x$time), double(1))),
   endTime = max(vapply(events, function(x) max(x$time), double(1))),
-  rightCensored = FALSE,
+  right_censored = FALSE,
   progress = FALSE,
-  groupsNetwork = groupsNetwork,
-  prepEnvir = environment()
+  groups_network = groups_network,
+  prep_envir = environment()
 ) {
   # For debugging
   # if (identical(environment(), globalenv())) {
@@ -40,49 +40,49 @@ preprocessInteraction <- function(
   #   progress <- FALSE
   # }
 
-  # prepEnvir <- environment()
+  # prep_envir <- environment()
   # initialize statistics functions from data objects
   # number of actors
-  n1 <- nrow(get(nodes, envir = prepEnvir))
-  n2 <- nrow(get(nodes2, envir = prepEnvir))
+  n1 <- nrow(get(nodes, envir = prep_envir))
+  n2 <- nrow(get(nodes2, envir = prep_envir))
   nEffects <- length(effects)
   # changed Marion
-  groupsNetworkObject <- get(groupsNetwork, envir = prepEnvir)
+  groupsNetworkObject <- get(groups_network, envir = prep_envir)
   # impute missing data in objects: 0 for networks and mean for attributes
-  imputed <- imputeMissingData(objectsEffectsLink, envir = prepEnvir)
+  imputed <- impute_missing_data(objects_effects_link, envir = prep_envir)
 
   if (progress) {
     cat("Initializing cache objects and statistical matrices.\n")
   }
   model <- "DyNAMi"
-  stats <- initializeCacheStat(
-    objectsEffectsLink = objectsEffectsLink,
+  stats <- initialize_cache_stat(
+    objects_effects_link = objects_effects_link,
     effects = effects,
-    groupsNetwork = groupsNetworkObject,
-    windowParameters = NULL,
+    groups_network = groupsNetworkObject,
+    window_parameters = NULL,
     n1 = n1,
     n2 = n2,
     model = model,
-    subModel = subModel,
-    envir = prepEnvir
+    sub_model = sub_model,
+    envir = prep_envir
   )
 
   # We put the initial stats to the previous format of 3 dimensional array
   initialStats <- array(unlist(stats), dim = c(n1, n2, nEffects))
 
-  # statCache <- lapply(statCache, "[[", "cache")
+  # stat_cache <- lapply(stat_cache, "[[", "cache")
 
   # initialize return objects
   # CHANGED MARION: for choice model, only joining events
-  if (rightCensored) {
-    nDependentEvents <-
+  if (right_censored) {
+    n_dependent_events <-
       length(unique(unlist(lapply(events, function(x) x$time))))
   } else {
-    nDependentEvents <- sum(events[[1]]$increment == -1)
+    n_dependent_events <- sum(events[[1]]$increment == -1)
   }
   dependentStatistics <- list()
   rightCensoredStatistics <- list()
-  timeIntervals <- list()
+  time_intervals <- list()
   timeIntervalsRightCensored <- list()
   # CHANGED MARION: added a list that tracks the chronological(ordered by time)
   #  order of events
@@ -95,9 +95,9 @@ preprocessInteraction <- function(
 
   # check start time and end time are valid values, set flags
   hasEndTime <- FALSE
-  eventsMin <- min(vapply(events, function(x) min(x$time), double(1)))
-  eventsMax <- max(vapply(events, function(x) max(x$time), double(1)))
-  if (!is.null(endTime) && endTime != eventsMax) {
+  events_min <- min(vapply(events, function(x) min(x$time), double(1)))
+  events_max <- max(vapply(events, function(x) max(x$time), double(1)))
+  if (!is.null(endTime) && endTime != events_max) {
     stop(
       dQuote("DyNAMi"),
       " doesn't support setting the ",
@@ -107,7 +107,7 @@ preprocessInteraction <- function(
     )
   }
 
-  if (!is.null(startTime) && startTime != eventsMin) {
+  if (!is.null(startTime) && startTime != events_min) {
     stop(
       dQuote("DyNAMi"),
       " doesn't support setting the ",
@@ -120,26 +120,26 @@ preprocessInteraction <- function(
   # initialize loop parameters
   events[[1]] <- NULL
   pointers <- rep(1, length(events))
-  validPointers <- rep(TRUE, length(events))
+  valid_pointers <- rep(TRUE, length(events))
   pointerDependent <- 1
-  pointerTempRightCensored <- 1
+  pointer_temp_right_censored <- 1
   time <- startTime
   interval <- 0
-  # updatesDependent/updatesIntervals: list of 6, each element if NULL
-  updatesDependent <- vector("list", nEffects)
-  updatesIntervals <- vector("list", nEffects)
+  # updates_dependent/updates_intervals: list of 6, each element if NULL
+  updates_dependent <- vector("list", nEffects)
+  updates_intervals <- vector("list", nEffects)
 
   # added Marion: find index of the dependent, exogenous events on the groups
   # and of the past interaction updates
-  dname <- eventsObjectsLink[1, 1]
+  dname <- events_objects_link[1, 1]
   # PATCH Marion: the depdendent.depevents_DyNAMi is not sanitized yet
   dnameObject <- sanitizeEvents(
-    get(dname, envir = prepEnvir),
+    get(dname, envir = prep_envir),
     nodes,
     nodes2,
-    envir = prepEnvir
+    envir = prep_envir
   )
-  assign(dname, dnameObject, envir = prepEnvir)
+  assign(dname, dnameObject, envir = prep_envir)
 
   depindex <- 0
   deporder <- NULL
@@ -153,13 +153,13 @@ preprocessInteraction <- function(
       ev <- events[[e]]
       if (
         inherits(ev, "interaction.groups.updates") &&
-          all(get(dname, envir = prepEnvir) == ev)
+          all(get(dname, envir = prep_envir) == ev)
       ) {
         depindex <- e
         deporder <- attr(ev, "order")
       } else if (
         inherits(ev, "interaction.groups.updates") &&
-          !all(get(dname, envir = prepEnvir) == ev)
+          !all(get(dname, envir = prep_envir) == ev)
       ) {
         exoindex <- e
         exoorder <- attr(ev, "order")
@@ -183,24 +183,24 @@ preprocessInteraction <- function(
 
     # PATCH Marion: the groups update events were not sanitized
     groupsupdates1Object <- sanitizeEvents(
-      get(groupsupdates[1], envir = prepEnvir),
+      get(groupsupdates[1], envir = prep_envir),
       nodes,
       nodes2,
-      envir = prepEnvir
+      envir = prep_envir
     )
-    assign(groupsupdates[1], groupsupdates1Object, envir = prepEnvir)
+    assign(groupsupdates[1], groupsupdates1Object, envir = prep_envir)
     groupsupdates2Object <- sanitizeEvents(
-      get(groupsupdates[2], envir = prepEnvir),
+      get(groupsupdates[2], envir = prep_envir),
       nodes,
       nodes2,
-      envir = prepEnvir
+      envir = prep_envir
     )
-    assign(groupsupdates[2], groupsupdates2Object, envir = prepEnvir)
+    assign(groupsupdates[2], groupsupdates2Object, envir = prep_envir)
 
     if (
       all(
-        get(dname, envir = prepEnvir) ==
-          get(groupsupdates[1], envir = prepEnvir)
+        get(dname, envir = prep_envir) ==
+          get(groupsupdates[1], envir = prep_envir)
       )
     ) {
       depn <- groupsupdates[1]
@@ -211,8 +211,8 @@ preprocessInteraction <- function(
     }
     depindex <- length(events) + 1
     exoindex <- length(events) + 2
-    events[[depindex]] <- get(depn, envir = prepEnvir)
-    events[[exoindex]] <- get(exon, envir = prepEnvir)
+    events[[depindex]] <- get(depn, envir = prep_envir)
+    events[[exoindex]] <- get(exon, envir = prep_envir)
 
     # find orders
     deporder <- attr(events[[depindex]], "order")
@@ -231,39 +231,39 @@ preprocessInteraction <- function(
       events[[depindex]],
       nodes,
       nodes2,
-      envir = prepEnvir
+      envir = prep_envir
     )
     events[[exoindex]] <- sanitizeEvents(
       events[[exoindex]],
       nodes,
       nodes2,
-      envir = prepEnvir
+      envir = prep_envir
     )
 
     # augment the link objects
-    eventsObjectsLink <- rbind(
-      eventsObjectsLink,
-      c(depn, groupsNetwork, groupsNetwork, NA, NA),
-      c(exon, groupsNetwork, groupsNetwork, NA, NA)
+    events_objects_link <- rbind(
+      events_objects_link,
+      c(depn, groups_network, groups_network, NA, NA),
+      c(exon, groups_network, groups_network, NA, NA)
     )
 
-    eventsEffectsLink <- rbind(
-      eventsEffectsLink,
-      rep(NA, dim(eventsEffectsLink)[2]),
-      rep(NA, dim(eventsEffectsLink)[2])
+    events_effects_link <- rbind(
+      events_effects_link,
+      rep(NA, dim(events_effects_link)[2]),
+      rep(NA, dim(events_effects_link)[2])
     )
-    rownames(eventsEffectsLink)[dim(eventsEffectsLink)[1] - 1] <- depn
-    rownames(eventsEffectsLink)[dim(eventsEffectsLink)[1]] <- exon
+    rownames(events_effects_link)[dim(events_effects_link)[1] - 1] <- depn
+    rownames(events_effects_link)[dim(events_effects_link)[1]] <- exon
 
-    objectsEffectsLink <- rbind(
-      objectsEffectsLink,
-      rep(NA, dim(objectsEffectsLink)[2])
+    objects_effects_link <- rbind(
+      objects_effects_link,
+      rep(NA, dim(objects_effects_link)[2])
     )
-    rownames(objectsEffectsLink)[dim(objectsEffectsLink)[1]] <- groupsNetwork
+    rownames(objects_effects_link)[dim(objects_effects_link)[1]] <- groups_network
 
     # reset the pointers for ALL events
     pointers <- rep(1, length(events))
-    validPointers <- rep(TRUE, length(events))
+    valid_pointers <- rep(TRUE, length(events))
   }
 
   # Set the counter for the ordered events
@@ -285,28 +285,28 @@ preprocessInteraction <- function(
 
   # initialize progressbar output, CHANGED ALVARO: add iterators
 
-  # iRightCensored <- 0
-  iDependentEvents <- 0
+  # i_right_censored <- 0
+  i_dependent_events <- 0
   if (progress) {
     cat("Preprocessing events.\n")
-    pb <- utils::txtProgressBar(max = nDependentEvents, char = "*", style = 3)
-    dotEvents <- ifelse(
-      nDependentEvents > 50,
-      ceiling(nDependentEvents / 50),
+    pb <- utils::txtProgressBar(max = n_dependent_events, char = "*", style = 3)
+    dot_events <- ifelse(
+      n_dependent_events > 50,
+      ceiling(n_dependent_events / 50),
       1
     ) # # how often print, max 50 prints
   }
 
   # UPDATED ALVARO: logical values indicating the type of information in events
-  isIncrementEvent <- vapply(
+  is_increment_event <- vapply(
     events,
     function(x) "increment" %in% names(x),
     logical(1)
   )
-  isNodeEvent <- vapply(events, function(x) "node" %in% names(x), logical(1))
+  is_node_event <- vapply(events, function(x) "node" %in% names(x), logical(1))
 
   # iterate over all event lists
-  while (any(validPointers)) {
+  while (any(valid_pointers)) {
     # times: the timepoint for next events to update in all event lists
     times <- Map(function(e, p) e[p, ]$time, events, pointers) |>
       vapply(identity, numeric(1))
@@ -317,7 +317,7 @@ preprocessInteraction <- function(
     # the order is decided
     # note: when it's a windowed past update, the value of the cpt is 0
     mintime <- min(times, na.rm = TRUE)
-    currentpointers <- which(validPointers & times == mintime)
+    currentpointers <- which(valid_pointers & times == mintime)
     prioritypointers <- intersect(
       currentpointers,
       c(depindex, exoindex, pastindexes)
@@ -340,42 +340,42 @@ preprocessInteraction <- function(
         vapply(identity, numeric(1))
 
       if (max(cpts) == 0) {
-        nextEvent <- prioritypointers[1]
+        next_event <- prioritypointers[1]
       } else {
         nextcpt <- min(cpts[cpts > cptorder])
         cptorder <- nextcpt
         if (cptorder %in% deporder) {
-          nextEvent <- depindex
+          next_event <- depindex
         }
         if (cptorder %in% exoorder) {
-          nextEvent <- exoindex
+          next_event <- exoindex
         }
         if (length(pastorders) > 0 && cptorder %in% pastorders[[1]]) {
           cptindexes <- prioritypointers[cpts == nextcpt]
-          nextEvent <- cptindexes[1]
+          next_event <- cptindexes[1]
           if (length(cptindexes) > 1) cptorder <- cptorder - 1
         }
       }
     } else {
       # otherwise we take the first next event
-      nextEvent <- currentpointers[1]
+      next_event <- currentpointers[1]
     }
-    interval <- times[nextEvent] - time
-    time <- min(times[validPointers])
+    interval <- times[next_event] - time
+    time <- min(times[valid_pointers])
 
     # changed Marion: for choice, only joining events are dependent events
-    isDependent <- (subModel == "rate" && nextEvent == depindex) ||
-      (subModel == "choice" &&
-        nextEvent == depindex &&
-        events[[depindex]][pointers[nextEvent], "increment"] > 0)
+    isDependent <- (sub_model == "rate" && next_event == depindex) ||
+      (sub_model == "choice" &&
+        next_event == depindex &&
+        events[[depindex]][pointers[next_event], "increment"] > 0)
 
     # # CHANGED ALVARO: progress bar
-    if (progress && iDependentEvents %% dotEvents == 0) {
-      utils::setTxtProgressBar(pb, iDependentEvents)
+    if (progress && i_dependent_events %% dot_events == 0) {
+      utils::setTxtProgressBar(pb, i_dependent_events)
     }
 
-    if (progress && iDependentEvents == nDependentEvents) {
-      utils::setTxtProgressBar(pb, iDependentEvents)
+    if (progress && i_dependent_events == n_dependent_events) {
+      utils::setTxtProgressBar(pb, i_dependent_events)
       close(pb)
     }
 
@@ -389,25 +389,25 @@ preprocessInteraction <- function(
     # 1. store statistic updates for DEPENDENT events
     if (isDependent) {
       # first store statistics
-      iDependentEvents <- 1 + iDependentEvents
-      dependentStatistics[[iDependentEvents]] <- updatesDependent
-      timeIntervals[[iDependentEvents]] <- interval
-      updatesDependent <- vector("list", nEffects)
-      updatesIntervals <- vector("list", nEffects)
+      i_dependent_events <- 1 + i_dependent_events
+      dependentStatistics[[i_dependent_events]] <- updates_dependent
+      time_intervals[[i_dependent_events]] <- interval
+      updates_dependent <- vector("list", nEffects)
+      updates_intervals <- vector("list", nEffects)
       # CHANGED MARION: added orderEvents
-      orderEvents[[(pointerDependent + pointerTempRightCensored - 1)]] <- 1
+      orderEvents[[(pointerDependent + pointer_temp_right_censored - 1)]] <- 1
       # CHANGDE SIWEI: added time point of each event
       # (dependent & right-censorde)
-      event_time[[(pointerDependent + pointerTempRightCensored - 1)]] <- time
+      event_time[[(pointerDependent + pointer_temp_right_censored - 1)]] <- time
       # CHANGED MARION: added sender and receiver
-      varsKeep <- c(
-        if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"),
+      vars_keep <- c(
+        if (is_node_event[next_event]) "node" else c("sender", "receiver"),
         "increment"
       )
-      event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
-      event_sender[[(pointerDependent + pointerTempRightCensored - 1)]] <-
+      event <- events[[next_event]][pointers[next_event], vars_keep]
+      event_sender[[(pointerDependent + pointer_temp_right_censored - 1)]] <-
         event$sender
-      event_receiver[[(pointerDependent + pointerTempRightCensored - 1)]] <-
+      event_receiver[[(pointerDependent + pointer_temp_right_censored - 1)]] <-
         event$receiver
 
       # second update the network (no need to calculate the stats there
@@ -418,7 +418,7 @@ preprocessInteraction <- function(
       ## FOR TESTING: SEE AVAILABLE GROUPS>2 FOR EACH EVENT (TO COUNT THE
       ##  PROPORTION OF GROUPS IN THE EVENTS)
       # if (max(colSums(groups.network.object)) > 2) {
-      #   print(paste("event", iDependentEvents))
+      #   print(paste("event", i_dependent_events))
       #   grinds <- which(colSums(groups.network.object) > 2)
       #   for (grind in 1:length(grinds)) {
       #     print(
@@ -432,7 +432,7 @@ preprocessInteraction <- function(
 
       groupsNetworkObject[event$sender, event$receiver] <-
         groupsNetworkObject[event$sender, event$receiver] + event$increment
-      assign(groupsNetwork, groupsNetworkObject, envir = prepEnvir)
+      assign(groups_network, groupsNetworkObject, envir = prep_envir)
 
       pointerDependent <- pointerDependent + 1
     }
@@ -440,38 +440,38 @@ preprocessInteraction <- function(
     if (!isDependent) {
       # 2. store statistic updates for RIGHT-CENSORED
       # (non-dependent, positive) intervals
-      if (rightCensored && interval > 0) {
+      if (right_censored && interval > 0) {
         # CHANGED MARION: the incremented index was incorrect
-        # rightCensoredStatistics[[ pointers[nextEvent] ]] <- updatesIntervals
+        # rightCensoredStatistics[[ pointers[next_event] ]] <- updates_intervals
         # timeIntervalsRightCensored[[length(rightCensoredStatistics)]] <-
         #  interval
         rightCensoredStatistics <- append(
           rightCensoredStatistics,
-          list(updatesIntervals)
+          list(updates_intervals)
         )
         timeIntervalsRightCensored <- append(
           timeIntervalsRightCensored,
           interval
         )
-        updatesIntervals <- vector("list", nEffects)
+        updates_intervals <- vector("list", nEffects)
         # CHANGED MARION: added orderEvents
-        nextPointer <- (pointers[depindex] + pointerTempRightCensored - 1)
+        nextPointer <- (pointers[depindex] + pointer_temp_right_censored - 1)
         orderEvents[[nextPointer]] <- 2
         event_time[[nextPointer]] <- time
         # CHANGED MARION: added sender and receiver
         # CHANGED WEIGUTIAN: removed "increment" which results a bug
-        event <- events[[nextEvent]][pointers[nextEvent], ]
-        if (isNodeEvent[nextEvent] && length(event) == 1) {
+        event <- events[[next_event]][pointers[next_event], ]
+        if (is_node_event[next_event] && length(event) == 1) {
           event_sender[[nextPointer]] <- event
           event_receiver[[nextPointer]] <- event
-        } else if (isNodeEvent[nextEvent] && length(event) > 1) {
+        } else if (is_node_event[next_event] && length(event) > 1) {
           event_sender[[nextPointer]] <- event$node
           event_receiver[[nextPointer]] <- event$node
         } else {
           event_sender[[nextPointer]] <- event$sender
           event_receiver[[nextPointer]] <- event$receiver
         }
-        pointerTempRightCensored <- pointerTempRightCensored + 1
+        pointer_temp_right_censored <- pointer_temp_right_censored + 1
       }
 
       # 3. update stats and data objects for OBJECT CHANGE EVENTS
@@ -483,97 +483,97 @@ preprocessInteraction <- function(
       #    to the data update
       #   b. Update the data objects
 
-      objectNameTable <- eventsObjectsLink[nextEvent + 1, -1]
-      objectName <- objectNameTable$name
-      object <- getElementFromDataObjectTable(
-        objectNameTable,
-        envir = prepEnvir
+      object_name_table <- events_objects_link[next_event + 1, -1]
+      object_name <- object_name_table$name
+      object <- get_element_from_data_object_table(
+        object_name_table,
+        envir = prep_envir
       )[[1]]
-      isUndirectedNet <- FALSE
+      is_undirected_net <- FALSE
       if (inherits(object, "network.goldfish")) {
-        isUndirectedNet <- !attr(object, "directed")
+        is_undirected_net <- !attr(object, "directed")
       }
 
       # # CHANGED ALVARO: avoid dependence in variables position
-      if (isIncrementEvent[nextEvent]) {
-        varsKeep <- c(
-          if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"),
+      if (is_increment_event[next_event]) {
+        vars_keep <- c(
+          if (is_node_event[next_event]) "node" else c("sender", "receiver"),
           "increment"
         )
-        event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
+        event <- events[[next_event]][pointers[next_event], vars_keep]
 
-        if (isNodeEvent[nextEvent]) {
-          oldValue <- object[event$node]
+        if (is_node_event[next_event]) {
+          old_value <- object[event$node]
         }
-        if (!isNodeEvent[nextEvent]) {
-          oldValue <- object[event$sender, event$receiver]
+        if (!is_node_event[next_event]) {
+          old_value <- object[event$sender, event$receiver]
         }
-        event$replace <- oldValue + event$increment
+        event$replace <- old_value + event$increment
         event$increment <- NULL
       } else {
-        varsKeep <- c(
-          if (isNodeEvent[nextEvent]) "node" else c("sender", "receiver"),
+        vars_keep <- c(
+          if (is_node_event[next_event]) "node" else c("sender", "receiver"),
           "replace"
         )
-        event <- events[[nextEvent]][pointers[nextEvent], varsKeep]
+        event <- events[[next_event]][pointers[next_event], vars_keep]
       }
 
-      # if (!isNodeEvent[nextEvent] && event$replace < 0) {
+      # if (!is_node_event[next_event] && event$replace < 0) {
       #  warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
       # }
 
       # b. Update the data object
-      if (isNodeEvent[nextEvent]) {
+      if (is_node_event[next_event]) {
         object[event$node] <- event$replace
       }
-      if (!isNodeEvent[nextEvent]) {
+      if (!is_node_event[next_event]) {
         # [sender, receiver] value: replace value of the event
         object[event$sender, event$receiver] <- event$replace
-        if (isUndirectedNet) {
+        if (is_undirected_net) {
           object[event$receiver, event$sender] <- event$replace
         }
       }
 
       # Assign object
-      assign("object", object, envir = prepEnvir)
+      assign("object", object, envir = prep_envir)
       eval(
-        parse(text = paste(objectName, "<- object")),
-        envir = prepEnvir,
+        parse(text = paste(object_name, "<- object")),
+        envir = prep_envir,
         enclos = parent.frame()
       )
 
       # added Marion: for interaction model, check whether this is
       # an exogenous event or past update
       isinteractionupdate <- inherits(
-        events[[nextEvent]],
+        events[[next_event]],
         "interaction.network.updates"
       )
       isgroupupdate <- inherits(
-        events[[nextEvent]],
+        events[[next_event]],
         "interaction.groups.updates"
       )
 
       # a. calculate statistics changes:
       # if EXOGENOUS JOINING OR LEAVING, everything is recalculated
       if (isgroupupdate) {
-        effIds <- seq.int(dim(eventsEffectsLink)[2])
+        effIds <- seq.int(dim(events_effects_link)[2])
       } else {
         # OTHERWISE (PAST UPDATE or ATTRIBUTE UPDATE),
         # only statistics related to the object
-        effIds <- which(!is.na(eventsEffectsLink[nextEvent + 1, ]))
+        effIds <- which(!is.na(events_effects_link[next_event + 1, ]))
       }
-      groupsNetworkObject <- get(groupsNetwork, envir = prepEnvir)
+      groupsNetworkObject <- get(groups_network, envir = prep_envir)
 
       for (id in effIds) {
         # create the ordered list for the objects
-        objectsToPass <-
-          objectsEffectsLink[, id][!is.na(objectsEffectsLink[, id])]
-        names <- rownames(objectsEffectsLink)[!is.na(objectsEffectsLink[, id])]
-        orderedNames <- names[order(objectsToPass)]
-        orderedObjectTable <- getDataObjects(list(list("", orderedNames)))
-        unnamedOrderedParameters <- getElementFromDataObjectTable(
-          orderedObjectTable,
-          envir = prepEnvir
+        objects_to_pass <-
+          objects_effects_link[, id][!is.na(objects_effects_link[, id])]
+        names <- rownames(objects_effects_link)[!is.na(objects_effects_link[, id])]
+        ordered_names <- names[order(objects_to_pass)]
+        ordered_object_table <- get_data_objects(list(list("", ordered_names)))
+        unnamedOrderedParameters <- get_element_from_data_object_table(
+          ordered_object_table,
+          envir = prep_envir
         )
 
         # # CHANGED ALVARO: check if statistics is an argument of
@@ -585,14 +585,14 @@ preprocessInteraction <- function(
             unnamedOrderedParameters,
             statistics = stats[id],
             event,
-            list(n1 = n1, n2 = n2, groupsNetwork = groupsNetworkObject)
+            list(n1 = n1, n2 = n2, groups_network = groupsNetworkObject)
           )
         )
 
         # added Marion: update stats
         stats[[id]] <- updFun(stats[[id]], updates)
 
-        # if (isUndirectedNet && !isinteractionupdate) {
+        # if (is_undirected_net && !isinteractionupdate) {
         #   event2 <- event
         #   event2$sender <- event$receiver
         #   event2$receiver <- event$sender
@@ -608,17 +608,17 @@ preprocessInteraction <- function(
         # }
 
         if (!is.null(updates)) {
-          updatesDependent[[id]] <- rbind(updatesDependent[[id]], updates)
-          updatesIntervals[[id]] <- rbind(updatesIntervals[[id]], updates)
+          updates_dependent[[id]] <- rbind(updates_dependent[[id]], updates)
+          updates_intervals[[id]] <- rbind(updates_intervals[[id]], updates)
         }
       }
     } # end 3. (!dependent)
 
-    pointers[nextEvent] <- 1 + pointers[nextEvent]
-    validPointers <- pointers <= vapply(events, nrow, numeric(1))
+    pointers[next_event] <- 1 + pointers[next_event]
+    valid_pointers <- pointers <= vapply(events, nrow, numeric(1))
   }
 
-  if (progress && utils::getTxtProgressBar(pb) < nDependentEvents) {
+  if (progress && utils::getTxtProgressBar(pb) < n_dependent_events) {
     close(pb)
   }
 
@@ -627,13 +627,13 @@ preprocessInteraction <- function(
       initialStats = initialStats,
       dependentStatsChange = dependentStatistics,
       rightCensoredStatsChange = rightCensoredStatistics,
-      intervals = timeIntervals,
+      intervals = time_intervals,
       # CHANGED MARION
       rightCensoredIntervals = timeIntervalsRightCensored,
       orderEvents = orderEvents,
-      eventTime = event_time,
-      eventSender = event_sender,
-      eventReceiver = event_receiver,
+      event_time = event_time,
+      event_sender = event_sender,
+      event_receiver = event_receiver,
       startTime = startTime,
       endTime = endTime
     ),

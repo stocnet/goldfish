@@ -71,7 +71,7 @@
 #' @param return_probabilities A logical value.
 #'   Whether to keep and return the
 #'   probabilities for all alternatives for each event.
-#'   * When `subModel = "choice"` the probabilities correspond to all actors in
+#'   * When `sub_model = "choice"` the probabilities correspond to all actors in
 #'     the choice set present at the time of the event.
 #'   * When `model = "REM"` the probabilities correspond to all dyads present at
 #'     the time of the event.
@@ -300,7 +300,7 @@ set_estimation_opt <- function(
 #'
 #' Specifies control parameters for the data preprocessing stage,
 #' used by `estimate_dynam()`, `estimate_rem()` and `estimate_dynami()`
-#' (when `preprocessingInit` is not a
+#' (when `preprocessing_init` is not a
 #' `preprocessed.goldfish` object) and `gather_model_data()`.
 #'
 #' @param start_time A numerical value or a date-time character string
