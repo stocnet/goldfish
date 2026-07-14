@@ -1,0 +1,61 @@
+schema: spec-driven
+
+context: |
+  R package (goldfish): statistical models for dynamic network data
+  (DyNAM, DyNAMi, REM). C++ via Rcpp/RcppArmadillo in src/.
+
+  Workflow disciplines for implementing any change:
+  - Commit after each completed small task (one focused commit per task,
+    conventional message) so any step can be rolled back; tests must be
+    green at every commit.
+  - Run devtools::document() within any task that changes roxygen
+    comments, exports, or function signatures — never defer documentation
+    regeneration to a final cleanup task.
+  - At each major milestone (a completed task group or phase), bump the
+    package version in DESCRIPTION and add a NEWS.md entry describing
+    what landed (branch precedent: 1.7.2 and 1.7.3 were bumped per
+    completed chunk with their NEWS sections).
+  - Run tests with NOT_CRAN=true (e.g. NOT_CRAN=true Rscript -e
+    'devtools::test()'): the coefficient baseline and C++ golden tests
+    are computationally expensive and use skip_on_cran(), so a bare
+    Rscript run silently skips them and verifies nothing about
+    coefficient reproducibility. Confirm they report PASS, not SKIP.
+
+  Required skills (hard rules — invoke the skill before doing the work it
+  covers; do not rely on memory):
+  - r-lib:r-package-development — ALWAYS, for any task touching package
+    machinery (devtools load_all/test/document, roxygen2, NAMESPACE,
+    DESCRIPTION, build infrastructure). This is the default working
+    reference for implementation tasks.
+  - r-lib:testing-r-packages — ALWAYS when creating or reorganising tests
+    (testthat 3e: self-contained tests, fixtures, snapshots, mocking);
+    use for every verification task and new test file.
+  - r-lib:cli — ALWAYS, whenever anything is returned to the console
+    (print/format methods, warnings, messages, errors, status output).
+    The project standardises on cli (already in Imports; today used only
+    for cli_abort/cli_warn). New output renders via cli semantic elements,
+    interpolating data (not literal markup); pin a reproducible cli
+    context for output snapshots.
+  - r-lib:lifecycle — when deprecating, renaming, superseding, or marking
+    an API experimental (deprecate_warn/deprecate_soft, lifecycle badges,
+    NEWS). lifecycle is already in Imports.
+
+  (These are also recorded in the project CLAUDE.md so they apply to all
+  repo work, not only OpenSpec changes.)
+
+rules:
+  tasks:
+    - End every task group with a verification task that runs the tests and, if the group touched roxygen docs or exported APIs, devtools::document()
+    - Add an explicit "bump version in DESCRIPTION + NEWS.md entry" task at each phase milestone
+    - Any task that deprecates, renames, supersedes, or introduces an experimental API MUST follow the r-lib:lifecycle skill (deprecate_warn / badge + NEWS entry)
+    - New user-facing output (messages, conditions, print/format methods) MUST be rendered with cli per the r-lib:cli skill; output snapshot tests pin a reproducible cli context
+    - Any task touching package machinery (devtools, roxygen2, NAMESPACE, DESCRIPTION, build) MUST follow the r-lib:r-package-development skill
+    - Any task that creates or reorganises tests MUST follow the r-lib:testing-r-packages skill (testthat 3e)
+    - Any task that edits src/ C++ (Rcpp/RcppArmadillo) MUST run the cpp-recompile skill after the edit and before testing — regenerate the Rcpp bindings (compileAttributes, verify the RcppExports.* diff) and force-recompile (load_all recompile = TRUE), so the coefficient/C++ golden baselines are not validated against a stale .o/.so. Never hand-edit R/RcppExports.R or src/RcppExports.cpp (a PreToolUse hook blocks it); regenerate via the skill.
+    - Every task MUST be verified with the not-cran-test skill before its commit — run it (NOT_CRAN=true; the suite is slow, so run_in_background) and confirm the frozen 1e-6 coefficient/C++ golden baselines report PASS, not SKIP. A bare Rscript run silently SKIPs them and verifies nothing. Then close the task with the close-task skill.
+  archive:
+    # /opsx:archive (or /opsx:close-task) discipline. Replaces the former
+    # PreToolUse Bash hook, which matched command substrings and fired on
+    # unrelated commands. The tracker now runs only as an explicit archive step.
+    - Before doing anything else in the /opsx:archive flow — FIRST, while the change dir still exists at openspec/changes/<name>/ — run `bash .plan/opsx-archive-track.sh <name>`. It snapshots that change's progress.md to .plan/ (local-only) and appends a version row to the tracked .plan/goldfish_versions.csv ledger (idempotent on the change name).
+    - This step is additive and read-only on .plan/ only; it does NOT move, sync, or alter the change or specs. Run it, then proceed with the skill's normal steps (status check, delta-spec sync, and the mv to openspec/changes/archive/<date>-<name>). Never let its outcome block the archive — the script always exits 0.
