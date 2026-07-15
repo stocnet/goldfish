@@ -147,14 +147,15 @@ mint a legacy environment. Named exceptions: `make_groups_interaction()`
 `goldfish-defunct.R` (already-deprecated renames chain to the new warnings — no second
 wrapper layer).
 
-### D7 — Two-mode: declared `info$sender`/`receiver` mode *sets*; mode map to local indices (amended 2026-07-13)
+### D7 — Two-mode: declared **per-layer** `info$sender`/`receiver` mode *sets*; mode map to local indices (amended 2026-07-13; per-layer amendment 2026-07-15)
 The engine keeps its two local index spaces (n1×n2 matrices, per-mode composition,
 `is_two_mode` auto-set) — re-indexing to stocnet's global node ids would touch the C++
 gathers for no semantic gain. Conversion owns a **mode map** (global node id ⇄ (side,
-local id)). `info$sender`/`info$receiver` are **sets of `nodes$mode` values** (manynet's
-`validate_info()` pools them against mode names with no length constraint, so
-multi-valued declarations pass upstream); a side is the union of nodes whose mode is in
-its set:
+local id)). `info$sender`/`info$receiver` are **per-layer sets of `nodes$mode` values**:
+each layer names its own sender-side and receiver-side sets, so a multi-layer object can
+mix one-mode and two-mode layers (this is what "other layers may carry other pairs"
+below always meant; the 2026-07-13 wording left the declaration global, which cannot
+express it). A side is the union of nodes whose mode is in that layer's set:
 
 - **Identical sets** (`sender` == `receiver` as sets) → **one-mode over that subset** of
   nodes (e.g. friendship among `c("employees", "supervisors")` while other modes exist in
@@ -185,6 +186,37 @@ its set:
   consumes.
 - `directed` is vacuous on a two-mode layer (no symmetry concept in n1×n2); validation
   notes and ignores it, and mask symmetrization (support-constraint D11) never applies.
+
+**Encoding (added 2026-07-15).** manynet's `validate_info()` type-checks `info$sender` /
+`info$receiver` as **character** pooled against `mode_names()` (verified against manynet
+2.2.0: a list aborts with *"'info$sender' must be of class 'character'"*, on both the
+class and the pool check). goldfish therefore accepts **two equivalent shapes** and
+normalizes both to one internal per-layer structure:
+
+```r
+# manynet-safe wire format: repeated names, one row per (layer, mode)
+info$sender <- c(survey = "employees", survey = "supervisor", report = "employees")
+# readable format: one entry per layer
+info$sender <- list(survey = c("employees", "supervisor"), report = "employees")
+```
+
+Both denote `survey` = one-mode over employees+supervisor, `report` = two-mode
+employees→supervisor. The repeated-name vector passes upstream **today** (`split(x,
+names(x))` recovers the sets), so the D6 wrappers and the D10 prebuilt datasets can be
+assembled through `manynet::make_stocnet()`/`add_info()` with no upstream dependency;
+the list shape is accepted because D13 already reads components structurally rather than
+trusting manynet. Relaxing `reserved_cols()` to admit a list is proposed upstream as a
+**non-blocking** nice-to-have alongside the `order` / `flavor` reservations. An
+**unnamed** character vector is read as the declaration for every layer (the pre-2026-07-15
+global form), so existing objects keep working. *Rejected:* list-only (blocks on an
+unreleased manynet, while `make_stocnet()` is exactly how the wrappers and datasets are
+built); vector-only (cannot be written readably for set-valued layers).
+
+**`nodes`/`nodes2` (added 2026-07-15).** The per-layer map makes the node-set *names*
+redundant as a two-mode signal: `is_two_mode` is computed once per layer during mapping
+and carried on the map, rather than re-derived downstream by comparing two node-set names
+(`identical(nodes, nodes2)`). The engine may be modified to consume the flag where that
+comparison is the only reason a name is threaded through.
 
 ### D8 — Dev-plan reconciliation (added 2026-07-03)
 The guiding interface proposal (`goldfish_asta/code/plan/goldfish_dev_plan.md`) predates

@@ -192,11 +192,19 @@ the snapshot interpretation with between-wave augmentation.
 - **THEN** an informative error is raised before preprocessing.
 
 ### Requirement: Layer sides via declared sender/receiver mode sets only
-A layer's sides SHALL be defined by `info$sender`/`info$receiver` as **sets of
-`nodes$mode` values** (each node carries exactly one mode; the declaration may name
-several): identical sets make the layer one-mode over that subset of nodes; disjoint sets
-make it two-mode with `from`/`to` remapped through a mode map (global id + label ⇄ (side,
-local id)) onto the engine's local index spaces; partially overlapping sets SHALL abort.
+A layer's sides SHALL be defined by `info$sender`/`info$receiver` as **per-layer sets of
+`nodes$mode` values** (each node carries exactly one mode; a layer's declaration may name
+several, and different layers MAY declare different pairs): identical sets make the layer
+one-mode over that subset of nodes; disjoint sets make it two-mode with `from`/`to`
+remapped through a mode map (global id + label ⇄ (side, local id)) onto the engine's local
+index spaces; partially overlapping sets SHALL abort. Two encodings SHALL be accepted and
+normalized to the same per-layer sets: a **character vector whose names repeat per layer**
+(`c(survey = "employees", survey = "supervisor", report = "employees")`), which is the
+shape `manynet::validate_info()` admits today, and a **named list** whose entries are the
+per-layer sets (`list(survey = c("employees", "supervisor"), report = "employees")`). An
+**unnamed** character vector SHALL apply to every layer. `is_two_mode` SHALL be resolved
+once per layer during mapping and carried on the map, rather than re-derived downstream
+from node-set names.
 Side purity SHALL be validated (error naming the layer and offending nodes). The focal
 layer's side pair defines the model's node sets. A layer without the declaration SHALL be
 one-mode over ALL nodes — ties are never inspected to infer modes and `nodes$mode` alone
@@ -211,6 +219,19 @@ ignored (with a validation note) on two-mode layers.
   nodes tibble with a `mode` column
 - **THEN** its events land in an n_person × n_org matrix under per-side local indices and
   effects get `is_two_mode` set as with legacy two-node-set input.
+
+#### Scenario: One object mixes a one-mode and a two-mode layer
+- **WHEN** `info$sender` declares `survey = c("employees", "supervisor")` and
+  `report = "employees"`, with `info$receiver` declaring
+  `survey = c("employees", "supervisor")` and `report = "supervisor"`
+- **THEN** `survey` is one-mode over the employee+supervisor nodes while `report` is
+  two-mode employees→supervisor, each layer mapping to its own local index spaces.
+
+#### Scenario: Both declaration encodings agree
+- **WHEN** the same per-layer sets are written as a repeated-name character vector and as
+  a named list
+- **THEN** the two objects produce identical mode maps, and the character form is
+  accepted by `manynet::validate_info()`.
 
 #### Scenario: Identical mode sets restrict a one-mode layer
 - **WHEN** a friendship layer declares `sender = receiver = c("employees", "supervisors")`
