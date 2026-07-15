@@ -30,7 +30,7 @@
 
 ## 1. Boundary: validator, stamp, as_goldfish()
 
-- [ ] 1.1 Implement the internal stocnet validator by **generalizing the existing
+- [x] 1.1 Implement the internal stocnet validator by **generalizing the existing
       `R/class_checks.R` helpers** (`check_classes()` with `methods::is()`,
       `check_columns()`, label rules from `check_nodes()`, per-`var` value-type matching
       from `check_events.*()`, `check_presence()` composition rules) over stocnet
@@ -45,7 +45,10 @@
       optional `ties$flavor` column — character, syntactic values, NA allowed (design
       D19); components accepted as plain data.frames — all conditions via
       `cli_abort()`/`cli_warn()` naming layer + entry (r-lib:cli skill)
-- [ ] 1.2 Implement the stamp and exported `as_goldfish(x, ...)`: for a stocnet input,
+- [x] 1.2 Implement the stamp and exported `as_goldfish(x, ...)`: for a stocnet input,
+      (2026-07-15 decision: legacy-environment CONVERSION deferred to section 3 —
+      `as_goldfish(<environment>)` errors with forward guidance for now; stamp +
+      list-shape print + roxygen/experimental badge landed)
       validate + stamp with class `data.goldfish` prepended to the stocnet class vector,
       no restructuring; for a legacy `data.goldfish` **environment** input
       (`is.environment(x)`), convert — walk `nodes.goldfish`/`network.goldfish`/
@@ -57,11 +60,14 @@
       badge documenting the **event-ordering contract** (D2 sort key, `order` tie-break,
       the same-time `replace` ambiguity abort) on the `as_goldfish()` help page; run
       `devtools::document()`
-- [ ] 1.3 Move manynet from Suggests to **Imports with `manynet (>= 2.1.0)`** in
+- [x] 1.3 Move manynet from Suggests to **Imports with `manynet (>= 2.1.0)`** in
       DESCRIPTION (usage rule: `@importFrom` for frequent use, `manynet::` otherwise,
       never `:::`); build a hand-made stocnet fixture (plain list + data.frames, no
       manynet call) plus a small legacy-environment fixture for the conversion tests
-- [ ] 1.4 Unit tests (testthat 3e): each validation abort with cli snapshots under a pinned
+- [x] 1.4 Unit tests (testthat 3e): each validation abort with cli snapshots under a pinned
+      (2026-07-15: legacy-environment round-trip test rides with the deferred
+      section-3 converter; post-stamp re-validation covered via
+      validate_goldfish_data directly)
       cli context (incl. unnamed/short `update` vector, duplicate labels, non-syntactic
       layer name, partially overlapping mode sets); post-stamp mutation caught at
       re-validation (edit a stamped object into invalidity, expect the estimation-time
@@ -71,15 +77,15 @@
 
 ## 2. Conversion: mode map, ordering, streams, state materializer
 
-- [ ] 2.1 Implement the mode map (global node id + label ⇄ (side, local id)) and per-layer
+- [x] 2.1 Implement the mode map (global node id + label ⇄ (side, local id)) and per-layer
       remapping from `sender`/`receiver` mode **sets**: identical sets → one-mode over the
       subset; disjoint sets → two-mode local indices; partial overlap aborts; undeclared →
       one-mode over all nodes (design D7). The map is a reusable structure that later
       attaches to results/exports (task 4.4)
-- [ ] 2.2 Implement deterministic event ordering: sort key (time, dependent-first,
+- [x] 2.2 Implement deterministic event ordering: sort key (time, dependent-first,
       component order, layer, from/to), reserved integer `order` column as final tie-break,
       abort on same-target same-time replaces without `order` (design D2)
-- [ ] 2.3 Implement component splitting into the **per-layer / per-variable event streams
+- [x] 2.3 Implement component splitting into the **per-layer / per-variable event streams
       the existing `fetch_plan` multi-stream walk consumes** (design D15 — no monolithic
       stacked copy): `time = NA` ties → initial matrices; focal-layer rows → dependent
       events, **filtered by the modeled flavor when the specification keys one** (design
@@ -88,14 +94,14 @@
       `changes` → attribute events with
       `var == "active"` routed to per-side composition (`active_mode1`/`active_mode2`);
       `global` → global events (design D3/D7)
-- [ ] 2.4 Promote the `methods_update.R` engine into the internal **initial-state
+- [x] 2.4 Promote the `methods_update.R` engine into the internal **initial-state
       materializer** (design D16): given component streams and `[start_time, t)`, produce
       state matrices/attribute vectors in one vectorized pass (dedup-last replace,
       aggregated increments); replace the current per-event `startTime` fold in
       preprocessing with it, covering derived promises (window, `ignore_rep`); implement
       the `start_time`/`end_time` observation window on top (focal-span default, design
       D4); document (not build) the chunked-parallel preprocessing seam
-- [ ] 2.5 Export the state-at-t helpers on the stocnet/stamped object (design D16):
+- [x] 2.5 Export the state-at-t helpers on the stocnet/stamped object (design D16):
       network state of a layer and nodes' attribute values at time `t`, honoring
       `time = NA` history + per-layer update semantics, sharing the materializer core;
       snake_case names; roxygen + `devtools::document()`
