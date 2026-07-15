@@ -471,6 +471,9 @@ print.specification.goldfish <- function(x, ...) {
 #' @export
 #' @rdname print-method
 print.data.goldfish <- function(x, ...) {
+  if (!is.environment(x)) {
+    return(print_data_goldfish_list(x, ...))
+  }
   cat("Goldfish Data Environment\n")
   cat("=========================\n\n")
 
