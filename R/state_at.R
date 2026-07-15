@@ -1,5 +1,5 @@
 # =========================================================================== #
-# State-at-time helpers (D16): evaluate a layer's network or the nodes'
+# State-at-time helpers: evaluate a layer's network or the nodes'
 # attribute values at a time point, sharing the initial-state materializer that
 # preprocessing uses. Honors time = NA history and per-layer info$update
 # semantics.

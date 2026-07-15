@@ -30,6 +30,31 @@ make_stocnet_fixture <- function() {
   list(info = info, nodes = nodes, ties = ties)
 }
 
+# Multimodal fixture: three modes, one layer. Left undeclared it spans every
+# node (one-mode over all); declaring identical sets restricts it to a subset.
+make_stocnet_fixture_multimode <- function() {
+  nodes <- data.frame(
+    label = c("E1", "E2", "S1", "O1"),
+    mode = c("employee", "employee", "supervisor", "outsider"),
+    stringsAsFactors = FALSE
+  )
+  ties <- data.frame(
+    from = c(1L, 3L),
+    to = c(3L, 2L),
+    time = c(1, 2),
+    layer = "advice",
+    stringsAsFactors = FALSE
+  )
+  info <- list(
+    name = "toy3",
+    focal = "advice",
+    update = c(advice = "increment"),
+    directed = c(advice = TRUE),
+    observation = c(advice = "event")
+  )
+  list(info = info, nodes = nodes, ties = ties)
+}
+
 # Two-mode fixture: disjoint sender/receiver mode sets plus an `active`
 # composition change (list-column value).
 make_stocnet_fixture_twomode <- function() {
