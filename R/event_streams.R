@@ -132,3 +132,154 @@ event_target <- function(events) {
     rep("", nrow(events))
   }
 }
+
+#' Split stocnet components into per-layer / per-variable event streams
+#'
+#' Maps the stocnet components onto the per-object streams the recipe loop's
+#' `fetch_plan` walk consumes (D15), remapping node references through the mode
+#' map to local index spaces (D7) and converting `time` to a numeric axis (D3):
+#'
+#' - `ties`: one stream per layer carrying every row (`time = NA` history rows
+#'   fold into the initial state; timed rows are updates). The tie value is the
+#'   `weight` column (default 1) applied with the layer's `info$update` semantics.
+#' - focal layer: a `dependent` stream of the modeled rows -- filtered to
+#'   `modeled_flavor` when the specification keys one (D19; non-matching / `NA`
+#'   flavor rows stay state-only in the network stream), otherwise all timed
+#'   focal rows.
+#' - `changes`: one stream per `var`; `var == "active"` routes to per-side
+#'   composition (`mode1`/`mode2`) via the focal layer's mode map.
+#' - `global`: one stream per `var`.
+#'
+#' @param x a validated stocnet object.
+#' @param mode_map the [build_mode_map()] result.
+#' @param focal focal layer name (defaults to `info$focal`).
+#' @param modeled_flavor optional single flavor value selecting the dependent
+#'   rows on a flavored focal layer.
+#'
+#' @return a list of streams: `network` (per layer), `dependent`, `attribute`
+#'   (per var), `composition` (`mode1`/`mode2`), `global` (per var), and `focal`.
+#' @noRd
+split_stocnet_streams <- function(
+  x,
+  mode_map,
+  focal = NULL,
+  modeled_flavor = NULL
+) {
+  info <- x$info %||% list()
+  nodes <- as.data.frame(x$nodes)
+  ties <- as.data.frame(x$ties)
+  focal <- focal %||% info$focal
+  layers <- unique(ties$layer)
+
+  weight <- if ("weight" %in% names(ties)) ties$weight else rep(1, nrow(ties))
+  tie_time <- as.numeric(ties$time)
+  flavor <- if ("flavor" %in% names(ties)) {
+    ties$flavor
+  } else {
+    rep(NA_character_, nrow(ties))
+  }
+  ord_col <- if ("order" %in% names(ties)) ties$order else NULL
+
+  network <- lapply(layers, function(layer) {
+    sel <- ties$layer == layer
+    rl <- remap_layer_refs(mode_map, layer, ties$from[sel], ties$to[sel], nodes)
+    stream <- data.frame(
+      time = tie_time[sel],
+      from = rl$from,
+      to = rl$to,
+      value = weight[sel],
+      update = unname(info$update[layer]),
+      layer = layer,
+      flavor = flavor[sel],
+      stringsAsFactors = FALSE
+    )
+    if (!is.null(ord_col)) {
+      stream$order <- ord_col[sel]
+    }
+    stream
+  })
+  names(network) <- layers
+
+  dependent <- NULL
+  if (!is.null(focal)) {
+    fstream <- network[[focal]]
+    timed <- !is.na(fstream$time)
+    if (!is.null(modeled_flavor)) {
+      modeled <- timed &
+        !is.na(fstream$flavor) &
+        fstream$flavor == modeled_flavor
+    } else {
+      modeled <- timed
+    }
+    dependent <- fstream[modeled, , drop = FALSE]
+  }
+
+  attribute <- list()
+  composition <- list()
+  if (!is.null(x$changes) && nrow(x$changes) > 0) {
+    ch <- as.data.frame(x$changes)
+    node_global <- to_global_id(ch$node, nodes)
+    values <- unwrap_values(ch$value)
+    ch_time <- as.numeric(ch$time)
+    for (v in unique(ch$var)) {
+      sel <- ch$var == v
+      stream <- data.frame(
+        time = ch_time[sel],
+        node = node_global[sel],
+        stringsAsFactors = FALSE
+      )
+      stream$value <- values[sel]
+      if (identical(v, "active")) {
+        composition <- split_composition(stream, mode_map, focal)
+      } else {
+        attribute[[v]] <- stream
+      }
+    }
+  }
+
+  global <- list()
+  if (!is.null(x$global) && nrow(x$global) > 0) {
+    g <- as.data.frame(x$global)
+    g_values <- unwrap_values(g$value)
+    g_time <- as.numeric(g$time)
+    for (v in unique(g$var)) {
+      sel <- g$var == v
+      stream <- data.frame(time = g_time[sel], stringsAsFactors = FALSE)
+      stream$value <- g_values[sel]
+      global[[v]] <- stream
+    }
+  }
+
+  list(
+    network = network,
+    dependent = dependent,
+    attribute = attribute,
+    composition = composition,
+    global = global,
+    focal = focal
+  )
+}
+
+# Composition (active) changes split by the focal layer's side membership into
+# the mode1/mode2 streams the support-constraint active_1/active_2 factors
+# consume; node references become per-side local indices.
+split_composition <- function(df, mode_map, focal) {
+  if (is.null(focal)) {
+    focal <- names(mode_map$layers)[1]
+  }
+  lm <- mode_map$layers[[focal]]
+  side1_local <- match(df$node, lm$side1)
+  in1 <- !is.na(side1_local)
+  res <- list()
+  d1 <- df[in1, , drop = FALSE]
+  d1$node <- side1_local[in1]
+  res$mode1 <- d1
+  if (lm$is_two_mode) {
+    side2_local <- match(df$node, lm$side2)
+    in2 <- !is.na(side2_local)
+    d2 <- df[in2, , drop = FALSE]
+    d2$node <- side2_local[in2]
+    res$mode2 <- d2
+  }
+  res
+}
