@@ -21,10 +21,10 @@
 #' object to its state `component` (`networks` / `nodal` / `nodal2` / `globals`)
 #' and its `key`, reading object **class/structure only** — it copies no network
 #' or nodal data. This is the single source of the `object_keys` mapping so the
-#' upfront compile (`build_spec_map()`) can build the update plan + call templates
-#' without materialising the state (the metadata/data boundary); the same
-#' validations (non-matrix network, missing attribute, foreign node set) fire
-#' here.
+#' upfront compile (`build_spec_map()`) can build the update plan + call
+#' templates without materialising the state (the metadata/data boundary); the
+#' same validations (non-matrix network, missing attribute, foreign node set)
+#' fire here.
 #'
 #' @param object_names character vector of data object names.
 #' @inheritParams build_state_container
@@ -110,7 +110,7 @@ build_state_container <- function(
   )
   n1 <- ds_n_nodes(src, nodes)
   n2 <- ds_n_nodes(src, nodes2)
-  is_one_mode <- identical(nodes, nodes2)
+  is_one_mode <- !ds_model_is_two_mode(src, nodes, nodes2)
 
   networks <- list()
   nodal_cols <- list()
@@ -160,9 +160,9 @@ build_state_container <- function(
 
 #' Classify an effect's broadcast kind for the compact fan-out encoding
 #'
-#' Maps an effect to the broadcast `kind` it emits (per the broadcast-eligibility
-#' audit): `0` = not broadcast-eligible (stays a point update),
-#' `1` = constant over senders holding the alter (`alter`, degree
+#' Maps an effect to the broadcast `kind` it emits (per the
+#' broadcast-eligibility audit): `0` = not broadcast-eligible (stays a point
+#' update), `1` = constant over senders holding the alter (`alter`, degree
 #' `type = "alter"`), `2` = constant over alters holding the ego (`ego`, degree
 #' `type = "ego"`), `3` = constant over all actors (`global`). In sender-indexed
 #' (rate) models only `global()` fans out (the per-actor effects emit distinct
@@ -408,10 +408,10 @@ build_effects_template <- function(effects, objects_effects_link, state) {
 #' Build the recipe update plan
 #'
 #' Compiles the gid/fid registries that recipe loops consume:
-#' which effects each object update routes to and the `net_update` / `att_update`
-#' positions per (effect, object) pair. The link matrices produced by the
-#' formula parser are the only inputs — the parser itself is untouched. The
-#' per-effect call templates are split into `build_effects_template()`.
+#' which effects each object update routes to and the `net_update` /
+#' `att_update` positions per (effect, object) pair. The link matrices produced
+#' by the formula parser are the only inputs — the parser itself is untouched.
+#' The per-effect call templates are split into `build_effects_template()`.
 #'
 #' @param effects list of effect functions from `create_effects_functions()`.
 #' @param events_objects_link data.frame from `get_events_and_objects_link()`.

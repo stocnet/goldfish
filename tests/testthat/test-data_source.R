@@ -231,7 +231,7 @@ test_that("an attribute stream translates to the node/replace shape", {
     ds_fetch_stream(src, "floor"),
     data.frame(time = c(1, 2), node = c(1L, 3L), replace = c(7, 8)),
     ignore_attr = "row.names",
-    label = "rows are ordered by the D2 key regardless of input arrangement"
+    label = "rows are ordered by the sort key regardless of input arrangement"
   )
 })
 
@@ -246,4 +246,67 @@ test_that("stream keys are reported only for objects that carry events", {
     ds_object_streams(new_data_source(data = history_only), "calls"),
     0
   )
+})
+
+# Mode-ness -------------------------------------------------------------------
+
+test_that("both sources agree on whether a layer spans two modes", {
+  inputs <- make_equivalent_inputs()
+  actors <- make_nodes(inputs$nodes_df)
+  calls <- make_network(nodes = actors, directed = TRUE)
+  legacy <- new_data_source(envir = environment())
+
+  expect_false(ds_layer_is_two_mode(legacy, "calls"))
+  expect_false(
+    ds_layer_is_two_mode(new_data_source(data = inputs$stocnet), "calls")
+  )
+  expect_true(
+    ds_layer_is_two_mode(
+      new_data_source(data = make_stocnet_fixture_twomode()),
+      "membership"
+    )
+  )
+})
+
+test_that("model mode-ness comes from the map, not from node-set names", {
+  # The legacy source has no map and must compare the names it is given.
+  legacy <- new_data_source(envir = new.env())
+  expect_false(ds_model_is_two_mode(legacy, "actors", "actors"))
+  expect_true(ds_model_is_two_mode(legacy, "actors", "orgs"))
+
+  # The stocnet source ignores the names entirely: the focal layer decided it
+  # once, when the map was built.
+  two_mode <- new_data_source(data = make_stocnet_fixture_twomode())
+  expect_true(ds_model_is_two_mode(two_mode, "nodes", "nodes"))
+  expect_false(
+    ds_model_is_two_mode(new_data_source(data = make_stocnet_fixture()))
+  )
+})
+
+test_that("a per-layer declaration makes mode-ness layer-specific", {
+  x <- make_stocnet_fixture_multimode()
+  x$ties <- rbind(
+    x$ties,
+    data.frame(from = 1L, to = 3L, time = 3, layer = "report")
+  )
+  x$info$update <- c(advice = "increment", report = "increment")
+  x$info$directed <- c(advice = TRUE, report = TRUE)
+  x$info$observation <- c(advice = "event", report = "event")
+  x$info$sender <- list(
+    advice = c("employee", "supervisor"),
+    report = "employee"
+  )
+  x$info$receiver <- list(
+    advice = c("employee", "supervisor"),
+    report = "supervisor"
+  )
+  src <- new_data_source(data = x, focal = "advice")
+
+  expect_false(ds_layer_is_two_mode(src, "advice"))
+  expect_true(ds_layer_is_two_mode(src, "report"))
+  expect_false(
+    ds_model_is_two_mode(src),
+    label = "the focal layer decides the model, not the other layers"
+  )
+  expect_equal(dim(ds_network(src, "report", time = 4)), c(2L, 1L))
 })
