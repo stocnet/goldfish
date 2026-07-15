@@ -35,8 +35,10 @@ build_object_keys <- function(
   nodes,
   nodes2 = nodes,
   envir = new.env(),
-  derivations = NULL
+  derivations = NULL,
+  data = NULL
 ) {
+  src <- new_data_source(data = data, envir = envir)
   objects_table <- get_data_objects(list(object_names), remove_first = FALSE)
   components <- character(nrow(objects_table))
   keys <- character(nrow(objects_table))
@@ -54,24 +56,18 @@ build_object_keys <- function(
         keys[i] <- entry$object
         next
       }
-      mat <- get(entry$object, envir = envir)
-      if (!is.matrix(mat)) {
-        cli::cli_abort(
-          "Object {.val {entry$object}} must be a matrix network."
-        )
-      }
+      ds_network(src, entry$object)
       components[i] <- "networks"
       keys[i] <- entry$object
     } else {
-      container_obj <- get(entry$nodeset, envir = envir)
-      value <- container_obj[[entry$attribute]]
+      value <- ds_attribute(src, entry$nodeset, entry$attribute)
       if (is.null(value)) {
         cli::cli_abort(
           "Attribute {.val {entry$attribute}} not found in
            {.val {entry$nodeset}}."
         )
       }
-      if (inherits(container_obj, "global.goldfish")) {
+      if (ds_is_global(src, entry$nodeset)) {
         components[i] <- "globals"
       } else if (entry$nodeset == nodes) {
         components[i] <- "nodal"
@@ -100,12 +96,20 @@ build_state_container <- function(
   object_names,
   nodes,
   nodes2 = nodes,
-  envir = new.env()
+  envir = new.env(),
+  data = NULL
 ) {
+  src <- new_data_source(data = data, envir = envir)
   objects_table <- get_data_objects(list(object_names), remove_first = FALSE)
-  object_keys <- build_object_keys(object_names, nodes, nodes2, envir = envir)
-  n1 <- nrow(get(nodes, envir = envir))
-  n2 <- nrow(get(nodes2, envir = envir))
+  object_keys <- build_object_keys(
+    object_names,
+    nodes,
+    nodes2,
+    envir = envir,
+    data = data
+  )
+  n1 <- ds_n_nodes(src, nodes)
+  n2 <- ds_n_nodes(src, nodes2)
   is_one_mode <- identical(nodes, nodes2)
 
   networks <- list()
@@ -117,11 +121,9 @@ build_state_container <- function(
     entry <- objects_table[i, ]
     component <- object_keys$component[i]
     if (component == "networks") {
-      mat <- get(entry$object, envir = envir)
-      attributes(mat) <- attributes(mat)[c("dim", "dimnames")]
-      networks[[entry$object]] <- mat
+      networks[[entry$object]] <- ds_network(src, entry$object)
     } else {
-      value <- get(entry$nodeset, envir = envir)[[entry$attribute]]
+      value <- ds_attribute(src, entry$nodeset, entry$attribute)
       if (component == "globals") {
         global_cols[[entry$attribute]] <- value
       } else if (component == "nodal") {
@@ -464,9 +466,11 @@ build_update_plan <- function(
   state,
   stat_kind = c("sender", "dyad"),
   envir = new.env(),
-  derivations = NULL
+  derivations = NULL,
+  data = NULL
 ) {
   stat_kind <- match.arg(stat_kind)
+  src <- new_data_source(data = data, envir = envir)
   object_keys <- attr(state, "object_keys")
   object_names <- rownames(objects_effects_link)
   effect_names <- colnames(objects_effects_link)
@@ -492,8 +496,7 @@ build_update_plan <- function(
       }
       name <- object_names[oid]
       lookup <- if (name %in% names(src_map)) src_map[[name]] else name
-      object <- get(lookup, envir = envir)
-      inherits(object, "network.goldfish") && !attr(object, "directed")
+      !ds_is_directed(src, lookup)
     },
     logical(1)
   )
