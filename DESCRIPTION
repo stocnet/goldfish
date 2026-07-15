@@ -44,6 +44,7 @@ Imports:
     tibble,
     cli,
     lifecycle,
+    manynet (>= 2.1.0),
     DBI
 LinkingTo:
     Rcpp,
@@ -58,7 +59,6 @@ Suggests:
     igraph,
     ggraph,
     migraph,
-    manynet,
     patchwork,
     broom,
     lmtest,
