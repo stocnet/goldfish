@@ -90,7 +90,7 @@
     Condition
       Error:
       ! sender/receiver mode sets must be identical (one-mode subset) or disjoint (two-mode).
-      x The sender set ("p") and receiver set ("p" and "o") partially overlap.
+      x On layer "membership" the sender set ("p") and receiver set ("p" and "o") partially overlap.
       i Express such a design as an identical-set one-mode layer plus a `support_constraint()`.
 
 # side-impure ties abort
@@ -100,7 +100,7 @@
     Condition
       Error:
       ! Ties must be side-pure for a declared two-mode/subset layer.
-      x Nodes 3 fall outside the declared sender/receiver mode sets.
+      x On layer "membership", node "3" falls outside the declared sender/receiver mode sets.
 
 # out-of-range node index aborts
 
@@ -129,4 +129,32 @@
       ! ties$flavor values must be syntactic R names.
       x Non-syntactic value: "un create".
       i Flavor values appear as formula-list keys.
+
+# side impurity reports every offending node
+
+    Code
+      validate_goldfish_data(x)
+    Condition
+      Error:
+      ! Ties must be side-pure for a declared two-mode/subset layer.
+      x On layer "membership", nodes "3" and "4" fall outside the declared sender/receiver mode sets.
+
+# a partial overlap on one layer aborts naming that layer
+
+    Code
+      validate_goldfish_data(x)
+    Condition
+      Error:
+      ! sender/receiver mode sets must be identical (one-mode subset) or disjoint (two-mode).
+      x On layer "advice" the sender set ("employee") and receiver set ("employee" and "supervisor") partially overlap.
+      i Express such a design as an identical-set one-mode layer plus a `support_constraint()`.
+
+# sender/receiver naming an absent layer aborts
+
+    Code
+      validate_goldfish_data(x)
+    Condition
+      Error:
+      ! sender/receiver must name layers present in ties$layer.
+      x Unknown layer: "gossip".
 

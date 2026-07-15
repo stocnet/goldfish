@@ -3,11 +3,41 @@
 #
 # The engine keeps its two local index spaces (n1 x n2 matrices, per-mode
 # composition) rather than re-indexing to stocnet's global node ids. Conversion
-# owns the translation: for each layer, info$sender/info$receiver declare sets of
-# nodes$mode values (D7) that define the row/column node spaces. The map is a
+# owns the translation: for each layer, info$sender/info$receiver declare sets
+# of nodes$mode values that define the row/column node spaces. The map is a
 # reusable structure carried onto results and gather/db exports so local indices
-# always resolve back to the original nodes row and label (D7 identity bullet).
+# always resolve back to the original nodes row and label -- original identity
+# is never lost to the local index spaces.
 # =========================================================================== #
+
+# Normalize a sender/receiver declaration to per-layer sets of nodes$mode
+# values.
+#
+# Two encodings mean the same thing. manynet's validate_info() type-checks these
+# entries as character pooled against the mode names, so a list aborts upstream;
+# the repeated-name character vector is the shape that survives make_stocnet()
+# today, while the list is the readable form for hand-built objects (goldfish
+# reads components structurally rather than trusting manynet):
+#
+#   c(survey = "employees", survey = "supervisor", report = "employees")
+#   list(survey = c("employees", "supervisor"), report = "employees")
+#
+# An unnamed vector predates per-layer declarations and applies to every layer.
+normalize_mode_sets <- function(decl, layers) {
+  if (is.null(decl) || length(decl) == 0) {
+    return(NULL)
+  }
+  if (is.list(decl)) {
+    return(lapply(decl, as.character))
+  }
+  # Read the names first: as.character() drops them.
+  nms <- names(decl)
+  decl <- as.character(decl)
+  if (is.null(nms) || all(nms == "")) {
+    return(stats::setNames(rep(list(decl), length(layers)), layers))
+  }
+  split(unname(decl), nms)
+}
 
 # Normalize ties$from / ties$to / changes$node references (integer global ids or
 # character labels) to integer global node ids (row indices into nodes).
@@ -22,12 +52,18 @@ to_global_id <- function(refs, nodes) {
 #' Build the per-layer mode map for a stocnet object
 #'
 #' Assumes `x` has passed [validate_goldfish_data()] (identical-or-disjoint mode
-#' sets, side purity already enforced). For each layer, resolves the sender-side
-#' and receiver-side node spaces from `info$sender`/`info$receiver`:
+#' sets, side purity already enforced). Each layer resolves its own sender-side
+#' and receiver-side node spaces from its entry in
+#' `info$sender`/`info$receiver`, so one object may mix one-mode and two-mode
+#' layers:
 #'
 #' - undeclared -> one-mode over all nodes (global id == local id);
 #' - identical mode sets -> one-mode over that subset of nodes;
 #' - disjoint mode sets -> two-mode, distinct sender/receiver local spaces.
+#'
+#' `is_two_mode` is resolved here, once, and carried on each layer's entry: it
+#' is the single answer downstream consumes rather than re-deriving it by
+#' comparing node-set names.
 #'
 #' @param info the stocnet `info` list.
 #' @param nodes the stocnet `nodes` data frame.
@@ -49,16 +85,13 @@ build_mode_map <- function(info, nodes, layers) {
     stringsAsFactors = FALSE
   )
 
-  sender_set <- if (!is.null(info$sender)) as.character(info$sender) else NULL
-  receiver_set <- if (!is.null(info$receiver)) {
-    as.character(info$receiver)
-  } else {
-    NULL
-  }
+  sender_sets <- normalize_mode_sets(info$sender, layers)
+  receiver_sets <- normalize_mode_sets(info$receiver, layers)
 
   layer_maps <- lapply(layers, function(layer) {
-    declared <- !is.null(sender_set) && !is.null(receiver_set)
-    if (!declared) {
+    sender_set <- sender_sets[[layer]]
+    receiver_set <- receiver_sets[[layer]]
+    if (is.null(sender_set) || is.null(receiver_set)) {
       return(list(
         is_two_mode = FALSE,
         side1 = all_ids,

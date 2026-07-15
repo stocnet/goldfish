@@ -123,3 +123,52 @@ test_that("NA flavor entries are allowed", {
   x$ties$flavor <- c(NA, "create", "create")
   expect_no_error(validate_goldfish_data(x))
 })
+
+test_that("side impurity reports every offending node", {
+  local_cli_context()
+  x <- make_stocnet_fixture_twomode()
+  # Two offending nodes: cli's pluralization used to assert on a multi-element
+  # integer quantity, replacing this error with an internal cli failure.
+  x$ties$from <- c(3L, 4L)
+  expect_snapshot(validate_goldfish_data(x), error = TRUE)
+})
+
+test_that("per-layer mode sets validate each layer independently", {
+  x <- make_stocnet_fixture_multimode()
+  x$ties <- rbind(
+    x$ties,
+    data.frame(from = 1L, to = 3L, time = 3, layer = "report")
+  )
+  x$info$update <- c(advice = "increment", report = "increment")
+  x$info$directed <- c(advice = TRUE, report = TRUE)
+  x$info$observation <- c(advice = "event", report = "event")
+  x$info$sender <- list(
+    advice = c("employee", "supervisor"),
+    report = "employee"
+  )
+  x$info$receiver <- list(
+    advice = c("employee", "supervisor"),
+    report = "supervisor"
+  )
+
+  expect_no_error(
+    validate_goldfish_data(x),
+    message = "a one-mode and a two-mode layer coexist in one object"
+  )
+})
+
+test_that("a partial overlap on one layer aborts naming that layer", {
+  local_cli_context()
+  x <- make_stocnet_fixture_multimode()
+  x$info$sender <- list(advice = "employee")
+  x$info$receiver <- list(advice = c("employee", "supervisor"))
+  expect_snapshot(validate_goldfish_data(x), error = TRUE)
+})
+
+test_that("sender/receiver naming an absent layer aborts", {
+  local_cli_context()
+  x <- make_stocnet_fixture_multimode()
+  x$info$sender <- list(advice = "employee", gossip = "employee")
+  x$info$receiver <- list(advice = "supervisor", gossip = "supervisor")
+  expect_snapshot(validate_goldfish_data(x), error = TRUE)
+})

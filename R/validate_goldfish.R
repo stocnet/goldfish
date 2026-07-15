@@ -34,8 +34,8 @@ allowed_time_classes <- c(
 #' class-checked, name-resolvable shape goldfish preprocessing consumes. Reads
 #' components structurally (plain data.frames accepted) and aborts with a cli
 #' error naming the offending layer/entry on the first violation. Returns the
-#' object invisibly and unchanged: validation never restructures (the D1
-#' stamp-does-not-restructure rule); conversion happens later, at the builder
+#' object invisibly and unchanged: validating never restructures, so a stamped
+#' object is the caller's object; conversion happens later, at the builder
 #' layer.
 #'
 #' @param x a stocnet-shaped list (`info`, `nodes`, `ties`, optional `changes`,
@@ -312,10 +312,10 @@ check_focal_not_panel <- function(info, focal_layer, call) {
   invisible(TRUE)
 }
 
-# D3: time required on event streams; classes limited to numeric/POSIXct/Date;
+# Time is required on event streams; classes limited to numeric/POSIXct/Date;
 # character/mdate abort; all layers must share a comparable axis (integer waves
-# only when every stream is numeric). NA time is allowed on ties (pre-observation
-# history) but not on changes/global.
+# only when every stream is numeric). NA time is allowed on ties
+# (pre-observation history) but not on changes/global.
 check_time_contract <- function(ties, changes, global, call) {
   streams <- list(ties = ties$time)
   if (!is.null(changes)) {
@@ -433,7 +433,7 @@ check_node_refs <- function(refs, n, labels, field, call) {
   invisible(TRUE)
 }
 
-# D19: optional reserved flavor column keying which focal rows a specification
+# Optional reserved flavor column keying which focal rows a specification
 # models. Character, syntactic values (they appear as formula-list keys), NA
 # allowed (state-only rows under a keyed specification).
 check_flavor <- function(ties, call) {
@@ -462,10 +462,12 @@ check_flavor <- function(ties, call) {
   invisible(TRUE)
 }
 
-# D7: info$sender/receiver are sets of nodes$mode values. Identical sets ->
-# one-mode over that subset; disjoint sets -> two-mode; partial overlap aborts.
-# For a declared layer, ties must be side-pure (from-node mode in the sender set,
-# to-node mode in the receiver set).
+# info$sender/receiver declare per-layer sets of nodes$mode values.
+# Identical sets -> one-mode over that subset; disjoint sets -> two-mode;
+# partial overlap aborts. For a declared layer, ties must be side-pure
+# (from-node mode in that layer's sender set, to-node mode in its receiver set).
+# Layers declare independently, so one object may mix one-mode and two-mode
+# layers.
 check_mode_sets <- function(info, nodes, ties, layers, call) {
   if (is.null(info$sender) && is.null(info$receiver)) {
     return(invisible(TRUE))
@@ -487,10 +489,11 @@ check_mode_sets <- function(info, nodes, ties, layers, call) {
       call = call
     )
   }
+  sender_sets <- normalize_mode_sets(info$sender, layers)
+  receiver_sets <- normalize_mode_sets(info$receiver, layers)
+
   modes <- unique(nodes$mode)
-  sender_set <- as.character(info$sender)
-  receiver_set <- as.character(info$receiver)
-  unknown <- setdiff(c(sender_set, receiver_set), modes)
+  unknown <- setdiff(unlist(c(sender_sets, receiver_sets)), modes)
   if (length(unknown) > 0) {
     cli::cli_abort(
       c(
@@ -501,7 +504,49 @@ check_mode_sets <- function(info, nodes, ties, layers, call) {
       call = call
     )
   }
+  undeclared <- setdiff(names(sender_sets), layers)
+  if (length(undeclared) > 0) {
+    cli::cli_abort(
+      c(
+        "{.field sender}/{.field receiver} must name layers present in \\
+         {.field ties$layer}.",
+        "x" = "Unknown layer{?s}: {.val {undeclared}}."
+      ),
+      call = call
+    )
+  }
 
+  for (layer in intersect(layers, names(sender_sets))) {
+    check_layer_mode_sets(
+      layer,
+      sender_sets[[layer]],
+      receiver_sets[[layer]],
+      nodes,
+      ties[ties$layer == layer, , drop = FALSE],
+      call = call
+    )
+  }
+  invisible(TRUE)
+}
+
+check_layer_mode_sets <- function(
+  layer,
+  sender_set,
+  receiver_set,
+  nodes,
+  ties,
+  call
+) {
+  if (is.null(sender_set) || is.null(receiver_set)) {
+    cli::cli_abort(
+      c(
+        "Layer {.val {layer}} must declare both {.field sender} and \\
+         {.field receiver}, or neither.",
+        "i" = "Declaring one side alone leaves the other undefined."
+      ),
+      call = call
+    )
+  }
   identical_sets <- setequal(sender_set, receiver_set)
   disjoint_sets <- length(intersect(sender_set, receiver_set)) == 0
   if (!identical_sets && !disjoint_sets) {
@@ -509,27 +554,32 @@ check_mode_sets <- function(info, nodes, ties, layers, call) {
       c(
         "{.field sender}/{.field receiver} mode sets must be identical \\
          (one-mode subset) or disjoint (two-mode).",
-        "x" = "The {.field sender} set ({.val {sender_set}}) and \\
-               {.field receiver} set ({.val {receiver_set}}) partially \\
-               overlap.",
-        "i" = "Express such a design as an identical-set one-mode layer plus a \\
-               {.fn support_constraint}."
+        "x" = "On layer {.val {layer}} the {.field sender} set \\
+               ({.val {sender_set}}) and {.field receiver} set \\
+               ({.val {receiver_set}}) partially overlap.",
+        "i" = "Express such a design as an identical-set one-mode layer plus \\
+               a {.fn support_constraint}."
       ),
       call = call
     )
   }
 
-  node_mode <- nodes$mode
   from_mode <- ref_to_mode(ties$from, nodes)
   to_mode <- ref_to_mode(ties$to, nodes)
   impure_from <- unique(ties$from[!from_mode %in% sender_set])
   impure_to <- unique(ties$to[!to_mode %in% receiver_set])
   if (length(impure_from) > 0 || length(impure_to) > 0) {
-    offending <- c(impure_from, impure_to)
+    # Character, not the raw integer ids: cli's pluralization asserts a
+    # length-1 quantity when the value it counts is a multi-element integer
+    # vector (cli 3.6.6), so integer ids here abort the abort itself.
+    offending <- as.character(c(impure_from, impure_to))
     cli::cli_abort(
       c(
         "Ties must be side-pure for a declared two-mode/subset layer.",
-        "x" = "Node{?s} {.val {offending}} fall outside the declared \\
+        # qty() pins the count to the offending nodes; without it the nearest
+        # preceding substitution (the layer, always one) drives the plural.
+        "x" = "On layer {.val {layer}}, {cli::qty(offending)}node{?s} \\
+               {.val {offending}} fall{?s/} outside the declared \\
                {.field sender}/{.field receiver} mode sets."
       ),
       call = call
