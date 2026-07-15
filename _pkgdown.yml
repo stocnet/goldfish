@@ -39,6 +39,9 @@ reference:
       - goldfish-package
       - starts_with("make")
       - starts_with("link")
+      - as_goldfish
+      - network_state_at
+      - nodes_state_at
   - title: "Estimate"
     contents:
       - starts_with("estimate")
