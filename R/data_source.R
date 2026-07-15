@@ -18,9 +18,9 @@
 #
 # Node sets are identified by NAME, not carried as data: downstream code decides
 # one-mode by identical(nodes, nodes2) and routes attributes by comparing an
-# entry's node set against those names. The stocnet source keeps that contract by
-# naming the focal layer's two sides, so a one-mode layer names both sides
-# identically and the existing comparisons keep deciding correctly.
+# entry's node set against those names. The stocnet source keeps that
+# contract by naming the focal layer's two sides, so a one-mode layer names
+# both sides identically and the existing comparisons keep deciding correctly.
 # =========================================================================== #
 
 # Side identifiers for a stocnet-backed source. A one-mode layer answers the
@@ -145,6 +145,64 @@ ds_is_global <- function(src, nodeset) {
   }
   !is.null(src$data$global) &&
     nodeset %in% unique(as.data.frame(src$data$global)$var)
+}
+
+# Event-stream keys a layer or attribute contributes to the fetch plan.
+#
+# The legacy path names one stream per linked event object; the stocnet path
+# carries exactly one stream per layer / per attribute variable (the conversion
+# already merged and ordered the rows), keyed by the layer or variable name.
+ds_object_streams <- function(src, name) {
+  if (!src$is_stocnet) {
+    return(attr(get(name, envir = src$envir), "events"))
+  }
+  if (name %in% src$layers) {
+    stream <- src$streams$network[[name]]
+    return(if (any(!is.na(stream$time))) name else character(0))
+  }
+  if (name %in% names(src$streams$attribute)) name else character(0)
+}
+
+# Translate one converted stream into the event-table shape the recipe loop's
+# multi-stream walk consumes (D15): numeric time, local integer indices, and a
+# single increment/replace value column named for the layer's update semantics.
+# Node references are already remapped by the conversion module, so these tables
+# need no sanitizing. Ordering happens on the stream's own columns (the D2 key,
+# including the replace-ambiguity abort) before renaming to the event shape, and
+# NA-time history belongs to the initial state, so it never enters the schedule.
+ds_fetch_stream <- function(src, key) {
+  if (!src$is_stocnet) {
+    return(get(key, envir = src$envir))
+  }
+  if (key %in% src$layers) {
+    stream <- src$streams$network[[key]]
+    timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
+    events <- data.frame(
+      time = timed$time,
+      sender = timed$from,
+      receiver = timed$to,
+      stringsAsFactors = FALSE
+    )
+    events[[tie_value_column(src, key)]] <- timed$value
+    return(events)
+  }
+  stream <- src$streams$attribute[[key]]
+  timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
+  data.frame(
+    time = timed$time,
+    node = timed$node,
+    replace = unlist(timed$value, use.names = FALSE),
+    stringsAsFactors = FALSE
+  )
+}
+
+# The value column a layer's events carry, named for its update semantics.
+tie_value_column <- function(src, layer) {
+  if (identical(unname(src$info$update[layer]), "replace")) {
+    "replace"
+  } else {
+    "increment"
+  }
 }
 
 # An attribute's initial vector, sliced to the node set's rows.

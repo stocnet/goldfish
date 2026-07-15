@@ -151,7 +151,7 @@ test_that("attributes slice to the node set's own rows on a two-mode layer", {
   expect_equal(ds_attribute(src, "nodes_side2", "size"), c(30, 40))
 })
 
-test_that("the stocnet source builds the same state container as the legacy one", {
+test_that("the stocnet source builds the legacy state container", {
   inputs <- make_equivalent_inputs()
 
   legacy_state <- build_state_container(
@@ -175,4 +175,75 @@ test_that("the stocnet source builds the same state container as the legacy one"
     attr(legacy_state, "object_keys")
   )
   expect_null(stocnet_state$nodal2, label = "a one-mode layer has no nodal2")
+})
+
+# Event streams ---------------------------------------------------------------
+
+test_that("a layer's translated stream equals the legacy sanitized events", {
+  inputs <- make_equivalent_inputs()
+  events <- inputs$events
+  actors <- make_nodes(inputs$nodes_df)
+  legacy <- sanitizeEvents(events, actors, envir = environment())
+
+  src <- new_data_source(data = inputs$stocnet)
+  expect_equal(
+    ds_fetch_stream(src, "calls"),
+    legacy,
+    ignore_attr = "row.names",
+    label = "same columns, same local indices, same numeric time"
+  )
+})
+
+test_that("the value column is named for the layer's update semantics", {
+  inputs <- make_equivalent_inputs()
+  expect_named(
+    ds_fetch_stream(new_data_source(data = inputs$stocnet), "calls"),
+    c("time", "sender", "receiver", "increment")
+  )
+
+  replace_layer <- inputs$stocnet
+  replace_layer$info$update <- c(calls = "replace")
+  expect_named(
+    ds_fetch_stream(new_data_source(data = replace_layer), "calls"),
+    c("time", "sender", "receiver", "replace")
+  )
+})
+
+test_that("NA-time history stays out of the event stream", {
+  src <- new_data_source(data = make_stocnet_fixture())
+  stream <- ds_fetch_stream(src, "calls")
+
+  expect_equal(
+    stream$time,
+    c(1, 2),
+    label = "the history row initializes state instead of being scheduled"
+  )
+  expect_equal(stream$sender, c(2L, 3L))
+})
+
+test_that("an attribute stream translates to the node/replace shape", {
+  x <- make_stocnet_fixture()
+  x$changes <- data.frame(time = c(2, 1), node = c(3L, 1L), var = "floor")
+  x$changes$value <- list(list(8), list(7))
+  src <- new_data_source(data = x)
+
+  expect_equal(
+    ds_fetch_stream(src, "floor"),
+    data.frame(time = c(1, 2), node = c(1L, 3L), replace = c(7, 8)),
+    ignore_attr = "row.names",
+    label = "rows are ordered by the D2 key regardless of input arrangement"
+  )
+})
+
+test_that("stream keys are reported only for objects that carry events", {
+  inputs <- make_equivalent_inputs()
+  src <- new_data_source(data = inputs$stocnet)
+  expect_equal(ds_object_streams(src, "calls"), "calls")
+
+  history_only <- inputs$stocnet
+  history_only$ties$time <- NA_real_
+  expect_length(
+    ds_object_streams(new_data_source(data = history_only), "calls"),
+    0
+  )
 })
