@@ -2,22 +2,23 @@
 # Event ordering and component splitting for stocnet conversion.
 #
 # stocnet coercions arrange ties by from/to and drop the incoming row order, so
-# conversion imposes a deterministic schedule (D2) and splits the components into
-# the per-layer / per-variable streams the existing fetch_plan multi-stream walk
-# consumes (D15 — no monolithic stacked copy).
+# conversion imposes a deterministic schedule and splits the components into the
+# per-layer / per-variable streams the existing fetch_plan multi-stream walk
+# already consumes -- a single stacked copy would duplicate what the fetch plan
+# organizes anyway.
 # =========================================================================== #
 
 component_rank <- c(ties = 1L, changes = 2L, global = 3L)
 
-#' Order events by the deterministic D2 sort key
+#' Order events by the deterministic sort key
 #'
 #' Sort precedence: `time`, then dependent (focal-layer) events before
-#' exogenous, then component order (`ties` < `changes` < `global`), then `layer`,
-#' then the final tie-break. When an integer `order` column is present it is the
-#' final tie-break in place of `from`/`to` (or `node`). Multiple `replace` events
-#' targeting the same cell / node-variable at the same time with no `order`
-#' column are genuinely ambiguous and abort; same-time increments commute and
-#' pass silently.
+#' exogenous, then component order (`ties` < `changes` < `global`), then
+#' `layer`, then the final tie-break. When an integer `order` column is present
+#' it is the final tie-break in place of `from`/`to` (or `node`). Multiple
+#' `replace` events targeting the same cell / node-variable at the same time
+#' with no `order` column are genuinely ambiguous and abort; same-time
+#' increments commute and pass silently.
 #'
 #' @param events a data frame with a numeric `time` column and any of the
 #'   optional key columns `is_dependent`, `component`, `layer`, `from`/`to`,
@@ -136,14 +137,15 @@ event_target <- function(events) {
 #' Split stocnet components into per-layer / per-variable event streams
 #'
 #' Maps the stocnet components onto the per-object streams the recipe loop's
-#' `fetch_plan` walk consumes (D15), remapping node references through the mode
-#' map to local index spaces (D7) and converting `time` to a numeric axis (D3):
+#' `fetch_plan` walk consumes, remapping node references through the mode map
+#' to local index spaces and converting `time` to a numeric axis:
 #'
 #' - `ties`: one stream per layer carrying every row (`time = NA` history rows
 #'   fold into the initial state; timed rows are updates). The tie value is the
-#'   `weight` column (default 1) applied with the layer's `info$update` semantics.
+#'   `weight` column (default 1) applied with the layer's `info$update`
+#'   semantics.
 #' - focal layer: a `dependent` stream of the modeled rows -- filtered to
-#'   `modeled_flavor` when the specification keys one (D19; non-matching / `NA`
+#'   `modeled_flavor` when the specification keys one (non-matching / `NA`
 #'   flavor rows stay state-only in the network stream), otherwise all timed
 #'   focal rows.
 #' - `changes`: one stream per `var`; `var == "active"` routes to per-side
@@ -157,7 +159,8 @@ event_target <- function(events) {
 #'   rows on a flavored focal layer.
 #'
 #' @return a list of streams: `network` (per layer), `dependent`, `attribute`
-#'   (per var), `composition` (`mode1`/`mode2`), `global` (per var), and `focal`.
+#'   (per var), `composition` (`mode1`/`mode2`), `global` (per var), and
+#'   `focal`.
 #' @noRd
 split_stocnet_streams <- function(
   x,

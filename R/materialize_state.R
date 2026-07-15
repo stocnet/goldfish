@@ -1,9 +1,10 @@
 # =========================================================================== #
-# Initial-state materializer (D16).
+# Initial-state materializer.
 #
 # The vectorized update engine (methods_update.R: dedup-last replace, tapply
 # increment aggregation -- no event loop) is generalized here to work on the
-# component streams from split_stocnet_streams() rather than on goldfish objects.
+# component streams from split_stocnet_streams() rather than on goldfish
+# objects.
 # Given a stream and a [start_time, time) window it produces the state matrix /
 # attribute vector in one vectorized pass. `time = NA` history rows always fold
 # into the initial state (they precede every timed event); timed rows before
@@ -122,7 +123,7 @@ materialize_attribute_state <- function(
   vals
 }
 
-# Observation window (D4): explicit start_time/end_time, else the focal
+# Observation window: explicit start_time/end_time, else the focal
 # dependent-event span. end_time is inclusive of the last dependent event, so
 # the materializer's half-open [start, time) is called with time = end_time for
 # strict "state before t".
