@@ -53,6 +53,7 @@ A model for the dynamics of face-to-face interactions in social groups.
 
 Authors:
 \itemize{
+  \item Alvaro Uzaheta \email{ualvaro@ethz.ch} (\href{https://orcid.org/0000-0003-4367-3670}{ORCID})
   \item James Hollway \email{james.hollway@graduateinstitute.ch} (\href{https://orcid.org/0000-0002-8361-9647}{ORCID}) (IHEID) [data contributor]
   \item Christoph Stadtfeld \email{c.stadtfeld@ethz.ch} [data contributor]
   \item Marion Hoffman

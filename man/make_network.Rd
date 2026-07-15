@@ -31,7 +31,7 @@ two-mode networks.}
 
 \item{directed}{A logical value indicating whether the network is directed.}
 
-\item{envir}{An \linkS4class{environment} object where the nodes-set objects are
+\item{envir}{An \link[=environment-class]{environment} object where the nodes-set objects are
 defined. The default value is \code{\link[=environment]{environment()}}.}
 }
 \value{

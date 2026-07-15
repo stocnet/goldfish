@@ -53,7 +53,7 @@ can be linked to a dynamic event-list data frames in the initial state
 object by using the \code{\link[=link_events]{link_events()}}.
 A new call of \code{link_events()} is required for each attribute that is dynamic.
 
-Objects of class \link[tibble:tbl_df-class]{tibble::tbl_df} from the tibble package frequently use in the
+Objects of class \link[tibble:tbl_df]{tibble::tbl_df} from the tibble package frequently use in the
 tidyverse ecosystem and objects from the \pkg{data.table} package will produce
 errors in later steps for goldfish.
 Current implementation of goldfish relies on the subsetting behavior of

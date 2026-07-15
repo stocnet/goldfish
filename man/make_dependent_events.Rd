@@ -33,7 +33,7 @@ two-mode network.}
 
 \item{default_network}{the name of a \code{network.goldfish} object.}
 
-\item{envir}{An \linkS4class{environment} object where the nodes-set
+\item{envir}{An \link[=environment-class]{environment} object where the nodes-set
 and default network objects are defined. The default value is
 \code{\link[=environment]{environment()}}.}
 }

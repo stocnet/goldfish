@@ -41,7 +41,7 @@ the Gauss/Fisher scoring method before using the log-likelihood statistic
 to compare models.
 }
 \details{
-Users might use \code{\link[stats:AIC]{stats::AIC()}} and \code{\link[stats:AIC]{stats::BIC()}} to compute the Information
+Users might use \code{\link[stats:AIC]{stats::AIC()}} and \code{\link[stats:BIC]{stats::BIC()}} to compute the Information
 Criteria from one or several fitted model objects.
 An information criterion could be used to compare models
 with respect to their predictive power.
