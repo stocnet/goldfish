@@ -1,5 +1,7 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
+#include "flat_updates.h"
+#include "stable_softmax.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -17,20 +19,21 @@ List estimate_DyNAM_choice(
     const arma::vec& stat_mat_update_pointer,
     const arma::mat& stat_mat_broadcast,
     const arma::vec& stat_mat_broadcast_pointer,
-    const arma::vec& presence2_init,
-    const arma::mat& presence2_update,
-    const arma::vec& presence2_update_pointer,
+    const arma::vec& active_dyad_init,
+    const arma::mat& active_dyad_update,
+    const arma::vec& active_dyad_update_pointer,
     const int n_actors_1,
     const int n_actors_2,
     const bool twomode_or_reflexive,
-    bool impute
+    bool impute,
+    const bool active_dyad_is_point,
+    const bool return_event_scores = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
     int n_events = dep_event_mat.n_cols;
     int n_parameters = stat_mat.n_cols;
     // declare auxilliary variables
-    double probability_current_receiver;
     arma::rowvec expected_stat_current_event(n_parameters);
     arma::mat fisher_current_event(n_parameters, n_parameters);
     int stat_mat_update_id = 0;
@@ -40,27 +43,33 @@ List estimate_DyNAM_choice(
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
-    // Check whether there are composition change and initialize 
+    // Opt-in per-event score matrix. Each row is the per-event
+    // increment already accumulated into `derivative` (observed minus expected
+    // statistic); allocated only when requested so the default path pays nothing.
+    arma::mat event_scores;
+    if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+    // Check whether there are composition change and initialize
     // the presence of actor2
     bool has_composition_change = true;
-    int presence2_update_id = 0;
-    if (presence2_update.n_elem == 0) {
+    int active_dyad_update_id = 0;
+    if (active_dyad_update.n_elem == 0) {
         has_composition_change = false;
     }
-    arma::vec presence2 = presence2_init;
-
+    arma::vec active_dyad = active_dyad_init;
+    // `active_dyad` is the folded per-event availability. At the alter
+    // encoding it is the length-n2 receiver vector maintained by a (node, replace)
+    // buffer. At the point encoding it is a flattened n1 x n2 mask (sender-major:
+    // dyad (i, j) at i * n_actors_2 + j) — the folded receiver presence n support
+    // n opportunity — maintained by a (node1, node2, replace) buffer; the risk set
+    // reads the current sender's row, so no separate support matrix is needed.
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
         // update stat_mat
-        while (stat_mat_update_id < stat_mat_update_pointer(id_event)) {
-          stat_mat(
-            stat_mat_update(0, stat_mat_update_id) * n_actors_2 +
-              stat_mat_update(1, stat_mat_update_id),
-            stat_mat_update(2, stat_mat_update_id)) =
-            stat_mat_update(3, stat_mat_update_id);
-          stat_mat_update_id++;
-        }
+        apply_flat_updates(
+          stat_mat, stat_mat_update, stat_mat_update_id,
+          stat_mat_update_pointer(id_event), n_actors_2
+        );
         apply_broadcast_updates(
           stat_mat, stat_mat_broadcast, stat_mat_broadcast_id,
           stat_mat_broadcast_pointer(id_event), n_actors_1, n_actors_2,
@@ -82,12 +91,20 @@ List estimate_DyNAM_choice(
             }
         }
 
-        // update presence
+        // update presence / availability (applied before this event's likelihood)
         if (has_composition_change) {
-            while (presence2_update_id < presence2_update_pointer(id_event)) {
-                presence2(presence2_update(0, presence2_update_id) - 1) =
-                  presence2_update(1, presence2_update_id);
-                presence2_update_id++;
+            while (active_dyad_update_id < active_dyad_update_pointer(id_event)) {
+                if (active_dyad_is_point) {
+                    active_dyad(
+                      (active_dyad_update(0, active_dyad_update_id) - 1) *
+                        n_actors_2 +
+                      (active_dyad_update(1, active_dyad_update_id) - 1)
+                    ) = active_dyad_update(2, active_dyad_update_id);
+                } else {
+                    active_dyad(active_dyad_update(0, active_dyad_update_id) - 1) =
+                      active_dyad_update(1, active_dyad_update_id);
+                }
+                active_dyad_update_id++;
             }
         }
 
@@ -95,9 +112,6 @@ List estimate_DyNAM_choice(
 
         // We calculate the derivative, logLikelihood,
         //  and hessian matrix of a current event according to the paper.
-        // Reset auxilliary variables
-        expected_stat_current_event.zeros();
-        fisher_current_event.zeros();
         // declare the ids of the sender and the receiver,
         const int id_sender = dep_event_mat(0, id_event) - 1;
         const int id_receiver = dep_event_mat(1, id_event) - 1;
@@ -107,39 +121,44 @@ List estimate_DyNAM_choice(
             id_sender * n_actors_2,
             (id_sender + 1) * n_actors_2 - 1
           );
-        double normalizer = 0;
         int not_allowed_receiver = -1;
         if (!twomode_or_reflexive) not_allowed_receiver = id_sender;
-        // go through all actor2
+        // At the point encoding the sender's row starts at id_sender * n_actors_2;
+        // at the alter encoding the receiver vector is read directly (offset 0).
+        const int dyad_offset =
+          active_dyad_is_point ? id_sender * n_actors_2 : 0;
+        // Staged, numerically stable softmax over the receivers:
+        // one GEMV for the linear predictors, the shared max-shift helper for the
+        // weights, then a weighted cross-product for the Fisher.
+        arma::vec lin_pred = current_data_matrix * parameters;
+        arma::vec allowed(n_actors_2, fill::zeros);
         for (int j = 0; j < n_actors_2; j++) {
-            if (presence2(j) == 1 && (j != not_allowed_receiver) ) {
-                // exp_current_receiver is \exp(\beta^T s)
-                double exp_current_receiver =
-                  std::exp(dot(current_data_matrix.row(j), parameters));
-                normalizer += exp_current_receiver;
-                probability_current_receiver = exp_current_receiver;
-                expected_stat_current_event +=
-                  probability_current_receiver * (current_data_matrix.row(j));
-                fisher_current_event +=
-                  probability_current_receiver *
-                  ((current_data_matrix.row(j).t()) *
-                  (current_data_matrix.row(j)));
+            if (active_dyad(dyad_offset + j) == 1 &&
+                (j != not_allowed_receiver)) {
+                allowed(j) = 1;
             }
         }
-        // add the quantities of a current event to the variables to be returned
+        arma::vec weights;
+        double log_normalizer = stable_softmax_masked(lin_pred, allowed, weights);
+        double normalizer = accu(weights);
+        expected_stat_current_event = (weights.t() * current_data_matrix) /
+          normalizer;
         // derivative
-        expected_stat_current_event /= normalizer;
+        arma::rowvec score_before;
+        if (return_event_scores) score_before = derivative.row(0);
         derivative += current_data_matrix.row(id_receiver);
         derivative -= expected_stat_current_event;
-        // fisher matrix
-        fisher_current_event /= normalizer;
-        fisher_current_event -=
+        if (return_event_scores) {
+            event_scores.row(id_event) = derivative.row(0) - score_before;
+        }
+        // fisher matrix: sum_j p_j s_j s_j^T - E E^T
+        fisher_current_event =
+          (current_data_matrix.each_col() % weights).t() * current_data_matrix /
+          normalizer -
           expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
-        // logLikelihood
-        intervalLogL(id_event) =
-          log(std::exp(dot(current_data_matrix.row(id_receiver), parameters)) /
-            normalizer);
+        // logLikelihood from the shifted predictor (finite under underflow)
+        intervalLogL(id_event) = lin_pred(id_receiver) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
     }
 
@@ -147,7 +166,8 @@ List estimate_DyNAM_choice(
       Named("derivative") = derivative,
       Named("fisher") = fisher,
       Named("logLikelihood") = logLikelihood,
-      Named("intervalLogL") = intervalLogL
+      Named("intervalLogL") = intervalLogL,
+      Named("event_scores") = event_scores
     );
 }
 

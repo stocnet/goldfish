@@ -35,22 +35,22 @@
 # contignet <- make_network(contignet, nodes = states, directed = FALSE)
 # contignet <- link_events(contignet, contigchanges, nodes = states)
 #
-# createBilat <- make_dependent_events(
+# create_bilat <- make_dependent_events(
 #   events = bilatchanges[bilatchanges$increment == 1, ],
 #   nodes = states, default_network = bilatnet
 # )
 #
-# goldfishObjects()
-# goldfishObjects <- function(envir = .GlobalEnv) {
+# goldfish_objects()
+# goldfish_objects <- function(envir = .GlobalEnv) {
 #   y = ls(envir = envir)
 #   tryCatch({
 #     # identify goldfish objects
-#     classesToKeep <- c(
+#     classes_to_keep <- c(
 #       "nodes.goldfish", "network.goldfish", "dependent.goldfish",
 #       "global.goldfish"
 #     )
 #     ClassFilter <- function(x)
-#       any(check_classes(get(x, envir = envir), classes = classesToKeep))
+#       any(check_classes(get(x, envir = envir), classes = classes_to_keep))
 #
 #     object <- Filter(ClassFilter, y)
 #     # if(is.null(object)) stop("No goldfish objects defined.")
@@ -59,8 +59,8 @@
 #     classes <- vapply(
 #       object,
 #       FUN = function(x)
-#         check_classes(get(x, envir = envir), classes = classesToKeep),
-#       FUN.VALUE = logical(length(classesToKeep))
+#         check_classes(get(x, envir = envir), classes = classes_to_keep),
+#       FUN.VALUE = logical(length(classes_to_keep))
 #     )
 #
 #     if (any(classes["nodes.goldfish", ])) {
@@ -185,12 +185,12 @@
 #' @export
 #' @seealso [make_network()], [link_events()]
 #' @examples
-#' nodesAttr <- data.frame(
+#' nodes_attr <- data.frame(
 #'   label = paste("Actor", 1:5),
 #'   present = c(TRUE, FALSE, TRUE, TRUE, FALSE),
 #'   gender = c(1, 2, 1, 1, 2)
 #' )
-#' nodesAttr <- make_nodes(nodes = nodesAttr)
+#' nodes_attr <- make_nodes(nodes = nodes_attr)
 #'
 #' # Social evolution nodes definition
 #' data("Social_Evolution")
@@ -203,9 +203,12 @@ make_nodes <- function(nodes) {
   # check input types
   if (!is.data.frame(nodes)) {
     stop(
-      "Invalid argument ", dQuote("nodes"), ": ",
+      "Invalid argument ",
+      dQuote("nodes"),
+      ": ",
       "this function expects objects of class ",
-      dQuote("data.frame"), "."
+      dQuote("data.frame"),
+      "."
     )
   }
 
@@ -278,37 +281,55 @@ make_nodes_goldfish <- make_nodes
 #' @examples
 #' # If no intial matrix is provided
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors)
+#' call_network <- make_network(nodes = actors)
 #'
 #' # If a initial matrix is provided
 #' data("Fisheries_Treaties_6070")
 #' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
 make_network <- function(
-    matrix = NULL, nodes, nodes2 = NULL, directed = TRUE,
-    envir = environment()) {
+  matrix = NULL,
+  nodes,
+  nodes2 = NULL,
+  directed = TRUE,
+  envir = environment()
+) {
   # check input types
   is_two_mode <- !is.null(nodes2)
   n_row <- nrow(nodes)
   n_col <- ifelse(is_two_mode, nrow(nodes2), nrow(nodes))
   if (!any(check_classes(nodes, c("data.frame", "nodes.goldfish")))) {
     stop(
-      "Invalid argument ", dQuote("nodes"), ": ",
+      "Invalid argument ",
+      dQuote("nodes"),
+      ": ",
       "this function expects objects of class ",
-      dQuote("data.frame"), " or ", dQuote("nodes.goldfish"), "."
+      dQuote("data.frame"),
+      " or ",
+      dQuote("nodes.goldfish"),
+      "."
     )
   }
-  if (!is.null(nodes2) &&
-    !any(check_classes(nodes2, c("data.frame", "nodes.goldfish")))) {
+  if (
+    !is.null(nodes2) &&
+      !any(check_classes(nodes2, c("data.frame", "nodes.goldfish")))
+  ) {
     stop(
-      "Invalid argument ", dQuote("nodes2"), ": ",
+      "Invalid argument ",
+      dQuote("nodes2"),
+      ": ",
       "this function expects objects of class ",
-      dQuote("data.frame"), " or ", dQuote("nodes.goldfish"), "."
+      dQuote("data.frame"),
+      " or ",
+      dQuote("nodes.goldfish"),
+      "."
     )
   }
 
   if (!is.logical(directed)) {
     stop(
-      "Invalid argument ", dQuote("directed"), ": ",
+      "Invalid argument ",
+      dQuote("directed"),
+      ": ",
       "this function expects a logical value."
     )
   }
@@ -316,7 +337,9 @@ make_network <- function(
   # Create empty matrix if needed
   if (is.null(matrix)) {
     matrix <- matrix(
-      0, n_row, n_col,
+      0,
+      n_row,
+      n_col,
       dimnames = list(
         sender = nodes$label,
         receiver = if (is_two_mode) nodes2$label else nodes$label
@@ -324,15 +347,23 @@ make_network <- function(
     )
   } else if (is.table(matrix)) {
     if (length(dim(matrix)) != 2) {
-      stop(dQuote("matrix"), ' object has an incorrect number of dimensions.",
-           "Expected 2 dimensions')
+      stop(
+        dQuote("matrix"),
+        ' object has an incorrect number of dimensions.",
+           "Expected 2 dimensions'
+      )
     }
     matrix <- structure(matrix, class = NULL, call = NULL)
   } else if (!any(check_classes(matrix, c("matrix", "Matrix")))) {
     stop(
-      "Invalid argument ", dQuote("matrix"), ": ",
+      "Invalid argument ",
+      dQuote("matrix"),
+      ": ",
       "this function expects an objects of class ",
-      dQuote("matrix"), " or ", dQuote("Matrix"), "."
+      dQuote("matrix"),
+      " or ",
+      dQuote("Matrix"),
+      "."
     )
   }
 
@@ -340,18 +371,19 @@ make_network <- function(
   class(matrix) <- unique(c("network.goldfish", class(matrix)))
 
   # create attributes
-  nodesName <- c(
+  nodes_name <- c(
     as.character(substitute(nodes, env = envir)),
     as.character(substitute(nodes2, env = envir))
   )
 
-  attr(matrix, "nodes") <- nodesName
+  attr(matrix, "nodes") <- nodes_name
   attr(matrix, "directed") <- directed
   attr(matrix, "is_two_mode") <- is_two_mode
   attr(matrix, "events") <- vector("character")
 
   # check format
-  tryCatch(check_network(matrix, nodes, nodesName, nodes2 = nodes2),
+  tryCatch(
+    check_network(matrix, nodes, nodes_name, nodes2 = nodes2),
     error = function(e) {
       scalls <- sys.calls()
       e$call <- scalls[[1]]
@@ -424,91 +456,119 @@ make_network_goldfish <- make_network
 #'   sender = paste("Actor", c(1, 3, 5, 2, 3, 4, 2)),
 #'   receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)), increment = rep(1, 7)
 #' )
-#' callNetwork <- make_network(nodes = actors)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_events = calls, nodes = actors
+#' call_network <- make_network(nodes = actors)
+#' call_network <- link_events(
+#'   x = call_network, change_events = calls, nodes = actors
 #' )
 #'
 #' # Defining the dependent events:
-#' callDependent <- make_dependent_events(
-#'   events = calls, nodes = actors, default_network = callNetwork
+#' call_dependent <- make_dependent_events(
+#'   events = calls, nodes = actors, default_network = call_network
 #' )
-make_dependent_events <- function(events, nodes, nodes2 = NULL,
-                                  default_network = NULL,
-                                  envir = environment()) {
+make_dependent_events <- function(
+  events,
+  nodes,
+  nodes2 = NULL,
+  default_network = NULL,
+  envir = environment()
+) {
   # check input types
   is_two_mode <- !is.null(nodes2)
   if (!is.data.frame(events)) {
     stop(
-      "Invalid argument ", dQuote("events"), ": ",
+      "Invalid argument ",
+      dQuote("events"),
+      ": ",
       "this function expects objects of class ",
-      dQuote("data.frame"), "."
+      dQuote("data.frame"),
+      "."
     )
   }
 
   if (!any(check_classes(nodes, c("data.frame", "nodes.goldfish")))) {
     stop(
-      "Invalid argument ", dQuote("nodes"), ": ",
+      "Invalid argument ",
+      dQuote("nodes"),
+      ": ",
       "this function expects objects of class ",
-      dQuote("data.frame"), " or ", dQuote("nodes.goldfish"), "."
+      dQuote("data.frame"),
+      " or ",
+      dQuote("nodes.goldfish"),
+      "."
     )
   }
 
-  if (is_two_mode &&
-    !any(check_classes(nodes2, c("data.frame", "nodes.goldfish")))) {
+  if (
+    is_two_mode &&
+      !any(check_classes(nodes2, c("data.frame", "nodes.goldfish")))
+  ) {
     stop(
-      "Invalid argument ", dQuote("nodes2"), ": ",
+      "Invalid argument ",
+      dQuote("nodes2"),
+      ": ",
       "this function expects objects of class ",
-      dQuote("data.frame"), " or ", dQuote("nodes.goldfish"), "."
+      dQuote("data.frame"),
+      " or ",
+      dQuote("nodes.goldfish"),
+      "."
     )
   }
 
-  if (!is.null(default_network) &&
-    !inherits(default_network, "network.goldfish")) { # styler: off
+  if (
+    !is.null(default_network) &&
+      !inherits(default_network, "network.goldfish")
+  ) {
+    # styler: off
     stop(
-      "Invalid argument ", dQuote("default_network"), ": ",
+      "Invalid argument ",
+      dQuote("default_network"),
+      ": ",
       "this function expects objects of class ",
-      dQuote("network.goldfish"), "."
+      dQuote("network.goldfish"),
+      "."
     )
   }
 
   # link objects
-  nodesName <- c(
+  nodes_name <- c(
     as.character(substitute(nodes, envir)),
     as.character(substitute(nodes2, envir))
   )
-  objEvents <- as.character(substitute(events, envir))
-  objDefNet <- as.character(substitute(default_network, envir))
+  obj_events <- as.character(substitute(events, envir))
+  obj_def_net <- as.character(substitute(default_network, envir))
 
-  attr(events, "nodes") <- nodesName
+  attr(events, "nodes") <- nodes_name
 
   # define class
   class(events) <- unique(c("dependent.goldfish", class(events)))
 
   # link events if default_network
   if (!is.null(default_network)) {
-    if (!all(attr(default_network, "nodes") == nodesName)) {
+    if (!all(attr(default_network, "nodes") == nodes_name)) {
       stop(
         "Node sets of default networks differ from",
         " node sets of dependent event data frame."
       )
     }
 
-    attr(events, "default_network") <- objDefNet
+    attr(events, "default_network") <- obj_def_net
     attr(events, "type") <- "dyadic"
 
     # check default_network is defined with the same events
     events_network <- attr(default_network, "events")
-    if (!any(objEvents %in% events_network)) {
+    if (!any(obj_events %in% events_network)) {
       warning(
         "The events data frame is not linked to the default_network",
-        "\nEvents attached to the ", dQuote("default_network"), ": ",
+        "\nEvents attached to the ",
+        dQuote("default_network"),
+        ": ",
         if (length(events_network) > 0) {
           paste(events_network, collapse = ", ")
         } else {
           "no events linked"
         },
-        "\nDependent events: ", paste(objEvents, collapse = ""),
+        "\n_dependent events: ",
+        paste(obj_events, collapse = ""),
         "\n"
       )
     }
@@ -519,9 +579,12 @@ make_dependent_events <- function(events, nodes, nodes2 = NULL,
   # check format
   tryCatch(
     check_dependent_events(
-      events = events, events_name = objEvents,
-      nodes = nodes, nodes2 = nodes2,
-      default_network = default_network, environment = envir
+      events = events,
+      events_name = obj_events,
+      nodes = nodes,
+      nodes2 = nodes2,
+      default_network = default_network,
+      environment = envir
     ),
     error = function(e) {
       scalls <- sys.calls()
@@ -629,17 +692,17 @@ make_global_attributes_goldfish <- make_global_attributes
 #' @export
 #' @examples
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_event = calls,
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_event = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' calls_dependent <- make_dependent_events(
 #'   events = calls, nodes = actors,
-#'   default_network = callNetwork
+#'   default_network = call_network
 #' )
-#' socialEvolutionData <- make_data(
-#'   callNetwork, callsDependent, actors
+#' social_evolution_data <- make_data(
+#'   call_network, calls_dependent, actors
 #' )
 #'
 #' data("Fisheries_Treaties_6070")
@@ -654,13 +717,13 @@ make_global_attributes_goldfish <- make_global_attributes
 #' contignet <- make_network(contignet, nodes = states, directed = FALSE)
 #' contignet <- link_events(contignet, contigchanges, nodes = states)
 #'
-#' createBilat <- make_dependent_events(
+#' create_bilat <- make_dependent_events(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, default_network = bilatnet
 #' )
 #'
-#' fisheriesData <- make_data(
-#'   bilatnet, createBilat, states,
+#' fisheries_data <- make_data(
+#'   bilatnet, create_bilat, states,
 #'   contignet, sovchanges, regchanges, gdpchanges
 #' )
 #'
@@ -678,12 +741,15 @@ make_data <- function(..., parent_env = parent.frame()) {
   # Handle cases with no arguments or only named arguments carefully
   if (length(initial_objects) == 0 && length(arg_names) == 0) {
     stop("No arguments provided to make_data.", call. = FALSE)
-  } else if (length(initial_objects) > 0 &&
-    length(arg_names) != length(initial_objects)) {
+  } else if (
+    length(initial_objects) > 0 &&
+      length(arg_names) != length(initial_objects)
+  ) {
     # This can happen if objects in ... are themselves named lists.
     # If `...` contains a mix of named and unnamed,
     # `arg_names` should still be correct.
-    stop("make_data() received a mix of named and unnamed arguments.",
+    stop(
+      "make_data() received a mix of named and unnamed arguments.",
       call. = FALSE
     )
     # Potentially reconcile arg_names with names(initial_objects)
@@ -758,15 +824,20 @@ make_data <- function(..., parent_env = parent.frame()) {
           linked_obj <- get(linked_name, envir = parent_env, inherits = TRUE)
           assign(linked_name, linked_obj, envir = data_env)
           # Add the newly found linked object to the queue
-          if (!(linked_name %in% queue) &&
-            !(linked_name %in% processed_names)) {
+          if (
+            !(linked_name %in% queue) &&
+              !(linked_name %in% processed_names)
+          ) {
             queue <- c(queue, linked_name)
           }
         } else {
           warning(
             paste0(
-              "Linked object '", linked_name, "' (required by '",
-              current_name, "') was not found in the specified parent_env."
+              "Linked object '",
+              linked_name,
+              "' (required by '",
+              current_name,
+              "') was not found in the specified parent_env."
             )
           )
         }
@@ -774,15 +845,16 @@ make_data <- function(..., parent_env = parent.frame()) {
     }
   }
 
-  assign(".nodeset_names",
+  assign(
+    ".nodeset_names",
     unique(all_nodes_names[nzchar(all_nodes_names)]),
     envir = data_env
   )
-  assign(".events_names",
+  assign(
+    ".events_names",
     unique(all_events_names[nzchar(all_events_names)]),
     envir = data_env
   )
-
 
   class(data_env) <- c("data.goldfish", "environment")
   return(data_env)
@@ -894,16 +966,16 @@ make_data_goldfish <- make_data
 #'   present = TRUE, gender = sample.int(2, 5, replace = TRUE)
 #' )
 #' actors <- make_nodes(nodes = actors)
-#' callNetwork <- make_network(nodes = actors)
+#' call_network <- make_network(nodes = actors)
 #'
 #' # Link events to a nodeset
-#' compositionChangeEvents <- data.frame(
+#' composition_change_events <- data.frame(
 #'   time = c(14, 60),
 #'   node = "Actor 4",
 #'   replace = c(FALSE, TRUE)
 #' )
 #' actorsnew <- link_events(
-#'   x = actors, attribute = "present", change_events = compositionChangeEvents
+#'   x = actors, attribute = "present", change_events = composition_change_events
 #' )
 #'
 #' # Link events to a Network
@@ -913,8 +985,8 @@ make_data_goldfish <- make_data
 #'   receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)),
 #'   increment = rep(1, 7)
 #' )
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_events = calls, nodes = actors
+#' call_network <- link_events(
+#'   x = call_network, change_events = calls, nodes = actors
 #' )
 link_events <- function(x, ...) {
   UseMethod("link_events", x)
@@ -935,8 +1007,8 @@ link_events.nodes.goldfish <- function(x, change_events, attribute, ...) {
   }
 
   # data frame has to be passed as a variable name
-  linkEnvir <- environment()
-  if (!is.name(substitute(change_events, linkEnvir))) {
+  link_envir <- environment()
+  if (!is.name(substitute(change_events, link_envir))) {
     stop(
       "Parameter change events has to be the name of a data frame",
       " (rather than a data frame)"
@@ -945,26 +1017,29 @@ link_events.nodes.goldfish <- function(x, change_events, attribute, ...) {
 
   # link data
   # initial <- object
-  objEventsPrev <- attr(x, "events")
-  objEventCurr <- as.character(substitute(change_events, linkEnvir))
+  obj_events_prev <- attr(x, "events")
+  obj_event_curr <- as.character(substitute(change_events, link_envir))
 
-  if (length(objEventsPrev) > 0 && objEventCurr %in% objEventsPrev) {
+  if (length(obj_events_prev) > 0 && obj_event_curr %in% obj_events_prev) {
     warning(
-      "The event ", dQuote(objEventCurr),
+      "The event ",
+      dQuote(obj_event_curr),
       " were already linked to this object."
     )
     return(x)
   }
 
-  attr(x, "events") <- c(objEventsPrev, objEventCurr)
+  attr(x, "events") <- c(obj_events_prev, obj_event_curr)
   attr(x, "dynamic_attributes") <- c(attr(x, "dynamic_attributes"), attribute)
 
   # check format
   tryCatch(
     {
       check_events(
-        object = x, events = change_events, events_name = objEventCurr,
-        environment = linkEnvir,
+        object = x,
+        events = change_events,
+        events_name = obj_event_curr,
+        environment = link_envir,
         attribute = attribute
       )
     },
@@ -982,8 +1057,13 @@ link_events.nodes.goldfish <- function(x, change_events, attribute, ...) {
 
 #' @rdname link_events
 #' @export
-link_events.network.goldfish <- function(x, change_events,
-                                         nodes = NULL, nodes2 = NULL, ...) {
+link_events.network.goldfish <- function(
+  x,
+  change_events,
+  nodes = NULL,
+  nodes2 = NULL,
+  ...
+) {
   # check input types
   if (is.null(nodes)) {
     stop(
@@ -1010,8 +1090,8 @@ link_events.network.goldfish <- function(x, change_events,
   }
 
   # data frame has to be passed as a variable name
-  linkEnvir <- environment()
-  if (!is.name(substitute(change_events, linkEnvir))) {
+  link_envir <- environment()
+  if (!is.name(substitute(change_events, link_envir))) {
     stop(
       "Parameter change events has to be the name of a data frame",
       " (rather than a data frame)"
@@ -1020,25 +1100,29 @@ link_events.network.goldfish <- function(x, change_events,
 
   # link data
   # initial <- x
-  objEventsPrev <- attr(x, "events")
-  objEventCurr <- as.character(substitute(change_events, linkEnvir))
+  obj_events_prev <- attr(x, "events")
+  obj_event_curr <- as.character(substitute(change_events, link_envir))
 
-  if (length(objEventsPrev) > 0 && objEventCurr %in% objEventsPrev) {
+  if (length(obj_events_prev) > 0 && obj_event_curr %in% obj_events_prev) {
     warning(
-      "The event ", dQuote(objEventCurr),
+      "The event ",
+      dQuote(obj_event_curr),
       " were already linked to this object."
     )
     return(x)
   }
-  attr(x, "events") <- c(objEventsPrev, objEventCurr)
+  attr(x, "events") <- c(obj_events_prev, obj_event_curr)
 
   # check format
   tryCatch(
     {
       check_events(
-        object = x, events = change_events, events_name = objEventCurr,
-        environment = linkEnvir,
-        nodes = nodes, nodes2 = nodes2
+        object = x,
+        events = change_events,
+        events_name = obj_event_curr,
+        environment = link_envir,
+        nodes = nodes,
+        nodes2 = nodes2
       )
     },
     error = function(e) {
@@ -1055,16 +1139,20 @@ link_events.network.goldfish <- function(x, change_events,
 
 #' @rdname link_events
 #' @export
-link_events.global.goldfish <- function(x, change_events, replace = "replace",
-                                         ...) {
+link_events.global.goldfish <- function(
+  x,
+  change_events,
+  replace = "replace",
+  ...
+) {
   if (!is.data.frame(change_events)) {
     cli::cli_abort(
       "{.arg change_events} must be a {.cls data.frame}."
     )
   }
 
-  linkEnvir <- environment()
-  if (!is.name(substitute(change_events, linkEnvir))) {
+  link_envir <- environment()
+  if (!is.name(substitute(change_events, link_envir))) {
     cli::cli_abort(c(
       "{.arg change_events} must be the name of a data frame,",
       "i" = "not a data frame literal."
@@ -1094,20 +1182,21 @@ link_events.global.goldfish <- function(x, change_events, replace = "replace",
 
   check_global_attribute(x)
 
-  objEventsPrev <- attr(x, "events")
-  objEventCurr <- as.character(substitute(change_events, linkEnvir))
+  obj_events_prev <- attr(x, "events")
+  obj_event_curr <- as.character(substitute(change_events, link_envir))
 
-  if (length(objEventsPrev) > 0 && objEventCurr %in% objEventsPrev) {
+  if (length(obj_events_prev) > 0 && obj_event_curr %in% obj_events_prev) {
     warning(
-      "The event ", dQuote(objEventCurr),
+      "The event ",
+      dQuote(obj_event_curr),
       " was already linked to this object."
     )
     return(x)
   }
 
   attr(change_events, "replace") <- replace
-  assign(objEventCurr, change_events, envir = parent.frame())
-  attr(x, "events") <- c(objEventsPrev, objEventCurr)
+  assign(obj_event_curr, change_events, envir = parent.frame())
+  attr(x, "events") <- c(obj_events_prev, obj_event_curr)
 
   return(invisible(x))
 }
@@ -1118,7 +1207,9 @@ link_events.default <- function(x, ...) {
   if (!any(check_classes(x, c("nodes.goldfish", "network.goldfish")))) {
     stop(
       "Invalid argument object: this function expects either a ",
-      dQuote("nodes.goldfish"), " or a ", dQuote("network.goldfish"),
+      dQuote("nodes.goldfish"),
+      " or a ",
+      dQuote("network.goldfish"),
       " object."
     )
   }

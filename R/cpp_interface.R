@@ -35,6 +35,7 @@ estimate_c_int <- function(
   # additional parameter for DyNAM-M-Rate
   hasIntercept = FALSE,
   returnIntervalLogL = FALSE,
+  return_event_scores = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -43,11 +44,31 @@ estimate_c_int <- function(
   get_data_matrix = FALSE,
   impute = FALSE,
   opportunitiesList = NULL,
-  engine = c("default_c", "gather_compute")
+  senderGate = NULL,
+  remMask = NULL,
+  supportMask = NULL,
+  engine = c("default_c", "gather_compute"),
+  optimizer = "newton_raphson"
 ) {
   if (!is.null(opportunitiesList)) {
     stop(
       "opportunitiesList is not supported in the C interface.",
+      call. = FALSE
+    )
+  }
+  # gather_compute consumes the mask via the R gather; default_c consumes it in
+  # the per-model C++ estimator, wired for DyNAM-M (choice) only. Other
+  # combinations are a caller error (they downgrade to the default engine
+  # upstream).
+  default_c_support_ok <- identical(modelTypeCall, "DyNAM-M")
+  if (
+    (!is.null(senderGate) || !is.null(remMask)) ||
+      (!is.null(supportMask) &&
+        identical(engine, "default_c") &&
+        !default_c_support_ok)
+  ) {
+    stop(
+      "support_constraint is not supported in this C interface engine.",
       call. = FALSE
     )
   }
@@ -149,22 +170,27 @@ estimate_c_int <- function(
   )
 
   ## PRESENCE UPDATES PRECOMPUTED DURING PREPROCESSING
-  presence1_update <- statsList$presence1_update
-  presence1_update_pointer <- statsList$presence1_update_pointer
-  if (is.null(presence1_update)) {
-    presence1_update <- matrix(0, 0, 0)
-    presence1_update_pointer <- numeric(1)
+  active_sender_update <- statsList$active_sender_update
+  active_sender_update_pointer <- statsList$active_sender_update_pointer
+  if (is.null(active_sender_update)) {
+    active_sender_update <- matrix(0, 0, 0)
+    active_sender_update_pointer <- numeric(1)
   }
 
-  presence2_update <- statsList$presence2_update
-  presence2_update_pointer <- statsList$presence2_update_pointer
-  if (is.null(presence2_update)) {
-    presence2_update <- matrix(0, 0, 0)
-    presence2_update_pointer <- numeric(1)
+  active_dyad_update <- statsList$active_dyad_update
+  active_dyad_update_pointer <- statsList$active_dyad_update_pointer
+  if (is.null(active_dyad_update)) {
+    active_dyad_update <- matrix(0, 0, 0)
+    active_dyad_update_pointer <- numeric(1)
   }
 
-  presence1_init <- statsList$active_mode1_init
-  presence2_init <- statsList$active_mode2_init
+  active_sender_init <- statsList$active_sender_init
+  active_dyad_init <- statsList$active_dyad_init
+  active_dyad_encoding <- if (is.null(statsList$active_dyad_encoding)) {
+    "alter"
+  } else {
+    statsList$active_dyad_encoding
+  }
 
   nEvents <- length(statsList$is_dependent)
 
@@ -179,8 +205,9 @@ estimate_c_int <- function(
       (is.null(fixedParameters) || is.na(fixedParameters[1]))
   ) {
     parameters[1] <- log(
-      statsList$n_dep_events / statsList$total_time /
-        statsList$avg_active_actors
+      statsList$n_dep_events /
+        statsList$total_time /
+        statsList$avg_active_entity
     )
   }
   ## SET VARIABLES BASED ON STATSLIST
@@ -272,19 +299,78 @@ estimate_c_int <- function(
       stat_mat_update_pointer = stat_mat_update_pointer,
       stat_mat_broadcast = stat_mat_broadcast,
       stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
-      presence1_init = presence1_init,
-      presence1_update = presence1_update,
-      presence1_update_pointer = presence1_update_pointer,
-      presence2_init = presence2_init,
-      presence2_update = presence2_update,
-      presence2_update_pointer = presence2_update_pointer,
+      active_sender_init = active_sender_init,
+      active_sender_update = active_sender_update,
+      active_sender_update_pointer = active_sender_update_pointer,
+      active_dyad_init = active_dyad_init,
+      active_dyad_update = active_dyad_update,
+      active_dyad_update_pointer = active_dyad_update_pointer,
       n_actors1 = n_actors1,
       n_actors2 = n_actors2,
       twomode_or_reflexive = twomode_or_reflexive,
       verbose = progress, # output the progress of data gathering
-      impute = impute
+      impute = impute,
+      support = supportMask,
+      active_dyad_encoding = active_dyad_encoding
     )
     size_gathered_data <- utils::object.size(gathered_data)
+  }
+
+  # Parameter-independent default_c buffer layout, hoisted out of the loop so
+  # both the Newton-Raphson iterations and the maxLik adapter reuse it: at the
+  # point encoding `active_dyad_init` is flattened sender-major to a
+  # dense n1 x n2 mask; otherwise it is the length-n2 receiver vector.
+  dyad_is_point <- modelTypeCall %in%
+    c("DyNAM-M", "REM", "REM-ordered", "DyNAM-MM") &&
+    identical(active_dyad_encoding, "point")
+  dyad_init_c <- if (dyad_is_point) {
+    as.vector(t(active_dyad_init))
+  } else {
+    active_dyad_init
+  }
+  evaluate_default_c <- function(pars, need_scores) {
+    estimate_(
+      modelTypeCall = modelTypeCall,
+      parameters = pars,
+      event_mat = event_mat,
+      timespan = timespan,
+      is_dependent = is_dependent,
+      stat_mat_init = stat_mat_init,
+      stat_mat_update = stat_mat_update,
+      stat_mat_update_pointer = stat_mat_update_pointer,
+      stat_mat_broadcast = stat_mat_broadcast,
+      stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
+      active_sender_init = active_sender_init,
+      active_sender_update = active_sender_update,
+      active_sender_update_pointer = active_sender_update_pointer,
+      active_dyad_init = dyad_init_c,
+      active_dyad_update = active_dyad_update,
+      active_dyad_update_pointer = active_dyad_update_pointer,
+      n_actors1 = n_actors1,
+      n_actors2 = n_actors2,
+      twomode_or_reflexive = twomode_or_reflexive,
+      impute = impute,
+      active_dyad_is_point = dyad_is_point,
+      return_event_scores = need_scores
+    )
+  }
+
+  # maxLik-backed optimizers replace the Newton-Raphson loop below:
+  # the preprocessed data is fixed, the C++ evaluator is fed to maxLik through
+  # memoized closures, and the maxLik result maps back into the standard result
+  # object. Runs on the default_c evaluator only (guarded upstream).
+  if (!identical(optimizer, "newton_raphson")) {
+    return(estimate_via_maxlik(
+      evaluate = evaluate_default_c,
+      optimizer = optimizer,
+      start = parameters,
+      id_fixed = idFixedCompnents,
+      n_params = nParams,
+      n_events = nEvents,
+      return_interval_loglik = returnIntervalLogL,
+      return_event_scores = return_event_scores,
+      verbose = verbose
+    ))
   }
 
   while (TRUE) {
@@ -298,41 +384,18 @@ estimate_c_int <- function(
         parameters = parameters,
         stat_all_events = gathered_data$stat_all_events,
         selected = gathered_data$selected,
-        selected_actor1 = gathered_data$selected_actor1,
-        selected_actor2 = gathered_data$selected_actor2,
         n_candidates = gathered_data$n_candidates,
-        n_candidates1 = gathered_data$n_candidates1,
-        n_candidates2 = gathered_data$n_candidates2,
         timespan = timespan,
         is_dependent = is_dependent,
-        twomode_or_reflexive = twomode_or_reflexive
+        twomode_or_reflexive = twomode_or_reflexive,
+        sender_of_row = gathered_data$sender_of_row,
+        dyad_partner = gathered_data$dyad_partner
       )
     }
 
     ### DEFAULT_C ENGINE
     if (engine == "default_c") {
-      res <- estimate_(
-        modelTypeCall = modelTypeCall,
-        parameters = parameters,
-        event_mat = event_mat,
-        timespan = timespan,
-        is_dependent = is_dependent,
-        stat_mat_init = stat_mat_init,
-        stat_mat_update = stat_mat_update,
-        stat_mat_update_pointer = stat_mat_update_pointer,
-        stat_mat_broadcast = stat_mat_broadcast,
-        stat_mat_broadcast_pointer = stat_mat_broadcast_pointer,
-        presence1_init = presence1_init,
-        presence1_update = presence1_update,
-        presence1_update_pointer = presence1_update_pointer,
-        presence2_init = presence2_init,
-        presence2_update = presence2_update,
-        presence2_update_pointer = presence2_update_pointer,
-        n_actors1 = n_actors1,
-        n_actors2 = n_actors2,
-        twomode_or_reflexive = twomode_or_reflexive,
-        impute = impute
-      )
+      res <- evaluate_default_c(parameters, return_event_scores)
     }
 
     logLikelihood <- res$logLikelihood
@@ -340,6 +403,9 @@ estimate_c_int <- function(
     informationMatrix <- res$fisher
     if (returnIntervalLogL) {
       intervalLogL <- as.numeric(res$intervalLogL)
+    }
+    if (return_event_scores) {
+      event_scores <- res$event_scores
     }
 
     if (returnEventProbabilities) {
@@ -535,11 +601,159 @@ estimate_c_int <- function(
   if (returnIntervalLogL) {
     estimationResult$intervalLogL <- intervalLogL
   }
+  if (return_event_scores) {
+    estimationResult$event_scores <- event_scores
+  }
   if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
   }
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
+}
+
+# Memoize a single evaluator call per parameter vector so the log-likelihood and
+# gradient closures maxLik calls separately share one C++ pass. The
+# cache holds the most recent evaluation, keyed by the (unnamed) parameter
+# vector; the common logLik-then-grad-at-the-same-point call pattern hits it.
+make_memoized_evaluator <- function(evaluate, need_scores) {
+  cache <- new.env(parent = emptyenv())
+  cache$key <- NULL
+  cache$res <- NULL
+  function(pars) {
+    key <- unname(as.numeric(pars))
+    if (is.null(cache$key) || !identical(cache$key, key)) {
+      cache$res <- evaluate(pars, need_scores)
+      cache$key <- key
+    }
+    cache$res
+  }
+}
+
+#' maxLik-backed estimation adapter
+#'
+#' Drives `maxLik::maxLik()` over the fixed preprocessed data through memoized
+#' closures on the `default_c` evaluator, then maps the result into the standard
+#' `result.goldfish` object so `summary()` / `vcov()` / `logLik()` and the
+#' post-estimation methods work unchanged. Only reached for
+#' `optimizer != "newton_raphson"`, guarded upstream to the default_c engine
+#' with maxLik installed.
+#'
+#' @param evaluate closure `function(pars, need_scores)` returning the C++
+#'   evaluator list (`logLikelihood`, `derivative`, `fisher`, and, when
+#'   `need_scores`, `event_scores` / `intervalLogL`).
+#' @param optimizer one of `"bfgs"`, `"bhhh"`, `"nelder_mead"`.
+#' @param start full-length initial parameter vector (fixed components already
+#'   set to their values).
+#' @param id_fixed integer indices of parameters held fixed (may be empty/NULL).
+#' @param n_params,n_events problem dimensions.
+#' @param return_interval_loglik,return_event_scores whether to attach the
+#'   per-event outputs, evaluated at the optimum.
+#' @param verbose passed through as the maxLik print level.
+#' @return a `result.goldfish` list, structurally identical to the NR path.
+#' @noRd
+estimate_via_maxlik <- function(
+  evaluate,
+  optimizer,
+  start,
+  id_fixed,
+  n_params,
+  n_events,
+  return_interval_loglik,
+  return_event_scores,
+  verbose
+) {
+  method <- switch(optimizer, bfgs = "BFGS", bhhh = "BHHH", nelder_mead = "NM")
+  # BHHH needs observation-level gradients (the per-event score matrix); the
+  # other methods use the aggregate score (BFGS) or none (Nelder-Mead), so the
+  # extra score work runs only when BHHH requires it.
+  use_scores <- identical(optimizer, "bhhh")
+  eval_cached <- make_memoized_evaluator(evaluate, use_scores)
+
+  loglik_fn <- function(pars) eval_cached(pars)$logLikelihood
+  grad_fn <- if (identical(optimizer, "nelder_mead")) {
+    NULL
+  } else if (use_scores) {
+    function(pars) eval_cached(pars)$event_scores
+  } else {
+    function(pars) as.numeric(eval_cached(pars)$derivative)
+  }
+
+  id_free <- setdiff(seq_len(n_params), id_fixed)
+  if (length(id_free) == 0L) {
+    # All parameters fixed: nothing to optimize, mirror the NR likelihood-only
+    # exit and evaluate once at the fixed vector.
+    fit_pars <- start
+    n_iter <- 0L
+    is_converged <- TRUE
+    return_code <- 1L
+  } else {
+    ml <- maxLik::maxLik(
+      logLik = loglik_fn,
+      grad = grad_fn,
+      start = start,
+      method = method,
+      fixed = if (length(id_fixed)) id_fixed else NULL,
+      finalHessian = FALSE,
+      printLevel = if (verbose) 2L else 0L
+    )
+    fit_pars <- as.numeric(stats::coef(ml))
+    n_iter <- tryCatch(
+      as.integer(maxLik::nIter(ml))[1],
+      error = function(e) NA_integer_
+    )
+    return_code <- tryCatch(
+      as.integer(maxLik::returnCode(ml)),
+      error = function(e) NA_integer_
+    )
+    # maxLik success codes: 0 (optim-based BFGS/NM), 1 (gradient ~ 0) and 2
+    # (successive params within tol) for the maxNR family, and 8 (successive
+    # function values within relative tolerance).
+    is_converged <- !is.na(return_code) &&
+      return_code %in% c(0L, 1L, 2L, 8L)
+  }
+
+  # One evaluation at the optimum for the Fisher-based vcov and the optional
+  # per-event outputs (vcov from the information at the optimum, as on the NR
+  # path).
+  final <- evaluate(fit_pars, return_event_scores)
+  score <- as.numeric(final$derivative)
+  score[id_fixed] <- 0
+  information_matrix <- final$fisher
+  log_likelihood <- final$logLikelihood
+
+  std_errors <- rep(0, n_params)
+  inverse_information_unfixed <- try(
+    solve(information_matrix[id_free, id_free, drop = FALSE]),
+    silent = TRUE
+  )
+  if (!inherits(inverse_information_unfixed, "try-error")) {
+    std_errors[id_free] <- sqrt(diag(inverse_information_unfixed))
+  }
+
+  estimation_result <- list(
+    parameters = fit_pars,
+    standardErrors = std_errors,
+    logLikelihood = log_likelihood,
+    finalScore = score,
+    finalInformationMatrix = information_matrix,
+    convergence = list(
+      isConverged = is_converged,
+      returnCode = return_code,
+      maxAbsScore = max(abs(score)),
+      maxAbsUpdate = NA_real_,
+      score_rel_norm = max(abs(score)) / max(1, abs(log_likelihood))
+    ),
+    nIterations = n_iter,
+    nEvents = n_events
+  )
+  if (return_interval_loglik) {
+    estimation_result$intervalLogL <- as.numeric(final$intervalLogL)
+  }
+  if (return_event_scores) {
+    estimation_result$event_scores <- final$event_scores
+  }
+  attr(estimation_result, "class") <- "result.goldfish"
+  estimation_result
 }
 
 ## ESTIMATE FOR DIFFERENT MODELS
@@ -554,17 +768,22 @@ estimate_ <- function(
   stat_mat_update_pointer,
   stat_mat_broadcast,
   stat_mat_broadcast_pointer,
-  presence1_init,
-  presence1_update,
-  presence1_update_pointer,
-  presence2_init,
-  presence2_update,
-  presence2_update_pointer,
+  active_sender_init,
+  active_sender_update,
+  active_sender_update_pointer,
+  active_dyad_init,
+  active_dyad_update,
+  active_dyad_update_pointer,
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
-  impute
+  impute,
+  active_dyad_is_point = FALSE,
+  return_event_scores = FALSE
 ) {
+  # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
+  # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
+  # (node1, node2, replace) buffer; otherwise it is the length-n2 receiver vector.
   if (modelTypeCall == "DyNAM-MM") {
     res <- estimate_DyNAM_MM(
       parameters,
@@ -574,16 +793,18 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      active_dyad_is_point = active_dyad_is_point,
+      return_event_scores = return_event_scores
     )
   }
 
@@ -596,13 +817,15 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      active_dyad_is_point = active_dyad_is_point,
+      return_event_scores = return_event_scores
     )
   }
 
@@ -615,16 +838,18 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      active_dyad_is_point = active_dyad_is_point,
+      return_event_scores = return_event_scores
     )
   }
 
@@ -639,16 +864,18 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      active_dyad_is_point = active_dyad_is_point,
+      return_event_scores = return_event_scores
     )
   }
 
@@ -663,16 +890,17 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      return_event_scores = return_event_scores
     )
   }
 
@@ -685,16 +913,17 @@ estimate_ <- function(
       stat_mat_update_pointer,
       stat_mat_broadcast,
       stat_mat_broadcast_pointer,
-      presence1_init,
-      presence1_update,
-      presence1_update_pointer,
-      presence2_init,
-      presence2_update,
-      presence2_update_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
       n_actors1,
       n_actors2,
       twomode_or_reflexive,
-      impute
+      impute,
+      return_event_scores = return_event_scores
     )
   }
   return(res)
@@ -725,48 +954,80 @@ gather_ <- function(
   stat_mat_update_pointer,
   stat_mat_broadcast,
   stat_mat_broadcast_pointer,
-  presence1_init,
-  presence1_update,
-  presence1_update_pointer,
-  presence2_init,
-  presence2_update,
-  presence2_update_pointer,
+  active_sender_init,
+  active_sender_update,
+  active_sender_update_pointer,
+  active_dyad_init,
+  active_dyad_update,
+  active_dyad_update_pointer,
   n_actors1,
   n_actors2,
   twomode_or_reflexive,
   verbose,
-  impute
+  impute,
+  support = NULL,
+  active_dyad_encoding = "alter"
 ) {
   if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
-    # For DyNAM-MM, we deal with twomode_or_reflexive in the estimation
-    # for convenience.
-    if (modelTypeCall == "DyNAM-MM") {
-      twomode_or_reflexive <- TRUE
-    }
+    # DyNAM-MM (coordination) now emits the off-diagonal directed dyad list — no
+    # forced `twomode_or_reflexive` and no reflexive rows. The
+    # dyad-triangle kernel reads the emitted index structures (per-sender groups
+    # + the (i,j)<->(j,i) pairing), so a one-mode coordination model no longer
+    # relies on a square n x n candidate grid.
     gathered_data <- gather_sender_receiver_model_r(
-      event_mat, is_dependent, stat_mat_init,
-      stat_mat_update, stat_mat_update_pointer,
-      stat_mat_broadcast, stat_mat_broadcast_pointer,
-      presence1_init, presence1_update, presence1_update_pointer,
-      presence2_init, presence2_update, presence2_update_pointer,
-      n_actors1, n_actors2, twomode_or_reflexive
+      event_mat,
+      is_dependent,
+      stat_mat_init,
+      stat_mat_update,
+      stat_mat_update_pointer,
+      stat_mat_broadcast,
+      stat_mat_broadcast_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive,
+      active_dyad_encoding = active_dyad_encoding,
+      is_coordination = (modelTypeCall == "DyNAM-MM")
     )
   } else if (modelTypeCall == "DyNAM-M") {
     gathered_data <- gather_receiver_model_r(
-      event_mat, stat_mat_init,
-      stat_mat_update, stat_mat_update_pointer,
-      stat_mat_broadcast, stat_mat_broadcast_pointer,
-      presence2_init, presence2_update, presence2_update_pointer,
-      n_actors1, n_actors2, twomode_or_reflexive
+      event_mat,
+      stat_mat_init,
+      stat_mat_update,
+      stat_mat_update_pointer,
+      stat_mat_broadcast,
+      stat_mat_broadcast_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive,
+      active_dyad_encoding = active_dyad_encoding
     )
   } else if (modelTypeCall %in% c("DyNAM-M-Rate-ordered", "DyNAM-M-Rate")) {
     gathered_data <- gather_sender_model_r(
-      event_mat, is_dependent, stat_mat_init,
-      stat_mat_update, stat_mat_update_pointer,
-      stat_mat_broadcast, stat_mat_broadcast_pointer,
-      presence1_init, presence1_update, presence1_update_pointer,
-      presence2_init, presence2_update, presence2_update_pointer,
-      n_actors1, n_actors2, twomode_or_reflexive
+      event_mat,
+      is_dependent,
+      stat_mat_init,
+      stat_mat_update,
+      stat_mat_update_pointer,
+      stat_mat_broadcast,
+      stat_mat_broadcast_pointer,
+      active_sender_init,
+      active_sender_update,
+      active_sender_update_pointer,
+      active_dyad_init,
+      active_dyad_update,
+      active_dyad_update_pointer,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
   }
 
@@ -796,7 +1057,13 @@ gather_ <- function(
 # over alters holding ego `fixed`, kind 3 over all actors, skipping the
 # reflexive diagonal cell when `!twomode_or_reflexive`.
 .gather_apply_broadcast <- function(
-  stat_mat, bc, from, to, n1, n2, twomode_or_reflexive
+  stat_mat,
+  bc,
+  from,
+  to,
+  n1,
+  n2,
+  twomode_or_reflexive
 ) {
   if (to <= from) {
     return(stat_mat)
@@ -822,7 +1089,9 @@ gather_ <- function(
       stat_mat[fixed * n2 + cols + 1L, effect] <- value
     } else {
       ij <- expand.grid(i = seq_len(n1) - 1L, j = seq_len(n2) - 1L)
-      if (!twomode_or_reflexive) ij <- ij[ij$i != ij$j, ]
+      if (!twomode_or_reflexive) {
+        ij <- ij[ij$i != ij$j, ]
+      }
       stat_mat[ij$i * n2 + ij$j + 1L, effect] <- value
     }
   }
@@ -838,6 +1107,18 @@ gather_ <- function(
   cols <- (from + 1L):to
   presence[upd[1, cols]] <- upd[2, cols]
   presence
+}
+
+# Apply one event's slice of a point-encoded `active_dyad` buffer into the dense
+# n1 x n2 availability matrix. `upd` rows are (node1, node2, replace), all
+# 1-indexed on the node axes; later writes to the same cell win.
+.gather_apply_presence_point <- function(active_dyad, upd, from, to) {
+  if (to <= from) {
+    return(active_dyad)
+  }
+  cols <- (from + 1L):to
+  active_dyad[cbind(upd[1, cols], upd[2, cols])] <- upd[3, cols]
+  active_dyad
 }
 
 # Reduce a n1*n2 x p stacked stat matrix to n1 x p by averaging over the
@@ -868,57 +1149,100 @@ gather_ <- function(
 # Gather data for the sender-receiver models (REM, REM-ordered, DyNAM-MM):
 # all present sender-receiver pairs become rows.
 gather_sender_receiver_model_r <- function(
-  event_mat, is_dependent, stat_mat_init,
-  stat_mat_update, stat_mat_update_pointer,
-  stat_mat_broadcast, stat_mat_broadcast_pointer,
-  presence1_init, presence1_update, presence1_update_pointer,
-  presence2_init, presence2_update, presence2_update_pointer,
-  n_actors1, n_actors2, twomode_or_reflexive
+  event_mat,
+  is_dependent,
+  stat_mat_init,
+  stat_mat_update,
+  stat_mat_update_pointer,
+  stat_mat_broadcast,
+  stat_mat_broadcast_pointer,
+  active_sender_init,
+  active_sender_update,
+  active_sender_update_pointer,
+  active_dyad_init,
+  active_dyad_update,
+  active_dyad_update_pointer,
+  n_actors1,
+  n_actors2,
+  twomode_or_reflexive,
+  active_dyad_encoding = "outer",
+  is_coordination = FALSE
 ) {
   stat_mat <- stat_mat_init
   n_events <- length(is_dependent)
   n_parameters <- ncol(stat_mat)
-  has_cc1 <- length(presence1_update) > 0
-  has_cc2 <- length(presence2_update) > 0
-  presence1 <- presence1_init
-  presence2 <- presence2_init
+  has_cc1 <- length(active_sender_update) > 0
+  has_cc2 <- length(active_dyad_update) > 0
+  # A folded standard-REM constraint rides `active_dyad` at the point encoding
+  # a dense n1 x n2 risk mask (both presences n support)
+  # maintained by a (node1, node2, replace) buffer, read per sender as its row.
+  # The outer encoding keeps the length-n2 receiver vector (cell = f1[i] & f2[j]).
+  is_point <- identical(active_dyad_encoding, "point")
+  active_sender <- active_sender_init
+  active_dyad <- active_dyad_init
   update_id <- 0L
   bc_id <- 0L
   p1_id <- 0L
   p2_id <- 0L
 
   rows_list <- vector("list", n_events)
+  # Per-row actor identity in the shared index vocabulary: every
+  # dyad row carries the sanitized 1-based sender / receiver ids.
+  index_i_list <- vector("list", n_events)
+  index_j_list <- vector("list", n_events)
+  # Coordination-only ragged structures: `sender_of_row` groups each
+  # event's rows by sender (0-based within event; the CSR grouping the per-sender
+  # softmax consumes), and `dyad_partner` maps each directed row (i -> j) to the
+  # within-event position of its partner (j -> i) so the kernel can form the
+  # unordered-dyad log-weights. The symmetric fold guarantees the partner exists.
+  sender_of_row_list <- vector("list", n_events)
+  dyad_partner_list <- vector("list", n_events)
   selected <- numeric(n_events)
-  selected_actor1 <- numeric(n_events)
-  selected_actor2 <- numeric(n_events)
   n_candidates <- numeric(n_events)
-  n_candidates1 <- numeric(n_events)
-  n_candidates2 <- numeric(n_events)
 
   for (e in seq_len(n_events)) {
     ptr <- stat_mat_update_pointer[e]
     stat_mat <- .gather_apply_stat(
-      stat_mat, stat_mat_update, update_id, ptr, n_actors2
+      stat_mat,
+      stat_mat_update,
+      update_id,
+      ptr,
+      n_actors2
     )
     update_id <- ptr
     bc_ptr <- stat_mat_broadcast_pointer[e]
     stat_mat <- .gather_apply_broadcast(
-      stat_mat, stat_mat_broadcast, bc_id, bc_ptr,
-      n_actors1, n_actors2, twomode_or_reflexive
+      stat_mat,
+      stat_mat_broadcast,
+      bc_id,
+      bc_ptr,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
     bc_id <- bc_ptr
     if (has_cc1) {
-      ptr1 <- presence1_update_pointer[e]
-      presence1 <- .gather_apply_presence(
-        presence1, presence1_update, p1_id, ptr1
+      ptr1 <- active_sender_update_pointer[e]
+      active_sender <- .gather_apply_presence(
+        active_sender,
+        active_sender_update,
+        p1_id,
+        ptr1
       )
       p1_id <- ptr1
     }
     if (has_cc2) {
-      ptr2 <- presence2_update_pointer[e]
-      presence2 <- .gather_apply_presence(
-        presence2, presence2_update, p2_id, ptr2
-      )
+      ptr2 <- active_dyad_update_pointer[e]
+      active_dyad <- if (is_point) {
+        .gather_apply_presence_point(
+          active_dyad,
+          active_dyad_update,
+          p2_id,
+          ptr2
+        )
+      } else {
+        .gather_apply_presence(active_dyad, active_dyad_update, p2_id, ptr2)
+      }
       p2_id <- ptr2
     }
 
@@ -926,100 +1250,156 @@ gather_sender_receiver_model_r <- function(
     id_receiver <- event_mat[2, e] - 1L
     is_dep <- is_dependent[e]
 
-    present1_ids <- which(presence1 == 1) - 1L
-    present2_ids <- which(presence2 == 1) - 1L
+    present1_ids <- which(active_sender == 1) - 1L
+    # Outer: one receiver vector shared by every sender. Point: each sender reads
+    # its own dense mask row (both presences n support already folded in).
+    present2_ids <- if (is_point) NULL else which(active_dyad == 1) - 1L
 
     idx <- integer(0)
     n_present <- 0L
-    n_p1 <- 0L
-    n_p2_last <- 0L
     for (i in present1_ids) {
       not_allowed <- if (!twomode_or_reflexive) i else -1L
-      allowed <- present2_ids[present2_ids != not_allowed]
+      present2_i <- if (is_point) {
+        which(active_dyad[i + 1L, ] == 1) - 1L
+      } else {
+        present2_ids
+      }
+      allowed <- present2_i[present2_i != not_allowed]
       n_all <- length(allowed)
       idx <- c(idx, i * n_actors2 + allowed + 1L)
       if (is_dep && i == id_sender) {
         hit <- which(allowed == id_receiver)
         if (length(hit) > 0) {
           selected[e] <- n_present + (hit - 1L)
-          selected_actor1[e] <- n_p1
-          selected_actor2[e] <- hit - 1L
         }
       }
       n_present <- n_present + n_all
-      n_p1 <- n_p1 + 1L
-      n_p2_last <- n_all
     }
     rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
+    # Decode the flat row indices (i * n2 + j, 1-based) back to per-row sender /
+    # receiver ids for the shared index vocabulary.
+    flat0 <- idx - 1L
+    i_vec <- flat0 %/% n_actors2
+    j_vec <- flat0 %% n_actors2
+    index_i_list[[e]] <- i_vec + 1L
+    index_j_list[[e]] <- j_vec + 1L
+    if (is_coordination) {
+      # sender group (0-based position among present senders) and the
+      # (i, j) -> (j, i) pairing, both 0-based within this event's row block.
+      sender_of_row_list[[e]] <- match(i_vec, present1_ids) - 1L
+      dyad_partner_list[[e]] <- match(j_vec * n_actors2 + i_vec, flat0) - 1L
+    }
     n_candidates[e] <- n_present
-    n_candidates1[e] <- n_p1
-    n_candidates2[e] <- n_p2_last
   }
 
   stat_all_events <- do.call(rbind, rows_list)
   if (is.null(stat_all_events)) {
     stat_all_events <- matrix(0, 0, n_parameters)
   }
-  list(
+  # The rectangularity metadata (n_candidates1/n_candidates2, selected_actor1/2)
+  # is retired: the ragged dyad list has no rectangular grid, and
+  # the per-row index_i/index_j plus the coordination CSR groups / dyad pairing
+  # carry all the row identity the kernel and the exports need.
+  out <- list(
     stat_all_events = stat_all_events,
     n_candidates = n_candidates,
-    n_candidates1 = n_candidates1,
-    n_candidates2 = n_candidates2,
     selected = selected,
-    selected_actor1 = selected_actor1,
-    selected_actor2 = selected_actor2
+    index_i = as.integer(unlist(index_i_list)),
+    index_j = as.integer(unlist(index_j_list))
   )
+  if (is_coordination) {
+    out$sender_of_row <- as.integer(unlist(sender_of_row_list))
+    out$dyad_partner <- as.integer(unlist(dyad_partner_list))
+  }
+  out
 }
 
 # Gather data for the receiver model (DyNAM-M choice): for each event only the
 # present receivers of the event's sender become rows.
 gather_receiver_model_r <- function(
-  event_mat, stat_mat_init,
-  stat_mat_update, stat_mat_update_pointer,
-  stat_mat_broadcast, stat_mat_broadcast_pointer,
-  presence2_init, presence2_update, presence2_update_pointer,
-  n_actors1, n_actors2, twomode_or_reflexive
+  event_mat,
+  stat_mat_init,
+  stat_mat_update,
+  stat_mat_update_pointer,
+  stat_mat_broadcast,
+  stat_mat_broadcast_pointer,
+  active_dyad_init,
+  active_dyad_update,
+  active_dyad_update_pointer,
+  n_actors1,
+  n_actors2,
+  twomode_or_reflexive,
+  active_dyad_encoding = "alter"
 ) {
   stat_mat <- stat_mat_init
   n_events <- ncol(event_mat)
   n_parameters <- ncol(stat_mat)
-  has_cc2 <- length(presence2_update) > 0
-  presence2 <- presence2_init
+  has_cc2 <- length(active_dyad_update) > 0
+  # A folded `support_constraint` / opportunity list rides `active_dyad` at the
+  # point encoding: a dense n1 x n2 availability maintained by a
+  # (node1, node2, replace) buffer, read as the event sender's row. The alter
+  # encoding keeps the length-n2 receiver vector.
+  is_point <- identical(active_dyad_encoding, "point")
+  active_dyad <- active_dyad_init
   update_id <- 0L
   bc_id <- 0L
   p2_id <- 0L
 
   rows_list <- vector("list", n_events)
+  # Per-row actor identity: choice rows are the candidate receivers
+  # of the event's (fixed) sender, so index_i is that constant sender and
+  # index_j the receiver, both sanitized 1-based ids.
+  index_i_list <- vector("list", n_events)
+  index_j_list <- vector("list", n_events)
   selected <- numeric(n_events)
   n_candidates <- numeric(n_events)
 
   for (e in seq_len(n_events)) {
     ptr <- stat_mat_update_pointer[e]
     stat_mat <- .gather_apply_stat(
-      stat_mat, stat_mat_update, update_id, ptr, n_actors2
+      stat_mat,
+      stat_mat_update,
+      update_id,
+      ptr,
+      n_actors2
     )
     update_id <- ptr
     bc_ptr <- stat_mat_broadcast_pointer[e]
     stat_mat <- .gather_apply_broadcast(
-      stat_mat, stat_mat_broadcast, bc_id, bc_ptr,
-      n_actors1, n_actors2, twomode_or_reflexive
+      stat_mat,
+      stat_mat_broadcast,
+      bc_id,
+      bc_ptr,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
     bc_id <- bc_ptr
     if (has_cc2) {
-      ptr2 <- presence2_update_pointer[e]
-      presence2 <- .gather_apply_presence(
-        presence2, presence2_update, p2_id, ptr2
-      )
+      ptr2 <- active_dyad_update_pointer[e]
+      active_dyad <- if (is_point) {
+        .gather_apply_presence_point(
+          active_dyad,
+          active_dyad_update,
+          p2_id,
+          ptr2
+        )
+      } else {
+        .gather_apply_presence(active_dyad, active_dyad_update, p2_id, ptr2)
+      }
       p2_id <- ptr2
     }
 
     id_sender <- event_mat[1, e] - 1L
     id_receiver <- event_mat[2, e] - 1L
     not_allowed <- if (!twomode_or_reflexive) id_sender else -1L
-    present2_ids <- which(presence2 == 1) - 1L
+    dyad_row <- if (is_point) active_dyad[id_sender + 1L, ] else active_dyad
+    present2_ids <- which(dyad_row == 1) - 1L
     allowed <- present2_ids[present2_ids != not_allowed]
     idx <- id_sender * n_actors2 + allowed + 1L
     rows_list[[e]] <- stat_mat[idx, , drop = FALSE]
+    index_i_list[[e]] <- rep(id_sender + 1L, length(allowed))
+    index_j_list[[e]] <- allowed + 1L
     hit <- which(allowed == id_receiver)
     if (length(hit) > 0) {
       selected[e] <- hit - 1L
@@ -1034,70 +1414,95 @@ gather_receiver_model_r <- function(
   list(
     stat_all_events = stat_all_events,
     n_candidates = n_candidates,
-    selected = selected
+    selected = selected,
+    index_i = as.integer(unlist(index_i_list)),
+    index_j = as.integer(unlist(index_j_list))
   )
 }
 
 # Gather data for the sender models (DyNAM-M-Rate, DyNAM-M-Rate-ordered): the
 # stacked stat matrix is reduced per sender, and present senders become rows.
 gather_sender_model_r <- function(
-  event_mat, is_dependent, stat_mat_init,
-  stat_mat_update, stat_mat_update_pointer,
-  stat_mat_broadcast, stat_mat_broadcast_pointer,
-  presence1_init, presence1_update, presence1_update_pointer,
-  presence2_init, presence2_update, presence2_update_pointer,
-  n_actors1, n_actors2, twomode_or_reflexive
+  event_mat,
+  is_dependent,
+  stat_mat_init,
+  stat_mat_update,
+  stat_mat_update_pointer,
+  stat_mat_broadcast,
+  stat_mat_broadcast_pointer,
+  active_sender_init,
+  active_sender_update,
+  active_sender_update_pointer,
+  active_dyad_init,
+  active_dyad_update,
+  active_dyad_update_pointer,
+  n_actors1,
+  n_actors2,
+  twomode_or_reflexive
 ) {
   stat_mat <- stat_mat_init
   n_events <- ncol(event_mat)
   n_parameters <- ncol(stat_mat)
-  has_cc1 <- length(presence1_update) > 0
-  has_cc2 <- length(presence2_update) > 0
-  presence1 <- presence1_init
-  presence2 <- presence2_init
+  has_cc1 <- length(active_sender_update) > 0
+  active_sender <- active_sender_init
   update_id <- 0L
   bc_id <- 0L
   p1_id <- 0L
-  p2_id <- 0L
 
   rows_list <- vector("list", n_events)
+  # Per-row actor identity: rate rows are the candidate senders, a
+  # sender-set layout, so each row carries index_i (the sanitized 1-based sender)
+  # and index_j = NA (no receiver axis after the per-sender reduction).
+  index_i_list <- vector("list", n_events)
   selected <- numeric(n_events)
   n_candidates <- numeric(n_events)
 
   for (e in seq_len(n_events)) {
     ptr <- stat_mat_update_pointer[e]
     stat_mat <- .gather_apply_stat(
-      stat_mat, stat_mat_update, update_id, ptr, n_actors2
+      stat_mat,
+      stat_mat_update,
+      update_id,
+      ptr,
+      n_actors2
     )
     update_id <- ptr
     bc_ptr <- stat_mat_broadcast_pointer[e]
     stat_mat <- .gather_apply_broadcast(
-      stat_mat, stat_mat_broadcast, bc_id, bc_ptr,
-      n_actors1, n_actors2, twomode_or_reflexive
+      stat_mat,
+      stat_mat_broadcast,
+      bc_id,
+      bc_ptr,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
     bc_id <- bc_ptr
     if (has_cc1) {
-      ptr1 <- presence1_update_pointer[e]
-      presence1 <- .gather_apply_presence(
-        presence1, presence1_update, p1_id, ptr1
+      ptr1 <- active_sender_update_pointer[e]
+      active_sender <- .gather_apply_presence(
+        active_sender,
+        active_sender_update,
+        p1_id,
+        ptr1
       )
       p1_id <- ptr1
     }
-    if (has_cc2) {
-      ptr2 <- presence2_update_pointer[e]
-      presence2 <- .gather_apply_presence(
-        presence2, presence2_update, p2_id, ptr2
-      )
-      p2_id <- ptr2
-    }
 
     reduced <- .gather_reduce(
-      stat_mat, n_actors1, n_actors2, twomode_or_reflexive
+      stat_mat,
+      n_actors1,
+      n_actors2,
+      twomode_or_reflexive
     )
     id_sender <- event_mat[1, e] - 1L
     is_dep <- is_dependent[e]
-    present1_ids <- which(presence1 == 1) - 1L
+    # A rate support_constraint folds the "has >= 1 allowed present receiver"
+    # sender gate into `active_sender` during preprocessing, so
+    # `active_sender` is the gated sender filter directly — no separate mask.
+    present1_ids <- which(active_sender == 1) - 1L
     rows_list[[e]] <- reduced[present1_ids + 1L, , drop = FALSE]
+    index_i_list[[e]] <- present1_ids + 1L
     if (is_dep) {
       hit <- which(present1_ids == id_sender)
       if (length(hit) > 0) {
@@ -1111,10 +1516,13 @@ gather_sender_model_r <- function(
   if (is.null(stat_all_events)) {
     stat_all_events <- matrix(0, 0, n_parameters)
   }
+  index_i <- as.integer(unlist(index_i_list))
   list(
     stat_all_events = stat_all_events,
     n_candidates = n_candidates,
-    selected = selected
+    selected = selected,
+    index_i = index_i,
+    index_j = rep(NA_integer_, length(index_i))
   )
 }
 
@@ -1125,14 +1533,12 @@ compute_ <- function(
   parameters,
   stat_all_events,
   selected,
-  selected_actor1,
-  selected_actor2,
   n_candidates,
-  n_candidates1,
-  n_candidates2,
   timespan,
   is_dependent,
-  twomode_or_reflexive
+  twomode_or_reflexive,
+  sender_of_row = NULL,
+  dyad_partner = NULL
 ) {
   if (modelTypeCall %in% c("DyNAM-M", "REM-ordered", "DyNAM-M-Rate-ordered")) {
     res <- compute_multinomial_selection(
@@ -1159,12 +1565,9 @@ compute_ <- function(
       parameters,
       stat_all_events,
       n_candidates,
-      n_candidates1,
-      n_candidates2,
       selected,
-      selected_actor1,
-      selected_actor2,
-      twomode_or_reflexive
+      sender_of_row,
+      dyad_partner
     )
   }
 

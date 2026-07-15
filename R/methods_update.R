@@ -55,12 +55,18 @@ NULL
 #' @export
 #' @rdname update-method
 as.data.frame.nodes.goldfish <- function(
-    x, ..., time = -Inf,
-    startTime = -Inf, envir = new.env()) {
+  x,
+  ...,
+  time = -Inf,
+  startTime = -Inf,
+  envir = new.env()
+) {
   df <- x
   dynamic_attributes <- attr(df, "dynamic_attributes")
   eventNames <- attr(df, "events")
-  if (is.character(time)) time <- as.POSIXct(time)
+  if (is.character(time)) {
+    time <- as.POSIXct(time)
+  }
   time <- as.numeric(time)
   startTime <- as.numeric(startTime)
   if (length(eventNames) == 0) {
@@ -70,9 +76,11 @@ as.data.frame.nodes.goldfish <- function(
     events <- get(eventNames[i], envir = envir)
     events <- sanitizeEvents(events, df, envir = envir)
     events <- events[events$time >= startTime & events$time < time, ]
-    if (nrow(events) == 0) next
+    if (nrow(events) == 0) {
+      next
+    }
 
-    has_replace  <- !is.null(events$replace)
+    has_replace <- !is.null(events$replace)
     has_increment <- !is.null(events$increment)
 
     if (has_replace && has_increment) {
@@ -101,9 +109,16 @@ as.data.frame.nodes.goldfish <- function(
 #' @export
 #' @rdname update-method
 as.matrix.network.goldfish <- function(
-    x, ..., time = -Inf, startTime = -Inf, envir = new.env()) {
+  x,
+  ...,
+  time = -Inf,
+  startTime = -Inf,
+  envir = new.env()
+) {
   net <- x
-  if (is.character(time)) time <- as.POSIXct(time)
+  if (is.character(time)) {
+    time <- as.POSIXct(time)
+  }
   time <- as.numeric(time)
   startTime <- as.numeric(startTime)
   dim_net <- dim(net)
@@ -119,21 +134,24 @@ as.matrix.network.goldfish <- function(
   events <- lapply(
     lapply(eventNames, get, envir = envir),
     sanitizeEvents,
-    nodes = nodes, nodes2 = nodes2, envir = envir
+    nodes = nodes,
+    nodes2 = nodes2,
+    envir = envir
   )
 
   # merge all event lists and restrict to window once
   all_events <- do.call(
     rbind,
-    lapply(events, function(ev)
-      ev[ev$time >= startTime & ev$time < time, , drop = FALSE])
+    lapply(events, function(ev) {
+      ev[ev$time >= startTime & ev$time < time, , drop = FALSE]
+    })
   )
 
   if (is.null(all_events) || nrow(all_events) == 0) {
     return(net[1:dim_net[1], 1:dim_net[2]])
   }
 
-  has_replace  <- !is.null(all_events$replace)
+  has_replace <- !is.null(all_events$replace)
   has_increment <- !is.null(all_events$increment)
 
   if (has_replace && has_increment) {

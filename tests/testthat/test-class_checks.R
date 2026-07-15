@@ -1,8 +1,8 @@
 test_that("compositional change", {
-  compositionalEvents <- find_presence(actorsEx)
+  compositionalEvents <- find_presence(actors_ex)
   expect_true(inherits(compositionalEvents, "character"))
   expect_equal(compositionalEvents, "compChange")
-  
+
   expect_null(find_presence(data.frame(label = "a", present = TRUE)))
   expect_null(find_presence(
     structure(
@@ -14,25 +14,33 @@ test_that("compositional change", {
 
 test_that("last presence", {
   expect_equal(
-    find_last_presence(1, 3, actorsEx, compChange),
+    find_last_presence(1, 3, actors_ex, compChange),
     -1L
   )
-  expect_true(find_last_presence(5, 30, actorsEx, compChange))
-  expect_false(find_last_presence(5, 27, actorsEx, compChange))
+  expect_true(find_last_presence(5, 30, actors_ex, compChange))
+  expect_false(find_last_presence(5, 27, actors_ex, compChange))
 })
 test_that("check classes", {
   checks <- check_classes(
-    c(1L, 3L), c("character", "numeric", "integer", "factor", "POSIXct")
+    c(1L, 3L),
+    c("character", "numeric", "integer", "factor", "POSIXct")
   )
   expect_vector(checks, ptype = logical(), size = 5)
-  expect_equal(checks, c(FALSE, TRUE, TRUE, FALSE, FALSE),
-               ignore_attr = "names")
-})  
+  expect_equal(
+    checks,
+    c(FALSE, TRUE, TRUE, FALSE, FALSE),
+    ignore_attr = "names"
+  )
+})
 
 test_that("assign category object", {
   assignment <- assign_category_object(list(
-    logical(2), numeric(4), character(6),
-    matrix(FALSE, 2, 2), matrix(0L, 1, 1), matrix(0, 2, 2)
+    logical(2),
+    numeric(4),
+    character(6),
+    matrix(FALSE, 2, 2),
+    matrix(0L, 1, 1),
+    matrix(0, 2, 2)
   ))
   expect_type(assignment, "character")
   expect_length(assignment, 6)
@@ -106,11 +114,11 @@ test_that("check columns", {
 
 test_that("nodes", {
   expect_error(check_nodes(list(numeric(2))))
-  expect_true(check_nodes(actorsEx))
-  actorsEx$label[2] <- NA_character_
-  expect_error(check_nodes(actorsEx))
-  actorsEx$label[2] <- "Actor 1"
-  expect_error(check_nodes(actorsEx))
+  expect_true(check_nodes(actors_ex))
+  actors_ex$label[2] <- NA_character_
+  expect_error(check_nodes(actors_ex))
+  actors_ex$label[2] <- "Actor 1"
+  expect_error(check_nodes(actors_ex))
 })
 
 test_that("network", {
@@ -127,34 +135,38 @@ test_that("network", {
     structure(
       matrix(0, nrow = 2, ncol = 2),
       class = c("network.goldfish", "matrix", "array"),
-      nodes = "actorsEx"
+      nodes = "actors_ex"
     )
   ))
   expect_true(check_network(
     structure(
       networkState,
       class = c("network.goldfish", "matrix", "array"),
-      nodes = "actorsEx", directed = FALSE
+      nodes = "actors_ex",
+      directed = FALSE
     ),
-    nodes = actorsEx,
-    nodes_name = "actorsEx"
+    nodes = actors_ex,
+    nodes_name = "actors_ex"
   ))
 })
 
 test_that("events nodes", {
   envirTest <- new.env()
-  assign("actorsEx", actorsEx, envir = envirTest)
+  assign("actors_ex", actors_ex, envir = envirTest)
   assign("compChange", compChange, envir = envirTest)
   assign("attrChange", attrChange, envir = envirTest)
-  base::local({
-    node_object <- structure(
-      actorsEx,
-      class = c("nodes.goldfish", "data.frame"),
-      dynamic_attributes = c("present", "attr1"),
-      events = c("compChange", "attrChange")
-    )    
-  }, envir = envirTest)
-  
+  base::local(
+    {
+      node_object <- structure(
+        actors_ex,
+        class = c("nodes.goldfish", "data.frame"),
+        dynamic_attributes = c("present", "attr1"),
+        events = c("compChange", "attrChange")
+      )
+    },
+    envir = envirTest
+  )
+
   expect_error(check_events.nodes.goldfish(
     object = envirTest$node_object,
     events = list(replace = character(2)),
@@ -164,23 +176,34 @@ test_that("events nodes", {
     attribute = "present"
   ))
   expect_error(check_events.nodes.goldfish(
-    object = structure(data.frame(
-      label = "a", present = TRUE, attr1 = 1
-    ), class = c("nodes.goldfish", "data.frame")),
-    events = envirTest$compChange,,
+    object = structure(
+      data.frame(
+        label = "a",
+        present = TRUE,
+        attr1 = 1
+      ),
+      class = c("nodes.goldfish", "data.frame")
+    ),
+    events = envirTest$compChange,
+    ,
     events_name = "compChange",
     update_column = TRUE,
     environment = envirTest,
     attribute = "present"
   ))
   expect_error(check_events.nodes.goldfish(
-    object = structure(data.frame(
-      label = "a", present = TRUE, attr1 = 1
-    ), class = c("nodes.goldfish", "data.frame"),
-    dynamic_attributes = c("present", NA_character_),
-    events = c("compChange", "attrChange")
+    object = structure(
+      data.frame(
+        label = "a",
+        present = TRUE,
+        attr1 = 1
+      ),
+      class = c("nodes.goldfish", "data.frame"),
+      dynamic_attributes = c("present", NA_character_),
+      events = c("compChange", "attrChange")
     ),
-    events = envirTest$compChange,,
+    events = envirTest$compChange,
+    ,
     events_name = "compChange",
     update_column = TRUE,
     environment = envirTest,
@@ -231,13 +254,13 @@ test_that("events nodes", {
 
 # test_that("events network", {
 #   envirTest <- new.env()
-#   assign("actorsEx", actorsEx, envir = envirTest)
+#   assign("actors_ex", actors_ex, envir = envirTest)
 #   assign("compChange", compChange, envir = envirTest)
 #   assign("networkState", networkState, envir = envirTest)
 #   assign("eventsIncrement", eventsIncrement, envir = envirTest)
 #   base::local({
 #     node_object <- structure(
-#       actorsEx,
+#       actors_ex,
 #       class = c("nodes.goldfish", "data.frame"),
 #       dynamic_attributes = c("present"),
 #       events = c("compChange")
@@ -249,7 +272,7 @@ test_that("events nodes", {
 #       events = c("eventsIncrement")
 #     )
 #   }, envir = envirTest)
-#   
+#
 #   expect_error(check_events.network.goldfish(
 #     object = envirTest$network_object,
 #     events = envirTest$eventsIncrement,
@@ -259,4 +282,3 @@ test_that("events nodes", {
 #     nodes = "node_object"
 #   ))
 # })
-

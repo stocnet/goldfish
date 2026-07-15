@@ -61,12 +61,12 @@ data frames objects. The previous mentioned objects classes change this
 behavior producing errors.
 }
 \examples{
-nodesAttr <- data.frame(
+nodes_attr <- data.frame(
   label = paste("Actor", 1:5),
   present = c(TRUE, FALSE, TRUE, TRUE, FALSE),
   gender = c(1, 2, 1, 1, 2)
 )
-nodesAttr <- make_nodes(nodes = nodesAttr)
+nodes_attr <- make_nodes(nodes = nodes_attr)
 
 # Social evolution nodes definition
 data("Social_Evolution")

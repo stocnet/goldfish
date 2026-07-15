@@ -1,6 +1,5 @@
 ####################### DATA PROCESSING ########################################
 
-
 #' To define the second mode of a DyNAM-i model
 #'
 #' This function create all objects necessary to the estimation of a DyNAM-i
@@ -45,8 +44,12 @@
 #'   \item{composition.changes}{that is an events list that should be attached
 #'     to the groups nodeset to indicate when a group is present or not}
 #' }
-make_groups_interaction <- function(records, actors, seed_randomization,
-                                     progress = getOption("progress")) {
+make_groups_interaction <- function(
+  records,
+  actors,
+  seed_randomization,
+  progress = getOption("progress")
+) {
   stopifnot(
     inherits(records, "data.frame"),
     inherits(actors, "data.frame"),
@@ -54,7 +57,9 @@ make_groups_interaction <- function(records, actors, seed_randomization,
     is.null(progress) || inherits(progress, "logical")
   )
 
-  if (is.null(progress)) progress <- FALSE
+  if (is.null(progress)) {
+    progress <- FALSE
+  }
 
   # PATCH Marion: change actors labels to characters
   actors$label <- as.character(actors$label)
@@ -166,8 +171,10 @@ make_groups_interaction <- function(records, actors, seed_randomization,
         areinteracting <- 0
         if (length(inda1a2) > 0) {
           for (j in seq.int(length(inda1a2))) {
-            if (records$Start[inda1a2[j]] <= time &&
-              records$End[inda1a2[j]] > time) {
+            if (
+              records$Start[inda1a2[j]] <= time &&
+                records$End[inda1a2[j]] > time
+            ) {
               areinteracting <- 1
             }
           }
@@ -188,7 +195,8 @@ make_groups_interaction <- function(records, actors, seed_randomization,
       if (isinteracting && min(which(tempnet[a1, ] == 1)) < a1) {
         groupassignment[a1, i] <-
           groupassignment[min(which(tempnet[a1, ] == 1)), i]
-      } else { # if not, assign a new group
+      } else {
+        # if not, assign a new group
         groupassignment[a1, i] <- g
         g <- g + 1
       }
@@ -695,8 +703,6 @@ make_groups_interaction <- function(records, actors, seed_randomization,
       }
     }
 
-
-
     # NOT INTERACTING ACTORS: we check previous time point
     numinactives <- 0
     inactivegroups <- numeric()
@@ -729,7 +735,6 @@ make_groups_interaction <- function(records, actors, seed_randomization,
       }
     }
 
-
     # if there were previous groups, go through all of them in a random order
     if (numgroups > 0) {
       for (g in seq.int(numgroups)) {
@@ -740,7 +745,8 @@ make_groups_interaction <- function(records, actors, seed_randomization,
         for (a in seq.int(length(groupactors))) {
           actorsactivity[a] <- length(
             which(groupassignment[, i] == groupassignment[groupactors[a], i])
-          ) > 1
+          ) >
+            1
         }
 
         # GROUP DELETION: all the actors left
@@ -792,7 +798,8 @@ make_groups_interaction <- function(records, actors, seed_randomization,
               # )
             }
           }
-        } else { # LEAVING EVENT: some other actors remain active
+        } else {
+          # LEAVING EVENT: some other actors remain active
 
           # we only take the ones who are no longer active
           groupactors <- groupactors[actorsactivity == 0]
@@ -842,8 +849,6 @@ make_groups_interaction <- function(records, actors, seed_randomization,
         }
       }
     }
-
-
 
     # # EMPTY GROUPS to be removed
     # if(length(toberemovedgroups) > 0) {
@@ -941,7 +946,8 @@ make_groups_interaction <- function(records, actors, seed_randomization,
   if (progress) {
     cat(
       "Data preparation for DyNAM-i model:\n",
-      paste(nrow(dependent.events), "dependent events created"), "\n",
+      paste(nrow(dependent.events), "dependent events created"),
+      "\n",
       paste(
         nrow(exogenous.events),
         "exogenous events created (group composition updates"
@@ -958,26 +964,32 @@ make_groups_interaction <- function(records, actors, seed_randomization,
   )
   # composition.changes = composition.changes)
 
-
   return(groupsResult)
 }
 
 
-
-
 ## For the estimation
 # Function that remove extra attributes to windowed events
-cleanInteractionEvents <- function(
-    events, eventsEffectsLink, windowParameters,
-    subModel, depName, eventsObjectsLink, envir) {
-  done.events <- rep(FALSE, dim(eventsEffectsLink)[1])
+clean_interaction_events <- function(
+  events,
+  events_effects_link,
+  window_parameters,
+  sub_model,
+  depName,
+  events_objects_link,
+  envir
+) {
+  done.events <- rep(FALSE, dim(events_effects_link)[1])
 
   # Windowed events: we remove the order of the events
-  for (e in seq.int(dim(eventsEffectsLink)[1])) {
-    for (eff in seq.int(dim(eventsEffectsLink)[2])) {
-      if (!done.events[e] && !is.na(eventsEffectsLink[e, eff]) &&
-        !is.null(windowParameters[[eff]])) {
-        eventsobject <- get(rownames(eventsEffectsLink)[e], envir = envir)
+  for (e in seq.int(dim(events_effects_link)[1])) {
+    for (eff in seq.int(dim(events_effects_link)[2])) {
+      if (
+        !done.events[e] &&
+          !is.na(events_effects_link[e, eff]) &&
+          !is.null(window_parameters[[eff]])
+      ) {
+        eventsobject <- get(rownames(events_effects_link)[e], envir = envir)
 
         # correct the order of events
         oldorder <- attr(eventsobject, "order")
@@ -998,14 +1010,14 @@ cleanInteractionEvents <- function(
         )
 
         # reassign object
-        assign(rownames(eventsEffectsLink)[e], eventsobject, pos = envir)
+        assign(rownames(events_effects_link)[e], eventsobject, pos = envir)
 
         # sanitize events
         objPos <- which(
-          eventsObjectsLink$events == rownames(eventsEffectsLink)[e]
+          events_objects_link$events == rownames(events_effects_link)[e]
         )
         nodesObject <- attr(
-          get(eventsObjectsLink[objPos, ]$object, envir = envir),
+          get(events_objects_link[objPos, ]$object, envir = envir),
           "nodes"
         )
 
@@ -1030,13 +1042,17 @@ cleanInteractionEvents <- function(
 # For the estimation of a submodel choice
 # remove own groups from the sets of options
 setopportunities_interaction <- function(
-    nodes, nodes2, eventsObjectsLink, groups.network) {
+  nodes,
+  nodes2,
+  events_objects_link,
+  groups.network
+) {
   # get objects
   getactors <- get(nodes)
   getgroups <- get(nodes2)
   groups.network.object <- get(groups.network)
   events <- attr(groups.network.object, "events")
-  dname <- eventsObjectsLink[1, 1]
+  dname <- events_objects_link[1, 1]
 
   # get events
   for (e in events) {

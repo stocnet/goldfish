@@ -7,7 +7,9 @@ test_that("inertia returns a valid object on update", {
     inherits(
       update_DyNAM_choice_inertia(
         m,
-        sender = 1, receiver = 5, replace = 1
+        sender = 1,
+        receiver = 5,
+        replace = 1
       )$changes,
       "matrix"
     ),
@@ -16,7 +18,9 @@ test_that("inertia returns a valid object on update", {
   expect_length(
     update_DyNAM_choice_inertia(
       m,
-      sender = 1, receiver = 5, replace = 1
+      sender = 1,
+      receiver = 5,
+      replace = 1
     )$changes,
     3
   )
@@ -26,13 +30,17 @@ test_that("inertia returns NULL if there is no change on update", {
   expect_null(
     update_DyNAM_choice_inertia(
       m,
-      sender = 1, receiver = 2, replace = 1
+      sender = 1,
+      receiver = 2,
+      replace = 1
     )$changes
   )
   expect_null(
     update_DyNAM_choice_inertia(
       m,
-      sender = 1, receiver = 1, replace = 0
+      sender = 1,
+      receiver = 1,
+      replace = 0
     )$changes,
     label = "when sender and receiver are the same node"
   )
@@ -46,14 +54,20 @@ test_that("inertia returns NULL if there is no change on update", {
   expect_null(
     update_DyNAM_choice_inertia(
       m,
-      sender = 1, receiver = 2, replace = 2.5, weighted = FALSE
+      sender = 1,
+      receiver = 2,
+      replace = 2.5,
+      weighted = FALSE
     )$changes,
     label = "when weighted is set to FALSE and an updated tie already exists"
   )
   expect_null(
     update_DyNAM_choice_inertia(
       m,
-      sender = 4, receiver = 1, replace = 2, weighted = TRUE
+      sender = 4,
+      receiver = 1,
+      replace = 2,
+      weighted = TRUE
     )$changes,
     label = "when weighted is set to TRUE and the updated weight is identical"
   )
@@ -63,9 +77,14 @@ test_that("inertia recognizes tie creation and updates correctly", {
   expect_equal(
     update_DyNAM_choice_inertia(
       m,
-      sender = 1, receiver = 5, replace = 1
+      sender = 1,
+      receiver = 5,
+      replace = 1
     )$changes,
-    matrix(c(1, 5, 1), 1, 3,
+    matrix(
+      c(1, 5, 1),
+      1,
+      3,
       dimnames = list(NULL, c("node1", "node2", "replace"))
     )
   )
@@ -95,9 +114,14 @@ test_that("inertia recognizes tie deletion correctly", {
   expect_equal(
     update_DyNAM_choice_inertia(
       m,
-      sender = 1, receiver = 3, replace = 0
+      sender = 1,
+      receiver = 3,
+      replace = 0
     )$changes,
-    matrix(c(1, 3, 0), 1, 3,
+    matrix(
+      c(1, 3, 0),
+      1,
+      3,
       dimnames = list(NULL, c("node1", "node2", "replace"))
     )
   )
@@ -114,9 +138,15 @@ test_that("inertia recognizes updates to tie weights correctly", {
   expect_equal(
     update_DyNAM_choice_inertia(
       m,
-      sender = 1, receiver = 5, replace = 2, weighted = TRUE
+      sender = 1,
+      receiver = 5,
+      replace = 2,
+      weighted = TRUE
     )$changes,
-    matrix(c(1, 5, 2), 1, 3,
+    matrix(
+      c(1, 5, 2),
+      1,
+      3,
       dimnames = list(NULL, c("node1", "node2", "replace"))
     ),
     label = "when a tie is created"
@@ -124,9 +154,15 @@ test_that("inertia recognizes updates to tie weights correctly", {
   expect_equal(
     update_DyNAM_choice_inertia(
       m,
-      sender = 1, receiver = 3, replace = 2, weighted = TRUE
+      sender = 1,
+      receiver = 3,
+      replace = 2,
+      weighted = TRUE
     )$changes,
-    matrix(c(1, 3, 2), 1, 3,
+    matrix(
+      c(1, 3, 2),
+      1,
+      3,
       dimnames = list(NULL, c("node1", "node2", "replace"))
     ),
     label = "when an existing tie is updated"
@@ -134,9 +170,15 @@ test_that("inertia recognizes updates to tie weights correctly", {
   expect_equal(
     update_DyNAM_choice_inertia(
       m,
-      sender = 1, receiver = 5, replace = -1, weighted = TRUE
+      sender = 1,
+      receiver = 5,
+      replace = -1,
+      weighted = TRUE
     )$changes,
-    matrix(c(1, 5, -1), 1, 3,
+    matrix(
+      c(1, 5, -1),
+      1,
+      3,
       dimnames = list(NULL, c("node1", "node2", "replace"))
     ),
     label = "when replace is negative"
@@ -144,10 +186,16 @@ test_that("inertia recognizes updates to tie weights correctly", {
   expect_equal(
     update_DyNAM_choice_inertia(
       m,
-      sender = 1, receiver = 3, replace = 2, weighted = TRUE,
+      sender = 1,
+      receiver = 3,
+      replace = 2,
+      weighted = TRUE,
       transformer_fn = function(x) `^`(x, 2)
     )$changes,
-    matrix(c(1, 3, 4), 1, 3,
+    matrix(
+      c(1, 3, 4),
+      1,
+      3,
       dimnames = list(NULL, c("node1", "node2", "replace"))
     ),
     label = "when transformer_fn is specified"

@@ -67,10 +67,15 @@ test_that("new_model_spec dyad-indexed spec is not sender-indexed", {
 
 test_that("new_model_spec accepts all 9 valid variant combinations", {
   combinations <- list(
-    c("DyNAM", "rate"), c("DyNAM", "rate_ordered"), c("DyNAM", "choice"),
-    c("DyNAM", "choice_coordination"), c("DyNAMi", "rate"),
-    c("DyNAMi", "rate_ordered"), c("DyNAMi", "choice"),
-    c("REM", "rate"), c("REM", "rate_ordered")
+    c("DyNAM", "rate"),
+    c("DyNAM", "rate_ordered"),
+    c("DyNAM", "choice"),
+    c("DyNAM", "choice_coordination"),
+    c("DyNAMi", "rate"),
+    c("DyNAMi", "rate_ordered"),
+    c("DyNAMi", "choice"),
+    c("REM", "rate"),
+    c("REM", "rate_ordered")
   )
   for (combination in combinations) {
     spec <- new_model_spec(combination[1], combination[2], nodes = "actors")
@@ -102,21 +107,30 @@ test_that("new_model_spec accepts engine = 'default' and rejects others", {
 test_that("new_model_spec two-mode requires both node sets", {
   expect_error(
     new_model_spec(
-      "DyNAM", "choice",
-      is_two_mode = TRUE, nodes = "actors", nodes2 = NULL
+      "DyNAM",
+      "choice",
+      is_two_mode = TRUE,
+      nodes = "actors",
+      nodes2 = NULL
     ),
     "nodes2"
   )
   expect_error(
     new_model_spec(
-      "REM", "rate",
-      is_two_mode = TRUE, nodes = "actors", nodes2 = "actors"
+      "REM",
+      "rate",
+      is_two_mode = TRUE,
+      nodes = "actors",
+      nodes2 = "actors"
     ),
     "distinct node sets"
   )
   spec <- new_model_spec(
-    "DyNAM", "choice",
-    is_two_mode = TRUE, nodes = "actors", nodes2 = "clubs"
+    "DyNAM",
+    "choice",
+    is_two_mode = TRUE,
+    nodes = "actors",
+    nodes2 = "clubs"
   )
   expect_true(spec$is_two_mode)
   expect_identical(spec$nodes2, "clubs")
@@ -160,18 +174,21 @@ test_that("legacy_model_type maps every spec class to its legacy string", {
 test_that("estimate_dynam constructs and forwards the typed spec", {
   fitChoice <- estimate_dynam(
     depNetwork ~ inertia + recip,
-    sub_model = "choice", data = dataTest
+    sub_model = "choice",
+    data = dataTest
   )
   expect_s3_class(fitChoice$model_spec, "dynam_choice_spec")
   prepCoord <- estimate_dynam(
     depNetwork ~ inertia,
-    sub_model = "choice_coordination", data = dataTest,
+    sub_model = "choice_coordination",
+    data = dataTest,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepCoord$model_spec, "dynam_choice_coord_spec")
   prepRate <- estimate_dynam(
     depNetwork ~ 1 + indeg,
-    sub_model = "rate", data = dataTest,
+    sub_model = "rate",
+    data = dataTest,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepRate$model_spec, "dynam_rate_spec")
@@ -179,7 +196,8 @@ test_that("estimate_dynam constructs and forwards the typed spec", {
   expect_warning(
     prepRateOrdered <- estimate_dynam(
       depNetwork ~ indeg,
-      sub_model = "rate", data = dataTest,
+      sub_model = "rate",
+      data = dataTest,
       preprocessing_only = TRUE
     ),
     "rate_ordered"
@@ -190,21 +208,24 @@ test_that("estimate_dynam constructs and forwards the typed spec", {
 test_that("estimate_dynam accepts the explicit rate_ordered sub_model", {
   prepExplicit <- estimate_dynam(
     depNetwork ~ indeg,
-    sub_model = "rate_ordered", data = dataTest,
+    sub_model = "rate_ordered",
+    data = dataTest,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepExplicit$model_spec, "dynam_rate_ordered_spec")
-  expect_identical(prepExplicit$subModel, "rate")
+  expect_identical(prepExplicit$sub_model, "rate")
   prepImplicit <- suppressWarnings(estimate_dynam(
     depNetwork ~ indeg,
-    sub_model = "rate", data = dataTest,
+    sub_model = "rate",
+    data = dataTest,
     preprocessing_only = TRUE
   ))
   expect_equal(prepExplicit, prepImplicit)
   expect_warning(
     estimate_dynam(
       depNetwork ~ 1 + indeg,
-      sub_model = "rate_ordered", data = dataTest,
+      sub_model = "rate_ordered",
+      data = dataTest,
       preprocessing_only = TRUE
     ),
     "ignores the time intercept"
@@ -214,14 +235,16 @@ test_that("estimate_dynam accepts the explicit rate_ordered sub_model", {
 test_that("estimate_rem accepts explicit rate and rate_ordered sub_models", {
   prepRate <- estimate_rem(
     depNetwork ~ 1 + inertia,
-    sub_model = "rate", data = dataTest,
+    sub_model = "rate",
+    data = dataTest,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepRate$model_spec, "rem_rate_spec")
-  expect_identical(prepRate$subModel, "choice")
+  expect_identical(prepRate$sub_model, "choice")
   prepOrdered <- estimate_rem(
     depNetwork ~ inertia,
-    sub_model = "rate_ordered", data = dataTest,
+    sub_model = "rate_ordered",
+    data = dataTest,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepOrdered$model_spec, "rem_rate_ordered_spec")
@@ -233,7 +256,8 @@ test_that("estimate_rem constructs and forwards the typed spec", {
   expect_true(fitRem$model_spec$has_intercept)
   prepRemOrdered <- estimate_rem(
     depNetwork ~ inertia,
-    data = dataTest, preprocessing_only = TRUE
+    data = dataTest,
+    preprocessing_only = TRUE
   )
   expect_s3_class(prepRemOrdered$model_spec, "rem_rate_ordered_spec")
 })
@@ -242,14 +266,16 @@ test_that("estimate_dynami constructs and forwards the typed spec", {
   prepRate <- estimate_dynami(
     dependent.depevents_DyNAMi ~ 1 +
       intercept(interaction_network_DyNAMi, joining = -1),
-    sub_model = "rate", data = dataDyNAMi,
+    sub_model = "rate",
+    data = dataDyNAMi,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepRate$model_spec, "dynami_rate_spec")
   prepChoice <- estimate_dynami(
     dependent.depevents_DyNAMi ~
-      inertia(past_network_DyNAMi, weighted = TRUE, subType = "count"),
-    sub_model = "choice", data = dataDyNAMi,
+      inertia(past_network_DyNAMi, weighted = TRUE, sub_type = "count"),
+    sub_model = "choice",
+    data = dataDyNAMi,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepChoice$model_spec, "dynami_choice_spec")
@@ -258,8 +284,11 @@ test_that("estimate_dynami constructs and forwards the typed spec", {
 test_that("new_model_spec sender-indexed specs ignore is_two_mode", {
   expect_no_warning(
     spec <- new_model_spec(
-      "DyNAM", "rate",
-      is_two_mode = TRUE, nodes = "actors", nodes2 = "clubs"
+      "DyNAM",
+      "rate",
+      is_two_mode = TRUE,
+      nodes = "actors",
+      nodes2 = "clubs"
     )
   )
   expect_false(spec$is_two_mode)

@@ -5,8 +5,6 @@
 #
 ######################### ###
 
-
-
 #' Methods for `goldfish` objects.
 #'
 #' Printing functions for `goldfish` objects.
@@ -22,6 +20,15 @@
 #' of effects fixed during estimation using `fixedParameters` should be printed.
 #' The default value is `FALSE`. _Note:_ applies for objects of class
 #' `result.goldfish` and `summary.result.goldfish`.
+#' @param compact logical. For objects of class `summary.result.goldfish`,
+#' when `TRUE` (the default) a single coefficients table is printed whose row
+#' labels are compact term strings and the separate "Effects details" table is
+#' omitted; when `FALSE` the "Effects details" table is printed before the
+#' coefficients table. The compact labels read `effect/obj·obj2 [args]`:
+#' `/` separates the effect from its object(s), the middle dot `·` joins
+#' multiple objects, and a single trailing `[ ]` block collects the remaining
+#' (comma-separated) arguments. A short legend after the coefficients table
+#' keys any opaque argument codes that appear.
 #' @param full logical. Indicates whether the complete `matrix`/`data.frame`
 #' should be printed. The default value `FALSE`.
 #' @param ... further arguments to be passed to the respective `default`
@@ -39,15 +46,23 @@ NULL
 #' @rdname print-method
 #' @method print result.goldfish
 print.result.goldfish <- function(
-    x, ..., digits = max(3, getOption("digits") - 2),
-    width = getOption("width"), complete = FALSE) {
+  x,
+  ...,
+  digits = max(3, getOption("digits") - 2),
+  width = getOption("width"),
+  complete = FALSE
+) {
   cat("\nCall:\n")
   print(x$call)
   cat("\n\n")
   if (length(coef(x, complete = complete))) {
     cat("Coefficients:\n")
-    print.default(format(coef(x, complete = complete), digits = digits),
-      print.gap = 2, quote = FALSE, width = width, ...
+    print.default(
+      format(coef(x, complete = complete), digits = digits),
+      print.gap = 2,
+      quote = FALSE,
+      width = width,
+      ...
     )
   } else {
     cat("No coefficients\n")
@@ -62,7 +77,9 @@ print.result.goldfish <- function(
 summary.result.goldfish <- function(object, ...) {
   nParams <- object$nParams
 
-  if (is.null(object$names)) object$names <- seq_len(nParams)
+  if (is.null(object$names)) {
+    object$names <- seq_len(nParams)
+  }
   # names <- object$names
 
   est <- object$parameters
@@ -110,7 +127,7 @@ summary.result.goldfish <- function(object, ...) {
 #' \item{Effect details:}{a table with additional information of the effects.
 #' The information corresponds to the  values of the effects arguments when
 #' they are modified and if they where fixed during estimation, see
-#' `vignette("goldfishEffects")` for the complete list of arguments, and
+#' `vignette("goldfish_effects")` for the complete list of arguments, and
 #' [estimate] on how to fix coefficients during estimation.}
 #' \item{Coefficients:}{a table with the estimated coefficients, their
 #'   approximate standard error obtain from the inverse of the negative Fisher
@@ -120,11 +137,15 @@ summary.result.goldfish <- function(object, ...) {
 #'   convergence of the iterative Newton-Raphson procedure and the score value
 #'   in the last iteration. Information criteria as the AIC, BIC and the AIC
 #'   corrected for small sample size AICc are reported.}
-#' \item{Model and subModel:}{the values set during estimation.}
+#' \item{Model and sub_model:}{the values set during estimation.}
 print.summary.result.goldfish <- function(
-    x, ...,
-    digits = max(3, getOption("digits") - 2),
-    width = getOption("width"), complete = FALSE) {
+  x,
+  ...,
+  digits = max(3, getOption("digits") - 2),
+  width = getOption("width"),
+  compact = TRUE,
+  complete = FALSE
+) {
   nParams <- x$nParams
   aicc <- x$AIC + 2 * nParams * (nParams + 1) / (x$nEvents - nParams - 1)
   cat("\nCall:\n")
@@ -135,28 +156,49 @@ print.summary.result.goldfish <- function(
   # cat("\n")
   # print(x$est.stat)
 
-
   isFixed <- GetFixed(x)
 
+  displayCols <- !startsWith(colnames(x$names), ".")
   if (!complete && any(isFixed)) {
-    names <- x$names[!isFixed, ]
+    names <- x$names[!isFixed, displayCols, drop = FALSE]
     coefMat <- x$coefMat[!isFixed, ]
     isDetPrint <- !((ncol(names) == 2) &&
       (length(unique(names[, "Object"])) == 1))
   } else {
-    names <- x$names
+    names <- x$names[, displayCols, drop = FALSE]
     coefMat <- x$coefMat
     isDetPrint <- !((ncol(names) == 1) &&
       (length(unique(names[, "Object"])) == 1))
   }
 
-  if (isDetPrint) {
+  legendLines <- character(0)
+  if (compact) {
+    termsFull <- compact_term_strings(names, "console", width = 10000L)
+    tmp <- coefMat
+    rownames(tmp) <- termsFull
+    numericWidth <- max(nchar(utils::capture.output(
+      stats::printCoefmat(tmp, digits = digits, ...)
+    ))) -
+      max(nchar(termsFull))
+    avail <- max(12L, width - numericWidth)
+    terms <- if (max(nchar(termsFull)) <= avail) {
+      termsFull
+    } else {
+      compact_term_strings(names, "console", width = avail)
+    }
+    rownames(coefMat) <- terms
+    legendLines <- .compactLegend(terms, termsFull)
+  } else if (isDetPrint) {
     cat("\nEffects details:\n")
     print.default(names, quote = FALSE, width = width, ...)
   }
 
   cat("\nCoefficients:\n")
   stats::printCoefmat(coefMat, digits = digits, width = width, ...)
+  if (length(legendLines)) {
+    cat("\n")
+    writeLines(strwrap(legendLines, width = width, exdent = 2))
+  }
   cat("\n")
   rc <- x$convergence$returnCode
   if (is.null(rc) || rc == 0L) {
@@ -191,18 +233,19 @@ print.summary.result.goldfish <- function(
   )
   cat(
     " ",
-    paste("Log-Likelihood: ", signif(x$logLikelihood, digits),
-      "\n",
-      sep = ""
-    )
+    paste("Log-Likelihood: ", signif(x$logLikelihood, digits), "\n", sep = "")
   )
   cat(
     " ",
-    "AIC: ", signif(x$AIC, digits),
-    "\n  AICc:", signif(aicc, digits),
-    "\n  BIC: ", signif(x$BIC, digits), "\n"
+    "AIC: ",
+    signif(x$AIC, digits),
+    "\n  AICc:",
+    signif(aicc, digits),
+    "\n  BIC: ",
+    signif(x$BIC, digits),
+    "\n"
   )
-  cat("  model:", dQuote(x$model), "subModel:", dQuote(x$subModel), "\n")
+  cat("  model:", dQuote(x$model), "sub_model:", dQuote(x$sub_model), "\n")
   invisible(x)
 }
 
@@ -229,7 +272,10 @@ print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
   if (!is.null(events) && any(events != "")) {
     title <- c("Dynamic attribute(s):", "Linked events")
     mxName <- max(nchar(dynamicAttr), nchar(title[1])) + 4
-    cat(title[1], strrep(" ", mxName - nchar(title[1])), title[2],
+    cat(
+      title[1],
+      strrep(" ", mxName - nchar(title[1])),
+      title[2],
       "\n",
       sep = ""
     )
@@ -237,8 +283,11 @@ print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
       seq_along(events),
       function(x) {
         cat(
-          strrep(" ", 2), dynamicAttr[x],
-          strrep(" ", mxName - nchar(dynamicAttr[x]) - 2), events[x], "\n"
+          strrep(" ", 2),
+          dynamicAttr[x],
+          strrep(" ", mxName - nchar(dynamicAttr[x]) - 2),
+          events[x],
+          "\n"
         )
       }
     )
@@ -256,7 +305,6 @@ print.nodes.goldfish <- function(x, ..., full = FALSE, n = 6) {
   }
   invisible(NULL)
 }
-
 
 
 # stylize print network.goldfish object
@@ -281,11 +329,17 @@ print.network.goldfish <- function(x, ..., full = FALSE, n = 6L) {
   ties <- sum(x > 0, na.rm = TRUE) / ifelse(directed, 1, 2)
   events <- attr(x, "events")
   cat(
-    "Dimensions:", paste(dim(x), collapse = " "),
-    "\nNumber of ties (no weighted):", ties,
-    "\nNodes set(s):", paste(nodes, collapse = " "),
-    "\nIt is a", ifelse(is_two_mode, "two-mode", "one-mode"),
-    "and", ifelse(directed, "directed", "undirected"), "network\n"
+    "Dimensions:",
+    paste(dim(x), collapse = " "),
+    "\nNumber of ties (no weighted):",
+    ties,
+    "\nNodes set(s):",
+    paste(nodes, collapse = " "),
+    "\nIt is a",
+    ifelse(is_two_mode, "two-mode", "one-mode"),
+    "and",
+    ifelse(directed, "directed", "undirected"),
+    "network\n"
   )
 
   if (!is.null(events) && any(events != "")) {
@@ -328,8 +382,11 @@ print.dependent.goldfish <- function(x, ..., full = FALSE, n = 6) {
   nodes <- attr(x, "nodes")
   default_network <- attr(x, "default_network")
   cat(
-    "Number of events:", nrow(x),
-    "\nNodes set(s):", paste(nodes, collapse = " "), "\n"
+    "Number of events:",
+    nrow(x),
+    "\nNodes set(s):",
+    paste(nodes, collapse = " "),
+    "\n"
   )
   if (!is.null(default_network) && default_network != "") {
     cat("Default network:", default_network, "\n")
@@ -350,7 +407,73 @@ print.dependent.goldfish <- function(x, ..., full = FALSE, n = 6) {
 
 #' @export
 #' @rdname print-method
+#' @return For objects of class `specification.goldfish` print a single-glance
+#'   overview of the model, dependent process, and formulas.
+print.specification.goldfish <- function(x, ...) {
+  submodels <- names(x$submodels)
+  cli::cli_rule(left = "{.cls specification.goldfish}")
+  cli::cli_text("Model {.val {x$model}} · sub-model{?s} {.field {submodels}}")
+
+  dep <- x$dependent
+  time_span <- if (!is.null(dep$time_span)) {
+    paste(format(dep$time_span), collapse = " – ")
+  } else {
+    "unknown"
+  }
+  nodes_line <- if (dep$is_two_mode) {
+    sprintf("%s → %s", dep$nodes, dep$nodes2)
+  } else {
+    dep$nodes
+  }
+  network_line <- if (!is.null(dep$network) && nzchar(dep$network)) {
+    dep$network
+  } else {
+    NA_character_
+  }
+  cli::cli_text("")
+  cli::cli_text("{.strong Dependent}")
+  dep_bullets <- c(
+    "*" = "Layer: {.val {dep$layer}}",
+    "*" = "Events: {.val {dep$n_events}}",
+    "*" = "Time span: {.val {time_span}}",
+    "*" = "Nodes: {.field {nodes_line}}"
+  )
+  if (!is.na(network_line)) {
+    dep_bullets <- c(dep_bullets, "*" = "Network: {.val {network_line}}")
+  }
+  cli::cli_bullets(dep_bullets)
+
+  cli::cli_text("")
+  formula_dl <- character(0)
+  if (!is.null(x$submodels$rate)) {
+    rate_str <- deparse1(x$submodels$rate$input_formula)
+    formula_dl <- c(formula_dl, Rate = "{.code {rate_str}}")
+  }
+  if (!is.null(x$submodels$choice)) {
+    choice_str <- deparse1(x$submodels$choice$input_formula)
+    formula_dl <- c(formula_dl, Choice = "{.code {choice_str}}")
+  }
+  if (!is.null(x$support_constraint)) {
+    support_str <- deparse1(x$support_constraint)
+    formula_dl <- c(formula_dl, Support = "{.code {support_str}}")
+  }
+  cli::cli_dl(formula_dl)
+
+  cli::cli_text("")
+  if (isTRUE(x$valid)) {
+    cli::cli_alert_success("Specification is valid.")
+  } else {
+    cli::cli_alert_danger("Specification is not valid.")
+  }
+  invisible(x)
+}
+
+#' @export
+#' @rdname print-method
 print.data.goldfish <- function(x, ...) {
+  if (!is.environment(x)) {
+    return(print_data_goldfish_list(x, ...))
+  }
   cat("Goldfish Data Environment\n")
   cat("=========================\n\n")
 
@@ -401,15 +524,27 @@ print.data.goldfish <- function(x, ...) {
     cat("--- Nodesets ---\n")
     nodes_summary <- data.frame(
       n = vapply(nodeset_names, \(n) nrow(get(n, envir = x)), integer(1)),
-      attributes = vapply(nodeset_names, \(n) {
-        obj <- get(n, envir = x)
-        ncol(obj) - 1L
-      }, integer(1)),
-      linked_events = vapply(nodeset_names, \(n) {
-        obj <- get(n, envir = x)
-        ev <- if (inherits(obj, "nodes.goldfish")) attr(obj, "events") else NULL
-        if (is.null(ev) || length(ev) == 0) "" else paste(ev, collapse = ", ")
-      }, character(1)),
+      attributes = vapply(
+        nodeset_names,
+        \(n) {
+          obj <- get(n, envir = x)
+          ncol(obj) - 1L
+        },
+        integer(1)
+      ),
+      linked_events = vapply(
+        nodeset_names,
+        \(n) {
+          obj <- get(n, envir = x)
+          ev <- if (inherits(obj, "nodes.goldfish")) {
+            attr(obj, "events")
+          } else {
+            NULL
+          }
+          if (is.null(ev) || length(ev) == 0) "" else paste(ev, collapse = ", ")
+        },
+        character(1)
+      ),
       row.names = nodeset_names,
       check.names = FALSE
     )
@@ -511,7 +646,8 @@ print.data.goldfish <- function(x, ...) {
             return("replace")
           }
           return("unknown")
-        }, character(1)
+        },
+        character(1)
       ),
       row.names = events_names,
       check.names = FALSE
@@ -569,15 +705,32 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
 
   description <- data.frame(
     name = c(
-      "initialStats", "stat_mat_update", "stat_mat_pointer",
-      "stat_mat_broadcast", "stat_mat_broadcast_pointer",
-      "intervals", "is_dependent",
-      "event_time", "event_sender", "event_receiver", "event_pos",
-      "active_mode1_init", "active_mode1_changes",
-      "active_mode2_init", "active_mode2_changes",
-      "presence1_update", "presence2_update",
-      "n_dep_events", "total_time", "avg_active_actors",
-      "startTime", "endTime", "formula", "nodes", "nodes2"
+      "initialStats",
+      "stat_mat_update",
+      "stat_mat_pointer",
+      "stat_mat_broadcast",
+      "stat_mat_broadcast_pointer",
+      "intervals",
+      "is_dependent",
+      "event_time",
+      "event_sender",
+      "event_receiver",
+      "event_pos",
+      "active_sender_init",
+      "active_sender_changes",
+      "active_dyad_init",
+      "active_dyad_changes",
+      "active_sender_update",
+      "active_dyad_update",
+      "active_dyad_encoding",
+      "n_dep_events",
+      "total_time",
+      "avg_active_entity",
+      "startTime",
+      "endTime",
+      "formula",
+      "nodes",
+      "nodes2"
     ),
     description = c(
       "Initial statistical matrices/vectors for the effects.",
@@ -605,6 +758,7 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
       "List of composition changes for mode-2 nodes.",
       "Presence updates (C-format) for mode-1 nodes; paired pointer suffix.",
       "Presence updates (C-format) for mode-2 nodes; paired pointer suffix.",
+      "Encoding of active_dyad: 'alter' (receiver vector) or 'outer' (factors).",
       "Intercept scalar: number of dependent events (rate / REM models).",
       "Intercept scalar: total elapsed time (rate / REM models).",
       "Intercept scalar: average number of active actors (rate / REM models).",
@@ -648,9 +802,18 @@ print.estimation_opt.goldfish <- function(x, ...) {
     } else if (is.atomic(value) && length(value) == 1) {
       cat(sprintf("  %-25s: %s\n", name, as.character(value)))
     } else if (is.atomic(value) && length(value) > 1 && length(value) <= 5) {
-      cat(sprintf("  %-25s: %s\n", name, paste(as.character(value), collapse = ", ")))
+      cat(sprintf(
+        "  %-25s: %s\n",
+        name,
+        paste(as.character(value), collapse = ", ")
+      ))
     } else if (is.list(value) || (is.atomic(value) && length(value) > 5)) {
-      cat(sprintf("  %-25s: <%s of length %d>\n", name, class(value)[1], length(value)))
+      cat(sprintf(
+        "  %-25s: <%s of length %d>\n",
+        name,
+        class(value)[1],
+        length(value)
+      ))
     } else {
       cat(sprintf("  %-25s: <%s>\n", name, class(value)[1]))
     }
@@ -673,7 +836,11 @@ print.preprocessing_opt.goldfish <- function(x, ...) {
     } else if (is.atomic(value) && length(value) == 1) {
       cat(sprintf("  %-20s: %s\n", name, as.character(value)))
     } else if (is.atomic(value) && length(value) > 1 && length(value) <= 5) {
-      cat(sprintf("  %-20s: %s\n", name, paste(as.character(value), collapse = ", ")))
+      cat(sprintf(
+        "  %-20s: %s\n",
+        name,
+        paste(as.character(value), collapse = ", ")
+      ))
     } else {
       cat(sprintf("  %-20s: <%s>\n", name, class(value)[1]))
     }
@@ -690,8 +857,13 @@ generics::tidy
 #' @method tidy result.goldfish
 #' @export
 tidy.result.goldfish <- function(
-    x, conf.int = FALSE, conf.level = 0.95,
-    compact = TRUE, complete = FALSE, ...) {
+  x,
+  conf.int = FALSE,
+  conf.level = 0.95,
+  compact = TRUE,
+  complete = FALSE,
+  ...
+) {
   isFixed <- GetFixed(x)
   coefMat <- summary.result.goldfish(x)$coefMat
   colnames(coefMat) <- c("estimate", "std.error", "statistic", "p.value")
@@ -701,24 +873,18 @@ tidy.result.goldfish <- function(
     colnames(confInterval) <- c("conf.low", "conf.high")
   }
 
-  if (compact) {
-    terms <- paste(
-      x$names[, 1],
-      rownames(x$names),
-      if (ncol(x$names) > 2) {
-        apply(x$names[, -1], 1, paste, collapse = " ")
-      } else {
-        x$names[, -1]
-      }
-    )
-    terms <- trimws(terms)
-    terms <- gsub("\\$", " ", terms)
+  dispNames <- x$names[, !startsWith(colnames(x$names), "."), drop = FALSE]
 
-    if (!complete) terms <- terms[!isFixed]
+  if (compact) {
+    terms <- term_label(x$names, ".term_export", "export")
+
+    if (!complete) {
+      terms <- terms[!isFixed]
+    }
 
     terms <- cbind(term = terms)
   } else {
-    terms <- cbind(term = rownames(x$names), x$names)
+    terms <- cbind(term = rownames(dispNames), dispNames)
     terms[, "Object"] <- gsub("\\$", " ", terms[, "Object"])
 
     if (!complete) terms <- terms[!isFixed, ]
@@ -794,11 +960,11 @@ augment.result.goldfish <- function(x, ...) {
   tib <- tibble::as_tibble(data)
   N <- nrow(tib)
   tib$rightCensoredEvent <- rep(FALSE, N)
-  if (x$rightCensored) {
-    censoredTime <- x$eventTime[x$rightCensoredEvents]
+  if (x$right_censored) {
+    censoredTime <- x$event_time[x$right_censored_events]
     tibCen <- tibble::as_tibble(censoredTime)
     names(tibCen) <- c("time")
-    N_censored <- nrow(tibCen) 
+    N_censored <- nrow(tibCen)
     tibCen$rightCensoredEvent <- TRUE
     tibCen$sender <- rep(NA_character_, N_censored)
     tibCen$receiver <- rep(NA_character_, N_censored)
@@ -822,9 +988,8 @@ augment.result.goldfish <- function(x, ...) {
 print.diagnostic.goldfish <- function(x, ...) {
   if ("cpt" %in% names(x)) {
     column_text <- "Change Point(s):\n"
-    points <-  sum(x$cpt == TRUE)
-  }
-  else {
+    points <- sum(x$cpt == TRUE)
+  } else {
     column_text <- "Outliers(s):\n"
     points <- sum(x$outlier == TRUE)
   }

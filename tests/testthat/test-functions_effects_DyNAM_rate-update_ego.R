@@ -2,8 +2,11 @@ test_that("ego returns a valid matrix", {
   expect_type(
     update_DyNAM_rate_ego(
       testAttr$fishingSkill,
-      node = 1, replace = 10,
-      n1 = 8, n2 = 8, is_two_mode = FALSE
+      node = 1,
+      replace = 10,
+      n1 = 8,
+      n2 = 8,
+      is_two_mode = FALSE
     ),
     "list"
   )
@@ -12,8 +15,11 @@ test_that("ego returns NULL if there is no change", {
   expect_null(
     update_DyNAM_rate_ego(
       testAttr$fishingSkill,
-      node = 1, replace = 10,
-      n1 = 8, n2 = 8, is_two_mode = FALSE
+      node = 1,
+      replace = 10,
+      n1 = 8,
+      n2 = 8,
+      is_two_mode = FALSE
     )$changes
   )
 })
@@ -21,16 +27,22 @@ test_that("ego returns correct attributes on update", {
   expect_equal(
     update_DyNAM_rate_ego(
       testAttr$fishingSkill,
-      node = 1, replace = 9,
-      n1 = 8, n2 = 8, is_two_mode = FALSE
+      node = 1,
+      replace = 9,
+      n1 = 8,
+      n2 = 8,
+      is_two_mode = FALSE
     )$changes,
     cbind(node1 = 1, replace = 9)
   )
   expect_equal(
     update_DyNAM_rate_ego(
       testAttr$fishingSkill,
-      node = 1, replace = 0,
-      n1 = 8, n2 = 8, is_two_mode = FALSE
+      node = 1,
+      replace = 0,
+      n1 = 8,
+      n2 = 8,
+      is_two_mode = FALSE
     )$changes,
     cbind(node1 = 1, replace = 0),
     label = "when replace is 0"

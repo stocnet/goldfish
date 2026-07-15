@@ -7,6 +7,7 @@
 \alias{print.nodes.goldfish}
 \alias{print.network.goldfish}
 \alias{print.dependent.goldfish}
+\alias{print.specification.goldfish}
 \alias{print.data.goldfish}
 \alias{print.preprocessed.goldfish}
 \alias{print.estimation_opt.goldfish}
@@ -26,6 +27,7 @@
   ...,
   digits = max(3, getOption("digits") - 2),
   width = getOption("width"),
+  compact = TRUE,
   complete = FALSE
 )
 
@@ -34,6 +36,8 @@
 \method{print}{network.goldfish}(x, ..., full = FALSE, n = 6L)
 
 \method{print}{dependent.goldfish}(x, ..., full = FALSE, n = 6)
+
+\method{print}{specification.goldfish}(x, ...)
 
 \method{print}{data.goldfish}(x, ...)
 
@@ -62,6 +66,18 @@ of effects fixed during estimation using \code{fixedParameters} should be printe
 The default value is \code{FALSE}. \emph{Note:} applies for objects of class
 \code{result.goldfish} and \code{summary.result.goldfish}.}
 
+\item{compact}{logical. For objects of class \code{summary.result.goldfish},
+when \code{TRUE} (the default) a single coefficients table is printed whose row
+labels are compact term strings and the separate "Effects details" table is
+omitted; when \code{FALSE} the "Effects details" table is printed before the
+coefficients table. The compact labels read \verb{effect/obj·obj2 [args]}:
+\code{/} separates the effect from its object(s), the middle dot \verb{·} joins
+multiple objects, and a single trailing \verb{[ ]} block collects the remaining
+(comma-separated) arguments. A short legend after the coefficients table
+keys any opaque argument codes that appear.
+
+[ ]: R:\%20}
+
 \item{full}{logical. Indicates whether the complete \code{matrix}/\code{data.frame}
 should be printed. The default value \code{FALSE}.}
 
@@ -78,7 +94,7 @@ For \code{summary.result.goldfish} print:
 \item{Effect details:}{a table with additional information of the effects.
 The information corresponds to the  values of the effects arguments when
 they are modified and if they where fixed during estimation, see
-\code{vignette("goldfishEffects")} for the complete list of arguments, and
+\code{vignette("goldfish_effects")} for the complete list of arguments, and
 \link{estimate} on how to fix coefficients during estimation.}
 \item{Coefficients:}{a table with the estimated coefficients, their
 approximate standard error obtain from the inverse of the negative Fisher
@@ -88,7 +104,7 @@ Wald test to test the hypothesis that the parameter is 0.}
 convergence of the iterative Newton-Raphson procedure and the score value
 in the last iteration. Information criteria as the AIC, BIC and the AIC
 corrected for small sample size AICc are reported.}
-\item{Model and subModel:}{the values set during estimation.}
+\item{Model and sub_model:}{the values set during estimation.}
 
 For objects of class \code{nodes.goldfish} print information of the total
 number of nodes in the object, the number of nodes present at the beginning
@@ -108,6 +124,9 @@ total number of events in the object, linked nodes set(s),
 linked default network
 and a printing of the first rows in the events data frame.
 See \code{\link[=make_dependent_events]{make_dependent_events()}}.
+
+For objects of class \code{specification.goldfish} print a single-glance
+overview of the model, dependent process, and formulas.
 
 For objects of class \code{estimation_opt.goldfish}, print a summary of the estimation control options.
 

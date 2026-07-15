@@ -6,12 +6,11 @@
 #
 ##################### ###
 
-
 #' get data objects
 #'
 #' @param namedList list
 #' @param keepOrder logical.
-#' @param removeFirst logical.
+#' @param remove_first logical.
 #'
 #' @return a
 #' @noRd
@@ -19,21 +18,23 @@
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_events = calls, nodes = actors
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_events = calls, nodes = actors
 #' )
-#' callsDependent <- defineDependentEvents(
-#'   events = calls, nodes = actors, default_network = callNetwork
+#' calls_dependent <- defineDependentEvents(
+#'   events = calls, nodes = actors, default_network = call_network
 #' )
-#' parsedformula <- parseFormula(callsDependent ~ ego(actors$floor))
-#' objectsEffectsLink <- getObjectsEffectsLink(parsedformula$rhsNames, 1L)
-#' getDataObjects(list(rownames(objectsEffectsLink)), removeFirst = FALSE)
+#' parsedformula <- parseFormula(calls_dependent ~ ego(actors$floor))
+#' objects_effects_link <- get_objects_effects_link(parsedformula$rhs_names, 1L)
+#' get_data_objects(list(rownames(objects_effects_link)), remove_first = FALSE)
 #' }
-getDataObjects <- function(namedList, keepOrder = FALSE, removeFirst = TRUE) {
+get_data_objects <- function(namedList, keepOrder = FALSE, remove_first = TRUE) {
   # strip function names
   objNames <- unlist(namedList)
-  if (removeFirst) objNames <- unlist(lapply(namedList, "[", -1))
+  if (remove_first) {
+    objNames <- unlist(lapply(namedList, "[", -1))
+  }
 
   # strip named parameters except for reserved ones
   if (!is.null(names(objNames))) {
@@ -41,17 +42,22 @@ getDataObjects <- function(namedList, keepOrder = FALSE, removeFirst = TRUE) {
     objNames <- objNames[ids]
   }
 
-  if (!keepOrder) objNames <- unique(objNames)
+  if (!keepOrder) {
+    objNames <- unique(objNames)
+  }
 
   # # case list(...)
   areList <- grepl("list\\(\\s*(.+)\\s*\\)", objNames)
-  .split <- ifelse(areList,
+  .split <- ifelse(
+    areList,
     gsub("list\\(\\s*(.+)\\s*\\)", "\\1", objNames),
     objNames
   )
   .split <- unlist(strsplit(.split, split = "\\s*,\\s*"))
 
-  if (!keepOrder) .split <- unique(.split)
+  if (!keepOrder) {
+    .split <- unique(.split)
+  }
   # # case attributes
   split <- strsplit(.split, split = "$", fixed = TRUE)
 
@@ -83,7 +89,7 @@ getDataObjects <- function(namedList, keepOrder = FALSE, removeFirst = TRUE) {
 }
 
 
-getElementFromDataObjectTable <- function(x, envir = environment()) {
+get_element_from_data_object_table <- function(x, envir = environment()) {
   elements <- list()
   if (nrow(x) == 0) {
     return(elements)
@@ -134,7 +140,6 @@ getElementFromDataObjectTable <- function(x, envir = environment()) {
 # as it may be useful elsewhere...
 # is.POSIXct <- function(x) inherits(x, "POSIXct")
 
-
 isReservedElementName <- function(x) {
   x %in% c("network", "attribute", "network2", "attribute2")
 }
@@ -156,8 +161,12 @@ isReservedElementName <- function(x) {
 #' afterSanitize <- sanitizeEvents(calls, "actors")
 #' }
 sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
-  if (is.character(nodes)) nodes <- get(nodes, envir = envir)
-  if (is.character(nodes2)) nodes2 <- get(nodes2, envir = envir)
+  if (is.character(nodes)) {
+    nodes <- get(nodes, envir = envir)
+  }
+  if (is.character(nodes2)) {
+    nodes2 <- get(nodes2, envir = envir)
+  }
   if (is.character(events$node)) {
     events$node <- match(events$node, nodes$label)
   }
@@ -175,13 +184,13 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
 #'
 #' It took a preprocess object and return a matrix with all the
 #' change statistics together for each effect.
-#' `effectPos` argument allows to reduce just for a subset of effects,
+#' `effect_pos` argument allows to reduce just for a subset of effects,
 #' it won't reduce the time or memory space used.
 #'
 #' @param preproData a preprocess data object from preprocess.
 #' @param type a character. `"withTime"` returns the dependent stats changes
 #' with the time where they occur.
-#' @param effectPos a vector of integers of the effects to keep.
+#' @param effect_pos a vector of integers of the effects to keep.
 #'
 #' @return a list with a matrix for each effect.
 #' @noRd
@@ -189,14 +198,14 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
 #' @examples
 #' \donttest{
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = T)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_events = calls, nodes = actors
+#' call_network <- make_network(nodes = actors, directed = T)
+#' call_network <- link_events(
+#'   x = call_network, change_events = calls, nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
-#'   events = calls, nodes = actors, default_network = callNetwork
+#' calls_dependent <- make_dependent_events(
+#'   events = calls, nodes = actors, default_network = call_network
 #' )
-#' prep <- estimate_dynam(callsDependent ~ inertia + trans,
+#' prep <- estimate_dynam(calls_dependent ~ inertia + trans,
 #'   sub_model = "choice",
 #'   preprocessing_only = TRUE, silent = TRUE
 #' )
@@ -205,44 +214,59 @@ sanitizeEvents <- function(events, nodes, nodes2 = nodes, envir = new.env()) {
 #' v03 <- ReducePreprocess(prep, "withoutTime")
 #' }
 ReducePreprocess <- function(
-    preproData,
-    type = c("withTime", "withoutTime"),
-    effectPos = NULL) {
+  preproData,
+  type = c("withTime", "withoutTime"),
+  effect_pos = NULL
+) {
   stopifnot(
-    is.null(effectPos) || !is.null(effectPos) && inherits(effectPos, "integer")
+    is.null(effect_pos) || !is.null(effect_pos) && inherits(effect_pos, "integer")
   )
   type <- match.arg(type)
 
   is_rate <- length(dim(preproData$initialStats)) == 2L
-  nEffects <- if (is_rate) ncol(preproData$initialStats) else dim(preproData$initialStats)[3]
+  nEffects <- if (is_rate) {
+    ncol(preproData$initialStats)
+  } else {
+    dim(preproData$initialStats)[3]
+  }
 
   stopifnot(
-    is.null(effectPos) || !is.null(effectPos) && max(effectPos) <= nEffects
+    is.null(effect_pos) || !is.null(effect_pos) && max(effect_pos) <= nEffects
   )
 
-  ReduceEffUpdates <- function(statsChange, eventTime) {
+  ReduceEffUpdates <- function(statsChange, event_time) {
     reduce <- Map(
       \(x, y) {
         lapply(
           x,
           \(z) {
-            if (is.null(z)) return(NULL)
+            if (is.null(z)) {
+              return(NULL)
+            }
             if (nrow(z) == 1) {
               return(if (type == "withTime") cbind(time = y, z) else z)
             }
             dedup_cols <- if (is_rate) "node1" else c("node1", "node2")
-            discard <- duplicated(z[, dedup_cols, drop = FALSE], fromLast = TRUE)
+            discard <- duplicated(
+              z[, dedup_cols, drop = FALSE],
+              fromLast = TRUE
+            )
             changes <- cbind(
               time = if (type == "withTime") rep(y, sum(!discard)) else NULL,
               z[!discard, , drop = FALSE]
             )
-            if (nrow(changes) == 1) return(changes)
+            if (nrow(changes) == 1) {
+              return(changes)
+            }
             order_cols <- if (is_rate) "node1" else c("node1", "node2")
-            changes[do.call(order, lapply(order_cols, function(col) changes[, col])), ]
+            changes[
+              do.call(order, lapply(order_cols, function(col) changes[, col])),
+            ]
           }
         )
       },
-      statsChange, eventTime
+      statsChange,
+      event_time
     )
 
     return(lapply(
@@ -261,7 +285,9 @@ ReducePreprocess <- function(
       seq_len(nEffects),
       function(i) {
         effCols <- upd[3, ] == (i - 1)
-        if (!any(effCols)) return(NULL)
+        if (!any(effCols)) {
+          return(NULL)
+        }
         sub <- upd[, effCols, drop = FALSE]
         subEvent <- updEvent[effCols]
         key <- if (is_rate) {
@@ -293,7 +319,9 @@ ReducePreprocess <- function(
     bc <- preproData$stat_mat_broadcast
     bptr <- preproData$stat_mat_broadcast_pointer
     out <- vector("list", nEffects)
-    if (is.null(bc) || ncol(bc) == 0L) return(out)
+    if (is.null(bc) || ncol(bc) == 0L) {
+      return(out)
+    }
     counts <- diff(c(0L, bptr))
     colEvent <- rep(seq_along(bptr), counts)
     colsKeep <- eventsKeep[colEvent]
@@ -304,28 +332,43 @@ ReducePreprocess <- function(
     is_two_mode <- !identical(preproData$nodes, preproData$nodes2)
     for (i in seq_len(nEffects)) {
       effCols <- bcK[3, ] == (i - 1)
-      if (!any(effCols)) next
+      if (!any(effCols)) {
+        next
+      }
       sub <- bcK[, effCols, drop = FALSE]
       subEvent <- bcEvent[effCols]
-      rows <- do.call(rbind, lapply(seq_len(ncol(sub)), function(cc) {
-        kind <- sub[1, cc]
-        fixed <- sub[2, cc] + 1L
-        val <- sub[4, cc]
-        ev <- subEvent[cc]
-        if (is_rate) {
-          cbind(event = ev, node1 = seq_len(n1), node2 = 0L, replace = val)
-        } else if (kind == 1L) {
-          nodes1 <- if (is_two_mode) seq_len(n1) else setdiff(seq_len(n1), fixed)
-          cbind(event = ev, node1 = nodes1, node2 = fixed, replace = val)
-        } else if (kind == 2L) {
-          nodes2 <- if (is_two_mode) seq_len(n2) else setdiff(seq_len(n2), fixed)
-          cbind(event = ev, node1 = fixed, node2 = nodes2, replace = val)
-        } else {
-          ij <- expand.grid(node1 = seq_len(n1), node2 = seq_len(n2))
-          if (!is_two_mode) ij <- ij[ij$node1 != ij$node2, ]
-          cbind(event = ev, node1 = ij$node1, node2 = ij$node2, replace = val)
-        }
-      }))
+      rows <- do.call(
+        rbind,
+        lapply(seq_len(ncol(sub)), function(cc) {
+          kind <- sub[1, cc]
+          fixed <- sub[2, cc] + 1L
+          val <- sub[4, cc]
+          ev <- subEvent[cc]
+          if (is_rate) {
+            cbind(event = ev, node1 = seq_len(n1), node2 = 0L, replace = val)
+          } else if (kind == 1L) {
+            nodes1 <- if (is_two_mode) {
+              seq_len(n1)
+            } else {
+              setdiff(seq_len(n1), fixed)
+            }
+            cbind(event = ev, node1 = nodes1, node2 = fixed, replace = val)
+          } else if (kind == 2L) {
+            nodes2 <- if (is_two_mode) {
+              seq_len(n2)
+            } else {
+              setdiff(seq_len(n2), fixed)
+            }
+            cbind(event = ev, node1 = fixed, node2 = nodes2, replace = val)
+          } else {
+            ij <- expand.grid(node1 = seq_len(n1), node2 = seq_len(n2))
+            if (!is_two_mode) {
+              ij <- ij[ij$node1 != ij$node2, ]
+            }
+            cbind(event = ev, node1 = ij$node1, node2 = ij$node2, replace = val)
+          }
+        })
+      )
       key <- if (is_rate) {
         cbind(rows[, "event"], rows[, "node1"])
       } else {
@@ -369,8 +412,10 @@ ReducePreprocess <- function(
     )
   }
 
-  if ((preproData$subModel == "rate" || preproData$model == "REM") &&
-    sum(rc_idx) > 0) {
+  if (
+    (preproData$sub_model == "rate" || preproData$model == "REM") &&
+      sum(rc_idx) > 0
+  ) {
     rightCensoredStatChange <- if (is_flat) {
       combine_point_broadcast(ReduceEffUpdatesFlat(rc_idx), rc_idx)
     } else {
@@ -384,14 +429,16 @@ ReducePreprocess <- function(
     for (ii in seq.int(length(outDependentStatChange))) {
       reducedPrepro[[ii]] <- list(
         dependent = outDependentStatChange[[ii]],
-        rightCensored = rightCensoredStatChange[[ii]]
+        right_censored = rightCensoredStatChange[[ii]]
       )
     }
 
-    if (!is.null(effectPos)) return(reducedPrepro[effectPos])
+    if (!is.null(effect_pos)) {
+      return(reducedPrepro[effect_pos])
+    }
     return(reducedPrepro)
-  } else if (!is.null(effectPos)) {
-    return(outDependentStatChange[effectPos])
+  } else if (!is.null(effect_pos)) {
+    return(outDependentStatChange[effect_pos])
   } else {
     return(outDependentStatChange)
   }
@@ -461,7 +508,7 @@ apply_flat_update <- function(statsArray, updates_slice, is_sender) {
 #' Apply broadcast (constant-value fan-out) updates to a running stats array
 #'
 #' Decodes a slice of the `stat_mat_broadcast` buffer into the running
-#' statistics array with in-place vectorised slice assignment (design D7).
+#' statistics array with in-place vectorised slice assignment.
 #' Each column of `broadcast_slice` is one coded fan-out entry with rows
 #' `(kind, fixed, effect, replace)` where `fixed` and `effect` are 0-indexed.
 #' The decode mirrors the eager `to_alter()` (`kind = 1`), `to_ego()`
@@ -480,7 +527,12 @@ apply_flat_update <- function(statsArray, updates_slice, is_sender) {
 #' @return `statsArray` with the broadcast updates applied.
 #' @noRd
 apply_broadcast_update <- function(
-  statsArray, broadcast_slice, is_sender, n1, n2, twomode_or_reflexive
+  statsArray,
+  broadcast_slice,
+  is_sender,
+  n1,
+  n2,
+  twomode_or_reflexive
 ) {
   if (length(broadcast_slice) == 0L) {
     return(statsArray)
@@ -507,11 +559,11 @@ apply_broadcast_update <- function(
       }
       statsArray[fixed, cols, effect] <- value
     } else if (twomode_or_reflexive) {
-      statsArray[, , effect] <- value
+      statsArray[,, effect] <- value
     } else {
-      slice <- statsArray[, , effect]
+      slice <- statsArray[,, effect]
       slice[row(slice) != col(slice)] <- value
-      statsArray[, , effect] <- slice
+      statsArray[,, effect] <- slice
     }
   }
   statsArray
@@ -563,16 +615,18 @@ merge_flat_updates <- function(old_prep, new_prep, effects_indexes) {
 }
 
 GetDetailPrint <- function(
-    objectsEffectsLink,
-    parsedformula,
-    fixedParameters = NULL) {
+  objects_effects_link,
+  parsedformula,
+  fixedParameters = NULL
+) {
   # matrix with the effects in rows and objects in columns,
   # which net or actor att
-  maxObjs <- max(objectsEffectsLink, na.rm = TRUE)
-  effectDescription <- matrix(
+  maxObjs <- max(objects_effects_link, na.rm = TRUE)
+  effect_description <- matrix(
     t(
       apply(
-        objectsEffectsLink, 2,
+        objects_effects_link,
+        2,
         function(x) {
           notNA <- !is.na(x)
           objs <- x[notNA]
@@ -581,48 +635,51 @@ GetDetailPrint <- function(
         }
       )
     ),
-    nrow = ncol(objectsEffectsLink),
+    nrow = ncol(objects_effects_link),
     ncol = maxObjs
   )
   # # handle degenerate case one effect one object
-  dimnames(effectDescription) <- list(
-    colnames(objectsEffectsLink),
-    if (ncol(effectDescription) == 1) {
+  dimnames(effect_description) <- list(
+    colnames(objects_effects_link),
+    if (ncol(effect_description) == 1) {
       "Object"
     } else {
-      sprintf("Object %d", seq_len(ncol(effectDescription)))
+      sprintf("Object %d", seq_len(ncol(effect_description)))
     }
   )
 
-  objectsName <- colnames(effectDescription)
+  objectsName <- colnames(effect_description)
   # adding other parameters: each effect refers to which network
   # or actor attribute
 
-  # effectDescription <- cbind(
-  #   effect = rownames(effectDescription),
-  #   effectDescription
+  # effect_description <- cbind(
+  #   effect = rownames(effect_description),
+  #   effect_description
   # )
 
   if (any(unlist(parsedformula$ignore_rep_parameter))) {
-    effectDescription <- cbind(effectDescription,
+    effect_description <- cbind(
+      effect_description,
       ignore_repetitions = ifelse(parsedformula$ignore_rep_parameter, "B", "")
     )
   }
   if (any(unlist(parsedformula$weighted_parameter))) {
-    effectDescription <- cbind(effectDescription,
+    effect_description <- cbind(
+      effect_description,
       weighted = ifelse(parsedformula$weighted_parameter, "W", "")
     )
   }
   if (any(parsedformula$type_parameter != "")) {
-    effectDescription <- cbind(effectDescription,
+    effect_description <- cbind(
+      effect_description,
       type = parsedformula$type_parameter
     )
   }
-  hasWindows <- FALSE
+  has_windows <- FALSE
   if (!all(vapply(parsedformula$window_parameters, is.null, logical(1)))) {
-    hasWindows <- TRUE
-    effectDescription <- cbind(
-      effectDescription,
+    has_windows <- TRUE
+    effect_description <- cbind(
+      effect_description,
       window = vapply(
         parsedformula$window_parameters,
         function(x) ifelse(is.null(x), "", gsub("['\"]", "", x)),
@@ -630,8 +687,8 @@ GetDetailPrint <- function(
       )
     )
     # reduce object name
-    effectDescription[, objectsName] <- t(apply(
-      effectDescription,
+    effect_description[, objectsName] <- t(apply(
+      effect_description,
       1,
       \(x) {
         gsub(
@@ -643,45 +700,97 @@ GetDetailPrint <- function(
     ))
   }
   if (any(parsedformula$trans_parameter != "")) {
-    effectDescription <- cbind(effectDescription,
+    effect_description <- cbind(
+      effect_description,
       transformer_fn = parsedformula$trans_parameter
     )
   }
   if (any(parsedformula$summ_parameter != "")) {
-    effectDescription <- cbind(effectDescription,
+    effect_description <- cbind(
+      effect_description,
       summarizer_fn = parsedformula$summ_parameter
     )
   }
   # DyNAMi
   if (any(parsedformula$joining_parameter != "")) {
-    effectDescription <- cbind(effectDescription,
+    effect_description <- cbind(
+      effect_description,
       joining = parsedformula$joining_parameter
     )
   }
   if (any(parsedformula$sub_type_parameter != "")) {
-    effectDescription <- cbind(effectDescription,
-      subType = parsedformula$sub_type_parameter
+    effect_description <- cbind(
+      effect_description,
+      sub_type = parsedformula$sub_type_parameter
     )
   }
   if (any(parsedformula$historyParameter != "")) {
-    effectDescription <- cbind(effectDescription,
+    effect_description <- cbind(
+      effect_description,
       history = parsedformula$historyParameter
     )
   }
-  # rownames(effectDescription) <- NULL
+  # Interaction columns have no object/attribute of their own, so
+  # they are absent from objects_effects_link; append one row per interaction after
+  # the function-effect rows. The row keeps the term string as its (readable)
+  # rowname; the compact `coef()` / export names are derived below from the
+  # operand rows (an interaction's name is the join of its operands' names), so
+  # the object columns are left empty here.
+  n_inter <- length(parsedformula$interactions)
+  if (n_inter > 0) {
+    labels <- vapply(
+      parsedformula$interactions,
+      function(x) x$label,
+      character(1)
+    )
+    inter_mat <- matrix(
+      "",
+      nrow = length(labels),
+      ncol = ncol(effect_description),
+      dimnames = list(labels, colnames(effect_description))
+    )
+    effect_description <- rbind(effect_description, inter_mat)
+  }
+  # rownames(effect_description) <- NULL
   if (parsedformula$has_intercept) {
-    effectDescription <- rbind("", effectDescription)
-    rownames(effectDescription)[1] <- "Intercept"
+    effect_description <- rbind("", effect_description)
+    rownames(effect_description)[1] <- "Intercept"
   }
 
   if (!is.null(fixedParameters)) {
-    effectDescription <- cbind(effectDescription,
+    effect_description <- cbind(
+      effect_description,
       fixed = !is.na(fixedParameters)
     )
   }
 
-  attr(effectDescription, "hasWindows") <- hasWindows
-  return(effectDescription)
+  decoder <- .decoderColumns(effect_description)
+  # Interaction rendering: each interaction's compact names are the
+  # `:`-join of its operands' rendered names, so they inherit the operands' short
+  # forms and object disambiguation. Operand rhs index j maps to function row
+  # j + intercept_offset; the interaction rows are the final n_inter rows.
+  if (n_inter > 0) {
+    intercept_offset <- if (parsedformula$has_intercept) 1L else 0L
+    n_total <- nrow(effect_description)
+    join_cols <- c(
+      ".effect_short",
+      ".object_short",
+      ".term_export",
+      ".coef_name"
+    )
+    for (i in seq_len(n_inter)) {
+      inter_row <- n_total - n_inter + i
+      op_rows <- parsedformula$interactions[[i]]$operands + intercept_offset
+      for (col in join_cols) {
+        decoder[inter_row, col] <- paste(decoder[op_rows, col], collapse = ":")
+      }
+    }
+  }
+
+  effect_description <- cbind(effect_description, decoder)
+
+  attr(effect_description, "has_windows") <- has_windows
+  return(effect_description)
 }
 
 GetFixed <- function(object) {
@@ -696,6 +805,427 @@ GetFixed <- function(object) {
   }
 }
 
-checkArgsEstimation <- function(variables) {
+checkArgsEstimation <- function(variables) {}
 
+.goldfishEffectShort <- c(
+  inertia = "inrt",
+  recip = "rec",
+  outdeg = "odeg",
+  indeg = "ideg",
+  common_sender = "cmm_sen",
+  common_receiver = "cmm_rec",
+  mixed_common_sender = "mix_cmm_sen",
+  mixed_common_receiver = "mix_cmm_rec",
+  mixed_cycle = "mix_cycle",
+  mixed_trans = "mix_trans",
+  ego_alter_interaction = "ego_alt",
+  node_trans = "nd_trans",
+  tertius = "tert",
+  tertius_diff = "tert_diff",
+  degree = "deg",
+  global = "glob",
+  triangle = "tri",
+  alterdeg = "altdeg",
+  alterpop = "altpop",
+  dyadXdiff = "dyXdiff",
+  dyadXego = "dyXego",
+  sizeXdiff = "szXdiff",
+  sizeXego = "szXego"
+)
+
+.shortEffect <- function(x) {
+  hit <- x %in% names(.goldfishEffectShort)
+  x[hit] <- .goldfishEffectShort[x[hit]]
+  x
+}
+
+.trimObject <- function(x) sub("^[^$]*\\$", "", x)
+
+.shortestUniquePrefix <- function(x, minLen = 3L, maxLen = 6L) {
+  u <- unique(x[nzchar(x)])
+  if (length(u) == 0) {
+    return(stats::setNames(character(0), character(0)))
+  }
+  maxAvail <- max(nchar(u))
+  hi <- min(maxLen, maxAvail)
+  chosen <- maxAvail
+  if (hi >= minLen) {
+    for (len in seq.int(minLen, hi)) {
+      chosen <- len
+      if (!anyDuplicated(substr(u, 1, len))) break
+    }
+  }
+  stats::setNames(substr(u, 1, chosen), u)
+}
+
+.windowToken <- function(w) {
+  w <- trimws(w)
+  m <- regmatches(w, regexec("^([0-9]{1,3})\\s+([A-Za-z]+)$", w))[[1]]
+  if (length(m) == 3L) {
+    unit <- tolower(m[3])
+    code <- if (unit %in% c("s", "sec", "secs", "second", "seconds")) {
+      "s"
+    } else if (unit %in% c("m", "min", "mins", "minute", "minutes")) {
+      "m"
+    } else if (unit %in% c("h", "hr", "hrs", "hour", "hours")) {
+      "h"
+    } else if (unit %in% c("d", "day", "days")) {
+      "d"
+    } else if (unit %in% c("wk", "wks", "week", "weeks")) {
+      "wk"
+    } else if (unit %in% c("mo", "mon", "month", "months")) {
+      "mo"
+    } else if (unit %in% c("yr", "yrs", "year", "years")) {
+      "yr"
+    } else {
+      NULL
+    }
+    if (!is.null(code)) {
+      return(paste0(m[2], code))
+    }
+  }
+  "wdw"
+}
+
+.fnToken <- function(v, forceFn) {
+  if (isTRUE(forceFn)) {
+    return("fn")
+  }
+  if (grepl("^[A-Za-z.][A-Za-z0-9._]*$", v) && nchar(v) <= 6L) v else "fn"
+}
+
+.isFixedToken <- function(v) {
+  !is.na(v) && (identical(v, "TRUE") || identical(v, TRUE))
+}
+
+.rowTokens <- function(row, argCols, forceFn, subPref, joinPref) {
+  toks <- character(0)
+  has <- function(col) col %in% argCols && nzchar(row[[col]])
+  if (has("weighted")) {
+    toks <- c(toks, "W")
+  }
+  if (has("type")) {
+    toks <- c(toks, row[["type"]])
+  }
+  if (has("window")) {
+    toks <- c(toks, .windowToken(row[["window"]]))
+  }
+  hasT <- has("transformer_fn")
+  hasS <- has("summarizer_fn")
+  if (hasT && hasS) {
+    toks <- c(
+      toks,
+      paste0("t:", .fnToken(row[["transformer_fn"]], forceFn)),
+      paste0("s:", .fnToken(row[["summarizer_fn"]], forceFn))
+    )
+  } else if (hasT) {
+    toks <- c(toks, .fnToken(row[["transformer_fn"]], forceFn))
+  } else if (hasS) {
+    toks <- c(toks, .fnToken(row[["summarizer_fn"]], forceFn))
+  }
+  if (has("sub_type")) {
+    toks <- c(toks, unname(subPref[row[["sub_type"]]]))
+  }
+  if (has("joining")) {
+    toks <- c(toks, unname(joinPref[row[["joining"]]]))
+  }
+  if (has("history")) {
+    toks <- c(toks, substr(row[["history"]], 1, 3))
+  }
+  if (has("ignore_repetitions")) {
+    toks <- c(toks, "IR")
+  }
+  if ("fixed" %in% argCols && .isFixedToken(row[["fixed"]])) {
+    toks <- c(toks, "Fx")
+  }
+  toks
+}
+
+.objectForms <- function(row, objCols, objLk, useShort) {
+  objs <- row[objCols]
+  objs <- .trimObject(objs[nzchar(objs)])
+  if (length(objs) == 0L) {
+    return(character(0))
+  }
+  if (isTRUE(useShort)) unname(objLk[objs]) else objs
+}
+
+.assembleTerms <- function(
+  mat,
+  useShortEffect,
+  useShortObject,
+  forceFn,
+  objCols,
+  argCols,
+  objLk,
+  subPref,
+  joinPref,
+  objSep = "·",
+  effSep = "/",
+  tokenSep = ",",
+  open = " [",
+  close = "]"
+) {
+  effects <- rownames(mat)
+  effForm <- if (useShortEffect) .shortEffect(effects) else effects
+  vapply(
+    seq_len(nrow(mat)),
+    function(i) {
+      row <- stats::setNames(mat[i, ], colnames(mat))
+      objs <- .objectForms(row, objCols, objLk, useShortObject)
+      toks <- .rowTokens(row, argCols, forceFn, subPref, joinPref)
+      out <- effForm[i]
+      if (length(objs)) {
+        out <- paste0(out, effSep, paste(objs, collapse = objSep))
+      }
+      if (length(toks)) {
+        out <- paste0(out, open, paste(toks, collapse = tokenSep), close)
+      }
+      out
+    },
+    character(1)
+  )
+}
+
+.truncateTerms <- function(x, width) {
+  long <- nchar(x) > width
+  x[long] <- paste0(substr(x[long], 1, max(1L, width - 1L)), "…")
+  x
+}
+
+.sanitizeExport <- function(x, maxLength) {
+  x <- gsub("·", "_", x)
+  x <- gsub("[/ ,:\\[\\]]+", "_", x, perl = TRUE)
+  x <- make.names(x)
+  x <- gsub("[._]+", "_", x)
+  x <- sub("_+$", "", x)
+  if (is.finite(maxLength)) {
+    x <- .uniqueTruncate(x, maxLength)
+  } else {
+    x <- make.unique(x, sep = "_")
+  }
+  x
+}
+
+.uniqueTruncate <- function(x, maxLength) {
+  out <- substr(x, 1, maxLength)
+  if (!anyDuplicated(out)) {
+    return(out)
+  }
+  seen <- new.env(parent = emptyenv())
+  for (i in seq_along(out)) {
+    base <- out[i]
+    if (is.null(seen[[base]])) {
+      assign(base, 1L, envir = seen)
+      next
+    }
+    k <- get(base, envir = seen)
+    repeat {
+      k <- k + 1L
+      suf <- paste0("_", k)
+      cand <- paste0(substr(base, 1, max(1L, maxLength - nchar(suf))), suf)
+      if (is.null(seen[[cand]])) break
+    }
+    assign(base, k, envir = seen)
+    assign(cand, 1L, envir = seen)
+    out[i] <- cand
+  }
+  out
+}
+
+.coefTerms <- function(mat, objCols, argCols, objLk, subPref, joinPref) {
+  base <- .shortEffect(rownames(mat))
+  out <- base
+  dup <- base %in% base[duplicated(base)]
+  if (any(dup)) {
+    objStr <- vapply(
+      seq_len(nrow(mat)),
+      function(i) {
+        row <- stats::setNames(mat[i, ], colnames(mat))
+        paste(.objectForms(row, objCols, objLk, TRUE), collapse = "_")
+      },
+      character(1)
+    )
+    addObj <- dup & nzchar(objStr)
+    out[addObj] <- paste0(base[addObj], "_", objStr[addObj])
+    stillDup <- out %in% out[duplicated(out)]
+    if (any(stillDup)) {
+      argStr <- vapply(
+        seq_len(nrow(mat)),
+        function(i) {
+          row <- stats::setNames(mat[i, ], colnames(mat))
+          paste(
+            .rowTokens(row, argCols, FALSE, subPref, joinPref),
+            collapse = "_"
+          )
+        },
+        character(1)
+      )
+      addArg <- stillDup & nzchar(argStr)
+      out[addArg] <- paste0(out[addArg], "_", argStr[addArg])
+    }
+  }
+  out <- gsub("·", "_", out)
+  out <- make.names(out)
+  out <- gsub("[._]+", "_", out)
+  out <- sub("_+$", "", out)
+  make.unique(out, sep = "_")
+}
+
+compact_term_strings <- function(
+  names,
+  mode = c("console", "export", "coef"),
+  width = getOption("width"),
+  max_length = 63L
+) {
+  mode <- match.arg(mode)
+  if (is.null(dim(names))) {
+    names <- as.matrix(names)
+  }
+  cols <- colnames(names)
+  if (is.null(cols)) {
+    cols <- "Object"
+  }
+  metaCol <- startsWith(cols, ".")
+  objCol <- grepl("^Object( [0-9]+)?$", cols)
+  objCols <- cols[objCol & !metaCol]
+  argCols <- cols[!objCol & !metaCol]
+
+  allObjs <- .trimObject(unlist(lapply(objCols, function(cc) names[, cc])))
+  objLk <- .shortestUniquePrefix(allObjs, 3L, 6L)
+
+  subPref <- if ("sub_type" %in% argCols) {
+    .shortestUniquePrefix(names[, "sub_type"], 3L, 20L)
+  } else {
+    stats::setNames(character(0), character(0))
+  }
+  joinPref <- if ("joining" %in% argCols) {
+    .shortestUniquePrefix(names[, "joining"], 3L, 20L)
+  } else {
+    stats::setNames(character(0), character(0))
+  }
+
+  if (mode == "export") {
+    terms <- .assembleTerms(
+      names,
+      FALSE,
+      FALSE,
+      FALSE,
+      objCols,
+      argCols,
+      objLk,
+      subPref,
+      joinPref
+    )
+    return(.sanitizeExport(terms, if (is.null(max_length)) Inf else max_length))
+  }
+  if (mode == "coef") {
+    return(.coefTerms(names, objCols, argCols, objLk, subPref, joinPref))
+  }
+
+  configs <- list(
+    c(FALSE, FALSE, FALSE),
+    c(TRUE, FALSE, FALSE),
+    c(TRUE, TRUE, FALSE),
+    c(TRUE, TRUE, TRUE)
+  )
+  terms <- NULL
+  for (cfg in configs) {
+    terms <- .assembleTerms(
+      names,
+      cfg[1],
+      cfg[2],
+      cfg[3],
+      objCols,
+      argCols,
+      objLk,
+      subPref,
+      joinPref
+    )
+    if (max(nchar(terms)) <= width) {
+      return(stats::setNames(terms, rownames(names)))
+    }
+  }
+  stats::setNames(.truncateTerms(terms, width), rownames(names))
+}
+
+.decoderColumns <- function(names) {
+  if (is.null(dim(names))) {
+    names <- as.matrix(names)
+  }
+  cols <- colnames(names)
+  if (is.null(cols)) {
+    cols <- "Object"
+  }
+  metaCol <- startsWith(cols, ".")
+  objCol <- grepl("^Object( [0-9]+)?$", cols)
+  objCols <- cols[objCol & !metaCol]
+  allObjs <- .trimObject(unlist(lapply(objCols, function(cc) names[, cc])))
+  objLk <- .shortestUniquePrefix(allObjs, 3L, 6L)
+  objShort <- vapply(
+    seq_len(nrow(names)),
+    function(i) {
+      row <- stats::setNames(names[i, ], colnames(names))
+      paste(.objectForms(row, objCols, objLk, TRUE), collapse = "·")
+    },
+    character(1)
+  )
+  cbind(
+    .effect_short = unname(.shortEffect(rownames(names))),
+    .object_short = objShort,
+    .term_export = compact_term_strings(names, "export"),
+    .coef_name = compact_term_strings(names, "coef")
+  )
+}
+
+term_label <- function(names, column, mode, ...) {
+  cols <- colnames(names)
+  if (!is.null(cols) && column %in% cols) {
+    return(unname(names[, column]))
+  }
+  unname(compact_term_strings(names, mode = mode, ...))
+}
+
+.bracketTokens <- function(terms) {
+  m <- regmatches(terms, regexpr("\\[[^]]*\\]", terms))
+  if (!length(m)) {
+    return(character(0))
+  }
+  m <- gsub("[][]", "", m)
+  unique(unlist(strsplit(m, ",")))
+}
+
+.compactLegend <- function(terms, termsFull) {
+  toks <- .bracketTokens(terms)
+  lines <- character(0)
+  if ("W" %in% toks) {
+    lines <- c(lines, "W = weighted")
+  }
+  if ("IR" %in% toks) {
+    lines <- c(lines, "IR = ignore_rep")
+  }
+  if ("Fx" %in% toks) {
+    lines <- c(lines, "Fx = fixed")
+  }
+  hasWdw <- "wdw" %in% toks
+  if (hasWdw) {
+    lines <- c(lines, "wdw = window")
+  }
+  hasFn <- any(grepl("^(t:|s:)?fn$", toks))
+  if (hasFn) {
+    lines <- c(lines, "fn = user-defined function")
+  }
+  if (any(startsWith(toks, "t:")) && any(startsWith(toks, "s:"))) {
+    lines <- c(lines, "t: = transformer, s: = summarizer")
+  }
+  if (length(lines)) {
+    lossy <- hasWdw || hasFn || !identical(unname(terms), unname(termsFull))
+    if (lossy) {
+      lines <- c(
+        lines,
+        "(use compact = FALSE for full effect/object names & details)"
+      )
+    }
+  }
+  lines
 }

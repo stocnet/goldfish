@@ -1,0 +1,65 @@
+## Context
+
+This is a **stub** capturing the deferral promised by `refactor-formula-parsing`
+(design D8 + revised Non-Goals). It is intentionally thin: the detailed design is
+written when the change is taken up, after `refactor-formula-parsing` has merged
+and the actual DyNAMi recipe surface is known.
+
+`refactor-formula-parsing` leaves DyNAMi in this state:
+
+- **Isolated (done there, task 2.3e):** `estimate_dynami` routes to its own
+  preprocessing front-end — old parse-time windowing (`assign()`),
+  `cleanInteractionEvents`, and the `preprocessInteraction` monolith — sharing
+  only the **leaf** parse/link helpers with DyNAM/REM and handing `prep` back to
+  the model-agnostic estimation tail. The shared DyNAM/REM recipe path
+  (`preprocess(spec_map, data)` + data-boundary realizer) carries no DyNAMi
+  branches. DyNAMi does **not** consume the shared `spec_map`/realizer yet.
+- **Deferred (this change):** (a) convert the DyNAMi **engine** — the monolithic
+  `preprocessInteraction` loop (`R/model_preprocess_group.R`) and its
+  `cleanInteractionEvents` pre-step (`R/make_data_group.R`) — to the recipe loop;
+  (b) **unify** DyNAMi onto the shared `spec_map` + state-creation realizer
+  (retiring the 2.3e isolated front-end); (c) the DyNAMi `make_specification()` /
+  spec-object estimate path.
+
+## Goals / Non-Goals
+
+**Goals:** convert DyNAMi rate/choice preprocessing to the recipe architecture
+consuming the shared `spec_map`; unify DyNAMi onto the shared state-creation
+data-boundary realizer (retiring the 2.3e isolated front-end); reproduce existing
+DyNAMi coefficients to 1e-6; add the DyNAMi spec-object estimate path.
+
+**Non-Goals:** changing DyNAMi model semantics or effect definitions; the shared
+formula leaf parsing and the DyNAM/REM recipe/realizer infrastructure themselves
+(owned by `refactor-formula-parsing`) — this change makes DyNAMi *consume* them,
+it does not rebuild them.
+
+## Decisions
+
+_To be written when the change is taken up._ Open questions to resolve then:
+
+1. How DyNAMi's post-event update order and group-network (`groupsNetwork`)
+   handling map onto the recipe loop's per-event update model.
+2. Whether `cleanInteractionEvents`' order correction + windowed-interaction
+   class tagging become a plan derivation, a schedule transform, or stay a
+   pre-step feeding the recipe loop.
+3. `subType` normalisation placement (plan vs effect closure).
+4. The DyNAMi `stat_state` / broadcast classification (if any) versus a plain
+   point-update loop.
+
+**Dev-plan guidance (added 2026-07-03):** the interface proposal
+(`goldfish_asta/code/plan/goldfish_dev_plan.md`, §ties notes) recommends rethinking the
+DyNAM-i input data from scratch as a **two-mode network (actors × groups) with a support
+constraint**, rather than porting the bespoke `make_groups_interaction()` representation.
+When this change is taken up — after `support-constraint-risk-set` (masks) and
+`refactor-single-data-object` (stocnet input, mode map D7) — evaluate modeling groups as a
+second mode with joining/leaving as constrained two-mode events atop that machinery,
+before deciding to keep a dedicated group preprocessing path.
+`make_groups_interaction()` is the one legacy constructor deliberately left undeprecated
+for this change to resolve.
+
+## Risks / Trade-offs
+
+- DyNAMi has the largest existing baseline suite (rate + choice); the recipe
+  conversion must reproduce it exactly — the 1e-6 floor is the guard.
+- Retiring the monolith touches `cleanInteractionEvents`, which several DyNAMi
+  windowed-effect tests exercise; keep them green throughout.

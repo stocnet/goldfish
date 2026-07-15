@@ -1,12 +1,12 @@
 # define methods ----------------------------------------------------------
-init_DyNAM_rate <- function(effectFun, ...) {
-  UseMethod("init_DyNAM_rate", effectFun)
+init_DyNAM_rate <- function(effect_fun, ...) {
+  UseMethod("init_DyNAM_rate", effect_fun)
 }
 
 # default -----------------------------------------------------------------
 #' @export
 init_DyNAM_rate.default <- function(
-  effectFun,
+  effect_fun,
   network = NULL,
   attribute = NULL,
   window,
@@ -15,7 +15,7 @@ init_DyNAM_rate.default <- function(
   ...
 ) {
   init_DyNAM_choice.default(
-    effectFun = effectFun,
+    effect_fun = effect_fun,
     network = network,
     attribute = attribute,
     window = window,
@@ -28,8 +28,8 @@ init_DyNAM_rate.default <- function(
 # Structural effects ------------------------------------------------------
 # indeg -------------------------------------------------------------------
 #' @export
-init_DyNAM_rate.indeg <- function(effectFun, network, window, n1, n2, ...) {
-  params <- formals(effectFun)
+init_DyNAM_rate.indeg <- function(effect_fun, network, window, n1, n2, ...) {
+  params <- formals(effect_fun)
   weighted <- eval(params[["weighted"]])
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]])
@@ -70,15 +70,15 @@ update_DyNAM_rate_indeg <- function(
   transformer_fn = identity
 ) {
   res <- list(cache = NULL, changes = NULL)
-  oldValue <- network[sender, receiver]
+  old_value <- network[sender, receiver]
   if (!weighted) {
-    oldValue <- sign(oldValue)
+    old_value <- sign(old_value)
     replace <- sign(replace)
   }
-  if (oldValue == replace) {
+  if (old_value == replace) {
     return(res)
   }
-  cache[receiver] <- cache[receiver] + replace - oldValue
+  cache[receiver] <- cache[receiver] + replace - old_value
   changes <- cbind(
     node1 = receiver,
     replace = forceAndCall(1, transformer_fn, cache[receiver])
@@ -88,8 +88,8 @@ update_DyNAM_rate_indeg <- function(
 
 # outdeg ------------------------------------------------------------------
 #' @export
-init_DyNAM_rate.outdeg <- function(effectFun, network, window, n1, n2, ...) {
-  params <- formals(effectFun)
+init_DyNAM_rate.outdeg <- function(effect_fun, network, window, n1, n2, ...) {
+  params <- formals(effect_fun)
   weighted <- eval(params[["weighted"]])
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]])
@@ -130,15 +130,15 @@ update_DyNAM_rate_outdeg <- function(
   transformer_fn = identity
 ) {
   res <- list(cache = NULL, changes = NULL)
-  oldValue <- network[sender, receiver]
+  old_value <- network[sender, receiver]
   if (!weighted) {
-    oldValue <- sign(oldValue)
+    old_value <- sign(old_value)
     replace <- sign(replace)
   }
-  if (oldValue == replace) {
+  if (old_value == replace) {
     return(res)
   }
-  cache[sender] <- cache[sender] + replace - oldValue
+  cache[sender] <- cache[sender] + replace - old_value
   changes <- cbind(
     node1 = sender,
     replace = forceAndCall(1, transformer_fn, cache[sender])
@@ -149,14 +149,14 @@ update_DyNAM_rate_outdeg <- function(
 # node_trans --------------------------------------------------------------
 #' @export
 init_DyNAM_rate.node_trans <- function(
-  effectFun,
+  effect_fun,
   network,
   window,
   n1,
   n2,
   ...
 ) {
-  params <- formals(effectFun)
+  params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]])
 
@@ -199,8 +199,8 @@ update_DyNAM_rate_node_trans <- function(
     return(res)
   }
   replace <- sign(replace)
-  oldValue <- sign(network[sender, receiver])
-  if (oldValue == replace) {
+  old_value <- sign(network[sender, receiver])
+  if (old_value == replace) {
     return(res)
   }
 
@@ -216,13 +216,13 @@ update_DyNAM_rate_node_trans <- function(
   changes <- NULL
 
   if (senderChanges > 0) {
-    replaceValues <- (replace - oldValue) * senderChanges + cache[sender]
+    replaceValues <- (replace - old_value) * senderChanges + cache[sender]
     changes <- cbind(node1 = sender, replace = replaceValues)
     cache[sender] <- replaceValues
   }
 
   if (length(common_senders) > 0) {
-    replaceValues <- (replace - oldValue) + cache[common_senders]
+    replaceValues <- (replace - old_value) + cache[common_senders]
     changes <- rbind(
       changes,
       cbind(node1 = common_senders, replace = replaceValues)
@@ -243,7 +243,7 @@ update_DyNAM_rate_node_trans <- function(
 # tertius -----------------------------------------------------------------
 #' @export
 init_DyNAM_rate.tertius <- function(
-  effectFun,
+  effect_fun,
   network,
   attribute,
   window,
@@ -251,7 +251,7 @@ init_DyNAM_rate.tertius <- function(
   n2,
   ...
 ) {
-  params <- formals(effectFun)
+  params <- formals(effect_fun)
   aggFun <- eval(params[["summarizer_fn"]])
   funApply <- eval(params[["transformer_fn"]])
   is_two_mode <- eval(params[["is_two_mode"]])
@@ -305,11 +305,11 @@ update_DyNAM_rate_tertius <- function(
 
   if (is.null(node) && !is.null(sender) && !is.null(receiver)) {
     replace <- sign(replace)
-    oldValue <- sign(network[sender, receiver])
-    if (oldValue == replace) {
+    old_value <- sign(network[sender, receiver])
+    if (old_value == replace) {
       return(res)
     }
-    newValue <- replace - oldValue
+    newValue <- replace - old_value
     if (newValue == 1) {
       inReceiver <- c(which(network[, receiver] > 0), sender)
     } else {
@@ -326,8 +326,8 @@ update_DyNAM_rate_tertius <- function(
   }
 
   if (!is.null(node) && is.null(sender) && is.null(receiver)) {
-    oldValue <- attribute[node]
-    if (oldValue == replace) {
+    old_value <- attribute[node]
+    if (old_value == replace) {
       return(res)
     }
     outNode <- which(network[node, ] > 0)
@@ -370,8 +370,8 @@ update_DyNAM_rate_tertius <- function(
 # Covariate effects -------------------------------------------------------
 # ego ---------------------------------------------------------------------
 #' @export
-init_DyNAM_rate.ego <- function(effectFun, attribute, n1, n2, ...) {
-  params <- formals(effectFun)
+init_DyNAM_rate.ego <- function(effect_fun, attribute, n1, n2, ...) {
+  params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
   if (is_two_mode) {
     stop(
@@ -400,8 +400,8 @@ update_DyNAM_rate_ego <- function(
 
 # degree (undirected) -----------------------------------------------------
 #' @export
-init_DyNAM_rate.degree <- function(effectFun, network, window, n1, n2, ...) {
-  params <- formals(effectFun)
+init_DyNAM_rate.degree <- function(effect_fun, network, window, n1, n2, ...) {
+  params <- formals(effect_fun)
   weighted <- eval(params[["weighted"]])
   funApply <- eval(params[["transformer_fn"]])
 
@@ -430,15 +430,15 @@ update_DyNAM_rate_degree <- function(
   transformer_fn = identity
 ) {
   res <- list(cache = NULL, changes = NULL)
-  oldValue <- network[sender, receiver]
+  old_value <- network[sender, receiver]
   if (!weighted) {
-    oldValue <- sign(oldValue)
+    old_value <- sign(old_value)
     replace <- sign(replace)
   }
-  if (oldValue == replace) {
+  if (old_value == replace) {
     return(res)
   }
-  delta <- replace - oldValue
+  delta <- replace - old_value
   cache[sender] <- cache[sender] + delta
   cache[receiver] <- cache[receiver] + delta
   changes <- cbind(
@@ -450,8 +450,8 @@ update_DyNAM_rate_degree <- function(
 
 # triangle (undirected) ---------------------------------------------------
 #' @export
-init_DyNAM_rate.triangle <- function(effectFun, network, window, n1, n2, ...) {
-  params <- formals(effectFun)
+init_DyNAM_rate.triangle <- function(effect_fun, network, window, n1, n2, ...) {
+  params <- formals(effect_fun)
   funApply <- eval(params[["transformer_fn"]])
 
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
@@ -481,8 +481,8 @@ update_DyNAM_rate_triangle <- function(
     return(res)
   }
   replace <- sign(replace)
-  oldValue <- sign(network[sender, receiver] + network[receiver, sender])
-  if (oldValue == replace) {
+  old_value <- sign(network[sender, receiver] + network[receiver, sender])
+  if (old_value == replace) {
     return(res)
   }
 
@@ -512,7 +512,7 @@ update_DyNAM_rate_triangle <- function(
 
 # global ------------------------------------------------------------------
 #' @export
-init_DyNAM_rate.global <- function(effectFun, attribute, n1, n2, ...) {
+init_DyNAM_rate.global <- function(effect_fun, attribute, n1, n2, ...) {
   list(stat = rep(attribute, n1))
 }
 

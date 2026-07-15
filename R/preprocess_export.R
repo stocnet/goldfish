@@ -4,7 +4,6 @@
 # #
 # # Description: Helper functions to gather the preprocess data from a model
 
-
 #' Gather model data from a formula
 #'
 #' Gather the preprocess data from a formula given a model and sub model,
@@ -31,7 +30,7 @@
 #' left-hand side the dependent
 #' network (see [make_dependent_events()]) and at the right-hand side the
 #' effects and the variables for which the effects are expected to occur
-#' (see `vignette("goldfishEffects")`).
+#' (see `vignette("goldfish_effects")`).
 #' @param model a character string defining the model type.
 #' Current options include `"DyNAM"`, `"DyNAMi"` or `"REM"`
 #' \describe{
@@ -46,6 +45,10 @@
 #'   [set_preprocessing_opt()]. This object contains parameters that control
 #'   the data preprocessing. See [set_preprocessing_opt()] for details on
 #'   the available parameters.
+#' @param max_length integer. Maximum number of characters for each produced
+#'   effect/column name in `namesEffects` (default `63`, a database-safe value).
+#'   Names are made valid and unique; the uniqueness suffix is applied after
+#'   truncation so uniqueness is preserved.
 #'
 #' @return a list object including:
 #'  \describe{
@@ -64,6 +67,15 @@
 #'    selected actor (choice model), sender actor (rate model), or
 #'    active dyad (choice-coordination model, REM model).
 #'    Indexing start at 1 for each event.}
+#'   \item{index_i, index_j}{integer vectors, one entry per row of
+#'    `stat_all_events`, giving each candidate row's actor identity as
+#'    (1-based) node indices. Dyad rows (choice, REM, choice-coordination)
+#'    carry both the sender `index_i` and the receiver `index_j`; sender-set
+#'    rate rows carry `index_i` with `index_j = NA`. These decode each row to
+#'    its actor(s) after the risk set has been filtered, where the positional
+#'    `sender`/`receiver` (which name only the observed dyad) cannot. For
+#'    one-mode choice-coordination the reflexive diagonal rows are not emitted,
+#'    and a `support_constraint` emits only allowed rows.}
 #'   \item{sender, receiver}{
 #'    a character vector with the label of the sender/receiver actor.
 #'    For right-censored events the receiver values is not meaningful.}
@@ -72,7 +84,7 @@
 #'   \item{namesEffects}{a character vector with a short name of the effect.
 #'   It includes the name of the object used to calculate the effects and
 #'   modifiers of the effect, e.g., the type of effect, weighted effect.}
-#'   \item{effectDescription}{
+#'   \item{effect_description}{
 #'    a character matrix with the description of the effects.
 #'    It includes the name of the object used to calculate the effects and
 #'    additional information of the effect, e.g., the type of effect,
@@ -100,33 +112,36 @@
 #' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
 #' bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 #'
-#' createBilat <- make_dependent_events(
+#' create_bilat <- make_dependent_events(
 #'   events = bilatchanges[bilatchanges$increment == 1, ],
 #'   nodes = states, default_network = bilatnet
 #' )
 #'
-#' fisheriesData <- make_data(createBilat)
-#' 
+#' fisheries_data <- make_data(create_bilat)
+#'
 #' gatheredData <- gather_model_data(
-#'   createBilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet),
+#'   create_bilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet),
 #'   model = "DyNAM", sub_model = "choice_coordination",
-#'   data = fisheriesData
+#'   data = fisheries_data
 #' )
 #'
 gather_model_data <- function(
-    formula,
-    model = c("DyNAM", "REM"),
-    sub_model = c("choice", "choice_coordination", "rate"),
-    data = NULL,
-    control_preprocessing = set_preprocessing_opt(),
-    progress = getOption("progress")
-    ) {
+  formula,
+  model = c("DyNAM", "REM"),
+  sub_model = c("choice", "choice_coordination", "rate"),
+  data = NULL,
+  control_preprocessing = set_preprocessing_opt(),
+  progress = getOption("progress"),
+  max_length = 63L
+) {
   model <- match.arg(
     arg = if (length(model) > 1) model[1] else model,
     choices = c("DyNAM", "REM")
   )
   sub_model <- match.arg(sub_model)
-  if (is.null(progress)) progress <- FALSE
+  if (is.null(progress)) {
+    progress <- FALSE
+  }
 
   compute_stats(
     formula = formula,
@@ -135,7 +150,8 @@ gather_model_data <- function(
     sub_model = sub_model,
     output = "gather",
     control_preprocessing = control_preprocessing,
-    progress = progress
+    progress = progress,
+    max_length = max_length
   )
 }
 
@@ -144,14 +160,22 @@ gather_model_data <- function(
 #' Completes the gather output produced by `gather_from_prep()` (via
 #' `writer_gather()`) with the sender/receiver labels, the rate-model
 #' `timespan` / `isDependent` fields, and the `namesEffects` /
-#' `effectDescription` printing metadata, matching the field set and order of
+#' `effect_description` printing metadata, matching the field set and order of
 #' the legacy `gather_model_data()` result. Internal carry attributes are
 #' stripped so the returned list is value-comparable to the legacy output.
 #'
 #' @noRd
 finalize_gather_output <- function(
-  gathered, model, sub_model, has_intercept, nodes, nodes2,
-  objects_effects_link, parsed_formula
+  gathered,
+  model,
+  sub_model,
+  has_intercept,
+  nodes,
+  nodes2,
+  objects_effects_link,
+  parsed_formula,
+  max_length = 63L,
+  effect_description = NULL
 ) {
   event_sender <- attr(gathered, "event_sender")
   event_receiver <- attr(gathered, "event_receiver")
@@ -166,12 +190,17 @@ finalize_gather_output <- function(
     gathered$isDependent <- is_dependent
   }
 
-  effectDescription <- GetDetailPrint(objects_effects_link, parsed_formula)
-  namesEffects <- CreateNames(effectDescription, sep = "_", joiner = "_")
+  # Single source of truth from the spec mapping when supplied;
+  # recomputed only for callers without a spec_map (DyNAMi / legacy paths).
+  effect_description <- effect_description
+  if (is.null(effect_description)) {
+    effect_description <- GetDetailPrint(objects_effects_link, parsed_formula)
+  }
+  namesEffects <- CreateNames(effect_description, max_length = max_length)
 
   gathered$namesEffects <- namesEffects
   colnames(gathered$stat_all_events) <- namesEffects
-  gathered$effectDescription <- effectDescription
+  gathered$effect_description <- effect_description
 
   attr(gathered, "event_sender") <- NULL
   attr(gathered, "event_receiver") <- NULL
@@ -183,54 +212,36 @@ finalize_gather_output <- function(
 
 #' Generate names for statistics effects
 #'
-#' Using the names data frame from `goldfish` generate compact names to the
-#' columns for data frame or matrix
+#' Using the names data frame from `goldfish` generate valid, unique and
+#' length-bounded export names for the columns of a data frame or matrix.
+#' Names are produced by the shared compact-term-string builder in export mode
+#' (reading the persisted `.term_export` column when present), so dot-prefixed
+#' decoder columns never leak into the output.
 #'
 #' @param names data frame from `goldfish`
-#' @param sep string. Separator between different arguments and objects
-#' @param joiner string. Separator to join multiple object names
+#' @param max_length integer. Maximum length of each produced name; the
+#'   uniqueness suffix is applied after truncation so uniqueness is preserved.
 #'
-#' @return a string vector with the names.
+#' @return a string vector with valid, unique names.
 #' @noRd
 #'
 #' @examples
 #' names <- cbind(
 #'   Object = c("bilatnet", "bilatnet", "contignet"),
-#'   Weighted = c("W", "", "W")
+#'   weighted = c("W", "", "W")
 #' )
 #' rownames(names) <- c("inertia", "trans", "tie")
-#' CreateNames(names, sep = "|")
-CreateNames <- function(
-    names, sep = " ", joiner = ", ") {
-  isObjectD <- grepl("Object \\d+", colnames(names))
-  if (any(isObjectD)) {
-    object <- apply(
-      names[, isObjectD], 1,
-      function(z) {
-        ret <- Filter(function(w) !is.na(w) & w != "", z)
-        ret <- paste(ret, collapse = joiner)
-        return(ret)
-      }
+#' CreateNames(names)
+CreateNames <- function(names, max_length = 63L) {
+  hasCache <- !is.null(colnames(names)) &&
+    ".term_export" %in% colnames(names)
+  if (hasCache && isTRUE(max_length == 63L)) {
+    nombres <- unname(names[, ".term_export"])
+  } else {
+    nombres <- unname(
+      compact_term_strings(names, mode = "export", max_length = max_length)
     )
-    newNames <- c("Object", colnames(names)[!isObjectD])
-    names <- cbind(object, names[, !isObjectD])
-    colnames(names) <- newNames
   }
-
-  if ("fixed" %in% colnames(names)) {
-    names[, "fixed"] <- ifelse(names[, "fixed"] == "TRUE", "Fx", "")
-  }
-
-  names <- cbind(effect = rownames(names), names)
-  nombres <- apply(
-    names, 1,
-    function(z) {
-      ret <- Filter(function(w) !is.na(w) & w != "", z)
-      ret <- paste(ret, collapse = sep)
-      return(ret)
-    }
-  )
-  names(nombres) <- NULL
 
   return(nombres)
 }

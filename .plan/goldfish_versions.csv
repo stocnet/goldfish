@@ -1,0 +1,17 @@
+version,source,repo,ref,commit,interface,pushed,notes
+1.6.12,cran,stocnet/goldfish,v1.6.12,5bf0adc,old,TRUE,Latest CRAN release. Old API: estimate()/defineNetwork()/defineNodes()/subModel/estimationInit. No data object; objects pulled from calling env.
+1.7.0,github,stocnet/goldfish,v1.7.0,67a99bb,new,TRUE,First tidyverse-style API: make_*()/estimate_dynam()/estimate_rem()/make_data(). No engine iteration guaranteed.
+1.7.1,github,stocnet/goldfish,f2be1d4,f2be1d4,new,TRUE,Diagnostic methods + autograph plotting; mode imputation for non-numeric attributes; fix for preprocessed-data formula comparison; max_iterations=0 supported. New API.
+1.7.2,github,stocnet/goldfish,83f4c0b,83f4c0b,new,TRUE,Rate preprocessing refactor: rate statistics stored as n1xnEffects matrix instead of n1xn1xnEffects 3D array (drops reduceMatrixToVector). Unified preprocessing output fields; new effects degree()/triangle()/global(); reserved db/db_table options. New API.
+1.7.3-prechange,github,stocnet/goldfish,b890cd0,b890cd0,new,TRUE,Commit immediately BEFORE refactor-preprocess-estimate began (parent of task 0.1 baseline commit). Pre-refactor baseline; new API with monolith preprocessing and post-hoc C++ gather_().
+1.7.4,github,stocnet/goldfish,f1a187e,f1a187e,new,TRUE,Phase A milestone bump: compute_stats() export + typed model_spec + rate_ordered sub_model + REM sub_model deprecations.
+1.7.5,github,stocnet/goldfish,fe8fc53,fe8fc53,new,FALSE,Recipes milestone bump: flat stat_mat_update buffer + recipe dispatch + preprocessed.goldfish format version. LOCAL ONLY -- push refactor/rate_prep before install.
+1.7.6,github,stocnet/goldfish,9a8363e,9a8363e,new,FALSE,Estimation milestone bump: spec-class estimation dispatch + combined C++ flat buffer. LOCAL ONLY -- push refactor/rate_prep before install.
+1.7.7,github,stocnet/goldfish,f22332b,f22332b,new,FALSE,Writers milestone bump: writer strategy + native R gather (C++ gather_() removed) + DBI streaming writer. LOCAL ONLY -- push refactor/rate_prep before install.
+develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD snapshot. New API + engines (default_c/gather_compute). No rate_ordered sub_model (order via no-intercept formula).
+1.8.0,github,stocnet/goldfish,f3d4db1,f3d4db1,new,FALSE,refactor/rate_prep HEAD: release consolidation. New API + compute_stats(output=gather|db) + rate_ordered sub_model + engines default_c/gather_compute/default. LOCAL ONLY -- push refactor/rate_prep before install.
+1.8.4,local,stocnet/goldfish,38e244e,38e244e,archive,FALSE,Archived OpenSpec change 'refactor-formula-parsing' on 2026-07-02 (version 1.8.4; Stage-2 milestone); see openspec/changes/archive/2026-07-02-refactor-formula-parsing.
+1.8.5,local,stocnet/goldfish,deb3998,deb3998,archive,FALSE,Archived OpenSpec change 'sender-interaction-terms' on 2026-07-02 (version 1.8.5); see openspec/changes/archive/.
+1.8.6,local,stocnet/goldfish,3870653,3870653,archive,FALSE,Archived OpenSpec change 'support-constraint-risk-set' on 2026-07-07 (version 1.8.6); see openspec/changes/archive/2026-07-07-support-constraint-risk-set.
+1.8.7,local,stocnet/goldfish,9148178,9148178,archive,FALSE,Archived OpenSpec change 'support-constraint-as-stat' on 2026-07-10 (version 1.8.7); see openspec/changes/archive/.
+1.8.8,local,stocnet/goldfish,6a4f3b1,6a4f3b1,archive,FALSE,Archived OpenSpec change 'refactor-likelihood-compute' on 2026-07-12 (version 1.8.8); see openspec/changes/archive/.

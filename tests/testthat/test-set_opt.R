@@ -1,15 +1,25 @@
 test_that("set_estimation_opt works correctly", {
   expected_est_names <- c(
-    "initial_parameters", "fixed_parameters", "max_iterations",
-    "score_tol", "step_tol", "initial_damping", "damping_increase_factor",
-    "damping_decrease_factor", "return_interval_loglik",
-    "return_probabilities", "engine"
+    "initial_parameters",
+    "fixed_parameters",
+    "max_iterations",
+    "score_tol",
+    "step_tol",
+    "initial_damping",
+    "damping_increase_factor",
+    "damping_decrease_factor",
+    "return_interval_loglik",
+    "return_probabilities",
+    "engine"
   )
 
   # Test defaults
   default_opts <- set_estimation_opt()
-  expect_s3_class(default_opts, c("estimation_opt.goldfish", "list"),
-                  exact = TRUE)
+  expect_s3_class(
+    default_opts,
+    c("estimation_opt.goldfish", "list"),
+    exact = TRUE
+  )
   expect_true(is.list(default_opts))
   # Check that all expected names are present
   expect_true(all(expected_est_names %in% names(default_opts)))
@@ -34,8 +44,11 @@ test_that("set_estimation_opt works correctly", {
     return_probabilities = TRUE,
     initial_damping = 15
   )
-  expect_s3_class(custom_opts, c("estimation_opt.goldfish", "list"),
-                  exact = TRUE)
+  expect_s3_class(
+    custom_opts,
+    c("estimation_opt.goldfish", "list"),
+    exact = TRUE
+  )
   expect_true(is.list(custom_opts))
   # Check that all expected names are present
   expect_true(all(expected_est_names %in% names(custom_opts)))
@@ -71,13 +84,18 @@ test_that("set_estimation_opt deprecation warning for convergence_criterion", {
 })
 test_that("set_preprocessing_opt works correctly", {
   expected_prep_names <- c(
-    "start_time", "end_time", "opportunities_list"
+    "start_time",
+    "end_time",
+    "opportunities_list"
   )
 
   # Test defaults
   default_opts <- set_preprocessing_opt()
-  expect_s3_class(default_opts, c("preprocessing_opt.goldfish", "list"),
-                  exact = TRUE)
+  expect_s3_class(
+    default_opts,
+    c("preprocessing_opt.goldfish", "list"),
+    exact = TRUE
+  )
   expect_true(is.list(default_opts))
   # Check that all expected names are present
   expect_true(all(expected_prep_names %in% names(default_opts)))
@@ -85,15 +103,19 @@ test_that("set_preprocessing_opt works correctly", {
   expect_null(default_opts$end_time)
   expect_null(default_opts$opportunities_list)
 
-  # Test setting specific parameters
+  # Test setting specific parameters (opportunities_list is soft-deprecated)
+  withr::local_options(lifecycle_verbosity = "quiet")
   dummy_opportunities <- list(c("A", "B"), c("C", "D"))
   custom_opts <- set_preprocessing_opt(
     start_time = 10,
     end_time = 100,
     opportunities_list = dummy_opportunities
   )
-  expect_s3_class(custom_opts, c("preprocessing_opt.goldfish", "list"),
-                  exact = TRUE)
+  expect_s3_class(
+    custom_opts,
+    c("preprocessing_opt.goldfish", "list"),
+    exact = TRUE
+  )
   expect_true(is.list(custom_opts))
   # Check that all expected names are present
   expect_true(all(expected_prep_names %in% names(custom_opts)))
@@ -102,7 +124,20 @@ test_that("set_preprocessing_opt works correctly", {
   expect_equal(custom_opts$opportunities_list, dummy_opportunities)
 })
 test_that("set_preprocessing_opt throw errors", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   expect_error(set_preprocessing_opt(start_time = character(3)))
   expect_error(set_preprocessing_opt(end_time = character(3)))
   expect_error(set_preprocessing_opt(opportunities_list = -1))
+})
+
+test_that("opportunities_list is deprecated in favour of support_constraint", {
+  # Fires the once-per-session lifecycle warning pointing to support_constraint.
+  withr::local_options(lifecycle_verbosity = "warning")
+  expect_snapshot(
+    invisible(set_preprocessing_opt(opportunities_list = list(c("A", "B"))))
+  )
+  # It still works (soft deprecation): the value is retained.
+  withr::local_options(lifecycle_verbosity = "quiet")
+  opt <- set_preprocessing_opt(opportunities_list = list(c("A", "B")))
+  expect_equal(opt$opportunities_list, list(c("A", "B")))
 })

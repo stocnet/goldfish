@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include "stable_softmax.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -47,14 +48,6 @@ using namespace arma;
 //'       2.4 \tab 4.7\cr
 //'       9.2 \tab 5.6\cr
 //'     }
-//' @param n_candidates1 An n_events by 1 matrix, which is only used
-//'     for estimating the DyNAM-coordination model.
-//'     It record how many candidate sender are in each event.
-//'     And we have n_candidates1 * n_candidates2 = n_candidates.
-//' @param n_candidates2 An n_events by 1 matrix, which is only used
-//'     for estimating the DyNAM-coordination model.
-//'     It record how many candidate receiver are in each event.
-//'     And we have n_candidates1 * n_candidates2 = n_candidates.
 //' @param selected An n_events by 1 matrix.
 //'     It records the position of the selected candidate sender-receiver pair
 //'     in each event.
@@ -74,137 +67,127 @@ using namespace arma;
 //'       2.4 \tab 4.7\cr
 //'       9.2 \tab 5.6\cr
 //'     }
-//' @param selected_actor1 An n_events by 1 matrix.
-//'     It records the index of the selected candidate sender among
-//'     all candidate sender in each event.
-//' @param selected_actor2 An n_events by 1 matrix.
-//'     It records the index of the selected candidate receiver among
-//'     all candidate receiver in each event.
+//'     `selected` is the within-event 0-based position of the observed directed
+//'     dyad (sender -> receiver) row.
+//' @param sender_of_row An integer vector, one entry per row of
+//'     `stat_all_events`: the 0-based sender-group index of that row WITHIN its
+//'     event (the CSR grouping the per-sender softmax consumes; rows are stored
+//'     grouped by sender, so this is non-decreasing within an event).
+//' @param dyad_partner An integer vector, one entry per row of
+//'     `stat_all_events`: the within-event 0-based position of the partner row
+//'     (j -> i) of each directed row (i -> j). The symmetric risk-set fold
+//'     guarantees the partner exists, so each unordered dyad has exactly two
+//'     rows pointing at each other.
 //' @noRd
 // [[Rcpp::export]]
 List compute_coordination_selection(
     arma::colvec& parameters,
     const arma::mat& stat_all_events,
     const arma::uvec& n_candidates,
-    const arma::uvec& n_candidates1,
-    const arma::uvec& n_candidates2,
     const arma::uvec& selected,
-    const arma::uvec& selected_actor1,
-    const arma::uvec& selected_actor2,
-    const bool twomode_or_reflexive
+    const arma::uvec& sender_of_row,
+    const arma::uvec& dyad_partner
 ) {
     int n_events = selected.size();
     int n_parameters = parameters.size();
-    // declare auxilliary variables
-    arma::mat derivative_current_event(1, n_parameters);
-    arma::mat averaged_derivative_current_event(1, n_parameters);
-    arma::mat expected_derivative_pij(1, n_parameters);
-    arma::mat fisher_current_event(n_parameters, n_parameters);
     // declare return variables
     arma::mat fisher(n_parameters, n_parameters, fill::zeros);
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
 
-    // Get exp(\beta^T S) for each pair of actors in each events
-    arma::vec exps_all = arma::exp(stat_all_events * parameters);
+    // Linear predictors beta^T s for every candidate dyad in every event (one
+    // GEMV); the staged dyad-triangle softmax below works in log space.
+    arma::vec lin_pred_all = stat_all_events * parameters;
+
+    // Ragged dyad-triangle buffers sized to the largest event and reused: the
+    // kernel reads ONLY the emitted index structures — the risk set
+    // (off-diagonal directed dyads, masked rows already dropped at emit) is the
+    // row list itself, grouped by sender via `sender_of_row` and paired via
+    // `dyad_partner`; there is no n1 x n2 assumption and no square reshape.
+    // `E` per-sender expected statistics (row = sender group), `logZ` the
+    // per-sender softmax log-normalizers, `D` the compact d x p deviation buffer.
+    const arma::uword max_n_groups =
+      sender_of_row.empty() ? 0 : sender_of_row.max() + 1;
+    const arma::uword max_n_cand = n_candidates.empty() ? 0 : n_candidates.max();
+    const arma::uword max_n_dyads = max_n_cand / 2;
+    arma::mat E(max_n_groups, n_parameters);
+    arma::vec logZ(max_n_groups);
+    arma::mat D(max_n_dyads, n_parameters);
+    arma::vec logw_dyad(max_n_dyads);
+    arma::vec ones_mask(max_n_cand, fill::ones);
+    arma::vec sender_weights;
+    arma::vec dyad_weights;
     // start address in stat_all_events of current events
     int id_start = 0;
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
-        // Initialize data for each event
-        int id_end = id_start + n_candidates(id_event);
-        // the subviewsof th stat mat
-        const arma::mat& stat_mat_current_event =
-          stat_all_events.rows(id_start, id_end - 1);
+        const int n_rows = n_candidates(id_event);
+        const int id_end = id_start + n_rows;
 
-        // Reset auxilliary variables
-        fisher_current_event.zeros();
-        // declare the ids of the sender and the receiver,
-        const int id_sender = selected_actor1(id_event);
-        const int id_receiver = selected_actor2(id_event);
-        const int n_actors_1 = n_candidates1(id_event);
-        const int n_actors_2 = n_candidates2(id_event);
-
-        // p(j,i) is the probability that i sends an invitation for j.
-        // We retrieve it from
-        arma::mat p(exps_all.memptr() + id_start,
-                    n_actors_2, n_actors_1, false);
-        // We don't consider any self-connected edge
-        if (!twomode_or_reflexive) p.diag().zeros();
-        // normalize each column such that the sum of each column is 1.
-        p = normalise(p, 1, 0);
-
-        // 2. we calculate P according to equation(6) in the paper.
-        arma::mat P = p  % (p.t());
-        // Norallize
-        P = P / (accu(P) / 2);
-
-        // 3. We calculate and store $\frac{p'_ij}{p_ij} + \frac{p'_ji}{p_ji}$,
-        //    which appear in equation(9) in the paper.
-        // For j < i, P_3.row(i * n_actors_2 + j) =
-        //    \frac{p'_ij}{p_ij} + \frac{p'_ji}{p_ji}
-        // For j >= i,  P_3.row(i * n_actors_2 + j) = \frac{p'_ji}{p_ji}
-        //    and is not used in the future.
-        arma::mat P_3 = stat_mat_current_event;
-        // Calculate \frac{p'_ji}{p_ji}
-        for (int i = 0; i < n_actors_1; ++i) {
-            expected_derivative_pij.zeros();
-            for (int j = 0; j < n_actors_2; ++j) {
-                expected_derivative_pij +=
-                  stat_mat_current_event.row(i * n_actors_2 + j) * p(j, i);
+        // per-sender softmax over the contiguous sender groups:
+        // log-normalizer logZ_g and expected statistic E_g via one GEMV each.
+        int row = 0;
+        while (row < n_rows) {
+            const int gid = sender_of_row(id_start + row);
+            const int start = row;
+            while (row < n_rows &&
+                   static_cast<int>(sender_of_row(id_start + row)) == gid) {
+                ++row;
             }
-            for (int j = 0; j < n_actors_2; ++j) {
-                P_3.row(i * n_actors_2 + j) -= expected_derivative_pij;
-            }
+            const int gsize = row - start;
+            arma::vec lin_pred_g(
+                lin_pred_all.memptr() + id_start + start, gsize, false);
+            arma::vec allowed_g(ones_mask.memptr(), gsize, false);
+            logZ(gid) = stable_softmax_masked(lin_pred_g, allowed_g, sender_weights);
+            double norm_g = accu(sender_weights);
+            E.row(gid) = (sender_weights.t() *
+              stat_all_events.rows(id_start + start, id_start + row - 1)) / norm_g;
         }
-        // Calculate \frac{p'_ij}{p_ij} + \frac{p'_ji}{p_ji} by summation
-        for (int i = 0; i < n_actors_1; ++i) {
-            for (int j = 0; j < i; ++j) {
-                P_3.row(i * n_actors_2 + j) += P_3.row(j * n_actors_2 + i);
+
+        // dyad list: one row per unordered dyad, taken at its canonical directed
+        // row (r < partner). log w = (x_r - logZ_{g(r)}) + (x_pr - logZ_{g(pr)}),
+        // D_d = s_r + s_pr - E_{g(r)} - E_{g(pr)} = grad log w.
+        const int n_dyads = n_rows / 2;
+        const arma::uword id_obs_row = selected(id_event);
+        int idx = 0;
+        int idx_obs = 0;
+        for (int r = 0; r < n_rows; ++r) {
+            const arma::uword pr = dyad_partner(id_start + r);
+            if (static_cast<arma::uword>(r) < pr) {
+                const int g_r = sender_of_row(id_start + r);
+                const int g_pr = sender_of_row(id_start + pr);
+                logw_dyad(idx) =
+                  (lin_pred_all(id_start + r) - logZ(g_r)) +
+                  (lin_pred_all(id_start + pr) - logZ(g_pr));
+                D.row(idx) =
+                  stat_all_events.row(id_start + r) +
+                  stat_all_events.row(id_start + pr) -
+                  E.row(g_r) - E.row(g_pr);
+                if (static_cast<arma::uword>(r) == id_obs_row ||
+                    pr == id_obs_row) {
+                    idx_obs = idx;
+                }
+                ++idx;
             }
         }
 
-        // 4. Calculate the derivative of loglikelihood according to
-        // equation(9) in the paper.
-        derivative_current_event.zeros();
-        averaged_derivative_current_event.zeros();
-        // Calculate the last term in equation (9)
-        for (int i = 0; i < n_actors_1; ++i) {
-            for (int j = 0; j < i; ++j) {
-                averaged_derivative_current_event +=
-                  P(i, j) * P_3.row(i * n_actors_2 + j);
-            }
-        }
-        // Equation(9)
-        derivative_current_event -= averaged_derivative_current_event;
-        derivative_current_event += 
-          (id_sender > id_receiver) ?
-            P_3.row(id_sender * n_actors_2 + id_receiver) :
-            P_3.row(id_receiver * n_actors_2 + id_sender);
-        // add the derivative of current event to the overall derivative
-        derivative += derivative_current_event;
-
-        // 5. Calculate the Fisher matrix according to equation(11) in the paper
-        fisher_current_event.zeros();
-        // arma::mat temp(1, n_parameters);
-        for (int i = 0; i < n_actors_1; ++i) {
-            for (int j = 0; j < i; ++j) {
-                // temp = P_3.row(i * n_actors_2 + j) -
-                //    averaged_derivative_current_event;
-                fisher_current_event += P(i, j) *
-                  (P_3.row(i * n_actors_2 + j).t() *
-                  P_3.row(i * n_actors_2 + j));
-                // fisher_current_event = P(i,j) * (temp.t()* temp);
-            }
-        }
-        fisher_current_event -= averaged_derivative_current_event.t() *
-          averaged_derivative_current_event;
-        fisher += fisher_current_event;
-
-        // 6. loglikelihood
-        intervalLogL(id_event) = log(P(id_sender, id_receiver));
+        // d-alternative dyad softmax, then one weighted-crossprod GEMM Fisher
+        arma::vec logw_event(logw_dyad.memptr(), n_dyads, false);
+        arma::vec allowed_event(ones_mask.memptr(), n_dyads, false);
+        double log_normalizer =
+          stable_softmax_masked(logw_event, allowed_event, dyad_weights);
+        double normalizer = accu(dyad_weights);
+        arma::subview<double> D_event = D.rows(0, n_dyads - 1);
+        // expected gradient g = sum_d P_d D_d; score = grad log w_obs - g
+        arma::rowvec g = (dyad_weights.t() * D_event) / normalizer;
+        derivative += D.row(idx_obs) - g;
+        // Fisher: sum_d P_d D_d D_d^T - g^T g
+        fisher += (D_event.each_col() % dyad_weights).t() * D_event /
+          normalizer - g.t() * g;
+        // logLikelihood from the shifted predictor (finite under underflow)
+        intervalLogL(id_event) = logw_dyad(idx_obs) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
 
         // renew the starting index

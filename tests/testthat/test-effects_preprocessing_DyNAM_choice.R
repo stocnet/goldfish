@@ -558,7 +558,7 @@ test_that("Object and attribute existence", {
   )
   expect_error(
     estimate_wrapper(
-      depNetwork ~ inertia + alter(actorsEx$uno),
+      depNetwork ~ inertia + alter(actors_ex$uno),
       model = "DyNAM",
       sub_model = "choice",
       data = dataTest,

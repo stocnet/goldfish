@@ -23,7 +23,7 @@ and with the following attributes:
 the model}
 \item{nobs}{the number of observations used in estimation.
 In general, it corresponds to the number of dependent events used in
-estimation. For a \code{subModel = "rate"} or \code{model = "REM"} with intercept,
+estimation. For a \code{sub_model = "rate"} or \code{model = "REM"} with intercept,
 it corresponds to the number of dependent events plus right-censored
 events due to exogenous or endogenous changes.}
 

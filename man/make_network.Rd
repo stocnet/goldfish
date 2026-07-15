@@ -74,7 +74,7 @@ the initial state to be empty (i.e., a matrix containing only 0s).
 \examples{
 # If no intial matrix is provided
 data("Social_Evolution")
-callNetwork <- make_network(nodes = actors)
+call_network <- make_network(nodes = actors)
 
 # If a initial matrix is provided
 data("Fisheries_Treaties_6070")

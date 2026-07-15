@@ -14,7 +14,15 @@
 #' @name model_spec
 #' @noRd
 model_spec_structure <- function(
-    variant, indexing, model, sub_model, is_two_mode, nodes, nodes2, ...) {
+  variant,
+  indexing,
+  model,
+  sub_model,
+  is_two_mode,
+  nodes,
+  nodes2,
+  ...
+) {
   structure(
     list(
       model = model,
@@ -32,8 +40,14 @@ model_spec_structure <- function(
 #' @noRd
 dynam_rate_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
   model_spec_structure(
-    "dynam_rate_spec", "sender_spec", "DyNAM", "rate",
-    is_two_mode = FALSE, nodes = nodes, nodes2 = nodes2, ...
+    "dynam_rate_spec",
+    "sender_spec",
+    "DyNAM",
+    "rate",
+    is_two_mode = FALSE,
+    nodes = nodes,
+    nodes2 = nodes2,
+    ...
   )
 }
 
@@ -41,28 +55,54 @@ dynam_rate_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
 #' @noRd
 dynam_rate_ordered_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
   model_spec_structure(
-    "dynam_rate_ordered_spec", "sender_spec", "DyNAM", "rate_ordered",
-    is_two_mode = FALSE, nodes = nodes, nodes2 = nodes2, ...
+    "dynam_rate_ordered_spec",
+    "sender_spec",
+    "DyNAM",
+    "rate_ordered",
+    is_two_mode = FALSE,
+    nodes = nodes,
+    nodes2 = nodes2,
+    ...
   )
 }
 
 #' @rdname model_spec
 #' @noRd
 dynam_choice_spec <- function(
-    is_two_mode = FALSE, nodes = NULL, nodes2 = nodes, ...) {
+  is_two_mode = FALSE,
+  nodes = NULL,
+  nodes2 = nodes,
+  ...
+) {
   model_spec_structure(
-    "dynam_choice_spec", "dyad_spec", "DyNAM", "choice",
-    is_two_mode = is_two_mode, nodes = nodes, nodes2 = nodes2, ...
+    "dynam_choice_spec",
+    "dyad_spec",
+    "DyNAM",
+    "choice",
+    is_two_mode = is_two_mode,
+    nodes = nodes,
+    nodes2 = nodes2,
+    ...
   )
 }
 
 #' @rdname model_spec
 #' @noRd
 dynam_choice_coord_spec <- function(
-    is_two_mode = FALSE, nodes = NULL, nodes2 = nodes, ...) {
+  is_two_mode = FALSE,
+  nodes = NULL,
+  nodes2 = nodes,
+  ...
+) {
   model_spec_structure(
-    "dynam_choice_coord_spec", "dyad_spec", "DyNAM", "choice_coordination",
-    is_two_mode = is_two_mode, nodes = nodes, nodes2 = nodes2, ...
+    "dynam_choice_coord_spec",
+    "dyad_spec",
+    "DyNAM",
+    "choice_coordination",
+    is_two_mode = is_two_mode,
+    nodes = nodes,
+    nodes2 = nodes2,
+    ...
   )
 }
 
@@ -70,8 +110,14 @@ dynam_choice_coord_spec <- function(
 #' @noRd
 dynami_rate_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
   model_spec_structure(
-    "dynami_rate_spec", "sender_spec", "DyNAMi", "rate",
-    is_two_mode = FALSE, nodes = nodes, nodes2 = nodes2, ...
+    "dynami_rate_spec",
+    "sender_spec",
+    "DyNAMi",
+    "rate",
+    is_two_mode = FALSE,
+    nodes = nodes,
+    nodes2 = nodes2,
+    ...
   )
 }
 
@@ -79,38 +125,74 @@ dynami_rate_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
 #' @noRd
 dynami_rate_ordered_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
   model_spec_structure(
-    "dynami_rate_ordered_spec", "sender_spec", "DyNAMi", "rate_ordered",
-    is_two_mode = FALSE, nodes = nodes, nodes2 = nodes2, ...
+    "dynami_rate_ordered_spec",
+    "sender_spec",
+    "DyNAMi",
+    "rate_ordered",
+    is_two_mode = FALSE,
+    nodes = nodes,
+    nodes2 = nodes2,
+    ...
   )
 }
 
 #' @rdname model_spec
 #' @noRd
 dynami_choice_spec <- function(
-    is_two_mode = FALSE, nodes = NULL, nodes2 = nodes, ...) {
+  is_two_mode = FALSE,
+  nodes = NULL,
+  nodes2 = nodes,
+  ...
+) {
   model_spec_structure(
-    "dynami_choice_spec", "dyad_spec", "DyNAMi", "choice",
-    is_two_mode = is_two_mode, nodes = nodes, nodes2 = nodes2, ...
+    "dynami_choice_spec",
+    "dyad_spec",
+    "DyNAMi",
+    "choice",
+    is_two_mode = is_two_mode,
+    nodes = nodes,
+    nodes2 = nodes2,
+    ...
   )
 }
 
 #' @rdname model_spec
 #' @noRd
 rem_rate_spec <- function(
-    is_two_mode = FALSE, nodes = NULL, nodes2 = nodes, ...) {
+  is_two_mode = FALSE,
+  nodes = NULL,
+  nodes2 = nodes,
+  ...
+) {
   model_spec_structure(
-    "rem_rate_spec", "dyad_spec", "REM", "rate",
-    is_two_mode = is_two_mode, nodes = nodes, nodes2 = nodes2, ...
+    "rem_rate_spec",
+    "dyad_spec",
+    "REM",
+    "rate",
+    is_two_mode = is_two_mode,
+    nodes = nodes,
+    nodes2 = nodes2,
+    ...
   )
 }
 
 #' @rdname model_spec
 #' @noRd
 rem_rate_ordered_spec <- function(
-    is_two_mode = FALSE, nodes = NULL, nodes2 = nodes, ...) {
+  is_two_mode = FALSE,
+  nodes = NULL,
+  nodes2 = nodes,
+  ...
+) {
   model_spec_structure(
-    "rem_rate_ordered_spec", "dyad_spec", "REM", "rate_ordered",
-    is_two_mode = is_two_mode, nodes = nodes, nodes2 = nodes2, ...
+    "rem_rate_ordered_spec",
+    "dyad_spec",
+    "REM",
+    "rate_ordered",
+    is_two_mode = is_two_mode,
+    nodes = nodes,
+    nodes2 = nodes2,
+    ...
   )
 }
 
@@ -126,15 +208,21 @@ rem_rate_ordered_spec <- function(
 #' @param sub_model character, a valid sub model for `model`.
 #' @param engine character, the estimation algorithm variant. Only
 #'   `"default"` (full-recompute) is currently implemented. `"incremental"`
-#'   is reserved for the future `rem_rate_fast_spec` REM variant (design
-#'   D14), which will reuse the shared preprocessing recipe and override
+#'   is reserved for the future `rem_rate_fast_spec` REM variant, which will
+#'   reuse the shared preprocessing recipe and override
 #'   `compute_step()` with cached partial sums.
 #'
 #' @return an object of class `model_spec`.
 #' @noRd
 new_model_spec <- function(
-    model, sub_model, is_two_mode = FALSE, nodes = NULL, nodes2 = NULL,
-    engine = "default", ...) {
+  model,
+  sub_model,
+  is_two_mode = FALSE,
+  nodes = NULL,
+  nodes2 = NULL,
+  engine = "default",
+  ...
+) {
   stopifnot(
     rlang::is_string(model),
     rlang::is_string(sub_model),
@@ -203,8 +291,10 @@ new_model_spec <- function(
     }
   }
   constructor(
-    is_two_mode = is_two_mode, nodes = nodes,
-    nodes2 = if (is.null(nodes2)) nodes else nodes2, ...
+    is_two_mode = is_two_mode,
+    nodes = nodes,
+    nodes2 = if (is.null(nodes2)) nodes else nodes2,
+    ...
   )
 }
 
@@ -219,7 +309,8 @@ new_model_spec <- function(
 #' @return a character scalar.
 #' @noRd
 legacy_model_type <- function(spec) {
-  switch(class(spec)[1],
+  switch(
+    class(spec)[1],
     dynam_rate_spec = ,
     dynami_rate_spec = "DyNAM-M-Rate",
     dynam_rate_ordered_spec = ,

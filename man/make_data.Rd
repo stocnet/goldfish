@@ -46,17 +46,17 @@ Linked objects are searched for in the \code{parent_env}
 }
 \examples{
 data("Social_Evolution")
-callNetwork <- make_network(nodes = actors, directed = TRUE)
-callNetwork <- link_events(
-  x = callNetwork, change_event = calls,
+call_network <- make_network(nodes = actors, directed = TRUE)
+call_network <- link_events(
+  x = call_network, change_event = calls,
   nodes = actors
 )
-callsDependent <- make_dependent_events(
+calls_dependent <- make_dependent_events(
   events = calls, nodes = actors,
-  default_network = callNetwork
+  default_network = call_network
 )
-socialEvolutionData <- make_data(
-  callNetwork, callsDependent, actors
+social_evolution_data <- make_data(
+  call_network, calls_dependent, actors
 )
 
 data("Fisheries_Treaties_6070")
@@ -71,13 +71,13 @@ bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
 contignet <- make_network(contignet, nodes = states, directed = FALSE)
 contignet <- link_events(contignet, contigchanges, nodes = states)
 
-createBilat <- make_dependent_events(
+create_bilat <- make_dependent_events(
   events = bilatchanges[bilatchanges$increment == 1, ],
   nodes = states, default_network = bilatnet
 )
 
-fisheriesData <- make_data(
-  bilatnet, createBilat, states,
+fisheries_data <- make_data(
+  bilatnet, create_bilat, states,
   contignet, sovchanges, regchanges, gdpchanges
 )
 

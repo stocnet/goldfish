@@ -17,6 +17,20 @@ inst/doc
 docs
 .DS_Store
 .positai
-openspec/
-.plan/
-.claude/
+# Claude Code: share project tooling (settings.json hooks + agents); keep
+# personal permission allow-lists and local worktrees out of git.
+.claude/settings.local.json
+.claude/worktrees/
+
+# OpenSpec: share config, the living folded spec, and active proposals so a
+# collaborator has the same standards; keep the personal per-change session
+# journal (progress.md) and archived changes local (delete-on-archive).
+openspec/changes/archive/
+openspec/changes/*/progress.md
+
+# .plan is scratch; track only the cross-version benchmark ledger and the
+# tooling that maintains it.
+.plan/*
+!.plan/goldfish_versions.csv
+!.plan/profile_goldfish.R
+!.plan/opsx-archive-track.sh

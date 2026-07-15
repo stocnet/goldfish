@@ -4,8 +4,8 @@
 \alias{preprocess_writers}
 \title{Preprocessing output writers}
 \description{
-A writer decouples the recipe event loops (design D22) from the output
-format they produce (design D15). Every writer exposes three hooks:
+A writer decouples the recipe event loops from the output
+format they produce. Every writer exposes three hooks:
 }
 \details{
 \describe{
@@ -26,8 +26,8 @@ broadcast-update entry format documented on \code{writer_default()}),
 defaulting to an empty 4 x 0 matrix.}
 \item{\code{finalize(tail)}}{called once after the loop with a \code{tail} list of
 recipe-computed assembly inputs (\code{initialStats},
-\code{active_mode1_init} / \code{active_mode1_changes},
-\code{active_mode2_init} / \code{active_mode2_changes}, \code{startTime}, \code{endTime},
+\code{active_sender_init} / \code{active_sender_changes},
+\code{active_dyad_init} / \code{active_dyad_changes}, \code{startTime}, \code{endTime},
 \code{intercept_scalars}). Returns the writer's output.}
 }
 
@@ -38,7 +38,7 @@ writer.
 \section{Future extension points (documented, not implemented)}{
 
 The writer contract is the seam for three planned output strategies that
-are deliberately out of scope for this change (design D15/D17):
+are deliberately out of scope for this change:
 \describe{
 \item{Alternatives-sampling gather writer}{a \code{writer_gather()} variant
 that keeps gather rows for only a sample of the alternatives per
@@ -54,7 +54,7 @@ per-chunk outputs in a coordinating \code{finalize()}. The obligation is
 that \code{write_event} is associative across a contiguous chunk boundary
 and \code{finalize} can stitch ordered chunk results.}
 \item{Per-event simulation hook}{a hook on the recipe loop (not a
-writer, design D17) invoked after the stats update for event i and
+writer) invoked after the stats update for event i and
 before advancing: it sees the visible state and may append to the
 event stream, reserved for a future \code{simulate()} goodness-of-fit
 method. Its interface obligation is the position in the loop, the

@@ -83,14 +83,14 @@ calls <- data.frame(
   sender = paste("Actor", c(1, 3, 5, 2, 3, 4, 2)),
   receiver = paste("Actor", c(4, 2, 3, 5, 1, 2, 5)), increment = rep(1, 7)
 )
-callNetwork <- make_network(nodes = actors)
-callNetwork <- link_events(
-  x = callNetwork, change_events = calls, nodes = actors
+call_network <- make_network(nodes = actors)
+call_network <- link_events(
+  x = call_network, change_events = calls, nodes = actors
 )
 
 # Defining the dependent events:
-callDependent <- make_dependent_events(
-  events = calls, nodes = actors, default_network = callNetwork
+call_dependent <- make_dependent_events(
+  events = calls, nodes = actors, default_network = call_network
 )
 }
 \seealso{

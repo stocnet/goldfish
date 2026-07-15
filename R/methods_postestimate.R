@@ -15,37 +15,37 @@
 #' @noRd
 #' @return A named numeric vector with the extracted coefficients from the
 #' output of `estimate`.
-#' The naming correspond to the short name of the effect use in the formula.
-#' Coefficients with the same name are produced when the same effect is used
-#' more than one time with different arguments, e.g.,
-#' `dependentEvents ~ indeg + indeg(exogenousNetwork)`.
-#' Duplicates names could produce erroneous results when subsetting the vector
-#' by names.
+#' The naming uses a minimal-unique short form: the curated short effect name,
+#' with the smallest disambiguating suffix (object prefix, then argument codes)
+#' appended to every member of a colliding group, so names stay unique even when
+#' the same effect is used more than once with different arguments, e.g.,
+#' `dependentEvents ~ indeg + indeg(exogenousNetwork)`. This makes name-based
+#' subsetting of the returned vector reliable.
 #' A more comprehensive output can be obtain using [generics::tidy()], see
 #' `vignette("teaching2")`.
 #'
 #' @examples
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_events = calls,
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_events = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' calls_dependent <- make_dependent_events(
 #'   events = calls, nodes = actors,
-#'   default_network = callNetwork
+#'   default_network = call_network
 #' )
 #' \dontshow{
-#' callsDependent <- callsDependent[1:50, ]
+#' calls_dependent <- calls_dependent[1:50, ]
 #' }
-#' mod01 <- estimate_dynam(callsDependent ~ inertia + recip + trans,
-#'  subModel = "choice"
+#' mod01 <- estimate_dynam(calls_dependent ~ inertia + recip + trans,
+#'  sub_model = "choice"
 #' )
 #' coef(mod01)
 coef.result.goldfish <- function(object, ..., complete = FALSE) {
   result <- object$parameters
-  names(result) <- rownames(object$names)
+  names(result) <- term_label(object$names, ".coef_name", "coef")
   isFixed <- GetFixed(object)
   if (!complete && any(isFixed)) {
     result <- result[!isFixed]
@@ -84,7 +84,7 @@ coef.result.goldfish <- function(object, ..., complete = FALSE) {
 #'     the model}
 #'   \item{nobs}{the number of observations used in estimation.
 #'     In general, it corresponds to the number of dependent events used in
-#'     estimation. For a `subModel = "rate"` or `model = "REM"` with intercept,
+#'     estimation. For a `sub_model = "rate"` or `model = "REM"` with intercept,
 #'     it corresponds to the number of dependent events plus right-censored
 #'     events due to exogenous or endogenous changes.}
 #'
@@ -111,7 +111,7 @@ logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
 #' @method vcov result.goldfish
 vcov.result.goldfish <- function(object, complete = FALSE, ...) {
   isFixed <- GetFixed(object)
-  namesCoef <- rownames(object$names)
+  namesCoef <- term_label(object$names, ".coef_name", "coef")
 
   vc <- solve(object$finalInformationMatrix[!isFixed, !isFixed])
   vc <- stats::.vcov.aliased(isFixed, vc, complete = complete)

@@ -22,29 +22,39 @@ NULL
 #' @rdname utils-effects
 #' @export
 to_ego <- function(changes, n2, is_two_mode = FALSE) {
-  if (is.null(changes)) return(NULL)
+  if (is.null(changes)) {
+    return(NULL)
+  }
   if (!is.matrix(changes)) {
     changes <- matrix(changes, nrow = 1, dimnames = list(NULL, names(changes)))
   }
-  do.call(rbind, lapply(seq_len(nrow(changes)), function(i) {
-    node_val <- changes[i, "node1"]
-    rep_val <- changes[i, "replace"]
-    others <- if (is_two_mode) seq_len(n2) else setdiff(seq_len(n2), node_val)
-    cbind(node1 = node_val, node2 = others, replace = rep_val)
-  }))
+  do.call(
+    rbind,
+    lapply(seq_len(nrow(changes)), function(i) {
+      node_val <- changes[i, "node1"]
+      rep_val <- changes[i, "replace"]
+      others <- if (is_two_mode) seq_len(n2) else setdiff(seq_len(n2), node_val)
+      cbind(node1 = node_val, node2 = others, replace = rep_val)
+    })
+  )
 }
 
 #' @rdname utils-effects
 #' @export
 to_alter <- function(changes, n1, is_two_mode = FALSE) {
-  if (is.null(changes)) return(NULL)
+  if (is.null(changes)) {
+    return(NULL)
+  }
   if (!is.matrix(changes)) {
     changes <- matrix(changes, nrow = 1, dimnames = list(NULL, names(changes)))
   }
-  do.call(rbind, lapply(seq_len(nrow(changes)), function(i) {
-    node_val <- changes[i, "node1"]
-    rep_val <- changes[i, "replace"]
-    others <- if (is_two_mode) seq_len(n1) else setdiff(seq_len(n1), node_val)
-    cbind(node1 = others, node2 = node_val, replace = rep_val)
-  }))
+  do.call(
+    rbind,
+    lapply(seq_len(nrow(changes)), function(i) {
+      node_val <- changes[i, "node1"]
+      rep_val <- changes[i, "replace"]
+      others <- if (is_two_mode) seq_len(n1) else setdiff(seq_len(n1), node_val)
+      cbind(node1 = others, node2 = node_val, replace = rep_val)
+    })
+  )
 }

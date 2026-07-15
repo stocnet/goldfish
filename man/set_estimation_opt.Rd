@@ -7,6 +7,7 @@
 set_estimation_opt(
   initial_parameters = NULL,
   fixed_parameters = NULL,
+  offset_coef = NULL,
   max_iterations = 20,
   convergence_criterion = deprecated(),
   score_tol = 1e-06,
@@ -16,6 +17,8 @@ set_estimation_opt(
   damping_decrease_factor = 3,
   return_interval_loglik = TRUE,
   return_probabilities = FALSE,
+  return_event_scores = FALSE,
+  optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
   engine = c("default_c", "default", "gather_compute")
 )
 }
@@ -25,13 +28,22 @@ values used to initialize the estimation process.
 Default is \code{NULL}, which means parameters are initialized at zero,
 except for the rate intercept when present.}
 
-\item{fixed_parameters}{A numeric vector of the same length
-as the number of parameters to be estimated in the model.
+\item{fixed_parameters}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#superseded}{\figure{lifecycle-superseded.svg}{options: alt='[Superseded]'}}}{\strong{[Superseded]}} A numeric vector
+of the same length as the number of parameters to be estimated in the model.
 \code{NA} values indicate parameters to be estimated,
 while numeric values indicate parameters to be fixed at the given value.
 For example, if the vector is \code{c(2, NA)} then the first component of the
 parameter is fixed to 2 during the estimation process.
-Default is \code{NULL} (all parameters are estimated).}
+Default is \code{NULL} (all parameters are estimated).
+Superseded by wrapping the term in \code{offset()} in the model formula and
+supplying its value through \code{offset_coef}, which aligns values to terms by
+name instead of by counting coefficient positions.}
+
+\item{offset_coef}{A numeric vector giving the fixed coefficient value(s) for
+the \code{offset()} term(s) in the model formula, aligned to the offset terms in
+formula order. For example, \code{~ inertia + offset(ego(sex)) + recip} with
+\code{offset_coef = 2} holds the \code{ego(sex)} coefficient at 2 while estimating the
+rest. Default is \code{NULL} (no offsets).}
 
 \item{max_iterations}{An integer non-negative.
 The maximum number of iterations in the Gauss-Fisher scoring algorithm.
@@ -75,12 +87,39 @@ log-likelihood for each event. Default is \code{FALSE}.}
 Whether to keep and return the
 probabilities for all alternatives for each event.
 \itemize{
-\item When \code{subModel = "choice"} the probabilities correspond to all actors in
+\item When \code{sub_model = "choice"} the probabilities correspond to all actors in
 the choice set present at the time of the event.
 \item When \code{model = "REM"} the probabilities correspond to all dyads present at
 the time of the event.
 Default is \code{FALSE}.
 }}
+
+\item{return_event_scores}{A logical value.
+Whether to keep and return the per-event score matrix (one row per
+dependent event, one column per effect) evaluated at the returned
+parameter estimates, stored as the \code{event_scores} component of the result.
+Each row is the observation-level gradient contribution whose column sums
+equal the aggregate score. The matrix supports downstream diagnostics
+(implemented by other tools, not here): robust sandwich and clustered
+standard errors from the outer product of gradients \code{crossprod(event_scores)},
+per-effect score-process diagnostics that localize where individual effects
+drift over the event sequence, and event-influence measures. Only the
+\code{"default_c"} and \code{"default"} engines support it; \code{"gather_compute"} aborts.
+Default is \code{FALSE}.}
+
+\item{optimizer}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A character string
+naming the optimization algorithm. Options are:
+\describe{
+\item{newton_raphson}{The built-in damped Newton-Raphson / Fisher
+scoring loop (default).}
+\item{bfgs}{Quasi-Newton BFGS, via \code{maxLik::maxLik()}.}
+\item{bhhh}{Berndt-Hall-Hall-Hausman, using the per-event score matrix
+as observation-level gradients, via \code{maxLik::maxLik()}.}
+\item{nelder_mead}{Derivative-free Nelder-Mead, via \code{maxLik::maxLik()}.}
+}
+Any value other than \code{"newton_raphson"} requires the \pkg{maxLik} package
+(in \code{Suggests}) and runs only on the \code{"default_c"} engine. Default is
+\code{"newton_raphson"}.}
 
 \item{engine}{A character string specifying the estimation engine.
 Options are:
@@ -115,6 +154,9 @@ increased when improvements in the estimation are found.}
 decreased when no improvements in the estimation are found.}
 \item{return_interval_loglik}{Logical value indicating whether to
 return the log-likelihood for each event.}
+\item{return_event_scores}{Logical value indicating whether to
+return the per-event score matrix.}
+\item{optimizer}{Optimization algorithm used in the estimation process.}
 \item{engine}{Estimation engine used in the estimation process.}
 }
 \description{

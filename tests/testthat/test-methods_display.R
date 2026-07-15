@@ -19,33 +19,95 @@ test_that("summary goldfish print", {
   expect_output(print(summary(resModObject)), "Coefficients:")
   expect_failure(expect_output(print(summary(resModObject)), "\nrecip"))
   expect_output(
-    print(summary(resModObject), complete = TRUE), "\nrecip"
+    print(summary(resModObject), complete = TRUE),
+    "\nrecip"
   )
+  # compact = TRUE (default): single table, no "Effects details"
   expect_failure(expect_output(
-    print(summary(resModObject)), "\nEffects details"
+    print(summary(resModObject)),
+    "Effects details"
   ))
+  expect_failure(expect_output(
+    print(summary(resModObject), complete = TRUE),
+    "Effects details"
+  ))
+  # compact = FALSE: details table restored (when isDetPrint applies)
   expect_output(
-    print(summary(resModObject), complete = TRUE), "\nEffects details"
+    print(summary(resModObject), compact = FALSE, complete = TRUE),
+    "\nEffects details"
   )
 })
 test_that("result print", {
   expect_output(print(resModObject), "Call:")
   expect_output(print(resModObject), "Coefficients:")
   expect_failure(
-    expect_output(print(resModObject), "\ninertia    recip    trans")
+    expect_output(print(resModObject), "\n   inrt      rec    trans")
   )
   expect_output(
-    print(resModObject, complete = TRUE), "\ninertia    recip    trans"
+    print(resModObject, complete = TRUE),
+    "\n   inrt      rec    trans"
   )
 })
-test_that("nodes print", {
-  expect_output(print(actorsEx), paste("Number of nodes:", nrow(actorsEx)))
-  expect_output(
-    print(actorsEx),
-    paste("Number of present nodes:", sum(actorsEx$present))
+test_that("compact summary print: single table + present-code legend", {
+  mod <- estimate_wrapper(
+    depNetwork ~ inertia(networkState, weighted = TRUE) +
+      outdeg(networkExog) +
+      recip,
+    data = dataTest,
+    sub_model = "choice"
   )
-  expect_output(print(actorsEx), "Dynamic attribute")
-  expect_failure(expect_output(print(actorsEx, full = TRUE), "First \\d rows"))
+  out <- capture.output(print(summary(mod), width = 100))
+  expect_false(any(grepl("Effects details", out)))
+  expect_true(any(grepl("inertia/networkState \\[W\\]", out, fixed = FALSE)))
+  expect_true(any(grepl("^W = weighted", out)))
+  expect_false(any(grepl("compact = FALSE", out)))
+})
+test_that("compact = FALSE details table hides decoder columns", {
+  mod <- estimate_wrapper(
+    depNetwork ~ inertia(networkState) + outdeg(networkExog),
+    data = dataTest,
+    sub_model = "choice"
+  )
+  out <- capture.output(print(summary(mod), compact = FALSE, width = 100))
+  expect_true(any(grepl("Effects details", out)))
+  expect_false(any(grepl(
+    "\\.coef_name|\\.term_export|\\.effect_short|\\.object_short",
+    out
+  )))
+})
+test_that("compact summary: no opaque codes means no legend", {
+  mod <- estimate_wrapper(
+    depNetwork ~ inertia(networkState) + outdeg(networkExog),
+    data = dataTest,
+    sub_model = "choice"
+  )
+  out <- capture.output(print(summary(mod), width = 100))
+  expect_false(any(grepl(
+    "= weighted|= window|user-defined|= fixed|= ignore_rep|transformer",
+    out
+  )))
+  expect_false(any(grepl("compact = FALSE", out)))
+})
+test_that("compact legend still prints without significance stars", {
+  mod <- estimate_wrapper(
+    depNetwork ~ inertia(networkState, weighted = TRUE) + recip,
+    data = dataTest,
+    sub_model = "choice"
+  )
+  op <- options(show.signif.stars = FALSE)
+  on.exit(options(op), add = TRUE)
+  out <- capture.output(print(summary(mod), width = 100))
+  expect_false(any(grepl("Signif. codes", out)))
+  expect_true(any(grepl("^W = weighted", out)))
+})
+test_that("nodes print", {
+  expect_output(print(actors_ex), paste("Number of nodes:", nrow(actors_ex)))
+  expect_output(
+    print(actors_ex),
+    paste("Number of present nodes:", sum(actors_ex$present))
+  )
+  expect_output(print(actors_ex), "Dynamic attribute")
+  expect_failure(expect_output(print(actors_ex, full = TRUE), "First \\d rows"))
   expect_output(
     print(make_nodes(testAttr)),
     paste("Number of nodes:", nrow(testAttr))
@@ -70,7 +132,7 @@ test_that("network print", {
     print(networkState),
     paste("Number of ties \\(no weighted\\):", sum(networkState > 0))
   )
-  expect_output(print(networkState), "Nodes set\\(s\\): actorsEx")
+  expect_output(print(networkState), "Nodes set\\(s\\): actors_ex")
   expect_output(print(networkState), "It is a one-mode and directed network")
   expect_output(print(networkState), "Linked events: eventsIncrement")
   expect_output(print(networkState), "First \\d rows and columns")
@@ -81,7 +143,7 @@ test_that("network print", {
     )
   )
 
-  netTest <- make_network(matrix = m, nodes = actorsEx)
+  netTest <- make_network(matrix = m, nodes = actors_ex)
   expect_output(
     print(netTest),
     paste("Dimensions:", paste(dim(netTest), collapse = " "))
@@ -90,7 +152,7 @@ test_that("network print", {
     print(netTest),
     paste("Number of ties \\(no weighted\\):", sum(netTest > 0, na.rm = TRUE))
   )
-  expect_output(print(netTest), "Nodes set\\(s\\): actorsEx")
+  expect_output(print(netTest), "Nodes set\\(s\\): actors_ex")
   expect_output(print(netTest), "It is a one-mode and directed network")
   expect_failure(
     expect_output(print(netTest), "Linked events: eventsIncrement")
@@ -111,9 +173,10 @@ test_that("network print", {
     print(networkActorClub),
     paste("Number of ties \\(no weighted\\):", sum(networkActorClub))
   )
-  expect_output(print(networkActorClub), "Nodes set\\(s\\): actorsEx clubsEx")
+  expect_output(print(networkActorClub), "Nodes set\\(s\\): actors_ex clubsEx")
   expect_output(
-    print(networkActorClub), "It is a two-mode and directed network"
+    print(networkActorClub),
+    "It is a two-mode and directed network"
   )
   expect_output(print(networkActorClub), "Linked events: eventsActorClub")
   expect_output(print(networkActorClub), "First \\d rows and columns")
@@ -126,7 +189,7 @@ test_that("network print", {
 })
 test_that("dependent events", {
   expect_output(print(depNetwork), paste("Number of events:", nrow(depNetwork)))
-  expect_output(print(depNetwork), "Nodes set\\(s\\): actorsEx")
+  expect_output(print(depNetwork), "Nodes set\\(s\\): actors_ex")
   expect_output(print(depNetwork), "Default network: networkState")
   expect_output(print(depNetwork), "First \\d rows")
   expect_failure(
@@ -149,16 +212,29 @@ test_that("tidy results", {
   expect_equal(nrow(tidy(resModObject)), 2L)
   expect_equal(
     tidy(resModObject)$term,
-    paste("callNetwork", c("inertia", "trans"), "FALSE")
+    c("inertia_call_network", "trans_call_network")
   )
   expect_length(tidy(resModObject, conf.int = TRUE), 7)
   expect_equal(
     tidy(resModObject, complete = TRUE)$term,
-    paste("callNetwork", c("inertia", "recip", "trans"), c(FALSE, TRUE, FALSE))
+    c("inertia_call_network", "recip_call_network_Fx", "trans_call_network")
   )
   expect_true(
     anyNA(tidy(resModObject, complete = TRUE, conf.int = TRUE)$statistic)
   )
+})
+test_that("tidy compact term = builder export output; valid names", {
+  compactTerm <- tidy(resModObject, complete = TRUE)$term
+  builderTerm <- compact_term_strings(resModObject$names, "export")
+  expect_equal(compactTerm, unname(builderTerm))
+  expect_true(all(make.names(compactTerm) == compactTerm))
+  expect_false(anyDuplicated(builderTerm) > 0)
+})
+test_that("tidy compact = FALSE keeps multi-column form, no dot columns", {
+  out <- tidy(resModObject, compact = FALSE, complete = TRUE)
+  expect_true(all(c("term", "Object", "fixed") %in% names(out)))
+  expect_false(any(startsWith(names(out), ".")))
+  expect_equal(out$term, c("inertia", "recip", "trans"))
 })
 test_that("glance results", {
   expect_s3_class(glance(resModObject), "tbl_df")

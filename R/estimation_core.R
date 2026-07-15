@@ -57,16 +57,24 @@ estimate_int_impl <- function(
   # additional parameter for DyNAM-M-Rate
   hasIntercept = FALSE,
   returnIntervalLogL = FALSE,
+  return_event_scores = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
   progress = FALSE,
   # restrictions of opportunity sets
-  opportunitiesList = NULL
+  opportunitiesList = NULL,
+  # per-event sender gate from a support_constraint (rate models)
+  senderGate = NULL,
+  # per-event dyad mask from a support_constraint (REM)
+  remMask = NULL,
+  # per-event support mask for the gather engine (consumed only there); accepted
+  # here so the shared argument list can be dispatched to either engine.
+  supportMask = NULL
 ) {
   ## SET VARIABLES
 
-  # preprocessing guarantees NA-free statistics (design D13)
+  # preprocessing guarantees NA-free statistics
   stopifnot(!anyNA(statsList$initialStats))
 
   minDampingFactor <- initialDamping
@@ -158,16 +166,16 @@ estimate_int_impl <- function(
   )
 
   ## GET COMPOSITION CHANGES
-  hasCompChange1 <- length(statsList$active_mode1_changes) > 0
-  hasCompChange2 <- length(statsList$active_mode2_changes) > 0 &&
+  hasCompChange1 <- length(statsList$active_sender_changes) > 0
+  hasCompChange2 <- length(statsList$active_dyad_changes) > 0 &&
     !is_rate_model
 
   compChange1 <- if (hasCompChange1) {
     data.frame(
-      time = vapply(statsList$active_mode1_changes, `[[`, double(1), "time"),
-      node = vapply(statsList$active_mode1_changes, `[[`, integer(1), "node"),
+      time = vapply(statsList$active_sender_changes, `[[`, double(1), "time"),
+      node = vapply(statsList$active_sender_changes, `[[`, integer(1), "node"),
       replace = vapply(
-        statsList$active_mode1_changes,
+        statsList$active_sender_changes,
         `[[`,
         logical(1),
         "replace"
@@ -178,10 +186,10 @@ estimate_int_impl <- function(
   }
   compChange2 <- if (hasCompChange2) {
     data.frame(
-      time = vapply(statsList$active_mode2_changes, `[[`, double(1), "time"),
-      node = vapply(statsList$active_mode2_changes, `[[`, integer(1), "node"),
+      time = vapply(statsList$active_dyad_changes, `[[`, double(1), "time"),
+      node = vapply(statsList$active_dyad_changes, `[[`, integer(1), "node"),
       replace = vapply(
-        statsList$active_mode2_changes,
+        statsList$active_dyad_changes,
         `[[`,
         logical(1),
         "replace"
@@ -191,8 +199,8 @@ estimate_int_impl <- function(
     NULL
   }
 
-  presence <- statsList$active_mode1_init
-  presence2 <- statsList$active_mode2_init
+  presence <- statsList$active_sender_init
+  presence2 <- statsList$active_dyad_init
 
   nEvents <- length(statsList$is_dependent)
 
@@ -206,8 +214,9 @@ estimate_int_impl <- function(
       (is.null(fixedParameters) || is.na(fixedParameters[1]))
   ) {
     parameters[1] <- log(
-      statsList$n_dep_events / statsList$total_time /
-        statsList$avg_active_actors
+      statsList$n_dep_events /
+        statsList$total_time /
+        statsList$avg_active_entity
     )
   }
   ## SET VARIABLES BASED ON STATSLIST
@@ -234,6 +243,7 @@ estimate_int_impl <- function(
     step_tol = step_tol,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
+    return_event_scores = return_event_scores,
     verbose = verbose,
     progress = progress,
     step_args = list(
@@ -252,11 +262,14 @@ estimate_int_impl <- function(
       cpus = cpus,
       returnIntervalLogL = returnIntervalLogL,
       returnEventProbabilities = returnEventProbabilities,
+      return_event_scores = return_event_scores,
       allowReflexive = allowReflexive,
       is_two_mode = is_two_mode,
       reduceArrayToMatrix = reduceArrayToMatrix,
       verbose = verbose,
-      opportunitiesList = opportunitiesList
+      opportunitiesList = opportunitiesList,
+      senderGate = senderGate,
+      remMask = remMask
     )
   )
 
@@ -271,6 +284,9 @@ estimate_int_impl <- function(
   iIteration <- nr$nIterations
   if (returnIntervalLogL) {
     intervalLogL <- nr$intervalLogL
+  }
+  if (return_event_scores) {
+    event_scores <- nr$event_scores
   }
   if (returnEventProbabilities) {
     eventProbabilities <- nr$eventProbabilities
@@ -307,6 +323,9 @@ estimate_int_impl <- function(
   if (returnIntervalLogL) {
     estimationResult$intervalLogL <- intervalLogL
   }
+  if (return_event_scores) {
+    estimationResult$event_scores <- event_scores
+  }
   if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
   }
@@ -316,8 +335,8 @@ estimate_int_impl <- function(
 
 #' Newton-Raphson outer loop
 #'
-#' Shared estimation kernel extracted from `estimate_int_impl()` (design
-#' D11). Iterates `compute_iteration_step()` to accumulate the
+#' Shared estimation kernel extracted from `estimate_int_impl()`. Iterates
+#' `compute_iteration_step()` to accumulate the
 #' log-likelihood, score, and information matrix, applies damped Newton
 #' updates, and stops on the dual `score_tol` / `step_tol` criteria with the
 #' documented return codes (1 = gradient close to zero, 2 = step size close
@@ -330,7 +349,7 @@ estimate_int_impl <- function(
 #' @return a list with the converged `parameters`, `logLikelihood`, `score`,
 #'   `informationMatrix`, `inverseInformationUnfixed`, `isConverged`,
 #'   `returnCode`, `update`, `nIterations`, and optional `intervalLogL` /
-#'   `eventProbabilities`.
+#'   `event_scores` / `eventProbabilities`.
 #' @noRd
 run_nr_loop <- function(
   spec,
@@ -348,6 +367,7 @@ run_nr_loop <- function(
   step_tol,
   returnIntervalLogL,
   returnEventProbabilities,
+  return_event_scores,
   verbose,
   progress,
   step_args
@@ -365,6 +385,7 @@ run_nr_loop <- function(
   score.old <- NULL
   informationMatrix.old <- NULL
   intervalLogL <- NULL
+  event_scores <- NULL
   eventProbabilities <- NULL
 
   # if (parallelize && require("snowfall", quietly = TRUE)) {
@@ -390,6 +411,9 @@ run_nr_loop <- function(
     informationMatrix <- res[[3]]
     if (returnIntervalLogL) {
       intervalLogL <- res[[4]]
+    }
+    if (return_event_scores) {
+      event_scores <- res$event_scores
     }
     # add a possibility to return the whole probability matrix: to be make
     if (returnEventProbabilities) {
@@ -562,6 +586,7 @@ run_nr_loop <- function(
     update = update,
     nIterations = iIteration,
     intervalLogL = intervalLogL,
+    event_scores = event_scores,
     eventProbabilities = eventProbabilities
   )
 }
@@ -608,7 +633,13 @@ check_convergence <- function(
   step_converged <- isTRUE(max(abs(update)) <= step_tol)
   list(
     converged = score_converged || step_converged,
-    return_code = if (score_converged) 1L else if (step_converged) 2L else 0L,
+    return_code = if (score_converged) {
+      1L
+    } else if (step_converged) {
+      2L
+    } else {
+      0L
+    },
     score_rel_norm = score_rel_norm
   )
 }
@@ -618,8 +649,8 @@ check_convergence <- function(
 # and p vector.
 #
 # S3 generic dispatched on the model specification class. Each method
-# returns the contribution of a single event for its model variant. Per
-# design D19 the concrete method is resolved once before the estimation
+# returns the contribution of a single event for its model variant. The
+# concrete method is resolved once before the estimation
 # event loop (via bind_event_contribution()) and bound to a local variable;
 # no S3 dispatch happens per event.
 # CHANGED SIWEI: add three parameters: isRightCensored, timespan and
@@ -646,7 +677,7 @@ compute_event_contribution.default <- function(spec, ...) {
 
 # Resolve the concrete compute_event_contribution() method for a spec once,
 # walking its class vector. Returns a plain function to be called inside the
-# event loop without further dispatch (design D19).
+# event loop without further dispatch.
 bind_event_contribution <- function(spec) {
   for (cls in class(spec)) {
     fn <- get0(paste0("compute_event_contribution.", cls))
@@ -667,13 +698,28 @@ event_contribution_rate <- function(
   timespan,
   allowReflexive,
   is_two_mode,
-  isREM
+  isREM,
+  riskMask = NULL
 ) {
   activeActor <- activeDyad[1]
   dimMatrix <- dim(statsArray)
+  # A support_constraint (REM) removes disallowed dyads from the risk set exactly
+  # as the reflexive-edge exclusion does: their rate is zeroed, so they leave the
+  # denominator (and the score / information sums) but the observed dyad's own
+  # term is untouched. `riskMask` is the per-event mask reduced to the presence-
+  # kept dyads, flattened column-major to match the rate vector.
+  maskedOut <- if (isREM && !is.null(riskMask)) {
+    which(!as.vector(riskMask))
+  } else {
+    integer(0)
+  }
   if (isREM) {
     activeActor <- activeDyad[1] + (activeDyad[2] - 1) * dimMatrix[1]
-    statsArray <- apply(statsArray, 3, c)
+    # Merge the dyad axes (n1 x n2) into the rows without copying: R is
+    # column-major, so reinterpreting the n1 x n2 x nParams cube as
+    # (n1 * n2) x nParams is byte-identical to apply(statsArray, 3, c) but
+    # avoids materialising every slice.
+    dim(statsArray) <- c(dimMatrix[1] * dimMatrix[2], dimMatrix[3])
   }
 
   parameters <- as.numeric(parameters)
@@ -701,26 +747,18 @@ event_contribution_rate <- function(
   statsOfSender <- statsArray[activeActor, ]
   rates <- exp(objectiveFunctions)
   rates[idEdgeNotConsidered] <- 0
+  rates[maskedOut] <- 0
   ratesSum <- sum(rates)
   # k vector with all rho * s_k summed over all actors i
   ratesStats <- rates * statsArray
   ratesStatsSum <- colSums(rates * statsArray)
 
-  ratesStatsStatsSum <- colSums(
-    t(
-      apply(statsArray, 1, function(x) outer(x, x))
-    ) *
-      rates
-  )
-  if (length(parameters) == 1 && !isREM) {
-    v <- as.vector(statsArray)
-    sum <- 0
-    for (i in seq_along(v)) {
-      sum <- sum + v[i] * v[i] * rates[i]
-    }
-    ratesStatsStatsSum <- sum
-  }
-  dim(ratesStatsStatsSum) <- rep(length(parameters), 2)
+  # Rate-weighted Fisher information sum_i rho_i s_i s_i^T as a single weighted
+  # cross-product: crossprod(S, S * rates) = S^T diag(rates) S. This preserves
+  # the nParams x nParams shape for every parameter count, so the former
+  # single-parameter special-case loop (which patched the degenerate outer())
+  # is no longer needed.
+  ratesStatsStatsSum <- crossprod(statsArray, statsArray * rates)
 
   logL <- -timespan *
     ratesSum +
@@ -745,24 +783,48 @@ event_contribution_rate <- function(
 }
 
 compute_event_contribution.dynam_rate_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode
 ) {
   event_contribution_rate(
-    statsArray, activeDyad, parameters, isRightCensored, timespan,
-    allowReflexive, is_two_mode,
+    statsArray,
+    activeDyad,
+    parameters,
+    isRightCensored,
+    timespan,
+    allowReflexive,
+    is_two_mode,
     isREM = FALSE
   )
 }
 
 compute_event_contribution.rem_rate_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode,
+  riskMask = NULL
 ) {
   event_contribution_rate(
-    statsArray, activeDyad, parameters, isRightCensored, timespan,
-    allowReflexive, is_two_mode,
-    isREM = TRUE
+    statsArray,
+    activeDyad,
+    parameters,
+    isRightCensored,
+    timespan,
+    allowReflexive,
+    is_two_mode,
+    isREM = TRUE,
+    riskMask = riskMask
   )
 }
 
@@ -770,34 +832,33 @@ compute_event_contribution.dynami_rate_spec <-
   compute_event_contribution.dynam_rate_spec
 
 compute_event_contribution.dynam_rate_ordered_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode
 ) {
   statsMatrix <- statsArray
   activeActor <- activeDyad[1]
   parameters <- c(parameters)
 
-  rates <- exp(rowSums(t(t(statsMatrix) * parameters)))
-  eventProbabilities <- rates / sum(rates)
+  # Sender softmax through the single-pass max-shift helper: finite
+  # probabilities under overflow, and the observed sender's log-likelihood
+  # log(p_i) = x_i - logNormalizer stays finite even when p_i underflows.
+  linearPredictor <- (statsMatrix %*% parameters)[, 1]
+  softmax <- stable_softmax(linearPredictor)
+  eventProbabilities <- softmax$probabilities
   expectedStatistics <- colSums(statsMatrix * eventProbabilities)
-  # statsMatrix[activeActor, ] * parameters: rate for actor i (i=activeActor)
-  logLikelihood <- sum(statsMatrix[activeActor, ] * parameters) -
-    log(sum(rates))
+  logLikelihood <- softmax$logProbabilities[activeActor]
   # deviation from actual statistics
   deviations <- t(t(statsMatrix) - expectedStatistics)
   score <- deviations[activeActor, ]
-  # Fisher information matrix
-  informationMatrix <- matrix(
-    rowSums(t(
-      t(matrix(
-        apply(deviations, 1, function(x) outer(x, x)),
-        ncol = length(eventProbabilities)
-      )) *
-        eventProbabilities
-    )),
-    length(parameters),
-    length(parameters)
-  )
+  # Fisher information matrix: sum_i p_i d_i d_i^T = D^T diag(p) D, a weighted
+  # cross-product replacing the per-row outer(x, x) closures.
+  informationMatrix <- crossprod(deviations, deviations * eventProbabilities)
   list(
     logLikelihood = logLikelihood,
     score = score,
@@ -810,10 +871,16 @@ compute_event_contribution.dynami_rate_ordered_spec <-
   compute_event_contribution.dynam_rate_ordered_spec
 
 compute_event_contribution.dynam_choice_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode
 ) {
-  eventProbabilities <-
+  multinomial <-
     getMultinomialProbabilities(
       statsArray,
       activeDyad,
@@ -822,9 +889,12 @@ compute_event_contribution.dynam_choice_spec <- function(
       allowReflexive = allowReflexive,
       is_two_mode = is_two_mode
     )
-  logLikelihood <- log(eventProbabilities[activeDyad[2]])
+  eventProbabilities <- multinomial$probabilities
+  # log-space observed logL (finite under underflow)
+  logLikelihood <- multinomial$logProbabilities[activeDyad[2]]
   firstDerivatives <- compute_first_derivative_choice(
-    statsArray, eventProbabilities
+    statsArray,
+    eventProbabilities
   )
   score <- firstDerivatives[activeDyad[2], ]
   informationMatrix <- getMultinomialInformationMatrixM(
@@ -843,18 +913,37 @@ compute_event_contribution.dynami_choice_spec <-
   compute_event_contribution.dynam_choice_spec
 
 compute_event_contribution.dynam_choice_coord_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode,
+  riskMask = NULL
 ) {
-  multinomialProbabilities <-
+  multinomial <-
     getMultinomialProbabilities(
       statsArray,
       activeDyad,
       parameters,
-      allowReflexive = allowReflexive
+      allowReflexive = allowReflexive,
+      riskMask = riskMask
     )
+  multinomialProbabilities <- multinomial$probabilities
   eventLikelihoods <- getLikelihoodMM(multinomialProbabilities)
-  logLikelihood <- log(eventLikelihoods[activeDyad[1], activeDyad[2]])
+  # Observed dyad log-likelihood in log-space (finite under underflow): the
+  # coordination likelihood is a softmax over unordered dyads with
+  # log-weight log w_{ij} = log P(i->j) + log P(j->i); logL = log w_obs -
+  # logSumExp over dyads. The upper/lower symmetry double-counts each unordered
+  # dyad, matching getLikelihoodMM's denominator / 2.
+  logSymmetric <- multinomial$logProbabilities + t(multinomial$logProbabilities)
+  diag(logSymmetric) <- -Inf
+  finiteWeights <- logSymmetric[is.finite(logSymmetric)]
+  shift <- if (length(finiteWeights)) max(finiteWeights) else 0
+  logDenominator <- shift + log(sum(exp(logSymmetric - shift))) - log(2)
+  logLikelihood <- logSymmetric[activeDyad[1], activeDyad[2]] - logDenominator
   firstDerivatives <- compute_first_derivative_choice_coord(
     statsArray,
     eventLikelihoods,
@@ -874,20 +963,31 @@ compute_event_contribution.dynam_choice_coord_spec <- function(
 }
 
 compute_event_contribution.rem_rate_ordered_spec <- function(
-  spec, statsArray, activeDyad, parameters, isRightCensored, timespan,
-  allowReflexive, is_two_mode
+  spec,
+  statsArray,
+  activeDyad,
+  parameters,
+  isRightCensored,
+  timespan,
+  allowReflexive,
+  is_two_mode,
+  riskMask = NULL
 ) {
-  eventProbabilities <-
+  multinomial <-
     getMultinomialProbabilities(
       statsArray,
       activeDyad,
       parameters,
       actorNested = FALSE,
-      allowReflexive = FALSE
+      allowReflexive = FALSE,
+      riskMask = riskMask
     )
-  logLikelihood <- log(eventProbabilities[activeDyad[1], activeDyad[2]])
+  eventProbabilities <- multinomial$probabilities
+  # log-space observed logL (finite under underflow)
+  logLikelihood <- multinomial$logProbabilities[activeDyad[1], activeDyad[2]]
   firstDerivatives <- compute_first_derivative_rem(
-    statsArray, eventProbabilities
+    statsArray,
+    eventProbabilities
   )
   score <- firstDerivatives[activeDyad[1], activeDyad[2], ]
   informationMatrix <- getInformationMatrixREM(
@@ -943,13 +1043,16 @@ compute_first_derivative_choice_coord <- function(
     c(apply(expectedStatistics, 2, rep, nActors))
 
   # 3)
-  # symmetrize the deviations from expectations
+  # symmetrize the deviations from expectations. The aperm transpose of the
+  # first two dimensions is a C-level layout swap and stays as-is.
   symDeviations <- deviationFromExpectation +
     aperm(deviationFromExpectation, c(2, 1, 3))
   # the likelihoods have to divided by 2
-  # as the matrix sum is 2 (it includes all likelihoods twice)
+  # as the matrix sum is 2 (it includes all likelihoods twice).
+  # colSums(., dims = 2) reduces each parameter slice in one C pass, replacing
+  # the per-slice apply(., 3, sum) closure.
   constantWeightedDeviations <-
-    apply(symDeviations * c(likelihoods / 2), 3, sum)
+    colSums(symDeviations * c(likelihoods / 2), dims = 2)
 
   # 4)
   derivatives <- symDeviations -
@@ -977,33 +1080,22 @@ compute_first_derivative_rem <- function(statsArray, eventProbabilities) {
 
 
 getInformationMatrixREM <- function(eventProbabilities, firstDerivatives) {
-  nParams <- dim(firstDerivatives)[3]
-  # nActors <- dim(firstDerivatives)[1]
+  arrayDim <- dim(firstDerivatives)
+  nParams <- arrayDim[3]
 
-  # all indexes: 1-1, 1-2, ..., nParams-nParams
-  indexes <- expand.grid(seq_len(nParams), seq_len(nParams))
-  # indexes <- indexes[indexes[, 1] <= indexes[, 2], ]
-
-  values <- colSums(apply(
-    indexes,
-    1,
-    \(ind) {
-      firstDerivatives[,, ind[1]] *
-        firstDerivatives[,, ind[2]] *
-        eventProbabilities
-    }
-  ))
-  information <- matrix(values, nParams, nParams)
-  # symmetrize
-  # information[lower.tri(information)] <- information[upper.tri(information)]
-
-  information
+  # Flatten the n1 x n2 x p derivative cube to (n1*n2) x p (column-major, no
+  # copy of the data layout) and form the weighted cross-product
+  # sum_c p_c d_c d_c^T = D^T diag(w) D, replacing the expand.grid + p^2 apply
+  # closures over n^2 slices.
+  dim(firstDerivatives) <- c(arrayDim[1] * arrayDim[2], nParams)
+  weights <- as.vector(eventProbabilities)
+  crossprod(firstDerivatives, firstDerivatives * weights)
 }
 
 
 # Resolve the concrete compute_step() method for a spec once, walking its
 # class vector. Returns a plain function called inside the event loop without
-# further dispatch (design D19).
+# further dispatch.
 bind_compute_step <- function(spec) {
   for (cls in class(spec)) {
     fn <- get0(paste0("compute_step.", cls))
@@ -1017,7 +1109,7 @@ bind_compute_step <- function(spec) {
 # Per-event update of the running estimation state.
 #
 # S3 generic dispatched on the model spec. The default method implements the
-# full-recompute pattern (design D11): apply the flat update slice to the
+# full-recompute pattern: apply the flat update slice to the
 # running statsArray via apply_flat_update(), filter the active presence /
 # opportunity set, zero the reflexive diagonal where applicable, call the
 # bound compute_event_contribution(), and accumulate logL / score /
@@ -1037,13 +1129,16 @@ compute_step.default <- function(spec, state, i, ctx) {
   isDependent <- statsList$is_dependent[[i]] == 1L
   flatEnd <- statsList$stat_mat_pointer[i]
   if (flatEnd > state$flatPointer) {
-    updatesSlice <- statsList$stat_mat_update[
-      , (state$flatPointer + 1L):flatEnd,
+    updatesSlice <- statsList$stat_mat_update[,
+      (state$flatPointer + 1L):flatEnd,
       drop = FALSE
     ]
-    if (hasIntercept) updatesSlice[3, ] <- updatesSlice[3, ] + 1L
+    if (hasIntercept) {
+      updatesSlice[3, ] <- updatesSlice[3, ] + 1L
+    }
     state$statsArray <- apply_flat_update(
-      state$statsArray, updatesSlice,
+      state$statsArray,
+      updatesSlice,
       is_sender = is_rate
     )
   }
@@ -1052,22 +1147,31 @@ compute_step.default <- function(spec, state, i, ctx) {
   if (!is.null(statsList$stat_mat_broadcast_pointer)) {
     bcEnd <- statsList$stat_mat_broadcast_pointer[i]
     if (bcEnd > state$bcPointer) {
-      bcSlice <- statsList$stat_mat_broadcast[
-        , (state$bcPointer + 1L):bcEnd,
+      bcSlice <- statsList$stat_mat_broadcast[,
+        (state$bcPointer + 1L):bcEnd,
         drop = FALSE
       ]
-      if (hasIntercept) bcSlice[3, ] <- bcSlice[3, ] + 1L
+      if (hasIntercept) {
+        bcSlice[3, ] <- bcSlice[3, ] + 1L
+      }
       dims <- dim(state$statsArray)
       state$statsArray <- apply_broadcast_update(
-        state$statsArray, bcSlice,
+        state$statsArray,
+        bcSlice,
         is_sender = is_rate,
-        n1 = dims[1], n2 = if (is_rate) NA_integer_ else dims[2],
+        n1 = dims[1],
+        n2 = if (is_rate) NA_integer_ else dims[2],
         twomode_or_reflexive = ctx$is_two_mode
       )
     }
     state$bcPointer <- bcEnd
   }
 
+  # `timespan` is only meaningful with a time intercept (rate / REM); the
+  # choice contribution ignores it. Define it unconditionally so the contribution
+  # arguments can be assembled eagerly (previously it was passed as an unforced
+  # promise for the no-intercept case).
+  timespan <- NA_real_
   if (hasIntercept) {
     state$time <- state$time + statsList$intervals[[i]]
     timespan <- statsList$intervals[[i]]
@@ -1095,7 +1199,17 @@ compute_step.default <- function(spec, state, i, ctx) {
   #   removed next lines
 
   current_time <- statsList$event_time[[i]]
-  if (ctx$updatepresence) {
+  if (ctx$active_sender_folded) {
+    # Maintain the folded `active_sender` by walking its per-event crossings
+    # slice: apply this event's flips before its likelihood.
+    hi <- ctx$active_sender_update_pointer[i]
+    lo <- if (i > 1L) ctx$active_sender_update_pointer[i - 1L] else 0L
+    if (hi > lo) {
+      cols <- (lo + 1L):hi
+      state$presence[ctx$active_sender_update[1L, cols]] <-
+        as.logical(ctx$active_sender_update[2L, cols])
+    }
+  } else if (ctx$updatepresence) {
     update <-
       ctx$compChange1[
         ctx$compChange1$time <= current_time &
@@ -1104,7 +1218,27 @@ compute_step.default <- function(spec, state, i, ctx) {
     state$presence[update$node] <- update$replace
   }
 
-  if (ctx$updatepresence2) {
+  if (ctx$active_dyad_folded) {
+    # Maintain the folded `active_dyad` by its per-event crossings slice
+    # applied before this event's likelihood. At the point encoding
+    # `state$presence2` is the dense n1 x n2 matrix and the buffer carries
+    # (node1, node2, replace); the broadcast encodings maintain a length-n2
+    # vector with a (node, replace) buffer.
+    hi <- ctx$active_dyad_update_pointer[i]
+    lo <- if (i > 1L) ctx$active_dyad_update_pointer[i - 1L] else 0L
+    if (hi > lo) {
+      cols <- (lo + 1L):hi
+      if (identical(ctx$active_dyad_encoding, "point")) {
+        state$presence2[cbind(
+          ctx$active_dyad_update[1L, cols],
+          ctx$active_dyad_update[2L, cols]
+        )] <- as.logical(ctx$active_dyad_update[3L, cols])
+      } else {
+        state$presence2[ctx$active_dyad_update[1L, cols]] <-
+          as.logical(ctx$active_dyad_update[2L, cols])
+      }
+    }
+  } else if (ctx$updatepresence2) {
     update2 <-
       ctx$compChange2[
         ctx$compChange2$time <= current_time &
@@ -1122,9 +1256,33 @@ compute_step.default <- function(spec, state, i, ctx) {
   }
 
   # remove potential absent lines and columns from the stats array
-  if (ctx$updatepresence) {
+  # Sender-axis filter: presence, and — under a support_constraint on a rate
+  # model — the per-event sender gate (a sender is at risk only if it has at
+  # least one allowed receiver). The gate branch is entered only
+  # when a gate is supplied, so the unconstrained path is byte-identical.
+  # Track which senders/receivers survive presence reduction so a REM
+  # support_constraint mask can be reduced to the same dyads before the
+  # contribution zeroes the disallowed ones. NULL means "no reduction" (all kept).
+  sender_keep <- NULL
+  receiver_keep <- NULL
+  hasGate <- !is.null(ctx$senderGate)
+  # A folded REM or coordination constraint carries both presences ∩ support in
+  # the maintained dense `active_dyad` (used whole as `riskMask` below), so neither
+  # axis is reduced — an absent or disallowed dyad is zeroed by the mask, not
+  # dropped. Coordination joins REM here because its two-sided likelihood needs the
+  # full matrix, not a per-sender row.
+  folded_full <- ctx$active_dyad_folded && (ctx$is_rem || ctx$is_coord)
+  if (
+    (ctx$updatepresence || hasGate || ctx$active_sender_folded) && !folded_full
+  ) {
     # || (updateopportunities && !is_two_mode)
+    # When folded, `state$presence` already carries presence AND the sender
+    # gate, so it is the sender filter directly.
     keepIn <- state$presence
+    if (hasGate) {
+      keepIn <- keepIn & ctx$senderGate[[i]]
+    }
+    sender_keep <- keepIn
     # if (updateopportunities && !is_two_mode)
     #   keepIn <- presence & opportunities
     statsArrayComp <- if (is_rate) {
@@ -1150,8 +1308,25 @@ compute_step.default <- function(spec, state, i, ctx) {
   } else {
     posSender <- activeDyad[1]
   }
-  if ((ctx$updatepresence2 || ctx$updateopportunities)) {
-    keepIn <- state$presence2 & state$opportunities
+  if (
+    (ctx$updatepresence2 ||
+      ctx$updateopportunities ||
+      ctx$active_dyad_folded) &&
+      !folded_full
+  ) {
+    # When folded, the receiver filter is read through the encoding accessor
+    # `state$presence2` is the folded receiver availability and
+    # already includes the support, so `opportunities` is not conjoined.
+    keepIn <- if (ctx$active_dyad_folded) {
+      active_dyad_row(
+        ctx$active_dyad_encoding,
+        posSender,
+        state$presence2,
+        state$presence
+      )
+    } else {
+      state$presence2 & state$opportunities
+    }
     # reducing stats array alters the correspondence between row/col
     # it needs to consider the reflexive case to avoid wrong calculation
     # excludes REM and DyNAM-MM
@@ -1163,6 +1338,7 @@ compute_step.default <- function(spec, state, i, ctx) {
     } else {
       allowReflexiveCorrected <- FALSE
     }
+    receiver_keep <- keepIn
     statsArrayComp <- statsArrayComp[, keepIn, , drop = FALSE]
     if (isDependent) {
       position <- which(activeDyad[2] == which(keepIn))
@@ -1196,7 +1372,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   # CHANGED SIWEI: add three arguments
   #  (isRightCensored, timespan and allowReflexive) to eventValues function
   isRightCensored <- !isDependent
-  eventValues <- ctx$contribution_fn(
+  contrib_args <- list(
     spec = spec,
     statsArray = statsArrayComp,
     activeDyad = activeDyad,
@@ -1206,9 +1382,33 @@ compute_step.default <- function(spec, state, i, ctx) {
     allowReflexive = allowReflexiveCorrected,
     is_two_mode = ctx$is_two_mode
   )
+  # REM / coordination support_constraint: the contribution zeroes disallowed
+  # dyads from the risk set. Only the REM and coordination contributions accept
+  # `riskMask`, and it is passed only when a mask is present, so other paths are
+  # unaffected.
+  if (folded_full) {
+    # The maintained dense `active_dyad` is the per-event mask, kept
+    # whole because no axis reduction was applied above.
+    contrib_args$riskMask <- state$presence2
+  } else if (!is.null(ctx$remMask)) {
+    # Legacy standalone mask: reduce to the presence-kept dyads (rows/cols dropped
+    # above), flattened column-major to match the rate vector.
+    reduced_mask <- ctx$remMask[[i]]
+    if (!is.null(sender_keep)) {
+      reduced_mask <- reduced_mask[sender_keep, , drop = FALSE]
+    }
+    if (!is.null(receiver_keep)) {
+      reduced_mask <- reduced_mask[, receiver_keep, drop = FALSE]
+    }
+    contrib_args$riskMask <- reduced_mask
+  }
+  eventValues <- do.call(ctx$contribution_fn, contrib_args)
 
   if (ctx$returnIntervalLogL) {
     state$eventLogL[i] <- eventValues$logLikelihood
+  }
+  if (ctx$return_event_scores) {
+    state$event_scores[i, ] <- eventValues$score
   }
   if (ctx$returnEventProbabilities) {
     state$EventProbabilities[[i]] <- eventValues$pMatrix
@@ -1226,7 +1426,7 @@ compute_step.default <- function(spec, state, i, ctx) {
 # for all events, given a set of parameters
 # for the MM, M, REM, and M-Rate function, and REM-ordered.
 # Builds the loop-invariant context and the mutable running state once,
-# resolves the compute_step() method once (design D19), and iterates events.
+# resolves the compute_step() method once, and iterates events.
 compute_iteration_step <- function(
   statsList,
   nodes,
@@ -1244,11 +1444,14 @@ compute_iteration_step <- function(
   cpus = 4,
   returnIntervalLogL = FALSE,
   returnEventProbabilities = FALSE,
+  return_event_scores = FALSE,
   allowReflexive = TRUE,
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
   verbose = FALSE,
-  opportunitiesList = NULL
+  opportunitiesList = NULL,
+  senderGate = NULL,
+  remMask = NULL
 ) {
   nEvents <- length(statsList$is_dependent)
   is_rate <- length(dim(statsList$initialStats)) == 2L
@@ -1262,6 +1465,29 @@ compute_iteration_step <- function(
   correctReflexive <- !allowReflexive &&
     inherits(spec, c("dynam_choice_spec", "dynami_choice_spec"))
 
+  # A sender-loop support_constraint is folded into `active_sender` at
+  # preprocessing: the availability object already carries
+  # presence AND the per-event sender gate as net crossings, so the engine
+  # maintains it by walking its flat buffer per event (by index) and uses it
+  # directly as the sender filter — no separate `senderGate` recombination.
+  active_sender_folded <- isTRUE(statsList$active_sender_folded)
+  # A DyNAM-choice support_constraint is folded into `active_dyad` at
+  # preprocessing: the receiver-axis availability already
+  # carries receiver presence AND the folded support, so the engine maintains
+  # it by walking its flat buffer per event and reads the receiver filter
+  # through the encoding accessor — no separate opportunities/compChange2 step.
+  active_dyad_folded <- isTRUE(statsList$active_dyad_folded)
+  # A standard- or ordinal-REM support_constraint folds both presences ∩ support
+  # into a dense point `active_dyad`: the maintained matrix IS the
+  # per-event risk mask, so the presence axis-reductions are skipped and it is
+  # consumed directly as `riskMask`, replacing the standalone per-event mask.
+  is_rem <- inherits(spec, c("rem_rate_spec", "rem_rate_ordered_spec"))
+  # DyNAM coordination is two-sided (`getLikelihoodMM` pairs both directed
+  # choices), so a folded coordination constraint — symmetrised into the dense
+  # point `active_dyad` — is consumed as the full risk mask exactly
+  # like REM, NOT via the one-sided-choice row accessor.
+  is_coord <- inherits(spec, "dynam_choice_coord_spec")
+
   # check for parallelization
   # if (parallelize && require("snowfall", quietly = TRUE)) {
   #   snowfall::sfStop()
@@ -1269,7 +1495,7 @@ compute_iteration_step <- function(
   #   snowfall::sfExport("compute_event_contribution", namespace = "goldfish")
   # }
 
-  # resolve the per-event step + contribution methods once (design D19)
+  # resolve the per-event step + contribution methods once
   step_fn <- bind_compute_step(spec)
   contribution_fn <- bind_event_contribution(spec)
 
@@ -1289,8 +1515,20 @@ compute_iteration_step <- function(
     compChange1 = compChange1,
     compChange2 = compChange2,
     opportunitiesList = opportunitiesList,
+    senderGate = senderGate,
+    active_sender_folded = active_sender_folded,
+    active_sender_update = statsList$active_sender_update,
+    active_sender_update_pointer = statsList$active_sender_update_pointer,
+    active_dyad_folded = active_dyad_folded,
+    active_dyad_update = statsList$active_dyad_update,
+    active_dyad_update_pointer = statsList$active_dyad_update_pointer,
+    active_dyad_encoding = statsList$active_dyad_encoding,
+    is_rem = is_rem,
+    is_coord = is_coord,
+    remMask = remMask,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
+    return_event_scores = return_event_scores,
     contribution_fn = contribution_fn
   )
 
@@ -1309,6 +1547,11 @@ compute_iteration_step <- function(
     score = rep(0, nParams),
     informationMatrix = matrix(0, nParams, nParams),
     eventLogL = if (returnIntervalLogL) numeric(nEvents) else NULL,
+    event_scores = if (return_event_scores) {
+      matrix(0, nEvents, nParams)
+    } else {
+      NULL
+    },
     EventProbabilities = if (returnEventProbabilities) {
       vector(mode = "list", length = nEvents)
     } else {
@@ -1327,6 +1570,9 @@ compute_iteration_step <- function(
   )
   if (returnIntervalLogL) {
     returnList$eventLogL <- state$eventLogL
+  }
+  if (return_event_scores) {
+    returnList$event_scores <- state$event_scores
   }
   if (returnEventProbabilities) {
     returnList$pMatrix <- state$EventProbabilities
@@ -1349,32 +1595,20 @@ getLikelihoodMM <- function(multinomialProbabilities) {
 # The derivatives are of the log likelihood and need to be transformed by
 #  multiplying with P
 getMultinomialInformationMatrix <- function(likelihoods, derivatives) {
-  nParams <- dim(derivatives)[3]
-  nActors <- dim(derivatives)[1]
-  matrixSize <- nActors * nActors
+  arrayDim <- dim(derivatives)
+  nParams <- arrayDim[3]
 
   # take upper triangle of the likelihoods matrix so
   # that we do not count probabilities twice
   likelihoodsTriangle <- likelihoods * upper.tri(likelihoods)
 
-  # In the Hessian formula H_{ijh} (7.11), p.111,
-  # we include the log likelihood derivatives and
-  #  multiply each of the two with P_{is}
-
-  # Multiply each pair of slices of the log likelihood with
-  # each other times the likelihood
-  indexes <- cbind(seq_len(nParams), rep(seq_len(nParams), each = nParams))
-
-  values <- apply(
-    indexes,
-    1,
-    \(ind) {
-      sum(derivatives[,, ind[1]] * derivatives[,, ind[2]] * likelihoodsTriangle)
-    }
-  )
-  informationMatrix <- matrix(values, nParams, nParams, byrow = FALSE)
-
-  informationMatrix
+  # In the Hessian formula H_{ijh} (7.11), p.111, each pair of derivative
+  # slices is weighted by the (upper-triangle-masked) likelihood. Folding that
+  # mask into the weight vector, the p^2 sum() closures over n^2 slices become
+  # one weighted cross-product D^T diag(w) D on the flattened derivative cube.
+  dim(derivatives) <- c(arrayDim[1] * arrayDim[2], nParams)
+  weights <- as.vector(likelihoodsTriangle)
+  crossprod(derivatives, derivatives * weights)
 }
 
 
@@ -1382,41 +1616,70 @@ getMultinomialInformationMatrixM <- function(
   eventProbabilities,
   firstDerivatives
 ) {
-  nParams <- dim(firstDerivatives)[2]
-  # nActors <- dim(firstDerivatives)[1]
-
-  # all indexes: 1-1, 1-2, ..., nParams-nParams
-  indexes <- expand.grid(seq_len(nParams), seq_len(nParams))
-
-  temp <- apply(
-    indexes,
-    1,
-    \(ind) {
-      firstDerivatives[, ind[1]] *
-        firstDerivatives[, ind[2]] *
-        eventProbabilities
-    }
-  )
-  if (!is.null(dim(temp))) {
-    values <- colSums(temp)
-  } else {
-    # in case that temp is a scalar
-    values <- temp
-  }
-  information <- matrix(values, nParams, nParams)
+  # firstDerivatives is the nActors x p matrix of log-likelihood derivatives;
+  # sum_i p_i d_i d_i^T = D^T diag(p) D. crossprod preserves the p x p shape so
+  # the single-parameter special case (dropped dims) no longer needs a branch.
+  crossprod(firstDerivatives, firstDerivatives * eventProbabilities)
 }
 
 
+# Single-pass max-shift softmax. Given linear predictors `x` with
+# excluded alternatives encoded as -Inf, returns in ONE exp pass both outputs
+# the multinomial likelihood needs: the normalized `probabilities` and the
+# log-probabilities log(p) = x - logNormalizer. Because the observed
+# alternative's log-likelihood is then x_sel - logNormalizer rather than
+# log(probabilities[sel]), it stays finite even when that probability underflows
+# to 0 (where log(p_sel) would be -Inf). `rowwise = TRUE` normalizes each row of
+# a matrix independently (per-sender choice); FALSE normalizes over all entries
+# (global choice / REM). A fully-excluded row/vector (denominator 0) maps to
+# probability 0 and log-probability -Inf, matching the pre-fold path that
+# dropped absent senders before normalising.
+stable_softmax <- function(x, rowwise = FALSE) {
+  if (rowwise) {
+    shift <- apply(x, 1L, max)
+    zeroRow <- !is.finite(shift)
+    shift[zeroRow] <- 0 # avoid -Inf shift on a fully-excluded row
+    # column-major recycling subtracts shift[i] / divides by norm[i] per row i
+    expShifted <- exp(x - shift)
+    rowSum <- rowSums(expShifted)
+    probabilities <- expShifted / rowSum
+    logProbabilities <- x - (shift + log(rowSum))
+    empty <- zeroRow | rowSum == 0
+    if (any(empty)) {
+      probabilities[empty, ] <- 0
+      logProbabilities[empty, ] <- -Inf
+    }
+  } else {
+    shift <- max(x)
+    if (!is.finite(shift)) {
+      shift <- 0
+    }
+    expShifted <- exp(x - shift)
+    total <- sum(expShifted)
+    probabilities <- expShifted / total
+    logProbabilities <- x - (shift + log(total))
+    if (total == 0) {
+      probabilities[] <- 0
+      logProbabilities[] <- -Inf
+    }
+  }
+  list(probabilities = probabilities, logProbabilities = logProbabilities)
+}
+
 # Function to calculate a matrix of i->j multinomial choice probabilities
-# (non-logged)
-# for one term of the
+# (non-logged) for one term of the model. Returns a list with `probabilities`
+# and the matching stable `logProbabilities`: the excluded
+# alternatives (reflexive diagonal, `riskMask`) enter as -Inf linear predictors,
+# so the max-shift is taken over the included set only and they drop from the
+# normalizer exactly as zeroing their utility did before.
 getMultinomialProbabilities <- function(
   statsArray,
   activeDyad,
   parameters,
   actorNested = TRUE,
   allowReflexive = TRUE,
-  is_two_mode = FALSE
+  is_two_mode = FALSE,
+  riskMask = NULL
 ) {
   # allow this for a two- OR a three-dimensional array provided as input,
   # to be make
@@ -1434,31 +1697,36 @@ getMultinomialProbabilities <- function(
   nActors2 <- dim(statsArray)[2]
   if (nDimensions == 3) {
     matrixSize <- nActors1 * nActors2
-    # multiply parameters with the statistics; slice by slice
-    # the cube has to be transposed for third-dimension-wise multyplication
-    weightedStatsArray <- statsArray * rep(parameters, each = matrixSize)
-    # get utility = exp( value of objective function )
-    utility <- exp(apply(weightedStatsArray, c(1, 2), sum))
+    # Linear predictor as one matrix product: reshape the n1 x n2 x p cube to
+    # (n1*n2) x p without copying (column-major), multiply by the parameters,
+    # and fold back to n1 x n2. Replaces the per-cell apply(., c(1,2), sum) over
+    # a parameter-broadcast copy of the cube.
+    dim(statsArray) <- c(matrixSize, length(parameters))
+    linearPredictor <- statsArray %*% parameters
+    dim(linearPredictor) <- c(nActors1, nActors2)
     if (!allowReflexive && !is_two_mode) {
-      diag(utility) <- 0
+      diag(linearPredictor) <- -Inf
     }
-    if (actorNested) {
-      denominators <- rowSums(utility)
-    } else {
-      # for REM
-      denominators <- sum(utility)
+    # A support_constraint (ordinal REM / coordination) removes disallowed dyads
+    # from the risk set exactly as the reflexive diagonal does: -Inf predictor
+    # drops them from the denominator (and the probability-weighted score /
+    # information sums), while the observed dyad's own term is untouched.
+    # `riskMask` is the maintained dense n1 x n2 availability aligned with the
+    # [sender, receiver] predictor (coordination folds both presences, so a
+    # masked row is an absent / fully-gated sender).
+    if (!is.null(riskMask)) {
+      linearPredictor[!riskMask] <- -Inf
     }
-  }
-  if (nDimensions == 2) {
-    weightedStatsArray <- sweep(statsArray, MARGIN = 2, parameters, "*")
-    utility <- exp(rowSums(weightedStatsArray))
+    # actorNested: per-sender row softmax; else the global REM normalizer.
+    stable_softmax(linearPredictor, rowwise = actorNested)
+  } else {
+    linearPredictor <- (statsArray %*% parameters)[, 1]
     # allow reflexive?
     if (!allowReflexive && !is_two_mode) {
-      utility[activeDyad[1]] <- 0
+      linearPredictor[activeDyad[1]] <- -Inf
     }
-    denominators <- sum(utility)
+    stable_softmax(linearPredictor, rowwise = FALSE)
   }
-  utility / denominators
 }
 
 
@@ -1501,7 +1769,7 @@ prepare_statslist <- function(
     statsList$initialStats <- if (is_sender_stats) {
       statsList$initialStats[, -excludeParameters, drop = FALSE]
     } else {
-      statsList$initialStats[, , -excludeParameters, drop = FALSE]
+      statsList$initialStats[,, -excludeParameters, drop = FALSE]
     }
   }
   if (addInterceptEffect) {

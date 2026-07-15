@@ -31,13 +31,17 @@ The preprocessing stage won't stop at this time and will continue
 processing events after this time.
 Default is \code{NULL} (end with the last event).}
 
-\item{opportunities_list}{A list object. For choice models,
-this list specifies, for each dependent event,
+\item{opportunities_list}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} A list object.
+For choice models, this list specifies, for each dependent event,
 the set of available nodes in the choice set.
 The list should have the same length as the number of events in the
 dependent events objects created with \code{make_dependent_events()}.
 Default is \code{NULL}, so the choice set is the set of all nodes present at the
-time of the event.}
+time of the event. Superseded by the \code{support_constraint} argument of
+\code{\link[=estimate_dynam]{estimate_dynam()}} / \code{\link[=make_specification]{make_specification()}}, which generalizes it to a
+per-\verb{(sender, receiver)} risk-set restriction and works on every engine; an
+equivalent constraint over an allowed-dyad network reproduces the
+opportunity-list coefficients.}
 
 \item{db}{A \code{DBIConnection} object or \code{NULL} (default). When supplied
 together with \code{compute_stats(..., output = "db")}, the gather statistics
@@ -58,7 +62,7 @@ to the function. The list object has the following components:
 \description{
 Specifies control parameters for the data preprocessing stage,
 used by \code{estimate_dynam()}, \code{estimate_rem()} and \code{estimate_dynami()}
-(when \code{preprocessingInit} is not a
+(when \code{preprocessing_init} is not a
 \code{preprocessed.goldfish} object) and \code{gather_model_data()}.
 }
 \examples{

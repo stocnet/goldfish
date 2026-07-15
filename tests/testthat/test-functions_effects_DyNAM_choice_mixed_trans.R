@@ -90,7 +90,7 @@ test_that("update_mixed_trans doesn't update when sender == receiver", {
   )
 })
 
-test_that("update_mixed_trans doesn't update when replace == oldValue", {
+test_that("update_mixed_trans doesn't update when replace == old_value", {
   expect_equal(
     update_DyNAM_choice_mixed_trans(
       list(m, m1),
@@ -101,7 +101,7 @@ test_that("update_mixed_trans doesn't update when replace == oldValue", {
       m0
     )$cache,
     m0,
-    label = "When netUpdate = 1"
+    label = "When net_update = 1"
   )
   expect_equal(
     update_DyNAM_choice_mixed_trans(
@@ -113,11 +113,11 @@ test_that("update_mixed_trans doesn't update when replace == oldValue", {
       m0
     )$cache,
     m0,
-    label = "When netUpdate = 2"
+    label = "When net_update = 2"
   )
 })
 
-test_that("update_mixed_trans throws an error when netUpdate is not 1 or 2. ", {
+test_that("update_mixed_trans throws an error when net_update is not 1 or 2. ", {
   expect_error(
     update_DyNAM_choice_mixed_trans(
       list(m, m1),
@@ -128,7 +128,7 @@ test_that("update_mixed_trans throws an error when netUpdate is not 1 or 2. ", {
       m0
     ),
     "Check you declare only two networks in network argument",
-    label = "netUpdate is an unsuitable integer"
+    label = "net_update is an unsuitable integer"
   )
   expect_error(
     update_DyNAM_choice_mixed_trans(
@@ -140,7 +140,7 @@ test_that("update_mixed_trans throws an error when netUpdate is not 1 or 2. ", {
       m0
     ),
     "Check you declare only two networks in network argument",
-    label = "netUpdate is not an integer"
+    label = "net_update is not an integer"
   )
 })
 
@@ -199,7 +199,13 @@ test_that("REM and DyNAM mixed_trans return the same result", {
 test_that("mixed_trans history = sequential: adding to net1 produces no new paths", {
   expect_null(
     update_DyNAM_choice_mixed_trans(
-      list(m, m1), 4, 3, 5, 1, m0, history = "sequential"
+      list(m, m1),
+      4,
+      3,
+      5,
+      1,
+      m0,
+      history = "sequential"
     )$changes,
     label = "sequential blocks new paths when adding to net1"
   )
@@ -208,10 +214,21 @@ test_that("mixed_trans history = sequential: adding to net1 produces no new path
 test_that("mixed_trans history = sequential: adding to net2 same as pooled", {
   expect_equal(
     update_DyNAM_choice_mixed_trans(
-      list(m, m1), 1, 5, 5, 2, m0, history = "sequential"
+      list(m, m1),
+      1,
+      5,
+      5,
+      2,
+      m0,
+      history = "sequential"
     ),
     update_DyNAM_choice_mixed_trans(
-      list(m, m1), 1, 5, 5, 2, m0
+      list(m, m1),
+      1,
+      5,
+      5,
+      2,
+      m0
     ),
     label = "sequential does not filter net2 additions"
   )
@@ -220,10 +237,21 @@ test_that("mixed_trans history = sequential: adding to net2 same as pooled", {
 test_that("mixed_trans history = sequential: removal from net1 same as pooled", {
   expect_equal(
     update_DyNAM_choice_mixed_trans(
-      list(m, m1), 4, 1, 0, 1, m0, history = "sequential"
+      list(m, m1),
+      4,
+      1,
+      0,
+      1,
+      m0,
+      history = "sequential"
     ),
     update_DyNAM_choice_mixed_trans(
-      list(m, m1), 4, 1, 0, 1, m0
+      list(m, m1),
+      4,
+      1,
+      0,
+      1,
+      m0
     ),
     label = "sequential does not block removals"
   )
@@ -231,9 +259,15 @@ test_that("mixed_trans history = sequential: removal from net1 same as pooled", 
 
 test_that("init mixed_trans returns empty cache when history = sequential", {
   effectFUN_seq <- function(
-    network, sender, receiver, replace, cache,
-    is_two_mode = FALSE, transformer_fn = identity,
-    history = "sequential") {}
+    network,
+    sender,
+    receiver,
+    replace,
+    cache,
+    is_two_mode = FALSE,
+    transformer_fn = identity,
+    history = "sequential"
+  ) {}
   expect_equal(
     init_DyNAM_choice.mixed_trans(effectFUN_seq, list(m, m1), NULL, 5, 5)$cache,
     matrix(0, nrow = 5, ncol = 5)

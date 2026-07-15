@@ -1,3 +1,235 @@
+# goldfish 1.8.8
+
+## New features
+
+* Estimation gains an **experimental `optimizer` argument**
+  (`set_estimation_opt(optimizer = c("newton_raphson", "bfgs", "bhhh",
+  "nelder_mead"))`). The default `"newton_raphson"` is the existing damped
+  Newton–Raphson loop; `"bfgs"`, `"bhhh"`, and `"nelder_mead"` are backed by the
+  [maxLik](https://CRAN.R-project.org/package=maxLik) package (added to
+  `Suggests`, **not** `Imports`) and run on the compiled `default_c` engine.
+  `"bhhh"` uses the new per-event score matrix as its gradient. The result is
+  mapped into the standard goldfish result object, so `summary()`, `vcov()`, and
+  `logLik()` behave unchanged.
+* `set_estimation_opt(return_event_scores = TRUE)` returns a new `event_scores`
+  result component: the per-event score contributions (`n_events` ×
+  `n_parameters`, columns named by effect) whose column sums equal the aggregate
+  score at convergence. Useful for sandwich / clustered standard errors,
+  score-process diagnostics, and event-influence measures. Available on the
+  `default` (R) and `default_c` (C++) engines.
+* `gather_model_data()` and the `write_gather_to_db()` long table now carry
+  `index_i` / `index_j` columns identifying the candidate dyad of each row, so
+  rows in a filtered (constrained) risk set remain decodable to their node
+  labels. One-mode `DyNAM` `choice_coordination` export no longer emits the
+  reflexive (diagonal) self-dyad rows.
+
+## Improvements
+
+* **Numerically stable multinomial likelihoods.** The `choice`,
+  `choice_coordination`, ordinal `rate`, and ordinal `REM` contributions now use
+  an in-house single-pass stable softmax on both the `default` (R) and
+  `default_c` (C++) engines, so the log-likelihood, score, and information matrix
+  stay finite under extreme linear predictors that previously produced `-Inf` or
+  `NaN`. The timed hazard path (`rate` and timed `REM`) is deliberately unchanged.
+* **Faster default-engine estimation.** The per-event contribution helpers were
+  rewritten to BLAS-level operations — information matrices as weighted
+  cross-products (`crossprod(D, D * w)`), no-copy `dim<-` reshapes, and
+  single matrix-product linear predictors — and the compiled `default_c` REM and
+  coordination kernels to a staged BLAS (GEMV/GEMM) form. On the bundled
+  fixtures, timed `REM` estimation on the `default` engine is roughly 30× faster
+  and the compiled coordination kernel about 2× faster. No new package
+  dependencies were added.
+* Constrained `DyNAM` `choice_coordination` now runs **natively on the
+  `gather_compute` engine**: the redirect to `default_c` (and its informational
+  message) introduced in 1.8.7 is removed. The coordination gather path is now
+  index-based and ragged-safe on every engine.
+
+# goldfish 1.8.7
+
+## New features
+
+* `support_constraint` now runs **natively on every engine** for every wired
+  family — the compiled `default_c` and `gather_compute` engines no longer
+  downgrade to the default (R) engine when a constraint is supplied:
+  * `DyNAM` `choice`, `rate`, and `REM` (standard and ordinal) constrained
+    estimation is native on `default` / `gather_compute` / `default_c`, matching
+    the default engine to numerical precision.
+  * `DyNAM` `choice_coordination` gains `support_constraint` support: the
+    constraint is symmetrised (`support[i, j] & support[j, i]`) so both
+    directions of the mutual likelihood are masked consistently, and it runs
+    natively on `default` / `default_c` (a constrained `gather_compute` request
+    is redirected to `default_c`, which is identical, with an informational
+    message).
+* A dyadic (`tie(net)`-kind) `support_constraint` on a `DyNAM` `rate` model is
+  now **accepted** (previously rejected): a sender is at risk when it has at
+  least one allowed, present receiver (`rowSums(support & available) > 0`). A
+  one-time informational message explains the reduction and the cheaper
+  `ego()`-kind reformulation (equivalent only under static receiver composition).
+* `ego(attribute)` is now dispatchable in `DyNAM` `choice` / `choice_coordination`
+  (previously `Unknown effect ego`): it is usable as an interaction operand
+  (`~ ... + ego(x):inertia`) and as a `support_constraint` atom. Identification is
+  unchanged — a bare `ego()` main effect is still rejected in choice as
+  unidentified in the softmax.
+
+## Internal
+
+* The support mask and per-event availability are now maintained as
+  encoding-aware flat statistics: one availability object per preprocessing loop
+  — `active_sender` (sender loop) or `active_dyad` (dyad loop) — stored at its
+  minimal encoding (scalar / ego / alter / outer / point; dense only at the point
+  encoding). This replaces the per-event list of dense mask matrices and the
+  scattered `presence*` / `active_mode*` objects, and lets the mask cross the
+  R↔C++ boundary through the same channel as the model statistics. The deprecated
+  `opportunities_list` is folded into `active_dyad` during preprocessing instead
+  of being recomputed per estimation iteration.
+
+# goldfish 1.8.6
+
+## New features
+
+* `support_constraint`: a first-class, per-event risk-set restriction for DyNAM
+  models, supplied as a one-sided formula on `estimate_dynam()` (and carried by
+  `make_specification()`). It uses a restricted boolean-tree grammar — effect
+  atoms (`tie(net)`, `indeg(net)`, ...) combined with `&`, `|`, `!`, comparisons
+  (`> < >= <= == !=`), and elementwise arithmetic (`+ - * /`); a bare effect
+  means `effect != 0`. Inside a constraint `*` is elementwise arithmetic, never
+  the effects formula's interaction expansion.
+  * `DyNAM` `choice` / `choice_coordination`: the constraint restricts each
+    event's receiver set, shrinking the candidate set and reindexing the chosen
+    alternative. A constraint over an allowed-dyad network reproduces the
+    coefficients of the (deprecated) opportunity list.
+  * `DyNAM` `rate`: the constraint reduces to a per-event sender gate (a sender
+    is at risk only with at least one allowed, present receiver) and drives the
+    constrained intercept denominator.
+  * `REM` (with a time intercept): the constraint removes disallowed dyads from
+    the 2D risk set (their event rate is zeroed), so an all-allowing constraint
+    reproduces the unconstrained fit.
+  * Mis-specified constraints fail fast in preprocessing (an observed dyad
+    excluded, or an empty risk set, errors; a forced choice or never-active node
+    warns).
+  * This release wires the default (R) engine; ordinal REM and the compiled
+    engines (`default_c` / `gather_compute`) follow.
+
+## Deprecations
+
+* `set_preprocessing_opt(opportunities_list = )` is soft-deprecated in favour of
+  the `support_constraint` argument of `estimate_dynam()` / `make_specification()`,
+  which generalizes the per-event choice-set restriction to a per-`(sender,
+  receiver)` risk-set constraint that works on every engine. It still works (with
+  a one-time warning); an equivalent `support_constraint` over an allowed-dyad
+  network reproduces the opportunity-list coefficients.
+
+# goldfish 1.8.5
+
+## New features
+
+* Interaction terms (`:`/`*`) are now supported in DyNAM `rate` / `rate_ordered`
+  models, extending the dyad-model support added in 1.8.4. A rate interaction's
+  statistic is the per-sender elementwise product of its operands. Interaction
+  operands must vary on the sender axis (`ego`, `global`, degree `type = "ego"`);
+  an `alter`-perspective operand is rejected because a rate model has no receiver
+  axis. `global()` is permitted as an interaction operand even in `rate_ordered`,
+  where it is not identified as a bare main effect, because the interaction
+  restores per-sender variation.
+
+## Bug fixes
+
+* An interaction whose operand is a non-identified effect (e.g. `global(x):outdeg`
+  in a choice model) no longer aborts: interaction operands are validated by a
+  role-aware rule rather than as bare main effects.
+
+# goldfish 1.8.4
+
+This release completes Stage 2 of the formula-parsing refactor, adding several
+formula features on top of the Stage 1 compile reorganisation. Existing formulas
+and their fitted coefficients are unchanged.
+
+## New features
+
+* Interaction terms in model formulas. `a:b` adds the interaction only and `a*b`
+  expands to `a + b + a:b`, following R's formula conventions. An interaction's
+  statistic is the elementwise product of its operands' statistics, computed
+  incrementally during preprocessing, and its name composes from the operands
+  (e.g. `inrt:rec` in `coef()`). Operands of a bare `a:b` are kept in the design
+  but not estimated. Available for DyNAM `choice` / `choice_coordination` and REM.
+* `make_specification()` (experimental) bundles the rate and/or choice formulas
+  of a model with its `model`, sub-model(s), the dependent process (named by
+  `layer`, with an empty formula left-hand side), and `data` into a reusable
+  `specification.goldfish` object with a `cli`-rendered overview. It can be passed
+  directly to `estimate_dynam()` / `estimate_rem()` in place of a formula.
+* `offset()` fixed-coefficient terms. Wrapping a term in `offset()` holds its
+  coefficient fixed (rather than estimating it), with the value(s) supplied via a
+  new `offset_coef` argument to `set_estimation_opt()`. The statistic column is
+  kept and contributes to the linear predictor.
+* Native `type = "ego"` in DyNAM `choice` / `choice_coordination` degree-family
+  effects (`indeg`, `outdeg`, `node_trans`, `tertius`), numerically identical to
+  the equivalent REM expansion, and `global()` is now computable in choice
+  (produced by `compute_stats()` as a design column). Both are usable as
+  interaction operands; they remain unidentified as bare main effects in choice.
+
+## Deprecations
+
+* `set_estimation_opt(fixed_parameters = )` is superseded by wrapping the term in
+  `offset()` and supplying `offset_coef`. The positional vector still works with a
+  soft-deprecation message.
+
+# goldfish 1.8.3
+
+This release completes Stage 1 of the formula-parsing refactor: an internal,
+behaviour-preserving reorganisation of how a model formula is compiled into the
+preprocessing recipe. There are no user-visible changes — fitted coefficients,
+standard errors, and printed output are identical to 1.8.2.
+
+## Internal changes
+
+* Model formulas are now compiled once, up front, into a specification map
+  (`build_spec_map()`) that separates *metadata* (the effects, links, and a
+  registry of derived inputs) from *data*. The shared formula parser no longer
+  mutates the caller's data environment.
+* Windowed networks and their dissolve-event streams are realised, and event
+  streams fetched, inside preprocessing state creation (driven by the derived-
+  input registry) rather than eagerly during parsing. A derived object's
+  inherited metadata (node sets, event streams, direction) is resolved from its
+  source object.
+* The update plan carries new registries reserved for interaction terms and
+  multivariate models (`role`/`estimate`/`fid`/`lid`, `interactions`,
+  `operand_of`, `stat_state_spec`, `formula_effects`); these are populated
+  trivially for now and activated in Stage 2.
+
+# goldfish 1.8.2
+
+This patch release introduces a shared compact term-string renderer so an
+effect reads identically across the printed summary, `tidy()`, and
+`gather_model_data()` export names.
+
+## User-visible changes
+
+* `print()` on a `summary()` of a fitted model now prints a single
+  coefficients table by default (`compact = TRUE`), with compact term row
+  labels of the form `effect/obj·obj2 [args]` and a short legend keying any
+  opaque argument codes present (for example `W = weighted`, `Fx = fixed`). Pass
+  `compact = FALSE` to restore the previous two-table view with the full
+  "Effects details" table.
+* `coef()` and `vcov()` now name parameters with a minimal-unique short form
+  (curated short effect name plus the smallest disambiguating suffix), so names
+  are always unique — fixing the previous hazard where duplicate bare names
+  broke name-based subsetting. `vcov()` dimnames equal `coef()` names. This
+  changes the names returned by `coef()`/`vcov()`.
+* `tidy(compact = TRUE)`'s `term` column is now produced by the shared builder
+  in export mode (valid, unique R names) instead of an ad-hoc paste.
+* `gather_model_data()` gains a `max_length` argument (default 63, a
+  database-safe value) bounding the length of the produced effect/column names,
+  which are valid and unique within a model.
+
+## Internal changes
+
+* Width-independent decoder renderings (`.effect_short`, `.object_short`,
+  `.term_export`, `.coef_name`) are computed once at construction and stored as
+  dot-prefixed columns on the effect-description matrix carried by
+  `result$names` and `gather_model_data()`'s `effectDescription`; display
+  methods read these (read-if-present-else-compute) and skip dot-prefixed
+  columns when iterating, so the metadata never leaks into rendered output.
+
 # goldfish 1.8.1
 
 This patch release compacts how constant-value fan-out effects are stored

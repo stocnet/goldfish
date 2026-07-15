@@ -14,23 +14,23 @@
 #' @examples
 #' # A multinomial receiver choice model
 #' data("Social_Evolution")
-#' callNetwork <- make_network(nodes = actors, directed = TRUE)
-#' callNetwork <- link_events(
-#'   x = callNetwork, change_event = calls,
+#' call_network <- make_network(nodes = actors, directed = TRUE)
+#' call_network <- link_events(
+#'   x = call_network, change_event = calls,
 #'   nodes = actors
 #' )
-#' callsDependent <- make_dependent_events(
+#' calls_dependent <- make_dependent_events(
 #'   events = calls, nodes = actors,
-#'   default_network = callNetwork
+#'   default_network = call_network
 #' )
 #' \dontshow{
-#' callsDependent <- callsDependent[1:50, ]
+#' calls_dependent <- calls_dependent[1:50, ]
 #' }
-#' socialEvolutionData <- make_data(callsDependent, callNetwork, calls, actors)
+#' social_evolution_data <- make_data(calls_dependent, call_network, calls, actors)
 #' mod01 <- estimate_dynam(
-#'   callsDependent ~ inertia + recip + trans,
+#'   calls_dependent ~ inertia + recip + trans,
 #'   sub_model = "choice",
-#'   data = socialEvolutionData,
+#'   data = social_evolution_data,
 #'   control_estimation = set_estimation_opt(
 #'     return_interval_loglik = TRUE,
 #'     engine = "default_c"
@@ -63,10 +63,12 @@ NULL
 #' @importFrom stats IQR median na.exclude
 #' @export
 #' @rdname examine
-examine_outliers <- function(x,
-                             method = c("Hampel", "IQR", "Top"),
-                             parameter = 3,
-                             window = NULL) {
+examine_outliers <- function(
+  x,
+  method = c("Hampel", "IQR", "Top"),
+  parameter = 3,
+  window = NULL
+) {
   if (!"result.goldfish" %in% attr(x, "class")) {
     stop("Not a goldfish results object.")
   }
@@ -79,19 +81,22 @@ examine_outliers <- function(x,
   method <- match.arg(method)
 
   data <- augment.result.goldfish(x)
-  
+
   data <- transform(data, label = "")
   data <- transform(data, outlier = FALSE)
-  
+
   if (method == "Top") {
     outlierIndexes <- order(data$intervalLogL)[1:parameter]
   } else if (method == "IQR") {
     outlierIndexes <- which(
-      data$intervalLogL < median(data$intervalLogL) -
-        (parameter / 2) * IQR(data$intervalLogL)
+      data$intervalLogL <
+        median(data$intervalLogL) -
+          (parameter / 2) * IQR(data$intervalLogL)
     )
   } else if (method == "Hampel") {
-    if (is.null(window)) window <- (nrow(data) / 2) - 1
+    if (is.null(window)) {
+      window <- (nrow(data) / 2) - 1
+    }
     n <- length(data$intervalLogL)
     L <- 1.4826
     # which(vapply((window + 1):(n - window), function(i) {
@@ -108,7 +113,6 @@ examine_outliers <- function(x,
       }
     }
   }
-
 
   if (length(outlierIndexes > 0)) {
     data$outlier[outlierIndexes] <- TRUE
@@ -150,10 +154,13 @@ examine_outliers <- function(x,
 #' point sections identified by the method.
 #' @export
 #' @rdname examine
-examine_changepoints <- function(x, moment = c("mean", "variance"),
-                                 method = c("PELT", "AMOC", "BinSeg"),
-                                 window = NULL,
-                                 ...) {
+examine_changepoints <- function(
+  x,
+  moment = c("mean", "variance"),
+  method = c("PELT", "AMOC", "BinSeg"),
+  window = NULL,
+  ...
+) {
   if (!methods::is(x, "result.goldfish")) {
     stop("Not a goldfish results object.", call. = FALSE)
   }
@@ -169,16 +176,24 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
 
   data <- augment.result.goldfish(x)
 
-  if (is.null(window)) window <- max(table(data$time))
+  if (is.null(window)) {
+    window <- max(table(data$time))
+  }
 
   if (moment == "mean") {
-    cpt <- changepoint::cpt.mean(data$intervalLogL,
-      method = method, minseglen = window, ...
+    cpt <- changepoint::cpt.mean(
+      data$intervalLogL,
+      method = method,
+      minseglen = window,
+      ...
     )
   }
   if (moment == "variance") {
-    cpt <- changepoint::cpt.var(data$intervalLogL,
-      method = method, minseglen = window, ...
+    cpt <- changepoint::cpt.var(
+      data$intervalLogL,
+      method = method,
+      minseglen = window,
+      ...
     )
   }
 
@@ -186,15 +201,12 @@ examine_changepoints <- function(x, moment = c("mean", "variance"),
   # cpt.mean <- attributes(cpt)$param.est$mean
 
   if (anyDuplicated(data$time[cpt.pts])) {
-    cpt.pts <- cpt.pts[!duplicated(data$time[cpt.pts],
-      fromLast = TRUE
-    )]
+    cpt.pts <- cpt.pts[!duplicated(data$time[cpt.pts], fromLast = TRUE)]
   }
-  
-  
+
   data <- transform(data, cpt = FALSE)
   data$cpt[cpt.pts] <- TRUE
-  
+
   class(data) <- c("diagnostic.goldfish", class(data))
 
   return(data)

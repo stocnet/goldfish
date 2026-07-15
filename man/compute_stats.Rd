@@ -17,7 +17,7 @@ compute_stats(
 \item{formula}{a formula that defines at the left-hand side the dependent
 network (see \code{\link[=make_dependent_events]{make_dependent_events()}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
-(see \code{vignette("goldfishEffects")}).}
+(see \code{vignette("goldfish_effects")}).}
 
 \item{data}{a \code{data.goldfish} object created with \code{\link[=make_data]{make_data()}}.}
 
@@ -55,21 +55,21 @@ work with the sufficient statistics of a model.
 }
 \examples{
 data("Social_Evolution")
-callNetwork <- make_network(nodes = actors, directed = TRUE)
-callNetwork <- link_events(
-  x = callNetwork, change_event = calls, nodes = actors
+call_network <- make_network(nodes = actors, directed = TRUE)
+call_network <- link_events(
+  x = call_network, change_event = calls, nodes = actors
 )
-callsDependent <- make_dependent_events(
-  events = calls, nodes = actors, default_network = callNetwork
+calls_dependent <- make_dependent_events(
+  events = calls, nodes = actors, default_network = call_network
 )
 \dontshow{
-callsDependent <- callsDependent[1:50, ]
+calls_dependent <- calls_dependent[1:50, ]
 }
-socialEvData <- make_data(callsDependent, callNetwork, calls, actors)
+social_ev_data <- make_data(calls_dependent, call_network, calls, actors)
 
 prep <- compute_stats(
-  callsDependent ~ inertia + recip + trans,
-  data = socialEvData,
+  calls_dependent ~ inertia + recip + trans,
+  data = social_ev_data,
   model = "DyNAM", sub_model = "choice"
 )
 prep
