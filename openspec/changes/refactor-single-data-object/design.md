@@ -187,30 +187,36 @@ express it). A side is the union of nodes whose mode is in that layer's set:
 - `directed` is vacuous on a two-mode layer (no symmetry concept in n1×n2); validation
   notes and ignores it, and mask symmetrization (support-constraint D11) never applies.
 
-**Encoding (added 2026-07-15).** manynet's `validate_info()` type-checks `info$sender` /
-`info$receiver` as **character** pooled against `mode_names()` (verified against manynet
-2.2.0: a list aborts with *"'info$sender' must be of class 'character'"*, on both the
-class and the pool check). goldfish therefore accepts **two equivalent shapes** and
-normalizes both to one internal per-layer structure:
+**Encoding (added 2026-07-15; narrowed to vector-only the same day).** The declaration is
+a **character vector whose names repeat once per (layer, mode)** — the only per-layer set
+encoding manynet admits:
 
 ```r
-# manynet-safe wire format: repeated names, one row per (layer, mode)
-info$sender <- c(survey = "employees", survey = "supervisor", report = "employees")
-# readable format: one entry per layer
-info$sender <- list(survey = c("employees", "supervisor"), report = "employees")
+info$sender   <- c(survey = "employees", survey = "supervisor", report = "employees")
+info$receiver <- c(survey = "employees", survey = "supervisor", report = "supervisor")
+# survey = one-mode over employees+supervisor; report = two-mode employees -> supervisor
 ```
 
-Both denote `survey` = one-mode over employees+supervisor, `report` = two-mode
-employees→supervisor. The repeated-name vector passes upstream **today** (`split(x,
-names(x))` recovers the sets), so the D6 wrappers and the D10 prebuilt datasets can be
-assembled through `manynet::make_stocnet()`/`add_info()` with no upstream dependency;
-the list shape is accepted because D13 already reads components structurally rather than
-trusting manynet. Relaxing `reserved_cols()` to admit a list is proposed upstream as a
-**non-blocking** nice-to-have alongside the `order` / `flavor` reservations. An
-**unnamed** character vector is read as the declaration for every layer (the pre-2026-07-15
-global form), so existing objects keep working. *Rejected:* list-only (blocks on an
-unreleased manynet, while `make_stocnet()` is exactly how the wrappers and datasets are
-built); vector-only (cannot be written readably for set-valued layers).
+`split(x, names(x))` recovers the sets, and the shape survives
+`make_stocnet()`/`add_info()`/`bind_changes()` intact (verified against manynet 2.2.0), so
+the D6 wrappers and the D10 prebuilt datasets assemble with no upstream dependency. An
+**unnamed** character vector is read as the declaration for every layer (the
+pre-2026-07-15 global form), so existing objects keep working.
+
+A **list of per-layer sets is rejected** by goldfish's validator with a message showing
+the vector form. It reads better, and was briefly accepted, but it cannot be made safe
+today: manynet type-checks these entries as character, and `validate_stocnet()` runs in
+only two places — `make_stocnet()` and `bind_changes.stocnet()` — while `add_info()` does
+not validate at all. A list therefore passes silently where it is *written* and aborts
+later inside `bind_changes()` (*"'info$sender' must be of class 'character'"*), which is
+precisely the verb the D10 Fisheries recipe uses for gdp/active/regime — a late failure
+blaming manynet internals for a shape goldfish's own docs invited. Failing early with the
+fix in the message beats accepting a trap. Relaxing `reserved_cols()` to admit a list is
+proposed upstream alongside the `order` / `flavor` reservations; when it ships and the
+`>=` pin moves, the list can be accepted by deleting one validator check. *Rejected:*
+accepting both (the list is unbuildable through the documented workflow and explodes on
+contact with `bind_changes()`); list-only (blocks on an unreleased manynet, while
+`make_stocnet()` is exactly how the wrappers and datasets are built).
 
 **`nodes`/`nodes2` (added 2026-07-15).** The per-layer map makes the node-set *names*
 redundant as a two-mode signal: `is_two_mode` is computed once per layer during mapping

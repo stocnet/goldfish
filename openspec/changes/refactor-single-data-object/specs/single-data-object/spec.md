@@ -197,14 +197,15 @@ A layer's sides SHALL be defined by `info$sender`/`info$receiver` as **per-layer
 several, and different layers MAY declare different pairs): identical sets make the layer
 one-mode over that subset of nodes; disjoint sets make it two-mode with `from`/`to`
 remapped through a mode map (global id + label ⇄ (side, local id)) onto the engine's local
-index spaces; partially overlapping sets SHALL abort. Two encodings SHALL be accepted and
-normalized to the same per-layer sets: a **character vector whose names repeat per layer**
-(`c(survey = "employees", survey = "supervisor", report = "employees")`), which is the
-shape `manynet::validate_info()` admits today, and a **named list** whose entries are the
-per-layer sets (`list(survey = c("employees", "supervisor"), report = "employees")`). An
-**unnamed** character vector SHALL apply to every layer. `is_two_mode` SHALL be resolved
-once per layer during mapping and carried on the map, rather than re-derived downstream
-from node-set names.
+index spaces; partially overlapping sets SHALL abort. The declaration SHALL be a
+**character vector whose names repeat once per (layer, mode)**
+(`c(survey = "employees", survey = "supervisor", report = "employees")`) — the only
+per-layer set encoding `manynet` admits, since it type-checks these entries as character.
+An **unnamed** character vector SHALL apply to every layer. A **list** of per-layer sets
+SHALL abort with a message showing the vector form: `add_info()` does not validate, so a
+list would pass where it is written and abort later inside `bind_changes()`, which does.
+`is_two_mode` SHALL be resolved once per layer during mapping and carried on the map,
+rather than re-derived downstream from node-set names.
 Side purity SHALL be validated (error naming the layer and offending nodes). The focal
 layer's side pair defines the model's node sets. A layer without the declaration SHALL be
 one-mode over ALL nodes — ties are never inspected to infer modes and `nodes$mode` alone
@@ -227,11 +228,16 @@ ignored (with a validation note) on two-mode layers.
 - **THEN** `survey` is one-mode over the employee+supervisor nodes while `report` is
   two-mode employees→supervisor, each layer mapping to its own local index spaces.
 
-#### Scenario: Both declaration encodings agree
-- **WHEN** the same per-layer sets are written as a repeated-name character vector and as
-  a named list
-- **THEN** the two objects produce identical mode maps, and the character form is
-  accepted by `manynet::validate_info()`.
+#### Scenario: The declaration survives the manynet workflow
+- **WHEN** per-layer sets are declared as a repeated-name character vector on an object
+  assembled with `make_stocnet()` / `add_info()` and then piped through `bind_changes()`
+- **THEN** every step validates, and `split()` on the declaration recovers the per-layer
+  sets goldfish maps.
+
+#### Scenario: A list declaration is rejected early
+- **WHEN** `info$sender` is written as a list of per-layer sets
+- **THEN** goldfish aborts naming the field and showing the repeated-name vector form,
+  rather than letting the object pass here and abort later inside `bind_changes()`.
 
 #### Scenario: Identical mode sets restrict a one-mode layer
 - **WHEN** a friendship layer declares `sender = receiver = c("employees", "supervisors")`

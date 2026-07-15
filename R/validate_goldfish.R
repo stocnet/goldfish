@@ -489,6 +489,7 @@ check_mode_sets <- function(info, nodes, ties, layers, call) {
       call = call
     )
   }
+  check_mode_set_encoding(info, call = call)
   sender_sets <- normalize_mode_sets(info$sender, layers)
   receiver_sets <- normalize_mode_sets(info$receiver, layers)
 
@@ -527,6 +528,35 @@ check_mode_sets <- function(info, nodes, ties, layers, call) {
     )
   }
   invisible(TRUE)
+}
+
+# A list of per-layer sets reads naturally but manynet type-checks these entries
+# as character, and add_info() does not validate -- so a list is accepted where
+# it is written and only aborts later, inside whichever verb re-validates
+# (bind_changes()), blaming manynet internals. Reject it here, where the fix is
+# obvious.
+check_mode_set_encoding <- function(info, call) {
+  listed <- c("info$sender", "info$receiver")[
+    c(is.list(info$sender), is.list(info$receiver))
+  ]
+  if (length(listed) == 0) {
+    return(invisible(TRUE))
+  }
+  example <- paste(
+    'c(survey = "employees", survey = "supervisor",',
+    'report = "employees")'
+  )
+  cli::cli_abort(
+    c(
+      "{.field {listed}} must be a character vector, not a list.",
+      "i" = "Name each mode with its layer, repeating the layer name to give \\
+             it several modes:",
+      " " = "{.code {example}}",
+      "i" = "A list is rejected by {.fn manynet::make_stocnet} and \\
+             {.fn manynet::bind_changes}, so it would fail later."
+    ),
+    call = call
+  )
 }
 
 check_layer_mode_sets <- function(

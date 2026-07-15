@@ -158,3 +158,14 @@
       ! sender/receiver must name layers present in ties$layer.
       x Unknown layer: "gossip".
 
+# a list of per-layer mode sets aborts with the vector form
+
+    Code
+      validate_goldfish_data(x)
+    Condition
+      Error:
+      ! info$sender and info$receiver must be a character vector, not a list.
+      i Name each mode with its layer, repeating the layer name to give it several modes:
+        `c(survey = "employees", survey = "supervisor", report = "employees")`
+      i A list is rejected by `manynet::make_stocnet()` and `manynet::bind_changes()`, so it would fail later.
+

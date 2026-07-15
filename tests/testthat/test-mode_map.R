@@ -136,9 +136,14 @@ make_mixed_layers_stocnet <- function(sender, receiver) {
 }
 
 test_that("one object mixes a one-mode and a two-mode layer", {
+  # Repeated names give `advice` two modes and `report` one per side.
   x <- make_mixed_layers_stocnet(
-    sender = list(advice = c("employee", "supervisor"), report = "employee"),
-    receiver = list(advice = c("employee", "supervisor"), report = "supervisor")
+    sender = c(advice = "employee", advice = "supervisor", report = "employee"),
+    receiver = c(
+      advice = "employee",
+      advice = "supervisor",
+      report = "supervisor"
+    )
   )
   map <- build_mode_map(x$info, x$nodes, c("advice", "report"))
 
@@ -154,31 +159,18 @@ test_that("one object mixes a one-mode and a two-mode layer", {
   expect_equal(c(report$n1, report$n2), c(2L, 1L))
 })
 
-test_that("both declaration encodings produce identical mode maps", {
-  as_list <- make_mixed_layers_stocnet(
+test_that("a list declaration is rejected with the vector form", {
+  x <- make_mixed_layers_stocnet(
     sender = list(advice = c("employee", "supervisor"), report = "employee"),
     receiver = list(advice = c("employee", "supervisor"), report = "supervisor")
   )
-  # The repeated-name character vector is the shape manynet's validate_info()
-  # admits; the list is the readable equivalent.
-  as_vector <- make_mixed_layers_stocnet(
-    sender = c(
-      advice = "employee",
-      advice = "supervisor",
-      report = "employee"
-    ),
-    receiver = c(
-      advice = "employee",
-      advice = "supervisor",
-      report = "supervisor"
-    )
+  # manynet type-checks these entries as character and add_info() does not
+  # validate, so a list would pass where it is written and abort later inside
+  # bind_changes(). Fail here instead, where the fix is obvious.
+  expect_error(
+    validate_goldfish_data(x),
+    "must be a character vector, not a list"
   )
-
-  expect_equal(
-    build_mode_map(as_vector$info, as_vector$nodes, c("advice", "report")),
-    build_mode_map(as_list$info, as_list$nodes, c("advice", "report"))
-  )
-  expect_no_error(validate_goldfish_data(as_vector))
 })
 
 test_that("an unnamed declaration applies to every layer", {
@@ -195,8 +187,8 @@ test_that("an unnamed declaration applies to every layer", {
 
 test_that("a layer with no declaration stays one-mode over all nodes", {
   x <- make_mixed_layers_stocnet(
-    sender = list(report = "employee"),
-    receiver = list(report = "supervisor")
+    sender = c(report = "employee"),
+    receiver = c(report = "supervisor")
   )
   map <- build_mode_map(x$info, x$nodes, c("advice", "report"))
 
@@ -209,7 +201,7 @@ test_that("a layer with no declaration stays one-mode over all nodes", {
   expect_true(map$layers[["report"]]$is_two_mode)
 })
 
-test_that("normalize_mode_sets recovers the same sets from either encoding", {
+test_that("normalize_mode_sets recovers the per-layer sets", {
   layers <- c("advice", "report")
   expect_equal(
     normalize_mode_sets(
@@ -217,10 +209,6 @@ test_that("normalize_mode_sets recovers the same sets from either encoding", {
       layers
     ),
     list(advice = c("employee", "supervisor"), report = "employee")
-  )
-  expect_equal(
-    normalize_mode_sets(list(advice = c("employee", "supervisor")), layers),
-    list(advice = c("employee", "supervisor"))
   )
   expect_equal(
     normalize_mode_sets(c("employee", "supervisor"), layers),
@@ -232,4 +220,49 @@ test_that("normalize_mode_sets recovers the same sets from either encoding", {
   )
   expect_null(normalize_mode_sets(NULL, layers))
   expect_null(normalize_mode_sets(character(0), layers))
+})
+
+test_that("the vector declaration survives the manynet assembly workflow", {
+  # The reason the vector form is the only one accepted: validate_stocnet() runs
+  # in make_stocnet() and bind_changes() but NOT in add_info(), so an encoding
+  # manynet rejects would pass where it is written and abort later. Pin the
+  # whole path rather than validate_info() alone.
+  skip_if_not_installed("manynet")
+  nodes <- data.frame(
+    name = c("E1", "E2", "S1"),
+    mode = c("employee", "employee", "supervisor"),
+    gdp = c(1, 2, 3)
+  )
+  ties <- data.frame(
+    from = c(1L, 1L),
+    to = c(2L, 3L),
+    layer = c("advice", "report")
+  )
+  changes <- data.frame(time = 1, node = 1L, var = "gdp")
+  changes$value <- list(list(2))
+
+  x <- manynet::make_stocnet(nodes = nodes, ties = ties)
+  x <- manynet::add_info(
+    x,
+    sender = c(advice = "employee", advice = "supervisor", report = "employee"),
+    receiver = c(
+      advice = "employee",
+      advice = "supervisor",
+      report = "supervisor"
+    )
+  )
+  expect_no_error(
+    manynet::bind_changes(x, changes),
+    message = "bind_changes() re-validates; a list would abort here"
+  )
+  expect_equal(
+    x$info$sender,
+    c(advice = "employee", advice = "supervisor", report = "employee"),
+    label = "add_info() carries the repeated names through untouched"
+  )
+  expect_equal(
+    normalize_mode_sets(x$info$sender, c("advice", "report")),
+    list(advice = c("employee", "supervisor"), report = "employee"),
+    label = "the sets goldfish maps survive the round trip"
+  )
 })

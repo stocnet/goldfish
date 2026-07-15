@@ -142,12 +142,14 @@ test_that("per-layer mode sets validate each layer independently", {
   x$info$update <- c(advice = "increment", report = "increment")
   x$info$directed <- c(advice = TRUE, report = TRUE)
   x$info$observation <- c(advice = "event", report = "event")
-  x$info$sender <- list(
-    advice = c("employee", "supervisor"),
+  x$info$sender <- c(
+    advice = "employee",
+    advice = "supervisor",
     report = "employee"
   )
-  x$info$receiver <- list(
-    advice = c("employee", "supervisor"),
+  x$info$receiver <- c(
+    advice = "employee",
+    advice = "supervisor",
     report = "supervisor"
   )
 
@@ -160,15 +162,26 @@ test_that("per-layer mode sets validate each layer independently", {
 test_that("a partial overlap on one layer aborts naming that layer", {
   local_cli_context()
   x <- make_stocnet_fixture_multimode()
-  x$info$sender <- list(advice = "employee")
-  x$info$receiver <- list(advice = c("employee", "supervisor"))
+  x$info$sender <- c(advice = "employee")
+  x$info$receiver <- c(advice = "employee", advice = "supervisor")
   expect_snapshot(validate_goldfish_data(x), error = TRUE)
 })
 
 test_that("sender/receiver naming an absent layer aborts", {
   local_cli_context()
   x <- make_stocnet_fixture_multimode()
-  x$info$sender <- list(advice = "employee", gossip = "employee")
-  x$info$receiver <- list(advice = "supervisor", gossip = "supervisor")
+  x$info$sender <- c(advice = "employee", gossip = "employee")
+  x$info$receiver <- c(advice = "supervisor", gossip = "supervisor")
+  expect_snapshot(validate_goldfish_data(x), error = TRUE)
+})
+
+test_that("a list of per-layer mode sets aborts with the vector form", {
+  local_cli_context()
+  x <- make_stocnet_fixture_multimode()
+  # manynet type-checks these entries as character, and add_info() does not
+  # validate -- so a list passes where it is written and only aborts later,
+  # inside bind_changes(). Reject it here, where the fix is obvious.
+  x$info$sender <- list(advice = c("employee", "supervisor"))
+  x$info$receiver <- list(advice = c("employee", "supervisor"))
   expect_snapshot(validate_goldfish_data(x), error = TRUE)
 })

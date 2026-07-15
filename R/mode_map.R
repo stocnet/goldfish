@@ -13,22 +13,18 @@
 # Normalize a sender/receiver declaration to per-layer sets of nodes$mode
 # values.
 #
-# Two encodings mean the same thing. manynet's validate_info() type-checks these
-# entries as character pooled against the mode names, so a list aborts upstream;
-# the repeated-name character vector is the shape that survives make_stocnet()
-# today, while the list is the readable form for hand-built objects (goldfish
-# reads components structurally rather than trusting manynet):
+# The declaration is a character vector whose names repeat once per (layer,
+# mode), which is the only per-layer set encoding manynet admits: it type-checks
+# these entries as character pooled against the mode names, so a list of sets is
+# rejected wherever validate_stocnet() runs.
 #
 #   c(survey = "employees", survey = "supervisor", report = "employees")
-#   list(survey = c("employees", "supervisor"), report = "employees")
+#     -> survey: one-mode over employees+supervisor, report: employees sending
 #
 # An unnamed vector predates per-layer declarations and applies to every layer.
 normalize_mode_sets <- function(decl, layers) {
   if (is.null(decl) || length(decl) == 0) {
     return(NULL)
-  }
-  if (is.list(decl)) {
-    return(lapply(decl, as.character))
   }
   # Read the names first: as.character() drops them.
   nms <- names(decl)
