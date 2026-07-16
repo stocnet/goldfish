@@ -388,15 +388,16 @@ prepare_recipe_context <- function(
   nodes <- spec$nodes
   nodes2 <- spec$nodes2
 
-  # State creation owns the derived-input data: realize
-  # each derived object (e.g. windowed networks + dissolve streams) from
-  # plan$derivations, then fetch the event streams from spec$fetch_plan — both
-  # into prep_envir, before any cache/state/schedule reads them.
-  realize_derivations(plan$derivations, prep_envir)
-  events <- fetch_events(spec$fetch_plan, envir = prep_envir)
+  # State creation owns the derived-input data: realize each derived object
+  # (e.g. windowed networks + dissolve streams) from plan$derivations, then
+  # fetch the event streams from spec$fetch_plan — both through the data source,
+  # before any cache/state/schedule reads them.
+  src <- new_data_source(data = spec$data, envir = prep_envir)
+  src <- ds_realize_derivations(src, plan$derivations)
+  events <- fetch_events(spec$fetch_plan, envir = prep_envir, src = src)
 
-  n1 <- nrow(get(nodes, envir = prep_envir))
-  n2 <- nrow(get(nodes2, envir = prep_envir))
+  n1 <- ds_n_nodes(src, nodes)
+  n2 <- ds_n_nodes(src, nodes2)
 
   hasEndTime <- FALSE
   hasStartTime <- FALSE
@@ -443,7 +444,7 @@ prepare_recipe_context <- function(
     if (events_min < startTime) isValidEvent <- FALSE
   }
 
-  imputed <- impute_missing_data(objects_effects_link, envir = prep_envir)
+  src <- ds_impute_missing(src, objects_effects_link)
 
   if (progress) {
     cat("Initializing cache objects and statistical matrices.\n")
@@ -458,7 +459,8 @@ prepare_recipe_context <- function(
     n2 = n2,
     model = spec$model,
     sub_model = sub_model,
-    envir = prep_envir
+    envir = prep_envir,
+    src = src
   )
   # Function-effects (operands + mains) have a closure each; interaction columns
   # are appended after them as derived product columns with no closure.
@@ -472,60 +474,19 @@ prepare_recipe_context <- function(
   n_inter <- length(inter_ids)
   nEffects <- n_fun + n_inter
 
-  nodes_obj <- get(nodes, envir = prep_envir)
-  nodes2_obj <- get(nodes2, envir = prep_envir)
-  active_sender_init <- if (!is.null(nodes_obj$present)) {
-    nodes_obj$present
-  } else {
-    rep(TRUE, n1)
-  }
-  active_dyad_init <- if (!is.null(nodes2_obj$present)) {
-    nodes2_obj$present
-  } else {
-    rep(TRUE, n2)
-  }
-  comp_events1 <- attr(nodes_obj, "events")[
-    attr(nodes_obj, "dynamic_attribute") == "present"
-  ]
-  comp_events2 <- attr(nodes2_obj, "events")[
-    attr(nodes2_obj, "dynamic_attribute") == "present"
-  ]
-  active_sender_changes <- if (
-    length(comp_events1) > 0 && !is.na(comp_events1[1])
-  ) {
-    cc <- get(comp_events1[1], envir = prep_envir)
-    node_idx1 <- if (is.character(cc$node)) {
-      match(cc$node, nodes_obj$label)
-    } else {
-      as.integer(cc$node)
-    }
-    lapply(seq_len(nrow(cc)), function(i) {
-      list(time = cc$time[i], node = node_idx1[i], replace = cc$replace[i])
-    })
-  } else {
-    list()
-  }
-  active_dyad_changes <- if (
-    length(comp_events2) > 0 && !is.na(comp_events2[1])
-  ) {
-    cc <- get(comp_events2[1], envir = prep_envir)
-    node_idx2 <- if (is.character(cc$node)) {
-      match(cc$node, nodes2_obj$label)
-    } else {
-      as.integer(cc$node)
-    }
-    lapply(seq_len(nrow(cc)), function(i) {
-      list(time = cc$time[i], node = node_idx2[i], replace = cc$replace[i])
-    })
-  } else {
-    list()
-  }
+  composition1 <- ds_composition(src, nodes, n1)
+  composition2 <- ds_composition(src, nodes2, n2)
+  active_sender_init <- composition1$init
+  active_dyad_init <- composition2$init
+  active_sender_changes <- composition1$changes
+  active_dyad_changes <- composition2$changes
 
   state <- build_state_container(
     rownames(objects_effects_link),
     nodes,
     nodes2,
-    envir = prep_envir
+    envir = prep_envir,
+    src = src
   )
   schedule <- build_event_schedule(events, events_objects_link, plan$objects)
 
@@ -558,18 +519,13 @@ prepare_recipe_context <- function(
     events_max = events_max,
     startTime = startTime,
     endTime = endTime,
-    imputed = imputed,
     stat_cache = stat_cache,
     n_fun = n_fun,
     inter_ids = inter_ids,
     n_inter = n_inter,
     nEffects = nEffects,
-    nodes_obj = nodes_obj,
-    nodes2_obj = nodes2_obj,
     active_sender_init = active_sender_init,
     active_dyad_init = active_dyad_init,
-    comp_events1 = comp_events1,
-    comp_events2 = comp_events2,
     active_sender_changes = active_sender_changes,
     active_dyad_changes = active_dyad_changes,
     state = state,
@@ -2645,13 +2601,15 @@ initialize_cache_stat <- function(
   n2,
   model,
   sub_model,
-  envir = environment()
+  envir = environment(),
+  src = NULL
 ) {
   obj_table <- get_data_objects(
     list(rownames(objects_effects_link)),
     remove_first = FALSE
   )
-  .objects <- get_element_from_data_object_table(obj_table, envir = envir)
+  src <- src %||% new_data_source(envir = envir)
+  .objects <- ds_objects_from_table(src, obj_table)
   # list of 4, call matrix, friendship matrix, actor$gradetype vector,
   #  actor$floor vector
   obj_cat <- assign_category_object(.objects)

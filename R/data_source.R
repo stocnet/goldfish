@@ -51,11 +51,29 @@ new_data_source <- function(data = NULL, envir = NULL, focal = NULL) {
       layers = layers,
       focal = focal,
       mode_map = mode_map,
-      streams = split_stocnet_streams(data, mode_map, focal = focal)
+      streams = split_stocnet_streams(data, mode_map, focal = focal),
+      # Derived (windowed) layers and the imputed values that shadow them are
+      # registered on the source itself: the legacy path realizes and imputes by
+      # assigning into its environment, and the stocnet path has none to mutate.
+      derived = list(),
+      derived_streams = list(),
+      net_override = list(),
+      att_override = list()
     ),
     class = c("data_source_stocnet", "data_source")
   )
 }
+
+# Do this source's event streams still carry node labels? Legacy streams are
+# user-supplied and may name nodes by label; the conversion module already
+# remapped stocnet references to local indices.
+ds_needs_sanitize <- function(src) UseMethod("ds_needs_sanitize")
+
+#' @exportS3Method
+ds_needs_sanitize.data_source_envir <- function(src) TRUE
+
+#' @exportS3Method
+ds_needs_sanitize.data_source_stocnet <- function(src) FALSE
 
 # Mode-ness -------------------------------------------------------------------
 #
@@ -77,7 +95,45 @@ ds_layer_is_two_mode.data_source_envir <- function(src, name) {
 
 #' @exportS3Method
 ds_layer_is_two_mode.data_source_stocnet <- function(src, name) {
-  isTRUE(src$mode_map$layers[[name]]$is_two_mode)
+  isTRUE(ds_layer_map(src, name)$is_two_mode)
+}
+
+# A derived (windowed) layer inherits its structural metadata -- dimensions,
+# sides, direction -- from the layer it was derived from, so both resolve
+# through the same map entry.
+ds_layer_map <- function(src, name) {
+  if (!is.null(src$derived[[name]])) {
+    name <- src$derived[[name]]$source
+  }
+  src$mode_map$layers[[name]]
+}
+
+#' Is the network an effect reads two-mode?
+#'
+#' The parser resolves this per effect to auto-set the `is_two_mode` formal.
+#' `value` is only forced on the legacy path, which has to evaluate the
+#' argument to read the object's node sets; the stocnet path answers from the
+#' mode map, which resolved it once per layer.
+#'
+#' @param src a data source.
+#' @param name the network argument as written in the formula, or `NULL`.
+#' @param value the evaluated network argument (lazy).
+#' @noRd
+ds_arg_is_two_mode <- function(src, name, value) UseMethod("ds_arg_is_two_mode")
+
+#' @exportS3Method
+ds_arg_is_two_mode.data_source_envir <- function(src, name, value) {
+  length(attr(value, "nodes")) > 1
+}
+
+#' @exportS3Method
+ds_arg_is_two_mode.data_source_stocnet <- function(src, name, value) {
+  # A `list(a, b)` argument holds several layers and has no single mode-ness;
+  # the legacy object carries no node sets there either, so both read one-mode.
+  if (is.null(name) || grepl("^list\\(", name)) {
+    return(FALSE)
+  }
+  isTRUE(ds_layer_is_two_mode(src, name))
 }
 
 #' Is the model two-mode? (the focal layer's side pair)
@@ -170,16 +226,25 @@ ds_network.data_source_stocnet <- function(
   start_time = -Inf,
   time = Inf
 ) {
-  lm <- src$mode_map$layers[[name]]
-  mat <- materialize_network_state(
-    src$streams$network[[name]],
-    n1 = lm$n1,
-    n2 = lm$n2,
-    directed = ds_is_directed(src, name),
-    start_time = start_time,
-    time = time
-  )
+  if (!is.null(src$net_override[[name]])) {
+    return(src$net_override[[name]])
+  }
+  lm <- ds_layer_map(src, name)
   labels <- src$nodes$label
+  # A derived layer starts empty: its rows are the dissolve pseudo-events the
+  # window emits, so there is no state to materialize from the source stream.
+  mat <- if (!is.null(src$derived[[name]])) {
+    matrix(0, nrow = lm$n1, ncol = lm$n2)
+  } else {
+    materialize_network_state(
+      src$streams$network[[name]],
+      n1 = lm$n1,
+      n2 = lm$n2,
+      directed = ds_is_directed(src, name),
+      start_time = start_time,
+      time = time
+    )
+  }
   dimnames(mat) <- list(labels[lm$side1], labels[lm$side2])
   mat
 }
@@ -199,7 +264,28 @@ ds_is_directed.data_source_stocnet <- function(src, name) {
   if (ds_layer_is_two_mode(src, name)) {
     return(TRUE)
   }
+  if (!is.null(src$derived[[name]])) {
+    name <- src$derived[[name]]$source
+  }
   isTRUE(unname(src$info$directed[name]))
+}
+
+# The node-set identifiers a layer's two sides carry. Consumed by the fetch
+# plan, which records per-stream node sets to resolve labels against.
+ds_layer_sides <- function(src, name) UseMethod("ds_layer_sides")
+
+#' @exportS3Method
+ds_layer_sides.data_source_envir <- function(src, name) {
+  attr(get(name, envir = src$envir), "nodes")
+}
+
+#' @exportS3Method
+ds_layer_sides.data_source_stocnet <- function(src, name) {
+  if (ds_layer_is_two_mode(src, name)) {
+    c("nodes_side1", "nodes_side2")
+  } else {
+    "nodes"
+  }
 }
 
 # Nodes and attributes --------------------------------------------------------
@@ -240,12 +326,142 @@ ds_attribute.data_source_envir <- function(src, nodeset, attribute) {
 
 #' @exportS3Method
 ds_attribute.data_source_stocnet <- function(src, nodeset, attribute) {
+  key <- att_override_key(nodeset, attribute)
+  if (!is.null(src$att_override[[key]])) {
+    return(src$att_override[[key]])
+  }
   if (ds_is_global(src, nodeset)) {
     g <- as.data.frame(src$data$global)
     vals <- unwrap_values(g$value)[g$var == nodeset]
     return(vals[length(vals)])
   }
   src$nodes[[attribute]][ds_side_ids(src, nodeset)]
+}
+
+att_override_key <- function(nodeset, attribute) {
+  paste(nodeset, attribute, sep = "$")
+}
+
+#' Resolve a data-object table to the objects themselves
+#'
+#' The values behind an object table's rows, in row order: a matrix per network
+#' entry, a vector per attribute entry. Effect-cache initialization classifies
+#' them by class, so both paths return bare matrices and vectors.
+#'
+#' @param src a data source.
+#' @param obj_table a `get_data_objects()` table.
+#' @noRd
+ds_objects_from_table <- function(src, obj_table) {
+  UseMethod("ds_objects_from_table")
+}
+
+#' @exportS3Method
+ds_objects_from_table.data_source_envir <- function(src, obj_table) {
+  get_element_from_data_object_table(obj_table, envir = src$envir)
+}
+
+#' @exportS3Method
+ds_objects_from_table.data_source_stocnet <- function(src, obj_table) {
+  lapply(seq_len(nrow(obj_table)), function(i) {
+    entry <- obj_table[i, ]
+    if (!is.na(entry$object)) {
+      ds_network(src, entry$object)
+    } else {
+      ds_attribute(src, entry$nodeset, entry$attribute)
+    }
+  })
+}
+
+# Event-stream keys carrying a nodal or global attribute's changes over time.
+ds_attribute_streams <- function(src, nodeset, attribute) {
+  UseMethod("ds_attribute_streams")
+}
+
+#' @exportS3Method
+ds_attribute_streams.data_source_envir <- function(src, nodeset, attribute) {
+  obj <- get(nodeset, envir = src$envir)
+  if (inherits(obj, "global.goldfish")) {
+    return(attr(obj, "events") %||% character(0))
+  }
+  streams <- attr(obj, "events")
+  streams[which(attr(obj, "dynamic_attributes") == attribute)]
+}
+
+#' @exportS3Method
+ds_attribute_streams.data_source_stocnet <- function(src, nodeset, attribute) {
+  if (ds_is_global(src, nodeset)) {
+    return(
+      if (nodeset %in% names(src$streams$global)) nodeset else character(0)
+    )
+  }
+  if (attribute %in% names(src$streams$attribute)) attribute else character(0)
+}
+
+# Composition -----------------------------------------------------------------
+
+#' A node set's composition: who is present initially, and when that changes
+#'
+#' @param src a data source.
+#' @param nodeset a node-set name.
+#' @param n the node set's size, used when no composition is recorded.
+#' @return a list with `init` (logical, length `n`) and `changes` (a list of
+#'   `time`/`node`/`replace` entries with local node indices).
+#' @noRd
+ds_composition <- function(src, nodeset, n) UseMethod("ds_composition")
+
+#' @exportS3Method
+ds_composition.data_source_envir <- function(src, nodeset, n) {
+  nodes_obj <- get(nodeset, envir = src$envir)
+  init <- nodes_obj$present %||% rep(TRUE, n)
+  streams <- attr(nodes_obj, "events")[
+    attr(nodes_obj, "dynamic_attribute") == "present"
+  ]
+  if (length(streams) == 0 || is.na(streams[1])) {
+    return(list(init = init, changes = list()))
+  }
+  cc <- get(streams[1], envir = src$envir)
+  node_idx <- if (is.character(cc$node)) {
+    match(cc$node, nodes_obj$label)
+  } else {
+    as.integer(cc$node)
+  }
+  list(
+    init = init,
+    changes = lapply(seq_len(nrow(cc)), function(i) {
+      list(time = cc$time[i], node = node_idx[i], replace = cc$replace[i])
+    })
+  )
+}
+
+#' @exportS3Method
+ds_composition.data_source_stocnet <- function(src, nodeset, n) {
+  ids <- ds_side_ids(src, nodeset)
+  init <- if (is.null(src$nodes$active)) {
+    rep(TRUE, n)
+  } else {
+    as.logical(src$nodes$active[ids])
+  }
+  # `active` changes were split per side at conversion, so the stream already
+  # carries this side's local node indices.
+  side <- if (
+    identical(nodeset, ds_side_names(src)[2]) && ds_model_is_two_mode(src)
+  ) {
+    "mode2"
+  } else {
+    "mode1"
+  }
+  cc <- src$streams$composition[[side]]
+  if (is.null(cc) || nrow(cc) == 0) {
+    return(list(init = init, changes = list()))
+  }
+  cc <- order_events(cc[!is.na(cc$time), , drop = FALSE])
+  values <- unlist(cc$value, use.names = FALSE)
+  list(
+    init = init,
+    changes = lapply(seq_len(nrow(cc)), function(i) {
+      list(time = cc$time[i], node = cc$node[i], replace = values[i])
+    })
+  )
 }
 
 # Event streams ---------------------------------------------------------------
@@ -263,6 +479,9 @@ ds_object_streams.data_source_envir <- function(src, name) {
 
 #' @exportS3Method
 ds_object_streams.data_source_stocnet <- function(src, name) {
+  if (!is.null(src$derived[[name]])) {
+    return(src$derived[[name]]$streams)
+  }
   if (name %in% src$layers) {
     stream <- src$streams$network[[name]]
     return(if (any(!is.na(stream$time))) name else character(0))
@@ -291,6 +510,18 @@ ds_fetch_stream.data_source_envir <- function(src, key) {
 
 #' @exportS3Method
 ds_fetch_stream.data_source_stocnet <- function(src, key) {
+  if (!is.null(src$derived_streams[[key]])) {
+    return(src$derived_streams[[key]])
+  }
+  if (key %in% names(src$streams$global)) {
+    stream <- src$streams$global[[key]]
+    timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
+    return(data.frame(
+      time = timed$time,
+      replace = unlist(timed$value, use.names = FALSE),
+      stringsAsFactors = FALSE
+    ))
+  }
   if (key %in% src$layers) {
     stream <- src$streams$network[[key]]
     timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
@@ -320,4 +551,121 @@ tie_value_column <- function(src, layer) {
   } else {
     "increment"
   }
+}
+
+# Derived inputs --------------------------------------------------------------
+
+#' Realize the plan's derived inputs onto the source
+#'
+#' Both paths materialize each derived (windowed) object before the recipe loop
+#' reads it, but they own different state: the legacy path assigns the derived
+#' network and its dissolve streams into its environment, so its source is
+#' unchanged; the stocnet path has no environment to mutate and registers them
+#' on the returned source instead.
+#'
+#' @param src a data source.
+#' @param derivations the `plan$derivations` registry.
+#' @return the source, with derived inputs resolvable through the accessors.
+#' @noRd
+ds_realize_derivations <- function(src, derivations) {
+  UseMethod("ds_realize_derivations")
+}
+
+#' @exportS3Method
+ds_realize_derivations.data_source_envir <- function(src, derivations) {
+  realize_derivations(derivations, src$envir)
+  src
+}
+
+#' @exportS3Method
+ds_realize_derivations.data_source_stocnet <- function(src, derivations) {
+  for (d in derivations) {
+    if (!identical(d$kind, "window")) {
+      next
+    }
+    # The dissolve streams keep the legacy naming (`<stream>_<window>`) so the
+    # fetch plan, built from metadata alone, addresses them the same way on
+    # both paths.
+    stream_names <- character(0)
+    for (key in ds_object_streams(src, d$source)) {
+      windowed_name <- paste(key, d$params$window, sep = "_")
+      src$derived_streams[[windowed_name]] <- create_windowed_events(
+        ds_fetch_stream(src, key),
+        d$params$window
+      )
+      stream_names <- c(stream_names, windowed_name)
+    }
+    src$derived[[d$derived_name]] <- list(
+      source = d$source,
+      streams = stream_names
+    )
+  }
+  src
+}
+
+# Missing data ----------------------------------------------------------------
+
+#' Impute missing values in the objects the effects read
+#'
+#' Zero for networks, the mean for numeric attributes, the mode for categorical
+#' ones. As with derivations, the legacy path writes the imputed objects back
+#' into its environment while the stocnet path shadows them on the source.
+#'
+#' @param src a data source.
+#' @param objects_effects_link matrix from `get_objects_effects_link()`.
+#' @return the source, with imputed values resolvable through the accessors.
+#' @noRd
+ds_impute_missing <- function(src, objects_effects_link) {
+  UseMethod("ds_impute_missing")
+}
+
+#' @exportS3Method
+ds_impute_missing.data_source_envir <- function(src, objects_effects_link) {
+  impute_missing_data(objects_effects_link, envir = src$envir)
+  src
+}
+
+#' @exportS3Method
+ds_impute_missing.data_source_stocnet <- function(src, objects_effects_link) {
+  objects_table <- get_data_objects(
+    list(rownames(objects_effects_link)),
+    remove_first = FALSE
+  )
+  for (i in seq_len(nrow(objects_table))) {
+    entry <- objects_table[i, ]
+    if (!is.na(entry$object)) {
+      mat <- ds_network(src, entry$object)
+      if (anyNA(mat)) {
+        mat[is.na(mat)] <- 0
+        src$net_override[[entry$object]] <- mat
+      }
+      next
+    }
+    value <- ds_attribute(src, entry$nodeset, entry$attribute)
+    if (!anyNA(value)) {
+      next
+    }
+    src$att_override[[att_override_key(entry$nodeset, entry$attribute)]] <-
+      impute_attribute(value)
+  }
+  src
+}
+
+# Shared imputation rule for a nodal/global attribute vector, matching the
+# legacy per-object treatment (and its warning) exactly.
+impute_attribute <- function(value) {
+  if (is.numeric(value)) {
+    cli::cli_warn(c(
+      "i" = "Missing data has been detected. Mean is used to impute for
+             numerical values"
+    ))
+    value[is.na(value)] <- mean(value, na.rm = TRUE)
+  } else {
+    cli::cli_warn(c(
+      "i" = "Missing data has been detected. Mode is used to impute for
+             categorical values"
+    ))
+    value[is.na(value)] <- names(which.max(table(value)))
+  }
+  value
 }

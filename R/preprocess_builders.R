@@ -36,9 +36,10 @@ build_object_keys <- function(
   nodes2 = nodes,
   envir = new.env(),
   derivations = NULL,
-  data = NULL
+  data = NULL,
+  src = NULL
 ) {
-  src <- new_data_source(data = data, envir = envir)
+  src <- src %||% new_data_source(data = data, envir = envir)
   objects_table <- get_data_objects(list(object_names), remove_first = FALSE)
   components <- character(nrow(objects_table))
   keys <- character(nrow(objects_table))
@@ -97,17 +98,12 @@ build_state_container <- function(
   nodes,
   nodes2 = nodes,
   envir = new.env(),
-  data = NULL
+  data = NULL,
+  src = NULL
 ) {
-  src <- new_data_source(data = data, envir = envir)
+  src <- src %||% new_data_source(data = data, envir = envir)
   objects_table <- get_data_objects(list(object_names), remove_first = FALSE)
-  object_keys <- build_object_keys(
-    object_names,
-    nodes,
-    nodes2,
-    envir = envir,
-    data = data
-  )
+  object_keys <- build_object_keys(object_names, nodes, nodes2, src = src)
   n1 <- ds_n_nodes(src, nodes)
   n2 <- ds_n_nodes(src, nodes2)
   is_one_mode <- !ds_model_is_two_mode(src, nodes, nodes2)
@@ -467,10 +463,11 @@ build_update_plan <- function(
   stat_kind = c("sender", "dyad"),
   envir = new.env(),
   derivations = NULL,
-  data = NULL
+  data = NULL,
+  src = NULL
 ) {
   stat_kind <- match.arg(stat_kind)
-  src <- new_data_source(data = data, envir = envir)
+  src <- src %||% new_data_source(data = data, envir = envir)
   object_keys <- attr(state, "object_keys")
   object_names <- rownames(objects_effects_link)
   effect_names <- colnames(objects_effects_link)

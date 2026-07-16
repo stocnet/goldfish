@@ -335,7 +335,8 @@ build_spec_map <- function(
   events_effects_link,
   fetch_plan,
   support_constraint = NULL,
-  envir = new.env()
+  envir = new.env(),
+  data = NULL
 ) {
   stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
   nodes <- model_spec$nodes
@@ -348,7 +349,8 @@ build_spec_map <- function(
     nodes,
     nodes2,
     envir = envir,
-    derivations = parsed_formula$window_derivations
+    derivations = parsed_formula$window_derivations,
+    data = data
   )
   state_keys <- structure(list(), object_keys = object_keys)
   plan <- build_update_plan(
@@ -359,7 +361,8 @@ build_spec_map <- function(
     state_keys,
     stat_kind = stat_kind,
     envir = envir,
-    derivations = parsed_formula$window_derivations
+    derivations = parsed_formula$window_derivations,
+    data = data
   )
   # Interaction columns: append one estimated product column per
   # interaction and set operand roles / estimate flags. No-op when the formula
@@ -373,7 +376,8 @@ build_spec_map <- function(
   plan$derivations <- build_derivations(
     parsed_formula$window_derivations,
     objects_effects_link,
-    envir = envir
+    envir = envir,
+    data = data
   )
   # A supplied support_constraint compiles into a sibling sub-plan (its atoms'
   # closures/links/update-plan) plus a `kind = "support_mask"` derivation; the
@@ -388,7 +392,8 @@ build_spec_map <- function(
       nodes = nodes,
       nodes2 = nodes2,
       window_derivations = parsed_formula$window_derivations,
-      envir = envir
+      envir = envir,
+      data = data
     )
     plan$derivations <- c(
       plan$derivations,
@@ -418,7 +423,10 @@ build_spec_map <- function(
         events_objects_link = events_objects_link,
         events_effects_link = events_effects_link,
         objects_effects_link = objects_effects_link,
-        fetch_plan = fetch_plan
+        fetch_plan = fetch_plan,
+        # The data object rides on the spec_map so state creation resolves the
+        # same names the compile did, against the same components.
+        data = data
       )
     ),
     class = c(class(model_spec), "spec_map.goldfish")
@@ -427,8 +435,8 @@ build_spec_map <- function(
 
 # Build the derived-input registry from the window derivation recipe
 # recorded by parse_time_windows(). Metadata only: reads the source objects'
-# event-stream NAMES (`attr(obj, "events")`) and the effect columns that
-# reference each derived object (already rewired to `derived_name` in
+# event-stream NAMES through the data-resolution seam and the effect columns
+# that reference each derived object (already rewired to `derived_name` in
 # objects_effects_link) — it fetches no event/network tables and assigns
 # nothing. Returns a list with one entry per derived object
 # `{derived_name, kind, source, source_streams, params, gids}`, or `NULL` when
@@ -437,13 +445,15 @@ build_spec_map <- function(
 build_derivations <- function(
   window_derivations,
   objects_effects_link,
-  envir = new.env()
+  envir = new.env(),
+  data = NULL
 ) {
   if (length(window_derivations) == 0) {
     return(NULL)
   }
+  src <- new_data_source(data = data, envir = envir)
   lapply(window_derivations, function(d) {
-    source_streams <- attr(get(d$source_name, envir = envir), "events")
+    source_streams <- ds_object_streams(src, d$source_name)
     gids <- if (d$derived_name %in% rownames(objects_effects_link)) {
       which(!is.na(objects_effects_link[d$derived_name, ]))
     } else {
@@ -480,7 +490,8 @@ compile_support_constraint <- function(
   nodes,
   nodes2,
   window_derivations,
-  envir
+  envir,
+  data = NULL
 ) {
   atom_rhs_names <- get_rhs_names(atoms_to_formula(constraint_plan$atoms))
   # Constraint atoms always use the dyad kernel (`init_*_choice`): a dyadic atom
@@ -495,7 +506,8 @@ compile_support_constraint <- function(
     model,
     atom_sub_model,
     envir = envir,
-    derivations = window_derivations
+    derivations = window_derivations,
+    data = data
   )
   objects_effects_link <- get_objects_effects_link(atom_rhs_names)
   link <- build_events_objects_link(
@@ -504,7 +516,8 @@ compile_support_constraint <- function(
     nodes,
     nodes2,
     envir = envir,
-    derivations = window_derivations
+    derivations = window_derivations,
+    data = data
   )
   events_effects_link <- get_events_effects_link(
     atom_rhs_names,
@@ -515,7 +528,8 @@ compile_support_constraint <- function(
     nodes,
     nodes2,
     envir = envir,
-    derivations = window_derivations
+    derivations = window_derivations,
+    data = data
   )
   state_keys <- structure(list(), object_keys = object_keys)
   # The mask is always a dyad object (aux dyad state), so the sub-plan is
@@ -528,7 +542,8 @@ compile_support_constraint <- function(
     state_keys,
     stat_kind = "dyad",
     envir = envir,
-    derivations = window_derivations
+    derivations = window_derivations,
+    data = data
   )
   augmented <- augment_constraints(
     sub_plan,
@@ -603,9 +618,11 @@ create_effects_functions <- function(
   model,
   sub_model,
   envir = environment(),
-  derivations = NULL
+  derivations = NULL,
+  data = NULL
 ) {
   .stat_method <- paste("init", model, sub_model, sep = "_")
+  src <- new_data_source(data = data, envir = envir)
   # Two-mode guard (below) evaluates the effect's network argument to read its
   # nodesets. On the recipe path a windowed effect's network arg is the *derived*
   # name, which may not be realized yet; resolve it against
@@ -682,11 +699,11 @@ create_effects_functions <- function(
         !(.args_names %in% names_)
       .signature[is_condition] <- parms_to_set[!named_params]
       if ("network" %in% .args_names && "is_two_mode" %in% .args_names) {
-        is_two_mode <- length(attr(
-          eval(.signature[["network"]], envir = probe_envir),
-          "nodes"
-        )) >
-          1
+        is_two_mode <- ds_arg_is_two_mode(
+          src,
+          if (length(x) > 1) x[[2]] else NULL,
+          eval(.signature[["network"]], envir = probe_envir)
+        )
         if (
           !is.null(parms_to_set[["is_two_mode"]]) &&
             eval(parms_to_set[["is_two_mode"]], envir = envir) != is_two_mode
@@ -799,8 +816,11 @@ build_events_objects_link <- function(
   nodes = NULL,
   nodes2 = NULL,
   envir = environment(),
-  derivations = NULL
+  derivations = NULL,
+  data = NULL
 ) {
+  src <- new_data_source(data = data, envir = envir)
+  sanitize <- ds_needs_sanitize(src)
   object_names <- get_data_objects(rhs_names)
   events_objects_link <- data.frame(
     events = dep_name,
@@ -812,75 +832,62 @@ build_events_objects_link <- function(
   )
   fetch_plan <- list(list(
     stream = dep_name,
-    sanitize = TRUE,
+    sanitize = sanitize,
     s_nodes = nodes,
     s_nodes2 = nodes2
   ))
 
   is_attribute <- is.na(object_names$object)
   for (i in which(is_attribute)) {
-    nodeset_obj <- get(object_names[i, ]$nodeset, envir = envir)
     node_set <- object_names[i, ]$nodeset
     attribute_name <- object_names[i, ]$attribute
-
-    if (inherits(nodeset_obj, "global.goldfish")) {
-      event_list_names <- attr(nodeset_obj, "events")
-      if (length(event_list_names) > 0) {
-        events_objects_link <- rbind(
-          events_objects_link,
-          cbind(events = event_list_names, object_names[i, ])
-        )
-        for (en in event_list_names) {
-          fetch_plan <- c(fetch_plan, list(list(stream = en, sanitize = FALSE)))
-        }
-      }
+    event_list_names <- ds_attribute_streams(src, node_set, attribute_name)
+    if (length(event_list_names) == 0) {
       next
     }
-
-    dynamic_attributes <- attr(nodeset_obj, "dynamic_attributes")
-    event_list_names <- attr(nodeset_obj, "events")
-    ev_name <- event_list_names[which(dynamic_attributes == attribute_name)]
-    if (length(ev_name) > 0) {
-      events_objects_link <- rbind(
-        events_objects_link,
-        cbind(events = ev_name, object_names[i, ])
-      )
-      for (en in ev_name) {
-        fetch_plan <- c(
-          fetch_plan,
-          list(list(
-            stream = en,
-            sanitize = TRUE,
-            s_nodes = node_set,
-            s_nodes2 = node_set
-          ))
+    events_objects_link <- rbind(
+      events_objects_link,
+      cbind(events = event_list_names, object_names[i, ])
+    )
+    # A global attribute's events carry no node reference, so they are never
+    # sanitized on either path.
+    is_global <- ds_is_global(src, node_set)
+    for (en in event_list_names) {
+      fetch_plan <- c(
+        fetch_plan,
+        list(
+          if (is_global) {
+            list(stream = en, sanitize = FALSE)
+          } else {
+            list(
+              stream = en,
+              sanitize = sanitize,
+              s_nodes = node_set,
+              s_nodes2 = node_set
+            )
+          }
         )
-      }
+      )
     }
   }
   for (i in which(!is_attribute)) {
     # A derived (windowed) network may not be realized yet on the recipe path
     # resolve its event-stream names and nodesets from
-    # the source object + window instead of get()-ing the absent derived object.
+    # the source object + window instead of reading the absent derived object.
     # The realized derived network names its dissolve streams identically
     # (paste(source stream, window, sep = "_")) and copies the source nodesets,
     # so the incidence + fetch plan are unchanged.
     derivation <- find_derivation(object_names[i, ]$object, derivations)
-    if (!is.null(derivation)) {
-      source_object <- get(derivation$source_name, envir = envir)
-      ev_names <- paste(
-        attr(source_object, "events"),
-        derivation$window,
-        sep = "_"
-      )
-      nodes_object <- attr(source_object, "nodes")
+    source_name <- if (!is.null(derivation)) {
+      derivation$source_name
     } else {
-      ev_names <- attr(get(object_names[i, ]$object, envir = envir), "events")
-      nodes_object <- attr(
-        get(object_names[i, ]$object, envir = envir),
-        "nodes"
-      )
+      object_names[i, ]$object
     }
+    ev_names <- ds_object_streams(src, source_name)
+    if (!is.null(derivation) && length(ev_names) > 0) {
+      ev_names <- paste(ev_names, derivation$window, sep = "_")
+    }
+    nodes_object <- ds_layer_sides(src, source_name)
     if (length(nodes_object) > 1) {
       net_nodes <- nodes_object[1]
       net_nodes2 <- nodes_object[2]
@@ -898,7 +905,7 @@ build_events_objects_link <- function(
           fetch_plan,
           list(list(
             stream = en,
-            sanitize = TRUE,
+            sanitize = sanitize,
             s_nodes = net_nodes,
             s_nodes2 = net_nodes2
           ))
@@ -911,13 +918,15 @@ build_events_objects_link <- function(
 }
 
 # Data half: materializes the events list from a fetch
-# plan by fetching each stream's table and running sanitizeEvents (label -> id)
-# per its recorded nodesets. This is the data work relocated out of parsing; the
-# streams it fetches must already exist in `envir` (including any windowed
-# dissolve streams realized by the derivation realizer).
-fetch_events <- function(fetch_plan, envir = environment()) {
+# plan by fetching each stream's table through the data-resolution seam and
+# running sanitizeEvents (label -> id) per its recorded nodesets. This is the
+# data work relocated out of parsing; every stream the plan names must already
+# be resolvable (including any windowed dissolve streams realized by the
+# derivation realizer).
+fetch_events <- function(fetch_plan, envir = environment(), src = NULL) {
+  src <- src %||% new_data_source(envir = envir)
   events <- lapply(fetch_plan, function(p) {
-    ev <- get(p$stream, envir = envir)
+    ev <- ds_fetch_stream(src, p$stream)
     if (isTRUE(p$sanitize)) {
       ev <- sanitizeEvents(ev, p$s_nodes, p$s_nodes2, envir = envir)
     }
