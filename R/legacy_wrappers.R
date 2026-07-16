@@ -22,15 +22,13 @@ legacy_matrix <- function(net) {
 # stocnet composition column). Static attribute columns pass through as the
 # nodes' initial values.
 legacy_nodes_table <- function(node_obj) {
-  tbl <- as.data.frame(node_obj, stringsAsFactors = FALSE)
-  attrs <- setdiff(
-    names(attributes(tbl)),
-    c("names", "row.names", "class")
-  )
-  for (a in attrs) {
-    attr(tbl, a) <- NULL
-  }
+  # Drop the nodes.goldfish class BEFORE coercing: as.data.frame() on a
+  # nodes.goldfish dispatches to the state materializer, not a plain coercion.
+  tbl <- node_obj
+  attr(tbl, "events") <- NULL
+  attr(tbl, "dynamic_attributes") <- NULL
   class(tbl) <- "data.frame"
+  rownames(tbl) <- NULL
   if ("present" %in% names(tbl) && !"active" %in% names(tbl)) {
     names(tbl)[names(tbl) == "present"] <- "active"
   }
@@ -193,6 +191,39 @@ legacy_global_table <- function(glob_obj, objs) {
   rbind(init, events)
 }
 
+# Whether the gathered fragments form a one-mode DyNAM/REM structure the
+# assembler handles. DyNAMi bundles (raw interaction records, `make_groups_-
+# interaction()` output) and two-mode layers fall back to the legacy environment
+# path, whose engines are unchanged by this change.
+is_stocnet_assemblable <- function(objs) {
+  is_layer <- function(o) {
+    inherits(o, "network.goldfish") || inherits(o, "dependent.goldfish")
+  }
+  has_nodes <- any(vapply(objs, inherits, logical(1), "nodes.goldfish")) ||
+    any(vapply(objs, inherits, logical(1), "network.goldfish"))
+  has_layer <- any(vapply(objs, is_layer, logical(1)))
+  if (!has_nodes || !has_layer) {
+    return(FALSE)
+  }
+  two_mode <- any(vapply(
+    objs,
+    function(o) {
+      isTRUE(attr(o, "is_two_mode")) ||
+        (inherits(o, "dependent.goldfish") && length(attr(o, "nodes")) > 1)
+    },
+    logical(1)
+  ))
+  if (two_mode) {
+    return(FALSE)
+  }
+  node_set_names <- unique(unlist(lapply(
+    objs[vapply(objs, is_layer, logical(1))],
+    attr,
+    "nodes"
+  )))
+  length(node_set_names[nzchar(node_set_names)]) == 1
+}
+
 # Assemble the gathered legacy fragments into one stocnet. `objs` is a named
 # list (object name -> fragment); the names become the stocnet's layer names and
 # the dependent aliases, so effect formulas keep referencing the caller's names.
@@ -256,6 +287,10 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
     ties_list[[ln]] <- legacy_layer_ties(net, ln, labels, ev, upd, dir)
   }
   ties <- do.call(rbind, unname(ties_list))
+  # Preserve the legacy row order as the deterministic tie-break: same-time
+  # same-target replaces (contiguity, attribute waves) fold last-in-order like
+  # the per-object event loop did, instead of aborting as ambiguous.
+  ties$order <- seq_len(nrow(ties))
 
   focal <- NULL
   dependents <- list()
@@ -279,10 +314,16 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
   }
 
   changes <- legacy_changes_table(node_obj, objs, labels)
+  if (!is.null(changes)) {
+    changes$order <- seq_len(nrow(changes))
+  }
   global <- if (length(glob_names) > 0) {
     legacy_global_table(objs[[glob_names[1]]], objs)
   } else {
     NULL
+  }
+  if (!is.null(global)) {
+    global$order <- seq_len(nrow(global))
   }
 
   info <- list(

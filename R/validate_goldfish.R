@@ -323,8 +323,10 @@ check_focal_not_panel <- function(info, focal_layer, call) {
 
 # Time is required on event streams; classes limited to numeric/POSIXct/Date;
 # character/mdate abort; all layers must share a comparable axis (integer waves
-# only when every stream is numeric). NA time is allowed on ties
-# (pre-observation history) but not on changes/global.
+# only when every stream is numeric). NA time is allowed on ties and on global
+# rows -- the pre-observation initial value, the only place a global variable's
+# starting value is carried (nodal attributes carry theirs on the nodes table,
+# so changes still forbid NA time).
 check_time_contract <- function(ties, changes, global, call) {
   streams <- list(ties = ties$time)
   if (!is.null(changes)) {
@@ -361,12 +363,6 @@ check_time_contract <- function(ties, changes, global, call) {
   if (!is.null(changes) && anyNA(changes$time)) {
     cli::cli_abort(
       "{.field changes$time} must not contain missing values.",
-      call = call
-    )
-  }
-  if (!is.null(global) && anyNA(global$time)) {
-    cli::cli_abort(
-      "{.field global$time} must not contain missing values.",
       call = call
     )
   }

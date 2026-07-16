@@ -811,6 +811,12 @@ make_data <- function(..., parent_env = parent.frame()) {
         linked_names_to_find <- c(linked_names_to_find, events_attr)
         all_events_names <- c(all_events_names, events_attr)
       }
+    } else if (inherits(current_obj, "global.goldfish")) {
+      events_attr <- attr(current_obj, "events")
+      if (length(events_attr) > 0) {
+        linked_names_to_find <- c(linked_names_to_find, events_attr)
+        all_events_names <- c(all_events_names, events_attr)
+      }
     }
 
     # Clean up potential empty strings from attribute values
@@ -844,6 +850,19 @@ make_data <- function(..., parent_env = parent.frame()) {
       }
     }
   }
+
+  # The flip target: a one-mode DyNAM/REM structure assembles into one stocnet
+  # (assemble_stocnet_from_legacy() + as_goldfish()), the object the direct path
+  # consumes. It is NOT enabled yet: with make_data() returning a stocnet, the
+  # fixture-built models that route through preprocess_monolith(), the
+  # composition mode map, gather/db export, and the diagnostic methods hit
+  # data-seam gaps those paths never had converted. Enabling the flip means
+  # re-adding the two lines below and closing those seams (see progress.md S16).
+  #   objects <- as.list(data_env)
+  #   objects <- objects[!startsWith(names(objects), ".")]
+  #   if (is_stocnet_assemblable(objects)) {
+  #     return(as_goldfish(assemble_stocnet_from_legacy(objects)))
+  #   }
 
   assign(
     ".nodeset_names",

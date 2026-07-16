@@ -1179,7 +1179,8 @@ estimate_wrapper <- function(
     # find the old and new effects indexes, do basic consistency checks
     old_parsed_formula <- parse_formula(
       preprocessing_init$formula,
-      envir = work_env
+      envir = work_env,
+      data = work_data
     )
     effects_indexes <- compare_formulas(
       old_parsed_formula = old_parsed_formula,
