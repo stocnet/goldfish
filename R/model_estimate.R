@@ -993,6 +993,15 @@ estimate_wrapper <- function(
   work_env <- if (is_legacy) rlang::env_clone(data) else new.env()
   work_data <- if (is_legacy) NULL else data
 
+  # A dependent-events object name on the LHS (the legacy call surface, e.g.
+  # `create_bilat ~ ...`) resolves to its focal layer and stamped flavor before
+  # parsing, so the rest of the pipeline sees an ordinary focal layer.
+  if (!is_legacy) {
+    aliased <- resolve_dependent_alias(formula, work_data, modeled_flavor)
+    formula <- aliased$formula
+    modeled_flavor <- aliased$modeled_flavor
+  }
+
   # Resolve the support_constraint to a parsed sub-plan the recipe consumes. A
   # specification supplies an already-parsed `support_constraint_plan`; the
   # formula surface supplies a one-sided formula parsed here against the working

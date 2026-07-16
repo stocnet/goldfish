@@ -106,4 +106,13 @@ test_that("assembled Fisheries reproduces the filtered dependent via flavor", {
   )
   expect_equal(spec$dependent$n_events, nrow(create_bilat))
   expect_equal(unname(coef(stocnet)), unname(coef(legacy)), tolerance = 1e-6)
+
+  # The legacy call surface: the dependent-events object name on the LHS resolves
+  # to (focal layer, its flavor) with no make_specification() and no flavor list.
+  via_alias <- suppressWarnings(estimate_dynam(
+    create_bilat ~ inertia + trans + alter(regime),
+    sub_model = "choice_coordination",
+    data = assembled
+  ))
+  expect_equal(unname(coef(via_alias)), unname(coef(legacy)), tolerance = 1e-6)
 })

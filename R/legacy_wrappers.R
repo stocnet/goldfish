@@ -305,3 +305,29 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
     global = global
   )
 }
+
+# Translate a dependent-events object name on a formula's left-hand side to its
+# focal layer and modeled flavor, using the info$dependents association
+# make_data() records. The direct estimate path carries the dependent name on
+# the LHS (`create_bilat ~ ...`); rewriting it to the layer lets the rest of the
+# pipeline treat it as any other focal layer, while the recorded flavor selects
+# the modeled rows without the plain-formula "all rows modeled" inform. A
+# layer-named LHS (the specification path) is not in the map and returns
+# unchanged. An already-set `modeled_flavor` (from a flavor-keyed list) wins.
+resolve_dependent_alias <- function(formula, data, modeled_flavor = NULL) {
+  unchanged <- list(formula = formula, modeled_flavor = modeled_flavor)
+  if (is.null(data) || is.environment(data) || length(formula) != 3L) {
+    return(unchanged)
+  }
+  dependents <- data$info$dependents
+  entry <- dependents[[deparse(formula[[2]])]]
+  if (is.null(entry)) {
+    return(unchanged)
+  }
+  formula[[2]] <- as.name(entry$layer)
+  flavor <- modeled_flavor
+  if (is.null(flavor) && !is.na(entry$flavor)) {
+    flavor <- entry$flavor
+  }
+  list(formula = formula, modeled_flavor = flavor)
+}
