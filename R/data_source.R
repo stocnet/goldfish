@@ -34,10 +34,17 @@ DEPENDENT_STREAM <- ".dependent"
 #' @param data a validated stocnet object, or `NULL` on the legacy path.
 #' @param envir the legacy `data.goldfish` environment, or `NULL`.
 #' @param focal focal layer name, defaulting to `info$focal`.
+#' @param modeled_flavor optional single `ties$flavor` value selecting which
+#'   focal rows are modeled; the rest update state only.
 #'
 #' @return a `data_source_stocnet` or `data_source_envir` object.
 #' @noRd
-new_data_source <- function(data = NULL, envir = NULL, focal = NULL) {
+new_data_source <- function(
+  data = NULL,
+  envir = NULL,
+  focal = NULL,
+  modeled_flavor = NULL
+) {
   if (is.null(data)) {
     return(structure(
       list(envir = envir),
@@ -56,8 +63,14 @@ new_data_source <- function(data = NULL, envir = NULL, focal = NULL) {
       nodes = nodes,
       layers = layers,
       focal = focal,
+      modeled_flavor = modeled_flavor,
       mode_map = mode_map,
-      streams = split_stocnet_streams(data, mode_map, focal = focal),
+      streams = split_stocnet_streams(
+        data,
+        mode_map,
+        focal = focal,
+        modeled_flavor = modeled_flavor
+      ),
       # Derived (windowed) layers and the imputed values that shadow them are
       # registered on the source itself: the legacy path realizes and imputes by
       # assigning into its environment, and the stocnet path has none to mutate.
@@ -373,6 +386,52 @@ ds_objects_from_table <- function(src, obj_table) {
 #' @exportS3Method
 ds_objects_from_table.data_source_envir <- function(src, obj_table) {
   get_element_from_data_object_table(obj_table, envir = src$envir)
+}
+
+#' Does a formula object name resolve?
+#'
+#' @param src a data source.
+#' @param name an object name as written in a formula.
+#' @noRd
+ds_object_exists <- function(src, name) UseMethod("ds_object_exists")
+
+#' @exportS3Method
+ds_object_exists.data_source_envir <- function(src, name) {
+  exists(name, envir = src$envir)
+}
+
+#' @exportS3Method
+ds_object_exists.data_source_stocnet <- function(src, name) {
+  # Names were resolved against the components before this point, and an
+  # unresolvable one already aborted listing the candidates.
+  name %in% src$layers || !is.null(src$derived[[name]])
+}
+
+#' Which of an object table's rows are networks?
+#'
+#' @param src a data source.
+#' @param obj_table a `get_data_objects()` table.
+#' @noRd
+ds_table_is_network <- function(src, obj_table) {
+  UseMethod("ds_table_is_network")
+}
+
+#' @exportS3Method
+ds_table_is_network.data_source_envir <- function(src, obj_table) {
+  vapply(
+    ds_objects_from_table(src, obj_table),
+    FUN = inherits,
+    FUN.VALUE = logical(1),
+    what = "network.goldfish"
+  )
+}
+
+#' @exportS3Method
+ds_table_is_network.data_source_stocnet <- function(src, obj_table) {
+  # A layer reference fills the table's `object` slot; an attribute reference
+  # fills `nodeset`/`attribute` instead. The resolver already settled which is
+  # which, so the shape of the row answers this without reading any data.
+  !is.na(obj_table$object)
 }
 
 #' @exportS3Method

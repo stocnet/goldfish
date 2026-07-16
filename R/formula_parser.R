@@ -124,7 +124,8 @@ parse_formula <- function(
   mult <- parse_multiple_effects(
     rhs_names,
     envir = envir,
-    derived_names = derived_names
+    derived_names = derived_names,
+    src = src
   )
   rhs_names <- mult[[1]]
   ignore_rep_parameter <- mult[[2]]
@@ -349,7 +350,8 @@ build_spec_map <- function(
   fetch_plan,
   support_constraint = NULL,
   envir = new.env(),
-  data = NULL
+  data = NULL,
+  modeled_flavor = NULL
 ) {
   stat_kind <- if (inherits(model_spec, "sender_spec")) "sender" else "dyad"
   nodes <- model_spec$nodes
@@ -438,8 +440,13 @@ build_spec_map <- function(
         objects_effects_link = objects_effects_link,
         fetch_plan = fetch_plan,
         # The data object rides on the spec_map so state creation resolves the
-        # same names the compile did, against the same components.
-        data = data
+        # same names the compile did, against the same components. The focal and
+        # the modeled flavor ride with it because together they pick the
+        # dependent rows: resolving them from `info$focal` at state creation
+        # would silently model a different layer whenever `layer` overrode it.
+        data = data,
+        focal = parsed_formula$dep_name,
+        modeled_flavor = modeled_flavor
       )
     ),
     class = c(class(model_spec), "spec_map.goldfish")
@@ -1126,8 +1133,10 @@ parse_multiple_effects <- function(
   rhs_names,
   default = FALSE,
   envir = environment(),
-  derived_names = character(0)
+  derived_names = character(0),
+  src = NULL
 ) {
+  src <- src %||% new_data_source(envir = envir)
   multiple <- list()
   multiple_names <- character(0)
   for (i in seq_along(rhs_names)) {
@@ -1145,14 +1154,9 @@ parse_multiple_effects <- function(
       net_ids <- logical(nrow(table))
       net_ids[is_derived] <- TRUE
       if (any(!is_derived)) {
-        net_ids[!is_derived] <- vapply(
-          get_element_from_data_object_table(
-            table[!is_derived, , drop = FALSE],
-            envir = envir
-          ),
-          FUN = inherits,
-          FUN.VALUE = logical(1),
-          what = "network.goldfish"
+        net_ids[!is_derived] <- ds_table_is_network(
+          src,
+          table[!is_derived, , drop = FALSE]
         )
       }
       name <- table[net_ids, "name"][1]
@@ -1167,7 +1171,7 @@ parse_multiple_effects <- function(
       !is.na(name) &&
         name != "" &&
         !(name %in% derived_names) &&
-        !exists(name, envir = envir)
+        !ds_object_exists(src, name)
     ) {
       stop(
         "Unknown object in 'ignore_repetitions' parameter: ",

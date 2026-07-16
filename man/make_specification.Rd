@@ -17,10 +17,11 @@ make_specification(
 }
 \arguments{
 \item{rate}{a one-sided formula (empty left-hand side) with the rate-model
-effects, or \code{NULL}.}
+effects, a flavor-keyed list of one such formula, or \code{NULL}.}
 
 \item{choice}{a one-sided formula (empty left-hand side) with the
-choice-model effects, or \code{NULL}. Not applicable to \code{model = "REM"}.}
+choice-model effects, a flavor-keyed list of one such formula, or \code{NULL}.
+Not applicable to \code{model = "REM"}.}
 
 \item{model}{a character string, either \code{"DyNAM"} or \code{"REM"}. DyNAM-i is
 deferred to its own preprocessing-path change.}
@@ -31,8 +32,8 @@ deferred to its own preprocessing-path change.}
 \item{choice_sub_model}{a character string, the choice sub-model:
 \code{"choice"} or \code{"choice_coordination"}.}
 
-\item{layer}{a character string naming the dependent process. It MUST resolve
-in \code{data} to a \code{\link[=make_dependent_events]{make_dependent_events()}} object.}
+\item{layer}{a character string naming the dependent process: a layer of the
+\code{stocnet} object, defaulting to its \code{info$focal}.}
 
 \item{support_constraint}{a one-sided formula restricting the per-event risk
 set, written in a restricted boolean-tree grammar. The leaves are effect
@@ -57,7 +58,8 @@ atoms' values, with no columns and no coefficients. For 0/1 indicators
 \code{a * b} coincides with \code{a & b}, and \code{&} is the clearer idiom — prefer
 \code{tie(a) & tie(b)} over \code{tie(a) * tie(b)}. \code{NULL} by default.}
 
-\item{data}{a \code{data.goldfish} object created with \code{\link[=make_data]{make_data()}}.}
+\item{data}{a \code{stocnet} object, raw or stamped by \code{\link[=as_goldfish]{as_goldfish()}}. It is
+validated here either way: a stamp records provenance, not validity.}
 }
 \value{
 an S3 object of class \code{specification.goldfish}.
@@ -75,11 +77,22 @@ bundles that preprocessing consumes, so it can be passed directly to
 
 Unlike the formula interface (\code{estimate_dynam(dep ~ ...)}), the rate and
 choice formulas leave the \strong{left-hand side empty}; the dependent process is
-named by \code{layer}. In the current data-object era \code{layer} is the name of a
-\code{\link[=make_dependent_events]{make_dependent_events()}} object in \code{data}; once the single data object lands
-the same string will resolve to a relation/layer name without any change to
-the call surface.
+named by \code{layer}. For a \code{stocnet} object \code{layer} names one of its layers and
+defaults to \code{info$focal}.
 }
+\section{Modeling one flavor of a layer}{
+When a layer's ties carry a \code{flavor} column, \code{rate} / \code{choice} may be given
+as a \strong{flavor-keyed list} whose formula left-hand side is the flavor to
+model, e.g. \code{rate = list(creation ~ 1 + indeg())}. Only rows of that flavor
+are modeled as events; every other focal row -- including rows with no
+flavor -- still updates the network state. Supplying a plain formula on a
+flavored layer models \strong{all} of its rows, and says so.
+
+Exactly one flavor can be modeled: several keys, or \code{rate} and \code{choice}
+keying different flavors, are errors. Estimating several dependent processes
+jointly needs stacked per-flavor likelihoods and arrives with a later change.
+}
+
 \examples{
 data("Social_Evolution")
 call_network <- make_network(nodes = actors, directed = TRUE)

@@ -392,7 +392,12 @@ prepare_recipe_context <- function(
   # (e.g. windowed networks + dissolve streams) from plan$derivations, then
   # fetch the event streams from spec$fetch_plan — both through the data source,
   # before any cache/state/schedule reads them.
-  src <- new_data_source(data = spec$data, envir = prep_envir)
+  src <- new_data_source(
+    data = spec$data,
+    envir = prep_envir,
+    focal = spec$focal,
+    modeled_flavor = spec$modeled_flavor
+  )
   src <- ds_realize_derivations(src, plan$derivations)
   events <- fetch_events(spec$fetch_plan, envir = prep_envir, src = src)
 

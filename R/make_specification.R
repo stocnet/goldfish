@@ -11,23 +11,36 @@
 #'
 #' Unlike the formula interface (`estimate_dynam(dep ~ ...)`), the rate and
 #' choice formulas leave the **left-hand side empty**; the dependent process is
-#' named by `layer`. In the current data-object era `layer` is the name of a
-#' [make_dependent_events()] object in `data`; once the single data object lands
-#' the same string will resolve to a relation/layer name without any change to
-#' the call surface.
+#' named by `layer`. For a `stocnet` object `layer` names one of its layers and
+#' defaults to `info$focal`.
+#'
+#' @details
+#' # Modeling one flavor of a layer
+#'
+#' When a layer's ties carry a `flavor` column, `rate` / `choice` may be given
+#' as a **flavor-keyed list** whose formula left-hand side is the flavor to
+#' model, e.g. `rate = list(creation ~ 1 + indeg())`. Only rows of that flavor
+#' are modeled as events; every other focal row -- including rows with no
+#' flavor -- still updates the network state. Supplying a plain formula on a
+#' flavored layer models **all** of its rows, and says so.
+#'
+#' Exactly one flavor can be modeled: several keys, or `rate` and `choice`
+#' keying different flavors, are errors. Estimating several dependent processes
+#' jointly needs stacked per-flavor likelihoods and arrives with a later change.
 #'
 #' @param rate a one-sided formula (empty left-hand side) with the rate-model
-#'   effects, or `NULL`.
+#'   effects, a flavor-keyed list of one such formula, or `NULL`.
 #' @param choice a one-sided formula (empty left-hand side) with the
-#'   choice-model effects, or `NULL`. Not applicable to `model = "REM"`.
+#'   choice-model effects, a flavor-keyed list of one such formula, or `NULL`.
+#'   Not applicable to `model = "REM"`.
 #' @param model a character string, either `"DyNAM"` or `"REM"`. DyNAM-i is
 #'   deferred to its own preprocessing-path change.
 #' @param rate_sub_model a character string, the rate sub-model:
 #'   `"rate"` or `"rate_ordered"`.
 #' @param choice_sub_model a character string, the choice sub-model:
 #'   `"choice"` or `"choice_coordination"`.
-#' @param layer a character string naming the dependent process. It MUST resolve
-#'   in `data` to a [make_dependent_events()] object.
+#' @param layer a character string naming the dependent process: a layer of the
+#'   `stocnet` object, defaulting to its `info$focal`.
 #' @param support_constraint a one-sided formula restricting the per-event risk
 #'   set, written in a restricted boolean-tree grammar. The leaves are effect
 #'   *atoms* (`tie(net)`, `indeg(net)`, ...) combined into a logical expression
@@ -48,7 +61,8 @@
 #'   atoms' values, with no columns and no coefficients. For 0/1 indicators
 #'   `a * b` coincides with `a & b`, and `&` is the clearer idiom — prefer
 #'   `tie(a) & tie(b)` over `tie(a) * tie(b)`. `NULL` by default.
-#' @param data a `data.goldfish` object created with [make_data()].
+#' @param data a `stocnet` object, raw or stamped by [as_goldfish()]. It is
+#'   validated here either way: a stamp records provenance, not validity.
 #'
 #' @return an S3 object of class `specification.goldfish`.
 #'
@@ -89,17 +103,13 @@ make_specification <- function(
   rate_sub_model <- match.arg(rate_sub_model)
   choice_sub_model <- match.arg(choice_sub_model)
 
-  if (!inherits(data, "data.goldfish")) {
+  is_legacy <- is.environment(data)
+  if (!is_legacy && !(is.list(data) && !is.data.frame(data))) {
     cli::cli_abort(c(
-      "{.arg data} must be a {.cls data.goldfish} object.",
-      "i" = "Create it with {.fn make_data}."
+      "{.arg data} must be a {.cls stocnet} object.",
+      "i" = "Build it with {.fn manynet::make_stocnet}, or gate it early with
+             {.fn as_goldfish}."
     ))
-  }
-  if (!rlang::is_string(layer)) {
-    cli::cli_abort(
-      "{.arg layer} must be a single character string naming the dependent
-       process."
-    )
   }
   if (is.null(rate) && is.null(choice)) {
     cli::cli_abort(
@@ -113,40 +123,43 @@ make_specification <- function(
     ))
   }
 
-  # Parse against a working clone so the specification carries no side effects
-  # on the caller's data (the parse is pure on the DyNAM/REM path).
-  work_env <- rlang::env_clone(data)
-
-  # Resolve `layer` to a dependent-events object (bridge-era lookup; task 4.2).
-  dep_obj <- tryCatch(get(layer, envir = work_env), error = function(e) NULL)
-  if (!inherits(dep_obj, "dependent.goldfish")) {
-    cli::cli_abort(c(
-      "{.arg layer} = {.val {layer}} does not name a dependent-events object
-       in {.arg data}.",
-      "i" = "Create the dependent process with {.fn make_dependent_events} and
-             pass its name to {.arg layer}."
-    ))
+  # A stamp is not evidence of validity -- manynet verbs and plain list
+  # assignment mutate an object while preserving its class vector -- so the
+  # stocnet input is validated here unconditionally, stamped or not.
+  if (!is_legacy) {
+    validate_goldfish_data(data, focal = layer)
   }
+
+  # Parse against a working clone so the specification carries no side effects
+  # on the caller's data (the parse is pure on the DyNAM/REM path). The stocnet
+  # path resolves names from components instead, so its environment stays empty.
+  work_env <- if (is_legacy) rlang::env_clone(data) else new.env()
+  spec_data <- if (is_legacy) NULL else data
+
+  layer <- resolve_specification_layer(data, layer, is_legacy, work_env)
+  flavored <- resolve_modeled_flavor(rate, choice, spec_data, layer)
 
   submodels <- list()
   if (!is.null(rate)) {
     submodels$rate <- build_specification_bundle(
-      rate,
+      flavored$rate,
       arg = "rate",
       model = model,
       sub_model = rate_sub_model,
       layer = layer,
-      envir = work_env
+      envir = work_env,
+      data = spec_data
     )
   }
   if (!is.null(choice)) {
     submodels$choice <- build_specification_bundle(
-      choice,
+      flavored$choice,
       arg = "choice",
       model = model,
       sub_model = choice_sub_model,
       layer = layer,
-      envir = work_env
+      envir = work_env,
+      data = spec_data
     )
   }
 
@@ -173,7 +186,16 @@ make_specification <- function(
       model = model,
       submodels = submodels,
       layer = layer,
-      dependent = spec_dependent_info(dep_obj, layer),
+      # The focal and the modeled flavor together select the dependent rows, so
+      # they travel with the specification: state creation must resolve the same
+      # dependent stream this parse did, not the one `info$focal` declares.
+      focal = layer,
+      modeled_flavor = flavored$flavor,
+      dependent = if (is_legacy) {
+        spec_dependent_info(get(layer, envir = work_env), layer)
+      } else {
+        stocnet_dependent_info(data, layer, flavored$flavor)
+      },
       support_constraint = support_constraint,
       constraint = constraint_plan,
       valid = TRUE,
@@ -182,6 +204,194 @@ make_specification <- function(
     ),
     class = "specification.goldfish"
   )
+}
+
+# Resolve the dependent process. A stocnet layer name falls back to
+# `info$focal`; the legacy environment still names a dependent-events object,
+# the only vocabulary it has until the constructors assemble stocnet.
+resolve_specification_layer <- function(
+  data,
+  layer,
+  is_legacy,
+  work_env,
+  call = rlang::caller_env()
+) {
+  if (is_legacy) {
+    if (!rlang::is_string(layer)) {
+      cli::cli_abort(
+        "{.arg layer} must be a single character string naming the dependent
+         process.",
+        call = call
+      )
+    }
+    dep_obj <- tryCatch(get(layer, envir = work_env), error = function(e) NULL)
+    if (!inherits(dep_obj, "dependent.goldfish")) {
+      cli::cli_abort(
+        c(
+          "{.arg layer} = {.val {layer}} does not name a dependent-events object
+           in {.arg data}.",
+          "i" = "Create the dependent process with {.fn make_dependent_events}
+                 and pass its name to {.arg layer}."
+        ),
+        call = call
+      )
+    }
+    return(layer)
+  }
+  # validate_goldfish_data() already checked that a supplied `layer` (or
+  # `info$focal`) names a layer, so only their joint absence is left to report.
+  resolved <- layer %||% data$info$focal
+  if (is.null(resolved)) {
+    cli::cli_abort(
+      c(
+        "The dependent process is not identified.",
+        "i" = "Name it with {.arg layer}, or declare {.field info$focal} on the
+               data."
+      ),
+      call = call
+    )
+  }
+  resolved
+}
+
+# Resolve which focal rows a specification models.
+#
+# A flavor-keyed list (`rate = list(creation ~ ...)`) names the flavor to model;
+# every other focal row -- including one with no flavor -- updates state but is
+# not a modeled event. A plain formula models every row, which on a flavored
+# layer is a real choice rather than an oversight, so it is announced.
+#
+# Returns the one-sided formulas to parse plus the modeled flavor (or NULL).
+resolve_modeled_flavor <- function(
+  rate,
+  choice,
+  data,
+  layer,
+  call = rlang::caller_env()
+) {
+  rate_keyed <- unwrap_flavor_key(rate, "rate", call = call)
+  choice_keyed <- unwrap_flavor_key(choice, "choice", call = call)
+  flavors <- c(rate_keyed$flavor, choice_keyed$flavor)
+
+  if (length(unique(flavors)) > 1) {
+    cli::cli_abort(
+      c(
+        "{.arg rate} and {.arg choice} must model the same flavor.",
+        "x" = "{.arg rate} keys {.val {rate_keyed$flavor}} but {.arg choice}
+               keys {.val {choice_keyed$flavor}}.",
+        "i" = "One specification models one dependent process."
+      ),
+      call = call
+    )
+  }
+  flavor <- if (length(flavors) > 0) flavors[[1]] else NULL
+
+  if (!is.null(flavor)) {
+    check_flavor_present(data, layer, flavor, call = call)
+  } else {
+    inform_unkeyed_flavored_layer(data, layer)
+  }
+
+  list(
+    rate = rate_keyed$formula,
+    choice = choice_keyed$formula,
+    flavor = flavor
+  )
+}
+
+# A submodel argument is either a plain one-sided formula or a one-element list
+# whose formula LHS is the flavor symbol.
+unwrap_flavor_key <- function(x, arg, call = rlang::caller_env()) {
+  if (is.null(x) || inherits(x, "formula")) {
+    return(list(formula = x, flavor = NULL))
+  }
+  if (!is.list(x)) {
+    cli::cli_abort(
+      "{.arg {arg}} must be a one-sided formula or a flavor-keyed list.",
+      call = call
+    )
+  }
+  if (length(x) != 1) {
+    cli::cli_abort(
+      c(
+        "{.arg {arg}} must key exactly one flavor.",
+        "x" = "{length(x)} formulas were supplied.",
+        "i" = "Estimating several dependent processes jointly is not supported
+               yet; it needs stacked per-flavor likelihoods."
+      ),
+      call = call
+    )
+  }
+  f <- x[[1]]
+  if (!inherits(f, "formula") || length(f) != 3L) {
+    cli::cli_abort(
+      c(
+        "{.arg {arg}}'s entry must be a formula whose left-hand side is the
+         flavor.",
+        "i" = "For example {.code {arg} = list(creation ~ 1 + indeg())}."
+      ),
+      call = call
+    )
+  }
+  flavor <- deparse(f[[2]])
+  # Dropping the left-hand side in place leaves the one-sided formula the
+  # bundle parses, environment and all.
+  f[[2]] <- NULL
+  list(formula = f, flavor = flavor)
+}
+
+# A keyed flavor that matches no focal row models nothing at all.
+check_flavor_present <- function(
+  data,
+  layer,
+  flavor,
+  call = rlang::caller_env()
+) {
+  if (is.null(data)) {
+    return(invisible(NULL))
+  }
+  ties <- as.data.frame(data$ties)
+  present <- unique(ties$flavor[ties$layer == layer])
+  present <- present[!is.na(present)]
+  if (!flavor %in% present) {
+    cli::cli_abort(
+      c(
+        "No {.val {layer}} row carries the flavor {.val {flavor}}.",
+        "i" = if (length(present) > 0) {
+          "Flavor{?s} on this layer: {.val {present}}."
+        } else {
+          "This layer carries no {.field flavor} column."
+        }
+      ),
+      call = call
+    )
+  }
+  invisible(NULL)
+}
+
+# Modeling every row of a flavored layer is legitimate -- category-style flavors
+# are often modeled together -- but it is also what a forgotten list looks like,
+# so make it visible.
+inform_unkeyed_flavored_layer <- function(data, layer) {
+  if (is.null(data)) {
+    return(invisible(NULL))
+  }
+  ties <- as.data.frame(data$ties)
+  if (!"flavor" %in% names(ties)) {
+    return(invisible(NULL))
+  }
+  present <- unique(ties$flavor[ties$layer == layer])
+  present <- present[!is.na(present)]
+  if (length(present) == 0) {
+    return(invisible(NULL))
+  }
+  cli::cli_inform(c(
+    "i" = "Layer {.val {layer}} carries the flavor{?s} {.val {present}};
+           all its events are modeled.",
+    "i" = "Model one with a keyed list, e.g.
+           {.code rate = list({present[1]} ~ ...)}."
+  ))
+  invisible(NULL)
 }
 
 # Parse a one-sided submodel formula into the bundle preprocessing consumes,
@@ -194,12 +404,18 @@ build_specification_bundle <- function(
   model,
   sub_model,
   layer,
-  envir
+  envir,
+  data = NULL
 ) {
   enforce_empty_lhs(one_sided, arg = arg, layer = layer, envir = envir)
   full_formula <- build_layer_formula(one_sided, layer)
 
-  parsed <- parse_formula(full_formula, envir = envir, realize_windows = FALSE)
+  parsed <- parse_formula(
+    full_formula,
+    envir = envir,
+    realize_windows = FALSE,
+    data = data
+  )
 
   # Interaction products compute in the dyad recipe loop; guard the
   # not-yet-supported model families (sender / DyNAMi).
@@ -304,5 +520,32 @@ spec_dependent_info <- function(dep_obj, layer) {
     nodes2 = if (is_two_mode) nodes[2] else nodes[1],
     is_two_mode = is_two_mode,
     network = attr(dep_obj, "default_network")
+  )
+}
+
+# The same facts read from a stocnet: the focal layer's modeled rows. The layer
+# is its own network, and its side pair comes from the mode map rather than from
+# two node-set names.
+stocnet_dependent_info <- function(data, layer, modeled_flavor = NULL) {
+  src <- new_data_source(
+    data = data,
+    focal = layer,
+    modeled_flavor = modeled_flavor
+  )
+  dependent <- src$streams$dependent
+  timed <- dependent$time[!is.na(dependent$time)]
+  sides <- ds_side_names(src)
+  ties <- as.data.frame(data$ties)
+  flavors <- unique(ties$flavor[ties$layer == layer])
+  list(
+    layer = layer,
+    n_events = length(timed),
+    time_span = if (length(timed) > 0) range(timed) else NULL,
+    nodes = sides[1],
+    nodes2 = sides[2],
+    is_two_mode = ds_model_is_two_mode(src),
+    network = layer,
+    modeled_flavor = modeled_flavor,
+    flavors = flavors[!is.na(flavors)]
   )
 }
