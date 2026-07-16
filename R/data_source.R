@@ -215,21 +215,18 @@ ds_side_ids.data_source_stocnet <- function(src, nodeset) {
 #'
 #' @param src a data source.
 #' @param name layer / network object name.
-#' @param start_time,time window bounding the state. The stocnet source
-#'   materializes the layer over `[start_time, time)`; the legacy source returns
-#'   the object's own already-folded matrix and ignores the window.
+#' This is the state the walk STARTS from, which is the layer's history alone:
+#' the recipe replays every timed event from the beginning of the schedule, so
+#' folding timed rows in here would count them twice. Legacy returns the
+#' object's own matrix, whose events were never folded in either; the stocnet
+#' source returns its `time = NA` rows, which is what a legacy constructor's
+#' matrix becomes. Events before `start_time` are folded by the loop's own
+#' start-time logic, not here.
 #' @noRd
-ds_network <- function(src, name, start_time = -Inf, time = Inf) {
-  UseMethod("ds_network")
-}
+ds_network <- function(src, name) UseMethod("ds_network")
 
 #' @exportS3Method
-ds_network.data_source_envir <- function(
-  src,
-  name,
-  start_time = -Inf,
-  time = Inf
-) {
+ds_network.data_source_envir <- function(src, name) {
   mat <- get(name, envir = src$envir)
   if (!is.matrix(mat)) {
     cli::cli_abort("Object {.val {name}} must be a matrix network.")
@@ -239,12 +236,7 @@ ds_network.data_source_envir <- function(
 }
 
 #' @exportS3Method
-ds_network.data_source_stocnet <- function(
-  src,
-  name,
-  start_time = -Inf,
-  time = Inf
-) {
+ds_network.data_source_stocnet <- function(src, name) {
   if (!is.null(src$net_override[[name]])) {
     return(src$net_override[[name]])
   }
@@ -255,13 +247,12 @@ ds_network.data_source_stocnet <- function(
   mat <- if (!is.null(src$derived[[name]])) {
     matrix(0, nrow = lm$n1, ncol = lm$n2)
   } else {
+    stream <- src$streams$network[[name]]
     materialize_network_state(
-      src$streams$network[[name]],
+      stream[is.na(stream$time), , drop = FALSE],
       n1 = lm$n1,
       n2 = lm$n2,
-      directed = ds_is_directed(src, name),
-      start_time = start_time,
-      time = time
+      directed = ds_is_directed(src, name)
     )
   }
   dimnames(mat) <- list(labels[lm$side1], labels[lm$side2])
@@ -309,6 +300,23 @@ ds_layer_sides.data_source_stocnet <- function(src, name) {
 
 # Nodes and attributes --------------------------------------------------------
 
+#' A node set's rows, as the data frame estimation reports on
+#'
+#' @param src a data source.
+#' @param nodeset a node-set name.
+#' @noRd
+ds_nodes_frame <- function(src, nodeset) UseMethod("ds_nodes_frame")
+
+#' @exportS3Method
+ds_nodes_frame.data_source_envir <- function(src, nodeset) {
+  get(nodeset, envir = src$envir)
+}
+
+#' @exportS3Method
+ds_nodes_frame.data_source_stocnet <- function(src, nodeset) {
+  src$nodes[ds_side_ids(src, nodeset), , drop = FALSE]
+}
+
 ds_n_nodes <- function(src, nodeset) UseMethod("ds_n_nodes")
 
 #' @exportS3Method
@@ -334,16 +342,23 @@ ds_is_global.data_source_stocnet <- function(src, nodeset) {
   identical(nodeset, GLOBAL_NODESET)
 }
 
-# A global variable's value in force. Globals carry no node reference, so the
-# attribute materializer's per-node dedup does not apply: under `replace`
-# semantics the value is simply the last row, history first.
+# A global variable's initial value: its history rows, for the same reason
+# ds_network() takes only history -- the timed rows are replayed by the walk.
+# Globals carry no node reference, so the attribute materializer's per-node
+# dedup does not apply: under `replace` semantics the last history row wins.
+# A global with no history has no value until its first event, which is an NA
+# of the variable's own type.
 ds_global_value <- function(src, var) {
   stream <- src$streams$global[[var]]
   if (is.null(stream) || nrow(stream) == 0) {
     return(NULL)
   }
-  ordered <- stream[history_first_order(stream$time), , drop = FALSE]
-  unlist(ordered$value, use.names = FALSE)[nrow(ordered)]
+  values <- unlist(stream$value, use.names = FALSE)
+  history <- which(is.na(stream$time))
+  if (length(history) == 0) {
+    return(values[NA_integer_])
+  }
+  values[history[length(history)]]
 }
 
 # An attribute's initial vector, sliced to the node set's rows.

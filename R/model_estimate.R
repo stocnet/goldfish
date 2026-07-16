@@ -474,7 +474,8 @@ estimate_from_specification <- function(
     progress = progress,
     verbose = verbose,
     parsed_formula = if (reuse_parsed) bundle$parsed else NULL,
-    support_constraint = spec$constraint
+    support_constraint = spec$constraint,
+    modeled_flavor = spec$modeled_flavor
   )
 }
 
@@ -702,7 +703,9 @@ preprocess_recipe <- function(
   progress,
   work_env,
   support_constraint = NULL,
-  writer = writer_default()
+  writer = writer_default(),
+  work_data = NULL,
+  modeled_flavor = NULL
 ) {
   spec_map <- build_spec_map(
     parsed_formula,
@@ -714,7 +717,9 @@ preprocess_recipe <- function(
     events_effects_link,
     fetch_plan,
     support_constraint = support_constraint,
-    envir = work_env
+    envir = work_env,
+    data = work_data,
+    modeled_flavor = modeled_flavor
   )
   # The recipe loop realizes derived inputs (from plan$derivations) and fetches
   # events (from spec$fetch_plan) inside state creation,
@@ -797,6 +802,22 @@ preprocess_dynami <- function(
   )
 }
 
+# The data input is either a stocnet (a list of components) or, for the
+# deprecation cycle, a legacy environment of goldfish objects.
+check_estimation_data <- function(data, call = rlang::caller_env()) {
+  if (is.environment(data) || (is.list(data) && !is.data.frame(data))) {
+    return(invisible(data))
+  }
+  cli::cli_abort(
+    c(
+      "{.arg data} must be a {.cls stocnet} object.",
+      "i" = "Build it with {.fn manynet::make_stocnet}, or gate it early with
+             {.fn as_goldfish}."
+    ),
+    call = call
+  )
+}
+
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
 #' @importFrom stats as.formula
@@ -815,7 +836,8 @@ estimate_wrapper <- function(
   verbose = getOption("verbose", default = FALSE),
   max_length = 63L,
   parsed_formula = NULL,
-  support_constraint = NULL
+  support_constraint = NULL,
+  modeled_flavor = NULL
 ) {
   output <- match.arg(output)
 
@@ -850,8 +872,9 @@ estimate_wrapper <- function(
     sub_model <- "rate"
   }
 
+  check_estimation_data(data)
+
   stopifnot(
-    inherits(data, "data.goldfish"),
     rlang::is_scalar_logical(preprocessing_only),
     rlang::is_scalar_logical(verbose),
     is.null(progress) || rlang::is_scalar_logical(progress),
@@ -963,8 +986,12 @@ estimate_wrapper <- function(
   }
   formula <- x
 
-  # Create a working copy of the data environment to avoid side-effects
-  work_env <- rlang::env_clone(data)
+  # Create a working copy of the data environment to avoid side-effects. The
+  # stocnet path resolves names from components instead, so it keeps an empty
+  # environment and carries the data object alongside.
+  is_legacy <- is.environment(data)
+  work_env <- if (is_legacy) rlang::env_clone(data) else new.env()
+  work_data <- if (is_legacy) NULL else data
 
   # Resolve the support_constraint to a parsed sub-plan the recipe consumes. A
   # specification supplies an already-parsed `support_constraint_plan`; the
@@ -1003,7 +1030,8 @@ estimate_wrapper <- function(
     parsed_formula <- parse_formula(
       formula,
       envir = work_env,
-      realize_windows = !recipe_deferred_windows
+      realize_windows = !recipe_deferred_windows,
+      data = work_data
     )
   }
   rhs_names <- parsed_formula$rhs_names
@@ -1168,7 +1196,20 @@ estimate_wrapper <- function(
 
   ## 2.0 Set is_two_mode to define effects functions
   # get node sets of dependent variable
-  .nodes <- attr(get(dep_name, envir = work_env), "nodes")
+  work_src <- new_data_source(
+    data = work_data,
+    envir = work_env,
+    focal = dep_name,
+    modeled_flavor = modeled_flavor
+  )
+  # Estimation reports on the node sets as supplied, not on the working copies
+  # imputation may have filled in; on the stocnet path nothing shadows `nodes`,
+  # so the working source already is the original.
+  orig_src <- if (is_legacy) new_data_source(envir = data) else work_src
+
+  # A length-2 answer means the dependent process spans two modes: legacy reads
+  # the dependent object's node sets, stocnet the focal layer's side pair.
+  .nodes <- ds_layer_sides(work_src, dep_name)
   is_two_mode <- FALSE
   if (length(.nodes) == 2) {
     .nodes2 <- .nodes[2]
@@ -1186,7 +1227,8 @@ estimate_wrapper <- function(
     model,
     legacy_sub_model,
     envir = work_env,
-    derivations = parsed_formula$window_derivations
+    derivations = parsed_formula$window_derivations,
+    data = work_data
   )
   objects_effects_link <- get_objects_effects_link(rhs_names)
 
@@ -1202,7 +1244,8 @@ estimate_wrapper <- function(
       .nodes,
       .nodes2,
       envir = work_env,
-      derivations = parsed_formula$window_derivations
+      derivations = parsed_formula$window_derivations,
+      data = work_data
     )
     events_objects_link <- link$events_objects_link
     fetch_plan <- link$fetch_plan
@@ -1362,8 +1405,8 @@ estimate_wrapper <- function(
         "i" = "Recompute the preprocessing object with {.fn compute_stats}."
       ))
     }
-    n1_val <- nrow(get(.nodes, envir = work_env))
-    n2_val <- nrow(get(.nodes2, envir = work_env))
+    n1_val <- ds_n_nodes(work_src, .nodes)
+    n2_val <- ds_n_nodes(work_src, .nodes2)
     n_effects_new <- length(effects_indexes)
     if (is_rate_model) {
       allprep$initialStats <- matrix(0, nrow = n1_val, ncol = n_effects_new)
@@ -1491,7 +1534,9 @@ estimate_wrapper <- function(
         progress,
         work_env,
         support_constraint = constraint_plan,
-        writer = writer
+        writer = writer,
+        work_data = work_data,
+        modeled_flavor = modeled_flavor
       )
       prep <- recipe_out$prep
       spec_map <- recipe_out$spec_map
@@ -1779,8 +1824,8 @@ estimate_wrapper <- function(
     returnIntervalLogL = control_estimation$return_interval_loglik,
     return_event_scores = isTRUE(control_estimation$return_event_scores),
     statsList = prep,
-    nodes = get(.nodes, envir = data),
-    nodes2 = get(.nodes2, envir = data),
+    nodes = ds_nodes_frame(orig_src, .nodes),
+    nodes2 = ds_nodes_frame(orig_src, .nodes2),
     hasIntercept = has_intercept,
     is_two_mode = is_two_mode,
     modelType = legacy_model_type(model_spec),

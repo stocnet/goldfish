@@ -35,55 +35,72 @@ make_equivalent_inputs <- function() {
   list(nodes_df = nodes_df, events = events, stocnet = stocnet)
 }
 
-# The legacy network object holds its initial matrix and folds linked events
-# only in as.matrix(); the stocnet source materializes the layer over a window.
-# The comparable pair is therefore the folded legacy matrix against an
-# all-covering stocnet window.
-legacy_env_with_folded_network <- function(inputs, time = Inf) {
+# The legacy environment as preprocessing sees it: the network object holds the
+# matrix it was constructed with and its linked events are still unfolded, since
+# the walk replays them. `matrix` seeds that starting state.
+legacy_env_with_network <- function(inputs, matrix = NULL) {
   # link_events() captures its event argument by name, so it must be a symbol.
   events <- inputs$events
   actors <- make_nodes(inputs$nodes_df)
-  calls <- make_network(nodes = actors, directed = TRUE)
+  calls <- if (is.null(matrix)) {
+    make_network(nodes = actors, directed = TRUE)
+  } else {
+    make_network(matrix, nodes = actors, directed = TRUE)
+  }
   calls <- link_events(calls, events, nodes = actors)
-  env <- environment()
   out <- new.env()
   out$actors <- actors
-  out$calls <- as.matrix(calls, time = time, envir = env)
+  out$calls <- calls
   out
 }
 
-test_that("both sources fold the same ties into the same matrix", {
+test_that("both sources start from an empty matrix when there is no history", {
+  # ds_network() answers the state the walk STARTS from. The walk replays every
+  # timed event, so timed ties must not be folded in here -- they would count
+  # twice.
   inputs <- make_equivalent_inputs()
 
-  legacy <- new_data_source(envir = legacy_env_with_folded_network(inputs))
+  legacy <- new_data_source(envir = legacy_env_with_network(inputs))
   stocnet <- new_data_source(data = inputs$stocnet)
 
   expect_equal(
-    ds_network(stocnet, "calls", time = Inf),
+    ds_network(stocnet, "calls"),
     ds_network(legacy, "calls"),
     ignore_attr = "dimnames"
   )
   expect_equal(
-    unname(ds_network(stocnet, "calls", time = Inf)),
-    matrix(c(0, 0, 1, 1, 0, 0, 0, 1, 0), 3, 3),
-    label = "A->B, B->C, C->A each folded once"
+    unname(ds_network(stocnet, "calls")),
+    matrix(0, 3, 3),
+    label = "the three timed calls belong to the schedule, not the state"
   )
 })
 
-test_that("both sources window the state to the same partial fold", {
+test_that("both sources start from the same history matrix", {
+  # A legacy constructor's starting matrix is what stocnet spells as `time = NA`
+  # history rows, so the two must produce the same initial state.
   inputs <- make_equivalent_inputs()
+  history <- matrix(c(0, 1, 0, 0, 0, 0, 1, 0, 0), 3, 3)
 
-  legacy <- new_data_source(
-    envir = legacy_env_with_folded_network(inputs, time = 3)
+  legacy <- new_data_source(envir = legacy_env_with_network(inputs, history))
+  with_history <- inputs$stocnet
+  with_history$ties <- rbind(
+    data.frame(
+      from = c(2L, 1L),
+      to = c(1L, 3L),
+      time = NA_real_,
+      layer = "calls",
+      stringsAsFactors = FALSE
+    ),
+    with_history$ties
   )
-  stocnet <- new_data_source(data = inputs$stocnet)
+  stocnet <- new_data_source(data = with_history)
 
   expect_equal(
-    ds_network(stocnet, "calls", time = 3),
+    ds_network(stocnet, "calls"),
     ds_network(legacy, "calls"),
-    ignore_attr = "dimnames",
-    label = "the tie at t=3 is excluded from both under a half-open window"
+    ignore_attr = "dimnames"
   )
+  expect_equal(unname(ds_network(stocnet, "calls")), history)
 })
 
 test_that("both sources agree on direction", {
@@ -132,7 +149,7 @@ test_that("a two-mode focal layer names two sides; one-mode names one", {
 
 test_that("a two-mode layer's state is n1 x n2 with per-side labels", {
   src <- new_data_source(data = make_stocnet_fixture_twomode())
-  mat <- ds_network(src, "membership", time = 3)
+  mat <- ds_network(src, "membership")
 
   expect_equal(dim(mat), c(2L, 2L))
   expect_equal(dimnames(mat), list(c("A", "B"), c("X", "Y")))
@@ -157,7 +174,7 @@ test_that("the stocnet source builds the legacy state container", {
   legacy_state <- build_state_container(
     "calls",
     nodes = "actors",
-    envir = legacy_env_with_folded_network(inputs)
+    envir = legacy_env_with_network(inputs)
   )
   stocnet_state <- build_state_container(
     "calls",
@@ -308,5 +325,5 @@ test_that("a per-layer declaration makes mode-ness layer-specific", {
     ds_model_is_two_mode(src),
     label = "the focal layer decides the model, not the other layers"
   )
-  expect_equal(dim(ds_network(src, "report", time = 4)), c(2L, 1L))
+  expect_equal(dim(ds_network(src, "report")), c(2L, 1L))
 })
