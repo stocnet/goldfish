@@ -312,8 +312,19 @@ ds_is_global.data_source_envir <- function(src, nodeset) {
 
 #' @exportS3Method
 ds_is_global.data_source_stocnet <- function(src, nodeset) {
-  !is.null(src$data$global) &&
-    nodeset %in% unique(as.data.frame(src$data$global)$var)
+  identical(nodeset, GLOBAL_NODESET)
+}
+
+# A global variable's value in force. Globals carry no node reference, so the
+# attribute materializer's per-node dedup does not apply: under `replace`
+# semantics the value is simply the last row, history first.
+ds_global_value <- function(src, var) {
+  stream <- src$streams$global[[var]]
+  if (is.null(stream) || nrow(stream) == 0) {
+    return(NULL)
+  }
+  ordered <- stream[history_first_order(stream$time), , drop = FALSE]
+  unlist(ordered$value, use.names = FALSE)[nrow(ordered)]
 }
 
 # An attribute's initial vector, sliced to the node set's rows.
@@ -331,9 +342,7 @@ ds_attribute.data_source_stocnet <- function(src, nodeset, attribute) {
     return(src$att_override[[key]])
   }
   if (ds_is_global(src, nodeset)) {
-    g <- as.data.frame(src$data$global)
-    vals <- unwrap_values(g$value)[g$var == nodeset]
-    return(vals[length(vals)])
+    return(ds_global_value(src, attribute))
   }
   src$nodes[[attribute]][ds_side_ids(src, nodeset)]
 }
@@ -389,12 +398,12 @@ ds_attribute_streams.data_source_envir <- function(src, nodeset, attribute) {
 
 #' @exportS3Method
 ds_attribute_streams.data_source_stocnet <- function(src, nodeset, attribute) {
-  if (ds_is_global(src, nodeset)) {
-    return(
-      if (nodeset %in% names(src$streams$global)) nodeset else character(0)
-    )
+  pool <- if (ds_is_global(src, nodeset)) {
+    names(src$streams$global)
+  } else {
+    names(src$streams$attribute)
   }
-  if (attribute %in% names(src$streams$attribute)) attribute else character(0)
+  if (attribute %in% pool) attribute else character(0)
 }
 
 # Composition -----------------------------------------------------------------

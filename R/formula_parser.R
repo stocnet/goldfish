@@ -31,7 +31,12 @@
 #'     indeg(call_network, type = "alter")
 #' )
 #' }
-parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
+parse_formula <- function(
+  formula,
+  envir = new.env(),
+  realize_windows = TRUE,
+  data = NULL
+) {
   dep_name <- get_dependent_name(formula)
   if (!inherits(get(dep_name, envir = envir), "dependent.goldfish")) {
     stop(
@@ -84,6 +89,16 @@ parse_formula <- function(formula, envir = new.env(), realize_windows = TRUE) {
       rhs_names[[i]][[2]] <- default_network_name
     }
   }
+
+  # Resolve object references against the data components before anything reads
+  # them as objects: a bare attribute name is indistinguishable from a layer
+  # name until it is looked up, and parse_time_windows() below rejects windows
+  # on attributes by exactly that distinction.
+  rhs_names <- resolve_formula_names(
+    rhs_names,
+    new_data_source(data = data, envir = envir),
+    user_env = rlang::caller_env()
+  )
 
   window_parameters <- lapply(rhs_names, getElement, "window")
   rhs_names <- parse_time_windows(
@@ -494,6 +509,13 @@ compile_support_constraint <- function(
   data = NULL
 ) {
   atom_rhs_names <- get_rhs_names(atoms_to_formula(constraint_plan$atoms))
+  # The constraint's atoms are plain effects, so their names resolve against the
+  # components through the same resolver the estimated formula used.
+  atom_rhs_names <- resolve_formula_names(
+    atom_rhs_names,
+    new_data_source(data = data, envir = envir),
+    user_env = rlang::caller_env()
+  )
   # Constraint atoms always use the dyad kernel (`init_*_choice`): a dyadic atom
   # needs the dyad machinery, and a sender-axis atom (ego/global) works under it
   # too (broadcasting to an ego row). This is the constraint-scoped auxiliary
