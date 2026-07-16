@@ -1,3 +1,28 @@
+# goldfish 1.9.0
+
+## New features
+
+* **Single data object.** `estimate_dynam()`, `estimate_rem()`, and
+  `make_specification()` now accept a **`stocnet`** object (from
+  `manynet::make_stocnet()` / `as_stocnet()`) as `data`, replacing the
+  environment-of-objects representation for DyNAM and REM. `as_goldfish()`
+  validates and stamps such an object early. Layer sides are declared per layer
+  via `info$sender` / `info$receiver` mode sets (two-mode support without a second
+  node set); a reserved `ties$flavor` column plus a flavor-keyed
+  `rate = list(creation ~ ...)` syntax models a subset of a focal layer's events.
+  State-at-time helpers (`network_state_at()`, `nodes_state_at()`) evaluate a
+  layer or the nodes at a time point.
+
+## Deprecations
+
+* The legacy data constructors -- `make_nodes()`, `make_network()`,
+  `make_dependent_events()`, `make_global_attributes()`, `link_events()`,
+  `make_data()` (and the `make_data_goldfish()` alias) -- are **soft-deprecated**
+  in favor of building a `stocnet` object with manynet. They keep working for one
+  cycle: `make_data()` now returns the assembled `stocnet` (never a legacy
+  environment), and each constructor points at its stocnet replacement. A saved
+  pre-1.9.0 `data.goldfish` environment must be rebuilt as a `stocnet`.
+
 # goldfish 1.8.8
 
 ## New features

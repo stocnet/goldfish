@@ -138,12 +138,10 @@
 # the single stocnet data object (manynet::make_stocnet() / as_stocnet()). The
 # message renders the replacement as a cli code block; each caller passes the
 # snippet for its own signature, interpolating the object names it captured.
-# deprecate_warn() dedups per `what`, so a session warns once per constructor.
-deprecate_constructor <- function(
-  what,
-  replacement,
-  env = rlang::caller_env()
-) {
+# user_env is the constructor's caller (two frames up: this helper, then the
+# constructor), so the deprecation attributes to the user's call rather than to
+# goldfish internals -- attributing internally would suppress the warning.
+deprecate_constructor <- function(what, replacement) {
   lifecycle::deprecate_warn(
     when = "1.9.0",
     what = what,
@@ -151,7 +149,11 @@ deprecate_constructor <- function(
       "i" = "goldfish now consumes a single {.cls stocnet} data object.",
       "*" = replacement
     ),
-    user_env = env
+    # A stable id so a session warns once per constructor: make_network()'s
+    # message interpolates the caller's object names, which would otherwise vary
+    # the default id and re-warn on every distinct call.
+    id = paste0("goldfish_deprecate_", what),
+    user_env = rlang::caller_env(2)
   )
 }
 
