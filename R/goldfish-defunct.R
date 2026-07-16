@@ -53,6 +53,7 @@ defineNodes <- function(nodes) {
     what = "defineNodes()",
     with = "make_nodes()"
   )
+  rlang::local_options(lifecycle_verbosity = "quiet")
   make_nodes(nodes = nodes)
 }
 
@@ -70,6 +71,7 @@ defineNetwork <- function(
     what = "defineNetwork()",
     with = "make_network()"
   )
+  rlang::local_options(lifecycle_verbosity = "quiet")
   make_network(
     matrix = matrix,
     nodes = nodes,
@@ -93,6 +95,7 @@ defineDependentEvents <- function(
     what = "defineDependentEvents()",
     with = "make_dependent_events()"
   )
+  rlang::local_options(lifecycle_verbosity = "quiet")
   make_dependent_events(
     events = events,
     nodes = nodes,
@@ -110,6 +113,7 @@ defineGlobalAttribute <- function(global) {
     what = "defineGlobalAttribute()",
     with = "make_global_attributes()"
   )
+  rlang::local_options(lifecycle_verbosity = "quiet")
   make_global_attributes(global = global)
 }
 
@@ -142,6 +146,7 @@ linkEvents <- function(x, ...) {
     what = "linkEvents()",
     with = "link_events()"
   )
+  rlang::local_options(lifecycle_verbosity = "quiet")
   link_events(x, ...)
 }
 

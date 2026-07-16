@@ -134,6 +134,27 @@
 #   }, error = function(e) return(NULL))
 # }
 
+# One deprecation cycle: the legacy constructors keep working but point users at
+# the single stocnet data object (manynet::make_stocnet() / as_stocnet()). The
+# message renders the replacement as a cli code block; each caller passes the
+# snippet for its own signature, interpolating the object names it captured.
+# deprecate_warn() dedups per `what`, so a session warns once per constructor.
+deprecate_constructor <- function(
+  what,
+  replacement,
+  env = rlang::caller_env()
+) {
+  lifecycle::deprecate_warn(
+    when = "1.9.0",
+    what = what,
+    details = c(
+      "i" = "goldfish now consumes a single {.cls stocnet} data object.",
+      "*" = replacement
+    ),
+    user_env = env
+  )
+}
+
 #' Defining a node set with (dynamic) node attributes.
 #'
 #' The `make_nodes()` function processes and checks the `data.frame` passed to
@@ -200,6 +221,10 @@
 #' data("Fisheries_Treaties_6070")
 #' states <- make_nodes(states)
 make_nodes <- function(nodes) {
+  deprecate_constructor(
+    "make_nodes()",
+    "Pass the node data frame to {.fn manynet::make_stocnet} as {.arg nodes}."
+  )
   # check input types
   if (!is.data.frame(nodes)) {
     stop(
@@ -293,6 +318,23 @@ make_network <- function(
   directed = TRUE,
   envir = environment()
 ) {
+  mat_name <- deparse(substitute(matrix, envir))
+  nodes_name <- deparse(substitute(nodes, envir))
+  deprecate_constructor(
+    "make_network()",
+    if (is.null(matrix)) {
+      sprintf(
+        "Build the layer from ties: {.code as_stocnet(<edgelist>) |> join_nodes(%s)}.", # nolint
+        nodes_name
+      )
+    } else {
+      sprintf(
+        "Replace with {.code as_stocnet(%s) |> join_nodes(%s)}.",
+        mat_name,
+        nodes_name
+      )
+    }
+  )
   # check input types
   is_two_mode <- !is.null(nodes2)
   n_row <- nrow(nodes)
@@ -472,6 +514,12 @@ make_dependent_events <- function(
   default_network = NULL,
   envir = environment()
 ) {
+  deprecate_constructor(
+    "make_dependent_events()",
+    "Name the focal layer with {.code add_info(focal = ...)} on the stocnet;
+     model a subset of its events with a flavor-keyed {.arg rate}/{.arg choice}
+     list, e.g. {.code rate = list(creation ~ ...)}."
+  )
   # check input types
   is_two_mode <- !is.null(nodes2)
   if (!is.data.frame(events)) {
@@ -631,6 +679,11 @@ make_dependent_events_goldfish <- make_dependent_events
 #'   data.frame(winter = 1, spring = 0, summer = 0, autumn = 0)
 #' )
 make_global_attributes <- function(global) {
+  deprecate_constructor(
+    "make_global_attributes()",
+    "Add global variables to the stocnet's {.field global} component
+     (one {.code time}/{.code var}/{.code value} row per attribute)."
+  )
   if (!is.data.frame(global)) {
     cli::cli_abort(c(
       "{.arg global} must be a {.cls data.frame}.",
@@ -728,6 +781,11 @@ make_global_attributes_goldfish <- make_global_attributes
 #' )
 #'
 make_data <- function(..., parent_env = parent.frame()) {
+  deprecate_constructor(
+    "make_data()",
+    "Assemble the components with {.fn manynet::make_stocnet} (or merge layers
+     with {.fn manynet::from_ties}) and pass the result to {.arg data}."
+  )
   data_env <- new.env(parent = parent_env)
 
   initial_objects <- list(...)
@@ -1005,6 +1063,11 @@ make_data_goldfish <- make_data
 #'   x = call_network, change_events = calls, nodes = actors
 #' )
 link_events <- function(x, ...) {
+  deprecate_constructor(
+    "link_events()",
+    "Bind the events into the stocnet with {.fn manynet::bind_ties} (networks)
+     or {.fn manynet::bind_changes} (nodal / global attributes)."
+  )
   UseMethod("link_events", x)
 }
 
