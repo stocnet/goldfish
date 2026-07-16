@@ -37,14 +37,12 @@ parse_formula <- function(
   realize_windows = TRUE,
   data = NULL
 ) {
+  # The formula's left-hand side names the dependent process, so it -- not
+  # `info$focal` -- is the focal layer this parse resolves against, which is
+  # what lets `layer` override the declaration.
   dep_name <- get_dependent_name(formula)
-  if (!inherits(get(dep_name, envir = envir), "dependent.goldfish")) {
-    stop(
-      "The left hand side of the formula should contain dependent events",
-      " (check the function 'make_dependent_events()').",
-      call. = FALSE
-    )
-  }
+  src <- new_data_source(data = data, envir = envir, focal = dep_name)
+  ds_check_dependent(src, dep_name)
   rhs_names <- get_rhs_names(formula)
   if (length(rhs_names) == 0) {
     stop("A model without effects cannot be estimated.", call. = FALSE)
@@ -82,7 +80,7 @@ parse_formula <- function(
     is_main <- is_main[-1]
     is_operand <- is_operand[-1]
   }
-  default_network_name <- attr(get(dep_name, envir = envir), "default_network")
+  default_network_name <- ds_default_network(src, dep_name)
   if (!is.null(default_network_name)) {
     no_object_ids <- which(1 == vapply(rhs_names, length, integer(1)))
     for (i in no_object_ids) {
@@ -96,7 +94,7 @@ parse_formula <- function(
   # on attributes by exactly that distinction.
   rhs_names <- resolve_formula_names(
     rhs_names,
-    new_data_source(data = data, envir = envir),
+    src,
     user_env = rlang::caller_env()
   )
 
@@ -844,8 +842,9 @@ build_events_objects_link <- function(
   src <- new_data_source(data = data, envir = envir)
   sanitize <- ds_needs_sanitize(src)
   object_names <- get_data_objects(rhs_names)
+  dep_key <- ds_dependent_key(src, dep_name)
   events_objects_link <- data.frame(
-    events = dep_name,
+    events = dep_key,
     name = NA,
     object = NA,
     nodeset = NA,
@@ -853,7 +852,7 @@ build_events_objects_link <- function(
     stringsAsFactors = FALSE
   )
   fetch_plan <- list(list(
-    stream = dep_name,
+    stream = dep_key,
     sanitize = sanitize,
     s_nodes = nodes,
     s_nodes2 = nodes2

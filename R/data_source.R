@@ -23,6 +23,12 @@
 # names.
 # =========================================================================== #
 
+# The fetch-plan key of the dependent event stream on the stocnet path. Legacy
+# keys it by the dependent-events object's name, which is always distinct from
+# the network it updates; the focal layer is both, so it needs a reserved key.
+# See ds_dependent_key().
+DEPENDENT_STREAM <- ".dependent"
+
 #' Build the resolution seam over a data input
 #'
 #' @param data a validated stocnet object, or `NULL` on the legacy path.
@@ -406,6 +412,94 @@ ds_attribute_streams.data_source_stocnet <- function(src, nodeset, attribute) {
   if (attribute %in% pool) attribute else character(0)
 }
 
+# The dependent process ------------------------------------------------------
+
+#' Check that a formula's dependent name designates a dependent process
+#'
+#' @param src a data source.
+#' @param dep_name the formula's left-hand-side name.
+#' @param call calling environment for error reporting.
+#' @noRd
+ds_check_dependent <- function(src, dep_name, call = rlang::caller_env()) {
+  UseMethod("ds_check_dependent")
+}
+
+#' @exportS3Method
+ds_check_dependent.data_source_envir <- function(
+  src,
+  dep_name,
+  call = rlang::caller_env()
+) {
+  obj <- tryCatch(get(dep_name, envir = src$envir), error = function(e) NULL)
+  if (!inherits(obj, "dependent.goldfish")) {
+    stop(
+      "The left hand side of the formula should contain dependent events",
+      " (check the function 'make_dependent_events()').",
+      call. = FALSE
+    )
+  }
+  invisible(dep_name)
+}
+
+#' @exportS3Method
+ds_check_dependent.data_source_stocnet <- function(
+  src,
+  dep_name,
+  call = rlang::caller_env()
+) {
+  if (!dep_name %in% src$layers) {
+    cli::cli_abort(
+      c(
+        "The dependent process {.val {dep_name}} is not a layer of the data.",
+        "i" = "Available layer{?s}: {.val {src$layers}}."
+      ),
+      call = call
+    )
+  }
+  invisible(dep_name)
+}
+
+#' The network a dependent process updates by default
+#'
+#' Effects written without an object (`inertia`) read it. A stocnet focal layer
+#' is its own default network: the events and the ties they update are the same
+#' rows, which is exactly what the legacy pairing of a dependent-events object
+#' with its `default_network` encoded.
+#'
+#' @inheritParams ds_check_dependent
+#' @noRd
+ds_default_network <- function(src, dep_name) UseMethod("ds_default_network")
+
+#' @exportS3Method
+ds_default_network.data_source_envir <- function(src, dep_name) {
+  attr(get(dep_name, envir = src$envir), "default_network")
+}
+
+#' @exportS3Method
+ds_default_network.data_source_stocnet <- function(src, dep_name) {
+  dep_name
+}
+
+#' The fetch-plan key of the dependent event stream
+#'
+#' Legacy names the dependent-events object and the network it updates
+#' differently, so the two streams already have distinct keys. On stocnet both
+#' are the focal layer, but they are not the same rows -- the dependent stream
+#' carries only the modeled rows, while the network stream carries every timed
+#' row, all of which update state. A reserved key keeps them apart.
+#'
+#' @inheritParams ds_check_dependent
+#' @noRd
+ds_dependent_key <- function(src, dep_name) UseMethod("ds_dependent_key")
+
+#' @exportS3Method
+ds_dependent_key.data_source_envir <- function(src, dep_name) dep_name
+
+#' @exportS3Method
+ds_dependent_key.data_source_stocnet <- function(src, dep_name) {
+  DEPENDENT_STREAM
+}
+
 # Composition -----------------------------------------------------------------
 
 #' A node set's composition: who is present initially, and when that changes
@@ -531,17 +625,11 @@ ds_fetch_stream.data_source_stocnet <- function(src, key) {
       stringsAsFactors = FALSE
     ))
   }
+  if (identical(key, DEPENDENT_STREAM)) {
+    return(dyadic_stream_events(src, src$streams$dependent, src$streams$focal))
+  }
   if (key %in% src$layers) {
-    stream <- src$streams$network[[key]]
-    timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
-    events <- data.frame(
-      time = timed$time,
-      sender = timed$from,
-      receiver = timed$to,
-      stringsAsFactors = FALSE
-    )
-    events[[tie_value_column(src, key)]] <- timed$value
-    return(events)
+    return(dyadic_stream_events(src, src$streams$network[[key]], key))
   }
   stream <- src$streams$attribute[[key]]
   timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
@@ -551,6 +639,22 @@ ds_fetch_stream.data_source_stocnet <- function(src, key) {
     replace = unlist(timed$value, use.names = FALSE),
     stringsAsFactors = FALSE
   )
+}
+
+# Shape a dyadic stream (a layer's ties, or the focal layer's modeled rows) the
+# way the walk consumes it. `layer` names the layer whose update semantics the
+# value column is named for -- the dependent stream carries the focal layer's
+# rows, so it takes the focal layer's semantics.
+dyadic_stream_events <- function(src, stream, layer) {
+  timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
+  events <- data.frame(
+    time = timed$time,
+    sender = timed$from,
+    receiver = timed$to,
+    stringsAsFactors = FALSE
+  )
+  events[[tie_value_column(src, layer)]] <- timed$value
+  events
 }
 
 # The value column a layer's events carry, named for its update semantics.

@@ -204,7 +204,10 @@ split_stocnet_streams <- function(
   names(network) <- layers
 
   dependent <- NULL
-  if (!is.null(focal)) {
+  # A focal naming no layer leaves the dependent stream empty rather than
+  # failing here: reporting it belongs to the validator and to the dependent
+  # check, which name the available layers.
+  if (!is.null(focal) && focal %in% layers) {
     fstream <- network[[focal]]
     timed <- !is.na(fstream$time)
     if (!is.null(modeled_flavor)) {
