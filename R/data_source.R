@@ -770,6 +770,18 @@ ds_realize_derivations.data_source_stocnet <- function(src, derivations) {
     if (!identical(d$kind, "window")) {
       next
     }
+    # A panel layer is a change-list of wave snapshots: a window's expiry would
+    # reset every panel tie at once (the wave value is the current state, not an
+    # event that decays), so windowing a panel-layer effect is ill-defined.
+    if (identical(unname(src$info$observation[d$source]), "panel")) {
+      cli::cli_abort(c(
+        "A {.arg window} cannot be used on the panel layer {.val {d$source}}.",
+        "x" = "Window expiry would reset every panel tie, not just decay one
+               event.",
+        "i" = "Panel layers enter as change-list covariates updated at their
+               wave times; drop the {.arg window} argument."
+      ))
+    }
     # The dissolve streams keep the legacy naming (`<stream>_<window>`) so the
     # fetch plan, built from metadata alone, addresses them the same way on
     # both paths.

@@ -293,6 +293,15 @@ check_focal <- function(info, focal, layers, call) {
   focal_layer
 }
 
+# Panel layers enter DyNAM/REM as change-list exogenous covariates: their tie
+# rows are updates applied at their wave times (per info$update), dissolutions
+# must be explicit value-0 rows, and windowing such an effect aborts (see
+# ds_realize_derivations()). A richer snapshot interpretation -- diffing waves
+# and augmenting with latent formation/dissolution events between them -- is the
+# future DyNES model's, and it is keyed off a RESERVED per-layer info flag
+# (`info$panel_semantics`, named per layer) that this validator neither requires
+# nor consults: the slot is defined for that change to own, with no machinery
+# built here.
 check_focal_not_panel <- function(info, focal_layer, call) {
   if (is.null(focal_layer)) {
     return(invisible(TRUE))

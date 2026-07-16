@@ -327,3 +327,36 @@ test_that("a per-layer declaration makes mode-ness layer-specific", {
   )
   expect_equal(dim(ds_network(src, "report")), c(2L, 1L))
 })
+
+test_that("a window on a panel-layer effect aborts before preprocessing", {
+  x <- make_stocnet_fixture()
+  # Add an exogenous panel layer whose effect the model would window.
+  x$ties <- rbind(
+    x$ties,
+    data.frame(from = 1L, to = 2L, time = 1, layer = "friendship")
+  )
+  x$info$update <- c(calls = "increment", friendship = "replace")
+  x$info$directed <- c(calls = TRUE, friendship = TRUE)
+  x$info$observation <- c(calls = "event", friendship = "panel")
+  src <- new_data_source(data = x, focal = "calls")
+
+  windowed <- list(list(
+    kind = "window",
+    source = "friendship",
+    derived_name = "friendship_86400",
+    params = list(window = 86400)
+  ))
+  expect_error(
+    ds_realize_derivations(src, windowed),
+    "panel layer"
+  )
+
+  # An event-layer window still realizes without error.
+  event_window <- list(list(
+    kind = "window",
+    source = "calls",
+    derived_name = "calls_86400",
+    params = list(window = 86400)
+  ))
+  expect_no_error(ds_realize_derivations(src, event_window))
+})
