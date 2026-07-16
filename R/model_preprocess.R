@@ -512,6 +512,7 @@ prepare_recipe_context <- function(
     effects_template = effects_template,
     nodes = nodes,
     nodes2 = nodes2,
+    src = src,
     events = events,
     n1 = n1,
     n2 = n2,
@@ -1022,6 +1023,7 @@ run_sender_recipe_loop <- function(
       nodes2 = nodes2,
       symmetric = FALSE,
       snapshot_times = out$event_time,
+      src = src,
       prep_envir = prep_envir
     )
     # Fold the constraint into `active_sender` during preprocessing: the
@@ -1883,6 +1885,7 @@ run_dyad_recipe_loop <- function(
       nodes2 = nodes2,
       symmetric = identical(spec$sub_model, "choice_coordination"),
       snapshot_times = out$event_time,
+      src = src,
       prep_envir = prep_envir
     )
     # Fold the constraint into `active_dyad` at its minimal encoding during

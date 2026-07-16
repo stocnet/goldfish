@@ -7,10 +7,10 @@
       Model "DyNAM" · sub-model rate and choice
       
       Dependent
-      * Layer: "calls_dependent"
+      * Layer: "call_network"
       * Events: 120
       * Time span: "1220733470 – 1223140151"
-      * Nodes: actors
+      * Nodes: nodes
       * Network: "call_network"
       
       Rate: `~1 + indeg + outdeg`
@@ -27,10 +27,10 @@
       Model "DyNAM" · sub-model choice
       
       Dependent
-      * Layer: "calls_dependent"
+      * Layer: "call_network"
       * Events: 120
       * Time span: "1220733470 – 1223140151"
-      * Nodes: actors
+      * Nodes: nodes
       * Network: "call_network"
       
       Choice: `~inertia + recip`

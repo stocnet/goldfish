@@ -132,7 +132,7 @@ test_that("make_specification enforces model / argument constraints", {
       data = d,
       layer = "nope"
     ),
-    "does not name a dependent-events object"
+    "must name a layer present in"
   )
   # an unidentified bare main effect (ego in choice) aborts at build time
   expect_error(
@@ -224,7 +224,10 @@ test_that("multi-term boolean constraint records all atoms and the tree", {
     data = d
   )
   cp <- spec$constraint
-  expect_identical(cp$atom_labels, c("tie(call_network)", "indeg(call_network)"))
+  expect_identical(
+    cp$atom_labels,
+    c("tie(call_network)", "indeg(call_network)")
+  )
   expect_identical(cp$expr, quote(.a1 != 0 & .a2 > 1))
 })
 

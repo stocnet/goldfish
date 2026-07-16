@@ -22,7 +22,18 @@ make_constraint_fixture <- function() {
     default_network = call_network
   )
   calls_dependent <- calls_dependent[1:80, ]
-  make_data(calls_dependent, call_network, calls, actors)
+  # The low-level compile tests drive the constraint builders directly against a
+  # legacy environment (node-set names, dependent object); the estimate tests use
+  # the stocnet make_data() returns.
+  env <- new.env()
+  assign("call_network", call_network, envir = env)
+  assign("calls_dependent", calls_dependent, envir = env)
+  assign("calls", calls, envir = env)
+  assign("actors", actors, envir = env)
+  list(
+    data = make_data(calls_dependent, call_network, calls, actors),
+    env = env
+  )
 }
 
 test_that("compile_support_constraint builds a role-tagged sibling sub-plan", {
@@ -30,7 +41,7 @@ test_that("compile_support_constraint builds a role-tagged sibling sub-plan", {
   cp <- parse_and_validate_constraint(
     ~ tie(call_network),
     has_dyad_part = TRUE,
-    envir = d
+    envir = d$env
   )
   sub <- compile_support_constraint(
     cp,
@@ -39,7 +50,7 @@ test_that("compile_support_constraint builds a role-tagged sibling sub-plan", {
     nodes = "actors",
     nodes2 = "actors",
     window_derivations = NULL,
-    envir = d
+    envir = d$env
   )
   expect_identical(unique(sub$effects$role), "constraint")
   expect_false(any(sub$effects$estimate))
@@ -57,7 +68,7 @@ test_that("support_mask_derivation registers a support_mask derived object", {
   cp <- parse_and_validate_constraint(
     ~ tie(call_network),
     has_dyad_part = TRUE,
-    envir = d
+    envir = d$env
   )
   sub <- compile_support_constraint(
     cp,
@@ -66,7 +77,7 @@ test_that("support_mask_derivation registers a support_mask derived object", {
     nodes = "actors",
     nodes2 = "actors",
     window_derivations = NULL,
-    envir = d
+    envir = d$env
   )
   der <- support_mask_derivation(sub)
   expect_identical(der$kind, "support_mask")
@@ -80,13 +91,13 @@ test_that("constrained choice preprocessing is unchanged until the mask is consu
   prep0 <- estimate_dynam(
     calls_dependent ~ inertia + recip,
     sub_model = "choice",
-    data = d,
+    data = d$data,
     preprocessing_only = TRUE
   )
   prep1 <- estimate_dynam(
     calls_dependent ~ inertia + recip,
     sub_model = "choice",
-    data = d,
+    data = d$data,
     preprocessing_only = TRUE,
     support_constraint = ~ tie(call_network)
   )
@@ -100,7 +111,7 @@ test_that("a rate-only spec accepts a dyadic support_constraint via the row-redu
     prep <- estimate_dynam(
       calls_dependent ~ 1 + indeg,
       sub_model = "rate",
-      data = d,
+      data = d$data,
       preprocessing_only = TRUE,
       support_constraint = ~ tie(call_network)
     ),
@@ -118,7 +129,7 @@ test_that("a specification threads its support_constraint into estimation", {
     choice_sub_model = "choice",
     layer = "calls_dependent",
     support_constraint = ~ tie(call_network),
-    data = d
+    data = d$data
   )
   expect_s3_class(spec$constraint, "support_constraint_plan")
   prep <- estimate_dynam(spec, sub_model = "choice", preprocessing_only = TRUE)

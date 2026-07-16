@@ -8,6 +8,24 @@ enviro_builders <- function() {
   env
 }
 
+# The legacy-environment inputs these builder unit tests resolve names against.
+# make_data() now returns a stocnet rather than an environment, so the tests
+# assemble the goldfish objects into a plain environment directly.
+builders_env <- function() {
+  env <- new.env()
+  for (nm in c(
+    "depNetwork",
+    "networkState",
+    "networkExog",
+    "actors_ex",
+    "eventsIncrement",
+    "eventsExogenous"
+  )) {
+    assign(nm, get(nm), envir = env)
+  }
+  env
+}
+
 test_that("build_state_container assembles networks and nodal attributes", {
   env <- enviro_builders()
   state <- build_state_container(
@@ -109,7 +127,10 @@ test_that("build_object_keys maps components without materialising data", {
     envir = env
   )
   expect_s3_class(keys, "data.frame")
-  expect_equal(keys$name, c("networkState", "actors_ex$attr1", "seasons$winter"))
+  expect_equal(
+    keys$name,
+    c("networkState", "actors_ex$attr1", "seasons$winter")
+  )
   expect_equal(keys$component, c("networks", "nodal", "globals"))
   expect_equal(keys$key, c("networkState", "attr1", "winter"))
   expect_equal(
@@ -156,7 +177,7 @@ build_plan_fixture <- function(
   sub_model = "choice",
   stat_kind = "dyad"
 ) {
-  env <- rlang::env_clone(dataTest)
+  env <- builders_env()
   parsed <- parse_formula(formula, envir = env)
   effects <- create_effects_functions(
     parsed$rhs_names,
@@ -298,7 +319,7 @@ test_that("build_update_plan net_update positions for two-network effects", {
 })
 
 test_that("build_update_plan flags undirected networks for the second call", {
-  env <- rlang::env_clone(dataTest)
+  env <- builders_env()
   undirNet <- make_network(nodes = actors_ex, directed = FALSE)
   undirEvents <- data.frame(
     time = c(10, 20),

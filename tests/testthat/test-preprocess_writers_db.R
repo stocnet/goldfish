@@ -43,7 +43,7 @@ test_that("compute_stats(output = 'db') round-trips against the gather writer", 
 
 test_that("gather index columns decode to node labels; coordination is filtered", {
   skip_on_cran()
-  nodes <- get("actors", envir = se_data)
+  nodes <- se_data$nodes
   # DyNAM choice: index_i is the (constant) event sender, index_j the receiver;
   # the selected row decodes to the observed sender/receiver labels.
   gc <- compute_stats(

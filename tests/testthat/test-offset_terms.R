@@ -27,7 +27,7 @@ test_that("offset() is unwrapped, tagged, and its stat column kept", {
   d <- make_offset_fixture()
   parsed <- parse_formula(
     calls_dependent ~ inertia + offset(recip) + trans,
-    envir = d
+    data = d
   )
   # the inner call is parsed normally (effect name recovered, not "offset")
   expect_identical(

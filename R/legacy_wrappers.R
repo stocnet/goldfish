@@ -39,7 +39,32 @@ legacy_nodes_table <- function(node_obj) {
 # linked events. Undirected layers take the upper triangle only so mirroring in
 # the engine does not double the history. `weight` carries the tie value (matrix
 # entry for history, increment/replace value for events).
-legacy_layer_ties <- function(net, layer, labels, events, update, directed) {
+# The dataset's common time class as a single NA value: the first timed network
+# event's time, or numeric NA if every layer is static. Used to type NA history
+# rows so rbind across layers keeps one coherent time axis (POSIXct vs numeric).
+legacy_time_proto <- function(objs, net_names) {
+  for (ln in net_names) {
+    ev_name <- attr(objs[[ln]], "events")
+    if (length(ev_name) == 0 || !nzchar(ev_name[1])) {
+      next
+    }
+    ev <- objs[[ev_name[1]]]
+    if (!is.null(ev) && "time" %in% names(ev) && nrow(ev) > 0) {
+      return(ev$time[NA_integer_])
+    }
+  }
+  NA_real_
+}
+
+legacy_layer_ties <- function(
+  net,
+  layer,
+  labels,
+  events,
+  update,
+  directed,
+  time_proto = NA_real_
+) {
   timed <- NULL
   if (!is.null(events) && nrow(events) > 0) {
     value <- if (update == "increment") events$increment else events$replace
@@ -61,12 +86,9 @@ legacy_layer_ties <- function(net, layer, labels, events, update, directed) {
     } else {
       which(mat != 0 & upper.tri(mat), arr.ind = TRUE)
     }
-    # NA time of the same class as the timed events (POSIXct vs numeric).
-    na_time <- if (!is.null(timed)) {
-      timed$time[rep(NA_integer_, nrow(idx))]
-    } else {
-      rep(NA_real_, nrow(idx))
-    }
+    # NA time of the dataset's common class (a static layer has no timed events
+    # to borrow the class from, so a shared prototype keeps the rbind coherent).
+    na_time <- time_proto[rep(NA_integer_, nrow(idx))]
     history <- data.frame(
       from = idx[, 1],
       to = idx[, 2],
@@ -268,6 +290,10 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
   )
   ties_list <- vector("list", length(net_names))
   names(ties_list) <- net_names
+  # One time prototype for every layer's NA history so a static layer (no timed
+  # events) does not inject a numeric NA that rbind would coerce a POSIXct axis
+  # down to. Borrow the class from the first layer that carries timed events.
+  time_proto <- legacy_time_proto(objs, net_names)
   for (ln in net_names) {
     net <- objs[[ln]]
     ev_name <- attr(net, "events")
@@ -284,7 +310,15 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
     dir <- isTRUE(attr(net, "directed"))
     update[ln] <- upd
     directed[ln] <- dir
-    ties_list[[ln]] <- legacy_layer_ties(net, ln, labels, ev, upd, dir)
+    ties_list[[ln]] <- legacy_layer_ties(
+      net,
+      ln,
+      labels,
+      ev,
+      upd,
+      dir,
+      time_proto
+    )
   }
   ties <- do.call(rbind, unname(ties_list))
   # Preserve the legacy row order as the deterministic tie-break: same-time
@@ -344,6 +378,30 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
     ties = ties,
     changes = changes,
     global = global
+  )
+}
+
+# The modeled dependent events as time/sender/receiver/increment, in the event
+# schedule order estimation processed them (time, then the `order` tie-break),
+# so the postestimation broom/diagnostic surface can align them with the
+# per-event scores. On the stocnet path they are the focal layer's timed ties,
+# filtered to the modeled flavor; `from`/`to` indices resolve to node labels.
+stocnet_dependent_events <- function(data, layer, modeled_flavor = NULL) {
+  ties <- as.data.frame(data$ties)
+  sel <- ties$layer == layer & !is.na(ties$time)
+  if (!is.null(modeled_flavor) && "flavor" %in% names(ties)) {
+    sel <- sel & !is.na(ties$flavor) & ties$flavor == modeled_flavor
+  }
+  ties <- ties[sel, , drop = FALSE]
+  order_key <- if (!is.null(ties$order)) ties$order else seq_len(nrow(ties))
+  ties <- ties[order(ties$time, order_key), , drop = FALSE]
+  labels <- data$nodes$label
+  data.frame(
+    time = ties$time,
+    sender = labels[ties$from],
+    receiver = labels[ties$to],
+    increment = if (!is.null(ties$weight)) ties$weight else rep(1, nrow(ties)),
+    stringsAsFactors = FALSE
   )
 }
 

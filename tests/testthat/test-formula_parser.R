@@ -172,7 +172,10 @@ test_that("build_derivations builds the derived-input registry from metadata", {
   objects_effects_link <- matrix(
     c(NA, NA, NA, 1),
     nrow = 2,
-    dimnames = list(c("call_network", "call_network_300"), c("inertia", "recip"))
+    dimnames = list(
+      c("call_network", "call_network_300"),
+      c("inertia", "recip")
+    )
   )
 
   derivations <- build_derivations(
@@ -757,7 +760,7 @@ test_that("window on single attribute effect raises cli error", {
       data = dataTest,
       preprocessing_only = TRUE
     ),
-    "actors_ex\\$attr1",
+    "attr1",
     label = "violation names the attribute reference"
   )
 })
@@ -825,7 +828,7 @@ test_that("window on network effect does not raise attribute error", {
       depNetworkTrans ~ trans(networkStateTrans, window = 5),
       model = "DyNAM",
       sub_model = "choice",
-      data = dataTest,
+      data = dataTrans,
       preprocessing_only = TRUE
     ),
     message = "network windowed effects must not raise the attribute error"

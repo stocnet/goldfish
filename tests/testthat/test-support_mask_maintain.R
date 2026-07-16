@@ -21,8 +21,17 @@ make_mask_fixture <- function(n_events = 80L) {
     default_network = call_network
   )
   calls_dependent <- calls_dependent[seq_len(n_events), ]
+  # A legacy environment for the low-level pass that drives the constraint
+  # builders directly with node-set names and the dependent object; make_data()
+  # returns the stocnet the higher-level tests estimate against.
+  env <- new.env()
+  assign("call_network", call_network, envir = env)
+  assign("calls_dependent", calls_dependent, envir = env)
+  assign("calls", calls, envir = env)
+  assign("actors", actors, envir = env)
   list(
     data = make_data(calls_dependent, call_network, calls, actors),
+    env = env,
     actors = actors,
     calls = as.data.frame(calls),
     dep_times = calls_dependent$time,
@@ -46,7 +55,7 @@ tie_support_from_scratch <- function(fx, event_time) {
 }
 
 run_mask_pass <- function(fx) {
-  d <- fx$data
+  d <- fx$env
   cp <- parse_and_validate_constraint(
     ~ tie(call_network),
     has_dyad_part = TRUE,

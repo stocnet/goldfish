@@ -123,6 +123,24 @@ make_specification <- function(
     ))
   }
 
+  # A wrapper-created dependent name in `layer` (recorded in info$dependents)
+  # resolves to its focal layer and stamped flavor, so the legacy call surface
+  # -- the dependent-events object name -- keeps identifying the process. A real
+  # layer name is not in the map and passes through unchanged. The user's name
+  # is kept for the specification's display `layer`, while the resolved focal
+  # drives validation, parsing, and the dependent-process facts.
+  display_layer <- layer
+  layer_flavor <- NULL
+  if (!is_legacy && !is.null(layer)) {
+    entry <- data$info$dependents[[layer]]
+    if (!is.null(entry)) {
+      layer <- entry$layer
+      if (!is.na(entry$flavor)) {
+        layer_flavor <- entry$flavor
+      }
+    }
+  }
+
   # A stamp is not evidence of validity -- manynet verbs and plain list
   # assignment mutate an object while preserving its class vector -- so the
   # stocnet input is validated here unconditionally, stamped or not.
@@ -137,7 +155,13 @@ make_specification <- function(
   spec_data <- if (is_legacy) NULL else data
 
   layer <- resolve_specification_layer(data, layer, is_legacy, work_env)
-  flavored <- resolve_modeled_flavor(rate, choice, spec_data, layer)
+  flavored <- resolve_modeled_flavor(
+    rate,
+    choice,
+    spec_data,
+    layer,
+    wrapper_flavor = layer_flavor
+  )
 
   submodels <- list()
   if (!is.null(rate)) {
@@ -185,7 +209,7 @@ make_specification <- function(
     list(
       model = model,
       submodels = submodels,
-      layer = layer,
+      layer = display_layer %||% layer,
       # The focal and the modeled flavor together select the dependent rows, so
       # they travel with the specification: state creation must resolve the same
       # dependent stream this parse did, not the one `info$focal` declares.
@@ -267,6 +291,7 @@ resolve_modeled_flavor <- function(
   choice,
   data,
   layer,
+  wrapper_flavor = NULL,
   call = rlang::caller_env()
 ) {
   rate_keyed <- unwrap_flavor_key(rate, "rate", call = call)
@@ -286,9 +311,16 @@ resolve_modeled_flavor <- function(
   }
   flavor <- if (length(flavors) > 0) flavors[[1]] else NULL
 
+  # A wrapper-resolved dependent name supplies its flavor internally: the
+  # process was already selected by the dependent-events object, so it models
+  # that flavor without the "all rows modeled" inform a bare formula triggers.
+  if (is.null(flavor) && !is.null(wrapper_flavor)) {
+    flavor <- wrapper_flavor
+  }
+
   if (!is.null(flavor)) {
     check_flavor_present(data, layer, flavor, call = call)
-  } else {
+  } else if (is.null(wrapper_flavor)) {
     inform_unkeyed_flavored_layer(data, layer)
   }
 

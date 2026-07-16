@@ -605,6 +605,11 @@ networkExog <- link_events(
 )
 
 dataTest <- make_data(depNetwork, networkExog)
+# Self-contained data for the trans/mixed effects tests, which model the
+# depNetworkTrans process over its networkStateTrans layer plus the exogenous
+# networkExog. Under the single data object, effects resolve only against the
+# data's own layers, so the referenced networks must all live in it.
+dataTransExog <- make_data(depNetworkTrans, networkExog)
 # two-mode network
 
 networkActorClub <- matrix(

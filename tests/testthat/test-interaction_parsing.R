@@ -25,7 +25,7 @@ make_interaction_fixture <- function() {
 
 test_that("a:b builds one interaction referencing both operands, no main effect", {
   d <- make_interaction_fixture()
-  parsed <- parse_formula(calls_dependent ~ inertia:recip, envir = d)
+  parsed <- parse_formula(call_network ~ inertia:recip, data = d)
 
   # both operands are returned as rhs terms (deduplicated), neither as a main
   expect_identical(
@@ -44,7 +44,7 @@ test_that("a:b builds one interaction referencing both operands, no main effect"
 
 test_that("a*b expands to a + b + a:b (operands are also main effects)", {
   d <- make_interaction_fixture()
-  parsed <- parse_formula(calls_dependent ~ inertia * recip, envir = d)
+  parsed <- parse_formula(call_network ~ inertia * recip, data = d)
 
   expect_identical(
     vapply(parsed$rhs_names, "[[", character(1), 1),
@@ -63,8 +63,8 @@ test_that("operands keep their own arguments and dedup across terms", {
   # trans is a main effect; inertia and recip feed the interaction; recip is
   # shared and must appear once.
   parsed <- parse_formula(
-    calls_dependent ~ trans + inertia:recip + recip,
-    envir = d
+    call_network ~ trans + inertia:recip + recip,
+    data = d
   )
   expect_identical(
     vapply(parsed$rhs_names, "[[", character(1), 1),
@@ -80,7 +80,7 @@ test_that("operands keep their own arguments and dedup across terms", {
 
 test_that("a 3-way interaction records all operands (n-ary)", {
   d <- make_interaction_fixture()
-  parsed <- parse_formula(calls_dependent ~ inertia:recip:trans, envir = d)
+  parsed <- parse_formula(call_network ~ inertia:recip:trans, data = d)
   expect_identical(
     vapply(parsed$rhs_names, "[[", character(1), 1),
     c("inertia", "recip", "trans")
@@ -92,7 +92,7 @@ test_that("a 3-way interaction records all operands (n-ary)", {
 
 test_that("a non-interaction formula carries an empty interaction structure", {
   d <- make_interaction_fixture()
-  parsed <- parse_formula(calls_dependent ~ inertia + recip, envir = d)
+  parsed <- parse_formula(call_network ~ inertia + recip, data = d)
   expect_length(parsed$interactions, 0)
   expect_identical(unlist(parsed$is_main_parameter), c(TRUE, TRUE))
   expect_identical(unlist(parsed$is_operand_parameter), c(FALSE, FALSE))
@@ -104,7 +104,7 @@ test_that("interactions abort only for DyNAMi (unsupported kernel)", {
   # the preprocess_interaction monolith and is not yet supported.
   expect_error(
     estimate_dynami(
-      calls_dependent ~ indeg:outdeg,
+      call_network ~ indeg:outdeg,
       sub_model = "rate",
       data = d
     ),

@@ -1557,8 +1557,8 @@ estimate_wrapper <- function(
         model,
         sub_model,
         has_intercept,
-        get(.nodes, envir = data),
-        get(.nodes2, envir = data),
+        ds_nodes_frame(orig_src, .nodes),
+        ds_nodes_frame(orig_src, .nodes2),
         objects_effects_link,
         parsed_formula,
         max_length = max_length,
@@ -1913,6 +1913,16 @@ estimate_wrapper <- function(
     env = new.env(parent = emptyenv())
   )
   result$formula <- formula_keep
+  # The self-contained data has no caller-scope dependent object for the broom /
+  # diagnostic surface to `get()`, so carry the modeled dependent events on the
+  # result (labels resolved from the mode map), in event-schedule order.
+  if (!is.environment(data)) {
+    result$dependent_events <- stocnet_dependent_events(
+      data,
+      dep_name,
+      modeled_flavor
+    )
+  }
   result$model <- model
   result$sub_model <- sub_model
   result$right_censored <- has_intercept

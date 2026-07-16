@@ -407,7 +407,7 @@ test_that("trans history consecutive", {
     depNetworkTrans ~ trans(networkStateTrans, history = "cons"),
     model = "DyNAM",
     sub_model = "choice",
-    data = dataTest,
+    data = dataTrans,
     preprocessing_only = TRUE
   )
   outDependentStatChange <- ReducePreprocess(preproData, type = "withoutTime")
@@ -428,7 +428,7 @@ test_that("trans history sequential", {
     depNetworkTrans ~ trans(networkStateTrans, history = "seq"),
     model = "DyNAM",
     sub_model = "choice",
-    data = dataTest,
+    data = dataTrans,
     preprocessing_only = TRUE
   )
   outDependentStatChange <- ReducePreprocess(preproData, type = "withoutTime")
@@ -450,7 +450,7 @@ test_that("trans history sequential window", {
     depNetworkTrans ~ trans(networkStateTrans, window = 5, history = "seq"),
     model = "DyNAM",
     sub_model = "choice",
-    data = dataTest,
+    data = dataTrans,
     preprocessing_only = TRUE
   )
   outDependentStatChange <- ReducePreprocess(preproData, type = "withoutTime")
@@ -475,7 +475,7 @@ test_that("mixed_trans with window and list(net1, net2) preprocesses without err
     ),
     model = "DyNAM",
     sub_model = "choice",
-    data = dataTest,
+    data = dataTransExog,
     preprocessing_only = TRUE
   )
   expect_equal(
@@ -494,7 +494,7 @@ test_that("mixed_cycle with window and list(net1, net2) preprocesses without err
     ),
     model = "DyNAM",
     sub_model = "choice",
-    data = dataTest,
+    data = dataTransExog,
     preprocessing_only = TRUE
   )
   outDependentStatChange <- ReducePreprocess(preproData, type = "withTime")
@@ -514,7 +514,7 @@ test_that("mixed_common_sender with window and list(net1, net2) preprocesses wit
     ),
     model = "DyNAM",
     sub_model = "choice",
-    data = dataTest,
+    data = dataTransExog,
     preprocessing_only = TRUE
   )
   expect_equal(
@@ -533,7 +533,7 @@ test_that("mixed_common_receiver with window and list(net1, net2) preprocesses w
     ),
     model = "DyNAM",
     sub_model = "choice",
-    data = dataTest,
+    data = dataTransExog,
     preprocessing_only = TRUE
   )
   expect_equal(
@@ -553,7 +553,7 @@ test_that("Object and attribute existence", {
       data = dataTest,
       preprocessing_only = TRUE
     ),
-    "Check that the object used in the formula exists",
+    "is not in the data",
     label = "when object doesn't exist"
   )
   expect_error(
@@ -564,7 +564,7 @@ test_that("Object and attribute existence", {
       data = dataTest,
       preprocessing_only = TRUE
     ),
-    "Check that the attribute used in the formula exists",
+    "is not in the data",
     label = "when attribute of an object doesn't exist"
   )
   expect_error(
@@ -575,7 +575,7 @@ test_that("Object and attribute existence", {
       data = dataTest,
       preprocessing_only = TRUE
     ),
-    "Check that the nodeset used in the formula exists",
+    "is not in the data",
     label = "when nodeset doesn't exist"
   )
 })

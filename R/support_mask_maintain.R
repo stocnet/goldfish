@@ -58,7 +58,8 @@ preprocess_support_mask <- function(
   nodes2,
   symmetric = FALSE,
   snapshot_times = numeric(0),
-  prep_envir = new.env()
+  prep_envir = new.env(),
+  src = NULL
 ) {
   effects <- sub_plan$effect_functions
   objects_effects_link <- sub_plan$objects_effects_link
@@ -67,10 +68,13 @@ preprocess_support_mask <- function(
   expr <- sub_plan$expr
   n_atoms <- length(effects)
 
-  n1 <- nrow(get(nodes, envir = prep_envir))
-  n2 <- nrow(get(nodes2, envir = prep_envir))
+  if (is.null(src)) {
+    src <- new_data_source(envir = prep_envir)
+  }
+  n1 <- ds_n_nodes(src, nodes)
+  n2 <- ds_n_nodes(src, nodes2)
 
-  events <- fetch_events(sub_plan$fetch_plan, envir = prep_envir)
+  events <- fetch_events(sub_plan$fetch_plan, envir = prep_envir, src = src)
   schedule <- build_event_schedule(
     events,
     events_objects_link,
@@ -81,7 +85,8 @@ preprocess_support_mask <- function(
     rownames(objects_effects_link),
     nodes,
     nodes2,
-    envir = prep_envir
+    envir = prep_envir,
+    src = src
   )
   effects_template <- build_effects_template(
     effects,
@@ -100,7 +105,8 @@ preprocess_support_mask <- function(
     n2 = n2,
     model = model,
     sub_model = sub_plan$atom_sub_model,
-    envir = prep_envir
+    envir = prep_envir,
+    src = src
   )
   atom_state <- new.env(parent = emptyenv())
   for (a in seq_len(n_atoms)) {
@@ -253,7 +259,13 @@ preprocess_support_mask <- function(
         ea2 <- event_args
         ea2$sender <- event_args$receiver
         ea2$receiver <- event_args$sender
-        eu2 <- call_atom_template(gid, shape, ea2, net_update_pos, att_update_pos)
+        eu2 <- call_atom_template(
+          gid,
+          shape,
+          ea2,
+          net_update_pos,
+          att_update_pos
+        )
         if (!is.null(eu2$cache)) {
           stat_cache[[gid]] <<- eu2$cache
         }

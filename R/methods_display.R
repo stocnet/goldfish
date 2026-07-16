@@ -955,7 +955,9 @@ glance.result.goldfish <- function(x, ...) {
 #' @return tibble
 #' @export
 augment.result.goldfish <- function(x, ...) {
-  data <- get(as.character(x$formula[2]))
+  # The stocnet path carries the modeled dependent events on the result; the
+  # legacy path resolves the dependent-events object from the formula LHS name.
+  data <- x$dependent_events %||% get(as.character(x$formula[2]))
   class(data) <- "data.frame"
   tib <- tibble::as_tibble(data)
   N <- nrow(tib)

@@ -41,6 +41,15 @@ parse_formula <- function(
   # `info$focal` -- is the focal layer this parse resolves against, which is
   # what lets `layer` override the declaration.
   dep_name <- get_dependent_name(formula)
+  # A wrapper-created dependent name resolves to its focal layer (via
+  # info$dependents) so the legacy dependent identifier keeps naming the process
+  # here too; a real layer name is not in the map and passes through unchanged.
+  if (!is.null(data) && !is.environment(data)) {
+    entry <- data$info$dependents[[dep_name]]
+    if (!is.null(entry)) {
+      dep_name <- entry$layer
+    }
+  }
   src <- new_data_source(data = data, envir = envir, focal = dep_name)
   ds_check_dependent(src, dep_name)
   rhs_names <- get_rhs_names(formula)
