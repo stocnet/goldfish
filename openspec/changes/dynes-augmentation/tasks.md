@@ -11,7 +11,7 @@
       (`extSoftVersion()["BLAS"]`)
 - [ ] 1.2 B3 memory/profiling spike: naive in-memory pool over a (n × events × K)
       grid anchored on the packaged `social_evolution` dataset; acceptance bound
-      ~2 GB per machine (divided across parallel workers) for K = 100–1000; record
+      ~5 GB per machine (divided across parallel workers) for K = 100–1000; record
       measurements and the implied storage decision (in-memory vs broadcast-aware
       on-disk vs DBI writer)
 - [ ] 1.3 RSiena ML-estimator study: read the MLE sequence-sampling code
@@ -52,8 +52,12 @@
 - [ ] 3.3 `augment_sequence_model()`: sequential model-driven draw at `theta`
       consuming the simulation hook (rates/probabilities from the estimation kernels
       at the current state)
-- [ ] 3.4 `augment_sequence_mutate()`: MCMC move set per the task-1.3 note with
-      forward/reverse proposal densities
+- [ ] 3.4 `augment_sequence_mutate()`: v1 permutation-only MCMC move set per the
+      task-1.3 note (insert/delete excursions and event-time re-proposals recorded
+      as future extensions, design D16) with forward/reverse proposal densities and
+      the D16 chain lifecycle: warm start into each EM iteration's new target,
+      burn-in at every chain restart, same-chain continuation for within-iteration
+      growth
 - [ ] 3.5 Tests: endpoint-hitting asserted on every draw, proposal-density
       correctness on hand-computed fixtures, hook state-visibility; verification run
       `NOT_CRAN=true` (PASS not SKIP); version bump + NEWS (augmentation milestone);
@@ -62,33 +66,50 @@
 ## 4. Batched pool evaluator
 
 - [ ] 4.1 C++ batched pool evaluation per the task-1.5 revised contract:
-      per-sequence logLik/score/Fisher at `theta` (zero optimizer iterations) over
-      flat preprocessed objects — cpp-recompile after every `src/` edit, before
-      testing
+      per-sequence logLik/score/Fisher at `theta` behind the `what` request flag
+      (score-only for the SGD loop; Fisher only where consumed; zero optimizer
+      iterations) over flat preprocessed objects — cpp-recompile after every
+      `src/` edit, before testing
 - [ ] 4.2 Per-sequence full re-preprocess pipeline: interval start state via the
       initial-state materializer, recipe run per drawn sequence, pool assembly per
       the task-1.2 storage decision
-- [ ] 4.3 Importance weights in the evaluator (model density / proposal density,
-      normalized; effective sample size) and `compute_lik_seq()` per-sequence sugar;
-      `devtools::document()`
+- [ ] 4.3 Importance weights in the evaluator per design D14: permanent per-sequence
+      (θ_ref, log-likelihood at θ_ref, log proposal density) records kept on the log
+      scale, model/proposal ratio normalized, effective sample size — and
+      `compute_lik_seq()` per-sequence sugar; `devtools::document()`
 - [ ] 4.4 Tests: batched vs zero-iteration-engine equivalence within 1e-10, weight
       fixtures, pool memory within the accepted bound; verification `NOT_CRAN=true`
       (PASS not SKIP); version bump + NEWS (evaluator milestone); commit
 
 ## 5. Optimizers and the estimation surface
 
-- [ ] 5.1 Optimizer contract + `optimize_abem_sgd()` (damped stochastic gradient
-      over sampled batches, convergence bookkeeping)
-- [ ] 5.2 `optimize_abem_resampling()` and `optimize_abem_is()`
-      (importance-sampling update) variants
-- [ ] 5.3 `set_algorithm_abem()` control object (cli validation of variants,
-      `n_cores` defaulting within CRAN's 2-core check cap) and `estimate_dynes()`
-      running the ABEM loop purely through the three contracts; the sequence-map
-      seam (serial default; mirai daemons per design D10 when installed, with
-      parallel RNG streams and the non-nested BLAS thread budget); mirai added to
-      Suggests; lifecycle experimental badge; `devtools::document()`
+- [ ] 5.1 Optimizer contract + `optimize_abem_sgd()` per design D17: weighted
+      with-replacement batch selection with unweighted updates (default) and
+      deterministic cyclic batches with importance-weighted within-batch gradients;
+      step-size schedules (constant default; AdaGrad/Adam/momentum at fixed
+      literature defaults); optimizer state reset at every M-step; score-only
+      evaluation requests; convergence bookkeeping
+- [ ] 5.2 Weighting machinery per design D13–D15: uniform/importance schemes under
+      the augmenter × weighting validity matrix, likelihood-ratio reweighting
+      against each sequence's θ_ref, pre-normalization weight transformations
+      (with the resampling warning), `refresh` mode and the ESS guard with its two
+      warnings; internal `compute_q()`/`compute_ase()` S3 generics dispatching on
+      the classed E-step object
+- [ ] 5.3 Nested `set_alg_*()` control constructors (child-local cli validation;
+      cross-object validity matrix and precedence warn-and-ignore in
+      `set_alg_em()`; descriptive argument names; single `seed`; `n_cores`
+      defaulting within CRAN's 2-core check cap), the `set_estimation_opt()`
+      warm-start initializer (θ₀ default zero vector), and `estimate_dynes()`
+      running the ABEM loop purely through the three contracts with design-D18
+      control flow (bounded `max_retries` pool growth, `cli_abort()` on
+      non-convergence, always-on `em_trace` with opt-in per-iteration SEs); the
+      sequence-map seam (serial default; mirai daemons per design D10 when
+      installed, with parallel RNG streams and the non-nested BLAS thread budget);
+      mirai added to Suggests; lifecycle experimental badge; `devtools::document()`
 - [ ] 5.4 Tests: contract dispatch (no branching inside the loop), toy-fixture
-      ascent behavior, control-object validation snapshots; verification
+      ascent behavior, control-object validation snapshots (validity-matrix
+      warn-and-ignore, ESS guard warnings, non-convergence abort), `em_trace`
+      content fixture; verification
       `NOT_CRAN=true` (PASS not SKIP); version bump + NEWS (estimation-surface
       milestone); commit
 
@@ -119,8 +140,9 @@
 
 ## 7. Results, validation study, and documentation
 
-- [ ] 7.1 Result class with Fisher approximation, MC standard errors, convergence
-      diagnostics; `vcov()` (NA-padded fixed parameters), `summary()`/`print()` via
+- [ ] 7.1 Result class with Fisher approximation, MC standard errors, and the
+      `em_trace` per-iteration diagnostics as part of the documented contract;
+      `vcov()` (NA-padded fixed parameters), `summary()`/`print()` via
       cli with pinned-context snapshots
 - [ ] 7.2 Seeded parameter-recovery test (skip_on_cran) from the toy fixture;
       full simulation study incl. creation/dissolution identifiability from waves,

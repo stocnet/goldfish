@@ -19,25 +19,32 @@ package's estimation core.
   semantics is interpreted as state observations; consecutive waves are diffed into
   candidate flip events (Hamming set), and such a layer MAY be `focal` — but only under
   `estimate_dynes()` (event-stream estimators keep aborting).
-- **`estimate_dynes(spec, algorithm = set_algorithm_abem(...))`**: new estimation
+- **`estimate_dynes(spec, algorithm = set_alg_em(...))`**: new estimation
   surface consuming a Stage-A flavored specification over a panel focal layer.
-  `set_algorithm_abem()` (aligned with the `set_*_opt()` family) controls the
-  augmentation flavor (random / model-driven / MCMC-mutation), pool size, importance
-  sampling / resampling, batch size, `max_iter`, and `tolerance`.
+  Four nested control constructors, one per algorithm concern (design D1):
+  `set_alg_em()` (EM loop, stop-rule quantiles, bounded pool growth, single seed)
+  nesting `set_alg_augment()` (routine: random / MCMC-mutation / constrained
+  simulation), `set_alg_weights()` (importance/uniform weighting, resampling,
+  refresh, ESS guard), and `set_alg_sgd()` (batching, step-size schedules).
+  Cross-constructor rules (the augmenter × weighting validity matrix) are
+  enforced in `set_alg_em()`.
 - **Three step-family contracts**, mirroring the writer strategy contract
   (init / step / finalize), so variants plug in like preprocessing writers:
   - **Augmenters** build wave-consistent latent sequences:
     `augment_sequence_random()` (uniform ordering of the Hamming flip set),
     `augment_sequence_model()` (model-driven draw at the current parameters), and
-    `augment_sequence_mutate()` (MCMC moves on an existing sequence — permutations and,
-    per the RSiena study, excursion insert/delete moves).
+    `augment_sequence_mutate()` (MCMC moves on an existing sequence — permutations
+    in v1; the RSiena-studied excursion insert/delete moves and time re-proposals
+    are recorded future extensions).
   - **Evaluators** compute E-step quantities for a pool at a parameter vector:
     batched log-likelihood / score / Fisher over preprocessed sequences, plus the
     importance weights (weights live in the evaluator, never the augmenter).
     `compute_lik_seq()` is the per-sequence sugar (named to avoid the `logLik` method
     collision).
-  - **Optimizers** perform the ascent step: stochastic-gradient, resampling, and
-    importance-sampling ABEM variants from the prototypes.
+  - **Optimizers** perform the ascent step: one SGD optimizer (weighted or
+    deterministic-cyclic batching, constant or adaptive step sizes); the
+    prototypes' IS-vs-resampling distinction lives in the weighting scheme,
+    orthogonal to the optimizer.
 - **Per-event simulation hook implemented**: the recipe loop's
   documented-not-implemented hook (visible state at event i, event-stream append)
   becomes the surface the model-driven augmenter consumes.
@@ -46,7 +53,8 @@ package's estimation core.
   full re-preprocess per drawn sequence is the baseline (incremental patching
   explicitly deferred).
 - **Result contract**: ABEM delivers estimates and a Fisher-information approximation
-  usable for `vcov()`, plus Monte-Carlo standard errors and convergence diagnostics
+  usable for `vcov()`, plus Monte-Carlo standard errors, the `em_trace`
+  per-iteration diagnostics, and convergence diagnostics
   surfaced by `summary()`.
 - **Process simulation**: a `simulate()` surface generating event sequences from a
   specification and parameters through the same generative source + multi-consumer
@@ -62,7 +70,7 @@ package's estimation core.
   augment → evaluate loop.
 - **Phase-1 spikes are tasks, not prerequisites**: the B1 likelihood-evaluation
   benchmark (K ∈ {10, 100, 1000, 10000}), the B3 memory/pool-format profiling
-  (acceptance: Social-Evolution-scale pools of 100–1000 sequences under ~2 GB), the
+  (acceptance: Social-Evolution-scale pools of 100–1000 sequences under ~5 GB), the
   RSiena ML-estimator study (proposal moves, excursions, identifiability, MC-error
   diagnostics), and an end-to-end toy prototype that shakes the three contracts.
   Spike-gated design decisions are marked and revised from the measured results.
@@ -74,9 +82,11 @@ package's estimation core.
   flip events, the augmenter/evaluator/optimizer interfaces, endpoint-hitting sequence
   validity, pool storage, batched C++ sequence evaluation and `compute_lik_seq()`, and
   the per-event simulation hook consumption.
-- `dynes-estimation`: the user surface — `estimate_dynes()`, `set_algorithm_abem()`,
+- `dynes-estimation`: the user surface — `estimate_dynes()`, the nested
+  `set_alg_*()` control constructors,
   panel focal layers, the ABEM iteration/convergence contract, and the result object
-  (estimates, Fisher-based `vcov()`, MC standard errors, `summary()` diagnostics).
+  (estimates, Fisher-based `vcov()`, MC standard errors, `em_trace`,
+  `summary()` diagnostics).
 - `process-simulation`: generating event sequences from a specification and
   parameters — stopping rules and explosion guard, per-family timing strategies
   (exact, fixed-template, pseudo-time), the coordination rejection scheme, and the

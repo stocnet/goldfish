@@ -53,9 +53,15 @@ modifying the ABEM loop (selection by contract, mirroring the writer strategy).
 ### Requirement: Batched pool evaluation with per-sequence sugar
 
 The evaluator SHALL compute, for a pool of augmented sequences at a parameter vector,
-the per-sequence log-likelihood, score, and Fisher contribution in a batched C++ call
+the requested per-sequence quantities — log-likelihood, score, and/or Fisher
+contribution, selected by a `what` request flag so callers pay only for what they
+consume (the SGD loop runs score-only; Fisher is computed at convergence and for
+opt-in trace SEs) — in a batched C++ call
 over the sequences' flat preprocessed objects (default format; zero optimizer
 iterations), plus importance weights formed from model density over proposal density.
+Each pooled sequence SHALL permanently carry its reference record (the parameters it
+was drawn under, its log-likelihood there, and its log proposal density), kept on the
+log scale, so cross-iteration reweighting is a likelihood ratio, never a re-draw.
 The package SHALL export `compute_lik_seq(spec, sequence, theta)` as per-sequence sugar
 over the same batched path (named to avoid the `logLik()` S3 collision). Each drawn
 sequence SHALL be fully preprocessed through the existing recipe path (no incremental
@@ -78,7 +84,7 @@ outcome recorded in the change's design.
 
 The pool SHALL be held as an in-memory list of flat preprocessed objects by default,
 with the acceptance bound measured in the Phase-1 profiling spike (pools of 100–1000
-sequences at Social-Evolution scale within approximately 2 GB). If the bound is
+sequences at Social-Evolution scale within approximately 5 GB). If the bound is
 exceeded, the fallback SHALL reuse existing machinery (a broadcast-aware on-disk
 variant of the default format, or the DBI writer) rather than introducing a new
 storage format; the chosen strategy and its measurements SHALL be recorded in the
