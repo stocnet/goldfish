@@ -48,3 +48,67 @@ NULL
 "calls"
 #' @rdname Social_Evolution
 "friendship"
+
+#' Social Evolution as a single stocnet object
+#'
+#' The [Social_Evolution] data assembled into one `stocnet` object (a plain list
+#' of tibbles, as produced by `manynet::make_stocnet()`), the data shape goldfish
+#' consumes directly through the `data` argument of [estimate_dynam()],
+#' [estimate_rem()], and [make_specification()]. It carries two layers over a
+#' single node set: `friendship`, the survey snapshots as a **panel** layer
+#' (wave-timed `replace` updates), and `calls`, the phone calls as an **event**
+#' layer (timestamped `increment` events). The focal (dependent) layer is
+#' `calls`.
+#'
+#' @name social_evolution_stocnet
+#' @aliases social_evolution
+#' @docType data
+#' @usage data(social_evolution)
+#' @format A `stocnet` list of five components:
+#' \describe{
+#'   \item{info}{layer metadata: `name`, `layers` (`"friendship"`, `"calls"`),
+#'     per-layer `update` (`friendship = "replace"`, `calls = "increment"`),
+#'     `directed` (both `TRUE`), `observation` (`friendship = "panel"`,
+#'     `calls = "event"`), and `focal = "calls"`.}
+#'   \item{nodes}{84 actors (`label`, `active`, `floor`, `gradeType`).}
+#'   \item{ties}{1205 rows (`from`, `to`, `time`, `weight`, `layer`) stacking the
+#'     friendship and calls events; `from`/`to` index rows of `nodes`.}
+#'   \item{changes, global}{`NULL` (no nodal or global attribute streams).}
+#' }
+#'
+#' @seealso [Social_Evolution] for the raw data frames and the source citation;
+#'   [as_goldfish()] for the validate-and-stamp boundary.
+#'
+#' @references
+#' A. Madan, M. Cebrian, S. Moturu, K. Farrahi, A. Pentland (2012).
+#' Sensing the 'Health State' of a Community.
+#' \emph{Pervasive Computing. 11}, 4, pp. 36-45. \doi{10.1109/MPRV.2011.79}.
+#'
+#' @examples
+#' # Construction workflow (how the shipped object is built from the raw frames):
+#' data("Social_Evolution")
+#' se <- manynet::from_ties(
+#'   manynet::as_stocnet(friendship), # panel survey snapshots
+#'   manynet::as_stocnet(calls), # phone-call events
+#'   layer_names = c("friendship", "calls")
+#' )
+#' se <- manynet::join_nodes(se, actors) # bring in the actor attributes
+#' se <- manynet::add_info(
+#'   se,
+#'   name = "Social Evolution MIT",
+#'   focal = "calls",
+#'   directed = c(friendship = TRUE, calls = TRUE),
+#'   observation = c(friendship = "panel", calls = "event")
+#' )
+#'
+#' # Or just load the prebuilt object and estimate on the calls layer:
+#' data("social_evolution")
+#' spec <- make_specification(
+#'   choice = ~ inertia + recip,
+#'   model = "DyNAM",
+#'   choice_sub_model = "choice",
+#'   data = social_evolution
+#' )
+#'
+#' @keywords datasets social evolution network
+"social_evolution"

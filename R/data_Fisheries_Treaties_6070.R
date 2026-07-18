@@ -80,3 +80,87 @@ NULL
 "sovchanges"
 #' @rdname Fisheries_Treaties_6070
 "states"
+
+#' Fisheries treaties as a single stocnet object
+#'
+#' The [Fisheries_Treaties_6070] data assembled into one `stocnet` object (a
+#' plain list of tibbles, as produced by `manynet::make_stocnet()`), the data
+#' shape goldfish consumes directly through the `data` argument of
+#' [estimate_dynam()], [estimate_rem()], and [make_specification()]. It carries
+#' two undirected layers over a single node set: `treaties`, an **event** layer
+#' whose `increment` updates create (`+1`) or dissolve (`-1`) bilateral treaties,
+#' and `contiguity`, an **event** layer of `replace` updates. Node-level
+#' covariates (`gdp`, `active`/sovereignty, `regime`) arrive as attribute change
+#' streams in `changes`. The focal (dependent) layer is `treaties`.
+#'
+#' The create-vs-dissolve distinction rides on a reserved `flavor` column on the
+#' `treaties` ties (`"creation"` / `"dissolution"`, mapped from the raw
+#' `increment`), so a specification can model **creations alone** with a
+#' flavor-keyed list — `make_specification(rate = list(creation ~ ...))` — while
+#' every treaty change still updates the network state. History ties (the initial
+#' `bilatnet` matrix, entered with `time = NA`) carry `NA` flavor.
+#'
+#' @name fisheries_treaties
+#' @docType data
+#' @usage data(fisheries_treaties)
+#' @format A `stocnet` list of five components:
+#' \describe{
+#'   \item{info}{layer metadata: `name`, `layers` (`"treaties"`,
+#'     `"contiguity"`), per-layer `update` (`treaties = "increment"`,
+#'     `contiguity = "replace"`), `directed` (both `FALSE`), `observation` (both
+#'     `"event"`), `focal = "treaties"`, and the `gdp`/`active`/`regime`
+#'     attribute-update metadata.}
+#'   \item{nodes}{154 states (`label`, `active`, `regime`, `gdp`).}
+#'   \item{ties}{413 rows (`from`, `to`, `weight`, `time`, `flavor`, `layer`)
+#'     stacking the treaty and contiguity history and events; `from`/`to` index
+#'     rows of `nodes`.}
+#'   \item{changes}{1186 rows (`time`, `node`, `var`, `value`) of the gdp,
+#'     active, and regime attribute updates.}
+#'   \item{global}{`NULL` (no global attribute stream).}
+#' }
+#'
+#' @seealso [Fisheries_Treaties_6070] for the raw objects and the source
+#'   citations; [make_specification()] for the flavor-keyed list syntax.
+#'
+#' @references
+#' Hollway, James, and Johan Koskinen. 2016.
+#' Multilevel Embeddedness: The Case of the Global Fisheries Governance Complex.
+#' \emph{Social Networks}, 44: 281-94. \doi{10.1016/j.socnet.2015.03.001}.
+#'
+#' @examples
+#' # Construction workflow (how the shipped object is built from the raw
+#' # objects); the treaty ties carry a `flavor` mapped from the increment:
+#' data("Fisheries_Treaties_6070")
+#' bilatchanges$flavor <- ifelse(
+#'   bilatchanges$increment == 1, "creation", "dissolution"
+#' )
+#' treaties <- manynet::bind_ties(
+#'   manynet::rename_nodes(manynet::join_nodes(
+#'     manynet::as_stocnet(bilatnet), states # bilatnet is the history matrix
+#'   )),
+#'   bilatchanges
+#' )
+#' contiguity <- manynet::bind_ties(manynet::as_stocnet(contignet), contigchanges)
+#' fish <- manynet::from_ties(treaties = treaties, contiguity = contiguity)
+#' fish <- manynet::add_info(
+#'   fish,
+#'   name = "Fisheries Treaties",
+#'   focal = "treaties",
+#'   directed = c(treaties = FALSE, contiguity = FALSE),
+#'   observation = c(treaties = "event", contiguity = "event")
+#' )
+#' fish <- manynet::bind_changes(fish, changes = gdpchanges, var = "gdp")
+#' fish <- manynet::bind_changes(fish, sovchanges, var = "active")
+#' fish <- manynet::bind_changes(fish, regchanges, var = "regime")
+#'
+#' # Or load the prebuilt object and model treaty creations alone:
+#' data("fisheries_treaties")
+#' spec <- make_specification(
+#'   choice = list(creation ~ inertia + trans),
+#'   model = "DyNAM",
+#'   choice_sub_model = "choice_coordination",
+#'   data = fisheries_treaties
+#' )
+#'
+#' @keywords datasets dynamic political network states fisheries
+"fisheries_treaties"
