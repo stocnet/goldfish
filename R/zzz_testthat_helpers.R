@@ -851,6 +851,7 @@ resModObject <- structure(
   class = "result.goldfish"
 )
 
-# Restore the caller's lifecycle verbosity (see the note at the top of the file).
+# Restore the caller's lifecycle verbosity (see the note at the top of this
+# file).
 options(.goldfish_fixture_lifecycle)
 rm(.goldfish_fixture_lifecycle)

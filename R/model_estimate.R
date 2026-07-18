@@ -1894,8 +1894,8 @@ estimate_wrapper <- function(
   result$nParams <- sum(!GetFixed(result))
   # Reconstruct the call for printing. On the direct path `sys.call(-1L)` is the
   # user's estimate_*() call. On the specification path the estimator is reached
-  # through an internal hop, so `match.call()` surfaces a wrapper frame -- and its
-  # error handler, evaluating `sys.call()` afresh, would surface the `tryCatch`
+  # through an internal hop, so `match.call()` surfaces a wrapper frame -- and
+  # its error handler, evaluating `sys.call()` afresh, surfaces the `tryCatch`
   # machinery itself. Capture the caller once here, keep it only when it names a
   # public estimator, and otherwise fall back to a clean estimator call built
   # from the kept formula.

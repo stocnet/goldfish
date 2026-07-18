@@ -77,12 +77,12 @@
 #'    one-mode choice-coordination the reflexive diagonal rows are not emitted,
 #'    and a `support_constraint` emits only allowed rows.}
 #'   \item{node_lookup}{a data frame mapping each modeled side's local index to
-#'    original node identity, with columns `side` (1 sender-side, 2 receiver-side),
-#'    `local` (the 1-based index the row's `index_i`/`index_j` use), `global`
-#'    (row index into the stocnet `nodes`), and `label`. Join `index_i` to
-#'    `side == 1` rows and `index_j` to `side == 2` rows (a one-mode model carries
-#'    side 1 only). Present on the stocnet data path; absent on the legacy
-#'    environment path, which has no mode map.}
+#'    original node identity, with columns `side` (1 sender-side, 2
+#'    receiver-side), `local` (the 1-based index the row's `index_i`/`index_j`
+#'    use), `global` (row index into the stocnet `nodes`), and `label`. Join
+#'    `index_i` to `side == 1` rows and `index_j` to `side == 2` rows (a
+#'    one-mode model carries side 1 only). Present on the stocnet data path;
+#'    absent on the legacy environment path, which has no mode map.}
 #'   \item{sender, receiver}{
 #'    a character vector with the label of the sender/receiver actor.
 #'    For right-censored events the receiver values is not meaningful.}

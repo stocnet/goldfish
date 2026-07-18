@@ -102,12 +102,12 @@ its actor(s) after the risk set has been filtered, where the positional
 one-mode choice-coordination the reflexive diagonal rows are not emitted,
 and a \code{support_constraint} emits only allowed rows.}
 \item{node_lookup}{a data frame mapping each modeled side's local index to
-original node identity, with columns \code{side} (1 sender-side, 2 receiver-side),
-\code{local} (the 1-based index the row's \code{index_i}/\code{index_j} use), \code{global}
-(row index into the stocnet \code{nodes}), and \code{label}. Join \code{index_i} to
-\code{side == 1} rows and \code{index_j} to \code{side == 2} rows (a one-mode model carries
-side 1 only). Present on the stocnet data path; absent on the legacy
-environment path, which has no mode map.}
+original node identity, with columns \code{side} (1 sender-side, 2
+receiver-side), \code{local} (the 1-based index the row's \code{index_i}/\code{index_j}
+use), \code{global} (row index into the stocnet \code{nodes}), and \code{label}. Join
+\code{index_i} to \code{side == 1} rows and \code{index_j} to \code{side == 2} rows (a
+one-mode model carries side 1 only). Present on the stocnet data path;
+absent on the legacy environment path, which has no mode map.}
 \item{sender, receiver}{
 a character vector with the label of the sender/receiver actor.
 For right-censored events the receiver values is not meaningful.}
