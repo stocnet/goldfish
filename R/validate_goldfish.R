@@ -367,7 +367,11 @@ check_time_contract <- function(ties, changes, global, call) {
     )
   }
 
-  axes <- vapply(streams, time_axis, character(1))
+  # A stream whose time is entirely NA (a global that is only an initial value, a
+  # layer that is only pre-observation history) carries no temporal axis and is
+  # comparable with any other stream, so it stays out of the mixed-axis check.
+  informative <- vapply(streams, function(time) any(!is.na(time)), logical(1))
+  axes <- vapply(streams[informative], time_axis, character(1))
   if (length(unique(axes)) > 1) {
     cli::cli_abort(
       c(

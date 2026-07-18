@@ -71,7 +71,12 @@ baselines_global_data <- function() {
     default_network = call_network
   )
   seasons <- make_global_attributes(data.frame(winter = 0))
-  seasonChange <- data.frame(time = 1222553311, replace = 1)
+  # POSIXct on the same GMT axis as the (now POSIXct) call times; as.numeric()
+  # round-trips to the identical epoch, so the frozen coefficients are unchanged.
+  seasonChange <- data.frame(
+    time = as.POSIXct(1222553311, origin = "1970-01-01", tz = "GMT"),
+    replace = 1
+  )
   seasons <- link_events(seasons, seasonChange)
   make_data(calls_dependent, call_network, calls, actors, seasons)
 }

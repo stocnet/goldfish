@@ -210,6 +210,12 @@ legacy_global_table <- function(glob_obj, objs) {
     })
     events <- do.call(rbind, ev_parts)
   }
+  # The initial value's NA time must share the events' time class: rbind of a
+  # numeric NA_real_ init with a POSIXct/Date event column collapses the axis to
+  # numeric, which then reads as a mixed time axis against the (temporal) ties.
+  if (!is.null(events)) {
+    init$time <- events$time[NA_integer_]
+  }
   rbind(init, events)
 }
 
