@@ -1,3 +1,37 @@
+# goldfish 1.9.1
+
+## New features
+
+* **Prebuilt `stocnet` datasets.** `social_evolution` and `fisheries_treaties`
+  ship as ready-to-model `stocnet` objects (plain lists of tibbles), so examples
+  and vignettes load data instead of constructing it. `fisheries_treaties` carries
+  the treaty create/dissolve distinction on a reserved `flavor` column. The raw
+  `Social_Evolution` `calls$time` / `friendship$time` are now human-readable
+  POSIXct (GMT); the change is coefficient-neutral.
+
+* **Bare attribute references in formulas.** Nodal attributes are referenced by
+  bare name -- `ego(floor)`, `same(gradeType)` -- resolved against the object's
+  `nodes`, and global attributes by their `global` name. The legacy `df$var`
+  prefix keeps working for one cycle with a deprecation warning pointing at the
+  bare syntax.
+
+* **Node identity on exports.** Preprocessed / estimation results and the
+  gather / db exports carry a `node_lookup` table (`side`, `local`, `global`,
+  `label`) so `index_i` / `index_j` resolve back to the original nodes without
+  re-deriving the mode map.
+
+* **`?goldfish_data`** documents the single-object construction workflow
+  (`manynet::as_stocnet()` / `make_stocnet()` / `from_ties()` / `add_info()`),
+  the event / panel observation types and panel dissolution rows, `time = NA`
+  history, node mode sets, and the reserved `flavor` / `order` columns. The
+  teaching vignettes are rewritten onto this workflow.
+
+## Bug fixes
+
+* A specification estimated from `make_specification()` now prints a clean
+  `estimate_dynam()` / `estimate_rem()` call in its `summary()`, rather than an
+  internal `tryCatch` frame.
+
 # goldfish 1.9.0
 
 ## New features
