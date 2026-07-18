@@ -98,10 +98,11 @@ test_that("layer overrides info$focal", {
   expect_equal(spec$dependent$n_events, 1L)
 })
 
-test_that("an unknown layer aborts", {
+test_that("an unknown layer aborts listing the candidates", {
   local_cli_context()
 
-  expect_error(
+  expect_snapshot(
+    error = TRUE,
     make_specification(
       choice = ~inertia,
       model = "DyNAM",
@@ -174,6 +175,36 @@ test_that("a plain formula on a flavored layer models all rows and says so", {
   )
   expect_null(spec$modeled_flavor)
   expect_equal(spec$dependent$n_events, 2L)
+})
+
+test_that("the spec print nests the modeled and state-only flavors", {
+  spec <- make_specification(
+    choice = list(creation ~ inertia),
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    data = flavored_fixture()
+  )
+  testthat::local_reproducible_output(
+    width = 80,
+    crayon = FALSE,
+    unicode = FALSE
+  )
+  expect_snapshot(print(spec))
+})
+
+test_that("the spec print lists all flavors when a plain formula models them", {
+  spec <- suppressMessages(make_specification(
+    choice = ~inertia,
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    data = flavored_fixture()
+  ))
+  testthat::local_reproducible_output(
+    width = 80,
+    crayon = FALSE,
+    unicode = FALSE
+  )
+  expect_snapshot(print(spec))
 })
 
 test_that("a plain formula on an unflavored layer stays quiet", {

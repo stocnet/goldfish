@@ -430,10 +430,30 @@ print.specification.goldfish <- function(x, ...) {
   } else {
     NA_character_
   }
+  # Flavors nested under the layer: the modeled flavor labeled, the rest listed
+  # as state-only. Shown only when the layer carries several distinct flavors --
+  # a lone flavor (e.g. the synthetic key a make_dependent_events() wrapper
+  # stamps) is an implementation detail and stays hidden.
+  flavors <- dep$flavors
+  modeled_flavor <- dep$modeled_flavor
+  flavor_bullets <- character(0)
+  if (length(flavors) > 1) {
+    if (!is.null(modeled_flavor)) {
+      state_only <- setdiff(flavors, modeled_flavor)
+      flavor_bullets <- c(
+        " " = "Modeled flavor: {.val {modeled_flavor}}",
+        " " = "State-only flavor{?s}: {.val {state_only}}"
+      )
+    } else {
+      flavor_bullets <- c(" " = "Flavors (all modeled): {.val {flavors}}")
+    }
+  }
+
   cli::cli_text("")
   cli::cli_text("{.strong Dependent}")
   dep_bullets <- c(
     "*" = "Layer: {.val {dep$layer}}",
+    flavor_bullets,
     "*" = "Events: {.val {dep$n_events}}",
     "*" = "Time span: {.val {time_span}}",
     "*" = "Nodes: {.field {nodes_line}}"

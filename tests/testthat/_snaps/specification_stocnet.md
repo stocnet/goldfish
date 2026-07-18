@@ -1,3 +1,13 @@
+# an unknown layer aborts listing the candidates
+
+    Code
+      make_specification(choice = ~inertia, model = "DyNAM", choice_sub_model = "choice",
+        layer = "nope", data = make_stocnet_fixture())
+    Condition
+      Error in `make_specification()`:
+      ! The focal layer must name a layer present in ties.
+      x "nope" is not among "calls".
+
 # a dependent process with no layer and no focal aborts
 
     Code
@@ -26,6 +36,47 @@
     Message
       i Layer "calls" carries the flavor "creation" and "dissolution"; all its events are modeled.
       i Model one with a keyed list, e.g. `rate = list(creation ~ ...)`.
+
+# the spec print nests the modeled and state-only flavors
+
+    Code
+      print(spec)
+    Message
+      -- <specification.goldfish> ----------------------------------------------------
+      Model "DyNAM" · sub-model choice
+      
+      Dependent
+      * Layer: "calls"
+        Modeled flavor: "creation"
+        State-only flavor: "dissolution"
+      * Events: 1
+      * Time span: "1 – 1"
+      * Nodes: nodes
+      * Network: "calls"
+      
+      Choice: `~inertia`
+      
+      v Specification is valid.
+
+# the spec print lists all flavors when a plain formula models them
+
+    Code
+      print(spec)
+    Message
+      -- <specification.goldfish> ----------------------------------------------------
+      Model "DyNAM" · sub-model choice
+      
+      Dependent
+      * Layer: "calls"
+        Flavors (all modeled): "creation" and "dissolution"
+      * Events: 2
+      * Time span: "1 – 2"
+      * Nodes: nodes
+      * Network: "calls"
+      
+      Choice: `~inertia`
+      
+      v Specification is valid.
 
 # several flavor keys abort pointing at the future change
 
