@@ -29,210 +29,142 @@ Models inspired by section 7 of:
 
 # Step 0: Load package and data
 
-First, we load the `goldfish` package and load the data.
-The data is loaded using lazy loading, i.e., the objects are only 'promised'
-for the moment, but are available in the environment to be used, and
-more information will appear as you use them.
-You can find out more about this dataset, its format, and its origins in
-a couple of ERGM papers by callings its documentation:
+First, we load the `goldfish` package.
+`goldfish` consumes a **single data object**: a `stocnet` (from the
+[`manynet`](https://stocnet.github.io/manynet/) package) that bundles the node
+set, the network layers, and any attribute changes together.
+The package ships the Social Evolution study prebuilt in that shape as
+`social_evolution`, ready to model.
+You can find out more about this dataset, its format, and its origins by calling
+its documentation.
 
 ```{r load, message=FALSE}
 library(goldfish)
-data("Social_Evolution")
-# ?Social_Evolution
-head(calls)
-head(actors)
+data("social_evolution")
+# ?social_evolution
+social_evolution
 ```
 
-# Preamble: Run a quick DyNAM in six lines
+The object carries two **layers** over one node set of 84 actors: `calls`, the
+time-stamped phone calls (an `"event"` layer), and `friendship`, the survey
+nominations (a `"panel"` layer). The `calls` layer is the **focal** layer --
+the dependent process we model.
+
+# Preamble: Run a quick DyNAM in three lines
+
 We use an `R` version higher than 4.2.0 to compile the vignettes.
 The native pipe operator is available in `R` from version 4.1.0.
 
+With the prebuilt object there is nothing to assemble -- the focal `calls` layer
+names the dependent process on the left-hand side of the formula:
+
 ```{r quick}
-callNetwork <- make_network(nodes = actors, directed = TRUE) |> # 1
-  link_events(change_events = calls, nodes = actors) # 2
-
-# 3
-callsDependent <- make_dependent_events(
-  events = calls, nodes = actors,
-  default_network = callNetwork
-  )
-
-# 4
-socialEvolutionData <- make_data(callsDependent, callNetwork, actors)
-
-# 5
 mod00Rate <- estimate_dynam(
-  callsDependent ~ indeg + outdeg,
+  calls ~ indeg + outdeg,
   sub_model = "rate",
-  data = socialEvolutionData
-  )
-
+  data = social_evolution
+)
 summary(mod00Rate)
 
 mod00Choice <- estimate_dynam(
-  callsDependent ~ inertia + recip + trans,
+  calls ~ inertia + recip + trans,
   sub_model = "choice",
-  data = socialEvolutionData
-  )
-
+  data = social_evolution
+)
 summary(mod00Choice)
 ```
 
-# Step 1: Create data objects
+# Step 1: How the data object is built
 
-## Step 1a: Make node set(s) and attributes
+The prebuilt `social_evolution` object was assembled from the raw data frames
+that ship as `Social_Evolution`. Understanding that construction workflow lets
+you bring your own data into `goldfish`. Everything here uses `manynet`, the
+package that owns the `stocnet` data structure.
 
-We've loaded a dataset that defines its nodes and their attributes as
-a data frame. Let's check what we have first.
-
-```{r actors}
-class(actors)
+```{r load-raw, message=FALSE}
+library(manynet)
+data("Social_Evolution")
 head(actors)
-```
-
-Note that there are four column variables: `label` the identifier, `present`,
-the `floor` of residence, and `gradeType` their educational level
-(1 = freshmen to 5 = graduate).
-All of these columns will be recognized as individual attributes by goldfish.
-
-We need to make them as nodes so that `goldfish` knows what to do with them.
-
-```{r make_nodes}
-actors <- make_nodes(actors)
-actors
-```
-
-As you can see, the structure is the same, so we can still treat it like
-a data frame, but the added class helps goldfish interpret the data frame
-correctly.
-
-
-## Step 1b: Make networks
-
-Next we want to define the dyadic or network elements: calls between our actors.
-
-```{r calls-events}
 head(calls)
-```
-
-Note there are columns for `time`, `sender`, and `receiver`. `increment`
-is a reserved column.
-
-To tell goldfish this is a network, we must make it as such:
-```{r hlp1, eval=FALSE}
-?make_network
-```
-
-```{r call-net}
-callNetwork <- make_network(nodes = actors, directed = TRUE)
-```
-
-The argument `directed` is `TRUE` by default, but we need to specify
-the nodes so that `goldfish` can check for consistency and relate it to
-that nodeset as needed.
-
-```{r strNet}
-callNetwork
-```
-
-Note that we have not added any network data yet. By default, `make_network()`
-just constructs an empty matrix with dimensions defined by the length of the
-nodeset(s).
-So we have an empty network as a starting state.
-
-Now that goldfish recognizes the matrix as a network, we can also associate
-an event list that updates it.
-To do this we use the `link_events()` function, which requires us to identify
-a goldfish object to be updated, the events that update it and, in this case,
-also the nodes that the events should relate to.
-`goldfish` checks the consistency of all this information and relates these
-objects to one another so that information can be called as needed.
-
-```{r hlp2, eval=FALSE}
-?link_events
-```
-
-```{r link-call-net}
-callNetwork <- link_events(
-  x = callNetwork,
-  change_events = calls,
-  nodes = actors
-)
-callNetwork
-```
-
-### Task
-
-You should now be able to do the same with the friendship nomination
-network/event list.
-See the familiar columns `time`, `sender`, and `receiver`.
-The new column, `replace`, is an alternative treatment to `increment`.
-When an event occurs, goldfish will replace the value in
-the relevant cell with the value in this column instead of incrementing it.
-Friendship is thus a binary network.
-
-```{r frdshp-net}
 head(friendship)
-friendshipNetwork <- make_network(nodes = actors, directed = TRUE)
-friendshipNetwork <- link_events(
-  x = friendshipNetwork,
-  change_events = friendship,
-  nodes = actors
-  )
-friendshipNetwork
 ```
 
-## Step 1c: Make dependent events
+`actors` holds the node attributes: `label` (the identifier), `present`
+(renamed `active` in the stocnet), the `floor` of residence, and `gradeType`
+(1 = freshmen to 5 = graduate). `calls` and `friendship` are event lists with
+`time`, `sender`, and `receiver`; `calls` carries an `increment` column (the
+tie strength accumulates) while `friendship` carries a `replace` column (each
+survey wave overwrites the value).
 
-The following step in defining the data objects is to identify 
-the dependent events.
-Here we would like to model as the dependent variable the calls
-between individuals.
-We specify the event list and the node list.
+## Step 1a: One layer at a time
 
-```{r hlp3, eval=FALSE}
-?make_dependent_events
+`as_stocnet()` turns an event list (or an adjacency matrix) into a single-layer
+`stocnet`. `from_ties()` merges several layers over one shared node set, and
+`join_nodes()` attaches the actor attributes.
+
+```{r build}
+social_evolution_built <- from_ties(
+  as_stocnet(friendship),
+  as_stocnet(calls),
+  layer_names = c("friendship", "calls")
+) |>
+  join_nodes(actors) |>
+  rename_nodes()
+social_evolution_built
 ```
 
-```{r call-dep-events}
-callsDependent <- make_dependent_events(
-  events = calls, nodes = actors,
-  default_network = callNetwork
-  )
-callsDependent
-```
+## Step 1b: Declaring the layer semantics
 
-## Step 1d: Make data object
+`add_info()` records the metadata `goldfish` needs: which layer is `focal` (the
+dependent process), whether each layer is `directed`, and each layer's
+`observation` type. `goldfish` models two observation types:
 
-Now that we have all the objects we need, we can make the data object.
-The data object is a goldfish object that contains all the information
-needed to estimate the model.
-So, it is a container for the dependent events, the networks, and the nodes
-containing all the information of the dependent events and any dyadic or
-nodal covariate used as explanatory variables in the model.
+- an `"event"` layer is a stream of time-stamped relational events (the
+  `calls`), and
+- a `"panel"` layer is a covariate observed at survey waves (the
+  `friendship`), whose rows are applied at their wave times.
 
-```{r hlp4, eval=FALSE}
-?make_data
-```
-
-```{r make-data}
-socialEvolutionData <- make_data(
-  callsDependent, callNetwork, actors, friendshipNetwork
+```{r add-info}
+social_evolution_built <- add_info(
+  social_evolution_built,
+  name = "Social Evolution MIT",
+  focal = "calls",
+  directed = c(friendship = TRUE, calls = TRUE),
+  observation = c(friendship = "panel", calls = "event")
 )
-socialEvolutionData
-``` 
+```
 
-### Intermediate step: Visualization
+This reproduces the shipped `social_evolution`, so the rest of the vignette
+simply uses the prebuilt object.
+
+A few conventions worth knowing when you assemble your own data:
+
+- **History with `time = NA`.** Ties that hold *before* the observation window
+  (for example, an initial adjacency matrix) enter with `time = NA`; they seed
+  the starting state instead of becoming events. (Social Evolution starts from
+  an empty network, so it has no history rows -- the Fisheries vignette shows
+  this.)
+- **Panel dissolutions are explicit.** A `"panel"` layer only knows what its
+  rows say: to *remove* a tie at a wave you must include an explicit value-`0`
+  row. `goldfish` cannot infer a dissolution from the absence of a row.
+- **Mode sets restrict a layer.** With a single node set every layer spans all
+  the nodes. In a multimodal node set an *undeclared* layer still spans **all**
+  modes; declare `sender`/`receiver` mode sets in `add_info()` to make a layer
+  one-mode over a subset, or two-mode across disjoint sets.
+- **Tie-break with `order`.** If two events with the same `replace` target hit
+  the exact same timestamp, add an integer `order` column so their sequence is
+  unambiguous (again, see the Fisheries vignette).
+
+## Intermediate step: Visualization
 
 While not a required part of the modeling process,
 we highly recommend the visualization of your data for analytic and
 diagnostic purposes.
-`goldfish` includes wrappers for base `R` commands to help extract monadic
-and dyadic information for certain time points, `?as.data.frame.nodes.goldfish`
-and `?as.matrix.network.goldfish`.
+`goldfish` exports `network_state_at()` and `nodes_state_at()` to evaluate a
+layer's network -- and the node attributes -- at any time point, honoring the
+history and each layer's update semantics.
 
-We can use these functions to visually compare our network at two (or more)
+We can use these to visually compare the call network at two (or more)
 different time periods using `migraph`. See the `migraph` package documentation
 for additional information about network visualization.
 
@@ -240,32 +172,22 @@ for additional information about network visualization.
 library(igraph)
 library(ggraph)
 library(migraph)
-# The network at the beginning
-callNetworkBgn <- as.matrix(callNetwork)
-graphr(callNetworkBgn, labels = FALSE, layout = "fr")
-
 # The network at half time
-callNetworkHlf <- as.matrix(
-  callNetwork,
-  time = calls$time[floor(nrow(calls) / 2)]
-) |>
+half_time <- calls$time[floor(nrow(calls) / 2)]
+callNetworkHlf <- network_state_at(social_evolution, "calls", time = half_time)
+floorHlf <- nodes_state_at(social_evolution, time = half_time)$floor
+
+callNetworkHlf <- callNetworkHlf |>
   as_igraph() |>
-  add_node_attribute("floor", actors$floor)
+  add_node_attribute("floor", floorHlf)
 
 graphr(callNetworkHlf, labels = FALSE, layout = "fr") +
   geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
 
-# The network at the end
-callNetworkEnd <- as.matrix(callNetwork, time = max(calls$time) + 1) |>
-  as_igraph() |>
-  add_node_attribute("floor", actors$floor)
-
-graphr(callNetworkEnd, labels = FALSE, layout = "fr") +
-  geom_node_point(aes(color = as.factor(floor)), size = 2, show.legend = FALSE)
-
-
 # The tie strength at the end
-table(as.matrix(callNetwork, time = max(calls$time) + 1))
+end_time <- max(calls$time) + 1
+callNetworkEnd <- network_state_at(social_evolution, "calls", time = end_time)
+table(callNetworkEnd)
 ```
 
 # Step 2: Specify and estimate model
@@ -290,7 +212,11 @@ recognize steps 2b and 2c as goldfish does them.
 
 We specify our model using the standard R formula format like:
 
-`goldfish_dependent ~ effects(process_state_element)`
+`layer ~ effects(process_state_element)`
+
+The left-hand side names the **focal layer** (`calls`); an effect's argument
+names another **layer** (`friendship`) or a **node attribute** (`floor`,
+`gradeType`) by its bare name. An effect with no argument reads the focal layer.
 
 We can see which effects are currently available and how to specify them here:
 
@@ -301,7 +227,7 @@ vignette("goldfishEffects")
 Let's start with the simplest model we can imagine:
 
 ```{r simple-formula}
-simpleFormulaChoice <- callsDependent ~ tie(friendshipNetwork)
+simpleFormulaChoice <- calls ~ tie(friendship)
 ```
 
 What are we testing here?
@@ -317,8 +243,8 @@ For now, only need to worry about the `formula` and the `model`,
 mod01Choice <- estimate_dynam(
   simpleFormulaChoice,
   sub_model = "choice",
-  data = socialEvolutionData
-  )
+  data = social_evolution
+)
 summary(mod01Choice)
 ```
 
@@ -327,15 +253,15 @@ this finding is in the presence of plausible controls.
 
 ```{r  complex-choice}
 complexFormulaChoice <-
-  callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
-                   tie(friendshipNetwork) + recip(friendshipNetwork) +
-                   same(actors$gradeType) + same(actors$floor)
+  calls ~ inertia(calls) + recip(calls) +
+    tie(friendship) + recip(friendship) +
+    same(gradeType) + same(floor)
 
 mod02Choice <- estimate_dynam(
   complexFormulaChoice,
   sub_model = "choice",
-  data = socialEvolutionData
-  )
+  data = social_evolution
+)
 summary(mod02Choice)
 ```
 
@@ -348,12 +274,12 @@ Let us again define a simple formula that only depends on individuals' degree
 in the friendship network
 
 ```{r simple-rate}
-simpleFormulaRate <- callsDependent ~ indeg(friendshipNetwork)
+simpleFormulaRate <- calls ~ indeg(friendship)
 mod01Rate <- estimate_dynam(
   simpleFormulaRate,
   sub_model = "rate",
-  data = socialEvolutionData
-  )
+  data = social_evolution
+)
 ```
 
 #### Remark:
@@ -371,9 +297,9 @@ value using the `control_estimation` argument:
 mod01Rate <- estimate_dynam(
   simpleFormulaRate,
   sub_model = "rate",
-  data = socialEvolutionData,
+  data = social_evolution,
   control_estimation = set_estimation_opt(max_iterations = 40)
-  )
+)
 summary(mod01Rate)
 ```
 
@@ -382,13 +308,12 @@ Let us add the in and out degree of the nodes in the call network
 
 ```{r complex-rate}
 complexFormulaRate <-
-  callsDependent ~ indeg(callNetwork) + outdeg(callNetwork) +
-                   indeg(friendshipNetwork)
+  calls ~ indeg(calls) + outdeg(calls) + indeg(friendship)
 
 mod02Rate <- estimate_dynam(
   complexFormulaRate,
   sub_model = "rate",
-  data = socialEvolutionData
+  data = social_evolution
 )
 summary(mod02Rate)
 ```
@@ -401,13 +326,12 @@ Adding an intercept is as easy as including a 1 to the formula:
 
 ```{r intcpt-rate}
 interceptFormulaRate <-
-  callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
-                   indeg(friendshipNetwork)
+  calls ~ 1 + indeg(calls) + outdeg(calls) + indeg(friendship)
 
 mod03Rate <- estimate_dynam(
   interceptFormulaRate,
   sub_model = "rate",
-  data = socialEvolutionData
+  data = social_evolution
 )
 summary(mod03Rate)
 ```
@@ -417,11 +341,17 @@ without any covariates, or how long it takes to make the next phone call
 if everything else is set to 0.
 Therefore, the larger the intercept the shorter the waiting time.
 For example, an intercept of -14 means a waiting time of
-$1 / e^{-14} = 334$ hours. 
+$1 / e^{-14} = 334$ hours.
 The baseline waiting time between two events in hours:
+
+Effects get compact, disambiguated names in the coefficient vector -- here
+`odeg` is the call out-degree and `ideg_cal` the call in-degree (the friendship
+in-degree becomes `ideg_fri`):
 
 ```{r waiting-time}
 mod03RateCoef <- coef(mod03Rate)
+mod03RateCoef
+
 1 / exp(mod03RateCoef[["Intercept"]]) / 3600
 # or days:
 1 / exp(mod03RateCoef[["Intercept"]]) / 86400
@@ -430,36 +360,36 @@ mod03RateCoef <- coef(mod03Rate)
 # Expected waiting time of those who have five outgoing call ties
 # (five different actors)
 1 / exp(
-  mod03RateCoef[["Intercept"]] + mod03RateCoef[["outdeg"]] * 5
-  ) / 3600
+  mod03RateCoef[["Intercept"]] + mod03RateCoef[["odeg"]] * 5
+) / 3600
 # Expected waiting time of those who have five outgoing and incoming call ties
 # (five different actors)
 1 / exp(
   mod03RateCoef[["Intercept"]] +
-    mod03RateCoef[["outdeg"]] * 5 +
-    mod03RateCoef[["indeg"]] * 5
-  ) / 3600
+    mod03RateCoef[["odeg"]] * 5 +
+    mod03RateCoef[["ideg_cal"]] * 5
+) / 3600
 ```
 
 ### Windows effects
 
-Remember our `callNetwork` process state accumulates actions in time,
-but some older actions may no longer be relevant to current action. 
+Remember our `calls` process state accumulates actions in time,
+but some older actions may no longer be relevant to current action.
 Let's see whether it is really just recent partners that matter
 by adding extra effects with a window of... how long?
 Let us try 5 minutes $= 5 * 60 = 300s$
 
 ```{r windows-rate}
 windowFormulaRate <-
-  callsDependent ~ 1 + indeg(callNetwork) + outdeg(callNetwork) +
-                   indeg(callNetwork, window = 300) +
-                   outdeg(callNetwork, window = 300) +
-                   indeg(friendshipNetwork)
+  calls ~ 1 + indeg(calls) + outdeg(calls) +
+    indeg(calls, window = 300) +
+    outdeg(calls, window = 300) +
+    indeg(friendship)
 
 mod04Rate <- estimate_dynam(
   windowFormulaRate,
   sub_model = "rate",
-  data = socialEvolutionData
+  data = social_evolution
 )
 summary(mod04Rate)
 ```
@@ -468,16 +398,16 @@ Of course, you can also add windows to the choice formula!
 
 ```{r windows-choice}
 windowFormulaChoice <-
-  callsDependent ~ inertia(callNetwork) + recip(callNetwork) +
-                   inertia(callNetwork, window = 300) +
-                   recip(callNetwork, window = 300) +
-                   tie(friendshipNetwork) + recip(friendshipNetwork) +
-                   same(actors$gradeType) + same(actors$floor)
+  calls ~ inertia(calls) + recip(calls) +
+    inertia(calls, window = 300) +
+    recip(calls, window = 300) +
+    tie(friendship) + recip(friendship) +
+    same(gradeType) + same(floor)
 
 mod03Choice <- estimate_dynam(
   windowFormulaChoice,
   sub_model = "choice",
-  data = socialEvolutionData
+  data = social_evolution
 )
 summary(mod03Choice)
 ```
@@ -508,13 +438,13 @@ including the rate and choice sub-models, is:
 
 ```{r rem}
 allFormulaREM <-
-  callsDependent ~ 
-    1 + indeg(callNetwork, type = "ego") + outdeg(callNetwork, type = "ego") +
-    indeg(friendshipNetwork, type = "ego") +
-    inertia(callNetwork) + recip(callNetwork) +
-    inertia(callNetwork, window = 300) + recip(callNetwork, window = 300) +
-    tie(friendshipNetwork) + recip(friendshipNetwork) +
-    same(actors$gradeType) + same(actors$floor)
+  calls ~
+    1 + indeg(calls, type = "ego") + outdeg(calls, type = "ego") +
+    indeg(friendship, type = "ego") +
+    inertia(calls) + recip(calls) +
+    inertia(calls, window = 300) + recip(calls, window = 300) +
+    tie(friendship) + recip(friendship) +
+    same(gradeType) + same(floor)
 ```
 
 And we can estimate this model, to speed up estimation, we can use any of the
@@ -531,7 +461,7 @@ representing the data in a more usual tabular way but reducing time estimation.
 ```{r rem-gather, eval=FALSE}
 mod01REM <- estimate_rem(
   allFormulaREM,
-  data = socialEvolutionData,
+  data = social_evolution,
   control_estimation =
     set_estimation_opt(initial_damping = 40, engine = "default_c")
 )
@@ -540,10 +470,9 @@ mod01REM <- estimate_rem(
 ```{r rem-c}
 mod01REM <- estimate_rem(
   allFormulaREM,
-  data = socialEvolutionData,
+  data = social_evolution,
   control_estimation = set_estimation_opt(engine = "gather_compute")
 )
 
 summary(mod01REM)
 ```
-
