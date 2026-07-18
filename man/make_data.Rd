@@ -45,6 +45,9 @@ Linked objects are searched for in the \code{parent_env}
 \code{parent_env} environment (see \code{\link[base:get]{base::get()}}, \code{\link[base:exists]{base::exists()}}).
 }
 \examples{
+# Deprecated: not run. Assemble a stocnet with `manynet::make_stocnet()` /
+# `manynet::from_ties()` and pass it to `data` (see the deprecation message).
+\dontrun{
 data("Social_Evolution")
 call_network <- make_network(nodes = actors, directed = TRUE)
 call_network <- link_events(
@@ -80,5 +83,6 @@ fisheries_data <- make_data(
   bilatnet, create_bilat, states,
   contignet, sovchanges, regchanges, gdpchanges
 )
+}
 
 }

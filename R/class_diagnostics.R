@@ -12,25 +12,12 @@
 # outliers or change point inflections.
 #' @name examine
 #' @examples
-#' # A multinomial receiver choice model
-#' data("Social_Evolution")
-#' call_network <- make_network(nodes = actors, directed = TRUE)
-#' call_network <- link_events(
-#'   x = call_network, change_event = calls,
-#'   nodes = actors
-#' )
-#' calls_dependent <- make_dependent_events(
-#'   events = calls, nodes = actors,
-#'   default_network = call_network
-#' )
-#' \dontshow{
-#' calls_dependent <- calls_dependent[1:50, ]
-#' }
-#' social_evolution_data <- make_data(calls_dependent, call_network, calls, actors)
+#' # A multinomial receiver choice model on the prebuilt `social_evolution` data
+#' data("social_evolution")
 #' mod01 <- estimate_dynam(
-#'   calls_dependent ~ inertia + recip + trans,
+#'   calls ~ inertia + recip + trans,
 #'   sub_model = "choice",
-#'   data = social_evolution_data,
+#'   data = social_evolution,
 #'   control_estimation = set_estimation_opt(
 #'     return_interval_loglik = TRUE,
 #'     engine = "default_c"

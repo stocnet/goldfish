@@ -25,22 +25,11 @@
 #' `vignette("teaching2")`.
 #'
 #' @examples
-#' # A multinomial receiver choice model
-#' data("Social_Evolution")
-#' call_network <- make_network(nodes = actors, directed = TRUE)
-#' call_network <- link_events(
-#'   x = call_network, change_events = calls,
-#'   nodes = actors
-#' )
-#' calls_dependent <- make_dependent_events(
-#'   events = calls, nodes = actors,
-#'   default_network = call_network
-#' )
-#' \dontshow{
-#' calls_dependent <- calls_dependent[1:50, ]
-#' }
-#' mod01 <- estimate_dynam(calls_dependent ~ inertia + recip + trans,
-#'  sub_model = "choice"
+#' # A multinomial receiver choice model on the prebuilt `social_evolution` data
+#' data("social_evolution")
+#' mod01 <- estimate_dynam(calls ~ inertia + recip + trans,
+#'   sub_model = "choice",
+#'   data = social_evolution
 #' )
 #' coef(mod01)
 coef.result.goldfish <- function(object, ..., complete = FALSE) {

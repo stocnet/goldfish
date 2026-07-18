@@ -208,6 +208,9 @@ deprecate_constructor <- function(what, replacement) {
 #' @export
 #' @seealso [make_network()], [link_events()]
 #' @examples
+#' # Deprecated: not run. Build a stocnet with manynet and pass it to the
+#' # estimators instead (see the deprecation message for the replacement code).
+#' \dontrun{
 #' nodes_attr <- data.frame(
 #'   label = paste("Actor", 1:5),
 #'   present = c(TRUE, FALSE, TRUE, TRUE, FALSE),
@@ -222,6 +225,7 @@ deprecate_constructor <- function(what, replacement) {
 #' # Fisheries treaties nodes definition
 #' data("Fisheries_Treaties_6070")
 #' states <- make_nodes(states)
+#' }
 make_nodes <- function(nodes) {
   deprecate_constructor(
     "make_nodes()",
@@ -306,6 +310,9 @@ make_nodes_goldfish <- make_nodes
 #'
 #' @seealso [make_nodes()], [link_events()]
 #' @examples
+#' # Deprecated: not run. Build the layer with `manynet::as_stocnet()` instead
+#' # (see the deprecation message for the replacement code).
+#' \dontrun{
 #' # If no intial matrix is provided
 #' data("Social_Evolution")
 #' call_network <- make_network(nodes = actors)
@@ -313,6 +320,7 @@ make_nodes_goldfish <- make_nodes
 #' # If a initial matrix is provided
 #' data("Fisheries_Treaties_6070")
 #' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+#' }
 make_network <- function(
   matrix = NULL,
   nodes,
@@ -490,6 +498,10 @@ make_network_goldfish <- make_network
 #' conditional on creation and dissolution.
 #' @seealso [make_nodes()], [make_network()], [link_events()]
 #' @examples
+#' # Deprecated: not run. Set the focal layer on a stocnet with
+#' # `manynet::add_info(focal = ...)`, and model a subset of its events with a
+#' # flavor-keyed `rate`/`choice` list (see the deprecation message).
+#' \dontrun{
 #' actors <- data.frame(
 #'   actor = 1:5, label = paste("Actor", 1:5),
 #'   present = TRUE, gender = sample.int(2, 5, replace = TRUE)
@@ -509,6 +521,7 @@ make_network_goldfish <- make_network
 #' call_dependent <- make_dependent_events(
 #'   events = calls, nodes = actors, default_network = call_network
 #' )
+#' }
 make_dependent_events <- function(
   events,
   nodes,
@@ -677,9 +690,13 @@ make_dependent_events_goldfish <- make_dependent_events
 #' the object. Use `global(seasons$winter)` in a formula to include the effect.
 #' @seealso [link_events()]
 #' @examples
+#' # Deprecated: not run. Add global attributes to a stocnet's `global`
+#' # component instead (see the deprecation message for the replacement code).
+#' \dontrun{
 #' seasons <- make_global_attributes(
 #'   data.frame(winter = 1, spring = 0, summer = 0, autumn = 0)
 #' )
+#' }
 make_global_attributes <- function(global) {
   deprecate_constructor(
     "make_global_attributes()",
@@ -746,6 +763,9 @@ make_global_attributes_goldfish <- make_global_attributes
 #'
 #' @export
 #' @examples
+#' # Deprecated: not run. Assemble a stocnet with `manynet::make_stocnet()` /
+#' # `manynet::from_ties()` and pass it to `data` (see the deprecation message).
+#' \dontrun{
 #' data("Social_Evolution")
 #' call_network <- make_network(nodes = actors, directed = TRUE)
 #' call_network <- link_events(
@@ -781,6 +801,7 @@ make_global_attributes_goldfish <- make_global_attributes
 #'   bilatnet, create_bilat, states,
 #'   contignet, sovchanges, regchanges, gdpchanges
 #' )
+#' }
 #'
 make_data <- function(..., parent_env = parent.frame()) {
   deprecate_constructor(
@@ -1037,6 +1058,9 @@ make_data_goldfish <- make_data
 #' @export link_events
 #' @seealso [make_nodes()], [make_network()]
 #' @examples
+#' # Deprecated: not run. Bind events into a stocnet with `manynet::bind_ties()`
+#' # (networks) or `manynet::bind_changes()` (attributes); see the message.
+#' \dontrun{
 #' actors <- data.frame(
 #'   actor = 1:5, label = paste("Actor", 1:5),
 #'   present = TRUE, gender = sample.int(2, 5, replace = TRUE)
@@ -1064,6 +1088,7 @@ make_data_goldfish <- make_data
 #' call_network <- link_events(
 #'   x = call_network, change_events = calls, nodes = actors
 #' )
+#' }
 link_events <- function(x, ...) {
   deprecate_constructor(
     "link_events()",

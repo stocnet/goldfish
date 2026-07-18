@@ -35,9 +35,13 @@ Use \code{\link[=link_events]{link_events()}} to link timestamped update events 
 the object. Use \code{global(seasons$winter)} in a formula to include the effect.
 }
 \examples{
+# Deprecated: not run. Add global attributes to a stocnet's `global`
+# component instead (see the deprecation message for the replacement code).
+\dontrun{
 seasons <- make_global_attributes(
   data.frame(winter = 1, spring = 0, summer = 0, autumn = 0)
 )
+}
 }
 \seealso{
 \code{\link[=link_events]{link_events()}}

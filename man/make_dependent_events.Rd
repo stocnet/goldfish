@@ -73,6 +73,10 @@ contains information of creation and dissolution of treaties.
 conditional on creation and dissolution.
 }
 \examples{
+# Deprecated: not run. Set the focal layer on a stocnet with
+# `manynet::add_info(focal = ...)`, and model a subset of its events with a
+# flavor-keyed `rate`/`choice` list (see the deprecation message).
+\dontrun{
 actors <- data.frame(
   actor = 1:5, label = paste("Actor", 1:5),
   present = TRUE, gender = sample.int(2, 5, replace = TRUE)
@@ -92,6 +96,7 @@ call_network <- link_events(
 call_dependent <- make_dependent_events(
   events = calls, nodes = actors, default_network = call_network
 )
+}
 }
 \seealso{
 \code{\link[=make_nodes]{make_nodes()}}, \code{\link[=make_network]{make_network()}}, \code{\link[=link_events]{link_events()}}

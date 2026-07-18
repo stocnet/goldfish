@@ -72,6 +72,9 @@ If no matrix is provided, goldfish only considers the nodeset and assumes
 the initial state to be empty (i.e., a matrix containing only 0s).
 }
 \examples{
+# Deprecated: not run. Build the layer with `manynet::as_stocnet()` instead
+# (see the deprecation message for the replacement code).
+\dontrun{
 # If no intial matrix is provided
 data("Social_Evolution")
 call_network <- make_network(nodes = actors)
@@ -79,6 +82,7 @@ call_network <- make_network(nodes = actors)
 # If a initial matrix is provided
 data("Fisheries_Treaties_6070")
 bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
+}
 }
 \seealso{
 \code{\link[=make_nodes]{make_nodes()}}, \code{\link[=link_events]{link_events()}}

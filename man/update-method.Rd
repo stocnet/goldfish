@@ -41,26 +41,22 @@ or the network ties updated according with the events linked to the object
 using the \code{\link[=link_events]{link_events()}}) function.
 }
 \examples{
-\donttest{
-data("Fisheries_Treaties_6070")
-states <- make_nodes(states)
-states <- link_events(states, sovchanges, attribute = "present")
-states <- link_events(states, regchanges, attribute = "regime")
-states <- link_events(states, gdpchanges, attribute = "gdp")
-
-bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
-bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
-
-updateStates <- as.data.frame(
-  states,
-  time = as.numeric(as.POSIXct("1965-12-31"))
+# These S3 methods act on the legacy `nodes.goldfish` / `network.goldfish`
+# objects. For the single stocnet data object, evaluate a layer's network or
+# the node attributes at a time point with the superseding helpers:
+data("fisheries_treaties")
+update_net <- network_state_at(
+  fisheries_treaties, "treaties",
+  time = as.POSIXct("1965-12-31", tz = "GMT")
 )
-
-
-updateNet <- as.matrix(bilatnet, time = as.numeric(as.POSIXct("1965-12-31")))
-}
+update_states <- nodes_state_at(
+  fisheries_treaties,
+  time = as.POSIXct("1965-12-31", tz = "GMT")
+)
 
 }
 \seealso{
-\code{\link[=make_network]{make_network()}}, \code{\link[=make_nodes]{make_nodes()}}, \code{\link[=link_events]{link_events()}}
+\code{\link[=network_state_at]{network_state_at()}} and \code{\link[=nodes_state_at]{nodes_state_at()}}, which supersede these
+methods for the single stocnet data object; \code{\link[=make_network]{make_network()}}, \code{\link[=make_nodes]{make_nodes()}},
+\code{\link[=link_events]{link_events()}}
 }

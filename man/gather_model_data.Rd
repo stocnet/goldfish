@@ -153,26 +153,14 @@ for generalized linear models (or any other model)
 that use tabular data as input.
 }
 \examples{
-data("Fisheries_Treaties_6070")
-states <- make_nodes(states)
-states <- link_events(states, sovchanges, attribute = "present")
-states <- link_events(states, regchanges, attribute = "regime")
-states <- link_events(states, gdpchanges, attribute = "gdp")
-
-bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
-bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
-
-create_bilat <- make_dependent_events(
-  events = bilatchanges[bilatchanges$increment == 1, ],
-  nodes = states, default_network = bilatnet
-)
-
-fisheries_data <- make_data(create_bilat)
+# The prebuilt `fisheries_treaties` stocnet (see `?fisheries_treaties`); the
+# `treaties` layer names both the dependent process and its own network.
+data("fisheries_treaties")
 
 gatheredData <- gather_model_data(
-  create_bilat ~ inertia(bilatnet) + trans(bilatnet) + tie(contignet),
+  treaties ~ inertia(treaties) + trans(treaties) + tie(contiguity),
   model = "DyNAM", sub_model = "choice_coordination",
-  data = fisheries_data
+  data = fisheries_treaties
 )
 
 }

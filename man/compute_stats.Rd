@@ -54,22 +54,10 @@ The returned object can be passed to the estimation functions
 work with the sufficient statistics of a model.
 }
 \examples{
-data("Social_Evolution")
-call_network <- make_network(nodes = actors, directed = TRUE)
-call_network <- link_events(
-  x = call_network, change_event = calls, nodes = actors
-)
-calls_dependent <- make_dependent_events(
-  events = calls, nodes = actors, default_network = call_network
-)
-\dontshow{
-calls_dependent <- calls_dependent[1:50, ]
-}
-social_ev_data <- make_data(calls_dependent, call_network, calls, actors)
-
+data("social_evolution")
 prep <- compute_stats(
-  calls_dependent ~ inertia + recip + trans,
-  data = social_ev_data,
+  calls ~ inertia + recip + trans,
+  data = social_evolution,
   model = "DyNAM", sub_model = "choice"
 )
 prep

@@ -94,23 +94,12 @@ jointly needs stacked per-flavor likelihoods and arrives with a later change.
 }
 
 \examples{
-data("Social_Evolution")
-call_network <- make_network(nodes = actors, directed = TRUE)
-call_network <- link_events(
-  x = call_network, change_event = calls, nodes = actors
-)
-calls_dependent <- make_dependent_events(
-  events = calls, nodes = actors, default_network = call_network
-)
-\dontshow{
-calls_dependent <- calls_dependent[1:50, ]
-}
-social_ev_data <- make_data(calls_dependent, call_network, calls, actors)
-
+# The prebuilt `social_evolution` stocnet, whose focal layer is `calls`
+data("social_evolution")
 spec <- make_specification(
   choice = ~ inertia + recip + trans,
   model = "DyNAM", choice_sub_model = "choice",
-  layer = "calls_dependent", data = social_ev_data
+  layer = "calls", data = social_evolution
 )
 spec
 }

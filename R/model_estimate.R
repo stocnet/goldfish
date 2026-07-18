@@ -215,86 +215,55 @@
 #' \emph{Sociological Methodology 47 (1)}. \doi{10.1177/0081175017709295}
 #'
 #' @examples
-#' # A DyNAM modeling rate and choice steps
-#' data("Social_Evolution")
-#' call_network <- make_network(nodes = actors, directed = TRUE)
-#' call_network <- link_events(
-#'   x = call_network, change_event = calls,
-#'   nodes = actors
-#' )
-#' calls_dependent <- make_dependent_events(
-#'   events = calls, nodes = actors,
-#'   default_network = call_network
-#' )
+#' # The prebuilt data objects are single stocnet objects (see
+#' # `?social_evolution` / `?fisheries_treaties` for how they are constructed).
 #'
-#' \dontshow{
-#' calls_dependent <- calls_dependent[1:50, ]
-#' }
-#'
-#' social_ev_data <- make_data(calls_dependent, call_network, call, actors)
-#'
-#' mod01 <- estimate_dynam(calls_dependent ~ inertia + recip + trans,
+#' # A DyNAM modeling the choice step; the focal `calls` layer names the process
+#' data("social_evolution")
+#' mod01 <- estimate_dynam(calls ~ inertia + recip + trans,
 #'   sub_model = "choice",
-#'   data = social_ev_data,
+#'   data = social_evolution,
 #'   control_estimation = set_estimation_opt(engine = "gather_compute")
 #' )
 #' summary(mod01)
 #'
-#' # A individual activity rates model
-#' mod02 <- estimate_dynam(calls_dependent ~ 1 + node_trans + indeg + outdeg,
+#' # An individual activity rates model
+#' mod02 <- estimate_dynam(calls ~ 1 + node_trans + indeg + outdeg,
 #'   sub_model = "rate",
-#'   data = social_ev_data,
+#'   data = social_evolution,
 #'   control_estimation = set_estimation_opt(engine = "gather_compute")
 #' )
 #' summary(mod02)
 #'
+#' \donttest{
 #' # A REM
-#'
 #' mod03 <- estimate_rem(
-#'   calls_dependent ~ 1 + node_trans(call_network, type = "ego") +
-#'     indeg(call_network, type = "ego") + outdeg(call_network, type = "ego") +
+#'   calls ~ 1 + node_trans(calls, type = "ego") +
+#'     indeg(calls, type = "ego") + outdeg(calls, type = "ego") +
 #'     inertia + recip + trans,
-#'     data = social_ev_data,
-#'     control_estimation = set_estimation_opt(engine = "gather_compute")
+#'   data = social_evolution,
+#'   control_estimation = set_estimation_opt(engine = "gather_compute")
 #' )
 #' summary(mod03)
 #'
-#'
-#' \donttest{
-#' # A multinomial-multinomial choice model for coordination ties
-#' data("Fisheries_Treaties_6070")
-#' states <- make_nodes(states)
-#' states <- link_events(states, sovchanges, attribute = "present")
-#' states <- link_events(states, regchanges, attribute = "regime")
-#' states <- link_events(states, gdpchanges, attribute = "gdp")
-#'
-#' bilatnet <- make_network(bilatnet, nodes = states, directed = FALSE)
-#' bilatnet <- link_events(bilatnet, bilatchanges, nodes = states)
-#'
-#' contignet <- make_network(contignet, nodes = states, directed = FALSE)
-#' contignet <- link_events(contignet, contigchanges, nodes = states)
-#'
-#' create_bilat <- make_dependent_events(
-#'   events = bilatchanges[bilatchanges$increment == 1, ],
-#'   nodes = states, default_network = bilatnet
+#' # A multinomial-multinomial choice model for coordination ties. The treaty
+#' # layer carries a `flavor`, so a keyed specification models the creations
+#' # while every treaty change still updates the network state.
+#' data("fisheries_treaties")
+#' partner_spec <- make_specification(
+#'   choice = list(
+#'     creation ~ inertia(treaties) + indeg(treaties) + trans(treaties) +
+#'       tie(contiguity) + alter(regime) + diff(regime) +
+#'       alter(gdp) + diff(gdp)
+#'   ),
+#'   model = "DyNAM",
+#'   choice_sub_model = "choice_coordination",
+#'   data = fisheries_treaties
 #' )
-#'
-#' fisheries_data <- make_data(
-#'   create_bilat, contignet, bilatnet, contigchanges, bilatchanges,
-#'   states, sovchanges, regchanges, gdpchanges
-#'  )
 #' partner_model <- estimate_dynam(
-#'   create_bilat ~
-#'     inertia(bilatnet) +
-#'     indeg(bilatnet) +
-#'     trans(bilatnet) +
-#'     tie(contignet) +
-#'     alter(states$regime) +
-#'     diff(states$regime) +
-#'     alter(states$gdp) +
-#'     diff(states$gdp),
+#'   partner_spec,
 #'   sub_model = "choice_coordination",
-#'   data = fisheries_data,
+#'   data = fisheries_treaties,
 #'   control_estimation =
 #'     set_estimation_opt(
 #'       initial_damping = 40, max_iterations = 30,
@@ -517,22 +486,10 @@ estimate_from_specification <- function(
 #'   [set_preprocessing_opt()]
 #' @export
 #' @examples
-#' data("Social_Evolution")
-#' call_network <- make_network(nodes = actors, directed = TRUE)
-#' call_network <- link_events(
-#'   x = call_network, change_event = calls, nodes = actors
-#' )
-#' calls_dependent <- make_dependent_events(
-#'   events = calls, nodes = actors, default_network = call_network
-#' )
-#' \dontshow{
-#' calls_dependent <- calls_dependent[1:50, ]
-#' }
-#' social_ev_data <- make_data(calls_dependent, call_network, calls, actors)
-#'
+#' data("social_evolution")
 #' prep <- compute_stats(
-#'   calls_dependent ~ inertia + recip + trans,
-#'   data = social_ev_data,
+#'   calls ~ inertia + recip + trans,
+#'   data = social_evolution,
 #'   model = "DyNAM", sub_model = "choice"
 #' )
 #' prep

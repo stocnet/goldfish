@@ -122,6 +122,9 @@ The \code{contigchanges} data frame in the \link{Fisheries_Treaties_6070} datase
 }
 }
 \examples{
+# Deprecated: not run. Bind events into a stocnet with `manynet::bind_ties()`
+# (networks) or `manynet::bind_changes()` (attributes); see the message.
+\dontrun{
 actors <- data.frame(
   actor = 1:5, label = paste("Actor", 1:5),
   present = TRUE, gender = sample.int(2, 5, replace = TRUE)
@@ -149,6 +152,7 @@ calls <- data.frame(
 call_network <- link_events(
   x = call_network, change_events = calls, nodes = actors
 )
+}
 }
 \seealso{
 \code{\link[=make_nodes]{make_nodes()}}, \code{\link[=make_network]{make_network()}}

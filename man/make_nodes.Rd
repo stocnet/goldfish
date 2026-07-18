@@ -61,6 +61,9 @@ data frames objects. The previous mentioned objects classes change this
 behavior producing errors.
 }
 \examples{
+# Deprecated: not run. Build a stocnet with manynet and pass it to the
+# estimators instead (see the deprecation message for the replacement code).
+\dontrun{
 nodes_attr <- data.frame(
   label = paste("Actor", 1:5),
   present = c(TRUE, FALSE, TRUE, TRUE, FALSE),
@@ -75,6 +78,7 @@ actors <- make_nodes(actors)
 # Fisheries treaties nodes definition
 data("Fisheries_Treaties_6070")
 states <- make_nodes(states)
+}
 }
 \seealso{
 \code{\link[=make_network]{make_network()}}, \code{\link[=link_events]{link_events()}}
