@@ -1,3 +1,10 @@
+# These fixtures deliberately build data through the deprecated legacy
+# constructors so the test suite keeps covering that path. Silence their
+# deprecation signal while they build so merely loading the package (and running
+# examples, which loads it) stays quiet; the previous verbosity is restored at
+# the end of this file.
+.goldfish_fixture_lifecycle <- options(lifecycle_verbosity = "quiet")
+
 # DyNAM -------------------------------------------------------------
 
 # Networks  ---------------------------------------------------------
@@ -843,3 +850,7 @@ resModObject <- structure(
   ),
   class = "result.goldfish"
 )
+
+# Restore the caller's lifecycle verbosity (see the note at the top of the file).
+options(.goldfish_fixture_lifecycle)
+rm(.goldfish_fixture_lifecycle)
