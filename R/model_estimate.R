@@ -1892,15 +1892,31 @@ estimate_wrapper <- function(
   result$sub_model <- sub_model
   result$right_censored <- has_intercept
   result$nParams <- sum(!GetFixed(result))
-  # The specification path adds an extra `estimate_from_specification` hop whose
-  # signature differs from the estimator's, so match.call() against this
-  # definition would fail; fall back to the raw caller expression in that case.
+  # Reconstruct the call for printing. On the direct path `sys.call(-1L)` is the
+  # user's estimate_*() call. On the specification path the estimator is reached
+  # through an internal hop, so `match.call()` surfaces a wrapper frame -- and its
+  # error handler, evaluating `sys.call()` afresh, would surface the `tryCatch`
+  # machinery itself. Capture the caller once here, keep it only when it names a
+  # public estimator, and otherwise fall back to a clean estimator call built
+  # from the kept formula.
+  estimator_name <- switch(
+    model,
+    REM = "estimate_rem",
+    DyNAMi = "estimate_dynami",
+    "estimate_dynam"
+  )
+  caller_call <- sys.call(-1L)
+  clean_call <- as.call(list(as.name(estimator_name), formula_keep))
   result$call <- tryCatch(
-    match.call(
-      call = sys.call(-1L),
-      expand.dots = TRUE
-    ),
-    error = function(e) sys.call(-1L)
+    {
+      matched <- match.call(call = caller_call, expand.dots = TRUE)
+      is_public <- is.call(matched) &&
+        is.name(matched[[1L]]) &&
+        as.character(matched[[1L]]) %in%
+          c("estimate_dynam", "estimate_rem", "estimate_dynami")
+      if (is_public) matched else clean_call
+    },
+    error = function(e) clean_call
   )
   result$call[[2]] <- formula_keep
   ## added to allow printing/plotting of rate models with rightCnesoredEvents
