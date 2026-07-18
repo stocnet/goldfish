@@ -13,9 +13,11 @@ A \code{stocnet} list of five components:
 \code{"event"}), \code{focal = "treaties"}, and the \code{gdp}/\code{active}/\code{regime}
 attribute-update metadata.}
 \item{nodes}{154 states (\code{label}, \code{active}, \code{regime}, \code{gdp}).}
-\item{ties}{413 rows (\code{from}, \code{to}, \code{weight}, \code{time}, \code{flavor}, \code{layer})
-stacking the treaty and contiguity history and events; \code{from}/\code{to} index
-rows of \code{nodes}.}
+\item{ties}{413 rows (\code{from}, \code{to}, \code{weight}, \code{time}, \code{flavor}, \code{layer},
+\code{order}) stacking the treaty and contiguity history and events; \code{from}/\code{to}
+index rows of \code{nodes}. The reserved integer \code{order} column pins the
+original sequence of the contiguity \code{replace} events, whose same-time
+same-dyad collisions would otherwise be ambiguous.}
 \item{changes}{1186 rows (\code{time}, \code{node}, \code{var}, \code{value}) of the gdp,
 active, and regime attribute updates.}
 \item{global}{\code{NULL} (no global attribute stream).}
@@ -56,6 +58,9 @@ treaties <- manynet::bind_ties(
   )),
   bilatchanges
 )
+# `order` pins the sequence of the same-time contiguity replace events, whose
+# same-dyad collisions would otherwise be an ambiguous tie-break:
+contigchanges$order <- seq_len(nrow(contigchanges))
 contiguity <- manynet::bind_ties(manynet::as_stocnet(contignet), contigchanges)
 fish <- manynet::from_ties(treaties = treaties, contiguity = contiguity)
 fish <- manynet::add_info(

@@ -111,9 +111,11 @@ NULL
 #'     `"event"`), `focal = "treaties"`, and the `gdp`/`active`/`regime`
 #'     attribute-update metadata.}
 #'   \item{nodes}{154 states (`label`, `active`, `regime`, `gdp`).}
-#'   \item{ties}{413 rows (`from`, `to`, `weight`, `time`, `flavor`, `layer`)
-#'     stacking the treaty and contiguity history and events; `from`/`to` index
-#'     rows of `nodes`.}
+#'   \item{ties}{413 rows (`from`, `to`, `weight`, `time`, `flavor`, `layer`,
+#'     `order`) stacking the treaty and contiguity history and events; `from`/`to`
+#'     index rows of `nodes`. The reserved integer `order` column pins the
+#'     original sequence of the contiguity `replace` events, whose same-time
+#'     same-dyad collisions would otherwise be ambiguous.}
 #'   \item{changes}{1186 rows (`time`, `node`, `var`, `value`) of the gdp,
 #'     active, and regime attribute updates.}
 #'   \item{global}{`NULL` (no global attribute stream).}
@@ -140,6 +142,9 @@ NULL
 #'   )),
 #'   bilatchanges
 #' )
+#' # `order` pins the sequence of the same-time contiguity replace events, whose
+#' # same-dyad collisions would otherwise be an ambiguous tie-break:
+#' contigchanges$order <- seq_len(nrow(contigchanges))
 #' contiguity <- manynet::bind_ties(manynet::as_stocnet(contignet), contigchanges)
 #' fish <- manynet::from_ties(treaties = treaties, contiguity = contiguity)
 #' fish <- manynet::add_info(

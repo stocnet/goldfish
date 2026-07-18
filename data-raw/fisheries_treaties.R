@@ -12,6 +12,11 @@
 #   alone (`rate = list(creation ~ ...)`) while every change still updates the
 #   network state. History ties carry NA flavor (state-only).
 # - The `contiguity` layer starts from `contignet` and binds `contigchanges`.
+#   Contiguity updates are `replace`, and the raw data carries same-time,
+#   same-dyad replaces (a value set to 1 and 0 at one timestamp); the stocnet
+#   coercion loses the incoming row order, so a reserved integer `order` column
+#   pins the original sequence as the deterministic tie-break. The treaty layer
+#   needs none: its `increment` updates commute.
 # - Node-level covariates (gdp, active/sovereignty, regime) bind as change
 #   streams via bind_changes().
 
@@ -31,6 +36,9 @@ bilat_net <- as_stocnet(bilatnet) |>
   join_nodes(states) |>
   rename_nodes() |>
   bind_ties(bilatchanges)
+
+# Original row order pins the same-time replace tie-break.
+contigchanges$order <- seq_len(nrow(contigchanges))
 
 contig_net <- as_stocnet(contignet) |>
   bind_ties(contigchanges)
