@@ -86,3 +86,6 @@ fisheries_data <- make_data(
 }
 
 }
+\seealso{
+\link{goldfish_data} for the replacement \code{stocnet} construction workflow.
+}

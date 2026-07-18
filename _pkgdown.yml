@@ -37,6 +37,7 @@ reference:
   - title: "Make"
     contents:
       - goldfish-package
+      - goldfish_data
       - starts_with("make")
       - starts_with("link")
       - as_goldfish
@@ -57,6 +58,8 @@ reference:
       The package contains several datasets that are used in vignettes
       to demonstrate features of goldfish.
     contents:
+      - social_evolution_stocnet
+      - fisheries_treaties
       - starts_with("Fisheries_")
       - starts_with("RFID_")
       - starts_with("Social_")

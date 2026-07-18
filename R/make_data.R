@@ -761,6 +761,7 @@ make_global_attributes_goldfish <- make_global_attributes
 #' @return An environment of class `data.goldfish`
 #'   containing the specified objects and their resolved dependencies.
 #'
+#' @seealso [goldfish_data] for the replacement `stocnet` construction workflow.
 #' @export
 #' @examples
 #' # Deprecated: not run. Assemble a stocnet with `manynet::make_stocnet()` /

@@ -46,7 +46,8 @@ A model for the dynamics of face-to-face interactions in social groups.
 \emph{Network Science}, 8(S1), S4-S25. \doi{10.1017/nws.2020.3}
 }
 \seealso{
-\link{estimate}
+\link{estimate} for model fitting, and \link{goldfish_data} for assembling the
+single \code{stocnet} data object the estimators consume.
 }
 \author{
 \strong{Maintainer}: Alvaro Uzaheta \email{ualvaro@ethz.ch} (\href{https://orcid.org/0000-0003-4367-3670}{ORCID})

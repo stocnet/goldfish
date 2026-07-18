@@ -56,6 +56,7 @@
 #' @return `x`, unchanged in structure, with `"data.goldfish"` prepended to its
 #'   class vector.
 #'
+#' @seealso [goldfish_data] for how to assemble the `stocnet` object this gates.
 #' @export
 #' @examples
 #' nodes <- data.frame(label = c("A", "B", "C"), floor = c(1, 2, 1))

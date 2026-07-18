@@ -75,3 +75,6 @@ info <- list(
 toy <- list(info = info, nodes = nodes, ties = ties)
 as_goldfish(toy)
 }
+\seealso{
+\link{goldfish_data} for how to assemble the \code{stocnet} object this gates.
+}
