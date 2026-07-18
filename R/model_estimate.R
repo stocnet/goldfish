@@ -1489,6 +1489,7 @@ estimate_wrapper <- function(
     prep$sub_model <- legacy_sub_model
     prep$nodes <- .nodes
     prep$nodes2 <- .nodes2
+    prep$node_lookup <- ds_node_lookup(orig_src)
   }
 
   ## 3.2 PREPROCESS when preprocessing_init == NULL
@@ -1564,6 +1565,8 @@ estimate_wrapper <- function(
         max_length = max_length,
         effect_description = spec_map$effect_description
       )
+      # The node lookup resolves index_i/index_j back to original node identity.
+      gathered$node_lookup <- ds_node_lookup(orig_src)
       if (output == "db") {
         return(write_gather_to_db(
           gathered,
@@ -1581,6 +1584,7 @@ estimate_wrapper <- function(
     prep$sub_model <- legacy_sub_model
     prep$nodes <- .nodes
     prep$nodes2 <- .nodes2
+    prep$node_lookup <- ds_node_lookup(orig_src)
   }
 
   prep$model_spec <- model_spec
@@ -1923,6 +1927,10 @@ estimate_wrapper <- function(
       modeled_flavor
     )
   }
+  # The node lookup (side, local index, global id, label) travels with the
+  # result so residuals / event-scores / export consumers resolve index_i /
+  # index_j to the original node identity without re-deriving the mode map.
+  result$node_lookup <- ds_node_lookup(orig_src)
   result$model <- model
   result$sub_model <- sub_model
   result$right_censored <- has_intercept

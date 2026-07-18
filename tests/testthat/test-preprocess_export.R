@@ -43,8 +43,9 @@ test_that("Output", {
     data = dataTest
   )
   expect_type(out, "list")
-  # +2 vs the legacy 8: the shared index vocabulary index_i / index_j
-  expect_length(out, 10)
+  # +2 vs the legacy 8: the shared index vocabulary index_i / index_j; +1 for the
+  # node_lookup resolving those indices to original node identity (stocnet path).
+  expect_length(out, 11)
 })
 test_that("export names are valid, unique R names", {
   out <- gather_model_data(

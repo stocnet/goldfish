@@ -329,6 +329,21 @@ ds_n_nodes.data_source_stocnet <- function(src, nodeset) {
   length(ds_side_ids(src, nodeset))
 }
 
+# The (side, local index, global id, label) lookup for the focal layer's modeled
+# sides, attached to results/exports so their index_i/index_j local indices
+# resolve back to the original nodes row and label without re-deriving the mode
+# map. The legacy environment carries no mode map -- its identity is the node
+# frame itself -- so it exposes none.
+ds_node_lookup <- function(src) UseMethod("ds_node_lookup")
+
+#' @exportS3Method
+ds_node_lookup.data_source_envir <- function(src) NULL
+
+#' @exportS3Method
+ds_node_lookup.data_source_stocnet <- function(src) {
+  layer_node_lookup(src$mode_map, src$focal)
+}
+
 # Does `nodeset` name the global-attribute container rather than a node set?
 ds_is_global <- function(src, nodeset) UseMethod("ds_is_global")
 
