@@ -76,10 +76,12 @@ still need. A full fixture modernization across the suite is not this change.
 - **Bridge drift vs the monolith's expectations** (parse-time windowing
   `assign()`, `cleanInteractionEvents` ordering) → D3 exact-equivalence test
   plus the frozen DyNAMi baselines; the monolith itself is untouched.
-- **Mapping of DyNAMi-specific inputs** (`opportunities` list, interaction vs
-  composition streams) onto stocnet components may not be 1:1 → resolved at
-  grounding time (open question); anything not events-shaped stays an explicit
-  argument rather than being forced into the object.
+- **Derived availability must reproduce the supplied opportunities list** (D6):
+  a constructor-era `opportunities` list and the availability derived from
+  composition state could disagree on edge cases (simultaneous joins/leaves,
+  windowed groups) → the D3 bridge-equivalence test compares the materialized
+  list against a constructor-supplied one on the fixtures; disagreements are
+  surfaced, not papered over.
 - **The abort is breaking for pre-1.9.0 saved objects** → `as_goldfish()`
   conversion already shipped; the error message shows the one-line migration;
   NEWS entry marks it BREAKING.
@@ -94,12 +96,31 @@ still need. A full fixture modernization across the suite is not this change.
 Rollback: revert the assembly branch and the abort — the constructor/env path
 is unchanged underneath.
 
+### D6 — Opportunities become derived availability, not an argument (2026-07-19)
+The `opportunities` list is event-shaped state, not free input: when an
+individual in a singleton gets the opportunity to join, the choice set is the
+set of groups **available at that time** — derivable from the composition/
+interaction state the object already carries. The public surface therefore
+drops the explicit `opportunities` list in favor of the equivalent
+**support-constraint / availability** expression (the machinery landed by
+`support-constraint-as-stat`): availability is derived from the object's
+composition state at event time, combinable with any user
+`support_constraint`. The internal bridge materializes the monolith's
+`opportunities` list from that derived availability — equivalence with a
+constructor-supplied list is part of the D3 contract. *Rejected:* keeping the
+list as an argument (duplicates state the object holds, and contradicts the
+single-object principle); a new list-column on the object (not events-shaped
+storage of something derivable).
+
+### D7 — Both public surfaces land now (2026-07-19)
+`make_specification()` gains the DyNAMi model classes alongside
+`estimate_dynami(data = <stocnet>)` — a uniform 2.0.0 API across families.
+The DyNAMi spec classes stay thin (their consumption is still the monolith via
+the bridge); `refactor-dynami-engine` makes them load-bearing. *Rejected:*
+estimate-only surface (would ship 2.0.0 with one family lacking the
+specification workflow the docs teach).
+
 ## Open Questions
 
-- The exact stocnet mapping for `opportunities` and the interaction/composition
-  event split (layer events vs `changes` vs explicit argument) — resolved
-  during grounding against what `preprocessInteraction` actually reads.
-- Whether `make_specification()` gains the DyNAMi model classes now (spec-object
-  path) or only `estimate_dynami(data = <stocnet>)` — decided at grounding;
-  the spec-object path may be trivial once the bridge exists, but it is
-  `refactor-dynami-engine`'s 1.5 if not.
+*(none — the 2026-07-19 explore session resolved both: D6 opportunities /
+stream mapping, D7 spec-object path in scope.)*

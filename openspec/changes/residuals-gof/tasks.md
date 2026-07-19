@@ -120,8 +120,10 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       efficient-score LM with chi-square p-value; equivalence test
       LM = t(Δ) I Δ; omitted-reciprocity power fixture; docs pointing to
       `lmtest::lrtest`/`waldtest` for nested fitted pairs.
-- [ ] 4.4 `test_parameter()` Wald form (restriction matrix on an
-      unconstrained fit via `coef()`/`vcov()`); tests.
+- [x] 4.4 ~~`test_parameter()` Wald form~~ — DESCOPED 2026-07-19 (user
+      decision): trails post-release; `lmtest::waldtest()` covers nested
+      pairs meanwhile. No implementation; the diagnostic-tests spec delta
+      records the deferral.
 - [ ] 4.5 `test_time(method = "trend")`: scaled Schoenfeld vs time
       transform (`identity`/`rank`/`km`), per-effect zero-slope score
       tests + global test, plot-ready residual data on the object; cli

@@ -166,10 +166,11 @@ run `evaluate_engine()` on the full model (candidate statistics included)
 at $\tilde\theta = (\hat\theta_1, 0)$, form
 $\mathrm{LM} = U^\top I^{-1} U \sim \chi^2_q$ (efficient-score form
 $U_2^\top [I^{-1}]_{22} U_2$). This is RSiena's score-type test
-(Schweinberger 2012) computed analytically. Because Wald tests of linear
-combinations (`Multipar.RSiena` analog) are nearly free given `vcov()`,
-`test_parameter()` also accepts a fitted unconstrained model + restriction
-matrix for the Wald form. LR/Wald of nested fitted pairs stay with
+(Schweinberger 2012) computed analytically. The Wald form for linear
+combinations (`Multipar.RSiena` analog; restriction matrix on an
+unconstrained fit via `vcov()`) is **deferred post-release** (2026-07-19
+decision — task 4.4 descoped): phase 2 ships the score/LM test only.
+LR/Wald of nested fitted pairs stay with
 `lmtest::lrtest()`/`waldtest()` (generics already satisfied) — documented,
 not reimplemented.
 
@@ -354,8 +355,11 @@ the residual types are defined.
 
 ## Open Questions
 
-- Exact class names for test objects (`test_gof.goldfish` vs
-  `goldfish_test_gof`) — resolve at implementation to match autograph
-  dispatch ergonomics; suffix convention preferred (D10).
-- Whether `test_parameter()`'s Wald form ships in phase 2 or trails —
-  include if it stays a thin wrapper over `vcov()`.
+*(both resolved 2026-07-19 explore session)*
+
+- ~~Class names~~ — the suffix convention: `test_gof.goldfish`,
+  `test_time.goldfish`, `test_parameter.goldfish` — as D10 already names in
+  the autograph plot methods, matching the existing
+  `outliers.goldfish`/`changepoints.goldfish` pattern.
+- ~~Wald form~~ — trails post-release (task 4.4 descoped); phase 2 ships the
+  score/LM test only, with `lmtest::waldtest()` documented for nested pairs.

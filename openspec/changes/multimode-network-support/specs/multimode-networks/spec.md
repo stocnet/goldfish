@@ -70,17 +70,28 @@ as directly-constructed two-mode input.
 
 ### Requirement: Effect-validity contract on a two-mode layer
 
-Each effect SHALL carry a validity flag for two-mode layers. On a two-mode
-(disjoint-sides) layer the package SHALL accept the effects with a well-defined
-two-mode reading — dyadic memory (`inertia`, `tie`), per-side degree
-(`indeg`/`outdeg`), four-cycle closure, and attribute effects (`ego`/`alter`/
-`same`/`diff`, with `ego` reading the sender-side slice and `alter` the
-receiver-side slice of the single `nodes` tibble) — and SHALL reject one-mode-only
-effects (reciprocity, one-mode triadic closure such as `trans`/`cycle`, and any
-effect assuming a square/symmetric adjacency) with a `cli` error naming the effect
-and the layer and listing valid alternatives. `directed` SHALL be treated as
-vacuous on a two-mode layer (noted and ignored), and mask symmetrization SHALL NOT
-apply.
+The package SHALL decide two-modeness from the layer's mode map — the user-fed
+`is_two_mode` effect argument is validated against it, and a disagreement
+SHALL raise a `cli` warning naming the effect, the declared value, and the
+layer's actual mode pair. On a two-mode (disjoint-sides) layer the package
+SHALL accept the effects with a well-defined two-mode reading — dyadic memory
+(`inertia`, `tie`), per-side degree (`indeg`/`outdeg`), four-cycle closure,
+shared-partner effects (`common_sender`/`common_receiver`), mixed two-network
+effects (`mixed_trans` family) when the layer dimensions conform, and attribute
+effects (`ego`/`alter`/`same`/`diff`, with `ego` reading the sender-side slice
+and `alter` the receiver-side slice of the single `nodes` tibble) — and SHALL
+reject one-mode-only effects (reciprocity, one-mode triadic closure such as
+`trans`/`cycle`/`node_trans`, any effect assuming a square/symmetric adjacency,
+and mixed effects with non-conforming dimensions) with a `cli` error naming the
+effect and the layer and listing valid alternatives. `directed` SHALL be treated
+as vacuous on a two-mode layer (noted and ignored), and mask symmetrization
+SHALL NOT apply.
+
+#### Scenario: Declared is_two_mode disagrees with the mode map
+- **WHEN** a formula supplies `indeg(net, is_two_mode = FALSE)` and `net` is a
+  two-mode layer under the object's mode map
+- **THEN** a `cli` warning names the effect, the declared value, and the
+  layer's mode pair, and the mode map's reading is used.
 
 #### Scenario: A one-mode-only effect on a two-mode layer errors
 

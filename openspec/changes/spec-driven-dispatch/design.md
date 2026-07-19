@@ -205,13 +205,18 @@ constrained suites + baselines.
 
 ## Open Questions
 
-- Exact descriptor field names/shape (list vs individual fields on the spec)
-  — settle at implementation against how `active_dyad_encoding_decide()` and
-  the map consume it; the contract is the single decision point, not the
-  field layout.
-- Whether `gather_`'s per-family dispatch becomes S3 methods on the indexing
-  class (`sender_spec` / dyad) or a descriptor switch — pick whichever keeps
-  "S3 at stage boundaries" honest (one dispatch, then bound locals).
-- Does any exported object surface `modelTypeCall` values users rely on
-  (beyond docs)? Audit during D5; if yes, keep the VALUE in output, never as
-  a branch key.
+*(all resolved 2026-07-19 explore session)*
+
+- ~~Descriptor shape~~ — **one `risk_set` named-list field** on the spec
+  (`spec$risk_set <- list(axis =, fold_target =, encoding =, symmetrize =,
+  …capability entries)`) with small internal accessors: consumers read one
+  field, the whole geometry prints/debugs at once, and future fields never
+  touch the constructor signatures.
+- ~~`gather_` dispatch style~~ — **S3 methods on the spec class** (generic +
+  per-indexing-family methods), consistent with the "S3 at stage boundaries"
+  principle; the descriptor is data consumed inside the method, never a
+  second dispatch idiom.
+- ~~`modelTypeCall` user surface~~ — user confirmed **nothing user-facing
+  relies on the values**: D5 retires the vocabulary outright with no
+  compatibility shim; the audit reduces to a confirming grep over exported
+  surfaces in task 4.4's grep-clean check.

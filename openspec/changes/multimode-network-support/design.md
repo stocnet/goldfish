@@ -97,16 +97,33 @@ and the layer, listing the valid alternatives):
   attribute effects (`ego`/`alter`/`same`/`diff`) with `ego` reading the
   sender-side slice and `alter` the receiver-side slice of the single `nodes`
   tibble.
+- **Valid on two-mode (extended, resolved 2026-07-19):** the shared-partner
+  effects `common_sender`/`common_receiver` (their two-mode reading is
+  four-cycle-like shared-partner counting), and the mixed two-network effects
+  (`mixed_trans` family) **when the layer dimensions conform** (e.g. one-mode
+  n1×n1 composed with two-mode n1×n2 yields a conforming n1×n2 statistic) —
+  each validated against hand-computed counts.
 - **Invalid on two-mode:** reciprocity (`recip`), one-mode triadic closure
-  (`trans`, `cycle`), and any effect assuming a square/symmetric adjacency.
+  (`trans`, `cycle`, `node_trans`), and any effect assuming a square/symmetric
+  adjacency; mixed effects whose dimensions do not conform.
 - `directed` is vacuous on a two-mode layer (validation notes and ignores it, as
   D7 already states); mask symmetrization never applies.
 
-The taxonomy is a per-effect flag (a `two_mode_valid` attribute on the effect
-registry entry / init function) so the check is data-driven, not a scattered set
-of `if (is_two_mode) stop()`. *Rejected:* silently computing whatever the
-one-mode code produces — it yields meaningless statistics; and per-call ad hoc
-guards — they drift and miss families.
+**Mechanism (resolved 2026-07-19): revise the existing init-method gate, with
+the mode map as the source of truth.** Effects already carry a user-fed
+`is_two_mode` argument (~69 effect surfaces) that the `init_*` methods read via
+`formals(effect_fun)` and answer with ad hoc `stop()` calls — but the flag is
+never checked against the data, so a wrong declaration silently computes
+meaningless one-mode statistics on a two-mode layer. This change: (a) the
+layer's mode map decides two-modeness; the declared `is_two_mode` argument is
+validated against it and a disagreement raises a `cli` warning naming the
+effect, the declared value, and the layer's actual mode pair; (b) the
+per-effect init stops are revised into the taxonomy above (consistent `cli`
+errors listing valid alternatives) rather than scattered hand-written stops.
+*Rejected:* a new `two_mode_valid` attribute/registry flag — the argument +
+init mechanism already exists and `effect-term-registry` (post-release) will
+absorb the metadata; silently computing whatever the one-mode code produces —
+meaningless statistics; per-call ad hoc guards — they drift and miss families.
 
 ### D5 — Estimation surface: side pair from the focal layer's mode map
 `make_specification()` / `estimate_*()` resolve the model's `nodes`/`nodes2` (row
@@ -193,9 +210,10 @@ are the contract that catches a wrong remap.
 - ~~**D6 dataset source**~~ — resolved 2026-07-19: `manynet::irps_nuclear`
   (Haunss & Hollway 2023), consumed live in the vignette with a frozen `tests/`
   subset for the baselines; see D6.
-- **D4 boundary cases** — `node_trans`/`common_sender`/`common_receiver`-style
-  effects: which have a well-defined two-mode reading (four-cycle-like) versus
-  which are one-mode-only; finalized against the effect registry during
-  implementation.
-- Whether the `two_mode_valid` flag lives on the effect registry entry (if
-  `effect-term-registry` has landed) or on the init function meanwhile.
+- ~~**D4 boundary cases**~~ — resolved 2026-07-19: `common_sender`/
+  `common_receiver` valid (shared-partner/four-cycle reading); mixed effects
+  (`mixed_trans` family) valid when dimensions conform; `node_trans` stays
+  one-mode-only. See D4.
+- ~~Flag location~~ — resolved 2026-07-19: no new flag; the existing
+  `is_two_mode` effect argument + init-method gate is revised, with the mode
+  map as source of truth and a mismatch warning (see D4 mechanism).

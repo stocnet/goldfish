@@ -14,11 +14,18 @@ rejected everywhere".
 ## What Changes
 
 - **DyNAMi accepts the stocnet data object at the public surface**:
-  `estimate_dynami()` (and `make_specification()` for DyNAMi models) take a
-  stocnet whose actors × groups structure is a two-mode layer under the mode map
-  (the representation `multimode-network-support` hardens), alongside the
-  interaction-specific components (interaction/composition event streams,
-  `opportunities` list).
+  `estimate_dynami()` **and** `make_specification()` (both surfaces, decided
+  2026-07-19) take a stocnet whose actors × groups structure is a two-mode
+  layer under the mode map (the representation `multimode-network-support`
+  hardens), with the interaction/composition event streams as object
+  components.
+- **The `opportunities` list is replaced by derived availability** (decided
+  2026-07-19): the choice set — the groups available when a singleton actor
+  gets a join opportunity — is derived from the object's composition state at
+  event time via the support-constraint/availability machinery, combinable
+  with user `support_constraint`; the internal bridge materializes the
+  monolith's `opportunities` list from it (equivalence tested against a
+  constructor-supplied list).
 - **Internal environment bridge (temporary, explicit)**: at the boundary the
   stocnet is converted down to the environment the untouched
   `preprocessInteraction` monolith consumes. The bridge is an implementation

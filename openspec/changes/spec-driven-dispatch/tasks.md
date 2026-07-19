@@ -2,10 +2,11 @@
 
 - [ ] 1.1 Attach the risk-set descriptor to the spec constructors
       (`R/model_spec.R`: `model_spec_structure()` + the nine `*_spec`
-      constructors, incl. `dynami_*`): `risk_set_axis`, fold target +
-      encoding policy, `symmetrize`, engine-capability entries; small
-      internal accessors; roxygen (`@noRd`) documents the fields as the
-      single parse-time decision point
+      constructors, incl. `dynami_*`) as ONE `risk_set` named-list field
+      (2026-07-19 decision: `list(axis =, fold_target =, encoding =,
+      symmetrize =, ...capability entries)`) with small internal accessors;
+      roxygen (`@noRd`) documents the field as the single parse-time
+      decision point
 - [ ] 1.2 Route the existing decision sites through the descriptor:
       `active_dyad_encoding_decide()` (`preprocess_writers.R:552`) and the
       fold-family selection in `fold_active_dyad_support()`
@@ -73,11 +74,12 @@
       (`estimation_core.R:1443`) and
       `is_rate_model <- modelTypeCall %in% ...` (`cpp_interface.R:77`)
 - [ ] 4.3 Dispatch `estimate_c_int` and `gather_` on the spec/descriptor:
-      stage-boundary dispatch (or descriptor switch) replaces every
+      S3 stage-boundary dispatch on the spec class (2026-07-19 decision; the
+      descriptor is data read inside the method) replaces every
       `modelTypeCall` string branch (`cpp_interface.R:61,77,199,242,246,349,
       391,591-731`); the C++ function selection and argument shaping key on
-      the spec; strings may remain only as values in exported output, never
-      as branch keys
+      the spec; no compatibility shim — nothing user-facing surfaces the
+      values (confirmed 2026-07-19; 4.4's grep-clean check re-verifies)
 - [ ] 4.4 Delete `legacy_model_type()` (`model_spec.R:311`) and convert its
       remaining callers (`model_estimate.R:1750`,
       `model_preprocess.R:2006`, `preprocess_writers.R:396,552`); grep-clean

@@ -42,7 +42,8 @@ auxiliary statistics) waits for DyNES to land.
   `ergm::gof` mask): `test_gof()` (Boschi–Wit bridge: per-effect Kolmogorov
   + per-block and joint Cauchy omnibus, dispatching on the
   `make_specification()`-based fit), `test_parameter()` (score/LM test at a
-  constrained fit; Wald form for multi-parameter combinations),
+  constrained fit; the Wald form for multi-parameter combinations is
+  deferred post-release, 2026-07-19 decision),
   `test_time()` (`method = c("trend", "periods")`: zph-style scaled-
   Schoenfeld slope test default, and a sienaTimeTest-style period-dummy
   score test computed by masking stored scores — no preprocessing;

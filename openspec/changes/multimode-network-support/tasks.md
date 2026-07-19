@@ -46,15 +46,20 @@
 
 ## 3. Effect-validity contract per two-mode layer (design D4)
 
-- [ ] 3.1 Add a data-driven `two_mode_valid` flag per effect (registry entry or
-      init function): valid = dyadic memory (`inertia`, `tie`), per-side degree
+- [ ] 3.1 Make the mode map the source of truth over the user-fed `is_two_mode`
+      effect argument: derive two-modeness from the focal/effect layer's mode
+      map, validate the declared argument against it, and raise a `cli` warning
+      (effect, declared value, actual mode pair) on disagreement — the ~69
+      effect surfaces keep their signature.
+- [ ] 3.2 Revise the init-method gates into the D4 taxonomy with consistent
+      `cli` errors naming the effect + layer and listing valid alternatives:
+      valid = dyadic memory (`inertia`, `tie`), per-side degree
       (`indeg`/`outdeg`), four-cycle closure, attribute effects
-      (`ego`/`alter`/`same`/`diff`); invalid = reciprocity, one-mode triadic
-      closure (`trans`, `cycle`), square/symmetric-adjacency effects.
-- [ ] 3.2 Enforce at parse time: an invalid effect on a two-mode layer aborts with
-      a `cli` error naming the effect + layer and listing valid alternatives;
-      resolve the D4 boundary cases (`node_trans`/`common_sender`/`common_receiver`
-      two-mode readings) against the effect registry.
+      (`ego`/`alter`/`same`/`diff`), `common_sender`/`common_receiver`
+      (shared-partner reading), and `mixed_trans`-family effects when
+      dimensions conform (validated against hand-computed counts); invalid =
+      `recip`, `trans`, `cycle`, `node_trans`, square/symmetric-adjacency
+      effects, non-conforming mixed effects.
 - [ ] 3.3 `ego` reads the sender-side slice and `alter` the receiver-side slice of
       the single `nodes` tibble on a two-mode layer; `directed` noted-and-ignored,
       mask symmetrization skipped.

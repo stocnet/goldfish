@@ -10,9 +10,9 @@
 - [ ] 1.1 Map what `preprocessInteraction` and the isolated DyNAMi front-end
       actually read from the environment (objects, attrs, event streams,
       `opportunities`, windowing `assign()` products) — this is the bridge's
-      contract; resolve the open questions (opportunities/interaction-stream
-      mapping; whether the spec-object path is in scope). Write findings to
-      `progress.md`.
+      contract. Confirm the composition-state reading of `opportunities`
+      (design D6: groups available at event time) reproduces the lists the
+      existing fixtures supply. Write findings to `progress.md`.
 - [ ] 1.2 Build an actors×groups two-mode stocnet fixture mirroring an existing
       DyNAMi test setup (same events both ways: legacy constructors and direct
       stocnet), extending `tests/testthat/helper-stocnet-fixtures.R`; verify the
@@ -29,14 +29,21 @@
       front-end calls (comment it as the temporary seam retired with the
       monolith by the engine conversion); exact-equivalence test: bridge-built
       env components equal constructor-built ones on the 1.2 fixture.
-- [ ] 2.3 Verify: `NOT_CRAN=true` green, DyNAMi baselines PASS; commit.
+- [ ] 2.3 Derive group availability from composition state (design D6): the
+      bridge materializes the monolith's `opportunities` list from the
+      object's state at event time, AND-combinable with a user
+      `support_constraint`; equivalence test against the constructor-supplied
+      lists on the existing DyNAMi fixtures.
+- [ ] 2.4 Verify: `NOT_CRAN=true` green, DyNAMi baselines PASS; commit.
 
 ## 3. Public surface
 
-- [ ] 3.1 `estimate_dynami()` (and `make_specification()` if 1.1 confirms the
-      spec-object path is in scope) accepts a stocnet `data`, resolving the
-      actors×groups layer via the mode map and routing through the bridge;
-      roxygen updated, `devtools::document()`.
+- [ ] 3.1 `estimate_dynami()` AND `make_specification()` (design D7: both
+      surfaces) accept a stocnet `data` for DyNAMi models, resolving the
+      actors×groups layer via the mode map and routing through the bridge —
+      the DyNAMi spec classes stay thin (consumption remains the monolith);
+      no public `opportunities` argument; roxygen updated,
+      `devtools::document()`.
 - [ ] 3.2 Coefficient equivalence test: stocnet path == constructor path to
       1e-6 on the DyNAMi rate and choice baselines, both engines where
       applicable. Verify + commit.

@@ -45,16 +45,16 @@ plus joint omnibus). No `gof()` S3 generic SHALL be defined.
 - **THEN** the result reports per-effect tests within each block, a
   per-block Cauchy omnibus, and a joint omnibus over all blocks.
 
-### Requirement: test_parameter score and Wald tests
+### Requirement: test_parameter score test
 `test_parameter()` SHALL implement the score (LM) test of candidate effect
 blocks: given a constrained fit and the candidate effects, it SHALL
 evaluate the full model's score `U` and information `I` at the constrained
 estimate via `evaluate_engine()` (statistics via the diagnostic-primitives
 replay rules) and report `LM = t(U) %*% solve(I) %*% U` with its chi-square
 p-value on the tested block's degrees of freedom (efficient-score form).
-It SHALL also accept an unconstrained fit with a restriction matrix to
-perform the Wald test of linear parameter combinations from `coef()` and
-`vcov()`. The documentation SHALL point users to `lmtest::lrtest()` and
+The Wald form for linear parameter combinations (restriction matrix on an
+unconstrained fit) is deferred to a post-release change (2026-07-19
+decision). The documentation SHALL point users to `lmtest::lrtest()` and
 `lmtest::waldtest()` for nested fitted-model comparisons rather than
 reimplementing them.
 
@@ -69,12 +69,6 @@ reimplementing them.
 - **WHEN** the LM statistic is computed on a fixture
 - **THEN** it equals `t(Delta) %*% I %*% Delta` for the one-step update
   `Delta = solve(I) %*% U` within floating-point tolerance.
-
-#### Scenario: Wald test of a linear combination
-- **WHEN** `test_parameter()` is given an unconstrained fit and a
-  restriction matrix
-- **THEN** it returns the Wald chi-square statistic and p-value consistent
-  with `coef()` and `vcov()`.
 
 ### Requirement: test_time trend and periods methods
 `test_time()` SHALL test time heterogeneity of effects with
