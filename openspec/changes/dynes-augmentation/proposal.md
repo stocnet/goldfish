@@ -31,11 +31,11 @@ package's estimation core.
 - **Three step-family contracts**, mirroring the writer strategy contract
   (init / step / finalize), so variants plug in like preprocessing writers:
   - **Augmenters** build wave-consistent latent sequences:
-    `augment_sequence_random()` (uniform ordering of the Hamming flip set),
-    `augment_sequence_model()` (model-driven draw at the current parameters), and
-    `augment_sequence_mutate()` (MCMC moves on an existing sequence — permutations
-    in v1; the RSiena-studied excursion insert/delete moves and time re-proposals
-    are recorded future extensions).
+    `augment_seq_random()` (uniform ordering of the flip set),
+    `augment_seq_sim()` (constrained model-driven draw at the current parameters),
+    and `augment_seq_mcmc()` (MCMC moves on an existing sequence — permute and
+    shift moves with rate-based time redraws in v1; the RSiena-studied excursion
+    insert/delete moves are recorded future extensions).
   - **Evaluators** compute E-step quantities for a pool at a parameter vector:
     batched log-likelihood / score / Fisher over preprocessed sequences, plus the
     importance weights (weights live in the evaluator, never the augmenter).

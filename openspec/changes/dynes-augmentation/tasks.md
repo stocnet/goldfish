@@ -47,17 +47,21 @@
 - [ ] 3.1 Implement the per-event simulation hook on the recipe loop per the
       documented contract (visible state after event i, event-stream append);
       no-registered-hook path byte-equivalent — baselines gate the commit
-- [ ] 3.2 Augmenter contract + `augment_sequence_random()` (uniform ordering/times
-      over the flip set, proposal density reported)
-- [ ] 3.3 `augment_sequence_model()`: sequential model-driven draw at `theta`
-      consuming the simulation hook (rates/probabilities from the estimation kernels
-      at the current state)
-- [ ] 3.4 `augment_sequence_mutate()`: v1 permutation-only MCMC move set per the
-      task-1.3 note (insert/delete excursions and event-time re-proposals recorded
-      as future extensions, design D16) with forward/reverse proposal densities and
-      the D16 chain lifecycle: warm start into each EM iteration's new target,
-      burn-in at every chain restart, same-chain continuation for within-iteration
-      growth
+- [ ] 3.2 Augmenter contract + `augment_seq_random()` (iid-uniform times with
+      within-chain sorting over the flip set, closed-form proposal density
+      reported, design D20)
+- [ ] 3.3 `augment_seq_sim()`: constrained sequential model-driven draw at `theta`
+      consuming the simulation hook (R-side risk-set restriction over
+      support-applicable remaining events plus the globally next relational event;
+      truncated-exponential waiting times; full-path proposal density, design D20)
+- [ ] 3.4 `augment_seq_mcmc()`: permute + shift move set with rate-based
+      truncated-exponential time redraws, unified pred/succ windows, upfront
+      exclusion of chain-order-violating swaps, and the injected
+      proposal-evaluator closure (design D20; insert/delete excursions recorded
+      as future extensions, design D16) with forward/reverse proposal densities
+      and the D16 chain lifecycle: warm start into each EM iteration's new
+      target, burn-in at every chain restart, same-chain continuation for
+      within-iteration growth
 - [ ] 3.5 Tests: endpoint-hitting asserted on every draw, proposal-density
       correctness on hand-computed fixtures, hook state-visibility; verification run
       `NOT_CRAN=true` (PASS not SKIP); version bump + NEWS (augmentation milestone);

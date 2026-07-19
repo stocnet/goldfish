@@ -15,7 +15,10 @@ lean on workarounds the current pipeline has since solved (opportunity lists for
 support constraints, manual state/label bookkeeping, per-chain data reloading).
 RSiena's ML estimator (`~/Documents/repos/rsiena`) implements MCMC sequence sampling
 between waves — its proposal moves, endpoint handling, and diagnostics answer the
-statistics questions (OQ B5).
+statistics questions (OQ B5). The change-local `augmentation_background.md` records
+the mathematical background for the three augmentation routines (notation, the
+constrained simulation, the MCMC move); D19–D20 refine it and supersede its simple
+acceptance ratio and window formulas where they differ.
 
 Decisions below marked **[spike-gated]** are written from the prototypes and the OQ
 answers but are revised from the Phase-1 spike measurements before their implementing
@@ -34,8 +37,11 @@ phase starts.
 **Non-Goals:**
 - Incremental re-preprocessing of mutated sequences (suffix patching) — full
   re-preprocess is the baseline (OQ B4); revisit only with profiling evidence.
-- Flavor-filtered effects, `make_multivariate_spec()` (own changes; the batched
-  evaluator is written so a multivariate spec pool can adopt it).
+- Flavor-filtered effects, the `make_multivariate_spec()` constructor (own changes;
+  the batched evaluator is written so a multivariate spec pool can adopt it). The
+  *estimand* here is nonetheless multi-layer (D19) — deferred is the general
+  spec-construction surface, not the joint likelihood; how v1 passes the
+  multi-layer specification is an Open Question.
 - GoF statistics/plots — the `simulate()` primitive IS in scope (D12); the
   goodness-of-fit surface built on it (observed-vs-simulated statistic
   distributions) is a follow-up.
@@ -58,8 +64,17 @@ concern, nested under the EM constructor** so every cross-object rule has one ho
   optimizer = set_alg_sgd())` — the ascent-based MCEM loop (D18) plus the **only
   `seed`**: one RNG stream governs augmentation draws, batch selection, and
   resampling (per-block seeds rejected as an irreproducibility trap).
-- `set_alg_augment(routine = c("mcmc", "random", "simulation"), burn_in, thinning,
-  initial_sequence = NULL)` — sequence generation (chain lifecycle in D16).
+- `set_alg_augment(routine = c("mcmc", "random", "sim"), burn_in, thinning,
+  initialize = c("random", "sim"), initial_sequence = NULL,
+  move_probs = c(permute = 0.5, shift = 0.5))` — sequence generation (chain
+  lifecycle in D16; moves, windows, and densities in D20). Routine strings match
+  the `augment_seq_*()` constructor names. `burn_in`/`thinning` are counted in
+  **sweeps** (one sweep = as many proposals as there are panel events), so the
+  same setting means the same thing at every dataset size; their default values
+  are a Phase-1 tuning outcome (the arguments ship now). `initialize` picks the
+  first chain's start; `initial_sequence` overrides it. `move_probs` (MCMC only)
+  is the user-facing move-type mix, normalized internally — a named vector so
+  future move types extend it without deprecating a scalar.
 - `set_alg_weights(weighting = c("importance", "uniform"), use = c("importance",
   "resampling"), resampling_scheme = c("stratified", "residual", "random"),
   transformation = identity, refresh = FALSE, ess_threshold = 0.5)` — how the
@@ -80,9 +95,11 @@ table) execute in `set_alg_em()`'s constructor**, since siblings cannot see each
 other — inconsistent-but-ignorable combinations warn and are ignored, impossible
 ones abort.
 
-The specification is a Stage-A flavored spec whose focal layer carries the
-panel-semantics flag; event-stream estimators continue to abort on panel focal layers,
-naming `estimate_dynes()`. *Rejected:* overloading `estimate_dynam()` with an
+The estimand is the joint multi-layer model of D19 (multiple modeled RE and PE
+layers, per layer × flavor rate and choice formulas, θ the concatenation across all
+modeled sub-models); event-stream estimators continue to abort on panel focal layers,
+naming `estimate_dynes()`. How the multi-layer specification is passed is an Open
+Question (the multivariate spec constructor is a separate change). *Rejected:* overloading `estimate_dynam()` with an
 `algorithm` switch — panel augmentation changes the estimand's data requirements and
 the result's uncertainty semantics; a distinct verb keeps both surfaces honest (and
 matches the dev plan's naming). *Also rejected:* the flat single constructor (this
@@ -93,17 +110,22 @@ future-extension surfaces, and a flat argument bag hides the cross-object rules.
 Three constructor families, each returning an object with `init(spec, waves, control)`
 / step / `finalize()` hooks, dispatched by the `set_alg_*()` controls (D1):
 
-- **Augmenters** — `augment_sequence_random()` (uniform ordering + uniform times over
-  the wave-diff flip set; prototype `getChainSample()`),
-  `augment_sequence_model()` (sequential draw from the model at the current
-  parameters, consuming the per-event simulation hook; prototype
-  `getChainSampleFromModel()`), `augment_sequence_mutate()` (MCMC moves on a current
-  sequence: order permutations in v1 — the RSiena-studied insert/delete excursion
-  moves and event-time re-proposals are recorded future move-set extensions, D16;
+- **Augmenters** — `augment_seq_random()` (iid-uniform times with within-chain
+  sorting over the wave-diff flip set, D20; prototype `getChainSample()`),
+  `augment_seq_sim()` (constrained sequential simulation from the model at the
+  current parameters, consuming the per-event simulation hook; prototype
+  `getChainSampleFromModel()`), `augment_seq_mcmc()` (MCMC moves on a current
+  sequence: the permute + shift move set with rate-based time redraws, D20 — the
+  RSiena-studied insert/delete excursion moves remain future extensions, D16;
   prototype `permuteChainSample()`). Contract:
-  `augment(state_t, state_t1, theta, control) → sequence(s)` — every returned sequence
-  MUST hit the endpoint state exactly and reports its **log proposal density**,
-  stored permanently with the sequence (D14).
+  `augment(data_window, theta, control) → sequence(s)`, where `data_window`
+  carries the full wave span — snapshots at every wave, per-interval flip sets,
+  and the observed (modeled and exogenous) event streams — since the MCMC chain
+  is global over the whole sequence (D19). Every returned sequence MUST hit every
+  wave snapshot exactly and reports its **log proposal density over the full
+  generative path** (D20), stored permanently with the sequence (D14). The MCMC
+  augmenter additionally receives an injected proposal-evaluator closure at
+  `init()` (D20) — it never touches the evaluator's pool API.
 - **Evaluators** — `evaluate_sequence_pool(pool, theta, what = c("loglik", "score",
   "fisher"))` → the requested per-sequence quantities plus importance weights.
   Callers request only what they consume: the SGD loop runs score-only; Fisher is
@@ -181,17 +203,29 @@ data, limits precision. Fixed-parameter handling follows the prototypes'
 ### D8 — Panel flag activation and wave diffing
 The per-layer panel-semantics flag (reserved by single-data-object D5) becomes
 readable metadata: a panel-flagged layer's rows are snapshots; consecutive waves diff
-into the candidate flip set (creations where 0→1, dissolutions where 1→0) per
-interval, with wave times as hard boundaries the augmented sequence must hit. The
-exogenous change-list interpretation of unflagged panel layers is untouched. Diffing
-is a conversion-module function also usable standalone (the upstream
-snapshot-diff-verb proposal to manynet remains open and non-blocking).
+into the candidate flip set per interval, with wave times as hard boundaries the
+augmented sequence must hit. Flavors are arbitrary, not just creation/dissolution:
+the diff consumes the layer's transition/support specification and inverts the
+(from-value, to-value) → flavor mapping, which MUST be injective — the flavor is
+never a latent variable. A value change larger than one allowed step decomposes into
+a **per-dyad ordered chain** of events (0→2 under ±1 transitions is two events with
+a forced order); net-zero changes produce no events (excursions are out of v1, D16).
+v1 data restrictions: all panel-flagged layers share **one wave grid** (nested grids
+— e.g. yearly surveys plus weekly ones — are a recorded future development); the
+**node set is fixed** over the whole period (composition changes / presence windows
+are a future development); an observed RE falling exactly on a wave time belongs to
+the **earlier** interval (it precedes the snapshot). A modeled panel layer is
+modeled for **all its flavors or not at all** — partially specified layers abort
+(D19); a fully unmodeled panel layer keeps the existing exogenous change-list
+semantics (state jumps at wave times), untouched. Diffing is a conversion-module
+function also usable standalone (the upstream snapshot-diff-verb proposal to manynet
+remains open and non-blocking).
 
 ### D9 — Simulation hook: implement the documented recipe-loop extension point as the walk's source port
 The per-event simulation hook lands exactly as documented by
 `preprocess-output-writers`: after the stats update for event i, before advancing, a
 registered callback sees the visible process state and may append to the event stream.
-`augment_sequence_model()` is its first consumer (drawing event i+1 from the rates at
+`augment_seq_sim()` is its first consumer (drawing event i+1 from the rates at
 state i). Conceptually the hook is the **source port** of the recipe walk — the mirror
 of the writer contract's sink port: the walk's event supply is, in general, a **merge
 of the observed exogenous schedule (covariate/composition changes) with a
@@ -203,8 +237,11 @@ channel) directly carries the `simulate()` surface (D12) — a generative source
 recorder sink + the multi-consumer (rate + choice) walk from `flavored-processes`
 D3 — now IN SCOPE for this change rather than a follow-up. Like the writer, the
 source resolves to a plain local closure before the loop — no per-event dispatch
-machinery. The sampling-writer and parallel-chunking extension points stay
-documentation-only.
+machinery. The augmenter-side risk-set restriction (observed pairs with remaining
+support-applicable events, D20) happens **in R**: the callback receives the kernels'
+full rate/choice vectors and subsets + renormalizes — no risk-set mask argument is
+added to the C++ kernels in v1 (worth revisiting only at large n, D11). The
+sampling-writer and parallel-chunking extension points stay documentation-only.
 
 ### D10 — Parallelization: sequence-level only, under a non-nested thread budget **[spike-gated]**
 Every expensive step of an ABEM iteration (augmentation, the D5 full re-preprocess,
@@ -233,7 +270,13 @@ check cap) and parallel RNG streams for reproducible draws; no per-block paralle
 arguments exist — the SGD batch evaluation is the same per-sequence loop this
 decision governs. The B1 spike's
 BLAS-default vs pinned × serial vs sharded crossing measures the crossover before the
-evaluator phase, including a large-n synthetic cell. *Rejected:* multithreaded BLAS as
+evaluator phase, including a large-n synthetic cell. Two DyNES-specific boundaries:
+the `augment_seq_mcmc()` chain is inherently **serial** (each step consumes the
+previous state's likelihood), so sequence-level parallelism applies to random/sim
+draws and to pool evaluation, not to MCMC generation — multiple parallel chains and
+parallel tempering are recorded future developments (D16); and **wave-level
+parallelism is ruled out**, because windowed/memory effects are allowed (D19) and
+the likelihood therefore does not factorize over between-wave intervals. *Rejected:* multithreaded BLAS as
 the parallelism strategy (bandwidth-capped, non-portable — reference-BLAS users get
 nothing — and useless for preprocessing); base PSOCK as the parallel backend (the
 worker-state tax across hundreds of iterations); mirai in Imports (parallelism is
@@ -363,8 +406,12 @@ the augmenter records an autocorrelation index and basic chain statistics into t
 high — no autocorrelation-corrected ASE method in v1.
 
 ### D16 — MCMC chain lifecycle: warm starts, burn-in at every restart
-The first chain initializes from a random endpoint-consistent sequence unless the
-user supplies `initial_sequence`. Lifecycle rules:
+The first chain initializes per `initialize`: a random endpoint-consistent draw
+(`"random"`, via `augment_seq_random()`) or a constrained-simulation draw (`"sim"`,
+typically nearer the target, shortening the unavoidable burn-in); a user-supplied
+`initial_sequence` — validated for endpoint-hitting, chain order, and within-wave
+times — overrides both. Burn-in and thinning are counted in sweeps (D1). Lifecycle
+rules:
 
 - **New EM iteration** (new target at θ_{k+1}): the new chain starts from the
   previous iteration's last draw — the SAEM/RSiena warm start. Since θ_{k+1} ≈ θ_k
@@ -378,10 +425,12 @@ user supplies `initial_sequence`. Lifecycle rules:
   multiple-importance-sampling weighting.
 
 Recorded future developments of the augmenter, deliberately absent from the v1
-argument surface: parallel tempering; proposing new event *times* (required once
-anything time-varying enters the rate — v1 moves permute order only); insert/delete
-excursion moves; the constrained-simulation rejection cap and its
-exhaustion policy.
+argument surface: parallel tempering and multiple parallel chains (v1 generation is
+serial, D10); insert/delete excursion moves (net-zero within-interval changes never
+enter the v1 proposal space, D8); nested wave grids and composition changes /
+presence windows (D8). The v1 move set itself is in D20 — the original "permute
+order only" plan is superseded: both v1 moves redraw times from rate-based
+proposals, which the joint likelihood's waiting-time densities require anyway.
 
 ### D17 — M-step: one SGD over the concatenated θ; batching semantics pinned
 One M-step optimizes the concatenated parameter vector across sub-models
@@ -432,6 +481,121 @@ decision stays joint either way). Semantics:
   pass per accepted iteration). Carried on the returned object as part of the D7
   result contract.
 
+### D19 — Joint multi-layer estimand, PE-independence detection, v1 restrictions
+`estimate_dynes()` estimates one **joint likelihood over multiple layers**: any
+number of RE (event-stream) layers and PE (panel-flagged) layers, each modeled
+layer × flavor carrying its own rate and choice formulas — exclusively endogenous,
+or with exogenous nodal statistics and interactions between flavors within and
+between layers. θ is the concatenation of all modeled sub-models' parameters; the
+result reports all of them (D7). RE layers and flavors may be modeled or
+exogenous-only (exogenous REs merge into the schedule like covariate changes: they
+update state, contribute no likelihood terms, never compete in the simulation); PE
+layers are modeled all-or-nothing (D8). Windowed/memory effects are **allowed** in
+v1 — the price is that the likelihood does not factorize over between-wave
+intervals, so the MCMC augmenter runs one global chain over the whole sequence
+(D20) and wave-level parallelism is off the table (D10).
+
+**PE-independence detection**: from the formulas and the objects they create,
+`estimate_dynes()` detects sub-models whose statistics read no modeled-PE state —
+their likelihood terms are constant under PE placement (no MC error, and they
+cancel from every MH acceptance ratio). A **fully** PE-independent specification
+aborts: nothing is latent, and `estimate_dynam()` covers it. A **mixed**
+specification also aborts, naming both remedies: run `estimate_dynam()` on the
+PE-independent sub-models separately, or fold them as flavors of one single layer
+in a flavored specification. *Rejected:* automatic internal partitioning (standard
+estimation for the independent block inside `estimate_dynes()`) — two estimation
+paths and a block-structured vcov for a case the error message resolves.
+
+**History spans**: modeled REs before the first wave are history — they inform the
+process state at the first wave but contribute no likelihood terms; modeled REs
+after the last wave are discarded. (A spec wanting full RE history with no PE
+coupling is exactly the fully-independent case that aborts to `estimate_dynam()`,
+which has no such trimming.)
+
+### D20 — Augmenter internals: moves, windows, proposal densities, evaluator injection
+Shared rules: augmented sequences span [first wave, last wave]; sampled times lie in
+**open** intervals strictly between their anchors (with a numerical guard against
+equaling an anchor after rounding); every wave snapshot is hit by construction; log
+proposal densities are accumulated over the **full generative path**, on the log
+scale, and stored with the sequence (D14).
+
+- **`augment_seq_random()`** — per interval of length L with n flips: draw n iid
+  uniform times, then within each same-dyad ordered chain (length c_j, D8)
+  reassign that chain's drawn times to its events in sorted order, then sort the
+  interval. Exactly uniform over the valid configurations, rejection-free; log
+  proposal density per interval: Σ_j log(c_j!) − n·log L.
+- **`augment_seq_sim()`** — constrained sequential simulation. At each step the
+  sender–flavor risk set is: the observed PE pairs with remaining
+  **support-applicable** events (the support constraints supply the
+  value-awareness — a 1→2 event has zero support until its dyad sits at 1, so
+  chain order emerges with no extra bookkeeping structure) plus the **single
+  globally-next unplaced modeled RE across all RE layers**. Selection
+  probabilities are the conditional rates over that set, restricted and
+  renormalized in R (D9). If the RE wins, it is placed at its observed time — the
+  selection probability still enters the proposal density (it is part of the
+  generative path). If a PE pair wins: draw the receiver among its remaining
+  observed receivers by conditional choice probabilities, then draw the waiting
+  time from a **truncated exponential** — the selected pair's rate, support
+  (0, next anchor − t) with anchor = min(next unplaced RE time, wave end) — by
+  inverse CDF (never rejects). Repeat until every flip is placed.
+- **`augment_seq_mcmc()`** — one global chain over the whole sequence; moves
+  restricted within one wave; retained draws thinned in sweeps (D1); generation
+  serial in v1 (D10). Two move types, mixed by `move_probs` (state-independent,
+  with a deterministic fallback when a type has no valid move, so the type choice
+  cancels in the acceptance ratio):
+  - **permute** — pick a same-wave PE pair (ω_h, ω_k), h < k, uniformly among the
+    pairs whose swap respects same-dyad chain order (violating swaps are excluded
+    **before** proposing — an invalid sequence is never built, never evaluated);
+    swap their slots and redraw both times.
+  - **shift** — pick one PE uniformly and redraw its time inside its slot window:
+    relative order among PE is preserved; only the position relative to REs can
+    change. Fixes the mixing hole of single-PE intervals (which have no pairs).
+
+  **Windows, one rule**: with pred(i)/succ(i) the immediate neighbors of slot i
+  among the *unmoved* PE events, padded by the wave boundaries (t*_0 = wave start,
+  t*_{n+1} = wave end): t′_k ∈ (t*_pred(h), t*_succ(h)) and
+  t′_h ∈ (max{t′_k, t*_pred(k)}, t*_succ(k)). This covers adjacent (k = h+1) and
+  non-adjacent pairs without branching — for k > h+1 the max collapses to
+  t*_{k−1}; for k = h+1 it delivers t′_k — and the shift window is the degenerate
+  case (t*_pred(i), t*_succ(i)). REs never appear in window bounds (they are
+  crossed freely); both bounds always stay inside the event's wave.
+
+  **Time proposals** are truncated exponentials with the moved pair's rate
+  **frozen at the process state after the preceding PE** — a deliberate proposal
+  simplification: the target waiting-time density is piecewise across intervening
+  REs and exogenous events, and Metropolis–Hastings corrects the mismatch through
+  the target ratio, because the recorded density is the density actually drawn
+  from and its support covers the whole window.
+
+  **Acceptance**: α = [f(Ω′)/f(Ω)] × [q_rev/q_fwd], with q_fwd/q_rev the products
+  of the truncated-exponential time densities (two for permute, one for shift).
+  The move-type and pick probabilities cancel because they depend only on
+  move-invariant structure (event counts, wave membership, chain constraints) — a
+  property to protect when extending the move set. q_rev needs the moved pair's
+  frozen rate **under Ω′**, emitted as a byproduct of the same pass that computes
+  f(Ω′): the engine's `what` surface (D3) gains a named-pair rate-at-position
+  query.
+
+  **Evaluator injection** (the likelihood inside the chain): each EM iteration the
+  ABEM loop builds `make_proposal_evaluator(spec, theta_k)` —
+  `eval_fn(candidate_seq, rate_queries) → list(loglik, rates)`, one preprocess +
+  one likelihood pass per proposal — and hands it to the augmenter's `init()`.
+  θ_k is baked in (no stale-θ hazard), and tests stub `eval_fn` with an analytic
+  toy likelihood to verify the chain's acceptance logic and detailed balance with
+  no preprocessing at all. *Note for further discussion (not contract)*: a
+  retained draw's preprocessed object and log-likelihood were just computed inside
+  the accept/reject step and could enter the pool without re-preprocessing;
+  whether the closure's return value becomes a pool-entry cache is deliberately
+  left open.
+
+*Rejected:* uniform time draws in the MCMC windows (the background note's simple
+acceptance ratio f′/f is exact only for uniform non-adjacent swaps; rate-based
+proposals dominate, and the density bookkeeping is required anyway); auto-rejecting
+support-violating proposals via zero target density (never pay a preprocess for a
+proposal a lookup can exclude — and the walk is not guaranteed to return −Inf on an
+illegal transition rather than error); a separate per-dyad pending-queue structure
+in the simulation (the support masks already encode applicability).
+
 ## Risks / Trade-offs
 
 - **Spike results overturn a gated decision** (batched C++ not worth it; pools blow
@@ -470,10 +634,18 @@ package.
 - **[gated by Phase 1]** Final engine batching shape (D3) and pool storage format
   (D4) — resolved by the B1/B3 spike measurements, folded back into design + specs by
   the Phase-1 revision task.
-- **[gated by Phase 1]** Acceptance-ratio bookkeeping for the v1 permutation move
-  set of `augment_sequence_mutate()` — resolved by the RSiena study note. (The
-  move-set *scope* is now decided: permutation-only in v1; insert/delete
-  excursions and time re-proposals are recorded future extensions, D16.)
+- **[resolved in design]** Acceptance-ratio bookkeeping for the v1 move set —
+  settled by D20 (unified pred/succ windows, frozen-rate truncated-exponential
+  proposals, q_fwd/q_rev with the pick-factor cancellation); the RSiena study note
+  remains a cross-check and the source for future excursion moves.
+- **[spec surface]** How `estimate_dynes()` receives the multi-layer specification
+  (D19): block on the separate multivariate-spec change and consume its
+  constructor, or ship an interim surface (e.g. a named list of Stage-A flavored
+  specs, one per layer) that the future constructor slots under. Decide before the
+  estimator-surface phase.
+- **[to discuss]** Whether MCMC retained draws enter the pool through the proposal
+  evaluator's cache (preprocessed object + loglik reuse, D20 note) — deliberately
+  not in the v1 contract yet.
 - **[naming]** The `set_alg_*` prefix vs the `set_*_opt()` house convention —
   under discussion; the working names in D1 are provisional and rename cheaply
   before the surface ships.

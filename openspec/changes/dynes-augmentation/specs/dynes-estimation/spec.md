@@ -2,12 +2,15 @@
 
 ### Requirement: estimate_dynes estimates flavored models from panel waves
 
-The package SHALL provide `estimate_dynes()` accepting a flavored
-`specification.goldfish` (per the `flavored-processes` capability) whose focal layer
-carries the panel-semantics flag, and an `algorithm` control object from
-`set_alg_em()`. It SHALL estimate the per-flavor parameters by ascent-based
-Monte Carlo EM: per iteration, augment/refresh a pool of endpoint-hitting sequences for
-every between-wave interval, evaluate E-step quantities on the pool at the current
+The package SHALL provide `estimate_dynes()` estimating one joint multi-layer
+likelihood: any number of relational-event and panel-semantics layers, each modeled
+layer × flavor carrying rate and choice formulas (per the `flavored-processes`
+capability), the parameter vector concatenating all modeled sub-models — with an
+`algorithm` control object from `set_alg_em()`. (How the multi-layer specification
+is passed is an open design question, resolved before the estimator-surface phase.)
+It SHALL estimate the concatenated parameters by ascent-based
+Monte Carlo EM: per iteration, augment/refresh a pool of endpoint-hitting sequences
+spanning the wave span, evaluate E-step quantities on the pool at the current
 parameters, and take an ascent step, until the stop rule is met. Exhausting
 `max_retries` (within-iteration pool growth after rejected updates) or
 `max_iterations` without convergence SHALL abort with a cli error explaining the
@@ -32,14 +35,51 @@ marked experimental (`lifecycle::badge("experimental")`).
 - **THEN** it aborts pointing to `estimate_dynam()`/`estimate_rem()` for fully observed
   sequences.
 
+### Requirement: Specification validation guards the DyNES estimand
+
+`estimate_dynes()` SHALL validate the multi-layer specification before estimation:
+relational-event layers and flavors may be modeled or exogenous-only (exogenous
+events update state, contribute no likelihood terms, and never compete in
+augmentation draws); panel-semantics layers SHALL be modeled for all their flavors
+or not at all — partially modeled panel layers abort, fully unmodeled ones keep the
+exogenous change-list semantics. It SHALL detect, from the formulas and the objects
+they create, sub-models whose statistics read no modeled panel state: a fully
+panel-independent specification SHALL abort explaining that nothing is latent and
+`estimate_dynam()` covers the model; a mixed specification SHALL abort naming both
+remedies — separate `estimate_dynam()` runs for the panel-independent sub-models,
+or folding them as flavors of one single layer in a flavored specification.
+Windowed/memory effects SHALL be accepted (at the cost of one global MCMC chain and
+no wave-level parallelism). Modeled relational events before the first wave SHALL
+enter as history only (informing the state at the first wave, contributing no
+likelihood terms); modeled relational events after the last wave SHALL be
+discarded.
+
+#### Scenario: fully panel-independent specification redirected
+- **WHEN** no modeled sub-model's statistics read any modeled panel layer
+- **THEN** `estimate_dynes()` aborts explaining that `estimate_dynam()` covers this
+  model.
+
+#### Scenario: mixed specification aborts with remedies
+- **WHEN** some modeled sub-models read modeled panel state and others read none
+- **THEN** `estimate_dynes()` aborts naming both remedies: separate
+  `estimate_dynam()` runs for the independent sub-models, or one flavored layer
+  folding them.
+
+#### Scenario: partially modeled panel layer rejected
+- **WHEN** a panel layer has two flavors and the specification models only one
+- **THEN** validation aborts: panel layers are modeled for all flavors or not at
+  all.
+
 ### Requirement: Nested set_alg_*() constructors control the ABEM algorithm
 
 The package SHALL provide four control constructors, one per algorithm concern:
 `set_alg_em()` (the EM loop: `n_sequences`, `max_iterations`, the
 `accept_quantile`/`growth_quantile`/`stop_quantile` stop-rule quantiles,
 `tolerance`, `max_retries`, the single `seed` governing all draws, `em_trace_se`,
-`n_cores`), nesting `set_alg_augment()` (routine `mcmc`/`random`/`simulation`,
-`burn_in`, `thinning`, `initial_sequence`), `set_alg_weights()` (`weighting`
+`n_cores`), nesting `set_alg_augment()` (routine `mcmc`/`random`/`sim` matching the
+`augment_seq_*()` constructor names; `burn_in` and `thinning` counted in sweeps;
+`initialize` random/sim for the first chain's start; `initial_sequence`; the
+MCMC-only `move_probs` move-type mix), `set_alg_weights()` (`weighting`
 importance/uniform, `use` importance/resampling, `resampling_scheme`
 stratified/residual/random, `transformation`, `refresh`, `ess_threshold`), and
 `set_alg_sgd()` (`variant`, `batch_size`, `batch_scheme` weighted/cyclic,
