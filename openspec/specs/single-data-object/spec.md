@@ -1,4 +1,15 @@
-## ADDED Requirements
+# single-data-object Specification
+
+## Purpose
+The single stocnet data object as the one input surface for goldfish: the
+internal validator and stamped `data.goldfish` class, `as_goldfish()`, the
+mode map and deterministic event ordering, component event streams and the
+state materializer, constructor wrappers delegating to manynet, the flavor
+seam, panel layers, node identity on results/exports, and the prebuilt
+stocnet datasets. Created by archiving change refactor-single-data-object
+(2026-07-19).
+
+## Requirements
 
 ### Requirement: Dual input path with one validate-and-stamp boundary
 The package SHALL accept a `stocnet` object (list of `info`, `nodes`, `ties`, `changes`,
@@ -304,25 +315,33 @@ a deprecation warning issued once pointing to the bare syntax — then abort.
   session) shows the bare-name replacement.
 
 ### Requirement: Legacy environment input rejected with a conversion path
-A legacy `data.goldfish` environment passed as `data` SHALL abort (obtainable only from
-objects saved before this change): `make_specification()` / `estimate_*()` raise a
-`cli` error naming `as_goldfish()` as the migration. `as_goldfish()` SHALL accept such an
-environment and convert it: the contained `nodes.goldfish` / `network.goldfish` /
-`dependent.goldfish` / global objects and their `attr(x, "events")` streams assemble into
-the equivalent stocnet, which is then validated and stamped. Legacy detection SHALL be
-`is.environment(data)`; the stamped list SHALL carry class `data.goldfish` ahead of the
+`as_goldfish()` SHALL accept a legacy `data.goldfish` environment (obtainable only from
+objects saved before this change, or from the model families still assembling to an
+environment — see the deferral below) and convert it: the contained `nodes.goldfish` /
+`network.goldfish` / `dependent.goldfish` / global objects and their
+`attr(x, "events")` streams assemble into the equivalent stocnet, which is then
+validated and stamped. The stamped list SHALL carry class `data.goldfish` ahead of the
 stocnet classes, and `print.data.goldfish()` SHALL render the list shape.
 
-#### Scenario: Saved environment aborts at estimation
-- **WHEN** a `data.goldfish` environment restored from an `.rds` is passed to
-  `estimate_dynam(..., data = old_env)`
-- **THEN** the call aborts with an error telling the user to run
-  `as_goldfish(old_env)` once and pass the result.
+**Deferred (tracked in `dynami-stocnet-boundary`):** the hard abort on
+`is.environment(data)` at `make_specification()` / `estimate_*()` is NOT yet in force,
+because DyNAMi (and, until `multimode-network-support` lands, two-mode) data still
+legitimately assembles to an environment at the public surface. Environments MUST keep
+flowing through `check_estimation_data()` for those families until
+`multimode-network-support` (two-mode assembly) and `dynami-stocnet-boundary` (DyNAMi
+boundary + the abort itself) land; the successor change's delta restores the full
+rejection requirement.
 
 #### Scenario: as_goldfish converts a saved environment
-- **WHEN** `as_goldfish(old_env)` is called on that environment
+- **WHEN** `as_goldfish(old_env)` is called on a legacy environment
 - **THEN** it returns a stamped stocnet whose estimation reproduces the legacy
   coefficients to within 1e-6.
+
+#### Scenario: DyNAMi environment data still estimates during the deferral
+- **WHEN** DyNAMi data built through the constructors reaches `estimate_dynami()` as a
+  `data.goldfish` environment
+- **THEN** estimation proceeds (no abort) until the `dynami-stocnet-boundary` change
+  lands the public-surface rejection.
 
 ### Requirement: Prebuilt stocnet datasets with human-readable times
 The package SHALL ship prebuilt stocnet data objects — `social_evolution` and

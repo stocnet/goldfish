@@ -15,3 +15,4 @@ develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD
 1.8.6,local,stocnet/goldfish,3870653,3870653,archive,FALSE,Archived OpenSpec change 'support-constraint-risk-set' on 2026-07-07 (version 1.8.6); see openspec/changes/archive/2026-07-07-support-constraint-risk-set.
 1.8.7,local,stocnet/goldfish,9148178,9148178,archive,FALSE,Archived OpenSpec change 'support-constraint-as-stat' on 2026-07-10 (version 1.8.7); see openspec/changes/archive/.
 1.8.8,local,stocnet/goldfish,6a4f3b1,6a4f3b1,archive,FALSE,Archived OpenSpec change 'refactor-likelihood-compute' on 2026-07-12 (version 1.8.8); see openspec/changes/archive/.
+1.9.1,local,stocnet/goldfish,10ec286,10ec286,archive,FALSE,Archived OpenSpec change 'refactor-single-data-object' on 2026-07-19 (version 1.9.1); see openspec/changes/archive/.
