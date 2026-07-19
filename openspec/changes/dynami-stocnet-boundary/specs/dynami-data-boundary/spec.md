@@ -3,18 +3,27 @@
 ## ADDED Requirements
 
 ### Requirement: DyNAMi data assembles to a stocnet
-`make_data()` SHALL return a validated stocnet for DyNAMi components (a groups
-node set from `make_groups_interaction()`, interaction/composition event
-streams as object components, dependent events) — one `nodes` tibble with a `mode`
-column distinguishing actors from groups, the interaction structure as a
-two-mode layer with disjoint `info$sender`/`info$receiver` mode sets — and
+`make_groups_interaction()` SHALL return the assembled multipartite stocnet
+directly (**BREAKING**: the previous 5-component list, including the
+`opportunities` component, is retired): one `nodes` tibble with `mode`
+distinguishing actors from groups; a focal two-mode `interactions` layer with
+disjoint `info$sender`/`info$receiver` mode sets holding the dependent AND
+exogenous join/leave events, the construction's `order` attributes carried as
+the reserved `order` column, dependent joins stamped `flavor = "join"`,
+dependent leaves `flavor = "leave"`, and exogenous rows `flavor = NA`
+(state-only); and the one-mode past-interaction covariate layer. The
+records→events transformation (seeded randomization, group assignment, fake
+intermediary singletons, dependent/exogenous split) SHALL be unchanged.
+`make_data()` with DyNAMi components SHALL likewise assemble to a stocnet and
 SHALL NOT return a `data.goldfish` environment.
 
 #### Scenario: Constructor-built DyNAMi data is a stocnet
-- **WHEN** DyNAMi data is built through `make_groups_interaction()` and
-  `make_data()`
-- **THEN** the result is a stamped stocnet whose actors×groups layer carries
-  disjoint mode sets, and no environment is created at the public surface.
+- **WHEN** DyNAMi data is built through `make_groups_interaction()`
+- **THEN** the result is a stamped multipartite stocnet whose actors×groups
+  layer carries disjoint mode sets, join/leave flavors on dependent rows,
+  `NA` flavor on exogenous rows, and the `order` column preserving the
+  construction's total event order; no environment is created at the public
+  surface.
 
 ### Requirement: DyNAMi estimation accepts the stocnet object
 `estimate_dynami()` AND `make_specification()` SHALL accept a stocnet (raw or
@@ -40,16 +49,25 @@ SHALL never be exposed to or accepted from the user.
 - **THEN** the environment components the monolith reads are exactly equal on
   both paths.
 
-### Requirement: Group availability is derived, not supplied
-The public surface SHALL NOT take an `opportunities` list: the choice set —
-the groups available when an actor receives a join opportunity — SHALL be
-derived from the object's composition/interaction state at event time through
-the availability (support-constraint) machinery, combinable with any user
-`support_constraint`; the internal bridge SHALL materialize the monolith's
-`opportunities` list from that derived availability.
+### Requirement: Group availability is a derived occupancy constraint
+The public surface SHALL NOT take an `opportunities` list: the DyNAMi choice
+specification SHALL auto-derive the occupancy constraint
+`~ indeg(<focal layer>) >= 1` (existing support-constraint grammar — a group
+is in the choice set iff occupied at the decision point in event order,
+including the joiner's own intermediary singleton, reproducing the
+established estimation exactly), AND-combined with any user
+`support_constraint`. The estimation SHALL feed the derived per-event
+availability through the existing internal `opportunitiesList` channel; no
+engine change. The dead `setopportunities_interaction()` SHALL be removed.
 
-#### Scenario: Derived availability equals a supplied list
+#### Scenario: Derived availability equals the stored list
 - **WHEN** a fixture that legacy code drove with an explicit `opportunities`
   list is estimated through the stocnet boundary without one
-- **THEN** the bridge-materialized list equals the constructor-supplied list
-  and the coefficients match to 1e-6.
+- **THEN** the per-event derived availability equals the constructor-stored
+  list (own singleton included) and the coefficients match to 1e-6.
+
+#### Scenario: User constraint composes with the derived one
+- **WHEN** a DyNAMi choice specification also supplies a user
+  `support_constraint`
+- **THEN** the effective risk set is the AND of the derived occupancy
+  constraint and the user constraint.

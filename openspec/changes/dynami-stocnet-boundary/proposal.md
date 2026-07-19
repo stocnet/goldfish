@@ -19,13 +19,24 @@ rejected everywhere".
   layer under the mode map (the representation `multimode-network-support`
   hardens), with the interaction/composition event streams as object
   components.
-- **The `opportunities` list is replaced by derived availability** (decided
-  2026-07-19): the choice set — the groups available when a singleton actor
-  gets a join opportunity — is derived from the object's composition state at
-  event time via the support-constraint/availability machinery, combinable
-  with user `support_constraint`; the internal bridge materializes the
-  monolith's `opportunities` list from it (equivalence tested against a
-  constructor-supplied list).
+- **The `opportunities` list is replaced by a derived occupancy constraint**
+  (grounded 2026-07-19): the stored list is exactly the occupied second-mode
+  nodes at each dependent join in event order, so the DyNAMi choice
+  specification **auto-derives** `~ indeg(<focal layer>) >= 1` — the existing
+  support-constraint grammar, no extension — reproducing today's choice set
+  exactly (the joiner's own intermediary singleton included, matching the
+  paper's denominator); user `support_constraint`s AND-combine. The internal
+  bridge feeds the derived per-event availability to the estimation engine
+  through the existing `opportunitiesList` channel (equivalence tested
+  against constructor-supplied lists). The dead
+  `setopportunities_interaction()` is deleted.
+- **`make_groups_interaction()` returns the stocnet directly** (**BREAKING**,
+  decided 2026-07-19): the records→events transformation is untouched, but
+  the 5-component return (incl. `opportunities`) becomes the assembled
+  multipartite object — actors+groups `nodes` with `mode`, the focal
+  two-mode `interactions` layer (dependent joins `flavor = "join"`, leaves
+  `"leave"`, exogenous rows `NA` = state-only; `order` attributes become the
+  reserved `order` column), and the one-mode `past` covariate layer.
 - **Internal environment bridge (temporary, explicit)**: at the boundary the
   stocnet is converted down to the environment the untouched
   `preprocessInteraction` monolith consumes. The bridge is an implementation
@@ -67,10 +78,13 @@ rejected everywhere".
 
 ## Impact
 
-- `R/legacy_wrappers.R` (DyNAMi assembly branch; env fallback lifted),
-  `R/model_estimate.R` + `R/make_specification.R` (stocnet acceptance for
-  DyNAMi; the `is.environment(data)` abort), a new internal stocnet→env bridge
-  consumed by the DyNAMi front-end (`R/model_preprocess_group.R` untouched),
+- `R/make_data_group.R` (`make_groups_interaction()` stocnet return;
+  `setopportunities_interaction()` dead code deleted; transformation logic
+  untouched), `R/legacy_wrappers.R` (DyNAMi assembly branch; env fallback
+  lifted), `R/model_estimate.R` + `R/make_specification.R` (stocnet
+  acceptance for DyNAMi; the auto-derived occupancy constraint; the
+  `is.environment(data)` abort), a new internal stocnet→env bridge consumed
+  by the DyNAMi front-end (`R/model_preprocess_group.R` untouched),
   `R/zzz_testthat_helpers.R` (fixtures cleanup), `tests/testthat/` (DyNAMi
   boundary + abort snapshot tests).
 - **Depends on** `multimode-network-support` (two-mode stocnet assembly and mode
