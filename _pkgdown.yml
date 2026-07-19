@@ -41,6 +41,7 @@ reference:
       - starts_with("make")
       - starts_with("link")
       - as_goldfish
+      - add_flavor
       - network_state_at
       - nodes_state_at
   - title: "Estimate"

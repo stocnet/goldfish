@@ -67,6 +67,7 @@ validate_goldfish_data <- function(
   check_time_contract(ties, x$changes, x$global, call = call)
   check_pool_membership(nodes, ties, x$changes, call = call)
   check_flavor(ties, call = call)
+  check_flavor_metadata(info, ties, layers, call = call)
   check_mode_sets(info, nodes, ties, layers, call = call)
   check_list_column_values(x$changes, "changes", call = call)
   check_list_column_values(x$global, "global", call = call)
