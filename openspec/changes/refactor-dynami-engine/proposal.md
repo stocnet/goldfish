@@ -1,3 +1,12 @@
+> **Scope note (2026-07-19, release plan):** the *data boundary* — DyNAMi
+> accepting the single stocnet data object at the public surface, `make_data()`
+> assembling DyNAMi components to stocnet, and the legacy-environment abort —
+> was extracted to the `dynami-stocnet-boundary` change (in the 2.0.0 release).
+> This change is the **post-release engine conversion only**: it consumes the
+> stocnet boundary that will already exist, and additionally retires the
+> internal stocnet→environment bridge that change introduces, along with the
+> `data_source_envir`/`is_legacy` seam, when the monolith goes.
+
 ## Why
 
 The DyNAM/REM preprocessing path was converted to the recipe architecture
@@ -34,7 +43,12 @@ rewritten.
   from `refactor-formula-parsing` task 2.3e (its parse-time windowing `assign()`)
   in favour of the shared realizer, so DyNAM/REM and DyNAMi share one mechanism.
 - Add the `make_specification()` / spec-object estimate path for DyNAMi
-  (DyNAM/REM gained it in `refactor-formula-parsing`).
+  (DyNAM/REM gained it in `refactor-formula-parsing`) — unless
+  `dynami-stocnet-boundary` already landed it (its grounding decides; see its
+  design open questions).
+- Retire the internal stocnet→environment bridge introduced by
+  `dynami-stocnet-boundary` and delete the `data_source_envir`/`is_legacy`
+  seam — the last environment consumers go with the monolith.
 - Retire `R/model_preprocess_group.R`'s monolith and the DyNAMi branches in
   `cleanInteractionEvents` once the recipe loop reproduces them at the 1e-6
   baseline floor.
