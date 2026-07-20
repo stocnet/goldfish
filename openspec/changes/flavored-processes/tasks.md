@@ -82,7 +82,7 @@
 
 ## 5. Per-flavor estimation and the sectioned result
 
-- [ ] 5.1 Estimation loop over the fid-indexed preprocessed list (existing engines
+- [x] 5.1 Estimation loop over the fid-indexed preprocessed list (existing engines
       unchanged); container result class carrying the process_map with per-fid
       results (rate/choice nested per flavor at presentation time)
 - [ ] 5.2 Methods: `print()` with cli sections per flavor, `coef()`/`vcov()`/`logLik()`
@@ -90,8 +90,37 @@
       parsed from keys), with summed total log-likelihood; `devtools::document()`
 - [ ] 5.3 Equivalence tests: container fit equals standalone per-flavor fits with the
       equivalent user-supplied constraint (1e-6); print snapshots under a pinned cli
-      context
-- [ ] 5.4 Fisheries flagship example: creation/dissolution two-process model in the
-      dataset help page and a vignette section on competing processes
+      context. ALSO a `redundant` fixture — currently every flavored test is
+      `mutually_exclusive`, yet the redundant branch is what the Fisheries
+      flagship runs and it exercises different code: `assign_constraint_ids()`
+      returns all-`NA`, consumers carry `NULL` constraints,
+      `finalize_consumers()` skips mask realization, and the driver's validation
+      loop finds nothing to validate. Its equivalence claim is the DIFFERENT one:
+      a redundant flavor's container fit equals a standalone single-flavor fit
+      with NO constraint at all. Assert too that `plan$support_constraints` is
+      empty and every `constraint_id` is `NA`, so the no-constraint path is
+      pinned rather than inferred from the fit agreeing.
+- [ ] 5.4 Fisheries flagship example: two-process model in the dataset help page
+      and a vignette section on competing processes. `bilatchanges` is
+      `flavor_style = "redundant"` — verified in the data: 32 of its 38 dyads
+      carry a repeated `+1` with no intervening `-1`, and the tie accumulates to
+      a weight of 13 — so NO constraint is derived and `inertia` is the
+      substantively interesting effect (do prior treaties beget more?). Do not
+      present it as a mutually-exclusive creation/dissolution pair.
+      The vignette section MUST also carry the identifiability caveat for the
+      mutually-exclusive case, which is where the creation/dissolution framing
+      does apply: under a derived `!tie(L)` mask every allowed alternative has
+      weight 0, so `inertia(L)` is identically 0 and cannot be identified — this
+      holds regardless of `weighted =`. On the `tie(L)` side it is constant (and
+      so cancels in the softmax) for a binary layer, but varies and is fine for
+      an accumulating one. Without this, `creation ~ inertia` is the obvious
+      thing to write and it fails with a bare "matrix cannot be inverted".
 - [ ] 5.5 Verification: full `NOT_CRAN=true` run (PASS not SKIP); version bump in
-      DESCRIPTION + NEWS.md entry (multi-process estimation milestone); commit
+      DESCRIPTION + NEWS.md entry (multi-process estimation milestone); commit.
+      Then a SEPARATE `fix:` commit raising `Depends: R (>= 4.4.0)` with its own
+      NEWS line: the package already uses base `%||%` in 10+ files and that
+      function entered base in 4.4.0, so the declared `>= 4.1.0` is wrong today
+      and fails on CRAN's oldrel. It rides this change only because it touches
+      the same file — it is an independent bug, so it gets its own commit rather
+      than hiding inside a feature milestone where it cannot be found or
+      reverted on its own.
