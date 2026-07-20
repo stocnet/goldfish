@@ -1,3 +1,50 @@
+# goldfish 1.9.3
+
+## New features
+
+* **Multi-flavor estimation.** A specification keying several flavors now
+  estimates. `estimate_dynam()` / `estimate_rem()` preprocess all its processes
+  in one pass over the event sequence -- effects shared between flavors are
+  computed once -- and fit each process separately, which the factorized
+  competing-process likelihood makes exact rather than approximate. The result
+  is a container holding one fit per process, printed in a section per flavor
+  with its sub-models nested inside. `coef()` and `vcov()` return one component
+  per process; `logLik()` sums them, so `AIC()` and `BIC()` follow. Components
+  are labelled from an internal identity table rather than pasted keys, so
+  layer and flavor names containing dots or colliding with one another cannot
+  be mistaken for structure. A process's fit is identical to estimating that
+  flavor alone with the equivalent constraint supplied by hand. *Experimental.*
+
+* **`fisheries_treaties` ships unflavored, with `signing` / `ending` flavors.**
+  The dataset no longer carries a pre-stamped `flavor` column; the examples and
+  the coordination vignette call `add_flavor()` instead, so the reader sees the
+  decision being made. The flavors are renamed because a treaty tie here counts
+  agreements rather than recording whether one exists -- Russia and the USA sign
+  fourteen times over five years against a single ending -- which makes them
+  `flavor_style = "redundant"`, not a created-and-dissolved pair. Estimates from
+  the vignette are unchanged.
+
+## Bug fixes
+
+* **A flavor style is no longer assumed.** A flavor-keyed list on an unflavored
+  layer inferred the value mapping *and* silently assumed the flavors were
+  mutually exclusive, which derived support constraints restricting the risk set
+  without the user asking. Inference now resolves the mapping only and says that
+  no constraint follows from it. Nothing in a layer's update values can
+  distinguish a tie that toggles from one whose `+1`/`-1` increments accumulate,
+  so the style is declared through `add_flavor()`.
+
+* **Declaring a style with no value mapping no longer does nothing.** Deriving a
+  constraint needs both the style and `values_equivalence`; supplying only the
+  style left the risk set unrestricted in silence, and now aborts.
+
+* **`add_flavor()` checks a `mutually_exclusive` declaration against the
+  events**, warning and naming the first event that contradicts it -- one that
+  lands where its own derived mask would forbid it, which is the failure
+  estimation would otherwise raise much later. `flavor_style` now takes its
+  allowed values in the signature and is matched with `rlang::arg_match()`, so a
+  typo gets a suggestion.
+
 # goldfish 1.9.2
 
 ## New features
@@ -21,8 +68,7 @@
   unflavored layer under a flavor-keyed list infers the mapping from its update
   semantics and says so. When both `rate` and `choice` are keyed they must key
   the same flavor set. The specification print nests one section per flavor.
-  Per-flavor preprocessing and estimation land in a following release; for now
-  estimate one flavor at a time. *Experimental.*
+  Per-flavor preprocessing and estimation land in 1.9.3. *Experimental.*
 
 # goldfish 1.9.1
 
