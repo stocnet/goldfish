@@ -668,9 +668,22 @@ preprocess_flavored <- function(
     )
   }
 
+  process_map <- do.call(rbind, map_rows)
+
+  # Fail fast, per process: a flavor whose derived mask contradicts the user
+  # constraint leaves an empty risk set, and the message must say WHICH process
+  # is empty -- the label is rendered from the map for that message alone.
+  for (i in seq_len(nrow(process_map))) {
+    validate_prep_support(
+      outputs[[as.character(process_map$fid[i])]],
+      is_rate_family = identical(process_map$family[i], "rate"),
+      process_label = render_process_label(process_map, process_map$fid[i])
+    )
+  }
+
   structure(
     outputs,
-    process_map = do.call(rbind, map_rows),
+    process_map = process_map,
     class = "flavored_preprocessed.goldfish"
   )
 }

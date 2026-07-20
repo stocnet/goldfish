@@ -564,6 +564,9 @@ mask_to_opportunities <- function(support_mask, statsList, user_opp = NULL) {
 #   E a node is never live across the whole sequence                     -> warn
 # Rate nuance: a NON-observed sender with 0 live receivers is gated out (normal,
 # not an error) — only the dependent event's own sender triggers A/B.
+# `process_label` names the process the failing object belongs to when several
+# are preprocessed together, so the message identifies which one is empty. It is
+# rendered for display only, never parsed back.
 validate_support_constraint <- function(
   support_mask,
   event_sender,
@@ -571,9 +574,15 @@ validate_support_constraint <- function(
   is_dependent,
   active_1,
   active_2,
-  family
+  family,
+  process_label = NULL
 ) {
   support <- support_mask$support
+  in_process <- if (is.null(process_label)) {
+    NULL
+  } else {
+    c("i" = "Process {.field {process_label}}.")
+  }
   dep <- which(is_dependent == 1L)
   n1 <- length(active_1)
   n2 <- length(active_2)
@@ -587,14 +596,16 @@ validate_support_constraint <- function(
       if (length(allowed) == 0L) {
         cli::cli_abort(c(
           "{.arg support_constraint}: empty risk set at event {e}.",
-          "x" = "Sender {event_sender[[e]]} has no allowed, present receiver."
+          "x" = "Sender {event_sender[[e]]} has no allowed, present receiver.",
+          in_process
         ))
       }
       if (!(event_receiver[[e]] %in% allowed)) {
         cli::cli_abort(c(
           "{.arg support_constraint}: the observed dyad is excluded.",
           "x" = "Event {e}: receiver {event_receiver[[e]]} is not allowed for
-                 sender {event_sender[[e]]}."
+                 sender {event_sender[[e]]}.",
+          in_process
         ))
       }
       if (length(allowed) == 1L) {
@@ -618,7 +629,8 @@ validate_support_constraint <- function(
         cli::cli_abort(c(
           "{.arg support_constraint}: the observed sender is gated out.",
           "x" = "Event {e}: sender {event_sender[[e]]} has no allowed, present
-                 receiver."
+                 receiver.",
+          in_process
         ))
       }
       if (sum(active_1 & gate) == 1L) {
@@ -644,6 +656,36 @@ validate_support_constraint <- function(
     ))
   }
   invisible(NULL)
+}
+
+# Run the set-size validation on a preprocessed object, picking the presence
+# vectors the check needs. Rate reads the raw sender presence stashed by the
+# fold (the object's own `active_sender_init` is already the folded
+# availability), and the dyad fold likewise overwrites `active_dyad_init`, so
+# both read the unfolded vectors the mask stashed. A constraint-free object has
+# no mask and nothing to validate.
+validate_prep_support <- function(prep, is_rate_family, process_label = NULL) {
+  if (is.null(prep$support_mask)) {
+    return(invisible(NULL))
+  }
+  validate_support_constraint(
+    prep$support_mask,
+    prep$event_sender,
+    prep$event_receiver,
+    prep$is_dependent,
+    if (is_rate_family && !is.null(prep$support_mask$sender_presence_init)) {
+      prep$support_mask$sender_presence_init
+    } else {
+      prep$active_sender_init
+    },
+    if (!is.null(prep$support_mask$receiver_presence_init)) {
+      prep$support_mask$receiver_presence_init
+    } else {
+      prep$active_dyad_init
+    },
+    family = if (is_rate_family) "rate" else "choice",
+    process_label = process_label
+  )
 }
 
 #' Recipe (DyNAM/REM) preprocessing front-end
@@ -1724,30 +1766,7 @@ estimate_wrapper <- function(
     # Fail fast before the likelihood: excluded observed dyads / empty
     # risk sets error; forced choices and never-active nodes warn. Rate uses the
     # sender-gate policy; choice and REM both check the observed dyad directly.
-    # Rate uses the raw sender presence stashed by the fold; the
-    # object's own `active_sender_init` is already the folded availability.
-    validate_active_1 <- if (
-      is_rate_family && !is.null(prep$support_mask$sender_presence_init)
-    ) {
-      prep$support_mask$sender_presence_init
-    } else {
-      prep$active_sender_init
-    }
-    validate_support_constraint(
-      prep$support_mask,
-      prep$event_sender,
-      prep$event_receiver,
-      prep$is_dependent,
-      validate_active_1,
-      # Raw receiver presence: the dyad fold overwrites `active_dyad_init` with
-      # the folded object, so validation reads the stashed unfolded vector.
-      if (!is.null(prep$support_mask$receiver_presence_init)) {
-        prep$support_mask$receiver_presence_init
-      } else {
-        prep$active_dyad_init
-      },
-      family = if (is_rate_family) "rate" else "choice"
-    )
+    validate_prep_support(prep, is_rate_family)
     # `avg_active_entity` (the rate intercept init) is now computed during
     # preprocessing from the folded `active_sender`; no
     # estimation-time recombination.
