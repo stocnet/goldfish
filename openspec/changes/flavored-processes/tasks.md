@@ -109,14 +109,14 @@
 > silently, in opposite directions: inference invents a style nobody asked for,
 > while a declared style with no mapping is a no-op. Section 7 depends on this.
 
-- [ ] 6.1 `add_flavor()` signature becomes
+- [x] 6.1 `add_flavor()` signature becomes
       `flavor_style = c("mutually_exclusive", "redundant")`, matched with
       `rlang::arg_match()` — self-documenting, and it keeps cli-styled errors
       with "did you mean" suggestions where base `match.arg()` would drop to
       `'arg' should be one of ...`. Two abort snapshots in
       `_snaps/add_flavor.md` update; `validate_flavor_style()` stays for the
       info-metadata path, which has no argument to match.
-- [ ] 6.2 Stop inferring a style. `resolve_flavor_keys()` currently returns
+- [x] 6.2 Stop inferring a style. `resolve_flavor_keys()` currently returns
       `style = "mutually_exclusive"` for an unflavored layer, which satisfies
       the derivation and produces a constraint the user never asked for. Both
       the spec delta and design D7 say inference yields the MAPPING only — this
@@ -126,12 +126,12 @@
       "an unflavored layer infers the mapping and says so" asserts
       `derived_constraint == "~!tie(calls)"`; it encoded the bug, so it flips to
       `expect_null()` plus a snapshot refresh.
-- [ ] 6.3 Make the mirror case loud: `flavor_style` declared (in `add_flavor()`
+- [x] 6.3 Make the mirror case loud: `flavor_style` declared (in `add_flavor()`
       or on `info`) with no `values_equivalence` for that layer currently
       derives nothing and says nothing. Report it — a user who declared mutual
       exclusivity and silently got no risk-set restriction has a different model
       than they think.
-- [ ] 6.4 Check the declared style against the data in `add_flavor()`, and warn
+- [x] 6.4 Check the declared style against the data in `add_flavor()`, and warn
       naming the first offending event. The predicate is NOT "the state
       accumulates" — history values and ±1 increments are both fine on their
       own. It is: does a timed event of flavor g land on a dyad whose state
@@ -139,7 +139,7 @@
       excluded" condition estimation would hit, moved to where the user made the
       claim. On Fisheries, RUS–USA fires it from its second event; a dyad
       elevated only by history and never re-created does not.
-- [ ] 6.5 Tests for 6.1–6.4 (snapshots under a pinned cli context) and
+- [x] 6.5 Tests for 6.1–6.4 (snapshots under a pinned cli context) and
       verification: `NOT_CRAN=true` (baselines PASS not SKIP);
       `devtools::document()`; commit.
 
@@ -167,6 +167,46 @@
       a bare "matrix cannot be inverted".
       Depends on section 6: stripping the column before 6.2 lands would make the
       shipped help-page example derive a constraint and error.
+
+      **Flavors are renamed `signing` / `ending`.** A treaty count is not a tie
+      being created and dissolved, and the new names say so. They also make the
+      example self-enforcing: inference only ever produces the names
+      `creation`/`dissolution`, so `signing ~ ...` on the raw object aborts with
+      "For other flavor names, stamp them with `add_flavor()`" — the reader
+      cannot skip the verb the section is teaching.
+
+      **Keep `creation`/`dissolution` in the GENERIC docs.** The pair stays the
+      canonical illustration of a `mutually_exclusive` mapping in
+      `R/add_flavor.R`'s prose and `@param` text (lines around 5, 18, 50, 223).
+      Only the Fisheries-specific sites are renamed — the split is the point: a
+      binary toggle and an accumulating count are different things, and the
+      documentation should stop using one dataset to illustrate both.
+
+      Sites to update (17 "creation" mentions across six files):
+      `R/data_Fisheries_Treaties_6070.R` (@format, the construction workflow
+      example, the prebuilt-object example), `R/model_estimate.R` (@examples
+      ~line 250), `R/goldfish-data.R` (~line 83 prose), `R/add_flavor.R`
+      (@examples — it uses Fisheries, so it becomes the signing/ending
+      showcase), and `vignettes/teaching2.Rmd.orig` (the stamping block ~83, the
+      prose ~54 and ~196, and two model formulas ~209 and ~269).
+      `R/methods_update.R` and `R/preprocess_export.R` reference the dataset but
+      not its flavors — no change.
+
+      Regenerate with the help page's own construction workflow minus the
+      `bilatchanges$flavor <- ifelse(...)` line, then
+      `usethis::use_data(fisheries_treaties, overwrite = TRUE)`. There is no
+      `data-raw/`; that example is the canonical recipe.
+
+      `teaching2` is precompiled (`.Rmd.orig` -> `.Rmd`), so re-run
+      `vignettes/precompile.R` for it. Its fits SHOULD be numerically unchanged:
+      the same rows are selected (`signing` picks the `+1` rows that `creation`
+      picked) and no constraint is derived either way — before, because the
+      shipped object carried no metadata; after, because `redundant` derives
+      none. Treat any coefficient movement as a signal something else shifted,
+      not as expected churn.
+
+      Do NOT add spec-delta requirements for section 6's behavior — considered
+      and declined; the design record is deliberate.
 - [ ] 7.2 Verification: full `NOT_CRAN=true` run (PASS not SKIP); version bump in
       DESCRIPTION + NEWS.md entry (multi-process estimation milestone); commit.
       Then a SEPARATE `fix:` commit raising `Depends: R (>= 4.4.0)` with its own
