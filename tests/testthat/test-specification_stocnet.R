@@ -13,6 +13,43 @@ flavored_fixture <- function() {
   x
 }
 
+# A mutually-exclusive flavored layer stamped by add_flavor(): an increment layer
+# whose +1 rows are creation and -1 rows dissolution, with the flavor metadata
+# recorded in info. Two creation rows and one dissolution row over [1, 3].
+me_flavored_fixture <- function() {
+  x <- make_stocnet_fixture()
+  x$ties <- data.frame(
+    from = c(1L, 2L, 3L, 1L),
+    to = c(2L, 3L, 1L, 2L),
+    time = c(NA, 1, 2, 3),
+    layer = "calls",
+    weight = c(1, 1, -1, 1),
+    stringsAsFactors = FALSE
+  )
+  add_flavor(
+    x,
+    layer = "calls",
+    values_equivalence = c(
+      creation = 1,
+      dissolution = -1
+    )
+  )
+}
+
+# The same event stream with no flavor column or metadata, for inference tests.
+unflavored_increment_fixture <- function() {
+  x <- make_stocnet_fixture()
+  x$ties <- data.frame(
+    from = c(1L, 2L, 3L, 1L),
+    to = c(2L, 3L, 1L, 2L),
+    time = c(NA, 1, 2, 3),
+    layer = "calls",
+    weight = c(1, 1, -1, 1),
+    stringsAsFactors = FALSE
+  )
+  x
+}
+
 test_that("a raw stocnet is accepted as data", {
   spec <- make_specification(
     choice = ~ inertia + recip,
@@ -218,8 +255,118 @@ test_that("a plain formula on an unflavored layer stays quiet", {
   )
 })
 
-test_that("several flavor keys abort pointing at the future change", {
+test_that("several flavor keys build parallel processes", {
+  spec <- make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + inertia),
+    choice = list(creation ~ inertia, dissolution ~ recip),
+    model = "DyNAM",
+    data = me_flavored_fixture()
+  )
+
+  expect_setequal(spec$modeled_flavors, c("creation", "dissolution"))
+  expect_null(spec$modeled_flavor)
+  expect_setequal(names(spec$processes), c("creation", "dissolution"))
+  expect_equal(
+    deparse1(spec$processes$creation$submodels$rate$input_formula),
+    "~1 + indeg"
+  )
+  expect_equal(
+    deparse1(spec$processes$dissolution$submodels$choice$input_formula),
+    "~recip"
+  )
+})
+
+test_that("mutually exclusive flavors derive complementary masks", {
+  spec <- make_specification(
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    data = me_flavored_fixture()
+  )
+
+  expect_equal(
+    deparse1(spec$processes$creation$derived_constraint),
+    "~!tie(calls)"
+  )
+  expect_equal(
+    deparse1(spec$processes$dissolution$derived_constraint),
+    "~tie(calls)"
+  )
+  expect_s3_class(
+    spec$processes$creation$constraint,
+    "support_constraint_plan"
+  )
+})
+
+test_that("a user constraint composes with each derived one", {
   local_cli_context()
+  spec <- suppressMessages(make_specification(
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    support_constraint = ~ indeg(calls) > 0,
+    data = me_flavored_fixture()
+  ))
+
+  expect_equal(
+    deparse1(spec$processes$creation$constraint$formula),
+    "~!tie(calls) & indeg(calls) > 0"
+  )
+  expect_equal(
+    deparse1(spec$processes$dissolution$constraint$formula),
+    "~tie(calls) & indeg(calls) > 0"
+  )
+})
+
+test_that("a single modeled flavor still derives its mask", {
+  spec <- make_specification(
+    choice = list(creation ~ inertia),
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    data = me_flavored_fixture()
+  )
+
+  expect_equal(spec$modeled_flavor, "creation")
+  expect_equal(deparse1(spec$derived_constraint), "~!tie(calls)")
+  expect_s3_class(spec$constraint, "support_constraint_plan")
+})
+
+test_that("a redundant layer derives no constraint", {
+  x <- me_flavored_fixture()
+  x$info$flavor_style[["calls"]] <- "redundant"
+  spec <- make_specification(
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    data = x
+  )
+
+  expect_null(spec$processes$creation$derived_constraint)
+  expect_null(spec$processes$creation$constraint)
+})
+
+test_that("an unflavored layer infers the mapping and says so", {
+  local_cli_context()
+
+  expect_snapshot(
+    spec <- make_specification(
+      choice = list(creation ~ inertia, dissolution ~ inertia),
+      model = "DyNAM",
+      choice_sub_model = "choice",
+      data = unflavored_increment_fixture()
+    )
+  )
+  expect_setequal(spec$modeled_flavors, c("creation", "dissolution"))
+  expect_equal(
+    deparse1(spec$processes$creation$derived_constraint),
+    "~!tie(calls)"
+  )
+})
+
+test_that("a weighted layer aborts inference", {
+  local_cli_context()
+  x <- unflavored_increment_fixture()
+  x$ties$weight <- c(1, 3, -2, 5)
 
   expect_snapshot(
     error = TRUE,
@@ -227,9 +374,78 @@ test_that("several flavor keys abort pointing at the future change", {
       choice = list(creation ~ inertia, dissolution ~ inertia),
       model = "DyNAM",
       choice_sub_model = "choice",
-      data = flavored_fixture()
+      data = x
     )
   )
+})
+
+test_that("a key matching no flavor value aborts", {
+  local_cli_context()
+
+  expect_snapshot(
+    error = TRUE,
+    make_specification(
+      choice = list(creation ~ inertia, deletion ~ inertia),
+      model = "DyNAM",
+      choice_sub_model = "choice",
+      data = me_flavored_fixture()
+    )
+  )
+})
+
+test_that("duplicate flavor keys abort", {
+  local_cli_context()
+
+  expect_snapshot(
+    error = TRUE,
+    make_specification(
+      choice = list(creation ~ inertia, creation ~ recip),
+      model = "DyNAM",
+      choice_sub_model = "choice",
+      data = me_flavored_fixture()
+    )
+  )
+})
+
+test_that("a plain sub-model with a multi-keyed sibling aborts", {
+  local_cli_context()
+
+  expect_snapshot(
+    error = TRUE,
+    make_specification(
+      rate = ~ 1 + indeg,
+      choice = list(creation ~ inertia, dissolution ~ recip),
+      model = "DyNAM",
+      data = me_flavored_fixture()
+    )
+  )
+})
+
+test_that("estimating a multi-flavor specification aborts for now", {
+  local_cli_context()
+  spec <- make_specification(
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    data = me_flavored_fixture()
+  )
+
+  expect_snapshot(error = TRUE, estimate_dynam(spec, sub_model = "choice"))
+})
+
+test_that("the multi-flavor print nests a section per flavor", {
+  spec <- make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + inertia),
+    choice = list(creation ~ inertia, dissolution ~ recip),
+    model = "DyNAM",
+    data = me_flavored_fixture()
+  )
+  testthat::local_reproducible_output(
+    width = 80,
+    crayon = FALSE,
+    unicode = FALSE
+  )
+  expect_snapshot(print(spec))
 })
 
 test_that("rate and choice must key the same flavor", {

@@ -15,7 +15,7 @@
 #' defaults to `info$focal`.
 #'
 #' @details
-#' # Modeling one flavor of a layer
+#' # Modeling flavors of a layer
 #'
 #' When a layer's ties carry a `flavor` column, `rate` / `choice` may be given
 #' as a **flavor-keyed list** whose formula left-hand side is the flavor to
@@ -24,9 +24,15 @@
 #' flavor -- still updates the network state. Supplying a plain formula on a
 #' flavored layer models **all** of its rows, and says so.
 #'
-#' Exactly one flavor can be modeled: several keys, or `rate` and `choice`
-#' keying different flavors, are errors. Estimating several dependent processes
-#' jointly needs stacked per-flavor likelihoods and arrives with a later change.
+#' Several flavors can be modeled as parallel competing processes on the same
+#' focal layer, e.g. `rate = list(creation ~ ..., dissolution ~ ...)`. Each key
+#' becomes its own process with its own formulas and, on a `mutually_exclusive`
+#' layer (see [add_flavor()]), a derived support constraint -- creation is
+#' supportable only where no tie exists, dissolution only where one does --
+#' AND-composed with any `support_constraint`. When both `rate` and `choice` are
+#' keyed lists they MUST key the same flavor set. An unflavored layer under a
+#' flavor-keyed list infers the mapping from its update semantics
+#' (increment `+1`/`-1`, replace `1`/`0`) and says so.
 #'
 #' @param rate a one-sided formula (empty left-hand side) with the rate-model
 #'   effects, a flavor-keyed list of one such formula, or `NULL`.
@@ -144,54 +150,128 @@ make_specification <- function(
   spec_data <- if (is_legacy) NULL else data
 
   layer <- resolve_specification_layer(data, layer, is_legacy, work_env)
-  flavored <- resolve_modeled_flavor(
+
+  if (
+    !is.null(support_constraint) && !inherits(support_constraint, "formula")
+  ) {
+    cli::cli_abort(
+      "{.arg support_constraint} must be a formula or {.val NULL}."
+    )
+  }
+  # Dyadic atoms are legal when the spec has a dyad-indexed part (a choice
+  # submodel, or REM), rejected for a rate-only spec (sender-axis rule). The
+  # same rule governs the derived `tie(layer)` masks (dyadic point atoms).
+  has_dyad_part <- model == "REM" || !is.null(choice)
+
+  flavored <- resolve_modeled_flavors(
     rate,
     choice,
     spec_data,
     layer,
+    info = if (is_legacy) NULL else data$info,
     wrapper_flavor = layer_flavor
   )
+  flavors <- flavored$flavors
 
-  submodels <- list()
-  if (!is.null(rate)) {
-    submodels$rate <- build_specification_bundle(
-      flavored$rate,
-      arg = "rate",
+  make_bundle <- function(one_sided, arg, sub_model) {
+    build_specification_bundle(
+      one_sided,
+      arg = arg,
       model = model,
-      sub_model = rate_sub_model,
-      layer = layer,
-      envir = work_env,
-      data = spec_data
-    )
-  }
-  if (!is.null(choice)) {
-    submodels$choice <- build_specification_bundle(
-      flavored$choice,
-      arg = "choice",
-      model = model,
-      sub_model = choice_sub_model,
+      sub_model = sub_model,
       layer = layer,
       envir = work_env,
       data = spec_data
     )
   }
 
-  constraint_plan <- NULL
-  if (!is.null(support_constraint)) {
-    if (!inherits(support_constraint, "formula")) {
-      cli::cli_abort(
-        "{.arg support_constraint} must be a formula or {.val NULL}."
-      )
-    }
-    # One constraint serves both submodels; dyadic atoms are legal when the spec
-    # has a dyad-indexed part (a choice submodel, or REM), rejected for a
-    # rate-only spec (sender-axis rule).
-    has_dyad_part <- model == "REM" || !is.null(choice)
-    constraint_plan <- parse_and_validate_constraint(
+  # The parsed user constraint (or NULL) is the base each flavor's derived
+  # constraint AND-composes with; a plain/unflavored spec uses it directly.
+  base_constraint_plan <- if (!is.null(support_constraint)) {
+    parse_and_validate_constraint(
       support_constraint,
       has_dyad_part = has_dyad_part,
       envir = work_env
     )
+  } else {
+    NULL
+  }
+
+  # Multi-flavor: K parallel competing processes on one focal layer. Each
+  # process carries its own rate/choice bundles and its own derived-plus-user
+  # support constraint; the objects feed the per-flavor estimation loop.
+  if (length(flavors) > 1) {
+    fam <- c(
+      if (!is.null(rate)) "rate",
+      if (!is.null(choice)) "choice"
+    )
+    processes <- build_flavor_processes(
+      flavored,
+      flavors = flavors,
+      rate = rate,
+      choice = choice,
+      rate_sub_model = rate_sub_model,
+      choice_sub_model = choice_sub_model,
+      support_constraint = support_constraint,
+      base_constraint_plan = base_constraint_plan,
+      has_dyad_part = has_dyad_part,
+      layer = layer,
+      make_bundle = make_bundle,
+      envir = work_env
+    )
+    dependent <- stocnet_dependent_info(data, layer, modeled_flavor = NULL)
+    dependent$modeled_flavors <- flavors
+    dependent$n_events <- flavor_event_count(data, layer, flavors)
+    return(structure(
+      list(
+        model = model,
+        submodels = stats::setNames(vector("list", length(fam)), fam),
+        processes = processes,
+        layer = display_layer %||% layer,
+        focal = layer,
+        modeled_flavor = NULL,
+        modeled_flavors = flavors,
+        flavor_style = flavored$style,
+        dependent = dependent,
+        support_constraint = support_constraint,
+        constraint = base_constraint_plan,
+        valid = TRUE,
+        data = data,
+        call = match.call()
+      ),
+      class = "specification.goldfish"
+    ))
+  }
+
+  # Plain or single-flavor: one dependent process, the historical shape. A
+  # single modeled flavor on a `mutually_exclusive` layer still derives its
+  # create-only-where-absent / dissolve-only-where-present mask.
+  modeled_flavor <- if (length(flavors) == 1) flavors else NULL
+  submodels <- list()
+  if (!is.null(rate)) {
+    submodels$rate <- make_bundle(flavored$rate, "rate", rate_sub_model)
+  }
+  if (!is.null(choice)) {
+    submodels$choice <- make_bundle(flavored$choice, "choice", choice_sub_model)
+  }
+
+  derived_constraint <- if (
+    !is.null(modeled_flavor) &&
+      identical(flavored$style, "mutually_exclusive") &&
+      !is.null(flavored$mapping)
+  ) {
+    derive_flavor_constraint(layer, flavored$mapping, modeled_flavor, work_env)
+  } else {
+    NULL
+  }
+  constraint_plan <- if (!is.null(derived_constraint)) {
+    parse_and_validate_constraint(
+      and_compose_constraint(derived_constraint, support_constraint),
+      has_dyad_part = has_dyad_part,
+      envir = work_env
+    )
+  } else {
+    base_constraint_plan
   }
 
   structure(
@@ -203,11 +283,18 @@ make_specification <- function(
       # they travel with the specification: state creation must resolve the same
       # dependent stream this parse did, not the one `info$focal` declares.
       focal = layer,
-      modeled_flavor = flavored$flavor,
+      modeled_flavor = modeled_flavor,
+      modeled_flavors = if (is.null(modeled_flavor)) {
+        character(0)
+      } else {
+        modeled_flavor
+      },
+      flavor_style = flavored$style,
+      derived_constraint = derived_constraint,
       dependent = if (is_legacy) {
         spec_dependent_info(get(layer, envir = work_env), layer)
       } else {
-        stocnet_dependent_info(data, layer, flavored$flavor)
+        stocnet_dependent_info(data, layer, modeled_flavor)
       },
       support_constraint = support_constraint,
       constraint = constraint_plan,
@@ -267,64 +354,122 @@ resolve_specification_layer <- function(
   resolved
 }
 
-# Resolve which focal rows a specification models.
+# Resolve which focal rows a specification models, across one or more flavors.
 #
-# A flavor-keyed list (`rate = list(creation ~ ...)`) names the flavor to model;
-# every other focal row -- including one with no flavor -- updates state but is
-# not a modeled event. A plain formula models every row, which on a flavored
-# layer is a real choice rather than an oversight, so it is announced.
+# A flavor-keyed list (`rate = list(creation ~ ..., dissolution ~ ...)`) names
+# the flavors to model as parallel processes; every other focal row -- including
+# one with no flavor -- updates state but is not a modeled event. A plain
+# formula models every row, which on a flavored layer is a real choice, not an
+# oversight, so it is announced.
 #
-# Returns the one-sided formulas to parse plus the modeled flavor (or NULL).
-resolve_modeled_flavor <- function(
+# Returns, for the <=1 case, the single one-sided `rate`/`choice` formulas; for
+# the >1 case, the per-flavor `rate_formulas`/`choice_formulas`. Always returns
+# the resolved `flavors`, plus the layer's `mapping` and `style` (for deriving
+# support constraints).
+resolve_modeled_flavors <- function(
   rate,
   choice,
   data,
   layer,
+  info,
   wrapper_flavor = NULL,
   call = rlang::caller_env()
 ) {
-  rate_keyed <- unwrap_flavor_key(rate, "rate", call = call)
-  choice_keyed <- unwrap_flavor_key(choice, "choice", call = call)
-  flavors <- c(rate_keyed$flavor, choice_keyed$flavor)
+  rate_u <- unwrap_flavor_list(rate, "rate", call = call)
+  choice_u <- unwrap_flavor_list(choice, "choice", call = call)
 
-  if (length(unique(flavors)) > 1) {
-    cli::cli_abort(
-      c(
-        "{.arg rate} and {.arg choice} must model the same flavor.",
-        "x" = "{.arg rate} keys {.val {rate_keyed$flavor}} but {.arg choice}
-               keys {.val {choice_keyed$flavor}}.",
-        "i" = "One specification models one dependent process."
-      ),
-      call = call
-    )
+  # When both sub-models are flavor-keyed they must key the same processes.
+  if (!is.null(rate_u$flavors) && !is.null(choice_u$flavors)) {
+    if (!setequal(rate_u$flavors, choice_u$flavors)) {
+      cli::cli_abort(
+        c(
+          "{.arg rate} and {.arg choice} must key the same flavor set.",
+          "x" = "{.arg rate} keys {.val {rate_u$flavors}} but {.arg choice}
+                 keys {.val {choice_u$flavors}}.",
+          "i" = "Each flavor is a parallel process modeled by both sub-models."
+        ),
+        call = call
+      )
+    }
   }
-  flavor <- if (length(flavors) > 0) flavors[[1]] else NULL
 
-  # A wrapper-resolved dependent name supplies its flavor internally: the
-  # process was already selected by the dependent-events object, so it models
-  # that flavor without the "all rows modeled" inform a bare formula triggers.
-  if (is.null(flavor) && !is.null(wrapper_flavor)) {
+  keyed <- !is.null(rate_u$flavors) || !is.null(choice_u$flavors)
+
+  if (!keyed) {
+    # A wrapper-resolved dependent name supplies its flavor internally (the
+    # process was already selected by the dependent-events object); otherwise a
+    # bare formula on a flavored layer models every row, announced.
     flavor <- wrapper_flavor
+    if (is.null(flavor)) {
+      inform_unkeyed_flavored_layer(data, layer)
+    }
+    return(list(
+      keyed = FALSE,
+      flavors = if (is.null(flavor)) character(0) else flavor,
+      rate = rate_u$formula,
+      choice = choice_u$formula,
+      rate_formulas = NULL,
+      choice_formulas = NULL,
+      mapping = NULL,
+      style = NULL
+    ))
   }
 
-  if (!is.null(flavor)) {
-    check_flavor_present(data, layer, flavor, call = call)
-  } else if (is.null(wrapper_flavor)) {
-    inform_unkeyed_flavored_layer(data, layer)
+  flavors <- union(rate_u$flavors, choice_u$flavors)
+
+  # Modeling several flavors, a plain sub-model would model every row while its
+  # keyed sibling splits them -- inconsistent, so both must be keyed.
+  if (length(flavors) > 1) {
+    if (!is.null(rate) && is.null(rate_u$flavors)) {
+      abort_plain_with_multi("rate", call = call)
+    }
+    if (!is.null(choice) && is.null(choice_u$flavors)) {
+      abort_plain_with_multi("choice", call = call)
+    }
+  }
+
+  resolved <- resolve_flavor_keys(data, layer, flavors, info, call = call)
+
+  if (length(flavors) == 1) {
+    fl <- flavors
+    return(list(
+      keyed = TRUE,
+      flavors = fl,
+      rate = if (is.null(rate_u$flavors)) {
+        rate_u$formula
+      } else {
+        rate_u$formulas[[fl]]
+      },
+      choice = if (is.null(choice_u$flavors)) {
+        choice_u$formula
+      } else {
+        choice_u$formulas[[fl]]
+      },
+      rate_formulas = NULL,
+      choice_formulas = NULL,
+      mapping = resolved$mapping,
+      style = resolved$style
+    ))
   }
 
   list(
-    rate = rate_keyed$formula,
-    choice = choice_keyed$formula,
-    flavor = flavor
+    keyed = TRUE,
+    flavors = flavors,
+    rate = NULL,
+    choice = NULL,
+    rate_formulas = rate_u$formulas,
+    choice_formulas = choice_u$formulas,
+    mapping = resolved$mapping,
+    style = resolved$style
   )
 }
 
-# A submodel argument is either a plain one-sided formula or a one-element list
-# whose formula LHS is the flavor symbol.
-unwrap_flavor_key <- function(x, arg, call = rlang::caller_env()) {
+# A submodel argument is either a plain one-sided formula or a flavor-keyed list
+# whose entries' formula LHS is the flavor symbol. Returns `formula` (plain) or
+# `formulas` (named by flavor) plus the `flavors` vector (NULL when plain).
+unwrap_flavor_list <- function(x, arg, call = rlang::caller_env()) {
   if (is.null(x) || inherits(x, "formula")) {
-    return(list(formula = x, flavor = NULL))
+    return(list(formula = x, formulas = NULL, flavors = NULL))
   }
   if (!is.list(x)) {
     cli::cli_abort(
@@ -332,62 +477,246 @@ unwrap_flavor_key <- function(x, arg, call = rlang::caller_env()) {
       call = call
     )
   }
-  if (length(x) != 1) {
+  if (length(x) == 0) {
+    cli::cli_abort(
+      "{.arg {arg}} is an empty list; supply at least one flavor formula.",
+      call = call
+    )
+  }
+  formulas <- vector("list", length(x))
+  flavors <- character(length(x))
+  for (i in seq_along(x)) {
+    f <- x[[i]]
+    if (!inherits(f, "formula") || length(f) != 3L) {
+      cli::cli_abort(
+        c(
+          "{.arg {arg}}'s entries must be formulas whose left-hand side is the
+           flavor.",
+          "i" = "For example {.code {arg} = list(creation ~ 1 + indeg())}."
+        ),
+        call = call
+      )
+    }
+    flavors[i] <- deparse(f[[2]])
+    # Dropping the left-hand side in place leaves the one-sided formula the
+    # bundle parses, environment and all.
+    f[[2]] <- NULL
+    formulas[[i]] <- f
+  }
+  dup <- unique(flavors[duplicated(flavors)])
+  if (length(dup) > 0) {
     cli::cli_abort(
       c(
-        "{.arg {arg}} must key exactly one flavor.",
-        "x" = "{length(x)} formulas were supplied.",
-        "i" = "Estimating several dependent processes jointly is not supported
-               yet; it needs stacked per-flavor likelihoods."
+        "{.arg {arg}} keys a flavor more than once.",
+        "x" = "Duplicate key{?s}: {.val {dup}}."
       ),
       call = call
     )
   }
-  f <- x[[1]]
-  if (!inherits(f, "formula") || length(f) != 3L) {
-    cli::cli_abort(
-      c(
-        "{.arg {arg}}'s entry must be a formula whose left-hand side is the
-         flavor.",
-        "i" = "For example {.code {arg} = list(creation ~ 1 + indeg())}."
-      ),
-      call = call
-    )
-  }
-  flavor <- deparse(f[[2]])
-  # Dropping the left-hand side in place leaves the one-sided formula the
-  # bundle parses, environment and all.
-  f[[2]] <- NULL
-  list(formula = f, flavor = flavor)
+  names(formulas) <- flavors
+  list(formula = NULL, formulas = formulas, flavors = flavors)
 }
 
-# A keyed flavor that matches no focal row models nothing at all.
-check_flavor_present <- function(
-  data,
-  layer,
-  flavor,
-  call = rlang::caller_env()
-) {
+abort_plain_with_multi <- function(arg, call = rlang::caller_env()) {
+  cli::cli_abort(
+    c(
+      "{.arg {arg}} must be a flavor-keyed list when modeling several flavors.",
+      "i" = "Key it on the same flavors, e.g.
+             {.code {arg} = list(creation ~ ..., dissolution ~ ...)}."
+    ),
+    call = call
+  )
+}
+
+# Resolve the modeled flavor keys against the layer's state, returning the
+# value->flavor `mapping` and the `flavor_style` used to derive constraints.
+# An explicitly flavored layer resolves keys against the values present; an
+# unflavored layer infers the mapping from its update semantics.
+resolve_flavor_keys <- function(data, layer, flavors, info, call) {
   if (is.null(data)) {
-    return(invisible(NULL))
+    # The legacy environment path has no stocnet to validate against or infer
+    # from; the keys pass through unvalidated and derive no constraint.
+    return(list(mapping = NULL, style = NULL))
   }
   ties <- as.data.frame(data$ties)
   present <- unique(ties$flavor[ties$layer == layer])
   present <- present[!is.na(present)]
-  if (!flavor %in% present) {
+
+  style <- if (
+    !is.null(info$flavor_style) && layer %in% names(info$flavor_style)
+  ) {
+    unname(info$flavor_style[[layer]])
+  } else {
+    NULL
+  }
+  mapping <- info$values_equivalence[[layer]]
+
+  if (length(present) > 0) {
+    unknown <- setdiff(flavors, present)
+    if (length(unknown) > 0) {
+      cli::cli_abort(
+        c(
+          "{cli::qty(unknown)}Flavor key{?s} {.val {unknown}} {?matches/match}
+           no {.val {layer}} row.",
+          "i" = "Flavor{?s} on this layer: {.val {present}}."
+        ),
+        call = call
+      )
+    }
+    return(list(mapping = mapping, style = style))
+  }
+
+  inferred <- infer_flavor_mapping(data, layer, info, flavors, call = call)
+  list(mapping = inferred, style = "mutually_exclusive")
+}
+
+# Infer a creation/dissolution mapping for an unflavored layer from its update
+# semantics: increment +1/-1 or replace 1/0. The higher value is creation, the
+# lower dissolution. Ambiguous encodings or keys outside the inferred names
+# abort with guidance to add_flavor().
+infer_flavor_mapping <- function(data, layer, info, flavors, call) {
+  update <- if (!is.null(info$update) && layer %in% names(info$update)) {
+    unname(info$update[[layer]])
+  } else {
+    NA_character_
+  }
+  expected <- flavor_update_values(update)
+  ties <- as.data.frame(data$ties)
+  weight <- if ("weight" %in% names(ties)) ties$weight else rep(1, nrow(ties))
+  vals <- unique(weight[ties$layer == layer & !is.na(ties$time)])
+  if (is.null(expected) || !all(vals %in% expected)) {
     cli::cli_abort(
       c(
-        "No {.val {layer}} row carries the flavor {.val {flavor}}.",
-        "i" = if (length(present) > 0) {
-          "Flavor{?s} on this layer: {.val {present}}."
+        "Cannot infer a flavor mapping for unflavored layer {.val {layer}}.",
+        "x" = if (is.null(expected)) {
+          "Its update {.val {update}} carries no dichotomous state."
         } else {
-          "This layer carries no {.field flavor} column."
-        }
+          "Its update values {.val {vals}} are not the dichotomous
+           {.val {expected}}."
+        },
+        "i" = "Stamp flavors explicitly with {.fn add_flavor}."
       ),
       call = call
     )
   }
-  invisible(NULL)
+  # expected is ascending (increment c(-1, 1), replace c(0, 1)): the lower value
+  # dissolves the tie, the higher creates it.
+  mapping <- stats::setNames(expected, c("dissolution", "creation"))
+  unknown <- setdiff(flavors, names(mapping))
+  if (length(unknown) > 0) {
+    cli::cli_abort(
+      c(
+        "{cli::qty(unknown)}Flavor key{?s} {.val {unknown}} {?does/do} not match
+         the mapping inferred for {.val {layer}}.",
+        "i" = "Inferred flavors: {.val {names(mapping)}}.",
+        "i" = "For other flavor names, stamp them with {.fn add_flavor}."
+      ),
+      call = call
+    )
+  }
+  cli::cli_inform(c(
+    "i" = "Layer {.val {layer}} is unflavored; assuming
+           {.val creation} = {mapping[['creation']]} and
+           {.val dissolution} = {mapping[['dissolution']]}."
+  ))
+  mapping
+}
+
+# Build the per-flavor process objects for a multi-flavor specification: each
+# carries its rate/choice bundles and its derived-plus-user support constraint.
+build_flavor_processes <- function(
+  flavored,
+  flavors,
+  rate,
+  choice,
+  rate_sub_model,
+  choice_sub_model,
+  support_constraint,
+  base_constraint_plan,
+  has_dyad_part,
+  layer,
+  make_bundle,
+  envir
+) {
+  derive <- identical(flavored$style, "mutually_exclusive") &&
+    !is.null(flavored$mapping)
+  processes <- vector("list", length(flavors))
+  names(processes) <- flavors
+  for (fl in flavors) {
+    sub <- list()
+    if (!is.null(rate)) {
+      sub$rate <- make_bundle(
+        flavored$rate_formulas[[fl]],
+        "rate",
+        rate_sub_model
+      )
+    }
+    if (!is.null(choice)) {
+      sub$choice <- make_bundle(
+        flavored$choice_formulas[[fl]],
+        "choice",
+        choice_sub_model
+      )
+    }
+    derived <- if (derive) {
+      derive_flavor_constraint(layer, flavored$mapping, fl, envir)
+    } else {
+      NULL
+    }
+    cplan <- if (!is.null(derived)) {
+      parse_and_validate_constraint(
+        and_compose_constraint(derived, support_constraint),
+        has_dyad_part = has_dyad_part,
+        envir = envir
+      )
+    } else {
+      base_constraint_plan
+    }
+    processes[[fl]] <- list(
+      submodels = sub,
+      derived_constraint = derived,
+      constraint = cplan
+    )
+  }
+  processes
+}
+
+# The derived support constraint for one flavor on a mutually-exclusive layer:
+# the flavor at the higher update value creates the tie, supportable only where
+# no tie exists (`~ !tie(layer)`); the lower value dissolves it, supportable
+# only where one does (`~ tie(layer)`). `tie(layer)` reads the layer's state.
+derive_flavor_constraint <- function(layer, mapping, flavor, envir) {
+  atom <- call("tie", as.name(layer))
+  rhs <- if (mapping[[flavor]] == max(mapping)) call("!", atom) else atom
+  stats::as.formula(call("~", rhs), env = envir)
+}
+
+# AND-compose a derived flavor constraint with any user support_constraint into
+# one one-sided formula. Either may be NULL.
+and_compose_constraint <- function(derived_formula, user_constraint) {
+  if (is.null(derived_formula)) {
+    return(user_constraint)
+  }
+  derived_rhs <- derived_formula[[length(derived_formula)]]
+  if (is.null(user_constraint)) {
+    return(derived_formula)
+  }
+  user_rhs <- user_constraint[[length(user_constraint)]]
+  stats::as.formula(
+    call("~", call("&", derived_rhs, user_rhs)),
+    env = environment(derived_formula)
+  )
+}
+
+# Count a layer's timed rows modeled by the given flavors, for the print
+# overview. An unflavored (inferred) layer has all its timed rows modeled.
+flavor_event_count <- function(data, layer, flavors) {
+  ties <- as.data.frame(data$ties)
+  timed <- ties$layer == layer & !is.na(ties$time)
+  if (!"flavor" %in% names(ties) || all(is.na(ties$flavor[timed]))) {
+    return(sum(timed))
+  }
+  sum(timed & ties$flavor %in% flavors)
 }
 
 # Modeling every row of a flavored layer is legitimate -- category-style flavors

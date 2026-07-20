@@ -78,16 +78,91 @@
       
       v Specification is valid.
 
-# several flavor keys abort pointing at the future change
+# an unflavored layer infers the mapping and says so
+
+    Code
+      spec <- make_specification(choice = list(creation ~ inertia, dissolution ~
+        inertia), model = "DyNAM", choice_sub_model = "choice", data = unflavored_increment_fixture())
+    Message
+      i Layer "calls" is unflavored; assuming "creation" = 1 and "dissolution" = -1.
+
+# a weighted layer aborts inference
 
     Code
       make_specification(choice = list(creation ~ inertia, dissolution ~ inertia),
-      model = "DyNAM", choice_sub_model = "choice", data = flavored_fixture())
+      model = "DyNAM", choice_sub_model = "choice", data = x)
     Condition
       Error in `make_specification()`:
-      ! `choice` must key exactly one flavor.
-      x 2 formulas were supplied.
-      i Estimating several dependent processes jointly is not supported yet; it needs stacked per-flavor likelihoods.
+      ! Cannot infer a flavor mapping for unflavored layer "calls".
+      x Its update values 3, -2, and 5 are not the dichotomous -1 and 1.
+      i Stamp flavors explicitly with `add_flavor()`.
+
+# a key matching no flavor value aborts
+
+    Code
+      make_specification(choice = list(creation ~ inertia, deletion ~ inertia),
+      model = "DyNAM", choice_sub_model = "choice", data = me_flavored_fixture())
+    Condition
+      Error in `make_specification()`:
+      ! Flavor key "deletion" matches no "calls" row.
+      i Flavors on this layer: "creation" and "dissolution".
+
+# duplicate flavor keys abort
+
+    Code
+      make_specification(choice = list(creation ~ inertia, creation ~ recip), model = "DyNAM",
+      choice_sub_model = "choice", data = me_flavored_fixture())
+    Condition
+      Error in `make_specification()`:
+      ! `choice` keys a flavor more than once.
+      x Duplicate key: "creation".
+
+# a plain sub-model with a multi-keyed sibling aborts
+
+    Code
+      make_specification(rate = ~ 1 + indeg, choice = list(creation ~ inertia,
+      dissolution ~ recip), model = "DyNAM", data = me_flavored_fixture())
+    Condition
+      Error in `make_specification()`:
+      ! `rate` must be a flavor-keyed list when modeling several flavors.
+      i Key it on the same flavors, e.g. `rate = list(creation ~ ..., dissolution ~ ...)`.
+
+# estimating a multi-flavor specification aborts for now
+
+    Code
+      estimate_dynam(spec, sub_model = "choice")
+    Condition
+      Error in `estimate_from_specification()`:
+      ! Estimating a multi-flavor specification is not wired up yet.
+      x This specification models 2 flavors ("creation" and "dissolution").
+      i For now, estimate one flavor at a time with a single-key specification and its derived `support_constraint`.
+
+# the multi-flavor print nests a section per flavor
+
+    Code
+      print(spec)
+    Message
+      -- <specification.goldfish> ----------------------------------------------------
+      Model "DyNAM" · sub-model rate and choice
+      
+      Dependent
+      * Layer: "calls"
+        Modeled flavors: "creation" and "dissolution"
+      * Events: 3
+      * Time span: "1 – 3"
+      * Nodes: nodes
+      * Network: "calls"
+      
+      Flavor "creation"
+      Rate: `~1 + indeg`
+      Choice: `~inertia`
+      Constraint: `~!tie(calls)`
+      Flavor "dissolution"
+      Rate: `~1 + inertia`
+      Choice: `~recip`
+      Constraint: `~tie(calls)`
+      
+      v Specification is valid.
 
 # rate and choice must key the same flavor
 
@@ -96,9 +171,9 @@
         dissolution ~ inertia), model = "DyNAM", data = flavored_fixture())
     Condition
       Error in `make_specification()`:
-      ! `rate` and `choice` must model the same flavor.
+      ! `rate` and `choice` must key the same flavor set.
       x `rate` keys "creation" but `choice` keys "dissolution".
-      i One specification models one dependent process.
+      i Each flavor is a parallel process modeled by both sub-models.
 
 # a flavor no focal row carries aborts
 
@@ -107,7 +182,7 @@
       choice_sub_model = "choice", data = flavored_fixture())
     Condition
       Error in `make_specification()`:
-      ! No "calls" row carries the flavor "nope".
+      ! Flavor key "nope" matches no "calls" row.
       i Flavors on this layer: "creation" and "dissolution".
 
 # a keyed entry must be a formula with the flavor on the left
@@ -117,6 +192,6 @@
       data = flavored_fixture())
     Condition
       Error in `make_specification()`:
-      ! `choice`'s entry must be a formula whose left-hand side is the flavor.
+      ! `choice`'s entries must be formulas whose left-hand side is the flavor.
       i For example `choice = list(creation ~ 1 + indeg())`.
 

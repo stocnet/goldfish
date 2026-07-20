@@ -415,6 +415,15 @@ estimate_from_specification <- function(
              tolower(model))}}."
     ))
   }
+  if (!is.null(spec$processes)) {
+    cli::cli_abort(c(
+      "Estimating a multi-flavor specification is not wired up yet.",
+      "x" = "This specification models {length(spec$processes)} flavors
+             ({.val {names(spec$processes)}}).",
+      "i" = "For now, estimate one flavor at a time with a single-key
+             specification and its derived {.arg support_constraint}."
+    ))
+  }
   family <- if (sub_model %in% c("rate", "rate_ordered")) "rate" else "choice"
   bundle <- spec$submodels[[family]]
   if (is.null(bundle)) {

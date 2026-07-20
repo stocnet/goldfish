@@ -80,7 +80,7 @@ choice formulas leave the \strong{left-hand side empty}; the dependent process i
 named by \code{layer}. For a \code{stocnet} object \code{layer} names one of its layers and
 defaults to \code{info$focal}.
 }
-\section{Modeling one flavor of a layer}{
+\section{Modeling flavors of a layer}{
 When a layer's ties carry a \code{flavor} column, \code{rate} / \code{choice} may be given
 as a \strong{flavor-keyed list} whose formula left-hand side is the flavor to
 model, e.g. \code{rate = list(creation ~ 1 + indeg())}. Only rows of that flavor
@@ -88,9 +88,15 @@ are modeled as events; every other focal row -- including rows with no
 flavor -- still updates the network state. Supplying a plain formula on a
 flavored layer models \strong{all} of its rows, and says so.
 
-Exactly one flavor can be modeled: several keys, or \code{rate} and \code{choice}
-keying different flavors, are errors. Estimating several dependent processes
-jointly needs stacked per-flavor likelihoods and arrives with a later change.
+Several flavors can be modeled as parallel competing processes on the same
+focal layer, e.g. \code{rate = list(creation ~ ..., dissolution ~ ...)}. Each key
+becomes its own process with its own formulas and, on a \code{mutually_exclusive}
+layer (see \code{\link[=add_flavor]{add_flavor()}}), a derived support constraint -- creation is
+supportable only where no tie exists, dissolution only where one does --
+AND-composed with any \code{support_constraint}. When both \code{rate} and \code{choice} are
+keyed lists they MUST key the same flavor set. An unflavored layer under a
+flavor-keyed list infers the mapping from its update semantics
+(increment \code{+1}/\code{-1}, replace \code{1}/\code{0}) and says so.
 }
 
 \examples{

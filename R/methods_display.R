@@ -430,20 +430,28 @@ print.specification.goldfish <- function(x, ...) {
   } else {
     NA_character_
   }
-  # Flavors nested under the layer: the modeled flavor labeled, the rest listed
-  # as state-only. Shown only when the layer carries several distinct flavors --
-  # a lone flavor (e.g. the synthetic key a make_dependent_events() wrapper
-  # stamps) is an implementation detail and stays hidden.
+  # Flavors nested under the layer: the modeled flavor(s) labeled, the rest
+  # listed as state-only. Shown only when the layer carries several distinct
+  # flavors -- a lone flavor (e.g. the synthetic key a make_dependent_events()
+  # wrapper stamps) is an implementation detail and stays hidden.
   flavors <- dep$flavors
-  modeled_flavor <- dep$modeled_flavor
+  modeled <- dep$modeled_flavors %||% dep$modeled_flavor
   flavor_bullets <- character(0)
   if (length(flavors) > 1) {
-    if (!is.null(modeled_flavor)) {
-      state_only <- setdiff(flavors, modeled_flavor)
-      flavor_bullets <- c(
-        " " = "Modeled flavor: {.val {modeled_flavor}}",
-        " " = "State-only flavor{?s}: {.val {state_only}}"
-      )
+    if (length(modeled) > 0) {
+      state_only <- setdiff(flavors, modeled)
+      modeled_line <- if (length(modeled) > 1) {
+        "Modeled flavors: {.val {modeled}}"
+      } else {
+        "Modeled flavor: {.val {modeled}}"
+      }
+      flavor_bullets <- c(" " = modeled_line)
+      if (length(state_only) > 0) {
+        flavor_bullets <- c(
+          flavor_bullets,
+          " " = "State-only flavor{?s}: {.val {state_only}}"
+        )
+      }
     } else {
       flavor_bullets <- c(" " = "Flavors (all modeled): {.val {flavors}}")
     }
@@ -464,20 +472,28 @@ print.specification.goldfish <- function(x, ...) {
   cli::cli_bullets(dep_bullets)
 
   cli::cli_text("")
-  formula_dl <- character(0)
-  if (!is.null(x$submodels$rate)) {
-    rate_str <- deparse1(x$submodels$rate$input_formula)
-    formula_dl <- c(formula_dl, Rate = "{.code {rate_str}}")
+  if (!is.null(x$processes)) {
+    print_flavor_processes(x)
+  } else {
+    formula_dl <- character(0)
+    if (!is.null(x$submodels$rate)) {
+      rate_str <- deparse1(x$submodels$rate$input_formula)
+      formula_dl <- c(formula_dl, Rate = "{.code {rate_str}}")
+    }
+    if (!is.null(x$submodels$choice)) {
+      choice_str <- deparse1(x$submodels$choice$input_formula)
+      formula_dl <- c(formula_dl, Choice = "{.code {choice_str}}")
+    }
+    if (!is.null(x$derived_constraint)) {
+      derived_str <- deparse1(x$derived_constraint)
+      formula_dl <- c(formula_dl, Derived = "{.code {derived_str}}")
+    }
+    if (!is.null(x$support_constraint)) {
+      support_str <- deparse1(x$support_constraint)
+      formula_dl <- c(formula_dl, Support = "{.code {support_str}}")
+    }
+    cli::cli_dl(formula_dl)
   }
-  if (!is.null(x$submodels$choice)) {
-    choice_str <- deparse1(x$submodels$choice$input_formula)
-    formula_dl <- c(formula_dl, Choice = "{.code {choice_str}}")
-  }
-  if (!is.null(x$support_constraint)) {
-    support_str <- deparse1(x$support_constraint)
-    formula_dl <- c(formula_dl, Support = "{.code {support_str}}")
-  }
-  cli::cli_dl(formula_dl)
 
   cli::cli_text("")
   if (isTRUE(x$valid)) {
@@ -486,6 +502,41 @@ print.specification.goldfish <- function(x, ...) {
     cli::cli_alert_danger("Specification is not valid.")
   }
   invisible(x)
+}
+
+# One section per modeled flavor: its rate/choice formulas and its derived
+# (and, when combined with a user constraint, combined) support constraint.
+print_flavor_processes <- function(x) {
+  for (fl in names(x$processes)) {
+    proc <- x$processes[[fl]]
+    cli::cli_text("{.strong Flavor} {.val {fl}}")
+    formula_dl <- character(0)
+    if (!is.null(proc$submodels$rate)) {
+      rate_str <- deparse1(proc$submodels$rate$input_formula)
+      formula_dl <- c(formula_dl, Rate = "{.code {rate_str}}")
+    }
+    if (!is.null(proc$submodels$choice)) {
+      choice_str <- deparse1(proc$submodels$choice$input_formula)
+      formula_dl <- c(formula_dl, Choice = "{.code {choice_str}}")
+    }
+    if (!is.null(proc$derived_constraint)) {
+      derived_str <- deparse1(proc$derived_constraint)
+      label <- if (is.null(x$support_constraint)) "Constraint" else "Derived"
+      formula_dl <- c(
+        formula_dl,
+        stats::setNames(
+          "{.code {derived_str}}",
+          label
+        )
+      )
+    }
+    cli::cli_dl(formula_dl)
+  }
+  if (!is.null(x$support_constraint)) {
+    support_str <- deparse1(x$support_constraint)
+    cli::cli_dl(c(Support = "{.code {support_str}}"))
+  }
+  invisible(NULL)
 }
 
 #' @export
