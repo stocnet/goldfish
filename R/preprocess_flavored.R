@@ -74,6 +74,41 @@ build_flavor_union <- function(bundles_by_flavor) {
   )
 }
 
+# Plan one sub-model family (`"rate"` / `"choice"`) of a multi-flavor
+# specification: collect the per-flavor bundles from `spec$processes`, build
+# their effect union, and parse the union formula into the bundle preprocessing
+# consumes. The union bundle is what drives the single shared walk; the returned
+# `effect_maps` / `has_intercept` are what each flavor's consumer rides on.
+#
+# Flavors are a stocnet-only surface (keys resolve against `ties$flavor` or the
+# layer's update encoding), so the union re-parse runs against the
+# specification's stocnet data with a fresh environment, as the original parse
+# did.
+plan_flavor_union <- function(spec, family) {
+  bundles_by_flavor <- lapply(spec$processes, function(p) p$submodels[[family]])
+  if (any(vapply(bundles_by_flavor, is.null, logical(1)))) {
+    cli::cli_abort(
+      "Sub-model {.val {family}} is missing for some modeled flavor{?s}.",
+      .internal = TRUE
+    )
+  }
+
+  union <- build_flavor_union(bundles_by_flavor)
+  union$family <- family
+  union$sub_model <- bundles_by_flavor[[1L]]$sub_model
+  union$bundle <- build_specification_bundle(
+    union$union_formula,
+    arg = family,
+    model = spec$model,
+    sub_model = union$sub_model,
+    layer = spec$focal,
+    envir = new.env(),
+    data = spec$data
+  )
+  union$constraints <- lapply(spec$processes, `[[`, "constraint")
+  union
+}
+
 # Invert a flavor's effect_map into a union-gid -> local-column lookup over the
 # union's `n_union` statistics columns: `local[u]` is the flavor's column for
 # union gid `u`, or `NA` when the flavor's formula does not use that effect.
