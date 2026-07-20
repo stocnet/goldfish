@@ -152,6 +152,55 @@ increments, non-1/0 replaces, keys not matching) abort with guidance to `add_fla
 An explicitly flavored layer never triggers inference — keys resolve against the
 `flavor` values present.
 
+### D7b — A constraint needs the mapping, not just the style; neither is inferred
+*(2026-07-20, from building the flagship example)*
+
+`derive_flavor_constraint()` needs `flavor_style` AND `values_equivalence`
+together: the style says the flavors compete, the mapping says which flavor
+corresponds to which state value. Either alone derives nothing. Both live in
+layer info and are read wherever `ties$flavor` came from, so a hand-stamped
+layer can carry them — but `add_flavor()` is the intended way to set them,
+because it writes the column and the metadata in one step and they cannot drift
+apart.
+
+Two silent failures follow from treating the pair as independently optional, and
+both are closed:
+- **Inference must not invent a style.** `resolve_flavor_keys()` returned
+  `style = "mutually_exclusive"` for an unflavored layer, which satisfied the
+  derivation and restricted the risk set without the user asking. The spec and
+  D7 both grant inference the MAPPING only, so this was the implementation
+  exceeding its spec rather than a decision to revisit.
+- **A declared style with no mapping must not be a no-op.** The mirror case:
+  the user asks for mutual exclusivity, gets no restriction, and is told
+  nothing.
+
+*Consequence for category flavors:* labels not derived from update values (the
+`mutate_ties()` path of D5) have no `values_equivalence` and cannot have one —
+there is no value `v` for "state is not already `v`" to refer to. So no
+constraint is derivable for them by construction, not by policy; such models
+supply `support_constraint` by hand.
+
+### D7c — The style is checked against the data at declaration time
+`add_flavor()` warns when the declared style contradicts the events, naming the
+first offending event. The predicate is deliberately narrow: **does a timed event
+of flavor g land on a dyad whose state already equals what g maps to?** That is
+precisely the "observed dyad is excluded" abort estimation would raise, moved to
+where the user made the claim.
+
+*Rejected:* warning when the accumulated state exceeds 1. It is a proxy, and a
+leaky one — history values and ±1 increments are individually unremarkable, and
+a dyad elevated only by history and never re-created would be flagged despite no
+event ever contradicting the mask. The narrow predicate has no false positives of
+that kind and reports something actionable (an event) rather than a summary
+statistic.
+
+*Rejected (again, deliberately):* multistate `values_equivalence`. The
+constraint generalizes for free on `replace` layers — the grammar already has
+`!=`, so a flavor at state `v` is `~ tie(L) != v`, and D6's wording is literally
+the general case. The blocker is downstream: effects that read the layer's
+weights lose their meaning once the weight encodes an unordered category rather
+than a count or a presence. A4 and D5 stand.
+
 ### D8 — Unmodeled flavors update state only
 A flavor present in the data but absent from the formula list contributes no dependent
 events and no likelihood term; its events update process state (and right-censor timed

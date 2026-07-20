@@ -85,10 +85,10 @@
 - [x] 5.1 Estimation loop over the fid-indexed preprocessed list (existing engines
       unchanged); container result class carrying the process_map with per-fid
       results (rate/choice nested per flavor at presentation time)
-- [ ] 5.2 Methods: `print()` with cli sections per flavor, `coef()`/`vcov()`/`logLik()`
+- [x] 5.2 Methods: `print()` with cli sections per flavor, `coef()`/`vcov()`/`logLik()`
       returning components whose labels are rendered from the process_map (never
       parsed from keys), with summed total log-likelihood; `devtools::document()`
-- [ ] 5.3 Equivalence tests: container fit equals standalone per-flavor fits with the
+- [x] 5.3 Equivalence tests: container fit equals standalone per-flavor fits with the
       equivalent user-supplied constraint (1e-6); print snapshots under a pinned cli
       context. ALSO a `redundant` fixture — currently every flavored test is
       `mutually_exclusive`, yet the redundant branch is what the Fisheries
@@ -100,22 +100,74 @@
       with NO constraint at all. Assert too that `plan$support_constraints` is
       empty and every `constraint_id` is `NA`, so the no-constraint path is
       pinned rather than inferred from the fit agreeing.
-- [ ] 5.4 Fisheries flagship example: two-process model in the dataset help page
-      and a vignette section on competing processes. `bilatchanges` is
-      `flavor_style = "redundant"` — verified in the data: 32 of its 38 dyads
-      carry a repeated `+1` with no intervening `-1`, and the tie accumulates to
-      a weight of 13 — so NO constraint is derived and `inertia` is the
-      substantively interesting effect (do prior treaties beget more?). Do not
-      present it as a mutually-exclusive creation/dissolution pair.
-      The vignette section MUST also carry the identifiability caveat for the
-      mutually-exclusive case, which is where the creation/dissolution framing
-      does apply: under a derived `!tie(L)` mask every allowed alternative has
-      weight 0, so `inertia(L)` is identically 0 and cannot be identified — this
-      holds regardless of `weighted =`. On the `tie(L)` side it is constant (and
-      so cancels in the softmax) for a binary layer, but varies and is fine for
-      an accumulating one. Without this, `creation ~ inertia` is the obvious
-      thing to write and it fails with a bare "matrix cannot be inverted".
-- [ ] 5.5 Verification: full `NOT_CRAN=true` run (PASS not SKIP); version bump in
+## 6. Flavor declaration semantics
+
+> Found while building the flagship example. A support constraint is derived only
+> from `flavor_style` AND `values_equivalence` together — the style says the
+> flavors compete, the mapping says which flavor corresponds to which state
+> value, and `derive_flavor_constraint()` needs both. Today each may go missing
+> silently, in opposite directions: inference invents a style nobody asked for,
+> while a declared style with no mapping is a no-op. Section 7 depends on this.
+
+- [ ] 6.1 `add_flavor()` signature becomes
+      `flavor_style = c("mutually_exclusive", "redundant")`, matched with
+      `rlang::arg_match()` — self-documenting, and it keeps cli-styled errors
+      with "did you mean" suggestions where base `match.arg()` would drop to
+      `'arg' should be one of ...`. Two abort snapshots in
+      `_snaps/add_flavor.md` update; `validate_flavor_style()` stays for the
+      info-metadata path, which has no argument to match.
+- [ ] 6.2 Stop inferring a style. `resolve_flavor_keys()` currently returns
+      `style = "mutually_exclusive"` for an unflavored layer, which satisfies
+      the derivation and produces a constraint the user never asked for. Both
+      the spec delta and design D7 say inference yields the MAPPING only — this
+      is the implementation exceeding its spec, so the fix removes the
+      invention and neither artifact changes. The `cli_inform` should say that
+      no constraint is derived and point at `add_flavor()` for one. The test
+      "an unflavored layer infers the mapping and says so" asserts
+      `derived_constraint == "~!tie(calls)"`; it encoded the bug, so it flips to
+      `expect_null()` plus a snapshot refresh.
+- [ ] 6.3 Make the mirror case loud: `flavor_style` declared (in `add_flavor()`
+      or on `info`) with no `values_equivalence` for that layer currently
+      derives nothing and says nothing. Report it — a user who declared mutual
+      exclusivity and silently got no risk-set restriction has a different model
+      than they think.
+- [ ] 6.4 Check the declared style against the data in `add_flavor()`, and warn
+      naming the first offending event. The predicate is NOT "the state
+      accumulates" — history values and ±1 increments are both fine on their
+      own. It is: does a timed event of flavor g land on a dyad whose state
+      already equals what g maps to? That is exactly the "observed dyad is
+      excluded" condition estimation would hit, moved to where the user made the
+      claim. On Fisheries, RUS–USA fires it from its second event; a dyad
+      elevated only by history and never re-created does not.
+- [ ] 6.5 Tests for 6.1–6.4 (snapshots under a pinned cli context) and
+      verification: `NOT_CRAN=true` (baselines PASS not SKIP);
+      `devtools::document()`; commit.
+
+## 7. Fisheries flagship and milestone
+
+- [ ] 7.1 Reshape the flagship so it teaches the verb instead of hiding it.
+      `fisheries_treaties` currently ships with `ties$flavor` hand-stamped and
+      NO `info` metadata — the discouraged path, and why declaring a style on it
+      does nothing. Remove the `flavor` column from the shipped object,
+      regenerate `data/fisheries_treaties.rda`, and lead the dataset help page
+      and vignette with
+      `add_flavor(values_equivalence = c(...), flavor_style = "redundant")`.
+      Fisheries IS redundant, and for a stronger reason than the history: RUS–USA
+      alone carries 14 `+1` treaty events against one `-1`, from a history of 0.
+      The stored values are only ±1 (timed) and 0/1/2/4 (history) — it is the
+      `increment` semantics that make the STATE climb, so describe it that way
+      and do not claim the data stores a large weight.
+      The vignette MUST also carry the identifiability caveat for the
+      mutually-exclusive case, where the creation/dissolution framing does apply:
+      under a derived `!tie(L)` mask every allowed alternative has state 0, so
+      `inertia(L)` is identically 0 and cannot be identified, regardless of
+      `weighted =`. On the `tie(L)` side it is constant (and cancels in the
+      softmax) for a binary layer but varies for an accumulating one. Without
+      this, `creation ~ inertia` is the obvious thing to write and it fails with
+      a bare "matrix cannot be inverted".
+      Depends on section 6: stripping the column before 6.2 lands would make the
+      shipped help-page example derive a constraint and error.
+- [ ] 7.2 Verification: full `NOT_CRAN=true` run (PASS not SKIP); version bump in
       DESCRIPTION + NEWS.md entry (multi-process estimation milestone); commit.
       Then a SEPARATE `fix:` commit raising `Depends: R (>= 4.4.0)` with its own
       NEWS line: the package already uses base `%||%` in 10+ files and that
