@@ -80,78 +80,48 @@
 - [ ] 4.3 Importance weights in the evaluator per design D14: permanent per-sequence
       (θ_ref, log-likelihood at θ_ref, log proposal density) records kept on the log
       scale, model/proposal ratio normalized, effective sample size — and
-      `compute_lik_seq()` per-sequence sugar; `devtools::document()`
+      `compute_lik_seq()` per-sequence sugar; swap the batched evaluator in behind
+      the evaluator contract shipped by the `abmcem` change (its prototype-path
+      adapter retires here); `devtools::document()`
 - [ ] 4.4 Tests: batched vs zero-iteration-engine equivalence within 1e-10, weight
       fixtures, pool memory within the accepted bound; verification `NOT_CRAN=true`
       (PASS not SKIP); version bump + NEWS (evaluator milestone); commit
 
-## 5. Optimizers and the estimation surface
+## 5. Process simulation
 
-- [ ] 5.1 Optimizer contract + `optimize_abem_sgd()` per design D17: weighted
-      with-replacement batch selection with unweighted updates (default) and
-      deterministic cyclic batches with importance-weighted within-batch gradients;
-      step-size schedules (constant default; AdaGrad/Adam/momentum at fixed
-      literature defaults); optimizer state reset at every M-step; score-only
-      evaluation requests; convergence bookkeeping
-- [ ] 5.2 Weighting machinery per design D13–D15: uniform/importance schemes under
-      the augmenter × weighting validity matrix, likelihood-ratio reweighting
-      against each sequence's θ_ref, pre-normalization weight transformations
-      (with the resampling warning), `refresh` mode and the ESS guard with its two
-      warnings; internal `compute_q()`/`compute_ase()` S3 generics dispatching on
-      the classed E-step object
-- [ ] 5.3 Nested `set_alg_*()` control constructors (child-local cli validation;
-      cross-object validity matrix and precedence warn-and-ignore in
-      `set_alg_em()`; descriptive argument names; single `seed`; `n_cores`
-      defaulting within CRAN's 2-core check cap), the `set_estimation_opt()`
-      warm-start initializer (θ₀ default zero vector), and `estimate_dynes()`
-      running the ABEM loop purely through the three contracts with design-D18
-      control flow (bounded `max_retries` pool growth, `cli_abort()` on
-      non-convergence, always-on `em_trace` with opt-in per-iteration SEs); the
-      sequence-map seam (serial default; mirai daemons per design D10 when
-      installed, with parallel RNG streams and the non-nested BLAS thread budget);
-      mirai added to Suggests; lifecycle experimental badge; `devtools::document()`
-- [ ] 5.4 Tests: contract dispatch (no branching inside the loop), toy-fixture
-      ascent behavior, control-object validation snapshots (validity-matrix
-      warn-and-ignore, ESS guard warnings, non-convergence abort), `em_trace`
-      content fixture; verification
-      `NOT_CRAN=true` (PASS not SKIP); version bump + NEWS (estimation-surface
-      milestone); commit
-
-## 6. Process simulation
-
-- [ ] 6.1 Resolve the simulation-surface open questions in design.md before
+- [ ] 5.1 Resolve the simulation-surface open questions in design.md before
       implementing (entry points and naming, ordered-family default mode, legal
       writer sinks and output class, exogenous horizon behavior, `max_events`
       default, coordination rejection bookkeeping, θ-uncertainty in/out); record
       the decisions as design amendments
-- [ ] 6.2 Generative draw machinery over the walk: total rate + exponential waiting
+- [ ] 5.2 Generative draw machinery over the walk: total rate + exponential waiting
       time (timed sub-models), sender/receiver draws from the Phase-4 rates-at-state
       kernels, stopping by horizon or fixed event count, `max_events` explosion
       guard with total-rate diagnostic
-- [ ] 6.3 Ordered/Cox-like timing modes: fixed-template-times-redraw-dyads and
+- [ ] 5.3 Ordered/Cox-like timing modes: fixed-template-times-redraw-dyads and
       crude-rate pseudo-time (reusing the intercept scalars); scale-caveat
       documentation on pseudo-time output
-- [ ] 6.4 Coordination mutual-choice rejection scheme (uniform sender, crude-rate
+- [ ] 5.4 Coordination mutual-choice rejection scheme (uniform sender, crude-rate
       waiting time, accept iff reciprocated) with acceptance-rate diagnostic
-- [ ] 6.5 Simulation surface per the task-6.1 decisions: entry points, flavored
+- [ ] 5.5 Simulation surface per the task-5.1 decisions: entry points, flavored
       competing-flavor draws under derived masks, evaluator-compatible pool output,
       optional writer-sink statistics recording; `devtools::document()`
-- [ ] 6.6 Tests: seeded intensity/event-count sanity on timed fixtures,
+- [ ] 5.6 Tests: seeded intensity/event-count sanity on timed fixtures,
       template-times preservation, acceptance-rate fixtures, explosion abort
       snapshot, simulate→evaluate round trip at generating vs perturbed parameters;
       verification `NOT_CRAN=true` (PASS not SKIP); version bump + NEWS (simulation
       milestone); commit
 
-## 7. Results, validation study, and documentation
+## 6. Validation study and documentation
 
-- [ ] 7.1 Result class with Fisher approximation, MC standard errors, and the
-      `em_trace` per-iteration diagnostics as part of the documented contract;
-      `vcov()` (NA-padded fixed parameters), `summary()`/`print()` via
-      cli with pinned-context snapshots
-- [ ] 7.2 Seeded parameter-recovery test (skip_on_cran) from the toy fixture;
+- [ ] 6.1 Multi-layer specification validation per design D19 (all-or-nothing
+      panel-layer modeling, PE-independence detection with the two-remedy abort,
+      history-span trimming) wired into the `estimate_dynes()` surface shipped by
+      the `abmcem` change; cli message snapshots; `devtools::document()`
+- [ ] 6.2 Seeded parameter-recovery test (skip_on_cran) from the toy fixture;
       full simulation study incl. creation/dissolution identifiability from waves,
       recorded with the change (progress.md + `.plan/`)
-- [ ] 7.3 Vignette on panel-state estimation (wave diffing, algorithm variants,
+- [ ] 6.3 Vignette on panel-state estimation (wave diffing, algorithm variants,
       reading MC vs asymptotic error); dataset example; `devtools::document()`
-- [ ] 7.4 Final verification: full `NOT_CRAN=true` suite (frozen baselines PASS not
+- [ ] 6.4 Final verification: full `NOT_CRAN=true` suite (frozen baselines PASS not
       SKIP); version bump in DESCRIPTION + NEWS.md entry (DyNES milestone); commit

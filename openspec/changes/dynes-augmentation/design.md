@@ -24,6 +24,16 @@ Decisions below marked **[spike-gated]** are written from the prototypes and the
 answers but are revised from the Phase-1 spike measurements before their implementing
 phase starts.
 
+**Carve-out**: the ABMCEM algorithm core — the `set_alg_*()` surface (D1), the
+result contract (D7), the weighting/Q-ASE/M-step/EM-control decisions
+(D13–D15, D17, D18), and the map-seam half of D10 — is implemented by the
+separate `abmcem` change against a prototype-path evaluator (zero-iteration
+engine calls); those decisions remain recorded here because D16, D19, and D20
+reference them, but their implementation, tests, and any future amendments
+live in `abmcem`. Decision headers below carry a **[→ abmcem]** marker. This
+change keeps the spikes, panel diffing, augmenters, batched C++ evaluator,
+process simulation, specification validation, and the recovery study.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -53,7 +63,7 @@ phase starts.
 
 ## Decisions
 
-### D1 — Surface: `estimate_dynes()` + nested `set_alg_*()` control constructors
+### D1 — Surface: `estimate_dynes()` + nested `set_alg_*()` control constructors **[→ abmcem]**
 `estimate_dynes(spec, algorithm = set_alg_em(...))`. The originally proposed flat
 `set_algorithm_abem()` is superseded by **four constructors, one per algorithm
 concern, nested under the EM constructor** so every cross-object rule has one home:
@@ -189,7 +199,7 @@ moves under the augmenter contract. The Phase-1 study task produces a written no
 contracts; ideas are re-implemented, no code is copied (both packages are GPL-3, but a
 clean re-implementation against our contracts is required regardless).
 
-### D7 — Result contract: Fisher approximation + MC standard errors (OQ B6)
+### D7 — Result contract: Fisher approximation + MC standard errors (OQ B6) **[→ abmcem]**
 ABEM returns the parameter estimates and the Fisher-information approximation
 accumulated by the evaluator at convergence; `vcov()` inverts it, and the result
 additionally carries MC standard errors and the **`em_trace`** per-iteration
@@ -243,7 +253,7 @@ full rate/choice vectors and subsets + renormalizes — no risk-set mask argumen
 added to the C++ kernels in v1 (worth revisiting only at large n, D11). The
 sampling-writer and parallel-chunking extension points stay documentation-only.
 
-### D10 — Parallelization: sequence-level only, under a non-nested thread budget **[spike-gated]**
+### D10 — Parallelization: sequence-level only, under a non-nested thread budget **[spike-gated]** (map seam → abmcem)
 Every expensive step of an ABEM iteration (augmentation, the D5 full re-preprocess,
 likelihood evaluation) is per-sequence independent, so the **sequence is the only
 sanctioned unit of parallelism**; within a sequence the event loop is a serial state
@@ -335,7 +345,7 @@ from ordinal fits — neither reference package does it, it adds an estimation s
 for timing that the ordinal estimand deliberately ignores, and the two supported
 modes cover the GoF and augmentation uses.
 
-### D13 — Augmenter × weighting validity matrix
+### D13 — Augmenter × weighting validity matrix **[→ abmcem]**
 Uniform weighting of the E-step is valid exactly when the proposal *is* the model's
 conditional distribution `p(sequence | endpoints, θ_k)`:
 
@@ -355,7 +365,7 @@ selection arguments are ignored with a warning; the dominant setting wins). The
 prototypes' random-draw + equal-weight combination is deliberately not carried into
 the API: it estimates an expectation under the uniform law, not under the model.
 
-### D14 — Weight state model: per-sequence reference records, refresh, ESS guard
+### D14 — Weight state model: per-sequence reference records, refresh, ESS guard **[→ abmcem]**
 Every pooled sequence permanently stores the triple **(θ_ref, log-likelihood at
 θ_ref, log proposal density)** — for MCMC draws the last two coincide (the only
 tractable "proposal" is the target the chain converged to). Weights are kept on the
@@ -391,7 +401,7 @@ proposed θ′ costs a full-pool likelihood pass, defeating mini-batching): weig
 are fixed for the duration of each M-step, so no provisional-weight state exists —
 the pool's canonical weights only change between EM iterations.
 
-### D15 — Q and its standard error as internal S3 generics
+### D15 — Q and its standard error as internal S3 generics **[→ abmcem]**
 The accept/grow/stop rules all test `Q ± z·ASE`, but the correct ASE estimator is
 scheme-specific (weighted-mean variance under IS; resampling noise included under
 resampling; plain mean under uniform) — the estimator formally belongs to the
@@ -432,7 +442,7 @@ presence windows (D8). The v1 move set itself is in D20 — the original "permut
 order only" plan is superseded: both v1 moves redraw times from rate-based
 proposals, which the joint likelihood's waiting-time densities require anyway.
 
-### D17 — M-step: one SGD over the concatenated θ; batching semantics pinned
+### D17 — M-step: one SGD over the concatenated θ; batching semantics pinned **[→ abmcem]**
 One M-step optimizes the concatenated parameter vector across sub-models
 (rate + choice); exploiting the likelihood factorization into per-sub-model
 independent SGD problems is a recorded future development (the EM-level Q/ASE
@@ -460,7 +470,7 @@ decision stays joint either way). Semantics:
   inside SGD remains disallowed, and `batch_scheme` reserves no value for it
   until its weighting theory is settled.
 
-### D18 — EM control flow: θ₀, bounded pool growth, hard failure, `em_trace`
+### D18 — EM control flow: θ₀, bounded pool growth, hard failure, `em_trace` **[→ abmcem]**
 - **θ₀**: user-supplied through the existing `initial_parameters` mechanism in
   `set_estimation_opt()`, which gains a **warm-start option** (draw one random
   augmentation, estimate on it, use those estimates as θ₀); the default is the

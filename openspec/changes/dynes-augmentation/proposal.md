@@ -19,15 +19,12 @@ package's estimation core.
   semantics is interpreted as state observations; consecutive waves are diffed into
   candidate flip events (Hamming set), and such a layer MAY be `focal` — but only under
   `estimate_dynes()` (event-stream estimators keep aborting).
-- **`estimate_dynes(spec, algorithm = set_alg_em(...))`**: new estimation
-  surface consuming a Stage-A flavored specification over a panel focal layer.
-  Four nested control constructors, one per algorithm concern (design D1):
-  `set_alg_em()` (EM loop, stop-rule quantiles, bounded pool growth, single seed)
-  nesting `set_alg_augment()` (routine: random / MCMC-mutation / constrained
-  simulation), `set_alg_weights()` (importance/uniform weighting, resampling,
-  refresh, ESS guard), and `set_alg_sgd()` (batching, step-size schedules).
-  Cross-constructor rules (the augmenter × weighting validity matrix) are
-  enforced in `set_alg_em()`.
+- **`estimate_dynes(spec, algorithm = set_alg_em(...))`** — the estimation
+  surface, the four nested `set_alg_*()` control constructors, the ABMCEM
+  loop, and the result contract are **carved out to the `abmcem` change**
+  (which implements them now against a prototype-path evaluator); this change
+  supplies the panel data path and validation those contracts consume, and
+  wires the multi-layer specification validation into that surface.
 - **Three step-family contracts**, mirroring the writer strategy contract
   (init / step / finalize), so variants plug in like preprocessing writers:
   - **Augmenters** build wave-consistent latent sequences:
@@ -44,7 +41,8 @@ package's estimation core.
   - **Optimizers** perform the ascent step: one SGD optimizer (weighted or
     deterministic-cyclic batching, constant or adaptive step sizes); the
     prototypes' IS-vs-resampling distinction lives in the weighting scheme,
-    orthogonal to the optimizer.
+    orthogonal to the optimizer. *Implemented by the `abmcem` change* — here
+    the contract is only consumed (the batched evaluator swaps in behind it).
 - **Per-event simulation hook implemented**: the recipe loop's
   documented-not-implemented hook (visible state at event i, event-stream append)
   becomes the surface the model-driven augmenter consumes.
@@ -82,11 +80,11 @@ package's estimation core.
   flip events, the augmenter/evaluator/optimizer interfaces, endpoint-hitting sequence
   validity, pool storage, batched C++ sequence evaluation and `compute_lik_seq()`, and
   the per-event simulation hook consumption.
-- `dynes-estimation`: the user surface — `estimate_dynes()`, the nested
-  `set_alg_*()` control constructors,
-  panel focal layers, the ABEM iteration/convergence contract, and the result object
-  (estimates, Fisher-based `vcov()`, MC standard errors, `em_trace`,
-  `summary()` diagnostics).
+- `dynes-estimation`: this change's share of the shared capability — panel
+  focal layers under `estimate_dynes()`, the multi-layer specification
+  validation, and the parameter-recovery study. (The `estimate_dynes()`
+  surface, the `set_alg_*()` constructors, the ABEM loop, and the result
+  contract are the `abmcem` change's share of the same capability.)
 - `process-simulation`: generating event sequences from a specification and
   parameters — stopping rules and explosion guard, per-family timing strategies
   (exact, fixed-template, pseudo-time), the coordination rejection scheme, and the
@@ -103,9 +101,11 @@ package's estimation core.
 
 ## Impact
 
-- **R**: new `R/model_estimate_dynes.R` (surface + ABEM loop), `R/algorithm_steps_*.R`
-  (augmenter/evaluator/optimizer constructors), panel diffing in the conversion module,
-  simulation hook in the recipe loop, result/summary/vcov methods.
+- **R**: augmenter constructors (`R/algorithm_steps_*.R`), panel diffing in the
+  conversion module, simulation hook in the recipe loop, multi-layer
+  specification validation. (Surface + ABEM loop, control constructors,
+  optimizer/weighting machinery, and result/summary/vcov methods land via the
+  `abmcem` change.)
 - **C++ (`src/`)**: batched pool evaluation (logLik/score/Fisher over a list of flat
   preprocessed objects); rate/probability computation at a given process state reused
   from the estimation kernels (the prototypes' workarounds replaced by engine calls).
