@@ -80,9 +80,11 @@
 #' Two optional `ties` columns tune goldfish's reading of a layer:
 #'
 #' - **`flavor`** (character) marks sub-processes of one layer -- for the treaty
-#'   layer of [fisheries_treaties], `"creation"` versus `"dissolution"`. A
+#'   layer of [fisheries_treaties], `"signing"` versus `"ending"`. A
 #'   flavor-keyed `rate`/`choice` list then models one flavor while every row
-#'   still updates the network state (see [make_specification()]).
+#'   still updates the network state (see [make_specification()]). Stamp it with
+#'   [add_flavor()] rather than by hand: the column and the layer-info metadata
+#'   that goes with it are then written together and cannot drift apart.
 #' - **`order`** (integer) is the final tie-break for events sharing a
 #'   timestamp. Same-time, same-target `replace` events are otherwise genuinely
 #'   ambiguous and abort; supplying `order` pins their sequence. See

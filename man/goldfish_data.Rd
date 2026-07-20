@@ -84,9 +84,11 @@ layer therefore spans every mode, so declare identical sets to restrict it.
 Two optional \code{ties} columns tune goldfish's reading of a layer:
 \itemize{
 \item \strong{\code{flavor}} (character) marks sub-processes of one layer -- for the treaty
-layer of \link{fisheries_treaties}, \code{"creation"} versus \code{"dissolution"}. A
+layer of \link{fisheries_treaties}, \code{"signing"} versus \code{"ending"}. A
 flavor-keyed \code{rate}/\code{choice} list then models one flavor while every row
-still updates the network state (see \code{\link[=make_specification]{make_specification()}}).
+still updates the network state (see \code{\link[=make_specification]{make_specification()}}). Stamp it with
+\code{\link[=add_flavor]{add_flavor()}} rather than by hand: the column and the layer-info metadata
+that goes with it are then written together and cannot drift apart.
 \item \strong{\code{order}} (integer) is the final tie-break for events sharing a
 timestamp. Same-time, same-target \code{replace} events are otherwise genuinely
 ambiguous and abort; supplying \code{order} pins their sequence. See

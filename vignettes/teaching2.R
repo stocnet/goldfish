@@ -14,11 +14,6 @@ data("Fisheries_Treaties_6070")
 
 
 ## ----build-treaties-----------------------------------------------------------
-# Map the +1 / -1 increment onto the reserved flavor column
-bilatchanges$flavor <- ifelse(
-  bilatchanges$increment == 1, "creation", "dissolution"
-)
-
 treaties <- as_stocnet(bilatnet) |> # bilatnet -> history ties (time = NA)
   join_nodes(states) |>
   rename_nodes() |>
@@ -87,9 +82,18 @@ graphr(startNet, layout = "fr") | graphr(endNet, layout = "fr")
 # vignette("goldfishEffects")
 
 
+## ----add-flavor---------------------------------------------------------------
+fisheries_treaties <- add_flavor(
+  fisheries_treaties,
+  layer = "treaties",
+  values_equivalence = c(signing = 1, ending = -1),
+  flavor_style = "redundant"
+)
+
+
 ## ----estimate-init------------------------------------------------------------
 formula1 <- list(
-  creation ~ inertia(treaties) + indeg(treaties) + trans(treaties) +
+  signing ~ inertia(treaties) + indeg(treaties) + trans(treaties) +
     tie(contiguity) +
     alter(regime) + diff(regime) +
     alter(gdp) + diff(gdp)
@@ -139,7 +143,7 @@ summary(partnerModel)
 
 ## ----estimate-c---------------------------------------------------------------
 formula2 <- list(
-  creation ~ inertia(treaties, weighted = TRUE) +
+  signing ~ inertia(treaties, weighted = TRUE) +
     indeg(treaties) + trans(treaties) +
     tie(contiguity) + alter(regime) +
     diff(regime) + alter(gdp) + diff(gdp)

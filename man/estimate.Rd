@@ -285,24 +285,30 @@ mod03 <- estimate_rem(
 )
 summary(mod03)
 
-# A multinomial-multinomial choice model for coordination ties. The treaty
-# layer carries a `flavor`, so a keyed specification models the creations
+# A multinomial-multinomial choice model for coordination ties. Naming the
+# treaty layer's two processes lets a keyed specification model signings
 # while every treaty change still updates the network state.
 data("fisheries_treaties")
+fish <- add_flavor(
+  fisheries_treaties,
+  layer = "treaties",
+  values_equivalence = c(signing = 1, ending = -1),
+  flavor_style = "redundant"
+)
 partner_spec <- make_specification(
   choice = list(
-    creation ~ inertia(treaties) + indeg(treaties) + trans(treaties) +
+    signing ~ inertia(treaties) + indeg(treaties) + trans(treaties) +
       tie(contiguity) + alter(regime) + diff(regime) +
       alter(gdp) + diff(gdp)
   ),
   model = "DyNAM",
   choice_sub_model = "choice_coordination",
-  data = fisheries_treaties
+  data = fish
 )
 partner_model <- estimate_dynam(
   partner_spec,
   sub_model = "choice_coordination",
-  data = fisheries_treaties,
+  data = fish,
   control_estimation =
     set_estimation_opt(
       initial_damping = 40, max_iterations = 30,

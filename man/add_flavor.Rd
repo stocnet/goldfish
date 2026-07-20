@@ -59,11 +59,14 @@ state and stay unflavored.
 }
 \examples{
 \dontshow{if (rlang::is_installed("manynet")) withAutoprint(\{ # examplesIf}
+# Treaty signings accumulate on a dyad rather than toggling a tie on and off,
+# so the two processes are `redundant` and neither is constrained.
 data("fisheries_treaties")
 fish <- add_flavor(
   fisheries_treaties,
   layer = "treaties",
-  values_equivalence = c(creation = 1, dissolution = -1)
+  values_equivalence = c(signing = 1, ending = -1),
+  flavor_style = "redundant"
 )
 \dontshow{\}) # examplesIf}
 }

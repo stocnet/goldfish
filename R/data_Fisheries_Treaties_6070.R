@@ -88,17 +88,23 @@ NULL
 #' shape goldfish consumes directly through the `data` argument of
 #' [estimate_dynam()], [estimate_rem()], and [make_specification()]. It carries
 #' two undirected layers over a single node set: `treaties`, an **event** layer
-#' whose `increment` updates create (`+1`) or dissolve (`-1`) bilateral treaties,
-#' and `contiguity`, an **event** layer of `replace` updates. Node-level
-#' covariates (`gdp`, `active`/sovereignty, `regime`) arrive as attribute change
-#' streams in `changes`. The focal (dependent) layer is `treaties`.
+#' whose `increment` updates record a treaty signed (`+1`) or ended (`-1`)
+#' between two states, and `contiguity`, an **event** layer of `replace` updates.
+#' Node-level covariates (`gdp`, `active`/sovereignty, `regime`) arrive as
+#' attribute change streams in `changes`. The focal (dependent) layer is
+#' `treaties`.
 #'
-#' The create-vs-dissolve distinction rides on a reserved `flavor` column on the
-#' `treaties` ties (`"creation"` / `"dissolution"`, mapped from the raw
-#' `increment`), so a specification can model **creations alone** with a
-#' flavor-keyed list — `make_specification(rate = list(creation ~ ...))` — while
-#' every treaty change still updates the network state. History ties (the initial
-#' `bilatnet` matrix, entered with `time = NA`) carry `NA` flavor.
+#' **The tie is a treaty count, not a treaty's presence.** States sign with the
+#' same partner repeatedly — Russia and the USA sign fourteen times over five
+#' years against a single ending — so the `increment` updates accumulate rather
+#' than toggling a tie on and off. Signings and endings are therefore
+#' `flavor_style = "redundant"`: repeated same-direction events are meaningful,
+#' and no support constraint restricts either process.
+#'
+#' The object ships **unflavored**. To model the two processes separately, stamp
+#' the flavors yourself with [add_flavor()] — see the examples. That is a
+#' modeling decision about how to read the update values, so it belongs in the
+#' analysis rather than baked into the data.
 #'
 #' @name fisheries_treaties
 #' @docType data
@@ -111,11 +117,12 @@ NULL
 #'     `"event"`), `focal = "treaties"`, and the `gdp`/`active`/`regime`
 #'     attribute-update metadata.}
 #'   \item{nodes}{154 states (`label`, `active`, `regime`, `gdp`).}
-#'   \item{ties}{413 rows (`from`, `to`, `weight`, `time`, `flavor`, `layer`,
+#'   \item{ties}{413 rows (`from`, `to`, `weight`, `time`, `layer`,
 #'     `order`) stacking the treaty and contiguity history and events; `from`/`to`
 #'     index rows of `nodes`. The reserved integer `order` column pins the
 #'     original sequence of the contiguity `replace` events, whose same-time
-#'     same-dyad collisions would otherwise be ambiguous.}
+#'     same-dyad collisions would otherwise be ambiguous. There is no `flavor`
+#'     column: [add_flavor()] stamps one.}
 #'   \item{changes}{1186 rows (`time`, `node`, `var`, `value`) of the gdp,
 #'     active, and regime attribute updates.}
 #'   \item{global}{`NULL` (no global attribute stream).}
@@ -131,11 +138,8 @@ NULL
 #'
 #' @examples
 #' # Construction workflow (how the shipped object is built from the raw
-#' # objects); the treaty ties carry a `flavor` mapped from the increment:
+#' # objects):
 #' data("Fisheries_Treaties_6070")
-#' bilatchanges$flavor <- ifelse(
-#'   bilatchanges$increment == 1, "creation", "dissolution"
-#' )
 #' treaties <- manynet::bind_ties(
 #'   manynet::rename_nodes(manynet::join_nodes(
 #'     manynet::as_stocnet(bilatnet), states # bilatnet is the history matrix
@@ -158,13 +162,23 @@ NULL
 #' fish <- manynet::bind_changes(fish, sovchanges, var = "active")
 #' fish <- manynet::bind_changes(fish, regchanges, var = "regime")
 #'
-#' # Or load the prebuilt object and model treaty creations alone:
+#' # Or load the prebuilt object and name the two processes. Signings and
+#' # endings accumulate on a dyad rather than toggling a tie, so they are
+#' # `redundant` and neither gets a support constraint:
 #' data("fisheries_treaties")
+#' fish <- add_flavor(
+#'   fisheries_treaties,
+#'   layer = "treaties",
+#'   values_equivalence = c(signing = 1, ending = -1),
+#'   flavor_style = "redundant"
+#' )
+#'
+#' # Model signings alone: ending events still update the network state.
 #' spec <- make_specification(
-#'   choice = list(creation ~ inertia + trans),
+#'   choice = list(signing ~ inertia + trans),
 #'   model = "DyNAM",
 #'   choice_sub_model = "choice_coordination",
-#'   data = fisheries_treaties
+#'   data = fish
 #' )
 #'
 #' @keywords datasets dynamic political network states fisheries

@@ -50,10 +50,13 @@ the bilateral fisheries agreements (the **focal** layer we model), and
 attributes -- `active` (sovereign status), `regime`, and `gdp` -- in the
 `changes` component.
 
-The treaty layer is special: creating and dissolving a treaty are different
-processes, and that distinction is stored on a reserved **`flavor`** column
-(`"creation"` / `"dissolution"`). This lets us model the creations while every
-treaty change -- creation *and* dissolution -- still updates the network state.
+The treaty layer is special: signing a treaty and ending one are different
+processes, and we will want to model them separately. Note what the `increment`
+updates actually do here -- states sign with the same partner again and again
+(Russia and the USA sign fourteen times over five years, against a single
+ending), so the tie **counts treaties** rather than recording whether one
+exists. We come back to this in Step 3, because it decides how the two
+processes must be declared.
 
 # Step 1: How the data object is built
 
@@ -80,11 +83,6 @@ observation window and seed the starting state rather than being modeled as
 events. `bind_ties()` then appends the timed events.
 
 ```{r build-treaties}
-# Map the +1 / -1 increment onto the reserved flavor column
-bilatchanges$flavor <- ifelse(
-  bilatchanges$increment == 1, "creation", "dissolution"
-)
-
 treaties <- as_stocnet(bilatnet) |> # bilatnet -> history ties (time = NA)
   join_nodes(states) |>
   rename_nodes() |>
@@ -193,11 +191,31 @@ Let us first see how to specify the effects and which are currently available:
 vignette("goldfishEffects")
 ```
 
-Since treaty dissolution is a rarer, more complex, and idiosyncratic process,
-we model only the events that **create** a treaty tie. With the flavor column
-that is a one-liner: pass `rate`/`choice` a **flavor-keyed list** whose formula
-left-hand side is the flavor to model. Only `"creation"` rows become dependent
-events, while the `"dissolution"` rows still update the network state.
+Since treaty ending is a rarer, more complex, and idiosyncratic process, we
+model only the events that **sign** a treaty.
+
+First we name the two processes with `add_flavor()`, which maps the layer's
+update values onto flavor names and records how those flavors relate. This is
+where the counting matters. `flavor_style = "redundant"` says repeated
+same-direction events are meaningful -- exactly what signing again with the same
+partner is -- so neither process gets a support constraint. The alternative,
+`"mutually_exclusive"`, would mean a treaty can only be signed where none
+exists and only ended where one does; declare that here and goldfish warns you,
+naming a signing that lands on a dyad which already has treaties.
+
+```{r add-flavor}
+fisheries_treaties <- add_flavor(
+  fisheries_treaties,
+  layer = "treaties",
+  values_equivalence = c(signing = 1, ending = -1),
+  flavor_style = "redundant"
+)
+```
+
+Modeling one process is then a one-liner: pass `rate`/`choice` a **flavor-keyed
+list** whose formula left-hand side is the flavor to model. Only `"signing"`
+rows become dependent events, while the `"ending"` rows still update the network
+state.
 
 An effect's argument names a **layer** (`treaties`, `contiguity`) or a **node
 attribute** (`regime`, `gdp`) by its bare name.
@@ -206,7 +224,7 @@ Stadtfeld, Hollway, and Block 2017a.
 
 ```{r estimate-init}
 formula1 <- list(
-  creation ~ inertia(treaties) + indeg(treaties) + trans(treaties) +
+  signing ~ inertia(treaties) + indeg(treaties) + trans(treaties) +
     tie(contiguity) +
     alter(regime) + diff(regime) +
     alter(gdp) + diff(gdp)
@@ -266,7 +284,7 @@ Let's interpret...
 
 ```{r estimate-c}
 formula2 <- list(
-  creation ~ inertia(treaties, weighted = TRUE) +
+  signing ~ inertia(treaties, weighted = TRUE) +
     indeg(treaties) + trans(treaties) +
     tie(contiguity) + alter(regime) +
     diff(regime) + alter(gdp) + diff(gdp)
