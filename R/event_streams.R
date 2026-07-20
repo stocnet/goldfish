@@ -145,9 +145,11 @@ event_target <- function(events) {
 #'   `weight` column (default 1) applied with the layer's `info$update`
 #'   semantics.
 #' - focal layer: a `dependent` stream of the modeled rows -- filtered to
-#'   `modeled_flavor` when the specification keys one (non-matching / `NA`
+#'   `modeled_flavor` when the specification keys any (non-matching / `NA`
 #'   flavor rows stay state-only in the network stream), otherwise all timed
-#'   focal rows.
+#'   focal rows. A multi-flavor specification models K competing processes, so
+#'   the stream carries every modeled flavor's rows and its `flavor` column
+#'   routes each event to its own process.
 #' - `changes`: one stream per `var`; `var == "active"` routes to per-side
 #'   composition (`mode1`/`mode2`) via the focal layer's mode map.
 #' - `global`: one stream per `var`.
@@ -155,8 +157,8 @@ event_target <- function(events) {
 #' @param x a validated stocnet object.
 #' @param mode_map the [build_mode_map()] result.
 #' @param focal focal layer name (defaults to `info$focal`).
-#' @param modeled_flavor optional single flavor value selecting the dependent
-#'   rows on a flavored focal layer.
+#' @param modeled_flavor optional flavor value(s) selecting the dependent rows
+#'   on a flavored focal layer; length > 1 models competing processes.
 #'
 #' @return a list of streams: `network` (per layer), `dependent`, `attribute`
 #'   (per var), `composition` (`mode1`/`mode2`), `global` (per var), and
@@ -213,7 +215,7 @@ split_stocnet_streams <- function(
     if (!is.null(modeled_flavor)) {
       modeled <- timed &
         !is.na(fstream$flavor) &
-        fstream$flavor == modeled_flavor
+        fstream$flavor %in% modeled_flavor
     } else {
       modeled <- timed
     }

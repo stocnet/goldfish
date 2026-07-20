@@ -34,8 +34,8 @@ DEPENDENT_STREAM <- ".dependent"
 #' @param data a validated stocnet object, or `NULL` on the legacy path.
 #' @param envir the legacy `data.goldfish` environment, or `NULL`.
 #' @param focal focal layer name, defaulting to `info$focal`.
-#' @param modeled_flavor optional single `ties$flavor` value selecting which
-#'   focal rows are modeled; the rest update state only.
+#' @param modeled_flavor optional `ties$flavor` value(s) selecting which focal
+#'   rows are modeled; the rest update state only.
 #'
 #' @return a `data_source_stocnet` or `data_source_envir` object.
 #' @noRd
@@ -715,7 +715,15 @@ ds_fetch_stream.data_source_stocnet <- function(src, key) {
     ))
   }
   if (identical(key, DEPENDENT_STREAM)) {
-    return(dyadic_stream_events(src, src$streams$dependent, src$streams$focal))
+    return(dyadic_stream_events(
+      src,
+      src$streams$dependent,
+      src$streams$focal,
+      # Competing processes only: the walk routes each dependent event to its
+      # own process, so it needs the per-event flavor. A single modeled flavor
+      # (or none) has nothing to route, and its stream stays as it was.
+      keep_flavor = length(src$modeled_flavor) > 1
+    ))
   }
   if (key %in% src$layers) {
     return(dyadic_stream_events(src, src$streams$network[[key]], key))
@@ -734,7 +742,7 @@ ds_fetch_stream.data_source_stocnet <- function(src, key) {
 # way the walk consumes it. `layer` names the layer whose update semantics the
 # value column is named for -- the dependent stream carries the focal layer's
 # rows, so it takes the focal layer's semantics.
-dyadic_stream_events <- function(src, stream, layer) {
+dyadic_stream_events <- function(src, stream, layer, keep_flavor = FALSE) {
   timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
   events <- data.frame(
     time = timed$time,
@@ -743,6 +751,9 @@ dyadic_stream_events <- function(src, stream, layer) {
     stringsAsFactors = FALSE
   )
   events[[tie_value_column(src, layer)]] <- timed$value
+  if (keep_flavor) {
+    events$flavor <- timed$flavor
+  }
   events
 }
 

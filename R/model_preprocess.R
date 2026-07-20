@@ -550,6 +550,7 @@ run_sender_recipe_loop <- function(
   progress = FALSE,
   prep_envir = new.env(),
   writer = writer_default(),
+  consumer_specs = NULL,
   ...
 ) {
   ctx <- prepare_recipe_context(
@@ -641,28 +642,26 @@ run_sender_recipe_loop <- function(
     do.call(template$fun, args[template$args_by_shape[[shape]]])
   }
 
-  writer$init(
-    spec,
-    list(
+  # One consumer per output object: the single default output, or one per
+  # modeled flavor reading the shared union walk. Each owns its writer, its
+  # projection onto its own statistics columns, and its own pending buffers.
+  consumers <- init_consumers(
+    consumer_specs,
+    writer = writer,
+    right_censored = right_censored,
+    spec = spec,
+    dims = list(
       nEffects = nEffects,
       n1 = n1,
       n2 = n2,
       is_sender = inherits(spec, "sender_spec"),
-      has_intercept = right_censored,
-      buf_capacity = max(1000, as.double(nEffects) * nrow(events[[1L]])),
-      max_store = schedule$n + 1L,
-      initial_stats_fn = function() initialStats
-    )
+      n_dependent = nrow(events[[1L]]),
+      max_store = schedule$n + 1L
+    ),
+    initial_stats_fn = function() initialStats
   )
+  rc_consumers <- Filter(function(cs) cs$right_censored, consumers)
 
-  pending_dep <- list()
-  pending_dep_cols <- 0L
-  pending_rc <- list()
-  pending_rc_cols <- 0L
-  pending_dep_bc <- list()
-  pending_dep_bc_cols <- 0L
-  pending_rc_bc <- list()
-  pending_rc_bc_cols <- 0L
   bcast_kind <- plan$effects$broadcast_kind
 
   i_total_events <- 0L
@@ -712,35 +711,20 @@ run_sender_recipe_loop <- function(
         ev_sender <- schedule$sender[k]
         ev_receiver <- schedule$receiver[k]
       }
-      writer$write_event(
-        if (pending_dep_cols > 0L) {
-          do.call(cbind, pending_dep)
-        } else {
-          matrix(0, 4L, 0L)
-        },
-        list(
+      route_dependent_event(
+        consumers,
+        rc_consumers,
+        flavor = schedule$flavor[k],
+        event_info = list(
           is_dependent = 1L,
           interval = interval,
           time = time,
           sender = ev_sender,
           receiver = ev_receiver
-        ),
-        if (pending_dep_bc_cols > 0L) {
-          do.call(cbind, pending_dep_bc)
-        } else {
-          matrix(0, 4L, 0L)
-        }
+        )
       )
-      pending_dep <- list()
-      pending_dep_cols <- 0L
-      pending_rc <- list()
-      pending_rc_cols <- 0L
-      pending_dep_bc <- list()
-      pending_dep_bc_cols <- 0L
-      pending_rc_bc <- list()
-      pending_rc_bc_cols <- 0L
     } else if (!isDependent) {
-      if (isValidEvent && right_censored && interval > 0) {
+      if (isValidEvent && length(rc_consumers) > 0L && interval > 0) {
         if (schedule$shape[k] == "global") {
           ev_sender <- NA_integer_
           ev_receiver <- NA_integer_
@@ -751,29 +735,16 @@ run_sender_recipe_loop <- function(
           ev_sender <- schedule$sender[k]
           ev_receiver <- schedule$receiver[k]
         }
-        writer$write_event(
-          if (pending_rc_cols > 0L) {
-            do.call(cbind, pending_rc)
-          } else {
-            matrix(0, 4L, 0L)
-          },
+        route_right_censored_event(
+          rc_consumers,
           list(
             is_dependent = 0L,
             interval = interval,
             time = time,
             sender = ev_sender,
             receiver = ev_receiver
-          ),
-          if (pending_rc_bc_cols > 0L) {
-            do.call(cbind, pending_rc_bc)
-          } else {
-            matrix(0, 4L, 0L)
-          }
+          )
         )
-        pending_rc <- list()
-        pending_rc_cols <- 0L
-        pending_rc_bc <- list()
-        pending_rc_bc_cols <- 0L
       }
 
       if (!final_step) {
@@ -925,11 +896,8 @@ run_sender_recipe_loop <- function(
                 bcast_kind[gid],
                 gid
               )
-              pending_dep_bc[[length(pending_dep_bc) + 1L]] <- bc_block
-              pending_dep_bc_cols <- pending_dep_bc_cols + ncol(bc_block)
-              if (right_censored) {
-                pending_rc_bc[[length(pending_rc_bc) + 1L]] <- bc_block
-                pending_rc_bc_cols <- pending_rc_bc_cols + ncol(bc_block)
+              for (cs in consumers) {
+                consumer_accumulate_broadcast(cs, bc_block)
               }
             } else {
               block <- rbind(
@@ -938,11 +906,8 @@ run_sender_recipe_loop <- function(
                 gid - 1,
                 updates[, "replace"]
               )
-              pending_dep[[length(pending_dep) + 1L]] <- block
-              pending_dep_cols <- pending_dep_cols + ncol(block)
-              if (right_censored) {
-                pending_rc[[length(pending_rc) + 1L]] <- block
-                pending_rc_cols <- pending_rc_cols + ncol(block)
+              for (cs in consumers) {
+                consumer_accumulate_point(cs, block)
               }
             }
           }
@@ -966,11 +931,8 @@ run_sender_recipe_loop <- function(
               initialStats[cbind(senders, ig)] <- prodv
             } else {
               block <- rbind(senders - 1, 0, ig - 1, prodv)
-              pending_dep[[length(pending_dep) + 1L]] <- block
-              pending_dep_cols <- pending_dep_cols + ncol(block)
-              if (right_censored) {
-                pending_rc[[length(pending_rc) + 1L]] <- block
-                pending_rc_cols <- pending_rc_cols + ncol(block)
+              for (cs in consumers) {
+                consumer_accumulate_point(cs, block)
               }
             }
           }
@@ -1411,6 +1373,7 @@ run_dyad_recipe_loop <- function(
   prep_envir = new.env(),
   writer = writer_default(),
   opportunitiesList = NULL,
+  consumer_specs = NULL,
   ...
 ) {
   ctx <- prepare_recipe_context(
@@ -1504,28 +1467,26 @@ run_dyad_recipe_loop <- function(
     do.call(template$fun, args[template$args_by_shape[[shape]]])
   }
 
-  writer$init(
-    spec,
-    list(
+  # One consumer per output object: the single default output, or one per
+  # modeled flavor reading the shared union walk. Each owns its writer, its
+  # projection onto its own statistics columns, and its own pending buffers.
+  consumers <- init_consumers(
+    consumer_specs,
+    writer = writer,
+    right_censored = right_censored,
+    spec = spec,
+    dims = list(
       nEffects = nEffects,
       n1 = n1,
       n2 = n2,
       is_sender = inherits(spec, "sender_spec"),
-      has_intercept = right_censored,
-      buf_capacity = max(1000, as.double(nEffects) * nrow(events[[1L]])),
-      max_store = schedule$n + 1L,
-      initial_stats_fn = function() initialStats
-    )
+      n_dependent = nrow(events[[1L]]),
+      max_store = schedule$n + 1L
+    ),
+    initial_stats_fn = function() initialStats
   )
+  rc_consumers <- Filter(function(cs) cs$right_censored, consumers)
 
-  pending_dep <- list()
-  pending_dep_cols <- 0L
-  pending_rc <- list()
-  pending_rc_cols <- 0L
-  pending_dep_bc <- list()
-  pending_dep_bc_cols <- 0L
-  pending_rc_bc <- list()
-  pending_rc_bc_cols <- 0L
   bcast_kind <- plan$effects$broadcast_kind
 
   i_total_events <- 0L
@@ -1575,35 +1536,20 @@ run_dyad_recipe_loop <- function(
         ev_sender <- schedule$sender[k]
         ev_receiver <- schedule$receiver[k]
       }
-      writer$write_event(
-        if (pending_dep_cols > 0L) {
-          do.call(cbind, pending_dep)
-        } else {
-          matrix(0, 4L, 0L)
-        },
-        list(
+      route_dependent_event(
+        consumers,
+        rc_consumers,
+        flavor = schedule$flavor[k],
+        event_info = list(
           is_dependent = 1L,
           interval = interval,
           time = time,
           sender = ev_sender,
           receiver = ev_receiver
-        ),
-        if (pending_dep_bc_cols > 0L) {
-          do.call(cbind, pending_dep_bc)
-        } else {
-          matrix(0, 4L, 0L)
-        }
+        )
       )
-      pending_dep <- list()
-      pending_dep_cols <- 0L
-      pending_rc <- list()
-      pending_rc_cols <- 0L
-      pending_dep_bc <- list()
-      pending_dep_bc_cols <- 0L
-      pending_rc_bc <- list()
-      pending_rc_bc_cols <- 0L
     } else if (!isDependent) {
-      if (isValidEvent && right_censored && interval > 0) {
+      if (isValidEvent && length(rc_consumers) > 0L && interval > 0) {
         if (schedule$shape[k] == "global") {
           ev_sender <- NA_integer_
           ev_receiver <- NA_integer_
@@ -1614,29 +1560,16 @@ run_dyad_recipe_loop <- function(
           ev_sender <- schedule$sender[k]
           ev_receiver <- schedule$receiver[k]
         }
-        writer$write_event(
-          if (pending_rc_cols > 0L) {
-            do.call(cbind, pending_rc)
-          } else {
-            matrix(0, 4L, 0L)
-          },
+        route_right_censored_event(
+          rc_consumers,
           list(
             is_dependent = 0L,
             interval = interval,
             time = time,
             sender = ev_sender,
             receiver = ev_receiver
-          ),
-          if (pending_rc_bc_cols > 0L) {
-            do.call(cbind, pending_rc_bc)
-          } else {
-            matrix(0, 4L, 0L)
-          }
+          )
         )
-        pending_rc <- list()
-        pending_rc_cols <- 0L
-        pending_rc_bc <- list()
-        pending_rc_bc_cols <- 0L
       }
 
       if (!final_step) {
@@ -1788,11 +1721,8 @@ run_dyad_recipe_loop <- function(
                 bcast_kind[gid],
                 gid
               )
-              pending_dep_bc[[length(pending_dep_bc) + 1L]] <- bc_block
-              pending_dep_bc_cols <- pending_dep_bc_cols + ncol(bc_block)
-              if (right_censored) {
-                pending_rc_bc[[length(pending_rc_bc) + 1L]] <- bc_block
-                pending_rc_bc_cols <- pending_rc_bc_cols + ncol(bc_block)
+              for (cs in consumers) {
+                consumer_accumulate_broadcast(cs, bc_block)
               }
             } else {
               block <- rbind(
@@ -1801,11 +1731,8 @@ run_dyad_recipe_loop <- function(
                 gid - 1,
                 updates[, "replace"]
               )
-              pending_dep[[length(pending_dep) + 1L]] <- block
-              pending_dep_cols <- pending_dep_cols + ncol(block)
-              if (right_censored) {
-                pending_rc[[length(pending_rc) + 1L]] <- block
-                pending_rc_cols <- pending_rc_cols + ncol(block)
+              for (cs in consumers) {
+                consumer_accumulate_point(cs, block)
               }
             }
           }
@@ -1828,11 +1755,8 @@ run_dyad_recipe_loop <- function(
               initialStats[cbind(cells[, 1], cells[, 2], ig)] <- prodv
             } else {
               block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
-              pending_dep[[length(pending_dep) + 1L]] <- block
-              pending_dep_cols <- pending_dep_cols + ncol(block)
-              if (right_censored) {
-                pending_rc[[length(pending_rc) + 1L]] <- block
-                pending_rc_cols <- pending_rc_cols + ncol(block)
+              for (cs in consumers) {
+                consumer_accumulate_point(cs, block)
               }
             }
           }

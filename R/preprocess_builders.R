@@ -645,7 +645,7 @@ build_update_plan <- function(
 #' @param objects_registry the `objects` registry from `build_update_plan()`.
 #'
 #' @return a list of aligned vectors: `time`, `shape`, `target`,
-#'   `semantics`, `sender`, `receiver`, `node`, `value`, `dependent`,
+#'   `semantics`, `sender`, `receiver`, `node`, `value`, `dependent`, `flavor`,
 #'   `stream`, and the scalar `n`.
 #' @noRd
 build_event_schedule <- function(
@@ -676,6 +676,9 @@ build_event_schedule <- function(
   node <- rep(NA_integer_, n_total)
   value <- vector("list", n_total)
   stream <- integer(n_total)
+  # Only a competing-processes dependent stream carries `flavor`; every other
+  # stream is state-only and stays NA, so the routing reads NA for them.
+  flavor <- rep(NA_character_, n_total)
 
   offset <- 0L
   for (s in seq_len(n_streams)) {
@@ -701,6 +704,9 @@ build_event_schedule <- function(
       shape[idx] <- "global"
     }
     value[idx] <- as.list(stream_df[[stream_semantics]])
+    if ("flavor" %in% cols) {
+      flavor[idx] <- as.character(stream_df$flavor)
+    }
     offset <- offset + rows
   }
 
@@ -716,6 +722,7 @@ build_event_schedule <- function(
     node = node[ordering],
     value = value[ordering],
     dependent = stream[ordering] == 1L,
+    flavor = flavor[ordering],
     stream = stream[ordering],
     n = n_total
   )

@@ -160,6 +160,73 @@ project_update_block <- function(block, gid_lookup) {
 # the right-censored buffer.
 # =========================================================================== #
 
+# Build the recipe loop's consumer list, initializing each consumer's writer.
+#
+# `consumer_specs = NULL` is the single-output default: one consumer wrapping
+# the loop's own writer with the identity projection, initialized exactly as the
+# single-writer loop did, so plain and single-flavor preprocessing is unchanged.
+# Otherwise each spec (`writer`, `effect_map`, `has_intercept`) becomes a
+# consumer initialized with its LOCAL statistics dimensions -- its own column
+# count, its own initial statistics (the union columns it uses), and its own
+# right-censoring -- over the shared union walk.
+#
+# `initial_stats_fn` stays a thunk all the way down: the recipe applies
+# pre-start updates to `initialStats` after this call, and the writers read it
+# only at finalize.
+init_consumers <- function(
+  consumer_specs,
+  writer,
+  right_censored,
+  spec,
+  dims,
+  initial_stats_fn
+) {
+  writer_dims <- function(n_effects, has_intercept) {
+    list(
+      nEffects = n_effects,
+      n1 = dims$n1,
+      n2 = dims$n2,
+      is_sender = dims$is_sender,
+      has_intercept = has_intercept,
+      buf_capacity = max(1000, as.double(n_effects) * dims$n_dependent),
+      max_store = dims$max_store
+    )
+  }
+
+  if (is.null(consumer_specs)) {
+    writer$init(
+      spec,
+      c(
+        writer_dims(dims$nEffects, right_censored),
+        list(initial_stats_fn = initial_stats_fn)
+      )
+    )
+    return(list(new_consumer(writer, right_censored = right_censored)))
+  }
+
+  consumers <- lapply(consumer_specs, function(cspec) {
+    effect_map <- cspec$effect_map
+    cspec$writer$init(
+      spec,
+      c(
+        writer_dims(length(effect_map), cspec$has_intercept),
+        list(
+          initial_stats_fn = function() {
+            initial_stats_fn()[, effect_map, drop = FALSE]
+          }
+        )
+      )
+    )
+    new_consumer(
+      cspec$writer,
+      gid_lookup = flavor_gid_lookup(effect_map, dims$nEffects),
+      right_censored = cspec$has_intercept
+    )
+  })
+  names(consumers) <- names(consumer_specs)
+  consumers
+}
+
 new_consumer <- function(writer, gid_lookup = NULL, right_censored = FALSE) {
   e <- new.env(parent = emptyenv())
   e$writer <- writer
@@ -239,6 +306,40 @@ consumer_write_dependent <- function(cs, event_info) {
   cs$pending_dep_bc_cols <- 0L
   cs$pending_rc_bc <- list()
   cs$pending_rc_bc_cols <- 0L
+  invisible(NULL)
+}
+
+# Route a dependent event over the consumer set: it is the dependent
+# observation of its own flavor's process, and an interval boundary -- a
+# right-censored row -- for every other right-censoring process, since the event
+# ends an interval of their rate integrals too. A single-output walk carries no
+# flavor and has no other consumers, so it writes exactly the one dependent row
+# it always did.
+route_dependent_event <- function(
+  consumers,
+  rc_consumers,
+  flavor,
+  event_info
+) {
+  own <- if (is.na(flavor)) consumers[[1L]] else consumers[[flavor]]
+  consumer_write_dependent(own, event_info)
+  if (event_info$interval > 0) {
+    event_info$is_dependent <- 0L
+    for (cs in rc_consumers) {
+      if (!identical(cs, own)) {
+        consumer_write_rc(cs, event_info)
+      }
+    }
+  }
+  invisible(NULL)
+}
+
+# Route a non-dependent (state-only) event: an interval boundary for every
+# right-censoring process.
+route_right_censored_event <- function(rc_consumers, event_info) {
+  for (cs in rc_consumers) {
+    consumer_write_rc(cs, event_info)
+  }
   invisible(NULL)
 }
 
