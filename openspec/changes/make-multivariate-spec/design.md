@@ -100,6 +100,56 @@ optional because the separate pass is what keeps the unconstrained statistics
 path untouched, and that isolation is a baseline-safety property worth a
 deliberate trade rather than an incidental one.
 
+### D3c — One shared atom pool; masks are per-fid projections of it
+The mask machinery gets the treatment the effect statistics already got: one
+shared computation, many cheap projections.
+
+`preprocess_support_mask()` already splits the two internally — `apply_atom_event()`
+maintains one dense matrix per atom, `eval_mask()` projects them through the
+constraint's boolean tree — but it takes ONE `sub_plan` and ONE `snapshot_times`,
+so it is instantiated per output and re-walks the atoms every time. A two-flavor
+rate+choice specification therefore runs four atom walks (and holds four copies of
+the atom matrices) for what is structurally one atom stream.
+
+The key observation is that a `mutually_exclusive` layer's derived constraints are
+different EXPRESSIONS over the SAME ATOMS: creation is `!tie(L)`, dissolution is
+`tie(L)`, and AND-composing a user constraint `U` gives `!tie(L) & U` / `tie(L) & U`
+— atom set `{tie(L)} ∪ atoms(U)` either way. Atom maintenance is the expensive part
+(walking event streams, calling update closures, dense per-atom matrices);
+evaluating the tree is elementwise boolean work over matrices already in hand. So
+the union is taken over ATOMS, deduplicated by atom identity exactly as the effect
+union deduplicates by canonical term label, and each fid keeps its own `expr` and
+its own snapshot times.
+
+Counts for a two-flavor rate+choice specification:
+
+| | atom walks | atom matrix copies |
+|---|---|---|
+| today | 4 (per output) | 4 |
+| per-`constraint_id` sharing | 2 | 2 |
+| **shared atom pool (this decision)** | **1** | **1** |
+
+This subsumes the weaker per-`constraint_id` sharing (which only merges the rate
+and choice fids of one flavor) and generalizes: in the multivariate case atom sets
+across processes overlap partially rather than totally, and a union handles both.
+Evaluation cost does not collapse and should not — each fid genuinely needs its own
+mask at its own times.
+
+*Kill condition:* this decision is worth implementing only if atom maintenance is a
+substantial share of the mask pass. If task 3.0's within-pass split shows evaluation
+dominating, pooling the atoms buys little however large the pass is, and D3c is
+dropped — the table above counts atom walks, which is the right unit only when
+walking is what costs.
+
+Consequence for D3b: this captures the atom-sharing win **without** putting
+constraint code on the main walk's hot path, so it preserves the isolation that
+keeps the unconstrained statistics path provably untouched. If 3.0's measurement
+lands in the middle, do this first and re-measure before considering D3b's fold at
+all. *Rejected:* deriving one flavor's mask as the elementwise complement of
+another's — true only for the dichotomous mutually-exclusive case with no user
+constraint, and the expression tree is general; the shared atom pool gets the same
+win without special-casing.
+
 ### D4 — Coupling: direct reference; inform when partial, abort when total
 A fid is **coupled** iff any effect argument or support-constraint atom in its
 formula reads a panel-observed layer's state. Direct reference only: observed

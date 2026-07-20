@@ -48,21 +48,46 @@
 
 ## 3. Merged single-clock walk
 
-- [ ] 3.0 Spike (runnable NOW, before the merge — the flavored driver already
-      realizes one mask pass per output): measure what fraction of
-      `t_preprocess_sec` the separate constraint-mask pass costs, using
-      `.plan/profile_goldfish.R` (it already reports the preprocess/estimate
-      split and `object_size_bytes`). Compare constrained vs unconstrained runs
-      of the same model on a mid-size and a large dataset, and record the rows.
-      This decides design D3b's optional refinement — folding constraint-atom
-      maintenance into the merged walk — which trades the separate pass's
+- [ ] 3.0 Spike (runnable NOW, before the merge — `preprocess_support_mask()`
+      runs today on any constrained model, so this needs neither flavors nor
+      the merged walk): measure what fraction of `t_preprocess_sec` the separate
+      constraint-mask pass costs, using `.plan/profile_goldfish.R` (it already
+      reports the preprocess/estimate split and `object_size_bytes`). Compare
+      constrained vs unconstrained runs of the SAME single-process model on a
+      mid-size and a large dataset, and record the rows. Then repeat on a
+      two-flavor rate+choice spec: mask passes scale with output count (4 today
+      for 2 flavors), so the flavored case shows the share the multivariate case
+      will amplify — flavors change the magnitude, not the measurability.
+      Split the pass's own cost into atom MAINTENANCE (`apply_atom_event()`,
+      which shared-atom pooling removes N-1 copies of) and mask EVALUATION
+      (`eval_mask()`, which cannot collapse — every fid needs its own mask at
+      its own times); `profvis` or a counter around the two closures suffices,
+      the ratio matters more than the absolute. The two numbers decide two
+      different questions and must not be conflated:
+      - the pass's SHARE of `t_preprocess_sec` decides D3b's fold (is the
+        separate pass worth optimizing at all);
+      - the MAINTENANCE share WITHIN the pass decides D3c / task 3.0b (is
+        atom pooling worth doing) — if evaluation dominates, pooling buys
+        little no matter how large the pass is.
+      Take D3b's trade only on a measured number: it spends the separate pass's
       isolation (the property that keeps the unconstrained statistics path, and
       therefore the frozen 1e-6 baselines, provably untouched) for one shared
-      atom-maintenance pass. Take the trade only on a measured number: if the
-      mask pass is a few percent of preprocessing the isolation is nearly free
-      and the refinement is dropped; if it is a large share at realistic sizes,
-      schedule it with an explicit baseline-safety plan. Write the outcome into
-      D3b either way.
+      atom-maintenance pass. If the mask pass is a few percent of preprocessing
+      the isolation is nearly free and the refinement is dropped; if it is a
+      large share, do 3.0b FIRST (it captures the atom-sharing win without
+      touching the hot path) and re-measure before considering the fold at all.
+      Write both numbers and the outcome into D3b and D3c.
+- [ ] 3.0b Verify and then implement the shared-atom mask pass (design D3c).
+      `preprocess_support_mask()` already separates atom MAINTENANCE
+      (`apply_atom_event()`) from mask EVALUATION (`eval_mask()` projecting the
+      atoms through the boolean tree), but is instantiated once per output, so
+      the atoms are re-walked per fid. Verify first, on the landed two-flavor
+      fixture, that (a) evaluating a fid's `expr` at a superset of snapshot
+      times and slicing its own subset is exact, and (b) the per-output fold
+      steps consume the sliced support unchanged. Then maintain the UNION of all
+      constraints' atoms once and evaluate each fid's own `expr` at its own
+      snapshot times over that shared atom state. Independent of the merged
+      walk — extractable to its own change if section 3 stalls.
 - [ ] 3.1 Merge the sender and dyad recipe walks into one clock hosting both
       statistic blocks, consumers attached per fid; single-process and flavored
       specifications route through the merged walk byte-identically
