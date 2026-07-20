@@ -247,9 +247,13 @@ add_flavor <- function(
   x,
   layer,
   values_equivalence,
-  flavor_style = "mutually_exclusive"
+  flavor_style = c("mutually_exclusive", "redundant")
 ) {
   call <- rlang::current_env()
+  # `arg_match()` rather than `match.arg()`: the allowed values then read off
+  # the signature, and a typo gets an rlang-styled error with a "did you mean"
+  # suggestion instead of base R's bare `'arg' should be one of`.
+  flavor_style <- rlang::arg_match(flavor_style)
   if (!is.list(x) || is.null(x$ties) || is.null(x$ties$layer)) {
     cli::cli_abort(
       c(
@@ -271,7 +275,6 @@ add_flavor <- function(
     )
   }
 
-  validate_flavor_style(flavor_style, call = call)
   update <- unname((x$info %||% list())$update[layer])
   validate_flavor_mapping(values_equivalence, layer, update, call = call)
 
@@ -311,5 +314,85 @@ add_flavor <- function(
   veq[[layer]] <- values_equivalence
   x$info$values_equivalence <- veq
 
+  if (identical(flavor_style, "mutually_exclusive")) {
+    warn_style_contradicted(x, layer, values_equivalence, call = call)
+  }
+
   x
+}
+
+# Check a `mutually_exclusive` declaration against the events it describes.
+#
+# The style makes a specification derive complementary masks -- the flavor at
+# the higher mapped value is supportable only where the tie is absent, the
+# lower one only where it is present. So the declaration is contradicted
+# exactly when an observed event lands where its own mask forbids it, which is
+# the "observed dyad is excluded" abort estimation would raise later. Checking
+# here reports it against the declaration the user just made, naming the first
+# event, rather than as a preprocessing failure much further downstream.
+#
+# The predicate is deliberately narrow. Neither a history value above 1 nor a
+# state that accumulates is wrong on its own: a dyad lifted by history and never
+# re-created contradicts nothing. Only an event does.
+warn_style_contradicted <- function(x, layer, values_equivalence, call) {
+  ties <- as.data.frame(x$ties)
+  rows <- which(ties$layer == layer)
+  if (length(rows) == 0L) {
+    return(invisible(NULL))
+  }
+  ties <- ties[rows, , drop = FALSE]
+  weight <- if ("weight" %in% names(ties)) ties$weight else rep(1, nrow(ties))
+  is_replace <- identical(
+    unname((x$info %||% list())$update[layer]),
+    "replace"
+  )
+  undirected <- isFALSE(unname((x$info %||% list())$directed[layer]))
+
+  key <- if (undirected) {
+    paste(pmin(ties$from, ties$to), pmax(ties$from, ties$to), sep = "-")
+  } else {
+    paste(ties$from, ties$to, sep = "-")
+  }
+  # History first (it seeds the state), then the events in time order.
+  ord <- order(
+    is.na(ties$time),
+    ties$time,
+    decreasing = c(TRUE, FALSE),
+    method = "radix"
+  )
+  creates <- names(values_equivalence)[
+    which.max(unname(values_equivalence))
+  ]
+
+  state <- new.env(parent = emptyenv())
+  for (i in ord) {
+    current <- if (is.null(state[[key[i]]])) 0 else state[[key[i]]]
+    if (!is.na(ties$time[i]) && !is.na(ties$flavor[i])) {
+      forbidden <- if (identical(ties$flavor[i], creates)) {
+        current != 0
+      } else {
+        current == 0
+      }
+      if (forbidden) {
+        labels <- x$nodes$label %||% as.character(seq_len(nrow(x$nodes)))
+        cli::cli_warn(
+          c(
+            "!" = "Layer {.val {layer}} is declared {.val mutually_exclusive},
+                 but an event contradicts it.",
+            "x" = "{.val {ties$flavor[i]}} at {.val {format(ties$time[i])}} on
+                 {.val {labels[ties$from[i]]}}–{.val {labels[ties$to[i]]}},
+                 whose state is already {.val {current}}.",
+            "i" = "A specification would put that dyad outside this flavor's
+                 risk set and fail when it reaches the observed event.",
+            "i" = "Use {.code flavor_style = \"redundant\"} if repeated
+                 same-direction events are meaningful here."
+          ),
+          call = call
+        )
+        return(invisible(NULL))
+      }
+    }
+    state[[key[i]]] <- if (is_replace) weight[i] else current + weight[i]
+  }
+  invisible(NULL)
 }

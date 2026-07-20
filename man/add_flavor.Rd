@@ -4,7 +4,12 @@
 \alias{add_flavor}
 \title{Mark a layer's ties with competing-process flavors}
 \usage{
-add_flavor(x, layer, values_equivalence, flavor_style = "mutually_exclusive")
+add_flavor(
+  x,
+  layer,
+  values_equivalence,
+  flavor_style = c("mutually_exclusive", "redundant")
+)
 }
 \arguments{
 \item{x}{a \code{stocnet} object (see \link{goldfish_data}).}

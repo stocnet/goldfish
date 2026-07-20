@@ -44,8 +44,7 @@
       add_flavor(x, "friendship", c(creation = 1, dissolution = -1), flavor_style = "both")
     Condition
       Error in `add_flavor()`:
-      ! `flavor_style` must be one of "mutually_exclusive" and "redundant".
-      x Got "both".
+      ! `flavor_style` must be one of "mutually_exclusive" or "redundant", not "both".
 
 ---
 
@@ -91,4 +90,16 @@
       ! `values_equivalence` must map exactly two states (a dichotomous layer).
       x Got 1 value for layer "friendship".
       i Only dichotomous state mappings are supported; a multistate encoding would accumulate (increment) or replace (replace) raw values -- consider `weighted = FALSE` in effect terms.
+
+# a declared mutually exclusive style is checked against the events
+
+    Code
+      invisible(add_flavor(fix, layer = "friendship", values_equivalence = c(
+        creation = 1, dissolution = -1)))
+    Condition
+      Warning in `add_flavor()`:
+      ! Layer "friendship" is declared "mutually_exclusive", but an event contradicts it.
+      x "creation" at "2" on "A"–"C", whose state is already 1.
+      i A specification would put that dyad outside this flavor's risk set and fail when it reaches the observed event.
+      i Use `flavor_style = "redundant"` if repeated same-direction events are meaningful here.
 

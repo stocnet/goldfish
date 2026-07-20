@@ -16,11 +16,17 @@ flavored_fixture <- function() {
 # A mutually-exclusive flavored layer stamped by add_flavor(): an increment layer
 # whose +1 rows are creation and -1 rows dissolution, with the flavor metadata
 # recorded in info. Two creation rows and one dissolution row over [1, 3].
+#
+# The dyads make this a VALID mutually exclusive stream: the dissolution lands
+# on the tie the history created, and the second creation on the dyad that
+# dissolution just cleared. An earlier version dissolved a dyad that never had a
+# tie and re-created one that already did, which is what produced the stray
+# "dissolving a tie which doesn't exist" warnings.
 me_flavored_fixture <- function() {
   x <- make_stocnet_fixture()
   x$ties <- data.frame(
-    from = c(1L, 2L, 3L, 1L),
-    to = c(2L, 3L, 1L, 2L),
+    from = c(1L, 2L, 1L, 1L),
+    to = c(2L, 3L, 2L, 2L),
     time = c(NA, 1, 2, 3),
     layer = "calls",
     weight = c(1, 1, -1, 1),
@@ -40,8 +46,8 @@ me_flavored_fixture <- function() {
 unflavored_increment_fixture <- function() {
   x <- make_stocnet_fixture()
   x$ties <- data.frame(
-    from = c(1L, 2L, 3L, 1L),
-    to = c(2L, 3L, 1L, 2L),
+    from = c(1L, 2L, 1L, 1L),
+    to = c(2L, 3L, 2L, 2L),
     time = c(NA, 1, 2, 3),
     layer = "calls",
     weight = c(1, 1, -1, 1),
@@ -357,10 +363,12 @@ test_that("an unflavored layer infers the mapping and says so", {
     )
   )
   expect_setequal(spec$modeled_flavors, c("creation", "dissolution"))
-  expect_equal(
-    deparse1(spec$processes$creation$derived_constraint),
-    "~!tie(calls)"
-  )
+  # Inference resolves the mapping and nothing else. A support constraint
+  # restricts the risk set, and the update values alone cannot say whether
+  # repeated same-direction events are meaningful -- an accumulating layer looks
+  # identical to a toggling one here. The style is the user's to declare.
+  expect_null(spec$processes$creation$derived_constraint)
+  expect_null(spec$processes$dissolution$derived_constraint)
 })
 
 test_that("a weighted layer aborts inference", {
@@ -506,4 +514,38 @@ test_that("a keyed entry must be a formula with the flavor on the left", {
       data = flavored_fixture()
     )
   )
+})
+
+test_that("a declared style with no mapping aborts instead of doing nothing", {
+  local_cli_context()
+  # Deriving a constraint needs both halves: the style says the flavors compete,
+  # the mapping says which one creates the tie. Declaring the style alone used
+  # to derive nothing and say nothing, leaving an unrestricted risk set the user
+  # believes is restricted.
+  x <- me_flavored_fixture()
+  x$info$values_equivalence <- NULL
+
+  expect_snapshot(
+    make_specification(
+      choice = list(creation ~ inertia, dissolution ~ inertia),
+      model = "DyNAM",
+      choice_sub_model = "choice",
+      data = x
+    ),
+    error = TRUE
+  )
+})
+
+test_that("a redundant style needs no mapping", {
+  x <- me_flavored_fixture()
+  x$info$values_equivalence <- NULL
+  x$info$flavor_style <- c(calls = "redundant")
+
+  spec <- make_specification(
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    data = x
+  )
+  expect_null(spec$processes$creation$derived_constraint)
 })

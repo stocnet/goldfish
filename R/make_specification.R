@@ -550,6 +550,23 @@ resolve_flavor_keys <- function(data, layer, flavors, info, call) {
     NULL
   }
   mapping <- info$values_equivalence[[layer]]
+  # Deriving a constraint needs both halves: the style says the flavors compete,
+  # the mapping says which flavor corresponds to which state value. Declaring
+  # the style alone used to derive nothing and say nothing, leaving the user
+  # with an unrestricted risk set they believe is restricted.
+  if (identical(style, "mutually_exclusive") && is.null(mapping)) {
+    cli::cli_abort(
+      c(
+        "Layer {.val {layer}} is declared {.val mutually_exclusive} but carries
+         no {.field values_equivalence}.",
+        "x" = "Without the mapping there is no way to tell which flavor creates
+               the tie and which dissolves it, so no support constraint can be
+               derived.",
+        "i" = "Set both with {.fn add_flavor}."
+      ),
+      call = call
+    )
+  }
 
   if (length(present) > 0) {
     unknown <- setdiff(flavors, present)
@@ -567,7 +584,13 @@ resolve_flavor_keys <- function(data, layer, flavors, info, call) {
   }
 
   inferred <- infer_flavor_mapping(data, layer, info, flavors, call = call)
-  list(mapping = inferred, style = "mutually_exclusive")
+  # Inference resolves the MAPPING only. It deliberately assigns no style: a
+  # support constraint restricts the risk set, which is a modeling decision, and
+  # nothing in an unflavored layer's update values expresses whether repeated
+  # same-direction events are meaningful. A layer whose ±1 increments accumulate
+  # (treaties signed again and again) looks identical here to one that toggles.
+  # The user declares the style through `add_flavor()`.
+  list(mapping = inferred, style = NULL)
 }
 
 # Infer a creation/dissolution mapping for an unflavored layer from its update
@@ -617,7 +640,9 @@ infer_flavor_mapping <- function(data, layer, info, flavors, call) {
   cli::cli_inform(c(
     "i" = "Layer {.val {layer}} is unflavored; assuming
            {.val creation} = {mapping[['creation']]} and
-           {.val dissolution} = {mapping[['dissolution']]}."
+           {.val dissolution} = {mapping[['dissolution']]}.",
+    "i" = "No support constraint is derived from an assumed mapping; use
+           {.fn add_flavor} with {.arg flavor_style} to declare one."
   ))
   mapping
 }

@@ -85,6 +85,7 @@
         inertia), model = "DyNAM", choice_sub_model = "choice", data = unflavored_increment_fixture())
     Message
       i Layer "calls" is unflavored; assuming "creation" = 1 and "dissolution" = -1.
+      i No support constraint is derived from an assumed mapping; use `add_flavor()` with `flavor_style` to declare one.
 
 # a weighted layer aborts inference
 
@@ -184,4 +185,15 @@
       Error in `make_specification()`:
       ! `choice`'s entries must be formulas whose left-hand side is the flavor.
       i For example `choice = list(creation ~ 1 + indeg())`.
+
+# a declared style with no mapping aborts instead of doing nothing
+
+    Code
+      make_specification(choice = list(creation ~ inertia, dissolution ~ inertia),
+      model = "DyNAM", choice_sub_model = "choice", data = x)
+    Condition
+      Error in `make_specification()`:
+      ! Layer "calls" is declared "mutually_exclusive" but carries no values_equivalence.
+      x Without the mapping there is no way to tell which flavor creates the tie and which dissolves it, so no support constraint can be derived.
+      i Set both with `add_flavor()`.
 

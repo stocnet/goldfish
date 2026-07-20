@@ -7,6 +7,12 @@ local_cli_context <- function(env = parent.frame()) {
 # A one-mode increment layer with +-1 weights and a NA-time history row: the
 # creation/dissolution shape add_flavor() is built for, assembled without any
 # manynet call.
+#
+# The dyads are chosen so the stream is a VALID mutually exclusive sequence --
+# each creation lands on an absent tie and each dissolution on a present one.
+# Keep it that way: the default `flavor_style` is mutually_exclusive, and
+# add_flavor() now warns when an event contradicts the declared style, so
+# collapsing these onto one dyad would make every test here emit that warning.
 make_flavor_fixture <- function() {
   nodes <- data.frame(
     label = c("A", "B", "C"),
@@ -15,7 +21,7 @@ make_flavor_fixture <- function() {
   )
   ties <- data.frame(
     from = c(1L, 1L, 2L, 1L),
-    to = c(2L, 2L, 3L, 2L),
+    to = c(2L, 3L, 3L, 2L),
     time = c(NA, 1, 2, 3),
     weight = c(1, 1, 1, -1),
     layer = "friendship",
@@ -62,6 +68,11 @@ test_that("add_flavor leaves history (NA-time) rows unflavored", {
 test_that("add_flavor stamps a replace layer from 1/0", {
   fix <- make_flavor_fixture()
   fix$info$update <- c(friendship = "replace")
+  # Its own dyads: under replace the state is the value, so a legal
+  # creation/dissolution/creation sequence needs the dissolution to land on the
+  # dyad the history set and the second creation on the one it just cleared.
+  fix$ties$from <- c(1L, 2L, 1L, 1L)
+  fix$ties$to <- c(2L, 3L, 2L, 2L)
   fix$ties$weight <- c(1, 1, 0, 1)
 
   x <- add_flavor(
@@ -178,4 +189,67 @@ test_that("the validator rejects malformed flavor metadata on info", {
   bad_mapping <- x
   bad_mapping$info$values_equivalence <- list(friendship = c(creation = 5))
   expect_snapshot(validate_goldfish_data(bad_mapping), error = TRUE)
+})
+
+test_that("a declared mutually exclusive style is checked against the events", {
+  local_cli_context()
+  # Two creations on one dyad with no dissolution between them: the second
+  # lands where a derived `!tie()` mask would forbid it, which is the
+  # "observed dyad is excluded" failure estimation would raise later.
+  fix <- make_flavor_fixture()
+  fix$ties$from <- c(1L, 1L, 1L, 1L)
+  fix$ties$to <- c(2L, 3L, 3L, 2L)
+  fix$ties$weight <- c(1, 1, 1, -1)
+
+  expect_snapshot(
+    invisible(add_flavor(
+      fix,
+      layer = "friendship",
+      values_equivalence = c(creation = 1, dissolution = -1)
+    ))
+  )
+})
+
+test_that("the style check passes on a valid stream and on redundant", {
+  fix <- make_flavor_fixture()
+  expect_no_warning(
+    add_flavor(
+      fix,
+      layer = "friendship",
+      values_equivalence = c(creation = 1, dissolution = -1)
+    )
+  )
+
+  # Repeated same-direction events are the point of `redundant`, so the check
+  # does not apply to it at all.
+  repeated <- fix
+  repeated$ties$from <- c(1L, 1L, 1L, 1L)
+  repeated$ties$to <- c(2L, 3L, 3L, 2L)
+  expect_no_warning(
+    add_flavor(
+      repeated,
+      layer = "friendship",
+      values_equivalence = c(creation = 1, dissolution = -1),
+      flavor_style = "redundant"
+    )
+  )
+})
+
+test_that("history alone never contradicts the style", {
+  # A dyad lifted to 2 by history and then dissolved: the state is not binary,
+  # but no event lands where its own mask forbids it, so nothing is wrong. The
+  # check is about events, not about the trajectory.
+  fix <- make_flavor_fixture()
+  fix$ties$from <- c(1L, 1L, 2L, 1L)
+  fix$ties$to <- c(2L, 2L, 3L, 2L)
+  fix$ties$time <- c(NA, NA, 1, 2)
+  fix$ties$weight <- c(1, 1, 1, -1)
+
+  expect_no_warning(
+    add_flavor(
+      fix,
+      layer = "friendship",
+      values_equivalence = c(creation = 1, dissolution = -1)
+    )
+  )
 })
