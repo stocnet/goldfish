@@ -45,6 +45,11 @@
   allowed values in the signature and is matched with `rlang::arg_match()`, so a
   typo gets a suggestion.
 
+* **R (>= 4.4.0) is now required.** The declared minimum was 4.1.0, but the
+  package has been using base R's `%||%` since 1.9.0 and that operator entered
+  base in 4.4.0, so installation on 4.1--4.3 failed at load. The declaration now
+  matches what the code needs.
+
 # goldfish 1.9.2
 
 ## New features

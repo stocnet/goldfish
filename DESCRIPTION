@@ -32,7 +32,7 @@ Description: Tools for fitting statistical network models to dynamic network dat
    Hoffman et al. (2020) <doi:10.1017/nws.2020.3>.
 URL: https://stocnet.github.io/goldfish/ 
 BugReports: https://github.com/stocnet/goldfish/issues/ 
-Depends: R (>= 4.1.0)
+Depends: R (>= 4.4.0)
 Imports:
     Rcpp (>= 1.0.1),
     changepoint,
