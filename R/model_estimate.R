@@ -1621,8 +1621,8 @@ estimate_wrapper <- function(
     # The formula, nodes, nodes2 are added to the preprocessed object so that
     # we can call the estimation with preprocessing_init later
     # (for parsing AND composition changes)
-    decorate <- function(p) {
-      p$formula <- formula
+    decorate <- function(p, own_formula = formula) {
+      p$formula <- own_formula
       p$model <- model
       p$sub_model <- legacy_sub_model
       p$nodes <- .nodes
@@ -1631,11 +1631,18 @@ estimate_wrapper <- function(
       p
     }
     # A multi-flavor walk emits one object per consumer, so the decoration that
-    # makes an object estimable on its own is applied to each of them.
+    # makes an object estimable on its own is applied to each of them. Each
+    # carries its OWN formula, not the union that drove the walk: its statistics
+    # columns are the projection onto that formula's effects, so stamping the
+    # union here would describe columns the object does not hold and misalign
+    # any later `preprocessing_init` re-parse.
     prep <- if (is.null(flavor_plan)) {
       decorate(prep)
     } else {
-      lapply(prep, decorate)
+      lapply(names(prep), function(key) {
+        decorate(prep[[key]], flavor_plan$consumers[[key]]$formula)
+      }) |>
+        stats::setNames(names(prep))
     }
   }
 

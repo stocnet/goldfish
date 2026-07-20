@@ -146,6 +146,34 @@ test_that("choice sub-models carry no cross-flavor right-censoring", {
   expect_true(all(dissolution$is_dependent == 1L))
 })
 
+test_that("each object carries its own formula, not the union", {
+  out <- goldfish:::preprocess_flavored(two_flavor_spec())
+
+  # The union formula that drove the walk is `~ 1 + indeg + outdeg`, but each
+  # object holds only its own projected columns, so stamping the union here
+  # would describe columns the object does not have — and misalign the effect
+  # matching of any later `preprocessing_init` re-parse.
+  creation <- prep_of(out, "creation", "rate")
+  dissolution <- prep_of(out, "dissolution", "rate")
+
+  expect_equal(deparse1(creation$formula), "calls ~ 1 + indeg")
+  expect_equal(deparse1(dissolution$formula), "calls ~ 1 + indeg + outdeg")
+
+  # The invariant behind it: the stored formula's effect count matches the
+  # object's statistics columns, for every process.
+  map <- attr(out, "process_map")
+  for (i in seq_len(nrow(map))) {
+    prep <- out[[as.character(map$fid[i])]]
+    n_cols <- if (identical(map$family[i], "rate")) {
+      ncol(prep$initialStats)
+    } else {
+      dim(prep$initialStats)[3]
+    }
+    n_terms <- length(attr(stats::terms(prep$formula), "term.labels"))
+    expect_equal(n_cols, n_terms)
+  }
+})
+
 test_that("an effect shared across flavors is computed once", {
   union <- goldfish:::plan_flavor_union(two_flavor_spec(), "rate")
 

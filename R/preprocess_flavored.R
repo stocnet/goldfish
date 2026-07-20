@@ -630,7 +630,11 @@ preprocess_flavored <- function(
         flavor = fl,
         effect_map = union$effect_maps[[fl]],
         has_intercept = unname(union$has_intercept[[fl]]),
-        constraint_id = constraints$ids[[fl]]
+        constraint_id = constraints$ids[[fl]],
+        # This flavor's own two-sided formula: the object's statistics are the
+        # projection onto these effects, so this is what describes it, not the
+        # union formula that drove the shared walk.
+        formula = spec$processes[[fl]]$submodels[[family]]$formula
       )
     })
     names(consumer_plan) <- fid_keys
