@@ -2,9 +2,10 @@
 
 ### Requirement: Specification-derived flavor constraints ride the user-constraint machinery
 
-Support-constraint masks derived by `make_specification()` from a mutually exclusive
-flavored layer (per the `flavored-processes` capability) SHALL be compiled, stored, and
-maintained by the same machinery as user-supplied `support_constraint` formulas: each
+Derived flavor masks SHALL ride the user-constraint machinery: support-constraint
+masks derived by `make_specification()` from a mutually exclusive flavored layer (per
+the `flavored-processes` capability) are compiled, stored, and maintained exactly as
+user-supplied `support_constraint` formulas are: each
 flavor's derived formula is expressed in the restricted boolean-tree grammar over
 `tie(L)` atoms reading the modeled layer's evolving state (mask-reading atoms remain
 forbidden), AND-composed with any user constraint into one compiled mask per flavor,

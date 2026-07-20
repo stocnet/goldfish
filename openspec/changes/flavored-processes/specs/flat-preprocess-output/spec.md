@@ -12,7 +12,9 @@ estimation engine consumes it without restructuring. Within a flavor's object,
 right-censored entries, and on ordered/choice sub-models they SHALL appear only through
 their process-state statistic updates. The intercept scalars (`n_dep_events`,
 `total_time`, `avg_active_actors`) SHALL be per-flavor, with `avg_active_actors`
-computed over that flavor's post-constraint (derived + user mask) active set.
+computed over that flavor's post-constraint (derived + user mask) active set. The
+objects SHALL be delivered in the fid-indexed, process_map-carrying list defined by
+the `flavored-processes` capability.
 
 #### Scenario: per-flavor objects are engine-ready
 - **WHEN** a two-flavor DyNAM-rate specification is preprocessed

@@ -36,8 +36,8 @@ in effect terms.
 
 ### Requirement: Multi-flavor specifications derive per-flavor support constraints
 
-When a specification models K flavors on a `mutually_exclusive` layer,
-`make_specification()` SHALL derive one support-constraint formula per flavor from the
+`make_specification()` SHALL derive, when a specification models K flavors on a
+`mutually_exclusive` layer, one support-constraint formula per flavor from the
 layer state: the flavor mapped to state value v is supportable only where the current
 state differs from v (for a creation/dissolution pair: `creation → ~ !tie(L)`,
 `dissolution → ~ tie(L)`). Each derived formula SHALL be AND-combined with any
@@ -63,8 +63,8 @@ derived (and combined) support constraint.
 
 ### Requirement: Unflavored layers under a flavored model infer a default mapping
 
-When a flavor-keyed formula list targets a layer with no `flavor` column,
-`make_specification()` SHALL infer the mapping — increment layers with only ±1 updates
+`make_specification()` SHALL infer the mapping when a flavor-keyed formula list
+targets a layer with no `flavor` column — increment layers with only ±1 updates
 map `+1 = creation` / `-1 = dissolution`; replace layers with only 1/0 values map
 `1 = creation` / `0 = dissolution` — emitting a `cli_inform` that states the assumed
 mapping. The formula-list keys MUST match the inferred names. Ambiguous encodings
@@ -94,6 +94,32 @@ dependent event of flavor g is dependent in flavor g's output and right-censored
 every other flavor's output; on ordered and choice sub-models other-flavor events carry
 no right-censoring — they enter only as process-state updates. Each flavor's derived
 mask flips segment that flavor's right-censored timeline.
+
+The driver SHALL return, from a single call, a list of `preprocessed.goldfish`
+objects indexed by an integer formula id (fid), carrying a `process_map` table
+attribute — columns `fid`, `layer`, `flavor`, `family` (rate/choice), `stat_block`,
+`has_intercept`, `constraint_id` — as the identity authority. Support constraints
+SHALL be identified by one `constraint_id` per `(layer, flavor)`, carried by that
+flavor's rate and choice outputs, which SHALL resolve to the same constraint. Each
+output's mask SHALL be realized against its own stored event timeline, so outputs
+sharing a `constraint_id` may hold different mask sequences whenever their stored
+events differ (a timed rate output carries cross-flavor right-censored rows that a
+choice output does not). Human-readable labels in messages and results SHALL
+be rendered from the process_map, never parsed back from list keys.
+
+#### Scenario: fid-indexed return with process_map
+- **WHEN** a two-flavor DyNAM specification with rate and choice formulas is
+  preprocessed by a single driver call
+- **THEN** the result is four `preprocessed.goldfish` objects indexed by fid whose
+  process_map rows identify (layer, flavor, family), with creation's rate and choice
+  rows sharing one `constraint_id`.
+
+#### Scenario: one constraint, per-output mask timelines
+- **WHEN** creation's rate output stores its own events plus the dissolutions as
+  right-censored rows, while its choice output stores only its own events
+- **THEN** both outputs carry the same `constraint_id` and resolve to the same
+  constraint, and each holds a mask sequence aligned with its own stored events —
+  the rate output's being the longer of the two.
 
 #### Scenario: shared effect computed once
 - **WHEN** `indeg(friendship)` appears in both the creation and dissolution rate
@@ -136,7 +162,8 @@ Estimation of a multi-flavor specification SHALL fit each flavor's model separat
 its preprocessed object using the existing engines, and return a container object
 holding one result per flavor (and per sub-model for DyNAM). The container's `print()`
 SHALL render cli sections per flavor (rate and choice nested within a flavor for
-DyNAM); `coef()`, `vcov()`, and `logLik()` SHALL return flavor-named components, with
+DyNAM); `coef()`, `vcov()`, and `logLik()` SHALL return flavor-named components
+(labels rendered from the container's process_map), with
 the container's total log-likelihood the sum over flavors. Estimating flavor g through
 the container SHALL produce coefficients identical (within 1e-6) to a standalone
 single-flavor specification of flavor g with the equivalent derived constraint supplied

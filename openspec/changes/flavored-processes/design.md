@@ -15,7 +15,10 @@ this design records those answers as decisions.
 
 Sequencing: implementation starts after `refactor-single-data-object` lands (stocnet
 input, flavor seam, layer-info metadata). The follow-up `dynes-augmentation` change
-consumes this change's specification surface unchanged.
+consumes this change's specification surface unchanged, and the
+`make-multivariate-spec` spin-off (created 2026-07-20, post-2.0.0) extends this
+change's formula-identity vocabulary (D9) and consumer walk (D10) to multiple
+co-evolving processes.
 
 ## Goals / Non-Goals
 
@@ -64,6 +67,16 @@ over per-flavor masks and is amended before implementation if the note concludes
 otherwise. Everything downstream (intercepts, per-flavor `n_candidates`) hangs on this
 note, so it gates all implementation tasks.
 
+*Outcome (note written, `.plan/DyNES/flavored_likelihood_note.md`):* the factorization
+holds (block-diagonal Hessian; per-flavor estimation exact) and the intercept scalar is
+**per-flavor over the flavor's own post-constraint mask** — the spec expectation is
+confirmed, no amendment. The A5 intuition is reconciled: right-censored cross-flavor
+events enter each flavor's average as the mask-flip *boundaries* at which `|R_g(t)|` is
+re-read, not as a force toward a value common across flavors. One implementation
+refinement noted for task 4.3: the current single-process `avg_active_entity` is
+composition-only and per-interval; the per-flavor writer must average the masked
+`|R_g(t)|` weighted by interval length.
+
 ### D3 — One preprocessing pass; shared effects computed once; per-flavor outputs
 Preprocessing runs all flavors' formulas together in one event-loop pass: the union of
 effects is computed once (an effect appearing in several formulas contributes one
@@ -96,8 +109,8 @@ exact, not an approximation. `make_specification()` + multi-flavor estimation is
 wrapper over what could be K separate `estimate_*()` calls with derived constraints. The
 result is a new container class holding one goldfish result per flavor (and per
 sub-model for DyNAM), printed in cli sections per flavor. `coef()`, `vcov()`, `logLik()`
-on the container dispatch per flavor (named by flavor key); the joint log-likelihood is
-the sum. *Rejected:* one stacked estimation with block-diagonal parameters — identical
+on the container dispatch per flavor (component labels rendered from the process_map,
+per D9); the joint log-likelihood is the sum. *Rejected:* one stacked estimation with block-diagonal parameters — identical
 estimates by factorization, but complicates convergence control and standard errors for
 zero statistical gain.
 
@@ -145,6 +158,55 @@ events and no likelihood term; its events update process state (and right-censor
 sub-models per D3, since they are boundaries for every modeled flavor's rate integral).
 This is the single-flavor behavior from `refactor-single-data-object` D19 generalized to
 K modeled keys — the `NA`-flavor convention is unchanged.
+
+### D9 — Formula identity: integer fid with a process_map table (2026-07-20 interview)
+Every likelihood-producing formula of a specification gets an integer formula id
+(`fid`), and a `process_map` data frame — columns `fid`, `layer`, `flavor`, `family`
+(rate/choice), `stat_block`, `has_intercept`, `constraint_id` — is the **single
+identity authority**. The fid is canonical in code: `consumer_specs` and the returned
+preprocessed list are indexed by fid; compiled support constraints live in
+`plan$support_constraints` keyed by `constraint_id`, shared by a flavor's rate and
+choice fids (one constraint per `(layer, flavor)` — the rate side reads its row sums).
+
+*Clarification (2026-07-20, during implementation):* "shared by a flavor's rate and
+choice fids" means shared **identity**, not a single compilation. This change keeps
+two per-family walks (D10), so each family has its own `plan`, and each compiles its
+own copy of the constraint into its own `plan$support_constraints`; the two are tied
+together by carrying the same `constraint_id` in the process_map. That is the most the
+two-walk structure allows, and it is what the landed code does — not a shortfall
+against this decision. The literal single compile arrives with the merged one-clock
+walk, where one plan hosts both statistic blocks; `make-multivariate-spec` D3b records
+it, together with the verified finding that the compile is already family-invariant
+(so nothing must be disentangled first) and the caveat that compiling once never means
+snapshotting once — each fid's mask timeline follows its own stored events.
+Human-facing labels ("friendship › creation › rate") are **rendered from the table**
+for cli messages and `coef()` names, never load-bearing, never parsed back.
+*Rationale:* layer and flavor names are arbitrary user strings (dots and collisions
+make pasted keys like `"phone.calls.creation.rate"` unparseable), and the successors
+add dimensions — `make-multivariate-spec` adds rows for more layers (a K-flavored
+rate+choice process is 2K fids; a plain process 2), `dynes-augmentation` adds columns
+(coupling flags, augmentation provenance) — so identity must extend by rows/columns,
+not by redefining key formats. In this change the `layer` column is constant; the
+vocabulary is what the multivariate spin-off extends unchanged. *Rejected:* pasted
+character keys as canonical identity — their only value is presentation, which the
+rendered labels keep.
+
+### D10 — Walk-count-agnostic mapping; the physical merge and the evaluator are the spin-off's
+A consumer references `(stat_block, gid)`: gids are scoped **per statistic block** =
+(model, sub-model family, statistic dims), and deduplication happens only among
+formulas sharing the same effect dispatch — cross-*process* dedup within a family is
+the multivariate win; cross-*family* dedup is never attempted (`inertia(net)` in
+DyNAM-choice, choice_coordination, and REM resolve to different update functions even
+when mathematically kin). Whether one clock loop or two feeds the blocks is an
+implementation detail the mapping does not encode: this change keeps the two
+per-family walks (the frozen-baseline gate stays on the landed code), while the
+physical one-walk merge (one clock, sender + dyad blocks per event) and the
+stepping/injection walk handle (`walk_open`/`advance`/`evaluate`/`inject` for
+`simulate()` and the DyNES augmenter) are `make-multivariate-spec` deliverables. To
+keep that seam open, consumers stay separable into *compute* (projection over shared
+statistics) and *emit* (a pluggable target: the writer today, an evaluator later), and
+event routing goes through a `(layer, flavor) → fid` lookup rather than direct
+flavor-name indexing.
 
 ## Risks / Trade-offs
 
