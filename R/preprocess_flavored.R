@@ -309,6 +309,114 @@ consumer_write_dependent <- function(cs, event_info) {
   invisible(NULL)
 }
 
+# =========================================================================== #
+# Finalization: one output object per consumer.
+# =========================================================================== #
+
+# Close the walk. The single-output default finalizes the one writer and
+# realizes the plan's support mask exactly as before. A flavored walk finalizes
+# each consumer against its OWN inputs -- the union initial statistics projected
+# to its columns, and its own derived-plus-user constraint -- and returns a
+# flavor-named list of `preprocessed.goldfish` objects.
+#
+# `project_initial_stats` differs per loop (a sender kernel is indexed on its
+# second margin, a dyad array on its third), and `finish_output` carries each
+# loop's own mask realization and availability fold, applied to whichever
+# constraint the output it is finishing belongs to.
+finalize_consumers <- function(
+  consumers,
+  consumer_specs,
+  tail,
+  default_constraint,
+  project_initial_stats,
+  finish_output,
+  scalar_entity = "sender"
+) {
+  if (is.null(consumer_specs)) {
+    return(finish_output(
+      consumers[[1L]]$writer$finalize(tail),
+      default_constraint
+    ))
+  }
+
+  outputs <- lapply(names(consumers), function(fl) {
+    cspec <- consumer_specs[[fl]]
+    flavor_tail <- tail
+    flavor_tail$initialStats <- project_initial_stats(
+      tail$initialStats,
+      cspec$effect_map
+    )
+    out <- finish_output(
+      consumers[[fl]]$writer$finalize(flavor_tail),
+      cspec$constraint
+    )
+    if (!is.null(out$avg_active_entity)) {
+      out$avg_active_entity <- time_weighted_risk_set(out, scalar_entity)
+    }
+    out
+  })
+  names(outputs) <- names(consumers)
+  outputs
+}
+
+# A flavor's intercept scalar: the average size of its post-constraint risk set
+# over the observation window, weighted by how long each interval lasts --
+# (1/T) * integral |R_g(t)| dt, the quantity the baseline-rate starting value
+# `log(n_dep_events / total_time / avg_active_entity)` inverts.
+#
+# The single-process writer averages per stored event instead, which coincides
+# only when intervals are equally long. Competing processes make them uneven by
+# construction: each flavor's risk set is re-read at every other flavor's event
+# and at every flip of its own derived mask, so the sizes must be weighted by
+# the time they were in force.
+#
+# The entity is the one the sub-model's rate is defined over: active senders for
+# the actor-oriented rate, active dyads for the tie-oriented (REM) rate.
+time_weighted_risk_set <- function(out, entity) {
+  n_stored <- length(out$event_time)
+  if (n_stored == 0L) {
+    return(out$avg_active_entity)
+  }
+  presence <- if (identical(entity, "dyad")) {
+    walk_dyad_presence(out, n_stored)
+  } else {
+    walk_presence_buffer(
+      out$active_sender_init,
+      out$active_sender_update,
+      out$active_sender_update_pointer,
+      n_stored
+    )
+  }
+  sizes <- vapply(presence, sum, numeric(1))
+  total_time <- sum(out$intervals)
+  if (total_time <= 0) {
+    return(mean(sizes))
+  }
+  sum(out$intervals * sizes) / total_time
+}
+
+# Walk the folded dyad availability (the REM point encoding: a dense n1 x n2
+# init plus per-event `(node1, node2, replace)` flips) into one logical matrix
+# per stored event.
+walk_dyad_presence <- function(out, n_stored) {
+  cur <- out$active_dyad_init
+  update <- out$active_dyad_update
+  pointer <- out$active_dyad_update_pointer
+  res <- vector("list", n_stored)
+  prev <- 0L
+  for (e in seq_len(n_stored)) {
+    hi <- if (!is.null(pointer)) pointer[e] else 0L
+    if (hi > prev) {
+      cols <- (prev + 1L):hi
+      cur[cbind(update[1L, cols], update[2L, cols])] <-
+        as.logical(update[3L, cols])
+    }
+    prev <- hi
+    res[[e]] <- cur
+  }
+  res
+}
+
 # Route a dependent event over the consumer set: it is the dependent
 # observation of its own flavor's process, and an interval boundary -- a
 # right-censored row -- for every other right-censoring process, since the event

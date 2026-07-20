@@ -962,38 +962,49 @@ run_sender_recipe_loop <- function(
     close(pb)
   }
 
-  out <- writer$finalize(list(
-    spec = spec,
-    initialStats = initialStats,
-    active_sender_init = active_sender_init,
-    active_sender_changes = active_sender_changes,
-    active_dyad_init = active_dyad_init,
-    active_dyad_changes = active_dyad_changes,
-    startTime = startTime,
-    endTime = endTime,
-    intercept_scalars = intercept_scalars
-  ))
   # Rate models gate on the sender axis: the constraint mask is
   # realized dyad-shaped here (the same self-contained pass, aux dyad state)
   # and attached additively; the gather consumer reduces it to a per-sender gate.
   # A NULL sub-plan leaves the output unchanged.
-  if (!is.null(plan$support_constraint)) {
-    out$support_mask <- preprocess_support_mask(
-      plan$support_constraint,
-      model = spec$model,
-      nodes = nodes,
-      nodes2 = nodes2,
-      symmetric = FALSE,
-      snapshot_times = out$event_time,
-      src = src,
-      prep_envir = prep_envir
-    )
-    # Fold the constraint into `active_sender` during preprocessing: the
-    # row-reduction becomes net crossings on the availability
-    # object, and the estimation-time recombination is dropped.
-    out <- fold_active_sender_support(out, out$support_mask, active_dyad_init)
-  }
-  out
+  finalize_consumers(
+    consumers,
+    consumer_specs,
+    tail = list(
+      spec = spec,
+      initialStats = initialStats,
+      active_sender_init = active_sender_init,
+      active_sender_changes = active_sender_changes,
+      active_dyad_init = active_dyad_init,
+      active_dyad_changes = active_dyad_changes,
+      startTime = startTime,
+      endTime = endTime,
+      intercept_scalars = intercept_scalars
+    ),
+    default_constraint = plan$support_constraint,
+    project_initial_stats = function(stats, effect_map) {
+      stats[, effect_map, drop = FALSE]
+    },
+    finish_output = function(out, constraint) {
+      if (is.null(constraint)) {
+        return(out)
+      }
+      out$support_mask <- preprocess_support_mask(
+        constraint,
+        model = spec$model,
+        nodes = nodes,
+        nodes2 = nodes2,
+        symmetric = FALSE,
+        snapshot_times = out$event_time,
+        src = src,
+        prep_envir = prep_envir
+      )
+      # Fold the constraint into `active_sender` during preprocessing: the
+      # row-reduction becomes net crossings on the availability
+      # object, and the estimation-time recombination is dropped.
+      fold_active_sender_support(out, out$support_mask, active_dyad_init)
+    },
+    scalar_entity = "sender"
+  )
 }
 
 # Expand an operand effect's `(node1, node2, replace)` delta into the full-matrix
@@ -1786,57 +1797,71 @@ run_dyad_recipe_loop <- function(
     close(pb)
   }
 
-  out <- writer$finalize(list(
-    spec = spec,
-    initialStats = initialStats,
-    active_sender_init = active_sender_init,
-    active_sender_changes = active_sender_changes,
-    active_dyad_init = active_dyad_init,
-    active_dyad_changes = active_dyad_changes,
-    startTime = startTime,
-    endTime = endTime,
-    intercept_scalars = intercept_scalars
-  ))
-  # The support-constraint mask is realized in a self-contained pass over the
-  # constraint sub-plan. It is attached additively so the statistics
-  # output above is untouched; the gather consumer reads it per event. A NULL
-  # sub-plan (no constraint) leaves the output unchanged.
-  if (!is.null(plan$support_constraint)) {
-    out$support_mask <- preprocess_support_mask(
-      plan$support_constraint,
-      model = spec$model,
-      nodes = nodes,
-      nodes2 = nodes2,
-      symmetric = identical(spec$sub_model, "choice_coordination"),
-      snapshot_times = out$event_time,
-      src = src,
-      prep_envir = prep_envir
-    )
-    # Fold the constraint into `active_dyad` at its minimal encoding during
-    # preprocessing; estimation consumes it via the
-    # encoding accessors.
-    out <- fold_active_dyad_support(
-      out,
-      out$support_mask,
-      legacy_model_type(spec),
-      plan$support_constraint$mask_kind,
-      opportunitiesList = opportunitiesList
-    )
-  } else if (
-    !is.null(opportunitiesList) &&
-      spec$sub_model %in% c("choice", "choice_coordination")
-  ) {
-    # The deprecated opportunity list is a point-kind availability contribution
-    # fold it into the `active_dyad` point buffer during the
-    # preprocessing pass so estimation reads it through the point accessor
-    # instead of recomputing `seq_len(n2) %in% opportunitiesList[[i]]` on every
-    # Newton-Raphson iteration. Only the constraint-free case folds here — when a
-    # support_constraint is present its (still standalone) mask path intersects
-    # the user opportunity list, so both ride together until the mask path is
-    # retired with the engine wiring.
-    out <- fold_active_dyad_opportunity(out, opportunitiesList)
-  }
-  out
+  finalize_consumers(
+    consumers,
+    consumer_specs,
+    tail = list(
+      spec = spec,
+      initialStats = initialStats,
+      active_sender_init = active_sender_init,
+      active_sender_changes = active_sender_changes,
+      active_dyad_init = active_dyad_init,
+      active_dyad_changes = active_dyad_changes,
+      startTime = startTime,
+      endTime = endTime,
+      intercept_scalars = intercept_scalars
+    ),
+    default_constraint = plan$support_constraint,
+    project_initial_stats = function(stats, effect_map) {
+      stats[,, effect_map, drop = FALSE]
+    },
+    # The support-constraint mask is realized in a self-contained pass over the
+    # constraint sub-plan. It is attached additively so the statistics
+    # output is untouched; the gather consumer reads it per event. A NULL
+    # sub-plan (no constraint) leaves the output unchanged.
+    finish_output = function(out, constraint) {
+      if (!is.null(constraint)) {
+        out$support_mask <- preprocess_support_mask(
+          constraint,
+          model = spec$model,
+          nodes = nodes,
+          nodes2 = nodes2,
+          symmetric = identical(spec$sub_model, "choice_coordination"),
+          snapshot_times = out$event_time,
+          src = src,
+          prep_envir = prep_envir
+        )
+        # Fold the constraint into `active_dyad` at its minimal encoding during
+        # preprocessing; estimation consumes it via the
+        # encoding accessors.
+        return(fold_active_dyad_support(
+          out,
+          out$support_mask,
+          legacy_model_type(spec),
+          constraint$mask_kind,
+          opportunitiesList = opportunitiesList
+        ))
+      }
+      if (
+        !is.null(opportunitiesList) &&
+          spec$sub_model %in% c("choice", "choice_coordination")
+      ) {
+        # The deprecated opportunity list is a point-kind availability
+        # contribution: fold it into the `active_dyad` point buffer during the
+        # preprocessing pass so estimation reads it through the point accessor
+        # instead of recomputing `seq_len(n2) %in% opportunitiesList[[i]]` on
+        # every Newton-Raphson iteration. Only the constraint-free case folds
+        # here — when a support_constraint is present its (still standalone)
+        # mask path intersects the user opportunity list, so both ride together
+        # until the mask path is retired with the engine wiring.
+        out <- fold_active_dyad_opportunity(out, opportunitiesList)
+      }
+      out
+    },
+    # A tie-oriented rate integrates over dyads, so its intercept scalar counts
+    # active dyads rather than active senders.
+    scalar_entity = "dyad"
+  )
 }
 
 #' preprocess event and related objects describe in the formula to estimate
