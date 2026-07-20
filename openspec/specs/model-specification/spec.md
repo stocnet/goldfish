@@ -44,11 +44,13 @@ stocnet, so layer names are the only vocabulary. Placing a
 dependent-events object on the LHS SHALL be a clear error that directs the user to `layer`.
 `rate`/`choice` MAY be supplied as a **flavor-keyed `list`** (American spelling) whose
 formula LHS carries only the flavor symbol (e.g. `creation ~ ...`), never the
-dependent-events object: the named flavor selects which focal-layer rows are modeled
-(rows with any other or `NA` `flavor` update state only). In this change exactly ONE
-flavor key is supported — multiple keys SHALL abort pointing to the future
-multi-process change — and when both `rate` and `choice` are lists they MUST key the
-same flavor. A plain (non-list) formula on a focal layer that carries a `flavor` column
+dependent-events object: each named flavor selects the focal-layer rows modeled by its
+formula (rows whose flavor matches no key, including `NA`, update state only). One or
+MORE flavor keys SHALL be accepted — each key defines a parallel process on the same
+focal layer per the `flavored-processes` capability. Keys MUST be distinct, MUST resolve
+against the layer's flavor values (or the inferred default mapping on an unflavored
+layer), and when both `rate` and `choice` are flavor-keyed lists they MUST key the same
+flavor set. A plain (non-list) formula on a focal layer that carries a `flavor` column
 SHALL model all rows and emit a `cli_inform` making that visible. Legacy
 `make_dependent_events()`-wrapper data resolves the dependent-object name to (focal
 layer, its stamped flavor key) internally, without the inform.
@@ -60,10 +62,20 @@ layer, its stamped flavor key) internally, without the inform.
 - **THEN** only `creation` rows are modeled as dependent events while `dissolution` rows
   update the network state, reproducing the legacy filtered-dependent-events model.
 
-#### Scenario: Multiple flavor keys rejected for now
-- **WHEN** `rate = list(creation ~ ..., dissolution ~ ...)` is supplied
-- **THEN** the call aborts explaining one modeled flavor is supported and multi-process
-  estimation arrives with a later change.
+#### Scenario: Multiple flavor keys build parallel processes
+- **WHEN** `rate = list(creation ~ 1 + indeg(), dissolution ~ 1 + inertia())` is
+  supplied on a mutually exclusive flavored layer
+- **THEN** the specification carries both processes, each with its formulas and derived
+  support constraint, validated as one multi-process specification.
+
+#### Scenario: Mismatched rate/choice key sets rejected
+- **WHEN** `rate` keys {creation, dissolution} but `choice` keys only {creation}
+- **THEN** the call aborts stating rate and choice lists must key the same flavor set.
+
+#### Scenario: Unknown flavor key rejected
+- **WHEN** a formula list keys `deletion` but the layer's flavors are
+  {creation, dissolution}
+- **THEN** the call aborts listing the available flavor values.
 
 #### Scenario: Plain formula on a flavored layer informs
 - **WHEN** a plain `rate = ~ 1 + indeg()` is supplied and the focal layer has a `flavor`

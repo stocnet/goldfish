@@ -1,5 +1,15 @@
-## ADDED Requirements
+# flavored-processes Specification
 
+## Purpose
+Competing sub-processes of one relational layer modeled as K parallel processes:
+the `flavor_style` / `values_equivalence` layer-info metadata and the
+`add_flavor()` verb that records it, multi-flavor specifications and the support
+constraints a `mutually_exclusive` layer derives, a single preprocessing pass
+emitting one object per flavor with per-flavor intercept bookkeeping, and the
+sectioned multi-process result. The competing-process likelihood factorizes, so
+per-flavor estimation is exact rather than approximate. Created by archiving
+change flavored-processes.
+## Requirements
 ### Requirement: Flavor metadata lives in layer info; add_flavor stamps it
 
 The package SHALL support flavor semantics on an event layer through **layer-info
@@ -191,3 +201,4 @@ follow the same state-only convention.
   keys only creation and dissolution
 - **THEN** renewal events update the network state and right-censor both modeled
   flavors' timed outputs, and no renewal parameters are estimated.
+
