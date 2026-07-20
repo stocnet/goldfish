@@ -415,13 +415,20 @@ estimate_from_specification <- function(
              tolower(model))}}."
     ))
   }
+  # A multi-flavor specification is K parallel processes over one layer: it
+  # preprocesses in one pass and estimates per process, returning a container
+  # rather than a single fit.
   if (!is.null(spec$processes)) {
-    cli::cli_abort(c(
-      "Estimating a multi-flavor specification is not wired up yet.",
-      "x" = "This specification models {length(spec$processes)} flavors
-             ({.val {names(spec$processes)}}).",
-      "i" = "For now, estimate one flavor at a time with a single-key
-             specification and its derived {.arg support_constraint}."
+    return(estimate_flavored(
+      spec = spec,
+      model = model,
+      data = data,
+      control_estimation = control_estimation,
+      control_preprocessing = control_preprocessing,
+      preprocessing_init = preprocessing_init,
+      preprocessing_only = preprocessing_only,
+      progress = progress,
+      verbose = verbose
     ))
   }
   family <- if (sub_model %in% c("rate", "rate_ordered")) "rate" else "choice"
@@ -1773,7 +1780,12 @@ estimate_wrapper <- function(
     # Fail fast before the likelihood: excluded observed dyads / empty
     # risk sets error; forced choices and never-active nodes warn. Rate uses the
     # sender-gate policy; choice and REM both check the observed dyad directly.
-    validate_prep_support(prep, is_rate_family)
+    # A multi-flavor object was already validated at preprocessing time, with a
+    # message naming its process; re-running here would only duplicate every
+    # warning it emitted.
+    if (!isTRUE(prep$support_validated)) {
+      validate_prep_support(prep, is_rate_family)
+    }
     # `avg_active_entity` (the rate intercept init) is now computed during
     # preprocessing from the folded `active_sender`; no
     # estimation-time recombination.

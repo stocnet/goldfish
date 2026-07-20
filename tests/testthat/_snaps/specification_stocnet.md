@@ -127,16 +127,6 @@
       ! `rate` must be a flavor-keyed list when modeling several flavors.
       i Key it on the same flavors, e.g. `rate = list(creation ~ ..., dissolution ~ ...)`.
 
-# estimating a multi-flavor specification aborts for now
-
-    Code
-      estimate_dynam(spec, sub_model = "choice")
-    Condition
-      Error in `estimate_from_specification()`:
-      ! Estimating a multi-flavor specification is not wired up yet.
-      x This specification models 2 flavors ("creation" and "dissolution").
-      i For now, estimate one flavor at a time with a single-key specification and its derived `support_constraint`.
-
 # the multi-flavor print nests a section per flavor
 
     Code

@@ -678,11 +678,16 @@ preprocess_flavored <- function(
   # constraint leaves an empty risk set, and the message must say WHICH process
   # is empty -- the label is rendered from the map for that message alone.
   for (i in seq_len(nrow(process_map))) {
+    key <- as.character(process_map$fid[i])
     validate_prep_support(
-      outputs[[as.character(process_map$fid[i])]],
+      outputs[[key]],
       is_rate_family = identical(process_map$family[i], "rate"),
       process_label = render_process_label(process_map, process_map$fid[i])
     )
+    # Stamped so estimation does not re-run the same check and duplicate every
+    # warning it just emitted; the message here is the more useful of the two,
+    # since only this one can name the process.
+    outputs[[key]]$support_validated <- TRUE
   }
 
   structure(
