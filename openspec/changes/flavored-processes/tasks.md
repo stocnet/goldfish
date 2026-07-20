@@ -145,7 +145,7 @@
 
 ## 7. Fisheries flagship and milestone
 
-- [ ] 7.1 Reshape the flagship so it teaches the verb instead of hiding it.
+- [x] 7.1 Reshape the flagship so it teaches the verb instead of hiding it.
       `fisheries_treaties` currently ships with `ties$flavor` hand-stamped and
       NO `info` metadata — the discouraged path, and why declaring a style on it
       does nothing. Remove the `flavor` column from the shipped object,
@@ -207,7 +207,7 @@
 
       Do NOT add spec-delta requirements for section 6's behavior — considered
       and declined; the design record is deliberate.
-- [ ] 7.2 Verification: full `NOT_CRAN=true` run (PASS not SKIP); version bump in
+- [x] 7.2 Verification: full `NOT_CRAN=true` run (PASS not SKIP); version bump in
       DESCRIPTION + NEWS.md entry (multi-process estimation milestone); commit.
       Then a SEPARATE `fix:` commit raising `Depends: R (>= 4.4.0)` with its own
       NEWS line: the package already uses base `%||%` in 10+ files and that
