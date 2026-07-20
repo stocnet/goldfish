@@ -1,3 +1,29 @@
+# goldfish 1.9.2
+
+## New features
+
+* **Competing-process flavors (`add_flavor()`).** A relational-state layer --
+  friendship, treaties -- typically evolves through competing sub-processes:
+  ties are created and later dissolved. `add_flavor()` records that reading on a
+  `stocnet` object, stamping the reserved `ties$flavor` column from each event's
+  update value and recording the value->flavor mapping (`values_equivalence`)
+  and the `flavor_style` (`mutually_exclusive` / `redundant`) in the layer info.
+  It is thin -- it derives no support constraints. Only dichotomous states are
+  supported (increment `+1`/`-1`, replace `1`/`0`). *Experimental.*
+
+* **Multi-flavor specifications.** `make_specification()` accepts a flavor-keyed
+  `rate` / `choice` list with more than one key, e.g.
+  `list(creation ~ ..., dissolution ~ ...)`, building each flavor as a parallel
+  competing process on the same focal layer. On a `mutually_exclusive` layer
+  each flavor derives its own support constraint -- creation is supportable only
+  where no tie exists (`~ !tie(layer)`), dissolution only where one does
+  (`~ tie(layer)`) -- AND-composed with any user `support_constraint`. An
+  unflavored layer under a flavor-keyed list infers the mapping from its update
+  semantics and says so. When both `rate` and `choice` are keyed they must key
+  the same flavor set. The specification print nests one section per flavor.
+  Per-flavor preprocessing and estimation land in a following release; for now
+  estimate one flavor at a time. *Experimental.*
+
 # goldfish 1.9.1
 
 ## New features
