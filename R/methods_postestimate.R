@@ -110,3 +110,86 @@ vcov.result.goldfish <- function(object, complete = FALSE, ...) {
 
   return(structure(vc, dimnames = list(namesCoef, namesCoef)))
 }
+
+# =========================================================================== #
+# Multi-process (flavored) fits.
+#
+# The competing-flavor likelihood factorizes, so a container is K independent
+# fits rather than one joint fit with a block-diagonal parameter vector. The
+# extractors therefore return one COMPONENT per process instead of concatenating
+# into a single vector: stacking would imply a joint covariance the model never
+# estimated, and `vcov()` in particular has no meaningful stacked form -- the
+# cross-process blocks are structurally zero, not estimated to be zero.
+#
+# Component names are rendered from the process_map. They are labels for
+# reading, never identity: fids key the container, and a layer or flavor name
+# containing a dot or colliding with another must not be able to masquerade as
+# structure in a pasted key.
+# =========================================================================== #
+
+# process_map rows grouped by flavor, families in their map order within each.
+# The map itself stays in fid order -- that is the canonical identity order and
+# nothing reorders it -- but every user-facing view presents flavor-major,
+# because the flavor is the process a reader reasons about and its rate and
+# choice parts are two halves of one decision. Print and the extractors share
+# this so they cannot describe the same object in two different orders.
+flavored_row_order <- function(object) {
+  map <- object$process_map
+  unlist(
+    lapply(object$flavors, function(fl) which(map$flavor == fl)),
+    use.names = FALSE
+  )
+}
+
+# Rendered labels for the container's components, flavor-major.
+flavored_component_labels <- function(object) {
+  map <- object$process_map
+  vapply(
+    map$fid[flavored_row_order(object)],
+    function(f) render_process_label(map, f),
+    character(1)
+  )
+}
+
+#' @export
+#' @method coef flavored_result.goldfish
+#' @noRd
+coef.flavored_result.goldfish <- function(object, ..., complete = FALSE) {
+  fids <- object$process_map$fid[flavored_row_order(object)]
+  out <- lapply(fids, function(f) {
+    stats::coef(object$results[[as.character(f)]], complete = complete, ...)
+  })
+  stats::setNames(out, flavored_component_labels(object))
+}
+
+#' @export
+#' @method vcov flavored_result.goldfish
+#' @noRd
+vcov.flavored_result.goldfish <- function(object, complete = FALSE, ...) {
+  fids <- object$process_map$fid[flavored_row_order(object)]
+  out <- lapply(fids, function(f) {
+    stats::vcov(object$results[[as.character(f)]], complete = complete, ...)
+  })
+  stats::setNames(out, flavored_component_labels(object))
+}
+
+#' @export
+#' @method logLik flavored_result.goldfish
+#' @noRd
+logLik.flavored_result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
+  parts <- lapply(object$process_map$fid, function(f) {
+    stats::logLik(object$results[[as.character(f)]])
+  })
+  # The processes factorize, so the joint log-likelihood is the sum and the
+  # degrees of freedom add up. `nobs` sums each process's own event count, which
+  # differs between them: a timed rate process counts its right-censored rows,
+  # a choice process does not.
+  total <- sum(vapply(parts, as.numeric, numeric(1)))
+  n_obs <- sum(vapply(parts, function(p) attr(p, "nobs"), numeric(1)))
+  n_par <- sum(vapply(parts, function(p) attr(p, "df"), numeric(1)))
+
+  if (avgPerEvent) {
+    return(total / n_obs)
+  }
+  structure(total, nobs = n_obs, df = n_par, class = "logLik")
+}

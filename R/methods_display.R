@@ -539,6 +539,62 @@ print_flavor_processes <- function(x) {
   invisible(NULL)
 }
 
+# A multi-process fit prints one section per flavor, with that flavor's
+# sub-models nested inside it: the flavor is the process a reader reasons about,
+# and its rate and choice parts are two halves of one decision. Section labels
+# are rendered from the process_map rather than pasted from list keys, so a
+# layer or flavor name containing a dot or colliding with another cannot be
+# mistaken for structure.
+#' @export
+#' @method print flavored_result.goldfish
+#' @noRd
+print.flavored_result.goldfish <- function(
+  x,
+  ...,
+  digits = max(3, getOption("digits") - 2),
+  width = getOption("width"),
+  complete = FALSE
+) {
+  map <- x$process_map
+  cli::cli_rule(left = "{.cls flavored_result.goldfish}")
+  cli::cli_text(
+    "Model {.val {x$model}} · layer {.val {x$layer}} ·
+     {length(x$flavors)} flavor{?s}"
+  )
+
+  ordered_rows <- flavored_row_order(x)
+  for (fl in x$flavors) {
+    cli::cli_text("")
+    cli::cli_text("{.strong Flavor} {.val {fl}}")
+    for (i in ordered_rows[map$flavor[ordered_rows] == fl]) {
+      fit <- x$results[[as.character(map$fid[i])]]
+      family_label <- sub("^(.)", "\\U\\1", map$family[i], perl = TRUE)
+      cli::cli_text("{.field {family_label}}")
+      estimates <- stats::coef(fit, complete = complete)
+      if (length(estimates) == 0) {
+        cli::cli_text("No coefficients")
+        next
+      }
+      # Numeric tables stay on print.default: cli formats prose, not columns.
+      print.default(
+        format(estimates, digits = digits),
+        print.gap = 2,
+        quote = FALSE,
+        width = width,
+        ...
+      )
+    }
+  }
+
+  cli::cli_text("")
+  total <- stats::logLik(x)
+  cli::cli_text(
+    "Total log-likelihood {.val {round(as.numeric(total), digits)}}
+     on {attr(total, 'df')} parameter{?s}"
+  )
+  invisible(x)
+}
+
 #' @export
 #' @rdname print-method
 print.data.goldfish <- function(x, ...) {
