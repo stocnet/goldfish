@@ -201,6 +201,46 @@ test_that("a layer with no declaration stays one-mode over all nodes", {
   expect_true(map$layers[["report"]]$is_two_mode)
 })
 
+test_that("a multipartite object resolves each layer's own mode pair", {
+  x <- make_stocnet_fixture_multipartite()
+  expect_no_error(validate_goldfish_data(x))
+
+  layers <- c("attend", "coauthor", "member")
+  map <- build_mode_map(x$info, x$nodes, layers)
+
+  attend <- map$layers[["attend"]]
+  expect_true(attend$is_two_mode)
+  expect_equal(attend$side1, 1:3, label = "actors send")
+  expect_equal(attend$side2, 4:5, label = "events receive")
+
+  coauthor <- map$layers[["coauthor"]]
+  expect_false(coauthor$is_two_mode)
+  expect_identical(coauthor$side1, coauthor$side2)
+  expect_equal(coauthor$side1, 1:3)
+
+  member <- map$layers[["member"]]
+  expect_true(member$is_two_mode)
+  expect_equal(member$side1, 1:3)
+  expect_equal(member$side2, 6:7, label = "orgs receive")
+
+  # A covariate layer keeps its own local space rather than the focal pair's:
+  # `member`'s org receivers are 6 and 7 globally, local 1 and 2 on its side 2.
+  expect_equal(
+    remap_layer_refs(map, "member", c(1L, 3L), c(6L, 7L), x$nodes),
+    list(from = c(1L, 3L), to = c(1L, 2L))
+  )
+})
+
+test_that("the legacy two node-set fixture is a two-mode legacy bundle", {
+  fx <- make_legacy_fixture_twomode()
+
+  expect_s3_class(fx$membership, "network.goldfish")
+  expect_equal(dim(fx$membership), c(4L, 3L))
+  expect_true(attr(fx$membership, "is_two_mode"))
+  expect_equal(attr(fx$membership, "nodes"), c("actors", "clubs"))
+  expect_equal(attr(fx$joins_dependent, "nodes"), c("actors", "clubs"))
+})
+
 test_that("normalize_mode_sets recovers the per-layer sets", {
   layers <- c("advice", "report")
   expect_equal(
