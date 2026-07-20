@@ -671,7 +671,8 @@ preprocess_recipe <- function(
   support_constraint = NULL,
   writer = writer_default(),
   work_data = NULL,
-  modeled_flavor = NULL
+  modeled_flavor = NULL,
+  flavor_plan = NULL
 ) {
   spec_map <- build_spec_map(
     parsed_formula,
@@ -687,6 +688,19 @@ preprocess_recipe <- function(
     data = work_data,
     modeled_flavor = modeled_flavor
   )
+  # A multi-flavor walk drives K consumers instead of the single writer. The
+  # consumer specs can only be assembled here, after the spec_map has compiled
+  # each `(layer, flavor)` constraint into `plan$support_constraints`: a
+  # consumer carries the COMPILED sub-plan its mask is realized from, not the
+  # parsed one.
+  consumer_specs <- if (is.null(flavor_plan)) {
+    NULL
+  } else {
+    build_consumer_specs(
+      flavor_plan$consumers,
+      spec_map$plan$support_constraints
+    )
+  }
   # The recipe loop realizes derived inputs (from plan$derivations) and fetches
   # events (from spec$fetch_plan) inside state creation,
   # so no pre-fetched events list is threaded here.
@@ -697,7 +711,8 @@ preprocess_recipe <- function(
     opportunitiesList = control_preprocessing$opportunities_list,
     progress = progress,
     prep_envir = work_env,
-    writer = writer
+    writer = writer,
+    consumer_specs = consumer_specs
   )
   list(prep = prep, spec_map = spec_map)
 }
@@ -803,7 +818,8 @@ estimate_wrapper <- function(
   max_length = 63L,
   parsed_formula = NULL,
   support_constraint = NULL,
-  modeled_flavor = NULL
+  modeled_flavor = NULL,
+  flavor_plan = NULL
 ) {
   output <- match.arg(output)
 
@@ -852,6 +868,18 @@ estimate_wrapper <- function(
 
   if (is.null(progress)) {
     progress <- FALSE
+  }
+
+  # The multi-flavor walk emits one object per consumer, which only the
+  # preprocessing return shape can carry: the gather/db writers and the
+  # incremental `preprocessing_init` re-parse are single-output by construction,
+  # and per-flavor estimation drives this walk through its own loop.
+  if (!is.null(flavor_plan)) {
+    stopifnot(
+      preprocessing_only,
+      identical(output, "default"),
+      is.null(preprocessing_init)
+    )
   }
 
   if (
@@ -976,6 +1004,11 @@ estimate_wrapper <- function(
   constraint_plan <- NULL
   if (!is.null(support_constraint)) {
     if (inherits(support_constraint, "support_constraint_plan")) {
+      constraint_plan <- support_constraint
+    } else if (!is.null(flavor_plan)) {
+      # A multi-flavor walk supplies the already-parsed per-`(layer, flavor)`
+      # plans, keyed by constraint id; the spec_map compiles each into its own
+      # sibling sub-plan.
       constraint_plan <- support_constraint
     } else {
       has_dyad_part <- model == "REM" ||
@@ -1513,7 +1546,8 @@ estimate_wrapper <- function(
         support_constraint = constraint_plan,
         writer = writer,
         work_data = work_data,
-        modeled_flavor = modeled_flavor
+        modeled_flavor = modeled_flavor,
+        flavor_plan = flavor_plan
       )
       prep <- recipe_out$prep
       spec_map <- recipe_out$spec_map
@@ -1545,15 +1579,33 @@ estimate_wrapper <- function(
     # The formula, nodes, nodes2 are added to the preprocessed object so that
     # we can call the estimation with preprocessing_init later
     # (for parsing AND composition changes)
-    prep$formula <- formula
-    prep$model <- model
-    prep$sub_model <- legacy_sub_model
-    prep$nodes <- .nodes
-    prep$nodes2 <- .nodes2
-    prep$node_lookup <- ds_node_lookup(orig_src)
+    decorate <- function(p) {
+      p$formula <- formula
+      p$model <- model
+      p$sub_model <- legacy_sub_model
+      p$nodes <- .nodes
+      p$nodes2 <- .nodes2
+      p$node_lookup <- ds_node_lookup(orig_src)
+      p
+    }
+    # A multi-flavor walk emits one object per consumer, so the decoration that
+    # makes an object estimable on its own is applied to each of them.
+    prep <- if (is.null(flavor_plan)) {
+      decorate(prep)
+    } else {
+      lapply(prep, decorate)
+    }
   }
 
-  prep$model_spec <- model_spec
+  prep <- if (is.null(flavor_plan)) {
+    prep$model_spec <- model_spec
+    prep
+  } else {
+    lapply(prep, function(p) {
+      p$model_spec <- model_spec
+      p
+    })
+  }
 
   ## 3.3 Stop here if preprocessing_only == TRUE
   if (preprocessing_only) {

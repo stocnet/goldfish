@@ -408,21 +408,39 @@ build_spec_map <- function(
   # recipe loop realizes/updates the mask from the atoms' stat_state. When no
   # constraint is present this is a pure no-op, so unconstrained models stay
   # bit-identical.
+  #
+  # A multi-flavor walk supplies a NAMED LIST of parsed plans instead, one per
+  # distinct `(layer, flavor)` constraint and keyed by its `constraint_id`. Each
+  # compiles into its own sibling sub-plan under `plan$support_constraints`, and
+  # each registers its own mask derivation; `plan$support_constraint` stays
+  # empty there, so the single-constraint field keeps its exact meaning and
+  # every existing path is untouched.
   if (!is.null(support_constraint)) {
-    plan$support_constraint <- compile_support_constraint(
-      support_constraint,
-      model = model_spec$model,
-      dep_name = parsed_formula$dep_name,
-      nodes = nodes,
-      nodes2 = nodes2,
-      window_derivations = parsed_formula$window_derivations,
-      envir = envir,
-      data = data
-    )
-    plan$derivations <- c(
-      plan$derivations,
-      list(support_mask_derivation(plan$support_constraint))
-    )
+    compile_one <- function(constraint_plan) {
+      compile_support_constraint(
+        constraint_plan,
+        model = model_spec$model,
+        dep_name = parsed_formula$dep_name,
+        nodes = nodes,
+        nodes2 = nodes2,
+        window_derivations = parsed_formula$window_derivations,
+        envir = envir,
+        data = data
+      )
+    }
+    if (inherits(support_constraint, "support_constraint_plan")) {
+      plan$support_constraint <- compile_one(support_constraint)
+      plan$derivations <- c(
+        plan$derivations,
+        list(support_mask_derivation(plan$support_constraint))
+      )
+    } else {
+      plan$support_constraints <- lapply(support_constraint, compile_one)
+      plan$derivations <- c(
+        plan$derivations,
+        lapply(plan$support_constraints, support_mask_derivation)
+      )
+    }
   }
   effects_template <- build_effects_template(
     effects,

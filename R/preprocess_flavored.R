@@ -2,7 +2,7 @@
 # Single-pass multi-flavor preprocessing.
 #
 # A multi-flavor specification models K competing processes (flavors) on one
-# focal layer. Design D3: preprocessing walks the event sequence ONCE -- the
+# focal layer. Preprocessing walks the event sequence ONCE -- the
 # union of all flavors' effects is computed a single time over one shared
 # process state, and one `preprocessed.goldfish` object is emitted per flavor.
 # This is the multi-consumer generalization of the recipe loop (one clock, one
@@ -105,7 +105,6 @@ plan_flavor_union <- function(spec, family) {
     envir = new.env(),
     data = spec$data
   )
-  union$constraints <- lapply(spec$processes, `[[`, "constraint")
   union
 }
 
@@ -224,7 +223,45 @@ init_consumers <- function(
     )
   })
   names(consumers) <- names(consumer_specs)
+  # Routing resolves a dependent event's flavor to its consumer through this
+  # lookup rather than indexing the consumer set by flavor name: flavor names
+  # are arbitrary user strings, while the consumer set (like everything else
+  # downstream) is keyed by formula id.
+  attr(consumers, "flavor_index") <- stats::setNames(
+    names(consumer_specs),
+    vapply(consumer_specs, `[[`, character(1), "flavor")
+  )
   consumers
+}
+
+# The consumer set for one family walk of a multi-flavor specification: one
+# consumer per modeled flavor, keyed by its formula id. Each rides its own
+# projection onto the union statistics (`effect_map`), its own intercept /
+# right-censoring, and the COMPILED sub-plan of its `(layer, flavor)`
+# constraint, looked up from the family plan by `constraint_id` so a constraint
+# shared by several flavors is compiled and realized once.
+build_consumer_specs <- function(
+  consumer_plan,
+  compiled_constraints,
+  new_writer = writer_default
+) {
+  specs <- lapply(consumer_plan, function(cp) {
+    constraint <- if (is.na(cp$constraint_id)) {
+      NULL
+    } else {
+      compiled_constraints[[as.character(cp$constraint_id)]]
+    }
+    list(
+      fid = cp$fid,
+      flavor = cp$flavor,
+      effect_map = cp$effect_map,
+      has_intercept = cp$has_intercept,
+      constraint = constraint,
+      writer = new_writer()
+    )
+  })
+  names(specs) <- names(consumer_plan)
+  specs
 }
 
 new_consumer <- function(writer, gid_lookup = NULL, right_censored = FALSE) {
@@ -429,8 +466,10 @@ route_dependent_event <- function(
   flavor,
   event_info
 ) {
-  own <- if (is.na(flavor)) consumers[[1L]] else consumers[[flavor]]
-  consumer_write_dependent(own, event_info)
+  own <- resolve_flavor_consumer(consumers, flavor)
+  if (!is.null(own)) {
+    consumer_write_dependent(own, event_info)
+  }
   if (event_info$interval > 0) {
     event_info$is_dependent <- 0L
     for (cs in rc_consumers) {
@@ -440,6 +479,24 @@ route_dependent_event <- function(
     }
   }
   invisible(NULL)
+}
+
+# The consumer whose process owns this event, via the walk's (layer, flavor) ->
+# fid lookup. A single-output walk carries no lookup and no flavor, so it
+# resolves to its one consumer. `NULL` means no modeled process claims the
+# event: it is then only an interval boundary for the right-censoring
+# consumers, which is how an unmodeled flavor's event enters every modeled
+# flavor's rate integral.
+resolve_flavor_consumer <- function(consumers, flavor) {
+  index <- attr(consumers, "flavor_index")
+  if (is.null(index)) {
+    return(consumers[[1L]])
+  }
+  if (is.na(flavor)) {
+    return(NULL)
+  }
+  key <- index[flavor]
+  if (is.na(key)) NULL else consumers[[key]]
 }
 
 # Route a non-dependent (state-only) event: an interval boundary for every
@@ -472,4 +529,148 @@ consumer_write_rc <- function(cs, event_info) {
   cs$pending_rc_bc <- list()
   cs$pending_rc_bc_cols <- 0L
   invisible(NULL)
+}
+
+# =========================================================================== #
+# The driver: one call, both family walks, a fid-indexed return.
+#
+# Identity is the `process_map` table, not a naming convention: every
+# likelihood-producing formula of the specification gets an integer formula id
+# (fid), and the returned list is indexed by it. Layer and flavor names are
+# arbitrary user strings -- they may collide with each other or carry dots, so
+# a pasted key like "phone.calls.creation.rate" cannot be parsed back -- which
+# is why human-readable labels are RENDERED from the table on demand and never
+# read back as data.
+# =========================================================================== #
+
+# One constraint id per distinct `(layer, flavor)` constraint. Flavors sharing
+# an identical parsed constraint (the `redundant` style, where every flavor
+# inherits the user constraint unchanged) share an id, so that constraint is
+# compiled and its mask realized once instead of once per flavor. A flavor with
+# no constraint at all gets `NA`.
+#
+# Returns the flavor -> id lookup and the distinct parsed plans, named by id.
+assign_constraint_ids <- function(processes) {
+  plans <- lapply(processes, `[[`, "constraint")
+  ids <- stats::setNames(rep(NA_integer_, length(plans)), names(processes))
+  distinct <- list()
+  for (i in seq_along(plans)) {
+    if (is.null(plans[[i]])) {
+      next
+    }
+    hit <- NA_integer_
+    for (j in seq_along(distinct)) {
+      if (identical(distinct[[j]], plans[[i]])) {
+        hit <- j
+        break
+      }
+    }
+    if (is.na(hit)) {
+      distinct[[length(distinct) + 1L]] <- plans[[i]]
+      hit <- length(distinct)
+    }
+    ids[[i]] <- hit
+  }
+  names(distinct) <- as.character(seq_along(distinct))
+  list(ids = ids, plans = distinct)
+}
+
+# Render a human-readable label for a process, e.g. "friendship > creation >
+# rate". For cli messages and coefficient names only -- labels are rendered
+# from the map, never parsed back into identity.
+render_process_label <- function(process_map, fid) {
+  row <- process_map[match(fid, process_map$fid), , drop = FALSE]
+  paste(row$layer, row$flavor, row$family, sep = " › ")
+}
+
+# Preprocess a multi-flavor specification in one call.
+#
+# Each sub-model family (rate, choice) runs ONE walk over the event sequence:
+# the union of that family's per-flavor effects is computed once and each
+# flavor's consumer projects it onto its own columns. The two families keep
+# separate walks -- gids are scoped per statistic block, and an effect in
+# DyNAM-rate and the same effect in DyNAM-choice resolve to different update
+# functions, so there is nothing to share between them.
+#
+# Returns a list of `preprocessed.goldfish` objects indexed by fid, carrying the
+# `process_map` identity table as an attribute.
+preprocess_flavored <- function(
+  spec,
+  control_preprocessing = set_preprocessing_opt(),
+  progress = getOption("progress", default = FALSE),
+  verbose = getOption("verbose", default = FALSE)
+) {
+  if (is.null(spec$processes)) {
+    cli::cli_abort(
+      "{.fn preprocess_flavored} requires a multi-flavor specification.",
+      .internal = TRUE
+    )
+  }
+  flavors <- names(spec$processes)
+  families <- names(spec$processes[[1L]]$submodels)
+  constraints <- assign_constraint_ids(spec$processes)
+
+  outputs <- list()
+  map_rows <- vector("list", length(families))
+  next_fid <- 0L
+
+  for (fi in seq_along(families)) {
+    family <- families[[fi]]
+    union <- plan_flavor_union(spec, family)
+    fids <- stats::setNames(next_fid + seq_along(flavors), flavors)
+    next_fid <- next_fid + length(flavors)
+    fid_keys <- as.character(fids)
+
+    # The consumer plan is metadata only (fid, flavor, projection, intercept,
+    # constraint id); the writers and the compiled constraints are attached
+    # downstream, once the family's spec_map has compiled them.
+    consumer_plan <- lapply(flavors, function(fl) {
+      list(
+        fid = fids[[fl]],
+        flavor = fl,
+        effect_map = union$effect_maps[[fl]],
+        has_intercept = unname(union$has_intercept[[fl]]),
+        constraint_id = constraints$ids[[fl]]
+      )
+    })
+    names(consumer_plan) <- fid_keys
+
+    preps <- estimate_wrapper(
+      x = union$bundle$formula,
+      model = spec$model,
+      sub_model = union$sub_model,
+      data = spec$data,
+      control_preprocessing = control_preprocessing,
+      preprocessing_only = TRUE,
+      progress = progress,
+      verbose = verbose,
+      support_constraint = if (length(constraints$plans) > 0) {
+        constraints$plans
+      } else {
+        NULL
+      },
+      modeled_flavor = flavors,
+      flavor_plan = list(consumers = consumer_plan)
+    )
+    outputs[fid_keys] <- preps[fid_keys]
+
+    map_rows[[fi]] <- data.frame(
+      fid = unname(fids),
+      layer = spec$focal,
+      flavor = flavors,
+      family = family,
+      # The statistic block a consumer's gids are scoped to: an effect is
+      # deduplicated only among formulas resolving to the same update function.
+      stat_block = paste(spec$model, union$sub_model, sep = ":"),
+      has_intercept = unname(union$has_intercept[flavors]),
+      constraint_id = unname(constraints$ids[flavors]),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  structure(
+    outputs,
+    process_map = do.call(rbind, map_rows),
+    class = "flavored_preprocessed.goldfish"
+  )
 }
