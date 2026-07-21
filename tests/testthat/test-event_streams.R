@@ -203,7 +203,7 @@ test_that("active changes route to per-side composition streams", {
   expect_length(streams$attribute, 0)
 })
 
-test_that("non-active changes and global rows split per variable", {
+test_that("non-active changes and global rows split per view and variable", {
   x <- make_stocnet_fixture()
   x$changes <- data.frame(time = c(1, 2), node = c(1L, 3L), var = "floor")
   x$changes$value <- list(list(3), list(4))
@@ -212,9 +212,11 @@ test_that("non-active changes and global rows split per variable", {
   map <- build_mode_map(x$info, x$nodes, "calls")
   streams <- split_stocnet_streams(x, map)
 
-  expect_named(streams$attribute, "floor")
-  expect_equal(streams$attribute$floor$node, c(1L, 3L))
-  expect_equal(unlist(streams$attribute$floor$value), c(3, 4))
+  # Nodal streams are keyed by the view they write into; a global attribute has
+  # no node space, so its stream stays keyed by the variable alone.
+  expect_named(streams$attribute, "nodal:p$floor")
+  expect_equal(streams$attribute[["nodal:p$floor"]]$node, c(1L, 3L))
+  expect_equal(unlist(streams$attribute[["nodal:p$floor"]]$value), c(3, 4))
   expect_named(streams$global, "season")
   expect_equal(unlist(streams$global$season$value), 2)
 })
@@ -246,4 +248,99 @@ test_that("composition splits on the focal pair, dropping other modes", {
     0L,
     label = "the org is in neither focal side and is dropped"
   )
+})
+
+# Nodal attribute streams -----------------------------------------------------
+
+test_that("a receiver-side attribute change splits into the receiver's view", {
+  # Regression: `attend ~ alter(size)` with a `size` change on a receiver-side
+  # node died with "missing value where TRUE/FALSE needed". The stream kept the
+  # global node id (4 = E1) while the view it writes into is the side-local
+  # length-2 event vector, so `attribute[4]` was NA.
+  x <- make_stocnet_fixture_multipartite()
+  map <- build_mode_map(x$info, x$nodes, c("attend", "coauthor", "member"))
+  streams <- split_stocnet_streams(x, map, focal = "attend")
+
+  expect_named(streams$attribute, "nodal:event$size")
+  expect_equal(
+    streams$attribute[["nodal:event$size"]]$node,
+    1L,
+    label = "global id 4 is E1, local 1 on the event view"
+  )
+  # Actors have no `size` change, so their view has no stream at all rather
+  # than a stream of events that belong to someone else.
+  expect_false("nodal:actor$size" %in% names(streams$attribute))
+})
+
+test_that("attribute changes split per view when neither side starts at 1", {
+  # The sender-side counterpart: the multipartite fixture's senders are the
+  # first mode, so their global and local ids coincide and a stream left in the
+  # global space silently agrees. Here side 1 is global 3:5 and side 2 is 1:2.
+  x <- make_stocnet_fixture_twomode_offset()
+  map <- build_mode_map(x$info, x$nodes, "assign")
+  streams <- split_stocnet_streams(x, map, focal = "assign")
+
+  expect_setequal(
+    names(streams$attribute),
+    c("nodal:worker$skill", "nodal:task$skill")
+  )
+  expect_equal(
+    streams$attribute[["nodal:worker$skill"]]$node,
+    3L,
+    label = "global id 5 is W3, local 3 on the worker view"
+  )
+  expect_equal(
+    streams$attribute[["nodal:task$skill"]]$node,
+    2L,
+    label = "global id 2 is T2, local 2 on the task view"
+  )
+})
+
+test_that("a one-mode object keeps one attribute stream per variable", {
+  # The collapse that keeps the one-mode path on its existing route: one node
+  # space, so one stream, and its local ids are the global ids.
+  x <- make_stocnet_fixture()
+  x$changes <- data.frame(time = 1.5, node = 3L, var = "floor")
+  x$changes$value <- list(list(7))
+  map <- build_mode_map(x$info, x$nodes, "calls")
+  streams <- split_stocnet_streams(x, map, focal = "calls")
+
+  expect_named(streams$attribute, "nodal:p$floor")
+  expect_equal(streams$attribute[["nodal:p$floor"]]$node, 3L)
+})
+
+test_that("two-mode models with time-varying nodal covariates preprocess", {
+  # The end-to-end regressions: both of these aborted before the streams were
+  # split per view.
+  expect_no_error(estimate_dynam(
+    attend ~ alter(size),
+    sub_model = "choice",
+    data = as_goldfish(make_stocnet_fixture_multipartite()),
+    preprocessing_only = TRUE
+  ))
+  expect_no_error(estimate_dynam(
+    assign ~ ego(skill),
+    sub_model = "choice",
+    data = as_goldfish(make_stocnet_fixture_twomode_offset()),
+    preprocessing_only = TRUE
+  ))
+})
+
+test_that("a receiver-side change reaches the effect as a local update", {
+  # The value must arrive against the receiver's own index space: the update
+  # encodes alter 1 (E1), not global node 4.
+  prep <- estimate_dynam(
+    attend ~ alter(size),
+    sub_model = "choice",
+    data = as_goldfish(make_stocnet_fixture_multipartite()),
+    preprocessing_only = TRUE
+  )
+  broadcast <- prep$stat_mat_broadcast
+  expect_equal(ncol(broadcast), 1L)
+  expect_equal(
+    broadcast[2, 1] + 1L,
+    1,
+    label = "the fixed index is alter 1, E1's local id"
+  )
+  expect_equal(broadcast[4, 1], 99, label = "the replaced size")
 })

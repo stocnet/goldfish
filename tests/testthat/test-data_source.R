@@ -277,8 +277,10 @@ test_that("an attribute stream translates to the node/replace shape", {
   x$changes$value <- list(list(8), list(7))
   src <- new_data_source(data = x)
 
+  # Attribute streams are keyed by the view they write into, so the key names
+  # the node space as well as the variable.
   expect_equal(
-    ds_fetch_stream(src, "floor"),
+    ds_fetch_stream(src, "nodal:p$floor"),
     data.frame(time = c(1, 2), node = c(1L, 3L), replace = c(7, 8)),
     ignore_attr = "row.names",
     label = "rows are ordered by the sort key regardless of input arrangement"

@@ -344,13 +344,20 @@ ds_nodal_view.data_source_envir <- function(src, nodeset) {
 
 #' @exportS3Method
 ds_nodal_view.data_source_stocnet <- function(src, nodeset) {
-  modes <- src$mode_map$nodes_lookup$mode[ds_side_ids(src, nodeset)]
-  # A single fused node set carries no mode column, so the node-set identifier
-  # is the only name that node space has.
-  if (all(is.na(modes))) {
-    return(paste0("nodal:", nodeset))
-  }
-  paste0("nodal:", paste(sort(unique(modes)), collapse = "+"))
+  mode_view_key(src$mode_map, ds_side_ids(src, nodeset), nodeset)
+}
+
+# An attribute's event stream is keyed by the view it writes into, so the same
+# variable read on two node spaces carries two streams, each in its own local
+# index space. `attribute_view_stream()` spells that key; the reverse lookup
+# finds every view a variable changes on.
+attribute_view_stream <- function(view, attribute) {
+  paste0(view, "$", attribute)
+}
+
+attribute_stream_keys <- function(src, attribute) {
+  keys <- names(src$streams$attribute)
+  keys[sub("^.*\\$", "", keys) == attribute]
 }
 
 # Nodes and attributes --------------------------------------------------------
@@ -548,12 +555,20 @@ ds_attribute_streams.data_source_envir <- function(src, nodeset, attribute) {
 
 #' @exportS3Method
 ds_attribute_streams.data_source_stocnet <- function(src, nodeset, attribute) {
-  pool <- if (ds_is_global(src, nodeset)) {
-    names(src$streams$global)
-  } else {
-    names(src$streams$attribute)
+  if (ds_is_global(src, nodeset)) {
+    return(
+      if (attribute %in% names(src$streams$global)) {
+        attribute
+      } else {
+        character(0)
+      }
+    )
   }
-  if (attribute %in% pool) attribute else character(0)
+  # A nodal attribute resolves to the stream for the view this reference reads:
+  # a change on the receiver side is not an event for the sender's vector, and
+  # its node reference is local to a different index space.
+  key <- attribute_view_stream(ds_nodal_view(src, nodeset), attribute)
+  if (key %in% names(src$streams$attribute)) key else character(0)
 }
 
 # The dependent process ------------------------------------------------------
@@ -733,7 +748,9 @@ ds_object_streams.data_source_stocnet <- function(src, name) {
     stream <- src$streams$network[[name]]
     return(if (any(!is.na(stream$time))) name else character(0))
   }
-  if (name %in% names(src$streams$attribute)) name else character(0)
+  # A bare variable name reaches here only from a derivation source; attribute
+  # streams are view-qualified, so resolve every view the variable changes on.
+  attribute_stream_keys(src, name)
 }
 
 #' Fetch one event stream in the shape the recipe loop's walk consumes

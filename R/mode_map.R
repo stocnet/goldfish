@@ -112,6 +112,35 @@ build_mode_map <- function(info, nodes, layers) {
   list(nodes_lookup = nodes_lookup, layers = layer_maps)
 }
 
+# Canonical key naming the node space a set of global ids spans. Sorting is
+# what lets key equality stand in for "the same node set": a set must have one
+# spelling however its modes were declared. `fallback` names the space where
+# the nodes carry no mode column, which is the single fused node set -- there
+# the node-set identifier is the only name that space has.
+#
+# This is the one place the key is spelled, so the state container's views and
+# the attribute streams that write into them cannot drift apart.
+mode_view_key <- function(mode_map, ids, fallback) {
+  modes <- mode_map$nodes_lookup$mode[ids]
+  if (all(is.na(modes))) {
+    return(paste0("nodal:", fallback))
+  }
+  paste0("nodal:", paste(sort(unique(modes)), collapse = "+"))
+}
+
+# Every node space any layer declares, as view key -> global ids. Two layers
+# declaring the same side produce the same key and therefore one view, which is
+# the point of keying by mode set rather than by (layer, side).
+mode_map_views <- function(mode_map, fallback = "nodes") {
+  views <- list()
+  for (lm in mode_map$layers) {
+    for (ids in list(lm$side1, lm$side2)) {
+      views[[mode_view_key(mode_map, ids, fallback)]] <- ids
+    }
+  }
+  views
+}
+
 # Remap a layer's global from/to references to that layer's local index spaces
 # (NA for a reference outside the declared side, which validation rejects).
 remap_layer_refs <- function(mode_map, layer, from, to, nodes) {

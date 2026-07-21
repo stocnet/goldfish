@@ -94,7 +94,7 @@
       One-mode focal layers must still collapse both positions of
       `same`/`diff`/`sim` onto one key (arity 1, existing code path, frozen
       baselines unchanged) — assert that explicitly.
-- [ ] 3.5 Split nodal attribute event streams per referenced view, mirroring
+- [x] 3.5 Split nodal attribute event streams per referenced view, mirroring
       `split_composition()` (design D13): `split_stocnet_streams()` currently
       keeps `node = node_global` for every non-`active` variable, so the walk's
       `state[[component]][[key]][event_args$node]` indexes a side-local vector

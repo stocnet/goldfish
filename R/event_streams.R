@@ -161,8 +161,8 @@ event_target <- function(events) {
 #'   on a flavored focal layer; length > 1 models competing processes.
 #'
 #' @return a list of streams: `network` (per layer), `dependent`, `attribute`
-#'   (per var), `composition` (`mode1`/`mode2`), `global` (per var), and
-#'   `focal`.
+#'   (per view and var, keyed `<view>$<var>`), `composition` (`mode1`/`mode2`),
+#'   `global` (per var), and `focal`.
 #' @noRd
 split_stocnet_streams <- function(
   x,
@@ -229,6 +229,7 @@ split_stocnet_streams <- function(
     node_global <- to_global_id(ch$node, nodes)
     values <- unwrap_values(ch$value)
     ch_time <- as.numeric(ch$time)
+    views <- mode_map_views(mode_map)
     for (v in unique(ch$var)) {
       sel <- ch$var == v
       stream <- data.frame(
@@ -240,7 +241,7 @@ split_stocnet_streams <- function(
       if (identical(v, "active")) {
         composition <- split_composition(stream, mode_map, focal)
       } else {
-        attribute[[v]] <- stream
+        attribute <- c(attribute, split_attribute(stream, v, views))
       }
     }
   }
@@ -266,6 +267,29 @@ split_stocnet_streams <- function(
     global = global,
     focal = focal
   )
+}
+
+# One nodal attribute's changes split by the node space each change lands on,
+# mirroring split_composition(): a view's stream carries only the changes to
+# its own nodes, with node references converted to that view's local indices.
+#
+# Splitting is what keeps state addressable. A view's vector is side-local, so
+# a stream left in the global id space indexes the wrong element -- or runs off
+# the end -- for every node space that does not start at global id 1. A view
+# with no changes gets no stream at all: nothing about its vector varies.
+split_attribute <- function(df, var, views) {
+  res <- list()
+  for (view in names(views)) {
+    local <- match(df$node, views[[view]])
+    inside <- !is.na(local)
+    if (!any(inside)) {
+      next
+    }
+    d <- df[inside, , drop = FALSE]
+    d$node <- local[inside]
+    res[[attribute_view_stream(view, var)]] <- d
+  }
+  res
 }
 
 # Composition (active) changes split by the focal layer's side membership into
