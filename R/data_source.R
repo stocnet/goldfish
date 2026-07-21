@@ -166,6 +166,10 @@ ds_model_is_two_mode <- function(src, nodes = NULL, nodes2 = NULL) {
 }
 
 #' @exportS3Method
+# The last node-set-name comparison, and now unreachable from make_data(): every
+# assemblable legacy bundle becomes a stocnet, so nothing mints the environment
+# this method serves. Kept until the DyNAMi engine stops reading the envir seam,
+# so that seam is removed in one pass rather than dismantled piecemeal.
 ds_model_is_two_mode.data_source_envir <- function(
   src,
   nodes = NULL,
