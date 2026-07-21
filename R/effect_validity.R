@@ -169,21 +169,40 @@ check_effect_attributes <- function(effect, refs, src, call = NULL) {
       next
     }
     value <- ds_attribute(src, nodeset, attribute)
-    if (length(value) == 0 || !all(is.na(value))) {
+    if (length(value) == 0) {
       next
     }
-    mode <- sub("^nodal:", "", ds_nodal_view(src, nodeset))
-    cli::cli_abort(
-      c(
-        "{.fn {effect}} reads {.val {attribute}} on mode {.val {mode}}, where
-         it is undefined.",
-        "x" = "Every node of mode {.val {mode}} has {.val NA} for
-               {.val {attribute}}.",
-        "i" = "Use an attribute defined on that mode, or restrict the effect
-               to the side where {.val {attribute}} is measured."
-      ),
-      call = call
-    )
+    # Definedness is per mode category, not per view: imputation pools within a
+    # category, so a view spanning two modes with the attribute observed for one
+    # and wholly missing for the other still yields nothing to impute the second
+    # from. Checking the whole slice would pass that case and fail later.
+    modes <- ds_side_modes(src, nodeset)
+    categories <- if (is.null(modes)) {
+      list(seq_along(value))
+    } else {
+      split(seq_along(value), modes)
+    }
+    for (idx in categories) {
+      if (!all(is.na(value[idx]))) {
+        next
+      }
+      mode <- if (is.null(modes)) {
+        sub("^nodal:", "", ds_nodal_view(src, nodeset))
+      } else {
+        as.character(modes[idx][1])
+      }
+      cli::cli_abort(
+        c(
+          "{.fn {effect}} reads {.val {attribute}} on mode {.val {mode}}, where
+           it is undefined.",
+          "x" = "Every node of mode {.val {mode}} has {.val NA} for
+                 {.val {attribute}}.",
+          "i" = "Use an attribute defined on that mode, or restrict the effect
+                 to the side where {.val {attribute}} is measured."
+        ),
+        call = call
+      )
+    }
   }
   invisible(NULL)
 }

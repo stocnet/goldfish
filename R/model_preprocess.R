@@ -494,6 +494,7 @@ prepare_recipe_context <- function(
     src = src
   )
   schedule <- build_event_schedule(events, events_objects_link, plan$objects)
+  assert_imputable_schedule(schedule, plan$objects, attr(state, "strata"))
 
   net_update_lookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
   att_update_lookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
@@ -772,9 +773,14 @@ run_sender_recipe_loop <- function(
           } else {
             replace_value <- schedule$value[[k]]
             if (is.na(replace_value)) {
-              replace_value <- mean(
-                state[[component]][[key]][-event_node],
-                na.rm = TRUE
+              # Impute from the node's own mode category by the summary the
+              # attribute's recorded type selects -- a bare mean would write NA
+              # into a categorical vector, failing the next update's comparison.
+              replace_value <- impute_nodal_value(
+                state[[component]][[key]],
+                event_node,
+                attr(state, "strata")[[component]],
+                plan$objects$value_type[oid]
               )
             }
           }
@@ -1608,9 +1614,14 @@ run_dyad_recipe_loop <- function(
           } else {
             replace_value <- schedule$value[[k]]
             if (is.na(replace_value)) {
-              replace_value <- mean(
-                state[[component]][[key]][-event_node],
-                na.rm = TRUE
+              # Impute from the node's own mode category by the summary the
+              # attribute's recorded type selects -- a bare mean would write NA
+              # into a categorical vector, failing the next update's comparison.
+              replace_value <- impute_nodal_value(
+                state[[component]][[key]],
+                event_node,
+                attr(state, "strata")[[component]],
+                plan$objects$value_type[oid]
               )
             }
           }
@@ -2306,8 +2317,16 @@ preprocess_monolith <- function(
         event <- events[[next_event]][pointers[next_event], vars_keep]
         # missing data imputation
         if (is_node_event[next_event] && is.na(event$replace)) {
-          # impute by the mean of current values for attributes
-          event$replace <- mean(object[-event$node], na.rm = TRUE)
+          # The legacy engine carries one node set with no modes, so the pool is
+          # every other node -- one implicit category. Routing through the typed
+          # resolver still selects a mean or a most-common value by type, so a
+          # categorical attribute no longer gets a mean written into it.
+          event$replace <- impute_nodal_value(
+            object,
+            event$node,
+            NULL,
+            attribute_value_type(object)
+          )
         }
         if (!is_node_event[next_event] && is.na(event$replace)) {
           # if the replace is missing impute by 0 (not-tie)

@@ -435,6 +435,20 @@ attribute_stream_keys <- function(src, attribute) {
   keys[sub("^.*\\$", "", keys) == attribute]
 }
 
+# Does any `replace` event for this attribute carry a missing value? Recorded at
+# the metadata pass so the walk consumes the fact rather than scanning state.
+# An attribute changing on the view this reference reads is the only stream that
+# can write a missing value into that view's vector.
+attribute_stream_has_missing <- function(src, nodeset, attribute) {
+  for (key in ds_attribute_streams(src, nodeset, attribute)) {
+    stream <- ds_fetch_stream(src, key)
+    if (anyNA(stream$replace)) {
+      return(TRUE)
+    }
+  }
+  FALSE
+}
+
 # Nodes and attributes --------------------------------------------------------
 
 #' A node set's rows, as the data frame estimation reports on
@@ -464,6 +478,25 @@ ds_n_nodes.data_source_envir <- function(src, nodeset) {
 #' @exportS3Method
 ds_n_nodes.data_source_stocnet <- function(src, nodeset) {
   length(ds_side_ids(src, nodeset))
+}
+
+# The mode category of each node of a side, aligned to that side's local index
+# order -- the stratum imputation pools within. A side spanning two modes
+# carries a value per node, so a node's category is knowable from its local
+# index alone. The legacy environment carries no modes, so every node is one
+# implicit category (`NULL`), reproducing the pre-category pooling exactly.
+ds_side_modes <- function(src, nodeset) UseMethod("ds_side_modes")
+
+#' @exportS3Method
+ds_side_modes.data_source_envir <- function(src, nodeset) NULL
+
+#' @exportS3Method
+ds_side_modes.data_source_stocnet <- function(src, nodeset) {
+  modes <- src$mode_map$nodes_lookup$mode[ds_side_ids(src, nodeset)]
+  if (all(is.na(modes))) {
+    return(NULL)
+  }
+  modes
 }
 
 # The (side, local index, global id, label) lookup for the focal layer's modeled
@@ -1017,27 +1050,25 @@ ds_impute_missing.data_source_stocnet <- function(src, objects_effects_link) {
     if (!anyNA(value)) {
       next
     }
+    # The initial table is imputed by the same rule the walk uses, evaluated at
+    # the start of the window: each missing value from its own mode category.
     src$att_override[[att_override_key(entry$nodeset, entry$attribute)]] <-
-      impute_attribute(value)
+      impute_attribute(value, ds_side_modes(src, entry$nodeset))
   }
   src
 }
 
-# Shared imputation rule for a nodal/global attribute vector, matching the
-# legacy per-object treatment (and its warning) exactly.
-impute_attribute <- function(value) {
-  if (is.numeric(value)) {
-    cli::cli_warn(c(
-      "i" = "Missing data has been detected. Mean is used to impute for
-             numerical values"
-    ))
-    value[is.na(value)] <- mean(value, na.rm = TRUE)
-  } else {
-    cli::cli_warn(c(
-      "i" = "Missing data has been detected. Mode is used to impute for
-             categorical values"
-    ))
-    value[is.na(value)] <- names(which.max(table(value)))
+# Impute every missing value of a nodal attribute vector at one instant, each
+# from its own mode category's observed values. Simultaneous, so a still-missing
+# node contributes nothing to another's pool -- the summary is over the observed
+# values only, which is why the imputed values are written from a snapshot
+# rather than fed back one at a time.
+impute_attribute <- function(value, strata = NULL) {
+  value_type <- attribute_value_type(value)
+  cli::cli_warn(imputation_message(value_type))
+  observed <- value
+  for (m in which(is.na(value))) {
+    value[m] <- impute_nodal_value(observed, m, strata, value_type)
   }
   value
 }

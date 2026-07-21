@@ -43,6 +43,12 @@ build_object_keys <- function(
   objects_table <- get_data_objects(list(object_names), remove_first = FALSE)
   components <- character(nrow(objects_table))
   keys <- character(nrow(objects_table))
+  # Value type and missingness are recorded here, at the metadata pass, so the
+  # walk consumes them rather than dispatching on a value's runtime class or
+  # scanning state for NA. Non-nodal rows (networks, globals) do not use the
+  # stratified resolver, so they carry no type.
+  value_types <- rep(NA_character_, nrow(objects_table))
+  has_missing <- rep(FALSE, nrow(objects_table))
   # Derived (windowed) networks may not be realized yet on the recipe path
   # classify them as networks from the recipe instead of
   # get()-ing the absent object. The source is a matrix, so the realized derived
@@ -84,6 +90,9 @@ build_object_keys <- function(
         # unrecognized name resolves to the sender side rather than failing, so
         # dropping it would turn a typo into a silent read of the wrong mode.
         components[i] <- ds_nodal_view(src, entry$nodeset)
+        value_types[i] <- attribute_value_type(value)
+        has_missing[i] <- anyNA(value) ||
+          attribute_stream_has_missing(src, entry$nodeset, entry$attribute)
       } else {
         cli::cli_abort(
           "Attribute {.val {entry$name}} belongs to node set
@@ -99,8 +108,68 @@ build_object_keys <- function(
     name = objects_table$name,
     component = components,
     key = keys,
+    value_type = value_types,
+    has_missing = has_missing,
     stringsAsFactors = FALSE
   )
+}
+
+# Imputation resolver ---------------------------------------------------------
+#
+# One rule, evaluated wherever a missing nodal value is needed: summarize the
+# variable's state at that moment over the imputed node's mode category,
+# excluding the node. The initial table is this rule at the start of the window;
+# the walk is this rule at each event. Keeping it one function is what makes the
+# two agree by construction rather than by matching two hand-written summaries.
+
+# The summary a recorded value type selects. Numeric variables take the mean;
+# factor/character variables the most common observed value -- never a mean,
+# which on a categorical vector returns NA and writes a missing value into
+# state. Missing values inside a non-empty pool are dropped: ordinary handling,
+# not an empty pool (which is rejected at schedule construction).
+attribute_value_type <- function(value) {
+  if (is.numeric(value)) "numeric" else "categorical"
+}
+
+summarize_pool <- function(pool, value_type) {
+  if (identical(value_type, "categorical")) {
+    observed <- pool[!is.na(pool)]
+    counts <- table(observed)
+    names(counts)[which.max(counts)]
+  } else {
+    mean(pool, na.rm = TRUE)
+  }
+}
+
+# Impute one node's value from its mode category. `strata` aligns to `values` by
+# index; `NULL` means one implicit category (legacy single node set, or nodes
+# with no mode column), where the pool is every other node -- the pre-category
+# behavior, so one-mode data is untouched.
+impute_nodal_value <- function(values, node, strata, value_type) {
+  in_category <- if (is.null(strata)) {
+    rep(TRUE, length(values))
+  } else {
+    !is.na(strata) & strata == strata[node]
+  }
+  in_category[node] <- FALSE
+  summarize_pool(values[in_category], value_type)
+}
+
+# The user-facing warning for an imputation, naming the summary in the user's
+# terms: "most common value" for the categorical rule, reserving "mode" for the
+# node category.
+imputation_message <- function(value_type) {
+  if (identical(value_type, "categorical")) {
+    c(
+      "i" = "Missing data has been detected. The most common value is used to
+             impute categorical attributes."
+    )
+  } else {
+    c(
+      "i" = "Missing data has been detected. The mean is used to impute
+             numeric attributes."
+    )
+  }
 }
 
 build_state_container <- function(
@@ -121,6 +190,9 @@ build_state_container <- function(
   networks <- list()
   nodal_cols <- list()
   global_cols <- list()
+  # The node-set name backing each view, so its mode categories resolve the same
+  # way whichever reference first named it (categories never straddle a view).
+  view_nodeset <- list()
 
   for (i in seq_len(nrow(objects_table))) {
     entry <- objects_table[i, ]
@@ -133,6 +205,8 @@ build_state_container <- function(
         global_cols[[entry$attribute]] <- value
       } else {
         nodal_cols[[component]][[entry$attribute]] <- value
+        view_nodeset[[component]] <- view_nodeset[[component]] %||%
+          entry$nodeset
       }
     }
   }
@@ -142,9 +216,13 @@ build_state_container <- function(
   # modeled side. On a one-mode focal both sides resolve to one view and this
   # collapses to the single frame the container has always had.
   view_sizes <- list()
-  view_sizes[[ds_nodal_view(src, nodes)]] <- n1
+  focal_view1 <- ds_nodal_view(src, nodes)
+  view_sizes[[focal_view1]] <- n1
+  view_nodeset[[focal_view1]] <- view_nodeset[[focal_view1]] %||% nodes
   if (!is_one_mode) {
-    view_sizes[[ds_nodal_view(src, nodes2)]] <- n2
+    focal_view2 <- ds_nodal_view(src, nodes2)
+    view_sizes[[focal_view2]] <- n2
+    view_nodeset[[focal_view2]] <- view_nodeset[[focal_view2]] %||% nodes2
   }
   for (view in names(nodal_cols)) {
     view_sizes[[view]] <- view_sizes[[view]] %||%
@@ -173,7 +251,16 @@ build_state_container <- function(
     )
   )
 
+  # The stratum a node falls in when its value is imputed, per view, aligned to
+  # the view's local index order. Carried beside the state so the walk finds a
+  # node's mode category from its local index without re-resolving the mode map.
+  strata <- lapply(names(view_sizes), function(view) {
+    ds_side_modes(src, view_nodeset[[view]])
+  })
+  names(strata) <- names(view_sizes)
+
   attr(state, "object_keys") <- object_keys
+  attr(state, "strata") <- strata
   state
 }
 
@@ -533,6 +620,11 @@ build_update_plan <- function(
     key = object_keys$key,
     shape = shape,
     is_undirected = is_undirected,
+    # Recorded at the metadata pass so the walk selects a summary by type and
+    # enters imputation only where a missing value can occur, without scanning
+    # state or dispatching on a value's runtime class.
+    value_type = object_keys$value_type,
+    has_missing = object_keys$has_missing,
     stringsAsFactors = FALSE
   )
 
@@ -749,4 +841,56 @@ build_event_schedule <- function(
     stream = stream[ordering],
     n = n_total
   )
+}
+
+# Reject, before the walk begins, a missing nodal value that would be summarized
+# from an empty pool -- a node whose mode category has no other member. This is
+# the last point that sees both the strata and which events carry a missing
+# `replace`, before any state exists; aborting here reports the attribute, node
+# and category rather than emitting a not-a-number value part way through the
+# walk. A wholly-missing category (no observed value at all) is caught earlier,
+# where the attribute is read, so this handles the singleton case its per-read
+# check cannot see: a category of one node whose sole value is being replaced.
+#
+# `strata` is the per-view mode category vector attached to the state; a `NULL`
+# view is one implicit category, so its pool is empty only when the whole side
+# is a single node.
+assert_imputable_schedule <- function(schedule, objects_registry, strata) {
+  for (k in seq_len(schedule$n)) {
+    if (
+      !identical(schedule$shape[k], "node") ||
+        !identical(schedule$semantics[k], "replace")
+    ) {
+      next
+    }
+    if (!is.na(schedule$value[[k]])) {
+      next
+    }
+    oid <- schedule$target[k]
+    if (is.na(oid) || is.na(objects_registry$value_type[oid])) {
+      next
+    }
+    component <- objects_registry$component[oid]
+    view_strata <- strata[[component]]
+    # A view with no mode categories is the legacy single node set, whose
+    # pooling this change does not touch; leave its behavior as it was.
+    if (is.null(view_strata)) {
+      next
+    }
+    node <- schedule$node[k]
+    pool_size <- sum(view_strata == view_strata[node], na.rm = TRUE) - 1L
+    if (pool_size >= 1L) {
+      next
+    }
+    cli::cli_abort(c(
+      "{.val {objects_registry$key[oid]}} cannot be imputed for node
+       {.val {node}}.",
+      "x" = "Its mode category ({.val {view_strata[node]}}) has no other member
+             to summarize from.",
+      "i" = "A category of one node cannot supply a value for that node; give
+             the event an explicit value, or model the attribute where its
+             mode has more than one node."
+    ))
+  }
+  invisible(NULL)
 }
