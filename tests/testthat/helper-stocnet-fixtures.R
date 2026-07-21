@@ -64,6 +64,15 @@ make_stocnet_fixture_multimode <- function() {
 # their own pairs.
 #
 # Global ids: 1:3 actors, 4:5 events, 6:7 orgs.
+#
+# `attend` carries a `time = NA` history row so the focal layer's initial
+# network is non-empty: a rate model over an empty network returns before it
+# ever reduces the matrix, which hides any sender/receiver dimension mix-up.
+# `changes` carries a nodal attribute event on a *receiver-side* node (global
+# id 4 = E1, side 2), the case where a global node id is used to index a
+# side-local attribute slice. Sender-side changes cannot catch that: this
+# object's senders are the first mode, so their global and local ids coincide
+# (see make_stocnet_fixture_twomode_offset() for the side-1 counterpart).
 make_stocnet_fixture_multipartite <- function() {
   nodes <- data.frame(
     label = c("A1", "A2", "A3", "E1", "E2", "O1", "O2"),
@@ -72,12 +81,19 @@ make_stocnet_fixture_multipartite <- function() {
     stringsAsFactors = FALSE
   )
   ties <- data.frame(
-    from = c(1L, 2L, 3L, 1L, 2L, 1L, 3L),
-    to = c(4L, 5L, 4L, 2L, 3L, 6L, 7L),
-    time = c(1, 2, 3, NA, 1.5, NA, 2.5),
-    layer = c(rep("attend", 3), rep("coauthor", 2), rep("member", 2)),
+    from = c(2L, 1L, 2L, 3L, 1L, 2L, 1L, 3L),
+    to = c(4L, 4L, 5L, 4L, 2L, 3L, 6L, 7L),
+    time = c(NA, 1, 2, 3, NA, 1.5, NA, 2.5),
+    layer = c(rep("attend", 4), rep("coauthor", 2), rep("member", 2)),
     stringsAsFactors = FALSE
   )
+  changes <- data.frame(
+    time = 1.2,
+    node = 4L,
+    var = "size",
+    stringsAsFactors = FALSE
+  )
+  changes$value <- list(list(99))
   layer_names <- c("attend", "coauthor", "member")
   info <- list(
     name = "multipartite",
@@ -90,7 +106,48 @@ make_stocnet_fixture_multipartite <- function() {
     sender = c(attend = "actor", coauthor = "actor", member = "actor"),
     receiver = c(attend = "event", coauthor = "actor", member = "org")
   )
-  list(info = info, nodes = nodes, ties = ties)
+  list(info = info, nodes = nodes, ties = ties, changes = changes)
+}
+
+# Two-mode fixture whose focal *sender* side is not `1:n1`: the `worker` mode is
+# declared second, so side 1 is global ids 3:5 mapping to local 1:3. The
+# multipartite fixture cannot expose a sender-side global/local mix-up because
+# its senders are the first mode, making the two id spaces coincide; here they
+# differ on both sides, so a stream left in the global space indexes the wrong
+# element (or runs off the end) rather than silently agreeing.
+#
+# Global ids: 1:2 tasks, 3:5 workers. Nodal `skill` changes on each side.
+make_stocnet_fixture_twomode_offset <- function() {
+  nodes <- data.frame(
+    label = c("T1", "T2", "W1", "W2", "W3"),
+    mode = c(rep("task", 2), rep("worker", 3)),
+    skill = c(0, 0, 5, 3, 8),
+    stringsAsFactors = FALSE
+  )
+  ties <- data.frame(
+    from = c(4L, 3L, 4L, 5L),
+    to = c(1L, 1L, 2L, 2L),
+    time = c(NA, 1, 2, 3),
+    layer = "assign",
+    stringsAsFactors = FALSE
+  )
+  changes <- data.frame(
+    time = c(1.5, 2.5),
+    node = c(5L, 2L),
+    var = "skill",
+    stringsAsFactors = FALSE
+  )
+  changes$value <- list(list(11), list(7))
+  info <- list(
+    name = "offset",
+    focal = "assign",
+    update = c(assign = "increment"),
+    directed = c(assign = TRUE),
+    observation = c(assign = "event"),
+    sender = c(assign = "worker"),
+    receiver = c(assign = "task")
+  )
+  list(info = info, nodes = nodes, ties = ties, changes = changes)
 }
 
 # Two-mode fixture: disjoint sender/receiver mode sets plus an `active`

@@ -231,6 +231,46 @@ test_that("a multipartite object resolves each layer's own mode pair", {
   )
 })
 
+test_that("the multipartite fixture carries a non-empty focal history", {
+  x <- make_stocnet_fixture_multipartite()
+
+  attend <- x$ties[x$ties$layer == "attend", ]
+  expect_equal(
+    sum(is.na(attend$time)),
+    1L,
+    label = "a rate model over an empty network returns before reducing it"
+  )
+
+  expect_equal(x$changes$var, "size")
+  expect_equal(
+    x$changes$node,
+    4L,
+    label = "global id 4 is E1, on the focal receiver side"
+  )
+})
+
+test_that("the offset fixture puts both focal sides off their global ids", {
+  x <- make_stocnet_fixture_twomode_offset()
+  expect_no_error(validate_goldfish_data(x))
+
+  map <- build_mode_map(x$info, x$nodes, "assign")
+  assign <- map$layers[["assign"]]
+
+  expect_true(assign$is_two_mode)
+  expect_equal(assign$side1, 3:5, label = "workers send, declared second")
+  expect_equal(assign$side2, 1:2, label = "tasks receive")
+
+  # The point of this fixture: neither side's global ids equal its local ones,
+  # so a stream left in the global space cannot silently agree with a
+  # side-local one the way the multipartite fixture's senders do.
+  expect_false(identical(assign$side1, seq_len(assign$n1)))
+
+  expect_equal(
+    remap_layer_refs(map, "assign", c(4L, 3L), c(1L, 2L), x$nodes),
+    list(from = c(2L, 1L), to = c(1L, 2L))
+  )
+})
+
 test_that("the legacy two node-set fixture is a two-mode legacy bundle", {
   fx <- make_legacy_fixture_twomode()
 

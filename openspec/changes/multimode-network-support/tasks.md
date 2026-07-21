@@ -72,7 +72,7 @@
       three message defects
       (`ego_alter_interaction` naming `diff`; REM `indeg`/`outdeg` missing
       spaces).
-- [ ] 3.3 Fixtures for the two reproduced two-mode defects (design D13). Both
+- [x] 3.3 Fixtures for the two reproduced two-mode defects (design D13). Both
       regressions need fixture support that does not exist yet, and both were
       reproduced by editing the fixture inline — land that as a fixture, not as
       throwaway code: `make_stocnet_fixture_multipartite()` has **no `changes`
