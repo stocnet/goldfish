@@ -911,6 +911,22 @@ estimate_wrapper <- function(
 
   check_estimation_data(data)
 
+  # DyNAMi still consumes the legacy environment, but make_data() no longer
+  # mints one: it assembles every legacy bundle into a stocnet, two-mode
+  # included, so a DyNAMi bundle now arrives here as a stocnet its engine
+  # cannot read. Abort where the mismatch is legible rather than deep in the
+  # interaction preprocessing.
+  if (model == "DyNAMi" && !is.null(data) && !is.environment(data)) {
+    cli::cli_abort(c(
+      "{.fn estimate_dynami} does not accept a {.cls stocnet} data object yet.",
+      "x" = "{.fn make_data} now assembles two-mode input into a \\
+             {.cls stocnet}, so the DyNAMi environment is no longer produced.",
+      "i" = "DyNAMi support for the single data object is the subject of a \\
+             follow-up change; pin an earlier goldfish version to run DyNAMi \\
+             in the meantime."
+    ))
+  }
+
   stopifnot(
     rlang::is_scalar_logical(preprocessing_only),
     rlang::is_scalar_logical(verbose),

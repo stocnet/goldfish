@@ -154,8 +154,32 @@ make_legacy_fixture_twomode <- function() {
     stringsAsFactors = FALSE
   )
 
+  # Attribute events on *both* node sets: labels are unique only within a set,
+  # so these are what catch a fused-id remap that resolves a reference against
+  # the wrong set.
+  #
+  # Neither set gets `present` events: linking a two-mode network re-reads each
+  # side's composition frame with `get()` in an environment whose parent is the
+  # namespace, so a `present` frame must be globally visible and cannot be a
+  # local of this function. Composition routing is exercised on the stocnet
+  # fixtures instead.
+  actor_growth <- data.frame(
+    time = c(2, 4),
+    node = c("A2", "A4"),
+    replace = c(5, 6),
+    stringsAsFactors = FALSE
+  )
+  club_funding <- data.frame(
+    time = c(3, 5),
+    node = c("C3", "C3"),
+    replace = c(30, 25),
+    stringsAsFactors = FALSE
+  )
+
   actors <- make_nodes(actors)
+  actors <- link_events(actors, actor_growth, attribute = "size")
   clubs <- make_nodes(clubs)
+  clubs <- link_events(clubs, club_funding, attribute = "budget")
   membership <- make_network(nodes = actors, nodes2 = clubs, directed = TRUE)
   membership <- link_events(
     x = membership,
@@ -175,6 +199,8 @@ make_legacy_fixture_twomode <- function() {
     clubs = clubs,
     membership = membership,
     joins = joins,
-    joins_dependent = joins_dependent
+    joins_dependent = joins_dependent,
+    actor_growth = actor_growth,
+    club_funding = club_funding
   )
 }
