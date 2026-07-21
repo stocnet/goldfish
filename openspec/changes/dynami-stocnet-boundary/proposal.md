@@ -19,6 +19,18 @@ rejected everywhere".
   layer under the mode map (the representation `multimode-network-support`
   hardens), with the interaction/composition event streams as object
   components.
+- **DyNAMi's two rate models use the flavor-keyed grammar on the new
+  surface** (decided 2026-07-21): `make_specification(model = "DyNAMi")`
+  takes `rate = list(join ~ ..., leave ~ ...)` — the existing flavor-keyed
+  list, keys matching the layer's `flavor` stamps — expressing the paper's
+  joining and leaving Poisson rates. The boundary desugars the keyed list
+  into the legacy per-effect `joining = 1/-1` single-formula encoding the
+  untouched monolith consumes, so the flags (and their inconsistent
+  defaults) disappear from the public surface; coefficient names render
+  flavor labels. `choice` is a plain formula meaning the joining choice
+  (leaving is deterministic; a flavor-keyed `choice` is rejected with an
+  error saying so). Equivalence-tested against hand-written flag formulas
+  on the DyNAMi baselines.
 - **The `opportunities` list is replaced by a derived occupancy constraint**
   (grounded 2026-07-19): the stored list is exactly the occupied second-mode
   nodes at each dependent join in event order, so the DyNAMi choice
@@ -82,8 +94,9 @@ rejected everywhere".
   `setopportunities_interaction()` dead code deleted; transformation logic
   untouched), `R/legacy_wrappers.R` (DyNAMi assembly branch; env fallback
   lifted), `R/model_estimate.R` + `R/make_specification.R` (stocnet
-  acceptance for DyNAMi; the auto-derived occupancy constraint; the
-  `is.environment(data)` abort), a new internal stocnet→env bridge consumed
+  acceptance for DyNAMi; the flavor-keyed rate desugarer; the auto-derived
+  occupancy constraint; the `is.environment(data)` abort), a new internal
+  stocnet→env bridge consumed
   by the DyNAMi front-end (`R/model_preprocess_group.R` untouched),
   `R/zzz_testthat_helpers.R` (fixtures cleanup), `tests/testthat/` (DyNAMi
   boundary + abort snapshot tests).

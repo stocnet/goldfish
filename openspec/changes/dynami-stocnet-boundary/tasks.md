@@ -56,7 +56,21 @@
       the choice specification attaches the derived occupancy constraint
       (2.3); no public `opportunities` argument; roxygen updated,
       `devtools::document()`.
-- [ ] 3.2 Coefficient equivalence test: stocnet path == constructor path to
+- [ ] 3.2 Implement the D9 flavor-keyed rate surface:
+      `rate = list(join ~ ..., leave ~ ...)` with keys validated against the
+      focal layer's flavor values; desugar to the legacy `joining = 1/-1`
+      single-formula encoding (per-flavor `~ 1` intercepts mapped onto the
+      asymmetric `1 + intercept(<focal>, joining = 1)` legacy spelling —
+      cover every intercept combination: both flavors, one, neither; an
+      effect under both keys becomes two terms); flavor-labeled coefficient
+      names; reject a flavor-keyed `choice` with a `cli` error explaining
+      the leaving choice is deterministic (a plain `choice` formula is the
+      joining choice); roxygen + `devtools::document()`.
+- [ ] 3.3 Keyed-vs-flag equivalence test: the keyed-rate specification ==
+      the hand-written joining-flag formula to 1e-6 on the DyNAMi rate
+      baselines (coefficient name mapping asserted), both engines where
+      applicable.
+- [ ] 3.4 Coefficient equivalence test: stocnet path == constructor path to
       1e-6 on the DyNAMi rate and choice baselines, both engines where
       applicable. Verify + commit.
 

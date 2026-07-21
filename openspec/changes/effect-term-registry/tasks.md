@@ -56,6 +56,13 @@
       `search_effects()` surface (D21).
 - [ ] 2.4 Add unit tests: schema validation (accept/reject, incl. reserved
       fields), lookup by name/alias, listing/search, unknown-name suggestions.
+- [ ] 2.6 Implement the D23 mode-signature interpreter: evaluate a term's
+      `mode_signature`/`attr_reads` against the mode map (mode-set
+      conformability, type-resolved non-degeneracy, per-slice attribute
+      definedness) as the single validity check; derive validity groups from
+      signature shapes for docs/tests/error text; seed and verify against the
+      `multimode-network-support` corrected taxonomy and its table-driven
+      boundary test (that change's D4/D10).
 - [ ] 2.5 Run `devtools::document()` inline (new exports); verify
       `NOT_CRAN=true` tests for the new file PASS; update `findings.md`; commit.
 

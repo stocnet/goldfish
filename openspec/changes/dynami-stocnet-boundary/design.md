@@ -154,6 +154,35 @@ model-ready object out. *Rejected:* keeping the 5-component list with
 users should never handle, and keeps the vestigial opportunities component
 visible.
 
+### D9 — DyNAMi's two rates ride the flavor-keyed grammar (2026-07-21)
+On `model = "DyNAMi"`, `make_specification()`'s `rate` accepts the existing
+flavor-keyed list — `rate = list(join ~ ..., leave ~ ...)`, keys validated
+against the D2 flavor stamps — expressing the paper's two Poisson rates
+(τ^joining for isolated actors, τ^leaving for grouped ones, Eqs. 3–5) as two
+competing processes in the grammar flavored DyNAM already uses. At the
+boundary a desugarer translates the keyed list into the legacy single-formula
+encoding the untouched monolith consumes: every `join` term gains
+`joining = 1`, every `leave` term `joining = -1` (an effect under both keys
+becomes two terms — exactly today's double-entry idiom); the per-flavor `~ 1`
+intercepts map onto the legacy asymmetric spelling
+`1 + intercept(<focal>, joining = 1)` — the desugarer's riskiest spot, tested
+per intercept combination. The `joining` flags (and their inconsistent
+defaults — `intercept` defaults to `1`, most effects to `-1`) never appear on
+the new surface; coefficient names render flavor labels. `choice` stays a
+**plain** formula meaning the joining choice — leaving is deterministic (the
+actor leaves the group they are in) — so a flavor-keyed `choice` is rejected
+with a cli error saying exactly that, and the keyed-rate/keyed-choice
+same-flavor-set rule never applies to DyNAMi. The desugarer is a bridge seam
+per D1, retired with the monolith by `refactor-dynami-engine`, whose recipe
+loop consumes flavor-keyed processes natively — the keyed surface is the one
+that survives the engine conversion unchanged.
+*Rejected:* exposing the legacy joining-flag formula on the new
+`make_specification()` surface (teaches a grammar the engine conversion
+deprecates one release later); deferring the keyed surface to
+`refactor-dynami-engine` (same double-teaching problem — the boundary is
+where users first meet DyNAMi on the stocnet surface); a keyed `choice` with
+a mandatory `leave` entry (there is no leaving choice to model).
+
 ## Risks / Trade-offs
 
 - **Bridge drift vs the monolith's expectations** (parse-time windowing
@@ -165,6 +194,12 @@ visible.
   windowed groups) → the D3 bridge-equivalence test compares the materialized
   list against a constructor-supplied one on the fixtures; disagreements are
   surfaced, not papered over.
+- **Intercept desugaring mis-mapping** (D9): the legacy encoding spells the
+  two intercepts asymmetrically (`~ 1` + `intercept(<focal>, joining = 1)`),
+  so a wrong mapping of the per-flavor `~ 1` terms would produce
+  plausible-looking wrong coefficients → explicit test cases per intercept
+  combination (both flavors, one flavor, neither) inside the keyed-vs-flag
+  equivalence test.
 - **The abort is breaking for pre-1.9.0 saved objects** → `as_goldfish()`
   conversion already shipped; the error message shows the one-line migration;
   NEWS entry marks it BREAKING.
@@ -174,7 +209,8 @@ visible.
 1. Grounding: map what the monolith reads from the environment (the bridge's
    contract); build the actors×groups stocnet fixture.
 2. Assembly + bridge behind the D3 equivalence test; DyNAMi baselines PASS.
-3. Public surface acceptance (`estimate_dynami()`/`make_specification()`).
+3. Public surface acceptance (`estimate_dynami()`/`make_specification()`),
+   including the D9 flavor-keyed rate surface and its desugarer.
 4. The abort + fixtures cleanup; snapshot tests; milestone bump.
 Rollback: revert the assembly branch and the abort — the constructor/env path
 is unchanged underneath.
@@ -184,6 +220,8 @@ is unchanged underneath.
 *(none — the 2026-07-19 explore sessions resolved and code-grounded all of
 them: D6 opportunities ≡ derived occupancy constraint with the exact
 estimation semantics traced, D7 spec-object path in scope, D8 constructor
-returns the stocnet, and the D2 flavor encoding join/leave/NA. The change's
-`progress.md` carries the grounding evidence — file/line pointers for the
-apply sessions.)*
+returns the stocnet, and the D2 flavor encoding join/leave/NA. The
+2026-07-21 explore session settled D9 — the two DyNAMi rates ride the
+flavor-keyed grammar, desugared at the boundary. The change's `progress.md`
+carries the grounding evidence — file/line pointers for the apply
+sessions.)*

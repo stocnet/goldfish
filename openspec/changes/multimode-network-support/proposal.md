@@ -49,6 +49,15 @@ gap.
   (one-mode reciprocity, transitivity, `mutual`-style closure), with `cli` errors
   naming the effect and the layer; harden the `is_two_mode` dispatch across the
   DyNAM rate/choice/coordination and REM effect families.
+- **Nodal state keyed by mode set** (added 2026-07-21, design D13). Network
+  state is already keyed by layer and remapped into that layer's local index
+  space; nodal attribute state is not — it sits in exactly two buckets bound to
+  a side at parse time, and its event streams keep global node ids. Two defects
+  reproduced from that asymmetry: a two-mode **rate** model crashes
+  (`'x' is too short`), and **any time-varying nodal covariate on a two-mode
+  layer** crashes or writes the wrong node. Nodal state becomes keyed by the
+  mode set it is read on, with streams split per view — one rule for the whole
+  state container, and the cap of two node spaces lifted.
 - **Estimation surface & identity.** `make_specification()` / `estimate_dynam()`
   / `estimate_rem()` accept multipartite objects (mixed one/two-mode layers);
   the model's side pair (`nodes`/`nodes2`) resolves from the focal layer's mode
@@ -57,9 +66,10 @@ gap.
 - **Flagship two-mode dataset + docs.** `manynet::irps_nuclear` (Haunss &
   Hollway 2023, the two-mode nuclear-discourse DyNAM paper) is the flagship —
   consumed live from manynet (already in Imports, no shipped copy) in a
-  dedicated precompiled vignette showing the mnet → stocnet conversion and a
-  paper-inspired model, plus a `?goldfish_data` multipartite section; the
-  two-mode baseline runs on a frozen `tests/` subset.
+  dedicated precompiled vignette showing the mnet → stocnet conversion (support
+  and contestation as separate two-mode layers) and a paper-inspired model,
+  plus a `?goldfish_data` multipartite section; the two-mode baseline runs on a
+  frozen `tests/` subset.
 - Coefficient equivalence (two-mode stocnet vs the legacy two-node-set path, and
   mixed one/two-mode-layer objects) to 1e-6 is the regression floor throughout.
 
@@ -100,7 +110,13 @@ gap.
   after this one) owns the deferred single-object **legacy-environment abort**
   (removing two-mode as an env producer here is its prerequisite); the full
   engine conversion stays with the post-release `refactor-dynami-engine`.
-- **Sequenced after** `flavored-processes`: the `irps_nuclear` vignette models
-  the ±1 claim increments with the flavor-keyed formula syntax.
+- **No `flavored-processes` dependency** (revised 2026-07-21): the
+  `irps_nuclear` ±1 increments are *not* creation/dissolution flavors of one
+  process — support and contestation are separate processes never summed, so
+  they convert to two **layers** (focal `support`; `contestation` with −1
+  flipped to +1, covariate only), used directly in formulas. The paper's four
+  periods are reproduced with fully-interacted `global(period)` dummies (one
+  estimation per submodel, joint vcov), cross-checked against per-period
+  `start_time`/`end_time` windowed fits — no flavors anywhere.
 - Frozen DyNAM/REM one-mode baselines MUST stay PASS (not SKIP); new two-mode
   baselines join the floor.

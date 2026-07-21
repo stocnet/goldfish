@@ -122,8 +122,15 @@ working contract for the specs/tasks.)
 - `network` — required object kind(s): network layer, actor attribute, global
   attribute, or none.
 - `directed` / `undirected` — allowed network directionality.
-- `one_mode` / `two_mode` — allowed mode (replaces parser `is_two_mode`
-  inference + warnings, which the constructor now sets authoritatively).
+- `mode_signature` — per network-argument slot, the typed index pattern over
+  position variables (S1 = focal sender side, S2 = focal receiver side, free
+  inner modes M): e.g. `recip` w: S2→S1; `four` w: S1→S2; `mixed_trans`
+  A: S1→M, B: M→S2; type-parametrized effects carry per-variant signatures
+  (`indeg(type = "ego")` reads w[·, i] ⇒ needs S1 ⊆ R2). Replaces the earlier
+  `one_mode`/`two_mode` booleans — see D23.
+- `attr_reads` — per attribute argument, the position(s) it reads (S1, S2,
+  both, or a network argument's side), driving per-slice definedness checks
+  (D23).
 - `models` / `sub_models` — allowed model/sub_model contexts.
 - `interaction` — whether the term is valid inside an interaction term.
 - `reflexive` — whether the diagonal is meaningful (informs broadcast/decode).
@@ -390,6 +397,71 @@ and PDF-manual bloat; SVG doesn't render in the CRAN PDF manual anyway.
   no `refactor-likelihood-compute` dependency; needs `last_event_time`
   (D14).
 - `proportion`/`total` are event-triggered and piecewise-constant already.
+
+### D23: Mode-signature validity metadata replaces the one_mode/two_mode booleans (2026-07-21, from `multimode-network-support`)
+The multimode per-argument derivation (that change's rewritten D4) showed
+boolean allowed-mode flags cannot express what validity actually depends on:
+(i) **type variants** — `indeg(type = "alter")` is valid on a two-mode focal
+while `indeg(type = "ego")` is structurally zero; (ii) **argument roles** —
+`common_sender`/`common_receiver` two-modeness is a property of the *covariate*
+(one-mode focal + two-mode covariate projection), not the focal layer;
+(iii) **chain conformability** — mixed effects conform by mode-set identity
+through the argument list, never by dimension equality.
+
+Schema: `mode_signature` + `attr_reads` per D2(e). Validation is **one generic
+signature interpreter** that evaluates any term's signature against the mode
+map — conformability and non-degeneracy are the same check on the
+type-resolved signature, and definedness follows from `attr_reads`. **Validity
+groups** (terms sharing a signature shape: dyad-direct, reverse-dyad,
+square-path, same-side shared-partner, three-path, chain, monadic-side,
+cross-side-compare, neighbor-aggregate, global) are *derived* from the
+signatures for docs, tests, and error text — not hand-maintained per-group
+validator functions, which would drift exactly like the per-effect stops they
+replace. Seed + verification: the corrected taxonomy and table-driven boundary
+test from `multimode-network-support` (its D4/D10) feed task 1.3's inventory.
+*Rejected:* per-group validator functions keyed by a stored group name — the
+group is representation, the signature is the truth; keeping the booleans
+alongside signatures — two sources of validity truth.
+
+**Addenda (2026-07-21, from `multimode-network-support`'s D12/D13 sessions):**
+
+- **The `is_two_mode` *formal* survives; only the registry *metadata* booleans
+  go.** These are two different things with confusingly similar names. D2(e)'s
+  `one_mode`/`two_mode` were declared validity metadata — replaced by
+  `mode_signature`. The `is_two_mode` **argument** on ~69 effect surfaces is a
+  *derived runtime value*, injected at parse time from the mode map, now per
+  attribute position (multimode D12 as revised). Reading "signatures replace the
+  booleans" as "strip `is_two_mode` from the signatures" would be the opposite
+  of what was decided: the effect is *told* what the mapping derived rather than
+  re-deriving it, and duplicating that derivation across ~20 inits is how two
+  readings drift apart.
+- **Any dispatch plan must reckon with the update side having no S3.** The
+  `update_*` functions are resolved **by name**
+  (`paste("update", model, sub_model, effect, sep = "_")`), not dispatched, so a
+  mode/variant dispatch axis would cover `init_*` only unless updates are made
+  generic first. Multimode considered and rejected such an axis
+  (`sim` vs `sim_cross_side`): the entire delta is unwrapping a list instead of
+  a vector plus skipping one `diag()` line — no time saved, method surface
+  doubled, and it re-inflates exactly what this change's move from
+  model-dependency to object-dependency deflates. If dispatch returns here, it
+  should be justified by something other than the two-mode split.
+- **`attr_reads` resolves to a mode-set key.** Multimode D13 keys nodal state by
+  the **canonicalized mode set** a position reads, so two layers declaring the
+  same side share one view. The signature interpreter should emit that same key
+  rather than a parallel notion of "which node space", so registry output and
+  state-container keys are one vocabulary.
+- **Declared positions vs resolved arity — affects D6 rendering, not just
+  validation.** `same`/`diff`/`sim` declare **two** attribute positions that
+  **collapse to one** when both resolve to the same node space (the one-mode
+  case, which is how the frozen baselines keep their existing code path). So
+  arity is a function of the data, and `GetDetailPrint()` builds
+  `effect_description` from the resolved reference names with column count
+  `max(objects_effects_link)` — meaning a two-mode `same(z)` gains an `Object 2`
+  column and would render a second operand in the compact `effect/obj·obj2`
+  string where the user wrote one. Schema (f) must express "N declared
+  positions, arity collapses at resolution", and D6's rendering must key off the
+  *declared* positions rather than the resolved references. Left unhandled this
+  surfaces as an unexplained snapshot diff far from its cause.
 
 ## Risks / Trade-offs
 

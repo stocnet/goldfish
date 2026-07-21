@@ -49,6 +49,37 @@ SHALL never be exposed to or accepted from the user.
 - **THEN** the environment components the monolith reads are exactly equal on
   both paths.
 
+### Requirement: DyNAMi rate specification is flavor-keyed
+For `model = "DyNAMi"`, `make_specification()` SHALL accept `rate` as a
+flavor-keyed list (`join`/`leave` keys validated against the focal layer's
+flavor values) expressing the joining and leaving rate models in the existing
+flavored grammar. The boundary SHALL desugar the keyed list into the legacy
+per-effect `joining = 1/-1` single-formula encoding consumed by the untouched
+monolith — per-flavor `~ 1` intercepts mapped onto the legacy intercept
+encoding, an effect under both keys becoming two terms — and coefficient
+names SHALL render flavor labels. The `joining` flag SHALL NOT appear on the
+new surface. `choice` SHALL be a plain one-sided formula denoting the joining
+choice; a flavor-keyed `choice` SHALL be rejected with an error explaining
+that the leaving choice is deterministic.
+
+#### Scenario: Keyed rate equals the legacy flag formula
+- **WHEN** the same DyNAMi rate model is specified as
+  `rate = list(join ~ ..., leave ~ ...)` and as the legacy single formula
+  with `joining = 1/-1` flags
+- **THEN** both estimate identical coefficients to within 1e-6, with
+  flavor-labeled names on the keyed path.
+
+#### Scenario: Effect present in both rates
+- **WHEN** an effect appears under both the `join` and the `leave` key
+- **THEN** it becomes two statistics (one per rate model), matching the
+  legacy double-entry idiom.
+
+#### Scenario: Keyed choice is rejected
+- **WHEN** `make_specification(model = "DyNAMi", choice = list(join ~ ...))`
+  is called
+- **THEN** construction aborts with an error explaining that `choice` is the
+  joining choice and the leaving choice is deterministic.
+
 ### Requirement: Group availability is a derived occupancy constraint
 The public surface SHALL NOT take an `opportunities` list: the DyNAMi choice
 specification SHALL auto-derive the occupancy constraint
