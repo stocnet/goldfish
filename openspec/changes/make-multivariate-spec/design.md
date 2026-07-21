@@ -25,7 +25,9 @@ consumed by) `dynes-augmentation`. Same-node-set restriction until
 - The stepping/injection walk handle for external drivers.
 
 **Non-Goals:**
-- Augmentation, MCEM, `estimate_dynes()`, `simulate()` (`dynes-augmentation`).
+- Augmentation and MCEM (`dynes-augmentation`), the `estimate_dynes()` surface +
+  ABEM loop (`abmcem`), and the general `simulate()` (the `process-simulation`
+  change — a family-agnostic S3 generic driving this change's walk handle).
 - Any estimator for fully observed multivariate specifications (exactly
   separable; per-process estimation is the answer, enforced by construction
   and by the estimation-surface contract).
@@ -38,19 +40,31 @@ consumed by) `dynes-augmentation`. Same-node-set restriction until
 ### D1 — Purpose: DyNES substrate; estimation is `estimate_dynes()` only
 There is no `estimate()` generic and no `estimate_multivariate()`. The
 multivariate specification exists to portray the co-evolving panel +
-relational-event system that augmentation couples; `estimate_dynes()`
-(`dynes-augmentation`) is its only estimator. *Rejected:* a generic multivariate
-estimator over fully observed processes — the factorization makes it identical
-to separate per-process estimation, so it would be surface without substance.
+relational-event system that augmentation couples; `estimate_dynes()` is its only
+estimator — its surface and ABEM loop live in `abmcem` and its panel data path in
+`dynes-augmentation` (the two share the `dynes-estimation` capability), and it
+takes a `make_multivariate_spec()` object as its `spec`. *Rejected:* a generic
+multivariate estimator over fully observed processes — the factorization makes it
+identical to separate per-process estimation, so it would be surface without
+substance.
 
-### D2 — A panel-observed process is required at construction
-`make_multivariate_spec()` aborts unless at least one composed process's focal
-layer is panel-observed (the layer-info observation metadata decides; no model
-flag needed). A combination of only fully observed processes is rejected with
-guidance to estimate each specification separately. *Rejected:* allowing pure
-relational combinations for simulation/GoF — those surfaces belong to
-`dynes-augmentation` and can accept other inputs; keeping the constructor
-narrow makes the "this is for DyNES" contract legible.
+### D2 — A referenced panel-observed layer is required at construction
+`make_multivariate_spec()` aborts unless at least one **panel-observed layer is
+referenced in the composed formulas** — either as a process's focal/dependent
+layer *or* as an exogenous covariate read by another process's effects or
+support-constraint atoms (the layer-info observation metadata decides; no model
+flag needed). This is broader than requiring a panel *focal* process: a spec whose
+only panel reference is an exogenous covariate read by a relational-event process
+still needs DyNES, because that covariate's latent between-wave path couples the RE
+likelihood (`dynes-augmentation` D8 owns how such an exogenous-only panel reference
+is augmented — static step-covariate or random augmenter, the user's per-layer
+choice). A combination that references **no** panel-observed layer is rejected with
+guidance to estimate each specification separately (it is exactly separable).
+*Rejected:* requiring a panel *focal* process specifically (the earlier, narrower
+gate) — it would reject legitimate specs whose panel coupling is through an
+exogenous covariate; *also rejected:* allowing pure relational combinations with no
+panel reference at all — those are separable and belong to the per-process
+estimators.
 
 ### D3 — fid vocabulary extends by rows and one column
 The `process_map` of `flavored-processes` D9 is reused unchanged in kind:
@@ -233,9 +247,12 @@ cross-family dedup per D5). DyNAM-i processes are rejected:
   objects and constraint atoms (the same structures preprocessing consumes),
   not formula text; tests cover effects, constraint atoms, and windowed
   variants referencing the panel layer.
-- **dynes-augmentation drift**: its proposal predates this change's walk
-  handle → re-ground its "per-event simulation hook" and evaluator seams
-  against `multi-process-walk` before its implementation starts.
+- **dynes-augmentation drift**: its proposal predated this change's walk
+  handle → re-grounded (2026-07-21): the augmenters and `augment_seq_sim()` are
+  external drivers of `multi-process-walk`, the batched `evaluate_engine()` reads
+  the merged walk's per-fid outputs, and the general `simulate()` moved to the
+  `process-simulation` change. Its "per-event simulation hook" framing and its
+  modification of `preprocess-output-writers` are dropped.
 
 ## Migration Plan
 

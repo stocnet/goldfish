@@ -2,10 +2,14 @@
 
 Stage A (`flavored-processes`) makes fully observed competing creation/dissolution
 processes estimable; DyNES handles the panel-observed case: states seen at waves, the
-event sequence between waves latent. `refactor-single-data-object` reserved the
-per-layer panel-semantics flag (D5) and defined change-list semantics for exogenous
-panel covariates; the writer-strategy contract documented (without implementing) a
-per-event simulation hook — exactly the surface a model-driven sequence draw needs.
+event sequence between waves latent. The living `single-data-object` spec carries the
+`observation = "panel"` metadata and change-list semantics for exogenous panel
+covariates; `make-multivariate-spec` landed the `make_multivariate_spec()` composition
+surface and the `multi-process-walk` handle (`walk_open`/`walk_advance`/
+`walk_evaluate`/`walk_inject`) — the family-agnostic stepping + injection substrate a
+model-driven sequence draw drives. Panel augmentation is triggered by a panel layer
+being **referenced in the multivariate specification's formulas** (as a modeled
+process or an exogenous covariate); there is no separate reserved flag.
 Prototypes in `.plan/DyNES/` implement the full algorithm against goldfish 1.6.10:
 `getChainSample()` (uniform Hamming-consistent sequences), `getChainSampleFromModel()`
 (model-driven draws), `permuteChainSample()` (MCMC mutations), `sgd()` /
@@ -47,14 +51,13 @@ process simulation, specification validation, and the recovery study.
 **Non-Goals:**
 - Incremental re-preprocessing of mutated sequences (suffix patching) — full
   re-preprocess is the baseline (OQ B4); revisit only with profiling evidence.
-- Flavor-filtered effects, the `make_multivariate_spec()` constructor (own changes;
-  the batched evaluator is written so a multivariate spec pool can adopt it). The
-  *estimand* here is nonetheless multi-layer (D19) — deferred is the general
-  spec-construction surface, not the joint likelihood; how v1 passes the
-  multi-layer specification is an Open Question.
-- GoF statistics/plots — the `simulate()` primitive IS in scope (D12); the
-  goodness-of-fit surface built on it (observed-vs-simulated statistic
-  distributions) is a follow-up.
+- The `make_multivariate_spec()` constructor and the `multi-process-walk` handle
+  (`make-multivariate-spec`) — consumed here, not built here. `estimate_dynes()`
+  takes a multivariate spec (D1); the batched evaluator reads the merged walk's
+  per-fid preprocessed outputs.
+- The general `simulate()` primitive (`process-simulation` change) — consumed
+  here; `augment_seq_sim()` reuses its per-step drawing core. GoF statistics/plots
+  (`gof-dynes`) are a follow-up.
 - Modeling the rate part of choice-only (ordered) data by treating timings as
   latent and imputing them through the augmentation machinery — a genuinely new
   estimand the DyNES core makes reachable, recorded as a future extension
@@ -108,8 +111,10 @@ ones abort.
 The estimand is the joint multi-layer model of D19 (multiple modeled RE and PE
 layers, per layer × flavor rate and choice formulas, θ the concatenation across all
 modeled sub-models); event-stream estimators continue to abort on panel focal layers,
-naming `estimate_dynes()`. How the multi-layer specification is passed is an Open
-Question (the multivariate spec constructor is a separate change). *Rejected:* overloading `estimate_dynam()` with an
+naming `estimate_dynes()`. **`estimate_dynes()` takes a `make_multivariate_spec()`
+object** (`make-multivariate-spec`) — the earlier open question of how the multi-layer
+specification is passed is resolved to consuming that constructor; the interim
+named-list surface is dropped. *Rejected:* overloading `estimate_dynam()` with an
 `algorithm` switch — panel augmentation changes the estimand's data requirements and
 the result's uncertainty semantics; a distinct verb keeps both surfaces honest (and
 matches the dev plan's naming). *Also rejected:* the flat single constructor (this
@@ -123,8 +128,9 @@ Three constructor families, each returning an object with `init(spec, waves, con
 - **Augmenters** — `augment_seq_random()` (iid-uniform times with within-chain
   sorting over the wave-diff flip set, D20; prototype `getChainSample()`),
   `augment_seq_sim()` (constrained sequential simulation from the model at the
-  current parameters, consuming the per-event simulation hook; prototype
-  `getChainSampleFromModel()`), `augment_seq_mcmc()` (MCMC moves on a current
+  current parameters, driving the `multi-process-walk` handle and reusing the
+  `process-simulation` per-step drawing core under wave-endpoint conditioning;
+  prototype `getChainSampleFromModel()`), `augment_seq_mcmc()` (MCMC moves on a current
   sequence: the permute + shift move set with rate-based time redraws, D20 — the
   RSiena-studied insert/delete excursion moves remain future extensions, D16;
   prototype `permuteChainSample()`). Contract:
@@ -157,12 +163,17 @@ shape) — the three prototype scripts diverged precisely because steps weren't
 separable; the writer contract demonstrated the modular alternative in this codebase.
 
 ### D3 — Engine contract: batched C++ over flat preprocessed pools **[spike-gated]**
-The evaluator's engine is one C++ call over a list/pool of default-format flat
-preprocessed objects (`stat_mat_update` + pointers + broadcast encoding — the
-memory-efficient representation), returning per-sequence logLik/score/Fisher at theta
-with zero optimizer iterations. Rate/probability computation at a given process state
-reuses the estimation kernels (replacing the prototypes' hand-rolled
-`getDyNAMRates()`/`getDyNAMChoices()`). The B1 spike (K ∈ {10, 100, 1000, 10000}
+The evaluator's engine is one C++ call over a list/pool of preprocessed objects,
+returning per-sequence logLik/score/Fisher at theta with zero optimizer iterations.
+The pooled unit is the **`multi-process-walk` merged walk's per-fid output** (one
+flat `preprocessed.goldfish` per fid, `stat_mat_update` + pointers + broadcast
+encoding — the memory-efficient representation), so a multivariate spec's pool
+evaluates through the same contract without a separate assembly path. Rate/probability
+computation at a given process state reuses the estimation kernels (the same
+`process-state-evaluators` the walk handle's `walk_evaluate()` wraps), replacing the
+prototypes' hand-rolled `getDyNAMRates()`/`getDyNAMChoices()`. This is the
+`evaluate_engine()` `make-multivariate-spec` D6 assigns to this change (E-step
+evaluation), built on that change's walk substrate. The B1 spike (K ∈ {10, 100, 1000, 10000}
 sequences on the packaged `social_evolution` dataset, wall time + peak RSS,
 R-loop-per-sequence vs batched C++) confirms or revises this before the evaluator
 phase. *Rejected:* per-spec R calls as the engine
@@ -210,11 +221,27 @@ displays asymptotic and MC error side by side so users see when the pool, not th
 data, limits precision. Fixed-parameter handling follows the prototypes'
 `unfixed_params()`/`std_error_fixed_params()` (NA rows/cols for fixed positions).
 
-### D8 — Panel flag activation and wave diffing
-The per-layer panel-semantics flag (reserved by single-data-object D5) becomes
-readable metadata: a panel-flagged layer's rows are snapshots; consecutive waves diff
-into the candidate flip set per interval, with wave times as hard boundaries the
-augmented sequence must hit. Flavors are arbitrary, not just creation/dissolution:
+### D8 — Panel augmentation trigger (formula reference) and wave diffing
+There is **no separate panel-semantics flag**. A panel-observed layer
+(`observation = "panel"` in the living `single-data-object` spec) becomes an
+augmentation target **iff it is referenced in the multivariate specification's
+formulas** — either as a modeled process's focal/dependent layer, or as an
+exogenous covariate read by another process's effects or support-constraint atoms
+(the `make-multivariate-spec` coupling notion, D19). A panel layer referenced
+nowhere is not augmented (it stays an ordinary exogenous change-list covariate, or
+is absent). When a panel layer is referenced **only as an exogenous covariate**
+(it carries no formulas describing its own dynamics), its latent between-wave path
+is still needed, and the user chooses per layer how to supply it (an estimation
+argument, e.g. on `set_alg_augment()`, not a data-object property):
+- **static step-covariate** — state jumps only at wave times (the living
+  `single-data-object` panel behavior); the layer is *not* latent and contributes
+  no Monte-Carlo variation; or
+- **random augmenter** — the flip set is ordered uniformly between waves
+  (`augment_seq_random()`, model-free), making the path latent.
+A modeled panel process (its own focal layer) is always augmented by the chosen
+model-driven routine. Wave diffing is unchanged: a panel layer's rows are
+snapshots; consecutive waves diff into the candidate flip set per interval, with
+wave times as hard boundaries the augmented sequence must hit. Flavors are arbitrary, not just creation/dissolution:
 the diff consumes the layer's transition/support specification and inverts the
 (from-value, to-value) → flavor mapping, which MUST be injective — the flavor is
 never a latent variable. A value change larger than one allowed step decomposes into
@@ -231,27 +258,28 @@ semantics (state jumps at wave times), untouched. Diffing is a conversion-module
 function also usable standalone (the upstream snapshot-diff-verb proposal to manynet
 remains open and non-blocking).
 
-### D9 — Simulation hook: implement the documented recipe-loop extension point as the walk's source port
-The per-event simulation hook lands exactly as documented by
-`preprocess-output-writers`: after the stats update for event i, before advancing, a
-registered callback sees the visible process state and may append to the event stream.
-`augment_seq_sim()` is its first consumer (drawing event i+1 from the rates at
-state i). Conceptually the hook is the **source port** of the recipe walk — the mirror
-of the writer contract's sink port: the walk's event supply is, in general, a **merge
-of the observed exogenous schedule (covariate/composition changes) with a
-generated-or-imputed dependent stream**. Pure-observed preprocessing and
-pure-generative simulation are the degenerate ends of that hybrid; the DyNES augmenter
-is the hybrid source conditioned on the wave endpoint. Implementing the hook with this
-framing (the callback participates in the schedule merge, not a bolted-on side
-channel) directly carries the `simulate()` surface (D12) — a generative source +
-recorder sink + the multi-consumer (rate + choice) walk from `flavored-processes`
-D3 — now IN SCOPE for this change rather than a follow-up. Like the writer, the
-source resolves to a plain local closure before the loop — no per-event dispatch
-machinery. The augmenter-side risk-set restriction (observed pairs with remaining
-support-applicable events, D20) happens **in R**: the callback receives the kernels'
-full rate/choice vectors and subsets + renormalizes — no risk-set mask argument is
-added to the C++ kernels in v1 (worth revisiting only at large n, D11). The
-sampling-writer and parallel-chunking extension points stay documentation-only.
+### D9 — Augmenters are external drivers of the `multi-process-walk` handle
+The stepping substrate is `make-multivariate-spec`'s walk handle, not a callback
+bolted into the batch recipe loop. Control inverts: the augmenter **owns the loop**
+and steps a stateful handle — `walk_open(spec, data)`, then
+`walk_advance(handle, t)` (apply exogenous events up to t),
+`walk_evaluate(handle, fid, theta)` (the fid's masked rate/choice at the live
+state), and `walk_inject(handle, event)` (apply the sampled event to the shared
+state). Batch preprocessing is the degenerate driver that injects the observed
+sequence; `augment_seq_sim()` is the hybrid driver conditioned on the wave
+endpoint; the general `simulate()` (`process-simulation` change) is the
+unconditioned generative driver. One substrate, several drivers — this is the
+compute/emit separability `flavored-processes` D10 reserved and
+`make-multivariate-spec` D6 realized.
+
+The augmenter-side risk-set restriction (observed pairs with remaining
+support-applicable events, D20) happens **in R**: the driver reads the
+`walk_evaluate()` rate/choice vectors and subsets + renormalizes — no risk-set mask
+argument is added to the C++ kernels in v1 (worth revisiting only at large n, D11).
+Consequently this change **no longer implements a per-event hook in the recipe
+loop** and no longer modifies `preprocess-output-writers` — that capability's
+extension points (sampling writer, parallel chunking) stay documentation-only,
+untouched by this change.
 
 ### D10 — Parallelization: sequence-level only, under a non-nested thread budget **[spike-gated]** (map seam → abmcem)
 Every expensive step of an ABEM iteration (augmentation, the D5 full re-preprocess,
@@ -305,45 +333,17 @@ weighting theory) but is recorded as the designated follow-up for large-n dyadic
 DyNES/REM applications; the D10 thread budget is not expected to make n ≥ several
 thousand dyadic models practical on its own.
 
-### D12 — Process simulation: per-family timing strategies, stopping rules, explosion guard
-`simulate()` generates event sequences from a specification and parameters through
-the D9 generative source feeding the multi-consumer walk, with observed exogenous
-streams merged in. Grounded in the reference packages: relevent's
-`simulate.rem.dyad()` never estimates a nonparametric baseline — it simulates a
-**fixed number of events** (`nsim`, default the observed count) and supports keeping
-observed timings while redrawing only the dyads (`redraw.timing = FALSE`); remulate
-hard-codes exponential waiting times to a horizon with no ordinal mode and no
-explosion guard. goldfish adopts the union:
-
-- **Stopping rules**: simulate to a time horizon OR for a fixed event count; the
-  fixed count doubles as the guard against **process explosion** (super-linear
-  feedback terms driving the total rate unbounded); horizon simulation carries a
-  hard `max_events` cap with a diagnostic abort.
-- **Timed sub-models** (DyNAM-rate, REM): exponential waiting times from the total
-  rate (θ including the intercept) — exact simulation.
-- **Ordered/Cox-like sub-models** (rate_ordered, REM-ordered, choice-only): the
-  baseline is unidentified, so two modes — (a) **fixed template times, redraw
-  dyads** (relevent's precedent) and (b) **pseudo-time from the crude rate**, which
-  is exactly the intercept-scalar formula
-  `log(n_dep_events / total_time / avg_active_actors)` already carried (per flavor)
-  by every preprocessed object — no new estimation needed.
-- **Choice-coordination**: mutual-choice rejection sampling — rate assumed
-  constant; a sender is drawn uniformly; a waiting time from the crude rate; ego
-  proposes an alter from its choice probabilities; the event realizes iff the
-  alter's choice reciprocates, otherwise the proposal is rejected and redrawn. The
-  acceptance rate is reported as a diagnostic.
-- **Flavored specifications** simulate as competing processes: the next event is
-  drawn across all flavors' total rates with each flavor's derived mask maintained —
-  a hard dependency on `flavored-processes`.
-- **Output**: simulated pools ARE evaluator-compatible sequences (the same format
-  the augmenters produce and `evaluate_sequence_pool()` consumes), closing the
-  simulate → augment → evaluate loop; trajectory statistics are optionally
-  recordable through the writer sink.
-
-*Rejected:* nonparametric baseline (Breslow-style) recovery to draw calendar times
-from ordinal fits — neither reference package does it, it adds an estimation surface
-for timing that the ordinal estimand deliberately ignores, and the two supported
-modes cover the GoF and augmentation uses.
+### D12 — Process simulation: moved to the `process-simulation` change
+The general `simulate()` surface — per-family timing strategies (exact /
+fixed-template / pseudo-time), stopping rules, the explosion guard, the
+coordination rejection scheme, flavored competing-process draws, and the
+evaluator-compatible pool output — is **no longer this change's**. It is a
+family-agnostic S3 generic driving the `multi-process-walk` handle, and it lives in
+the standalone `process-simulation` change (that change's design records the
+decisions and rejected alternatives — including the rejected nonparametric-baseline
+recovery for ordinal fits). This change **consumes** it: `augment_seq_sim()` (D20)
+reuses that change's per-step drawing core under wave-endpoint conditioning, and the
+recovery study (D19) simulates panels through it.
 
 ### D13 — Augmenter × weighting validity matrix **[→ abmcem]**
 Uniform weighting of the E-step is valid exactly when the proposal *is* the model's
@@ -505,16 +505,23 @@ v1 — the price is that the likelihood does not factorize over between-wave
 intervals, so the MCMC augmenter runs one global chain over the whole sequence
 (D20) and wave-level parallelism is off the table (D10).
 
-**PE-independence detection**: from the formulas and the objects they create,
-`estimate_dynes()` detects sub-models whose statistics read no modeled-PE state —
-their likelihood terms are constant under PE placement (no MC error, and they
-cancel from every MH acceptance ratio). A **fully** PE-independent specification
-aborts: nothing is latent, and `estimate_dynam()` covers it. A **mixed**
-specification also aborts, naming both remedies: run `estimate_dynam()` on the
-PE-independent sub-models separately, or fold them as flavors of one single layer
-in a flavored specification. *Rejected:* automatic internal partitioning (standard
-estimation for the independent block inside `estimate_dynes()`) — two estimation
-paths and a block-structured vcov for a case the error message resolves.
+**Separability: consume the multivariate spec's coupling detection, don't
+re-derive it.** `make-multivariate-spec` D4 already marks each fid `coupled` iff any
+of its effect arguments or support-constraint atoms reads a panel-observed layer's
+state (direct reference; not transitive). `estimate_dynes()` reads that `coupled`
+column rather than recomputing PE-independence at sub-model granularity. Behavior on
+the resulting cases, aligned with `make-multivariate-spec` D4 (the newer decision):
+- **All fids separable** → abort: nothing is latent, `estimate_dynam()` covers it.
+  (Unreachable through `make_multivariate_spec()` when a panel process is modeled —
+  its own fids are coupled by construction — but guards recomposed/edited specs.)
+- **Mixed** (some coupled, some separable) → **proceed** with a cli message naming
+  the separable fids (their likelihood terms touch no latent path, so joint
+  estimation equals separate estimation for them). This supersedes this design's
+  earlier "mixed also aborts" — the multivariate surface owns the policy and it
+  informs rather than aborts.
+*Rejected:* automatic internal partitioning (a separate standard-estimation path and
+block-structured vcov inside `estimate_dynes()`) — the joint fit already handles the
+separable fids correctly; the message is a user-guidance nicety, not a fork.
 
 **History spans**: modeled REs before the first wave are history — they inform the
 process state at the first wave but contribute no likelihood terms; modeled REs
@@ -648,11 +655,9 @@ package.
   settled by D20 (unified pred/succ windows, frozen-rate truncated-exponential
   proposals, q_fwd/q_rev with the pick-factor cancellation); the RSiena study note
   remains a cross-check and the source for future excursion moves.
-- **[spec surface]** How `estimate_dynes()` receives the multi-layer specification
-  (D19): block on the separate multivariate-spec change and consume its
-  constructor, or ship an interim surface (e.g. a named list of Stage-A flavored
-  specs, one per layer) that the future constructor slots under. Decide before the
-  estimator-surface phase.
+- **[resolved]** How `estimate_dynes()` receives the multi-layer specification
+  (D19): it consumes a `make_multivariate_spec()` object (`make-multivariate-spec`);
+  the interim named-list surface is dropped. This change hard-depends on that one.
 - **[to discuss]** Whether MCMC retained draws enter the pool through the proposal
   evaluator's cache (preprocessed object + loglik reuse, D20 note) — deliberately
   not in the v1 contract yet.
@@ -662,17 +667,7 @@ package.
 - **[gated by Phase 1]** The D10 thread-budget crossover (when, if ever, BLAS threads
   beat sequence sharding on the large-n cell) — resolved by the B1 spike's
   BLAS × sharding crossing.
-- **[simulation surface, resolve before its phase]** Entry points: `simulate()` S3 on
-  the fitted result (θ̂, stats convention `object, nsim, seed`), on a specification
-  with explicit `coef`, or both; base-generic naming vs a snake_case verb.
-- **[simulation surface]** Ordered-family default mode (pseudo-time vs
-  fixed-template times) and whether a template event list is required or optional.
-- **[simulation surface]** Which writer sinks are legal on a simulation run; output
-  class name.
-- **[simulation surface]** Exogenous horizon: simulating past the last observed
-  covariate/composition change (freeze state and warn?).
-- **[simulation surface]** `max_events` default; abort vs truncate-with-warning;
-  coordination rejection bookkeeping (redraw sender+time or keep the drawn time;
-  acceptance-rate warning threshold).
-- **[simulation surface]** Simulation under parameter uncertainty for DyNES results
-  (θ drawn from `vcov()` for GoF bands) — likely out, decide explicitly.
+- **[moved]** The `simulate()` surface questions (entry points/naming, ordered-family
+  default mode, legal writer sinks, exogenous horizon, `max_events` default,
+  coordination bookkeeping, θ-uncertainty bands) now live in the `process-simulation`
+  change's design; `augment_seq_sim()` consumes whatever that change settles.

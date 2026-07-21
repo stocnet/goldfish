@@ -5,13 +5,15 @@
 The package SHALL export `make_multivariate_spec(...)` accepting two or more
 `make_specification()` objects over one shared data object and returning a
 multivariate specification that portrays their co-evolution. At least one
-composed process's focal layer MUST be panel-observed (per the layer-info
-observation metadata); a combination containing only fully observed processes
-SHALL abort explaining that such processes are exactly separable and should be
-estimated with the per-process estimators. DyNAM-i processes SHALL be rejected.
-All processes MUST share one node set (the multimode change relaxes this).
-DyNAM (rate, choice, choice_coordination) and REM processes, timed or ordered,
-MAY be freely mixed, flavored or plain.
+**panel-observed layer MUST be referenced** in the composed formulas — as a
+process's focal/dependent layer OR as an exogenous covariate read by another
+process's effects or support-constraint atoms (per the layer-info observation
+metadata); a combination that references no panel-observed layer SHALL abort
+explaining that the processes are exactly separable and should be estimated with
+the per-process estimators. DyNAM-i processes SHALL be rejected. All processes
+MUST share one node set (the multimode change relaxes this). DyNAM (rate, choice,
+choice_coordination) and REM processes, timed or ordered, MAY be freely mixed,
+flavored or plain.
 
 #### Scenario: panel plus relational processes compose
 - **WHEN** `make_multivariate_spec(friendship_spec, calls_spec, data = x)` runs
@@ -20,9 +22,16 @@ MAY be freely mixed, flavored or plain.
 - **THEN** a multivariate specification is returned covering both processes'
   formulas.
 
-#### Scenario: fully observed combination rejected
-- **WHEN** every composed process's focal layer is a fully observed event
-  stream
+#### Scenario: exogenous-only panel reference still composes
+- **WHEN** no composed process's focal layer is panel-observed, but a
+  relational-event process reads a panel-observed layer as an exogenous covariate
+  (e.g. `calls ~ ... + tie(friendship)` with friendship panel-observed)
+- **THEN** a multivariate specification is returned — the panel layer's latent
+  between-wave path couples the RE likelihood, so DyNES applies.
+
+#### Scenario: no panel reference rejected
+- **WHEN** no composed process references any panel-observed layer (focal or
+  exogenous)
 - **THEN** construction aborts with a cli error stating the processes are
   separable and each specification can be estimated on its own.
 

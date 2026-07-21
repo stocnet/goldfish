@@ -39,12 +39,13 @@ per-interval flip sets, and observed event streams, returning one or more
 endpoint-hitting sequences together with the log proposal density of their full
 generative path — and SHALL provide three constructors: `augment_seq_random()`
 (iid-uniform times per interval, same-dyad chains ordered by within-chain sorting),
-`augment_seq_sim()` (constrained sequential simulation from the model at `theta` via
-the per-event simulation hook: sender–flavor risk sets restricted in R to
-support-applicable remaining events plus the single globally-next unplaced modeled
-relational event; receivers among remaining observed receivers; waiting times from
-truncated exponentials at the selected pair's rate, bounded by the next anchor —
-min(next relational event, wave end)), and `augment_seq_mcmc()` (one serial global
+`augment_seq_sim()` (constrained sequential simulation from the model at `theta` as an
+external driver of the `multi-process-walk` handle — reusing the `process-simulation`
+per-step drawing core under wave-endpoint conditioning: sender–flavor risk sets
+restricted in R to support-applicable remaining events plus the single globally-next
+unplaced modeled relational event; receivers among remaining observed receivers;
+waiting times from truncated exponentials at the selected pair's rate, bounded by the
+next anchor — min(next relational event, wave end)), and `augment_seq_mcmc()` (one serial global
 chain over the whole sequence; within-wave permute and shift moves mixed by the
 user-facing `move_probs`; rate-based truncated-exponential time proposals frozen at
 the state after the preceding panel event; burn-in and thinning counted in sweeps;
@@ -61,12 +62,12 @@ strategy).
 - **THEN** each is endpoint-hitting with times inside the interval, chain order
   respected, and orderings vary across draws.
 
-#### Scenario: simulation augmenter consumes the simulation hook
+#### Scenario: simulation augmenter drives the walk handle
 - **WHEN** `augment_seq_sim()` draws a sequence at parameters `theta`
-- **THEN** each next event is drawn from the model's rates/choices evaluated at the
-  process state after the previously drawn event, via the recipe loop's simulation
-  hook, and the recorded log proposal density includes every selection step —
-  relational-event selections included.
+- **THEN** each next event is drawn from the model's rates/choices obtained by
+  `walk_evaluate()` at the process state after the previously injected event, and the
+  recorded log proposal density includes every selection step — relational-event
+  selections included.
 
 #### Scenario: mutation preserves validity
 - **WHEN** `augment_seq_mcmc()` proposes a move on a valid sequence

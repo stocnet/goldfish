@@ -28,12 +28,14 @@
       record the revision in progress.md — later phases MUST NOT start before this
       task closes
 
-## 2. Panel-semantics flag and wave diffing
+## 2. Panel augmentation trigger and wave diffing
 
-- [ ] 2.1 Implement the per-layer panel-semantics flag as readable metadata
-      (validator: only on `observation = "panel"` layers); scope the panel-focal
-      rule per estimator (event-stream estimators abort pointing to
-      `estimate_dynes()`; DyNES accepts)
+- [ ] 2.1 Panel augmentation triggered by formula reference (no separate flag): a
+      panel-observed layer referenced in the multivariate spec is an augmentation
+      target; scope the panel-focal rule per estimator (event-stream estimators
+      abort pointing to `estimate_dynes()`; DyNES accepts a modeled panel process);
+      exogenous-only panel references carry a per-layer static-vs-random-augmenter
+      choice on the estimation surface
 - [ ] 2.2 Wave diffing into candidate flip sets per between-wave interval
       (standalone-usable on a validated data object) plus the endpoint-hitting
       sequence validator
@@ -42,16 +44,17 @@
 - [ ] 2.4 Verification: full `NOT_CRAN=true` run (frozen baselines PASS not SKIP);
       version bump in DESCRIPTION + NEWS.md entry (panel seam milestone); commit
 
-## 3. Simulation hook and augmenters
+## 3. Augmenters (walk-handle drivers)
 
-- [ ] 3.1 Implement the per-event simulation hook on the recipe loop per the
-      documented contract (visible state after event i, event-stream append);
-      no-registered-hook path byte-equivalent — baselines gate the commit
-- [ ] 3.2 Augmenter contract + `augment_seq_random()` (iid-uniform times with
-      within-chain sorting over the flip set, closed-form proposal density
-      reported, design D20)
+- [ ] 3.1 Augmenter contract as an external driver of the `multi-process-walk`
+      handle (`walk_open`/`advance`/`evaluate`/`inject`, `make-multivariate-spec`);
+      no per-event hook is added to the recipe loop and `preprocess-output-writers`
+      is not modified by this change — baselines gate the commit
+- [ ] 3.2 `augment_seq_random()` (iid-uniform times with within-chain sorting over
+      the flip set, closed-form proposal density reported, design D20)
 - [ ] 3.3 `augment_seq_sim()`: constrained sequential model-driven draw at `theta`
-      consuming the simulation hook (R-side risk-set restriction over
+      driving the walk handle and reusing the `process-simulation` per-step drawing
+      core under wave-endpoint conditioning (R-side risk-set restriction over
       support-applicable remaining events plus the globally next relational event;
       truncated-exponential waiting times; full-path proposal density, design D20)
 - [ ] 3.4 `augment_seq_mcmc()`: permute + shift move set with rate-based
@@ -63,9 +66,9 @@
       target, burn-in at every chain restart, same-chain continuation for
       within-iteration growth
 - [ ] 3.5 Tests: endpoint-hitting asserted on every draw, proposal-density
-      correctness on hand-computed fixtures, hook state-visibility; verification run
-      `NOT_CRAN=true` (PASS not SKIP); version bump + NEWS (augmentation milestone);
-      commit
+      correctness on hand-computed fixtures, walk-handle batch-vs-replay
+      consistency; verification run `NOT_CRAN=true` (PASS not SKIP); version bump +
+      NEWS (augmentation milestone); commit
 
 ## 4. Batched pool evaluator
 
@@ -87,35 +90,18 @@
       fixtures, pool memory within the accepted bound; verification `NOT_CRAN=true`
       (PASS not SKIP); version bump + NEWS (evaluator milestone); commit
 
-## 5. Process simulation
+## 5. Process simulation — moved out
 
-- [ ] 5.1 Resolve the simulation-surface open questions in design.md before
-      implementing (entry points and naming, ordered-family default mode, legal
-      writer sinks and output class, exogenous horizon behavior, `max_events`
-      default, coordination rejection bookkeeping, θ-uncertainty in/out); record
-      the decisions as design amendments
-- [ ] 5.2 Generative draw machinery over the walk: total rate + exponential waiting
-      time (timed sub-models), sender/receiver draws from the Phase-4 rates-at-state
-      kernels, stopping by horizon or fixed event count, `max_events` explosion
-      guard with total-rate diagnostic
-- [ ] 5.3 Ordered/Cox-like timing modes: fixed-template-times-redraw-dyads and
-      crude-rate pseudo-time (reusing the intercept scalars); scale-caveat
-      documentation on pseudo-time output
-- [ ] 5.4 Coordination mutual-choice rejection scheme (uniform sender, crude-rate
-      waiting time, accept iff reciprocated) with acceptance-rate diagnostic
-- [ ] 5.5 Simulation surface per the task-5.1 decisions: entry points, flavored
-      competing-flavor draws under derived masks, evaluator-compatible pool output,
-      optional writer-sink statistics recording; `devtools::document()`
-- [ ] 5.6 Tests: seeded intensity/event-count sanity on timed fixtures,
-      template-times preservation, acceptance-rate fixtures, explosion abort
-      snapshot, simulate→evaluate round trip at generating vs perturbed parameters;
-      verification `NOT_CRAN=true` (PASS not SKIP); version bump + NEWS (simulation
-      milestone); commit
+- [ ] 5.1 (moved) The general `simulate()` surface is implemented by the standalone
+      `process-simulation` change. This change consumes it: `augment_seq_sim()`
+      (task 3.3) reuses that change's per-step drawing core, and the recovery study
+      (task 6.2) simulates panels through it. No simulation tasks remain here.
 
 ## 6. Validation study and documentation
 
 - [ ] 6.1 Multi-layer specification validation per design D19 (all-or-nothing
-      panel-layer modeling, PE-independence detection with the two-remedy abort,
+      panel-layer modeling; separability read from the multivariate spec's `coupled`
+      column — all-separable aborts, mixed proceeds with a cli message;
       history-span trimming) wired into the `estimate_dynes()` surface shipped by
       the `abmcem` change; cli message snapshots; `devtools::document()`
 - [ ] 6.2 Seeded parameter-recovery test (skip_on_cran) from the toy fixture;

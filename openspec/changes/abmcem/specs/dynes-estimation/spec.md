@@ -2,7 +2,8 @@
 
 ### Requirement: estimate_dynes runs the ascent-based Monte Carlo EM loop
 
-The package SHALL provide `estimate_dynes(spec, algorithm = set_alg_em(...))`
+The package SHALL provide `estimate_dynes(spec, algorithm = set_alg_em(...))`,
+where `spec` is a `make_multivariate_spec()` object (`make-multivariate-spec`),
 estimating the specification's concatenated parameter vector by ascent-based
 Monte Carlo EM: per iteration, augment or refresh a pool of endpoint-hitting
 sequences via the configured augmenter, evaluate E-step quantities on the pool
