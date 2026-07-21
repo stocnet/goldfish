@@ -8,6 +8,7 @@
 \alias{print.network.goldfish}
 \alias{print.dependent.goldfish}
 \alias{print.specification.goldfish}
+\alias{print.joint_specification.goldfish}
 \alias{print.data.goldfish}
 \alias{print.preprocessed.goldfish}
 \alias{print.estimation_opt.goldfish}
@@ -38,6 +39,8 @@
 \method{print}{dependent.goldfish}(x, ..., full = FALSE, n = 6)
 
 \method{print}{specification.goldfish}(x, ...)
+
+\method{print}{joint_specification.goldfish}(x, ...)
 
 \method{print}{data.goldfish}(x, ...)
 
@@ -127,6 +130,10 @@ See \code{\link[=make_dependent_events]{make_dependent_events()}}.
 
 For objects of class \code{specification.goldfish} print a single-glance
 overview of the model, dependent process, and formulas.
+
+For objects of class \code{joint_specification.goldfish} print one section
+per modeled layer (flavors nested), each formula's fid and separable/coupled
+status, and the derived and combined support constraints.
 
 For objects of class \code{estimation_opt.goldfish}, print a summary of the estimation control options.
 

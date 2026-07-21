@@ -12,22 +12,43 @@
 
 ## 1. Multivariate specification surface
 
-- [ ] 1.1 `make_multivariate_spec(...)`: accept ≥2 specification objects over
-      one data object; validate the shared node set, reject DyNAM-i processes,
-      require ≥1 panel-observed focal layer (abort for fully observed
-      combinations with per-process-estimation guidance); assemble the extended
+- [x] 1.1 `make_joint_specification(...)` (source `R/make_joint_specification.R`,
+      returning a new S3 class `joint_specification.goldfish` that does NOT inherit
+      `specification.goldfish`): accept ≥2 specification objects over one data
+      object; validate the shared node set, reject DyNAM-i processes, require ≥1
+      panel-observed layer *referenced* (focal/dependent or exogenous covariate) —
+      abort only when no panel layer is referenced at all, with
+      per-process-estimation guidance; do NOT require a modeled panel process here
+      (that DyNES-viability check is estimation-time in `estimate_dynes()`); abort
+      when two joined specifications share the same focal/dependent layer (focal
+      uniqueness — covariate reuse allowed; all of a layer's flavors in one
+      specification), naming the duplicated layer; assemble the extended
       process_map (fid rows across processes, shared-constraint ids)
-- [ ] 1.2 Coupling detection: mark each fid coupled iff its parsed effects or
-      constraint atoms directly reference a panel-observed layer; store the
-      `coupled` column; no transitivity
-- [ ] 1.3 Print method: processes sectioned per layer (flavors nested), derived
+- [x] 1.2 Coupling detection: mark each fid coupled iff its parsed effects or
+      constraint atoms directly reference a **modeled** panel-observed layer (a
+      panel layer that is itself a process); reading a static exogenous panel
+      covariate does not couple; store the `coupled` column; no transitivity
+- [x] 1.3 Print method: processes sectioned per layer (flavors nested), derived
       and combined constraints shown, separable fids marked (cli semantic
       elements; labels rendered from the process_map)
-- [ ] 1.4 Tests: composition validation matrix (panel requirement, node-set
-      mismatch, DyNAM-i rejection), process_map row/constraint-id correctness,
-      coupling via effect vs constraint atom vs windowed effect, print
-      snapshots under a pinned cli context
-- [ ] 1.5 Verification: full `NOT_CRAN=true` run (baselines PASS not SKIP);
+- [x] 1.4 Tests: composition validation matrix (panel-reference requirement,
+      node-set mismatch, DyNAM-i rejection, exogenous-only-panel spec composes),
+      process_map row/constraint-id correctness, coupling via effect vs constraint
+      atom vs windowed effect and modeled-panel vs static-exogenous-panel reference,
+      print snapshots under a pinned cli context
+- [x] 1.5 Verification: full `NOT_CRAN=true` run (baselines PASS not SKIP);
+      `devtools::document()`; commit
+- [x] 1.6 Estimator guards: `estimate_dynam()` / `estimate_rem()` abort on a
+      `joint_specification.goldfish` object (class check BEFORE the
+      `specification.goldfish` dispatch branch), directing to `estimate_dynes()`;
+      confirm the existing `check_dependent_panel()` PE-focal guard fires on the
+      single-specification path for `estimate_dynam()`/`estimate_rem()`/
+      `estimate_dynami()` (message retargeted to `estimate_dynes()` lives in the
+      `single-data-object` delta — do not duplicate it here); `estimate_dynami()`
+      joint-object rejection deferred (future development, noted). Tests: joint
+      object into dynam/rem aborts with the dynes pointer; PE-focal spec into each
+      event-stream estimator aborts (cli snapshots under a pinned context)
+- [ ] 1.7 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
       `devtools::document()`; commit
 
 ## 2. Cross-process union planning
