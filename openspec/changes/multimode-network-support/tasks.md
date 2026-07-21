@@ -85,7 +85,7 @@
       in the same commit as their fix — a red test committed here would leave
       the suite red across every commit until its phase, which the
       commit-per-task discipline forbids.*
-- [ ] 3.4 Nodal state keyed by mode set (design D13). `build_object_keys()` /
+- [x] 3.4 Nodal state keyed by mode set (design D13). `build_object_keys()` /
       `build_state_container()` stop comparing `entry$nodeset` to the
       `nodes`/`nodes2` synthetic keys and stop hard-wiring exactly two nodal
       buckets: one view per **referenced mode set**, canonicalized (sorted,

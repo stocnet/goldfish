@@ -326,6 +326,33 @@ ds_layer_sides.data_source_stocnet <- function(src, name) {
   }
 }
 
+# The state container's key for the node space a node-set identifier names.
+#
+# Nodal state is keyed by mode set exactly as network state is keyed by layer,
+# so a node space is named by what it *is* rather than by which of two static
+# buckets a reference happened to land in. Two layers declaring the same side
+# then resolve to one view -- one copy, one write per event -- and key equality
+# means "the same node set" instead of being another comparison of manufactured
+# names. Modes are sorted so a set has a single spelling whatever order it was
+# declared in.
+ds_nodal_view <- function(src, nodeset) UseMethod("ds_nodal_view")
+
+#' @exportS3Method
+ds_nodal_view.data_source_envir <- function(src, nodeset) {
+  paste0("nodal:", nodeset)
+}
+
+#' @exportS3Method
+ds_nodal_view.data_source_stocnet <- function(src, nodeset) {
+  modes <- src$mode_map$nodes_lookup$mode[ds_side_ids(src, nodeset)]
+  # A single fused node set carries no mode column, so the node-set identifier
+  # is the only name that node space has.
+  if (all(is.na(modes))) {
+    return(paste0("nodal:", nodeset))
+  }
+  paste0("nodal:", paste(sort(unique(modes)), collapse = "+"))
+}
+
 # Nodes and attributes --------------------------------------------------------
 
 #' A node set's rows, as the data frame estimation reports on

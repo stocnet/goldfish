@@ -222,7 +222,9 @@ test_that("the stocnet source builds the legacy state container", {
     attr(stocnet_state, "object_keys"),
     attr(legacy_state, "object_keys")
   )
-  expect_null(stocnet_state$nodal2, label = "a one-mode layer has no nodal2")
+  # A one-mode layer names one node space, so both modeled sides resolve to a
+  # single view rather than to two buckets one of which is empty.
+  expect_length(grep("^nodal:", names(stocnet_state)), 1L)
 })
 
 # Event streams ---------------------------------------------------------------

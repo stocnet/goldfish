@@ -12,16 +12,16 @@
 #' @param nodes,nodes2 names of the node sets of the dependent events.
 #' @param envir environment where the data objects live.
 #'
-#' @return a list with components `networks`, `nodal`, `nodal2` (NULL for
-#'   one-mode), and `globals`.
+#' @return a list with components `networks`, one `nodal:<mode-set>` view per
+#'   referenced node space, and `globals`.
 #' @noRd
 #' Classify the effects' data objects into the state-container mapping
 #'
 #' Metadata-only companion to [build_state_container]: it resolves each data
-#' object to its state `component` (`networks` / `nodal` / `nodal2` / `globals`)
-#' and its `key`, reading object **class/structure only** — it copies no network
-#' or nodal data. This is the single source of the `object_keys` mapping so the
-#' upfront compile (`build_spec_map()`) can build the update plan + call
+#' object to its state `component` (`networks` / `nodal:<mode-set>` /
+#' `globals`) and its `key`, reading object **class/structure only** — it copies
+#' no network or nodal data. This is the single source of the `object_keys`
+#' mapping so the upfront compile (`build_spec_map()`) can build the plan + call
 #' templates without materialising the state (the metadata/data boundary); the
 #' same validations (non-matrix network, missing attribute, foreign node set)
 #' fire here.
@@ -70,10 +70,12 @@ build_object_keys <- function(
       }
       if (ds_is_global(src, entry$nodeset)) {
         components[i] <- "globals"
-      } else if (entry$nodeset == nodes) {
-        components[i] <- "nodal"
-      } else if (entry$nodeset == nodes2) {
-        components[i] <- "nodal2"
+      } else if (entry$nodeset %in% c(nodes, nodes2)) {
+        # The node set a reference names decides *which* view it reads, but
+        # not how many views exist: the component is the node space itself, so
+        # positions sharing a mode set share one view and a third node space
+        # is expressible rather than a hard error.
+        components[i] <- ds_nodal_view(src, entry$nodeset)
       } else {
         cli::cli_abort(
           "Attribute {.val {entry$name}} belongs to node set
@@ -110,7 +112,6 @@ build_state_container <- function(
 
   networks <- list()
   nodal_cols <- list()
-  nodal2_cols <- list()
   global_cols <- list()
 
   for (i in seq_len(nrow(objects_table))) {
@@ -122,33 +123,47 @@ build_state_container <- function(
       value <- ds_attribute(src, entry$nodeset, entry$attribute)
       if (component == "globals") {
         global_cols[[entry$attribute]] <- value
-      } else if (component == "nodal") {
-        nodal_cols[[entry$attribute]] <- value
       } else {
-        nodal2_cols[[entry$attribute]] <- value
+        nodal_cols[[component]][[entry$attribute]] <- value
       }
     }
   }
 
-  state <- list(
-    networks = networks,
-    nodal = data.frame(nodal_cols, row.names = NULL),
-    nodal2 = if (is_one_mode) {
-      NULL
+  # The focal layer's own views exist whether or not an effect reads a nodal
+  # attribute, so a container always carries a correctly sized frame per
+  # modeled side. On a one-mode focal both sides resolve to one view and this
+  # collapses to the single frame the container has always had.
+  view_sizes <- list()
+  view_sizes[[ds_nodal_view(src, nodes)]] <- n1
+  if (!is_one_mode) {
+    view_sizes[[ds_nodal_view(src, nodes2)]] <- n2
+  }
+  for (view in names(nodal_cols)) {
+    view_sizes[[view]] <- view_sizes[[view]] %||%
+      length(nodal_cols[[view]][[1]])
+  }
+
+  nodal_views <- lapply(names(view_sizes), function(view) {
+    cols <- nodal_cols[[view]]
+    if (length(cols) == 0) {
+      data.frame(matrix(nrow = view_sizes[[view]], ncol = 0))
     } else {
-      data.frame(nodal2_cols, row.names = NULL)
-    },
-    globals = data.frame(global_cols, row.names = NULL)
+      data.frame(cols, row.names = NULL)
+    }
+  })
+  names(nodal_views) <- names(view_sizes)
+
+  state <- c(
+    list(networks = networks),
+    nodal_views,
+    list(
+      globals = if (length(global_cols) == 0) {
+        data.frame(matrix(nrow = 1, ncol = 0))
+      } else {
+        data.frame(global_cols, row.names = NULL)
+      }
+    )
   )
-  if (length(nodal_cols) == 0) {
-    state$nodal <- data.frame(matrix(nrow = n1, ncol = 0))
-  }
-  if (!is_one_mode && length(nodal2_cols) == 0) {
-    state$nodal2 <- data.frame(matrix(nrow = n2, ncol = 0))
-  }
-  if (length(global_cols) == 0) {
-    state$globals <- data.frame(matrix(nrow = 1, ncol = 0))
-  }
 
   attr(state, "object_keys") <- object_keys
   state
