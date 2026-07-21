@@ -141,6 +141,6 @@ test_that("DyNAM choice preserves the two-mode ego guard (mirrors REM)", {
   }
   expect_error(
     init_DyNAM_choice.indeg(effect_fun, network, NULL, 5, 6),
-    "type 'ego'"
+    "cannot be computed on a two-mode network"
   )
 })

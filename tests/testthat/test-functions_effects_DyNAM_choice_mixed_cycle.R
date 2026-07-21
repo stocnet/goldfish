@@ -47,7 +47,7 @@ test_that("init mixed_cycle handles dimensions and windows", {
   # Dimension mismatch
   expect_error(
     init_DyNAM_choice.mixed_cycle(effectFUN, list(m, m1), NULL, 4, 5),
-    "Non conformable dimensions sizes"
+    "networks that do not chain"
   )
   # Window init (should be empty)
   expect_type(
@@ -99,7 +99,7 @@ test_that("init mixed_cycle handles dimensions and windows", {
   )
   expect_error(
     init_DyNAM_choice.mixed_cycle(effectFUN, list(m, m1), NULL, 4, 5),
-    "Non conformable dimensions sizes"
+    "networks that do not chain"
   )
   expect_type(
     init_DyNAM_choice.mixed_cycle(effectFUN, list(m, m1), 1, 5, 5),

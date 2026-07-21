@@ -779,6 +779,18 @@ create_effects_functions <- function(
           }
           .signature[["is_two_mode"]] <- is_two_mode
         }
+        # The parser is the only place that sees which layer each argument
+        # refers to, so the side signature is checked here rather than in the
+        # effect's init -- including for the effects that carry no
+        # `is_two_mode` formal at all.
+        check_effect_sides(
+          effect = as.character(x[[1]]),
+          arg_name = arg_name,
+          type = resolve_effect_type(.signature, envir),
+          src = src,
+          model = model,
+          sub_model = sub_model
+        )
       }
       formals(FUN) <- .signature
       return(list(effect = FUN, init_effect = .FUN_stat))

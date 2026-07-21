@@ -166,7 +166,7 @@ test_that("init mixed_trans must have conformable dimensions", {
       4,
       5
     ),
-    "Non conformable dimensions sizes for effect"
+    "networks that do not chain"
   )
 })
 

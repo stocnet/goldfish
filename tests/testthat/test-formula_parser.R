@@ -906,10 +906,11 @@ test_that("get_events_and_objects_link handles global.goldfish without error", {
 test_that("two-modeness resolves per network argument, not from the focal", {
   # D4's per-argument rule: each network argument answers from its OWN layer.
   # On a multipartite object the focal `attend` is two-mode, yet the one-mode
-  # covariate `coauthor` must still read FALSE.
+  # covariate `coauthor` must still read FALSE. Both terms read the sender
+  # side, the only side of the focal `attend` these covariates share.
   d <- as_goldfish(make_stocnet_fixture_multipartite())
   parsed <- parse_formula(
-    attend ~ indeg(coauthor) + indeg(member),
+    attend ~ indeg(coauthor, type = "ego") + outdeg(member, type = "ego"),
     data = d
   )
   effects <- create_effects_functions(
@@ -932,7 +933,7 @@ test_that("two-modeness resolves per network argument, not from the focal", {
 test_that("the mismatch warning names the layer's actual mode pair", {
   d <- as_goldfish(make_stocnet_fixture_multipartite())
   parsed <- parse_formula(
-    attend ~ indeg(member, is_two_mode = FALSE),
+    attend ~ outdeg(member, type = "ego", is_two_mode = FALSE),
     data = d
   )
 
