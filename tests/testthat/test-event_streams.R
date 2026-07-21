@@ -218,3 +218,32 @@ test_that("non-active changes and global rows split per variable", {
   expect_named(streams$global, "season")
   expect_equal(unlist(streams$global$season$value), 2)
 })
+
+test_that("composition splits on the focal pair, dropping other modes", {
+  # Known limitation: the composition split is driven by the *focal* layer's
+  # side pair alone, so on a multipartite object a node belonging only to a
+  # covariate layer's mode (here `org`, reached by `member` but not `attend`)
+  # appears in neither stream. Lifting this needs a per-layer composition
+  # split, which the engine's two index spaces do not currently carry.
+  x <- make_stocnet_fixture_multipartite()
+  x$changes <- data.frame(
+    time = c(1, 2),
+    node = c(1L, 6L),
+    var = "active",
+    stringsAsFactors = FALSE
+  )
+  x$changes$value <- list(list(FALSE), list(FALSE))
+  map <- build_mode_map(x$info, x$nodes, c("attend", "coauthor", "member"))
+  streams <- split_stocnet_streams(x, map, focal = "attend")
+
+  expect_equal(
+    streams$composition$mode1$node,
+    1L,
+    label = "the actor is on the focal sender side"
+  )
+  expect_equal(
+    nrow(streams$composition$mode2),
+    0L,
+    label = "the org is in neither focal side and is dropped"
+  )
+})

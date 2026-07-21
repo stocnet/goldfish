@@ -109,6 +109,79 @@ test_that("two-mode assembly remaps ties and changes into the fused id space", {
   expect_equal(changes$node[changes$var == "budget"], c(7L, 7L))
 })
 
+test_that("assembled two-mode composition routes by node mode", {
+  # `present` events must be reachable by name from the goldfish namespace's
+  # search path when a two-mode network is linked, so they live in the global
+  # environment for the duration of this test rather than as locals.
+  actor_leaves <- data.frame(
+    time = 2,
+    node = "A3",
+    replace = FALSE,
+    stringsAsFactors = FALSE
+  )
+  club_closes <- data.frame(
+    time = 6,
+    node = "C2",
+    replace = FALSE,
+    stringsAsFactors = FALSE
+  )
+  assign("actor_leaves", actor_leaves, envir = globalenv())
+  assign("club_closes", club_closes, envir = globalenv())
+  withr::defer(rm(
+    "actor_leaves",
+    "club_closes",
+    envir = globalenv()
+  ))
+
+  actors <- make_nodes(data.frame(
+    label = c("A1", "A2", "A3"),
+    present = TRUE,
+    stringsAsFactors = FALSE
+  ))
+  actors <- link_events(actors, actor_leaves, attribute = "present")
+  clubs <- make_nodes(data.frame(
+    label = c("C1", "C2"),
+    present = TRUE,
+    stringsAsFactors = FALSE
+  ))
+  clubs <- link_events(clubs, club_closes, attribute = "present")
+  joins <- data.frame(
+    time = c(1, 3, 5),
+    sender = c("A1", "A2", "A1"),
+    receiver = c("C1", "C2", "C2"),
+    increment = 1,
+    stringsAsFactors = FALSE
+  )
+  membership <- make_network(nodes = actors, nodes2 = clubs, directed = TRUE)
+  membership <- link_events(membership, joins, nodes = actors, nodes2 = clubs)
+  joins_dependent <- make_dependent_events(
+    events = joins,
+    nodes = actors,
+    nodes2 = clubs,
+    default_network = membership
+  )
+
+  assembled <- assemble_stocnet_from_legacy(list(
+    actors = actors,
+    clubs = clubs,
+    membership = membership,
+    joins = joins,
+    joins_dependent = joins_dependent,
+    actor_leaves = actor_leaves,
+    club_closes = club_closes
+  ))
+  map <- build_mode_map(assembled$info, assembled$nodes, "membership")
+  streams <- split_stocnet_streams(assembled, map)
+
+  # Each `present` event lands on the side its node belongs to, as that side's
+  # local index: A3 is sender-side local 3, C2 is receiver-side local 2 (global
+  # id 5).
+  expect_equal(streams$composition$mode1$node, 3L)
+  expect_equal(streams$composition$mode2$node, 2L)
+  expect_equal(streams$composition$mode1$time, 2)
+  expect_equal(streams$composition$mode2$time, 6)
+})
+
 test_that("a one-mode bundle keeps its pre-two-mode shape", {
   data("Social_Evolution", package = "goldfish", envir = environment())
   events <- calls[1:40, ]
