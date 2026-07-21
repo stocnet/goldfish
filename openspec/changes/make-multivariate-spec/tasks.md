@@ -48,7 +48,7 @@
       joint-object rejection deferred (future development, noted). Tests: joint
       object into dynam/rem aborts with the dynes pointer; PE-focal spec into each
       event-stream estimator aborts (cli snapshots under a pinned context)
-- [ ] 1.7 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
+- [x] 1.7 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
       `devtools::document()`; commit
 
 ## 2. Cross-process union planning

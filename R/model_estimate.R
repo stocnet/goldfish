@@ -281,6 +281,27 @@
 #'
 NULL
 
+# A joint (multivariate) specification is a distinct class that does NOT inherit
+# specification.goldfish, so it slips past the single-specification dispatch
+# branch and would otherwise fall through to estimate_wrapper. The event-stream
+# estimators reject it by class and point at the multivariate estimator; the
+# check runs before the specification.goldfish branch so a joint object never
+# reaches single-process estimation.
+reject_joint_specification <- function(x, call = rlang::caller_env()) {
+  if (inherits(x, "joint_specification.goldfish")) {
+    cli::cli_abort(
+      c(
+        "A {.cls joint_specification.goldfish} cannot be estimated with the \\
+         event-stream estimators.",
+        "i" = "Multivariate specifications are estimated with \\
+               {.fn estimate_dynes}."
+      ),
+      call = call
+    )
+  }
+  invisible(x)
+}
+
 #' @rdname estimate
 #' @export
 estimate_dynam <- function(
@@ -296,6 +317,7 @@ estimate_dynam <- function(
   verbose = getOption("verbose", default = FALSE)
 ) {
   sub_model <- match.arg(sub_model)
+  reject_joint_specification(x)
   if (inherits(x, "specification.goldfish")) {
     return(estimate_from_specification(
       spec = x,
@@ -339,6 +361,9 @@ estimate_dynami <- function(
   verbose = getOption("verbose", default = FALSE)
 ) {
   sub_model <- match.arg(sub_model)
+  # No joint-specification guard here: DyNAM-i is under development and is
+  # rejected at joint composition, so it cannot appear in a joint object. An
+  # explicit rejection is deferred to when DyNAM-i becomes composable.
   estimate_wrapper(
     x = x,
     model = "DyNAMi",
@@ -368,6 +393,7 @@ estimate_rem <- function(
   verbose = getOption("verbose", default = FALSE)
 ) {
   sub_model <- match.arg(sub_model)
+  reject_joint_specification(x)
   if (inherits(x, "specification.goldfish")) {
     return(estimate_from_specification(
       spec = x,

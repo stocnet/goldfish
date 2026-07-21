@@ -63,7 +63,7 @@ validate_goldfish_data <- function(
   check_syntactic_names(nodes, ties, x$changes, x$global, layers, call = call)
   check_layer_coverage(info, layers, call = call)
   focal_layer <- check_focal(info, focal, layers, call = call)
-  check_focal_not_panel(info, focal_layer, call = call)
+  check_dependent_panel(info, focal_layer, call = call)
   check_time_contract(ties, x$changes, x$global, call = call)
   check_pool_membership(nodes, ties, x$changes, call = call)
   check_flavor(ties, call = call)
@@ -303,7 +303,7 @@ check_focal <- function(info, focal, layers, call) {
 # (`info$panel_semantics`, named per layer) that this validator neither requires
 # nor consults: the slot is defined for that change to own, with no machinery
 # built here.
-check_focal_not_panel <- function(info, focal_layer, call) {
+check_dependent_panel <- function(info, focal_layer, call) {
   if (is.null(focal_layer)) {
     return(invisible(TRUE))
   }
