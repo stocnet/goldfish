@@ -752,37 +752,32 @@ create_effects_functions <- function(
       is_condition <- isReservedElementName(.args_names) &
         !(.args_names %in% names_)
       .signature[is_condition] <- parms_to_set[!named_params]
-      if ("network" %in% .args_names && "is_two_mode" %in% .args_names) {
+      # Two-modeness is resolved from each network argument's OWN layer, never
+      # as a blanket from the focal layer, and the mode map is the source of
+      # truth: a declared `is_two_mode` that disagrees with the data is a
+      # mistake about the data, so the data wins and the user is told.
+      if ("network" %in% .args_names) {
+        arg_name <- if (length(x) > 1) x[[2]] else NULL
         is_two_mode <- ds_arg_is_two_mode(
           src,
-          if (length(x) > 1) x[[2]] else NULL,
+          arg_name,
           eval(.signature[["network"]], envir = probe_envir)
         )
-        if (
-          !is.null(parms_to_set[["is_two_mode"]]) &&
-            eval(parms_to_set[["is_two_mode"]], envir = envir) != is_two_mode
-        ) {
-          warning(
-            "The \"is_two_mode\" parameter in effect ",
-            x[[1]],
-            " has a different value than",
-            " the attributes on network argument '",
-            x[[2]],
-            "'",
-            call. = FALSE,
-            immediate. = TRUE
-          )
-        } else if (is_two_mode && is.null(parms_to_set[["is_two_mode"]])) {
+        if ("is_two_mode" %in% .args_names) {
+          declared <- if (is.null(parms_to_set[["is_two_mode"]])) {
+            NULL
+          } else {
+            eval(parms_to_set[["is_two_mode"]], envir = envir)
+          }
+          if (!is.null(declared) && !identical(declared, is_two_mode)) {
+            warn_is_two_mode_mismatch(
+              effect = as.character(x[[1]]),
+              layer = arg_name,
+              declared = declared,
+              mode_pair = ds_layer_mode_pair(src, arg_name)
+            )
+          }
           .signature[["is_two_mode"]] <- is_two_mode
-          warning(
-            "Setting 'is_two_mode' parameter in effect ",
-            x[[1]],
-            " to TRUE for network '",
-            x[[2]],
-            "'",
-            call. = FALSE,
-            immediate. = TRUE
-          )
         }
       }
       formals(FUN) <- .signature
@@ -792,6 +787,28 @@ create_effects_functions <- function(
     sub_model
   )
   structure(effects, class = "goldfish.formulae")
+}
+
+# The declared `is_two_mode` disagrees with what the argument's layer actually
+# is. Name all three things the user needs to reconcile it: the effect, what
+# they declared, and what the data says (as the layer's mode pair where the
+# object carries modes).
+warn_is_two_mode_mismatch <- function(effect, layer, declared, mode_pair) {
+  actual <- if (is.null(mode_pair)) {
+    NULL
+  } else {
+    c(
+      "i" = "Layer {.val {layer}} sends from mode{?s} \\
+             {.val {mode_pair$sender}} to mode{?s} {.val {mode_pair$receiver}}."
+    )
+  }
+  cli::cli_warn(c(
+    "{.arg is_two_mode} = {.val {declared}} in {.fn {effect}} disagrees with \\
+     the data.",
+    actual,
+    "i" = "Using {.val {!declared}}, read from the layer's mode sets.",
+    "i" = "Drop the argument to silence this: it is derived from the data."
+  ))
 }
 
 create_windowed_events <- function(object_events, window) {

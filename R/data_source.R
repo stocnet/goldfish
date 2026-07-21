@@ -117,6 +117,30 @@ ds_layer_is_two_mode.data_source_stocnet <- function(src, name) {
   isTRUE(ds_layer_map(src, name)$is_two_mode)
 }
 
+# A layer's mode pair as the mode names of each side, for messages that must
+# name what the data actually says (e.g. "actors -> clubs"). Answers NULL where
+# no mode map exists, so callers fall back to naming the layer alone.
+ds_layer_mode_pair <- function(src, name) UseMethod("ds_layer_mode_pair")
+
+#' @exportS3Method
+ds_layer_mode_pair.data_source_envir <- function(src, name) NULL
+
+#' @exportS3Method
+ds_layer_mode_pair.data_source_stocnet <- function(src, name) {
+  lm <- ds_layer_map(src, name)
+  if (is.null(lm)) {
+    return(NULL)
+  }
+  modes <- src$mode_map$nodes_lookup$mode
+  if (all(is.na(modes))) {
+    return(NULL)
+  }
+  list(
+    sender = unique(modes[lm$side1]),
+    receiver = unique(modes[lm$side2])
+  )
+}
+
 # A derived (windowed) layer inherits its structural metadata -- dimensions,
 # sides, direction -- from the layer it was derived from, so both resolve
 # through the same map entry.
