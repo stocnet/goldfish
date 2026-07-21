@@ -134,6 +134,60 @@ resolve_effect_type <- function(signature, envir) {
 #' @param call the calling environment, for the error's context. `NULL` (the
 #'   default) keeps the parser's internal frames out of the message.
 #' @noRd
+#' Check that an effect's attribute reads are defined on the mode they read
+#'
+#' Rule R3 of the side contract. An attribute is a column of one nodes table
+#' spanning every mode, so a variable that only makes sense for one mode is NA
+#' on the others -- reading it on a mode where it is wholly undefined yields an
+#' all-NA statistic, which imputation then silently fills with a mean of
+#' nothing. Definedness is therefore a property of the (attribute, mode) pair
+#' and is reported that way, per mode rather than pooled.
+#'
+#' Partial missingness is left alone: that is ordinary missing data, and
+#' imputation is its contract.
+#'
+#' @param effect effect name as written in the formula.
+#' @param refs the term's resolved object references.
+#' @param src a data source.
+#' @param call the calling environment, for the error's context.
+#' @noRd
+check_effect_attributes <- function(effect, refs, src, call = NULL) {
+  if (!inherits(src, "data_source_stocnet")) {
+    return(invisible(NULL))
+  }
+  for (ref in unlist(strsplit(
+    gsub("^list\\((.*)\\)$", "\\1", refs),
+    ",\\s*"
+  ))) {
+    parts <- strsplit(trimws(ref), "$", fixed = TRUE)[[1]]
+    if (length(parts) != 2 || identical(parts[1], GLOBAL_NODESET)) {
+      next
+    }
+    nodeset <- parts[1]
+    attribute <- parts[2]
+    if (!attribute %in% names(src$nodes)) {
+      next
+    }
+    value <- ds_attribute(src, nodeset, attribute)
+    if (length(value) == 0 || !all(is.na(value))) {
+      next
+    }
+    mode <- sub("^nodal:", "", ds_nodal_view(src, nodeset))
+    cli::cli_abort(
+      c(
+        "{.fn {effect}} reads {.val {attribute}} on mode {.val {mode}}, where
+         it is undefined.",
+        "x" = "Every node of mode {.val {mode}} has {.val NA} for
+               {.val {attribute}}.",
+        "i" = "Use an attribute defined on that mode, or restrict the effect
+               to the side where {.val {attribute}} is measured."
+      ),
+      call = call
+    )
+  }
+  invisible(NULL)
+}
+
 check_effect_sides <- function(
   effect,
   arg_name,

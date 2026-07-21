@@ -102,7 +102,7 @@
       (`attend ~ alter(size)` with a change on a receiver-side node →
       `missing value where TRUE/FALSE needed`), then the sender-side silent
       case (a layer whose `side1` is not `1:n1`).
-- [ ] 3.6 `ego` reads the sender-side view and `alter` the receiver-side view on
+- [x] 3.6 `ego` reads the sender-side view and `alter` the receiver-side view on
       a two-mode layer; `same`/`diff`/`sim`/`ego_alter_interaction` take two
       positions (list) when the two views differ and one (vector) when they do
       not. `is_two_mode` is **injected per attribute position** from the mode map

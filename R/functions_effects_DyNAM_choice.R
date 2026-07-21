@@ -3289,22 +3289,107 @@ update_DyNAM_choice_alter <- function(
   return(res)
 }
 
+# The two sides a comparison effect reads. On a two-mode focal the parser
+# resolves one written operand into one attribute position per side, so the
+# init receives a list; on a one-mode focal both positions name the same
+# reference, the object table collapses them, and the init receives the single
+# vector it always did -- read here as both sides.
+cross_side_attribute <- function(attribute, is_two_mode) {
+  if (is.list(attribute)) {
+    return(list(ego = attribute[[1]], alter = attribute[[2]]))
+  }
+  list(ego = attribute, alter = attribute)
+}
+
+# A comparison effect's update on a two-mode focal. `att_update` names the
+# position whose vector changed -- 1 the sender side, 2 the receiver side -- so
+# a sender change rewrites that node's row against every alter, and a receiver
+# change that node's column against every ego. The one-mode update cannot make
+# this distinction (it emits both orientations for one change) and does not
+# need to: there both positions are the same vector.
+update_cross_side_same <- function(
+  attribute,
+  node,
+  replace,
+  att_update,
+  n1,
+  n2
+) {
+  res <- list(changes = NULL)
+  ego <- attribute[[1]]
+  alter <- attribute[[2]]
+  if (identical(att_update, 1L) || identical(att_update, 1)) {
+    if (identical(ego[node], replace)) {
+      return(res)
+    }
+    res$changes <- cbind(
+      node1 = node,
+      node2 = seq_len(n2),
+      replace = 1 * (replace == alter)
+    )
+    return(res)
+  }
+  if (identical(alter[node], replace)) {
+    return(res)
+  }
+  res$changes <- cbind(
+    node1 = seq_len(n1),
+    node2 = node,
+    replace = 1 * (ego == replace)
+  )
+  res
+}
+
+# The same split for the difference family. Orientation matters here in a way
+# it does not for `same`: the statistic is `ego - alter`, so a sender change
+# varies the minuend and a receiver change the subtrahend.
+update_cross_side_diff <- function(
+  attribute,
+  node,
+  replace,
+  att_update,
+  n1,
+  n2,
+  transformer_fn
+) {
+  res <- list(changes = NULL)
+  ego <- attribute[[1]]
+  alter <- attribute[[2]]
+  if (identical(att_update, 1L) || identical(att_update, 1)) {
+    if (identical(ego[node], replace)) {
+      return(res)
+    }
+    res$changes <- cbind(
+      node1 = node,
+      node2 = seq_len(n2),
+      replace = forceAndCall(1, transformer_fn, replace - alter)
+    )
+    return(res)
+  }
+  if (identical(alter[node], replace)) {
+    return(res)
+  }
+  res$changes <- cbind(
+    node1 = seq_len(n1),
+    node2 = node,
+    replace = forceAndCall(1, transformer_fn, ego - replace)
+  )
+  res
+}
+
 # same --------------------------------------------------------------------
 #' @export
 init_DyNAM_choice.same <- function(effect_fun, attribute, ...) {
   # Get arguments
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
-  if (is_two_mode) {
-    stop(
-      "effect",
-      dQuote("same"),
-      "doesn't work in two mode networks ('is_two_mode = TRUE')",
-      call. = FALSE
-    )
+  sides <- cross_side_attribute(attribute, is_two_mode)
+  stat <- 1 * outer(sides$ego, sides$alter, "==")
+  # A two-mode statistic has no diagonal to exclude: rows and columns index
+  # different node sets, so [i, i] is an ordinary dyad.
+  if (!is_two_mode) {
+    diag(stat) <- 0
   }
-  stat <- 1 * outer(attribute, attribute, "==")
-  diag(stat) <- 0
   return(list(stat = stat))
 }
 
@@ -3313,8 +3398,14 @@ update_DyNAM_choice_same <- function(
   attribute,
   node,
   replace,
+  att_update,
+  n1,
+  n2,
   is_two_mode = FALSE
 ) {
+  if (is_two_mode) {
+    return(update_cross_side_same(attribute, node, replace, att_update, n1, n2))
+  }
   res <- list(changes = NULL)
   # Get old value
   old_value <- attribute[node]
@@ -3359,19 +3450,12 @@ init_DyNAM_choice.diff <- function(effect_fun, attribute, ...) {
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]]) # applied FUN instead
-  if (is_two_mode) {
-    stop(
-      "effect",
-      dQuote("diff"),
-      "doesn't work in two mode networks ('is_two_mode = TRUE')",
-      call. = FALSE
-    )
-  }
+  sides <- cross_side_attribute(attribute, is_two_mode)
   return(list(
     stat = forceAndCall(
       1,
       funApply,
-      outer(attribute, attribute, "-")
+      outer(sides$ego, sides$alter, "-")
     )
   ))
 }
@@ -3381,11 +3465,23 @@ update_DyNAM_choice_diff <- function(
   attribute,
   node,
   replace,
+  att_update,
   n1,
   n2,
   is_two_mode = FALSE,
   transformer_fn = abs
 ) {
+  if (is_two_mode) {
+    return(update_cross_side_diff(
+      attribute,
+      node,
+      replace,
+      att_update,
+      n1,
+      n2,
+      transformer_fn
+    ))
+  }
   res <- list(changes = NULL)
   # utility functions to return third nodes
   third <- function(n, diff = c(node)) {
@@ -3417,17 +3513,10 @@ init_DyNAM_choice.sim <- function(effect_fun, attribute, ...) {
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]]) # applied FUN instead
-  if (is_two_mode) {
-    stop(
-      "effect",
-      dQuote("sim"),
-      "doesn't work in two mode networks ('is_two_mode = TRUE')",
-      call. = FALSE
-    )
-  }
+  sides <- cross_side_attribute(attribute, is_two_mode)
   return(list(
     stat = (-1) *
-      forceAndCall(1, funApply, outer(attribute, attribute, "-"))
+      forceAndCall(1, funApply, outer(sides$ego, sides$alter, "-"))
   ))
 }
 
@@ -3436,6 +3525,7 @@ update_DyNAM_choice_sim <- function(
   attribute,
   node,
   replace,
+  att_update,
   n1,
   n2,
   is_two_mode = FALSE,
@@ -3445,6 +3535,7 @@ update_DyNAM_choice_sim <- function(
     attribute = attribute,
     node = node,
     replace = replace,
+    att_update = att_update,
     n1 = n1,
     n2 = n2,
     is_two_mode = is_two_mode,
@@ -3464,14 +3555,6 @@ init_DyNAM_choice.ego_alter_interaction <- function(
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]]) # applied FUN instead
-  if (is_two_mode) {
-    stop(
-      "effect",
-      dQuote("diff"),
-      "doesn't work in two mode networks ('is_two_mode = TRUE')",
-      call. = FALSE
-    )
-  }
   if (length(attribute) != 2) {
     stop("Interaction ego alter is just define for two attributes")
   }

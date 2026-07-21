@@ -731,6 +731,11 @@ create_effects_functions <- function(
 
       # Update signatures of the effects based on default parameters
       # and above specified parameters
+      check_effect_attributes(
+        effect = as.character(x[[1]]),
+        refs = as.character(x[-1]),
+        src = src
+      )
       .signature <- formals(FUN)
       .args_names <- names(.signature)
       parms_to_set <- x[-1]
@@ -791,6 +796,14 @@ create_effects_functions <- function(
           model = model,
           sub_model = sub_model
         )
+      } else if ("is_two_mode" %in% .args_names) {
+        # An attribute-only effect has no network argument to resolve against,
+        # and its positions are positions of the focal dyad -- so the focal
+        # layer is the right source, and this stays a per-position fact rather
+        # than a blanket: the flag says whether the sides this effect spans are
+        # different node spaces. Without it these effects saw the hardcoded
+        # FALSE and zeroed a diagonal that a two-mode statistic does not have.
+        .signature[["is_two_mode"]] <- ds_model_is_two_mode(src)
       }
       formals(FUN) <- .signature
       return(list(effect = FUN, init_effect = .FUN_stat))

@@ -47,10 +47,13 @@ resolve_formula_names <- function(
   for (i in seq_along(rhs_names)) {
     term <- rhs_names[[i]]
     effect <- term[[1]]
-    for (j in object_ref_slots(term)) {
+    slots <- object_ref_slots(term)
+    for (k in seq_along(slots)) {
+      j <- slots[[k]]
       rhs_names[[i]][[j]] <- resolve_object_ref(
         term[[j]],
         effect = effect,
+        position = k,
         src = src,
         nodes = nodes,
         nodes2 = nodes2,
@@ -60,6 +63,28 @@ resolve_formula_names <- function(
     }
   }
   rhs_names
+}
+
+# The effects whose statistic compares the two sides of the focal dyad, so a
+# single written operand reads one attribute on both sides. On a two-mode focal
+# those are different node spaces and the reference expands to one position per
+# side; on a one-mode focal both positions name the same reference and
+# get_data_objects()' unique() collapses them back to one, which is what keeps
+# the one-mode path on its existing arity-1 route.
+CROSS_SIDE_EFFECTS <- c("same", "diff", "sim")
+
+# Which side of the focal dyad an attribute position reads. `alter` reads the
+# receiver side; `ego_alter_interaction` reads the sender side with its first
+# operand and the receiver side with its second; everything else reads the
+# sender side.
+attribute_side <- function(effect, position, nodes, nodes2) {
+  if (identical(effect, "alter")) {
+    return(nodes2)
+  }
+  if (identical(effect, "ego_alter_interaction") && position == 2) {
+    return(nodes2)
+  }
+  nodes
 }
 
 # Which elements of a term are data-object references: everything after the
@@ -83,6 +108,7 @@ object_ref_slots <- function(term) {
 resolve_object_ref <- function(
   ref,
   effect,
+  position,
   src,
   nodes,
   nodes2,
@@ -90,24 +116,51 @@ resolve_object_ref <- function(
   user_env
 ) {
   if (!grepl("^list\\(", ref)) {
-    return(resolve_one_name(ref, effect, src, nodes, nodes2, call, user_env))
+    return(resolve_one_name(
+      ref,
+      effect,
+      position,
+      src,
+      nodes,
+      nodes2,
+      call,
+      user_env
+    ))
   }
   inner <- trimws(strsplit(gsub("^list\\((.+)\\)$", "\\1", ref), ",")[[1]])
   resolved <- vapply(
-    inner,
-    resolve_one_name,
-    character(1),
-    effect = effect,
-    src = src,
-    nodes = nodes,
-    nodes2 = nodes2,
-    call = call,
-    user_env = user_env
+    seq_along(inner),
+    function(k) {
+      resolve_one_name(
+        inner[[k]],
+        effect = effect,
+        position = k,
+        src = src,
+        nodes = nodes,
+        nodes2 = nodes2,
+        call = call,
+        user_env = user_env,
+        # Already inside a list: a cross-side expansion here would nest one
+        # list inside another, which the object table cannot read.
+        expand = FALSE
+      )
+    },
+    character(1)
   )
   paste0("list(", paste(resolved, collapse = ", "), ")")
 }
 
-resolve_one_name <- function(name, effect, src, nodes, nodes2, call, user_env) {
+resolve_one_name <- function(
+  name,
+  effect,
+  position,
+  src,
+  nodes,
+  nodes2,
+  call,
+  user_env,
+  expand = TRUE
+) {
   bare <- drop_data_frame_prefix(name, user_env)
 
   if (bare %in% src$layers) {
@@ -127,11 +180,17 @@ resolve_one_name <- function(name, effect, src, nodes, nodes2, call, user_env) {
     )
   }
   if (in_nodes) {
-    # One nodes tibble serves both sides: `alter()` reads the receiver-side
-    # slice of the column, every other effect the sender-side slice. The
-    # effects that compare the two sides (same/diff/sim) are one-mode only, so
-    # there the two slices are the same rows anyway.
-    side <- if (identical(effect, "alter")) nodes2 else nodes
+    # One nodes tibble serves every side, so a reference names the slice its
+    # position reads. A comparison effect reads both sides from one written
+    # operand, so it expands here into one reference per side.
+    if (expand && effect %in% CROSS_SIDE_EFFECTS) {
+      return(sprintf(
+        "list(%s, %s)",
+        paste(nodes, bare, sep = "$"),
+        paste(nodes2, bare, sep = "$")
+      ))
+    }
+    side <- attribute_side(effect, position, nodes, nodes2)
     return(paste(side, bare, sep = "$"))
   }
   if (in_global) {

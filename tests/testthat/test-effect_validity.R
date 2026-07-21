@@ -176,3 +176,108 @@ test_that("indeg with type = 'alter' initializes on a two-mode network", {
     label = "every sender sees the same receiver in-degrees"
   )
 })
+
+# Attribute reads on a two-mode focal ------------------------------------------
+
+test_that("attribute effects read the side their position names", {
+  d <- as_goldfish(make_stocnet_fixture_multipartite())
+  parsed <- parse_formula(
+    attend ~ ego(size) + alter(size) + same(size),
+    data = d
+  )
+  refs <- vapply(parsed$rhs_names, function(t) t[[2]], character(1))
+
+  expect_equal(refs[[1]], "nodes_side1$size", label = "ego reads the sender")
+  expect_equal(
+    refs[[2]],
+    "nodes_side2$size",
+    label = "alter reads the receiver"
+  )
+  # One written operand, both sides: the comparison effects expand here so the
+  # init can be handed a vector per side.
+  expect_equal(refs[[3]], "list(nodes_side1$size, nodes_side2$size)")
+})
+
+test_that("a one-mode focal collapses a comparison effect back to one read", {
+  d <- as_goldfish(make_stocnet_fixture())
+  parsed <- parse_formula(calls ~ same(floor), data = d)
+
+  expect_equal(parsed$rhs_names[[1]][[2]], "list(nodes$floor, nodes$floor)")
+  # Both positions name the same reference, so the object table collapses them
+  # and the effect keeps the arity-1 route the frozen baselines run through.
+  link <- get_objects_effects_link(parsed$rhs_names)
+  expect_equal(nrow(link), 1L)
+})
+
+test_that("a comparison effect reports one operand on either kind of data", {
+  # The user wrote one operand and must see one: a synthesized second position
+  # is state, not something to render as `Object 2`.
+  term_of <- function(data, formula) {
+    parsed <- parse_formula(formula, data = data)
+    GetDetailPrint(get_objects_effects_link(parsed$rhs_names), parsed)
+  }
+  two_mode <- term_of(
+    as_goldfish(make_stocnet_fixture_multipartite()),
+    attend ~ same(size)
+  )
+  one_mode <- term_of(as_goldfish(make_stocnet_fixture()), calls ~ same(floor))
+
+  expect_equal(colnames(two_mode)[1], "Object")
+  expect_equal(colnames(one_mode)[1], "Object")
+  expect_equal(unname(two_mode[, ".term_export"]), "same_size")
+  expect_equal(unname(one_mode[, ".term_export"]), "same_floor")
+})
+
+test_that("ego_alter_interaction keeps both operands the user wrote", {
+  # Its second operand is written, not synthesized, so it renders as two --
+  # and on two-mode data the two positions now read different sides, where
+  # before they both collapsed onto the sender.
+  d <- as_goldfish(make_stocnet_fixture_multipartite())
+  parsed <- parse_formula(attend ~ ego_alter_interaction(size, size), data = d)
+  link <- get_objects_effects_link(parsed$rhs_names)
+
+  expect_equal(nrow(link), 2L)
+  expect_setequal(rownames(link), c("nodes_side1$size", "nodes_side2$size"))
+})
+
+test_that("an attribute undefined on the mode it is read on aborts", {
+  x <- make_stocnet_fixture_multipartite()
+  # `budget` is measured on orgs only, so it is NA for every actor and event.
+  x$nodes$budget <- c(NA, NA, NA, NA, NA, 12, 8)
+  d <- as_goldfish(x)
+
+  expect_error(
+    create_effects_functions(
+      parse_formula(attend ~ ego(budget), data = d)$rhs_names,
+      "DyNAM",
+      "choice",
+      data = d
+    ),
+    regexp = "undefined"
+  )
+  expect_no_error(create_effects_functions(
+    parse_formula(attend ~ ego(size), data = d)$rhs_names,
+    "DyNAM",
+    "choice",
+    data = d
+  ))
+})
+
+test_that("a two-mode alter statistic keeps no excluded diagonal", {
+  # `alter` zeroed [i, i] on two-mode data because attribute-only effects never
+  # received the injected flag and read the hardcoded is_two_mode = FALSE.
+  prep <- estimate_dynam(
+    attend ~ alter(size),
+    sub_model = "choice",
+    data = as_goldfish(make_stocnet_fixture_multipartite()),
+    preprocessing_only = TRUE
+  )
+  stat <- prep$initialStats[,, 1]
+
+  expect_equal(
+    nrow(unique(stat)),
+    1L,
+    label = "every sender sees the same alters"
+  )
+  expect_equal(as.vector(stat[1, ]), c(40, 25))
+})

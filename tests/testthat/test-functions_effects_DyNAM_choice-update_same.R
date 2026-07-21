@@ -106,12 +106,23 @@ test_that("same returns correct attributes on update", {
   # )
 })
 
-test_that("same init throws an error when two-mode network", {
+test_that("same init compares the two sides on a two-mode network", {
+  # This used to abort: `same` was declared two-mode-incompatible. It is not --
+  # comparing a sender attribute to a receiver attribute is well defined, and
+  # whether the two scales are comparable is the user's call. The parser
+  # resolves the one written operand into one position per side, so the init
+  # receives a list and the statistic is the cross-side outer comparison.
   check <- formals(effectFUN)
   check$is_two_mode <- TRUE
   formals(effectFUN) <- check
-  expect_error(
-    init_DyNAM_choice.same(effectFUN, m1, NULL, 5, 5),
-    regexp = "doesn't work in two mode networks"
-  )
+
+  ego <- c(1, 2, 3)
+  alter <- c(2, 3)
+  stat <- init_DyNAM_choice.same(effectFUN, list(ego, alter), NULL, 3, 2)$stat
+
+  expect_equal(dim(stat), c(3L, 2L))
+  expect_equal(stat, 1 * outer(ego, alter, "=="))
+  # No diagonal is excluded: rows and columns index different node sets, so
+  # [i, i] is an ordinary dyad rather than a self-tie.
+  expect_equal(stat[2, 1], 1, label = "ego 2 equals alter 2")
 })
