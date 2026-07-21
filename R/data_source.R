@@ -229,12 +229,87 @@ ds_side_ids <- function(src, nodeset) UseMethod("ds_side_ids")
 
 #' @exportS3Method
 ds_side_ids.data_source_stocnet <- function(src, nodeset) {
+  layer_side <- layer_side_ids(src, nodeset)
+  if (!is.null(layer_side)) {
+    return(layer_side)
+  }
   lm <- src$mode_map$layers[[src$focal]]
   if (identical(nodeset, ds_side_names(src)[2]) && isTRUE(lm$is_two_mode)) {
     lm$side2
   } else {
     lm$side1
   }
+}
+
+# A node-set identifier for one layer's own side. The modeled sides carry names
+# of their own, but a covariate layer over a different mode pair occupies a node
+# space neither of them names -- an effect that summarizes an attribute over its
+# network argument's senders reads it there. Naming that space by the layer and
+# the end of it is the only handle available, since the space exists only as
+# that layer's side.
+layer_side_key <- function(layer, side) {
+  paste0("layer:", layer, ":side", side)
+}
+
+# Global ids of the side a layer-qualified key names, or NULL where the
+# identifier is not one. Reading the key lives here alone, so every other caller
+# keeps passing a node-set name around without knowing how it is spelled.
+layer_side_ids <- function(src, nodeset) {
+  if (
+    length(nodeset) != 1L || is.na(nodeset) || !startsWith(nodeset, "layer:")
+  ) {
+    return(NULL)
+  }
+  parts <- strsplit(nodeset, ":", fixed = TRUE)[[1]]
+  if (length(parts) != 3L) {
+    return(NULL)
+  }
+  lm <- ds_layer_map(src, parts[2])
+  if (is.null(lm)) {
+    return(NULL)
+  }
+  if (identical(parts[3], "side2")) lm$side2 else lm$side1
+}
+
+# The identifier naming the node space a layer's side occupies. A side that
+# coincides with a modeled side keeps that side's name, so a reference to the
+# focal pair is spelled the way every other effect spells it and no node space
+# ends up with two names -- which would split one view of state into two.
+ds_layer_side_name <- function(src, layer, side) UseMethod("ds_layer_side_name")
+
+#' @exportS3Method
+ds_layer_side_name.data_source_envir <- function(src, layer, side) {
+  sides <- ds_layer_sides(src, layer)
+  if (length(sides) < side) sides[1] else sides[side]
+}
+
+#' @exportS3Method
+ds_layer_side_name.data_source_stocnet <- function(src, layer, side) {
+  lm <- ds_layer_map(src, layer)
+  if (is.null(lm)) {
+    return(ds_side_names(src)[1])
+  }
+  ids <- if (side == 2) lm$side2 else lm$side1
+  for (name in unique(ds_side_names(src))) {
+    if (identical(ds_side_ids(src, name), ids)) {
+      return(name)
+    }
+  }
+  layer_side_key(layer, side)
+}
+
+# Does the source resolve this node-set identifier on its own? The modeled sides
+# are named by the caller and checked against there; this answers for the node
+# spaces they do not name. Without it a foreign or misspelled identifier would
+# fall through to the sender side instead of being rejected.
+ds_has_nodeset <- function(src, nodeset) UseMethod("ds_has_nodeset")
+
+#' @exportS3Method
+ds_has_nodeset.data_source_envir <- function(src, nodeset) FALSE
+
+#' @exportS3Method
+ds_has_nodeset.data_source_stocnet <- function(src, nodeset) {
+  !is.null(layer_side_ids(src, nodeset))
 }
 
 # Networks --------------------------------------------------------------------

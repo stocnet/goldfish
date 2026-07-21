@@ -70,11 +70,19 @@ build_object_keys <- function(
       }
       if (ds_is_global(src, entry$nodeset)) {
         components[i] <- "globals"
-      } else if (entry$nodeset %in% c(nodes, nodes2)) {
+      } else if (
+        entry$nodeset %in%
+          c(nodes, nodes2) ||
+          ds_has_nodeset(src, entry$nodeset)
+      ) {
         # The node set a reference names decides *which* view it reads, but
         # not how many views exist: the component is the node space itself, so
         # positions sharing a mode set share one view and a third node space
-        # is expressible rather than a hard error.
+        # is expressible rather than a hard error. Admitting a node set the
+        # source resolves on its own is what lets a covariate layer's own
+        # sender side be read; the check still has to happen, because an
+        # unrecognized name resolves to the sender side rather than failing, so
+        # dropping it would turn a typo into a silent read of the wrong mode.
         components[i] <- ds_nodal_view(src, entry$nodeset)
       } else {
         cli::cli_abort(

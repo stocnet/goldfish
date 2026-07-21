@@ -589,3 +589,64 @@ test_that("state container supports in-place update round-trips", {
   expect_equal(get("networkState", envir = env)[1, 2], before)
   expect_equal(get("actors_ex", envir = env)$attr1[3], actors_ex$attr1[3])
 })
+
+test_that("a covariate layer's own sender side becomes its own view", {
+  # The third node space: neither modeled side names `org`, so the container
+  # carries a view keyed by that mode set alongside the focal pair's two.
+  src <- new_data_source(data = make_stocnet_fixture_tertius())
+
+  state <- build_state_container(
+    c("sponsor", "layer:sponsor:side1$size"),
+    nodes = "nodes_side1",
+    nodes2 = "nodes_side2",
+    src = src
+  )
+
+  expect_equal(
+    names(state),
+    c("networks", "nodal:actor", "nodal:event", "nodal:org", "globals")
+  )
+  expect_equal(state[["nodal:org"]]$size, c(12, 8))
+  expect_equal(attr(state, "object_keys")$component, c("networks", "nodal:org"))
+})
+
+test_that("a node set the source cannot resolve is still rejected", {
+  # Admitting a third node space must not turn the membership check off: an
+  # unrecognized identifier falls back to the sender side rather than failing,
+  # so without the check a typo would silently read the wrong mode.
+  src <- new_data_source(data = make_stocnet_fixture_tertius())
+  args <- list(nodes = "nodes_side1", nodes2 = "nodes_side2", src = src)
+
+  expect_error(
+    do.call(build_object_keys, c(list("nodez$size"), args)),
+    "neither"
+  )
+  expect_error(
+    do.call(build_object_keys, c(list("layer:nosuch:side1$size"), args)),
+    "neither"
+  )
+})
+
+test_that("an attribute aggregated over a covariate's senders reads there", {
+  # End to end: the statistic is each event's sponsor size (O1 = 12 for E1,
+  # O2 = 8 for E2), constant over the three actor senders. Read on the focal
+  # sender side it would have been the actors' own sizes.
+  prep <- estimate_dynam(
+    attend ~ tertius(sponsor, size),
+    sub_model = "choice",
+    data = as_goldfish(make_stocnet_fixture_tertius()),
+    preprocessing_only = TRUE
+  )
+
+  expect_equal(
+    prep$initialStats[,, 1],
+    matrix(c(12, 12, 12, 8, 8, 8), nrow = 3, ncol = 2)
+  )
+  # The org view's own attribute stream drives the walk: O2's size replaced at
+  # t = 2.2 moves E2's summary from mean(12, 8) to mean(12, 20).
+  expect_equal(
+    prep$stat_mat_update[4, ],
+    c(10, 10, 10, 16, 16, 16),
+    label = "the sponsor tie at t = 1.5, then O2's size change"
+  )
+})

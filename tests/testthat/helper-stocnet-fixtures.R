@@ -109,6 +109,53 @@ make_stocnet_fixture_multipartite <- function() {
   list(info = info, nodes = nodes, ties = ties, changes = changes)
 }
 
+# Multipartite fixture whose covariate layer shares the focal *receiver* side
+# but not the sender side: focal `attend` (actor -> event) plus `sponsor`
+# (org -> event). This is the pair an attribute aggregated over a network's
+# senders needs. `tertius(sponsor, size)` conforms -- both layers reach events,
+# which is all the effect's index structure requires -- yet the values it
+# summarizes belong to orgs, so the attribute must be read on the `org` mode
+# and not on the focal sender side. Every other fixture's covariate layer shares
+# the focal sender side, where reading the wrong one is indistinguishable.
+#
+# Global ids: 1:3 actors, 4:5 events, 6:7 orgs. `size` is distinct per mode so a
+# slice read on the wrong side is visible in the value, not just in the length.
+make_stocnet_fixture_tertius <- function() {
+  nodes <- data.frame(
+    label = c("A1", "A2", "A3", "E1", "E2", "O1", "O2"),
+    mode = c(rep("actor", 3), rep("event", 2), rep("org", 2)),
+    size = c(3, 1, 2, 40, 25, 12, 8),
+    stringsAsFactors = FALSE
+  )
+  ties <- data.frame(
+    from = c(2L, 1L, 2L, 3L, 6L, 7L, 6L),
+    to = c(4L, 4L, 5L, 4L, 4L, 5L, 5L),
+    time = c(NA, 1, 2, 3, NA, NA, 1.5),
+    layer = c(rep("attend", 4), rep("sponsor", 3)),
+    stringsAsFactors = FALSE
+  )
+  # A `size` change on an org: the org view's own attribute stream, in the org
+  # local index space (global 7 = O2 = local 2).
+  changes <- data.frame(
+    time = 2.2,
+    node = 7L,
+    var = "size",
+    stringsAsFactors = FALSE
+  )
+  changes$value <- list(list(20))
+  layer_names <- c("attend", "sponsor")
+  info <- list(
+    name = "tertius",
+    focal = "attend",
+    update = stats::setNames(rep("increment", 2), layer_names),
+    directed = stats::setNames(rep(TRUE, 2), layer_names),
+    observation = stats::setNames(rep("event", 2), layer_names),
+    sender = c(attend = "actor", sponsor = "org"),
+    receiver = c(attend = "event", sponsor = "event")
+  )
+  list(info = info, nodes = nodes, ties = ties, changes = changes)
+}
+
 # Two-mode fixture whose focal *sender* side is not `1:n1`: the `worker` mode is
 # declared second, so side 1 is global ids 3:5 mapping to local 1:3. The
 # multipartite fixture cannot expose a sender-side global/local mix-up because

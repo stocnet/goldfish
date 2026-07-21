@@ -48,6 +48,7 @@ resolve_formula_names <- function(
     term <- rhs_names[[i]]
     effect <- term[[1]]
     slots <- object_ref_slots(term)
+    sender_side <- term_sender_side(effect, term, slots, src, nodes)
     for (k in seq_along(slots)) {
       j <- slots[[k]]
       rhs_names[[i]][[j]] <- resolve_object_ref(
@@ -55,7 +56,7 @@ resolve_formula_names <- function(
         effect = effect,
         position = k,
         src = src,
-        nodes = nodes,
+        nodes = sender_side,
         nodes2 = nodes2,
         call = call,
         user_env = user_env
@@ -72,6 +73,31 @@ resolve_formula_names <- function(
 # get_data_objects()' unique() collapses them back to one, which is what keeps
 # the one-mode path on its existing arity-1 route.
 CROSS_SIDE_EFFECTS <- c("same", "diff", "sim")
+
+# The effects that summarize an attribute over their network argument's
+# *senders*. The values summarized belong to those senders, so the attribute is
+# read on that argument's own sender side -- which coincides with the focal
+# sender side only when the argument spans the focal mode pair. Under a focal
+# `actor -> event`, a covariate `w: org -> event` conforms (both reach events)
+# yet carries its senders' attribute on `org`; resolving from the focal side
+# would read the same column on a different mode, silently and without a length
+# mismatch to give it away.
+NEIGHBOR_ATTRIBUTE_EFFECTS <- c("tertius", "tertius_diff")
+
+# The node set an attribute position of a term reads its sender-side values on.
+# Defaults to the focal sender side, which is what every effect indexed by the
+# focal dyad reads.
+term_sender_side <- function(effect, term, slots, src, nodes) {
+  if (!effect %in% NEIGHBOR_ATTRIBUTE_EFFECTS) {
+    return(nodes)
+  }
+  for (j in slots) {
+    if (term[[j]] %in% src$layers) {
+      return(ds_layer_side_name(src, term[[j]], 1))
+    }
+  }
+  nodes
+}
 
 # Which side of the focal dyad an attribute position reads. `alter` reads the
 # receiver side; `ego_alter_interaction` reads the sender side with its first
