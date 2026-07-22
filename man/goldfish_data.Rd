@@ -80,6 +80,31 @@ is one-mode over \strong{all} nodes -- in a multimodal node set an undeclared
 layer therefore spans every mode, so declare identical sets to restrict it.
 }
 
+\section{Multipartite networks}{
+A single object may mix layers over \strong{different} mode pairs -- a
+\emph{multipartite} network. Because the sides are declared per layer, one fused
+\code{nodes} table with a \code{mode} column carries every mode, and each layer names
+the modes its senders and receivers draw from. A discourse network of
+\code{actor} and \code{concept} modes, for example, might carry a focal \code{support}
+layer (\code{actor -> concept}), a \code{contestation} covariate layer over the same
+pair, and an actor-only \code{coauthor} layer (\code{actor -> actor}):
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{info$sender   <- c(support = "actor", contestation = "actor",
+                   coauthor = "actor")
+info$receiver <- c(support = "concept", contestation = "concept",
+                   coauthor = "actor")
+}\if{html}{\out{</div>}}
+
+Two-mode effects then read the correct side per layer (see
+\code{\link[=make_specification]{make_specification()}} for which effects a two-mode focal layer admits), and
+node identity on the estimated object is reported per mode. The
+\code{vignette("two-mode", package = "goldfish")} walks a published two-mode
+DyNAM end to end, including the conversion of a \code{manynet} two-mode object
+(an \code{mnet}) into this representation: split the mode-marking node column into
+a \code{mode} column, split the tie increments into their own layers, and declare
+each layer's sides.
+}
+
 \section{The reserved \code{flavor} and \code{order} columns}{
 Two optional \code{ties} columns tune goldfish's reading of a layer:
 \itemize{

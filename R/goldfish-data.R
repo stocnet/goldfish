@@ -75,6 +75,32 @@
 #' is one-mode over **all** nodes -- in a multimodal node set an undeclared
 #' layer therefore spans every mode, so declare identical sets to restrict it.
 #'
+#' # Multipartite networks
+#'
+#' A single object may mix layers over **different** mode pairs -- a
+#' *multipartite* network. Because the sides are declared per layer, one fused
+#' `nodes` table with a `mode` column carries every mode, and each layer names
+#' the modes its senders and receivers draw from. A discourse network of
+#' `actor` and `concept` modes, for example, might carry a focal `support`
+#' layer (`actor -> concept`), a `contestation` covariate layer over the same
+#' pair, and an actor-only `coauthor` layer (`actor -> actor`):
+#'
+#' ```r
+#' info$sender   <- c(support = "actor", contestation = "actor",
+#'                    coauthor = "actor")
+#' info$receiver <- c(support = "concept", contestation = "concept",
+#'                    coauthor = "actor")
+#' ```
+#'
+#' Two-mode effects then read the correct side per layer (see
+#' [make_specification()] for which effects a two-mode focal layer admits), and
+#' node identity on the estimated object is reported per mode. The
+#' `vignette("two-mode", package = "goldfish")` walks a published two-mode
+#' DyNAM end to end, including the conversion of a `manynet` two-mode object
+#' (an `mnet`) into this representation: split the mode-marking node column into
+#' a `mode` column, split the tie increments into their own layers, and declare
+#' each layer's sides.
+#'
 #' # The reserved `flavor` and `order` columns
 #'
 #' Two optional `ties` columns tune goldfish's reading of a layer:
