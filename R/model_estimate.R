@@ -1276,6 +1276,20 @@ estimate_wrapper <- function(
     .nodes2 <- .nodes
   }
 
+  # Coordination (DyNAM-MM) models the symmetric joint creation of a tie by both
+  # endpoints, reading both directed dyads (a, b) and (b, a) over one node set.
+  # That is undefined on a two-mode layer -- an event does not reciprocally
+  # coordinate with an actor -- and the C++ step indexes out of bounds. Reject it
+  # here, before any preprocessing or the estimation engine.
+  if (is_two_mode && identical(sub_model, "choice_coordination")) {
+    cli::cli_abort(c(
+      "{.val choice_coordination} cannot run on a two-mode layer.",
+      "x" = "The focal layer {.val {dep_name}} is two-mode.",
+      "i" = "Coordination (DyNAM-MM) models symmetric ties within one node set.",
+      "i" = "Use {.code sub_model = \"choice\"} for a two-mode choice model."
+    ))
+  }
+
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessing_init or not
   # enviroment from which get the objects
 

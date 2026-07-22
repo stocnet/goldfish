@@ -89,7 +89,7 @@ test_that("two-mode gather lookup resolves each side's indices", {
   out <- gather_model_data(
     membership ~ inertia,
     model = "DyNAM",
-    sub_model = "choice_coordination",
+    sub_model = "choice",
     data = x
   )
 
@@ -116,7 +116,7 @@ test_that("a two-mode preprocessed result carries a per-side node lookup", {
   # side's local index (which is not the global row on a two-mode model).
   prep <- estimate_dynam(
     membership ~ inertia,
-    sub_model = "choice_coordination",
+    sub_model = "choice",
     data = as_goldfish(make_stocnet_fixture_twomode()),
     preprocessing_only = TRUE
   )

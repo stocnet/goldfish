@@ -267,7 +267,7 @@ test_that("the two-mode spec print names the real mode pair", {
   spec <- make_specification(
     choice = ~inertia,
     model = "DyNAM",
-    choice_sub_model = "choice_coordination",
+    choice_sub_model = "choice",
     data = make_stocnet_fixture_twomode()
   )
   testthat::local_reproducible_output(

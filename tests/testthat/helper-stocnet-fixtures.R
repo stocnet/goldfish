@@ -226,6 +226,45 @@ make_stocnet_fixture_twomode <- function() {
   list(info = info, nodes = nodes, ties = ties, changes = changes)
 }
 
+# Two-mode fixture with enough repeated dyads and sender spread to actually
+# estimate (not just preprocess): four senders `p`, three receivers `o`, twelve
+# `membership` events, plus a time-varying nodal covariate on each side -- `x`
+# on a sender, `y` on a receiver -- so a rate `ego(x)` and a choice `alter(y)`
+# both exercise a mid-stream update on their own mode.
+make_stocnet_fixture_twomode_estimable <- function() {
+  nodes <- data.frame(
+    label = c("P1", "P2", "P3", "P4", "O1", "O2", "O3"),
+    mode = c("p", "p", "p", "p", "o", "o", "o"),
+    x = c(1, 2, 1, 2, 5, 6, 7),
+    y = c(0, 0, 0, 0, 3, 1, 2),
+    stringsAsFactors = FALSE
+  )
+  ties <- data.frame(
+    from = c(1L, 2L, 3L, 1L, 2L, 4L, 1L, 3L, 2L, 4L, 1L, 3L),
+    to = c(5L, 6L, 5L, 6L, 7L, 5L, 5L, 7L, 6L, 7L, 7L, 6L),
+    time = 1:12,
+    layer = "membership",
+    stringsAsFactors = FALSE
+  )
+  changes <- data.frame(
+    time = c(4.5, 6.5),
+    node = c(2L, 5L),
+    var = c("x", "y"),
+    stringsAsFactors = FALSE
+  )
+  changes$value <- list(list(9), list(8))
+  info <- list(
+    name = "tm_est",
+    focal = "membership",
+    update = c(membership = "increment"),
+    directed = c(membership = TRUE),
+    observation = c(membership = "event"),
+    sender = "p",
+    receiver = "o"
+  )
+  list(info = info, nodes = nodes, ties = ties, changes = changes)
+}
+
 # Legacy two node-set fixture: the same membership process expressed through the
 # deprecated constructors, which name two distinct `nodes.goldfish` objects
 # instead of one nodes tibble with a `mode` column. It is the input side of the
