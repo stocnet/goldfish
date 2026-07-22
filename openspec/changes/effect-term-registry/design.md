@@ -463,6 +463,52 @@ alongside signatures — two sources of validity truth.
   *declared* positions rather than the resolved references. Left unhandled this
   surfaces as an unexplained snapshot diff far from its cause.
 
+### D24: Argument resolution centralizes on the registry's `allowed` schema (2026-07-22, from `multimode-network-support`)
+`multimode-network-support` (its D14) found the argument-side twin of D23's
+validity finding: an effect's **choice-set arguments** (`type`, `history`,
+`sub_type`, `joining`) were resolved in *two* readers and validated in neither
+consistently. The `update_*` bodies call `match.arg(type)` / `match.arg(history)`;
+the `init_*` read the *raw* formal and compared a length-2 default vector,
+crashing a two-mode `indeg` with `'length = 2' in coercion to 'logical(1)'`; the
+parse-time validity gate used a bare `[1]` that picks the default but validates
+nothing (`type = "bogus"` slips through to mid-walk). As a stopgap that change
+centralizes resolution at the parser — `resolve_effect_args()` runs
+`rlang::arg_match()` over the closure's *original* default and writes a validated
+scalar back into the signature — reading the **closure default** as the
+transitional source of truth (the argument twin of D8/D17).
+
+**Registry target.** The choice-set vocabulary belongs in the `term_def`
+**argument schema, D2(f)**: each argument's `allowed` values, `default`,
+`validate` rule, and `error` message. The term constructor (D3/D4) resolves and
+validates arguments **at construction** via `arg_match` against the registry's
+`allowed` — not against a closure formal the user's value may have overwritten,
+which is the exact reason multimode could not resolve at the init and had to
+climb up to the parser. Consequences that fold into the existing plan:
+
+- **The `update_*` bodies stop calling `match.arg`.** Resolution happens once at
+  construction; the recipe receives an already-canonical scalar. This is the
+  same "recipe bodies shed scattered logic" move D4 / task §7 already make for
+  argument *encoding* — `match.arg` is just un-encoded argument resolution, so
+  fold the `type` / `history` calls listed in §7.3–7.4 into the `allowed` schema
+  rather than leaving them in the bodies.
+- **`resolve_effect_args()` retires into the constructor**, exactly as the
+  multimode init/parse validity checks retire into the D23 signature
+  interpreter: the transitional parser-seam reader is replaced by the registry's
+  declarative `allowed`, the derivation unchanged. This is also why the init-time
+  resolution multimode *rejected* becomes viable here — the registry is the
+  single source of truth for the choice set that the closure could not supply.
+- **The init's length-2 hazard cannot recur** once no reader consults a raw
+  choice-set default — the constructed term carries scalars only. The
+  argument-side statement of D23's "the effect is told, it does not re-derive".
+- **`allowed` is the single validation source** for an out-of-set value,
+  giving D2(f)'s "replacing silent acceptance or scattered `stop()`s" a concrete
+  target: the `match.arg` sites across the choice/REM update bodies.
+
+*Rejected:* keeping resolution in the recipe bodies and adding `allowed` for docs
+only — two sources of truth for one enumeration, the drift D2(f) exists to
+remove. *Rejected:* resolving at the `init` reading a per-effect hard-coded
+choice set — that hard-coded set *is* `allowed`; declare it in the registry once.
+
 ## Risks / Trade-offs
 
 - [Large surface; risk of silently changing numerics] → D8 adapter-first phasing

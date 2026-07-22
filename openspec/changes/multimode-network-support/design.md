@@ -287,6 +287,24 @@ data inspection; open items in `.plan/irps_nuclear_author_questions.md`):**
   set also keeps the tertius cache-impute branch (cross-claim mean) dead. Same
   sentinel treatment for the one `power = NA` actor (→ 0); M9 (`govt`) has no
   NAs and needs nothing.
+- **Structural absence, not informative missingness — why `as_category` is
+  deliberately not used here** (2026-07-22, after `imputation-contract`
+  landed). That change (v1.9.5) added an `as_category` imputation policy that
+  recodes a categorical NA to a reserved `"(missing)"` level and keeps it as an
+  *ordinary observed value the summarizers count*. It is tempting to reach for
+  it here, but it is the wrong tool: the nuclear `party`/`power` missingness is
+  **structural** — a non-politician *cannot* hold a party or formal power, so
+  they are not in the attribute's space at all — whereas `as_category` models
+  *informative* missingness, where being missing is itself a state worth
+  estimating. Recoding to `"(missing)"` would manufacture a phantom "no-party"
+  bloc and inflate the M10 Shannon diversity of every claim its non-politician
+  supporters touch. The sentinel-zero-at-conversion route above is therefore the
+  intended one, not an interim workaround: the recode happens **before** the
+  imputation seam, so no NA survives to any policy, and the summarizer excludes
+  the sentinel so structural absentees contribute nothing. (`as_category` is also
+  categorical-only and aborts on numeric `power`.) Keep this contrast —
+  structural absence vs informative missingness — as the vignette's teaching
+  point rather than switching to the policy.
 - **Periods via fully-interacted `global()` dummies; the observation window is
   the cross-check** (settled 2026-07-21). Periods encode as replace-only
   global attributes `period2/3/4` changing at the three boundary dates. Rate:
@@ -331,7 +349,106 @@ PASS. New two-mode baselines are added under the same `NOT_CRAN=true`
 `skip_on_cran()` regime. *Rejected:* asserting only internal shape — coefficients
 are the contract that catches a wrong remap.
 
-### D9 — Per-mode attribute imputation (spike, added 2026-07-21)
+### D9 — Per-mode attribute imputation (**settled 2026-07-21**, was a spike)
+
+**Decided.** The spike's questions are answered below; the original framing is
+kept after the decision because its three contamination sites are still the
+map of what has to change.
+
+**One rule, evaluated at two times.** Imputation summarizes the variable's
+*state at the moment the value is needed*, over the imputed node's own mode
+category, excluding the node itself. Initial-table imputation is that rule
+evaluated at the start of the window, not a second procedure — at that point
+the self-exclusion is vacuous, since the node's value is missing. An imputed
+value joins the state and legitimately informs later imputations, because by
+then it *is* the state.
+
+**Stratum ≠ view.** D13 keys state by mode *set*; imputation pools by mode
+*category*. These are different partitions and D13 settled only the first. The
+view says where a value lives; the category says what kind of thing it is.
+
+**Categories never straddle views**, because `build_mode_map()` defines a side
+as `all_ids[mode_col %in% set]` — *every* node of each mode in the set. So a
+mode category is wholly inside a view or wholly outside it. Two consequences:
+imputation is **view-independent** (an employee resolves to one value whichever
+view reads it, where view-pooling would give different answers per view), and
+the D9(b) objection below dissolves — imputing the global column stratified by
+category and then slicing is provably identical to slicing then imputing, so
+the per-nodeset `att_override` cache is consistent by construction rather than
+by care.
+
+**Definedness and imputation must share a grain.** The R3 check as shipped in
+task 3.6 tests `all(is.na(slice))` over the whole *view*; stratified imputation
+pools over a *category*. A view of `c(employee, supervisor)` with the attribute
+defined for employees and wholly missing for supervisors therefore passes the
+gate and still yields `NaN` for supervisors. R3 is generalized to per-category.
+
+**Empty pool aborts at schedule construction** (user decision, 2026-07-21).
+`na.rm = TRUE` is already present at all three walk sites and handles missing
+values inside a *non-empty* pool; it cannot help with an *empty* one, which
+stratification newly makes reachable — a singleton mode category has no other
+member (`make_stocnet_fixture_multimode()` has exactly one supervisor and one
+outsider). Schedule construction is the right place because it is the last
+point that sees both the strata and which events carry a missing `replace`,
+before any state exists. *Rejected:* widening to the view or the whole object,
+which reinstates the pooling this decision removes; aborting mid-walk, which is
+the same error found later and harder to report.
+
+**Type and missingness are recorded metadata, not runtime discoveries** (user
+proposal, 2026-07-21). The pass that resolves an object's routing already runs
+without materializing state (`build_object_keys()` is documented as exactly
+that, and `plan$objects` already carries `shape`/`is_undirected`). It also
+records the object's value type and whether it carries missing values, in the
+initial table and in its event streams. The walk then neither scans for `NA`
+nor dispatches on a runtime class: it looks up which summary applies and
+whether imputation can fire at all.
+
+🔴 **Pre-existing defect this surfaced** (**reproduced 2026-07-22**, no longer
+inspection-only). All three walk sites (`model_preprocess.R:775`, `:1611`,
+`:2310`) call bare `mean()` with **no type branch**; the only `is.numeric()`
+branch is in the initial path (`:2795`, `impute_attribute()`). A categorical
+attribute with a missing `replace` value gets `mean(<character>)` → `NA` (R
+warning "argument is not numeric or logical: returning NA"). The failure is
+one event *earlier* than originally described: the `NA` never needs to reach
+state — the **same event's** effect update receives `replace = NA` and dies on
+the equality comparison. Reproduced stack: `run_dyad_recipe_loop` →
+`call_effect_template` → the `same` update template → "missing value where
+TRUE/FALSE needed", with the warning frame naming the `:775`/`:1611` schedule
+walk (`mean.default(state[[component]][[key]][-event_node], na.rm = TRUE)`).
+Repro recipe (fixture, minimal): one-mode, four nodes, character attribute
+fully observed at start (`group = red/red/blue/blue`), tie events at times
+1–4, one `changes` row `(time = 2.5, node = 2, var = "group",
+value = NA_character_)`, then
+`estimate_dynam(calls ~ same(group), sub_model = "choice",
+preprocessing_only = TRUE)`. The observed-value control preprocesses cleanly,
+so the NA path is the sole cause. Same error signature as the two-mode
+defects but an unrelated cause; independent of multimode, which is why the
+contract needs a capability of its own.
+
+**Vocabulary.** "Impute the mode of the mode" is unwriteable. `mode` stays the
+node category (it is manynet's column name); the statistic is the **most common
+value** in all user-facing text; the group pooled over is a **stratum** or
+**mode category**.
+
+**Scope split.** Task 3.9 carries what two-mode correctness requires: the single
+resolver both call sites use, category stratification, per-category definedness,
+and the schedule-construction abort. The categorical walk-time fix rides along —
+routing walk-time through a typed resolver and omitting the type branch is not a
+coherent halfway point — and takes its own `NEWS.md` entry so it stays traceable
+outside the multimode framing. The policy surface moves to a separate
+`imputation-contract` change: the shape × time table as a documented public
+contract, deliberate-missingness opt-out or sentinel handling at the
+`ds_impute_missing()` seam, the tertius cache sites (c) below, the
+global-shape inconsistency, and last-observation-carried-forward as an
+alternative estimator. That keeps 3.9 at "make two-mode imputation correct"
+rather than "fix imputation".
+
+**Answered by inspection:** mean-centering does not pool the same way, because
+it does not exist on this path — `sub_type == "mean_centered"` is DyNAMi-only
+(`functions_effects_DyNAMi_choice.R`), owned by `refactor-dynami-engine`.
+
+#### Original spike framing (retained — the site map still holds)
+
 `ds_attribute()` already slices by side (`data_source.R:396` via
 `ds_side_ids()`), so a *declared* layer imputes per side today. Two
 contamination cases remain, matching the "one-mode base polluted by other
@@ -364,11 +481,10 @@ can honor it. The D6 vignette works around this with sentinel categories; the
 spike weighs the real fix — per-mode-slice imputation plus a per-attribute
 opt-out (or sentinel-aware contract) at the `ds_impute_missing()` seam.
 
-Rule to implement (task 3.5, spike first): imputation computes **within each
-mode slice** of the read side — mode is the strongest stratum available — with
-the existing warning extended to name the attribute and the mode(s). The spike
-reproduces (a) on a fixture, checks whether mean-centering anywhere pools the
-same way, and sizes (b) (it may fold into the R3 definedness pass). *Rejected:*
+Rule to implement (now task 3.9; the spike is closed by the decision above):
+imputation computes **within each mode slice** of the read side — mode is the
+strongest stratum available — with the existing warning extended to name the
+attribute and the mode(s). *Rejected:*
 pooled imputation with a warning only — a silently wrong number, exactly the
 class of defect the 1e-6 floor exists to catch; deferring to the registry —
 the fix is orthogonal to where validity metadata lives.
@@ -543,6 +659,66 @@ sensibly be stored globally, so the container would carry two mental models
 argument to ~69 effect surfaces. The memory and write-amplification arguments
 that favored B do not survive contact: node tables are hundreds to thousands of
 rows and a variable read three ways is three small vectors.
+
+### D14 — Choice-set arguments resolve once, at the parser, via `arg_match` (decided 2026-07-22)
+
+**The bug that surfaced it.** A two-mode `indeg(attend)` crashed with
+`'length = 2' in coercion to 'logical(1)'`. Root cause: the `init` and the
+`update` are two readers of the same effect closure's formals, and only the
+`update` runs the argument-resolution step. `update_*` calls `match.arg(type)` /
+`match.arg(history)`, collapsing a choice-set default like `c("alter", "ego")`
+to a single validated value; the `init` read the raw formal
+(`eval(params[["type"]])`) and compared the length-2 vector in
+`is_two_mode && type == "ego"` — a length-≠1 operand to `&&`, which errors under
+R ≥ 4.3 whenever the guard's left side (`is_two_mode`) is TRUE. The `[1]` shim
+landed under task 3.7 (`resolved_type()`, and the sibling `[1]` in the gate's
+`resolve_effect_type()`) picks the default's first element but does **not**
+validate: `type = "bogus"` passes parse and init untouched, caught only mid-walk
+by the update's `match.arg`.
+
+Why the crash looked `indeg`-specific: on a two-mode focal the parse-time
+validity gate (D4) rejects `outdeg(x)`'s *default* variant (degenerate, a
+structural zero) before its init runs, so its identical latent length-2 branch
+is unreachable; `indeg(x)`'s default variant is the *valid* one, so it reaches
+the buggy init. The gate masked the symmetry; the cause is shared.
+
+**Decided.** Resolve every choice-set (enumerated) argument **once, at the
+parser**, before `formals(FUN) <- .signature`, via `rlang::arg_match()` (the
+cli-flavored `match.arg`). The parser is the only seam that sees **both** the
+original full choice set (`formals(FUN)` before the user's value is spliced in)
+**and** the user's value — by init-time the user's value has overwritten the
+formal default, so the set to validate against is gone. The resolved scalar is
+written back into the signature, so every downstream reader — the `init`, the
+validity gate, and the `update`'s own `match.arg` — inherits a length-1,
+already-validated value. The length-2 comparison becomes **structurally
+impossible** rather than guarded, an invalid value raises one cli error at the
+user's formula naming the effect, the argument, and the allowed set, and the
+`update` bodies' `match.arg` calls become idempotent no-ops.
+
+**Rename.** The resolver is not type- or parse-specific: its output is the
+canonical argument resolution the whole pipeline relies on, which is why the
+name should not say "parse" or "type". It is renamed **`resolve_effect_args()`**,
+subsuming both `resolved_type()` and `resolve_effect_type()` and operating over
+an effect's whole choice-set argument set (`type`, plus `history` / `sub_type` /
+`joining` where the effect declares them), not `type` alone.
+
+*Rejected:* **resolve at the `init`** (the first instinct, since that is where
+the crash fires) — the init cannot see the choice set once the user's value has
+replaced the formal default, so it would need a *second* source of truth for the
+allowed values (hard-coded per effect, or a registry). That source of truth is
+exactly `effect-term-registry`'s D2(f) `allowed` field; duplicating it across
+~20 inits is the fragmentation that change exists to remove. *Rejected:* leaving
+the `[1]` shim — it fixes the crash but not the silent-bad-value hole, and keeps
+two half-copies of `match.arg` semantics in the tree.
+
+**Hand-off.** The registry absorbs this the same way it absorbs the mode
+signatures (D10/D23): its per-argument `allowed` / `validate` / `error` schema
+(its D2(f)) becomes the choice-set source of truth, the term constructor
+resolves and validates at construction, and the `update` bodies' `match.arg`
+calls retire. Recorded in `effect-term-registry` design **D24**. This change
+resolves at the parser reading the closure's original default as the
+*transitional* source (as D8/D17 do for validity); the derivation does not
+change when it moves.
 
 ## Risks / Trade-offs
 

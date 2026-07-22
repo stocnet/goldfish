@@ -106,4 +106,10 @@ every downstream consumer reads, never re-derives.
 - **Sequencing**: AFTER `refactor-likelihood-compute` — its tasks 5.7–5.9
   edit the same `model_estimate.R` region (redirect lift) and the gather emit;
   landing this second avoids same-block churn and lets the collapse delete
-  the redirect-adjacent scaffolding in one pass.
+  the redirect-adjacent scaffolding in one pass. *(Satisfied — it archived
+  2026-07-12.)* In the 2.0.0 sequence this change follows
+  `multimode-network-support` (descriptor geometry reads the mode map) and
+  `dynami-stocnet-boundary` (whose corrected D6 routes the derived DyNAMi
+  availability through the standard support-constraint machinery — no
+  opportunities carve-out here), and precedes `residuals-gof`. Task 0.1
+  re-grounds the 2026-07-10 audit against everything archived since.

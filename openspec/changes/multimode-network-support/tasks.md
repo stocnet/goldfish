@@ -122,28 +122,79 @@
       two-mode data — the user wrote one operand and must see one. Verify
       whether the `<mode-set-key>$` prefix reaches the rendered string (not
       confirmed during exploration) and strip it if so.
-- [ ] 3.7 `tertius` / `tertius_diff` resolve their attribute position against
+- [x] 3.7 `tertius` / `tertius_diff` resolve their attribute position against
       **their network argument's own sender side**, not the focal S1 (design
       D13). Cover the case that motivates it: focal `actor -> event` with a
       covariate `w: org -> event`, where `tertius(w, z)` type-checks and must
       read `z` on the `org` mode.
-- [ ] 3.8 Table-driven test over the effect families (each effect × type
+- [x] 3.8 Table-driven test over the effect families (each effect × type
       variant × argument mode pair → accepted / rejected), including the
       hand-computed counts for `four`, the mixed chains, and the
       one-mode-focal `common_*` projection case. Verify + commit.
-- [ ] 3.9 Per-mode imputation (design D9). Spike first: reproduce pooled-mean
-      contamination on an undeclared one-mode layer in a multi-mode fixture;
-      check whether mean-centering pools the same way; size the cross-side
-      (`same`/`diff`/`sim`) case and the deliberate-stratum-missingness case
-      (imputation at `model_preprocess.R:452` destroys NAs before effects can
-      honor them — weigh a per-attribute opt-out or sentinel-aware contract at
-      the `ds_impute_missing()` seam). Then implement: `impute_attribute()`
-      computes within each mode slice of the read side, warning names the
-      attribute and mode(s). Verify + commit.
+- [x] 3.9 Per-mode imputation (design D9, settled — the spike is closed; the
+      policy surface moved to the `imputation-contract` change).
+      **One resolver, two call sites.** Extract the imputation rule so the
+      initial pass (`impute_attribute()`, `data_source.R:953`) and the walk
+      (`model_preprocess.R:775`, `:1611`, `:2310`) call the same function:
+      summarize the variable's state at that moment over the imputed node's
+      **mode category**, excluding the node itself. The initial pass is that
+      rule at the start of the window, not a second procedure.
+      **Stratum vector.** `build_state_container()` already resolves
+      `ds_side_ids()` per view; carry the aligned `nodes_lookup$mode` slice
+      beside each view so the walk can find a node's category from its local
+      index.
+      **Recorded metadata, not runtime probing.** The metadata pass records each
+      object's value type and whether it carries missing values (initial table
+      and event streams), so the walk neither scans for `NA` nor dispatches on a
+      runtime class.
+      **Categorical at walk time is a pre-existing defect** (design D9,
+      **reproduced 2026-07-22** — see the repro recipe in D9): all three walk
+      sites call bare `mean()` with no type branch, so a factor or character
+      attribute with a missing `replace` gets `mean(<character>)` → `NA`, and
+      the *same event's* effect update receives `replace = NA` and fails on
+      the equality comparison with "missing value where TRUE/FALSE needed"
+      (the `NA` never needs to reach state). Fixing it is inseparable from
+      routing walk-time through a typed resolver; give it its own `NEWS.md`
+      bullet so it stays traceable outside the multimode framing.
+      **Failing regression test first**: encode the D9 repro as a fixture +
+      test before the fix (one-mode, character attribute observed at start,
+      one `changes` row with `value = NA_character_`, `same()` choice model,
+      `preprocessing_only = TRUE`) — red on the current code, green once the
+      typed resolver lands; assert the imputed value is the most common value
+      in the pool, plus an observed-value control.
+      **Generalize R3 to per-category.** The check shipped in 3.6 tests
+      `all(is.na(slice))` over the whole *view*, while imputation pools over a
+      *category* — so a view of `c(employee, supervisor)` with the attribute
+      wholly missing for supervisors passes the gate and still yields `NaN`.
+      **Abort at schedule construction** when the pool would be empty (singleton
+      mode category, or no observed value), naming attribute + node + mode
+      category. Do not widen the pool as a fallback. `na.rm = TRUE` already
+      covers missing values inside a *non-empty* pool and stays.
+      Warnings name the attribute and mode(s), and say **most common value**
+      rather than "mode" for the categorical rule.
+      Regression fixture: `make_stocnet_fixture_multimode()` has exactly one
+      supervisor and one outsider, so it already carries two singleton strata.
+      Verify + commit.
+
+- [ ] 3.10 Resolve choice-set arguments once at the parser (design D14 —
+      supersedes the task 3.7 `[1]` shim). Replace `resolved_type()` and the
+      gate's `resolve_effect_type()` with one **`resolve_effect_args()`** that
+      runs `rlang::arg_match()` over each enumerated argument (`type`, plus
+      `history` / `sub_type` / `joining` where the effect declares them) against
+      the closure's **original** default, before `formals(FUN) <- .signature`,
+      and writes the validated scalar back into the signature. The init and the
+      validity gate then read a scalar (no `[1]`); the `update` bodies'
+      `match.arg` become idempotent and stay (they retire only in
+      `effect-term-registry`). A bad value (`type = "bogus"`,
+      `history = "nope"`) aborts at parse with a cli error naming the effect, the
+      argument, and the allowed set. Regression-test both paths: a two-mode
+      `indeg(x)` never reaches a length-2 comparison, and an out-of-set value is
+      rejected at parse. Frozen baselines unchanged (the resolved default is the
+      first element `match.arg` already picked). Verify + commit.
 
 ## 4. Estimation surface and node identity (design D5)
 
-- [ ] 4.1 `make_specification()` / `estimate_dynam()` / `estimate_rem()` resolve
+- [x] 4.1 `make_specification()` / `estimate_dynam()` / `estimate_rem()` resolve
       the model's `nodes`/`nodes2` from the focal layer's mode map
       (`side1`/`side2`), accept multipartite objects (covariate layers with
       different mode pairs), and the spec print shows the two-mode side pair.
@@ -153,23 +204,23 @@
       `dynam_rate_spec(nodes2 = nodes)` collapses `n2` to `n1` and a two-mode
       rate model dies with `'x' is too short` on the first non-empty network.
       Regression-test it.
-- [ ] 4.2 `node_lookup` (side, local, global, label) carries onto two-mode
+- [x] 4.2 `node_lookup` (side, local, global, label) carries onto two-mode
       preprocessed/estimation results and gather/db exports; `index_i`/`index_j`
       join back to `nodes` labels per side.
-- [ ] 4.3 Retire the surviving node-set **name** comparisons in favor of
+- [x] 4.3 Retire the surviving node-set **name** comparisons in favor of
       mode-map queries (design D5 amendment): `model_estimate.R:1349`
       (`preprocessing_init` re-entry), `utils.R:332` (`ReduceBroadcastFlat`,
       where it drives broadcast diagonal exclusion), `model_spec.R:285`. Each
       works today only because `ds_side_names()` manufactures its two literals to
       satisfy them. Pin the broadcast case with a two-mode expansion test.
-- [ ] 4.4 User-facing side naming: `print.specification.goldfish`
+- [x] 4.4 User-facing side naming: `print.specification.goldfish`
       (`methods_display.R:423`) prints the synthetic keys verbatim
       (`nodes_side1 -> nodes_side2`); show the real mode pair via
       `ds_layer_mode_pair()`. Sweep the preprocessed-object field docs
       (`methods_display.R:859-860, 895-896`) describing `nodes`/`nodes2` as node
       sets, and the `preprocess_builders.R:78-82` error that names
       `nodes_side1`/`nodes_side2` to the user. Snapshot-test the print.
-- [ ] 4.5 End-to-end two-mode model on a fixture (choice_coordination + REM +
+- [x] 4.5 End-to-end two-mode model on a fixture (choice_coordination + REM +
       a **rate** model, and a time-varying nodal covariate on each side) runs
       and the export lookup joins to labels. Verify + commit.
 

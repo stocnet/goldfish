@@ -17,7 +17,10 @@ Effect-level p-values SHALL be combined per submodel block and jointly via
 the Cauchy combination `T_o = mean(tan(pi * (0.5 - P_l)))` with
 `p = 1/2 - atan(T_o)/pi`. Methods SHALL exist for `result.goldfish`
 (single submodel) and for the specification-based fit (per-block tests
-plus joint omnibus). No `gof()` S3 generic SHALL be defined.
+plus joint omnibus). On a flavored specification fit the blocks are per
+process (fid) × submodel: each process is tested exactly as a single-model
+fit and the joint omnibus combines across processes. No `gof()` S3 generic
+SHALL be defined.
 
 #### Scenario: bridge property holds at the MLE
 - **WHEN** `test_gof(fit)` runs on a converged fixture

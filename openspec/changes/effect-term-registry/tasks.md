@@ -47,6 +47,9 @@
       `retain`, `combiner_fn`, `normalizer_fn`, `summarizer_fn`, `levels`) —
       documented and validated but unused by Layer-1 code. Choose the
       representation (list + validator vs class) per the open question.
+      The argument schema's `allowed` field is the choice-set source of truth
+      the constructor resolves against (D24) — the `type` / `history` / `joining`
+      enumerations currently living as `match.arg` defaults in the recipe bodies.
 - [ ] 2.2 Implement the internal registry store (frozen environment after load)
       and `get_term_def()` resolving canonical name and `aliases`, with a
       "did you mean" error for unknown names.
@@ -147,6 +150,15 @@
       effects to invoke it without branching; re-run baselines.
 - [ ] 7.4 Encode the remaining gating arguments (`type`, `subType`, `joining`,
       DyNAMi-specific) per effect, re-running baselines after each effect.
+      **Fold in the argument *resolution* (D24), not only the encoding**: the
+      constructor runs `arg_match` against each argument's `allowed`, so the
+      `update_*`/`init_*` bodies stop calling `match.arg(type)` /
+      `match.arg(history)` and stop reading a raw choice-set default. This
+      absorbs `multimode-network-support`'s transitional `resolve_effect_args()`
+      (its D14) — the parser-seam resolver is superseded by the registry's
+      `allowed`, so the two-mode length-2 init crash cannot recur. Assert an
+      out-of-set value (`type = "bogus"`) aborts from the constructor with a cli
+      error naming the effect, argument, and allowed set.
 - [ ] 7.5 Add tests asserting the update path no longer branches on the encoded
       arguments (e.g. construction stores the transformer/subroutine) and that
       only active cache fields are created/updated.

@@ -16,7 +16,10 @@ goldfish. goldfish SHALL NOT contain ggplot2 plotting code for these
 objects; plot methods live in autograph (branch `feature/goldfish-diag`
 off `develop`), dispatching on class only, following autograph's existing
 RSiena/ergm/MoNAn pattern. New class names SHALL use the existing
-`<thing>.goldfish` suffix convention.
+`<thing>.goldfish` suffix convention. Where a plot-data component carries
+actor identities from a two-mode fit, the labels SHALL be resolved per side
+via the model's `node_lookup` (sender-mode and receiver-mode slices), so the
+autograph methods never re-derive node identity.
 
 #### Scenario: test_gof object is self-contained for plotting
 - **WHEN** a `test_gof()` result is inspected

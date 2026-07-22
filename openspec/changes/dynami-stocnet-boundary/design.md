@@ -89,7 +89,7 @@ under a quieted lifecycle context. DyNAMi fixtures route through the stocnet
 boundary; the lifecycle quieting shrinks to whatever deprecation-cycle tests
 still need. A full fixture modernization across the suite is not this change.
 
-### D6 — Opportunities become a derived occupancy constraint (grounded 2026-07-19)
+### D6 — Opportunities become a derived support constraint (grounded 2026-07-19; corrected 2026-07-21)
 The code grounding removed all guesswork:
 
 - The stored list is `opportunities[[k]] = unique(currentgroups)` at each
@@ -103,27 +103,39 @@ The code grounding removed all guesswork:
   axis, per dependent event) — the same generic machinery whose
   `opportunities_list` argument is already lifecycle-deprecated in favor of
   `support_constraint`.
-- The equivalent constraint fits the **existing** grammar (no extension):
-  `~ indeg(<focal layer>) >= 1` — a group is in the choice set iff occupied.
-  Evaluated at each dependent event with state maintained in `order`, this
-  reproduces `unique(currentgroups)` exactly: own singleton occupied →
-  included (matching today — the reflexive correction is skipped on
-  two-mode, so the joiner's own singleton IS in the denominator, consistent
-  with the paper's Eq. 8 over all present second-mode nodes), emptied
-  groups → excluded.
+- **The constraint (corrected 2026-07-21)** fits the **existing** grammar
+  (no extension): `~ indeg(<focal layer>) >= 1 & !tie(<focal layer>)` — a
+  second-mode node is in the choice set iff occupied AND not the joiner's
+  own current affiliation. The own-exclusion follows the paper: only
+  isolates join, and step 1 has them "decide to join a group or **another**
+  isolate" (Hoffman et al., §2 model description; the event construction
+  even removes the sender's own isolate node) — once step 1 decides to
+  join, staying is not among Eq. 8's options. This CORRECTS the current
+  implementation, which skips the reflexive correction on two-mode and so
+  inflates the denominator with the never-chosen own singleton.
+- **BREAKING model correction, new choice baselines**: excluding the own
+  singleton changes the choice denominator, so DyNAMi **choice**
+  coefficients shift vs the established implementation. The change ships
+  new versioned DyNAMi choice baselines (rate baselines untouched); the
+  2026-07-19 "reproduce own-singleton inclusion exactly" lock is
+  superseded — the separate, explicitly-flagged model change it anticipated
+  folds into this change (user decision 2026-07-21).
+- **Route: the standard support-constraint machinery, NOT the opportunities
+  channel** (corrected 2026-07-21): the derived constraint is compiled and
+  folded exactly like a user `support_constraint` (mask maintenance → folded
+  availability) — DyNAMi choice estimates as a normal constrained model. The
+  bridge does NOT feed the internal `opportunitiesList` channel; that
+  estimation-time side channel remains only for the deprecated
+  constraint-free user list and is deleted by `spec-driven-dispatch`. The
+  estimation-side wiring is grounded at apply: `compute_step.default`
+  currently reads the opportunities channel, so the fold must reach the
+  DyNAMi choice engine as maintained availability.
 - **Auto-derived at specification time** (2026-07-19 decision): the DyNAMi
   choice specification derives the occupancy constraint itself — it is
   structural to the model (the paper's "currently present" groups), not an
   analyst choice; a user `support_constraint` AND-combines, exactly like the
   flavored-processes derived masks. Users never see the opportunity
   machinery.
-- **Own-singleton behavior is reproduced exactly** (2026-07-19 decision): the
-  derived constraint is occupancy-only, no `& !tie()` own-exclusion — any
-  own-exclusion change would be a separate, explicitly-flagged model change
-  with new baselines, not this refactor.
-- The bridge feeds the derived per-event availability to the estimation
-  engine through the existing internal `opportunitiesList` channel —
-  byte-equivalent, no engine change.
 - Cleanup rides along: `setopportunities_interaction()`
   (`make_data_group.R:1044`) is dead code (never called, no return
   statement) and is deleted.
@@ -131,8 +143,13 @@ The code grounding removed all guesswork:
 *Rejected:* keeping the list as an argument (duplicates state the object
 holds; the deprecation on `set_preprocessing_opt()` already points away from
 it); a new list-column on the object (not events-shaped storage of something
-derivable); a grammar extension (unneeded — `indeg` atoms with comparisons
-already exist).
+derivable); a grammar extension (unneeded — `indeg`/`tie` atoms with
+comparisons and `&`/`!` already exist); reproducing own-singleton inclusion
+(the 2026-07-19 stance — rejected 2026-07-21: it contradicts the paper's
+choice set and would freeze a denominator inflation as behavior); feeding
+the derived constraint through the internal `opportunitiesList` channel
+(reduces a constraint to exactly the estimation-time side channel
+`spec-driven-dispatch` deletes).
 
 ### D7 — Both public surfaces land now (2026-07-19)
 `make_specification()` gains the DyNAMi model classes alongside
@@ -188,12 +205,22 @@ a mandatory `leave` entry (there is no leaving choice to model).
 - **Bridge drift vs the monolith's expectations** (parse-time windowing
   `assign()`, `cleanInteractionEvents` ordering) → D3 exact-equivalence test
   plus the frozen DyNAMi baselines; the monolith itself is untouched.
-- **Derived availability must reproduce the supplied opportunities list** (D6):
-  a constructor-era `opportunities` list and the availability derived from
-  composition state could disagree on edge cases (simultaneous joins/leaves,
-  windowed groups) → the D3 bridge-equivalence test compares the materialized
-  list against a constructor-supplied one on the fixtures; disagreements are
+- **Derived availability must match the supplied opportunities list minus the
+  own singleton** (D6): a constructor-era `opportunities` list and the
+  availability derived from composition state could disagree on edge cases
+  (simultaneous joins/leaves, windowed groups) → the equivalence test
+  compares the derived per-event sets against constructor-supplied lists
+  with the joiner's own singleton removed on the fixtures; disagreements are
   surfaced, not papered over.
+- **The own-exclusion correction shifts choice coefficients** (D6): the
+  frozen DyNAMi choice baselines reproduce the old inflated denominator →
+  new versioned choice baselines are generated with the correction, the old
+  ones retired with a NEWS BREAKING entry quantifying the change on the
+  vignette models; rate baselines stay frozen and must PASS unchanged.
+- **DyNAMi choice estimation must consume folded availability** (D6): the
+  legacy path reads the opportunities channel in `compute_step.default`; if
+  it cannot read maintained availability directly, the bridge needs an
+  estimation-side adapter — grounded at task 1.1 before implementation.
 - **Intercept desugaring mis-mapping** (D9): the legacy encoding spells the
   two intercepts asymmetrically (`~ 1` + `intercept(<focal>, joining = 1)`),
   so a wrong mapping of the per-flavor `~ 1` terms would produce

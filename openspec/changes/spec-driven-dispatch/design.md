@@ -40,6 +40,32 @@ Constraints: frozen coefficient baselines (1e-6, PASS not SKIP,
 this change is behavior-preserving (no coefficient changes, no `src/` edits);
 DyNAMi still runs the legacy monolith until `refactor-dynami-engine`.
 
+Revisions (2026-07-21, pre-apply review):
+
+- **The audit's line anchors are stale**: `refactor-likelihood-compute`,
+  `refactor-single-data-object`, and `flavored-processes` all archived since
+  2026-07-10 and rewrote the audited files — task 0.1 re-verifies the claims
+  and refreshes every anchor before any edit.
+- **Flavored processes landed**: `estimate_from_specification()` branches to
+  `estimate_flavored()`, which loops `estimate_wrapper()` per fid with
+  per-consumer compiled constraints. The descriptor lives on each submodel
+  bundle's typed spec, so the per-fid loop reads it unchanged — but the D5
+  no-strings widening must also cover `estimate_flavored.R` /
+  `preprocess_flavored.R` if model-type strings appear there (task 0.1
+  inventories).
+- **Descriptor geometry is mode-map-aware**: `multimode-network-support`
+  lands first (release step 2) — on a two-mode focal, mask symmetrization is
+  skipped and `directed` is noted-and-ignored (its task 3.3), and
+  nodes/nodes2 resolve through the mode map (its task 4.1). The parse-time
+  descriptor (axis, symmetrize) must be derived WITH the mode map, and the
+  descriptor tests re-grounded against the landed surface.
+- **No DyNAMi opportunities carve-out needed**: `dynami-stocnet-boundary`'s
+  corrected D6 (2026-07-21) compiles/folds its derived availability through
+  the STANDARD support-constraint machinery, not the internal
+  `opportunitiesList` channel — this change's ban on opportunity-list
+  reductions of constraints holds cleanly; the only surviving
+  `opportunitiesList` use is the deprecated constraint-free user list.
+
 ## Goals / Non-Goals
 
 **Goals:**
