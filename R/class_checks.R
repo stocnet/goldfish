@@ -743,8 +743,8 @@ check_events.nodes.goldfish <- function(
     cli::cli_warn(c(
       "x" = "Missing replace value data exists at indices: {obs}
       of {.var events_name}",
-      "i" = "Mean is used to impute for numerical values, mode is used to impute
-    for categorical values"
+      "i" = "Mean is used to impute for numerical values, the most common value
+    is used to impute for categorical values"
     ))
   }
   if (!is.null(events$increment) && anyNA(events$increment)) {
@@ -957,8 +957,8 @@ check_events.network.goldfish <- function(
     cli::cli_warn(c(
       "x" = "Missing replace value data exists at indices: {obs}
       of {.var events_name}",
-      "i" = "Mean is used to impute for numerical values, mode is used to impute
-    for categorical values"
+      "i" = "Mean is used to impute for numerical values, the most common value
+    is used to impute for categorical values"
     ))
   }
   if (!is.null(events$increment) && anyNA(events$increment)) {

@@ -2852,12 +2852,14 @@ impute_missing_data <- function(objects_effects_link, envir = new.env()) {
     } else if (is.vector(object) && any(is.na(object))) {
       if (is.numeric(object)) {
         cli::cli_warn(c(
-          "i" = "Missing data has been detected. Mean is used to impute for numerical values"
+          "i" = "Missing data has been detected. The mean is used to impute
+                 numerical values"
         ))
         object[is.na(object)] <- mean(object, na.rm = TRUE)
       } else {
         cli::cli_warn(c(
-          "i" = "Missing data has been detected. Mode is used to impute for categorical values"
+          "i" = "Missing data has been detected. The most common value is used
+                 to impute categorical values"
         ))
         object[is.na(object)] <- names(which.max(table(object)))
       }
