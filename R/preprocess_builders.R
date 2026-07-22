@@ -894,3 +894,41 @@ assert_imputable_schedule <- function(schedule, objects_registry, strata) {
   }
   invisible(NULL)
 }
+
+# Reject, before the walk begins, a missing global attribute value. A global has
+# exactly one value, so the summary rule would draw from an empty pool -- there
+# is no defined imputation. Both the initial value (read from the built state)
+# and any event-stream replace (carried on the schedule) are checked here, the
+# last point before the walk, so the abort names the object and, for an event,
+# its time rather than emitting a not-a-number or writing an arbitrary zero.
+assert_globals_defined <- function(state, objects_registry, schedule) {
+  for (oid in which(objects_registry$component == "globals")) {
+    key <- objects_registry$key[oid]
+    if (is.na(state$globals[[key]])) {
+      cli::cli_abort(c(
+        "Global attribute {.val {key}} has a missing initial value.",
+        "x" = "A global attribute has a single value, so there is nothing to
+               summarize it from.",
+        "i" = "Give it an observed initial value, or a first event that sets
+               one, before the observation window."
+      ))
+    }
+  }
+  for (k in seq_len(schedule$n)) {
+    if (
+      !identical(schedule$shape[k], "global") || !is.na(schedule$value[[k]])
+    ) {
+      next
+    }
+    oid <- schedule$target[k]
+    key <- if (!is.na(oid)) objects_registry$key[oid] else NA_character_
+    cli::cli_abort(c(
+      "Global attribute {.val {key}} has a missing value at time
+       {.val {schedule$time[k]}}.",
+      "x" = "A global attribute has a single value, so a missing update cannot
+             be imputed from other values.",
+      "i" = "Give the event an explicit value."
+    ))
+  }
+  invisible(NULL)
+}

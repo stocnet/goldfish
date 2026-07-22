@@ -1050,6 +1050,12 @@ ds_impute_missing.data_source_stocnet <- function(src, objects_effects_link) {
     if (!anyNA(value)) {
       next
     }
+    # A global attribute has a single value, so its imputation pool is empty by
+    # construction: it is not imputed here but left missing for the schedule
+    # construction check to reject (naming the object) before the walk begins.
+    if (ds_is_global(src, entry$nodeset)) {
+      next
+    }
     # The initial table is imputed by the same rule the walk uses, evaluated at
     # the start of the window: each missing value from its own mode category.
     src$att_override[[att_override_key(entry$nodeset, entry$attribute)]] <-

@@ -495,6 +495,7 @@ prepare_recipe_context <- function(
   )
   schedule <- build_event_schedule(events, events_objects_link, plan$objects)
   assert_imputable_schedule(schedule, plan$objects, attr(state, "strata"))
+  assert_globals_defined(state, plan$objects, schedule)
 
   net_update_lookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
   att_update_lookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
@@ -2289,7 +2290,18 @@ preprocess_monolith <- function(
           "replace",
           drop = FALSE
         ]
-        if (is.na(event$replace)) event$replace <- 0
+        # A global attribute has a single value, so a missing update cannot be
+        # imputed from other values: reject it rather than writing an arbitrary
+        # zero into the model.
+        if (is.na(event$replace)) {
+          cli::cli_abort(c(
+            "Global attribute {.val {object_name}} has a missing value at time
+             {.val {time}}.",
+            "x" = "A global attribute has a single value, so a missing update
+                   cannot be imputed from other values.",
+            "i" = "Give the event an explicit value."
+          ))
+        }
       } else if (is_increment_event[next_event]) {
         vars_keep <- c(
           if (is_node_event[next_event]) "node" else c("sender", "receiver"),
