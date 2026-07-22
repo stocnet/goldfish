@@ -1,3 +1,19 @@
+# goldfish 1.9.5
+
+## New features
+
+* **`set_preprocessing_opt()` gains an `impute` argument** declaring a
+  per-attribute imputation policy, a named character vector keyed by nodal
+  attribute. The default `"summary"` is the published contract, so omitting the
+  argument changes nothing. `"as_category"` recodes a factor or character
+  attribute's missing values to a reserved `"(missing)"` level -- in the initial
+  table and in the attribute's event streams -- so missingness by design
+  survives to the summarizers as an ordinary category instead of being filled
+  with the most common value. Validation aborts on an unknown attribute, an
+  attribute no effect reads, `"as_category"` on a numeric attribute, a
+  collision with an observed `"(missing)"` value, and the reserved-but-
+  unimplemented `"locf"` value. The policy requires stocnet data objects.
+
 # goldfish 1.9.4
 
 ## Behavior changes
