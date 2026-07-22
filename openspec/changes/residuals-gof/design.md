@@ -105,6 +105,17 @@ used for estimation: diagnostics must be numerically consistent with the
 fit they diagnose (1e-6 baseline discipline; engines differ in
 accumulation order).
 
+**Reflexive/two-mode flag consistency.** `evaluate_engine()` and the new
+in-pass C++ quantities (ranks/margins) reconstruct per-event statistics, so
+their broadcast fan-out and risk-set iteration MUST key on the unified
+`twomode_or_reflexive = allowReflexive || is_two_mode`, exactly as the
+estimation engines do — never `is_two_mode` alone. Reading `is_two_mode` by
+itself would drop the reflexive diagonal cell for a self-tie-allowing one-mode
+model, diverging from the risk set and from the fit. (The pre-existing R-engine
+broadcast site that read `is_two_mode` alone was corrected separately; it was
+dormant because `allowReflexive` is not yet threaded from the estimation entry,
+but the new evaluator must not reintroduce the asymmetry.)
+
 ### D4 — coxph storage/recompute split
 
 Store by default what the last iteration produced (`loglik`, `scores`);
