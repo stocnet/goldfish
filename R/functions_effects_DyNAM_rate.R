@@ -307,9 +307,12 @@ init_DyNAM_rate.tertius <- function(
     forceAndCall(1, aggFun, attribute[inReceiver])
   })
   stat <- forceAndCall(1, funApply, cache)
+  # empty-neighborhood default: a node with no in-neighbor has an undefined
+  # aggregate and takes the mean of the defined entries (part of the statistic's
+  # definition, not attribute imputation).
   if (anyNA(stat)) {
-    imputeVal <- mean(stat, na.rm = TRUE)
-    stat[is.na(stat)] <- imputeVal
+    default_val <- mean(stat, na.rm = TRUE)
+    stat[is.na(stat)] <- default_val
   }
   list(cache = cache, stat = stat)
 }
@@ -329,7 +332,7 @@ update_DyNAM_rate_tertius <- function(
   summarizer_fn = function(x) mean(x, na.rm = TRUE)
 ) {
   isEmpty <- all(cache == 0)
-  isImpute <- anyNA(cache)
+  needs_default <- anyNA(cache)
   res <- list(cache = NULL, changes = NULL)
   nodesChange <- numeric()
 
@@ -351,7 +354,11 @@ update_DyNAM_rate_tertius <- function(
       if (length(inReceiver) > 0) attribute[inReceiver] else NA
     )
     nodesChange <- if (!is.na(valChangeCache)) receiver else numeric()
-    isImpute <- ifelse(!isImpute && is.na(valChangeCache), TRUE, isImpute)
+    needs_default <- ifelse(
+      !needs_default && is.na(valChangeCache),
+      TRUE,
+      needs_default
+    )
     cache[receiver] <- valChangeCache
   }
 
@@ -381,18 +388,20 @@ update_DyNAM_rate_tertius <- function(
     NULL
   }
 
-  if (isEmpty || isImpute) {
-    toImpute <- which(is.na(cache))
-    imputeVal <- mean(cache, na.rm = TRUE)
-    impute_changes <- if (length(toImpute) > 0) {
+  # nodes with an undefined aggregate take the empty-neighborhood default (the
+  # mean of the defined cache values)
+  if (isEmpty || needs_default) {
+    default_cells <- which(is.na(cache))
+    default_val <- mean(cache, na.rm = TRUE)
+    default_changes <- if (length(default_cells) > 0) {
       cbind(
-        node1 = toImpute,
-        replace = forceAndCall(1, transformer_fn, imputeVal)
+        node1 = default_cells,
+        replace = forceAndCall(1, transformer_fn, default_val)
       )
     } else {
       NULL
     }
-    changes <- rbind(changes, impute_changes)
+    changes <- rbind(changes, default_changes)
   }
   list(cache = cache, changes = changes)
 }

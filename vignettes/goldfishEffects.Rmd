@@ -383,8 +383,12 @@ tertius(network, attribute,
   The argument `type` allows to choose whether to use the tertius effect
   for sender $i$ (`type = "ego"`) or for receiver $j$ (`type = "alter"`).
 
-**Note:** When a node does not have in-neighbors, the tertius effect is impute
-as the average of the aggregate values of nodes with in-neighbors.
+**Note:** For a node with no in-neighbors the aggregate is over an empty set and
+so undefined. By definition the statistic then takes the mean of its defined
+entries -- the average of the aggregate values over the nodes that *do* have
+in-neighbors. This empty-neighborhood default is part of the effect's
+definition, not missing-data imputation (see the *Missing data* section of the
+`goldfish_data` help page for the separate attribute-imputation contract).
 
 # Dyadic statistics
 
@@ -576,9 +580,11 @@ s(i,j, t, x, z) = \left|\frac{z(t)_i -
 The tendency to create an event $i\rightarrow j$ when $i$ has
 a similar value as $j$ aggregate (`summarizer_fn`) value of its
 in-neighbors ($\forall j:~ x[j, i] > 0$).
-_Note:_ When the node $j$ does not have in-neighbors, its value is
-imputed by the average of the similarities computed for the pairs $i$, $k$ for
-all $k$ that has at least one in-neighbor.
+_Note:_ For a node $j$ with no in-neighbors the statistic is undefined; by
+definition it then takes the mean of its defined entries -- the average of the
+similarities computed for the pairs $i$, $k$ over all $k$ that have at least one
+in-neighbor. This is the effect's empty-neighborhood default, not missing-data
+imputation.
 
 # Closure effect statistics (Dyadic effects)
 

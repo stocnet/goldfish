@@ -3014,7 +3014,9 @@ init_DyNAM_choice.tertius_diff <- function(
   )
 
   stat2 <- forceAndCall(1, funApply, outer(attribute, stat, "-"))
-  # impute missing entries: nodes without inNeighbor, transformer_fn(differences)
+  # empty-neighborhood default: a node with no in-neighbor has an undefined
+  # aggregate, so it takes the mean of the defined entries (part of the
+  # statistic's definition, not attribute imputation).
   if (is_two_mode) {
     stat2[is.na(stat2)] <- mean(stat2, na.rm = TRUE)
   } else {
@@ -3106,7 +3108,7 @@ update_DyNAM_choice_tertius_diff <- function(
   }
   # init with empty network
   isEmpty <- all(cache == 0)
-  isImpute <- anyNA(cache)
+  needs_default <- anyNA(cache)
   # init res
   res <- list(cache = NULL, changes = NULL)
   # case 1: an update in the network[sende, receiver] <- replace
@@ -3140,7 +3142,11 @@ update_DyNAM_choice_tertius_diff <- function(
     # changes case 1: all nodes needs to be update the att[i] - cache[j] values
     # if (is_two_mode) seq_len(n2) else third(n1, receiver)
     nodesChange <- if (!is.na(valChangeCache)) receiver else numeric()
-    isImpute <- ifelse(!isImpute && is.na(valChangeCache), TRUE, isImpute)
+    needs_default <- ifelse(
+      !needs_default && is.na(valChangeCache),
+      TRUE,
+      needs_default
+    )
     cache[receiver] <- valChangeCache
     changes <- NULL
   }
@@ -3207,31 +3213,32 @@ update_DyNAM_choice_tertius_diff <- function(
       )
     )
   )
-  # when is just initialize it need to change all values to the average
+  # on initialization every entry takes the empty-neighborhood default (the mean
+  # of the defined statistic values)
   if (isEmpty) {
-    toImpute <- matrix(TRUE, nrow = n1, ncol = n2)
-    toImpute[cbind(changes[, "node1"], changes[, "node2"])] <- FALSE
+    default_cells <- matrix(TRUE, nrow = n1, ncol = n2)
+    default_cells[cbind(changes[, "node1"], changes[, "node2"])] <- FALSE
     if (!is_two_mode) {
-      diag(toImpute) <- FALSE
+      diag(default_cells) <- FALSE
     }
-    imputeVal <- mean(changes[, "replace"], na.rm = TRUE)
+    default_val <- mean(changes[, "replace"], na.rm = TRUE)
     changes <- rbind(
       changes,
-      cbind(which(toImpute, arr.ind = TRUE), imputeVal)
+      cbind(which(default_cells, arr.ind = TRUE), default_val)
     )
-  } else if (isImpute) {
+  } else if (needs_default) {
     stat <- forceAndCall(1, transformer_fn, outer(attribute, cache, "-"))
-    toImpute <- is.na(stat)
-    toImpute[cbind(changes[, "node1"], changes[, "node2"])] <- FALSE
+    default_cells <- is.na(stat)
+    default_cells[cbind(changes[, "node1"], changes[, "node2"])] <- FALSE
     if (!is_two_mode) {
       diag(stat) <- NA
-      diag(toImpute) <- FALSE
+      diag(default_cells) <- FALSE
     }
-    imputeVal <- mean(stat, na.rm = TRUE)
-    if (any(toImpute)) {
+    default_val <- mean(stat, na.rm = TRUE)
+    if (any(default_cells)) {
       changes <- rbind(
         changes,
-        cbind(which(toImpute, arr.ind = TRUE), imputeVal)
+        cbind(which(default_cells, arr.ind = TRUE), default_val)
       )
     }
   }
