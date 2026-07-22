@@ -720,6 +720,88 @@ resolves at the parser reading the closure's original default as the
 *transitional* source (as D8/D17 do for validity); the derivation does not
 change when it moves.
 
+### D15 — Two-mode data-prep timing on a POSIXct axis (decided 2026-07-23; revises D6)
+
+Exploring a hand-built (manynet-verb) conversion of `irps_nuclear` surfaced a
+timing contract the vignette (D6, task 5.3) must honor, and settled the time
+axis. It **revises** three D6 bullets — the activation epsilon, the periods
+route, and the Fig-1 plot — and the phase-5 header note in `tasks.md`.
+
+**The mechanism.** `build_event_schedule()` orders events by
+`order(time, stream)` with **stream 1 = the dependent stream**, so at an equal
+timestamp the dependent event is processed *before* any composition / global
+change at that same time. Therefore any state a dependent event reads — a
+receiver's `active` flag, a `global()` value — must be set at a **strictly
+earlier** time than that event. "Same day as the first event" is too late.
+
+**The collision, measured.** Concepts (claims) must be `active` to be choosable.
+Claims activate at their first event; that activation must precede the
+introducing event. On a **`Date`** (daily) axis the smallest move is one full
+day, and `first_event - days(1)` makes a claim choosable for the *entire prior
+day's* events: **893 phantom (claim × event) availability pairs across 44 of 54
+claims** (up to 55 for one claim) — each a claim sitting in the conditional-logit
+denominator on a day it had not been introduced. A sub-day move yields **0**.
+
+**The axis: POSIXct (datetime), chosen.** A sub-day, *readable* offset needs a
+datetime axis. POSIXct is also goldfish's **native** format (both shipped
+datasets, `fisheries_treaties` and `social_evolution`, are POSIXct). So the
+conversion casts `time = as.POSIXct(time, tz = "UTC")` and activates one **hour**
+before the first event (`first_event - hours(1)`) — readable
+(`"2011-03-10 23:00:00"`), sub-day, and correct (0 phantom pairs). The rule
+generalizes: **the offset must be smaller than the data's finest inter-event
+gap** (irps is daily, so any move in `(0, 1 day)` works; an hour is a readable
+pick). This *supersedes* D6's "one-second epsilon on the numeric time axis" —
+numeric works but prints as day-numbers; POSIXct keeps the human-readable form.
+
+| axis | readable | sub-day move | activation | native to goldfish |
+|---|:---:|:---:|---|:---:|
+| `Date` | ✔ | ✗ | `- days(1)` → 893 phantom | — |
+| numeric | ✗ | ✔ | `- 1/86400` | — |
+| **POSIXct** | **✔** | **✔** | **`- hours(1)`** | **✔** |
+
+**Global period dummies need a real initial value too** — the same mechanism.
+`period2/3/4` set at their boundary dates must carry a `time = NA` history row
+(the "before the window" initial value), else the first dependent event reads
+`NA` and preprocessing aborts (`"Global attribute … has a missing initial
+value"`). Their first observed value dated on the first event day is *too late*.
+
+**Two datetime gotchas** the recipe documents:
+- `as.POSIXct(<Date>)` without `tz` shifts midnight by the local offset (can
+  reorder events / cross a day boundary) — pin `tz = "UTC"`.
+- `c(NA, <POSIXct>)` coerces the vector to numeric (the logical `NA` wins), which
+  then trips goldfish's own mixed-axis guard (`check_time_contract`:
+  *"Integer/numeric wave times are only comparable when every stream uses
+  them"*). Build initial-value vectors as `as.POSIXct(c(NA, "2011-03-17"),
+  tz = "UTC")` so the `NA` stays typed. (That guard is a welcome safety net.)
+
+**Periods now use the flavor-keyed interacted route (revises D6).** The
+operand-hold-out fix (interaction operands are held out of the make_specification
+main-effect check) makes a flavor-keyed choice carry period interactions, so the
+D6-preferred interacted-joint route is available and becomes **primary**: the
+support layer's `flavor` column is `"modeled"` / `"conditional"` (from
+`default`), the models are `modeled ~ … + effect:global(Pk)`, and the four
+per-period observation-window fits (`start_time`/`end_time`) demote to the
+equivalence **cross-check**. This retires the phase-5 header's "no
+`flavored-processes` dependency / window route" framing — the *flavor column*
+(not the `flavored-processes` change) carries the modeled/context split.
+
+**Fig 1 is senders/receivers per day, not events (revises D6).** The paper's
+Figure 1 is the count of distinct **actors** (senders) and distinct **claims**
+(receivers) per day — `n_distinct(from)` / `n_distinct(to)` per day, a 7-day
+rolling mean — not events-per-layer. It moves to **immediately after** the data
+is built and is drawn from the created object.
+
+**Workflow, not a function (revises task 5.3).** The vignette shows the manynet
+verb pipeline inline (`as_stocnet() |> mutate_ties() |> mutate_nodes() |>
+add_info() |> bind_changes() |> mutate_globals()`); it does **not** wrap the
+conversion in a helper. The frozen-subset generation script under `tests/` keeps
+its function (test infrastructure), regenerated to the datetime axis + `"modeled"`
+flavor so the two-mode baseline matches the taught recipe.
+
+**`focal` stays set in the vignette meanwhile.** `add_info(focal = "support")`
+remains a stopgap until `formula-drives-focal` lands (that successor reframes the
+vignette focal-less per its D7/D8); without it the object crashes today.
+
 ## Risks / Trade-offs
 
 - **Effect-validity surface is large** (every effect × type-variant × argument

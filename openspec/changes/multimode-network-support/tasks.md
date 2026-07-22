@@ -224,11 +224,18 @@
       a **rate** model, and a time-varying nodal covariate on each side) runs
       and the export lookup joins to labels. Verify + commit.
 
-## 5. Flagship dataset, docs, vignette (design D6 — `manynet::irps_nuclear`)
+## 5. Flagship dataset, docs, vignette (design D6, D15 — `manynet::irps_nuclear`)
 
-*No `flavored-processes` dependency (revised 2026-07-21): the ±1 increments
-convert to separate support/contestation layers, and periods use the
-`start_time`/`end_time` observation window.*
+*The ±1 increments convert to separate support/contestation layers. Periods use
+the **flavor-keyed interacted route** (design D15, enabled by the operand
+hold-out fix): the support `flavor` column is `"modeled"`/`"conditional"`, and
+the four per-period observation-window fits demote to the equivalence
+cross-check. No `flavored-processes`-change dependency — the flavor **column**
+carries the modeled/context split.*
+
+*Tasks 5.1 and 5.3 landed first on the numeric-epsilon axis with the window
+route; tasks **5.5/5.6** revise them to the datetime axis and the interacted
+route per design D15.*
 
 - [ ] 5.1 Write the `irps_nuclear` → stocnet conversion per the D6 contract
       (revised 2026-07-21): nodes tibble with `mode` from `type` (ignore
@@ -273,6 +280,30 @@ convert to separate support/contestation layers, and periods use the
       `sim`, `mixed_trans`; rephrase `common_sender`/`common_receiver` as the
       one-mode-focal + two-mode-covariate projection; type-qualify the
       `indeg`/`outdeg` statements — and align any roxygen echoing them.
+
+- [ ] 5.5 Rework the vignette data-prep to the inline manynet-verb workflow on a
+      **POSIXct** axis (design D15), replacing the `irps_to_stocnet()` function in
+      `two-mode.Rmd` with the pipeline shown directly: `as_stocnet() |>
+      mutate_ties(…, flavor = if_else(default, "modeled", "conditional"),
+      time = as.POSIXct(time, tz = "UTC")) |> mutate_nodes(…) |>
+      add_info(focal = "support", …) |> bind_changes(activation) |>
+      mutate_globals(periods)`. Activation = `first_event - hours(1)` (sub-day,
+      readable, 0 phantom-availability pairs — vs 893 under `days(1)`); period
+      globals carry a typed `NA`-initial row (`as.POSIXct(c(NA, boundary…),
+      tz = "UTC")`). Keep `focal = "support"` as the stopgap (formula-drives-focal
+      reframes it later). Document the two datetime gotchas (tz, typed `NA`).
+      Regenerate the frozen subset (`tests/testthat/fixtures/`) on the datetime
+      axis with the `"modeled"` flavor so the two-mode baseline matches the taught
+      recipe. Re-knit `two-mode.Rmd` clean.
+- [ ] 5.6 Rework the vignette models and plot (design D15): periods via the
+      **flavor-keyed interacted** route — `make_specification(rate/choice =
+      list(modeled ~ …))` with `effect:global(P2/P3/P4)` interaction terms — as
+      primary, with the four `start_time`/`end_time` per-period fits kept as the
+      equivalence cross-check (coefficients must agree). Replace the events-per-day
+      figure with the paper's **Fig 1**: distinct senders (actors) and distinct
+      receivers (claims) per day (`n_distinct(from)`/`n_distinct(to)`, 7-day
+      rolling mean), moved to **immediately after** the data is built and drawn
+      from the created object. Re-knit clean.
 
 ## 6. Coefficient equivalence baselines (design D8)
 
