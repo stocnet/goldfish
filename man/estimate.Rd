@@ -261,6 +261,21 @@ from a pool that may already contain \strong{earlier imputed values}, not only
 observed ones. Single imputation treats every imputed value as if it had been
 observed, so it understates the uncertainty the missingness carries.
 }
+
+\subsection{Better strategies for missing data}{
+
+Where missingness is material to the conclusions, impute \emph{before} building
+the goldfish object rather than relying on the single-imputation floor above.
+Multiple imputation draws several completed datasets -- the initial nodes
+table and, for a time-varying attribute, its event streams -- from a model of
+the missingness. Fit the specification once per completed dataset and combine
+the fits under Rubin's rules with \code{mitools::MIcombine()}, which consumes the
+\code{coef()} and \code{vcov()} methods a goldfish result provides. The combination is
+valid to the extent Rubin's rules hold -- approximately normal, congenial
+estimates -- which is reasonable for simple specifications and to be treated
+with care beyond them. \code{mitools} is a suggested dependency; the worked
+example below runs only when it is installed.
+}
 }
 
 \examples{
