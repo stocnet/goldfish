@@ -308,3 +308,69 @@ make_legacy_fixture_twomode <- function() {
     club_funding = club_funding
   )
 }
+
+# Imputation-policy fixtures --------------------------------------------------
+#
+# Regression inputs for the imputation contract: the two nodal missingness
+# shapes the policy surface distinguishes, and the two global-shape variants the
+# schedule-construction abort rejects. All are plain stocnet lists (no manynet
+# call), mirroring make_stocnet_fixture_multimode()'s mode-column machinery.
+
+# irps_nuclear-shaped: a categorical attribute (`party`) observed for one mode
+# category and *missing by design* for another (politicians have a party,
+# citizens do not), alongside a numeric attribute (`income`) with sparse
+# within-category missingness. The whole-category-missing categorical is the
+# case the summary default cannot pool (its mode category is entirely NA -- an
+# empty pool) and the as-category policy exists to represent; the sparse numeric
+# is imputed by the summary default from its populated mode category. A single
+# fixture carries both: the reading formula, not the fixture, selects which
+# attribute a test exercises.
+make_stocnet_fixture_missing_nodal <- function() {
+  nodes <- data.frame(
+    label = c("P1", "P2", "P3", "C1", "C2"),
+    mode = c("politician", "politician", "politician", "citizen", "citizen"),
+    party = c("left", "right", "left", NA, NA),
+    income = c(50, NA, 70, 40, NA),
+    stringsAsFactors = FALSE
+  )
+  ties <- data.frame(
+    from = c(1L, 4L, 2L),
+    to = c(4L, 2L, 5L),
+    time = c(1, 2, 3),
+    layer = "contact",
+    stringsAsFactors = FALSE
+  )
+  info <- list(
+    name = "missing_nodal",
+    focal = "contact",
+    update = c(contact = "increment"),
+    directed = c(contact = TRUE),
+    observation = c(contact = "event")
+  )
+  list(info = info, nodes = nodes, ties = ties)
+}
+
+# A global attribute carrying a missing value, for the D2 schedule-construction
+# abort. `when = "init"` leaves the sole (history) value missing, so the global
+# has no defined initial value; `when = "event"` gives an observed initial value
+# and a later timed `replace` that is missing. Built on make_stocnet_fixture()'s
+# one-mode `calls` process; a test reads the global through an effect to bring
+# it into the effects link.
+make_stocnet_fixture_missing_global <- function(when = c("init", "event")) {
+  when <- match.arg(when)
+  fixture <- make_stocnet_fixture()
+  fixture$global <- if (identical(when, "init")) {
+    g <- data.frame(time = NA_real_, var = "climate", stringsAsFactors = FALSE)
+    g$value <- list(NA_real_)
+    g
+  } else {
+    g <- data.frame(
+      time = c(NA_real_, 1.5),
+      var = "climate",
+      stringsAsFactors = FALSE
+    )
+    g$value <- list(0, NA_real_)
+    g
+  }
+  fixture
+}
