@@ -326,6 +326,19 @@ test_that("two-mode models with time-varying nodal covariates preprocess", {
   ))
 })
 
+test_that("a two-mode rate model preprocesses", {
+  # The rate spec is sender-indexed but the focal `attend` network is 3x2.
+  # Dropping the receiver side collapsed n2 to n1, so outdeg's rowSums ran with
+  # the wrong second dimension and aborted with `'x' is too short` on the first
+  # non-empty network.
+  expect_no_error(estimate_dynam(
+    attend ~ 1 + outdeg(attend),
+    sub_model = "rate",
+    data = as_goldfish(make_stocnet_fixture_multipartite()),
+    preprocessing_only = TRUE
+  ))
+})
+
 test_that("a receiver-side change reaches the effect as a local update", {
   # The value must arrive against the receiver's own index space: the update
   # encodes alter 1 (E1), not global node 4.

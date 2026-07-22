@@ -43,6 +43,22 @@ test_that("sender constructors are one-mode with nodes2 defaulting to nodes", {
   expect_identical(spec$nodes2, "actors")
 })
 
+test_that("a two-mode sender spec carries its receiver side and the flag", {
+  # A rate model is sender-indexed, but the network it reads still spans two
+  # modes: the receiver side must survive so n2 (and rowSums dims) stay right.
+  spec <- new_model_spec(
+    "DyNAM",
+    "rate",
+    is_two_mode = TRUE,
+    nodes = "actors",
+    nodes2 = "events"
+  )
+  expect_true(inherits(spec, "sender_spec"))
+  expect_true(spec$is_two_mode)
+  expect_identical(spec$nodes, "actors")
+  expect_identical(spec$nodes2, "events")
+})
+
 test_that("constructors store extra fields passed through dots", {
   spec <- rem_rate_spec(nodes = "actors", has_intercept = TRUE)
   expect_true(spec$has_intercept)
@@ -281,7 +297,7 @@ test_that("estimate_dynami constructs and forwards the typed spec", {
   expect_s3_class(prepChoice$model_spec, "dynami_choice_spec")
 })
 
-test_that("new_model_spec sender-indexed specs ignore is_two_mode", {
+test_that("new_model_spec sender-indexed specs carry a two-mode receiver", {
   expect_no_warning(
     spec <- new_model_spec(
       "DyNAM",
@@ -291,6 +307,6 @@ test_that("new_model_spec sender-indexed specs ignore is_two_mode", {
       nodes2 = "clubs"
     )
   )
-  expect_false(spec$is_two_mode)
-  expect_identical(spec$nodes2, "actors")
+  expect_true(spec$is_two_mode)
+  expect_identical(spec$nodes2, "clubs")
 })

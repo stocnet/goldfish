@@ -3,8 +3,9 @@
 #' Low-level constructors for the typed model specification objects that
 #' carry the resolved model variant through preprocessing and estimation.
 #' The class vector follows `c("<variant>_spec", "<indexing>_spec",
-#' "model_spec")`. `sender_spec` variants are always one-mode: they force
-#' `is_two_mode = FALSE` and use `nodes` for both modes.
+#' "model_spec")`. `sender_spec` variants are sender-indexed but may be
+#' two-mode: the receiver side (`nodes2`) and `is_two_mode` are carried so a
+#' rate model over an n1 x n2 network sizes its statistics on both modes.
 #'
 #' @param is_two_mode logical, whether sender and receiver node sets differ.
 #' @param nodes,nodes2 names of the node sets of the dependent events.
@@ -38,13 +39,18 @@ model_spec_structure <- function(
 
 #' @rdname model_spec
 #' @noRd
-dynam_rate_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
+dynam_rate_spec <- function(
+  is_two_mode = FALSE,
+  nodes = NULL,
+  nodes2 = nodes,
+  ...
+) {
   model_spec_structure(
     "dynam_rate_spec",
     "sender_spec",
     "DyNAM",
     "rate",
-    is_two_mode = FALSE,
+    is_two_mode = is_two_mode,
     nodes = nodes,
     nodes2 = nodes2,
     ...
@@ -53,13 +59,18 @@ dynam_rate_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
 
 #' @rdname model_spec
 #' @noRd
-dynam_rate_ordered_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
+dynam_rate_ordered_spec <- function(
+  is_two_mode = FALSE,
+  nodes = NULL,
+  nodes2 = nodes,
+  ...
+) {
   model_spec_structure(
     "dynam_rate_ordered_spec",
     "sender_spec",
     "DyNAM",
     "rate_ordered",
-    is_two_mode = FALSE,
+    is_two_mode = is_two_mode,
     nodes = nodes,
     nodes2 = nodes2,
     ...
@@ -108,13 +119,18 @@ dynam_choice_coord_spec <- function(
 
 #' @rdname model_spec
 #' @noRd
-dynami_rate_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
+dynami_rate_spec <- function(
+  is_two_mode = FALSE,
+  nodes = NULL,
+  nodes2 = nodes,
+  ...
+) {
   model_spec_structure(
     "dynami_rate_spec",
     "sender_spec",
     "DyNAMi",
     "rate",
-    is_two_mode = FALSE,
+    is_two_mode = is_two_mode,
     nodes = nodes,
     nodes2 = nodes2,
     ...
@@ -123,13 +139,18 @@ dynami_rate_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
 
 #' @rdname model_spec
 #' @noRd
-dynami_rate_ordered_spec <- function(nodes = NULL, nodes2 = nodes, ...) {
+dynami_rate_ordered_spec <- function(
+  is_two_mode = FALSE,
+  nodes = NULL,
+  nodes2 = nodes,
+  ...
+) {
   model_spec_structure(
     "dynami_rate_ordered_spec",
     "sender_spec",
     "DyNAMi",
     "rate_ordered",
-    is_two_mode = FALSE,
+    is_two_mode = is_two_mode,
     nodes = nodes,
     nodes2 = nodes2,
     ...
@@ -270,7 +291,16 @@ new_model_spec <- function(
   constructor <- constructors[[model]][[sub_model]]
   is_sender <- sub_model %in% c("rate", "rate_ordered") && model != "REM"
   if (is_sender) {
-    return(constructor(nodes = nodes, ...))
+    # A rate model is sender-indexed, but a two-mode dependent process still
+    # reads an n1 x n2 network, so the receiver side and the flag must reach the
+    # spec (dropping them collapsed n2 to n1 and broke effect init). DyNAMi is
+    # one-mode, so it always resolves is_two_mode = FALSE here.
+    return(constructor(
+      is_two_mode = is_two_mode,
+      nodes = nodes,
+      nodes2 = if (is.null(nodes2)) nodes else nodes2,
+      ...
+    ))
   }
   if (is_two_mode) {
     if (is.null(nodes) || is.null(nodes2)) {
