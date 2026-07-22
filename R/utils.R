@@ -334,7 +334,10 @@ ReducePreprocess <- function(
     bcEvent <- colEvent[colsKeep]
     n1 <- dim(preproData$initialStats)[1]
     n2 <- if (is_rate) 1L else dim(preproData$initialStats)[2]
-    is_two_mode <- !identical(preproData$nodes, preproData$nodes2)
+    # The mode-map reading rides on the spec; the side-name comparison stays only
+    # as a fallback for a bare object that never carried a spec.
+    is_two_mode <- preproData$model_spec$is_two_mode %||%
+      !identical(preproData$nodes, preproData$nodes2)
     for (i in seq_len(nEffects)) {
       effCols <- bcK[3, ] == (i - 1)
       if (!any(effCols)) {

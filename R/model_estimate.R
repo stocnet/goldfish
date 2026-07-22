@@ -1322,8 +1322,9 @@ estimate_wrapper <- function(
     # recover the nodesets
     .nodes <- preprocessing_init$nodes
     .nodes2 <- preprocessing_init$nodes2
-    is_two_mode <- FALSE
-    if (!identical(.nodes, .nodes2)) is_two_mode <- TRUE
+    # The focal layer's mode map decides two-modeness (stocnet); the legacy
+    # source, which has no map, answers from the recovered side names.
+    is_two_mode <- ds_model_is_two_mode(work_src, .nodes, .nodes2)
   }
 
   spec_sub_model <- sub_model

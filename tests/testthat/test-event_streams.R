@@ -326,6 +326,30 @@ test_that("two-mode models with time-varying nodal covariates preprocess", {
   ))
 })
 
+test_that("two-mode broadcast expansion keeps the diagonal dyad", {
+  # ReduceBroadcastFlat excludes node1 == node2 only on a one-mode model (no
+  # self-tie). On two-mode the sender and receiver index spaces are unrelated, so
+  # the alter broadcast for alter 1 must expand to every sender, including the
+  # (1, 1) dyad a one-mode model would drop. The flag now rides on the spec, so
+  # this also pins that source.
+  prep <- estimate_dynam(
+    attend ~ alter(size),
+    sub_model = "choice",
+    data = as_goldfish(make_stocnet_fixture_multipartite()),
+    preprocessing_only = TRUE
+  )
+  expect_true(prep$model_spec$is_two_mode)
+
+  expanded <- ReducePreprocess(prep, "withoutTime")[[1]]
+  expect_equal(sort(expanded[, "node1"]), c(1, 2, 3))
+  diag_row <- expanded[
+    expanded[, "node1"] == 1 & expanded[, "node2"] == 1,
+    ,
+    drop = FALSE
+  ]
+  expect_equal(nrow(diag_row), 1L)
+})
+
 test_that("a two-mode rate model preprocesses", {
   # The rate spec is sender-indexed but the focal `attend` network is 3x2.
   # Dropping the receiver side collapsed n2 to n1, so outdeg's rowSums ran with
