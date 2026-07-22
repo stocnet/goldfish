@@ -53,18 +53,18 @@
 
 ## 2. Cross-process union planning
 
-- [ ] 2.1 Generalize the union planner across processes: per statistic block,
+- [x] 2.1 Generalize the union planner across processes: per statistic block,
       deduplicate effect terms across all fids sharing that block's dispatch
       family; per-fid effect maps against the block's union columns; never
       dedup across families
-- [ ] 2.2 Generalize consumer routing to the `(layer, flavor) → fid` lookup:
+- [x] 2.2 Generalize consumer routing to the `(layer, flavor) → fid` lookup:
       the schedule carries layer and flavor for every dependent stream (one per
       process), cross-process events right-censor other processes' timed rate
       consumers
-- [ ] 2.3 Tests: two-process fixtures with hand-computed dependent/RC/state-only
+- [x] 2.3 Tests: two-process fixtures with hand-computed dependent/RC/state-only
       partitions per fid, cross-process shared-effect single computation,
       per-fid intercept scalars over per-fid masks
-- [ ] 2.4 Verification: `NOT_CRAN=true` run (single-process and flavored paths
+- [x] 2.4 Verification: `NOT_CRAN=true` run (single-process and flavored paths
       byte-unchanged, baselines PASS); commit
 
 ## 3. Merged single-clock walk

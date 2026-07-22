@@ -19,29 +19,30 @@
 # columns.
 # =========================================================================== #
 
-# Build the effect union across a sub-model family's per-flavor formulas.
-#
-# `bundles_by_flavor` is a named list flavor -> specification bundle (as built
-# by build_specification_bundle(): `input_formula`, `has_intercept`,
-# `sub_model`). The union deduplicates effect terms by their canonical
-# `term.labels` (which align with `rhs_names` order and capture every argument),
-# preserving first-appearance order. The union formula carries an explicit `1`
-# iff some flavor has a time intercept, so the union walk stores right-censored
-# events whenever any flavor needs them; each flavor's own right-censoring is
+# Build the effect union over an arbitrary set of formulas sharing one statistic
+# block. `bundles` is a named list key -> specification bundle (as built by
+# build_specification_bundle(): `input_formula`, `has_intercept`, `sub_model`);
+# the keys are opaque to this function -- flavor names for a single flavored
+# specification, canonical integer fids across a joint specification's processes.
+# The union deduplicates effect terms by their canonical `term.labels` (which
+# align with `rhs_names` order and capture every argument), preserving
+# first-appearance order in key order. The union formula carries an explicit `1`
+# iff some member has a time intercept, so the union walk stores right-censored
+# events whenever any member needs them; each member's own right-censoring is
 # governed by its `has_intercept`.
 #
 # Returns the `union_formula` to compile, the ordered `union_labels`, the
-# `union_intercept` flag, and per-flavor `effect_maps` (each a vector of union
-# column indices in that flavor's formula order) and `has_intercept`.
-build_flavor_union <- function(bundles_by_flavor) {
-  flavors <- names(bundles_by_flavor)
-  formulas <- lapply(bundles_by_flavor, `[[`, "input_formula")
-  labels_by_flavor <- lapply(formulas, function(f) {
+# `union_intercept` flag, the `keys`, and per-key `effect_maps` (each a vector of
+# union column indices in that member's formula order) and `has_intercept`.
+build_effect_union <- function(bundles) {
+  keys <- names(bundles)
+  formulas <- lapply(bundles, `[[`, "input_formula")
+  labels_by_key <- lapply(formulas, function(f) {
     attr(stats::terms(f), "term.labels")
   })
-  has_intercept <- vapply(bundles_by_flavor, `[[`, logical(1), "has_intercept")
+  has_intercept <- vapply(bundles, `[[`, logical(1), "has_intercept")
 
-  union_labels <- unique(unlist(labels_by_flavor, use.names = FALSE))
+  union_labels <- unique(unlist(labels_by_key, use.names = FALSE))
   union_intercept <- any(has_intercept)
   rhs_terms <- if (union_intercept) c("1", union_labels) else union_labels
 
@@ -55,23 +56,34 @@ build_flavor_union <- function(bundles_by_flavor) {
     )
   }
 
-  # Per flavor: the union column index of each of its local effects, in its own
+  # Per key: the union column index of each of its local effects, in its own
   # formula order. `match` against `union_labels` (not the intercept-prefixed
   # `rhs_terms`) because the intercept produces no statistics column, so union
   # gid k corresponds to `union_labels[k]`.
-  effect_maps <- lapply(labels_by_flavor, function(lbls) {
+  effect_maps <- lapply(labels_by_key, function(lbls) {
     match(lbls, union_labels)
   })
-  names(effect_maps) <- flavors
+  names(effect_maps) <- keys
 
   list(
-    flavors = flavors,
+    keys = keys,
     union_formula = union_formula,
     union_labels = union_labels,
     union_intercept = union_intercept,
     effect_maps = effect_maps,
-    has_intercept = stats::setNames(has_intercept, flavors)
+    has_intercept = stats::setNames(has_intercept, keys)
   )
+}
+
+# Build the effect union across a sub-model family's per-flavor formulas. The
+# flavor-keyed view of `build_effect_union()`: the dedup pool is the flavors of
+# one focal layer within one family. `bundles_by_flavor` is a named list
+# flavor -> specification bundle.
+build_flavor_union <- function(bundles_by_flavor) {
+  union <- build_effect_union(bundles_by_flavor)
+  union$flavors <- union$keys
+  union$keys <- NULL
+  union
 }
 
 # Plan one sub-model family (`"rate"` / `"choice"`) of a multi-flavor

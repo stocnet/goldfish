@@ -224,6 +224,24 @@ constraint_object_names <- function(plan) {
   unique(tbl$object[!is.na(tbl$object)])
 }
 
+# Flatten the composed specifications into one ordered list of dependent
+# processes (specification-major, then flavor), each carrying its `model` and
+# focal `layer`. This is the single source of the joint fid ordering:
+# `build_joint_process_map()` assigns fids by walking this list and, within each
+# process, its families; the preprocessing planner walks the same list, so a fid
+# always denotes the same (process, family) in the map and in the walk.
+flatten_joint_processes <- function(specs) {
+  procs <- list()
+  for (spec in specs) {
+    for (proc in spec_processes(spec)) {
+      proc$model <- spec$model
+      proc$layer <- spec$focal
+      procs[[length(procs) + 1L]] <- proc
+    }
+  }
+  procs
+}
+
 # Assemble the extended `process_map`: one integer-fid row per
 # likelihood-producing formula across all composed processes, iterated
 # specification-major then process (flavor)-major then family, so a process's
@@ -234,14 +252,7 @@ constraint_object_names <- function(plan) {
 # panel layer's latent state (`modeled_panel`); direct reference only, no
 # transitivity.
 build_joint_process_map <- function(specs, modeled_panel = character(0)) {
-  procs <- list()
-  for (spec in specs) {
-    for (proc in spec_processes(spec)) {
-      proc$model <- spec$model
-      proc$layer <- spec$focal
-      procs[[length(procs) + 1L]] <- proc
-    }
-  }
+  procs <- flatten_joint_processes(specs)
 
   constraint_ids <- dedup_constraint_ids(lapply(procs, `[[`, "constraint"))
 
