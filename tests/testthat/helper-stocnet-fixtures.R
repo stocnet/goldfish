@@ -316,27 +316,29 @@ make_legacy_fixture_twomode <- function() {
 # schedule-construction abort rejects. All are plain stocnet lists (no manynet
 # call), mirroring make_stocnet_fixture_multimode()'s mode-column machinery.
 
-# irps_nuclear-shaped: a categorical attribute (`party`) observed for one mode
-# category and *missing by design* for another (politicians have a party,
-# citizens do not), alongside a numeric attribute (`income`) with sparse
-# within-category missingness. The whole-category-missing categorical is the
-# case the summary default cannot pool (its mode category is entirely NA -- an
-# empty pool) and the as-category policy exists to represent; the sparse numeric
-# is imputed by the summary default from its populated mode category. A single
-# fixture carries both: the reading formula, not the fixture, selects which
-# attribute a test exercises.
+# irps_nuclear-shaped: one node set (actors) carrying a categorical attribute
+# (`party`) *missing by design* for a subset -- the non-politicians, who sit
+# inside the actor mode rather than in a mode of their own -- alongside a
+# numeric attribute (`income`) with sparse missingness. This is the case summary
+# default silently mis-fills (a non-politician gets the most common party) and
+# the as-category policy recodes to a reserved level; the sparse numeric is
+# imputed by the summary default from the observed values. A single fixture
+# carries both: the reading formula, not the fixture, selects which attribute a
+# test exercises. Missingness is sparse within the one mode -- an attribute
+# *wholly* undefined for a mode is rejected earlier, by effect validity, before
+# any imputation policy runs.
 make_stocnet_fixture_missing_nodal <- function() {
   nodes <- data.frame(
-    label = c("P1", "P2", "P3", "C1", "C2"),
-    mode = c("politician", "politician", "politician", "citizen", "citizen"),
+    label = c("A1", "A2", "A3", "A4", "A5"),
+    mode = "actor",
     party = c("left", "right", "left", NA, NA),
     income = c(50, NA, 70, 40, NA),
     stringsAsFactors = FALSE
   )
   ties <- data.frame(
-    from = c(1L, 4L, 2L),
-    to = c(4L, 2L, 5L),
-    time = c(1, 2, 3),
+    from = c(1L, 4L, 2L, 5L),
+    to = c(4L, 2L, 5L, 1L),
+    time = c(1, 2, 3, 4),
     layer = "contact",
     stringsAsFactors = FALSE
   )

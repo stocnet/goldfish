@@ -1034,6 +1034,19 @@ ds_impute_missing.data_source_envir <- function(
   objects_effects_link,
   policy = NULL
 ) {
+  # The as-category recode rewrites an attribute's initial values and its event
+  # streams together; the legacy environment path holds those on separate
+  # `nodes.goldfish` objects it cannot rewrite in place. Rather than honor the
+  # policy only at the walk (a silent divergence from the stocnet path's initial
+  # recode), it aborts, naming the limitation.
+  if (any(policy %in% "as_category")) {
+    cli::cli_abort(c(
+      "The as-category imputation policy requires stocnet data objects.",
+      "x" = "It cannot be applied on the legacy environment data path.",
+      "i" = "Build the data with {.fn goldfish_data} / {.fn as_goldfish} to use
+             {.code impute = c(... = \"as_category\")}."
+    ))
+  }
   impute_missing_data(objects_effects_link, envir = src$envir)
   src
 }
@@ -1068,9 +1081,31 @@ ds_impute_missing.data_source_stocnet <- function(
     if (ds_is_global(src, entry$nodeset)) {
       next
     }
+    key <- att_override_key(entry$nodeset, entry$attribute)
+    # Under the as-category policy a missing categorical value is recoded to the
+    # reserved level rather than summarized, so missingness by design survives
+    # to the summarizers as an ordinary category. A recode overwriting a real
+    # observed level would be silent data loss, so it aborts.
+    if (
+      identical(imputation_policy_for(policy, entry$attribute), "as_category")
+    ) {
+      if (IMPUTATION_MISSING_LEVEL %in% value) {
+        cli::cli_abort(c(
+          "The as-category reserved level {.val {IMPUTATION_MISSING_LEVEL}}
+           already occurs in attribute {.val {entry$attribute}}.",
+          "x" = "Recoding missing values to it would collide with an observed
+                 value.",
+          "i" = "Rename the observed level, or impute this attribute with the
+                 default summary policy."
+        ))
+      }
+      value[is.na(value)] <- IMPUTATION_MISSING_LEVEL
+      src$att_override[[key]] <- value
+      next
+    }
     # The initial table is imputed by the same rule the walk uses, evaluated at
     # the start of the window: each missing value from its own mode category.
-    src$att_override[[att_override_key(entry$nodeset, entry$attribute)]] <-
+    src$att_override[[key]] <-
       impute_attribute(value, ds_side_modes(src, entry$nodeset))
   }
   src

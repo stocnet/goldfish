@@ -129,6 +129,55 @@ IMPUTATION_POLICY_RESERVED <- c("locf")
 # level aborts.
 IMPUTATION_MISSING_LEVEL <- "(missing)"
 
+# The per-attribute policy for one object, defaulting to the summary contract
+# for an attribute the policy does not name. Keyed by the object's registry
+# `key` (the attribute name for a nodal object); a `NULL` policy is all-summary.
+imputation_policy_for <- function(policy, key) {
+  if (is.null(policy) || !key %in% names(policy)) {
+    return("summary")
+  }
+  unname(policy[[key]])
+}
+
+# Validate a declared imputation policy against the objects the effects read.
+# Structural validation (shape, value set, reserved value) already happened at
+# `set_preprocessing_opt()`; this is the contextual half, run once the registry
+# and its value types exist: a policy naming an attribute no effect reads, or
+# declaring `as_category` for a numeric attribute, aborts here before any
+# recode. Nodal rows are those the resolver classified (they carry a value type;
+# networks and globals do not).
+validate_imputation_policy <- function(policy, objects_registry) {
+  if (is.null(policy)) {
+    return(invisible(NULL))
+  }
+  is_nodal <- !is.na(objects_registry$value_type)
+  for (attr_name in names(policy)) {
+    if (identical(unname(policy[[attr_name]]), "summary")) {
+      next
+    }
+    idx <- which(is_nodal & objects_registry$key == attr_name)
+    if (length(idx) == 0) {
+      cli::cli_abort(c(
+        "Imputation policy names attribute {.val {attr_name}}, which no effect
+         reads.",
+        "i" = "Name only a nodal attribute an effect in the formula uses."
+      ))
+    }
+    if (
+      identical(unname(policy[[attr_name]]), "as_category") &&
+        !identical(objects_registry$value_type[idx[1]], "categorical")
+    ) {
+      cli::cli_abort(c(
+        "The as-category policy applies only to factor or character
+         attributes.",
+        "x" = "{.val {attr_name}} is a numeric attribute.",
+        "i" = "Impute a numeric attribute with the default summary policy."
+      ))
+    }
+  }
+  invisible(NULL)
+}
+
 # Imputation resolver ---------------------------------------------------------
 #
 # One rule, evaluated wherever a missing nodal value is needed: summarize the

@@ -449,6 +449,15 @@ prepare_recipe_context <- function(
     if (events_min < startTime) isValidEvent <- FALSE
   }
 
+  validate_imputation_policy(spec$impute_policy, plan$objects)
+  # Carry each object's policy on the registry so the walk-time recode reads it
+  # by oid alongside the value type.
+  plan$objects$policy <- vapply(
+    plan$objects$key,
+    function(key) imputation_policy_for(spec$impute_policy, key),
+    character(1)
+  )
+
   src <- ds_impute_missing(
     src,
     objects_effects_link,
@@ -778,15 +787,22 @@ run_sender_recipe_loop <- function(
           } else {
             replace_value <- schedule$value[[k]]
             if (is.na(replace_value)) {
-              # Impute from the node's own mode category by the summary the
-              # attribute's recorded type selects -- a bare mean would write NA
-              # into a categorical vector, failing the next update's comparison.
-              replace_value <- impute_nodal_value(
-                state[[component]][[key]],
-                event_node,
-                attr(state, "strata")[[component]],
-                plan$objects$value_type[oid]
-              )
+              if (identical(plan$objects$policy[oid], "as_category")) {
+                # Under the as-category policy a missing event value is the
+                # reserved level, not a summary over the other nodes -- the same
+                # recode the initial table received.
+                replace_value <- IMPUTATION_MISSING_LEVEL
+              } else {
+                # Impute from the node's own mode category by the summary its
+                # recorded type selects -- a bare mean would write NA into a
+                # categorical vector, failing the next update's comparison.
+                replace_value <- impute_nodal_value(
+                  state[[component]][[key]],
+                  event_node,
+                  attr(state, "strata")[[component]],
+                  plan$objects$value_type[oid]
+                )
+              }
             }
           }
           event_args <- list(node = event_node, replace = replace_value)
@@ -1619,15 +1635,22 @@ run_dyad_recipe_loop <- function(
           } else {
             replace_value <- schedule$value[[k]]
             if (is.na(replace_value)) {
-              # Impute from the node's own mode category by the summary the
-              # attribute's recorded type selects -- a bare mean would write NA
-              # into a categorical vector, failing the next update's comparison.
-              replace_value <- impute_nodal_value(
-                state[[component]][[key]],
-                event_node,
-                attr(state, "strata")[[component]],
-                plan$objects$value_type[oid]
-              )
+              if (identical(plan$objects$policy[oid], "as_category")) {
+                # Under the as-category policy a missing event value is the
+                # reserved level, not a summary over the other nodes -- the same
+                # recode the initial table received.
+                replace_value <- IMPUTATION_MISSING_LEVEL
+              } else {
+                # Impute from the node's own mode category by the summary its
+                # recorded type selects -- a bare mean would write NA into a
+                # categorical vector, failing the next update's comparison.
+                replace_value <- impute_nodal_value(
+                  state[[component]][[key]],
+                  event_node,
+                  attr(state, "strata")[[component]],
+                  plan$objects$value_type[oid]
+                )
+              }
             }
           }
           event_args <- list(node = event_node, replace = replace_value)

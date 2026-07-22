@@ -6,11 +6,10 @@ test_that("the nodal fixture carries by-design and sparse-numeric NA", {
   fixture <- make_stocnet_fixture_missing_nodal()
   nodes <- fixture$nodes
 
-  citizens <- nodes$mode == "citizen"
-  expect_true(all(is.na(nodes$party[citizens])))
-  expect_false(anyNA(nodes$party[!citizens]))
-
-  # Sparse numeric: some but not all values missing, across both categories.
+  # Missingness is sparse within the one actor mode, not a whole mode: some but
+  # not all values are missing for each attribute.
+  expect_true(anyNA(nodes$party))
+  expect_false(all(is.na(nodes$party)))
   expect_true(anyNA(nodes$income))
   expect_false(all(is.na(nodes$income)))
 
