@@ -813,13 +813,25 @@ build_specification_bundle <- function(
 
   # A specification is built to be estimated, so validate at estimation strength
   # (rejects unidentified bare main effects such as ego/global in choice).
-  # Offset (fixed-coefficient) terms are not estimated main effects,
-  # so exclude them from the check.
+  # Role-aware, mirroring the plain-formula estimation path: offset
+  # (fixed-coefficient) terms and interaction operand-only terms are not bare
+  # main effects, so they are held out of the identification check -- an operand
+  # such as `global`/`ego` feeding an interaction that restores variation
+  # follows the separate operand rule. A term that is both a requested main
+  # effect and an operand (the `a*b` case) stays in the check.
   is_offset <- unlist(parsed$offset_parameter)
   if (is.null(is_offset)) {
     is_offset <- logical(length(parsed$rhs_names))
   }
-  main_effect <- !is_offset
+  is_main <- unlist(parsed$is_main_parameter)
+  if (is.null(is_main)) {
+    is_main <- rep(TRUE, length(parsed$rhs_names))
+  }
+  is_operand <- unlist(parsed$is_operand_parameter)
+  if (is.null(is_operand)) {
+    is_operand <- logical(length(parsed$rhs_names))
+  }
+  main_effect <- !is_offset & !(is_operand & !is_main)
   validate_effects(
     model,
     validity_sub_model,
