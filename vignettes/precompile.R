@@ -1,7 +1,6 @@
 # Precompiled vignettes
 # Adapted from bcgov/bcdata/vignettes/precompile.R under Apache License 2.0
 
-
 # Precompile vignettes -------------------------------------------------------
 
 precompile <- function(vignette_to_run = NULL) {
@@ -31,18 +30,31 @@ precompile <- function(vignette_to_run = NULL) {
   )
 
   ## Move .png files into correct directory so they render -------------------
-  images <- file.path(list.files("teaching", pattern = "plot-.+\\.png$"))
-  success <- file.copy(
-    from = file.path("teaching", images),
-    to = file.path("vignettes/teaching/", images),
-    overwrite = TRUE
-  )
-
-  ## Clean up if successful --------------------------------------------------
-  if (!all(success)) {
-    stop("Image files were not successfully transferred to vignettes directory")
-  } else {
-    unlink("teaching", recursive = TRUE)
+  # Each vignette's `fig.path` is relative to the knit working directory (the
+  # package root), so plots land in a top-level dir named after it; move each
+  # into vignettes/ so the shipped .Rmd's relative img src resolves at build.
+  fig_dirs <- c("teaching", "two-mode")
+  for (fig_dir in fig_dirs) {
+    if (!dir.exists(fig_dir)) {
+      next
+    }
+    images <- list.files(fig_dir, pattern = "\\.png$")
+    if (length(images) == 0) {
+      next
+    }
+    dest <- file.path("vignettes", fig_dir)
+    dir.create(dest, showWarnings = FALSE, recursive = TRUE)
+    success <- file.copy(
+      from = file.path(fig_dir, images),
+      to = file.path(dest, images),
+      overwrite = TRUE
+    )
+    if (!all(success)) {
+      stop(
+        "Image files were not successfully transferred to vignettes directory"
+      )
+    }
+    unlink(fig_dir, recursive = TRUE)
   }
 }
 
@@ -64,7 +76,9 @@ lapply(
     haveErrors <- grepl("Error", text) & !grepl("Std\\. Error", text)
     if (any(haveErrors)) {
       paste(
-        "Error in", x, " on line",
+        "Error in",
+        x,
+        " on line",
         paste(which(haveErrors), collapse = ", ")
       )
     }
