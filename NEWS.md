@@ -14,6 +14,17 @@
   collision with an observed `"(missing)"` value, and the reserved-but-
   unimplemented `"locf"` value. The policy requires stocnet data objects.
 
+## Internal
+
+* **The R estimation engine's broadcast fan-out now keeps the reflexive
+  diagonal cell on the same condition as the risk set** -- `allowReflexive ||
+  is_two_mode` -- instead of testing `is_two_mode` alone, matching the C++
+  engines. This is currently a no-op: `allowReflexive` is not exposed and is
+  always `FALSE`, so the two conditions coincide for every fitted model and the
+  frozen coefficient baselines are unchanged. It removes a dormant asymmetry so
+  that if self-ties are ever allowed on a one-mode model, a broadcast-eligible
+  effect will not silently drop the diagonal dyad the risk set retains.
+
 # goldfish 1.9.4
 
 ## Behavior changes
