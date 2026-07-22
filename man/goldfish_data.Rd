@@ -96,6 +96,45 @@ ambiguous and abort; supplying \code{order} pins their sequence. See
 }
 }
 
+\section{Missing data}{
+
+
+goldfish imputes a missing value during preprocessing, before any effect is
+evaluated, by a single rule that depends on the object's \emph{shape} and on
+\emph{when} the value is missing. The complete contract, by shape:
+\itemize{
+\item \strong{dyad (network):} a missing entry is \emph{no tie} (zero) -- both at the start
+of the window and for a missing \code{increment} or \code{replace} during the walk.
+\item \strong{global:} aborts at schedule construction (see below) -- both at the
+start of the window and during the walk.
+\item \strong{node, numeric:} the mean of the node's mode category, the node itself
+excluded -- at the start of the window over the initial values, and during
+the walk over the state at the event's time.
+\item \strong{node, categorical:} the most common value in the node's mode category,
+the node itself excluded -- by the same start-of-window and event-time
+rule.
+}
+
+A missing tie is treated as the \strong{absence of a tie}: this is the \emph{meaning}
+of a missing entry, a definition rather than a summary over other values. For
+a one-mode node set (or nodes carrying no \code{mode} column) the "mode category"
+is every other node -- one implicit category.
+
+A \strong{global} attribute holds a single value, so the pool it would be
+summarized from is empty by construction. A missing global value -- in its
+initial value or in any of its event streams -- therefore aborts at schedule
+construction, naming the object (and, for an event, its time), rather than
+being replaced by an arbitrary zero.
+\subsection{Imputation feeds back into later imputations}{
+
+An imputed value joins the process state exactly as an observed one does. A
+nodal value missing \emph{after} the start of the window is therefore summarized
+from a pool that may already contain \strong{earlier imputed values}, not only
+observed ones. Single imputation treats every imputed value as if it had been
+observed, so it understates the uncertainty the missingness carries.
+}
+}
+
 \examples{
 \dontshow{if (rlang::is_installed("manynet")) withAutoprint(\{ # examplesIf}
 # Assemble Social Evolution: a panel friendship layer and an event calls

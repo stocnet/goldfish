@@ -155,6 +155,32 @@ A few conventions worth knowing when you assemble your own data:
   the exact same timestamp, add an integer `order` column so their sequence is
   unambiguous (again, see the Fisheries vignette).
 
+## Missing data
+
+goldfish imputes a missing value during preprocessing, before any effect is
+evaluated, by a single rule that depends on the object's *shape* and on *when*
+the value is missing:
+
+| shape | at the start of the window | during the walk |
+|---|---|---|
+| dyad (network) | `NA` is no tie (zero) | a missing `increment`/`replace` is no tie (zero) |
+| global | aborts | aborts |
+| node, numeric | mean of the node's mode category, itself excluded | the same rule, on the state at the event's time |
+| node, categorical | most common value in the node's mode category, itself excluded | the same rule, on the state at the event's time |
+
+A missing tie is the *absence* of a tie -- a definition, not a summary. A
+global attribute has a single value and so no pool to summarize from: a missing
+global value aborts at schedule construction rather than being replaced by an
+arbitrary zero.
+
+An imputed value joins the process state exactly as an observed one does, so a
+nodal value missing *after* the start of the window is summarized from a pool
+that may already contain earlier *imputed* values. Single imputation treats
+those as observed and understates the uncertainty the missingness carries; when
+that uncertainty matters to the conclusions, impute *before* building the
+goldfish object and combine several fits under Rubin's rules (see the
+`goldfish_data` help page's *Missing data* section).
+
 ## Intermediate step: Visualization
 
 While not a required part of the modeling process,

@@ -4,33 +4,7 @@
 #'  implementing the iterative Newton-Raphson procedure as describe in
 #'  Stadtfeld and Block (2017).
 #'
-#' Missing data is handled during the preprocessing stage of the data.
-#' The specific imputation strategy depends on the type of data:
-#'
-#' \itemize{
-#'   \item{\strong{Network Data:}}
-#'   Missing values in the initial network structure or in linked events
-#'   that update network ties are imputed with a value of zero (0).
-#'   This explicitly assumes the absence of a tie or event.
-#'
-#'   \item{\strong{Attribute Covariates:}}
-#'   \itemize{
-#'     \item{Initial Values:} Missing numeric values for the initial state of
-#'     an attribute covariate are replaced by the mean value of that attribute
-#'     across all actors, and categorical values are replaced by the mode value.
-#'     \item{During Event Updates (via linked events):}
-#'     \itemize{
-#'       \item{Using `replace`:} If a linked event uses the `replace` variable
-#'       to specify a new attribute value and that value is missing, the missing
-#'       value is replaced by the mean of the attribute,
-#'       excluding the node being updated, at the moment of the event.
-#'       \item{Using `increment`:} If a linked event uses the `increment`
-#'       variable to specify a change in attribute value and that increment is
-#'       missing, the missing value is imputed with a value of zero (0).
-#'       This assumes no change occurred.
-#'     }
-#'   }
-#' }
+#' @inheritSection goldfish_data Missing data
 #'
 #' @section Models:
 #' Currently there are implemented the following models:
