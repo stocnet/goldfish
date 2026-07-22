@@ -449,7 +449,11 @@ prepare_recipe_context <- function(
     if (events_min < startTime) isValidEvent <- FALSE
   }
 
-  src <- ds_impute_missing(src, objects_effects_link)
+  src <- ds_impute_missing(
+    src,
+    objects_effects_link,
+    policy = spec$impute_policy
+  )
 
   if (progress) {
     cat("Initializing cache objects and statistical matrices.\n")

@@ -114,6 +114,21 @@ build_object_keys <- function(
   )
 }
 
+# Imputation policy vocabulary ------------------------------------------------
+#
+# The per-attribute policies a user may declare through
+# `set_preprocessing_opt(impute = ...)`. `summary` is the default contract (mean
+# / most common value within the mode category); `as_category` recodes a
+# categorical attribute's missing values to a reserved level so missingness by
+# design survives to the summarizers; `locf` is reserved for a future
+# last-observation-carried-forward estimator and is rejected as unimplemented.
+IMPUTATION_POLICY_SUPPORTED <- c("summary", "as_category")
+IMPUTATION_POLICY_RESERVED <- c("locf")
+# The reserved level an `as_category` recode writes in place of a missing
+# categorical value. Documented as reserved; a collision with a real observed
+# level aborts.
+IMPUTATION_MISSING_LEVEL <- "(missing)"
+
 # Imputation resolver ---------------------------------------------------------
 #
 # One rule, evaluated wherever a missing nodal value is needed: summarize the

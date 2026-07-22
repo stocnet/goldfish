@@ -1012,26 +1012,38 @@ ds_realize_derivations.data_source_stocnet <- function(src, derivations) {
 
 #' Impute missing values in the objects the effects read
 #'
-#' Zero for networks, the mean for numeric attributes, the mode for categorical
-#' ones. As with derivations, the legacy path writes the imputed objects back
-#' into its environment while the stocnet path shadows them on the source.
+#' Zero for networks, the mean for numeric attributes, the most common value for
+#' categorical ones. As with derivations, the legacy path writes the imputed
+#' objects back into its environment while the stocnet path shadows them on the
+#' source.
 #'
 #' @param src a data source.
 #' @param objects_effects_link matrix from `get_objects_effects_link()`.
+#' @param policy an optional named character vector, keyed by attribute, giving
+#'   the per-attribute imputation policy from `set_preprocessing_opt(impute =)`.
+#'   `NULL` (or an unnamed attribute) uses the default summary contract.
 #' @return the source, with imputed values resolvable through the accessors.
 #' @noRd
-ds_impute_missing <- function(src, objects_effects_link) {
+ds_impute_missing <- function(src, objects_effects_link, policy = NULL) {
   UseMethod("ds_impute_missing")
 }
 
 #' @exportS3Method
-ds_impute_missing.data_source_envir <- function(src, objects_effects_link) {
+ds_impute_missing.data_source_envir <- function(
+  src,
+  objects_effects_link,
+  policy = NULL
+) {
   impute_missing_data(objects_effects_link, envir = src$envir)
   src
 }
 
 #' @exportS3Method
-ds_impute_missing.data_source_stocnet <- function(src, objects_effects_link) {
+ds_impute_missing.data_source_stocnet <- function(
+  src,
+  objects_effects_link,
+  policy = NULL
+) {
   objects_table <- get_data_objects(
     list(rownames(objects_effects_link)),
     remove_first = FALSE

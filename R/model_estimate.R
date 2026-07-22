@@ -717,6 +717,9 @@ preprocess_recipe <- function(
     data = work_data,
     modeled_flavor = modeled_flavor
   )
+  # The per-attribute imputation policy rides on the compiled spec so the recipe
+  # context reaches it without threading through every loop's `...`.
+  spec_map$impute_policy <- control_preprocessing$impute
   # A multi-flavor walk drives K consumers instead of the single writer. The
   # consumer specs can only be assembled here, after the spec_map has compiled
   # each `(layer, flavor)` constraint into `plan$support_constraints`: a

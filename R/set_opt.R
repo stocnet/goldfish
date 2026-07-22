@@ -330,6 +330,16 @@ set_estimation_opt <- function(
 #'   per-`(sender, receiver)` risk-set restriction and works on every engine; an
 #'   equivalent constraint over an allowed-dyad network reproduces the
 #'   opportunity-list coefficients.
+#' @param impute An optional named character vector declaring a per-attribute
+#'   imputation policy, keyed by nodal attribute name (e.g.
+#'   `impute = c(party = "as_category")`). Every attribute not named uses the
+#'   default summary contract documented in the *Missing data* section of
+#'   [goldfish_data], so omitting `impute` leaves behavior unchanged. Supported
+#'   values: `"summary"` (the default rule) and `"as_category"` (recode a
+#'   factor or character attribute's missing values to a reserved `"(missing)"`
+#'   level, so missingness by design survives to the summarizers). `"locf"` is
+#'   reserved for a future estimator and currently aborts as unimplemented.
+#'   Default is `NULL`.
 #' @param db A `DBIConnection` object or `NULL` (default). When supplied
 #'   together with `compute_stats(..., output = "db")`, the gather statistics
 #'   are streamed to the database table named by `db_table` instead of being
@@ -348,6 +358,7 @@ set_estimation_opt <- function(
 #'   \item{start_time}{Value from `start_time` argument.}
 #'   \item{end_time}{Value from `end_time` argument.}
 #'   \item{opportunities_list}{Value from `opportunities_list` argument.}
+#'   \item{impute}{Value from `impute` argument.}
 #' @export
 #' @examples
 #' prep_ctrl <- set_preprocessing_opt(
@@ -358,6 +369,7 @@ set_preprocessing_opt <- function(
   start_time = NULL,
   end_time = NULL,
   opportunities_list = NULL,
+  impute = NULL,
   db = NULL,
   db_table = "stats"
 ) {
@@ -434,6 +446,37 @@ set_preprocessing_opt <- function(
   #   )
   # }
 
+  if (!is.null(impute)) {
+    if (
+      !is.character(impute) ||
+        is.null(names(impute)) ||
+        any(names(impute) == "" | is.na(names(impute)))
+    ) {
+      cli::cli_abort(c(
+        "{.arg impute} must be {.code NULL} or a named character vector.",
+        "i" = "Key each entry by the attribute name, e.g.
+               {.code impute = c(party = \"as_category\")}."
+      ))
+    }
+    reserved <- impute %in% IMPUTATION_POLICY_RESERVED
+    if (any(reserved)) {
+      cli::cli_abort(c(
+        "Imputation policy {.val {unique(impute[reserved])}} is reserved but
+         not yet implemented.",
+        "i" = "Supported values are
+               {.val {IMPUTATION_POLICY_SUPPORTED}}."
+      ))
+    }
+    unknown <- !impute %in% IMPUTATION_POLICY_SUPPORTED
+    if (any(unknown)) {
+      cli::cli_abort(c(
+        "Unknown imputation policy {.val {unique(impute[unknown])}}.",
+        "i" = "Supported values are
+               {.val {IMPUTATION_POLICY_SUPPORTED}}."
+      ))
+    }
+  }
+
   if (!is.null(db) && !inherits(db, "DBIConnection")) {
     stop("'db' must be NULL or a DBI connection object.", call. = FALSE)
   }
@@ -445,6 +488,7 @@ set_preprocessing_opt <- function(
     start_time = start_time,
     end_time = end_time,
     opportunities_list = opportunities_list,
+    impute = impute,
     db = db,
     db_table = db_table
   )
