@@ -1,3 +1,26 @@
+# goldfish 1.9.4
+
+## Behavior changes
+
+* **A missing global attribute value now aborts** at schedule construction,
+  before the walk begins, naming the object and -- for an event-stream value --
+  its time. A global attribute holds a single value, so its imputation pool is
+  empty by construction; the previous behavior gave two different wrong answers
+  (a not-a-number from the mean of a length-one missing vector at the start of
+  the window, an arbitrary zero written into state during the walk). Supply an
+  observed initial value, a first event that sets one, or an explicit event
+  value.
+
+## Documentation
+
+* **The missing-data contract is published** as a shape-by-time table on the
+  `goldfish_data` help topic (inherited by the estimation topics) and in the
+  DyNAM modeling vignette: the rule for every object shape (dyad, global, nodal
+  numeric, nodal categorical) at both evaluation times, the disclosure that an
+  imputed value joins the state and informs later imputations (so single
+  imputation understates uncertainty), and a recommendation to combine multiple
+  imputations under Rubin's rules with `mitools::MIcombine()`.
+
 # goldfish 1.9.3
 
 ## New features
