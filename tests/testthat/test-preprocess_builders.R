@@ -119,7 +119,7 @@ test_that("build_state_container aborts on unknown attribute or node set", {
       nodes = "actors_ex",
       envir = env
     ),
-    "neither"
+    "none of the modeled node"
   )
 })
 
@@ -229,7 +229,7 @@ test_that("build_object_keys aborts on unknown attribute or node set", {
   assign("otherNodes", otherNodes, envir = env)
   expect_error(
     build_object_keys("otherNodes$weight", nodes = "actors_ex", envir = env),
-    "neither"
+    "none of the modeled node"
   )
 })
 
@@ -619,11 +619,11 @@ test_that("a node set the source cannot resolve is still rejected", {
 
   expect_error(
     do.call(build_object_keys, c(list("nodez$size"), args)),
-    "neither"
+    "none of the modeled node"
   )
   expect_error(
     do.call(build_object_keys, c(list("layer:nosuch:side1$size"), args)),
-    "neither"
+    "none of the modeled node"
   )
 })
 

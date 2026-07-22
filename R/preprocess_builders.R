@@ -94,10 +94,23 @@ build_object_keys <- function(
         has_missing[i] <- anyNA(value) ||
           attribute_stream_has_missing(src, entry$nodeset, entry$attribute)
       } else {
+        # Name the modeled sides by their mode names when the source carries a
+        # focal layer with a map; otherwise the side keys (or legacy node-set
+        # names) stand in.
+        pair <- if (is.null(src$focal)) {
+          NULL
+        } else {
+          ds_layer_mode_pair(src, src$focal)
+        }
+        modeled_sides <- if (is.null(pair)) {
+          unique(c(nodes, nodes2))
+        } else {
+          unique(c(pair$sender, pair$receiver))
+        }
         cli::cli_abort(
           "Attribute {.val {entry$name}} belongs to node set
-           {.val {entry$nodeset}}, which is neither {.val {nodes}} nor
-           {.val {nodes2}}."
+           {.val {entry$nodeset}}, which is none of the modeled node
+           sets {.val {modeled_sides}}."
         )
       }
       keys[i] <- entry$attribute

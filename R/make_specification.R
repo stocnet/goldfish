@@ -918,6 +918,9 @@ stocnet_dependent_info <- function(data, layer, modeled_flavor = NULL) {
     time_span = if (length(timed) > 0) range(timed) else NULL,
     nodes = sides[1],
     nodes2 = sides[2],
+    # The real mode names behind the synthetic side keys, so the print shows the
+    # data's own vocabulary ("actor -> concept") instead of "nodes_side1 ...".
+    mode_pair = ds_layer_mode_pair(src, layer),
     is_two_mode = ds_model_is_two_mode(src),
     network = layer,
     modeled_flavor = modeled_flavor,
