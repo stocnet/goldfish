@@ -64,7 +64,8 @@ Suggests:
     lmtest,
     RSQLite,
     ggplot2,
-    maxLik
+    maxLik,
+    mitools
 VignetteBuilder: knitr 
 LazyData: true
 Roxygen: list(markdown = TRUE)

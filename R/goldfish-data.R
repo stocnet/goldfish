@@ -126,6 +126,20 @@
 #' observed ones. Single imputation treats every imputed value as if it had been
 #' observed, so it understates the uncertainty the missingness carries.
 #'
+#' ## Better strategies for missing data
+#'
+#' Where missingness is material to the conclusions, impute *before* building
+#' the goldfish object rather than relying on the single-imputation floor above.
+#' Multiple imputation draws several completed datasets -- the initial nodes
+#' table and, for a time-varying attribute, its event streams -- from a model of
+#' the missingness. Fit the specification once per completed dataset and combine
+#' the fits under Rubin's rules with `mitools::MIcombine()`, which consumes the
+#' `coef()` and `vcov()` methods a goldfish result provides. The combination is
+#' valid to the extent Rubin's rules hold -- approximately normal, congenial
+#' estimates -- which is reasonable for simple specifications and to be treated
+#' with care beyond them. `mitools` is a suggested dependency; the worked
+#' example below runs only when it is installed.
+#'
 #' @name goldfish_data
 #' @seealso [as_goldfish()] for the validate-and-stamp boundary and the
 #'   event-ordering contract; [social_evolution] and [fisheries_treaties] for
@@ -155,4 +169,27 @@
 #'   sub_model = "choice",
 #'   data = se
 #' )
+#'
+#' @examplesIf requireNamespace("mitools", quietly = TRUE)
+#' # Multiple imputation for a missing attribute: `social_evolution` has a
+#' # missing `gradeType` for some actors. Complete it several ways, fit the
+#' # model on each completed dataset, and combine under Rubin's rules. A real
+#' # analysis draws the completions from an imputation model (e.g. mice); here
+#' # they are illustrative resamples of the observed values.
+#' data("social_evolution")
+#' observed <- stats::na.omit(social_evolution$nodes$gradeType)
+#' fits <- lapply(1:5, function(m) {
+#'   se_m <- social_evolution
+#'   missing <- is.na(se_m$nodes$gradeType)
+#'   se_m$nodes$gradeType[missing] <-
+#'     sample(observed, sum(missing), replace = TRUE)
+#'   estimate_dynam(
+#'     calls ~ inertia + alter(gradeType),
+#'     sub_model = "choice",
+#'     data = se_m
+#'   )
+#' })
+#' combined <- mitools::MIcombine(fits)
+#' coef(combined)
+#' sqrt(diag(vcov(combined)))
 NULL
