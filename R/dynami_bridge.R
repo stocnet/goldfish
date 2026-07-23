@@ -127,13 +127,12 @@ dynami_choice_availability <- function(data) {
 }
 
 # Fold per-event joining availability masks into the choice statsList's dense
-# `active_dyad` point encoding (design D6). The choice risk set reads only the
-# event sender's row, so `build_active_dyad_point()` seeds the dense n1 x n2 init
-# from the first event and emits net (sender, group, replace) flips per later
-# event -- exactly the maintained-availability object `compute_step.default`
-# consumes when `active_dyad_folded` is set. Base receiver presence is all groups
-# present (groups never leave the object); the masks carry the occupancy /
-# own-exclusion restriction.
+# `active_dyad` point encoding. The choice risk set reads only the event
+# sender's row, so `build_active_dyad_point()` seeds the dense n1 x n2 init from
+# the first event and emits net (sender, group, replace) flips per later event --
+# the maintained-availability object `compute_step.default` consumes when
+# `active_dyad_folded` is set. Base receiver presence is all groups present
+# (groups never leave the object); the masks carry the occupancy restriction.
 dynami_fold_availability <- function(prep, masks) {
   n1 <- length(prep$active_sender_init)
   n2 <- length(prep$active_dyad_init)
@@ -143,11 +142,11 @@ dynami_fold_availability <- function(prep, masks) {
   build_active_dyad_point(prep, recv, masks, senders, n1, n2)
 }
 
-# The DyNAM-i choice availability as a support-constraint formula: a joining actor
-# chooses among the groups occupied at the decision point (`indeg >= 1`). This is
-# the grammar statement of what `dynami_choice_availability()` folds directly from
-# occupancy; the own singleton is kept (Hoffman et al. Eq. 8's denominator over
-# the present second-mode nodes).
+# The DyNAM-i choice availability as a support-constraint formula: a joining
+# actor chooses among the groups occupied at the decision point (`indeg >= 1`).
+# This is the grammar statement of what `dynami_choice_availability()` folds
+# directly from occupancy; the own singleton is kept (Hoffman et al. Eq. 8's
+# denominator over the present second-mode nodes).
 dynami_availability_constraint <- function(focal) {
   focal_symbol <- as.symbol(focal)
   rhs <- call(">=", call("indeg", focal_symbol), 1)
@@ -377,23 +376,24 @@ stocnet_to_dynami_env <- function(
 # Convert the DyNAM-i monolith preprocessed object into the recipe statsList
 # shape the shared Newton-Raphson kernel consumes.
 #
-# TEMPORARY SEAM (retired with the monolith by refactor-dynami-engine). The
-# interaction monolith (`preprocess_interaction`) still emits the pre-recipe
-# preprocessing shape -- a 3D `initialStats` (actors x groups x effects), per-event
-# `dependentStatsChange` / `rightCensoredStatsChange` nested lists (one change
-# matrix per effect), and `orderEvents` (1 = dependent, 2 = right-censored). The
-# shared kernel (`run_nr_loop` / `compute_step.default`) instead reads the recipe
-# shape: an integer `is_dependent`, a per-event `intervals` vector, a flat 4 x M
-# point buffer `stat_mat_update` with a per-event `stat_mat_pointer`,
-# `active_sender_init` / `active_dyad_init` presence vectors, and (for the rate
-# intercept initialization) the `n_dep_events` / `total_time` / `avg_active_entity`
-# scalars. This converter maps one to the other so DyNAM-i estimates on the same
-# kernel as DyNAM / REM without touching the monolith.
+# TEMPORARY SEAM (retired with the monolith by the DyNAM-i engine conversion).
+# The interaction monolith (`preprocess_interaction`) still emits the pre-recipe
+# preprocessing shape -- a 3D `initialStats` (actors x groups x effects),
+# per-event `dependentStatsChange` / `rightCensoredStatsChange` nested lists (one
+# change matrix per effect), and `orderEvents` (1 = dependent, 2 =
+# right-censored). The shared kernel (`run_nr_loop` / `compute_step.default`)
+# instead reads the recipe shape: an integer `is_dependent`, a per-event
+# `intervals` vector, a flat 4 x M point buffer `stat_mat_update` with a
+# per-event `stat_mat_pointer`, `active_sender_init` / `active_dyad_init`
+# presence vectors, and (for the rate intercept initialization) the
+# `n_dep_events` / `total_time` / `avg_active_entity` scalars. This converter
+# maps one to the other so DyNAM-i estimates on the same kernel as DyNAM / REM
+# without touching the monolith.
 #
 # Rate reduction: the monolith carries an actors x groups statistic per effect,
 # but the DyNAM-i rate is sender-indexed (competing risks over actors), so each
 # effect slice reduces to one value per actor -- the row mean over groups for a
-# two-mode object -- reproducing the pre-recipe `reduceMatrixToVector` step. The
+# two-mode object -- reproducing the pre-recipe reduce-matrix-to-vector step. The
 # monolith already emits per-actor (2-column) rate change rows, so those apply as
 # flat sender updates onto the reduced matrix. Choice keeps the 3D array and its
 # 3-column change rows as dyad point updates.
