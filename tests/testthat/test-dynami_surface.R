@@ -57,6 +57,78 @@ test_that("a bare-name choice formula on a stocnet matches the legacy path", {
   expect_equal(surface$dependentStatsChange, legacy$dependentStatsChange)
 })
 
+test_that("a keyed DyNAM-i rate specification equals the legacy flag formula", {
+  stocnet <- dynami_surface_fixture()
+  spec <- make_specification(
+    rate = list(
+      join ~ 1 + ego(attr1, subType = "centered"),
+      leave ~ 1 + ego(attr1, subType = "centered")
+    ),
+    model = "DyNAMi",
+    data = stocnet
+  )
+  surface <- estimate_dynami(
+    spec,
+    sub_model = "rate",
+    preprocessing_only = TRUE
+  )
+  legacy <- estimate_wrapper(
+    dependent.depevents_DyNAMi ~
+      intercept(interaction_network_DyNAMi, joining = 1) +
+      ego(actors_DyNAMi$attr1, joining = 1, subType = "centered") +
+      intercept(interaction_network_DyNAMi, joining = -1) +
+      ego(actors_DyNAMi$attr1, joining = -1, subType = "centered"),
+    model = "DyNAMi",
+    sub_model = "rate",
+    data = dataDyNAMi,
+    preprocessing_only = TRUE
+  )
+  expect_equal(surface$initialStats, legacy$initialStats)
+  expect_equal(surface$dependentStatsChange, legacy$dependentStatsChange)
+})
+
+test_that("an effect under both rate flavors becomes two statistics", {
+  stocnet <- dynami_surface_fixture()
+  spec <- make_specification(
+    rate = list(
+      join ~ ego(attr1, subType = "centered"),
+      leave ~ ego(attr1, subType = "centered")
+    ),
+    model = "DyNAMi",
+    data = stocnet
+  )
+  surface <- estimate_dynami(
+    spec,
+    sub_model = "rate",
+    preprocessing_only = TRUE
+  )
+  expect_equal(dim(surface$initialStats)[3], 2L)
+})
+
+test_that("a flavor-keyed DyNAM-i choice is rejected", {
+  stocnet <- dynami_surface_fixture()
+  expect_error(
+    make_specification(
+      choice = list(join ~ diff(attr1)),
+      model = "DyNAMi",
+      data = stocnet
+    ),
+    "leaving choice is deterministic"
+  )
+})
+
+test_that("an unknown DyNAM-i rate flavor is rejected", {
+  stocnet <- dynami_surface_fixture()
+  expect_error(
+    make_specification(
+      rate = list(bogus ~ 1),
+      model = "DyNAMi",
+      data = stocnet
+    ),
+    "Unknown DyNAM-i rate flavor"
+  )
+})
+
 test_that("a past-network effect resolves the past layer on a stocnet", {
   stocnet <- dynami_surface_fixture()
   surface <- estimate_dynami(

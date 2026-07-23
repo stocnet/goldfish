@@ -313,6 +313,20 @@ estimate_dynami <- function(
   verbose = getOption("verbose", default = FALSE)
 ) {
   sub_model <- match.arg(sub_model)
+  if (inherits(x, "specification.goldfish")) {
+    return(estimate_from_specification(
+      spec = x,
+      model = "DyNAMi",
+      sub_model = sub_model,
+      data = data,
+      control_estimation = control_estimation,
+      control_preprocessing = control_preprocessing,
+      preprocessing_init = preprocessing_init,
+      preprocessing_only = preprocessing_only,
+      progress = progress,
+      verbose = verbose
+    ))
+  }
   estimate_wrapper(
     x = x,
     model = "DyNAMi",

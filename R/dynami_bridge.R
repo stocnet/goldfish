@@ -78,6 +78,88 @@ rewrite_dynami_formula <- function(formula, data) {
   formula
 }
 
+# The flavor values a DyNAM-i focal layer stamps on its dependent rows.
+dynami_focal_flavors <- function(data, focal) {
+  focal_rows <- data$ties$layer == focal
+  sort(unique(stats::na.omit(data$ties$flavor[focal_rows])))
+}
+
+# Split a `+`-joined formula right-hand side into its individual terms, each a
+# language object (the intercept `1` included).
+split_rate_terms <- function(expr) {
+  if (is.call(expr) && identical(expr[[1L]], as.symbol("+"))) {
+    return(c(split_rate_terms(expr[[2L]]), split_rate_terms(expr[[3L]])))
+  }
+  list(expr)
+}
+
+# Desugar the DyNAM-i flavor-keyed rate list into the single legacy formula the
+# monolith consumes (design D9). The two rate models -- joining (for isolated
+# actors) and leaving (for grouped ones) -- ride the flavored grammar as
+# `rate = list(join ~ ..., leave ~ ...)`, but the monolith reads one formula
+# whose effects carry a per-effect `joining` flag: every `join`-keyed term gains
+# `joining = 1`, every `leave`-keyed term `joining = -1` (an effect under both
+# keys becomes two terms). A per-flavor `~ 1` intercept becomes an explicit
+# `intercept(<focal>, joining = ...)` -- the bare `1` is inert for a DyNAM-i rate,
+# so the intercept parameter is the flagged `intercept()` effect. The `joining`
+# flag never appears on the keyed surface. The desugarer is a bridge seam,
+# retired with the monolith by the DyNAM-i engine conversion.
+desugar_dynami_rate <- function(rate, data, focal, call = rlang::caller_env()) {
+  if (!is.list(rate) || inherits(rate, "formula")) {
+    cli::cli_abort(
+      c(
+        "The DyNAM-i {.arg rate} must be a flavor-keyed list.",
+        "i" = "Use {.code rate = list(join ~ ..., leave ~ ...)} to model the \\
+               joining and leaving rates."
+      ),
+      call = call
+    )
+  }
+  allowed <- dynami_focal_flavors(data, focal)
+  focal_symbol <- as.symbol(focal)
+
+  terms <- list()
+  for (entry in rate) {
+    if (!inherits(entry, "formula") || length(entry) != 3L) {
+      cli::cli_abort(
+        "Each DyNAM-i {.arg rate} entry must be a two-sided formula \\
+         ({.code join ~ ...}).",
+        call = call
+      )
+    }
+    flavor <- as.character(entry[[2L]])
+    if (!flavor %in% allowed) {
+      cli::cli_abort(
+        c(
+          "Unknown DyNAM-i rate flavor {.val {flavor}}.",
+          "i" = "The focal layer {.val {focal}} models flavor{?s} \\
+                 {.or {.val {allowed}}}."
+        ),
+        call = call
+      )
+    }
+    joining <- if (identical(flavor, "join")) 1 else -1
+    for (term in split_rate_terms(entry[[3L]])) {
+      if (is.numeric(term) && term == 1) {
+        terms[[length(terms) + 1L]] <- as.call(
+          list(as.symbol("intercept"), focal_symbol, joining = joining)
+        )
+      } else if (is.call(term)) {
+        term[["joining"]] <- joining
+        terms[[length(terms) + 1L]] <- term
+      } else {
+        cli::cli_abort(
+          "Unsupported DyNAM-i rate term {.code {deparse(term)}}.",
+          call = call
+        )
+      }
+    }
+  }
+
+  rhs <- Reduce(function(a, b) call("+", a, b), terms)
+  stats::as.formula(call("~", focal_symbol, rhs), env = environment(rate[[1L]]))
+}
+
 # Reverse a focal/past layer's ties into a legacy event data frame keyed by the
 # node labels, ordered by the reserved `order` column, with the `order`
 # attribute and update class the monolith reads restored.
