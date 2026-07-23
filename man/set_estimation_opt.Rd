@@ -15,9 +15,9 @@ set_estimation_opt(
   initial_damping = NULL,
   damping_increase_factor = 2,
   damping_decrease_factor = 3,
-  return_interval_loglik = TRUE,
-  return_probabilities = FALSE,
-  return_event_scores = FALSE,
+  return_interval_loglik = deprecated(),
+  return_probabilities = deprecated(),
+  return_event_scores = deprecated(),
   diagnostics = c("loglik", "scores"),
   optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
   engine = c("default_c", "default", "gather_compute")
@@ -80,23 +80,23 @@ in the estimation are found. Must be >= 1. Default is \code{2}.}
 Factor by which damping is decreased when no improvements
 in the estimation are found. Must be >= 1. Default is \code{3}.}
 
-\item{return_interval_loglik}{A logical value.
-Whether to keep and return the
-log-likelihood for each event. Default is \code{FALSE}.}
+\item{return_interval_loglik}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Superseded by
+\code{diagnostics = "loglik"}. Whether to keep and return the log-likelihood for
+each event.}
 
-\item{return_probabilities}{A logical value.
-Whether to keep and return the
+\item{return_probabilities}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Superseded by
+\code{diagnostics = "probabilities"}. Whether to keep and return the
 probabilities for all alternatives for each event.
 \itemize{
 \item When \code{sub_model = "choice"} the probabilities correspond to all actors in
 the choice set present at the time of the event.
 \item When \code{model = "REM"} the probabilities correspond to all dyads present at
 the time of the event.
-Default is \code{FALSE}.
 }}
 
-\item{return_event_scores}{A logical value.
-Whether to keep and return the per-event score matrix (one row per
+\item{return_event_scores}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Superseded by
+\code{diagnostics = "scores"}. Whether to keep and return the per-event score
+matrix (one row per
 dependent event, one column per effect) evaluated at the returned
 parameter estimates, stored as the \code{event_scores} component of the result.
 Each row is the observation-level gradient contribution whose column sums
@@ -105,8 +105,7 @@ equal the aggregate score. The matrix supports downstream diagnostics
 standard errors from the outer product of gradients \code{crossprod(event_scores)},
 per-effect score-process diagnostics that localize where individual effects
 drift over the event sequence, and event-influence measures. Only the
-\code{"default_c"} and \code{"default"} engines support it; \code{"gather_compute"} aborts.
-Default is \code{FALSE}.}
+\code{"default_c"} and \code{"default"} engines support it; \code{"gather_compute"} aborts.}
 
 \item{diagnostics}{Names the per-event diagnostic \emph{primitives} estimation
 stores on the fitted result, superseding the three \verb{return_*} flags above.

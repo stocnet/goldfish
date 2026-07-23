@@ -35,6 +35,7 @@ test_that("set_estimation_opt works correctly", {
   expect_false(default_opts$return_probabilities)
 
   # Test setting specific parameters
+  withr::local_options(lifecycle_verbosity = "quiet")
   custom_opts <- set_estimation_opt(
     max_iterations = 50,
     engine = "default", # Change from default_c
@@ -58,6 +59,7 @@ test_that("set_estimation_opt works correctly", {
   expect_equal(custom_opts$step_tol, 1e-9)
   expect_true(custom_opts$return_interval_loglik)
   expect_true(custom_opts$return_probabilities)
+  expect_equal(custom_opts$diagnostics, c("loglik", "probabilities"))
   expect_equal(custom_opts$initial_damping, 15)
   # Check a default value that wasn't changed is still there
   expect_equal(custom_opts$damping_increase_factor, 2)
@@ -115,6 +117,44 @@ test_that("set_estimation_opt rejects invalid diagnostics", {
   )
   expect_snapshot(set_estimation_opt(diagnostics = NA), error = TRUE)
   expect_snapshot(set_estimation_opt(diagnostics = 1L), error = TRUE)
+})
+
+test_that("legacy return_* flags soft-deprecate onto diagnostics", {
+  expect_snapshot(invisible(set_estimation_opt(return_interval_loglik = TRUE)))
+  expect_snapshot(invisible(set_estimation_opt(return_probabilities = TRUE)))
+  expect_snapshot(invisible(set_estimation_opt(return_event_scores = TRUE)))
+})
+
+test_that("legacy flags map onto diagnostics and the derived flags", {
+  withr::local_options(lifecycle_verbosity = "quiet")
+  opt <- set_estimation_opt(return_event_scores = TRUE)
+  expect_equal(opt$diagnostics, c("loglik", "scores"))
+  expect_true(opt$return_event_scores)
+  expect_false(opt$return_probabilities)
+
+  opt2 <- set_estimation_opt(return_interval_loglik = FALSE)
+  expect_equal(opt2$diagnostics, character(0))
+  expect_false(opt2$return_interval_loglik)
+
+  opt3 <- set_estimation_opt(
+    return_interval_loglik = TRUE,
+    return_probabilities = TRUE
+  )
+  expect_equal(opt3$diagnostics, c("loglik", "probabilities"))
+})
+
+test_that("diagnostics default preserves historical storage flags", {
+  opt <- set_estimation_opt()
+  expect_true(opt$return_interval_loglik)
+  expect_false(opt$return_probabilities)
+  expect_false(opt$return_event_scores)
+})
+
+test_that("mixing diagnostics with a legacy flag aborts", {
+  expect_snapshot(
+    set_estimation_opt(diagnostics = "loglik", return_event_scores = TRUE),
+    error = TRUE
+  )
 })
 
 test_that("set_preprocessing_opt works correctly", {
