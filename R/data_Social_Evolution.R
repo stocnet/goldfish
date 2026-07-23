@@ -57,8 +57,9 @@ NULL
 #' [estimate_rem()], and [make_specification()]. It carries two layers over a
 #' single node set: `friendship`, the survey snapshots as a **panel** layer
 #' (wave-timed `replace` updates), and `calls`, the phone calls as an **event**
-#' layer (timestamped `increment` events). The focal (dependent) layer is
-#' `calls`.
+#' layer (timestamped `increment` events). Its optional default focal layer is
+#' `calls`; a model names its dependent through the formula LHS or the
+#' specification `layer` regardless.
 #'
 #' @name social_evolution_stocnet
 #' @aliases social_evolution
@@ -69,7 +70,7 @@ NULL
 #'   \item{info}{layer metadata: `name`, `layers` (`"friendship"`, `"calls"`),
 #'     per-layer `update` (`friendship = "replace"`, `calls = "increment"`),
 #'     `directed` (both `TRUE`), `observation` (`friendship = "panel"`,
-#'     `calls = "event"`), and `focal = "calls"`.}
+#'     `calls = "event"`), and the optional default `focal = "calls"`.}
 #'   \item{nodes}{84 actors (`label`, `active`, `floor`, `gradeType`).}
 #'   \item{ties}{1205 rows (`from`, `to`, `time`, `weight`, `layer`) stacking the
 #'     friendship and calls events; `from`/`to` index rows of `nodes`.}
@@ -93,10 +94,11 @@ NULL
 #'   layer_names = c("friendship", "calls")
 #' )
 #' se <- manynet::join_nodes(se, actors) # bring in the actor attributes
+#' # `focal` is optional -- the specification's `layer` names the dependent
+#' # below. Set it (`focal = "calls"`) only to default an unnamed model.
 #' se <- manynet::add_info(
 #'   se,
 #'   name = "Social Evolution MIT",
-#'   focal = "calls",
 #'   directed = c(friendship = TRUE, calls = TRUE),
 #'   observation = c(friendship = "panel", calls = "event")
 #' )
@@ -107,6 +109,7 @@ NULL
 #'   choice = ~ inertia + recip,
 #'   model = "DyNAM",
 #'   choice_sub_model = "choice",
+#'   layer = "calls",
 #'   data = social_evolution
 #' )
 #'

@@ -114,8 +114,9 @@ NULL
 #'   \item{info}{layer metadata: `name`, `layers` (`"treaties"`,
 #'     `"contiguity"`), per-layer `update` (`treaties = "increment"`,
 #'     `contiguity = "replace"`), `directed` (both `FALSE`), `observation` (both
-#'     `"event"`), `focal = "treaties"`, and the `gdp`/`active`/`regime`
-#'     attribute-update metadata.}
+#'     `"event"`), the optional default `focal = "treaties"` (a model still
+#'     names its dependent through the `layer`/flavor formula), and the
+#'     `gdp`/`active`/`regime` attribute-update metadata.}
 #'   \item{nodes}{154 states (`label`, `active`, `regime`, `gdp`).}
 #'   \item{ties}{413 rows (`from`, `to`, `weight`, `time`, `layer`,
 #'     `order`) stacking the treaty and contiguity history and events; `from`/`to`
@@ -151,10 +152,11 @@ NULL
 #' contigchanges$order <- seq_len(nrow(contigchanges))
 #' contiguity <- manynet::bind_ties(manynet::as_stocnet(contignet), contigchanges)
 #' fish <- manynet::from_ties(treaties = treaties, contiguity = contiguity)
+#' # `focal` is optional here -- the specification's `layer` names the dependent
+#' # below. Set it (`focal = "treaties"`) only to default an unnamed model.
 #' fish <- manynet::add_info(
 #'   fish,
 #'   name = "Fisheries Treaties",
-#'   focal = "treaties",
 #'   directed = c(treaties = FALSE, contiguity = FALSE),
 #'   observation = c(treaties = "event", contiguity = "event")
 #' )
@@ -178,6 +180,7 @@ NULL
 #'   choice = list(signing ~ inertia + trans),
 #'   model = "DyNAM",
 #'   choice_sub_model = "choice_coordination",
+#'   layer = "treaties",
 #'   data = fish
 #' )
 #'

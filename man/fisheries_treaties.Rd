@@ -10,8 +10,9 @@ A \code{stocnet} list of five components:
 \item{info}{layer metadata: \code{name}, \code{layers} (\code{"treaties"},
 \code{"contiguity"}), per-layer \code{update} (\code{treaties = "increment"},
 \code{contiguity = "replace"}), \code{directed} (both \code{FALSE}), \code{observation} (both
-\code{"event"}), \code{focal = "treaties"}, and the \code{gdp}/\code{active}/\code{regime}
-attribute-update metadata.}
+\code{"event"}), the optional default \code{focal = "treaties"} (a model still
+names its dependent through the \code{layer}/flavor formula), and the
+\code{gdp}/\code{active}/\code{regime} attribute-update metadata.}
 \item{nodes}{154 states (\code{label}, \code{active}, \code{regime}, \code{gdp}).}
 \item{ties}{413 rows (\code{from}, \code{to}, \code{weight}, \code{time}, \code{layer},
 \code{order}) stacking the treaty and contiguity history and events; \code{from}/\code{to}
@@ -67,10 +68,11 @@ treaties <- manynet::bind_ties(
 contigchanges$order <- seq_len(nrow(contigchanges))
 contiguity <- manynet::bind_ties(manynet::as_stocnet(contignet), contigchanges)
 fish <- manynet::from_ties(treaties = treaties, contiguity = contiguity)
+# `focal` is optional here -- the specification's `layer` names the dependent
+# below. Set it (`focal = "treaties"`) only to default an unnamed model.
 fish <- manynet::add_info(
   fish,
   name = "Fisheries Treaties",
-  focal = "treaties",
   directed = c(treaties = FALSE, contiguity = FALSE),
   observation = c(treaties = "event", contiguity = "event")
 )
@@ -94,6 +96,7 @@ spec <- make_specification(
   choice = list(signing ~ inertia + trans),
   model = "DyNAM",
   choice_sub_model = "choice_coordination",
+  layer = "treaties",
   data = fish
 )
 
