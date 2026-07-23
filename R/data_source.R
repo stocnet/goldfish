@@ -145,6 +145,12 @@ ds_layer_mode_pair.data_source_stocnet <- function(src, name) {
 # sides, direction -- from the layer it was derived from, so both resolve
 # through the same map entry.
 ds_layer_map <- function(src, name) {
+  # A zero-length or NA name (an unresolved focal) is "no layer", not a lookup
+  # error: `[[` on such a name aborts with get1index, so callers that treat a
+  # NULL map as "nothing to check" would instead crash.
+  if (length(name) != 1L || is.na(name)) {
+    return(NULL)
+  }
   if (!is.null(src$derived[[name]])) {
     name <- src$derived[[name]]$source
   }
