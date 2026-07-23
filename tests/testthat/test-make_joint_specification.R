@@ -191,6 +191,314 @@ coupled_of <- function(js, layer) {
   map$coupled[map$layer == layer]
 }
 
+# ---- Mode-map composition fixtures (D8) --------------------------------------
+#
+# One shared node universe, layers over distinct mode-pairs. Each is built with
+# its panel layer as "event" (so a panel-focal spec clears make_specification()'s
+# panel-focal guard) and composed under that layer marked "panel".
+
+# Whole-shared-mode multilevel: advice staff -> director, nominations
+# director -> project. nominations reads indeg(advice) on the shared director
+# mode -- an identity-conforming cross-process read.
+multilevel_data <- function(advice = "panel") {
+  nodes <- data.frame(
+    label = c("S1", "S2", "S3", "D1", "D2", "P1", "P2"),
+    mode = c(
+      "staff",
+      "staff",
+      "staff",
+      "director",
+      "director",
+      rep("project", 2)
+    ),
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L),
+      to = c(4L, 5L, 4L),
+      time = c(1, 2, 3),
+      layer = "advice",
+      stringsAsFactors = FALSE
+    ),
+    data.frame(
+      from = c(4L, 5L, 4L),
+      to = c(6L, 7L, 7L),
+      time = c(1, 2, 3),
+      layer = "nominations",
+      stringsAsFactors = FALSE
+    )
+  )
+  info <- list(
+    name = "ml",
+    focal = "nominations",
+    update = c(advice = "increment", nominations = "increment"),
+    directed = c(advice = TRUE, nominations = TRUE),
+    observation = c(advice = advice, nominations = "event"),
+    sender = c(advice = "staff", nominations = "director"),
+    receiver = c(advice = "director", nominations = "project")
+  )
+  list(info = info, nodes = nodes, ties = ties)
+}
+
+# Two-mode multiplex: membership and attendance both p -> o. attendance reads
+# tie(membership) over the identical mode-pair.
+multiplex_data <- function(membership = "panel") {
+  nodes <- data.frame(
+    label = c("P1", "P2", "P3", "O1", "O2"),
+    mode = c("p", "p", "p", "o", "o"),
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L),
+      to = c(4L, 5L, 4L),
+      time = c(1, 2, 3),
+      layer = "membership",
+      stringsAsFactors = FALSE
+    ),
+    data.frame(
+      from = c(1L, 2L, 3L),
+      to = c(5L, 4L, 5L),
+      time = c(1, 2, 3),
+      layer = "attendance",
+      stringsAsFactors = FALSE
+    )
+  )
+  info <- list(
+    name = "mx",
+    focal = "attendance",
+    update = c(membership = "increment", attendance = "increment"),
+    directed = c(membership = TRUE, attendance = TRUE),
+    observation = c(membership = membership, attendance = "event"),
+    sender = c(membership = "p", attendance = "p"),
+    receiver = c(membership = "o", attendance = "o")
+  )
+  list(info = info, nodes = nodes, ties = ties)
+}
+
+# Mixed one/two-mode: advice one-mode over {director}, nominations two-mode
+# director -> project. nominations reads indeg(advice) on the shared director
+# mode.
+mixed_mode_data <- function(advice = "panel") {
+  nodes <- data.frame(
+    label = c("D1", "D2", "P1", "P2"),
+    mode = c("director", "director", "project", "project"),
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L),
+      to = c(2L, 1L),
+      time = c(1, 2),
+      layer = "advice",
+      stringsAsFactors = FALSE
+    ),
+    data.frame(
+      from = c(1L, 2L, 1L),
+      to = c(3L, 4L, 4L),
+      time = c(1, 2, 3),
+      layer = "nominations",
+      stringsAsFactors = FALSE
+    )
+  )
+  info <- list(
+    name = "mixed",
+    focal = "nominations",
+    update = c(advice = "increment", nominations = "increment"),
+    directed = c(advice = TRUE, nominations = TRUE),
+    observation = c(advice = advice, nominations = "event"),
+    sender = c(advice = "director", nominations = "director"),
+    receiver = c(advice = "director", nominations = "project")
+  )
+  list(info = info, nodes = nodes, ties = ties)
+}
+
+# Subset/nested (Gap B): collab over {director, staff}, board over {director}.
+# board reads collab through a support-constraint atom (the atom survives
+# make_specification, whose side check does not validate constraints), so the
+# {director} subset -> {director, staff} union bridge reaches the join.
+subset_mode_data <- function(collab = "panel") {
+  nodes <- data.frame(
+    label = c("D1", "D2", "S1", "S2"),
+    mode = c("director", "director", "staff", "staff"),
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L),
+      to = c(2L, 1L, 1L, 2L),
+      time = c(1, 2, 3, 4),
+      layer = "collab",
+      stringsAsFactors = FALSE
+    ),
+    data.frame(
+      from = c(1L, 2L),
+      to = c(2L, 1L),
+      time = c(1, 2),
+      layer = "board",
+      stringsAsFactors = FALSE
+    )
+  )
+  info <- list(
+    name = "sub",
+    focal = "board",
+    update = c(collab = "increment", board = "increment"),
+    directed = c(collab = TRUE, board = TRUE),
+    observation = c(collab = collab, board = "event"),
+    sender = c(collab = "director", collab = "staff", board = "director"),
+    receiver = c(collab = "director", collab = "staff", board = "director")
+  )
+  list(info = info, nodes = nodes, ties = ties)
+}
+
+# ---- Node-space generality: mode-map conformance (D8) ------------------------
+
+test_that("a whole-shared-mode multilevel join composes", {
+  event_data <- multilevel_data(advice = "event")
+  advice_spec <- make_specification(
+    choice = ~inertia,
+    layer = "advice",
+    model = "DyNAM",
+    data = event_data
+  )
+  nominations_spec <- make_specification(
+    rate = ~ 1 + indeg(advice),
+    choice = ~inertia,
+    layer = "nominations",
+    model = "DyNAM",
+    data = event_data
+  )
+  js <- make_joint_specification(
+    advice_spec,
+    nominations_spec,
+    data = multilevel_data(advice = "panel")
+  )
+  expect_s3_class(js, "joint_specification.goldfish")
+  expect_identical(
+    sort(unique(js$process_map$layer)),
+    c("advice", "nominations")
+  )
+})
+
+test_that("a two-mode multiplex join composes", {
+  event_data <- multiplex_data(membership = "event")
+  membership_spec <- make_specification(
+    choice = ~inertia,
+    layer = "membership",
+    model = "DyNAM",
+    data = event_data
+  )
+  attendance_spec <- make_specification(
+    choice = ~ inertia + tie(membership),
+    layer = "attendance",
+    model = "DyNAM",
+    data = event_data
+  )
+  expect_s3_class(
+    make_joint_specification(
+      membership_spec,
+      attendance_spec,
+      data = multiplex_data(membership = "panel")
+    ),
+    "joint_specification.goldfish"
+  )
+})
+
+test_that("a mixed one/two-mode join composes", {
+  event_data <- mixed_mode_data(advice = "event")
+  advice_spec <- make_specification(
+    choice = ~inertia,
+    layer = "advice",
+    model = "DyNAM",
+    data = event_data
+  )
+  nominations_spec <- make_specification(
+    rate = ~ 1 + indeg(advice),
+    choice = ~inertia,
+    layer = "nominations",
+    model = "DyNAM",
+    data = event_data
+  )
+  js <- make_joint_specification(
+    advice_spec,
+    nominations_spec,
+    data = mixed_mode_data(advice = "panel")
+  )
+  expect_s3_class(js, "joint_specification.goldfish")
+  # The one-mode advice process and the two-mode nominations process land on
+  # their own mode-pair rows.
+  expect_true(all(c("advice", "nominations") %in% js$process_map$layer))
+})
+
+test_that("a subset/nested cross-process read aborts as future development", {
+  # collab is panel-observed and modeled by collab_spec, so board's read of it
+  # WOULD couple the board fids -- but the {director} subset -> {director, staff}
+  # union bridge is rejected by the conformance check before coupling is
+  # computed, never silently coupled on a wrong projection.
+  local_cli_context()
+  event_data <- subset_mode_data(collab = "event")
+  collab_spec <- make_specification(
+    choice = ~inertia,
+    layer = "collab",
+    model = "DyNAM",
+    data = event_data
+  )
+  board_spec <- make_specification(
+    choice = ~inertia,
+    support_constraint = ~ !tie(collab),
+    layer = "board",
+    model = "DyNAM",
+    data = event_data
+  )
+  expect_snapshot(
+    make_joint_specification(
+      collab_spec,
+      board_spec,
+      data = subset_mode_data(collab = "panel")
+    ),
+    error = TRUE
+  )
+})
+
+test_that("each process resolves sides from its own layer, not info$focal", {
+  # The shared object's single info$focal names only nominations, yet the
+  # two-mode advice process (staff -> director) is modeled by advice_spec. Its
+  # sides must resolve against advice, not the object-level focal -- the
+  # formula-drives-focal contract this change consumes. Were the advice sides
+  # resolved against nominations (director -> project), the identity-conforming
+  # indeg(advice) read on the director mode would be validated against the wrong
+  # pair and the join would not compose.
+  event_data <- multilevel_data(advice = "event")
+  expect_identical(event_data$info$focal, "nominations")
+  advice_spec <- make_specification(
+    choice = ~inertia,
+    layer = "advice",
+    model = "DyNAM",
+    data = event_data
+  )
+  # advice resolved its own two-mode sides (staff -> director), not the
+  # object-level focal's.
+  expect_true(advice_spec$dependent$is_two_mode)
+  expect_identical(
+    advice_spec$dependent$mode_pair,
+    list(sender = "staff", receiver = "director")
+  )
+  nominations_spec <- make_specification(
+    rate = ~ 1 + indeg(advice),
+    choice = ~inertia,
+    layer = "nominations",
+    model = "DyNAM",
+    data = event_data
+  )
+  panel_data <- multilevel_data(advice = "panel")
+  expect_identical(panel_data$info$focal, "nominations")
+  expect_s3_class(
+    make_joint_specification(advice_spec, nominations_spec, data = panel_data),
+    "joint_specification.goldfish"
+  )
+})
+
 # ---- Composition validation matrix ------------------------------------------
 
 test_that("an exogenous-only panel reference composes and stays separable", {
@@ -224,7 +532,7 @@ test_that("a join referencing no panel layer is rejected as separable", {
   )
 })
 
-test_that("processes on different node sets are rejected", {
+test_that("processes over different mode-map objects are rejected", {
   local_cli_context()
   data <- joint_data(friendship = "panel")
   calls_spec <- make_specification(
@@ -233,8 +541,10 @@ test_that("processes on different node sets are rejected", {
     model = "DyNAM",
     data = data
   )
-  # A two-mode dependent yields a different node-set signature than the one-mode
-  # calls process, tripping the shared-node-set requirement.
+  # The twomode spec is built over a different data object (a different node
+  # universe), so the processes do not share one mode-map object. Distinct
+  # mode-pairs over a SHARED object are allowed (see the multilevel tests); a
+  # different node universe is not.
   twomode_spec <- make_specification(
     choice = ~inertia,
     layer = "membership",

@@ -4,8 +4,12 @@
 > simulation-hook/evaluator seams against `multi-process-walk` before starting.
 > Parallel-development ordering (see `.plan/mv_branch.md`): sections 1, 2, and 4
 > may run in parallel with `residuals-gof`; section 3 (merged walk) starts only
-> after `spec-driven-dispatch` and `multimode-network-support` land — they edit
-> the same loop/writer/surface files. Task 3.0 is exempt: it is a measurement
+> after `spec-driven-dispatch` lands — it edits the same loop/writer files.
+> `multimode-network-support` has landed; its mode map is the substrate for the
+> per-mode-pair block keying (D8, section 1b/3). Section 1b additionally blocks on
+> `formula-drives-focal` (D8, Option A): a join models N dependent layers over one
+> object, so per-process focal resolution is a hard dependency, not stamped locally.
+> Task 3.0 is exempt: it is a measurement
 > spike that runs the profiler against already-landed code and edits no source,
 > so it can and should run early — its number is an input to D3b, not a
 > consequence of the merge.
@@ -49,6 +53,39 @@
       object into dynam/rem aborts with the dynes pointer; PE-focal spec into each
       event-stream estimator aborts (cli snapshots under a pinned context)
 - [x] 1.7 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
+      `devtools::document()`; commit
+
+## 1b. Node-space generality (D8 — mode-pair-keyed composition)
+
+> Supersedes the "shared node set" validation in 1.1/1.4, which was written
+> against the pre-multimode single-node-set restriction. The rule is now
+> mode-set-identity conformance over a shared mode-map object.
+
+- [x] 1b.1 Replace the shared-node-set check in `make_joint_specification()`
+      with the mode-map conformance rule: accept processes over one shared
+      mode-map object, one- or two-mode, over distinct mode-pairs; for each
+      cross-process read (effect argument / constraint atom that reads another
+      process's layer) require **mode-set-identity** conformance reusing
+      `multimode-network-support`'s conformance predicate; abort on a
+      subset/nested read (a mode ⊂ a union containing it) with a `cli` error
+      naming the two layers and offending modes and noting it as future
+      development ("Gap B")
+- [x] 1b.2 Coupling detection (extends 1.2) resolves the coupled read's node
+      space and confirms identity conformance; a coupling read that is
+      subset/nested is rejected by 1b.1 before it is marked, never silently
+      coupled on a wrong projection
+- [x] 1b.3 Consume `formula-drives-focal` (hard dependency, D8 Option A): rely on
+      its "modeled layer drives side/mode resolution" contract so each composed
+      process resolves against its own dependent layer, not the object-level
+      `info$focal`; do NOT replicate focal resolution in `make_joint_specification()`.
+      Add a regression test that a join over an object whose single `info$focal`
+      names only one of the modeled layers still resolves every other process's
+      sides/modes correctly (the two-mode side-validity check in particular)
+- [x] 1b.4 Tests: whole-shared-mode multilevel composes (advice `{staff}×{dir}`
+      + nominations `{dir}×{proj}`, director-side read conforms); two-mode
+      multiplex composes; subset/nested read aborts with the future-development
+      message (cli snapshot under a pinned context); mixed one/two-mode join
+- [x] 1b.5 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
       `devtools::document()`; commit
 
 ## 2. Cross-process union planning
@@ -109,10 +146,14 @@
       constraints' atoms once and evaluate each fid's own `expr` at its own
       snapshot times over that shared atom state. Independent of the merged
       walk — extractable to its own change if section 3 stalls.
-- [ ] 3.1 Merge the sender and dyad recipe walks into one clock hosting both
-      statistic blocks, consumers attached per fid; single-process and flavored
-      specifications route through the merged walk byte-identically
-      (frozen-baseline gate at every commit)
+- [ ] 3.1 Merge the sender and dyad recipe walks into one clock hosting the
+      statistic blocks keyed by mode-pair (`stat_block = (model, family,
+      mode-pair)`, D8): the single-mode-pair join has the two blocks, a
+      multi-mode-pair join has one sender block per distinct sender mode and one
+      dyad block per distinct mode-pair; consumers attached per fid;
+      cross-mode-pair events right-censor other processes' timed rate fids;
+      single-process and flavored specifications route through the merged walk
+      byte-identically (frozen-baseline gate at every commit)
 - [ ] 3.2 Per-fid preprocessing driver over the merged walk: fid-indexed list
       with the process_map attached, each element passing engine-readiness
       checks; empty-risk-set aborts name the fid label rendered from the

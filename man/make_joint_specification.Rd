@@ -49,8 +49,15 @@ it), while reading a layer as an exogenous covariate is unrestricted (it is
 exactly the coupling that makes joining meaningful). All of a layer's flavors
 are carried by a single specification.
 
-DyNAM-i processes are excluded. All processes share one node set in this
-version.
+DyNAM-i processes are excluded. All processes compose over \strong{one shared
+mode-map object} (\code{multimode-network-support}): they may be one- or two-mode
+and over distinct mode-pairs, provided every cross-process read (an effect
+argument or support-constraint atom of one process reading another process's
+layer) conforms by \strong{mode-set identity} -- the shared node space is a whole
+shared mode. A read bridging a mode subset to a union containing it
+(directors-only reading all-employees) does not conform and aborts at
+construction; subset/nested cross-process coupling is recorded future
+development.
 }
 \seealso{
 \code{\link[=make_specification]{make_specification()}}

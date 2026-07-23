@@ -1,3 +1,14 @@
+# a subset/nested cross-process read aborts as future development
+
+    Code
+      make_joint_specification(collab_spec, board_spec, data = subset_mode_data(
+        collab = "panel"))
+    Condition
+      Error in `make_joint_specification()`:
+      ! Cross-process read of "collab" by process "board" does not conform by mode-set identity.
+      x The overlapping node space is a whole mode for neither: "board" spans mode "director" and "collab" spans mode "director" and "staff".
+      i Subset/nested cross-process coupling is future development ("Gap B"); only whole-shared-mode identity conforms.
+
 # a join referencing no panel layer is rejected as separable
 
     Code
@@ -8,14 +19,15 @@
       x None of the composed formulas read a "panel" layer, so the processes are exactly separable.
       i Estimate each specification on its own with `estimate_dynam()` or `estimate_rem()`.
 
-# processes on different node sets are rejected
+# processes over different mode-map objects are rejected
 
     Code
       make_joint_specification(calls_spec, twomode_spec, data = data)
     Condition
       Error in `make_joint_specification()`:
-      ! All composed processes must share one node set.
-      i Mixed node sets are not supported in this version.
+      ! All composed processes must share one mode-map object.
+      x Specification "2" is built over a different node set.
+      i Compose processes defined over one shared data object; distinct mode-pairs over that object are supported.
 
 # a DyNAM-i process cannot be composed
 

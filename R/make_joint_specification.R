@@ -27,8 +27,15 @@
 #' exactly the coupling that makes joining meaningful). All of a layer's flavors
 #' are carried by a single specification.
 #'
-#' DyNAM-i processes are excluded. All processes share one node set in this
-#' version.
+#' DyNAM-i processes are excluded. All processes compose over **one shared
+#' mode-map object** (`multimode-network-support`): they may be one- or two-mode
+#' and over distinct mode-pairs, provided every cross-process read (an effect
+#' argument or support-constraint atom of one process reading another process's
+#' layer) conforms by **mode-set identity** -- the shared node space is a whole
+#' shared mode. A read bridging a mode subset to a union containing it
+#' (directors-only reading all-employees) does not conform and aborts at
+#' construction; subset/nested cross-process coupling is recorded future
+#' development.
 #'
 #' @param ... two or more `specification.goldfish` objects (from
 #'   [make_specification()]) over one shared data object.
@@ -94,17 +101,35 @@ make_joint_specification <- function(..., data = NULL) {
     ))
   }
 
-  # One node set in this version: every specification's dependent process must
-  # sit on the same node set(s).
-  node_sigs <- lapply(specs, function(s) {
-    sort(unique(c(s$dependent$nodes, s$dependent$nodes2)))
-  })
-  if (!all(vapply(node_sigs, identical, logical(1), node_sigs[[1]]))) {
+  # One shared mode-map object (D8): every specification must be built over the
+  # same node universe (labels + modes) so their layers resolve through one mode
+  # map. Distinct mode-pairs over that object are supported; a differing node
+  # universe is not. Node identity, not the per-layer side names, is what the
+  # mode map keys on, so the signature is the (label, mode) pairs themselves.
+  ref_universe <- node_universe(shared_data$nodes)
+  mismatched <- !vapply(
+    specs,
+    function(s) identical(node_universe(s$data$nodes), ref_universe),
+    logical(1)
+  )
+  if (any(mismatched)) {
+    # Render the indices as strings so cli pluralizes on their count, not on the
+    # numeric index value (a length-1 numeric would be read as its own quantity).
+    idx <- as.character(which(mismatched))
     cli::cli_abort(c(
-      "All composed processes must share one node set.",
-      "i" = "Mixed node sets are not supported in this version."
+      "All composed processes must share one mode-map object.",
+      "x" = "Specification{?s} {.val {idx}} {?is/are} built over a different
+             node set.",
+      "i" = "Compose processes defined over one shared data object; distinct
+             mode-pairs over that object are supported."
     ))
   }
+
+  shared_map <- build_mode_map(
+    shared_data$info,
+    as.data.frame(shared_data$nodes),
+    unique(as.data.frame(shared_data$ties)$layer)
+  )
 
   # Focal uniqueness: a layer is modeled by at most one specification. Covariate
   # reuse is allowed and is not checked here (it is the coupling).
@@ -133,6 +158,13 @@ make_joint_specification <- function(..., data = NULL) {
              {.fn estimate_rem}."
     ))
   }
+
+  # Cross-process reads must conform by mode-set identity (D8): where a process
+  # reads another process's focal layer, the two layers' overlapping sides must
+  # be whole shared modes. A read bridging a mode subset to a union containing it
+  # ("Gap B") needs a subset embed/marginalize projection no landed capability
+  # provides, so it aborts here as future development.
+  check_cross_process_conformance(specs, focals, shared_map)
 
   # Modeled panel layers: panel-observed layers that are themselves a focal
   # process of the join. Reading one of these couples a fid; reading a panel
@@ -190,6 +222,104 @@ spec_referenced_layers <- function(spec) {
     refs <- c(refs, constraint_object_names(proc$constraint))
   }
   unique(refs)
+}
+
+# Canonical node-universe signature of a data object's nodes: the (label, mode)
+# pairs, which is what the mode map keys on. Two objects share one mode-map
+# object iff these coincide. `\r` cannot appear in a label, so the paste is an
+# injective join of the two columns.
+node_universe <- function(nodes) {
+  nodes <- as.data.frame(nodes)
+  modes <- if ("mode" %in% names(nodes)) {
+    as.character(nodes$mode)
+  } else {
+    rep(NA_character_, nrow(nodes))
+  }
+  paste(nodes$label, modes, sep = "\r")
+}
+
+# The distinct side node-id sets a layer spans in the shared mode map. A layer
+# absent from the map (an attribute reference that survived the layer filter, or
+# a legacy object) answers NULL, so the caller treats it as nothing to check.
+joint_layer_side_ids <- function(mode_map, layer) {
+  lm <- mode_map$layers[[layer]]
+  if (is.null(lm)) {
+    return(NULL)
+  }
+  unique(list(lm$side1, lm$side2))
+}
+
+# Detect a subset/nested cross-process read: reading `read_layer` from a process
+# focal on `reader_layer`. Their sides conform by mode-set identity when every
+# pair of sides sharing a node is the SAME node set (a whole shared mode). A pair
+# that overlaps without being identical is a mode subset bridged to a union
+# containing it -- future development ("Gap B"). Returns the offending modes on
+# each side, or NULL when the read conforms.
+cross_read_conflict <- function(mode_map, reader_layer, read_layer) {
+  reader_sides <- joint_layer_side_ids(mode_map, reader_layer)
+  read_sides <- joint_layer_side_ids(mode_map, read_layer)
+  if (is.null(reader_sides) || is.null(read_sides)) {
+    return(NULL)
+  }
+  modes <- mode_map$nodes_lookup$mode
+  side_modes <- function(ids) {
+    m <- unique(modes[ids])
+    m <- m[!is.na(m)]
+    if (length(m) == 0) NA_character_ else as.character(m)
+  }
+  for (rs in reader_sides) {
+    for (ls in read_sides) {
+      if (length(intersect(rs, ls)) == 0L) {
+        next
+      }
+      if (!setequal(rs, ls)) {
+        return(list(
+          reader_modes = side_modes(rs),
+          read_modes = side_modes(ls)
+        ))
+      }
+    }
+  }
+  NULL
+}
+
+# Abort unless every cross-process read conforms by mode-set identity. A read is
+# cross-process when a specification references a layer that is another
+# specification's focal (effect argument or support-constraint atom); such a read
+# is what couples the joined processes, so its node-space conformance is checked
+# here before the process_map is assembled.
+check_cross_process_conformance <- function(
+  specs,
+  focals,
+  mode_map,
+  call = rlang::caller_env()
+) {
+  for (i in seq_along(specs)) {
+    reader <- focals[i]
+    cross <- intersect(
+      spec_referenced_layers(specs[[i]]),
+      setdiff(focals, reader)
+    )
+    for (read_layer in cross) {
+      conflict <- cross_read_conflict(mode_map, reader, read_layer)
+      if (is.null(conflict)) {
+        next
+      }
+      cli::cli_abort(
+        c(
+          "Cross-process read of {.val {read_layer}} by process {.val {reader}}
+           does not conform by mode-set identity.",
+          "x" = "The overlapping node space is a whole mode for neither:
+                 {.val {reader}} spans mode{?s} {.val {conflict$reader_modes}}
+                 and {.val {read_layer}} spans mode{?s}
+                 {.val {conflict$read_modes}}.",
+          "i" = "Subset/nested cross-process coupling is future development
+                 (\"Gap B\"); only whole-shared-mode identity conforms."
+        ),
+        call = call
+      )
+    }
+  }
 }
 
 # Network object names read by a parsed submodel bundle's effects. Windowed
