@@ -1158,7 +1158,7 @@ crossings_from_vectors <- function(vecs) {
 fold_active_dyad_support <- function(
   out,
   support_mask,
-  model_type,
+  spec,
   mask_kind,
   opportunitiesList = NULL
 ) {
@@ -1171,7 +1171,7 @@ fold_active_dyad_support <- function(
   support <- support_mask$support
   has_opportunity <- !is.null(opportunitiesList)
   encoding <- active_dyad_encoding_decide(
-    model_type,
+    risk_set_encoding(spec),
     mask_kind,
     has_opportunity
   )
@@ -1186,14 +1186,14 @@ fold_active_dyad_support <- function(
   # (outer) fold is still pending, so an outer-encoded choice constraint stays on
   # the standalone `support_mask` path; the DyNAM choice alter and point encodings
   # fold below.
-  if (model_type %in% c("REM", "REM-ordered", "DyNAM-MM")) {
+  if (risk_set_is_dyadic(spec)) {
     return(fold_active_dyad_support_rem(
       out,
       support,
       n1,
       n2,
       n_stored,
-      symmetric = identical(model_type, "DyNAM-MM")
+      symmetric = risk_set_symmetrize(spec)
     ))
   }
   if (identical(encoding, "outer")) {
@@ -1876,7 +1876,7 @@ run_dyad_recipe_loop <- function(
         return(fold_active_dyad_support(
           out,
           out$support_mask,
-          legacy_model_type(spec),
+          spec,
           constraint$mask_kind,
           opportunitiesList = opportunitiesList
         ))

@@ -537,15 +537,17 @@ gather_from_prep <- function(prep, spec) {
 #'     length-n2 vector.}
 #' }
 #' `mask_kind` codes: `0` point, `1` alter, `2` ego, `3` scalar; `NULL` when
-#' unconstrained. With `mask_kind = NULL` and `has_opportunity = FALSE` this
-#' reproduces the pre-fold assignment (REM/MM outer, otherwise alter).
+#' unconstrained. `base_encoding` is the spec descriptor's base `active_dyad`
+#' encoding (`"outer"` for the dyadic risk sets that fold both presences,
+#' `"alter"` for choice); with `mask_kind = NULL` and `has_opportunity = FALSE`
+#' this reproduces the pre-fold assignment (dyadic outer, otherwise alter).
 #' @noRd
 active_dyad_encoding_decide <- function(
-  model_type,
+  base_encoding,
   mask_kind = NULL,
   has_opportunity = FALSE
 ) {
-  base_row <- model_type %in% c("REM", "REM-ordered", "DyNAM-MM")
+  base_row <- identical(base_encoding, "outer")
   has_point <- (!is.null(mask_kind) && mask_kind == 0L) ||
     isTRUE(has_opportunity)
   row_from_atom <- !is.null(mask_kind) && mask_kind == 2L
@@ -560,7 +562,7 @@ active_dyad_encoding_decide <- function(
 
 #' @noRd
 active_dyad_encoding_for <- function(spec) {
-  active_dyad_encoding_decide(legacy_model_type(spec))
+  active_dyad_encoding_decide(risk_set_encoding(spec))
 }
 
 #' `active_dyad` read accessors
