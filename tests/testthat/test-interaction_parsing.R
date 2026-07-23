@@ -98,16 +98,20 @@ test_that("a non-interaction formula carries an empty interaction structure", {
   expect_identical(unlist(parsed$is_operand_parameter), c(FALSE, FALSE))
 })
 
-test_that("interactions abort only for DyNAMi (unsupported kernel)", {
+test_that("DyNAMi rejects a stocnet before reaching the interaction kernel", {
   d <- make_interaction_fixture()
   # DyNAM (dyad + sender kernels) and REM compute interactions; DyNAMi routes to
-  # the preprocess_interaction monolith and is not yet supported.
+  # the preprocess_interaction monolith and is not yet supported. That guard is
+  # currently unreachable: make_data() assembles every legacy bundle into a
+  # stocnet, which DyNAMi's engine cannot read at all, so estimation stops
+  # earlier. The interaction guard becomes testable again once DyNAMi accepts a
+  # stocnet at its public surface.
   expect_error(
     estimate_dynami(
       call_network ~ indeg:outdeg,
       sub_model = "rate",
       data = d
     ),
-    "not yet supported"
+    "does not accept a .*stocnet"
   )
 })

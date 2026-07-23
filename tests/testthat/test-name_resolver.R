@@ -162,3 +162,45 @@ test_that("the resolver serves support_constraint atoms too", {
     label = "atoms are plain effects and resolve identically"
   )
 })
+
+test_that("tertius reads its attribute on the argument's own sender side", {
+  # Focal `attend` is actor -> event and `sponsor` is org -> event, so the
+  # effect type-checks (both reach events) while the values it summarizes are
+  # the sponsors' own. Resolving from the focal sender side would read three
+  # actors' sizes where two orgs' are needed.
+  src <- new_data_source(data = make_stocnet_fixture_tertius())
+  resolved <- resolve_formula_names(
+    get_rhs_names(attend ~ tertius(sponsor, size)),
+    src
+  )
+
+  expect_equal(resolved[[1]][[3]], "layer:sponsor:side1$size")
+  expect_equal(
+    ds_attribute(src, "layer:sponsor:side1", "size"),
+    c(12, 8),
+    label = "the org slice, not the actor slice"
+  )
+})
+
+test_that("an argument over the focal pair keeps the focal side's name", {
+  # A node space must have one name: `attend`'s sender side *is* the focal
+  # sender side, so it stays spelled the way every other effect spells it and
+  # the two references share one view of state rather than splitting it.
+  src <- new_data_source(data = make_stocnet_fixture_tertius())
+  resolved <- resolve_formula_names(
+    get_rhs_names(attend ~ tertius(attend, size)),
+    src
+  )
+
+  expect_equal(resolved[[1]][[3]], "nodes_side1$size")
+})
+
+test_that("a one-mode tertius resolves as it always did", {
+  src <- new_data_source(data = make_stocnet_fixture())
+  resolved <- resolve_formula_names(
+    get_rhs_names(calls ~ tertius(calls, floor)),
+    src
+  )
+
+  expect_equal(resolved[[1]][[3]], "nodes$floor")
+})

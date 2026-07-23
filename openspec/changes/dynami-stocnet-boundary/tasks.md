@@ -14,7 +14,10 @@
       opportunity semantics are ALREADY grounded (see progress.md: the list is
       occupied groups at event order, consumed at estimation via
       `compute_step.default`, never by the monolith) — verify only that the
-      remaining env reads are enumerated. Write findings to `progress.md`.
+      remaining env reads are enumerated. ALSO ground the D6 estimation-side
+      wiring: how the DyNAMi choice engine can consume folded availability
+      instead of the opportunities channel (`compute_step.default` adapter
+      need, if any). Write findings to `progress.md`.
 - [ ] 1.2 Build an actors×groups two-mode stocnet fixture mirroring an existing
       DyNAMi test setup (same events both ways: legacy constructors and direct
       stocnet), extending `tests/testthat/helper-stocnet-fixtures.R`; verify the
@@ -37,15 +40,21 @@
       front-end calls (comment it as the temporary seam retired with the
       monolith by the engine conversion); exact-equivalence test: bridge-built
       env components equal constructor-built ones on the 1.2 fixture.
-- [ ] 2.3 Derive the occupancy availability (design D6): the DyNAMi choice
-      path evaluates `~ indeg(<focal>) >= 1` per dependent event with state
-      maintained in `order` (own singleton INCLUDED — occupancy only, no
-      `!tie()`), AND-combines any user `support_constraint`, and feeds the
-      result through the existing internal `opportunitiesList` estimation
-      channel; equivalence test: derived per-event sets equal the
-      construction-stored lists element-for-element on the existing DyNAMi
-      fixtures.
-- [ ] 2.4 Verify: `NOT_CRAN=true` green, DyNAMi baselines PASS; commit.
+- [ ] 2.3 Derive the availability constraint (design D6, corrected
+      2026-07-21): the DyNAMi choice specification auto-derives
+      `~ indeg(<focal>) >= 1 & !tie(<focal>)` (occupied AND not the joiner's
+      own affiliation — own singleton EXCLUDED per the paper), AND-combines
+      any user `support_constraint`, and compiles/folds it through the
+      STANDARD support-constraint machinery — the internal
+      `opportunitiesList` channel is NOT fed (estimation-side wiring per the
+      1.1 grounding); equivalence test: derived per-event sets equal the
+      construction-stored lists MINUS the joiner's own singleton,
+      element-for-element on the existing DyNAMi fixtures.
+- [ ] 2.4 Regenerate the DyNAMi CHOICE baselines as a new versioned set
+      under the own-exclusion correction (document the coefficient shift for
+      the NEWS BREAKING entry); rate baselines untouched. Verify:
+      `NOT_CRAN=true` green, rate baselines PASS unchanged, new choice
+      baselines PASS; commit.
 
 ## 3. Public surface
 
@@ -53,10 +62,24 @@
       surfaces) accept a stocnet `data` for DyNAMi models, resolving the
       actors×groups layer via the mode map and routing through the bridge —
       the DyNAMi spec classes stay thin (consumption remains the monolith);
-      the choice specification attaches the derived occupancy constraint
+      the choice specification attaches the derived support constraint
       (2.3); no public `opportunities` argument; roxygen updated,
       `devtools::document()`.
-- [ ] 3.2 Coefficient equivalence test: stocnet path == constructor path to
+- [ ] 3.2 Implement the D9 flavor-keyed rate surface:
+      `rate = list(join ~ ..., leave ~ ...)` with keys validated against the
+      focal layer's flavor values; desugar to the legacy `joining = 1/-1`
+      single-formula encoding (per-flavor `~ 1` intercepts mapped onto the
+      asymmetric `1 + intercept(<focal>, joining = 1)` legacy spelling —
+      cover every intercept combination: both flavors, one, neither; an
+      effect under both keys becomes two terms); flavor-labeled coefficient
+      names; reject a flavor-keyed `choice` with a `cli` error explaining
+      the leaving choice is deterministic (a plain `choice` formula is the
+      joining choice); roxygen + `devtools::document()`.
+- [ ] 3.3 Keyed-vs-flag equivalence test: the keyed-rate specification ==
+      the hand-written joining-flag formula to 1e-6 on the DyNAMi rate
+      baselines (coefficient name mapping asserted), both engines where
+      applicable.
+- [ ] 3.4 Coefficient equivalence test: stocnet path == constructor path to
       1e-6 on the DyNAMi rate and choice baselines, both engines where
       applicable. Verify + commit.
 
@@ -80,5 +103,8 @@
 - [ ] 5.1 Bump `DESCRIPTION` + `NEWS.md` (BREAKING: legacy environments
       rejected everywhere with the `as_goldfish()` migration; BREAKING:
       `make_groups_interaction()` returns the stocnet, opportunities retired
-      in favor of the derived occupancy constraint; DyNAMi on the single data
-      object); `openspec validate dynami-stocnet-boundary --strict`.
+      in favor of the derived support constraint; BREAKING: the DyNAMi
+      choice denominator excludes the joiner's own singleton per the paper —
+      coefficient shift quantified, new choice baselines; DyNAMi on the
+      single data object); `openspec validate dynami-stocnet-boundary
+      --strict`.

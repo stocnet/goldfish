@@ -73,7 +73,7 @@ test_that("init mixed_common_receiver checks two-mode and dimensions", {
       5,
       5
     ),
-    "must not use when is a two-mode network"
+    "needs a one-mode dependent network"
   )
   # Successful init
   expect_type(

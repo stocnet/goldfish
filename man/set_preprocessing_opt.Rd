@@ -8,6 +8,7 @@ set_preprocessing_opt(
   start_time = NULL,
   end_time = NULL,
   opportunities_list = NULL,
+  impute = NULL,
   db = NULL,
   db_table = "stats"
 )
@@ -43,6 +44,17 @@ per-\verb{(sender, receiver)} risk-set restriction and works on every engine; an
 equivalent constraint over an allowed-dyad network reproduces the
 opportunity-list coefficients.}
 
+\item{impute}{An optional named character vector declaring a per-attribute
+imputation policy, keyed by nodal attribute name (e.g.
+\code{impute = c(party = "as_category")}). Every attribute not named uses the
+default summary contract documented in the \emph{Missing data} section of
+\link{goldfish_data}, so omitting \code{impute} leaves behavior unchanged. Supported
+values: \code{"summary"} (the default rule) and \code{"as_category"} (recode a
+factor or character attribute's missing values to a reserved \code{"(missing)"}
+level, so missingness by design survives to the summarizers). \code{"locf"} is
+reserved for a future estimator and currently aborts as unimplemented.
+Default is \code{NULL}.}
+
 \item{db}{A \code{DBIConnection} object or \code{NULL} (default). When supplied
 together with \code{compute_stats(..., output = "db")}, the gather statistics
 are streamed to the database table named by \code{db_table} instead of being
@@ -58,6 +70,7 @@ to the function. The list object has the following components:
 \item{start_time}{Value from \code{start_time} argument.}
 \item{end_time}{Value from \code{end_time} argument.}
 \item{opportunities_list}{Value from \code{opportunities_list} argument.}
+\item{impute}{Value from \code{impute} argument.}
 }
 \description{
 Specifies control parameters for the data preprocessing stage,

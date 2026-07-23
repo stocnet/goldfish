@@ -126,14 +126,19 @@ test_that("sim returns correct attributes on update", {
   # )
 })
 
-test_that("sim init throws an error when two-mode network", {
+test_that("sim init negates the cross-side difference on a two-mode network", {
+  # This used to abort as two-mode-incompatible; `sim` is the negated `diff`
+  # and is as well defined across sides as `diff` is.
   check <- formals(effectFUN)
   check$is_two_mode <- TRUE
   formals(effectFUN) <- check
-  expect_error(
-    init_DyNAM_choice.sim(effectFUN, testAttr$fishingSkill, NULL, 8, 8),
-    regexp = "doesn't work in two mode networks"
-  )
+
+  ego <- c(1, 4, 9)
+  alter <- c(2, 3)
+  stat <- init_DyNAM_choice.sim(effectFUN, list(ego, alter), NULL, 3, 2)$stat
+
+  expect_equal(dim(stat), c(3L, 2L))
+  expect_equal(stat, (-1) * outer(ego, alter, "-"))
 })
 
 test_that("sim init returns the correct result", {

@@ -261,6 +261,23 @@ test_that("a plain formula on an unflavored layer stays quiet", {
   )
 })
 
+test_that("the two-mode spec print names the real mode pair", {
+  # The node line shows the data's mode names ("p -> o"), not the synthetic
+  # side keys ("nodes_side1 -> nodes_side2").
+  spec <- make_specification(
+    choice = ~inertia,
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    data = make_stocnet_fixture_twomode()
+  )
+  testthat::local_reproducible_output(
+    width = 80,
+    crayon = FALSE,
+    unicode = FALSE
+  )
+  expect_snapshot(print(spec))
+})
+
 test_that("several flavor keys build parallel processes", {
   spec <- make_specification(
     rate = list(creation ~ 1 + indeg, dissolution ~ 1 + inertia),

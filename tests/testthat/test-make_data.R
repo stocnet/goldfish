@@ -377,6 +377,52 @@ test_that("make_data works as expected", {
   )
 })
 
+test_that("make_data two-mode input returns a stocnet, not an environment", {
+  fx <- make_legacy_fixture_twomode()
+  actors <- fx$actors
+  clubs <- fx$clubs
+  membership <- fx$membership
+  joins <- fx$joins
+  joins_dependent <- fx$joins_dependent
+  actor_growth <- fx$actor_growth
+  club_funding <- fx$club_funding
+
+  d <- make_data(
+    joins_dependent,
+    membership,
+    joins,
+    actors,
+    clubs,
+    actor_growth,
+    club_funding
+  )
+
+  expect_s3_class(d, "stocnet")
+  expect_false(is.environment(d))
+  expect_no_error(validate_goldfish_data(d))
+
+  map <- build_mode_map(d$info, d$nodes, "membership")
+  expect_true(map$layers[["membership"]]$is_two_mode)
+})
+
+test_that("make_data one-mode input still returns a stocnet", {
+  data("Social_Evolution", package = "goldfish", envir = environment())
+  actors <- get("actors", environment())
+  calls <- get("calls", environment())
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(call_network, calls, nodes = actors)
+  calls_dependent <- make_dependent_events(
+    events = calls,
+    nodes = actors,
+    default_network = call_network
+  )
+
+  d <- make_data(calls_dependent, call_network, calls, actors)
+
+  expect_s3_class(d, "stocnet")
+  expect_false("mode" %in% names(d$nodes))
+})
+
 test_that("as.data.frame.nodes.goldfish works as expected", {
   expected_df <- data.frame(
     label = sprintf("Actor %d", 1:5),

@@ -142,13 +142,20 @@
 # constructor), so the deprecation attributes to the user's call rather than to
 # goldfish internals -- attributing internally would suppress the warning.
 deprecate_constructor <- function(what, replacement) {
-  lifecycle::deprecate_warn(
-    when = "1.9.0",
-    what = what,
-    details = c(
+  # lifecycle prints `details` verbatim, so cli markup written here reaches the
+  # console as literal braces unless it is formatted first.
+  details <- vapply(
+    c(
       "i" = "goldfish now consumes a single {.cls stocnet} data object.",
       "*" = replacement
     ),
+    cli::format_inline,
+    character(1)
+  )
+  lifecycle::deprecate_warn(
+    when = "1.9.0",
+    what = what,
+    details = details,
     # A stable id so a session warns once per constructor: make_network()'s
     # message interpolates the caller's object names, which would otherwise vary
     # the default id and re-warn on every distinct call.
@@ -278,8 +285,10 @@ make_nodes_goldfish <- make_nodes
 #'
 #' @param matrix An initial matrix (optional), and object of class `matrix`.
 #' @param nodes A node-set (see [make_nodes()]).
-#' @param nodes2 A second optional node-set for the definition of
-#'   two-mode networks.
+#' @param nodes2 `r lifecycle::badge("deprecated")` A second optional node-set
+#'   for the definition of two-mode networks. Deprecated with the constructor:
+#'   a two-mode layer is expressed on the single data object by a `mode` column
+#'   in `nodes` plus per-layer `sender`/`receiver` mode sets.
 #' @param directed A logical value indicating whether the network is directed.
 #' @param envir An [environment-class] object where the nodes-set objects are
 #' defined. The default value is [environment()].
@@ -330,9 +339,21 @@ make_network <- function(
 ) {
   mat_name <- deparse(substitute(matrix, envir))
   nodes_name <- deparse(substitute(nodes, envir))
+  nodes2_name <- deparse(substitute(nodes2, envir))
   deprecate_constructor(
     "make_network()",
-    if (is.null(matrix)) {
+    if (!is.null(nodes2)) {
+      # The two node-set form has its own replacement: one nodes table with a
+      # `mode` column, and the layer's sides named as mode sets. Point there
+      # rather than at the one-mode join, which cannot express it.
+      sprintf(
+        "Give the nodes a {.field mode} column distinguishing %s from %s, then
+         name the layer's sides with {.code add_info(sender = ..., receiver =
+         ...)}.",
+        nodes_name,
+        nodes2_name
+      )
+    } else if (is.null(matrix)) {
       sprintf(
         "Build the layer from ties: {.code as_stocnet(<edgelist>) |> join_nodes(%s)}.", # nolint
         nodes_name
@@ -462,8 +483,10 @@ make_network_goldfish <- make_network
 #' considered as a dependent variable in models.
 #' @param nodes a data frame or a `nodes.goldfish` object containing the nodes
 #' used in the event list.
-#' @param nodes2 a second nodeset in the case that the events occurs in a
-#' two-mode network.
+#' @param nodes2 `r lifecycle::badge("deprecated")` a second nodeset in the
+#' case that the events occurs in a two-mode network. Deprecated with the
+#' constructor: declare the two sides as mode sets on the single data object
+#' instead.
 #' @param default_network the name of a `network.goldfish` object.
 #' @param envir An [environment-class] object where the nodes-set
 #' and default network objects are defined. The default value is
@@ -1045,8 +1068,10 @@ make_data_goldfish <- make_data
 #'   nodeset).
 #' @param nodes a nodeset (`data.frame` or `nodes.goldfish` object)
 #'   related to the network (ONLY if `x` is a network)
-#' @param nodes2 an optional nodeset (`data.frame` or `nodes.goldfish` object)
-#'   related to the network (ONLY if `x` is a network)
+#' @param nodes2 `r lifecycle::badge("deprecated")` an optional nodeset
+#'   (`data.frame` or `nodes.goldfish` object) related to the network (ONLY if
+#'   `x` is a network). Deprecated with the constructor: declare the two sides
+#'   as mode sets on the single data object instead.
 #' @param replace a character string naming the column in `change_events` that
 #'   holds the replacement value (ONLY if `x` is a `global.goldfish` object).
 #'   Defaults to `"replace"`.

@@ -1,3 +1,137 @@
+# goldfish 1.9.7
+
+## Bug fixes
+
+* **The modeled layer, not `info$focal`, drives focal resolution during
+  estimation.** A hand-built `stocnet` with no `info$focal` now estimates
+  whenever the formula's left-hand side (or a specification's `layer`) names the
+  dependent -- for one-mode and two-mode objects alike. Previously such an object
+  aborted with an internal indexing error. `info$focal` is now only the optional
+  *default* for which layer to model; the layer actually being modeled drives
+  every focal, side, and mode lookup, so an `info$focal` that names a different
+  layer than the one modeled no longer wins over the modeled layer.
+
+# goldfish 1.9.6
+
+## New features
+
+* **Multipartite DyNAM and REM models over two-mode networks.** A `stocnet`
+  whose focal layer runs between two different modes (an actor sending to a
+  concept, an author to a paper) is now a first-class modeling object across the
+  DyNAM rate, DyNAM choice, and REM engines. Node identity is carried by the
+  object's mode map -- one nodes tibble with a `mode` column resolves each
+  layer's side pair -- so an object may mix one-mode and two-mode layers, and a
+  model over a two-mode focal layer reads one-mode covariate layers through
+  their own side pairs. `make_data()` on the legacy two-node-set constructors
+  now assembles to the same `stocnet` representation, and estimates to identical
+  coefficients (a 1e-6 equivalence guard covers both construction paths). Two-mode
+  preprocessed and estimation results carry a per-side node lookup, so gather and
+  database exports join `index_i` / `index_j` back to each side's labels.
+
+* **Effect-validity contract for two-mode focal layers.** Each effect's side
+  requirements are checked at parse time against the data's mode map, per index
+  position rather than as a blanket "works on two-mode" verdict. A one-mode
+  closure effect on a two-mode focal layer (`recip`, `trans`, `cycle`) is
+  rejected by name, comparing the two modes; the message lists the effects a
+  two-mode focal layer does admit. Effects whose `type` variant selects a side
+  (`indeg`, `outdeg`, `tertius`) reject the degenerate variant that would count
+  ties that cannot exist.
+
+## Bug fixes
+
+* **A two-mode rate model no longer crashes with `'x' is too short`.** The rate
+  spec constructor dropped the receiver side, collapsing the two-mode dimensions
+  to the sender count.
+
+* **`indeg()` / `degree()` no longer crash on a two-mode network with a
+  `'length = 2'` coercion error.** The choice-set arguments (`type`, `history`,
+  ...) are now resolved to a single validated value once, at the parser, before
+  any effect init reads them, so a two-mode `indeg(x)` can no longer reach a
+  length-2 `type` comparison. An out-of-set value (`type = "bogus"`) aborts at
+  the formula, naming the effect, the argument, and the allowed set.
+
+* **`make_specification()` and flavor-keyed specs no longer reject a
+  `global()` / `ego()` interaction operand** as an unidentified main effect. An
+  operand feeding an interaction term is held out of the main-effect
+  identifiability check, mirroring the plain-formula path, so period-interacted
+  choice models (`effect:global(period)`) build.
+
+* **Categorical attribute imputation no longer writes `NA` into state.** A
+  categorical nodal attribute with a missing `replace` value in an event stream
+  reached a `mean()` of character values; the same event's effect update then
+  received `NA` and died on an equality comparison.
+
+* **Two-mode `choice_coordination` now aborts cleanly**, naming the sub-model
+  and layer, instead of crashing in the C++ engine: coordination reads both
+  directed dyads over a single node set, which a disjoint two-mode side pair
+  cannot supply.
+
+## Documentation
+
+* **New `two-mode` vignette** reproducing the multimodal DyNAM of Haunss &
+  Hollway (2023) on `manynet::irps_nuclear`: the `manynet` verb pipeline that
+  builds the `stocnet` on goldfish's native POSIXct axis, the two-mode
+  effect-validity discussion, the rate and choice models with two-mode *tertius*
+  effects, discursive periods as both interacted global dummies and separate
+  window fits (which agree to machine precision), and the distinction between
+  structural and informative missingness.
+
+* **`?goldfish_data` gains a multipartite section** describing mode sets, the
+  manynet-to-stocnet conversion pattern, and a pointer to the vignette. The
+  effects vignette's blanket "cannot be used for two-mode networks" claims are
+  corrected: `four`, `same`, `diff`, `sim`, and `mixed_trans` do apply, and the
+  degree and shared-partner statements are type-qualified.
+
+# goldfish 1.9.5
+
+## New features
+
+* **`set_preprocessing_opt()` gains an `impute` argument** declaring a
+  per-attribute imputation policy, a named character vector keyed by nodal
+  attribute. The default `"summary"` is the published contract, so omitting the
+  argument changes nothing. `"as_category"` recodes a factor or character
+  attribute's missing values to a reserved `"(missing)"` level -- in the initial
+  table and in the attribute's event streams -- so missingness by design
+  survives to the summarizers as an ordinary category instead of being filled
+  with the most common value. Validation aborts on an unknown attribute, an
+  attribute no effect reads, `"as_category"` on a numeric attribute, a
+  collision with an observed `"(missing)"` value, and the reserved-but-
+  unimplemented `"locf"` value. The policy requires stocnet data objects.
+
+## Internal
+
+* **The R estimation engine's broadcast fan-out now keeps the reflexive
+  diagonal cell on the same condition as the risk set** -- `allowReflexive ||
+  is_two_mode` -- instead of testing `is_two_mode` alone, matching the C++
+  engines. This is currently a no-op: `allowReflexive` is not exposed and is
+  always `FALSE`, so the two conditions coincide for every fitted model and the
+  frozen coefficient baselines are unchanged. It removes a dormant asymmetry so
+  that if self-ties are ever allowed on a one-mode model, a broadcast-eligible
+  effect will not silently drop the diagonal dyad the risk set retains.
+
+# goldfish 1.9.4
+
+## Behavior changes
+
+* **A missing global attribute value now aborts** at schedule construction,
+  before the walk begins, naming the object and -- for an event-stream value --
+  its time. A global attribute holds a single value, so its imputation pool is
+  empty by construction; the previous behavior gave two different wrong answers
+  (a not-a-number from the mean of a length-one missing vector at the start of
+  the window, an arbitrary zero written into state during the walk). Supply an
+  observed initial value, a first event that sets one, or an explicit event
+  value.
+
+## Documentation
+
+* **The missing-data contract is published** as a shape-by-time table on the
+  `goldfish_data` help topic (inherited by the estimation topics) and in the
+  DyNAM modeling vignette: the rule for every object shape (dyad, global, nodal
+  numeric, nodal categorical) at both evaluation times, the disclosure that an
+  imputed value joins the state and informs later imputations (so single
+  imputation understates uncertainty), and a recommendation to combine multiple
+  imputations under Rubin's rules with `mitools::MIcombine()`.
+
 # goldfish 1.9.3
 
 ## New features

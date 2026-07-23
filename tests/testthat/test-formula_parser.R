@@ -285,15 +285,16 @@ test_that("create_effects_functions resolves the two-mode guard from source", {
   # derived network is NOT realized: the guard cannot get() it.
   expect_false("call_network_300" %in% ls(envirTest))
 
-  expect_warning(
+  # Injecting the value the data implies is the normal path, not a user error,
+  # so it is silent; only a declared value that disagrees warns.
+  expect_no_warning(
     effects <- create_effects_functions(
       parsed$rhs_names,
       "DyNAM",
       "choice",
       envir = envirTest,
       derivations = parsed$window_derivations
-    ),
-    "Setting 'is_two_mode' parameter"
+    )
   )
   # the guard resolved is_two_mode = TRUE from the source's nodesets.
   expect_true(eval(formals(effects[[1]]$effect)[["is_two_mode"]]))
@@ -530,9 +531,12 @@ test_that("unknown effect", {
   )
 })
 
-test_that("warning two mode", {
+test_that("a declared is_two_mode disagreeing with the data warns", {
+  # The mode map is the source of truth: a declared value that contradicts it
+  # is a mistake about the data, so the data's reading wins and the user is
+  # told. (Injecting the derived value when nothing is declared is silent.)
   formStat <- calls_dependent ~ inertia +
-    trans(call_network, transformer_fn = log1p)
+    trans(call_network, transformer_fn = log1p, is_two_mode = FALSE)
 
   n_terms <- length(labels(terms(formStat)))
 
@@ -569,13 +573,17 @@ test_that("warning two mode", {
   parsed_formula <- parse_formula(formStat, envir = envirTest)
 
   expect_warning(
-    create_effects_functions(
+    effects <- create_effects_functions(
       parsed_formula$rhs_names,
       "DyNAM",
       "choice",
       envir = envirTest
     ),
-    "Setting 'is_two_mode' parameter"
+    "disagrees with the data"
+  )
+  expect_true(
+    eval(formals(effects[[2]]$effect)[["is_two_mode"]]),
+    label = "the mode map's reading wins over the declared FALSE"
   )
 })
 
@@ -893,4 +901,53 @@ test_that("get_events_and_objects_link handles global.goldfish without error", {
     envir = envirTest
   )
   expect_true("season_changes" %in% names(result[[1]]))
+})
+
+test_that("two-modeness resolves per network argument, not from the focal", {
+  # D4's per-argument rule: each network argument answers from its OWN layer.
+  # On a multipartite object the focal `attend` is two-mode, yet the one-mode
+  # covariate `coauthor` must still read FALSE. Both terms read the sender
+  # side, the only side of the focal `attend` these covariates share.
+  d <- as_goldfish(make_stocnet_fixture_multipartite())
+  parsed <- parse_formula(
+    attend ~ indeg(coauthor, type = "ego") + outdeg(member, type = "ego"),
+    data = d
+  )
+  effects <- create_effects_functions(
+    parsed$rhs_names,
+    "DyNAM",
+    "choice",
+    data = d
+  )
+
+  expect_false(
+    eval(formals(effects[[1]]$effect)[["is_two_mode"]]),
+    label = "coauthor is actor -> actor"
+  )
+  expect_true(
+    eval(formals(effects[[2]]$effect)[["is_two_mode"]]),
+    label = "member is actor -> org"
+  )
+})
+
+test_that("the mismatch warning names the layer's actual mode pair", {
+  d <- as_goldfish(make_stocnet_fixture_multipartite())
+  parsed <- parse_formula(
+    attend ~ outdeg(member, type = "ego", is_two_mode = FALSE),
+    data = d
+  )
+
+  expect_warning(
+    effects <- create_effects_functions(
+      parsed$rhs_names,
+      "DyNAM",
+      "choice",
+      data = d
+    ),
+    "sends from mode .actor. to mode .org."
+  )
+  expect_true(
+    eval(formals(effects[[1]]$effect)[["is_two_mode"]]),
+    label = "the mode map's reading wins"
+  )
 })

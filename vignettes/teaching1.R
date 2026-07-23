@@ -44,6 +44,8 @@ social_evolution_built
 social_evolution_built <- add_info(
   social_evolution_built,
   name = "Social Evolution MIT",
+  # focal is optional -- the formula LHS names the dependent. Recorded here only
+  # to set the shipped object's default; drop it and `calls ~ ...` still works.
   focal = "calls",
   directed = c(friendship = TRUE, calls = TRUE),
   observation = c(friendship = "panel", calls = "event")

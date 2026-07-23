@@ -61,8 +61,9 @@ social_evolution
 
 The object carries two **layers** over one node set of 84 actors: `calls`, the
 time-stamped phone calls (an `"event"` layer), and `friendship`, the survey
-nominations (a `"panel"` layer). The `calls` layer is the **focal** layer --
-the dependent process we model.
+nominations (a `"panel"` layer). We model the `calls` layer here: a model names
+its dependent process on the formula's left-hand side, and `social_evolution`
+also records `calls` as the optional default **focal** layer.
 
 # Preamble: Run a quick DyNAM in three lines
 
@@ -228,9 +229,11 @@ social_evolution_built
 
 ## Step 1b: Declaring the layer semantics
 
-`add_info()` records the metadata `goldfish` needs: which layer is `focal` (the
-dependent process), whether each layer is `directed`, and each layer's
-`observation` type. `goldfish` models two observation types:
+`add_info()` records the metadata `goldfish` needs: whether each layer is
+`directed`, each layer's `observation` type, and -- optionally -- a default
+`focal` layer. `focal` is not required: the formula's left-hand side (or a
+specification's `layer`) names the dependent, and that modeled layer drives the
+rest. `goldfish` models two observation types:
 
 - an `"event"` layer is a stream of time-stamped relational events (the
   `calls`), and
@@ -242,6 +245,8 @@ dependent process), whether each layer is `directed`, and each layer's
 social_evolution_built <- add_info(
   social_evolution_built,
   name = "Social Evolution MIT",
+  # focal is optional -- the formula LHS names the dependent. Recorded here only
+  # to set the shipped object's default; drop it and `calls ~ ...` still works.
   focal = "calls",
   directed = c(friendship = TRUE, calls = TRUE),
   observation = c(friendship = "panel", calls = "event")
@@ -268,6 +273,32 @@ A few conventions worth knowing when you assemble your own data:
 - **Tie-break with `order`.** If two events with the same `replace` target hit
   the exact same timestamp, add an integer `order` column so their sequence is
   unambiguous (again, see the Fisheries vignette).
+
+## Missing data
+
+goldfish imputes a missing value during preprocessing, before any effect is
+evaluated, by a single rule that depends on the object's *shape* and on *when*
+the value is missing:
+
+| shape | at the start of the window | during the walk |
+|---|---|---|
+| dyad (network) | `NA` is no tie (zero) | a missing `increment`/`replace` is no tie (zero) |
+| global | aborts | aborts |
+| node, numeric | mean of the node's mode category, itself excluded | the same rule, on the state at the event's time |
+| node, categorical | most common value in the node's mode category, itself excluded | the same rule, on the state at the event's time |
+
+A missing tie is the *absence* of a tie -- a definition, not a summary. A
+global attribute has a single value and so no pool to summarize from: a missing
+global value aborts at schedule construction rather than being replaced by an
+arbitrary zero.
+
+An imputed value joins the process state exactly as an observed one does, so a
+nodal value missing *after* the start of the window is summarized from a pool
+that may already contain earlier *imputed* values. Single imputation treats
+those as observed and understates the uncertainty the missingness carries; when
+that uncertainty matters to the conclusions, impute *before* building the
+goldfish object and combine several fits under Rubin's rules (see the
+`goldfish_data` help page's *Missing data* section).
 
 ## Intermediate step: Visualization
 
@@ -409,8 +440,8 @@ mod02Choice <- estimate_dynam(
   sub_model = "choice",
   data = social_evolution
 )
-#> Warning: ℹ Missing data has been detected. Mean is used to impute for numerical
-#> values
+#> Warning: ℹ Missing data has been detected. The mean is used to impute numeric
+#>   attributes.
 summary(mod02Choice)
 #> 
 #> Call:
@@ -697,8 +728,8 @@ mod03Choice <- estimate_dynam(
   sub_model = "choice",
   data = social_evolution
 )
-#> Warning: ℹ Missing data has been detected. Mean is used to impute for numerical
-#> values
+#> Warning: ℹ Missing data has been detected. The mean is used to impute numeric
+#>   attributes.
 summary(mod03Choice)
 #> 
 #> Call:
@@ -807,8 +838,8 @@ mod01REM <- estimate_rem(
   data = social_evolution,
   control_estimation = set_estimation_opt(engine = "gather_compute")
 )
-#> Warning: ℹ Missing data has been detected. Mean is used to impute for numerical
-#> values
+#> Warning: ℹ Missing data has been detected. The mean is used to impute numeric
+#>   attributes.
 
 summary(mod01REM)
 #> 

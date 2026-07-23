@@ -53,7 +53,7 @@ test_that("Imputation of missing data when numerical data is missing.", {
   )
   expect_warning(
     impute_missing_data(effectTableTest, envir = environment()),
-    "Missing data has been detected. Mean is used to impute for numerical values"
+    "The mean is used to impute"
   )
 })
 
@@ -121,6 +121,6 @@ test_that("Imputation of missing data when categorical/string data is missing.",
   )
   expect_warning(
     impute_missing_data(effectTableTest, envir = environment()),
-    "Missing data has been detected. Mode is used to impute for categorical values"
+    "The most common value is used to impute"
   )
 })

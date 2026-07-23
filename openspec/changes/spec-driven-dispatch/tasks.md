@@ -1,3 +1,18 @@
+## 0. Re-ground the 2026-07-10 audit (added 2026-07-21)
+
+- [ ] 0.1 Re-verify the Context audit before any edit: three changes archived
+      since it was taken (`refactor-likelihood-compute`,
+      `refactor-single-data-object`, `flavored-processes`) rewrote
+      `model_estimate.R` / `model_preprocess.R` / `estimation_core.R`.
+      Confirm the four claims still hold (consumption-block extent,
+      `senderGate` dead, `remMask` unreachable, outer fold still pending),
+      refresh every line anchor cited in `design.md`/`tasks.md`, inventory
+      flavored's new consumers (`estimate_flavored()` per-fid loop,
+      `preprocess_flavored.R` consumer specs) and any model-type strings in
+      those files for the D5 widening, and re-check descriptor geometry
+      against the landed multimode mode-map surface. Write findings to
+      `progress.md`.
+
 ## 1. Risk-set descriptor on the model spec (design D1)
 
 - [ ] 1.1 Attach the risk-set descriptor to the spec constructors

@@ -49,25 +49,64 @@ SHALL never be exposed to or accepted from the user.
 - **THEN** the environment components the monolith reads are exactly equal on
   both paths.
 
-### Requirement: Group availability is a derived occupancy constraint
-The public surface SHALL NOT take an `opportunities` list: the DyNAMi choice
-specification SHALL auto-derive the occupancy constraint
-`~ indeg(<focal layer>) >= 1` (existing support-constraint grammar — a group
-is in the choice set iff occupied at the decision point in event order,
-including the joiner's own intermediary singleton, reproducing the
-established estimation exactly), AND-combined with any user
-`support_constraint`. The estimation SHALL feed the derived per-event
-availability through the existing internal `opportunitiesList` channel; no
-engine change. The dead `setopportunities_interaction()` SHALL be removed.
+### Requirement: DyNAMi rate specification is flavor-keyed
+For `model = "DyNAMi"`, `make_specification()` SHALL accept `rate` as a
+flavor-keyed list (`join`/`leave` keys validated against the focal layer's
+flavor values) expressing the joining and leaving rate models in the existing
+flavored grammar. The boundary SHALL desugar the keyed list into the legacy
+per-effect `joining = 1/-1` single-formula encoding consumed by the untouched
+monolith — per-flavor `~ 1` intercepts mapped onto the legacy intercept
+encoding, an effect under both keys becoming two terms — and coefficient
+names SHALL render flavor labels. The `joining` flag SHALL NOT appear on the
+new surface. `choice` SHALL be a plain one-sided formula denoting the joining
+choice; a flavor-keyed `choice` SHALL be rejected with an error explaining
+that the leaving choice is deterministic.
 
-#### Scenario: Derived availability equals the stored list
+#### Scenario: Keyed rate equals the legacy flag formula
+- **WHEN** the same DyNAMi rate model is specified as
+  `rate = list(join ~ ..., leave ~ ...)` and as the legacy single formula
+  with `joining = 1/-1` flags
+- **THEN** both estimate identical coefficients to within 1e-6, with
+  flavor-labeled names on the keyed path.
+
+#### Scenario: Effect present in both rates
+- **WHEN** an effect appears under both the `join` and the `leave` key
+- **THEN** it becomes two statistics (one per rate model), matching the
+  legacy double-entry idiom.
+
+#### Scenario: Keyed choice is rejected
+- **WHEN** `make_specification(model = "DyNAMi", choice = list(join ~ ...))`
+  is called
+- **THEN** construction aborts with an error explaining that `choice` is the
+  joining choice and the leaving choice is deterministic.
+
+### Requirement: Group availability is a derived support constraint
+The public surface SHALL NOT take an `opportunities` list: the DyNAMi choice
+specification SHALL auto-derive the constraint
+`~ indeg(<focal layer>) >= 1 & !tie(<focal layer>)` (existing
+support-constraint grammar — a second-mode node is in the choice set iff
+occupied at the decision point in event order AND not the joiner's own
+current affiliation; the own singleton is excluded per the paper's choice
+set), AND-combined with any user `support_constraint`. The constraint SHALL
+be compiled and folded through the standard support-constraint machinery —
+DyNAMi choice estimates as a normal constrained model — and SHALL NOT be fed
+through the internal `opportunitiesList` channel. The dead
+`setopportunities_interaction()` SHALL be removed.
+
+#### Scenario: Derived availability equals the stored list minus the own singleton
 - **WHEN** a fixture that legacy code drove with an explicit `opportunities`
   list is estimated through the stocnet boundary without one
 - **THEN** the per-event derived availability equals the constructor-stored
-  list (own singleton included) and the coefficients match to 1e-6.
+  list with the joiner's own singleton removed.
+
+#### Scenario: Own-exclusion correction is baselined
+- **WHEN** the DyNAMi choice model estimates under the derived constraint
+- **THEN** coefficients match the new versioned choice baselines (own
+  singleton excluded from the denominator) to 1e-6, and the rate baselines
+  PASS unchanged.
 
 #### Scenario: User constraint composes with the derived one
 - **WHEN** a DyNAMi choice specification also supplies a user
   `support_constraint`
-- **THEN** the effective risk set is the AND of the derived occupancy
-  constraint and the user constraint.
+- **THEN** the effective risk set is the AND of the derived constraint and
+  the user constraint.

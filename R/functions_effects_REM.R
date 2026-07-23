@@ -183,12 +183,15 @@ init_REM_choice.indeg <- function(effect_fun, network, window, n1, n2, ...) {
   is_two_mode <- eval(params[["is_two_mode"]])
   type <- eval(params[["type"]])
   if (is_two_mode && type == "ego") {
-    stop(
-      dQuote("indeg"),
-      "effect must not use for type 'ego' (type = 'ego') when is ",
-      "a two-mode network (is_two_mode = TRUE) ",
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "{.fn indeg} with {.arg type} = {.val ego} cannot be computed on a
+       two-mode network.",
+      "x" = "It counts the ties the sender receives, and senders of a two-mode
+             network are never receivers, so every entry would be
+             {.val {0}}.",
+      "i" = "Use {.code type = \"alter\"} for receiver popularity, or an
+             {.fn indeg} over a one-mode network among the senders."
+    ))
   }
   rate_init <- init_DyNAM_rate.indeg(effect_fun, network, window, n1, n2, ...)
   stat <- matrix(
@@ -348,12 +351,14 @@ init_REM_choice.outdeg <- function(effect_fun, network, window, n1, n2, ...) {
   is_two_mode <- eval(params[["is_two_mode"]])
   type <- eval(params[["type"]])
   if (is_two_mode && type == "alter") {
-    stop(
-      dQuote("outdeg"),
-      "effect must not use for type 'alter' (type = 'alter') when is ",
-      "a two-mode network (is_two_mode = TRUE) ",
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "{.fn outdeg} with {.arg type} = {.val alter} cannot be computed on a
+       two-mode network.",
+      "x" = "It counts the ties the receiver sends, and receivers of a two-mode
+             network never send, so every entry would be {.val {0}}.",
+      "i" = "Use {.code type = \"ego\"} for sender activity, or an
+             {.fn outdeg} over a one-mode network among the receivers."
+    ))
   }
   rate_init <- init_DyNAM_rate.outdeg(effect_fun, network, window, n1, n2, ...)
   stat <- matrix(
@@ -856,11 +861,14 @@ init_REM_choice.tertius <- function(
   is_two_mode <- eval(params[["is_two_mode"]])
   type <- eval(params[["type"]])
   if (is_two_mode && type == "ego") {
-    stop(
-      "'tertius' effect must not use for type 'ego' (type = 'ego') when is ",
-      "a two-mode network (is_two_mode = TRUE) ",
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "{.fn tertius} with {.arg type} = {.val ego} cannot be computed on a
+       two-mode network.",
+      "x" = "It summarizes the attribute over the sender's in-neighbors, and
+             senders of a two-mode network never receive.",
+      "i" = "Use {.code type = \"alter\"} to summarize over the receiver's
+             in-neighbors, or {.code tertius_diff()}."
+    ))
   }
   rate_init <- init_DyNAM_rate.tertius(
     effect_fun,
@@ -1184,11 +1192,13 @@ init_REM_choice.node_trans <- function(
   is_two_mode <- eval(params[["is_two_mode"]])
   type <- eval(params[["type"]])
   if (is_two_mode) {
-    stop(
-      "'node_trans' effect must not use ",
-      "when is a two-mode network (is_two_mode = TRUE)",
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "{.fn node_trans} cannot be computed on a two-mode network.",
+      "x" = "It counts paths {.code i -> k -> j}, which need one node set on
+             both ends of a tie.",
+      "i" = "Use {.code four()} for the two-mode closure, or {.fn node_trans}
+             over a one-mode network."
+    ))
   }
   rate_init <- init_DyNAM_rate.node_trans(
     effect_fun,

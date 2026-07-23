@@ -122,8 +122,15 @@ working contract for the specs/tasks.)
 - `network` — required object kind(s): network layer, actor attribute, global
   attribute, or none.
 - `directed` / `undirected` — allowed network directionality.
-- `one_mode` / `two_mode` — allowed mode (replaces parser `is_two_mode`
-  inference + warnings, which the constructor now sets authoritatively).
+- `mode_signature` — per network-argument slot, the typed index pattern over
+  position variables (S1 = focal sender side, S2 = focal receiver side, free
+  inner modes M): e.g. `recip` w: S2→S1; `four` w: S1→S2; `mixed_trans`
+  A: S1→M, B: M→S2; type-parametrized effects carry per-variant signatures
+  (`indeg(type = "ego")` reads w[·, i] ⇒ needs S1 ⊆ R2). Replaces the earlier
+  `one_mode`/`two_mode` booleans — see D23.
+- `attr_reads` — per attribute argument, the position(s) it reads (S1, S2,
+  both, or a network argument's side), driving per-slice definedness checks
+  (D23).
 - `models` / `sub_models` — allowed model/sub_model contexts.
 - `interaction` — whether the term is valid inside an interaction term.
 - `reflexive` — whether the diagonal is meaningful (informs broadcast/decode).
@@ -390,6 +397,117 @@ and PDF-manual bloat; SVG doesn't render in the CRAN PDF manual anyway.
   no `refactor-likelihood-compute` dependency; needs `last_event_time`
   (D14).
 - `proportion`/`total` are event-triggered and piecewise-constant already.
+
+### D23: Mode-signature validity metadata replaces the one_mode/two_mode booleans (2026-07-21, from `multimode-network-support`)
+The multimode per-argument derivation (that change's rewritten D4) showed
+boolean allowed-mode flags cannot express what validity actually depends on:
+(i) **type variants** — `indeg(type = "alter")` is valid on a two-mode focal
+while `indeg(type = "ego")` is structurally zero; (ii) **argument roles** —
+`common_sender`/`common_receiver` two-modeness is a property of the *covariate*
+(one-mode focal + two-mode covariate projection), not the focal layer;
+(iii) **chain conformability** — mixed effects conform by mode-set identity
+through the argument list, never by dimension equality.
+
+Schema: `mode_signature` + `attr_reads` per D2(e). Validation is **one generic
+signature interpreter** that evaluates any term's signature against the mode
+map — conformability and non-degeneracy are the same check on the
+type-resolved signature, and definedness follows from `attr_reads`. **Validity
+groups** (terms sharing a signature shape: dyad-direct, reverse-dyad,
+square-path, same-side shared-partner, three-path, chain, monadic-side,
+cross-side-compare, neighbor-aggregate, global) are *derived* from the
+signatures for docs, tests, and error text — not hand-maintained per-group
+validator functions, which would drift exactly like the per-effect stops they
+replace. Seed + verification: the corrected taxonomy and table-driven boundary
+test from `multimode-network-support` (its D4/D10) feed task 1.3's inventory.
+*Rejected:* per-group validator functions keyed by a stored group name — the
+group is representation, the signature is the truth; keeping the booleans
+alongside signatures — two sources of validity truth.
+
+**Addenda (2026-07-21, from `multimode-network-support`'s D12/D13 sessions):**
+
+- **The `is_two_mode` *formal* survives; only the registry *metadata* booleans
+  go.** These are two different things with confusingly similar names. D2(e)'s
+  `one_mode`/`two_mode` were declared validity metadata — replaced by
+  `mode_signature`. The `is_two_mode` **argument** on ~69 effect surfaces is a
+  *derived runtime value*, injected at parse time from the mode map, now per
+  attribute position (multimode D12 as revised). Reading "signatures replace the
+  booleans" as "strip `is_two_mode` from the signatures" would be the opposite
+  of what was decided: the effect is *told* what the mapping derived rather than
+  re-deriving it, and duplicating that derivation across ~20 inits is how two
+  readings drift apart.
+- **Any dispatch plan must reckon with the update side having no S3.** The
+  `update_*` functions are resolved **by name**
+  (`paste("update", model, sub_model, effect, sep = "_")`), not dispatched, so a
+  mode/variant dispatch axis would cover `init_*` only unless updates are made
+  generic first. Multimode considered and rejected such an axis
+  (`sim` vs `sim_cross_side`): the entire delta is unwrapping a list instead of
+  a vector plus skipping one `diag()` line — no time saved, method surface
+  doubled, and it re-inflates exactly what this change's move from
+  model-dependency to object-dependency deflates. If dispatch returns here, it
+  should be justified by something other than the two-mode split.
+- **`attr_reads` resolves to a mode-set key.** Multimode D13 keys nodal state by
+  the **canonicalized mode set** a position reads, so two layers declaring the
+  same side share one view. The signature interpreter should emit that same key
+  rather than a parallel notion of "which node space", so registry output and
+  state-container keys are one vocabulary.
+- **Declared positions vs resolved arity — affects D6 rendering, not just
+  validation.** `same`/`diff`/`sim` declare **two** attribute positions that
+  **collapse to one** when both resolve to the same node space (the one-mode
+  case, which is how the frozen baselines keep their existing code path). So
+  arity is a function of the data, and `GetDetailPrint()` builds
+  `effect_description` from the resolved reference names with column count
+  `max(objects_effects_link)` — meaning a two-mode `same(z)` gains an `Object 2`
+  column and would render a second operand in the compact `effect/obj·obj2`
+  string where the user wrote one. Schema (f) must express "N declared
+  positions, arity collapses at resolution", and D6's rendering must key off the
+  *declared* positions rather than the resolved references. Left unhandled this
+  surfaces as an unexplained snapshot diff far from its cause.
+
+### D24: Argument resolution centralizes on the registry's `allowed` schema (2026-07-22, from `multimode-network-support`)
+`multimode-network-support` (its D14) found the argument-side twin of D23's
+validity finding: an effect's **choice-set arguments** (`type`, `history`,
+`sub_type`, `joining`) were resolved in *two* readers and validated in neither
+consistently. The `update_*` bodies call `match.arg(type)` / `match.arg(history)`;
+the `init_*` read the *raw* formal and compared a length-2 default vector,
+crashing a two-mode `indeg` with `'length = 2' in coercion to 'logical(1)'`; the
+parse-time validity gate used a bare `[1]` that picks the default but validates
+nothing (`type = "bogus"` slips through to mid-walk). As a stopgap that change
+centralizes resolution at the parser — `resolve_effect_args()` runs
+`rlang::arg_match()` over the closure's *original* default and writes a validated
+scalar back into the signature — reading the **closure default** as the
+transitional source of truth (the argument twin of D8/D17).
+
+**Registry target.** The choice-set vocabulary belongs in the `term_def`
+**argument schema, D2(f)**: each argument's `allowed` values, `default`,
+`validate` rule, and `error` message. The term constructor (D3/D4) resolves and
+validates arguments **at construction** via `arg_match` against the registry's
+`allowed` — not against a closure formal the user's value may have overwritten,
+which is the exact reason multimode could not resolve at the init and had to
+climb up to the parser. Consequences that fold into the existing plan:
+
+- **The `update_*` bodies stop calling `match.arg`.** Resolution happens once at
+  construction; the recipe receives an already-canonical scalar. This is the
+  same "recipe bodies shed scattered logic" move D4 / task §7 already make for
+  argument *encoding* — `match.arg` is just un-encoded argument resolution, so
+  fold the `type` / `history` calls listed in §7.3–7.4 into the `allowed` schema
+  rather than leaving them in the bodies.
+- **`resolve_effect_args()` retires into the constructor**, exactly as the
+  multimode init/parse validity checks retire into the D23 signature
+  interpreter: the transitional parser-seam reader is replaced by the registry's
+  declarative `allowed`, the derivation unchanged. This is also why the init-time
+  resolution multimode *rejected* becomes viable here — the registry is the
+  single source of truth for the choice set that the closure could not supply.
+- **The init's length-2 hazard cannot recur** once no reader consults a raw
+  choice-set default — the constructed term carries scalars only. The
+  argument-side statement of D23's "the effect is told, it does not re-derive".
+- **`allowed` is the single validation source** for an out-of-set value,
+  giving D2(f)'s "replacing silent acceptance or scattered `stop()`s" a concrete
+  target: the `match.arg` sites across the choice/REM update bodies.
+
+*Rejected:* keeping resolution in the recipe bodies and adding `allowed` for docs
+only — two sources of truth for one enumeration, the drift D2(f) exists to
+remove. *Rejected:* resolving at the `init` reading a per-effect hard-coded
+choice set — that hard-coded set *is* `allowed`; declare it in the registry once.
 
 ## Risks / Trade-offs
 

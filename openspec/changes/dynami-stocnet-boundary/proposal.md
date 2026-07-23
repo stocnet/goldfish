@@ -19,17 +19,36 @@ rejected everywhere".
   layer under the mode map (the representation `multimode-network-support`
   hardens), with the interaction/composition event streams as object
   components.
-- **The `opportunities` list is replaced by a derived occupancy constraint**
-  (grounded 2026-07-19): the stored list is exactly the occupied second-mode
-  nodes at each dependent join in event order, so the DyNAMi choice
-  specification **auto-derives** `~ indeg(<focal layer>) >= 1` — the existing
-  support-constraint grammar, no extension — reproducing today's choice set
-  exactly (the joiner's own intermediary singleton included, matching the
-  paper's denominator); user `support_constraint`s AND-combine. The internal
-  bridge feeds the derived per-event availability to the estimation engine
-  through the existing `opportunitiesList` channel (equivalence tested
-  against constructor-supplied lists). The dead
-  `setopportunities_interaction()` is deleted.
+- **DyNAMi's two rate models use the flavor-keyed grammar on the new
+  surface** (decided 2026-07-21): `make_specification(model = "DyNAMi")`
+  takes `rate = list(join ~ ..., leave ~ ...)` — the existing flavor-keyed
+  list, keys matching the layer's `flavor` stamps — expressing the paper's
+  joining and leaving Poisson rates. The boundary desugars the keyed list
+  into the legacy per-effect `joining = 1/-1` single-formula encoding the
+  untouched monolith consumes, so the flags (and their inconsistent
+  defaults) disappear from the public surface; coefficient names render
+  flavor labels. `choice` is a plain formula meaning the joining choice
+  (leaving is deterministic; a flavor-keyed `choice` is rejected with an
+  error saying so). Equivalence-tested against hand-written flag formulas
+  on the DyNAMi baselines.
+- **The `opportunities` list is replaced by a derived support constraint**
+  (grounded 2026-07-19; corrected 2026-07-21): the stored list is exactly the
+  occupied second-mode nodes at each dependent join in event order, so the
+  DyNAMi choice specification **auto-derives**
+  `~ indeg(<focal layer>) >= 1 & !tie(<focal layer>)` — the existing
+  support-constraint grammar, no extension. The own-exclusion (`!tie`)
+  follows the paper (isolates "join a group or **another** isolate";
+  staying is not an option once step 1 decides to join) and CORRECTS the
+  implementation's inclusion of the never-chosen own singleton
+  (**BREAKING** model correction: choice coefficients shift, new versioned
+  choice baselines; rate baselines untouched). User `support_constraint`s
+  AND-combine. The constraint compiles and folds through the **standard**
+  support-constraint machinery — DyNAMi choice estimates as a normal
+  constrained model; the internal `opportunitiesList` channel is NOT fed
+  (it remains only for the deprecated constraint-free user list, deleted by
+  `spec-driven-dispatch`). Equivalence tested against constructor-supplied
+  lists minus the own singleton. The dead `setopportunities_interaction()`
+  is deleted.
 - **`make_groups_interaction()` returns the stocnet directly** (**BREAKING**,
   decided 2026-07-19): the records→events transformation is untouched, but
   the 5-component return (incl. `opportunities`) becomes the assembled
@@ -82,8 +101,9 @@ rejected everywhere".
   `setopportunities_interaction()` dead code deleted; transformation logic
   untouched), `R/legacy_wrappers.R` (DyNAMi assembly branch; env fallback
   lifted), `R/model_estimate.R` + `R/make_specification.R` (stocnet
-  acceptance for DyNAMi; the auto-derived occupancy constraint; the
-  `is.environment(data)` abort), a new internal stocnet→env bridge consumed
+  acceptance for DyNAMi; the flavor-keyed rate desugarer; the auto-derived
+  support constraint; the `is.environment(data)` abort), a new internal
+  stocnet→env bridge consumed
   by the DyNAMi front-end (`R/model_preprocess_group.R` untouched),
   `R/zzz_testthat_helpers.R` (fixtures cleanup), `tests/testthat/` (DyNAMi
   boundary + abort snapshot tests).

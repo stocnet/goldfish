@@ -28,8 +28,10 @@ considered as a dependent variable in models.}
 \item{nodes}{a data frame or a \code{nodes.goldfish} object containing the nodes
 used in the event list.}
 
-\item{nodes2}{a second nodeset in the case that the events occurs in a
-two-mode network.}
+\item{nodes2}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} a second nodeset in the
+case that the events occurs in a two-mode network. Deprecated with the
+constructor: declare the two sides as mode sets on the single data object
+instead.}
 
 \item{default_network}{the name of a \code{network.goldfish} object.}
 

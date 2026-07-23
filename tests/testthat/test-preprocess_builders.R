@@ -33,7 +33,9 @@ test_that("build_state_container assembles networks and nodal attributes", {
     nodes = "actors_ex",
     envir = env
   )
-  expect_named(state, c("networks", "nodal", "nodal2", "globals"))
+  # One view per referenced node space: the legacy source has no mode column,
+  # so the node-set name is the only name that space has.
+  expect_named(state, c("networks", "nodal:actors_ex", "globals"))
   expect_named(state$networks, c("networkState", "networkExog"))
   expect_true(is.matrix(state$networks$networkState))
   expect_null(attr(state$networks$networkState, "events"))
@@ -48,8 +50,7 @@ test_that("build_state_container assembles networks and nodal attributes", {
     ),
     ignore_attr = FALSE
   )
-  expect_equal(state$nodal$attr1, actors_ex$attr1)
-  expect_null(state$nodal2)
+  expect_equal(state[["nodal:actors_ex"]]$attr1, actors_ex$attr1)
   expect_equal(ncol(state$globals), 0L)
 })
 
@@ -76,11 +77,14 @@ test_that("build_state_container records object keys for routing", {
     objectKeys$name,
     c("networkState", "actors_ex$attr1", "seasons$winter")
   )
-  expect_equal(objectKeys$component, c("networks", "nodal", "globals"))
+  expect_equal(
+    objectKeys$component,
+    c("networks", "nodal:actors_ex", "globals")
+  )
   expect_equal(objectKeys$key, c("networkState", "attr1", "winter"))
 })
 
-test_that("build_state_container builds nodal2 for two-mode node sets", {
+test_that("build_state_container builds a view per two-mode node set", {
   env <- enviro_builders()
   clubsEx <- make_nodes(data.frame(
     label = sprintf("Club %d", 1:3),
@@ -93,8 +97,8 @@ test_that("build_state_container builds nodal2 for two-mode node sets", {
     nodes2 = "clubsEx",
     envir = env
   )
-  expect_equal(state$nodal2$size, c(10, 20, 30))
-  expect_equal(nrow(state$nodal), 5L)
+  expect_equal(state[["nodal:clubsEx"]]$size, c(10, 20, 30))
+  expect_equal(nrow(state[["nodal:actors_ex"]]), 5L)
 })
 
 test_that("build_state_container aborts on unknown attribute or node set", {
@@ -115,7 +119,65 @@ test_that("build_state_container aborts on unknown attribute or node set", {
       nodes = "actors_ex",
       envir = env
     ),
-    "neither"
+    "none of the modeled node"
+  )
+})
+
+test_that("a one-mode focal collapses both sides onto one nodal view", {
+  # The collapse is what keeps the one-mode path on its existing code path:
+  # both positions of a cross-side effect resolve to the same mode-set key, so
+  # the reference set stays arity 1, the init receives a plain vector rather
+  # than a list, and the frozen coefficient baselines never change route.
+  src <- new_data_source(data = make_stocnet_fixture())
+  expect_identical(
+    ds_nodal_view(src, "nodes"),
+    ds_nodal_view(src, ds_side_names(src)[2])
+  )
+
+  state <- build_state_container(
+    "nodes$floor",
+    nodes = "nodes",
+    nodes2 = "nodes",
+    src = src
+  )
+  expect_equal(names(state), c("networks", "nodal:p", "globals"))
+  expect_equal(attr(state, "object_keys")$component, "nodal:p")
+})
+
+test_that("a two-mode focal keys each side to its own mode set", {
+  src <- new_data_source(data = make_stocnet_fixture_multipartite())
+
+  # Distinct keys are what give a cross-side effect arity 2, and what stops a
+  # receiver-side attribute from being written into the sender's vector.
+  expect_equal(ds_nodal_view(src, "nodes_side1"), "nodal:actor")
+  expect_equal(ds_nodal_view(src, "nodes_side2"), "nodal:event")
+
+  state <- build_state_container(
+    c("nodes_side1$size", "nodes_side2$size"),
+    nodes = "nodes_side1",
+    nodes2 = "nodes_side2",
+    src = src
+  )
+  expect_equal(
+    names(state),
+    c("networks", "nodal:actor", "nodal:event", "globals")
+  )
+  expect_equal(nrow(state[["nodal:actor"]]), 3L, label = "three actors send")
+  expect_equal(nrow(state[["nodal:event"]]), 2L, label = "two events receive")
+  expect_equal(
+    attr(state, "object_keys")$component,
+    c("nodal:actor", "nodal:event")
+  )
+})
+
+test_that("a node space spanning several modes canonicalizes its key", {
+  # A key names a *set*, so it must have one spelling however the modes were
+  # ordered: the undeclared layer spans every mode, and sorting is what lets
+  # key equality stand in for "the same node set".
+  src <- new_data_source(data = make_stocnet_fixture_multimode())
+  expect_equal(
+    ds_nodal_view(src, "nodes"),
+    "nodal:employee+outsider+supervisor"
   )
 })
 
@@ -131,7 +193,7 @@ test_that("build_object_keys maps components without materialising data", {
     keys$name,
     c("networkState", "actors_ex$attr1", "seasons$winter")
   )
-  expect_equal(keys$component, c("networks", "nodal", "globals"))
+  expect_equal(keys$component, c("networks", "nodal:actors_ex", "globals"))
   expect_equal(keys$key, c("networkState", "attr1", "winter"))
   expect_equal(
     keys,
@@ -167,7 +229,7 @@ test_that("build_object_keys aborts on unknown attribute or node set", {
   assign("otherNodes", otherNodes, envir = env)
   expect_error(
     build_object_keys("otherNodes$weight", nodes = "actors_ex", envir = env),
-    "neither"
+    "none of the modeled node"
   )
 })
 
@@ -239,7 +301,7 @@ test_that("build_update_plan registries cover effects and objects", {
   expect_equal(plan$effects$stat_kind, rep("dyad", 3))
   expect_equal(plan$objects$name, c("networkState", "actors_ex$attr1"))
   expect_equal(plan$objects$shape, c("dyad", "node"))
-  expect_equal(plan$objects$component, c("networks", "nodal"))
+  expect_equal(plan$objects$component, c("networks", "nodal:actors_ex"))
 })
 
 test_that("build_update_plan populates the interaction/multivariate schema", {
@@ -296,7 +358,7 @@ test_that("build_effects_template call templates resolve formals once", {
   expect_equal(template_inertia$n_networks, 1L)
   expect_equal(template_inertia$n_attributes, 0L)
   template_alter <- fixture$effects_template[[2]]
-  expect_equal(template_alter$att_components, "nodal")
+  expect_equal(template_alter$att_components, "nodal:actors_ex")
   expect_equal(template_alter$att_keys, "attr1")
 })
 
@@ -520,10 +582,71 @@ test_that("state container supports in-place update round-trips", {
   before <- state$networks$networkState[1, 2]
   state$networks$networkState[1, 2] <- before + 5
   expect_equal(state$networks$networkState[1, 2], before + 5)
-  state$nodal$attr1[3] <- -1.5
-  expect_equal(state$nodal$attr1[3], -1.5)
+  state[["nodal:actors_ex"]]$attr1[3] <- -1.5
+  expect_equal(state[["nodal:actors_ex"]]$attr1[3], -1.5)
   state$globals$winter <- 1
   expect_equal(state$globals$winter, 1)
   expect_equal(get("networkState", envir = env)[1, 2], before)
   expect_equal(get("actors_ex", envir = env)$attr1[3], actors_ex$attr1[3])
+})
+
+test_that("a covariate layer's own sender side becomes its own view", {
+  # The third node space: neither modeled side names `org`, so the container
+  # carries a view keyed by that mode set alongside the focal pair's two.
+  src <- new_data_source(data = make_stocnet_fixture_tertius())
+
+  state <- build_state_container(
+    c("sponsor", "layer:sponsor:side1$size"),
+    nodes = "nodes_side1",
+    nodes2 = "nodes_side2",
+    src = src
+  )
+
+  expect_equal(
+    names(state),
+    c("networks", "nodal:actor", "nodal:event", "nodal:org", "globals")
+  )
+  expect_equal(state[["nodal:org"]]$size, c(12, 8))
+  expect_equal(attr(state, "object_keys")$component, c("networks", "nodal:org"))
+})
+
+test_that("a node set the source cannot resolve is still rejected", {
+  # Admitting a third node space must not turn the membership check off: an
+  # unrecognized identifier falls back to the sender side rather than failing,
+  # so without the check a typo would silently read the wrong mode.
+  src <- new_data_source(data = make_stocnet_fixture_tertius())
+  args <- list(nodes = "nodes_side1", nodes2 = "nodes_side2", src = src)
+
+  expect_error(
+    do.call(build_object_keys, c(list("nodez$size"), args)),
+    "none of the modeled node"
+  )
+  expect_error(
+    do.call(build_object_keys, c(list("layer:nosuch:side1$size"), args)),
+    "none of the modeled node"
+  )
+})
+
+test_that("an attribute aggregated over a covariate's senders reads there", {
+  # End to end: the statistic is each event's sponsor size (O1 = 12 for E1,
+  # O2 = 8 for E2), constant over the three actor senders. Read on the focal
+  # sender side it would have been the actors' own sizes.
+  prep <- estimate_dynam(
+    attend ~ tertius(sponsor, size),
+    sub_model = "choice",
+    data = as_goldfish(make_stocnet_fixture_tertius()),
+    preprocessing_only = TRUE
+  )
+
+  expect_equal(
+    prep$initialStats[,, 1],
+    matrix(c(12, 12, 12, 8, 8, 8), nrow = 3, ncol = 2)
+  )
+  # The org view's own attribute stream drives the walk: O2's size replaced at
+  # t = 2.2 moves E2's summary from mean(12, 8) to mean(12, 20).
+  expect_equal(
+    prep$stat_mat_update[4, ],
+    c(10, 10, 10, 16, 16, 16),
+    label = "the sponsor tie at t = 1.5, then O2's size change"
+  )
 })

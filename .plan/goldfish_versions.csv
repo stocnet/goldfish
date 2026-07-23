@@ -17,3 +17,5 @@ develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD
 1.8.8,local,stocnet/goldfish,6a4f3b1,6a4f3b1,archive,FALSE,Archived OpenSpec change 'refactor-likelihood-compute' on 2026-07-12 (version 1.8.8); see openspec/changes/archive/.
 1.9.1,local,stocnet/goldfish,10ec286,10ec286,archive,FALSE,Archived OpenSpec change 'refactor-single-data-object' on 2026-07-19 (version 1.9.1); see openspec/changes/archive/.
 1.9.3,local,stocnet/goldfish,7a69bc8,7a69bc8,archive,FALSE,Archived OpenSpec change 'flavored-processes' on 2026-07-20 (version 1.9.3); see openspec/changes/archive/.
+1.9.5,local,stocnet/goldfish,cbc9620,cbc9620,archive,FALSE,Archived OpenSpec change 'imputation-contract' on 2026-07-22 (version 1.9.5); see openspec/changes/archive/.
+1.9.6,local,stocnet/goldfish,b8798e1,b8798e1,archive,FALSE,Archived OpenSpec change 'multimode-network-support' on 2026-07-23 (version 1.9.6); see openspec/changes/archive/.

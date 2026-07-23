@@ -255,7 +255,7 @@ test_that("trans init throws an error when two-mode network", {
   formals(effectFUN_closure) <- check
   expect_error(
     init_DyNAM_choice.trans(effectFUN_closure, m1, NULL, 5, 5),
-    regexp = ".*\\Q effect must not use when is a two-mode network\\E.*"
+    regexp = "cannot be computed on a two-mode network"
   )
 })
 

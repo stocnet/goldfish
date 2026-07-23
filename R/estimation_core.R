@@ -1161,7 +1161,11 @@ compute_step.default <- function(spec, state, i, ctx) {
         is_sender = is_rate,
         n1 = dims[1],
         n2 = if (is_rate) NA_integer_ else dims[2],
-        twomode_or_reflexive = ctx$is_two_mode
+        # Keep the reflexive diagonal cell in broadcast fan-out on the same
+        # condition the risk set does: a two-mode model (the two indices are
+        # different node sets) or one that allows self-ties. Reading is_two_mode
+        # alone would drop the diagonal a reflexive one-mode risk set keeps.
+        twomode_or_reflexive = ctx$is_two_mode || ctx$allowReflexive
       )
     }
     state$bcPointer <- bcEnd

@@ -305,7 +305,14 @@ update_DyNAM_choice_tie <- function(
 
 # inertia -----------------------------------------------------------------
 #' @export
-init_DyNAM_choice.inertia <- function(effect_fun, network, window, n1, n2, ...) {
+init_DyNAM_choice.inertia <- function(
+  effect_fun,
+  network,
+  window,
+  n1,
+  n2,
+  ...
+) {
   init_DyNAM_choice.tie(
     effect_fun = effect_fun,
     network = network,
@@ -610,13 +617,16 @@ init_DyNAM_choice.recip <- function(effect_fun, network, window, n1, n2, ...) {
   funApply <- eval(params[["transformer_fn"]])
   is_two_mode <- eval(params[["is_two_mode"]])
 
+  # Reciprocity reads w[j, i], the transpose of the dyad; on two modes that
+  # entry is in a different node space than the model's dyad.
   if (is_two_mode) {
-    stop(
-      dQuote("recip"),
-      " effect must not be used when is a two-mode network",
-      " (is_two_mode = TRUE)",
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "{.fn recip} cannot be computed on a two-mode network.",
+      "x" = "It reads the reverse tie {.code w[j, i]}, which a two-mode network
+             has no room for.",
+      "i" = "Use {.code four()} for the two-mode closure, or {.code inertia()}
+             for the tie itself."
+    ))
   }
 
   # has window or is empty initialize empty
@@ -999,13 +1009,17 @@ init_DyNAM_choice.trans <- function(effect_fun, network, window, n1, n2, ...) {
   history <- eval(params[["history"]])
   history <- match.arg(history, c('pooled', 'sequential', 'consecutive'))
 
+  # A transitive path i -> k -> j needs the receiver of the first tie to be the
+  # sender of the second, so the network must be square over a single mode.
   if (is_two_mode) {
-    stop(
-      dQuote("trans"),
-      " effect must not use when is a two-mode network",
-      " (is_two_mode = TRUE)",
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "{.fn trans} cannot be computed on a two-mode network.",
+      "x" = "It counts paths {.code i -> k -> j}, which need one node set on
+             both ends of a tie.",
+      "i" = "Use {.code four()} for the two-mode closure, or
+             {.code mixed_trans()} to chain a two-mode network with one that
+             closes the path."
+    ))
   }
 
   # has window or is empty initialize empty
@@ -1177,13 +1191,17 @@ init_DyNAM_choice.cycle <- function(effect_fun, network, window, n1, n2, ...) {
   history <- eval(params[["history"]])
   history <- match.arg(history, c('pooled', 'sequential', 'consecutive'))
 
+  # A cycle i -> k -> j -> i closes back onto the sender, so the network must be
+  # square over a single mode.
   if (is_two_mode) {
-    stop(
-      dQuote("cycle"),
-      " effect must not use when is a two-mode network",
-      " (is_two_mode = TRUE)",
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "{.fn cycle} cannot be computed on a two-mode network.",
+      "x" = "It counts paths that close back onto the sender, which need one
+             node set on both ends of a tie.",
+      "i" = "Use {.code four()} for the two-mode closure, or
+             {.code mixed_cycle()} to chain a two-mode network with one that
+             closes the path."
+    ))
   }
 
   # has window or is empty initialize empty
@@ -1373,24 +1391,21 @@ init_DyNAM_choice.common_receiver <- function(
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]])
 
-  if (is_two_mode) {
-    warning(
-      "Check that the 'common_receiver' effect used in a two-mode network",
-      " (is_two_mode = TRUE) \n has conformable dimensions with the",
-      " dependent network, i.e.,\n the first mode nodes set is the same",
-      " as the nodes set of the one-mode dependent network.",
-      call. = FALSE,
-      immediate. = TRUE
-    )
-  }
-
+  # Both i and j index the *sender* side of the covariate (the statistic sums
+  # w[i, k] * w[j, k]), so the dependent network must be one-mode over that
+  # side. A two-mode covariate is the valid case: it projects shared
+  # affiliations onto the one-mode dependent network. Where the mode map is
+  # available the parser has already compared the node sets themselves; this
+  # dimension check is the backstop for a direct call.
   if (n1 != n2 || nrow(network) != n1) {
-    stop(
-      "Dimensions of the two-mode network are not conformable dimensions with the",
-      " dependent network.",
-      call. = FALSE,
-      immediate. = TRUE
-    )
+    cli::cli_abort(c(
+      "{.fn common_receiver} needs a one-mode dependent network.",
+      "x" = "Its two indices both read the sender side of the covariate
+             ({nrow(network)} node{?s}), while the dependent network is
+             {n1} x {n2}.",
+      "i" = "The covariate may be two-mode, but its sender side must be the
+             dependent network's node set."
+    ))
   }
 
   # has window or is empty initialize empty
@@ -1546,13 +1561,21 @@ init_DyNAM_choice.common_sender <- function(
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]])
 
+  # Both i and j index the *receiver* side of the covariate (the statistic sums
+  # w[k, i] * w[k, j]), so the dependent network must be one-mode over that
+  # side. A two-mode covariate is the valid case: it projects shared
+  # affiliations onto the one-mode dependent network. Where the mode map is
+  # available the parser has already compared the node sets themselves; this
+  # dimension check is the backstop for a direct call.
   if (n1 != n2 || ncol(network) != n1) {
-    stop(
-      "Dimensions of the two-mode network are not conformable dimensions with the",
-      " dependent network",
-      call. = FALSE,
-      immediate. = TRUE
-    )
+    cli::cli_abort(c(
+      "{.fn common_sender} needs a one-mode dependent network.",
+      "x" = "Its two indices both read the receiver side of the covariate
+             ({ncol(network)} node{?s}), while the dependent network is
+             {n1} x {n2}.",
+      "i" = "The covariate may be two-mode, but its receiver side must be the
+             dependent network's node set."
+    ))
   }
 
   #n1 <- nrow(network)
@@ -1738,21 +1761,7 @@ init_DyNAM_choice.mixed_trans <- function(
       nrow(network1) != n1 ||
       ncol(network2) != n2
   ) {
-    stop(
-      "Non conformable dimensions sizes for effect ",
-      dQuote("mixed_trans"),
-      ".\n\tnetwork 1: ",
-      paste(dim(network1), collapse = ", "),
-      "\n\tnetwork 2: ",
-      paste(dim(network2), collapse = ", "),
-      "\n\tdependent network: ",
-      n1,
-      ", ",
-      n2,
-      "\n\trows of network 1 and cols of network 2 must be the same size",
-      "\n\tas the correspondent dimension in the dependent network,",
-      "\n\tcols of network 1 must be the same size as rows of network2"
-    )
+    abort_mixed_chain("mixed_trans", network1, network2, n1, n2)
   }
   # has window or is empty or non-pooled history: initialize empty
   if (
@@ -1980,21 +1989,7 @@ init_DyNAM_choice.mixed_cycle <- function(
       nrow(network1) != n1 ||
       ncol(network2) != n2
   ) {
-    stop(
-      "Non conformable dimensions sizes for effect ",
-      dQuote("mixed_cycle"),
-      ".\n\tnetwork 1: ",
-      paste(dim(network1), collapse = ", "),
-      "\n\tnetwork 2: ",
-      paste(dim(network2), collapse = ", "),
-      "\n\tdependent network: ",
-      n1,
-      ", ",
-      n2,
-      "\n\trows of network 1 and cols of network 2 must be the same size",
-      "\n\tas cols and rows in dependent network respectively,",
-      "\n\tcols size of network 1 must be the same as rows size of network2"
-    )
+    abort_mixed_chain("mixed_cycle", network1, network2, n1, n2)
   }
   # has window or is empty or non-pooled history: initialize empty
   if (
@@ -2206,12 +2201,15 @@ init_DyNAM_choice.mixed_common_receiver <- function(
       "history = \"consecutive\" is not supported for mixed-network effects."
     )
   }
+  # The statistic is symmetrized over the dyad, so the dependent network must be
+  # one-mode; the two covariates may each be two-mode as long as they share the
+  # side they are compared on.
   if (is_two_mode) {
-    stop(
-      dQuote("mixed_common_receiver"),
-      " effect must not use when is a two-mode network (is_two_mode = TRUE)",
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "{.fn mixed_common_receiver} needs a one-mode dependent network.",
+      "x" = "Its two indices both read a sender side, which a two-mode
+             dependent network splits over different node sets."
+    ))
   }
   # always weighted, detach networks
   network2 <- sign(network[[2]])
@@ -2433,12 +2431,15 @@ init_DyNAM_choice.mixed_common_sender <- function(
       "history = \"consecutive\" is not supported for mixed-network effects."
     )
   }
+  # The statistic is symmetrized over the dyad, so the dependent network must be
+  # one-mode; the two covariates may each be two-mode as long as they share the
+  # side they are compared on.
   if (is_two_mode) {
-    stop(
-      dQuote("mixed_common_sender"),
-      " effect must not use when is a two-mode network (is_two_mode = TRUE)",
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "{.fn mixed_common_sender} needs a one-mode dependent network.",
+      "x" = "Its two indices both read a receiver side, which a two-mode
+             dependent network splits over different node sets."
+    ))
   }
   # always weighted, detach networks
   network2 <- sign(network[[2]])
@@ -3013,7 +3014,9 @@ init_DyNAM_choice.tertius_diff <- function(
   )
 
   stat2 <- forceAndCall(1, funApply, outer(attribute, stat, "-"))
-  # impute missing entries: nodes without inNeighbor, transformer_fn(differences)
+  # empty-neighborhood default: a node with no in-neighbor has an undefined
+  # aggregate, so it takes the mean of the defined entries (part of the
+  # statistic's definition, not attribute imputation).
   if (is_two_mode) {
     stat2[is.na(stat2)] <- mean(stat2, na.rm = TRUE)
   } else {
@@ -3105,7 +3108,7 @@ update_DyNAM_choice_tertius_diff <- function(
   }
   # init with empty network
   isEmpty <- all(cache == 0)
-  isImpute <- anyNA(cache)
+  needs_default <- anyNA(cache)
   # init res
   res <- list(cache = NULL, changes = NULL)
   # case 1: an update in the network[sende, receiver] <- replace
@@ -3139,7 +3142,11 @@ update_DyNAM_choice_tertius_diff <- function(
     # changes case 1: all nodes needs to be update the att[i] - cache[j] values
     # if (is_two_mode) seq_len(n2) else third(n1, receiver)
     nodesChange <- if (!is.na(valChangeCache)) receiver else numeric()
-    isImpute <- ifelse(!isImpute && is.na(valChangeCache), TRUE, isImpute)
+    needs_default <- ifelse(
+      !needs_default && is.na(valChangeCache),
+      TRUE,
+      needs_default
+    )
     cache[receiver] <- valChangeCache
     changes <- NULL
   }
@@ -3206,31 +3213,32 @@ update_DyNAM_choice_tertius_diff <- function(
       )
     )
   )
-  # when is just initialize it need to change all values to the average
+  # on initialization every entry takes the empty-neighborhood default (the mean
+  # of the defined statistic values)
   if (isEmpty) {
-    toImpute <- matrix(TRUE, nrow = n1, ncol = n2)
-    toImpute[cbind(changes[, "node1"], changes[, "node2"])] <- FALSE
+    default_cells <- matrix(TRUE, nrow = n1, ncol = n2)
+    default_cells[cbind(changes[, "node1"], changes[, "node2"])] <- FALSE
     if (!is_two_mode) {
-      diag(toImpute) <- FALSE
+      diag(default_cells) <- FALSE
     }
-    imputeVal <- mean(changes[, "replace"], na.rm = TRUE)
+    default_val <- mean(changes[, "replace"], na.rm = TRUE)
     changes <- rbind(
       changes,
-      cbind(which(toImpute, arr.ind = TRUE), imputeVal)
+      cbind(which(default_cells, arr.ind = TRUE), default_val)
     )
-  } else if (isImpute) {
+  } else if (needs_default) {
     stat <- forceAndCall(1, transformer_fn, outer(attribute, cache, "-"))
-    toImpute <- is.na(stat)
-    toImpute[cbind(changes[, "node1"], changes[, "node2"])] <- FALSE
+    default_cells <- is.na(stat)
+    default_cells[cbind(changes[, "node1"], changes[, "node2"])] <- FALSE
     if (!is_two_mode) {
       diag(stat) <- NA
-      diag(toImpute) <- FALSE
+      diag(default_cells) <- FALSE
     }
-    imputeVal <- mean(stat, na.rm = TRUE)
-    if (any(toImpute)) {
+    default_val <- mean(stat, na.rm = TRUE)
+    if (any(default_cells)) {
       changes <- rbind(
         changes,
-        cbind(which(toImpute, arr.ind = TRUE), imputeVal)
+        cbind(which(default_cells, arr.ind = TRUE), default_val)
       )
     }
   }
@@ -3288,22 +3296,107 @@ update_DyNAM_choice_alter <- function(
   return(res)
 }
 
+# The two sides a comparison effect reads. On a two-mode focal the parser
+# resolves one written operand into one attribute position per side, so the
+# init receives a list; on a one-mode focal both positions name the same
+# reference, the object table collapses them, and the init receives the single
+# vector it always did -- read here as both sides.
+cross_side_attribute <- function(attribute, is_two_mode) {
+  if (is.list(attribute)) {
+    return(list(ego = attribute[[1]], alter = attribute[[2]]))
+  }
+  list(ego = attribute, alter = attribute)
+}
+
+# A comparison effect's update on a two-mode focal. `att_update` names the
+# position whose vector changed -- 1 the sender side, 2 the receiver side -- so
+# a sender change rewrites that node's row against every alter, and a receiver
+# change that node's column against every ego. The one-mode update cannot make
+# this distinction (it emits both orientations for one change) and does not
+# need to: there both positions are the same vector.
+update_cross_side_same <- function(
+  attribute,
+  node,
+  replace,
+  att_update,
+  n1,
+  n2
+) {
+  res <- list(changes = NULL)
+  ego <- attribute[[1]]
+  alter <- attribute[[2]]
+  if (identical(att_update, 1L) || identical(att_update, 1)) {
+    if (identical(ego[node], replace)) {
+      return(res)
+    }
+    res$changes <- cbind(
+      node1 = node,
+      node2 = seq_len(n2),
+      replace = 1 * (replace == alter)
+    )
+    return(res)
+  }
+  if (identical(alter[node], replace)) {
+    return(res)
+  }
+  res$changes <- cbind(
+    node1 = seq_len(n1),
+    node2 = node,
+    replace = 1 * (ego == replace)
+  )
+  res
+}
+
+# The same split for the difference family. Orientation matters here in a way
+# it does not for `same`: the statistic is `ego - alter`, so a sender change
+# varies the minuend and a receiver change the subtrahend.
+update_cross_side_diff <- function(
+  attribute,
+  node,
+  replace,
+  att_update,
+  n1,
+  n2,
+  transformer_fn
+) {
+  res <- list(changes = NULL)
+  ego <- attribute[[1]]
+  alter <- attribute[[2]]
+  if (identical(att_update, 1L) || identical(att_update, 1)) {
+    if (identical(ego[node], replace)) {
+      return(res)
+    }
+    res$changes <- cbind(
+      node1 = node,
+      node2 = seq_len(n2),
+      replace = forceAndCall(1, transformer_fn, replace - alter)
+    )
+    return(res)
+  }
+  if (identical(alter[node], replace)) {
+    return(res)
+  }
+  res$changes <- cbind(
+    node1 = seq_len(n1),
+    node2 = node,
+    replace = forceAndCall(1, transformer_fn, ego - replace)
+  )
+  res
+}
+
 # same --------------------------------------------------------------------
 #' @export
 init_DyNAM_choice.same <- function(effect_fun, attribute, ...) {
   # Get arguments
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
-  if (is_two_mode) {
-    stop(
-      "effect",
-      dQuote("same"),
-      "doesn't work in two mode networks ('is_two_mode = TRUE')",
-      call. = FALSE
-    )
+  sides <- cross_side_attribute(attribute, is_two_mode)
+  stat <- 1 * outer(sides$ego, sides$alter, "==")
+  # A two-mode statistic has no diagonal to exclude: rows and columns index
+  # different node sets, so [i, i] is an ordinary dyad.
+  if (!is_two_mode) {
+    diag(stat) <- 0
   }
-  stat <- 1 * outer(attribute, attribute, "==")
-  diag(stat) <- 0
   return(list(stat = stat))
 }
 
@@ -3312,8 +3405,14 @@ update_DyNAM_choice_same <- function(
   attribute,
   node,
   replace,
+  att_update,
+  n1,
+  n2,
   is_two_mode = FALSE
 ) {
+  if (is_two_mode) {
+    return(update_cross_side_same(attribute, node, replace, att_update, n1, n2))
+  }
   res <- list(changes = NULL)
   # Get old value
   old_value <- attribute[node]
@@ -3358,19 +3457,12 @@ init_DyNAM_choice.diff <- function(effect_fun, attribute, ...) {
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]]) # applied FUN instead
-  if (is_two_mode) {
-    stop(
-      "effect",
-      dQuote("diff"),
-      "doesn't work in two mode networks ('is_two_mode = TRUE')",
-      call. = FALSE
-    )
-  }
+  sides <- cross_side_attribute(attribute, is_two_mode)
   return(list(
     stat = forceAndCall(
       1,
       funApply,
-      outer(attribute, attribute, "-")
+      outer(sides$ego, sides$alter, "-")
     )
   ))
 }
@@ -3380,11 +3472,23 @@ update_DyNAM_choice_diff <- function(
   attribute,
   node,
   replace,
+  att_update,
   n1,
   n2,
   is_two_mode = FALSE,
   transformer_fn = abs
 ) {
+  if (is_two_mode) {
+    return(update_cross_side_diff(
+      attribute,
+      node,
+      replace,
+      att_update,
+      n1,
+      n2,
+      transformer_fn
+    ))
+  }
   res <- list(changes = NULL)
   # utility functions to return third nodes
   third <- function(n, diff = c(node)) {
@@ -3416,17 +3520,10 @@ init_DyNAM_choice.sim <- function(effect_fun, attribute, ...) {
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]]) # applied FUN instead
-  if (is_two_mode) {
-    stop(
-      "effect",
-      dQuote("sim"),
-      "doesn't work in two mode networks ('is_two_mode = TRUE')",
-      call. = FALSE
-    )
-  }
+  sides <- cross_side_attribute(attribute, is_two_mode)
   return(list(
     stat = (-1) *
-      forceAndCall(1, funApply, outer(attribute, attribute, "-"))
+      forceAndCall(1, funApply, outer(sides$ego, sides$alter, "-"))
   ))
 }
 
@@ -3435,6 +3532,7 @@ update_DyNAM_choice_sim <- function(
   attribute,
   node,
   replace,
+  att_update,
   n1,
   n2,
   is_two_mode = FALSE,
@@ -3444,6 +3542,7 @@ update_DyNAM_choice_sim <- function(
     attribute = attribute,
     node = node,
     replace = replace,
+    att_update = att_update,
     n1 = n1,
     n2 = n2,
     is_two_mode = is_two_mode,
@@ -3454,19 +3553,15 @@ update_DyNAM_choice_sim <- function(
 # ego alter interaction ---------------------------------------------------
 
 #' @export
-init_DyNAM_choice.ego_alter_interaction <- function(effect_fun, attribute, ...) {
+init_DyNAM_choice.ego_alter_interaction <- function(
+  effect_fun,
+  attribute,
+  ...
+) {
   # Get arguments
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]]) # applied FUN instead
-  if (is_two_mode) {
-    stop(
-      "effect",
-      dQuote("diff"),
-      "doesn't work in two mode networks ('is_two_mode = TRUE')",
-      call. = FALSE
-    )
-  }
   if (length(attribute) != 2) {
     stop("Interaction ego alter is just define for two attributes")
   }

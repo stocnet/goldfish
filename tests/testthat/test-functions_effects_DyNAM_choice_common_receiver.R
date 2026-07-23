@@ -156,7 +156,7 @@ test_that("common_receiver init returns the correct result", {
 test_that("common_receiver init returns an error when n1 != n2", {
   expect_error(
     init_DyNAM_choice.common_receiver(effectFUN_closure, m1, NULL, 3, 5),
-    regexp = "Dimensions of the two-mode network are not conformable"
+    regexp = "needs a one-mode dependent network"
   )
 })
 

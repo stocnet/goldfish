@@ -26,8 +26,10 @@ make_network_goldfish(
 
 \item{nodes}{A node-set (see \code{\link[=make_nodes]{make_nodes()}}).}
 
-\item{nodes2}{A second optional node-set for the definition of
-two-mode networks.}
+\item{nodes2}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} A second optional node-set
+for the definition of two-mode networks. Deprecated with the constructor:
+a two-mode layer is expressed on the single data object by a \code{mode} column
+in \code{nodes} plus per-layer \code{sender}/\code{receiver} mode sets.}
 
 \item{directed}{A logical value indicating whether the network is directed.}
 

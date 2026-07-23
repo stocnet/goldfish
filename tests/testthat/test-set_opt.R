@@ -86,7 +86,8 @@ test_that("set_preprocessing_opt works correctly", {
   expected_prep_names <- c(
     "start_time",
     "end_time",
-    "opportunities_list"
+    "opportunities_list",
+    "impute"
   )
 
   # Test defaults
@@ -140,4 +141,38 @@ test_that("opportunities_list is deprecated in favour of support_constraint", {
   withr::local_options(lifecycle_verbosity = "quiet")
   opt <- set_preprocessing_opt(opportunities_list = list(c("A", "B")))
   expect_equal(opt$opportunities_list, list(c("A", "B")))
+})
+
+# cli error snapshots are pinned to a reproducible width/no-color context so the
+# rendered bullets stay stable across machines.
+local_cli_context <- function(env = parent.frame()) {
+  withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
+}
+
+test_that("the impute policy is stored and defaults to NULL", {
+  expect_null(set_preprocessing_opt()$impute)
+  opt <- set_preprocessing_opt(impute = c(party = "as_category"))
+  expect_equal(opt$impute, c(party = "as_category"))
+})
+
+test_that("a valid summary or as_category policy is accepted", {
+  expect_no_error(set_preprocessing_opt(impute = c(x = "summary")))
+  expect_no_error(
+    set_preprocessing_opt(impute = c(x = "as_category", y = "summary"))
+  )
+})
+
+test_that("an unnamed impute vector aborts", {
+  local_cli_context()
+  expect_snapshot(set_preprocessing_opt(impute = "as_category"), error = TRUE)
+})
+
+test_that("an unknown impute policy value aborts, listing supported values", {
+  local_cli_context()
+  expect_snapshot(set_preprocessing_opt(impute = c(x = "bogus")), error = TRUE)
+})
+
+test_that("the reserved locf policy aborts as unimplemented", {
+  local_cli_context()
+  expect_snapshot(set_preprocessing_opt(impute = c(x = "locf")), error = TRUE)
 })

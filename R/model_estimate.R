@@ -4,33 +4,7 @@
 #'  implementing the iterative Newton-Raphson procedure as describe in
 #'  Stadtfeld and Block (2017).
 #'
-#' Missing data is handled during the preprocessing stage of the data.
-#' The specific imputation strategy depends on the type of data:
-#'
-#' \itemize{
-#'   \item{\strong{Network Data:}}
-#'   Missing values in the initial network structure or in linked events
-#'   that update network ties are imputed with a value of zero (0).
-#'   This explicitly assumes the absence of a tie or event.
-#'
-#'   \item{\strong{Attribute Covariates:}}
-#'   \itemize{
-#'     \item{Initial Values:} Missing numeric values for the initial state of
-#'     an attribute covariate are replaced by the mean value of that attribute
-#'     across all actors, and categorical values are replaced by the mode value.
-#'     \item{During Event Updates (via linked events):}
-#'     \itemize{
-#'       \item{Using `replace`:} If a linked event uses the `replace` variable
-#'       to specify a new attribute value and that value is missing, the missing
-#'       value is replaced by the mean of the attribute,
-#'       excluding the node being updated, at the moment of the event.
-#'       \item{Using `increment`:} If a linked event uses the `increment`
-#'       variable to specify a change in attribute value and that increment is
-#'       missing, the missing value is imputed with a value of zero (0).
-#'       This assumes no change occurred.
-#'     }
-#'   }
-#' }
+#' @inheritSection goldfish_data Missing data
 #'
 #' @section Models:
 #' Currently there are implemented the following models:
@@ -769,6 +743,9 @@ preprocess_recipe <- function(
     data = work_data,
     modeled_flavor = modeled_flavor
   )
+  # The per-attribute imputation policy rides on the compiled spec so the recipe
+  # context reaches it without threading through every loop's `...`.
+  spec_map$impute_policy <- control_preprocessing$impute
   # A multi-flavor walk drives K consumers instead of the single writer. The
   # consumer specs can only be assembled here, after the spec_map has compiled
   # each `(layer, flavor)` constraint into `plan$support_constraints`: a
@@ -936,6 +913,22 @@ estimate_wrapper <- function(
   }
 
   check_estimation_data(data)
+
+  # DyNAMi still consumes the legacy environment, but make_data() no longer
+  # mints one: it assembles every legacy bundle into a stocnet, two-mode
+  # included, so a DyNAMi bundle now arrives here as a stocnet its engine
+  # cannot read. Abort where the mismatch is legible rather than deep in the
+  # interaction preprocessing.
+  if (model == "DyNAMi" && !is.null(data) && !is.environment(data)) {
+    cli::cli_abort(c(
+      "{.fn estimate_dynami} does not accept a {.cls stocnet} data object yet.",
+      "x" = "{.fn make_data} now assembles two-mode input into a \\
+             {.cls stocnet}, so the DyNAMi environment is no longer produced.",
+      "i" = "DyNAMi support for the single data object is the subject of a \\
+             follow-up change; pin an earlier goldfish version to run DyNAMi \\
+             in the meantime."
+    ))
+  }
 
   stopifnot(
     rlang::is_scalar_logical(preprocessing_only),
@@ -1129,6 +1122,18 @@ estimate_wrapper <- function(
   window_parameters <- parsed_formula$window_parameters
   ignore_rep_parameter <- unlist(parsed_formula$ignore_rep_parameter)
 
+  # The layer being modeled is the focal layer of this estimation. Stamp it onto
+  # the working copy so every downstream new_data_source(data = work_data)
+  # resolves focal/side/mode lookups against the modeled layer through the
+  # existing `%||% info$focal` fallback -- info$focal is only the default for
+  # *which* layer to model, never the source of truth once a layer is chosen. A
+  # focal-less object then estimates, and an info$focal naming a different layer
+  # never wins over the modeled one. work_data is a local copy (copy-on-modify),
+  # so this never mutates the caller's object.
+  if (!is.null(work_data)) {
+    work_data$info$focal <- dep_name
+  }
+
   # Interaction terms compute their product in the dyad recipe loop;
   # guard the not-yet-supported model families (sender / DyNAMi).
   abort_if_interactions_unsupported(parsed_formula, model, sub_model)
@@ -1309,6 +1314,20 @@ estimate_wrapper <- function(
     .nodes2 <- .nodes
   }
 
+  # Coordination (DyNAM-MM) models the symmetric joint creation of a tie by both
+  # endpoints, reading both directed dyads (a, b) and (b, a) over one node set.
+  # That is undefined on a two-mode layer -- an event does not reciprocally
+  # coordinate with an actor -- and the C++ step indexes out of bounds. Reject it
+  # here, before any preprocessing or the estimation engine.
+  if (is_two_mode && identical(sub_model, "choice_coordination")) {
+    cli::cli_abort(c(
+      "{.val choice_coordination} cannot run on a two-mode layer.",
+      "x" = "The focal layer {.val {dep_name}} is two-mode.",
+      "i" = "Coordination (DyNAM-MM) models symmetric ties within one node set.",
+      "i" = "Use {.code sub_model = \"choice\"} for a two-mode choice model."
+    ))
+  }
+
   ## 2.1 INITIALIZE OBJECTS for all cases: preprocessing_init or not
   # enviroment from which get the objects
 
@@ -1355,8 +1374,9 @@ estimate_wrapper <- function(
     # recover the nodesets
     .nodes <- preprocessing_init$nodes
     .nodes2 <- preprocessing_init$nodes2
-    is_two_mode <- FALSE
-    if (!identical(.nodes, .nodes2)) is_two_mode <- TRUE
+    # The focal layer's mode map decides two-modeness (stocnet); the legacy
+    # source, which has no map, answers from the recovered side names.
+    is_two_mode <- ds_model_is_two_mode(work_src, .nodes, .nodes2)
   }
 
   spec_sub_model <- sub_model

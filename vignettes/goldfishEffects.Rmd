@@ -187,7 +187,11 @@ indeg(network,
   covariate network ('alter' type).
   _Note:_ The effect statistic correspond to the total degree for an undirected
   network as define when using `make_network(net, directed = FALSE)`.
-  
+
+On a **two-mode** focal network `indeg` is defined for `type = "alter"` -- the
+receiver-side popularity, e.g. how many actors support a claim -- while
+`type = "ego"` reads the sender side and is rejected.
+
 The degree can be transform with \code{transformer_fn}.
 
 
@@ -221,6 +225,10 @@ outdeg(network,
   $i$ or $j$ has a high outgoing degree in a covariate network.
   The argument `type` allows to choose whether to use the outdegree effect for
   sender $i$ (`type = "ego"`) or for receiver $j$ (`type = "alter"`).
+
+On a **two-mode** focal network `outdeg` is defined for `type = "ego"` -- the
+sender-side activity, e.g. how many claims an actor supports -- while
+`type = "alter"` reads the receiver side and is rejected.
 
 
 ### Node embeddedness transitivity (`node_trans()`)
@@ -383,8 +391,12 @@ tertius(network, attribute,
   The argument `type` allows to choose whether to use the tertius effect
   for sender $i$ (`type = "ego"`) or for receiver $j$ (`type = "alter"`).
 
-**Note:** When a node does not have in-neighbors, the tertius effect is impute
-as the average of the aggregate values of nodes with in-neighbors.
+**Note:** For a node with no in-neighbors the aggregate is over an empty set and
+so undefined. By definition the statistic then takes the mean of its defined
+entries -- the average of the aggregate values over the nodes that *do* have
+in-neighbors. This empty-neighborhood default is part of the effect's
+definition, not missing-data imputation (see the *Missing data* section of the
+`goldfish_data` help page for the separate attribute-imputation contract).
 
 # Dyadic statistics
 
@@ -499,10 +511,12 @@ s(i,j, t, z) = I(z(t)_i = z(t)_j)
 \end{equation}
 
 
-Homophily (same value). The tendency of an event $i\rightarrow j$ 
+Homophily (same value). The tendency of an event $i\rightarrow j$
 to happen if actors i and j have the same attribute value.
-This effect cannot be used for two-mode networks and for
-the DyNAM-rate submodel.
+For a two-mode network $i$ and $j$ belong to different modes, so the attribute
+is read on each side's mode (the sender-mode value against the receiver-mode
+value). This effect is dyad-indexed and so is not available for the
+DyNAM-rate submodel.
 
 ### Differences in attribute (`diff()`)
 
@@ -518,7 +532,8 @@ Heterophily. The tendency of an event $i\rightarrow j$
 to happen if actors i and j
 have different attribute values (high absolute differences regarding attribute
 if `transformer_fn = abs`).
-This effect cannot be used for two-mode networks.
+For a two-mode network the attribute is read on each side's mode (the
+sender-mode value against the receiver-mode value).
 
 
 ### Similarity in attribute (`sim()`)
@@ -535,7 +550,8 @@ Homophily (similar value). The tendency of an event $i\rightarrow j$
 to happen if actors i and j have similar `attribute` values
 (low absolute differences regarding `attribute`
 if `transformer_fn = abs`).
-This effect cannot be used for two-mode networks.
+For a two-mode network the attribute is read on each side's mode (the
+sender-mode value against the receiver-mode value).
 
 ### Ego Alter interaction (`ego_alter_interaction()`)
 
@@ -576,9 +592,11 @@ s(i,j, t, x, z) = \left|\frac{z(t)_i -
 The tendency to create an event $i\rightarrow j$ when $i$ has
 a similar value as $j$ aggregate (`summarizer_fn`) value of its
 in-neighbors ($\forall j:~ x[j, i] > 0$).
-_Note:_ When the node $j$ does not have in-neighbors, its value is
-imputed by the average of the similarities computed for the pairs $i$, $k$ for
-all $k$ that has at least one in-neighbor.
+_Note:_ For a node $j$ with no in-neighbors the statistic is undefined; by
+definition it then takes the mean of its defined entries -- the average of the
+similarities computed for the pairs $i$, $k$ over all $k$ that have at least one
+in-neighbor. This is the effect's empty-neighborhood default, not missing-data
+imputation.
 
 # Closure effect statistics (Dyadic effects)
 
@@ -646,8 +664,9 @@ It is the tendency to create an event $i\rightarrow j$ when it closes more
 two-paths ($i\leftarrow k\rightarrow j$) observed in the past events in a
 covariate `network`.
 It can be transformed by using `transformer_fn`.
-This effect cannot be used for two-mode networks and
-DyNAM-choice_coordination.
+This effect requires a **one-mode focal** network (the closure joins two nodes
+of the same mode); the covariate `network` it reads may itself be two-mode. It
+is not available for DyNAM-choice_coordination.
 
 ### Common receiver closure (`common_receiver()`)
 
@@ -666,8 +685,9 @@ It is the tendency to create an event $i\rightarrow j$ when it closes more
 two-paths ($i\rightarrow k\leftarrow j$) observed in the past events in a
 covariate `network`.
 It can be transformed by using `transformer_fn`.
-This effect cannot be used for two-mode networks and
-DyNAM-choice_coordination.
+This effect requires a **one-mode focal** network (the closure joins two nodes
+of the same mode); the covariate `network` it reads may itself be two-mode. It
+is not available for DyNAM-choice_coordination.
 
 ### Four cycle (`four()`)
 
@@ -686,8 +706,9 @@ Closure of three-paths. It is the tendency to create an event $i\rightarrow j$
 when it closes more three-paths ($i\rightarrow k\leftarrow l\rightarrow j$)
 observed in the past events in a covariate `network`.
 It can be transformed by using `transformer_fn`.
-This effect cannot be used for two-mode networks and
-DyNAM-choice_coordination.
+This is the canonical **two-mode** closure -- $i,j$ on one mode and $k,l$ on the
+other -- so on a two-mode focal network set `is_two_mode = TRUE`. It is not
+available for DyNAM-choice_coordination.
 
 
 ### Mixed Transitivity (`mixed_trans()`)
@@ -710,7 +731,10 @@ two-paths with events ($i\rightarrow k$) in `network1` and
 ($k\rightarrow j$) in `network2` observed in the past events in the covariate
 networks.
 It can be transformed by using `transformer_fn`.
-This effect cannot be used for two-mode networks.
+The two covariate networks may be two-mode, provided the chain conforms: the
+receiver mode of `network1` must match the sender mode of `network2` (both are
+the intermediate node $k$), and `network1`'s sender and `network2`'s receiver
+must match the focal sender and receiver modes.
 When `history = "sequential"`, the argument order of the networks defines the temporal
 sequence: only ties added to `network2` ($k\rightarrow j$) create new two-path counts,
 reflecting that the `network1` tie ($i\rightarrow k$) must already exist.

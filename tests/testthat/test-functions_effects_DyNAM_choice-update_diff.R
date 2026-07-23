@@ -116,13 +116,20 @@ test_that("diff returns correct attributes on update", {
   # )
 })
 
-test_that("diff init throws an error when two-mode network", {
+test_that("diff init subtracts across the two sides on a two-mode network", {
+  # This used to abort as two-mode-incompatible. `ego - alter` is well defined
+  # across sides; the parser supplies one attribute position per side.
   # effectFUN has is_two_mode=FALSE so we must change this prior to the test
   check <- formals(effectFUN)
   check$is_two_mode <- TRUE
   formals(effectFUN) <- check
-  expect_error(
-    init_DyNAM_choice.diff(effectFUN, m1, NULL, 5, 5),
-    regexp = "doesn't work in two mode networks"
-  )
+
+  ego <- c(1, 4, 9)
+  alter <- c(2, 3)
+  stat <- init_DyNAM_choice.diff(effectFUN, list(ego, alter), NULL, 3, 2)$stat
+
+  expect_equal(dim(stat), c(3L, 2L))
+  # This fixture's transformer_fn is identity, so the orientation is visible:
+  # the statistic is ego - alter, not the other way round.
+  expect_equal(stat, outer(ego, alter, "-"))
 })

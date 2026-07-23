@@ -34,8 +34,10 @@ nodeset).}
 \item{nodes}{a nodeset (\code{data.frame} or \code{nodes.goldfish} object)
 related to the network (ONLY if \code{x} is a network)}
 
-\item{nodes2}{an optional nodeset (\code{data.frame} or \code{nodes.goldfish} object)
-related to the network (ONLY if \code{x} is a network)}
+\item{nodes2}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} an optional nodeset
+(\code{data.frame} or \code{nodes.goldfish} object) related to the network (ONLY if
+\code{x} is a network). Deprecated with the constructor: declare the two sides
+as mode sets on the single data object instead.}
 
 \item{replace}{a character string naming the column in \code{change_events} that
 holds the replacement value (ONLY if \code{x} is a \code{global.goldfish} object).

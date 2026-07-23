@@ -64,6 +64,15 @@ auxiliary statistics) waits for DyNES to land.
   `changepoints.goldfish` methods (**BREAKING**: their return class changes
   from `diagnostic.goldfish`; the `outlier` column contract is fixed on the
   autograph side).
+- **Fit-shape compatibility (added 2026-07-21)**: on flavored (per-fid)
+  fits every method applies per process result exactly as on a single fit —
+  the Fisheries Treaties creation/dissolution example is the reference;
+  `test_gof()` blocks are per fid × submodel with the omnibus combining
+  across processes. Two-mode fits (multimode mode-map models) are handled:
+  margins and any actor-identified plot-data component report per side,
+  labels joined via the model's `node_lookup` — settled in the
+  `diagnostic-plot-classes` contract BEFORE the autograph branch work
+  starts, since that contract is frozen for the parallel track.
 - Documentation avoids roxygen duplication via `@inheritParams`/`@inherit`
   from canonical pages (`residuals.result.goldfish`, `evaluate_engine`).
 

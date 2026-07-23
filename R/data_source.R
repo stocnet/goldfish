@@ -117,10 +117,40 @@ ds_layer_is_two_mode.data_source_stocnet <- function(src, name) {
   isTRUE(ds_layer_map(src, name)$is_two_mode)
 }
 
+# A layer's mode pair as the mode names of each side, for messages that must
+# name what the data actually says (e.g. "actors -> clubs"). Answers NULL where
+# no mode map exists, so callers fall back to naming the layer alone.
+ds_layer_mode_pair <- function(src, name) UseMethod("ds_layer_mode_pair")
+
+#' @exportS3Method
+ds_layer_mode_pair.data_source_envir <- function(src, name) NULL
+
+#' @exportS3Method
+ds_layer_mode_pair.data_source_stocnet <- function(src, name) {
+  lm <- ds_layer_map(src, name)
+  if (is.null(lm)) {
+    return(NULL)
+  }
+  modes <- src$mode_map$nodes_lookup$mode
+  if (all(is.na(modes))) {
+    return(NULL)
+  }
+  list(
+    sender = unique(modes[lm$side1]),
+    receiver = unique(modes[lm$side2])
+  )
+}
+
 # A derived (windowed) layer inherits its structural metadata -- dimensions,
 # sides, direction -- from the layer it was derived from, so both resolve
 # through the same map entry.
 ds_layer_map <- function(src, name) {
+  # A zero-length or NA name (an unresolved focal) is "no layer", not a lookup
+  # error: `[[` on such a name aborts with get1index, so callers that treat a
+  # NULL map as "nothing to check" would instead crash.
+  if (length(name) != 1L || is.na(name)) {
+    return(NULL)
+  }
   if (!is.null(src$derived[[name]])) {
     name <- src$derived[[name]]$source
   }
@@ -166,6 +196,10 @@ ds_model_is_two_mode <- function(src, nodes = NULL, nodes2 = NULL) {
 }
 
 #' @exportS3Method
+# The last node-set-name comparison, and now unreachable from make_data(): every
+# assemblable legacy bundle becomes a stocnet, so nothing mints the environment
+# this method serves. Kept until the DyNAMi engine stops reading the envir seam,
+# so that seam is removed in one pass rather than dismantled piecemeal.
 ds_model_is_two_mode.data_source_envir <- function(
   src,
   nodes = NULL,
@@ -201,12 +235,87 @@ ds_side_ids <- function(src, nodeset) UseMethod("ds_side_ids")
 
 #' @exportS3Method
 ds_side_ids.data_source_stocnet <- function(src, nodeset) {
+  layer_side <- layer_side_ids(src, nodeset)
+  if (!is.null(layer_side)) {
+    return(layer_side)
+  }
   lm <- src$mode_map$layers[[src$focal]]
   if (identical(nodeset, ds_side_names(src)[2]) && isTRUE(lm$is_two_mode)) {
     lm$side2
   } else {
     lm$side1
   }
+}
+
+# A node-set identifier for one layer's own side. The modeled sides carry names
+# of their own, but a covariate layer over a different mode pair occupies a node
+# space neither of them names -- an effect that summarizes an attribute over its
+# network argument's senders reads it there. Naming that space by the layer and
+# the end of it is the only handle available, since the space exists only as
+# that layer's side.
+layer_side_key <- function(layer, side) {
+  paste0("layer:", layer, ":side", side)
+}
+
+# Global ids of the side a layer-qualified key names, or NULL where the
+# identifier is not one. Reading the key lives here alone, so every other caller
+# keeps passing a node-set name around without knowing how it is spelled.
+layer_side_ids <- function(src, nodeset) {
+  if (
+    length(nodeset) != 1L || is.na(nodeset) || !startsWith(nodeset, "layer:")
+  ) {
+    return(NULL)
+  }
+  parts <- strsplit(nodeset, ":", fixed = TRUE)[[1]]
+  if (length(parts) != 3L) {
+    return(NULL)
+  }
+  lm <- ds_layer_map(src, parts[2])
+  if (is.null(lm)) {
+    return(NULL)
+  }
+  if (identical(parts[3], "side2")) lm$side2 else lm$side1
+}
+
+# The identifier naming the node space a layer's side occupies. A side that
+# coincides with a modeled side keeps that side's name, so a reference to the
+# focal pair is spelled the way every other effect spells it and no node space
+# ends up with two names -- which would split one view of state into two.
+ds_layer_side_name <- function(src, layer, side) UseMethod("ds_layer_side_name")
+
+#' @exportS3Method
+ds_layer_side_name.data_source_envir <- function(src, layer, side) {
+  sides <- ds_layer_sides(src, layer)
+  if (length(sides) < side) sides[1] else sides[side]
+}
+
+#' @exportS3Method
+ds_layer_side_name.data_source_stocnet <- function(src, layer, side) {
+  lm <- ds_layer_map(src, layer)
+  if (is.null(lm)) {
+    return(ds_side_names(src)[1])
+  }
+  ids <- if (side == 2) lm$side2 else lm$side1
+  for (name in unique(ds_side_names(src))) {
+    if (identical(ds_side_ids(src, name), ids)) {
+      return(name)
+    }
+  }
+  layer_side_key(layer, side)
+}
+
+# Does the source resolve this node-set identifier on its own? The modeled sides
+# are named by the caller and checked against there; this answers for the node
+# spaces they do not name. Without it a foreign or misspelled identifier would
+# fall through to the sender side instead of being rejected.
+ds_has_nodeset <- function(src, nodeset) UseMethod("ds_has_nodeset")
+
+#' @exportS3Method
+ds_has_nodeset.data_source_envir <- function(src, nodeset) FALSE
+
+#' @exportS3Method
+ds_has_nodeset.data_source_stocnet <- function(src, nodeset) {
+  !is.null(layer_side_ids(src, nodeset))
 }
 
 # Networks --------------------------------------------------------------------
@@ -298,6 +407,54 @@ ds_layer_sides.data_source_stocnet <- function(src, name) {
   }
 }
 
+# The state container's key for the node space a node-set identifier names.
+#
+# Nodal state is keyed by mode set exactly as network state is keyed by layer,
+# so a node space is named by what it *is* rather than by which of two static
+# buckets a reference happened to land in. Two layers declaring the same side
+# then resolve to one view -- one copy, one write per event -- and key equality
+# means "the same node set" instead of being another comparison of manufactured
+# names. Modes are sorted so a set has a single spelling whatever order it was
+# declared in.
+ds_nodal_view <- function(src, nodeset) UseMethod("ds_nodal_view")
+
+#' @exportS3Method
+ds_nodal_view.data_source_envir <- function(src, nodeset) {
+  paste0("nodal:", nodeset)
+}
+
+#' @exportS3Method
+ds_nodal_view.data_source_stocnet <- function(src, nodeset) {
+  mode_view_key(src$mode_map, ds_side_ids(src, nodeset), nodeset)
+}
+
+# An attribute's event stream is keyed by the view it writes into, so the same
+# variable read on two node spaces carries two streams, each in its own local
+# index space. `attribute_view_stream()` spells that key; the reverse lookup
+# finds every view a variable changes on.
+attribute_view_stream <- function(view, attribute) {
+  paste0(view, "$", attribute)
+}
+
+attribute_stream_keys <- function(src, attribute) {
+  keys <- names(src$streams$attribute)
+  keys[sub("^.*\\$", "", keys) == attribute]
+}
+
+# Does any `replace` event for this attribute carry a missing value? Recorded at
+# the metadata pass so the walk consumes the fact rather than scanning state.
+# An attribute changing on the view this reference reads is the only stream that
+# can write a missing value into that view's vector.
+attribute_stream_has_missing <- function(src, nodeset, attribute) {
+  for (key in ds_attribute_streams(src, nodeset, attribute)) {
+    stream <- ds_fetch_stream(src, key)
+    if (anyNA(stream$replace)) {
+      return(TRUE)
+    }
+  }
+  FALSE
+}
+
 # Nodes and attributes --------------------------------------------------------
 
 #' A node set's rows, as the data frame estimation reports on
@@ -327,6 +484,25 @@ ds_n_nodes.data_source_envir <- function(src, nodeset) {
 #' @exportS3Method
 ds_n_nodes.data_source_stocnet <- function(src, nodeset) {
   length(ds_side_ids(src, nodeset))
+}
+
+# The mode category of each node of a side, aligned to that side's local index
+# order -- the stratum imputation pools within. A side spanning two modes
+# carries a value per node, so a node's category is knowable from its local
+# index alone. The legacy environment carries no modes, so every node is one
+# implicit category (`NULL`), reproducing the pre-category pooling exactly.
+ds_side_modes <- function(src, nodeset) UseMethod("ds_side_modes")
+
+#' @exportS3Method
+ds_side_modes.data_source_envir <- function(src, nodeset) NULL
+
+#' @exportS3Method
+ds_side_modes.data_source_stocnet <- function(src, nodeset) {
+  modes <- src$mode_map$nodes_lookup$mode[ds_side_ids(src, nodeset)]
+  if (all(is.na(modes))) {
+    return(NULL)
+  }
+  modes
 }
 
 # The (side, local index, global id, label) lookup for the focal layer's modeled
@@ -493,12 +669,20 @@ ds_attribute_streams.data_source_envir <- function(src, nodeset, attribute) {
 
 #' @exportS3Method
 ds_attribute_streams.data_source_stocnet <- function(src, nodeset, attribute) {
-  pool <- if (ds_is_global(src, nodeset)) {
-    names(src$streams$global)
-  } else {
-    names(src$streams$attribute)
+  if (ds_is_global(src, nodeset)) {
+    return(
+      if (attribute %in% names(src$streams$global)) {
+        attribute
+      } else {
+        character(0)
+      }
+    )
   }
-  if (attribute %in% pool) attribute else character(0)
+  # A nodal attribute resolves to the stream for the view this reference reads:
+  # a change on the receiver side is not an event for the sender's vector, and
+  # its node reference is local to a different index space.
+  key <- attribute_view_stream(ds_nodal_view(src, nodeset), attribute)
+  if (key %in% names(src$streams$attribute)) key else character(0)
 }
 
 # The dependent process ------------------------------------------------------
@@ -678,7 +862,9 @@ ds_object_streams.data_source_stocnet <- function(src, name) {
     stream <- src$streams$network[[name]]
     return(if (any(!is.na(stream$time))) name else character(0))
   }
-  if (name %in% names(src$streams$attribute)) name else character(0)
+  # A bare variable name reaches here only from a derivation source; attribute
+  # streams are view-qualified, so resolve every view the variable changes on.
+  attribute_stream_keys(src, name)
 }
 
 #' Fetch one event stream in the shape the recipe loop's walk consumes
@@ -832,26 +1018,51 @@ ds_realize_derivations.data_source_stocnet <- function(src, derivations) {
 
 #' Impute missing values in the objects the effects read
 #'
-#' Zero for networks, the mean for numeric attributes, the mode for categorical
-#' ones. As with derivations, the legacy path writes the imputed objects back
-#' into its environment while the stocnet path shadows them on the source.
+#' Zero for networks, the mean for numeric attributes, the most common value for
+#' categorical ones. As with derivations, the legacy path writes the imputed
+#' objects back into its environment while the stocnet path shadows them on the
+#' source.
 #'
 #' @param src a data source.
 #' @param objects_effects_link matrix from `get_objects_effects_link()`.
+#' @param policy an optional named character vector, keyed by attribute, giving
+#'   the per-attribute imputation policy from `set_preprocessing_opt(impute =)`.
+#'   `NULL` (or an unnamed attribute) uses the default summary contract.
 #' @return the source, with imputed values resolvable through the accessors.
 #' @noRd
-ds_impute_missing <- function(src, objects_effects_link) {
+ds_impute_missing <- function(src, objects_effects_link, policy = NULL) {
   UseMethod("ds_impute_missing")
 }
 
 #' @exportS3Method
-ds_impute_missing.data_source_envir <- function(src, objects_effects_link) {
+ds_impute_missing.data_source_envir <- function(
+  src,
+  objects_effects_link,
+  policy = NULL
+) {
+  # The as-category recode rewrites an attribute's initial values and its event
+  # streams together; the legacy environment path holds those on separate
+  # `nodes.goldfish` objects it cannot rewrite in place. Rather than honor the
+  # policy only at the walk (a silent divergence from the stocnet path's initial
+  # recode), it aborts, naming the limitation.
+  if (any(policy %in% "as_category")) {
+    cli::cli_abort(c(
+      "The as-category imputation policy requires stocnet data objects.",
+      "x" = "It cannot be applied on the legacy environment data path.",
+      "i" = "Build the data with {.fn goldfish_data} / {.fn as_goldfish} to use
+             {.code impute = c(... = \"as_category\")}."
+    ))
+  }
   impute_missing_data(objects_effects_link, envir = src$envir)
   src
 }
 
 #' @exportS3Method
-ds_impute_missing.data_source_stocnet <- function(src, objects_effects_link) {
+ds_impute_missing.data_source_stocnet <- function(
+  src,
+  objects_effects_link,
+  policy = NULL
+) {
   objects_table <- get_data_objects(
     list(rownames(objects_effects_link)),
     remove_first = FALSE
@@ -870,27 +1081,53 @@ ds_impute_missing.data_source_stocnet <- function(src, objects_effects_link) {
     if (!anyNA(value)) {
       next
     }
-    src$att_override[[att_override_key(entry$nodeset, entry$attribute)]] <-
-      impute_attribute(value)
+    # A global attribute has a single value, so its imputation pool is empty by
+    # construction: it is not imputed here but left missing for the schedule
+    # construction check to reject (naming the object) before the walk begins.
+    if (ds_is_global(src, entry$nodeset)) {
+      next
+    }
+    key <- att_override_key(entry$nodeset, entry$attribute)
+    # Under the as-category policy a missing categorical value is recoded to the
+    # reserved level rather than summarized, so missingness by design survives
+    # to the summarizers as an ordinary category. A recode overwriting a real
+    # observed level would be silent data loss, so it aborts.
+    if (
+      identical(imputation_policy_for(policy, entry$attribute), "as_category")
+    ) {
+      if (IMPUTATION_MISSING_LEVEL %in% value) {
+        cli::cli_abort(c(
+          "The as-category reserved level {.val {IMPUTATION_MISSING_LEVEL}}
+           already occurs in attribute {.val {entry$attribute}}.",
+          "x" = "Recoding missing values to it would collide with an observed
+                 value.",
+          "i" = "Rename the observed level, or impute this attribute with the
+                 default summary policy."
+        ))
+      }
+      value[is.na(value)] <- IMPUTATION_MISSING_LEVEL
+      src$att_override[[key]] <- value
+      next
+    }
+    # The initial table is imputed by the same rule the walk uses, evaluated at
+    # the start of the window: each missing value from its own mode category.
+    src$att_override[[key]] <-
+      impute_attribute(value, ds_side_modes(src, entry$nodeset))
   }
   src
 }
 
-# Shared imputation rule for a nodal/global attribute vector, matching the
-# legacy per-object treatment (and its warning) exactly.
-impute_attribute <- function(value) {
-  if (is.numeric(value)) {
-    cli::cli_warn(c(
-      "i" = "Missing data has been detected. Mean is used to impute for
-             numerical values"
-    ))
-    value[is.na(value)] <- mean(value, na.rm = TRUE)
-  } else {
-    cli::cli_warn(c(
-      "i" = "Missing data has been detected. Mode is used to impute for
-             categorical values"
-    ))
-    value[is.na(value)] <- names(which.max(table(value)))
+# Impute every missing value of a nodal attribute vector at one instant, each
+# from its own mode category's observed values. Simultaneous, so a still-missing
+# node contributes nothing to another's pool -- the summary is over the observed
+# values only, which is why the imputed values are written from a snapshot
+# rather than fed back one at a time.
+impute_attribute <- function(value, strata = NULL) {
+  value_type <- attribute_value_type(value)
+  cli::cli_warn(imputation_message(value_type))
+  observed <- value
+  for (m in which(is.na(value))) {
+    value[m] <- impute_nodal_value(observed, m, strata, value_type)
   }
   value
 }

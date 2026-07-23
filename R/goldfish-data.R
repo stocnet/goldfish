@@ -17,9 +17,13 @@
 #'
 #' A `stocnet` is a plain list of tibbles:
 #'
-#' - `info` -- metadata: the layer `name`s, the `focal` (dependent) layer, and
-#'   per-layer `update` (`"increment"` / `"replace"`), `directed`, and
-#'   `observation` (`"event"` / `"panel"`) declarations;
+#' - `info` -- metadata: the layer `name`s, per-layer `update`
+#'   (`"increment"` / `"replace"`), `directed`, and `observation`
+#'   (`"event"` / `"panel"`) declarations, and an **optional** `focal` layer.
+#'   `focal` is only the *default* dependent: the formula's left-hand side (or
+#'   [make_specification()]'s `layer`) names the layer to model, and that
+#'   modeled layer -- not `focal` -- drives side resolution, so `focal` may be
+#'   omitted whenever the formula/`layer` names the dependent;
 #' - `nodes` -- one row per node with a unique `label` and any attribute columns
 #'   (a reserved `active` column marks presence, a reserved `mode` column names
 #'   the node's mode);
@@ -41,9 +45,10 @@
 #'   attributes and relabel the node ids;
 #' - `manynet::bind_ties()` appends timed relational events to a layer;
 #' - `manynet::bind_changes()` attaches a nodal attribute change stream;
-#' - `manynet::add_info()` records the `focal`, `directed`, and `observation`
-#'   metadata goldfish requires (manynet derives `update` from the change
-#'   column but not `directed`, so declare it).
+#' - `manynet::add_info()` records the `directed` and `observation` metadata
+#'   goldfish requires (manynet derives `update` from the change column but not
+#'   `directed`, so declare it) and, optionally, a default `focal` layer -- an
+#'   override for when the formula/`layer` does not name the dependent.
 #'
 #' Alternatively `manynet::make_stocnet()` builds the whole object from the
 #' `info`, `nodes`, `ties`, `changes`, and `global` pieces in one call.
@@ -75,6 +80,32 @@
 #' is one-mode over **all** nodes -- in a multimodal node set an undeclared
 #' layer therefore spans every mode, so declare identical sets to restrict it.
 #'
+#' # Multipartite networks
+#'
+#' A single object may mix layers over **different** mode pairs -- a
+#' *multipartite* network. Because the sides are declared per layer, one fused
+#' `nodes` table with a `mode` column carries every mode, and each layer names
+#' the modes its senders and receivers draw from. A discourse network of
+#' `actor` and `concept` modes, for example, might carry a focal `support`
+#' layer (`actor -> concept`), a `contestation` covariate layer over the same
+#' pair, and an actor-only `coauthor` layer (`actor -> actor`):
+#'
+#' ```r
+#' info$sender   <- c(support = "actor", contestation = "actor",
+#'                    coauthor = "actor")
+#' info$receiver <- c(support = "concept", contestation = "concept",
+#'                    coauthor = "actor")
+#' ```
+#'
+#' Two-mode effects then read the correct side per layer (see
+#' [make_specification()] for which effects a two-mode focal layer admits), and
+#' node identity on the estimated object is reported per mode. The
+#' `vignette("two-mode", package = "goldfish")` walks a published two-mode
+#' DyNAM end to end, including the conversion of a `manynet` two-mode object
+#' (an `mnet`) into this representation: split the mode-marking node column into
+#' a `mode` column, split the tie increments into their own layers, and declare
+#' each layer's sides.
+#'
 #' # The reserved `flavor` and `order` columns
 #'
 #' Two optional `ties` columns tune goldfish's reading of a layer:
@@ -89,6 +120,56 @@
 #'   timestamp. Same-time, same-target `replace` events are otherwise genuinely
 #'   ambiguous and abort; supplying `order` pins their sequence. See
 #'   [as_goldfish()] for the full event-ordering contract.
+#'
+#' @section Missing data:
+#'
+#' goldfish imputes a missing value during preprocessing, before any effect is
+#' evaluated, by a single rule that depends on the object's *shape* and on
+#' *when* the value is missing. The complete contract, by shape:
+#'
+#' - **dyad (network):** a missing entry is *no tie* (zero) -- both at the start
+#'   of the window and for a missing `increment` or `replace` during the walk.
+#' - **global:** aborts at schedule construction (see below) -- both at the
+#'   start of the window and during the walk.
+#' - **node, numeric:** the mean of the node's mode category, the node itself
+#'   excluded -- at the start of the window over the initial values, and during
+#'   the walk over the state at the event's time.
+#' - **node, categorical:** the most common value in the node's mode category,
+#'   the node itself excluded -- by the same start-of-window and event-time
+#'   rule.
+#'
+#' A missing tie is treated as the **absence of a tie**: this is the *meaning*
+#' of a missing entry, a definition rather than a summary over other values. For
+#' a one-mode node set (or nodes carrying no `mode` column) the "mode category"
+#' is every other node -- one implicit category.
+#'
+#' A **global** attribute holds a single value, so the pool it would be
+#' summarized from is empty by construction. A missing global value -- in its
+#' initial value or in any of its event streams -- therefore aborts at schedule
+#' construction, naming the object (and, for an event, its time), rather than
+#' being replaced by an arbitrary zero.
+#'
+#' ## Imputation feeds back into later imputations
+#'
+#' An imputed value joins the process state exactly as an observed one does. A
+#' nodal value missing *after* the start of the window is therefore summarized
+#' from a pool that may already contain **earlier imputed values**, not only
+#' observed ones. Single imputation treats every imputed value as if it had been
+#' observed, so it understates the uncertainty the missingness carries.
+#'
+#' ## Better strategies for missing data
+#'
+#' Where missingness is material to the conclusions, impute *before* building
+#' the goldfish object rather than relying on the single-imputation floor above.
+#' Multiple imputation draws several completed datasets -- the initial nodes
+#' table and, for a time-varying attribute, its event streams -- from a model of
+#' the missingness. Fit the specification once per completed dataset and combine
+#' the fits under Rubin's rules with `mitools::MIcombine()`, which consumes the
+#' `coef()` and `vcov()` methods a goldfish result provides. The combination is
+#' valid to the extent Rubin's rules hold -- approximately normal, congenial
+#' estimates -- which is reasonable for simple specifications and to be treated
+#' with care beyond them. `mitools` is a suggested dependency; the worked
+#' example below runs only when it is installed.
 #'
 #' @name goldfish_data
 #' @seealso [as_goldfish()] for the validate-and-stamp boundary and the
@@ -106,10 +187,11 @@
 #'   layer_names = c("friendship", "calls")
 #' )
 #' se <- manynet::join_nodes(se, actors)
+#' # No `focal` needed: the formula's `calls ~ ...` names the dependent below.
+#' # Pass `focal = "calls"` here only to set a default when the model does not.
 #' se <- manynet::add_info(
 #'   se,
 #'   name = "Social Evolution MIT",
-#'   focal = "calls",
 #'   directed = c(friendship = TRUE, calls = TRUE),
 #'   observation = c(friendship = "panel", calls = "event")
 #' )
@@ -119,4 +201,27 @@
 #'   sub_model = "choice",
 #'   data = se
 #' )
+#'
+#' @examplesIf requireNamespace("mitools", quietly = TRUE)
+#' # Multiple imputation for a missing attribute: `social_evolution` has a
+#' # missing `gradeType` for some actors. Complete it several ways, fit the
+#' # model on each completed dataset, and combine under Rubin's rules. A real
+#' # analysis draws the completions from an imputation model (e.g. mice); here
+#' # they are illustrative resamples of the observed values.
+#' data("social_evolution")
+#' observed <- stats::na.omit(social_evolution$nodes$gradeType)
+#' fits <- lapply(1:5, function(m) {
+#'   se_m <- social_evolution
+#'   missing <- is.na(se_m$nodes$gradeType)
+#'   se_m$nodes$gradeType[missing] <-
+#'     sample(observed, sum(missing), replace = TRUE)
+#'   estimate_dynam(
+#'     calls ~ inertia + alter(gradeType),
+#'     sub_model = "choice",
+#'     data = se_m
+#'   )
+#' })
+#' combined <- mitools::MIcombine(fits)
+#' coef(combined)
+#' sqrt(diag(vcov(combined)))
 NULL

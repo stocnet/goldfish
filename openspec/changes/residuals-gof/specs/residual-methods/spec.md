@@ -53,6 +53,20 @@ observed sender).
   primitives, an attached preprocessed object, or a `preprocessed` argument
 - **THEN** the method aborts with the diagnostic-primitives guiding error.
 
+### Requirement: Methods apply per process on flavored fits
+Every residual, fitted, predict, and augment method SHALL apply to each
+process result of a flavored (multi-process) estimation exactly as to a
+single-model fit. Each fid's result carries its own stored primitives and
+preprocessed linkage; methods SHALL NOT pool across processes and SHALL NOT
+require the flavored container. The Fisheries Treaties
+creation/dissolution example is the reference fit shape.
+
+#### Scenario: per-process residuals on a flavored fit
+- **WHEN** `residuals()` is called on one process result of a flavored
+  Fisheries Treaties fit (creation or dissolution)
+- **THEN** the output equals what a standalone single-process fit of that
+  flavor would produce, with the same types available.
+
 ### Requirement: fitted method
 The method `fitted.result.goldfish()` SHALL accept
 `type = c("outcome", "probabilities")` and

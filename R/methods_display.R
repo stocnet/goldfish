@@ -420,10 +420,16 @@ print.specification.goldfish <- function(x, ...) {
   } else {
     "unknown"
   }
+  # Prefer the data's mode names over the synthetic side keys; the legacy path
+  # carries no mode pair, so its real node-set names stand in.
   nodes_line <- if (dep$is_two_mode) {
-    sprintf("%s → %s", dep$nodes, dep$nodes2)
+    if (!is.null(dep$mode_pair)) {
+      sprintf("%s → %s", dep$mode_pair$sender, dep$mode_pair$receiver)
+    } else {
+      sprintf("%s → %s", dep$nodes, dep$nodes2)
+    }
   } else {
-    dep$nodes
+    if (!is.null(dep$mode_pair)) dep$mode_pair$sender else dep$nodes
   }
   network_line <- if (!is.null(dep$network) && nzchar(dep$network)) {
     dep$network
@@ -916,7 +922,10 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   # cat(" Model type:", result$model.type, "\n")
   cat("*The results are available in the following objects:*\n\n")
 
-  textNodes <- "A character with the name of the object of class nodes.goldfish"
+  textNodes <- paste(
+    "A character identifier for the modeled side: a synthetic side key on the",
+    "stocnet path, a nodes.goldfish object name on the legacy path"
+  )
 
   description <- data.frame(
     name = c(

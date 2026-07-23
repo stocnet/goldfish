@@ -65,9 +65,10 @@ ties <- data.frame(
   time = c(NA, 1, 2),
   layer = "calls"
 )
+# `focal` is optional -- the modeling formula's LHS names the dependent, and
+# the modeled layer drives side resolution. Set it only for a default.
 info <- list(
   name = "toy",
-  focal = "calls",
   update = c(calls = "increment"),
   directed = c(calls = TRUE),
   observation = c(calls = "event")

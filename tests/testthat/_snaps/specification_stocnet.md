@@ -51,7 +51,7 @@
         State-only flavor: "dissolution"
       * Events: 1
       * Time span: "1 – 1"
-      * Nodes: nodes
+      * Nodes: p
       * Network: "calls"
       
       Choice: `~inertia`
@@ -71,8 +71,27 @@
         Flavors (all modeled): "creation" and "dissolution"
       * Events: 2
       * Time span: "1 – 2"
-      * Nodes: nodes
+      * Nodes: p
       * Network: "calls"
+      
+      Choice: `~inertia`
+      
+      v Specification is valid.
+
+# the two-mode spec print names the real mode pair
+
+    Code
+      print(spec)
+    Message
+      -- <specification.goldfish> ----------------------------------------------------
+      Model "DyNAM" · sub-model choice
+      
+      Dependent
+      * Layer: "membership"
+      * Events: 2
+      * Time span: "1 – 2"
+      * Nodes: p → o
+      * Network: "membership"
       
       Choice: `~inertia`
       
@@ -141,7 +160,7 @@
         Modeled flavors: "creation" and "dissolution"
       * Events: 3
       * Time span: "1 – 3"
-      * Nodes: nodes
+      * Nodes: p
       * Network: "calls"
       
       Flavor "creation"

@@ -11,7 +11,7 @@ A \code{stocnet} list of five components:
 \item{info}{layer metadata: \code{name}, \code{layers} (\code{"friendship"}, \code{"calls"}),
 per-layer \code{update} (\code{friendship = "replace"}, \code{calls = "increment"}),
 \code{directed} (both \code{TRUE}), \code{observation} (\code{friendship = "panel"},
-\code{calls = "event"}), and \code{focal = "calls"}.}
+\code{calls = "event"}), and the optional default \code{focal = "calls"}.}
 \item{nodes}{84 actors (\code{label}, \code{active}, \code{floor}, \code{gradeType}).}
 \item{ties}{1205 rows (\code{from}, \code{to}, \code{time}, \code{weight}, \code{layer}) stacking the
 friendship and calls events; \code{from}/\code{to} index rows of \code{nodes}.}
@@ -28,8 +28,9 @@ consumes directly through the \code{data} argument of \code{\link[=estimate_dyna
 \code{\link[=estimate_rem]{estimate_rem()}}, and \code{\link[=make_specification]{make_specification()}}. It carries two layers over a
 single node set: \code{friendship}, the survey snapshots as a \strong{panel} layer
 (wave-timed \code{replace} updates), and \code{calls}, the phone calls as an \strong{event}
-layer (timestamped \code{increment} events). The focal (dependent) layer is
-\code{calls}.
+layer (timestamped \code{increment} events). Its optional default focal layer is
+\code{calls}; a model names its dependent through the formula LHS or the
+specification \code{layer} regardless.
 }
 \examples{
 # Construction workflow (how the shipped object is built from the raw frames):
@@ -40,10 +41,11 @@ se <- manynet::from_ties(
   layer_names = c("friendship", "calls")
 )
 se <- manynet::join_nodes(se, actors) # bring in the actor attributes
+# `focal` is optional -- the specification's `layer` names the dependent
+# below. Set it (`focal = "calls"`) only to default an unnamed model.
 se <- manynet::add_info(
   se,
   name = "Social Evolution MIT",
-  focal = "calls",
   directed = c(friendship = TRUE, calls = TRUE),
   observation = c(friendship = "panel", calls = "event")
 )
@@ -54,6 +56,7 @@ spec <- make_specification(
   choice = ~ inertia + recip,
   model = "DyNAM",
   choice_sub_model = "choice",
+  layer = "calls",
   data = social_evolution
 )
 

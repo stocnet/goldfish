@@ -20,9 +20,13 @@ Once assembled, the object is passed straight to \code{\link[=estimate_dynam]{es
 \section{The components}{
 A \code{stocnet} is a plain list of tibbles:
 \itemize{
-\item \code{info} -- metadata: the layer \code{name}s, the \code{focal} (dependent) layer, and
-per-layer \code{update} (\code{"increment"} / \code{"replace"}), \code{directed}, and
-\code{observation} (\code{"event"} / \code{"panel"}) declarations;
+\item \code{info} -- metadata: the layer \code{name}s, per-layer \code{update}
+(\code{"increment"} / \code{"replace"}), \code{directed}, and \code{observation}
+(\code{"event"} / \code{"panel"}) declarations, and an \strong{optional} \code{focal} layer.
+\code{focal} is only the \emph{default} dependent: the formula's left-hand side (or
+\code{\link[=make_specification]{make_specification()}}'s \code{layer}) names the layer to model, and that
+modeled layer -- not \code{focal} -- drives side resolution, so \code{focal} may be
+omitted whenever the formula/\code{layer} names the dependent;
 \item \code{nodes} -- one row per node with a unique \code{label} and any attribute columns
 (a reserved \code{active} column marks presence, a reserved \code{mode} column names
 the node's mode);
@@ -45,9 +49,10 @@ node set (\code{layer_names} labels them);
 attributes and relabel the node ids;
 \item \code{manynet::bind_ties()} appends timed relational events to a layer;
 \item \code{manynet::bind_changes()} attaches a nodal attribute change stream;
-\item \code{manynet::add_info()} records the \code{focal}, \code{directed}, and \code{observation}
-metadata goldfish requires (manynet derives \code{update} from the change
-column but not \code{directed}, so declare it).
+\item \code{manynet::add_info()} records the \code{directed} and \code{observation} metadata
+goldfish requires (manynet derives \code{update} from the change column but not
+\code{directed}, so declare it) and, optionally, a default \code{focal} layer -- an
+override for when the formula/\code{layer} does not name the dependent.
 }
 
 Alternatively \code{manynet::make_stocnet()} builds the whole object from the
@@ -80,6 +85,31 @@ is one-mode over \strong{all} nodes -- in a multimodal node set an undeclared
 layer therefore spans every mode, so declare identical sets to restrict it.
 }
 
+\section{Multipartite networks}{
+A single object may mix layers over \strong{different} mode pairs -- a
+\emph{multipartite} network. Because the sides are declared per layer, one fused
+\code{nodes} table with a \code{mode} column carries every mode, and each layer names
+the modes its senders and receivers draw from. A discourse network of
+\code{actor} and \code{concept} modes, for example, might carry a focal \code{support}
+layer (\code{actor -> concept}), a \code{contestation} covariate layer over the same
+pair, and an actor-only \code{coauthor} layer (\code{actor -> actor}):
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{info$sender   <- c(support = "actor", contestation = "actor",
+                   coauthor = "actor")
+info$receiver <- c(support = "concept", contestation = "concept",
+                   coauthor = "actor")
+}\if{html}{\out{</div>}}
+
+Two-mode effects then read the correct side per layer (see
+\code{\link[=make_specification]{make_specification()}} for which effects a two-mode focal layer admits), and
+node identity on the estimated object is reported per mode. The
+\code{vignette("two-mode", package = "goldfish")} walks a published two-mode
+DyNAM end to end, including the conversion of a \code{manynet} two-mode object
+(an \code{mnet}) into this representation: split the mode-marking node column into
+a \code{mode} column, split the tie increments into their own layers, and declare
+each layer's sides.
+}
+
 \section{The reserved \code{flavor} and \code{order} columns}{
 Two optional \code{ties} columns tune goldfish's reading of a layer:
 \itemize{
@@ -96,6 +126,60 @@ ambiguous and abort; supplying \code{order} pins their sequence. See
 }
 }
 
+\section{Missing data}{
+
+
+goldfish imputes a missing value during preprocessing, before any effect is
+evaluated, by a single rule that depends on the object's \emph{shape} and on
+\emph{when} the value is missing. The complete contract, by shape:
+\itemize{
+\item \strong{dyad (network):} a missing entry is \emph{no tie} (zero) -- both at the start
+of the window and for a missing \code{increment} or \code{replace} during the walk.
+\item \strong{global:} aborts at schedule construction (see below) -- both at the
+start of the window and during the walk.
+\item \strong{node, numeric:} the mean of the node's mode category, the node itself
+excluded -- at the start of the window over the initial values, and during
+the walk over the state at the event's time.
+\item \strong{node, categorical:} the most common value in the node's mode category,
+the node itself excluded -- by the same start-of-window and event-time
+rule.
+}
+
+A missing tie is treated as the \strong{absence of a tie}: this is the \emph{meaning}
+of a missing entry, a definition rather than a summary over other values. For
+a one-mode node set (or nodes carrying no \code{mode} column) the "mode category"
+is every other node -- one implicit category.
+
+A \strong{global} attribute holds a single value, so the pool it would be
+summarized from is empty by construction. A missing global value -- in its
+initial value or in any of its event streams -- therefore aborts at schedule
+construction, naming the object (and, for an event, its time), rather than
+being replaced by an arbitrary zero.
+\subsection{Imputation feeds back into later imputations}{
+
+An imputed value joins the process state exactly as an observed one does. A
+nodal value missing \emph{after} the start of the window is therefore summarized
+from a pool that may already contain \strong{earlier imputed values}, not only
+observed ones. Single imputation treats every imputed value as if it had been
+observed, so it understates the uncertainty the missingness carries.
+}
+
+\subsection{Better strategies for missing data}{
+
+Where missingness is material to the conclusions, impute \emph{before} building
+the goldfish object rather than relying on the single-imputation floor above.
+Multiple imputation draws several completed datasets -- the initial nodes
+table and, for a time-varying attribute, its event streams -- from a model of
+the missingness. Fit the specification once per completed dataset and combine
+the fits under Rubin's rules with \code{mitools::MIcombine()}, which consumes the
+\code{coef()} and \code{vcov()} methods a goldfish result provides. The combination is
+valid to the extent Rubin's rules hold -- approximately normal, congenial
+estimates -- which is reasonable for simple specifications and to be treated
+with care beyond them. \code{mitools} is a suggested dependency; the worked
+example below runs only when it is installed.
+}
+}
+
 \examples{
 \dontshow{if (rlang::is_installed("manynet")) withAutoprint(\{ # examplesIf}
 # Assemble Social Evolution: a panel friendship layer and an event calls
@@ -107,10 +191,11 @@ se <- manynet::from_ties(
   layer_names = c("friendship", "calls")
 )
 se <- manynet::join_nodes(se, actors)
+# No `focal` needed: the formula's `calls ~ ...` names the dependent below.
+# Pass `focal = "calls"` here only to set a default when the model does not.
 se <- manynet::add_info(
   se,
   name = "Social Evolution MIT",
-  focal = "calls",
   directed = c(friendship = TRUE, calls = TRUE),
   observation = c(friendship = "panel", calls = "event")
 )
@@ -120,6 +205,29 @@ estimate_dynam(
   sub_model = "choice",
   data = se
 )
+\dontshow{\}) # examplesIf}
+\dontshow{if (requireNamespace("mitools", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+# Multiple imputation for a missing attribute: `social_evolution` has a
+# missing `gradeType` for some actors. Complete it several ways, fit the
+# model on each completed dataset, and combine under Rubin's rules. A real
+# analysis draws the completions from an imputation model (e.g. mice); here
+# they are illustrative resamples of the observed values.
+data("social_evolution")
+observed <- stats::na.omit(social_evolution$nodes$gradeType)
+fits <- lapply(1:5, function(m) {
+  se_m <- social_evolution
+  missing <- is.na(se_m$nodes$gradeType)
+  se_m$nodes$gradeType[missing] <-
+    sample(observed, sum(missing), replace = TRUE)
+  estimate_dynam(
+    calls ~ inertia + alter(gradeType),
+    sub_model = "choice",
+    data = se_m
+  )
+})
+combined <- mitools::MIcombine(fits)
+coef(combined)
+sqrt(diag(vcov(combined)))
 \dontshow{\}) # examplesIf}
 }
 \seealso{

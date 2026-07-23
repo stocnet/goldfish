@@ -12,16 +12,16 @@
 #' @param nodes,nodes2 names of the node sets of the dependent events.
 #' @param envir environment where the data objects live.
 #'
-#' @return a list with components `networks`, `nodal`, `nodal2` (NULL for
-#'   one-mode), and `globals`.
+#' @return a list with components `networks`, one `nodal:<mode-set>` view per
+#'   referenced node space, and `globals`.
 #' @noRd
 #' Classify the effects' data objects into the state-container mapping
 #'
 #' Metadata-only companion to [build_state_container]: it resolves each data
-#' object to its state `component` (`networks` / `nodal` / `nodal2` / `globals`)
-#' and its `key`, reading object **class/structure only** — it copies no network
-#' or nodal data. This is the single source of the `object_keys` mapping so the
-#' upfront compile (`build_spec_map()`) can build the update plan + call
+#' object to its state `component` (`networks` / `nodal:<mode-set>` /
+#' `globals`) and its `key`, reading object **class/structure only** — it copies
+#' no network or nodal data. This is the single source of the `object_keys`
+#' mapping so the upfront compile (`build_spec_map()`) can build the plan + call
 #' templates without materialising the state (the metadata/data boundary); the
 #' same validations (non-matrix network, missing attribute, foreign node set)
 #' fire here.
@@ -43,6 +43,12 @@ build_object_keys <- function(
   objects_table <- get_data_objects(list(object_names), remove_first = FALSE)
   components <- character(nrow(objects_table))
   keys <- character(nrow(objects_table))
+  # Value type and missingness are recorded here, at the metadata pass, so the
+  # walk consumes them rather than dispatching on a value's runtime class or
+  # scanning state for NA. Non-nodal rows (networks, globals) do not use the
+  # stratified resolver, so they carry no type.
+  value_types <- rep(NA_character_, nrow(objects_table))
+  has_missing <- rep(FALSE, nrow(objects_table))
   # Derived (windowed) networks may not be realized yet on the recipe path
   # classify them as networks from the recipe instead of
   # get()-ing the absent object. The source is a matrix, so the realized derived
@@ -70,15 +76,41 @@ build_object_keys <- function(
       }
       if (ds_is_global(src, entry$nodeset)) {
         components[i] <- "globals"
-      } else if (entry$nodeset == nodes) {
-        components[i] <- "nodal"
-      } else if (entry$nodeset == nodes2) {
-        components[i] <- "nodal2"
+      } else if (
+        entry$nodeset %in%
+          c(nodes, nodes2) ||
+          ds_has_nodeset(src, entry$nodeset)
+      ) {
+        # The node set a reference names decides *which* view it reads, but
+        # not how many views exist: the component is the node space itself, so
+        # positions sharing a mode set share one view and a third node space
+        # is expressible rather than a hard error. Admitting a node set the
+        # source resolves on its own is what lets a covariate layer's own
+        # sender side be read; the check still has to happen, because an
+        # unrecognized name resolves to the sender side rather than failing, so
+        # dropping it would turn a typo into a silent read of the wrong mode.
+        components[i] <- ds_nodal_view(src, entry$nodeset)
+        value_types[i] <- attribute_value_type(value)
+        has_missing[i] <- anyNA(value) ||
+          attribute_stream_has_missing(src, entry$nodeset, entry$attribute)
       } else {
+        # Name the modeled sides by their mode names when the source carries a
+        # focal layer with a map; otherwise the side keys (or legacy node-set
+        # names) stand in.
+        pair <- if (is.null(src$focal)) {
+          NULL
+        } else {
+          ds_layer_mode_pair(src, src$focal)
+        }
+        modeled_sides <- if (is.null(pair)) {
+          unique(c(nodes, nodes2))
+        } else {
+          unique(c(pair$sender, pair$receiver))
+        }
         cli::cli_abort(
           "Attribute {.val {entry$name}} belongs to node set
-           {.val {entry$nodeset}}, which is neither {.val {nodes}} nor
-           {.val {nodes2}}."
+           {.val {entry$nodeset}}, which is none of the modeled node
+           sets {.val {modeled_sides}}."
         )
       }
       keys[i] <- entry$attribute
@@ -89,8 +121,132 @@ build_object_keys <- function(
     name = objects_table$name,
     component = components,
     key = keys,
+    value_type = value_types,
+    has_missing = has_missing,
     stringsAsFactors = FALSE
   )
+}
+
+# Imputation policy vocabulary ------------------------------------------------
+#
+# The per-attribute policies a user may declare through
+# `set_preprocessing_opt(impute = ...)`. `summary` is the default contract (mean
+# / most common value within the mode category); `as_category` recodes a
+# categorical attribute's missing values to a reserved level so missingness by
+# design survives to the summarizers; `locf` is reserved for a future
+# last-observation-carried-forward estimator and is rejected as unimplemented.
+IMPUTATION_POLICY_SUPPORTED <- c("summary", "as_category")
+IMPUTATION_POLICY_RESERVED <- c("locf")
+# The reserved level an `as_category` recode writes in place of a missing
+# categorical value. Documented as reserved; a collision with a real observed
+# level aborts.
+IMPUTATION_MISSING_LEVEL <- "(missing)"
+
+# The per-attribute policy for one object, defaulting to the summary contract
+# for an attribute the policy does not name. Keyed by the object's registry
+# `key` (the attribute name for a nodal object); a `NULL` policy is all-summary.
+imputation_policy_for <- function(policy, key) {
+  if (is.null(policy) || !key %in% names(policy)) {
+    return("summary")
+  }
+  unname(policy[[key]])
+}
+
+# Validate a declared imputation policy against the objects the effects read.
+# Structural validation (shape, value set, reserved value) already happened at
+# `set_preprocessing_opt()`; this is the contextual half, run once the registry
+# and its value types exist: a policy naming an attribute no effect reads, or
+# declaring `as_category` for a numeric attribute, aborts here before any
+# recode. Nodal rows are those the resolver classified (they carry a value type;
+# networks and globals do not).
+validate_imputation_policy <- function(policy, objects_registry) {
+  if (is.null(policy)) {
+    return(invisible(NULL))
+  }
+  is_nodal <- !is.na(objects_registry$value_type)
+  for (attr_name in names(policy)) {
+    if (identical(unname(policy[[attr_name]]), "summary")) {
+      next
+    }
+    idx <- which(is_nodal & objects_registry$key == attr_name)
+    if (length(idx) == 0) {
+      cli::cli_abort(c(
+        "Imputation policy names attribute {.val {attr_name}}, which no effect
+         reads.",
+        "i" = "Name only a nodal attribute an effect in the formula uses."
+      ))
+    }
+    if (
+      identical(unname(policy[[attr_name]]), "as_category") &&
+        !identical(objects_registry$value_type[idx[1]], "categorical")
+    ) {
+      cli::cli_abort(c(
+        "The as-category policy applies only to factor or character
+         attributes.",
+        "x" = "{.val {attr_name}} is a numeric attribute.",
+        "i" = "Impute a numeric attribute with the default summary policy."
+      ))
+    }
+  }
+  invisible(NULL)
+}
+
+# Imputation resolver ---------------------------------------------------------
+#
+# One rule, evaluated wherever a missing nodal value is needed: summarize the
+# variable's state at that moment over the imputed node's mode category,
+# excluding the node. The initial table is this rule at the start of the window;
+# the walk is this rule at each event. Keeping it one function is what makes the
+# two agree by construction rather than by matching two hand-written summaries.
+
+# The summary a recorded value type selects. Numeric variables take the mean;
+# factor/character variables the most common observed value -- never a mean,
+# which on a categorical vector returns NA and writes a missing value into
+# state. Missing values inside a non-empty pool are dropped: ordinary handling,
+# not an empty pool (which is rejected at schedule construction).
+attribute_value_type <- function(value) {
+  if (is.numeric(value)) "numeric" else "categorical"
+}
+
+summarize_pool <- function(pool, value_type) {
+  if (identical(value_type, "categorical")) {
+    observed <- pool[!is.na(pool)]
+    counts <- table(observed)
+    names(counts)[which.max(counts)]
+  } else {
+    mean(pool, na.rm = TRUE)
+  }
+}
+
+# Impute one node's value from its mode category. `strata` aligns to `values` by
+# index; `NULL` means one implicit category (legacy single node set, or nodes
+# with no mode column), where the pool is every other node -- the pre-category
+# behavior, so one-mode data is untouched.
+impute_nodal_value <- function(values, node, strata, value_type) {
+  in_category <- if (is.null(strata)) {
+    rep(TRUE, length(values))
+  } else {
+    !is.na(strata) & strata == strata[node]
+  }
+  in_category[node] <- FALSE
+  summarize_pool(values[in_category], value_type)
+}
+
+# The user-facing warning for an imputation, naming the summary in the user's
+# terms: "most common value" for the categorical rule, reserving "mode" for the
+# node category.
+imputation_message <- function(value_type) {
+  if (identical(value_type, "categorical")) {
+    c(
+      "i" = "Missing data has been detected. The most common value is used to
+             impute categorical attributes."
+    )
+  } else {
+    c(
+      "i" = "Missing data has been detected. The mean is used to impute
+             numeric attributes."
+    )
+  }
 }
 
 build_state_container <- function(
@@ -110,8 +266,10 @@ build_state_container <- function(
 
   networks <- list()
   nodal_cols <- list()
-  nodal2_cols <- list()
   global_cols <- list()
+  # The node-set name backing each view, so its mode categories resolve the same
+  # way whichever reference first named it (categories never straddle a view).
+  view_nodeset <- list()
 
   for (i in seq_len(nrow(objects_table))) {
     entry <- objects_table[i, ]
@@ -122,35 +280,64 @@ build_state_container <- function(
       value <- ds_attribute(src, entry$nodeset, entry$attribute)
       if (component == "globals") {
         global_cols[[entry$attribute]] <- value
-      } else if (component == "nodal") {
-        nodal_cols[[entry$attribute]] <- value
       } else {
-        nodal2_cols[[entry$attribute]] <- value
+        nodal_cols[[component]][[entry$attribute]] <- value
+        view_nodeset[[component]] <- view_nodeset[[component]] %||%
+          entry$nodeset
       }
     }
   }
 
-  state <- list(
-    networks = networks,
-    nodal = data.frame(nodal_cols, row.names = NULL),
-    nodal2 = if (is_one_mode) {
-      NULL
-    } else {
-      data.frame(nodal2_cols, row.names = NULL)
-    },
-    globals = data.frame(global_cols, row.names = NULL)
-  )
-  if (length(nodal_cols) == 0) {
-    state$nodal <- data.frame(matrix(nrow = n1, ncol = 0))
+  # The focal layer's own views exist whether or not an effect reads a nodal
+  # attribute, so a container always carries a correctly sized frame per
+  # modeled side. On a one-mode focal both sides resolve to one view and this
+  # collapses to the single frame the container has always had.
+  view_sizes <- list()
+  focal_view1 <- ds_nodal_view(src, nodes)
+  view_sizes[[focal_view1]] <- n1
+  view_nodeset[[focal_view1]] <- view_nodeset[[focal_view1]] %||% nodes
+  if (!is_one_mode) {
+    focal_view2 <- ds_nodal_view(src, nodes2)
+    view_sizes[[focal_view2]] <- n2
+    view_nodeset[[focal_view2]] <- view_nodeset[[focal_view2]] %||% nodes2
   }
-  if (!is_one_mode && length(nodal2_cols) == 0) {
-    state$nodal2 <- data.frame(matrix(nrow = n2, ncol = 0))
-  }
-  if (length(global_cols) == 0) {
-    state$globals <- data.frame(matrix(nrow = 1, ncol = 0))
+  for (view in names(nodal_cols)) {
+    view_sizes[[view]] <- view_sizes[[view]] %||%
+      length(nodal_cols[[view]][[1]])
   }
 
+  nodal_views <- lapply(names(view_sizes), function(view) {
+    cols <- nodal_cols[[view]]
+    if (length(cols) == 0) {
+      data.frame(matrix(nrow = view_sizes[[view]], ncol = 0))
+    } else {
+      data.frame(cols, row.names = NULL)
+    }
+  })
+  names(nodal_views) <- names(view_sizes)
+
+  state <- c(
+    list(networks = networks),
+    nodal_views,
+    list(
+      globals = if (length(global_cols) == 0) {
+        data.frame(matrix(nrow = 1, ncol = 0))
+      } else {
+        data.frame(global_cols, row.names = NULL)
+      }
+    )
+  )
+
+  # The stratum a node falls in when its value is imputed, per view, aligned to
+  # the view's local index order. Carried beside the state so the walk finds a
+  # node's mode category from its local index without re-resolving the mode map.
+  strata <- lapply(names(view_sizes), function(view) {
+    ds_side_modes(src, view_nodeset[[view]])
+  })
+  names(strata) <- names(view_sizes)
+
   attr(state, "object_keys") <- object_keys
+  attr(state, "strata") <- strata
   state
 }
 
@@ -510,6 +697,11 @@ build_update_plan <- function(
     key = object_keys$key,
     shape = shape,
     is_undirected = is_undirected,
+    # Recorded at the metadata pass so the walk selects a summary by type and
+    # enters imputation only where a missing value can occur, without scanning
+    # state or dispatching on a value's runtime class.
+    value_type = object_keys$value_type,
+    has_missing = object_keys$has_missing,
     stringsAsFactors = FALSE
   )
 
@@ -726,4 +918,94 @@ build_event_schedule <- function(
     stream = stream[ordering],
     n = n_total
   )
+}
+
+# Reject, before the walk begins, a missing nodal value that would be summarized
+# from an empty pool -- a node whose mode category has no other member. This is
+# the last point that sees both the strata and which events carry a missing
+# `replace`, before any state exists; aborting here reports the attribute, node
+# and category rather than emitting a not-a-number value part way through the
+# walk. A wholly-missing category (no observed value at all) is caught earlier,
+# where the attribute is read, so this handles the singleton case its per-read
+# check cannot see: a category of one node whose sole value is being replaced.
+#
+# `strata` is the per-view mode category vector attached to the state; a `NULL`
+# view is one implicit category, so its pool is empty only when the whole side
+# is a single node.
+assert_imputable_schedule <- function(schedule, objects_registry, strata) {
+  for (k in seq_len(schedule$n)) {
+    if (
+      !identical(schedule$shape[k], "node") ||
+        !identical(schedule$semantics[k], "replace")
+    ) {
+      next
+    }
+    if (!is.na(schedule$value[[k]])) {
+      next
+    }
+    oid <- schedule$target[k]
+    if (is.na(oid) || is.na(objects_registry$value_type[oid])) {
+      next
+    }
+    component <- objects_registry$component[oid]
+    view_strata <- strata[[component]]
+    # A view with no mode categories is the legacy single node set, whose
+    # pooling this change does not touch; leave its behavior as it was.
+    if (is.null(view_strata)) {
+      next
+    }
+    node <- schedule$node[k]
+    pool_size <- sum(view_strata == view_strata[node], na.rm = TRUE) - 1L
+    if (pool_size >= 1L) {
+      next
+    }
+    cli::cli_abort(c(
+      "{.val {objects_registry$key[oid]}} cannot be imputed for node
+       {.val {node}}.",
+      "x" = "Its mode category ({.val {view_strata[node]}}) has no other member
+             to summarize from.",
+      "i" = "A category of one node cannot supply a value for that node; give
+             the event an explicit value, or model the attribute where its
+             mode has more than one node."
+    ))
+  }
+  invisible(NULL)
+}
+
+# Reject, before the walk begins, a missing global attribute value. A global has
+# exactly one value, so the summary rule would draw from an empty pool -- there
+# is no defined imputation. Both the initial value (read from the built state)
+# and any event-stream replace (carried on the schedule) are checked here, the
+# last point before the walk, so the abort names the object and, for an event,
+# its time rather than emitting a not-a-number or writing an arbitrary zero.
+assert_globals_defined <- function(state, objects_registry, schedule) {
+  for (oid in which(objects_registry$component == "globals")) {
+    key <- objects_registry$key[oid]
+    if (is.na(state$globals[[key]])) {
+      cli::cli_abort(c(
+        "Global attribute {.val {key}} has a missing initial value.",
+        "x" = "A global attribute has a single value, so there is nothing to
+               summarize it from.",
+        "i" = "Give it an observed initial value, or a first event that sets
+               one, before the observation window."
+      ))
+    }
+  }
+  for (k in seq_len(schedule$n)) {
+    if (
+      !identical(schedule$shape[k], "global") || !is.na(schedule$value[[k]])
+    ) {
+      next
+    }
+    oid <- schedule$target[k]
+    key <- if (!is.na(oid)) objects_registry$key[oid] else NA_character_
+    cli::cli_abort(c(
+      "Global attribute {.val {key}} has a missing value at time
+       {.val {schedule$time[k]}}.",
+      "x" = "A global attribute has a single value, so a missing update cannot
+             be imputed from other values.",
+      "i" = "Give the event an explicit value."
+    ))
+  }
+  invisible(NULL)
 }

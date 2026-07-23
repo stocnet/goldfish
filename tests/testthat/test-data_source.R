@@ -147,6 +147,37 @@ test_that("a two-mode focal layer names two sides; one-mode names one", {
   expect_equal(ds_n_nodes(two_mode, "nodes_side2"), 2)
 })
 
+test_that("the stocnet path reads two-modeness only from the mode map", {
+  # The canonical representation contract: no downstream branch decides
+  # two-modeness by comparing two node-set names. The stocnet method ignores
+  # both name arguments entirely, so even deliberately misleading ones cannot
+  # override the focal layer's mode pair.
+  two_mode <- new_data_source(data = make_stocnet_fixture_twomode())
+  expect_true(ds_model_is_two_mode(two_mode))
+  expect_true(
+    ds_model_is_two_mode(two_mode, nodes = "same", nodes2 = "same"),
+    label = "identical names cannot make a two-mode layer read one-mode"
+  )
+
+  one_mode <- new_data_source(data = make_stocnet_fixture())
+  expect_false(ds_model_is_two_mode(one_mode))
+  expect_false(
+    ds_model_is_two_mode(one_mode, nodes = "a", nodes2 = "b"),
+    label = "distinct names cannot make a one-mode layer read two-mode"
+  )
+})
+
+test_that("per-argument two-modeness comes from each layer's own mode pair", {
+  # Resolution is per network argument, never a blanket from the focal layer:
+  # on a multipartite object the focal `attend` is two-mode while the covariate
+  # `coauthor` is one-mode, and each argument answers for itself.
+  src <- new_data_source(data = make_stocnet_fixture_multipartite())
+
+  expect_true(ds_arg_is_two_mode(src, "attend", NULL))
+  expect_false(ds_arg_is_two_mode(src, "coauthor", NULL))
+  expect_true(ds_arg_is_two_mode(src, "member", NULL))
+})
+
 test_that("a two-mode layer's state is n1 x n2 with per-side labels", {
   src <- new_data_source(data = make_stocnet_fixture_twomode())
   mat <- ds_network(src, "membership")
@@ -191,7 +222,9 @@ test_that("the stocnet source builds the legacy state container", {
     attr(stocnet_state, "object_keys"),
     attr(legacy_state, "object_keys")
   )
-  expect_null(stocnet_state$nodal2, label = "a one-mode layer has no nodal2")
+  # A one-mode layer names one node space, so both modeled sides resolve to a
+  # single view rather than to two buckets one of which is empty.
+  expect_length(grep("^nodal:", names(stocnet_state)), 1L)
 })
 
 # Event streams ---------------------------------------------------------------
@@ -244,8 +277,10 @@ test_that("an attribute stream translates to the node/replace shape", {
   x$changes$value <- list(list(8), list(7))
   src <- new_data_source(data = x)
 
+  # Attribute streams are keyed by the view they write into, so the key names
+  # the node space as well as the variable.
   expect_equal(
-    ds_fetch_stream(src, "floor"),
+    ds_fetch_stream(src, "nodal:p$floor"),
     data.frame(time = c(1, 2), node = c(1L, 3L), replace = c(7, 8)),
     ignore_attr = "row.names",
     label = "rows are ordered by the sort key regardless of input arrangement"

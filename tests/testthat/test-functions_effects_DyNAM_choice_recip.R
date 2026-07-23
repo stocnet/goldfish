@@ -208,7 +208,7 @@ test_that("recip init throws an error when two-mode network", {
   formals(effectFUN) <- check
   expect_error(
     init_DyNAM_choice.recip(effectFUN, m, NULL, 5, 5),
-    regexp = ".*\\Q effect must not be used when is a two-mode network\\E*"
+    regexp = "cannot be computed on a two-mode network"
   )
 })
 

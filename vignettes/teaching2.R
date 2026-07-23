@@ -33,6 +33,7 @@ fisheries_built <- from_ties(
 ) |>
   add_info(
     name = "Fisheries Treaties",
+    # focal is optional -- the specifications below name "treaties" via `layer`.
     focal = "treaties",
     directed = c(treaties = FALSE, contiguity = FALSE),
     observation = c(treaties = "event", contiguity = "event")
@@ -103,6 +104,7 @@ partnerSpec <- make_specification(
   choice = formula1,
   model = "DyNAM",
   choice_sub_model = "choice_coordination",
+  layer = "treaties",
   data = fisheries_treaties
 )
 
@@ -153,6 +155,7 @@ tieSpec <- make_specification(
   choice = formula2,
   model = "DyNAM",
   choice_sub_model = "choice_coordination",
+  layer = "treaties",
   data = fisheries_treaties
 )
 

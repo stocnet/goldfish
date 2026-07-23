@@ -89,7 +89,7 @@ test_that("two-mode gather lookup resolves each side's indices", {
   out <- gather_model_data(
     membership ~ inertia,
     model = "DyNAM",
-    sub_model = "choice_coordination",
+    sub_model = "choice",
     data = x
   )
 
@@ -108,6 +108,28 @@ test_that("two-mode gather lookup resolves each side's indices", {
   # lookup, which the single raw nodes frame cannot do (local != global there).
   expect_false(anyNA(join_side(lookup, out$index_i, 1L)))
   expect_false(anyNA(join_side(lookup, out$index_j, 2L)))
+})
+
+test_that("a two-mode preprocessed result carries a per-side node lookup", {
+  # The gather path is not the only consumer: preprocessing_only results feed
+  # residuals / event-scores, so the lookup must ride on prep too, resolving each
+  # side's local index (which is not the global row on a two-mode model).
+  prep <- estimate_dynam(
+    membership ~ inertia,
+    sub_model = "choice",
+    data = as_goldfish(make_stocnet_fixture_twomode()),
+    preprocessing_only = TRUE
+  )
+
+  lookup <- prep$node_lookup
+  expect_named(lookup, c("side", "local", "global", "label"))
+  expect_setequal(lookup$side, c(1L, 2L))
+  side1 <- lookup[lookup$side == 1L, ]
+  side2 <- lookup[lookup$side == 2L, ]
+  expect_equal(side1$label, c("A", "B"))
+  expect_equal(side2$label, c("X", "Y"))
+  expect_equal(side2$local, c(1L, 2L))
+  expect_equal(side2$global, c(3L, 4L))
 })
 
 test_that("the db export descriptor carries the node lookup", {

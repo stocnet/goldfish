@@ -3,6 +3,15 @@ init_DyNAM_rate <- function(effect_fun, ...) {
   UseMethod("init_DyNAM_rate", effect_fun)
 }
 
+# Does this closure read the sender's own side? A rate closure has no `type`
+# formal: the statistic is indexed by the sender, so the read is always the ego
+# one. The choice and REM inits delegate here carrying a `type`, and only their
+# ego variant reads the sender.
+reads_ego_side <- function(params) {
+  type <- eval(params[["type"]])
+  is.null(type) || identical(type, "ego")
+}
+
 # default -----------------------------------------------------------------
 #' @export
 init_DyNAM_rate.default <- function(
@@ -34,12 +43,19 @@ init_DyNAM_rate.indeg <- function(effect_fun, network, window, n1, n2, ...) {
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]])
 
-  if (is_two_mode) {
-    stop(
-      dQuote("indeg"),
-      " effect must not be used with type 'ego' when is a two-mode network",
-      call. = FALSE
-    )
+  # The rate statistic is indexed by the sender, and in-degree counts the ties
+  # a sender receives -- which on a two-mode network it never does. The choice
+  # and REM inits reuse this computation for both type variants, and their
+  # `type = "alter"` read (receiver popularity) is well defined over two modes,
+  # so the guard follows the side actually read rather than two-modeness alone.
+  if (is_two_mode && reads_ego_side(params)) {
+    cli::cli_abort(c(
+      "{.fn indeg} cannot be computed on a two-mode network in a rate model.",
+      "x" = "It counts the ties the sender receives, and senders of a two-mode
+             network are never receivers.",
+      "i" = "Use {.code outdeg()} for sender activity, or an {.fn indeg} over a
+             one-mode network among the senders."
+    ))
   }
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
@@ -91,16 +107,10 @@ update_DyNAM_rate_indeg <- function(
 init_DyNAM_rate.outdeg <- function(effect_fun, network, window, n1, n2, ...) {
   params <- formals(effect_fun)
   weighted <- eval(params[["weighted"]])
-  is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]])
 
-  if (is_two_mode) {
-    stop(
-      dQuote("outdeg"),
-      " effect must not be used with type 'ego' when is a two-mode network",
-      call. = FALSE
-    )
-  }
+  # Out-degree reads the sender's own row, which a two-mode network has: sender
+  # activity is as well defined over two modes as over one.
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
       cache = numeric(n1),
@@ -160,11 +170,16 @@ init_DyNAM_rate.node_trans <- function(
   is_two_mode <- eval(params[["is_two_mode"]])
   funApply <- eval(params[["transformer_fn"]])
 
+  # A transitive path i -> k -> j needs the receivers of a tie to be senders of
+  # the next one, so the network must be square over a single mode.
   if (is_two_mode) {
-    stop(
-      "'node_trans' effect must not be used when is a two-mode network",
-      call. = FALSE
-    )
+    cli::cli_abort(c(
+      "{.fn node_trans} cannot be computed on a two-mode network.",
+      "x" = "It counts paths {.code i -> k -> j}, which need one node set on
+             both ends of a tie.",
+      "i" = "Use {.code four()} for the two-mode closure, or {.fn node_trans}
+             over a one-mode network."
+    ))
   }
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
@@ -256,11 +271,18 @@ init_DyNAM_rate.tertius <- function(
   funApply <- eval(params[["transformer_fn"]])
   is_two_mode <- eval(params[["is_two_mode"]])
 
-  if (is_two_mode) {
-    stop(
-      "'tertius' effect must not be used with type 'ego' when is a two-mode network",
-      call. = FALSE
-    )
+  # The summary is taken over a node's in-neighbors; the rate statistic needs it
+  # for the sender, who on a two-mode network has none. As with `indeg`, the
+  # choice and REM inits reuse this for both variants and their
+  # `type = "alter"` read is well defined over two modes.
+  if (is_two_mode && reads_ego_side(params)) {
+    cli::cli_abort(c(
+      "{.fn tertius} cannot be computed on a two-mode network in a rate model.",
+      "x" = "It summarizes the attribute over the sender's in-neighbors, and
+             senders of a two-mode network never receive.",
+      "i" = "Use {.fn tertius} over a one-mode network among the senders, or
+             {.code tertius_diff()}."
+    ))
   }
   if ((!is.null(window) && !is.infinite(window)) || all(network == 0)) {
     return(list(
@@ -277,9 +299,12 @@ init_DyNAM_rate.tertius <- function(
     forceAndCall(1, aggFun, attribute[inReceiver])
   })
   stat <- forceAndCall(1, funApply, cache)
+  # empty-neighborhood default: a node with no in-neighbor has an undefined
+  # aggregate and takes the mean of the defined entries (part of the statistic's
+  # definition, not attribute imputation).
   if (anyNA(stat)) {
-    imputeVal <- mean(stat, na.rm = TRUE)
-    stat[is.na(stat)] <- imputeVal
+    default_val <- mean(stat, na.rm = TRUE)
+    stat[is.na(stat)] <- default_val
   }
   list(cache = cache, stat = stat)
 }
@@ -299,7 +324,7 @@ update_DyNAM_rate_tertius <- function(
   summarizer_fn = function(x) mean(x, na.rm = TRUE)
 ) {
   isEmpty <- all(cache == 0)
-  isImpute <- anyNA(cache)
+  needs_default <- anyNA(cache)
   res <- list(cache = NULL, changes = NULL)
   nodesChange <- numeric()
 
@@ -321,7 +346,11 @@ update_DyNAM_rate_tertius <- function(
       if (length(inReceiver) > 0) attribute[inReceiver] else NA
     )
     nodesChange <- if (!is.na(valChangeCache)) receiver else numeric()
-    isImpute <- ifelse(!isImpute && is.na(valChangeCache), TRUE, isImpute)
+    needs_default <- ifelse(
+      !needs_default && is.na(valChangeCache),
+      TRUE,
+      needs_default
+    )
     cache[receiver] <- valChangeCache
   }
 
@@ -351,18 +380,20 @@ update_DyNAM_rate_tertius <- function(
     NULL
   }
 
-  if (isEmpty || isImpute) {
-    toImpute <- which(is.na(cache))
-    imputeVal <- mean(cache, na.rm = TRUE)
-    impute_changes <- if (length(toImpute) > 0) {
+  # nodes with an undefined aggregate take the empty-neighborhood default (the
+  # mean of the defined cache values)
+  if (isEmpty || needs_default) {
+    default_cells <- which(is.na(cache))
+    default_val <- mean(cache, na.rm = TRUE)
+    default_changes <- if (length(default_cells) > 0) {
       cbind(
-        node1 = toImpute,
-        replace = forceAndCall(1, transformer_fn, imputeVal)
+        node1 = default_cells,
+        replace = forceAndCall(1, transformer_fn, default_val)
       )
     } else {
       NULL
     }
-    changes <- rbind(changes, impute_changes)
+    changes <- rbind(changes, default_changes)
   }
   list(cache = cache, changes = changes)
 }
@@ -371,14 +402,11 @@ update_DyNAM_rate_tertius <- function(
 # ego ---------------------------------------------------------------------
 #' @export
 init_DyNAM_rate.ego <- function(effect_fun, attribute, n1, n2, ...) {
-  params <- formals(effect_fun)
-  is_two_mode <- eval(params[["is_two_mode"]])
-  if (is_two_mode) {
-    stop(
-      "'ego' effect must not be used with type 'ego' in a two-mode network",
-      call. = FALSE
-    )
-  }
+  # The attribute arrives already sliced to the side this position reads, so a
+  # two-mode network needs no special case here: `ego` is the sender's own
+  # value either way. The stop this replaced guarded the ambiguity of two
+  # separate node-set objects, which one nodes table with a mode column
+  # dissolves.
   list(stat = attribute)
 }
 

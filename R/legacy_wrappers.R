@@ -8,9 +8,14 @@
 # consumes -- so a fresh session never mints a legacy environment. Assembly is
 # delegated to manynet::make_stocnet(); goldfish only shapes the components.
 #
-# One-mode event networks (the shipped datasets and every frozen baseline). A
-# two-mode (nodes2) legacy layer aborts pointing at the stocnet workflow, where
-# per-layer mode sets express it natively.
+# Both one-mode event networks (the shipped datasets and every frozen baseline)
+# and two-mode (nodes2) ones. Two-mode assembly fuses the legacy node sets into
+# one nodes tibble whose `mode` column names the source set, and declares the
+# per-layer sender/receiver mode sets that recover each layer's side pair -- the
+# translation that makes the mode map the single downstream representation.
+#
+# A bundle with one node set keeps the pre-two-mode output byte for byte (no
+# `mode` column, no mode sets), so the frozen baselines see an unchanged object.
 # =========================================================================== #
 
 # A plain numeric matrix from a network.goldfish (strips class + attrs).
@@ -33,6 +38,91 @@ legacy_nodes_table <- function(node_obj) {
     names(tbl)[names(tbl) == "present"] <- "active"
   }
   tbl
+}
+
+# A layer's (sender set, receiver set) node-set names. The legacy constructors
+# record one name for a one-mode layer and two when built with `nodes2`; naming
+# both sides even when they coincide lets one code path serve either.
+legacy_layer_sides <- function(obj) {
+  sets <- attr(obj, "nodes")
+  sets <- sets[nzchar(sets)]
+  if (length(sets) < 2) c(sets[1], sets[1]) else sets[seq_len(2)]
+}
+
+# The distinct node sets the layers reference, in first-seen order -- which
+# fixes the fused id space, so it must be derived once and reused everywhere.
+legacy_node_set_names <- function(
+  objs,
+  layer_names,
+  call = rlang::caller_env()
+) {
+  sets <- unique(unlist(lapply(objs[layer_names], legacy_layer_sides)))
+  sets <- sets[!is.na(sets) & nzchar(sets)]
+  missing_sets <- sets[
+    !vapply(sets, function(nm) !is.null(objs[[nm]]), logical(1))
+  ]
+  if (length(missing_sets) > 0) {
+    cli::cli_abort(
+      c(
+        "Node set{?s} {.val {missing_sets}} {?is/are} referenced by a layer \\
+         but {?was/were} not passed to {.fn make_data}.",
+        "i" = "Pass every node set the layers name."
+      ),
+      call = call
+    )
+  }
+  sets
+}
+
+# Where each node set's rows land in the fused id space, with its labels.
+# Every from/to/node reference resolves through its own set's frame: a legacy
+# label is unique only *within* its node set, so matching against a fused label
+# vector would silently cross the sets on a shared label.
+legacy_node_frames <- function(objs, node_set_names) {
+  sizes <- vapply(node_set_names, function(nm) nrow(objs[[nm]]), integer(1))
+  offsets <- cumsum(c(0L, sizes))[seq_along(sizes)]
+  frames <- Map(
+    function(nm, offset, size) {
+      list(labels = objs[[nm]]$label, ids = offset + seq_len(size))
+    },
+    node_set_names,
+    offsets,
+    sizes
+  )
+  names(frames) <- node_set_names
+  frames
+}
+
+# The fused nodes tibble: each source set contributes its rows and becomes a
+# distinct `mode` value, which is what the per-layer mode sets then name. A
+# single node set keeps the pre-two-mode shape (no `mode` column) so existing
+# one-mode objects are unchanged.
+#
+# Attribute columns are unioned across sets; a column a set does not carry is NA
+# on that mode's rows. That is the honest reading -- the attribute is undefined
+# for that mode, not missing at random -- and the reason per-mode attribute
+# handling matters downstream.
+legacy_fuse_nodes <- function(objs, node_set_names) {
+  tables <- lapply(node_set_names, function(nm) legacy_nodes_table(objs[[nm]]))
+  if (length(tables) == 1) {
+    return(tables[[1]])
+  }
+  all_cols <- unique(unlist(lapply(tables, names)))
+  tables <- Map(
+    function(tbl, nm) {
+      for (col in setdiff(all_cols, names(tbl))) {
+        tbl[[col]] <- NA
+      }
+      tbl <- tbl[all_cols]
+      tbl$mode <- nm
+      tbl
+    },
+    tables,
+    node_set_names
+  )
+  out <- do.call(rbind, tables)
+  rownames(out) <- NULL
+  out
 }
 
 # One layer's ties: history from the initial matrix (`time = NA`) plus the timed
@@ -59,7 +149,8 @@ legacy_time_proto <- function(objs, net_names) {
 legacy_layer_ties <- function(
   net,
   layer,
-  labels,
+  from_frame,
+  to_frame,
   events,
   update,
   directed,
@@ -69,8 +160,8 @@ legacy_layer_ties <- function(
   if (!is.null(events) && nrow(events) > 0) {
     value <- if (update == "increment") events$increment else events$replace
     timed <- data.frame(
-      from = match(events$sender, labels),
-      to = match(events$receiver, labels),
+      from = from_frame$ids[match(events$sender, from_frame$labels)],
+      to = to_frame$ids[match(events$receiver, to_frame$labels)],
       time = events$time,
       layer = layer,
       weight = as.numeric(value),
@@ -81,17 +172,21 @@ legacy_layer_ties <- function(
   history <- NULL
   mat <- legacy_matrix(net)
   if (any(mat != 0)) {
-    idx <- if (directed) {
-      which(mat != 0, arr.ind = TRUE)
-    } else {
+    # upper.tri() only means "one copy of each dyad" on a square matrix; on a
+    # two-mode layer it would drop history for no reason, so undirected folding
+    # applies to the one-mode case alone (`directed` is vacuous on two-mode).
+    fold_undirected <- !directed && nrow(mat) == ncol(mat)
+    idx <- if (fold_undirected) {
       which(mat != 0 & upper.tri(mat), arr.ind = TRUE)
+    } else {
+      which(mat != 0, arr.ind = TRUE)
     }
     # NA time of the dataset's common class (a static layer has no timed events
     # to borrow the class from, so a shared prototype keeps the rbind coherent).
     na_time <- time_proto[rep(NA_integer_, nrow(idx))]
     history <- data.frame(
-      from = idx[, 1],
-      to = idx[, 2],
+      from = from_frame$ids[idx[, 1]],
+      to = to_frame$ids[idx[, 2]],
       time = na_time,
       layer = layer,
       weight = mat[idx],
@@ -108,15 +203,22 @@ legacy_layer_ties <- function(
 # the matched rows only. Dependent rows matching no layer tie abort (the legacy
 # replace-safe encoding has no equivalent); increment layers could carry them as
 # flavored increment-0 rows, but the shipped subset patterns never hit this.
-legacy_stamp_flavor <- function(ties, dep, dep_name, labels, update) {
+legacy_stamp_flavor <- function(
+  ties,
+  dep,
+  dep_name,
+  from_frame,
+  to_frame,
+  update
+) {
   focal_rows <- which(
     ties$layer == attr(dep, "default_network") &
       !is.na(ties$time)
   )
   value <- if (update == "increment") dep$increment else dep$replace
   dep_key <- paste(
-    match(dep$sender, labels),
-    match(dep$receiver, labels),
+    from_frame$ids[match(dep$sender, from_frame$labels)],
+    to_frame$ids[match(dep$receiver, to_frame$labels)],
     as.numeric(dep$time),
     as.numeric(value),
     sep = "\r"
@@ -152,7 +254,7 @@ legacy_stamp_flavor <- function(ties, dep, dep_name, labels, update) {
 # Nodal dynamic-attribute events -> the `changes` component. `present` events
 # route to `var = "active"` (composition); every other linked attribute keeps
 # its name. `value` is a list-column, matching manynet's changes contract.
-legacy_changes_table <- function(node_obj, objs, labels) {
+legacy_changes_table <- function(node_obj, objs, frame) {
   event_names <- attr(node_obj, "events")
   attributes_v <- attr(node_obj, "dynamic_attributes")
   if (length(event_names) == 0) {
@@ -171,7 +273,7 @@ legacy_changes_table <- function(node_obj, objs, labels) {
     node_col <- if ("node" %in% names(ev)) ev$node else ev$label
     parts[[i]] <- data.frame(
       time = ev$time,
-      node = match(node_col, labels),
+      node = frame$ids[match(node_col, frame$labels)],
       var = var,
       stringsAsFactors = FALSE
     )
@@ -219,10 +321,10 @@ legacy_global_table <- function(glob_obj, objs) {
   rbind(init, events)
 }
 
-# Whether the gathered fragments form a one-mode DyNAM/REM structure the
-# assembler handles. DyNAMi bundles (raw interaction records, `make_groups_-
-# interaction()` output) and two-mode layers fall back to the legacy environment
-# path, whose engines are unchanged by this change.
+# Whether the gathered fragments form a DyNAM/REM structure the assembler
+# handles -- one-mode or two-mode alike, since a two-mode bundle now fuses onto
+# the mode map. A bundle with no node set or no layer (raw interaction records)
+# still falls back to the legacy environment path.
 is_stocnet_assemblable <- function(objs) {
   is_layer <- function(o) {
     inherits(o, "network.goldfish") || inherits(o, "dependent.goldfish")
@@ -233,23 +335,30 @@ is_stocnet_assemblable <- function(objs) {
   if (!has_nodes || !has_layer) {
     return(FALSE)
   }
-  two_mode <- any(vapply(
-    objs,
-    function(o) {
-      isTRUE(attr(o, "is_two_mode")) ||
-        (inherits(o, "dependent.goldfish") && length(attr(o, "nodes")) > 1)
-    },
-    logical(1)
-  ))
-  if (two_mode) {
+  layer_objs <- objs[vapply(objs, is_layer, logical(1))]
+  node_set_names <- unique(unlist(lapply(layer_objs, legacy_layer_sides)))
+  node_set_names <- node_set_names[
+    !is.na(node_set_names) &
+      nzchar(node_set_names)
+  ]
+  if (length(node_set_names) == 0) {
     return(FALSE)
   }
-  node_set_names <- unique(unlist(lapply(
-    objs[vapply(objs, is_layer, logical(1))],
-    attr,
-    "nodes"
-  )))
-  length(node_set_names[nzchar(node_set_names)]) == 1
+  # Every named node set must resolve to a node table in the bundle. The
+  # constructors record the name by deparsing their argument, so a layer built
+  # from `nodes = fx$actors` records `"fx$actors"`, which names nothing here --
+  # such a bundle cannot be assembled and keeps the legacy environment path.
+  # Tested by shape, not class: `make_network()` accepts a bare data frame, and
+  # the shipped node sets are plain data frames.
+  all(vapply(
+    node_set_names,
+    function(nm) is_node_table(objs[[nm]]),
+    logical(1)
+  ))
+}
+
+is_node_table <- function(o) {
+  is.data.frame(o) && "label" %in% names(o)
 }
 
 # Assemble the gathered legacy fragments into one stocnet. `objs` is a named
@@ -263,30 +372,16 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
   dep_names <- by_class("dependent.goldfish")
   glob_names <- by_class("global.goldfish")
 
-  two_mode <- any(vapply(
-    objs[net_names],
-    function(n) isTRUE(attr(n, "is_two_mode")),
-    logical(1)
-  ))
-  node_set_names <- unique(unlist(lapply(
-    objs[c(net_names, dep_names)],
-    attr,
-    "nodes"
-  )))
-  node_set_names <- node_set_names[nzchar(node_set_names)]
-  if (two_mode || length(node_set_names) > 1) {
-    cli::cli_abort(
-      c(
-        "Two-mode legacy data cannot be auto-assembled into a stocnet.",
-        "i" = "Build it with {.fn manynet::make_stocnet} and per-layer \\
-               {.field sender}/{.field receiver} mode sets."
-      ),
-      call = call
-    )
-  }
-  node_obj <- objs[[node_set_names[1]]]
-  labels <- node_obj$label
-  nodes_tbl <- legacy_nodes_table(node_obj)
+  node_set_names <- legacy_node_set_names(
+    objs,
+    c(net_names, dep_names),
+    call = call
+  )
+  node_frames <- legacy_node_frames(objs, node_set_names)
+  nodes_tbl <- legacy_fuse_nodes(objs, node_set_names)
+  # Each layer's sides as node-set names, resolved once: they index node_frames
+  # for the id remapping below and become the mode sets in `info`.
+  layer_sides <- lapply(objs[net_names], legacy_layer_sides)
 
   update <- stats::setNames(character(length(net_names)), net_names)
   directed <- stats::setNames(logical(length(net_names)), net_names)
@@ -316,10 +411,12 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
     dir <- isTRUE(attr(net, "directed"))
     update[ln] <- upd
     directed[ln] <- dir
+    sides <- layer_sides[[ln]]
     ties_list[[ln]] <- legacy_layer_ties(
       net,
       ln,
-      labels,
+      node_frames[[sides[1]]],
+      node_frames[[sides[2]]],
       ev,
       upd,
       dir,
@@ -348,12 +445,29 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
       )
     }
     focal <- focal %||% layer
-    stamped <- legacy_stamp_flavor(ties, dep, dn, labels, update[layer])
+    # The dependent's own sides, not the layer's: a dependent object names its
+    # node sets independently, and its events are keyed against the layer ties.
+    dep_sides <- legacy_layer_sides(dep)
+    stamped <- legacy_stamp_flavor(
+      ties,
+      dep,
+      dn,
+      node_frames[[dep_sides[1]]],
+      node_frames[[dep_sides[2]]],
+      update[layer]
+    )
     ties <- stamped$ties
     dependents[[dn]] <- list(layer = layer, flavor = stamped$flavor)
   }
 
-  changes <- legacy_changes_table(node_obj, objs, labels)
+  # Attribute/composition events are declared per node set, so each set's
+  # stream resolves through its own frame before the streams are pooled.
+  changes <- do.call(
+    rbind,
+    lapply(node_set_names, function(nm) {
+      legacy_changes_table(objs[[nm]], objs, node_frames[[nm]])
+    })
+  )
   if (!is.null(changes)) {
     changes$order <- seq_len(nrow(changes))
   }
@@ -376,6 +490,15 @@ assemble_stocnet_from_legacy <- function(objs, call = rlang::caller_env()) {
   }
   if (length(dependents) > 0) {
     info$dependents <- dependents
+  }
+  # Mode sets only once the fused tibble actually carries several modes: a
+  # single-node-set bundle has no `mode` column, and declaring sets against a
+  # missing column is what the validator rejects. Each legacy node set is
+  # exactly one mode, so one entry per layer per side suffices -- the repeated
+  # names the mode map decodes appear only when a side spans several modes.
+  if (length(node_set_names) > 1) {
+    info$sender <- vapply(layer_sides, `[[`, character(1), 1)
+    info$receiver <- vapply(layer_sides, `[[`, character(1), 2)
   }
 
   manynet::make_stocnet(

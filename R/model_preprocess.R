@@ -449,7 +449,20 @@ prepare_recipe_context <- function(
     if (events_min < startTime) isValidEvent <- FALSE
   }
 
-  src <- ds_impute_missing(src, objects_effects_link)
+  validate_imputation_policy(spec$impute_policy, plan$objects)
+  # Carry each object's policy on the registry so the walk-time recode reads it
+  # by oid alongside the value type.
+  plan$objects$policy <- vapply(
+    plan$objects$key,
+    function(key) imputation_policy_for(spec$impute_policy, key),
+    character(1)
+  )
+
+  src <- ds_impute_missing(
+    src,
+    objects_effects_link,
+    policy = spec$impute_policy
+  )
 
   if (progress) {
     cat("Initializing cache objects and statistical matrices.\n")
@@ -494,6 +507,8 @@ prepare_recipe_context <- function(
     src = src
   )
   schedule <- build_event_schedule(events, events_objects_link, plan$objects)
+  assert_imputable_schedule(schedule, plan$objects, attr(state, "strata"))
+  assert_globals_defined(state, plan$objects, schedule)
 
   net_update_lookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
   att_update_lookup <- matrix(NA_integer_, nrow(plan$objects), nEffects)
@@ -772,10 +787,22 @@ run_sender_recipe_loop <- function(
           } else {
             replace_value <- schedule$value[[k]]
             if (is.na(replace_value)) {
-              replace_value <- mean(
-                state[[component]][[key]][-event_node],
-                na.rm = TRUE
-              )
+              if (identical(plan$objects$policy[oid], "as_category")) {
+                # Under the as-category policy a missing event value is the
+                # reserved level, not a summary over the other nodes -- the same
+                # recode the initial table received.
+                replace_value <- IMPUTATION_MISSING_LEVEL
+              } else {
+                # Impute from the node's own mode category by the summary its
+                # recorded type selects -- a bare mean would write NA into a
+                # categorical vector, failing the next update's comparison.
+                replace_value <- impute_nodal_value(
+                  state[[component]][[key]],
+                  event_node,
+                  attr(state, "strata")[[component]],
+                  plan$objects$value_type[oid]
+                )
+              }
             }
           }
           event_args <- list(node = event_node, replace = replace_value)
@@ -1608,10 +1635,22 @@ run_dyad_recipe_loop <- function(
           } else {
             replace_value <- schedule$value[[k]]
             if (is.na(replace_value)) {
-              replace_value <- mean(
-                state[[component]][[key]][-event_node],
-                na.rm = TRUE
-              )
+              if (identical(plan$objects$policy[oid], "as_category")) {
+                # Under the as-category policy a missing event value is the
+                # reserved level, not a summary over the other nodes -- the same
+                # recode the initial table received.
+                replace_value <- IMPUTATION_MISSING_LEVEL
+              } else {
+                # Impute from the node's own mode category by the summary its
+                # recorded type selects -- a bare mean would write NA into a
+                # categorical vector, failing the next update's comparison.
+                replace_value <- impute_nodal_value(
+                  state[[component]][[key]],
+                  event_node,
+                  attr(state, "strata")[[component]],
+                  plan$objects$value_type[oid]
+                )
+              }
             }
           }
           event_args <- list(node = event_node, replace = replace_value)
@@ -2278,7 +2317,18 @@ preprocess_monolith <- function(
           "replace",
           drop = FALSE
         ]
-        if (is.na(event$replace)) event$replace <- 0
+        # A global attribute has a single value, so a missing update cannot be
+        # imputed from other values: reject it rather than writing an arbitrary
+        # zero into the model.
+        if (is.na(event$replace)) {
+          cli::cli_abort(c(
+            "Global attribute {.val {object_name}} has a missing value at time
+             {.val {time}}.",
+            "x" = "A global attribute has a single value, so a missing update
+                   cannot be imputed from other values.",
+            "i" = "Give the event an explicit value."
+          ))
+        }
       } else if (is_increment_event[next_event]) {
         vars_keep <- c(
           if (is_node_event[next_event]) "node" else c("sender", "receiver"),
@@ -2306,8 +2356,16 @@ preprocess_monolith <- function(
         event <- events[[next_event]][pointers[next_event], vars_keep]
         # missing data imputation
         if (is_node_event[next_event] && is.na(event$replace)) {
-          # impute by the mean of current values for attributes
-          event$replace <- mean(object[-event$node], na.rm = TRUE)
+          # The legacy engine carries one node set with no modes, so the pool is
+          # every other node -- one implicit category. Routing through the typed
+          # resolver still selects a mean or a most-common value by type, so a
+          # categorical attribute no longer gets a mean written into it.
+          event$replace <- impute_nodal_value(
+            object,
+            event$node,
+            NULL,
+            attribute_value_type(object)
+          )
         }
         if (!is_node_event[next_event] && is.na(event$replace)) {
           # if the replace is missing impute by 0 (not-tie)
@@ -2794,12 +2852,14 @@ impute_missing_data <- function(objects_effects_link, envir = new.env()) {
     } else if (is.vector(object) && any(is.na(object))) {
       if (is.numeric(object)) {
         cli::cli_warn(c(
-          "i" = "Missing data has been detected. Mean is used to impute for numerical values"
+          "i" = "Missing data has been detected. The mean is used to impute
+                 numerical values"
         ))
         object[is.na(object)] <- mean(object, na.rm = TRUE)
       } else {
         cli::cli_warn(c(
-          "i" = "Missing data has been detected. Mode is used to impute for categorical values"
+          "i" = "Missing data has been detected. The most common value is used
+                 to impute categorical values"
         ))
         object[is.na(object)] <- names(which.max(table(object)))
       }

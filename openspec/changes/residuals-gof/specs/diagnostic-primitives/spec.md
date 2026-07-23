@@ -72,7 +72,10 @@ probability of that actor/alternative); for rate submodels it SHALL store
 the per-sender observed event count and the expected count (for exact-time
 models, the sum of interevent time multiplied by the sender's fitted rate;
 for ordinal models, the sum of the sender's fitted multinomial
-probability). Vectors SHALL be named by actor label.
+probability). Vectors SHALL be named by actor label. On a two-mode fit
+(multimode mode-map models) the margins are per side — sender margins over
+the sender-mode node slice, receiver margins over the receiver-mode slice —
+with labels joined per side via the model's `node_lookup`.
 
 #### Scenario: receiver margins sum consistently
 - **WHEN** a choice model is estimated with `diagnostics` including

@@ -146,6 +146,47 @@ test_that("make_specification enforces model / argument constraints", {
   )
 })
 
+test_that("make_specification holds out interaction operands from the main check", {
+  data("Social_Evolution", package = "goldfish", envir = environment())
+  actors <- get("actors", environment())
+  calls <- get("calls", environment())
+  call_network <- make_network(nodes = actors, directed = TRUE)
+  call_network <- link_events(
+    call_network,
+    change_event = calls,
+    nodes = actors
+  )
+  calls_dependent <- make_dependent_events(
+    events = calls,
+    nodes = actors,
+    default_network = call_network
+  )
+  calls_dependent <- calls_dependent[1:120, ]
+  seasons <- make_global_attributes(data.frame(winter = 2))
+  d <- make_data(calls_dependent, call_network, calls, actors, seasons)
+
+  # A bare global() main is constant across the choice set and unidentified.
+  expect_error(
+    make_specification(
+      choice = ~ inertia + global(seasons$winter),
+      model = "DyNAM",
+      data = d,
+      layer = "calls_dependent"
+    ),
+    "Unsupported main effect"
+  )
+  # The same global as an interaction operand restores dyad-varying variation,
+  # so it is held out of the main-effect check and the spec builds -- matching
+  # the plain-formula estimation path.
+  spec <- make_specification(
+    choice = ~ inertia + global(seasons$winter):inertia,
+    model = "DyNAM",
+    data = d,
+    layer = "calls_dependent"
+  )
+  expect_true(spec$valid)
+})
+
 test_that("estimating a spec with the wrong estimator is rejected", {
   d <- make_spec_fixture()
   spec <- make_specification(

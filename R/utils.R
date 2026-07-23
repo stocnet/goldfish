@@ -29,7 +29,11 @@
 #' objects_effects_link <- get_objects_effects_link(parsedformula$rhs_names, 1L)
 #' get_data_objects(list(rownames(objects_effects_link)), remove_first = FALSE)
 #' }
-get_data_objects <- function(namedList, keepOrder = FALSE, remove_first = TRUE) {
+get_data_objects <- function(
+  namedList,
+  keepOrder = FALSE,
+  remove_first = TRUE
+) {
   # strip function names
   objNames <- unlist(namedList)
   if (remove_first) {
@@ -219,7 +223,8 @@ ReducePreprocess <- function(
   effect_pos = NULL
 ) {
   stopifnot(
-    is.null(effect_pos) || !is.null(effect_pos) && inherits(effect_pos, "integer")
+    is.null(effect_pos) ||
+      !is.null(effect_pos) && inherits(effect_pos, "integer")
   )
   type <- match.arg(type)
 
@@ -329,7 +334,10 @@ ReducePreprocess <- function(
     bcEvent <- colEvent[colsKeep]
     n1 <- dim(preproData$initialStats)[1]
     n2 <- if (is_rate) 1L else dim(preproData$initialStats)[2]
-    is_two_mode <- !identical(preproData$nodes, preproData$nodes2)
+    # The mode-map reading rides on the spec; the side-name comparison stays only
+    # as a fallback for a bare object that never carried a spec.
+    is_two_mode <- preproData$model_spec$is_two_mode %||%
+      !identical(preproData$nodes, preproData$nodes2)
     for (i in seq_len(nEffects)) {
       effCols <- bcK[3, ] == (i - 1)
       if (!any(effCols)) {
@@ -621,22 +629,33 @@ GetDetailPrint <- function(
 ) {
   # matrix with the effects in rows and objects in columns,
   # which net or actor att
-  maxObjs <- max(objects_effects_link, na.rm = TRUE)
+  #
+  # A comparison effect on a two-mode focal reads its one written operand on
+  # both sides, so the parser resolved it into two references. Those are two
+  # pieces of state but one operand, and the user must see what they wrote:
+  # report the sender-side reference alone. Effects whose second operand the
+  # user really did write (ego_alter_interaction) keep both.
+  effect_names <- colnames(objects_effects_link)
+  displayed <- lapply(seq_len(ncol(objects_effects_link)), function(k) {
+    # Indexing a single-row link matrix drops the object names that `apply()`
+    # used to preserve, so restore them from the rownames.
+    x <- stats::setNames(
+      objects_effects_link[, k],
+      rownames(objects_effects_link)
+    )
+    notNA <- !is.na(x)
+    objs <- x[notNA]
+    objs <- names(objs[order(objs)])
+    if (effect_names[k] %in% CROSS_SIDE_EFFECTS) objs[1] else objs
+  })
+  maxObjs <- max(lengths(displayed))
   effect_description <- matrix(
-    t(
-      apply(
-        objects_effects_link,
-        2,
-        function(x) {
-          notNA <- !is.na(x)
-          objs <- x[notNA]
-          objs <- names(objs[order(objs)])
-          c(objs, rep("", maxObjs - length(objs)))
-        }
-      )
-    ),
+    unlist(lapply(displayed, function(objs) {
+      c(objs, rep("", maxObjs - length(objs)))
+    })),
     nrow = ncol(objects_effects_link),
-    ncol = maxObjs
+    ncol = maxObjs,
+    byrow = TRUE
   )
   # # handle degenerate case one effect one object
   dimnames(effect_description) <- list(

@@ -76,6 +76,10 @@ articles:
     navbar: "How to start"
     contents:
       - teaching1
+  - title: "Two-mode DyNAM: political discourse dynamics"
+    navbar: "two-mode"
+    contents:
+      - two-mode
   - title: "The coordination model and extensions"
     navbar: "choice coordination"
     contents:
