@@ -1877,7 +1877,11 @@ estimate_wrapper <- function(
         "estimate_c_int",
         args = c(
           args_estimation,
-          list(engine = control_estimation$engine, optimizer = optimizer)
+          list(
+            spec = model_spec,
+            engine = control_estimation$engine,
+            optimizer = optimizer
+          )
         )
       ),
       error = \(e) {

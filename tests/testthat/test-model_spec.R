@@ -193,55 +193,64 @@ test_that("every spec class carries the documented risk-set descriptor", {
       axis = "sender",
       fold_target = "active_sender",
       encoding = NA_character_,
-      symmetrize = FALSE
+      symmetrize = FALSE,
+      normalizer = "poisson"
     ),
     dynam_rate_ordered = list(
       axis = "sender",
       fold_target = "active_sender",
       encoding = NA_character_,
-      symmetrize = FALSE
+      symmetrize = FALSE,
+      normalizer = "multinomial"
     ),
     dynam_choice = list(
       axis = "receiver_given_sender",
       fold_target = "active_dyad",
       encoding = "alter",
-      symmetrize = FALSE
+      symmetrize = FALSE,
+      normalizer = "multinomial"
     ),
     dynam_choice_coord = list(
       axis = "dyad_symmetric",
       fold_target = "active_dyad",
       encoding = "outer",
-      symmetrize = TRUE
+      symmetrize = TRUE,
+      normalizer = "coordination"
     ),
     dynami_rate = list(
       axis = "sender",
       fold_target = "active_sender",
       encoding = NA_character_,
-      symmetrize = FALSE
+      symmetrize = FALSE,
+      normalizer = "poisson"
     ),
     dynami_rate_ordered = list(
       axis = "sender",
       fold_target = "active_sender",
       encoding = NA_character_,
-      symmetrize = FALSE
+      symmetrize = FALSE,
+      normalizer = "multinomial"
     ),
     dynami_choice = list(
       axis = "receiver_given_sender",
       fold_target = "active_dyad",
       encoding = "alter",
-      symmetrize = FALSE
+      symmetrize = FALSE,
+      normalizer = "multinomial"
     ),
     rem_rate = list(
       axis = "dyad",
       fold_target = "active_dyad",
       encoding = "outer",
-      symmetrize = FALSE
+      symmetrize = FALSE,
+      normalizer = "poisson"
     ),
     rem_rate_ordered = list(
       axis = "dyad",
       fold_target = "active_dyad",
       encoding = "outer",
-      symmetrize = FALSE
+      symmetrize = FALSE,
+      normalizer = "multinomial"
     )
   )
   constructors <- list(
@@ -267,6 +276,10 @@ test_that("every spec class carries the documented risk-set descriptor", {
     expect_identical(
       risk_set_symmetrize(spec),
       expected[[variant]]$symmetrize
+    )
+    expect_identical(
+      risk_set_normalizer(spec),
+      expected[[variant]]$normalizer
     )
   }
 })

@@ -61,15 +61,31 @@ model_spec_structure <- function(
 #'     `"alter"` for choice (receiver presence only), `NA` for rate.}
 #'   \item{`symmetrize`}{`TRUE` only for one-mode coordination; the value the
 #'     undirected-REM discussion will reuse.}
+#'   \item{`normalizer`}{the likelihood normalizer, from `sub_model`:
+#'     `"poisson"` (rate — timespan-weighted waiting times), `"multinomial"`
+#'     (choice / ordinal rate — the softmax over the risk set), or
+#'     `"coordination"` (the mutual `getLikelihoodMM` product). The compiled
+#'     interface selects the timespan handling, the `compute_` kernel, and the
+#'     intercept-init family from this, never from a model-type string.}
 #' }
 #' @noRd
 risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
+  # The likelihood normalizer follows the sub-model: `rate` is the
+  # timespan-weighted Poisson, `choice_coordination` the mutual product, and
+  # everything else (`choice`, ordinal `rate_ordered`) the multinomial softmax.
+  normalizer <- switch(
+    sub_model,
+    rate = "poisson",
+    choice_coordination = "coordination",
+    "multinomial"
+  )
   if (identical(indexing, "sender_spec")) {
     return(list(
       axis = "sender",
       fold_target = "active_sender",
       encoding = NA_character_,
-      symmetrize = FALSE
+      symmetrize = FALSE,
+      normalizer = normalizer
     ))
   }
   if (identical(sub_model, "choice")) {
@@ -77,7 +93,8 @@ risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
       axis = "receiver_given_sender",
       fold_target = "active_dyad",
       encoding = "alter",
-      symmetrize = FALSE
+      symmetrize = FALSE,
+      normalizer = normalizer
     ))
   }
   if (identical(sub_model, "choice_coordination")) {
@@ -89,7 +106,8 @@ risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
       axis = if (symmetrize) "dyad_symmetric" else "dyad",
       fold_target = "active_dyad",
       encoding = "outer",
-      symmetrize = symmetrize
+      symmetrize = symmetrize,
+      normalizer = normalizer
     ))
   }
   # REM rate / rate_ordered: the whole dyad matrix, both presences fold.
@@ -97,12 +115,16 @@ risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
     axis = "dyad",
     fold_target = "active_dyad",
     encoding = "outer",
-    symmetrize = FALSE
+    symmetrize = FALSE,
+    normalizer = normalizer
   )
 }
 
 #' @noRd
 risk_set_axis <- function(spec) spec$risk_set$axis
+
+#' @noRd
+risk_set_normalizer <- function(spec) spec$risk_set$normalizer
 
 #' @noRd
 risk_set_fold_target <- function(spec) spec$risk_set$fold_target

@@ -480,7 +480,7 @@ gather_from_prep <- function(prep, spec) {
   }
 
   gathered_data <- gather_(
-    modelTypeCall = modelTypeCall,
+    spec = spec,
     event_mat = event_mat,
     timespan = timespan,
     is_dependent = is_dependent,
