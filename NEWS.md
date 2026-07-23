@@ -1,3 +1,30 @@
+# goldfish 1.9.10
+
+## Breaking changes
+
+* **`sub_model = "rate"` always models the waiting times between events.** A
+  rate formula written without an explicit time intercept (e.g.
+  `estimate_rem(y ~ inertia, sub_model = "rate")`) no longer auto-converts to
+  the ordinal (order-only) model: the time intercept -- the baseline hazard the
+  waiting-time likelihood needs -- is added, with an informative message. To
+  model only the order of events, request the ordinal likelihood explicitly with
+  `sub_model = "rate_ordered"`. Formulas that already carried a `1` intercept, or
+  that already used `sub_model = "rate_ordered"`, are unaffected.
+
+## Internal
+
+* Risk-set dispatch is now spec-driven end to end. The typed model spec carries
+  a risk-set descriptor (axis, fold target, encoding, symmetrization,
+  normalizer), decided once at parse time; preprocessing, the estimation guard,
+  the compiled interface, and the gather routines read it instead of
+  re-deriving the model family from model-type strings or statistics-array
+  dimensionality. A single engine-capability table guards constrained
+  estimation. An ego-kind (outer) `support_constraint` on a DyNAM-choice model
+  now folds into the maintained availability like every other kind, so
+  estimation consumes maintained buffers only. The internal model-type string
+  vocabulary (`legacy_model_type()`) has been removed. No change to fitted
+  coefficients: the frozen 1e-6 baselines and C++ golden tests pass unchanged.
+
 # goldfish 1.9.9
 
 ## Breaking changes
