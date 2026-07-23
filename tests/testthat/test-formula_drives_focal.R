@@ -1,10 +1,10 @@
 # The modeled layer -- the formula LHS or the specification `layer` -- drives
 # focal/side/mode resolution during estimation, not `info$focal`. A hand-built
-# stocnet omitting `info$focal` estimates, and an `info$focal` naming a different
-# layer than the one modeled never wins over the modeled layer. `info$focal` is
-# only the default for *which* layer to model.
+# stocnet omitting `info$focal` estimates, and an `info$focal` naming a
+# different layer than the one modeled never wins over the modeled layer.
+# `info$focal` is only the default for *which* layer to model.
 
-test_that("a focal-less two-mode object estimates and resolves the modeled sides", {
+test_that("a focal-less two-mode object estimates, resolving modeled sides", {
   obj <- as_goldfish(make_stocnet_fixture_twomode_estimable_nofocal())
   fit <- estimate_dynam(membership ~ 1 + ego(x), sub_model = "rate", data = obj)
   expect_s3_class(fit, "result.goldfish")
@@ -31,7 +31,7 @@ test_that("a focal-less one-mode object estimates", {
   expect_false(anyNA(coef(fit)))
 })
 
-test_that("modeling a layer other than info$focal resolves against the modeled layer", {
+test_that("modeling a layer other than info$focal resolves to that layer", {
   # multipartite: attend (actor -> event), coauthor (actor -> actor),
   # member (actor -> org). Point info$focal at the one-mode `coauthor` but model
   # the two-mode `attend`: side/mode resolution must follow `attend`.
@@ -63,9 +63,9 @@ test_that("modeling a layer other than info$focal resolves against the modeled l
 test_that("two-mode side-validity is keyed to the modeled layer's mode pair", {
   # `inertia(member)` (actor -> org) over focal `attend` (actor -> event) is
   # invalid: the argument's receiver side (org) is not the modeled layer's
-  # receiver side (event). The abort must name `attend`'s pair, proving the check
-  # resolves the focal dyad against the modeled layer -- not the `coauthor` layer
-  # `info$focal` still names.
+  # receiver side (event). The abort must name `attend`'s pair, proving the
+  # check resolves the focal dyad against the modeled layer -- not the
+  # `coauthor` layer `info$focal` still names.
   mp <- make_stocnet_fixture_multipartite()
   mp$info$focal <- "coauthor"
 
@@ -103,7 +103,7 @@ test_that("no resolvable dependent is a clear error, not an indexing crash", {
   expect_no_match(err, "get1index|subscript out of bounds")
 })
 
-test_that("the stamp is a no-op when info$focal already names the modeled layer", {
+test_that("the stamp is a no-op when info$focal already names the layer", {
   # Every prebuilt/assembled object (and every frozen baseline) sets info$focal
   # to the layer it models, so the stamp cannot move a coefficient. Estimating
   # the same model with info$focal set vs. unset gives identical coefficients.
