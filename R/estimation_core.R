@@ -690,17 +690,17 @@ event_contribution_rate <- function(
   allowReflexive,
   is_two_mode,
   isREM,
-  riskMask = NULL
+  active_dyad_mask = NULL
 ) {
   activeActor <- activeDyad[1]
   dimMatrix <- dim(statsArray)
   # A support_constraint (REM) removes disallowed dyads from the risk set exactly
   # as the reflexive-edge exclusion does: their rate is zeroed, so they leave the
   # denominator (and the score / information sums) but the observed dyad's own
-  # term is untouched. `riskMask` is the per-event mask reduced to the presence-
+  # term is untouched. `active_dyad_mask` is the per-event mask reduced to the presence-
   # kept dyads, flattened column-major to match the rate vector.
-  maskedOut <- if (isREM && !is.null(riskMask)) {
-    which(!as.vector(riskMask))
+  maskedOut <- if (isREM && !is.null(active_dyad_mask)) {
+    which(!as.vector(active_dyad_mask))
   } else {
     integer(0)
   }
@@ -804,7 +804,7 @@ compute_event_contribution.rem_rate_spec <- function(
   timespan,
   allowReflexive,
   is_two_mode,
-  riskMask = NULL
+  active_dyad_mask = NULL
 ) {
   event_contribution_rate(
     statsArray,
@@ -815,7 +815,7 @@ compute_event_contribution.rem_rate_spec <- function(
     allowReflexive,
     is_two_mode,
     isREM = TRUE,
-    riskMask = riskMask
+    active_dyad_mask = active_dyad_mask
   )
 }
 
@@ -912,7 +912,7 @@ compute_event_contribution.dynam_choice_coord_spec <- function(
   timespan,
   allowReflexive,
   is_two_mode,
-  riskMask = NULL
+  active_dyad_mask = NULL
 ) {
   multinomial <-
     getMultinomialProbabilities(
@@ -920,7 +920,7 @@ compute_event_contribution.dynam_choice_coord_spec <- function(
       activeDyad,
       parameters,
       allowReflexive = allowReflexive,
-      riskMask = riskMask
+      active_dyad_mask = active_dyad_mask
     )
   multinomialProbabilities <- multinomial$probabilities
   eventLikelihoods <- getLikelihoodMM(multinomialProbabilities)
@@ -962,7 +962,7 @@ compute_event_contribution.rem_rate_ordered_spec <- function(
   timespan,
   allowReflexive,
   is_two_mode,
-  riskMask = NULL
+  active_dyad_mask = NULL
 ) {
   multinomial <-
     getMultinomialProbabilities(
@@ -971,7 +971,7 @@ compute_event_contribution.rem_rate_ordered_spec <- function(
       parameters,
       actorNested = FALSE,
       allowReflexive = FALSE,
-      riskMask = riskMask
+      active_dyad_mask = active_dyad_mask
     )
   eventProbabilities <- multinomial$probabilities
   # log-space observed logL (finite under underflow)
@@ -1256,7 +1256,7 @@ compute_step.default <- function(spec, state, i, ctx) {
   # allowed receiver) into `active_sender` during preprocessing, so
   # `state$presence` already carries presence AND the gate — no separate filter.
   # A folded REM or coordination constraint carries both presences ∩ support in
-  # the maintained dense `active_dyad` (used whole as `riskMask` below), so neither
+  # the maintained dense `active_dyad` (used whole as `active_dyad_mask` below), so neither
   # axis is reduced — an absent or disallowed dyad is zeroed by the mask, not
   # dropped. Coordination joins REM here because its two-sided likelihood needs the
   # full matrix, not a per-sender row.
@@ -1366,11 +1366,11 @@ compute_step.default <- function(spec, state, i, ctx) {
   )
   # REM / coordination support_constraint: the contribution zeroes disallowed
   # dyads from the risk set. Only the REM and coordination contributions accept
-  # `riskMask`, and it is passed only when a folded mask is present, so other
+  # `active_dyad_mask`, and it is passed only when a folded mask is present, so other
   # paths are unaffected. The maintained dense `active_dyad` is the per-event
   # mask, kept whole because no axis reduction was applied above.
   if (folded_full) {
-    contrib_args$riskMask <- state$presence2
+    contrib_args$active_dyad_mask <- state$presence2
   }
   eventValues <- do.call(ctx$contribution_fn, contrib_args)
 
@@ -1422,7 +1422,9 @@ compute_iteration_step <- function(
   opportunitiesList = NULL
 ) {
   nEvents <- length(statsList$is_dependent)
-  is_rate <- length(dim(statsList$initialStats)) == 2L
+  # Rate models are sender-indexed; read the family from the spec descriptor,
+  # never from the statistics array dimensionality.
+  is_rate <- identical(risk_set_axis(spec), "sender")
   nParams <- if (is_rate) {
     ncol(statsList$initialStats)
   } else {
@@ -1448,7 +1450,7 @@ compute_iteration_step <- function(
   # A standard- or ordinal-REM support_constraint folds both presences ∩ support
   # into a dense point `active_dyad`: the maintained matrix IS the
   # per-event risk mask, so the presence axis-reductions are skipped and it is
-  # consumed directly as `riskMask`, replacing the standalone per-event mask.
+  # consumed directly as `active_dyad_mask`, replacing the standalone per-event mask.
   is_rem <- inherits(spec, c("rem_rate_spec", "rem_rate_ordered_spec"))
   # DyNAM coordination is two-sided (`getLikelihoodMM` pairs both directed
   # choices), so a folded coordination constraint — symmetrised into the dense
@@ -1635,7 +1637,7 @@ stable_softmax <- function(x, rowwise = FALSE) {
 # Function to calculate a matrix of i->j multinomial choice probabilities
 # (non-logged) for one term of the model. Returns a list with `probabilities`
 # and the matching stable `logProbabilities`: the excluded
-# alternatives (reflexive diagonal, `riskMask`) enter as -Inf linear predictors,
+# alternatives (reflexive diagonal, `active_dyad_mask`) enter as -Inf linear predictors,
 # so the max-shift is taken over the included set only and they drop from the
 # normalizer exactly as zeroing their utility did before.
 getMultinomialProbabilities <- function(
@@ -1645,7 +1647,7 @@ getMultinomialProbabilities <- function(
   actorNested = TRUE,
   allowReflexive = TRUE,
   is_two_mode = FALSE,
-  riskMask = NULL
+  active_dyad_mask = NULL
 ) {
   # allow this for a two- OR a three-dimensional array provided as input,
   # to be make
@@ -1677,11 +1679,11 @@ getMultinomialProbabilities <- function(
     # from the risk set exactly as the reflexive diagonal does: -Inf predictor
     # drops them from the denominator (and the probability-weighted score /
     # information sums), while the observed dyad's own term is untouched.
-    # `riskMask` is the maintained dense n1 x n2 availability aligned with the
+    # `active_dyad_mask` is the maintained dense n1 x n2 availability aligned with the
     # [sender, receiver] predictor (coordination folds both presences, so a
     # masked row is an absent / fully-gated sender).
-    if (!is.null(riskMask)) {
-      linearPredictor[!riskMask] <- -Inf
+    if (!is.null(active_dyad_mask)) {
+      linearPredictor[!active_dyad_mask] <- -Inf
     }
     # actorNested: per-sender row softmax; else the global REM normalizer.
     stable_softmax(linearPredictor, rowwise = actorNested)

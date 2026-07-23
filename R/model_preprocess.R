@@ -1177,7 +1177,7 @@ fold_active_dyad_support <- function(
   )
   # Standard/ordinal REM and DyNAM coordination all fold BOTH presences ∩ their
   # support atoms into a dense point `active_dyad` — the risk-set mask each engine
-  # consumes directly, replacing the per-event `riskMask` snapshot. These families
+  # consumes directly, replacing the per-event `active_dyad_mask` snapshot. These families
   # share a dyadic / two-sided risk set (only the normalizer differs:
   # timespan-weighted Poisson, multinomial, or the mutual `getLikelihoodMM`
   # product), so one fold serves them. Coordination (`DyNAM-MM`) is additionally
@@ -1244,7 +1244,7 @@ fold_active_dyad_support <- function(
 # REM risk set is the whole dyad matrix, so per event the mask is
 # `presence1[i] & presence2[j] & support[i, j]` — both presences folded in — and
 # the default engine consumes it directly as the per-event risk mask, replacing
-# the standalone `riskMask` snapshot. The raw presences are stashed on
+# the standalone `active_dyad_mask` snapshot. The raw presences are stashed on
 # `support_mask` for the fail-fast validation, which needs them unfolded.
 fold_active_dyad_support_rem <- function(
   out,
