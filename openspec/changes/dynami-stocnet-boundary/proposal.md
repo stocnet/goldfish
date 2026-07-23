@@ -65,12 +65,13 @@ rejected everywhere".
   (`is_stocnet_assemblable()` returning `FALSE` for interaction data) is lifted —
   `make_data()` with DyNAMi components returns a stocnet, never an environment,
   completing what `multimode-network-support` did for two-mode.
-- **The legacy-environment abort lands** (**BREAKING** for objects saved before
-  1.9.0): `make_specification()` / `estimate_*()` abort on
-  `is.environment(data)` with a `cli` error naming `as_goldfish()` as the
-  migration — the deferred single-object requirement, owned here because this
-  change removes the last public env producer. The `as_goldfish()` conversion
-  path for saved environments already exists.
+- **The legacy-environment abort is DEFERRED** (decision 2026-07-23, see design
+  D4): the premise that `make_data()` never returns an environment proved false
+  — a dependent-events object subset against a fuller-event covariate network is
+  not stocnet-assemblable and falls back to the environment, so a blanket public
+  abort would break real workflows. The abort (and the `as_goldfish()`
+  environment-conversion path, which also still defers) moves to the change that
+  makes `make_data()` always assemble.
 - **Load-time fixtures cleanup**: `R/zzz_testthat_helpers.R` stops building
   legacy-constructor fixtures under a quieted lifecycle context where the
   stocnet path now serves; DyNAMi test fixtures route through the stocnet
