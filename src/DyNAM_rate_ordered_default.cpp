@@ -37,7 +37,8 @@ List estimate_DyNAM_rate_ordered(
     const int n_actors_2,
     const bool twomode_or_reflexive,
     bool impute = true,
-    const bool return_event_scores = false
+    const bool return_event_scores = false,
+    const bool return_ranks = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -58,6 +59,10 @@ List estimate_DyNAM_rate_ordered(
     // statistic); allocated only when requested so the default path pays nothing.
     arma::mat event_scores;
     if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+    // Opt-in per-event rank of the observed sender among the risk set
+    // (rank 1 = highest fitted probability); allocated only when requested.
+    IntegerVector observed_rank;
+    if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
 
 
     // Check whether there are composition change and initialize
@@ -140,6 +145,14 @@ List estimate_DyNAM_rate_ordered(
         arma::vec weights;
         double log_normalizer = stable_softmax_masked(lin_pred, allowed, weights);
         double normalizer = accu(weights);
+        if (return_ranks) {
+            const double obs_weight = weights(id_sender);
+            int rank = 1;
+            for (int i = 0; i < n_actors_1; ++i) {
+                if (allowed(i) == 1 && weights(i) > obs_weight) rank++;
+            }
+            observed_rank[id_event] = rank;
+        }
         expected_stat_current_event = (weights.t() * reduced_stat_mat) /
           normalizer;
         // derivative
@@ -166,7 +179,8 @@ List estimate_DyNAM_rate_ordered(
       Named("fisher") = fisher,
       Named("intervalLogL") = intervalLogL,
       Named("logLikelihood") = logLikelihood,
-      Named("event_scores") = event_scores
+      Named("event_scores") = event_scores,
+      Named("observed_rank") = observed_rank
     );
 }
 

@@ -30,7 +30,8 @@ List estimate_REM_ordered(
     const bool twomode_or_reflexive,
     bool impute = true,
     const bool active_dyad_is_point = false,
-    const bool return_event_scores = false
+    const bool return_event_scores = false,
+    const bool return_ranks = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -51,6 +52,10 @@ List estimate_REM_ordered(
     // statistic); allocated only when requested so the default path pays nothing.
     arma::mat event_scores;
     if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+    // Opt-in per-event rank of the observed dyad among the risk set
+    // (rank 1 = highest fitted probability); allocated only when requested.
+    IntegerVector observed_rank;
+    if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
 
     // Check whether there are composition change and initialize
     // the presence of actor1 and actor2
@@ -158,6 +163,14 @@ List estimate_REM_ordered(
           stable_softmax_masked(lin_pred, allowed, weights);
         double normalizer = accu(weights);
         const int id_obs = id_sender * n_actors_2 + id_receiver;
+        if (return_ranks) {
+            const double obs_weight = weights(id_obs);
+            int rank = 1;
+            for (unsigned int d = 0; d < weights.n_elem; d++) {
+                if (allowed(d) == 1 && weights(d) > obs_weight) rank++;
+            }
+            observed_rank[id_event] = rank;
+        }
         expected_stat_current_event = (weights.t() * stat_mat) / normalizer;
         // derivative
         arma::rowvec score_before;
@@ -182,6 +195,7 @@ List estimate_REM_ordered(
       Named("fisher") = fisher,
       Named("logLikelihood") = logLikelihood,
       Named("intervalLogL") = intervalLogL,
-      Named("event_scores") = event_scores
+      Named("event_scores") = event_scores,
+      Named("observed_rank") = observed_rank
     );
 }

@@ -37,7 +37,8 @@ inline arma::mat reduce_mat_to_vector(
      const int n_actors_2,
      const bool twomode_or_reflexive,
      bool impute = true,
-     const bool return_event_scores = false
+     const bool return_event_scores = false,
+     const bool return_ranks = false
  ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -60,6 +61,11 @@ inline arma::mat reduce_mat_to_vector(
    // requested so the default path pays nothing.
    arma::mat event_scores;
    if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+   // Opt-in per-event rank of the observed sender among the risk set by fitted
+   // rate (rank 1 = highest rate); NA for right-censored events. Allocated only
+   // when requested so the default path pays nothing.
+   IntegerVector observed_rank;
+   if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
 
    // Check whether there are composition change and initialize
    // the presence of actor1 and actor2
@@ -135,12 +141,22 @@ inline arma::mat reduce_mat_to_vector(
      arma::mat reduce_stat_mat =
        reduce_mat_to_vector(stat_mat, n_actors_1, n_actors_2,
                             twomode_or_reflexive);
+     // Rank the observed sender's rate against the other active senders in the
+     // same pass; the observed sender's own rate equals `obs_rate`, so the
+     // strict `>` test excludes it (rank 1 = highest rate).
+     const bool do_rank = return_ranks && (is_dependent(id_event) == 1);
+     double obs_rate = 0;
+     int rank = 1;
+     if (do_rank) {
+       obs_rate = std::exp(dot(reduce_stat_mat.row(id_sender), parameters));
+     }
      // go through all actor1
      for (int i = 0; i < n_actors_1; ++i) {
        if (active_sender(i) == 1) {
          // exp_current_sender is \exp(\beta^T s)
          double exp_current_sender =
            std::exp(dot(reduce_stat_mat.row(i), parameters));
+         if (do_rank && exp_current_sender > obs_rate) rank++;
          normalizer += exp_current_sender;
          weighted_sum_current_event +=
            exp_current_sender * (reduce_stat_mat.row(i));
@@ -174,6 +190,7 @@ inline arma::mat reduce_mat_to_vector(
        //Rcpp::Rcout << "Der +:" << reduce_stat_mat.row(id_sender) << std::endl;
        //Rcpp::Rcout << "sender:" << id_sender << std::endl;
      }
+     if (do_rank) observed_rank[id_event] = rank;
      if (return_event_scores) {
        event_scores.row(id_event) = derivative.row(0) - score_before;
      }
@@ -186,7 +203,8 @@ inline arma::mat reduce_mat_to_vector(
      Named("fisher") = fisher,
      Named("intervalLogL") = intervalLogL,
      Named("logLikelihood") = logLikelihood,
-     Named("event_scores") = event_scores
+     Named("event_scores") = event_scores,
+     Named("observed_rank") = observed_rank
    );
  }
 

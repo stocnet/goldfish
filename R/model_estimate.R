@@ -1919,7 +1919,8 @@ estimate_wrapper <- function(
           list(
             spec = model_spec,
             engine = control_estimation$engine,
-            optimizer = optimizer
+            optimizer = optimizer,
+            return_ranks = "ranks" %in% control_estimation$diagnostics
           )
         )
       ),

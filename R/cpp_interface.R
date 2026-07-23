@@ -28,6 +28,7 @@ estimate_c_int <- function(
   hasIntercept = FALSE,
   returnIntervalLogL = FALSE,
   return_event_scores = FALSE,
+  return_ranks = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -299,7 +300,7 @@ estimate_c_int <- function(
   } else {
     active_dyad_init
   }
-  evaluate_default_c <- function(pars, need_scores) {
+  evaluate_default_c <- function(pars, need_scores, need_ranks = FALSE) {
     estimate_(
       spec = spec,
       parameters = pars,
@@ -322,7 +323,8 @@ estimate_c_int <- function(
       twomode_or_reflexive = twomode_or_reflexive,
       impute = impute,
       active_dyad_is_point = dyad_is_point,
-      return_event_scores = need_scores
+      return_event_scores = need_scores,
+      return_ranks = need_ranks
     )
   }
 
@@ -366,7 +368,7 @@ estimate_c_int <- function(
 
     ### DEFAULT_C ENGINE
     if (engine == "default_c") {
-      res <- evaluate_default_c(parameters, return_event_scores)
+      res <- evaluate_default_c(parameters, return_event_scores, return_ranks)
     }
 
     logLikelihood <- res$logLikelihood
@@ -377,6 +379,9 @@ estimate_c_int <- function(
     }
     if (return_event_scores) {
       event_scores <- res$event_scores
+    }
+    if (return_ranks) {
+      observed_rank <- res$observed_rank
     }
 
     if (returnEventProbabilities) {
@@ -575,6 +580,9 @@ estimate_c_int <- function(
   if (return_event_scores) {
     estimationResult$event_scores <- event_scores
   }
+  if (return_ranks) {
+    estimationResult$observed_rank <- observed_rank
+  }
   if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
   }
@@ -752,7 +760,8 @@ estimate_ <- function(
   twomode_or_reflexive,
   impute,
   active_dyad_is_point = FALSE,
-  return_event_scores = FALSE
+  return_event_scores = FALSE,
+  return_ranks = FALSE
 ) {
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
@@ -777,7 +786,8 @@ estimate_ <- function(
       twomode_or_reflexive,
       impute,
       active_dyad_is_point = active_dyad_is_point,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
 
@@ -798,7 +808,8 @@ estimate_ <- function(
       twomode_or_reflexive,
       impute,
       active_dyad_is_point = active_dyad_is_point,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
 
@@ -822,7 +833,8 @@ estimate_ <- function(
       twomode_or_reflexive,
       impute,
       active_dyad_is_point = active_dyad_is_point,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
 
@@ -848,7 +860,8 @@ estimate_ <- function(
       twomode_or_reflexive,
       impute,
       active_dyad_is_point = active_dyad_is_point,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
 
@@ -873,7 +886,8 @@ estimate_ <- function(
       n_actors2,
       twomode_or_reflexive,
       impute,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
 
@@ -896,7 +910,8 @@ estimate_ <- function(
       n_actors2,
       twomode_or_reflexive,
       impute,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
   return(res)
