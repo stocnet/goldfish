@@ -642,3 +642,34 @@ test_that("a two-mode alter statistic keeps no excluded diagonal", {
   )
   expect_equal(as.vector(stat[1, ]), c(40, 25))
 })
+
+# Choice-set argument resolution at the parser --------------------------------
+#
+# Each enumerated argument (type / history / ...) resolves to one validated
+# scalar at parse time, before the init or the update reads it. Two guarantees:
+# a two-mode `indeg` on its default variant never reaches a length-2 `type`
+# comparison, and an out-of-set value aborts at the formula naming the effect,
+# the argument, and the allowed set.
+
+test_that("a two-mode indeg default variant parses without a length-2 type", {
+  d <- as_goldfish(make_stocnet_fixture_multipartite())
+  expect_no_error(gate_effects(attend ~ indeg(attend), data = d))
+})
+
+test_that("an out-of-set type aborts at parse naming effect, arg, and set", {
+  d <- as_goldfish(make_stocnet_fixture_multipartite())
+  expect_error(
+    gate_effects(attend ~ indeg(attend, type = "bogus"), data = d),
+    regexp = "type.*indeg.*alter.*ego",
+    class = "rlang_error"
+  )
+})
+
+test_that("an out-of-set history aborts at parse naming effect, arg, and set", {
+  d <- as_goldfish(make_stocnet_fixture())
+  expect_error(
+    gate_effects(calls ~ trans(calls, history = "nope"), data = d),
+    regexp = "history.*trans.*pooled.*sequential",
+    class = "rlang_error"
+  )
+})

@@ -101,21 +101,58 @@ term_layer_names <- function(arg_name) {
   trimws(strsplit(inner, ",")[[1]])
 }
 
-# Resolve the `type` an effect will run with from its parsed signature, so the
-# gate checks the variant the user actually asked for. A formal left at its
-# default `c("alter", "ego")` resolves to the first value, as `match.arg` would.
-resolve_effect_type <- function(signature, envir) {
-  if (!"type" %in% names(signature)) {
-    return(NULL)
+# Resolve every choice-set (enumerated) argument of an effect once, at the
+# parser, to the single value it will run with. Each enumerated argument holds
+# its full choice set as its default (`type = c("alter", "ego")`,
+# `history = c("pooled", "sequential", "consecutive")`, ...); the user either
+# overrode it with one value or left the whole vector. The parser is the only
+# seam that sees both the original choice set (`original`, the closure's
+# untouched formals) and the user's value (already spliced into `signature`), so
+# validation and the `match.arg`-style "unspecified default is the first
+# element" collapse both happen here. The resolved scalar is written back into
+# the signature, so the init, the validity gate, and the update's own
+# `match.arg` all read a length-1, already-validated value -- the length-2
+# comparison that crashed a two-mode `indeg(x)` becomes structurally impossible
+# rather than guarded. An out-of-set value aborts here, naming the effect, the
+# argument, and the allowed set.
+enumerated_effect_args <- c("type", "history", "sub_type", "joining")
+
+resolve_effect_args <- function(signature, original, effect, envir) {
+  for (arg in intersect(enumerated_effect_args, names(signature))) {
+    choices <- tryCatch(
+      eval(original[[arg]], envir = envir),
+      error = function(e) NULL
+    )
+    if (!is.character(choices) || length(choices) < 2L) {
+      next
+    }
+    value <- tryCatch(
+      eval(signature[[arg]], envir = envir),
+      error = function(e) NULL
+    )
+    if (is.null(value)) {
+      next
+    }
+    # `match.arg` keeps the pipeline's established semantics: an unspecified
+    # default (the whole choice vector) collapses to its first element, a
+    # supplied value is partial-matched to its canonical form, and a bad value
+    # errors -- re-raised as a cli error naming the effect, the argument, and
+    # the allowed set.
+    signature[[arg]] <- tryCatch(
+      match.arg(value, choices),
+      error = function(cnd) {
+        cli::cli_abort(
+          c(
+            "{.arg {arg}} in {.fn {effect}} must be one of \\
+             {.or {.val {choices}}}.",
+            "x" = "You supplied {.val {value}}."
+          ),
+          call = NULL
+        )
+      }
+    )
   }
-  value <- tryCatch(
-    eval(signature[["type"]], envir = envir),
-    error = function(e) NULL
-  )
-  if (is.null(value) || !is.character(value)) {
-    return(NULL)
-  }
-  value[1]
+  signature
 }
 
 #' Check an effect's side signature against the data

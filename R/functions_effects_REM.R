@@ -181,7 +181,7 @@ update_REM_choice_recip <- function(
 init_REM_choice.indeg <- function(effect_fun, network, window, n1, n2, ...) {
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
-  type <- resolved_type(params)
+  type <- eval(params[["type"]])
   if (is_two_mode && type == "ego") {
     cli::cli_abort(c(
       "{.fn indeg} with {.arg type} = {.val ego} cannot be computed on a
@@ -349,7 +349,7 @@ update_REM_choice_indeg <- function(
 init_REM_choice.outdeg <- function(effect_fun, network, window, n1, n2, ...) {
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
-  type <- resolved_type(params)
+  type <- eval(params[["type"]])
   if (is_two_mode && type == "alter") {
     cli::cli_abort(c(
       "{.fn outdeg} with {.arg type} = {.val alter} cannot be computed on a
@@ -859,7 +859,7 @@ init_REM_choice.tertius <- function(
 ) {
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
-  type <- resolved_type(params)
+  type <- eval(params[["type"]])
   if (is_two_mode && type == "ego") {
     cli::cli_abort(c(
       "{.fn tertius} with {.arg type} = {.val ego} cannot be computed on a
@@ -1190,7 +1190,7 @@ init_REM_choice.node_trans <- function(
 ) {
   params <- formals(effect_fun)
   is_two_mode <- eval(params[["is_two_mode"]])
-  type <- resolved_type(params)
+  type <- eval(params[["type"]])
   if (is_two_mode) {
     cli::cli_abort(c(
       "{.fn node_trans} cannot be computed on a two-mode network.",

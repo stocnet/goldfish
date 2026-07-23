@@ -757,6 +757,16 @@ create_effects_functions <- function(
       is_condition <- isReservedElementName(.args_names) &
         !(.args_names %in% names_)
       .signature[is_condition] <- parms_to_set[!named_params]
+      # Resolve the choice-set arguments (type/history/...) to their single
+      # value here, while the closure's original defaults are still readable
+      # from `formals(FUN)`, so the init, the gate below, and the update all
+      # read an already-validated scalar.
+      .signature <- resolve_effect_args(
+        .signature,
+        original = formals(FUN),
+        effect = as.character(x[[1]]),
+        envir = envir
+      )
       # Two-modeness is resolved from each network argument's OWN layer, never
       # as a blanket from the focal layer, and the mode map is the source of
       # truth: a declared `is_two_mode` that disagrees with the data is a
@@ -791,7 +801,7 @@ create_effects_functions <- function(
         check_effect_sides(
           effect = as.character(x[[1]]),
           arg_name = arg_name,
-          type = resolve_effect_type(.signature, envir),
+          type = .signature[["type"]],
           src = src,
           model = model,
           sub_model = sub_model

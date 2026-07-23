@@ -8,16 +8,8 @@ init_DyNAM_rate <- function(effect_fun, ...) {
 # one. The choice and REM inits delegate here carrying a `type`, and only their
 # ego variant reads the sender.
 reads_ego_side <- function(params) {
-  type <- resolved_type(params)
+  type <- eval(params[["type"]])
   is.null(type) || identical(type, "ego")
-}
-
-# The `type` variant an effect will run with. A formal left at its default still
-# holds the whole choice vector (`c("alter", "ego")`), which match.arg resolves
-# to the first: comparing it as written gives a length-2 condition, which is an
-# error rather than a silent first-element read.
-resolved_type <- function(params) {
-  eval(params[["type"]])[1]
 }
 
 # default -----------------------------------------------------------------
