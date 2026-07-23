@@ -553,35 +553,6 @@ compute_stats <- function(
   )
 }
 
-# Reduce the support mask to a per-event receiver filter for the DyNAM-choice
-# default engine. A choice event has a single sender, so its
-# allowed receivers are the sender's row of the support mask conjoined with
-# receiver presence downstream; the resulting per-event id list is consumed by
-# the existing opportunities machinery in `compute_iteration_step()`, which
-# shrinks `n_candidates` and reindexes `selected` within the constrained set. A
-# user-supplied `opportunities_list` is intersected in (both restrict the set).
-mask_to_opportunities <- function(support_mask, statsList, user_opp = NULL) {
-  support <- support_mask$support
-  senders <- statsList$event_sender
-  if (length(support) != length(senders)) {
-    cli::cli_abort(
-      "The support mask ({length(support)}) and event count
-       ({length(senders)}) are misaligned."
-    )
-  }
-  lapply(seq_along(support), function(e) {
-    allowed <- which(support[[e]][senders[[e]], ])
-    if (
-      !is.null(user_opp) &&
-        length(user_opp) >= e &&
-        !is.null(user_opp[[e]])
-    ) {
-      allowed <- intersect(allowed, user_opp[[e]])
-    }
-    allowed
-  })
-}
-
 # Preprocessing-time set-size validation for a support_constraint.
 # Fails fast — before the C++ likelihood — with event context. Cases:
 #   A observed dyad excluded (choice) / observed sender gated out (rate) -> error
@@ -1843,7 +1814,6 @@ estimate_wrapper <- function(
   }
   sender_gate <- NULL
   rem_mask <- NULL
-  support_gather <- NULL
   if (!is.null(constraint_plan) && !is.null(prep$support_mask)) {
     is_choice_family <- model == "DyNAM" &&
       sub_model %in% c("choice", "choice_coordination")
@@ -1893,12 +1863,11 @@ estimate_wrapper <- function(
     # DyNAM choice (the C++ estimator filters receivers). Other engine/model
     # combinations fall back to the default (R) engine, which consumes the mask via
     # the sender/receiver filters or the REM contribution.
-    # A DyNAM-choice constraint (alter or point) folds into `active_dyad`, and a
-    # DyNAM-rate constraint folds its sender gate into `active_sender`, during
-    # preprocessing: every engine reads the folded object
+    # Every DyNAM-choice constraint (alter, point, or ego-kind/outer) folds into
+    # `active_dyad`, and a DyNAM-rate constraint folds its sender gate into
+    # `active_sender`, during preprocessing: every engine reads the folded object
     # directly, so neither the standalone mask nor the per-event opportunity
-    # reduction is passed. An ego-kind (outer) choice constraint is not yet folded
-    # and still rides the standalone mask path.
+    # reduction is passed.
     choice_folded <- is_one_sided_choice && isTRUE(prep$active_dyad_folded)
     rate_folded <- is_rate_family && isTRUE(prep$active_sender_folded)
     # A folded standard- or ordinal-REM constraint rides the dense point
@@ -1932,17 +1901,7 @@ estimate_wrapper <- function(
           (is_rem_family && rem_folded) ||
           (is_rem_ordered_family && rem_ordered_folded) ||
           (is_coord_family && coord_folded)))
-    if (native_compiled) {
-      if (
-        !choice_folded &&
-          !rate_folded &&
-          !rem_folded &&
-          !rem_ordered_folded &&
-          !coord_folded
-      ) {
-        support_gather <- prep$support_mask$support
-      }
-    } else {
+    if (!native_compiled) {
       # Non-native path = the default (R) engine only: every reachable constrained
       # model (DyNAM choice / rate / coordination, standard + ordinal REM) folds
       # its availability and runs natively on gather_compute / default_c above, and
@@ -1950,15 +1909,9 @@ estimate_wrapper <- function(
       # "engine does not yet consume … using default" downgrade is dead and has
       # been lifted.
       if (is_one_sided_choice) {
-        if (!choice_folded) {
-          # An unfolded (ego-kind / outer) choice constraint still reduces to the
-          # per-event opportunity list for the default engine.
-          opportunities_effective <- mask_to_opportunities(
-            prep$support_mask,
-            prep,
-            opportunities_effective
-          )
-        }
+        # A DyNAM-choice constraint (alter, point, or ego-kind/outer) folds into
+        # `active_dyad` during preprocessing; the default engine reads the folded
+        # object, so no standalone mask or per-event opportunity reduction passes.
       } else if (is_rate_family) {
         # The default engine consumes the folded `active_sender` directly as its
         # sender filter; no separate sender gate is passed.
@@ -2010,8 +1963,7 @@ estimate_wrapper <- function(
     progress = progress,
     opportunitiesList = opportunities_effective,
     senderGate = sender_gate,
-    remMask = rem_mask,
-    supportMask = support_gather
+    remMask = rem_mask
   )
 
   # Call the appropriate estimation engine

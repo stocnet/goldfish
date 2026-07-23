@@ -46,7 +46,6 @@ estimate_c_int <- function(
   opportunitiesList = NULL,
   senderGate = NULL,
   remMask = NULL,
-  supportMask = NULL,
   engine = c("default_c", "gather_compute"),
   optimizer = "newton_raphson"
 ) {
@@ -56,17 +55,10 @@ estimate_c_int <- function(
       call. = FALSE
     )
   }
-  # gather_compute consumes the mask via the R gather; default_c consumes it in
-  # the per-model C++ estimator, wired for DyNAM-M (choice) only. Other
-  # combinations are a caller error (they downgrade to the default engine
-  # upstream).
-  default_c_support_ok <- identical(modelTypeCall, "DyNAM-M")
-  if (
-    (!is.null(senderGate) || !is.null(remMask)) ||
-      (!is.null(supportMask) &&
-        identical(engine, "default_c") &&
-        !default_c_support_ok)
-  ) {
+  # Every constrained model folds its availability during preprocessing and the
+  # engines read the folded buffers; no standalone mask reaches this interface.
+  # These defensive stops catch a caller that still assembles a side channel.
+  if (!is.null(senderGate) || !is.null(remMask)) {
     stop(
       "support_constraint is not supported in this C interface engine.",
       call. = FALSE
@@ -310,7 +302,6 @@ estimate_c_int <- function(
       twomode_or_reflexive = twomode_or_reflexive,
       verbose = progress, # output the progress of data gathering
       impute = impute,
-      support = supportMask,
       active_dyad_encoding = active_dyad_encoding
     )
     size_gathered_data <- utils::object.size(gathered_data)
@@ -965,7 +956,6 @@ gather_ <- function(
   twomode_or_reflexive,
   verbose,
   impute,
-  support = NULL,
   active_dyad_encoding = "alter"
 ) {
   if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
