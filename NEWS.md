@@ -1,3 +1,74 @@
+# goldfish 1.9.6
+
+## New features
+
+* **Multipartite DyNAM and REM models over two-mode networks.** A `stocnet`
+  whose focal layer runs between two different modes (an actor sending to a
+  concept, an author to a paper) is now a first-class modeling object across the
+  DyNAM rate, DyNAM choice, and REM engines. Node identity is carried by the
+  object's mode map -- one nodes tibble with a `mode` column resolves each
+  layer's side pair -- so an object may mix one-mode and two-mode layers, and a
+  model over a two-mode focal layer reads one-mode covariate layers through
+  their own side pairs. `make_data()` on the legacy two-node-set constructors
+  now assembles to the same `stocnet` representation, and estimates to identical
+  coefficients (a 1e-6 equivalence guard covers both construction paths). Two-mode
+  preprocessed and estimation results carry a per-side node lookup, so gather and
+  database exports join `index_i` / `index_j` back to each side's labels.
+
+* **Effect-validity contract for two-mode focal layers.** Each effect's side
+  requirements are checked at parse time against the data's mode map, per index
+  position rather than as a blanket "works on two-mode" verdict. A one-mode
+  closure effect on a two-mode focal layer (`recip`, `trans`, `cycle`) is
+  rejected by name, comparing the two modes; the message lists the effects a
+  two-mode focal layer does admit. Effects whose `type` variant selects a side
+  (`indeg`, `outdeg`, `tertius`) reject the degenerate variant that would count
+  ties that cannot exist.
+
+## Bug fixes
+
+* **A two-mode rate model no longer crashes with `'x' is too short`.** The rate
+  spec constructor dropped the receiver side, collapsing the two-mode dimensions
+  to the sender count.
+
+* **`indeg()` / `degree()` no longer crash on a two-mode network with a
+  `'length = 2'` coercion error.** The choice-set arguments (`type`, `history`,
+  ...) are now resolved to a single validated value once, at the parser, before
+  any effect init reads them, so a two-mode `indeg(x)` can no longer reach a
+  length-2 `type` comparison. An out-of-set value (`type = "bogus"`) aborts at
+  the formula, naming the effect, the argument, and the allowed set.
+
+* **`make_specification()` and flavor-keyed specs no longer reject a
+  `global()` / `ego()` interaction operand** as an unidentified main effect. An
+  operand feeding an interaction term is held out of the main-effect
+  identifiability check, mirroring the plain-formula path, so period-interacted
+  choice models (`effect:global(period)`) build.
+
+* **Categorical attribute imputation no longer writes `NA` into state.** A
+  categorical nodal attribute with a missing `replace` value in an event stream
+  reached a `mean()` of character values; the same event's effect update then
+  received `NA` and died on an equality comparison.
+
+* **Two-mode `choice_coordination` now aborts cleanly**, naming the sub-model
+  and layer, instead of crashing in the C++ engine: coordination reads both
+  directed dyads over a single node set, which a disjoint two-mode side pair
+  cannot supply.
+
+## Documentation
+
+* **New `two-mode` vignette** reproducing the multimodal DyNAM of Haunss &
+  Hollway (2023) on `manynet::irps_nuclear`: the `manynet` verb pipeline that
+  builds the `stocnet` on goldfish's native POSIXct axis, the two-mode
+  effect-validity discussion, the rate and choice models with two-mode *tertius*
+  effects, discursive periods as both interacted global dummies and separate
+  window fits (which agree to machine precision), and the distinction between
+  structural and informative missingness.
+
+* **`?goldfish_data` gains a multipartite section** describing mode sets, the
+  manynet-to-stocnet conversion pattern, and a pointer to the vignette. The
+  effects vignette's blanket "cannot be used for two-mode networks" claims are
+  corrected: `four`, `same`, `diff`, `sim`, and `mixed_trans` do apply, and the
+  degree and shared-partner statements are type-qualified.
+
 # goldfish 1.9.5
 
 ## New features
