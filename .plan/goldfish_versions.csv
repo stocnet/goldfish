@@ -21,3 +21,4 @@ develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD
 1.9.6,local,stocnet/goldfish,b8798e1,b8798e1,archive,FALSE,Archived OpenSpec change 'multimode-network-support' on 2026-07-23 (version 1.9.6); see openspec/changes/archive/.
 1.9.7,local,stocnet/goldfish,d27cb3e,d27cb3e,archive,FALSE,Archived OpenSpec change 'formula-drives-focal' on 2026-07-23 (version 1.9.7); see openspec/changes/archive/.
 1.9.8,local,stocnet/goldfish,895cba4,895cba4,archive,FALSE,Archived OpenSpec change 'dynami-stocnet-boundary' on 2026-07-23 (version 1.9.8); see openspec/changes/archive/.
+1.9.9,local,stocnet/goldfish,ec5a9d3,ec5a9d3,archive,FALSE,Archived OpenSpec change 'make-data-always-assembles' on 2026-07-23 (version 1.9.9); see openspec/changes/archive/.
