@@ -1,7 +1,8 @@
 # dynami-data-boundary Specification
 
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change dynami-stocnet-boundary. Update Purpose after archive.
+## Requirements
 ### Requirement: DyNAMi data assembles to a stocnet
 `make_groups_interaction()` SHALL return the assembled multipartite stocnet
 directly (**BREAKING**: the previous 5-component list, including the
@@ -110,3 +111,4 @@ channel. The dead `setopportunities_interaction()` SHALL be removed.
   `support_constraint`
 - **THEN** the effective risk set is the AND of the derived constraint and
   the user constraint.
+
