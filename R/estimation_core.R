@@ -154,7 +154,8 @@ estimate_int_impl <- function(
   statsList <- prepare_statslist(
     statsList = statsList,
     excludeParameters = excludeParameters,
-    addInterceptEffect = hasIntercept
+    addInterceptEffect = hasIntercept,
+    is_sender = is_rate_model
   )
 
   ## GET COMPOSITION CHANGES
@@ -1711,15 +1712,20 @@ getMultinomialProbabilities <- function(
 #' @param excludeParameters integer positions of effects to drop.
 #' @param addInterceptEffect logical, whether to prepend the intercept
 #'   statistic.
+#' @param is_sender logical, whether the statistics are sender-indexed (a rate
+#'   family). Supplied by the caller from the spec descriptor
+#'   (`risk_set_axis(spec) == "sender"`) so the array shape is not used as a
+#'   family indicator.
 #'
 #' @return the modified `statsList`.
 #' @noRd
 prepare_statslist <- function(
   statsList,
   excludeParameters = NULL,
-  addInterceptEffect = FALSE
+  addInterceptEffect = FALSE,
+  is_sender = FALSE
 ) {
-  is_sender_stats <- length(dim(statsList$initialStats)) == 2L
+  is_sender_stats <- isTRUE(is_sender)
   if (!is.null(excludeParameters)) {
     nEffects <- if (is_sender_stats) {
       ncol(statsList$initialStats)

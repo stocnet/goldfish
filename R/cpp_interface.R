@@ -139,7 +139,8 @@ estimate_c_int <- function(
   statsList <- prepare_statslist(
     statsList = statsList,
     excludeParameters = excludeParameters,
-    addInterceptEffect = hasIntercept
+    addInterceptEffect = hasIntercept,
+    is_sender = is_rate_model
   )
 
   ## PRESENCE UPDATES PRECOMPUTED DURING PREPROCESSING

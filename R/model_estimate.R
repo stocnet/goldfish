@@ -1788,20 +1788,17 @@ estimate_wrapper <- function(
     )
   }
 
-  # Consume a support_constraint on the R (default) engine. DyNAM-choice reduces
-  # the mask to a per-event receiver filter routed through the existing
-  # opportunities machinery (shrinks n_candidates, reindexes selected);
-  # DyNAM-rate reduces it to a per-event sender gate (a sender is at risk only
-  # with >= 1 allowed present receiver) and recomputes the constrained
-  # intercept denominator; REM keeps the full per-event dyad mask (the risk set is
-  # 2D). DyNAM rate_ordered and the compiled engines land with the C++ gather
-  # rewrite, so they abort rather than silently ignore the constraint.
+  # A support_constraint is folded into the maintained availability during
+  # preprocessing — a rate constraint into `active_sender`, a choice / REM /
+  # coordination constraint into `active_dyad` — so every engine reads the
+  # folded buffers and no standalone mask is assembled here. The capability map
+  # aborts an unwired family below.
   opportunities_effective <- control_preprocessing$opportunities_list
   # A constraint-free opportunity list is folded into `active_dyad` at the point
   # encoding during preprocessing: the default engine reads it
   # through the point accessor, so it is not also passed as a per-iteration
-  # opportunity recompute. (With a support_constraint the mask path below
-  # carries the intersection, so the list still rides there.)
+  # opportunity recompute. (A support_constraint folds the opportunity list in
+  # too, so it is nulled below once the constraint is folded.)
   if (
     is.null(constraint_plan) &&
       !is.null(opportunities_effective) &&

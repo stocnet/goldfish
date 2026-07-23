@@ -411,7 +411,8 @@ gather_from_prep <- function(prep, spec) {
   statsList <- prepare_statslist(
     statsList = prep,
     excludeParameters = NULL,
-    addInterceptEffect = has_intercept
+    addInterceptEffect = has_intercept,
+    is_sender = is_rate_model
   )
 
   active_sender_update <- statsList$active_sender_update
