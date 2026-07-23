@@ -348,6 +348,53 @@ make_legacy_fixture_twomode <- function() {
   )
 }
 
+# The mode-map stocnet expressing the SAME data as make_legacy_fixture_twomode():
+# one nodes tibble with a `mode` column, one `membership` layer (actor -> club),
+# and the same size/budget attribute changes. It is the canonical-path side of
+# the D8 coefficient equivalence -- a two-mode model built here must agree to
+# 1e-6 with the same model assembled through the legacy two-node-set path.
+make_stocnet_fixture_twomode_legacy_equiv <- function() {
+  labels <- c("A1", "A2", "A3", "A4", "C1", "C2", "C3")
+  nodes <- data.frame(
+    label = labels,
+    mode = c(rep("actor", 4), rep("club", 3)),
+    size = c(3, 1, 2, 4, NA, NA, NA),
+    budget = c(NA, NA, NA, NA, 12, 8, 20),
+    stringsAsFactors = FALSE
+  )
+  ties <- data.frame(
+    from = match(c("A1", "A2", "A3", "A1", "A4", "A2"), labels),
+    to = match(c("C1", "C1", "C2", "C3", "C2", "C3"), labels),
+    time = c(1, 2, 3, 4, 5, 6),
+    increment = 1,
+    layer = "membership",
+    stringsAsFactors = FALSE
+  )
+  changes <- data.frame(
+    time = c(2, 4, 3, 5),
+    node = match(c("A2", "A4", "C3", "C3"), labels),
+    var = c("size", "size", "budget", "budget"),
+    stringsAsFactors = FALSE
+  )
+  changes$value <- as.list(c(5, 6, 30, 25))
+  changes <- changes[order(changes$time), ]
+  info <- list(
+    name = "legacy_equiv",
+    focal = "membership",
+    directed = c(membership = TRUE),
+    update = c(membership = "increment"),
+    observation = c(membership = "event"),
+    sender = "actor",
+    receiver = "club"
+  )
+  manynet::make_stocnet(
+    info = info,
+    nodes = nodes,
+    ties = ties,
+    changes = changes
+  )
+}
+
 # Imputation-policy fixtures --------------------------------------------------
 #
 # Regression inputs for the imputation contract: the two nodal missingness
