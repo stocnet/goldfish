@@ -35,3 +35,15 @@ test_that("printing a stamped object renders the list shape", {
   d <- as_goldfish(make_stocnet_fixture())
   expect_snapshot(print(d))
 })
+
+test_that("the estimation surface rejects a legacy environment", {
+  local_cli_context()
+  env <- new.env()
+  expect_snapshot(estimate_dynam(y ~ 1, data = env), error = TRUE)
+  expect_snapshot(estimate_rem(y ~ 1, data = env), error = TRUE)
+  expect_snapshot(estimate_dynami(y ~ 1, data = env), error = TRUE)
+  expect_snapshot(
+    make_specification(rate = list(y ~ 1), model = "DyNAM", data = env),
+    error = TRUE
+  )
+})

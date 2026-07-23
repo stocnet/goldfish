@@ -255,6 +255,27 @@
 #'
 NULL
 
+# Reject a legacy `data.goldfish` environment at the public surface. Every model
+# family now assembles to a stocnet (`make_data()` / `make_groups_interaction()`
+# return one, or abort), so no public entrypoint needs an environment; the only
+# environments left are objects saved before the 2.0.0 flip. The internal
+# stocnet -> environment bridge for DyNAM-i is built inside `estimate_wrapper()`,
+# after this guard, so it is unaffected.
+abort_legacy_environment <- function(data, call = rlang::caller_env()) {
+  if (is.environment(data)) {
+    cli::cli_abort(
+      c(
+        "{.arg data} must be a {.cls stocnet} object, not a legacy
+         {.cls data.goldfish} environment.",
+        "i" = "Rebuild the object with {.fn make_data} /
+               {.fn make_groups_interaction} (both now return a {.cls stocnet})."
+      ),
+      call = call
+    )
+  }
+  invisible(data)
+}
+
 #' @rdname estimate
 #' @export
 estimate_dynam <- function(
@@ -270,6 +291,7 @@ estimate_dynam <- function(
   verbose = getOption("verbose", default = FALSE)
 ) {
   sub_model <- match.arg(sub_model)
+  abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
     return(estimate_from_specification(
       spec = x,
@@ -314,6 +336,7 @@ estimate_dynami <- function(
   verbose = getOption("verbose", default = FALSE)
 ) {
   sub_model <- match.arg(sub_model)
+  abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
     return(estimate_from_specification(
       spec = x,
@@ -358,6 +381,7 @@ estimate_rem <- function(
   verbose = getOption("verbose", default = FALSE)
 ) {
   sub_model <- match.arg(sub_model)
+  abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
     return(estimate_from_specification(
       spec = x,

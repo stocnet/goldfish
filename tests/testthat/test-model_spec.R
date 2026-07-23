@@ -279,19 +279,18 @@ test_that("estimate_rem constructs and forwards the typed spec", {
 })
 
 test_that("estimate_dynami constructs and forwards the typed spec", {
+  snet <- as_goldfish(make_stocnet_fixture_dynami())
   prepRate <- estimate_dynami(
-    dependent.depevents_DyNAMi ~ 1 +
-      intercept(interaction_network_DyNAMi, joining = -1),
+    interactions ~ 1 + intercept(interactions, joining = -1),
     sub_model = "rate",
-    data = dataDyNAMi,
+    data = snet,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepRate$model_spec, "dynami_rate_spec")
   prepChoice <- estimate_dynami(
-    dependent.depevents_DyNAMi ~
-      inertia(past_network_DyNAMi, weighted = TRUE, sub_type = "count"),
+    interactions ~ inertia(past, weighted = TRUE, sub_type = "count"),
     sub_model = "choice",
-    data = dataDyNAMi,
+    data = snet,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepChoice$model_spec, "dynami_choice_spec")

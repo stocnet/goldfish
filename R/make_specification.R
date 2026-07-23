@@ -102,14 +102,25 @@ make_specification <- function(
   rate_sub_model <- match.arg(rate_sub_model)
   choice_sub_model <- match.arg(choice_sub_model)
 
-  is_legacy <- is.environment(data)
-  if (!is_legacy && !(is.list(data) && !is.data.frame(data))) {
+  if (is.environment(data)) {
+    cli::cli_abort(c(
+      "{.arg data} must be a {.cls stocnet} object, not a legacy
+       {.cls data.goldfish} environment.",
+      "i" = "Rebuild the object with {.fn make_data} /
+             {.fn make_groups_interaction} (both now return a {.cls stocnet})."
+    ))
+  }
+  if (!(is.list(data) && !is.data.frame(data))) {
     cli::cli_abort(c(
       "{.arg data} must be a {.cls stocnet} object.",
       "i" = "Build it with {.fn manynet::make_stocnet}, or gate it early with
              {.fn as_goldfish}."
     ))
   }
+  # Legacy environments are rejected above, so `data` is always a stocnet here;
+  # the downstream `is_legacy` branches are retained until the interaction
+  # engine conversion drops the environment path entirely.
+  is_legacy <- FALSE
   if (is.null(rate) && is.null(choice)) {
     cli::cli_abort(
       "At least one of {.arg rate} or {.arg choice} must be supplied."
