@@ -481,31 +481,3 @@ new_model_spec <- function(
     ...
   )
 }
-
-#' Legacy model type string from a spec class
-#'
-#' Maps the spec class to the internal model type string still consumed by
-#' the estimation routines. To be removed when `estimate_int()` dispatches
-#' on the spec class.
-#'
-#' @param spec a `model_spec` object.
-#'
-#' @return a character scalar.
-#' @noRd
-legacy_model_type <- function(spec) {
-  switch(
-    class(spec)[1],
-    dynam_rate_spec = ,
-    dynami_rate_spec = "DyNAM-M-Rate",
-    dynam_rate_ordered_spec = ,
-    dynami_rate_ordered_spec = "DyNAM-M-Rate-ordered",
-    dynam_choice_spec = ,
-    dynami_choice_spec = "DyNAM-M",
-    dynam_choice_coord_spec = "DyNAM-MM",
-    rem_rate_spec = "REM",
-    rem_rate_ordered_spec = "REM-ordered",
-    cli::cli_abort(
-      "No legacy model type for class {.cls {class(spec)[1]}}."
-    )
-  )
-}

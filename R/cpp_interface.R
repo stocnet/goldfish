@@ -10,14 +10,6 @@ estimate_c_int <- function(
   statsList,
   nodes,
   nodes2,
-  modelTypeCall = c(
-    "DyNAM-MM",
-    "DyNAM-M",
-    "REM-ordered",
-    "DyNAM-M-Rate",
-    "REM",
-    "DyNAM-M-Rate-ordered"
-  ),
   initialParameters = NULL,
   fixedParameters = NULL,
   excludeParameters = NULL,
@@ -100,7 +92,6 @@ estimate_c_int <- function(
     idFixedCompnents <- which(!is.na(fixedParameters))
   }
 
-  modelTypeCall <- match.arg(modelTypeCall)
   engine <- match.arg(engine)
 
   ## PARAMETER CHECKS
@@ -252,7 +243,7 @@ estimate_c_int <- function(
   ## ESTIMATION: INITIALIZATION
 
   if (verbose) {
-    cat("Estimating model type", modelTypeCall, ".\n")
+    cat("Estimating model ", spec$model, " ", spec$sub_model, ".\n", sep = "")
   }
 
   iIteration <- 1
@@ -389,7 +380,7 @@ estimate_c_int <- function(
 
     if (returnEventProbabilities) {
       eventProbabilities <- if (is.null(res$pMatrix)) {
-        paste("not implemented for model type", modelTypeCall)
+        paste("not implemented for model", spec$model, spec$sub_model)
       } else {
         res$pMatrix
       }

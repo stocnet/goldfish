@@ -1856,7 +1856,6 @@ estimate_wrapper <- function(
     nodes2 = ds_nodes_frame(orig_src, .nodes2),
     hasIntercept = has_intercept,
     is_two_mode = is_two_mode,
-    modelType = legacy_model_type(model_spec),
     # overridden damping
     initialDamping = if (!is.null(control_estimation$initial_damping)) {
       control_estimation$initial_damping

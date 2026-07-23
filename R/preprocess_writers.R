@@ -399,10 +399,8 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
 #'
 #' @noRd
 gather_from_prep <- function(prep, spec) {
-  modelTypeCall <- legacy_model_type(spec)
-  has_intercept <- modelTypeCall %in% c("DyNAM-M-Rate", "REM")
-  is_rate_model <- modelTypeCall %in%
-    c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
+  has_intercept <- identical(risk_set_normalizer(spec), "poisson")
+  is_rate_model <- identical(risk_set_axis(spec), "sender")
   is_two_mode <- isTRUE(spec$is_two_mode)
   # Rate models reduce over a single receiver column; the estimation
   # gather_compute path forces twomode_or_reflexive = TRUE there (avoiding the
@@ -456,9 +454,12 @@ gather_from_prep <- function(prep, spec) {
     }
   }
 
-  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM", "DyNAM-MM")) {
+  # Poisson (rate / standard REM) and coordination carry per-event timespans;
+  # coordination weights them to zero, the others take the intervals; the
+  # remaining multinomial families read no timespan.
+  if (risk_set_normalizer(spec) %in% c("poisson", "coordination")) {
     is_dependent <- as.logical(statsList$is_dependent)
-    timespan <- if (modelTypeCall != "DyNAM-MM") {
+    timespan <- if (!identical(risk_set_normalizer(spec), "coordination")) {
       statsList$intervals
     } else {
       numeric(length(is_dependent))
@@ -514,7 +515,6 @@ gather_from_prep <- function(prep, spec) {
   attr(gathered_data, "event_receiver") <- prep$event_receiver
   attr(gathered_data, "is_dependent") <- is_dependent
   attr(gathered_data, "timespan") <- timespan
-  attr(gathered_data, "model_type_call") <- modelTypeCall
   gathered_data
 }
 

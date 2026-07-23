@@ -8,13 +8,12 @@
 # Estimation
 #
 # S3 generic dispatched on the model specification class. The family
-# methods configure the statistic shape knobs once and absorb the legacy
-# modelType argument still required by the C++ interface dispatcher.
+# methods configure the statistic shape knobs once from the spec class.
 estimate_int <- function(spec, ...) {
   UseMethod("estimate_int")
 }
 
-estimate_int.sender_spec <- function(spec, modelType = NULL, ...) {
+estimate_int.sender_spec <- function(spec, ...) {
   estimate_int_impl(
     spec = spec,
     is_rate_model = TRUE,
@@ -23,7 +22,7 @@ estimate_int.sender_spec <- function(spec, modelType = NULL, ...) {
   )
 }
 
-estimate_int.dyad_spec <- function(spec, modelType = NULL, ...) {
+estimate_int.dyad_spec <- function(spec, ...) {
   estimate_int_impl(
     spec = spec,
     is_rate_model = FALSE,
@@ -1439,7 +1438,7 @@ compute_iteration_step <- function(
   # preprocessing: the availability object already carries
   # presence AND the per-event sender gate as net crossings, so the engine
   # maintains it by walking its flat buffer per event (by index) and uses it
-  # directly as the sender filter — no separate `senderGate` recombination.
+  # directly as the sender filter — no separate estimation-time recombination.
   active_sender_folded <- isTRUE(statsList$active_sender_folded)
   # A DyNAM-choice support_constraint is folded into `active_dyad` at
   # preprocessing: the receiver-axis availability already
