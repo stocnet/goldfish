@@ -98,20 +98,16 @@ test_that("a non-interaction formula carries an empty interaction structure", {
   expect_identical(unlist(parsed$is_operand_parameter), c(FALSE, FALSE))
 })
 
-test_that("DyNAMi rejects a stocnet before reaching the interaction kernel", {
+test_that("DyNAMi rejects a one-mode stocnet as not an interaction object", {
   d <- make_interaction_fixture()
-  # DyNAM (dyad + sender kernels) and REM compute interactions; DyNAMi routes to
-  # the preprocess_interaction monolith and is not yet supported. That guard is
-  # currently unreachable: make_data() assembles every legacy bundle into a
-  # stocnet, which DyNAMi's engine cannot read at all, so estimation stops
-  # earlier. The interaction guard becomes testable again once DyNAMi accepts a
-  # stocnet at its public surface.
+  # DyNAMi now accepts a stocnet, but only a two-mode actors x groups object
+  # (built by make_groups_interaction()); a one-mode DyNAM fixture is not one.
   expect_error(
     estimate_dynami(
       call_network ~ indeg:outdeg,
       sub_model = "rate",
       data = d
     ),
-    "does not accept a .*stocnet"
+    "two-mode actors x groups"
   )
 })

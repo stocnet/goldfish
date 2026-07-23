@@ -39,6 +39,45 @@ dynami_env_names <- function(focal) {
   )
 }
 
+# Rewrite a DyNAM-i stocnet-surface formula onto the bridged environment's names.
+# On the stocnet surface networks are named by layer (`interactions` / `past`,
+# which the bridge binds under those names) and nodal attributes are bare
+# (`ego(age)`), consistent with the two-mode stocnet surface. The monolith parses
+# against the environment, where an attribute lives on the `actors` node set, so
+# each bare attribute operand is rewritten to `actors$<name>` and the focal layer
+# name on the left-hand side is rewritten to the dependent-events object.
+rewrite_dynami_formula <- function(formula, data) {
+  focal <- data$info$focal
+  nm <- dynami_env_names(focal)
+  attribute_names <- setdiff(names(data$nodes), c("label", "mode"))
+  actor_symbol <- as.symbol(nm$actors)
+
+  # The left-hand side names the dependent process by its focal layer.
+  if (
+    length(formula) == 3L &&
+      is.symbol(formula[[2L]]) &&
+      identical(as.character(formula[[2L]]), focal)
+  ) {
+    formula[[2L]] <- as.symbol(nm$dependent_object)
+  }
+
+  # A bare symbol that names a nodal attribute reads it off the actor node set.
+  rewrite_operands <- function(expr) {
+    if (is.symbol(expr) && as.character(expr) %in% attribute_names) {
+      return(call("$", actor_symbol, expr))
+    }
+    if (is.call(expr) && length(expr) > 1L) {
+      for (i in 2:length(expr)) {
+        expr[[i]] <- rewrite_operands(expr[[i]])
+      }
+    }
+    expr
+  }
+  rhs <- length(formula)
+  formula[[rhs]] <- rewrite_operands(formula[[rhs]])
+  formula
+}
+
 # Reverse a focal/past layer's ties into a legacy event data frame keyed by the
 # node labels, ordered by the reserved `order` column, with the `order`
 # attribute and update class the monolith reads restored.

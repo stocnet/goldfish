@@ -888,20 +888,29 @@ estimate_wrapper <- function(
 
   check_estimation_data(data)
 
-  # DyNAMi still consumes the legacy environment, but make_data() no longer
-  # mints one: it assembles every legacy bundle into a stocnet, two-mode
-  # included, so a DyNAMi bundle now arrives here as a stocnet its engine
-  # cannot read. Abort where the mismatch is legible rather than deep in the
-  # interaction preprocessing.
-  if (model == "DyNAMi" && !is.null(data) && !is.environment(data)) {
-    cli::cli_abort(c(
-      "{.fn estimate_dynami} does not accept a {.cls stocnet} data object yet.",
-      "x" = "{.fn make_data} now assembles two-mode input into a \\
-             {.cls stocnet}, so the DyNAMi environment is no longer produced.",
-      "i" = "DyNAMi support for the single data object is the subject of a \\
-             follow-up change; pin an earlier goldfish version to run DyNAMi \\
-             in the meantime."
-    ))
+  # DyNAMi consumes the legacy environment, which make_data() no longer mints
+  # (it assembles every bundle into a stocnet). At the boundary a stocnet is
+  # rewritten onto the environment names and reversed into the environment shape
+  # the interaction monolith reads; the bridge is internal and never returned.
+  if (model == "DyNAMi" && inherits(data, "stocnet")) {
+    focal <- data$info$focal
+    if (
+      identical(
+        unname(data$info$sender[[focal]]),
+        unname(data$info$receiver[[focal]])
+      )
+    ) {
+      cli::cli_abort(c(
+        "{.fn estimate_dynami} needs a two-mode actors x groups data object.",
+        "x" = "The focal layer {.val {focal}} runs within one mode, so it is \\
+               not an interaction-groups object.",
+        "i" = "Build the object with {.fn make_groups_interaction}."
+      ))
+    }
+    if (inherits(x, "formula")) {
+      x <- rewrite_dynami_formula(x, data)
+    }
+    data <- stocnet_to_dynami_env(data, parent_env = environment(x))
   }
 
   stopifnot(

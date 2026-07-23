@@ -116,16 +116,16 @@ test_that("global is permitted as a rate_ordered operand but not as a main", {
   expect_s3_class(prep, "preprocessed.goldfish")
 })
 
-test_that("DyNAMi rejects a stocnet before reaching the interaction kernel", {
+test_that("DyNAMi rejects a one-mode stocnet as not an interaction object", {
   d <- make_rate_fixture()
-  # The DyNAMi interaction guard is unreachable while DyNAMi cannot consume the
-  # stocnet make_data() now always assembles; estimation stops earlier.
+  # DyNAMi accepts a stocnet only when it is a two-mode actors x groups object;
+  # a one-mode rate fixture is rejected at the boundary.
   expect_error(
     estimate_dynami(
       calls_dependent ~ indeg:outdeg,
       sub_model = "rate",
       data = d
     ),
-    "does not accept a .*stocnet"
+    "two-mode actors x groups"
   )
 })
