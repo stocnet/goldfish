@@ -4,7 +4,7 @@ Stage A (`flavored-processes`) makes fully observed competing creation/dissoluti
 processes estimable; DyNES handles the panel-observed case: states seen at waves, the
 event sequence between waves latent. The living `single-data-object` spec carries the
 `observation = "panel"` metadata and change-list semantics for exogenous panel
-covariates; `make-multivariate-spec` landed the `make_multivariate_spec()` composition
+covariates; `make-multivariate-spec` landed the `make_joint_specification()` composition
 surface and the `multi-process-walk` handle (`walk_open`/`walk_advance`/
 `walk_evaluate`/`walk_inject`) — the family-agnostic stepping + injection substrate a
 model-driven sequence draw drives. Panel augmentation is triggered by a panel layer
@@ -51,7 +51,7 @@ process simulation, specification validation, and the recovery study.
 **Non-Goals:**
 - Incremental re-preprocessing of mutated sequences (suffix patching) — full
   re-preprocess is the baseline (OQ B4); revisit only with profiling evidence.
-- The `make_multivariate_spec()` constructor and the `multi-process-walk` handle
+- The `make_joint_specification()` constructor and the `multi-process-walk` handle
   (`make-multivariate-spec`) — consumed here, not built here. `estimate_dynes()`
   takes a multivariate spec (D1); the batched evaluator reads the merged walk's
   per-fid preprocessed outputs.
@@ -111,7 +111,7 @@ ones abort.
 The estimand is the joint multi-layer model of D19 (multiple modeled RE and PE
 layers, per layer × flavor rate and choice formulas, θ the concatenation across all
 modeled sub-models); event-stream estimators continue to abort on panel focal layers,
-naming `estimate_dynes()`. **`estimate_dynes()` takes a `make_multivariate_spec()`
+naming `estimate_dynes()`. **`estimate_dynes()` takes a `make_joint_specification()`
 object** (`make-multivariate-spec`) — the earlier open question of how the multi-layer
 specification is passed is resolved to consuming that constructor; the interim
 named-list surface is dropped. *Rejected:* overloading `estimate_dynam()` with an
@@ -224,22 +224,19 @@ data, limits precision. Fixed-parameter handling follows the prototypes'
 ### D8 — Panel augmentation trigger (formula reference) and wave diffing
 There is **no separate panel-semantics flag**. A panel-observed layer
 (`observation = "panel"` in the living `single-data-object` spec) becomes an
-augmentation target **iff it is referenced in the multivariate specification's
-formulas** — either as a modeled process's focal/dependent layer, or as an
-exogenous covariate read by another process's effects or support-constraint atoms
-(the `make-multivariate-spec` coupling notion, D19). A panel layer referenced
-nowhere is not augmented (it stays an ordinary exogenous change-list covariate, or
-is absent). When a panel layer is referenced **only as an exogenous covariate**
-(it carries no formulas describing its own dynamics), its latent between-wave path
-is still needed, and the user chooses per layer how to supply it (an estimation
-argument, e.g. on `set_alg_augment()`, not a data-object property):
-- **static step-covariate** — state jumps only at wave times (the living
-  `single-data-object` panel behavior); the layer is *not* latent and contributes
-  no Monte-Carlo variation; or
-- **random augmenter** — the flip set is ordered uniformly between waves
-  (`augment_seq_random()`, model-free), making the path latent.
-A modeled panel process (its own focal layer) is always augmented by the chosen
-model-driven routine. Wave diffing is unchanged: a panel layer's rows are
+augmentation target **iff it is a modeled process** (its own focal/dependent layer
+carries rate/choice formulas in the multivariate specification). A modeled panel
+process is always augmented by the chosen model-driven routine, and any fid reading
+its latent state is coupled to it (D19). When a panel layer is referenced **only as
+an exogenous covariate** (it carries no formulas describing its own dynamics), it is
+**not** augmented: it stays a **static step-covariate** — state jumps only at wave
+times (the living `single-data-object` panel behavior), the layer is *not* latent,
+contributes no Monte-Carlo variation, and no random sampling of its between-wave path
+is done. There is no per-layer static-vs-random choice: an exogenous-only panel
+reference is always static. A panel layer referenced nowhere is likewise not
+augmented. `augment_seq_random()` survives as an augmenter routine for *modeled*
+panel processes (and as the MCMC initializer, D16); it is simply never the treatment
+of an exogenous-only reference. Wave diffing is unchanged: a panel layer's rows are
 snapshots; consecutive waves diff into the candidate flip set per interval, with
 wave times as hard boundaries the augmented sequence must hit. Flavors are arbitrary, not just creation/dissolution:
 the diff consumes the layer's transition/support specification and inverts the
@@ -507,13 +504,19 @@ intervals, so the MCMC augmenter runs one global chain over the whole sequence
 
 **Separability: consume the multivariate spec's coupling detection, don't
 re-derive it.** `make-multivariate-spec` D4 already marks each fid `coupled` iff any
-of its effect arguments or support-constraint atoms reads a panel-observed layer's
-state (direct reference; not transitive). `estimate_dynes()` reads that `coupled`
-column rather than recomputing PE-independence at sub-model granularity. Behavior on
-the resulting cases, aligned with `make-multivariate-spec` D4 (the newer decision):
-- **All fids separable** → abort: nothing is latent, `estimate_dynam()` covers it.
-  (Unreachable through `make_multivariate_spec()` when a panel process is modeled —
-  its own fids are coupled by construction — but guards recomposed/edited specs.)
+of its effect arguments or support-constraint atoms reads a **modeled** panel layer's
+state (direct reference; not transitive). A fid reading only a static exogenous panel
+covariate is *not* coupled — nothing about it is latent. `estimate_dynes()` reads that
+`coupled` column rather than recomputing PE-independence at sub-model granularity.
+Behavior on the resulting cases, aligned with `make-multivariate-spec` D4 (the newer
+decision):
+- **All fids separable** → abort: no panel layer is a modeled dependent process, so
+  nothing is latent. The error names `estimate_dynam()`, explaining the specification
+  fits DyNAM (not DyNES) and that its panel layers would only be considered as static
+  exogenous covariates. This is **reachable** through `make_joint_specification()`
+  whenever every panel reference is exogenous-only (D2 composes such specs; the
+  DyNES-viability check is estimation-time) — catching a user who reached for
+  `estimate_dynes()` on what is really a DyNAM model.
 - **Mixed** (some coupled, some separable) → **proceed** with a cli message naming
   the separable fids (their likelihood terms touch no latent path, so joint
   estimation equals separate estimation for them). This supersedes this design's
@@ -656,7 +659,7 @@ package.
   proposals, q_fwd/q_rev with the pick-factor cancellation); the RSiena study note
   remains a cross-check and the source for future excursion moves.
 - **[resolved]** How `estimate_dynes()` receives the multi-layer specification
-  (D19): it consumes a `make_multivariate_spec()` object (`make-multivariate-spec`);
+  (D19): it consumes a `make_joint_specification()` object (`make-multivariate-spec`);
   the interim named-list surface is dropped. This change hard-depends on that one.
 - **[to discuss]** Whether MCMC retained draws enter the pool through the proposal
   evaluator's cache (preprocessed object + loglik reuse, D20 note) — deliberately

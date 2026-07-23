@@ -20,27 +20,45 @@ are `dynes-augmentation`'s.
 
 ## What Changes
 
-- **`make_multivariate_spec(...)`**: combines `make_specification()` objects
-  into a multivariate specification. At least one **panel-observed layer MUST be
-  referenced** in the composed formulas — as a process's focal/dependent layer
-  *or* as an exogenous covariate read by another process (either makes its latent
-  between-wave path matter, so either is an augmentation target); a combination
-  referencing no panel-observed layer is rejected at construction — those are
-  exactly separable and should be estimated with the per-process estimators.
+- **`make_joint_specification(...)`** (the constructor, renamed from the working
+  `make_multivariate_spec()`; returns a distinct S3 class
+  `joint_specification.goldfish` — "multivariate specification" stays the concept
+  in prose): combines `make_specification()` objects into a multivariate
+  specification. At least one **panel-observed layer MUST be referenced** in the
+  composed formulas — as a process's focal/dependent layer *or* as an exogenous
+  covariate read by another process. Construction checks structural panel presence
+  only; a spec whose sole panel reference is an exogenous covariate composes (that
+  covariate enters as a static step-covariate, a legitimate DyNAM-with-panel spec),
+  and the latent-path requirement is deferred to `estimate_dynes()`, which aborts
+  such a spec toward `estimate_dynam()`. A combination referencing no panel-observed
+  layer is rejected at construction — those are exactly separable and should be
+  estimated with the per-process estimators. **Each joined specification must model
+  a distinct focal layer** — a layer is modeled by at most one specification (a
+  duplicated dependent layer aborts, naming it), while covariate reuse across specs
+  is allowed (it is the coupling); a layer's flavors all live in one specification.
   DyNAM-i processes are excluded; choice_coordination and mixed ordered/timed
   processes are in scope; all processes share one node set in v1
   (`multimode-network-support` relaxes this later).
+- **Event-stream estimators reject the joint object**: `estimate_dynam()` and
+  `estimate_rem()` abort on a `make_joint_specification()` object (pointing to
+  `estimate_dynes()`) and on a single specification with a panel-observed focal
+  layer (the existing focal-not-panel guard, retargeted to `estimate_dynes()` by the
+  `single-data-object` delta); `estimate_dynami()` aborts on a PE-focal spec, with
+  its joint-object rejection a recorded future development.
 - **fid vocabulary extended, unchanged in kind**: the `flavored-processes` D9
   `process_map` gains rows for every process (a K-flavored rate+choice process
   contributes 2K fids, a plain one 2) and a `coupled` column; integer fid stays
   the canonical identity, labels stay rendered-only.
 - **Coupling detection**: a fid is coupled iff its effects or constraint atoms
-  directly reference a panel-observed layer's state (direct reference only —
-  observed events of intermediate layers are exogenous regardless of what those
-  layers' own models reference). The specification print marks separable fids;
-  the estimation surface (`estimate_dynes()` — surface in `abmcem`, data path in
-  `dynes-augmentation`) MUST inform about separable fids in a mixed specification
-  and abort when every fid is separable ("nothing here needs DyNES").
+  directly reference a **modeled** panel-observed layer's state (a panel layer that
+  is itself a process, whose path is latent; direct reference only — observed events
+  of intermediate layers, and static exogenous panel covariates, are exogenous
+  regardless of what those layers' own models reference). The specification print
+  marks separable fids; the estimation surface (`estimate_dynes()` — surface in
+  `abmcem`, data path in `dynes-augmentation`) MUST inform about separable fids in a
+  mixed specification and abort when every fid is separable — equivalently, no panel
+  layer is a modeled process — naming `estimate_dynam()` and explaining the panel
+  layers would only be static exogenous covariates.
 - **Merged one-walk preprocessing**: the two per-family walks become one
   single-clock walk hosting both statistic blocks (sender-indexed and
   dyad-indexed) with the multi-consumer routing generalized from flavor keys to
@@ -66,7 +84,7 @@ are `dynes-augmentation`'s.
 
 ### New Capabilities
 
-- `multivariate-specification`: the `make_multivariate_spec()` surface —
+- `multivariate-specification`: the `make_joint_specification()` surface —
   composition and validation of process specifications, the referenced-panel-layer
   requirement, the extended fid/process_map vocabulary, coupling detection and
   separability marking, and the multivariate specification print.
@@ -81,7 +99,7 @@ are `dynes-augmentation`'s.
 - **Sequencing**: post-2.0.0, on the DyNES track. Consumes `flavored-processes`
   (fid/process_map vocabulary D9, walk-count-agnostic consumers D10, derived
   flavor constraints) and precedes `abmcem` (whose `estimate_dynes()` takes a
-  `make_multivariate_spec()` object), `dynes-augmentation` (whose augmenters and
+  `make_joint_specification()` object), `dynes-augmentation` (whose augmenters and
   batched `evaluate_engine()` bind to this change's walk handle), and
   `process-simulation` (whose `simulate()` drives it). These proposals are
   re-grounded against this change's walk handle (2026-07-21).
@@ -99,7 +117,7 @@ are `dynes-augmentation`'s.
   this change's riskiest step rewrites. This change needs nothing from
   `residuals-gof`; the `evaluate_engine()` dependency is
   `dynes-augmentation`'s (E-step evaluation), not this change's.
-- **R**: `R/make_multivariate_spec.R` (surface, validation, coupling, print);
+- **R**: `R/make_joint_specification.R` (surface, validation, coupling, print);
   generalization of `R/preprocess_flavored.R` (routing lookup, cross-process
   union planning); the merged walk refactor of `run_sender_recipe_loop()` /
   `run_dyad_recipe_loop()` (the frozen-baseline gate applies: the

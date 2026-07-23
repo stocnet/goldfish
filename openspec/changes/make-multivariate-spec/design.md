@@ -17,7 +17,7 @@ consumed by) `dynes-augmentation`. Same-node-set restriction until
 ## Goals / Non-Goals
 
 **Goals:**
-- `make_multivariate_spec()` composing process specifications for panel +
+- `make_joint_specification()` composing process specifications for panel +
   relational-event co-evolution, with coupling detection.
 - The extended fid/process_map vocabulary across processes.
 - The merged single-clock walk with `(layer, flavor) → fid` routing and
@@ -43,28 +43,82 @@ multivariate specification exists to portray the co-evolving panel +
 relational-event system that augmentation couples; `estimate_dynes()` is its only
 estimator — its surface and ABEM loop live in `abmcem` and its panel data path in
 `dynes-augmentation` (the two share the `dynes-estimation` capability), and it
-takes a `make_multivariate_spec()` object as its `spec`. *Rejected:* a generic
+takes a `make_joint_specification()` object as its `spec`. *Rejected:* a generic
 multivariate estimator over fully observed processes — the factorization makes it
 identical to separate per-process estimation, so it would be surface without
 substance.
 
-### D2 — A referenced panel-observed layer is required at construction
-`make_multivariate_spec()` aborts unless at least one **panel-observed layer is
+**Estimator guards (each `estimate_*()` owns its own case).** The joint object is a
+distinct S3 class (D2b), so the event-stream estimators can reject it by class
+before their existing `specification.goldfish` dispatch branch:
+- `estimate_dynam()` / `estimate_rem()` SHALL abort on **either** a
+  `make_joint_specification()` object (pointing to `estimate_dynes()`) **or** a
+  single `specification.goldfish` whose focal/dependent layer is panel-observed
+  (the PE-dependent case). The latter reuses the existing
+  `check_dependent_panel()` guard, whose message `dynes-augmentation`'s
+  `single-data-object` delta already retargets to `estimate_dynes()`; this change
+  adds only the joint-object rejection.
+- `estimate_dynami()` SHALL abort on a PE-focal specification (same
+  `check_dependent_panel()` path). Its rejection of a joint object is a **recorded
+  future development** — DyNAM-i is still under development and cannot appear in a
+  joint specification anyway (DyNAM-i processes are rejected at composition, D-existing).
+- `estimate_dynes()` conversely aborts when **no** modeled panel-dependent process
+  is present (the mirror guard, `dynes-augmentation` D19).
+The duplicate-focal-layer abort itself lives in the constructor (D2b), not in the
+estimators — a malformed join is caught before any estimator sees it.
+
+### D2 — A referenced panel-observed layer is required at construction; DyNES-viability is estimation-time
+`make_joint_specification()` aborts unless at least one **panel-observed layer is
 referenced in the composed formulas** — either as a process's focal/dependent
 layer *or* as an exogenous covariate read by another process's effects or
 support-constraint atoms (the layer-info observation metadata decides; no model
-flag needed). This is broader than requiring a panel *focal* process: a spec whose
-only panel reference is an exogenous covariate read by a relational-event process
-still needs DyNES, because that covariate's latent between-wave path couples the RE
-likelihood (`dynes-augmentation` D8 owns how such an exogenous-only panel reference
-is augmented — static step-covariate or random augmenter, the user's per-layer
-choice). A combination that references **no** panel-observed layer is rejected with
-guidance to estimate each specification separately (it is exactly separable).
-*Rejected:* requiring a panel *focal* process specifically (the earlier, narrower
-gate) — it would reject legitimate specs whose panel coupling is through an
-exogenous covariate; *also rejected:* allowing pure relational combinations with no
-panel reference at all — those are separable and belong to the per-process
-estimators.
+flag needed). Construction checks **structural** panel presence only; it does *not*
+require a *modeled* panel process. A spec whose only panel reference is an exogenous
+covariate composes: the panel layer enters as a **static step-covariate** (state
+jumps at wave times, not latent, no random sampling — `dynes-augmentation` D8),
+which is a legitimate DyNAM specification with a panel covariate. The **latent-path
+requirement is estimation-time**: `estimate_dynes()` aborts on such a spec, naming
+`estimate_dynam()` and explaining the panel layers would only be static exogenous
+covariates (`dynes-augmentation` D19) — the guardrail that catches a user reaching
+for DyNES on a DyNAM model. A combination that references **no** panel-observed
+layer is rejected at construction with guidance to estimate each specification
+separately (it is exactly separable). *Rejected:* requiring a panel *focal* process
+at construction — it would reject legitimate DyNAM-with-panel-covariate specs and
+move the tailored redirect message off `estimate_dynes()`, where the user expects
+it; *also rejected:* allowing pure relational combinations with no panel reference
+at all — those are separable and belong to the per-process estimators. *Superseded:*
+the earlier claim that an exogenous-only panel covariate's between-wave path is
+latent and so "still needs DyNES" — such a covariate is static, not latent, and its
+spec is DyNAM.
+
+### D2b — Constructor named `make_joint_specification()`; distinct class; one focal layer per specification
+The composition constructor is **`make_joint_specification(...)`** (renamed from the
+working `make_multivariate_spec()`), returning an object of a **new S3 class
+`joint_specification.goldfish`** — deliberately *not* inheriting
+`specification.goldfish`, so the event-stream estimators' existing
+`inherits(x, "specification.goldfish")` dispatch does not fire on it and the D1
+class guard can reject it cleanly. The *concept* remains "the multivariate
+specification" in prose and capability/dir names (`multivariate-specification`,
+`multi-process-walk`); only the exported constructor and its object class carry the
+`joint` name. The source file is `R/make_joint_specification.R`.
+
+**One focal layer per joined specification.** `make_joint_specification()` SHALL
+abort unless the joined specifications' **focal/dependent layers are pairwise
+distinct** — a layer may be modeled by at most one specification in the join. The
+uniqueness is on the *dependent* layer only: a layer MAY still be **read as an
+exogenous covariate** by any number of other specifications (this is exactly the
+coupling that makes joining meaningful — `calls` reading `friendship`), so "appears
+in" is scoped to the focal role, never covariate references. All flavors of one
+layer MUST be carried by a **single** specification (the flavor-keyed rate/choice
+lists of `flavored-processes`); creation and dissolution of the same layer cannot be
+split across two joined specifications — this preserves the "modeled for all flavors
+or not at all" invariant (`dynes-augmentation` D8/D19). *Rejected:* a strict "a
+layer named anywhere is exclusive to one specification" reading — it would forbid one
+process reading another's layer as a covariate, eliminating coupling, which is the
+whole purpose of the joint specification. *Rejected:* silently coalescing two specs
+that share a focal layer — a repeated dependent layer is a user error (two competing
+sub-models for the same events), caught at construction with a cli error naming the
+duplicated layer.
 
 ### D3 — fid vocabulary extends by rows and one column
 The `process_map` of `flavored-processes` D9 is reused unchanged in kind:
@@ -166,18 +220,25 @@ win without special-casing.
 
 ### D4 — Coupling: direct reference; inform when partial, abort when total
 A fid is **coupled** iff any effect argument or support-constraint atom in its
-formula reads a panel-observed layer's state. Direct reference only: observed
-events of an intermediate relational layer are exogenous data in this fid's
-likelihood regardless of what that layer's own model references, so coupling is
-not transitive. The specification print marks separable (uncoupled) fids. The
-estimation contract (enforced by `estimate_dynes()` in `dynes-augmentation`):
-a mixed specification proceeds with a cli message naming the separable fids
-(their likelihood terms touch no latent path, so joint estimation equals
-separate estimation for them); a specification whose fids are all separable
-aborts — nothing in it needs DyNES. (The all-separable case is unreachable
-through `make_multivariate_spec()` itself given D2 — the panel process's own
-fids are coupled by construction — but the contract guards recomposed or
-edited specifications.)
+formula reads a **modeled** panel layer's state — a panel layer that is itself a
+process of the specification, whose between-wave path is latent and augmented.
+Reading a panel layer that appears *only* as an exogenous covariate does **not**
+couple: that covariate is a static step-covariate (`dynes-augmentation` D8), so the
+reading fid's likelihood touches no latent path. Because the static-vs-augmented
+treatment is fully determined by whether the panel layer is a modeled process —
+there is no per-layer estimation-time choice — coupling is exactly computable at
+construction. Direct reference only: observed events of an intermediate relational
+layer are exogenous data in this fid's likelihood regardless of what that layer's
+own model references, so coupling is not transitive. The specification print marks
+separable (uncoupled) fids. The estimation contract (enforced by `estimate_dynes()`
+in `dynes-augmentation`): a mixed specification proceeds with a cli message naming
+the separable fids (their likelihood terms touch no latent path, so joint estimation
+equals separate estimation for them); a specification whose fids are all separable —
+equivalently, no panel layer is a modeled process — aborts, naming `estimate_dynam()`
+and explaining its panel layers would only be static exogenous covariates. (This
+all-separable case **is** reachable through `make_joint_specification()`: D2 composes a
+spec whose only panel reference is an exogenous covariate, and the DyNES-viability
+check is deferred to `estimate_dynes()`.)
 
 ### D5 — Merged one-walk; gid scope per statistic block; dedup within block only
 The two per-family walks merge into one single-clock walk hosting both

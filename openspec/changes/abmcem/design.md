@@ -69,7 +69,7 @@ dependency on phases 1–4, and burying it serializes work that can land now.
 ### D2 — Surface: `estimate_dynes()` + nested `set_alg_*()` constructors (from dynes-augmentation D1)
 
 `estimate_dynes(spec, algorithm = set_alg_em(...))`, where `spec` is a
-`make_multivariate_spec()` object (`make-multivariate-spec`) — the spec-input
+`make_joint_specification()` object (`make-multivariate-spec`) — the spec-input
 question is resolved to consuming that constructor, not an interim named-list. The
 loop machinery here has no hard dependency on it (tests drive the loop with a stub
 augmenter and analytic evaluator over a minimal spec fixture), but the public
@@ -412,7 +412,7 @@ changes never double-claim.
   inherited from `dynes-augmentation`; decide before the constructors ship
   (rename is cheap until then).
 - **[resolved]** What `estimate_dynes()` accepts as its specification: a
-  `make_multivariate_spec()` object (`make-multivariate-spec`). The interim
+  `make_joint_specification()` object (`make-multivariate-spec`). The interim
   named-list option is dropped. The loop is still implemented and tested behind a
   minimal spec fixture so this change stays landable before the full data path
   exists, but the public signature is the multivariate spec from the start.

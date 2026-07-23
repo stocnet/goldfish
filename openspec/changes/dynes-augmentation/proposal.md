@@ -18,17 +18,19 @@ package's estimation core.
 
 ## What Changes
 
-- **Panel augmentation by formula reference**: a panel-observed layer that is
-  referenced in the multivariate specification's formulas is interpreted as state
+- **Panel augmentation by formula reference**: a panel-observed layer that is a
+  **modeled process** (its focal/dependent layer) is interpreted as state
   observations; consecutive waves are diffed into candidate flip events (Hamming
-  set). A panel layer that is a modeled process's focal layer MAY be `focal` — but
-  only under `estimate_dynes()` (event-stream estimators keep aborting). A panel
-  layer referenced only as an **exogenous covariate** (no formulas of its own) is
-  augmented too, since its latent between-wave path enters the likelihood of
-  whatever reads it; the user chooses per such layer whether to treat it as a
-  **static step-covariate** (wave-time jumps, the living `single-data-object`
-  behavior — not latent) or to draw its path with the **random augmenter**. A panel
-  layer referenced nowhere is not augmented.
+  set) whose latent between-wave path is augmented. A modeled panel focal layer MAY
+  be `focal` — but only under `estimate_dynes()` (event-stream estimators keep
+  aborting). A panel layer referenced only as an **exogenous covariate** (no
+  formulas of its own) is **not** augmented: it stays a **static step-covariate**
+  (state jumps only at wave times, the living `single-data-object` behavior — not
+  latent, no random sampling). A panel layer referenced nowhere is not augmented.
+- **DyNES requires a latent panel path**: `estimate_dynes()` aborts when **no panel
+  layer is a modeled dependent process** (nothing is latent). The error names
+  `estimate_dynam()`, explaining the specification fits DyNAM and that its panel
+  layers would only be considered as static exogenous covariates.
 - **`estimate_dynes(spec, algorithm = set_alg_em(...))`** — the estimation
   surface, the four nested `set_alg_*()` control constructors, the ABMCEM
   loop, and the result contract are **carved out to the `abmcem` change**
@@ -94,12 +96,13 @@ package's estimation core.
   `abmcem` change's share of the same capability.)
 
 ### Modified Capabilities
-- `single-data-object`: a panel-observed layer referenced in a multivariate
-  specification's formulas resolves as snapshot observations diffable into candidate
-  events, and the "panel layer cannot be focal" error is scoped to event-stream
-  estimators (DyNES accepts a panel focal layer when it is a modeled process). No
-  reserved flag is introduced — the `observation = "panel"` metadata plus formula
-  reference is the trigger.
+- `single-data-object`: a panel-observed layer that is a modeled process resolves as
+  snapshot observations diffable into candidate events, and the "panel layer cannot be
+  focal" error is scoped to event-stream estimators (DyNES accepts a panel focal layer
+  when it is a modeled process). A panel layer referenced only as an exogenous
+  covariate keeps the static change-list step-covariate semantics (no augmentation). No
+  reserved flag is introduced — the `observation = "panel"` metadata plus modeled-process
+  reference is the augmentation trigger.
 
 ## Impact
 
@@ -116,7 +119,7 @@ package's estimation core.
   scripts against goldfish 1.6.10) are the reference implementations; their workarounds
   (opportunity-list support constraints, manual state bookkeeping, label sanitization)
   are all superseded by the current pipeline.
-- **Sequencing**: hard-consumes `make-multivariate-spec` (the `make_multivariate_spec()`
+- **Sequencing**: hard-consumes `make-multivariate-spec` (the `make_joint_specification()`
   surface `estimate_dynes()` takes, and the `multi-process-walk` handle the augmenters
   drive), `flavored-processes` (per-flavor preprocessing, derived constraints), the
   living `single-data-object` (panel `observation` metadata, stocnet input), and
