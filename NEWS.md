@@ -1,3 +1,34 @@
+# goldfish 1.9.8
+
+## New features
+
+* **DyNAM-i on the single `stocnet` data object.** `estimate_dynami()` and
+  `make_specification(model = "DyNAMi")` accept the single `stocnet` data object,
+  matching the API the DyNAM and REM families already use.
+  `make_groups_interaction()` returns that object directly, so the records ->
+  model-ready flow is one step. The actors x groups interaction data is a
+  two-mode `stocnet` layer (`interactions`) with a one-mode past-interaction
+  covariate layer (`past`); nodal attributes are named bare (`ego(age)`,
+  `same(gender)`) as on the rest of the stocnet surface, and networks by layer
+  name (`interactions`, `past`). The two rate processes ride the flavor-keyed
+  grammar `rate = list(join ~ ..., leave ~ ...)`; the joining `choice` is a plain
+  formula. The joining choice's group-availability restriction (the groups
+  occupied at each decision point, Hoffman et al. 2020 Eq. 8) is derived from the
+  object's occupancy and folded automatically -- there is no `opportunities`
+  argument. The vignette M1 rate and choice models on the RFID data reproduce
+  the goldfish 1.7.0 coefficients to 1e-6, now frozen as regression baselines.
+
+## Breaking changes
+
+* **`make_groups_interaction()` returns a `stocnet`, not a five-component list.**
+  The records->events transformation is unchanged, but its result is the
+  assembled multipartite `stocnet` (ready to pass to `estimate_dynami()` /
+  `make_specification()`), replacing the previous `groups` /
+  `dependent.events` / `exogenous.events` / `interaction.updates` /
+  `opportunities` list. The `opportunities` component is retired: group
+  availability for the joining choice is derived from the object's occupancy at
+  estimation, not stored.
+
 # goldfish 1.9.7
 
 ## Bug fixes
