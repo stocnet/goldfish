@@ -1182,10 +1182,9 @@ fold_active_dyad_support <- function(
   # timespan-weighted Poisson, multinomial, or the mutual `getLikelihoodMM`
   # product), so one fold serves them. Coordination (`DyNAM-MM`) is additionally
   # symmetrised so `(i, j)` is available iff both directions are
-  # allowed — required for the mutual likelihood. The one-mode choice ego-kind
-  # (outer) fold is still pending, so an outer-encoded choice constraint stays on
-  # the standalone `support_mask` path; the DyNAM choice alter and point encodings
-  # fold below.
+  # allowed — required for the mutual likelihood. Every DyNAM choice encoding
+  # folds below: alter/scalar as the receiver vector, point (dyadic atom or
+  # opportunity list) and ego-kind (outer) as dense point row flips.
   if (risk_set_is_dyadic(spec)) {
     return(fold_active_dyad_support_rem(
       out,
@@ -1195,9 +1194,6 @@ fold_active_dyad_support <- function(
       n_stored,
       symmetric = risk_set_symmetrize(spec)
     ))
-  }
-  if (identical(encoding, "outer")) {
-    return(out)
   }
 
   recv <- walk_presence_buffer(
@@ -1221,10 +1217,11 @@ fold_active_dyad_support <- function(
     out$active_dyad_encoding <- "alter"
     out$active_dyad_folded <- TRUE
   } else {
-    # point (a genuinely dyadic support atom, or any support atom together with a
-    # user opportunity list): fold receiver presence ∩ the sender's support row ∩
-    # opportunity into the dense point buffer. The choice
-    # risk set reads only the event sender's row, so only that row is emitted.
+    # point/outer: fold receiver presence ∩ the sender's support row ∩
+    # opportunity into the dense point buffer. Covers a genuinely dyadic (point)
+    # atom, any atom together with a user opportunity list, and an ego-kind
+    # (outer) atom whose support row is sender-constant. The choice risk set
+    # reads only the event sender's row, so only that row is emitted.
     senders <- out$event_sender
     opp_row <- function(e) {
       if (!has_opportunity) {
