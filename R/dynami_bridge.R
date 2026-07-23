@@ -57,7 +57,11 @@ dynami_layer_events <- function(rows, labels, event_class) {
 }
 
 # Build the DyNAM-i legacy environment from an assembled stocnet.
-stocnet_to_dynami_env <- function(data, call = rlang::caller_env()) {
+stocnet_to_dynami_env <- function(
+  data,
+  parent_env = parent.frame(),
+  call = rlang::caller_env()
+) {
   # The bridge rebuilds through the deprecated constructors on purpose; their
   # lifecycle signal is an implementation detail here.
   withr::local_options(lifecycle_verbosity = "quiet")
@@ -159,7 +163,10 @@ stocnet_to_dynami_env <- function(data, call = rlang::caller_env()) {
   attr(dependent_obj, "default_network") <- nm$interactions
   attr(dependent_obj, "nodes") <- c(nm$actors, nm$groups)
 
-  env <- new.env(parent = emptyenv())
+  # The monolith evaluates effect operand expressions in this environment, so
+  # its parent chain must reach the base functions they use (matching the legacy
+  # `make_data()` environment, whose parent is the caller's frame).
+  env <- new.env(parent = parent_env)
   assign(nm$actors, actors_obj, envir = env)
   assign(nm$groups, groups_obj, envir = env)
   assign(nm$interactions, interactions_obj, envir = env)

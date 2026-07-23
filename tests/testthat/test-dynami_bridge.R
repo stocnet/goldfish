@@ -72,3 +72,41 @@ test_that("the dependent object is a dependent.goldfish on the focal network", {
   expect_s3_class(dependent, "dependent.goldfish")
   expect_identical(attr(dependent, "default_network"), "interactions")
 })
+
+test_that("preprocessing through the bridge equals the constructor path", {
+  # The strongest D3 statement: a DyNAM-i model preprocessed through the bridged
+  # environment yields identical statistics to the same model on the legacy
+  # constructor environment. The bridge environment needs a parent that reaches
+  # the base functions the operand expressions use.
+  env <- stocnet_to_dynami_env(
+    as_goldfish(make_stocnet_fixture_dynami()),
+    parent_env = environment()
+  )
+
+  bridge_fit <- estimate_wrapper(
+    interactions_dependent_events ~
+      1 +
+      intercept(interactions, joining = -1) +
+      ego(actors$attr1, joining = -1, subType = "centered"),
+    model = "DyNAMi",
+    sub_model = "rate",
+    data = env,
+    preprocessing_only = TRUE
+  )
+  legacy_fit <- estimate_wrapper(
+    dependent.depevents_DyNAMi ~
+      1 +
+      intercept(interaction_network_DyNAMi, joining = -1) +
+      ego(actors_DyNAMi$attr1, joining = -1, subType = "centered"),
+    model = "DyNAMi",
+    sub_model = "rate",
+    data = dataDyNAMi,
+    preprocessing_only = TRUE
+  )
+
+  expect_equal(bridge_fit$initialStats, legacy_fit$initialStats)
+  expect_equal(
+    bridge_fit$dependentStatsChange,
+    legacy_fit$dependentStatsChange
+  )
+})
