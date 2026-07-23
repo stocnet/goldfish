@@ -842,6 +842,43 @@ check_estimation_data <- function(data, call = rlang::caller_env()) {
   )
 }
 
+# Pre-run guardrail: when per-event probabilities are requested, warn once with
+# the estimated storage footprint (n_events x |riskset| x 8 bytes) and point to
+# the scalable `ranks`/`margins` primitives. Best-effort on the dimensions: if
+# the preprocessed object lacks the presence vectors (e.g. some DyNAMi shapes)
+# the warning is skipped rather than dropping the request.
+warn_probabilities_footprint <- function(
+  prep,
+  spec,
+  call = rlang::caller_env()
+) {
+  n_senders <- length(prep$active_sender_init)
+  n_receivers <- length(prep$active_dyad_init)
+  if (n_senders == 0 && n_receivers == 0) {
+    return(invisible())
+  }
+  riskset <- if (isTRUE(risk_set_is_dyadic(spec))) {
+    as.numeric(n_senders) * as.numeric(n_receivers)
+  } else if (identical(risk_set_axis(spec), "sender")) {
+    as.numeric(n_senders)
+  } else {
+    as.numeric(n_receivers)
+  }
+  n_events <- sum(prep$is_dependent == 1L)
+  bytes <- n_events * riskset * 8
+  size <- format(structure(bytes, class = "object_size"), units = "auto")
+  cli::cli_warn(
+    c(
+      "!" = "Storing per-event probabilities for {n_events} event{?s} over a
+             risk set of size {riskset} will use about {size}.",
+      "i" = "For scalable diagnostics request {.val ranks} or {.val margins}
+             instead of {.val probabilities}."
+    ),
+    call = call
+  )
+  invisible()
+}
+
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
 #' @importFrom stats as.formula
@@ -1733,6 +1770,12 @@ estimate_wrapper <- function(
     if (!is.null(dynami_availability)) {
       prep <- dynami_fold_availability(prep, dynami_availability)
     }
+  }
+
+  prob_requested <- isTRUE(control_estimation$return_probabilities) ||
+    "probabilities" %in% control_estimation$diagnostics
+  if (prob_requested) {
+    warn_probabilities_footprint(prep, model_spec)
   }
 
   ### 3.4 Assemble the fixed-coefficient (offset) vector----

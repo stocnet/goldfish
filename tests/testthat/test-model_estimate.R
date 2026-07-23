@@ -56,3 +56,48 @@ test_that("preprocess init", {
     )[toCompare]
   )
 })
+
+test_that("probabilities guardrail warns with the estimated footprint", {
+  prep <- list(
+    active_sender_init = rep(TRUE, 10),
+    active_dyad_init = rep(TRUE, 10),
+    is_dependent = rep(1L, 100)
+  )
+  expect_snapshot(
+    warn_probabilities_footprint(prep, list(risk_set = list(axis = "dyad")))
+  )
+  expect_snapshot(
+    warn_probabilities_footprint(prep, list(risk_set = list(axis = "sender")))
+  )
+  expect_snapshot(
+    warn_probabilities_footprint(
+      prep,
+      list(risk_set = list(axis = "receiver_given_sender"))
+    )
+  )
+})
+
+test_that("probabilities guardrail skips when dims are unavailable", {
+  prep <- list(
+    active_sender_init = logical(0),
+    active_dyad_init = logical(0),
+    is_dependent = integer(0)
+  )
+  expect_no_warning(
+    warn_probabilities_footprint(prep, list(risk_set = list(axis = "dyad")))
+  )
+})
+
+test_that("estimation emits the probabilities guardrail once per call", {
+  formulaTest <- depNetwork ~ inertia + recip
+  expect_warning(
+    estimate_wrapper(
+      formulaTest,
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      control_estimation = set_estimation_opt(diagnostics = "probabilities")
+    ),
+    regexp = "per-event probabilities"
+  )
+})
