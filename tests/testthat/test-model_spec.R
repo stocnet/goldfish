@@ -316,19 +316,19 @@ test_that("estimate_dynam constructs and forwards the typed spec", {
   )
   expect_s3_class(prepRate$model_spec, "dynam_rate_spec")
   expect_true(prepRate$model_spec$has_intercept)
-  expect_warning(
-    prepRateOrdered <- estimate_dynam(
-      depNetwork ~ indeg,
-      sub_model = "rate",
-      data = dataTest,
-      preprocessing_only = TRUE
-    ),
-    "rate_ordered"
-  )
-  expect_s3_class(prepRateOrdered$model_spec, "dynam_rate_ordered_spec")
+  # A no-intercept `rate` formula gets the intercept added (waiting-time model),
+  # not the ordinal spec.
+  prepRateAdded <- suppressMessages(estimate_dynam(
+    depNetwork ~ indeg,
+    sub_model = "rate",
+    data = dataTest,
+    preprocessing_only = TRUE
+  ))
+  expect_s3_class(prepRateAdded$model_spec, "dynam_rate_spec")
+  expect_true(prepRateAdded$model_spec$has_intercept)
 })
 
-test_that("estimate_dynam accepts the explicit rate_ordered sub_model", {
+test_that("explicit rate_ordered is ordinal; implicit rate adds an intercept", {
   prepExplicit <- estimate_dynam(
     depNetwork ~ indeg,
     sub_model = "rate_ordered",
@@ -337,13 +337,17 @@ test_that("estimate_dynam accepts the explicit rate_ordered sub_model", {
   )
   expect_s3_class(prepExplicit$model_spec, "dynam_rate_ordered_spec")
   expect_identical(prepExplicit$sub_model, "rate")
-  prepImplicit <- suppressWarnings(estimate_dynam(
+  expect_false(isTRUE(prepExplicit$model_spec$has_intercept))
+  # Dropping auto-ordinal: a no-intercept `rate` formula is now a waiting-time
+  # model with the intercept added, NOT the ordinal spec.
+  prepImplicit <- suppressMessages(estimate_dynam(
     depNetwork ~ indeg,
     sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   ))
-  expect_equal(prepExplicit, prepImplicit)
+  expect_s3_class(prepImplicit$model_spec, "dynam_rate_spec")
+  expect_true(prepImplicit$model_spec$has_intercept)
   expect_warning(
     estimate_dynam(
       depNetwork ~ 1 + indeg,
@@ -377,12 +381,15 @@ test_that("estimate_rem constructs and forwards the typed spec", {
   fitRem <- estimate_rem(depNetwork ~ 1 + inertia, data = dataTest)
   expect_s3_class(fitRem$model_spec, "rem_rate_spec")
   expect_true(fitRem$model_spec$has_intercept)
-  prepRemOrdered <- estimate_rem(
+  # A no-intercept REM rate formula adds the intercept (waiting times), not the
+  # ordinal spec; ordinal requires explicit `rate_ordered`.
+  prepRemAdded <- suppressMessages(estimate_rem(
     depNetwork ~ inertia,
     data = dataTest,
     preprocessing_only = TRUE
-  )
-  expect_s3_class(prepRemOrdered$model_spec, "rem_rate_ordered_spec")
+  ))
+  expect_s3_class(prepRemAdded$model_spec, "rem_rate_spec")
+  expect_true(prepRemAdded$model_spec$has_intercept)
 })
 
 test_that("estimate_dynami constructs and forwards the typed spec", {

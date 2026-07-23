@@ -118,6 +118,7 @@ baselines_model_grid <- function() {
     se_rem_ordered = list(
       dataset = "social_evolution",
       model = "REM",
+      sub_model = "rate_ordered",
       formula = calls_dependent ~ indeg(call_network, type = "ego") +
         inertia +
         recip
@@ -164,6 +165,7 @@ baselines_model_grid <- function() {
     fish_rem_ordered = list(
       dataset = "fisheries",
       model = "REM",
+      sub_model = "rate_ordered",
       formula = create_bilat ~ inertia + tie(contignet) + alter(states$regime)
     )
   )
@@ -198,6 +200,11 @@ baselines_fit <- function(spec, engine, data_list) {
     args$sub_model <- spec$sub_model
     do.call(estimate_dynam, args)
   } else {
+    # A REM grid entry may request the ordinal sub-model explicitly; without it
+    # `estimate_rem()` uses its `rate` default (waiting times).
+    if (!is.null(spec$sub_model)) {
+      args$sub_model <- spec$sub_model
+    }
     do.call(estimate_rem, args)
   }
 }

@@ -26,6 +26,9 @@ event_scores_eval <- function(spec, engine, data_list, params) {
     args$sub_model <- spec$sub_model
     suppressWarnings(do.call(estimate_dynam, args))
   } else {
+    if (!is.null(spec$sub_model)) {
+      args$sub_model <- spec$sub_model
+    }
     suppressWarnings(do.call(estimate_rem, args))
   }
 }

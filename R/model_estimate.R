@@ -1177,19 +1177,29 @@ estimate_wrapper <- function(
     )
     parsed_formula$has_intercept <- has_intercept <- FALSE
   }
+  # `sub_model = "rate"` models the waiting times between events; the time
+  # intercept is the baseline hazard that likelihood needs, so a rate formula
+  # without an explicit `1` gets the intercept added rather than collapsing to
+  # the order-only (ordinal) partial likelihood. Ordinal modeling is requested
+  # explicitly with `sub_model = "rate_ordered"`.
+  if (sub_model == "rate" && !has_intercept) {
+    cli::cli_inform(c(
+      "i" = "{.code sub_model = \"rate\"} models the waiting times between
+             events; a time intercept has been added.",
+      "i" = "Use {.code sub_model = \"rate_ordered\"} to model only the order
+             of the events (ordinal likelihood)."
+    ))
+    parsed_formula$has_intercept <- has_intercept <- TRUE
+  }
   right_censored <- has_intercept
 
   # Per-(model, sub_model) main-effect validity. Unavailable effects
   # (no bare implementation, e.g. global in choice) abort in every phase;
   # computable-but-unidentified effects stay producible via preprocessing
   # (compute_stats, as design columns for interactions / random effects) and are
-  # rejected only when estimating. Uses the effective sub_model (a rate formula
-  # without the time intercept is the ordinal case) and runs after `*` expansion.
-  # All effects are main until interaction terms land.
+  # rejected only when estimating. Runs after `*` expansion. All effects are
+  # main until interaction terms land.
   validity_sub_model <- sub_model
-  if (sub_model == "rate" && !has_intercept) {
-    validity_sub_model <- "rate_ordered"
-  }
   # Validity is role-aware. Offset (fixed-coefficient) terms and
   # interaction operand-only terms are NOT bare main effects, so they are held
   # out of the main-effect identification check: an offset warns rather than
@@ -1232,15 +1242,6 @@ estimate_wrapper <- function(
       character(1)
     )
   )
-
-  if (model == "DyNAM" && sub_model == "rate" && !has_intercept) {
-    cli::cli_warn(c(
-      "!" = "{.code sub_model = \"rate\"} with a formula without the time
-             intercept is deprecated.",
-      "i" = "Use {.code sub_model = \"rate_ordered\"} to model only the order
-             of the events."
-    ))
-  }
 
   legacy_sub_model <- sub_model
   if (sub_model == "rate_ordered") {
@@ -1385,13 +1386,9 @@ estimate_wrapper <- function(
     is_two_mode <- ds_model_is_two_mode(work_src, .nodes, .nodes2)
   }
 
-  spec_sub_model <- sub_model
-  if (sub_model == "rate" && !has_intercept) {
-    spec_sub_model <- "rate_ordered"
-  }
   model_spec <- new_model_spec(
     model = model,
-    sub_model = spec_sub_model,
+    sub_model = sub_model,
     is_two_mode = is_two_mode,
     nodes = .nodes,
     nodes2 = .nodes2,

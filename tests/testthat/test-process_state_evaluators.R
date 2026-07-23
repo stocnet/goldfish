@@ -56,13 +56,16 @@ pse_reference <- function(cell, data_list) {
     args$sub_model <- spec$sub_model
     fit_ref <- suppressWarnings(do.call(estimate_dynam, args))
   } else {
+    if (!is.null(spec$sub_model)) {
+      args$sub_model <- spec$sub_model
+    }
     fit_ref <- suppressWarnings(do.call(estimate_rem, args))
   }
 
   pre <- suppressWarnings(estimate_wrapper(
     x = spec$formula,
     model = spec$model,
-    sub_model = if (spec$model == "DyNAM") spec$sub_model else NULL,
+    sub_model = spec$sub_model,
     data = data,
     preprocessing_only = TRUE
   ))
