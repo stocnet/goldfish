@@ -1,0 +1,177 @@
+# Internal stocnet -> environment bridge for DyNAM-i.
+#
+# TEMPORARY SEAM. DyNAM-i estimation still runs on the `preprocessInteraction`
+# monolith (`R/model_preprocess_group.R`), which reads a legacy `data.goldfish`
+# environment of named node-set / network / dependent objects and their event
+# streams. The public surface now takes the single stocnet data object, so at
+# the boundary this bridge reverses the assembled DyNAM-i stocnet back into that
+# environment shape and hands it to the untouched front-end. It is created
+# inside the estimation call and never accepted from or shown to the user.
+# `refactor-dynami-engine` retires both this bridge and the monolith when the
+# DyNAM-i engine moves onto the recipe loop.
+#
+# Correctness (design D3): the bridge extracts the raw components from the
+# stocnet and rebuilds the environment objects through the SAME legacy
+# constructors (`make_nodes()` / `make_network()` / `link_events()` /
+# `make_dependent_events()`) the DyNAM-i data path always used, so the objects
+# are constructor-identical by construction; the name-recording attributes
+# (`events`, `nodes`, `default_network`) are then pinned to the bridge's own
+# canonical env names so the environment is internally consistent regardless of
+# how the objects were built.
+
+# Canonical names the bridged environment binds its objects under. The focal
+# layer keeps its own name (the interaction network); the derived streams and
+# node sets take stable names the monolith resolves through the pinned
+# attributes.
+dynami_env_names <- function(focal) {
+  list(
+    actors = "actors",
+    groups = "groups",
+    interactions = focal,
+    past = "past",
+    # The raw dependent/exogenous event streams the network's `events` attribute
+    # names, distinct from the `dependent.goldfish` object built from the
+    # dependent stream (`dependent_object`).
+    dependent = paste0(focal, "_dependent"),
+    exogenous = paste0(focal, "_exogenous"),
+    dependent_object = paste0(focal, "_dependent_events"),
+    past_updates = "past_updates"
+  )
+}
+
+# Reverse a focal/past layer's ties into a legacy event data frame keyed by the
+# node labels, ordered by the reserved `order` column, with the `order`
+# attribute and update class the monolith reads restored.
+dynami_layer_events <- function(rows, labels, event_class) {
+  ord <- order(rows$order)
+  events <- data.frame(
+    time = rows$time[ord],
+    sender = labels[rows$from[ord]],
+    receiver = labels[rows$to[ord]],
+    increment = rows$weight[ord],
+    stringsAsFactors = FALSE
+  )
+  attr(events, "order") <- rows$order[ord]
+  class(events) <- c(class(events), event_class)
+  events
+}
+
+# Build the DyNAM-i legacy environment from an assembled stocnet.
+stocnet_to_dynami_env <- function(data, call = rlang::caller_env()) {
+  # The bridge rebuilds through the deprecated constructors on purpose; their
+  # lifecycle signal is an implementation detail here.
+  withr::local_options(lifecycle_verbosity = "quiet")
+
+  info <- data$info
+  nodes <- data$nodes
+  ties <- data$ties
+  labels <- nodes$label
+  focal <- info$focal
+  nm <- dynami_env_names(focal)
+
+  actor_mode <- unname(info$sender[[focal]])
+  group_mode <- unname(info$receiver[[focal]])
+  actor_rows <- nodes$mode == actor_mode
+  group_rows <- nodes$mode == group_mode
+  n_actors <- sum(actor_rows)
+
+  actors_df <- nodes[actor_rows, setdiff(names(nodes), "mode"), drop = FALSE]
+  groups_df <- data.frame(
+    label = nodes$label[group_rows],
+    present = TRUE,
+    stringsAsFactors = FALSE
+  )
+  rownames(actors_df) <- NULL
+
+  # Split the focal layer: dependent join/leave rows (flavor set), exogenous
+  # rows (flavor NA, timed), and the initial diagonal (flavor NA, time NA).
+  inter <- ties[ties$layer == focal, , drop = FALSE]
+  is_dependent <- !is.na(inter$flavor)
+  is_initial <- is.na(inter$flavor) & is.na(inter$time)
+  is_exogenous <- is.na(inter$flavor) & !is.na(inter$time)
+
+  dependent_events <- dynami_layer_events(
+    inter[is_dependent, , drop = FALSE],
+    labels,
+    "interaction.groups.updates"
+  )
+  exogenous_events <- dynami_layer_events(
+    inter[is_exogenous, , drop = FALSE],
+    labels,
+    "interaction.groups.updates"
+  )
+
+  initial <- inter[is_initial, , drop = FALSE]
+  init_mat <- matrix(
+    0,
+    n_actors,
+    nrow(groups_df),
+    dimnames = list(actors_df$label, groups_df$label)
+  )
+  init_mat[cbind(initial$from, initial$to - n_actors)] <- initial$weight
+
+  actors_obj <- make_nodes(actors_df)
+  groups_obj <- make_nodes(groups_df)
+  interactions_obj <- make_network(
+    matrix = init_mat,
+    nodes = actors_obj,
+    nodes2 = groups_obj,
+    directed = TRUE
+  )
+  interactions_obj <- link_events(
+    interactions_obj,
+    dependent_events,
+    nodes = actors_obj,
+    nodes2 = groups_obj
+  )
+  interactions_obj <- link_events(
+    interactions_obj,
+    exogenous_events,
+    nodes = actors_obj,
+    nodes2 = groups_obj
+  )
+  dependent_obj <- make_dependent_events(
+    events = dependent_events,
+    nodes = actors_obj,
+    nodes2 = groups_obj,
+    default_network = interactions_obj
+  )
+
+  past_rows <- ties[ties$layer == "past", , drop = FALSE]
+  has_past <- nrow(past_rows) > 0
+  if (has_past) {
+    past_events <- dynami_layer_events(
+      past_rows,
+      labels,
+      "interaction.network.updates"
+    )
+    past_obj <- make_network(nodes = actors_obj, directed = FALSE)
+    past_obj <- link_events(past_obj, past_events, nodes = actors_obj)
+  }
+
+  # Pin the name-recording attributes to the bridge's canonical names AFTER all
+  # constructors run (make_dependent_events() validates the network's `nodes`
+  # against the dependent's node sets, so the pin must not precede it). The
+  # constructors deparse their argument names -- the bridge's locals -- which are
+  # not the env bindings; pinning makes the environment resolve consistently.
+  attr(interactions_obj, "events") <- c(nm$dependent, nm$exogenous)
+  attr(interactions_obj, "nodes") <- c(nm$actors, nm$groups)
+  attr(dependent_obj, "default_network") <- nm$interactions
+  attr(dependent_obj, "nodes") <- c(nm$actors, nm$groups)
+
+  env <- new.env(parent = emptyenv())
+  assign(nm$actors, actors_obj, envir = env)
+  assign(nm$groups, groups_obj, envir = env)
+  assign(nm$interactions, interactions_obj, envir = env)
+  assign(nm$dependent, dependent_events, envir = env)
+  assign(nm$exogenous, exogenous_events, envir = env)
+  assign(nm$dependent_object, dependent_obj, envir = env)
+  if (has_past) {
+    attr(past_obj, "events") <- nm$past_updates
+    attr(past_obj, "nodes") <- nm$actors
+    assign(nm$past, past_obj, envir = env)
+    assign(nm$past_updates, past_events, envir = env)
+  }
+
+  env
+}
