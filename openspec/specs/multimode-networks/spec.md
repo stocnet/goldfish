@@ -1,4 +1,19 @@
-## ADDED Requirements
+# multimode-networks Specification
+
+## Purpose
+Define how goldfish represents and models multipartite (multi-mode) network
+data through the mode map: a single `nodes` tibble with a `mode` column and
+per-layer sender/receiver mode sets, where each layer is a dyad over a
+(sender-set, receiver-set) mode pair and a model is over exactly one focal
+layer's side pair. Covers the legacy two node-set input translation and
+`make_data()` assembly into a stocnet, per-argument effect validity and
+mode-set conformability, mode-keyed nodal state, mode-slice attribute
+imputation, the two-mode specification/estimation surface and node identity,
+the flagship two-mode dataset docs/vignette, and two-mode coefficient
+equivalence with the legacy path. Created by archiving change
+multimode-network-support.
+
+## Requirements
 
 ### Requirement: Multipartite object with dyadic layers over mode pairs
 
