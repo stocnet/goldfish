@@ -275,3 +275,47 @@ test_that("assembled Fisheries reproduces the filtered dependent via flavor", {
   ))
   expect_equal(unname(coef(via_alias)), unname(coef(legacy)), tolerance = 1e-6)
 })
+
+# make_data() never returns a legacy environment: a non-assemblable bundle
+# aborts with an actionable reason instead of the silent environment fallback.
+
+local_cli_context <- function(env = parent.frame()) {
+  withr::local_options(
+    cli.width = 80,
+    cli.num_colors = 1,
+    .local_envir = env
+  )
+}
+
+test_that("make_data aborts on an unresolvable node-set name", {
+  local_cli_context()
+  data("Social_Evolution", package = "goldfish", envir = environment())
+  cn <- make_network(nodes = actors, directed = TRUE)
+  cn <- link_events(cn, calls, nodes = actors)
+  cd <- make_dependent_events(
+    events = calls,
+    nodes = actors,
+    default_network = cn
+  )
+  # A covariate network whose node set was recorded as the deparsed "fx$actors".
+  fx <- list(actors = actors)
+  allowed <- matrix(
+    1,
+    nrow(actors),
+    nrow(actors),
+    dimnames = list(actors$label, actors$label)
+  )
+  an <- make_network(matrix = allowed, nodes = fx$actors, directed = TRUE)
+  expect_snapshot(make_data(cd, cn, actors, an), error = TRUE)
+})
+
+test_that("make_data aborts on a bundle with no node set", {
+  local_cli_context()
+  raw_events <- data.frame(
+    time = 1:3,
+    sender = "a",
+    receiver = "b",
+    increment = 1
+  )
+  expect_snapshot(make_data(raw_events), error = TRUE)
+})

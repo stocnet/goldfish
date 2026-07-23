@@ -758,7 +758,16 @@ attr(pastupdates_DyNAMi, "order") <- c(2, 5, 6, 9, 10, 11, 18)
 class(pastupdates_DyNAMi) <-
   c(class(pastupdates_DyNAMi), "interaction.network.updates")
 
-dataDyNAMi <- make_data(depevents_DyNAMi, exoevents_DyNAMi, pastupdates_DyNAMi)
+# A legacy data.goldfish environment for the DyNAM-i tests that exercise the
+# monolith / bridge environment surface. make_data() now assembles every valid
+# bundle to a stocnet (and aborts on a non-assemblable one), so the environment
+# is built directly here: the DyNAM-i objects resolve through the parent scope,
+# exactly as when make_data() minted this environment from the raw event streams.
+dataDyNAMi <- new.env(parent = environment())
+dataDyNAMi$depevents_DyNAMi <- depevents_DyNAMi
+dataDyNAMi$exoevents_DyNAMi <- exoevents_DyNAMi
+dataDyNAMi$pastupdates_DyNAMi <- pastupdates_DyNAMi
+class(dataDyNAMi) <- c("data.goldfish", "environment")
 
 # goldfish Objects --------------------------------------------------
 actors_DyNAMi <- make_nodes(actors_DyNAMi)

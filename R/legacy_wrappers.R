@@ -321,19 +321,28 @@ legacy_global_table <- function(glob_obj, objs) {
   rbind(init, events)
 }
 
-# Whether the gathered fragments form a DyNAM/REM structure the assembler
-# handles -- one-mode or two-mode alike, since a two-mode bundle now fuses onto
-# the mode map. A bundle with no node set or no layer (raw interaction records)
-# still falls back to the legacy environment path.
-is_stocnet_assemblable <- function(objs) {
+# Diagnose why a legacy bundle cannot be assembled into a stocnet, or `NULL`
+# when it can. Returns a structured reason so `make_data()` can abort with an
+# actionable message instead of silently returning a legacy environment:
+#   - `no_nodes`   : no node set (`nodes.goldfish` / `network.goldfish`) present
+#   - `no_layer`   : no `dependent.goldfish` / `network.goldfish` layer present
+#   - `no_named_nodes` : the layer(s) record no node-set name at all
+#   - `unresolved_names` (with `names`): a layer records a node-set name that
+#     resolves to no node table in the bundle -- the constructors record the
+#     name by deparsing their `nodes = ` argument, so a layer built with
+#     `nodes = fx$actors` records `"fx$actors"`, which names nothing here.
+stocnet_assembly_blocker <- function(objs) {
   is_layer <- function(o) {
     inherits(o, "network.goldfish") || inherits(o, "dependent.goldfish")
   }
   has_nodes <- any(vapply(objs, inherits, logical(1), "nodes.goldfish")) ||
     any(vapply(objs, inherits, logical(1), "network.goldfish"))
   has_layer <- any(vapply(objs, is_layer, logical(1)))
-  if (!has_nodes || !has_layer) {
-    return(FALSE)
+  if (!has_nodes) {
+    return(list(kind = "no_nodes"))
+  }
+  if (!has_layer) {
+    return(list(kind = "no_layer"))
   }
   layer_objs <- objs[vapply(objs, is_layer, logical(1))]
   node_set_names <- unique(unlist(lapply(layer_objs, legacy_layer_sides)))
@@ -342,19 +351,26 @@ is_stocnet_assemblable <- function(objs) {
       nzchar(node_set_names)
   ]
   if (length(node_set_names) == 0) {
-    return(FALSE)
+    return(list(kind = "no_named_nodes"))
   }
-  # Every named node set must resolve to a node table in the bundle. The
-  # constructors record the name by deparsing their argument, so a layer built
-  # from `nodes = fx$actors` records `"fx$actors"`, which names nothing here --
-  # such a bundle cannot be assembled and keeps the legacy environment path.
-  # Tested by shape, not class: `make_network()` accepts a bare data frame, and
-  # the shipped node sets are plain data frames.
-  all(vapply(
-    node_set_names,
-    function(nm) is_node_table(objs[[nm]]),
-    logical(1)
-  ))
+  # Every named node set must resolve to a node table in the bundle. Tested by
+  # shape, not class: `make_network()` accepts a bare data frame, and the
+  # shipped node sets are plain data frames.
+  unresolved <- node_set_names[
+    !vapply(
+      node_set_names,
+      function(nm) is_node_table(objs[[nm]]),
+      logical(1)
+    )
+  ]
+  if (length(unresolved) > 0) {
+    return(list(kind = "unresolved_names", names = unresolved))
+  }
+  NULL
+}
+
+is_stocnet_assemblable <- function(objs) {
+  is.null(stocnet_assembly_blocker(objs))
 }
 
 is_node_table <- function(o) {

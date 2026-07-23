@@ -47,12 +47,14 @@ rate_data_with_gate <- function(fx, gated = integer(0)) {
   if (length(gated) > 0) {
     allowed[gated, ] <- 0
   }
+  # Bind the node set to a plain name so make_data() can resolve it (a layer
+  # built with nodes = fx$actors records the unresolvable name "fx$actors").
+  actors <- fx$actors
   allowedNet <- make_network(
     matrix = allowed,
-    nodes = fx$actors,
+    nodes = actors,
     directed = TRUE
   )
-  actors <- fx$actors
   calls <- fx$calls
   call_network <- fx$call_network
   calls_dependent <- fx$calls_dependent

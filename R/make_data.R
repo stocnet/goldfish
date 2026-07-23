@@ -956,29 +956,58 @@ make_data <- function(..., parent_env = parent.frame()) {
     }
   }
 
-  # A one-mode DyNAM/REM structure assembles into one stocnet -- the object the
-  # direct path consumes -- validated and stamped, so a fresh session mints no
-  # legacy environment. DyNAMi and two-mode inputs keep the legacy environment
-  # the unchanged engines consume (their conversion is a later change).
+  # Every model family now assembles to a stocnet (one-mode, two-mode, and the
+  # DyNAM-i interaction construction). A bundle that cannot be assembled is a
+  # constructor-usage error, not a model object, so `make_data()` aborts with
+  # the reason instead of silently returning a legacy environment.
   objects <- as.list(data_env)
   objects <- objects[!startsWith(names(objects), ".")]
-  if (is_stocnet_assemblable(objects)) {
+  blocker <- stocnet_assembly_blocker(objects)
+  if (is.null(blocker)) {
     return(as_goldfish(assemble_stocnet_from_legacy(objects)))
   }
+  abort_unassemblable_bundle(blocker)
+}
 
-  assign(
-    ".nodeset_names",
-    unique(all_nodes_names[nzchar(all_nodes_names)]),
-    envir = data_env
+# Abort `make_data()` on a non-assemblable bundle, translating the structured
+# `stocnet_assembly_blocker()` reason into actionable guidance.
+abort_unassemblable_bundle <- function(
+  blocker,
+  call = rlang::caller_env()
+) {
+  msg <- switch(
+    blocker$kind,
+    unresolved_names = c(
+      "Cannot assemble a {.cls stocnet}.",
+      "x" = "A network or dependent-events layer records a node-set name that
+             matches no node table in the data.",
+      "i" = "This happens when a layer is built from a compound expression: the
+             constructors record the {.arg nodes} argument by deparsing it, so
+             {.code make_network(nodes = fx$actors)} records the expression, not
+             a plain name.",
+      "i" = "Bind the node set to a plain, resolvable name first, e.g.
+             {.code actors <- fx$actors; make_network(nodes = actors, ...)}."
+    ),
+    no_nodes = c(
+      "Cannot assemble a {.cls stocnet}: no node set was supplied.",
+      "i" = "Include at least one {.fn make_nodes} node set (or a
+             {.fn make_network} that carries one) in the bundle."
+    ),
+    no_layer = c(
+      "Cannot assemble a {.cls stocnet}: no network or dependent-events layer
+       was supplied.",
+      "i" = "Include a {.fn make_network} or {.fn make_dependent_events}
+             object."
+    ),
+    no_named_nodes = c(
+      "Cannot assemble a {.cls stocnet}: the layer{?s} record no node-set
+       name.",
+      "i" = "Build each layer with a named {.arg nodes} argument so its node
+             sets resolve."
+    ),
+    "Cannot assemble a {.cls stocnet} from the supplied bundle."
   )
-  assign(
-    ".events_names",
-    unique(all_events_names[nzchar(all_events_names)]),
-    envir = data_env
-  )
-
-  class(data_env) <- c("data.goldfish", "environment")
-  return(data_env)
+  cli::cli_abort(msg, call = call)
 }
 
 # Alias for make_data
