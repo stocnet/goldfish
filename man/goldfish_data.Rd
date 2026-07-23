@@ -20,9 +20,13 @@ Once assembled, the object is passed straight to \code{\link[=estimate_dynam]{es
 \section{The components}{
 A \code{stocnet} is a plain list of tibbles:
 \itemize{
-\item \code{info} -- metadata: the layer \code{name}s, the \code{focal} (dependent) layer, and
-per-layer \code{update} (\code{"increment"} / \code{"replace"}), \code{directed}, and
-\code{observation} (\code{"event"} / \code{"panel"}) declarations;
+\item \code{info} -- metadata: the layer \code{name}s, per-layer \code{update}
+(\code{"increment"} / \code{"replace"}), \code{directed}, and \code{observation}
+(\code{"event"} / \code{"panel"}) declarations, and an \strong{optional} \code{focal} layer.
+\code{focal} is only the \emph{default} dependent: the formula's left-hand side (or
+\code{\link[=make_specification]{make_specification()}}'s \code{layer}) names the layer to model, and that
+modeled layer -- not \code{focal} -- drives side resolution, so \code{focal} may be
+omitted whenever the formula/\code{layer} names the dependent;
 \item \code{nodes} -- one row per node with a unique \code{label} and any attribute columns
 (a reserved \code{active} column marks presence, a reserved \code{mode} column names
 the node's mode);
@@ -45,9 +49,10 @@ node set (\code{layer_names} labels them);
 attributes and relabel the node ids;
 \item \code{manynet::bind_ties()} appends timed relational events to a layer;
 \item \code{manynet::bind_changes()} attaches a nodal attribute change stream;
-\item \code{manynet::add_info()} records the \code{focal}, \code{directed}, and \code{observation}
-metadata goldfish requires (manynet derives \code{update} from the change
-column but not \code{directed}, so declare it).
+\item \code{manynet::add_info()} records the \code{directed} and \code{observation} metadata
+goldfish requires (manynet derives \code{update} from the change column but not
+\code{directed}, so declare it) and, optionally, a default \code{focal} layer -- an
+override for when the formula/\code{layer} does not name the dependent.
 }
 
 Alternatively \code{manynet::make_stocnet()} builds the whole object from the
@@ -186,10 +191,11 @@ se <- manynet::from_ties(
   layer_names = c("friendship", "calls")
 )
 se <- manynet::join_nodes(se, actors)
+# No `focal` needed: the formula's `calls ~ ...` names the dependent below.
+# Pass `focal = "calls"` here only to set a default when the model does not.
 se <- manynet::add_info(
   se,
   name = "Social Evolution MIT",
-  focal = "calls",
   directed = c(friendship = TRUE, calls = TRUE),
   observation = c(friendship = "panel", calls = "event")
 )

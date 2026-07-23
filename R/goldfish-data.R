@@ -17,9 +17,13 @@
 #'
 #' A `stocnet` is a plain list of tibbles:
 #'
-#' - `info` -- metadata: the layer `name`s, the `focal` (dependent) layer, and
-#'   per-layer `update` (`"increment"` / `"replace"`), `directed`, and
-#'   `observation` (`"event"` / `"panel"`) declarations;
+#' - `info` -- metadata: the layer `name`s, per-layer `update`
+#'   (`"increment"` / `"replace"`), `directed`, and `observation`
+#'   (`"event"` / `"panel"`) declarations, and an **optional** `focal` layer.
+#'   `focal` is only the *default* dependent: the formula's left-hand side (or
+#'   [make_specification()]'s `layer`) names the layer to model, and that
+#'   modeled layer -- not `focal` -- drives side resolution, so `focal` may be
+#'   omitted whenever the formula/`layer` names the dependent;
 #' - `nodes` -- one row per node with a unique `label` and any attribute columns
 #'   (a reserved `active` column marks presence, a reserved `mode` column names
 #'   the node's mode);
@@ -41,9 +45,10 @@
 #'   attributes and relabel the node ids;
 #' - `manynet::bind_ties()` appends timed relational events to a layer;
 #' - `manynet::bind_changes()` attaches a nodal attribute change stream;
-#' - `manynet::add_info()` records the `focal`, `directed`, and `observation`
-#'   metadata goldfish requires (manynet derives `update` from the change
-#'   column but not `directed`, so declare it).
+#' - `manynet::add_info()` records the `directed` and `observation` metadata
+#'   goldfish requires (manynet derives `update` from the change column but not
+#'   `directed`, so declare it) and, optionally, a default `focal` layer -- an
+#'   override for when the formula/`layer` does not name the dependent.
 #'
 #' Alternatively `manynet::make_stocnet()` builds the whole object from the
 #' `info`, `nodes`, `ties`, `changes`, and `global` pieces in one call.
@@ -182,10 +187,11 @@
 #'   layer_names = c("friendship", "calls")
 #' )
 #' se <- manynet::join_nodes(se, actors)
+#' # No `focal` needed: the formula's `calls ~ ...` names the dependent below.
+#' # Pass `focal = "calls"` here only to set a default when the model does not.
 #' se <- manynet::add_info(
 #'   se,
 #'   name = "Social Evolution MIT",
-#'   focal = "calls",
 #'   directed = c(friendship = TRUE, calls = TRUE),
 #'   observation = c(friendship = "panel", calls = "event")
 #' )
