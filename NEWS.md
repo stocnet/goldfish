@@ -1,3 +1,23 @@
+# goldfish 1.9.9
+
+## Breaking changes
+
+* **`make_data()` never silently returns a legacy environment.** A bundle of
+  constructor objects either assembles to a `stocnet` or aborts with the reason.
+  The common case is a layer built from a compound expression -- e.g.
+  `make_network(nodes = fx$actors)` records the node set as an unresolvable name
+  -- which previously degraded to a legacy environment with no signal and now
+  errors, telling you to bind the node set to a plain name
+  (`actors <- fx$actors; make_network(nodes = actors, ...)`). Bundles with no
+  node set or no layer abort likewise.
+
+* **Legacy `data.goldfish` environments are rejected at the public surface.**
+  `estimate_dynam()`, `estimate_rem()`, `estimate_dynami()`, and
+  `make_specification()` now abort when `data` is an environment (obtainable only
+  from objects saved before the 2.0.0 flip), since every model family assembles
+  to a `stocnet`. Rebuild the object with `make_data()` /
+  `make_groups_interaction()`, both of which return a `stocnet`.
+
 # goldfish 1.9.8
 
 ## New features
