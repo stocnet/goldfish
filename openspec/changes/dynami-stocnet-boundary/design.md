@@ -74,14 +74,21 @@ coefficient equivalence on the DyNAMi baselines. *Rejected:* asserting only
 coefficients — a silent representational drift (e.g. event ordering) could
 cancel out on one fixture and bite on another.
 
-### D4 — The abort lands last, in this change
-Once `make_data()` never returns an environment for any family, the public
-guard `is.environment(data)` → `cli_abort()` naming `as_goldfish()` becomes
-safe. It is the closing task, after the DyNAMi boundary is green. The
-`single-data-object` delta removes the deferral exception recorded at the
-`refactor-single-data-object` archive. *Rejected:* aborting earlier behind a
-DyNAMi carve-out — exactly the fragile stamp hack the multimode design D7
-rejected.
+### D4 — The abort is DEFERRED (premise falsified 2026-07-23)
+The plan was: once `make_data()` never returns an environment for any family,
+the public guard `is.environment(data)` → `cli_abort()` becomes safe, landing as
+the closing task. **Apply falsified the premise.** `make_data()` still returns an
+environment for a common, valid input — a dependent-events object subset against
+a fuller-event covariate network (`calls_dependent[1:120, ]` with the 439-event
+network) is not stocnet-assemblable, so it falls back to the environment. A
+blanket public abort therefore breaks real subset workflows, not just tests, and
+its own migration advice ("rebuild via the constructors") is circular for a
+subset. The abort is **deferred** (user decision 2026-07-23) until `make_data()`
+is guaranteed to assemble every input to a `stocnet` — its own change, in the
+`single-data-object` family. This change ships the DyNAMi single-object surface,
+restored estimation, and baselines without the abort. *Rejected:* landing the
+abort and rewriting the affected fixtures — papers over the test failures while
+shipping a real regression for users who subset events.
 
 ### D5 — Fixture cleanup, not fixture rewrite
 `R/zzz_testthat_helpers.R` builds legacy-constructor fixtures at load time
@@ -103,23 +110,22 @@ The code grounding removed all guesswork:
   axis, per dependent event) — the same generic machinery whose
   `opportunities_list` argument is already lifecycle-deprecated in favor of
   `support_constraint`.
-- **The constraint (corrected 2026-07-21)** fits the **existing** grammar
-  (no extension): `~ indeg(<focal layer>) >= 1 & !tie(<focal layer>)` — a
-  second-mode node is in the choice set iff occupied AND not the joiner's
-  own current affiliation. The own-exclusion follows the paper: only
-  isolates join, and step 1 has them "decide to join a group or **another**
-  isolate" (Hoffman et al., §2 model description; the event construction
-  even removes the sender's own isolate node) — once step 1 decides to
-  join, staying is not among Eq. 8's options. This CORRECTS the current
-  implementation, which skips the reflexive correction on two-mode and so
-  inflates the denominator with the never-chosen own singleton.
-- **BREAKING model correction, new choice baselines**: excluding the own
-  singleton changes the choice denominator, so DyNAMi **choice**
-  coefficients shift vs the established implementation. The change ships
-  new versioned DyNAMi choice baselines (rate baselines untouched); the
-  2026-07-19 "reproduce own-singleton inclusion exactly" lock is
-  superseded — the separate, explicitly-flagged model change it anticipated
-  folds into this change (user decision 2026-07-21).
+- **The constraint (own-inclusion, reaffirmed 2026-07-23)** fits the
+  **existing** grammar (no extension): `~ indeg(<focal layer>) >= 1` — a
+  second-mode node is in the choice set iff it is occupied. This is Hoffman
+  et al. Eq. 8's denominator over the present second-mode nodes m(t), which
+  **includes** the joiner's own singleton: an isolate may choose to stay
+  isolated, so its own singleton is a valid choice. The 2026-07-21 D6
+  "correction" to own-EXCLUSION (`& !tie(...)`) was reversed at apply time:
+  it is infeasible AND wrong. Excluding the own singleton assigns **zero
+  probability to observed events** — on the RFID data, 7 of 123 observed
+  join events have the joiner's own singleton as the observed target (the
+  isolate stays isolated), which own-exclusion would forbid — and it
+  contradicts Eq. 8. The S0 original decision (own included) stands.
+- **No model correction, no coefficient shift, no new baselines**: with the
+  own singleton kept, DyNAMi choice reproduces the established (goldfish
+  1.7.0) coefficients. The change freezes those as regression baselines
+  (rate and choice alike); there is no BREAKING denominator change.
 - **Route: the standard support-constraint machinery, NOT the opportunities
   channel** (corrected 2026-07-21): the derived constraint is compiled and
   folded exactly like a user `support_constraint` (mask maintenance → folded

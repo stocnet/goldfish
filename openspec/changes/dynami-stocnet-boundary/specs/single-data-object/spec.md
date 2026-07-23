@@ -1,34 +1,20 @@
 # single-data-object Delta Specification
 
-## MODIFIED Requirements
+## Deferred (not delivered by this change)
 
-### Requirement: Legacy environment input rejected with a conversion path
-A legacy `data.goldfish` environment passed as `data` SHALL abort on every
-estimation surface (obtainable only from objects saved before the 1.9.0 flip):
-`make_specification()` / `estimate_*()` — including `estimate_dynami()` — raise
-a `cli` error naming `as_goldfish()` as the migration. The DyNAMi deferral
-exception recorded when `refactor-single-data-object` was archived is removed:
-no model family requires an environment at the public surface any longer.
-`as_goldfish()` SHALL accept such an environment and convert it: the contained
-`nodes.goldfish` / `network.goldfish` / `dependent.goldfish` / global objects
-and their `attr(x, "events")` streams assemble into the equivalent stocnet,
-which is then validated and stamped. Legacy detection SHALL be
-`is.environment(data)`; the stamped list SHALL carry class `data.goldfish`
-ahead of the stocnet classes, and `print.data.goldfish()` SHALL render the
-list shape.
+The planned public **legacy-environment abort** — `make_specification()` /
+`estimate_*()` (including `estimate_dynami()`) aborting on `is.environment(data)`
+and naming a migration path, plus `as_goldfish()` converting a saved environment
+— is **deferred** out of this change (decision 2026-07-23).
 
-#### Scenario: Saved environment aborts at estimation
-- **WHEN** a `data.goldfish` environment restored from an `.rds` is passed to
-  `estimate_dynam(..., data = old_env)`
-- **THEN** the call aborts with an error telling the user to run
-  `as_goldfish(old_env)` once and pass the result.
+Its precondition (design D4) was that `make_data()` never returns an environment
+for any family. Apply falsified that: `make_data()` still returns an environment
+for a valid, common input — a dependent-events object subset against a
+fuller-event covariate network is not stocnet-assemblable and falls back to the
+environment. A blanket public abort would therefore break real subset workflows,
+and its migration advice ("rebuild via the constructors") is circular for a
+subset. `as_goldfish()` likewise still defers environment conversion.
 
-#### Scenario: DyNAMi surface also aborts on an environment
-- **WHEN** an environment is passed to `estimate_dynami(..., data = old_env)`
-- **THEN** the call aborts with the same `as_goldfish()` migration error — the
-  stocnet boundary, not the environment, is the only accepted input.
-
-#### Scenario: as_goldfish converts a saved environment
-- **WHEN** `as_goldfish(old_env)` is called on that environment
-- **THEN** it returns a stamped stocnet whose estimation reproduces the legacy
-  coefficients.
+The abort and the `as_goldfish()` environment conversion move to the change that
+guarantees `make_data()` assembles every input to a `stocnet` (the
+`single-data-object` family). No requirement in the living spec changes here.
