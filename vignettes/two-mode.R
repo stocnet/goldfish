@@ -49,6 +49,9 @@ nuclear <- nuclear |>
   add_info(
     name  = "IRPS nuclear discourse",
     ties  = c("support", "contestation"),
+    # focal sets the default dependent layer. The specifications below key a
+    # flavor ("modeled ~ ...") to it, so focal is what names the support layer
+    # here; a plain `layer ~ ...` LHS (or a spec `layer =`) makes it optional.
     focal = "support",
     directed    = c(support = TRUE, contestation = TRUE),
     update      = c(support = "increment", contestation = "increment"),

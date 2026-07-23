@@ -199,6 +199,9 @@ nuclear <- nuclear |>
   add_info(
     name  = "IRPS nuclear discourse",
     ties  = c("support", "contestation"),
+    # focal sets the default dependent layer. The specifications below key a
+    # flavor ("modeled ~ ...") to it, so focal is what names the support layer
+    # here; a plain `layer ~ ...` LHS (or a spec `layer =`) makes it optional.
     focal = "support",
     directed    = c(support = TRUE, contestation = TRUE),
     update      = c(support = "increment", contestation = "increment"),
@@ -226,8 +229,12 @@ nuclear
 #> 54 attribute changes, 6 global events.
 ```
 
-The focal `support` layer is `actor -> concept`, so goldfish reads it as
-two-mode and reports the mode pair on the object.
+The `support` layer -- the default focal, `actor -> concept` -- is read as
+two-mode, and goldfish reports the mode pair on the printed object above, which
+annotates it `support (focal)`. `focal` is a default here rather than a
+requirement: it names the layer the flavor-keyed specifications resolve against,
+and a model whose formula LHS (or specification `layer`) names the layer
+directly needs no `focal` at all.
 
 # The shape of the discourse
 

@@ -45,8 +45,9 @@ fisheries_treaties
 ```
 
 The object carries two undirected **layers** over 154 state nodes: `treaties`,
-the bilateral fisheries agreements (the **focal** layer we model), and
-`contiguity`, whether states border one another. The states carry three dynamic
+the bilateral fisheries agreements (the layer we model -- named as the dependent
+in each specification's `layer` below, and recorded as the optional default
+**focal** layer), and `contiguity`, whether states border one another. The states carry three dynamic
 attributes -- `active` (sovereign status), `regime`, and `gdp` -- in the
 `changes` component.
 
@@ -103,8 +104,10 @@ contiguity <- as_stocnet(contignet) |>
 ## Step 1b: Merge the layers and add the covariates
 
 `from_ties()` merges the layers over one node set; `add_info()` records the
-`focal` layer, the `directed` flags, and each layer's `observation` type; and
-`bind_changes()` attaches the dynamic node attributes.
+`directed` flags, each layer's `observation` type, and -- optionally -- a
+default `focal` layer (each specification names its dependent through `layer`,
+so `focal` is just a default); and `bind_changes()` attaches the dynamic node
+attributes.
 
 ```{r build-merge}
 fisheries_built <- from_ties(
@@ -113,6 +116,7 @@ fisheries_built <- from_ties(
 ) |>
   add_info(
     name = "Fisheries Treaties",
+    # focal is optional -- the specifications below name "treaties" via `layer`.
     focal = "treaties",
     directed = c(treaties = FALSE, contiguity = FALSE),
     observation = c(treaties = "event", contiguity = "event")
@@ -234,6 +238,7 @@ partnerSpec <- make_specification(
   choice = formula1,
   model = "DyNAM",
   choice_sub_model = "choice_coordination",
+  layer = "treaties",
   data = fisheries_treaties
 )
 
@@ -294,6 +299,7 @@ tieSpec <- make_specification(
   choice = formula2,
   model = "DyNAM",
   choice_sub_model = "choice_coordination",
+  layer = "treaties",
   data = fisheries_treaties
 )
 
