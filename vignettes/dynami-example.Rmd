@@ -13,7 +13,7 @@ vignette: >
 
 
 Example script analyzing the RFID validity study data (Elmer et al, 2019)
-with the DyNAM-i model of the `goldfish` package. 
+with the DyNAM-i model of the `goldfish` package.
 Data received from:
 
 > Elmer, T., Chaitanya, K., Purwar, P., & Stadtfeld, C. (2019).
@@ -28,7 +28,7 @@ Analyses inspired from:
 
 # Step 0: Load package and data
 
-First, we load the `goldfish` package and load the data. . 
+First, we load the `goldfish` package and load the data. .
 You can find out more about this dataset and its format by callings
 its documentation.
 
@@ -99,240 +99,78 @@ Finally, the `known.before` matrix indicates which actors knew each other
 before the event.
 
 
-### Step 1: Create groups and interaction events
+### Step 1: Create the interaction-groups object
 
 Before specifying the model, we need to set the data in the right format
-for DyNAM-i: We had a list of dyadic interactions, but DyNAM-i is specifically
-meant for group interactions.
-More specifically, the model is designed for events of actors joining or
-leavin interaction groups. We can use this function to create these group
-events (please note we need to use the right labels in the dataframe:
-`NodeA`, `NodeB`,`Start`, and `End`):
+for DyNAM-i: we have a list of dyadic interactions, but DyNAM-i is specifically
+meant for group interactions. More specifically, the model is designed for
+events of actors joining or leaving interaction groups. We can use this
+function to create these group events (please note we need to use the right
+labels in the dataframe: `NodeA`, `NodeB`, `Start`, and `End`):
 
 ``` r
-#?make_groups_interaction
-prepdata <- make_groups_interaction(video, participants,
-                                    seed_randomization = 1)
-```
-
-This functions to creates 5 objects:
-1. `groups`: a goldfish nodeset containing the interaction groups
-(initially there are as many groups as actors and they are all present,
-meaning available)
-
-``` r
-groups <- prepdata$groups
-head(groups)
-```
-
-```
-##    label present
-## 1 Group1    TRUE
-## 2 Group2    TRUE
-## 3 Group3    TRUE
-## 4 Group4    TRUE
-## 5 Group5    TRUE
-## 6 Group6    TRUE
-```
-
-2. `dependent.events`: goldfish events specifying the events that we want
-to model, when an actor (in the dataframe, the `sender` column) joins or
-leaves (`increment` = 1 or -1) a group (`receiver`) at a particular point
-in time (`time`)
-
-``` r
-dependentEvents <- prepdata$dependent.events
-head(dependentEvents)
-```
-
-```
-##         time  sender receiver increment
-## 1 1491329893  Actor4   Group3         1
-## 2 1491329893  Actor2   Group9         1
-## 3 1491329893  Actor7   Group6         1
-## 4 1491329893  Actor1   Group6         1
-## 5 1491329893 Actor11   Group6         1
-## 6 1491329893  Actor8   Group5         1
-```
-
-3. `exogenous.events`: goldfish events specifying the events that need to
-happen but are not modeled (for example, when an actor leaves a group, a
-dependent event is created for this leaving but an exogenous event is also
-created because the actor "joins" a new group, its own isolated group)
-
-``` r
-exogenousEvents <- prepdata$exogenous.events
-head(exogenousEvents)
-```
-
-```
-##         time  sender receiver increment
-## 1 1491329893  Actor4   Group4        -1
-## 2 1491329893  Actor2   Group2        -1
-## 3 1491329893  Actor7   Group7        -1
-## 4 1491329893  Actor1   Group1        -1
-## 5 1491329893 Actor11  Group11        -1
-## 6 1491329893  Actor8   Group8        -1
-```
-
-4. `interaction.updates`: goldfish events that are used to update the number
-of past interactions between participants: 
-
-``` r
-interactionUpdates <- prepdata$interaction.updates
-head(interactionUpdates)
-```
-
-```
-##         time  sender receiver increment
-## 1 1491329893  Actor4   Actor3         1
-## 2 1491329893  Actor2   Actor9         1
-## 3 1491329893  Actor7   Actor6         1
-## 4 1491329893  Actor1   Actor6         1
-## 5 1491329893  Actor1   Actor7         1
-## 6 1491329893 Actor11   Actor1         1
-```
-
-5. `opportunities`: list containing the interaction groups available at each
-decision time (this will vary when groups are being joined or left)
-
-``` r
-opportunities <- prepdata$opportunities
-head(opportunities)
-```
-
-```
-## [[1]]
-##  [1]  1  2  3  4  5  6  7  8  9 10 11
-## 
-## [[2]]
-##  [1]  1  2  3  5  6  7  8  9 10 11
-## 
-## [[3]]
-## [1]  1  9  3  5  6  7  8 10 11
-## 
-## [[4]]
-## [1]  1  9  3  5  6  8 10 11
-## 
-## [[5]]
-## [1]  6  9  3  5  8 10 11
-## 
-## [[6]]
-## [1]  6  9  3  5  8 10
-```
-
-### Step 2: Set up goldfish objects
-
-Now that we have all the data we need, we need to define the link between our
-objects in a way that goldfish understands what is going on.
-
-First, we define the first mode nodeset, the actors:
-
-``` r
-# goldfish requires character names
+# goldfish requires character labels
 participants$label <- as.character(participants$label)
-actors <- make_nodes(participants)
-```
-
-Then we define the second mode nodeset, the groups:
-
-``` r
-groups <- make_nodes(groups)
-```
-
-Then we create the dynamic interaction network between the actors and
-the groups, updated by the previously created events in `dependent.events`
-and `exogenous.events`
-
-``` r
-initNetwork <- diag(x = 1, nrow(actors), nrow(groups))
-# goldfish check that row/column names agree with the nodes data frame labels
-dimnames(initNetwork) <- list(actors$label, groups$label)
-networkInteractions <- make_network(
-  matrix = initNetwork, nodes = actors, nodes2 = groups, directed = TRUE
-)
-networkInteractions <- link_events(
-  x = networkInteractions, change_events = dependentEvents,
-  nodes = actors, nodes2 = groups
-)
-networkInteractions <- link_events(
-  x = networkInteractions, change_events = exogenousEvents,
-  nodes = actors, nodes2 = groups
+#?make_groups_interaction
+rfidData <- make_groups_interaction(
+  records = video,
+  actors = participants,
+  seed_randomization = 1
 )
 ```
 
-Then we create the dynamic network between the actors that records
-past interactions, updated by the previously created events in
-`interaction.updates`
+`make_groups_interaction()` returns a single, model-ready `goldfish` data
+object. It is a multipartite network: the focal two-mode `interactions` layer
+records each actor joining (`flavor = "join"`) or leaving (`flavor = "leave"`)
+an interaction group, and the one-mode `past` layer records the actors'
+previous interactions (the paper's X^past). All the bookkeeping the model needs
+-- the group node set, the initial state, and the total event order -- lives in
+this one object:
 
 ``` r
-networkPast <- make_network(nodes = actors, directed = FALSE)
-networkPast <- link_events(
-  x = networkPast, change_events = interactionUpdates, nodes = actors
-) # don't worry about the warnings
-```
-In the next step, we define the events that we want to model:
-`dependentEvents`:
-
-
-``` r
-dependentEvents <- make_dependent_events(
-  events = dependentEvents, nodes = actors,
-  nodes2 = groups, default_network = networkInteractions
-)
-```
-
-As a final step, we define a goldfish data object that contains
-all the information needed to estimate the model.
-So, it is a container for the dependent events, the networks, and the nodes
-containing all the information of the dependent events and any dyadic or
-nodal covariate used as explanatory variables in the model.
-
-
-``` r
-rfidData <- make_data(
-  dependentEvents, networkInteractions, networkPast,
-  interactionUpdates, exogenousEvents, known.before, opportunities,
-  actors, groups
-)
 rfidData
 ```
 
 ```
-## Goldfish Data Environment
-## =========================
 ## 
-## --- Nodesets ---
-##         n attributes linked_events
-## actors 11          6              
-## groups 11          1              
-## 
-## --- Networks ---
-##                     dimensions        nodeset                    linked_events
-## networkInteractions      11x11 actors, groups dependentEvents, exogenousEvents
-## networkPast              11x11         actors               interactionUpdates
-##                     directed two_mode
-## networkInteractions     TRUE     TRUE
-## networkPast            FALSE    FALSE
-## 
-## --- Events Data Frames ---
-##                    n_events object_type update_mode
-## dependentEvents         234      dyadic   increment
-## exogenousEvents         234      dyadic   increment
-## interactionUpdates      289      dyadic   increment
-## 
-## --- Other Objects ---
-##                class length
-## known.before  matrix    121
-## opportunities   list    123
 ```
 
-### Step 4: Estimate a model with attribute effects
+```
+## ── DyNAM-i interaction groups ──────────────────────────────────────────────────
+```
+
+```
+## 2 layers, 22 nodes, 768 ties.
+```
+
+```
+## 
+```
+
+```
+## ── Layers
+```
+
+```
+## • interactions (focal): event, directed, increment
+```
+
+```
+## • past: event, undirected, increment
+```
+
+### Step 2: Estimate a model with attribute effects
 
 Let us define some models we could estimate (we try not to put too many effects
-because we have little data).
+because we have little data). We first have a model only with effects related to
+individual attributes (M1).
 
-We first have a model only with effects related to individual attributes (M1). 
+The DyNAM-i rate combines two competing processes -- the rate of an isolated
+actor **joining** a group, and the rate of a grouped actor **leaving** it. On
+the `goldfish` data object we name nodal attributes bare (`ego(age)`), refer to
+networks by their layer name (`interactions`, `past`), and separate the two
+processes with the per-effect `joining` flag (`joining = 1` for joining,
+`joining = -1` for leaving).
 
 For the rate, we have the following effects:
 
@@ -350,17 +188,17 @@ For the rate, we have the following effects:
   if the proportion of same group in the group is high
 8. tie known before (leaving): tendency for individuals to leave groups faster
   if the proportion of previous friends in the group is high
-  
+
 
 ``` r
-formulaRateM1 <- dependentEvents ~  1 +
-  intercept(networkInteractions, joining = 1) +
-  ego(actors$age, joining = 1, subType = "centered") +
-  ego(actors$age, joining = -1, subType = "centered") +
-  diff(actors$age, joining = -1, subType = "averaged_sum") +
-  diff(actors$level, joining = -1, subType = "averaged_sum") +
-  same(actors$gender, joining = -1, subType = "proportion") +
-  same(actors$group, joining = -1, subType = "proportion") +
+formulaRateM1 <- interactions ~ 1 +
+  intercept(interactions, joining = 1) +
+  ego(age, joining = 1, subType = "centered") +
+  ego(age, joining = -1, subType = "centered") +
+  diff(age, joining = -1, subType = "averaged_sum") +
+  diff(level, joining = -1, subType = "averaged_sum") +
+  same(gender, joining = -1, subType = "proportion") +
+  same(group, joining = -1, subType = "proportion") +
   tie(known.before, joining = -1, subType = "proportion")
 ```
 
@@ -376,39 +214,37 @@ and for the choice model:
   if the proportion of same group in the group is high
 13. tie known before: tendency for individuals to join groups
   if the proportion of previous friends in the group is high
-  
+
 
 ``` r
-formulaChoiceM1 <- dependentEvents ~
-  diff(actors$age, subType = "averaged_sum") +
-  diff(actors$level, subType = "averaged_sum") +
-  same(actors$gender, subType = "proportion") +
-  same(actors$group, subType = "proportion") +
+formulaChoiceM1 <- interactions ~
+  diff(age, subType = "averaged_sum") +
+  diff(level, subType = "averaged_sum") +
+  same(gender, subType = "proportion") +
+  same(group, subType = "proportion") +
   tie(known.before, subType = "proportion")
 ```
 
 Note that effects in the choice model can mirror the ones in the leaving model:
 The first model explains who people want to join (or not join),
-the second explains who people want to leave (or stay with). 
+the second explains who people want to leave (or stay with).
 
-Now let us run goldfish estimation!
+Now let us run goldfish estimation! The joining choice set -- the groups
+available to join at each decision point -- is derived from the object
+automatically, so there is nothing extra to pass:
 
 ``` r
 estRateM1 <- estimate_dynami(
   formulaRateM1,
   sub_model = "rate",
   data = rfidData,
-  control_estimation = set_estimation_opt(engine = "default")                      
+  control_estimation = set_estimation_opt(engine = "default")
 )
 ```
 
 ```
-## Warning in formals(fun): argument is not a function
-```
-
-```
-## Error: Effect "intercept" (1)  cannot initialized with objects networkInteractions
-## 'what' must be a function or character string
+## Warning in check_events.network.goldfish(object = x, events = change_events, :
+## At least one self-directed event in data.
 ```
 
 ``` r
@@ -416,7 +252,41 @@ summary(estRateM1)
 ```
 
 ```
-## Error: object 'estRateM1' not found
+## 
+## Call:
+## estimate_dynami(x = interactions_dependent_events ~ 1 + intercept(interactions, 
+##     joining = 1) + ego(actors$age, joining = 1, subType = "centered") + 
+##     ego(actors$age, joining = -1, subType = "centered") + diff(actors$age, 
+##     joining = -1, subType = "averaged_sum") + diff(actors$level, 
+##     joining = -1, subType = "averaged_sum") + same(actors$gender, 
+##     joining = -1, subType = "proportion") + same(actors$group, 
+##     joining = -1, subType = "proportion") + tie(known.before, 
+##     joining = -1, subType = "proportion"), sub_model = "rate", 
+##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"))
+## 
+## 
+## Coefficients:
+##                             Estimate Std. Error z-value  Pr(>|z|)    
+## Intercept                  -6.761315   1.076309 -6.2819 3.344e-10 ***
+## intercept/interactions [1]  1.522307   1.297774  1.1730   0.24079    
+## ego/age [1]                 0.061687   0.024706  2.4968   0.01253 *  
+## ego/age [-1]                0.027958   0.035570  0.7860   0.43188    
+## diff/age [-1]              -0.163643   0.069175 -2.3656   0.01800 *  
+## diff/level [-1]             0.361468   0.226675  1.5947   0.11079    
+## same/gender [-1]            0.027282   0.254374  0.1073   0.91459    
+## same/group [-1]             0.508497   0.371577  1.3685   0.17116    
+## tie/known.before [-1]      -0.156303   0.346267 -0.4514   0.65170    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##   Return code 1: gradient close to zero
+##     score (rel. norm): 4.25e-07    step (max|update|): 2.41e-06
+##   9 parameters estimated  
+##   Log-Likelihood: -1306.3
+##   AIC:  2630.6 
+##   AICc: 2631.4 
+##   BIC:  2661.7 
+##   model: "DyNAMi" sub_model: "rate"
 ```
 
 
@@ -425,19 +295,13 @@ estChoiceM1 <- estimate_dynami(
   formulaChoiceM1,
   sub_model = "choice",
   data = rfidData,
-  control_preprocessing =
-    set_preprocessing_opt(opportunities_list = opportunities),
   control_estimation = set_estimation_opt(engine = "default")
 )
 ```
 
 ```
-## Warning in formals(fun): argument is not a function
-```
-
-```
-## Error: Effect "diff" (1)  cannot initialized with objects actors$age
-## 'what' must be a function or character string
+## Warning in check_events.network.goldfish(object = x, events = change_events, :
+## At least one self-directed event in data.
 ```
 
 ``` r
@@ -445,9 +309,35 @@ summary(estChoiceM1)
 ```
 
 ```
-## Error: object 'estChoiceM1' not found
+## 
+## Call:
+## estimate_dynami(x = interactions_dependent_events ~ diff(actors$age, 
+##     subType = "averaged_sum") + diff(actors$level, subType = "averaged_sum") + 
+##     same(actors$gender, subType = "proportion") + same(actors$group, 
+##     subType = "proportion") + tie(known.before, subType = "proportion"), 
+##     sub_model = "choice", data = rfidData, control_estimation = set_estimation_opt(engine = "default"))
+## 
+## 
+## Coefficients:
+##                   Estimate Std. Error z-value  Pr(>|z|)    
+## diff/age         -0.107578   0.067179 -1.6014 0.1092944    
+## diff/level        0.262946   0.225568  1.1657 0.2437339    
+## same/gender       0.292123   0.298317  0.9792 0.3274638    
+## same/group        0.024978   0.384104  0.0650 0.9481516    
+## tie/known.before  1.316143   0.378545  3.4768 0.0005074 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##   Return code 1: gradient close to zero
+##     score (rel. norm): 1.60e-12    step (max|update|): 2.82e-12
+##   5 parameters estimated  
+##   Log-Likelihood: -195.16
+##   AIC:  400.32 
+##   AICc: 400.84 
+##   BIC:  414.39 
+##   model: "DyNAMi" sub_model: "choice"
 ```
-### Step 5: Estimate a model with structural and time effects
+### Step 3: Estimate a model with structural and time effects
 
 Now let's add effects related to group sizes and past interactions.
 We add to the rate model the effects of:
@@ -458,20 +348,22 @@ We add to the rate model the effects of:
 3. egopop (leaving): tendency for individuals
   who had more interactions in the past to leave groups faster
 
+The past-interaction network is the object's `past` layer:
+
 
 ``` r
-formulaRateM2 <- dependentEvents ~  1 +
-  intercept(networkInteractions, joining = 1) +
-  ego(actors$age, joining = 1, subType = "centered") +
-  ego(actors$age, joining = -1, subType = "centered") +
-  diff(actors$age, joining = -1, subType = "averaged_sum") +
-  diff(actors$level, joining = -1, subType = "averaged_sum") +
-  same(actors$gender, joining = -1, subType = "proportion") +
-  same(actors$group, joining = -1, subType = "proportion") +
+formulaRateM2 <- interactions ~ 1 +
+  intercept(interactions, joining = 1) +
+  ego(age, joining = 1, subType = "centered") +
+  ego(age, joining = -1, subType = "centered") +
+  diff(age, joining = -1, subType = "averaged_sum") +
+  diff(level, joining = -1, subType = "averaged_sum") +
+  same(gender, joining = -1, subType = "proportion") +
+  same(group, joining = -1, subType = "proportion") +
   tie(known.before, joining = -1, subType = "proportion") +
-  size(networkInteractions, joining = -1, subType = "identity") +
-  egopop(networkPast, joining = 1, subType = "normalized") +
-  egopop(networkPast, joining = -1, subType = "normalized")
+  size(interactions, joining = -1, subType = "identity") +
+  egopop(past, joining = 1, subType = "normalized") +
+  egopop(past, joining = -1, subType = "normalized")
 ```
 
 We add to the choice model:
@@ -479,24 +371,21 @@ We add to the choice model:
 1. size: tendency for individuals to join large groups
 2. alterpop: tendency for individuals to join groups with individuals
   who had more interactions in the past
-3. inertia, window = 60s: tendency for individuals to join groups
-  with a high average number of previous interactions with the group members
-  within the last minute
-3. inertia, window = 300s: same as above, for 5 minutes
+3. inertia: tendency for individuals to join groups with a high average number
+  of previous interactions with the group members
 
 
 ``` r
-formulaChoiceM2 <- dependentEvents ~
-  diff(actors$age, subType = "averaged_sum") +
-  diff(actors$level, subType = "averaged_sum") +
-  same(actors$gender, subType = "proportion") +
-  same(actors$group, subType = "proportion") +
-  alter(actors$age, subType = "mean") +
+formulaChoiceM2 <- interactions ~
+  diff(age, subType = "averaged_sum") +
+  diff(level, subType = "averaged_sum") +
+  same(gender, subType = "proportion") +
+  same(group, subType = "proportion") +
+  alter(age, subType = "mean") +
   tie(known.before, subType = "proportion") +
-  size(networkInteractions, subType = "identity") +
-  alterpop(networkPast, subType = "mean_normalized") +
-  inertia(networkPast, window = 60, subType = "mean") +
-  inertia(networkPast, window = 300, subType = "mean")
+  size(interactions, subType = "identity") +
+  alterpop(past, subType = "mean_normalized") +
+  inertia(past, subType = "mean")
 ```
 
 One can note that we have normalized (using the option `subType="mean"`)
@@ -514,17 +403,13 @@ estRateM2 <- estimate_dynami(
   formulaRateM2,
   sub_model = "rate",
   data = rfidData,
-  control_estimation = set_estimation_opt(engine = "default")  
+  control_estimation = set_estimation_opt(engine = "default")
 )
 ```
 
 ```
-## Warning in formals(fun): argument is not a function
-```
-
-```
-## Error: Effect "intercept" (1)  cannot initialized with objects networkInteractions
-## 'what' must be a function or character string
+## Warning in check_events.network.goldfish(object = x, events = change_events, :
+## At least one self-directed event in data.
 ```
 
 ``` r
@@ -532,7 +417,46 @@ summary(estRateM2)
 ```
 
 ```
-## Error: object 'estRateM2' not found
+## 
+## Call:
+## estimate_dynami(x = interactions_dependent_events ~ 1 + intercept(interactions, 
+##     joining = 1) + ego(actors$age, joining = 1, subType = "centered") + 
+##     ego(actors$age, joining = -1, subType = "centered") + diff(actors$age, 
+##     joining = -1, subType = "averaged_sum") + diff(actors$level, 
+##     joining = -1, subType = "averaged_sum") + same(actors$gender, 
+##     joining = -1, subType = "proportion") + same(actors$group, 
+##     joining = -1, subType = "proportion") + tie(known.before, 
+##     joining = -1, subType = "proportion") + size(interactions, 
+##     joining = -1, subType = "identity") + egopop(past, joining = 1, 
+##     subType = "normalized") + egopop(past, joining = -1, subType = "normalized"), 
+##     sub_model = "rate", data = rfidData, control_estimation = set_estimation_opt(engine = "default"))
+## 
+## 
+## Coefficients:
+##                             Estimate Std. Error z-value  Pr(>|z|)    
+## Intercept                  -6.740864   1.112688 -6.0582 1.377e-09 ***
+## intercept/interactions [1]  1.335802   1.350684  0.9890  0.322672    
+## ego/age [1]                 0.067331   0.026053  2.5844  0.009755 ** 
+## ego/age [-1]                0.012435   0.036750  0.3384  0.735091    
+## diff/age [-1]              -0.142110   0.076203 -1.8649  0.062199 .  
+## diff/level [-1]             0.248710   0.240336  1.0348  0.300743    
+## same/gender [-1]            0.051019   0.263799  0.1934  0.846644    
+## same/group [-1]             0.172917   0.409717  0.4220  0.672995    
+## tie/known.before [-1]       0.145866   0.379845  0.3840  0.700968    
+## size/interactions [-1]      0.133780   0.073838  1.8118  0.070015 .  
+## egopop/past [1]             0.068527   0.105430  0.6500  0.515708    
+## egopop/past [-1]            0.177404   0.131982  1.3442  0.178898    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##   Return code 1: gradient close to zero
+##     score (rel. norm): 3.56e-12    step (max|update|): 1.10e-11
+##   12 parameters estimated  
+##   Log-Likelihood: -1303.5
+##   AIC:  2631 
+##   AICc: 2632.4 
+##   BIC:  2672.4 
+##   model: "DyNAMi" sub_model: "rate"
 ```
 and:
 
@@ -541,19 +465,13 @@ estChoiceM2 <- estimate_dynami(
   formulaChoiceM2,
   sub_model = "choice",
   data = rfidData,
-  control_preprocessing =
-    set_preprocessing_opt(opportunities_list = opportunities),
   control_estimation = set_estimation_opt(engine = "default")
 )
 ```
 
 ```
-## Warning in formals(fun): argument is not a function
-```
-
-```
-## Error: Effect "diff" (1)  cannot initialized with objects actors$age
-## 'what' must be a function or character string
+## Warning in check_events.network.goldfish(object = x, events = change_events, :
+## At least one self-directed event in data.
 ```
 
 ``` r
@@ -561,14 +479,47 @@ summary(estChoiceM2)
 ```
 
 ```
-## Error: object 'estChoiceM2' not found
+## 
+## Call:
+## estimate_dynami(x = interactions_dependent_events ~ diff(actors$age, 
+##     subType = "averaged_sum") + diff(actors$level, subType = "averaged_sum") + 
+##     same(actors$gender, subType = "proportion") + same(actors$group, 
+##     subType = "proportion") + alter(actors$age, subType = "mean") + 
+##     tie(known.before, subType = "proportion") + size(interactions, 
+##     subType = "identity") + alterpop(past, subType = "mean_normalized") + 
+##     inertia(past, subType = "mean"), sub_model = "choice", data = rfidData, 
+##     control_estimation = set_estimation_opt(engine = "default"))
+## 
+## 
+## Coefficients:
+##                    Estimate Std. Error z-value Pr(>|z|)   
+## diff/age          -0.128209   0.072657 -1.7646  0.07763 . 
+## diff/level         0.094334   0.231103  0.4082  0.68313   
+## same/gender        0.147799   0.320029  0.4618  0.64420   
+## same/group        -0.308551   0.426822 -0.7229  0.46974   
+## alter/age          0.031662   0.019941  1.5877  0.11235   
+## tie/known.before   1.263929   0.392735  3.2183  0.00129 **
+## size/interactions  0.102899   0.092856  1.1082  0.26779   
+## alterpop/past      0.268433   0.164201  1.6348  0.10210   
+## inertia/past       0.031010   0.435672  0.0712  0.94326   
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##   Return code 1: gradient close to zero
+##     score (rel. norm): 1.68e-07    step (max|update|): 2.37e-08
+##   9 parameters estimated  
+##   Log-Likelihood: -189.89
+##   AIC:  397.77 
+##   AICc: 399.36 
+##   BIC:  423.08 
+##   model: "DyNAMi" sub_model: "choice"
 ```
 
 Of course these models ask a bit much from our data,
 so ideally we would a bit more reasonable with the number of effects we include,
 or do some model selection.
 
-### Step 6: Extra steps
+### Step 4: Extra steps
 
 We now have for each rate model a general intercept and
 a dummy interaction between the intercept and the joining events.
@@ -577,39 +528,12 @@ we can calculate the following (for M2 for example):
 
 ``` r
 covMatrix <- vcov(estRateM2)
-```
 
-```
-## Error: object 'estRateM2' not found
-```
-
-``` r
 estInterceptJoining <- coef(estRateM2)[1] + coef(estRateM2)[2]
-```
-
-```
-## Error: object 'estRateM2' not found
-```
-
-``` r
 seInterceptJoining <- sqrt(
   covMatrix[1, 1] + covMatrix[2, 2] + 2 * covMatrix[1, 2]
 )
-```
-
-```
-## Error: object 'covMatrix' not found
-```
-
-``` r
 tInterceptJoining <- estInterceptJoining / seInterceptJoining
-```
-
-```
-## Error: object 'estInterceptJoining' not found
-```
-
-``` r
 sprintf(
   "Intercept for joining: %.3f (SE = %.3f, t = %.3f)",
   estInterceptJoining, seInterceptJoining, tInterceptJoining
@@ -617,10 +541,9 @@ sprintf(
 ```
 
 ```
-## Error: object 'estInterceptJoining' not found
+## [1] "Intercept for joining: -5.405 (SE = 0.766, t = -7.059)"
 ```
 
 This script can be continued by looking at better model specifications
 than the ones provided, or trying to model the interaction data collected
 from RFID badges rather than video recordings, and maybe compare both.
- 
