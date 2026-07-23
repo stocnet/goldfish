@@ -1,5 +1,8 @@
-## ADDED Requirements
+# risk-set-dispatch Specification
 
+## Purpose
+TBD - created by archiving change spec-driven-dispatch. Update Purpose after archive.
+## Requirements
 ### Requirement: Risk-set descriptor decided once, at parse time, on the model spec
 The typed model spec SHALL carry the risk-set dispatch metadata as data
 attached by its constructor at formula-parsing time: the risk-set axis
@@ -79,3 +82,4 @@ entry code to any engine.
 - **THEN** no sender-gate, standalone REM mask, or support-mask argument is
   passed to the engines; the user opportunity list (constraint-free) remains
   the only mask-like input and only where it is not already folded.
+
