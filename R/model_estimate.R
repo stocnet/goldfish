@@ -1096,6 +1096,18 @@ estimate_wrapper <- function(
   window_parameters <- parsed_formula$window_parameters
   ignore_rep_parameter <- unlist(parsed_formula$ignore_rep_parameter)
 
+  # The layer being modeled is the focal layer of this estimation. Stamp it onto
+  # the working copy so every downstream new_data_source(data = work_data)
+  # resolves focal/side/mode lookups against the modeled layer through the
+  # existing `%||% info$focal` fallback -- info$focal is only the default for
+  # *which* layer to model, never the source of truth once a layer is chosen. A
+  # focal-less object then estimates, and an info$focal naming a different layer
+  # never wins over the modeled one. work_data is a local copy (copy-on-modify),
+  # so this never mutates the caller's object.
+  if (!is.null(work_data)) {
+    work_data$info$focal <- dep_name
+  }
+
   # Interaction terms compute their product in the dyad recipe loop;
   # guard the not-yet-supported model families (sender / DyNAMi).
   abort_if_interactions_unsupported(parsed_formula, model, sub_model)
