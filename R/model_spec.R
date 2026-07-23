@@ -31,10 +31,92 @@ model_spec_structure <- function(
       is_two_mode = is_two_mode,
       nodes = nodes,
       nodes2 = nodes2,
+      risk_set = risk_set_descriptor(indexing, sub_model, is_two_mode),
       ...
     ),
     class = c(variant, indexing, "model_spec")
   )
+}
+
+#' Risk-set dispatch descriptor
+#'
+#' The single parse-time decision point for the risk-set geometry a model
+#' spec carries. Derived once, at construction, from the resolved
+#' `(indexing, sub_model, is_two_mode)`; every downstream site (availability
+#' encoding selection, fold-family selection, validation family, rate
+#' detection, estimation guards) reads it through the accessors below and
+#' none re-derives the family or geometry from model/sub_model strings or
+#' from array dimensionality. Fields:
+#' \describe{
+#'   \item{`axis`}{the risk-set axis: `"sender"` (rate models, sender-indexed),
+#'     `"receiver_given_sender"` (choice — one sender's receiver row),
+#'     `"dyad"` (REM / REM-ordered / two-mode coordination — the full dyad
+#'     matrix), or `"dyad_symmetric"` (one-mode coordination — the dyad matrix
+#'     symmetrized for the mutual likelihood).}
+#'   \item{`fold_target`}{the maintained availability object a support
+#'     constraint folds into: `"active_sender"` for rate, `"active_dyad"`
+#'     for every dyad-loop family.}
+#'   \item{`encoding`}{the base `active_dyad` encoding when no constraint
+#'     sharpens it: `"outer"` for the dyadic risk sets (both presences fold),
+#'     `"alter"` for choice (receiver presence only), `NA` for rate.}
+#'   \item{`symmetrize`}{`TRUE` only for one-mode coordination; the value the
+#'     undirected-REM discussion will reuse.}
+#' }
+#' @noRd
+risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
+  if (identical(indexing, "sender_spec")) {
+    return(list(
+      axis = "sender",
+      fold_target = "active_sender",
+      encoding = NA_character_,
+      symmetrize = FALSE
+    ))
+  }
+  if (identical(sub_model, "choice")) {
+    return(list(
+      axis = "receiver_given_sender",
+      fold_target = "active_dyad",
+      encoding = "alter",
+      symmetrize = FALSE
+    ))
+  }
+  if (identical(sub_model, "choice_coordination")) {
+    # One-mode coordination symmetrizes the dyad matrix for the mutual
+    # likelihood; a (rejected-before-construction) two-mode coordination would
+    # not. Deriving from is_two_mode keeps the value correct either way.
+    symmetrize <- !isTRUE(is_two_mode)
+    return(list(
+      axis = if (symmetrize) "dyad_symmetric" else "dyad",
+      fold_target = "active_dyad",
+      encoding = "outer",
+      symmetrize = symmetrize
+    ))
+  }
+  # REM rate / rate_ordered: the whole dyad matrix, both presences fold.
+  list(
+    axis = "dyad",
+    fold_target = "active_dyad",
+    encoding = "outer",
+    symmetrize = FALSE
+  )
+}
+
+#' @noRd
+risk_set_axis <- function(spec) spec$risk_set$axis
+
+#' @noRd
+risk_set_fold_target <- function(spec) spec$risk_set$fold_target
+
+#' @noRd
+risk_set_encoding <- function(spec) spec$risk_set$encoding
+
+#' @noRd
+risk_set_symmetrize <- function(spec) isTRUE(spec$risk_set$symmetrize)
+
+#' Whether the risk set spans the full dyad matrix (both presences fold)
+#' @noRd
+risk_set_is_dyadic <- function(spec) {
+  risk_set_axis(spec) %in% c("dyad", "dyad_symmetric")
 }
 
 #' @rdname model_spec

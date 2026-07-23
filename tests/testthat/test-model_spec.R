@@ -187,6 +187,113 @@ test_that("legacy_model_type maps every spec class to its legacy string", {
   )
 })
 
+test_that("every spec class carries the documented risk-set descriptor", {
+  expected <- list(
+    dynam_rate = list(
+      axis = "sender",
+      fold_target = "active_sender",
+      encoding = NA_character_,
+      symmetrize = FALSE
+    ),
+    dynam_rate_ordered = list(
+      axis = "sender",
+      fold_target = "active_sender",
+      encoding = NA_character_,
+      symmetrize = FALSE
+    ),
+    dynam_choice = list(
+      axis = "receiver_given_sender",
+      fold_target = "active_dyad",
+      encoding = "alter",
+      symmetrize = FALSE
+    ),
+    dynam_choice_coord = list(
+      axis = "dyad_symmetric",
+      fold_target = "active_dyad",
+      encoding = "outer",
+      symmetrize = TRUE
+    ),
+    dynami_rate = list(
+      axis = "sender",
+      fold_target = "active_sender",
+      encoding = NA_character_,
+      symmetrize = FALSE
+    ),
+    dynami_rate_ordered = list(
+      axis = "sender",
+      fold_target = "active_sender",
+      encoding = NA_character_,
+      symmetrize = FALSE
+    ),
+    dynami_choice = list(
+      axis = "receiver_given_sender",
+      fold_target = "active_dyad",
+      encoding = "alter",
+      symmetrize = FALSE
+    ),
+    rem_rate = list(
+      axis = "dyad",
+      fold_target = "active_dyad",
+      encoding = "outer",
+      symmetrize = FALSE
+    ),
+    rem_rate_ordered = list(
+      axis = "dyad",
+      fold_target = "active_dyad",
+      encoding = "outer",
+      symmetrize = FALSE
+    )
+  )
+  constructors <- list(
+    dynam_rate = dynam_rate_spec,
+    dynam_rate_ordered = dynam_rate_ordered_spec,
+    dynam_choice = dynam_choice_spec,
+    dynam_choice_coord = dynam_choice_coord_spec,
+    dynami_rate = dynami_rate_spec,
+    dynami_rate_ordered = dynami_rate_ordered_spec,
+    dynami_choice = dynami_choice_spec,
+    rem_rate = rem_rate_spec,
+    rem_rate_ordered = rem_rate_ordered_spec
+  )
+  for (variant in names(expected)) {
+    spec <- constructors[[variant]](nodes = "actors")
+    expect_identical(spec$risk_set, expected[[variant]], info = variant)
+    expect_identical(risk_set_axis(spec), expected[[variant]]$axis)
+    expect_identical(
+      risk_set_fold_target(spec),
+      expected[[variant]]$fold_target
+    )
+    expect_identical(risk_set_encoding(spec), expected[[variant]]$encoding)
+    expect_identical(
+      risk_set_symmetrize(spec),
+      expected[[variant]]$symmetrize
+    )
+  }
+})
+
+test_that("risk_set_is_dyadic tracks the axis (dyad and symmetric-dyad)", {
+  expect_true(risk_set_is_dyadic(rem_rate_spec(nodes = "actors")))
+  expect_true(risk_set_is_dyadic(rem_rate_ordered_spec(nodes = "actors")))
+  expect_true(risk_set_is_dyadic(dynam_choice_coord_spec(nodes = "actors")))
+  expect_false(risk_set_is_dyadic(dynam_choice_spec(nodes = "actors")))
+  expect_false(risk_set_is_dyadic(dynam_rate_spec(nodes = "actors")))
+})
+
+test_that("coordination symmetrize follows one-mode vs two-mode", {
+  # One-mode coordination symmetrizes the dyad for the mutual likelihood; a
+  # two-mode risk set (rejected before construction elsewhere) would not.
+  one_mode <- dynam_choice_coord_spec(nodes = "actors")
+  expect_identical(risk_set_axis(one_mode), "dyad_symmetric")
+  expect_true(risk_set_symmetrize(one_mode))
+  two_mode <- dynam_choice_coord_spec(
+    is_two_mode = TRUE,
+    nodes = "actors",
+    nodes2 = "clubs"
+  )
+  expect_identical(risk_set_axis(two_mode), "dyad")
+  expect_false(risk_set_symmetrize(two_mode))
+})
+
 test_that("estimate_dynam constructs and forwards the typed spec", {
   fitChoice <- estimate_dynam(
     depNetwork ~ inertia + recip,
