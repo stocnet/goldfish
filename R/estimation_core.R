@@ -63,11 +63,7 @@ estimate_int_impl <- function(
   verbose = FALSE,
   progress = FALSE,
   # restrictions of opportunity sets
-  opportunitiesList = NULL,
-  # per-event sender gate from a support_constraint (rate models)
-  senderGate = NULL,
-  # per-event dyad mask from a support_constraint (REM)
-  remMask = NULL
+  opportunitiesList = NULL
 ) {
   ## SET VARIABLES
 
@@ -264,9 +260,7 @@ estimate_int_impl <- function(
       is_two_mode = is_two_mode,
       reduceArrayToMatrix = reduceArrayToMatrix,
       verbose = verbose,
-      opportunitiesList = opportunitiesList,
-      senderGate = senderGate,
-      remMask = remMask
+      opportunitiesList = opportunitiesList
     )
   )
 
@@ -1257,33 +1251,21 @@ compute_step.default <- function(spec, state, i, ctx) {
   }
 
   # remove potential absent lines and columns from the stats array
-  # Sender-axis filter: presence, and — under a support_constraint on a rate
-  # model — the per-event sender gate (a sender is at risk only if it has at
-  # least one allowed receiver). The gate branch is entered only
-  # when a gate is supplied, so the unconstrained path is byte-identical.
-  # Track which senders/receivers survive presence reduction so a REM
-  # support_constraint mask can be reduced to the same dyads before the
-  # contribution zeroes the disallowed ones. NULL means "no reduction" (all kept).
-  sender_keep <- NULL
-  receiver_keep <- NULL
-  hasGate <- !is.null(ctx$senderGate)
+  # Sender-axis filter: presence. A support_constraint on a rate model folds its
+  # per-event sender gate (a sender is at risk only if it has at least one
+  # allowed receiver) into `active_sender` during preprocessing, so
+  # `state$presence` already carries presence AND the gate — no separate filter.
   # A folded REM or coordination constraint carries both presences ∩ support in
   # the maintained dense `active_dyad` (used whole as `riskMask` below), so neither
   # axis is reduced — an absent or disallowed dyad is zeroed by the mask, not
   # dropped. Coordination joins REM here because its two-sided likelihood needs the
   # full matrix, not a per-sender row.
   folded_full <- ctx$active_dyad_folded && (ctx$is_rem || ctx$is_coord)
-  if (
-    (ctx$updatepresence || hasGate || ctx$active_sender_folded) && !folded_full
-  ) {
+  if ((ctx$updatepresence || ctx$active_sender_folded) && !folded_full) {
     # || (updateopportunities && !is_two_mode)
     # When folded, `state$presence` already carries presence AND the sender
     # gate, so it is the sender filter directly.
     keepIn <- state$presence
-    if (hasGate) {
-      keepIn <- keepIn & ctx$senderGate[[i]]
-    }
-    sender_keep <- keepIn
     # if (updateopportunities && !is_two_mode)
     #   keepIn <- presence & opportunities
     statsArrayComp <- if (is_rate) {
@@ -1339,7 +1321,6 @@ compute_step.default <- function(spec, state, i, ctx) {
     } else {
       allowReflexiveCorrected <- FALSE
     }
-    receiver_keep <- keepIn
     statsArrayComp <- statsArrayComp[, keepIn, , drop = FALSE]
     if (isDependent) {
       position <- which(activeDyad[2] == which(keepIn))
@@ -1385,23 +1366,11 @@ compute_step.default <- function(spec, state, i, ctx) {
   )
   # REM / coordination support_constraint: the contribution zeroes disallowed
   # dyads from the risk set. Only the REM and coordination contributions accept
-  # `riskMask`, and it is passed only when a mask is present, so other paths are
-  # unaffected.
+  # `riskMask`, and it is passed only when a folded mask is present, so other
+  # paths are unaffected. The maintained dense `active_dyad` is the per-event
+  # mask, kept whole because no axis reduction was applied above.
   if (folded_full) {
-    # The maintained dense `active_dyad` is the per-event mask, kept
-    # whole because no axis reduction was applied above.
     contrib_args$riskMask <- state$presence2
-  } else if (!is.null(ctx$remMask)) {
-    # Legacy standalone mask: reduce to the presence-kept dyads (rows/cols dropped
-    # above), flattened column-major to match the rate vector.
-    reduced_mask <- ctx$remMask[[i]]
-    if (!is.null(sender_keep)) {
-      reduced_mask <- reduced_mask[sender_keep, , drop = FALSE]
-    }
-    if (!is.null(receiver_keep)) {
-      reduced_mask <- reduced_mask[, receiver_keep, drop = FALSE]
-    }
-    contrib_args$riskMask <- reduced_mask
   }
   eventValues <- do.call(ctx$contribution_fn, contrib_args)
 
@@ -1450,9 +1419,7 @@ compute_iteration_step <- function(
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
   verbose = FALSE,
-  opportunitiesList = NULL,
-  senderGate = NULL,
-  remMask = NULL
+  opportunitiesList = NULL
 ) {
   nEvents <- length(statsList$is_dependent)
   is_rate <- length(dim(statsList$initialStats)) == 2L
@@ -1516,7 +1483,6 @@ compute_iteration_step <- function(
     compChange1 = compChange1,
     compChange2 = compChange2,
     opportunitiesList = opportunitiesList,
-    senderGate = senderGate,
     active_sender_folded = active_sender_folded,
     active_sender_update = statsList$active_sender_update,
     active_sender_update_pointer = statsList$active_sender_update_pointer,
@@ -1526,7 +1492,6 @@ compute_iteration_step <- function(
     active_dyad_encoding = statsList$active_dyad_encoding,
     is_rem = is_rem,
     is_coord = is_coord,
-    remMask = remMask,
     returnIntervalLogL = returnIntervalLogL,
     returnEventProbabilities = returnEventProbabilities,
     return_event_scores = return_event_scores,

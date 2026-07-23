@@ -44,23 +44,12 @@ estimate_c_int <- function(
   get_data_matrix = FALSE,
   impute = FALSE,
   opportunitiesList = NULL,
-  senderGate = NULL,
-  remMask = NULL,
   engine = c("default_c", "gather_compute"),
   optimizer = "newton_raphson"
 ) {
   if (!is.null(opportunitiesList)) {
     stop(
       "opportunitiesList is not supported in the C interface.",
-      call. = FALSE
-    )
-  }
-  # Every constrained model folds its availability during preprocessing and the
-  # engines read the folded buffers; no standalone mask reaches this interface.
-  # These defensive stops catch a caller that still assembles a side channel.
-  if (!is.null(senderGate) || !is.null(remMask)) {
-    stop(
-      "support_constraint is not supported in this C interface engine.",
       call. = FALSE
     )
   }
