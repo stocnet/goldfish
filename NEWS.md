@@ -1,3 +1,16 @@
+# goldfish 1.9.7
+
+## Bug fixes
+
+* **The modeled layer, not `info$focal`, drives focal resolution during
+  estimation.** A hand-built `stocnet` with no `info$focal` now estimates
+  whenever the formula's left-hand side (or a specification's `layer`) names the
+  dependent -- for one-mode and two-mode objects alike. Previously such an object
+  aborted with an internal indexing error. `info$focal` is now only the optional
+  *default* for which layer to model; the layer actually being modeled drives
+  every focal, side, and mode lookup, so an `info$focal` that names a different
+  layer than the one modeled no longer wins over the modeled layer.
+
 # goldfish 1.9.6
 
 ## New features
