@@ -84,19 +84,73 @@ dynami_focal_flavors <- function(data, focal) {
   sort(unique(stats::na.omit(data$ties$flavor[focal_rows])))
 }
 
-# The DyNAM-i choice availability constraint (design D6). A joining actor chooses
-# among the groups that are occupied at the decision point (`indeg >= 1`) and
-# that are not its own current affiliation (`!tie` -- the paper's step-1 choice is
-# to join a group or ANOTHER isolate, so the own singleton is excluded). It is
-# derived structurally, folds through the standard support-constraint machinery,
-# and AND-composes with any user constraint.
+# Per-event joining availability for the DyNAM-i choice, derived from the focal
+# interaction layer's occupancy. The choice events are the focal layer's
+# dependent join rows, in the reserved `order`; replaying membership over every
+# focal tie (initial diagonal, then join/leave/exogenous increments in order)
+# reconstructs, just before each join decision, which groups are occupied
+# (`indeg >= 1`). The available set is the occupied groups -- Hoffman et al.
+# Eq. 8's denominator over the present second-mode nodes, which includes the
+# joiner's own singleton (an isolate may choose to stay isolated, and the
+# construction records such observed choices as joining the own singleton, so it
+# must remain in the choice set -- excluding it would zero the probability of
+# those observed events). Returned as one length-n2 logical mask per join event,
+# ready to fold into the dense `active_dyad`.
+dynami_choice_availability <- function(data) {
+  focal <- data$info$focal
+  actor_mode <- unname(data$info$sender[[focal]])
+  group_mode <- unname(data$info$receiver[[focal]])
+  n_actors <- sum(data$nodes$mode == actor_mode)
+  n_groups <- sum(data$nodes$mode == group_mode)
+
+  ties <- data$ties[data$ties$layer == focal, , drop = FALSE]
+  init_rows <- ties[is.na(ties$time), , drop = FALSE]
+  event_rows <- ties[!is.na(ties$time), , drop = FALSE]
+  event_rows <- event_rows[order(event_rows$order), , drop = FALSE]
+
+  membership <- matrix(0, n_actors, n_groups)
+  membership[cbind(init_rows$from, init_rows$to - n_actors)] <- init_rows$weight
+
+  is_join <- !is.na(event_rows$flavor) & event_rows$flavor == "join"
+  masks <- vector("list", sum(is_join))
+  k <- 0L
+  for (r in seq_len(nrow(event_rows))) {
+    actor <- event_rows$from[r]
+    grp <- event_rows$to[r] - n_actors
+    if (is_join[r]) {
+      k <- k + 1L
+      masks[[k]] <- colSums(membership) > 0
+    }
+    membership[actor, grp] <- membership[actor, grp] + event_rows$weight[r]
+  }
+  masks
+}
+
+# Fold per-event joining availability masks into the choice statsList's dense
+# `active_dyad` point encoding (design D6). The choice risk set reads only the
+# event sender's row, so `build_active_dyad_point()` seeds the dense n1 x n2 init
+# from the first event and emits net (sender, group, replace) flips per later
+# event -- exactly the maintained-availability object `compute_step.default`
+# consumes when `active_dyad_folded` is set. Base receiver presence is all groups
+# present (groups never leave the object); the masks carry the occupancy /
+# own-exclusion restriction.
+dynami_fold_availability <- function(prep, masks) {
+  n1 <- length(prep$active_sender_init)
+  n2 <- length(prep$active_dyad_init)
+  n_stored <- length(prep$event_sender)
+  recv <- rep(list(rep(TRUE, n2)), n_stored)
+  senders <- as.list(prep$event_sender)
+  build_active_dyad_point(prep, recv, masks, senders, n1, n2)
+}
+
+# The DyNAM-i choice availability as a support-constraint formula: a joining actor
+# chooses among the groups occupied at the decision point (`indeg >= 1`). This is
+# the grammar statement of what `dynami_choice_availability()` folds directly from
+# occupancy; the own singleton is kept (Hoffman et al. Eq. 8's denominator over
+# the present second-mode nodes).
 dynami_availability_constraint <- function(focal) {
   focal_symbol <- as.symbol(focal)
-  rhs <- call(
-    "&",
-    call(">=", call("indeg", focal_symbol), 1),
-    call("!", call("tie", focal_symbol))
-  )
+  rhs <- call(">=", call("indeg", focal_symbol), 1)
   stats::as.formula(call("~", rhs), env = baseenv())
 }
 
@@ -318,4 +372,148 @@ stocnet_to_dynami_env <- function(
   }
 
   env
+}
+
+# Convert the DyNAM-i monolith preprocessed object into the recipe statsList
+# shape the shared Newton-Raphson kernel consumes.
+#
+# TEMPORARY SEAM (retired with the monolith by refactor-dynami-engine). The
+# interaction monolith (`preprocess_interaction`) still emits the pre-recipe
+# preprocessing shape -- a 3D `initialStats` (actors x groups x effects), per-event
+# `dependentStatsChange` / `rightCensoredStatsChange` nested lists (one change
+# matrix per effect), and `orderEvents` (1 = dependent, 2 = right-censored). The
+# shared kernel (`run_nr_loop` / `compute_step.default`) instead reads the recipe
+# shape: an integer `is_dependent`, a per-event `intervals` vector, a flat 4 x M
+# point buffer `stat_mat_update` with a per-event `stat_mat_pointer`,
+# `active_sender_init` / `active_dyad_init` presence vectors, and (for the rate
+# intercept initialization) the `n_dep_events` / `total_time` / `avg_active_entity`
+# scalars. This converter maps one to the other so DyNAM-i estimates on the same
+# kernel as DyNAM / REM without touching the monolith.
+#
+# Rate reduction: the monolith carries an actors x groups statistic per effect,
+# but the DyNAM-i rate is sender-indexed (competing risks over actors), so each
+# effect slice reduces to one value per actor -- the row mean over groups for a
+# two-mode object -- reproducing the pre-recipe `reduceMatrixToVector` step. The
+# monolith already emits per-actor (2-column) rate change rows, so those apply as
+# flat sender updates onto the reduced matrix. Choice keeps the 3D array and its
+# 3-column change rows as dyad point updates.
+dynami_recipe_statslist <- function(prep, sub_model, is_two_mode) {
+  order_events <- unlist(prep$orderEvents)
+  n_events <- length(order_events)
+  is_dependent <- as.integer(order_events == 1L)
+  is_rate <- sub_model == "rate"
+
+  dims <- dim(prep$initialStats)
+  n1 <- dims[1L]
+  n2 <- dims[2L]
+  n_effects <- dims[3L]
+
+  if (is_rate) {
+    reduce_slice <- function(slice) {
+      if (is_two_mode) {
+        rowMeans(slice, na.rm = TRUE)
+      } else {
+        rowSums(slice, na.rm = TRUE) / (ncol(slice) - 1)
+      }
+    }
+    initial_stats <- vapply(
+      seq_len(n_effects),
+      function(k) reduce_slice(prep$initialStats[,, k]),
+      numeric(n1)
+    )
+  } else {
+    initial_stats <- prep$initialStats
+  }
+
+  # Flatten each event's per-effect change matrices into the 4 x M point buffer
+  # (rows: node1, node2, effect, replace; monolith indices are 1-based, the
+  # buffer is 0-based). Node2 is unused for sender (rate) updates.
+  dep_change <- prep$dependentStatsChange
+  rc_change <- prep$rightCensoredStatsChange
+  dep_ptr <- 0L
+  rc_ptr <- 0L
+  event_cols <- vector("list", n_events)
+  for (i in seq_len(n_events)) {
+    if (order_events[i] == 1L) {
+      dep_ptr <- dep_ptr + 1L
+      change_i <- dep_change[[dep_ptr]]
+    } else {
+      rc_ptr <- rc_ptr + 1L
+      change_i <- rc_change[[rc_ptr]]
+    }
+    blocks <- vector("list", length(change_i))
+    for (k in seq_along(change_i)) {
+      mat <- change_i[[k]]
+      if (is.null(mat) || nrow(mat) == 0L) {
+        next
+      }
+      blocks[[k]] <- if (is_rate) {
+        rbind(mat[, "node1"] - 1L, 0, k - 1L, mat[, "replace"])
+      } else {
+        rbind(
+          mat[, "node1"] - 1L,
+          mat[, "node2"] - 1L,
+          k - 1L,
+          mat[, "replace"]
+        )
+      }
+    }
+    blocks <- blocks[!vapply(blocks, is.null, logical(1))]
+    event_cols[[i]] <- if (length(blocks)) do.call(cbind, blocks) else NULL
+  }
+  stat_mat_update <- do.call(cbind, event_cols)
+  if (is.null(stat_mat_update)) {
+    stat_mat_update <- matrix(0, 4L, 0L)
+  }
+  stat_mat_pointer <- cumsum(vapply(
+    event_cols,
+    function(x) if (is.null(x)) 0L else ncol(x),
+    integer(1)
+  ))
+
+  # Interleave dependent and right-censored waiting times by event order.
+  dep_iv <- unlist(prep$intervals)
+  rc_iv <- unlist(prep$rightCensoredIntervals)
+  intervals <- numeric(n_events)
+  di <- 0L
+  ri <- 0L
+  for (i in seq_len(n_events)) {
+    if (order_events[i] == 1L) {
+      di <- di + 1L
+      intervals[i] <- dep_iv[di]
+    } else {
+      ri <- ri + 1L
+      intervals[i] <- rc_iv[ri]
+    }
+  }
+
+  prep$initialStats <- initial_stats
+  prep$is_dependent <- is_dependent
+  prep$intervals <- intervals
+  prep$stat_mat_update <- stat_mat_update
+  prep$stat_mat_pointer <- stat_mat_pointer
+  prep$stat_mat_broadcast <- matrix(0, 4L, 0L)
+  prep$stat_mat_broadcast_pointer <- rep(0, n_events)
+  prep$event_time <- unlist(prep$event_time)
+  prep$event_sender <- unlist(prep$event_sender)
+  prep$event_receiver <- unlist(prep$event_receiver)
+  prep$active_sender_init <- rep(TRUE, n1)
+  prep$active_sender_changes <- list()
+  prep$active_sender_update <- NULL
+  prep$active_sender_update_pointer <- NULL
+  prep$active_dyad_init <- rep(TRUE, if (is_rate) n1 else n2)
+  prep$active_dyad_changes <- list()
+  prep$active_dyad_update <- NULL
+  prep$active_dyad_update_pointer <- NULL
+  prep$active_dyad_encoding <- NULL
+
+  if (is_rate) {
+    # The rate intercept is initialized from a crude event rate; the exact
+    # active-entity count only sets the Newton-Raphson start, not the optimum.
+    prep$n_dep_events <- sum(is_dependent == 1L)
+    prep$total_time <- sum(dep_iv, na.rm = TRUE) + sum(rc_iv, na.rm = TRUE)
+    prep$avg_active_entity <- n1
+  }
+
+  prep
 }

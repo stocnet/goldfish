@@ -908,6 +908,7 @@ estimate_wrapper <- function(
   # (it assembles every bundle into a stocnet). At the boundary a stocnet is
   # rewritten onto the environment names and reversed into the environment shape
   # the interaction monolith reads; the bridge is internal and never returned.
+  dynami_availability <- NULL
   if (model == "DyNAMi" && inherits(data, "stocnet")) {
     focal <- data$info$focal
     if (
@@ -926,14 +927,16 @@ estimate_wrapper <- function(
     if (inherits(x, "formula")) {
       x <- rewrite_dynami_formula(x, data)
     }
-    # The joining choice set is the groups occupied at the decision point and
-    # not the joiner's own affiliation -- a derived support constraint, folded
-    # through the standard machinery and AND-composed with any user constraint.
+    # The joining choice set is the groups occupied at the decision point
+    # (Hoffman et al. Eq. 8's denominator over the present second-mode nodes,
+    # which includes the joiner's own singleton -- an isolate may choose to
+    # remain isolated, and the construction records such observed choices). It is
+    # derived from the focal layer's occupancy here, while the stocnet is still
+    # intact, and folded into the dense `active_dyad` after preprocessing -- the
+    # standard maintained-availability path the estimation kernel reads, not the
+    # deprecated opportunities channel.
     if (sub_model %in% c("choice", "choice_coordination")) {
-      support_constraint <- and_compose_constraint(
-        dynami_availability_constraint(focal),
-        support_constraint
-      )
+      dynami_availability <- dynami_choice_availability(data)
     }
     data <- stocnet_to_dynami_env(data, parent_env = environment(x))
   }
@@ -1726,6 +1729,18 @@ estimate_wrapper <- function(
   ## 3.3 Stop here if preprocessing_only == TRUE
   if (preprocessing_only) {
     return(prep)
+  }
+
+  # The interaction monolith emits the pre-recipe preprocessing shape; map it to
+  # the recipe statsList the shared estimation kernel reads. Done after the
+  # preprocessing_only return so the raw monolith object (which the DyNAM-i
+  # preprocessing tests inspect) is preserved. Temporary seam retired with the
+  # monolith by the DyNAM-i engine conversion.
+  if (model == "DyNAMi") {
+    prep <- dynami_recipe_statslist(prep, sub_model, is_two_mode)
+    if (!is.null(dynami_availability)) {
+      prep <- dynami_fold_availability(prep, dynami_availability)
+    }
   }
 
   ### 3.4 Assemble the fixed-coefficient (offset) vector----

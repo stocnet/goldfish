@@ -131,9 +131,9 @@ test_that("an unknown DyNAM-i rate flavor is rejected", {
 
 test_that("a DyNAM-i choice folds the derived availability constraint", {
   stocnet <- dynami_surface_fixture()
-  # The choice preprocesses with the derived `indeg >= 1 & !tie` constraint
-  # folded through the standard support-constraint machinery; a rate model, with
-  # no dyad part, must not receive the dyadic constraint.
+  # The choice preprocesses with the derived `indeg >= 1` availability folded
+  # into the dense active_dyad; a rate model, with no dyad part, has no
+  # availability to fold.
   expect_no_error(
     estimate_dynami(
       interactions ~ diff(attr1, subType = "averaged_sum"),
@@ -165,14 +165,14 @@ test_that("a user support_constraint AND-composes with the derived one", {
   )
 })
 
-test_that("the derived availability constraint excludes the own singleton", {
-  # indeg(focal) >= 1 keeps occupied groups; !tie(focal) drops the joiner's own
-  # affiliation -- the paper's choice set (join a group or ANOTHER isolate).
+test_that("the derived availability constraint keeps the occupied groups", {
+  # indeg(focal) >= 1 keeps the occupied groups -- Hoffman et al. Eq. 8's
+  # denominator over the present second-mode nodes, own singleton included.
   constraint <- dynami_availability_constraint("interactions")
   expect_s3_class(constraint, "formula")
   rhs <- deparse(constraint[[length(constraint)]])
   expect_match(rhs, "indeg\\(interactions\\) >= 1")
-  expect_match(rhs, "!tie\\(interactions\\)")
+  expect_no_match(rhs, "tie\\(interactions\\)")
 })
 
 test_that("a past-network effect resolves the past layer on a stocnet", {
