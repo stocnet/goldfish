@@ -119,6 +119,56 @@ risk_set_is_dyadic <- function(spec) {
   risk_set_axis(spec) %in% c("dyad", "dyad_symmetric")
 }
 
+#' Engine capability for constrained (support_constraint) estimation
+#'
+#' The single table answering whether an engine consumes a `support_constraint`
+#' for a given model family. Every wired recipe family folds its availability
+#' during preprocessing and reads the folded buffers natively on all engines, so
+#' the capability is engine-independent: one row per spec class. The DyNAMi
+#' monolith and the ordinal DyNAM-rate path do not yet consume a folded
+#' constraint. Keyed by `class(spec)[1]`; the value is a human-readable family
+#' label for supported classes and `NA` for unsupported ones, so the abort
+#' message enumerates the supported families from the table and wiring a new
+#' family is a one-row edit.
+#' @noRd
+constrained_support_map <- function() {
+  c(
+    dynam_choice_spec = "DyNAM choice",
+    dynam_choice_coord_spec = "DyNAM choice_coordination",
+    dynam_rate_spec = "DyNAM rate",
+    dynam_rate_ordered_spec = NA_character_,
+    rem_rate_spec = "REM rate",
+    rem_rate_ordered_spec = "REM rate_ordered",
+    dynami_rate_spec = NA_character_,
+    dynami_rate_ordered_spec = NA_character_,
+    dynami_choice_spec = NA_character_
+  )
+}
+
+#' @noRd
+constrained_estimation_supported <- function(spec) {
+  !is.na(constrained_support_map()[class(spec)[1]])
+}
+
+#' Abort when a support_constraint reaches an unwired model family
+#'
+#' The message enumerates the supported families from the capability table so
+#' it stays in sync with [constrained_support_map()].
+#' @noRd
+abort_constraint_unsupported <- function(spec, call = rlang::caller_env()) {
+  supported <- unname(constrained_support_map())
+  supported <- supported[!is.na(supported)]
+  cli::cli_abort(
+    c(
+      "{.arg support_constraint} is not consumed for {.val {spec$model}}
+       {.val {spec$sub_model}} estimation.",
+      "i" = "Risk-set restriction is wired for {.val {supported}}.",
+      "i" = "The preprocessed mask is available in {.code prep$support_mask}."
+    ),
+    call = call
+  )
+}
+
 #' @rdname model_spec
 #' @noRd
 dynam_rate_spec <- function(

@@ -1809,124 +1809,33 @@ estimate_wrapper <- function(
   ) {
     opportunities_effective <- NULL
   }
-  sender_gate <- NULL
-  rem_mask <- NULL
   if (!is.null(constraint_plan) && !is.null(prep$support_mask)) {
-    is_choice_family <- model == "DyNAM" &&
-      sub_model %in% c("choice", "choice_coordination")
-    # Coordination (`choice_coordination` / `DyNAM-MM`) is a dyad-part choice
-    # family for the guard + validation, but its two-sided likelihood consumes a
-    # symmetrised FULL mask like REM, not the one-sided-choice row —
-    # so folding/consumption below splits it from one-sided choice.
-    is_coord_family <- model == "DyNAM" && sub_model == "choice_coordination"
-    is_one_sided_choice <- is_choice_family && !is_coord_family
-    is_rate_family <- model == "DyNAM" && sub_model == "rate"
-    # Standard REM (`rem_rate_spec`, time intercept) zeroes disallowed dyads in the
-    # Poisson contribution; ordinal REM (`rem_rate_ordered_spec`, no intercept)
-    # zeroes their utility before the multinomial normalizer. Both fold both
-    # presences ∩ support into a dense point `active_dyad` and consume
-    # it as the maintained risk mask.
-    is_rem_family <- model == "REM" && sub_model == "rate" && has_intercept
-    is_rem_ordered_family <- model == "REM" && sub_model == "rate_ordered"
-    if (
-      !is_choice_family &&
-        !is_rate_family &&
-        !is_rem_family &&
-        !is_rem_ordered_family
-    ) {
-      cli::cli_abort(c(
-        "{.arg support_constraint} is not yet consumed for {.val {model}}
-         {.val {sub_model}} estimation.",
-        "i" = "Risk-set restriction is currently wired for the DyNAM
-               {.val choice} / {.val choice_coordination} / {.val rate} and
-               {.val REM} sub-models on the default engine; the preprocessed mask
-               is available in {.code prep$support_mask}."
-      ))
+    # Only families wired to consume a folded constraint reach the likelihood;
+    # the engine-capability table (keyed on the spec class) is the single guard.
+    if (!constrained_estimation_supported(model_spec)) {
+      abort_constraint_unsupported(model_spec)
     }
-    # Fail fast before the likelihood: excluded observed dyads / empty
-    # risk sets error; forced choices and never-active nodes warn. Rate uses the
-    # sender-gate policy; choice and REM both check the observed dyad directly.
-    # A multi-flavor object was already validated at preprocessing time, with a
-    # message naming its process; re-running here would only duplicate every
-    # warning it emitted.
+    # Fail fast before the likelihood: excluded observed dyads / empty risk sets
+    # error; forced choices and never-active nodes warn. The rate (sender-axis)
+    # family uses the sender-gate policy; choice and REM check the observed dyad
+    # directly. A multi-flavor object was validated at preprocessing time, so
+    # re-running here would only duplicate every warning it emitted.
     if (!isTRUE(prep$support_validated)) {
-      validate_prep_support(prep, is_rate_family)
+      validate_prep_support(
+        prep,
+        identical(risk_set_axis(model_spec), "sender")
+      )
     }
-    # `avg_active_entity` (the rate intercept init) is now computed during
-    # preprocessing from the folded `active_sender`; no
-    # estimation-time recombination.
-    # The compiled engines consume the mask natively where wired: gather_compute
-    # for DyNAM choice / rate (the R gather filters candidates), and default_c for
-    # DyNAM choice (the C++ estimator filters receivers). Other engine/model
-    # combinations fall back to the default (R) engine, which consumes the mask via
-    # the sender/receiver filters or the REM contribution.
-    # Every DyNAM-choice constraint (alter, point, or ego-kind/outer) folds into
-    # `active_dyad`, and a DyNAM-rate constraint folds its sender gate into
-    # `active_sender`, during preprocessing: every engine reads the folded object
-    # directly, so neither the standalone mask nor the per-event opportunity
-    # reduction is passed.
-    choice_folded <- is_one_sided_choice && isTRUE(prep$active_dyad_folded)
-    rate_folded <- is_rate_family && isTRUE(prep$active_sender_folded)
-    # A folded standard- or ordinal-REM constraint rides the dense point
-    # `active_dyad`, which `estimate_REM` / `estimate_REM_ordered`
-    # consume cell-wise, so `default_c` runs it natively; the gather likewise
-    # builds masked candidates. A folded rate constraint rides `active_sender`,
-    # which `estimate_DyNAM_rate` already consumes as its sender
-    # filter. A folded coordination constraint rides the symmetrised dense point
-    # `active_dyad`, consumed as the full mask by `estimate_DyNAM_MM`
-    # and the encoding-aware gather.
-    rem_folded <- is_rem_family && isTRUE(prep$active_dyad_folded)
-    rem_ordered_folded <- is_rem_ordered_family &&
-      isTRUE(prep$active_dyad_folded)
-    coord_folded <- is_coord_family && isTRUE(prep$active_dyad_folded)
-    # A constrained coordination model now runs natively on `gather_compute`:
-    # the gather emits the symmetrically-folded off-diagonal dyad list (only
-    # mask-allowed rows) plus the per-sender groups and (i,j)<->(j,i) pairing,
-    # and the dyad-triangle kernel reads that ragged list directly — no square
-    # n x n candidate matrix is required. The former redirect to
-    # `default_c` is retired.
-    native_compiled <-
-      (control_estimation$engine == "gather_compute" &&
-        (is_one_sided_choice ||
-          is_rate_family ||
-          (is_rem_family && rem_folded) ||
-          (is_rem_ordered_family && rem_ordered_folded) ||
-          (is_coord_family && coord_folded))) ||
-      (control_estimation$engine == "default_c" &&
-        (is_one_sided_choice ||
-          (is_rate_family && rate_folded) ||
-          (is_rem_family && rem_folded) ||
-          (is_rem_ordered_family && rem_ordered_folded) ||
-          (is_coord_family && coord_folded)))
-    if (!native_compiled) {
-      # Non-native path = the default (R) engine only: every reachable constrained
-      # model (DyNAM choice / rate / coordination, standard + ordinal REM) folds
-      # its availability and runs natively on gather_compute / default_c above, and
-      # the other families abort at the guard before this branch — so the former
-      # "engine does not yet consume … using default" downgrade is dead and has
-      # been lifted.
-      if (is_one_sided_choice) {
-        # A DyNAM-choice constraint (alter, point, or ego-kind/outer) folds into
-        # `active_dyad` during preprocessing; the default engine reads the folded
-        # object, so no standalone mask or per-event opportunity reduction passes.
-      } else if (is_rate_family) {
-        # The default engine consumes the folded `active_sender` directly as its
-        # sender filter; no separate sender gate is passed.
-      } else if (is_coord_family) {
-        # Coordination consumes the folded symmetrised dense `active_dyad` as its
-        # full risk mask on the default engine (the `folded_full` path); nothing
-        # separate is passed.
-      } else if (!isTRUE(prep$active_dyad_folded)) {
-        # REM (standard or ordinal): the contribution zeroes disallowed dyads from
-        # the risk set. A REM constraint is folded into `active_dyad` during
-        # preprocessing and consumed as the maintained risk mask; the
-        # standalone mask remains only as a fallback when the fold did not apply.
-        rem_mask <- prep$support_mask$support
-      }
-    }
-    if (choice_folded) {
-      # The folded `active_dyad` already carries any user opportunity list, so
-      # the per-iteration opportunity recompute is skipped.
+    # Every wired family folds its availability during preprocessing — a rate
+    # constraint into `active_sender`, a choice / REM / coordination constraint
+    # into `active_dyad` — and the engines read the folded buffers directly, so
+    # no standalone mask or sender gate is assembled here. A folded one-sided
+    # choice constraint already carries any user opportunity list, so the
+    # per-iteration opportunity recompute is skipped.
+    if (
+      identical(risk_set_axis(model_spec), "receiver_given_sender") &&
+        isTRUE(prep$active_dyad_folded)
+    ) {
       opportunities_effective <- NULL
     }
   }
@@ -1958,9 +1867,7 @@ estimate_wrapper <- function(
     cpus = 1,
     verbose = verbose,
     progress = progress,
-    opportunitiesList = opportunities_effective,
-    senderGate = sender_gate,
-    remMask = rem_mask
+    opportunitiesList = opportunities_effective
   )
 
   # Call the appropriate estimation engine
