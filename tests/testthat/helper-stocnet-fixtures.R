@@ -348,11 +348,12 @@ make_legacy_fixture_twomode <- function() {
   )
 }
 
-# The mode-map stocnet expressing the SAME data as make_legacy_fixture_twomode():
-# one nodes tibble with a `mode` column, one `membership` layer (actor -> club),
-# and the same size/budget attribute changes. It is the canonical-path side of
-# the D8 coefficient equivalence -- a two-mode model built here must agree to
-# 1e-6 with the same model assembled through the legacy two-node-set path.
+# The mode-map stocnet expressing the SAME data as
+# make_legacy_fixture_twomode(): one nodes tibble with a `mode` column, one
+# `membership` layer (actor -> club), and the same size/budget attribute
+# changes. It is the canonical-path side of the coefficient equivalence -- a
+# two-mode model built here must agree to 1e-6 with the same model assembled
+# through the legacy two-node-set path.
 make_stocnet_fixture_twomode_legacy_equiv <- function() {
   labels <- c("A1", "A2", "A3", "A4", "C1", "C2", "C3")
   nodes <- data.frame(

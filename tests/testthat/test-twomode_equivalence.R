@@ -1,4 +1,4 @@
-# Two-mode construction-path equivalence (design D8).
+# Two-mode construction-path equivalence.
 #
 # The same two-mode data built as a mode-map stocnet and assembled through the
 # legacy two-node-set constructors must estimate to identical coefficients on

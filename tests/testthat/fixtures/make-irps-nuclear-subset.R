@@ -32,8 +32,8 @@ suppressPackageStartupMessages({
 #   - time casts to POSIXct (UTC) and each concept activates one hour before its
 #     first event -- a sub-day, readable offset that leaves no phantom
 #     availability (a concept is choosable only from its own introduction);
-#   - `party`/`power` missingness is *structural* (a non-politician cannot hold a
-#     party or formal power), so it is sentinel-recoded to 0 at conversion --
+#   - `party`/`power` missingness is *structural* (a non-politician cannot hold
+#     a party or formal power), so it is sentinel-recoded to 0 at conversion --
 #     never imputed -- and diversity summarizers exclude the sentinel.
 # `cutoff` restricts the ties to a deterministic window on the POSIXct axis.
 # `as_stocnet()` cannot consume an edge-filtered tidygraph, so the window is

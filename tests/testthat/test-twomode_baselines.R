@@ -1,4 +1,4 @@
-# Frozen two-mode coefficient baselines (design D8).
+# Frozen two-mode coefficient baselines.
 #
 # A two-mode model on the frozen `irps_nuclear` subset must reproduce its
 # recorded coefficients to 1e-6, so an upstream change to the effect walk is
