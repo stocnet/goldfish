@@ -309,6 +309,7 @@ estimate_dynami <- function(
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
+  support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE)
 ) {
@@ -336,6 +337,7 @@ estimate_dynami <- function(
     control_preprocessing = control_preprocessing,
     preprocessing_init = preprocessing_init,
     preprocessing_only = preprocessing_only,
+    support_constraint = support_constraint,
     progress = progress,
     verbose = verbose
   )
@@ -923,6 +925,15 @@ estimate_wrapper <- function(
     }
     if (inherits(x, "formula")) {
       x <- rewrite_dynami_formula(x, data)
+    }
+    # The joining choice set is the groups occupied at the decision point and
+    # not the joiner's own affiliation -- a derived support constraint, folded
+    # through the standard machinery and AND-composed with any user constraint.
+    if (sub_model %in% c("choice", "choice_coordination")) {
+      support_constraint <- and_compose_constraint(
+        dynami_availability_constraint(focal),
+        support_constraint
+      )
     }
     data <- stocnet_to_dynami_env(data, parent_env = environment(x))
   }

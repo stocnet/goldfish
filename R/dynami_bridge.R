@@ -84,6 +84,22 @@ dynami_focal_flavors <- function(data, focal) {
   sort(unique(stats::na.omit(data$ties$flavor[focal_rows])))
 }
 
+# The DyNAM-i choice availability constraint (design D6). A joining actor chooses
+# among the groups that are occupied at the decision point (`indeg >= 1`) and
+# that are not its own current affiliation (`!tie` -- the paper's step-1 choice is
+# to join a group or ANOTHER isolate, so the own singleton is excluded). It is
+# derived structurally, folds through the standard support-constraint machinery,
+# and AND-composes with any user constraint.
+dynami_availability_constraint <- function(focal) {
+  focal_symbol <- as.symbol(focal)
+  rhs <- call(
+    "&",
+    call(">=", call("indeg", focal_symbol), 1),
+    call("!", call("tie", focal_symbol))
+  )
+  stats::as.formula(call("~", rhs), env = baseenv())
+}
+
 # Split a `+`-joined formula right-hand side into its individual terms, each a
 # language object (the intercept `1` included).
 split_rate_terms <- function(expr) {

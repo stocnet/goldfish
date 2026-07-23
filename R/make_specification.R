@@ -400,7 +400,10 @@ make_dynami_specification <- function(
       modeled_flavor = NULL,
       modeled_flavors = character(0),
       support_constraint = support_constraint,
-      constraint = NULL,
+      # The availability constraint is derived at estimation (choice only), so
+      # the specification carries only the user constraint; DyNAM-i keeps it
+      # unparsed for the wrapper to parse against the bridged environment.
+      constraint = support_constraint,
       valid = TRUE,
       data = data,
       call = match.call()
