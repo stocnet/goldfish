@@ -88,6 +88,18 @@
 #'   drift over the event sequence, and event-influence measures. Only the
 #'   `"default_c"` and `"default"` engines support it; `"gather_compute"` aborts.
 #'   Default is `FALSE`.
+#' @param diagnostics Names the per-event diagnostic *primitives* estimation
+#'   stores on the fitted result, superseding the three `return_*` flags above.
+#'   Accepts a character vector drawn from
+#'   `c("loglik", "scores", "ranks", "margins", "probabilities")`, or the
+#'   shorthands `TRUE` (equivalent to `c("loglik", "scores")`), `"all"` (all
+#'   five), and `FALSE` / `character(0)` (none). Each primitive maps to a stored
+#'   component of the result: `"loglik"` to `intervalLogL` (and `total_rate` on
+#'   exact-time submodels), `"scores"` to `event_scores`, `"ranks"` to
+#'   `observed_rank`, `"margins"` to per-actor observed and expected counts, and
+#'   `"probabilities"` to per-event probability vectors. Unknown names abort with
+#'   an error listing the valid primitives. Default is `c("loglik", "scores")`,
+#'   preserving today's stored log-likelihood and adding the (free) scores.
 #' @param optimizer `r lifecycle::badge("experimental")` A character string
 #'   naming the optimization algorithm. Options are:
 #'   \describe{
@@ -135,6 +147,8 @@
 #'      return the log-likelihood for each event.}
 #'   \item{return_event_scores}{Logical value indicating whether to
 #'      return the per-event score matrix.}
+#'   \item{diagnostics}{Character vector of the diagnostic primitives to store
+#'      on the fitted result.}
 #'   \item{optimizer}{Optimization algorithm used in the estimation process.}
 #'   \item{engine}{Estimation engine used in the estimation process.}
 #' @export
@@ -158,11 +172,13 @@ set_estimation_opt <- function(
   return_interval_loglik = TRUE,
   return_probabilities = FALSE,
   return_event_scores = FALSE,
+  diagnostics = c("loglik", "scores"),
   optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
   engine = c("default_c", "default", "gather_compute")
 ) {
   engine <- match.arg(engine)
   optimizer <- match.arg(optimizer)
+  diagnostics <- resolve_diagnostics(diagnostics)
 
   if (lifecycle::is_present(convergence_criterion)) {
     lifecycle::deprecate_warn(
@@ -288,12 +304,67 @@ set_estimation_opt <- function(
     return_interval_loglik = return_interval_loglik,
     return_probabilities = return_probabilities,
     return_event_scores = return_event_scores,
+    diagnostics = diagnostics,
     optimizer = optimizer,
     engine = engine
   )
 
   class(control_list) <- c("estimation_opt.goldfish", "list")
   return(control_list)
+}
+
+# The per-event diagnostic primitives estimation can store, in the order the
+# `diagnostics =` help and error messages list them.
+DIAGNOSTIC_PRIMITIVES <- c(
+  "loglik",
+  "scores",
+  "ranks",
+  "margins",
+  "probabilities"
+)
+
+# Resolve the user-facing `diagnostics =` value (TRUE/FALSE/"all"/name vector)
+# to the canonical character vector of primitive names stored in the options.
+resolve_diagnostics <- function(diagnostics, call = rlang::caller_env()) {
+  if (is.logical(diagnostics)) {
+    if (!rlang::is_scalar_logical(diagnostics) || is.na(diagnostics)) {
+      cli::cli_abort(
+        "{.arg diagnostics} must be a single {.code TRUE} or {.code FALSE}, or a
+         character vector of primitive names.",
+        call = call
+      )
+    }
+    return(if (diagnostics) c("loglik", "scores") else character(0))
+  }
+  if (is.null(diagnostics) || length(diagnostics) == 0) {
+    return(character(0))
+  }
+  if (!is.character(diagnostics)) {
+    cli::cli_abort(
+      c(
+        "{.arg diagnostics} must be a character vector, {.code TRUE},
+         {.code FALSE}, or {.val all}.",
+        "x" = "You supplied a {.cls {class(diagnostics)}} vector."
+      ),
+      call = call
+    )
+  }
+  if ("all" %in% diagnostics) {
+    return(DIAGNOSTIC_PRIMITIVES)
+  }
+  diagnostics <- unique(diagnostics)
+  unknown <- setdiff(diagnostics, DIAGNOSTIC_PRIMITIVES)
+  if (length(unknown) > 0) {
+    cli::cli_abort(
+      c(
+        "Unknown {.arg diagnostics} primitive{?s} {.val {unknown}}.",
+        "i" = "Valid primitives are {.val {DIAGNOSTIC_PRIMITIVES}}, or one of
+               {.code TRUE} / {.code FALSE} / {.val all}."
+      ),
+      call = call
+    )
+  }
+  diagnostics
 }
 
 #' Control Parameters for Preprocessing

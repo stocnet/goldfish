@@ -18,6 +18,7 @@ set_estimation_opt(
   return_interval_loglik = TRUE,
   return_probabilities = FALSE,
   return_event_scores = FALSE,
+  diagnostics = c("loglik", "scores"),
   optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
   engine = c("default_c", "default", "gather_compute")
 )
@@ -107,6 +108,19 @@ drift over the event sequence, and event-influence measures. Only the
 \code{"default_c"} and \code{"default"} engines support it; \code{"gather_compute"} aborts.
 Default is \code{FALSE}.}
 
+\item{diagnostics}{Names the per-event diagnostic \emph{primitives} estimation
+stores on the fitted result, superseding the three \verb{return_*} flags above.
+Accepts a character vector drawn from
+\code{c("loglik", "scores", "ranks", "margins", "probabilities")}, or the
+shorthands \code{TRUE} (equivalent to \code{c("loglik", "scores")}), \code{"all"} (all
+five), and \code{FALSE} / \code{character(0)} (none). Each primitive maps to a stored
+component of the result: \code{"loglik"} to \code{intervalLogL} (and \code{total_rate} on
+exact-time submodels), \code{"scores"} to \code{event_scores}, \code{"ranks"} to
+\code{observed_rank}, \code{"margins"} to per-actor observed and expected counts, and
+\code{"probabilities"} to per-event probability vectors. Unknown names abort with
+an error listing the valid primitives. Default is \code{c("loglik", "scores")},
+preserving today's stored log-likelihood and adding the (free) scores.}
+
 \item{optimizer}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A character string
 naming the optimization algorithm. Options are:
 \describe{
@@ -156,6 +170,8 @@ decreased when no improvements in the estimation are found.}
 return the log-likelihood for each event.}
 \item{return_event_scores}{Logical value indicating whether to
 return the per-event score matrix.}
+\item{diagnostics}{Character vector of the diagnostic primitives to store
+on the fitted result.}
 \item{optimizer}{Optimization algorithm used in the estimation process.}
 \item{engine}{Estimation engine used in the estimation process.}
 }

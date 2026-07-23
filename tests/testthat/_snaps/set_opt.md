@@ -1,3 +1,29 @@
+# set_estimation_opt rejects invalid diagnostics
+
+    Code
+      set_estimation_opt(diagnostics = c("loglik", "devianc"))
+    Condition
+      Error in `set_estimation_opt()`:
+      ! Unknown `diagnostics` primitive "devianc".
+      i Valid primitives are "loglik", "scores", "ranks", "margins", and "probabilities", or one of `TRUE` / `FALSE` / "all".
+
+---
+
+    Code
+      set_estimation_opt(diagnostics = NA)
+    Condition
+      Error in `set_estimation_opt()`:
+      ! `diagnostics` must be a single `TRUE` or `FALSE`, or a character vector of primitive names.
+
+---
+
+    Code
+      set_estimation_opt(diagnostics = 1L)
+    Condition
+      Error in `set_estimation_opt()`:
+      ! `diagnostics` must be a character vector, `TRUE`, `FALSE`, or "all".
+      x You supplied a <integer> vector.
+
 # opportunities_list is deprecated in favour of support_constraint
 
     Code

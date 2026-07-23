@@ -82,6 +82,41 @@ test_that("set_estimation_opt deprecation warning for convergence_criterion", {
     regexp = "convergence_criterion"
   )
 })
+test_that("set_estimation_opt resolves the diagnostics vocabulary", {
+  expect_equal(set_estimation_opt()$diagnostics, c("loglik", "scores"))
+  expect_equal(
+    set_estimation_opt(diagnostics = TRUE)$diagnostics,
+    c("loglik", "scores")
+  )
+  expect_equal(
+    set_estimation_opt(diagnostics = FALSE)$diagnostics,
+    character(0)
+  )
+  expect_equal(
+    set_estimation_opt(diagnostics = character(0))$diagnostics,
+    character(0)
+  )
+  expect_equal(
+    set_estimation_opt(diagnostics = "all")$diagnostics,
+    c("loglik", "scores", "ranks", "margins", "probabilities")
+  )
+  expect_equal(
+    set_estimation_opt(
+      diagnostics = c("scores", "scores", "ranks")
+    )$diagnostics,
+    c("scores", "ranks")
+  )
+})
+
+test_that("set_estimation_opt rejects invalid diagnostics", {
+  expect_snapshot(
+    set_estimation_opt(diagnostics = c("loglik", "devianc")),
+    error = TRUE
+  )
+  expect_snapshot(set_estimation_opt(diagnostics = NA), error = TRUE)
+  expect_snapshot(set_estimation_opt(diagnostics = 1L), error = TRUE)
+})
+
 test_that("set_preprocessing_opt works correctly", {
   expected_prep_names <- c(
     "start_time",
