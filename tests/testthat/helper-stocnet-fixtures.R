@@ -396,6 +396,29 @@ make_stocnet_fixture_twomode_legacy_equiv <- function() {
   )
 }
 
+# Focal-less fixtures ---------------------------------------------------------
+#
+# The estimable fixtures with `info$focal` stripped: the formula LHS (or the
+# `make_specification` layer) names the dependent instead. Before the modeled
+# layer drove focal resolution, these aborted in `check_effect_sides()`
+# (`ds_layer_map(src, src$focal)`) and `ds_side_ids()`
+# (`src$mode_map$layers[[src$focal]]`) with a zero-length focal name.
+
+# Two-mode, estimable, no `info$focal`.
+make_stocnet_fixture_twomode_estimable_nofocal <- function() {
+  fixture <- make_stocnet_fixture_twomode_estimable()
+  fixture$info$focal <- NULL
+  fixture
+}
+
+# One-mode, estimable, no `info$focal`. The one-mode `calls` process; a rate/REM
+# model naming `calls` on the LHS must resolve its sides from that layer alone.
+make_stocnet_fixture_onemode_nofocal <- function() {
+  fixture <- make_stocnet_fixture()
+  fixture$info$focal <- NULL
+  fixture
+}
+
 # Imputation-policy fixtures --------------------------------------------------
 #
 # Regression inputs for the imputation contract: the two nodal missingness
