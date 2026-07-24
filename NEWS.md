@@ -1,3 +1,21 @@
+# goldfish 1.9.12
+
+* `compute_statistics()` replaces `compute_stats()`, which is deleted without a
+  stub or deprecation cycle (the name only ever existed in the unreleased 2.0.0
+  development line). The new function is born under the final naming: the
+  formula comes first as `x`, model selectors precede `data` (matching
+  `estimate_*()`), the preprocessing control is an explicit `control_prep`
+  argument -- resolving the unusable `compute_stats(control_preprocessing = )`
+  pass-through left by the naming migration -- and the estimation-ready object
+  is requested with `output = "preprocessed"` (previously `"default"`). The
+  gather and db output forms are unchanged.
+
+* `to_ego()` and `to_alter()` are no longer exported. They are internal
+  preprocessing helpers that expand rate-level change matrices to the dyadic
+  format; their export only existed in the development line, no user-facing
+  surface documents them, and the `to_*` prefix reads as manynet's
+  transformation family.
+
 # goldfish 1.9.11
 
 ## Naming migration (2.0.0)

@@ -24,7 +24,7 @@ make_interaction_fixture <- function() {
 
 test_that("a:b column equals the operand product over the full sequence", {
   d <- make_interaction_fixture()
-  g <- compute_stats(
+  g <- compute_statistics(
     calls_dependent ~ inertia:recip,
     data = d,
     model = "DyNAM",
@@ -39,7 +39,7 @@ test_that("a:b column equals the operand product over the full sequence", {
 
 test_that("a 3-way interaction equals the product of all operands", {
   d <- make_interaction_fixture()
-  g <- compute_stats(
+  g <- compute_statistics(
     calls_dependent ~ inertia:recip:trans,
     data = d,
     model = "DyNAM",
@@ -55,7 +55,7 @@ test_that("a broadcast (ego) operand interaction equals the product", {
   d <- make_interaction_fixture()
   # outdeg(type = "ego") varies across senders (broadcast kind 2); its product
   # with a dyadic operand exercises the whole-row operand-state update.
-  g <- compute_stats(
+  g <- compute_statistics(
     calls_dependent ~ outdeg(call_network, type = "ego"):inertia,
     data = d,
     model = "DyNAM",
@@ -96,7 +96,7 @@ test_that("REM supports interaction terms", {
   # Ordinal REM (no intercept) keeps the three effect columns aligned with the
   # operand product; the timed-rate case adds the intercept and is covered by
   # the DyNAM-rate interaction test below.
-  g <- compute_stats(
+  g <- compute_statistics(
     calls_dependent ~ inertia:recip,
     data = d,
     model = "REM",
@@ -112,7 +112,7 @@ test_that("sender-indexed (rate) interactions are now supported", {
   # is per-sender (see test-sender_interaction.R). Only DyNAMi stays unsupported.
   d <- make_interaction_fixture()
   expect_no_error(
-    compute_stats(
+    compute_statistics(
       calls_dependent ~ 1 + indeg:outdeg,
       data = d,
       model = "DyNAM",

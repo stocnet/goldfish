@@ -46,7 +46,7 @@ test_that("a:b renders the interaction name for the single estimated column", {
 
 test_that("interaction gather/export names join the operand export forms", {
   d <- make_interaction_fixture()
-  g <- compute_stats(
+  g <- compute_statistics(
     calls_dependent ~ inertia:recip,
     data = d,
     model = "DyNAM",
@@ -59,7 +59,7 @@ test_that("interaction gather/export names join the operand export forms", {
 
 test_that("a 3-way interaction name joins all three operands", {
   d <- make_interaction_fixture()
-  g <- compute_stats(
+  g <- compute_statistics(
     calls_dependent ~ inertia:recip:trans,
     data = d,
     model = "DyNAM",
@@ -75,7 +75,7 @@ test_that("a 3-way interaction name joins all three operands", {
 
 test_that("interaction names are unique within a mixed formula", {
   d <- make_interaction_fixture()
-  g <- compute_stats(
+  g <- compute_statistics(
     calls_dependent ~ inertia + recip + inertia:recip + recip:trans,
     data = d,
     model = "DyNAM",

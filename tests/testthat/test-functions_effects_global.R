@@ -100,22 +100,22 @@ test_that("global() is rejected at choice estimation but computable", {
     "interaction"
   )
   # ... but the statistic is now computable in choice, so
-  # compute_stats() produces the column (a design column for interactions).
-  prepChoice <- compute_stats(
+  # compute_statistics() produces the column (a design column for interactions).
+  prepChoice <- compute_statistics(
     depNetwork ~ inertia + global(seasons$winter),
     data = dataGlobal,
     model = "DyNAM",
     sub_model = "choice"
   )
   expect_s3_class(prepChoice, "preprocessed.goldfish")
-  prepRate <- compute_stats(
+  prepRate <- compute_statistics(
     depNetwork ~ global(seasons$winter),
     data = dataGlobal,
     model = "DyNAM",
     sub_model = "rate_ordered"
   )
   expect_s3_class(prepRate, "preprocessed.goldfish")
-  prepRem <- compute_stats(
+  prepRem <- compute_statistics(
     depNetwork ~ global(seasons$winter),
     data = dataGlobal,
     model = "REM",

@@ -1,5 +1,5 @@
 test_that("compute_stats returns a preprocessed.goldfish object", {
-  prep <- compute_stats(
+  prep <- compute_statistics(
     depNetwork ~ inertia + recip,
     data = dataTest,
     model = "DyNAM",
@@ -11,7 +11,7 @@ test_that("compute_stats returns a preprocessed.goldfish object", {
 
 test_that("compute_stats matches the estimate preprocessing only output", {
   formulaTest <- depNetwork ~ inertia + recip
-  prep <- compute_stats(
+  prep <- compute_statistics(
     formulaTest,
     data = dataTest,
     model = "DyNAM",
@@ -28,7 +28,7 @@ test_that("compute_stats matches the estimate preprocessing only output", {
 
 test_that("compute_stats output is usable for estimation", {
   formulaTest <- depNetwork ~ inertia + recip
-  prep <- compute_stats(
+  prep <- compute_statistics(
     formulaTest,
     data = dataTest,
     model = "DyNAM",
@@ -49,7 +49,7 @@ test_that("compute_stats output is usable for estimation", {
 })
 
 test_that("compute_stats validates the output argument", {
-  gathered <- compute_stats(
+  gathered <- compute_statistics(
     depNetwork ~ inertia,
     data = dataTest,
     model = "DyNAM",
@@ -59,7 +59,7 @@ test_that("compute_stats validates the output argument", {
   expect_true(!is.null(gathered$stat_all_events))
   expect_true(!is.null(gathered$selected))
   expect_error(
-    compute_stats(
+    compute_statistics(
       depNetwork ~ inertia,
       data = dataTest,
       model = "DyNAM",
@@ -69,7 +69,7 @@ test_that("compute_stats validates the output argument", {
     "DBI connection"
   )
   expect_error(
-    compute_stats(
+    compute_statistics(
       depNetwork ~ inertia,
       data = dataTest,
       model = "DyNAM",
@@ -81,7 +81,7 @@ test_that("compute_stats validates the output argument", {
 
 test_that("compute_stats validates model and sub_model values", {
   expect_error(
-    compute_stats(
+    compute_statistics(
       depNetwork ~ inertia,
       data = dataTest,
       model = "SAOM",
@@ -89,7 +89,7 @@ test_that("compute_stats validates model and sub_model values", {
     )
   )
   expect_error(
-    compute_stats(
+    compute_statistics(
       depNetwork ~ inertia,
       data = dataTest,
       model = "REM",
@@ -99,7 +99,7 @@ test_that("compute_stats validates model and sub_model values", {
 })
 
 test_that("preprocessed objects carry the format version", {
-  prep <- compute_stats(
+  prep <- compute_statistics(
     depNetwork ~ inertia,
     data = dataTest,
     model = "DyNAM",

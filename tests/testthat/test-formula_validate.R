@@ -106,8 +106,8 @@ test_that("choice type = 'ego' is rejected at estimation but computable", {
     )),
     "Unsupported main effect"
   )
-  # ... but the statistic is still produced by compute_stats (a design column).
-  prep <- compute_stats(
+  # ... but the statistic is still produced by compute_statistics (a design column).
+  prep <- compute_statistics(
     depNetwork ~ inertia + indeg(networkState, type = "ego"),
     data = dataTest,
     model = "DyNAM",
@@ -146,7 +146,7 @@ test_that("choice global is computable and equals the REM expansion", {
   dataGlobal <- make_data(depNetwork, seasons)
   form <- depNetwork ~ global(seasons$winter)
 
-  choice <- compute_stats(
+  choice <- compute_statistics(
     form,
     data = dataGlobal,
     model = "DyNAM",
@@ -155,7 +155,7 @@ test_that("choice global is computable and equals the REM expansion", {
   # REM rate_ordered uses the same dependent-only dyad loop + the same global
   # effect functions the new choice wrappers delegate to, so the statistic is
   # identical (mirrors the Group-1 ego equivalence).
-  rem <- compute_stats(
+  rem <- compute_statistics(
     form,
     data = dataGlobal,
     model = "REM",

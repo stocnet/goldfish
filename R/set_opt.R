@@ -531,7 +531,7 @@ reconcile_legacy_diagnostics <- function(
 #'   reserved for a future estimator and currently aborts as unimplemented.
 #'   Default is `NULL`.
 #' @param db A `DBIConnection` object or `NULL` (default). When supplied
-#'   together with `compute_stats(..., output = "db")`, the gather statistics
+#'   together with `compute_statistics(..., output = "db")`, the gather statistics
 #'   are streamed to the database table named by `db_table` instead of being
 #'   held in memory.
 #' @param db_table A single character string naming the database table to

@@ -54,5 +54,5 @@
       Error in `estimate_wrapper()`:
       ! The `preprocessed` object uses an outdated preprocessing format.
       x Objects preprocessed with a previous goldfish version cannot be reused for estimation.
-      i Recompute the preprocessing object with `compute_stats()`.
+      i Recompute the preprocessing object with `compute_statistics()`.
 

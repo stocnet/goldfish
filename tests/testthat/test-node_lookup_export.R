@@ -138,7 +138,7 @@ test_that("the db export descriptor carries the node lookup", {
   con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
   on.exit(DBI::dbDisconnect(con), add = TRUE)
 
-  descriptor <- compute_stats(
+  descriptor <- compute_statistics(
     calls ~ inertia,
     model = "DyNAM",
     sub_model = "choice",

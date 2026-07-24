@@ -66,7 +66,8 @@ reference:
       - starts_with("Social_")
   - title: "Gather preprocessing"
     contents:
-      - gather_model_data 
+      - compute_statistics
+      - gather_model_data
 articles:
   - title: "goldfish effects"
     navbar: "goldfish effects"

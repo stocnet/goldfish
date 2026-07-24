@@ -1,10 +1,10 @@
 se_data <- baselines_social_evolution_data()
 
-test_that("compute_stats(output = 'db') round-trips against the gather writer", {
+test_that("compute_statistics(output = 'db') round-trips against the gather writer", {
   skip_on_cran()
   skip_if_not_installed("RSQLite")
   formula <- calls_dependent ~ inertia + recip + trans
-  gathered <- compute_stats(
+  gathered <- compute_statistics(
     formula,
     data = se_data,
     model = "DyNAM",
@@ -13,7 +13,7 @@ test_that("compute_stats(output = 'db') round-trips against the gather writer", 
   )
   con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
   on.exit(DBI::dbDisconnect(con), add = TRUE)
-  descriptor <- compute_stats(
+  descriptor <- compute_statistics(
     formula,
     data = se_data,
     model = "DyNAM",
@@ -46,7 +46,7 @@ test_that("gather index columns decode to node labels; coordination is filtered"
   nodes <- se_data$nodes
   # DyNAM choice: index_i is the (constant) event sender, index_j the receiver;
   # the selected row decodes to the observed sender/receiver labels.
-  gc <- compute_stats(
+  gc <- compute_statistics(
     calls_dependent ~ inertia + recip,
     data = se_data,
     model = "DyNAM",
@@ -60,7 +60,7 @@ test_that("gather index columns decode to node labels; coordination is filtered"
 
   # Coordination: no reflexive diagonal rows (index_i != index_j everywhere),
   # and the observed row's unordered pair matches {sender, receiver}.
-  cc <- compute_stats(
+  cc <- compute_statistics(
     calls_dependent ~ inertia + trans,
     data = se_data,
     model = "DyNAM",
@@ -80,10 +80,10 @@ test_that("gather index columns decode to node labels; coordination is filtered"
   ))
 })
 
-test_that("compute_stats(output = 'db') errors when no connection is configured", {
+test_that("compute_statistics(output = 'db') errors when no connection is configured", {
   skip_on_cran()
   expect_error(
-    compute_stats(
+    compute_statistics(
       calls_dependent ~ inertia,
       data = se_data,
       model = "DyNAM",
@@ -98,7 +98,7 @@ test_that("db writer round-trips for a rate model", {
   skip_on_cran()
   skip_if_not_installed("RSQLite")
   formula <- calls_dependent ~ 1 + indeg + outdeg
-  gathered <- compute_stats(
+  gathered <- compute_statistics(
     formula,
     data = se_data,
     model = "DyNAM",
@@ -107,7 +107,7 @@ test_that("db writer round-trips for a rate model", {
   )
   con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
   on.exit(DBI::dbDisconnect(con), add = TRUE)
-  compute_stats(
+  compute_statistics(
     formula,
     data = se_data,
     model = "DyNAM",

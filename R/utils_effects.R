@@ -20,7 +20,6 @@
 NULL
 
 #' @rdname utils-effects
-#' @export
 to_ego <- function(changes, n2, is_two_mode = FALSE) {
   if (is.null(changes)) {
     return(NULL)
@@ -40,7 +39,6 @@ to_ego <- function(changes, n2, is_two_mode = FALSE) {
 }
 
 #' @rdname utils-effects
-#' @export
 to_alter <- function(changes, n1, is_two_mode = FALSE) {
   if (is.null(changes)) {
     return(NULL)

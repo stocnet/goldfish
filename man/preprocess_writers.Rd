@@ -32,7 +32,7 @@ recipe-computed assembly inputs (\code{initialStats},
 }
 
 Recipe methods emit output exclusively through these hooks; they never
-branch on the output format. \code{compute_stats(output = ...)} selects the
+branch on the output format. \code{compute_statistics(output = ...)} selects the
 writer.
 }
 \section{Future extension points (documented, not implemented)}{

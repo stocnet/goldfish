@@ -140,11 +140,11 @@ gather_model_data <- function(
     progress <- FALSE
   }
 
-  compute_stats(
-    formula = formula,
-    data = data,
+  compute_statistics(
+    x = formula,
     model = model,
     sub_model = sub_model,
+    data = data,
     output = "gather",
     control_prep = control_preprocessing,
     progress = progress,

@@ -55,14 +55,14 @@ unavailable_variations <- function(model, sub_model) {
   character(0)
 }
 
-# Variation axes that ARE computable (available via compute_stats() as design
+# Variation axes that ARE computable (available via compute_statistics() as design
 # columns for interactions / random effects) but are not identified
 # as bare main effects, so they are rejected only when actually estimating.
 unidentified_variations <- function(model, sub_model) {
   is_dynam <- model %in% c("DyNAM", "DyNAMi")
   # DyNAM choice: both `global` and ego-perspective columns are constant across
   # the receiver alternatives, so neither is identified as a bare main effect
-  # (both remain computable via compute_stats and usable as interaction
+  # (both remain computable via compute_statistics and usable as interaction
   # operands).
   if (is_dynam && sub_model %in% c("choice", "choice_coordination")) {
     return(c("global", "ego"))
@@ -137,7 +137,7 @@ validate_effects <- function(
     "Unsupported main effect in {.code model = {.val {model}}},
      {.code sub_model = {.val {sub_model}}}:",
     offenders,
-    "i" = "These effects are computable (e.g. via {.fn compute_stats}) but are
+    "i" = "These effects are computable (e.g. via {.fn compute_statistics}) but are
            not identified as bare main effects; they will be usable through
            interaction terms in a future release. Use a rate sub-model (or add
            the time intercept) to estimate a global main effect."

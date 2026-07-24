@@ -9,14 +9,14 @@ edits are expected; if any C++ is touched, `cpp-recompile` applies.
 
 ## 1. Consolidation core (D1–D3)
 
-- [ ] 1.1 `compute_statistics()`: rename from `compute_stats()` with the
-      new signature (`x, model, sub_model, data, output =
-      c("preprocessed", "gather", "data.frame", "db"), control_prep =
-      set_preprocessing()`, `max_length =` absorbed);
-      `gather_model_data()` becomes a lifecycle soft-deprecated wrapper
-      with a direct-replacement warning (no two-hop chains);
-      `compute_stats()` is **deleted** (removed from NAMESPACE and
-      source, no stub; rename recorded in NEWS); NAMESPACE/docs moves.
+- [ ] 1.1 `compute_statistics()` — HEAD START LANDED 1.9.12: the function
+      exists with the final signature (`x`-first, selectors-before-data,
+      `output = c("preprocessed", "gather", "db")`, `control_prep =
+      set_preprocessing()`) and `compute_stats()` is already deleted (no
+      stub; NEWS records the rename). Remaining here: add the
+      `"data.frame"` output value; absorb `max_length =` as an explicit
+      formal; make `gather_model_data()` a lifecycle soft-deprecated
+      wrapper with a direct-replacement warning (no two-hop chains).
       Tests: all four outputs on a small fixture; gather_model_data
       deprecation-warning snapshot + value identity; expect
       `"compute_stats" %in% getNamespaceExports("goldfish")` is FALSE and

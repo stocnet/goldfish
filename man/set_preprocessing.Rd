@@ -56,7 +56,7 @@ reserved for a future estimator and currently aborts as unimplemented.
 Default is \code{NULL}.}
 
 \item{db}{A \code{DBIConnection} object or \code{NULL} (default). When supplied
-together with \code{compute_stats(..., output = "db")}, the gather statistics
+together with \code{compute_statistics(..., output = "db")}, the gather statistics
 are streamed to the database table named by \code{db_table} instead of being
 held in memory.}
 

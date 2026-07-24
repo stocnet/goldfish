@@ -581,25 +581,29 @@ estimate_from_specification <- function(
 #' `preprocessed` argument, or used directly by users who want to
 #' work with the sufficient statistics of a model.
 #'
-#' @param formula a formula that defines at the left-hand side the dependent
+#' @param x a formula that defines at the left-hand side the dependent
 #'   network (see [make_dependent_events()]) and at the right-hand side the
 #'   effects and the variables for which the effects are expected to occur
 #'   (see `vignette("goldfish_effects")`).
-#' @param data a `data.goldfish` object created with [make_data()].
 #' @param model a character string specifying the model. Current options are
 #'   `"DyNAM"`, `"REM"` or `"DyNAMi"`, see [estimate_dynam()],
 #'   [estimate_rem()] and [estimate_dynami()].
 #' @param sub_model a character string specifying the sub-model, see
 #'   [estimate_dynam()]. The default value `NULL` resolves to `"rate"` for
 #'   `model = "REM"` and `"choice"` otherwise.
+#' @param data a `data.goldfish` object created with [make_data()].
 #' @param output a character string specifying the output format of the
-#'   preprocessed statistics. `"default"` returns the estimation-ready
+#'   preprocessed statistics. `"preprocessed"` returns the estimation-ready
 #'   `preprocessed.goldfish` object; `"gather"` returns the gather stack (one
 #'   row per event x alternative, as in [gather_model_data()]); `"db"` streams
 #'   the gather rows to the database table configured via
 #'   [set_preprocessing()] (`db` / `db_table`) and returns a descriptor.
+#' @param control_prep an object of class `preprocessing.goldfish` created
+#'   with [set_preprocessing()].
+#' @param progress logical. Whether to print a progress bar during
+#'   preprocessing.
 #' @param ... additional arguments passed to the preprocessing stage, e.g.,
-#'   `control_prep` (see [set_preprocessing()]) and `progress`.
+#'   `max_length` for the `"db"` output.
 #'
 #' @return an object of class `"preprocessed.goldfish"` with the change
 #'   statistics of the effects for the event sequence and the information
@@ -611,18 +615,20 @@ estimate_from_specification <- function(
 #' @export
 #' @examples
 #' data("social_evolution")
-#' prep <- compute_stats(
+#' prep <- compute_statistics(
 #'   calls ~ inertia + recip + trans,
-#'   data = social_evolution,
-#'   model = "DyNAM", sub_model = "choice"
+#'   model = "DyNAM", sub_model = "choice",
+#'   data = social_evolution
 #' )
 #' prep
-compute_stats <- function(
-  formula,
-  data,
+compute_statistics <- function(
+  x,
   model = c("DyNAM", "REM", "DyNAMi"),
   sub_model = NULL,
-  output = c("default", "gather", "db"),
+  data = NULL,
+  output = c("preprocessed", "gather", "db"),
+  control_prep = set_preprocessing(),
+  progress = getOption("progress", default = FALSE),
   ...
 ) {
   model <- match.arg(model)
@@ -631,11 +637,16 @@ compute_stats <- function(
   }
   output <- match.arg(output)
   estimate_wrapper(
-    x = formula,
+    x = x,
     model = model,
     sub_model = sub_model,
     data = data,
-    output = output,
+    # the wrapper and the writers keep the legacy "default" token for the
+    # estimation-ready object; only the user-facing vocabulary says
+    # "preprocessed"
+    output = if (output == "preprocessed") "default" else output,
+    control_prep = control_prep,
+    progress = progress,
     preprocessing_only = TRUE,
     ...
   )
@@ -1135,7 +1146,7 @@ estimate_wrapper <- function(
        format.",
       "x" = "Objects preprocessed with a previous goldfish version cannot be
              reused for estimation.",
-      "i" = "Recompute the preprocessing object with {.fn compute_stats}."
+      "i" = "Recompute the preprocessing object with {.fn compute_statistics}."
     ))
   }
 
@@ -1366,7 +1377,7 @@ estimate_wrapper <- function(
   # Per-(model, sub_model) main-effect validity. Unavailable effects
   # (no bare implementation, e.g. global in choice) abort in every phase;
   # computable-but-unidentified effects stay producible via preprocessing
-  # (compute_stats, as design columns for interactions / random effects) and are
+  # (compute_statistics, as design columns for interactions / random effects) and are
   # rejected only when estimating. Runs after `*` expansion. All effects are
   # main until interaction terms land.
   validity_sub_model <- sub_model
@@ -1683,7 +1694,7 @@ estimate_wrapper <- function(
       cli::cli_abort(c(
         "The {.arg preprocessed} object format does not match the
          format produced by the current preprocessing.",
-        "i" = "Recompute the preprocessing object with {.fn compute_stats}."
+        "i" = "Recompute the preprocessing object with {.fn compute_statistics}."
       ))
     }
     n1_val <- ds_n_nodes(work_src, .nodes)

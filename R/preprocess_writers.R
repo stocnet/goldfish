@@ -27,7 +27,7 @@
 #' }
 #'
 #' Recipe methods emit output exclusively through these hooks; they never
-#' branch on the output format. `compute_stats(output = ...)` selects the
+#' branch on the output format. `compute_statistics(output = ...)` selects the
 #' writer.
 #'
 #' @section Future extension points (documented, not implemented):
@@ -144,7 +144,7 @@ writer_default <- function() {
                      can have at most {.val {.Machine$integer.max}}.",
               "i" = "This model produces too many statistic updates for
                      in-memory preprocessing. Stream them with
-                     {.code compute_stats(output = \"db\")}, or reduce the
+                     {.code compute_statistics(output = \"db\")}, or reduce the
                      number of effects or window effects."
             ))
           }
@@ -169,7 +169,7 @@ writer_default <- function() {
                      can have at most {.val {.Machine$integer.max}}.",
               "i" = "This model produces too many broadcast updates for
                      in-memory preprocessing. Stream them with
-                     {.code compute_stats(output = \"db\")}, or reduce the
+                     {.code compute_statistics(output = \"db\")}, or reduce the
                      number of effects or window effects."
             ))
           }
