@@ -20,6 +20,14 @@ context: |
     are computationally expensive and use skip_on_cran(), so a bare
     Rscript run silently skips them and verifies nothing about
     coefficient reproducibility. Confirm they report PASS, not SKIP.
+  - Format the R files touched by a task with air BEFORE linting them:
+    `air format <paths>` (config in air.toml, pinned to .lintr's 80-column
+    width and 2-space indentation), then `lintr::lint(<path>)` on the same
+    files. Formatting first means lintr only reports what the formatter
+    cannot fix (naming, line length in comments/strings, ...) instead of
+    whitespace noise. Never run `air format` over the whole package in a
+    task commit — only the files that task edited, so the diff stays
+    reviewable.
 
   Required skills (hard rules — invoke the skill before doing the work it
   covers; do not rely on memory):

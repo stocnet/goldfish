@@ -36,7 +36,8 @@ each change's `progress.md` (personal session journal), `changes/archive/`
 
 - **Workflow disciplines are authoritative in `openspec/config.yaml`**: commit-per-task,
   run `devtools::document()` inline when roxygen/exports/signatures change, bump
-  `DESCRIPTION` + `NEWS.md` at each phase milestone, and test with `NOT_CRAN=true`
+  `DESCRIPTION` + `NEWS.md` at each phase milestone, `air format` the touched R files
+  before `lintr` runs on them, and test with `NOT_CRAN=true`
   (the coefficient-baseline and C++ golden tests use `skip_on_cran()`). Read it
   before implementing.
 - **Do not regenerate the frozen coefficient baselines** in
