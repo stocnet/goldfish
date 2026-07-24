@@ -10,16 +10,29 @@ column conventions.
 `residuals.result.goldfish(object, type, preprocessed = NULL, ...)` SHALL
 support `type = c("deviance", "schoenfeld", "scaled_schoenfeld", "score",
 "cox_snell", "response", "martingale", "dfbeta", "dfbetas", "cooks")` with
-`"deviance"` as default. Definitions: deviance = `-2 * intervalLogL`;
-schoenfeld = per-event observed-minus-expected statistic rows (the stored
-`event_scores` for multinomial submodels); scaled_schoenfeld =
-`coef(object) + n * solve(Vbar) %*% s_k` with `Vbar` the average
-information; score = the per-event score increments (equal to schoenfeld
-for ordinal/choice submodels, including the exposure term for exact-time
-submodels); cox_snell = interevent time times the total fitted rate
-(exact-time rate/REM submodels only; requesting it elsewhere aborts with a
-cli error); response = observed indicator minus fitted probability per
-alternative; martingale = per-actor-margin observed minus expected counts;
+`"deviance"` as default. Definitions: deviance = `-2 * intervalLogL`
+(documented note: for exact-time submodels `intervalLogL` is a
+log-density, so deviance values can be negative); schoenfeld = per-event
+observed-minus-expected statistic rows — the stored `event_scores` for
+multinomial submodels; for exact-time submodels the
+observed-minus-risk-set-weighted-mean rows with weights `lambda / sum
+lambda` (no exposure term — these do NOT sum to zero at the MLE, only the
+score rows do, and the documentation SHALL say so); scaled_schoenfeld =
+`coef(object) + solve(Vbar) %*% s_k` with `Vbar = I / n` the average
+per-event observed information at the estimate (equivalently
+`coef(object) + n * solve(I) %*% s_k`, Grambsch-Therneau; `n` is the
+event count of the submodel being diagnosed — the constant is never
+shared across submodels); score = the per-event score increments (equal
+to schoenfeld for ordinal/choice submodels, including the exposure term
+for exact-time submodels); cox_snell = interevent time times the total
+fitted rate (exact-time rate/REM submodels only; requesting it elsewhere
+aborts with a cli error); response = observed indicator minus fitted
+probability per alternative, using the conditional multinomial
+probabilities `lambda / sum lambda` for exact-time submodels; martingale
+= per-actor observed minus expected counts exactly as defined by the
+`"margins"` primitive (both sender and receiver margins on REM fits),
+with `level = "dyad"` returning the per-dyad observed-minus-expected map
+via `evaluate_engine()` (never a stored primitive);
 dfbeta/dfbetas = `solve(I) %*% s_k` (scaled by standard errors for
 dfbetas); cooks = `t(s_k) %*% solve(I) %*% s_k`, the scalar one-step
 self-influence (Cook's-distance analog; the frequentist counterpart of a
@@ -39,8 +52,12 @@ observed sender).
 
 #### Scenario: schoenfeld residuals sum to zero at the MLE
 - **WHEN** `residuals(fit, type = "schoenfeld")` is called on a converged
-  choice-model fixture
-- **THEN** the column sums are zero within the convergence tolerance.
+  choice-model fixture with no offset (fixed-coefficient) terms
+- **THEN** the column sums of the free-parameter columns are zero within
+  the convergence tolerance. (The identity is multinomial-submodel-only:
+  exact-time schoenfeld rows lack the exposure term and do not sum to
+  zero even at the MLE; offset columns are excluded because a fixed
+  coefficient's score component is not zero at the optimum.)
 
 #### Scenario: cox_snell residuals are unit exponential under the model
 - **WHEN** cox_snell residuals are computed on data simulated from a known

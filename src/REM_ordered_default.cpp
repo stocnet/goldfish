@@ -31,7 +31,8 @@ List estimate_REM_ordered(
     bool impute = true,
     const bool active_dyad_is_point = false,
     const bool return_event_scores = false,
-    const bool return_ranks = false
+    const bool return_ranks = false,
+    const bool return_margins = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -56,6 +57,21 @@ List estimate_REM_ordered(
     // (rank 1 = highest fitted probability); allocated only when requested.
     IntegerVector observed_rank;
     if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
+    // Opt-in both-sided margin accumulators (the coarsened multinomial). Each
+    // event distributes one unit of expected mass over the risk-set dyads by
+    // fitted probability, credited to both the dyad's sender and receiver
+    // margins; each side therefore totals n exactly at any parameter, and the two
+    // totals coincide. Allocated only when requested.
+    arma::vec margin_observed_sender;
+    arma::vec margin_expected_sender;
+    arma::vec margin_observed_receiver;
+    arma::vec margin_expected_receiver;
+    if (return_margins) {
+        margin_observed_sender = arma::vec(n_actors_1, fill::zeros);
+        margin_expected_sender = arma::vec(n_actors_1, fill::zeros);
+        margin_observed_receiver = arma::vec(n_actors_2, fill::zeros);
+        margin_expected_receiver = arma::vec(n_actors_2, fill::zeros);
+    }
 
     // Check whether there are composition change and initialize
     // the presence of actor1 and actor2
@@ -171,6 +187,19 @@ List estimate_REM_ordered(
             }
             observed_rank[id_event] = rank;
         }
+        if (return_margins) {
+            // `weights` is zero on masked dyads, so the double sum ranges over
+            // the realized risk set; sender and receiver totals coincide.
+            for (int i = 0; i < n_actors_1; ++i) {
+                for (int j = 0; j < n_actors_2; j++) {
+                    const double p = weights(i * n_actors_2 + j) / normalizer;
+                    margin_expected_sender(i) += p;
+                    margin_expected_receiver(j) += p;
+                }
+            }
+            margin_observed_sender(id_sender) += 1;
+            margin_observed_receiver(id_receiver) += 1;
+        }
         expected_stat_current_event = (weights.t() * stat_mat) / normalizer;
         // derivative
         arma::rowvec score_before;
@@ -196,6 +225,10 @@ List estimate_REM_ordered(
       Named("logLikelihood") = logLikelihood,
       Named("intervalLogL") = intervalLogL,
       Named("event_scores") = event_scores,
-      Named("observed_rank") = observed_rank
+      Named("observed_rank") = observed_rank,
+      Named("margin_observed_sender") = margin_observed_sender,
+      Named("margin_expected_sender") = margin_expected_sender,
+      Named("margin_observed_receiver") = margin_observed_receiver,
+      Named("margin_expected_receiver") = margin_expected_receiver
     );
 }

@@ -20,8 +20,9 @@ model/submodel routing. Statistics SHALL come from the attached or supplied
 - **WHEN** `evaluate_engine(fit, at = coef(fit), return = c("loglik",
   "score"))` runs on a converged fixture fit
 - **THEN** the log-likelihood equals `logLik(fit)` within 1e-10 and the
-  score is near zero (max absolute component below the convergence
-  tolerance).
+  score of the free (non-offset) parameters is near zero (max absolute
+  component below the convergence tolerance; offset columns carry the
+  fixed value's nonzero score and are reported, not tested).
 
 #### Scenario: evaluation at a constrained vector
 - **WHEN** `evaluate_engine` is called at a parameter vector with one

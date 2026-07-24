@@ -38,7 +38,8 @@ List estimate_DyNAM_rate_ordered(
     const bool twomode_or_reflexive,
     bool impute = true,
     const bool return_event_scores = false,
-    const bool return_ranks = false
+    const bool return_ranks = false,
+    const bool return_margins = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -63,10 +64,20 @@ List estimate_DyNAM_rate_ordered(
     // (rank 1 = highest fitted probability); allocated only when requested.
     IntegerVector observed_rank;
     if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
+    // Opt-in sender-margin accumulators (per-sender observed and expected event
+    // counts). `expected[s]` sums the sender's fitted multinomial probability
+    // over events, so it totals n exactly at any parameter; allocated only when
+    // requested.
+    arma::vec margin_observed;
+    arma::vec margin_expected;
+    if (return_margins) {
+        margin_observed = arma::vec(n_actors_1, fill::zeros);
+        margin_expected = arma::vec(n_actors_1, fill::zeros);
+    }
 
 
     // Check whether there are composition change and initialize
-    // the presence of actor1 and actor2 
+    // the presence of actor1 and actor2
     bool has_composition_change1 = true;
     int active_sender_update_id = 0;
     if (active_sender_update.n_elem == 0) {
@@ -153,6 +164,12 @@ List estimate_DyNAM_rate_ordered(
             }
             observed_rank[id_event] = rank;
         }
+        if (return_margins) {
+            for (int i = 0; i < n_actors_1; ++i) {
+                if (allowed(i) == 1) margin_expected(i) += weights(i) / normalizer;
+            }
+            margin_observed(id_sender) += 1;
+        }
         expected_stat_current_event = (weights.t() * reduced_stat_mat) /
           normalizer;
         // derivative
@@ -180,7 +197,9 @@ List estimate_DyNAM_rate_ordered(
       Named("intervalLogL") = intervalLogL,
       Named("logLikelihood") = logLikelihood,
       Named("event_scores") = event_scores,
-      Named("observed_rank") = observed_rank
+      Named("observed_rank") = observed_rank,
+      Named("margin_observed") = margin_observed,
+      Named("margin_expected") = margin_expected
     );
 }
 

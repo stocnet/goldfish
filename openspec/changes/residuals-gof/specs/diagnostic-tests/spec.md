@@ -9,24 +9,58 @@ Goodness-of-fit and specification tests: `test_gof()`, `test_parameter()`,
 `test_gof()` SHALL implement the Boschi-Wit martingale-residual test for
 fixed-linear-effect models from stored `event_scores`: per effect, the
 standardized cumulative score process
-`W_d(u) = J_d^{-1/2} n^{-1/2} cumsum(s_kd)` with `J_d` estimated from the
-observed information (empirical variance of centered contributions as
-fallback), the statistic `T_d = sup_u |W_d(u)|`, and the analytic
-Kolmogorov p-value `p(t) = 2 * sum_{j>=1} (-1)^{j-1} exp(-2 j^2 t^2)`.
+`W_d(u) = J_d^{-1/2} n^{-1/2} cumsum(s_kd)` with `J_d = I_dd / n` — the
+**average per-event** observed information at the estimate, not the total
+(the `n^{-1/2}` normalization requires the per-event scale; the empirical
+variance of centered contributions is the fallback estimate of the same
+per-event quantity), the statistic `T_d = sup_u |W_d(u)|`, and the
+analytic Kolmogorov p-value
+`p(t) = 2 * sum_{j>=1} (-1)^{j-1} exp(-2 j^2 t^2)`.
 Effect-level p-values SHALL be combined per submodel block and jointly via
 the Cauchy combination `T_o = mean(tan(pi * (0.5 - P_l)))` with
 `p = 1/2 - atan(T_o)/pi`. Methods SHALL exist for `result.goldfish`
 (single submodel) and for the specification-based fit (per-block tests
 plus joint omnibus). On a flavored specification fit the blocks are per
 process (fid) × submodel: each process is tested exactly as a single-model
-fit and the joint omnibus combines across processes. No `gof()` S3 generic
-SHALL be defined.
+fit and the joint omnibus combines across processes. Offset
+(fixed-coefficient) terms SHALL be excluded from the tested effects (their
+score processes are not bridges — a fixed coefficient's score component is
+not zero at the optimum); testing an offset term SHALL abort with a cli
+error pointing to `test_parameter()`. No `gof()` S3 generic SHALL be
+defined.
+
+`test_gof()` SHALL accept `clock = c("event", "information")`. The default
+`"event"` places increment `k` at `u_k = k/n` (the Boschi-Wit
+normalization), whose Brownian-bridge null requires approximately
+proportional information accrual over the event sequence — an assumption
+the documentation SHALL state, with cold-start endogenous statistics named
+as the typical violation. `"information"` places increment `k` at
+`u_k = I_d(k) / I_d(n)` computed from cumulative outer-product (OPG) sums
+of the stored score rows — the martingale time change that restores the
+bridge limit under non-uniform accrual — with zero evaluation passes. The
+documentation SHALL cross-reference `examine_onset()`'s
+information-accrual curve as the diagnostic for choosing the clock.
 
 #### Scenario: bridge property holds at the MLE
-- **WHEN** `test_gof(fit)` runs on a converged fixture
-- **THEN** each effect's cumulative score process ends at zero within the
-  convergence tolerance, and the returned object stores the full process
-  paths.
+- **WHEN** `test_gof(fit)` runs on a converged fixture with no offset
+  terms
+- **THEN** each free effect's cumulative score process ends at zero within
+  the convergence tolerance, and the returned object stores the full
+  process paths.
+
+#### Scenario: information clock from stored scores
+- **WHEN** `test_gof(fit, clock = "information")` runs on a fit with
+  stored `event_scores`
+- **THEN** it completes without an evaluation pass, the process increments
+  are placed at the normalized cumulative per-effect OPG information, and
+  the bridge property at `u = 1` still holds.
+
+#### Scenario: cold-start coverage on the information clock
+- **WHEN** null-coverage replications run on a cold-start fixture (all
+  endogenous statistics empty at onset) under both clocks
+- **THEN** the information-clock p-values are approximately uniform, and
+  any event-clock deviation from uniformity is documented with the
+  fixture, as a NOT_CRAN test.
 
 #### Scenario: null coverage
 - **WHEN** the test is applied across replicated fits of correctly

@@ -125,7 +125,9 @@ List estimate_REM(
     bool impute,
     const bool active_dyad_is_point,
     const bool return_event_scores = false,
-    const bool return_ranks = false
+    const bool return_ranks = false,
+    const bool return_margins = false,
+    const bool return_total_rate = false
 ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -152,6 +154,29 @@ List estimate_REM(
    // only when requested so the default path pays nothing.
    IntegerVector observed_rank;
    if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
+   // Opt-in both-sided margin accumulators. A tie-oriented model implies both
+   // the out-degree (sender) and in-degree (receiver) compensators:
+   // `expected_receiver[r]` sums, over every likelihood interval (right-censored
+   // included), the interevent time times the summed fitted intensities of dyads
+   // incident to r; `expected_sender[s]` is the mirror over senders. Both sides
+   // share the same double sum, so their totals are identical and each equals the
+   // number of events at the MLE. Allocated only when requested.
+   arma::vec margin_observed_sender;
+   arma::vec margin_expected_sender;
+   arma::vec margin_observed_receiver;
+   arma::vec margin_expected_receiver;
+   if (return_margins) {
+     margin_observed_sender = arma::vec(n_actors_1, fill::zeros);
+     margin_expected_sender = arma::vec(n_actors_1, fill::zeros);
+     margin_observed_receiver = arma::vec(n_actors_2, fill::zeros);
+     margin_expected_receiver = arma::vec(n_actors_2, fill::zeros);
+   }
+   // Opt-in per-event total rate: the summed fitted intensity over the realized
+   // risk set, one value per event. `total_rate * interevent time` is the
+   // Cox-Snell/compensator residual, recovered without an evaluation pass.
+   // Allocated only when requested.
+   arma::vec total_rate;
+   if (return_total_rate) total_rate = arma::vec(n_events, fill::zeros);
 
 
    // Check whether there are composition change and initialize
@@ -262,6 +287,18 @@ List estimate_REM(
      arma::vec e = arma::exp(lin_pred);
      e.elem(arma::find(allowed < 0.5)).zeros();
      double normalizer = accu(e);
+     if (return_total_rate) total_rate(id_event) = normalizer;
+     if (return_margins) {
+       // `e` is already zero on masked dyads, so the double sum ranges over the
+       // realized risk set; sender and receiver totals coincide by construction.
+       for (int i = 0; i < n_actors_1; ++i) {
+         for (int j = 0; j < n_actors_2; j++) {
+           const double contrib = timespan_current_event * e(i * n_actors_2 + j);
+           margin_expected_sender(i) += contrib;
+           margin_expected_receiver(j) += contrib;
+         }
+       }
+     }
      weighted_sum_current_event = e.t() * stat_mat;
      fisher_current_event = (stat_mat.each_col() % e).t() * stat_mat;
      // add the quantities of a current event to the variables to be returned
@@ -277,6 +314,10 @@ List estimate_REM(
        const int id_obs = id_sender * n_actors_2 + id_receiver;
        intervalLogL(id_event) += lin_pred(id_obs);
        derivative += stat_mat.row(id_obs);
+       if (return_margins) {
+         margin_observed_sender(id_sender) += 1;
+         margin_observed_receiver(id_receiver) += 1;
+       }
        if (return_ranks) {
          const double obs_rate = e(id_obs);
          int rank = 1;
@@ -299,6 +340,11 @@ List estimate_REM(
      Named("intervalLogL") = intervalLogL,
      Named("logLikelihood") = logLikelihood,
      Named("event_scores") = event_scores,
-     Named("observed_rank") = observed_rank
+     Named("observed_rank") = observed_rank,
+     Named("margin_observed_sender") = margin_observed_sender,
+     Named("margin_expected_sender") = margin_expected_sender,
+     Named("margin_observed_receiver") = margin_observed_receiver,
+     Named("margin_expected_receiver") = margin_expected_receiver,
+     Named("total_rate") = total_rate
    );
  }
