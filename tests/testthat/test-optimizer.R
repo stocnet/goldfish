@@ -2,14 +2,14 @@
 # maxLik-backed adapter. newton_raphson is the built-in loop; the
 # other three run maxLik::maxLik() over the default_c evaluator.
 
-test_that("set_estimation_opt validates the optimizer against the flat list", {
-  expect_identical(set_estimation_opt()$optimizer, "newton_raphson")
+test_that("set_algorithm_newton validates the optimizer against the flat list", {
+  expect_identical(set_algorithm_newton()$optimizer, "newton_raphson")
   expect_identical(
-    set_estimation_opt(optimizer = "bfgs")$optimizer,
+    set_algorithm_newton(optimizer = "bfgs")$optimizer,
     "bfgs"
   )
   expect_error(
-    set_estimation_opt(optimizer = "gradient_descent"),
+    set_algorithm_newton(optimizer = "gradient_descent"),
     "should be one of"
   )
 })
@@ -43,7 +43,7 @@ test_that("maxLik optimizers reject engines other than default_c", {
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_estimation = set_estimation_opt(
+      control_estimation = set_algorithm_newton(
         optimizer = "bfgs",
         engine = engine
       ),
@@ -71,7 +71,7 @@ test_that("a maxLik optimizer aborts when maxLik is not installed", {
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_estimation = set_estimation_opt(optimizer = "bfgs"),
+      control_estimation = set_algorithm_newton(optimizer = "bfgs"),
       progress = FALSE
     ),
     error = TRUE
@@ -84,7 +84,7 @@ test_that("BFGS and BHHH agree with Newton-Raphson on baseline fixtures", {
   data_list <- list(social_evolution = baselines_social_evolution_data())
   grid <- baselines_model_grid()
   fit_opt <- function(spec, optimizer) {
-    opt <- set_estimation_opt(engine = "default_c", optimizer = optimizer)
+    opt <- set_algorithm_newton(engine = "default_c", optimizer = optimizer)
     args <- list(
       x = spec$formula,
       data = data_list[[spec$dataset]],
@@ -125,14 +125,14 @@ test_that("maxLik result supports the standard post-estimation methods", {
     spec$formula,
     data = data_list$social_evolution,
     sub_model = spec$sub_model,
-    control_estimation = set_estimation_opt(engine = "default_c"),
+    control_estimation = set_algorithm_newton(engine = "default_c"),
     progress = FALSE
   )
   fit <- estimate_dynam(
     spec$formula,
     data = data_list$social_evolution,
     sub_model = spec$sub_model,
-    control_estimation = set_estimation_opt(
+    control_estimation = set_algorithm_newton(
       engine = "default_c",
       optimizer = "bfgs"
     ),

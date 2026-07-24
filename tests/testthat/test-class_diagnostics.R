@@ -4,7 +4,7 @@ test_that("diagnostic methods throw errors when intervalLogLikelihood isn't pres
     sub_model = "choice",
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0L),
-    control_estimation = set_estimation_opt(return_interval_loglik = FALSE),
+    control_estimation = set_algorithm_newton(return_interval_loglik = FALSE),
     progress = FALSE,
     verbose = FALSE
   )
@@ -38,7 +38,7 @@ test_that("diagnostic methods work on \"choice\" models.", {
     sub_model = "choice",
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0L),
-    control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+    control_estimation = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
   )
@@ -95,7 +95,7 @@ test_that("diagnostic methods work on \"rate\" models.", {
     sub_model = "rate",
     data = social_evolution_data,
     control_preprocessing = set_preprocessing_opt(start_time = 0L),
-    control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+    control_estimation = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
   )
@@ -141,7 +141,7 @@ test_that("diagnostic methods work on \"rem\" models.", {
     calls_dependent ~ 1 + indeg + outdeg + indeg(friendshipNetwork),
     data = social_evolution_data,
     control_preprocessing = set_preprocessing_opt(start_time = 0L),
-    control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+    control_estimation = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
   )

@@ -10,7 +10,7 @@
 \alias{print.specification.goldfish}
 \alias{print.data.goldfish}
 \alias{print.preprocessed.goldfish}
-\alias{print.estimation_opt.goldfish}
+\alias{print.algorithm_newton.goldfish}
 \alias{print.preprocessing_opt.goldfish}
 \title{Methods for \code{goldfish} objects.}
 \usage{
@@ -43,7 +43,7 @@
 
 \method{print}{preprocessed.goldfish}(x, ..., width = getOption("width"))
 
-\method{print}{estimation_opt.goldfish}(x, ...)
+\method{print}{algorithm_newton.goldfish}(x, ...)
 
 \method{print}{preprocessing_opt.goldfish}(x, ...)
 }
@@ -128,7 +128,8 @@ See \code{\link[=make_dependent_events]{make_dependent_events()}}.
 For objects of class \code{specification.goldfish} print a single-glance
 overview of the model, dependent process, and formulas.
 
-For objects of class \code{estimation_opt.goldfish}, print a summary of the estimation control options.
+For objects of class \code{algorithm_newton.goldfish}, print a summary
+of the estimation algorithm options.
 
 For objects of class \code{preprocessing_opt.goldfish}, print a summary of the preprocessing control options.
 }

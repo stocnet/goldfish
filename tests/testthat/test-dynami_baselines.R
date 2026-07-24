@@ -50,7 +50,7 @@ test_that("frozen DyNAM-i rate baseline (RFID M1)", {
     rfid_rate_formula(known.before),
     sub_model = "rate",
     data = rfid_dynami_stocnet(),
-    control_estimation = set_estimation_opt(engine = "default")
+    control_estimation = set_algorithm_newton(engine = "default")
   )
   expect_true(fit$convergence$isConverged)
   expect_equal(
@@ -81,7 +81,7 @@ test_that("frozen DyNAM-i choice baseline (RFID M1)", {
     rfid_choice_formula(known.before),
     sub_model = "choice",
     data = rfid_dynami_stocnet(),
-    control_estimation = set_estimation_opt(engine = "default")
+    control_estimation = set_algorithm_newton(engine = "default")
   )
   expect_true(fit$convergence$isConverged)
   expect_equal(
@@ -116,7 +116,7 @@ test_that("DyNAM-i rate: stocnet surface == constructor path to 1e-6", {
     rfid_rate_formula(known.before),
     sub_model = "rate",
     data = stocnet,
-    control_estimation = set_estimation_opt(engine = "default")
+    control_estimation = set_algorithm_newton(engine = "default")
   )
   legacy_env <- stocnet_to_dynami_env(stocnet, parent_env = environment())
   legacy <- estimate_wrapper(
@@ -133,7 +133,7 @@ test_that("DyNAM-i rate: stocnet surface == constructor path to 1e-6", {
     model = "DyNAMi",
     sub_model = "rate",
     data = legacy_env,
-    control_estimation = set_estimation_opt(engine = "default")
+    control_estimation = set_algorithm_newton(engine = "default")
   )
   expect_equal(
     coef(surface),

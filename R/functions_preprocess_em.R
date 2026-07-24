@@ -74,7 +74,7 @@ preprocess_emdynam_competition <- function() {
           x = formula,
           sub_model = sub_model,
           data = environmentsChains[[iChain]],
-          control_estimation = set_estimation_opt(
+          control_estimation = set_algorithm_newton(
             engine = "default",
             fixed_parameters = fix
           ),
@@ -114,7 +114,7 @@ preprocess_emdynam_competition <- function() {
 
   if (is.null(initialParameters)) {
     calcProbInit <- lapply(1:length(formulasType), function(x) {
-      set_estimation_opt(
+      set_algorithm_newton(
         initial_parameters = NULL,
         fixed_parameters = fixedParameters[[x]],
         max_iterations = 0L,
@@ -124,7 +124,7 @@ preprocess_emdynam_competition <- function() {
     })
   } else {
     calcProbInit <- lapply(1:length(initialParameters), function(x) {
-      set_estimation_opt(
+      set_algorithm_newton(
         initial_parameters = initialParameters[[x]],
         fixed_parameters = fixedParameters[[x]],
         max_iterations = 0L,
@@ -447,7 +447,7 @@ preprocess_emdynam_competition <- function() {
   environmentsChains <- lapply(1:nChains, loadDataFast)
 
   calcProbInit <- lapply(1:length(initialParameters), function(x) {
-    set_estimation_opt(
+    set_algorithm_newton(
       initial_parameters = initialParameters[[x]],
       fixed_parameters = fixedParameters[[x]],
       max_iterations = 0L,
@@ -463,7 +463,7 @@ preprocess_emdynam_competition <- function() {
           x = formula,
           sub_model = sub_model,
           data = environmentsChains[[iChain]],
-          control_estimation = set_estimation_opt(
+          control_estimation = set_algorithm_newton(
             engine = "default",
             fixed_parameters = fix
           ),

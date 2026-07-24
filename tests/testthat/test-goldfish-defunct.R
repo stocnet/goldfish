@@ -112,7 +112,7 @@ test_that("examineOutliers deprecated", {
     sub_model = "choice",
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0L),
-    control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+    control_estimation = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
   )
@@ -132,7 +132,7 @@ test_that("examineChangepoints deprecated", {
     sub_model = "choice",
     data = dataTest,
     control_preprocessing = set_preprocessing_opt(start_time = 0L),
-    control_estimation = set_estimation_opt(return_interval_loglik = TRUE),
+    control_estimation = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
   )

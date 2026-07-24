@@ -1,7 +1,10 @@
-#' Control Parameters for Estimation
+#' Control Parameters for the Newton-type Estimation Algorithm
 #'
-#' Specifies control parameters for the model estimation process in
-#' `[estimate]`.
+#' Specifies the algorithm and its control parameters for the model estimation
+#' process in `[estimate]`. The name records the algorithm family: direct
+#' maximization with Newton-type steps (damped Newton-Raphson, BFGS, BHHH;
+#' Nelder-Mead is the derivative-free exception), as opposed to the
+#' ascent-based Monte Carlo algorithms of other model families.
 #'
 #' The damping factors arguments control the step size at each iteration of
 #' the Newton-Raphson algorithm. They have a bigger impact in the first
@@ -126,9 +129,12 @@
 #'    }
 #'   Default is `"default_c"`.
 #'
-#' @return An object of class `estimation_opt.goldfish` (a list object),
+#' @return An object of class
+#'  `c("algorithm_newton.goldfish", "algorithm.goldfish", "list")`,
 #'  where the components values are the default values or the values provided
-#'  to the function. The list object has the following components:
+#'  to the function. The `algorithm.goldfish` superclass is the shared gate
+#'  estimators validate against, so every algorithm object passes the same
+#'  check. The list object has the following components:
 #'   \item{initial_parameters}{Initial parameter values used during
 #'      the estimation process.}
 #'   \item{fixed_parameters}{Values for parameters fixed during
@@ -155,12 +161,12 @@
 #'   \item{engine}{Estimation engine used in the estimation process.}
 #' @export
 #' @examples
-#' est_ctrl <- set_estimation_opt(
+#' est_ctrl <- set_algorithm_newton(
 #'   max_iterations = 50,
 #'   score_tol = 1e-7,
 #'   step_tol = 1e-9
 #' )
-set_estimation_opt <- function(
+set_algorithm_newton <- function(
   initial_parameters = NULL,
   fixed_parameters = NULL,
   offset_coef = NULL,
@@ -336,7 +342,11 @@ set_estimation_opt <- function(
     engine = engine
   )
 
-  class(control_list) <- c("estimation_opt.goldfish", "list")
+  class(control_list) <- c(
+    "algorithm_newton.goldfish",
+    "algorithm.goldfish",
+    "list"
+  )
   return(control_list)
 }
 

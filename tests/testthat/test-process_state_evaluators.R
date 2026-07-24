@@ -48,7 +48,7 @@ pse_reference <- function(cell, data_list) {
   args <- list(
     x = spec$formula,
     data = data,
-    control_estimation = do.call(set_estimation_opt, ctrl_args),
+    control_estimation = do.call(set_algorithm_newton, ctrl_args),
     progress = FALSE,
     verbose = FALSE
   )

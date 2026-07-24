@@ -77,9 +77,9 @@
 #' For `estimate_rem()` the valid values are `"rate"` (full dyadic hazard
 #' model, the default) and `"rate_ordered"` (only the order of the events is
 #' modeled); `"choice"` is kept as a deprecated alias of `"rate"`.
-#' @param control_estimation An object of class `control_estimation.goldfish`
-#'   (typically created by [set_estimation_opt()]),
-#'   specifying parameters for the estimation algorithm.
+#' @param control_estimation An object of class `algorithm.goldfish`
+#'   (typically created by [set_algorithm_newton()]),
+#'   specifying the algorithm and its parameters for the estimation.
 #' @param control_preprocessing An object of class
 #'   `control_preprocessing.goldfish` (typically created by
 #'   [set_preprocessing_opt()]),
@@ -197,7 +197,7 @@
 #' mod01 <- estimate_dynam(calls ~ inertia + recip + trans,
 #'   sub_model = "choice",
 #'   data = social_evolution,
-#'   control_estimation = set_estimation_opt(engine = "gather_compute")
+#'   control_estimation = set_algorithm_newton(engine = "gather_compute")
 #' )
 #' summary(mod01)
 #'
@@ -205,7 +205,7 @@
 #' mod02 <- estimate_dynam(calls ~ 1 + node_trans + indeg + outdeg,
 #'   sub_model = "rate",
 #'   data = social_evolution,
-#'   control_estimation = set_estimation_opt(engine = "gather_compute")
+#'   control_estimation = set_algorithm_newton(engine = "gather_compute")
 #' )
 #' summary(mod02)
 #'
@@ -216,7 +216,7 @@
 #'     indeg(calls, type = "ego") + outdeg(calls, type = "ego") +
 #'     inertia + recip + trans,
 #'   data = social_evolution,
-#'   control_estimation = set_estimation_opt(engine = "gather_compute")
+#'   control_estimation = set_algorithm_newton(engine = "gather_compute")
 #' )
 #' summary(mod03)
 #'
@@ -245,7 +245,7 @@
 #'   sub_model = "choice_coordination",
 #'   data = fish,
 #'   control_estimation =
-#'     set_estimation_opt(
+#'     set_algorithm_newton(
 #'       initial_damping = 40, max_iterations = 30,
 #'       engine = "default"
 #'     )
@@ -282,7 +282,7 @@ estimate_dynam <- function(
   x,
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   data = NULL,
-  control_estimation = set_estimation_opt(),
+  control_estimation = set_algorithm_newton(),
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
@@ -327,7 +327,7 @@ estimate_dynami <- function(
   x,
   sub_model = c("choice", "rate"),
   data = NULL,
-  control_estimation = set_estimation_opt(),
+  control_estimation = set_algorithm_newton(),
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
@@ -372,7 +372,7 @@ estimate_rem <- function(
   x,
   sub_model = c("rate", "rate_ordered", "choice"),
   data = NULL,
-  control_estimation = set_estimation_opt(),
+  control_estimation = set_algorithm_newton(),
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
@@ -927,7 +927,7 @@ estimate_wrapper <- function(
   model = c("DyNAM", "REM", "DyNAMi"),
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   data = NULL,
-  control_estimation = set_estimation_opt(),
+  control_estimation = set_algorithm_newton(),
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
@@ -1018,7 +1018,7 @@ estimate_wrapper <- function(
     is.null(progress) || rlang::is_scalar_logical(progress),
     is.null(preprocessing_init) ||
       inherits(preprocessing_init, "preprocessed.goldfish"),
-    inherits(control_estimation, "estimation_opt.goldfish"),
+    inherits(control_estimation, "algorithm.goldfish"),
     inherits(control_preprocessing, "preprocessing_opt.goldfish")
   )
 

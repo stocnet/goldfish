@@ -64,7 +64,7 @@ rate_data_with_gate <- function(fx, gated = integer(0)) {
 test_that("an all-allowing rate constraint is an identity (equals unconstrained)", {
   fx <- make_rate_fixture()
   d <- rate_data_with_gate(fx)
-  opt <- set_estimation_opt(engine = "default")
+  opt <- set_algorithm_newton(engine = "default")
   spec <- make_specification(
     rate = ~ 1 + indeg,
     choice = ~inertia,
@@ -162,7 +162,7 @@ test_that("a restricting rate gate changes the estimate vs unconstrained", {
   fx <- make_rate_fixture()
   gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
   d <- rate_data_with_gate(fx, gated)
-  opt <- set_estimation_opt(engine = "default")
+  opt <- set_algorithm_newton(engine = "default")
   spec <- make_specification(
     rate = ~ 1 + indeg,
     choice = ~inertia,
@@ -199,12 +199,12 @@ test_that("gather_compute consumes the rate constraint natively (== default)", {
   m_def <- suppressWarnings(estimate_dynam(
     spec,
     sub_model = "rate",
-    control_estimation = set_estimation_opt(engine = "default")
+    control_estimation = set_algorithm_newton(engine = "default")
   ))
   m_gc <- suppressWarnings(estimate_dynam(
     spec,
     sub_model = "rate",
-    control_estimation = set_estimation_opt(engine = "gather_compute")
+    control_estimation = set_algorithm_newton(engine = "gather_compute")
   ))
   expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
   expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
@@ -220,7 +220,7 @@ test_that("default_c consumes the rate constraint natively (== default)", {
     sub_model = "rate",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_estimation_opt(engine = "default")
+    control_estimation = set_algorithm_newton(engine = "default")
   ))
   # estimate_DyNAM_rate filters senders by the folded active_sender directly, so
   # no downgrade warning fires.
@@ -229,7 +229,7 @@ test_that("default_c consumes the rate constraint natively (== default)", {
     sub_model = "rate",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_estimation_opt(engine = "default_c")
+    control_estimation = set_algorithm_newton(engine = "default_c")
   ))
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-8)
   expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
@@ -248,7 +248,7 @@ test_that("constrained rate runs natively with no engine-downgrade warning (5.5)
         sub_model = "rate",
         data = d,
         support_constraint = ~ tie(allowedNet),
-        control_estimation = set_estimation_opt(engine = engine)
+        control_estimation = set_algorithm_newton(engine = engine)
       ),
       warning = function(cnd) {
         w <<- c(w, conditionMessage(cnd))
@@ -266,7 +266,7 @@ test_that("a dependent event whose own sender is gated out errors", {
   # gate out an OBSERVED sender: the event where it acts has an empty risk set.
   gated <- fx$observed_senders[1]
   d <- rate_data_with_gate(fx, gated)
-  opt <- set_estimation_opt(engine = "default")
+  opt <- set_algorithm_newton(engine = "default")
   spec <- make_specification(
     rate = ~ 1 + indeg,
     choice = ~inertia,

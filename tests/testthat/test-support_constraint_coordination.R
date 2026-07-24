@@ -74,7 +74,7 @@ coord_formula <- create_bilat ~
 test_that("an all-allowing coordination constraint is an identity", {
   skip_on_cran()
   d <- make_coord_fixture()
-  opt <- set_estimation_opt(
+  opt <- set_algorithm_newton(
     engine = "default",
     max_iterations = 30,
     initial_damping = 40
@@ -99,7 +99,7 @@ test_that("an all-allowing coordination constraint is an identity", {
 test_that("a restricting coordination constraint changes the estimate", {
   skip_on_cran()
   d <- make_coord_fixture(n_excluded = 2000L)
-  opt <- set_estimation_opt(
+  opt <- set_algorithm_newton(
     engine = "default",
     max_iterations = 30,
     initial_damping = 40
@@ -128,7 +128,7 @@ test_that("coordination constraint runs natively on default_c", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_estimation_opt(
+    control_estimation = set_algorithm_newton(
       engine = "default",
       max_iterations = 30,
       initial_damping = 40
@@ -141,7 +141,7 @@ test_that("coordination constraint runs natively on default_c", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_estimation_opt(
+    control_estimation = set_algorithm_newton(
       engine = "default_c",
       max_iterations = 30,
       initial_damping = 40
@@ -155,7 +155,7 @@ test_that("gather_compute runs a coordination constraint natively", {
   skip_on_cran()
   d <- make_coord_fixture(n_excluded = 1000L)
   opt <- function(engine) {
-    set_estimation_opt(
+    set_algorithm_newton(
       engine = engine,
       max_iterations = 30,
       initial_damping = 40

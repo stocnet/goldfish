@@ -26,7 +26,7 @@ estimate_flavored <- function(
   spec,
   model,
   data = NULL,
-  control_estimation = set_estimation_opt(),
+  control_estimation = set_algorithm_newton(),
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,

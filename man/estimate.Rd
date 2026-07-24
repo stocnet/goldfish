@@ -11,7 +11,7 @@ estimate_dynam(
   x,
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   data = NULL,
-  control_estimation = set_estimation_opt(),
+  control_estimation = set_algorithm_newton(),
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
@@ -24,7 +24,7 @@ estimate_dynami(
   x,
   sub_model = c("choice", "rate"),
   data = NULL,
-  control_estimation = set_estimation_opt(),
+  control_estimation = set_algorithm_newton(),
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
@@ -37,7 +37,7 @@ estimate_rem(
   x,
   sub_model = c("rate", "rate_ordered", "choice"),
   data = NULL,
-  control_estimation = set_estimation_opt(),
+  control_estimation = set_algorithm_newton(),
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
@@ -80,9 +80,9 @@ modeled); \code{"choice"} is kept as a deprecated alias of \code{"rate"}.}
 It is an environment that contains the nodesets, networks,
 attributes and dependent events objects. Default to \code{NULL}.}
 
-\item{control_estimation}{An object of class \code{control_estimation.goldfish}
-(typically created by \code{\link[=set_estimation_opt]{set_estimation_opt()}}),
-specifying parameters for the estimation algorithm.}
+\item{control_estimation}{An object of class \code{algorithm.goldfish}
+(typically created by \code{\link[=set_algorithm_newton]{set_algorithm_newton()}}),
+specifying the algorithm and its parameters for the estimation.}
 
 \item{control_preprocessing}{An object of class
 \code{control_preprocessing.goldfish} (typically created by
@@ -288,7 +288,7 @@ data("social_evolution")
 mod01 <- estimate_dynam(calls ~ inertia + recip + trans,
   sub_model = "choice",
   data = social_evolution,
-  control_estimation = set_estimation_opt(engine = "gather_compute")
+  control_estimation = set_algorithm_newton(engine = "gather_compute")
 )
 summary(mod01)
 
@@ -296,7 +296,7 @@ summary(mod01)
 mod02 <- estimate_dynam(calls ~ 1 + node_trans + indeg + outdeg,
   sub_model = "rate",
   data = social_evolution,
-  control_estimation = set_estimation_opt(engine = "gather_compute")
+  control_estimation = set_algorithm_newton(engine = "gather_compute")
 )
 summary(mod02)
 
@@ -307,7 +307,7 @@ mod03 <- estimate_rem(
     indeg(calls, type = "ego") + outdeg(calls, type = "ego") +
     inertia + recip + trans,
   data = social_evolution,
-  control_estimation = set_estimation_opt(engine = "gather_compute")
+  control_estimation = set_algorithm_newton(engine = "gather_compute")
 )
 summary(mod03)
 
@@ -336,7 +336,7 @@ partner_model <- estimate_dynam(
   sub_model = "choice_coordination",
   data = fish,
   control_estimation =
-    set_estimation_opt(
+    set_algorithm_newton(
       initial_damping = 40, max_iterations = 30,
       engine = "default"
     )

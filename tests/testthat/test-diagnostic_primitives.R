@@ -24,7 +24,9 @@ estimate_with_ranks <- function(formula, model, sub_model) {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_estimation = set_estimation_opt(diagnostics = c("loglik", "ranks"))
+    control_estimation = set_algorithm_newton(
+      diagnostics = c("loglik", "ranks")
+    )
   )
 }
 
@@ -34,7 +36,7 @@ estimate_with_probabilities <- function(formula, model, sub_model) {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_estimation = set_estimation_opt(
+    control_estimation = set_algorithm_newton(
       engine = "default",
       return_probabilities = TRUE
     )
@@ -110,7 +112,7 @@ margins_eval <- function(spec, data_list, params = NULL) {
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
-    control_estimation = do.call(set_estimation_opt, opt_args),
+    control_estimation = do.call(set_algorithm_newton, opt_args),
     progress = FALSE,
     verbose = FALSE
   )
@@ -240,7 +242,7 @@ total_rate_fit <- function(spec, data_list, preprocessing_only = FALSE) {
     x = spec$formula,
     data = data_list[[spec$dataset]],
     control_estimation = do.call(
-      set_estimation_opt,
+      set_algorithm_newton,
       c(list(), spec$estimation_args)
     ),
     preprocessing_only = preprocessing_only,
@@ -317,7 +319,7 @@ test_that("total_rate is stored only for exact-time submodels", {
     model = "REM",
     sub_model = "rate",
     data = dataTest,
-    control_estimation = set_estimation_opt(diagnostics = "scores")
+    control_estimation = set_algorithm_newton(diagnostics = "scores")
   ))
   expect_null(fit_no_loglik$total_rate)
 })
@@ -372,7 +374,7 @@ test_that("large per-event storage emits a footprint note above the threshold", 
 # (default_c's MLE, pinned on the default engine via max_iterations = 0) so the
 # parity is machine-precision rather than the coarser cross-engine tolerance.
 parity_fit <- function(spec, data_list, ...) {
-  ctrl <- do.call(set_estimation_opt, list(...))
+  ctrl <- do.call(set_algorithm_newton, list(...))
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],

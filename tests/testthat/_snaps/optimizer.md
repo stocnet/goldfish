@@ -22,7 +22,7 @@
 
     Code
       estimate_dynam(spec$formula, data = data_list$social_evolution, sub_model = spec$
-        sub_model, control_estimation = set_estimation_opt(optimizer = "bfgs"),
+        sub_model, control_estimation = set_algorithm_newton(optimizer = "bfgs"),
       progress = FALSE)
     Condition
       Error in `estimate_wrapper()`:

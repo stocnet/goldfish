@@ -68,14 +68,14 @@ test_that("a support_constraint matches the opportunities_list restriction", {
     calls_dependent ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    control_estimation = set_estimation_opt(engine = "default"),
+    control_estimation = set_algorithm_newton(engine = "default"),
     control_preprocessing = set_preprocessing_opt(opportunities_list = opp)
   )
   m_cstr <- estimate_dynam(
     calls_dependent ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    control_estimation = set_estimation_opt(engine = "default"),
+    control_estimation = set_algorithm_newton(engine = "default"),
     support_constraint = ~ tie(allowedNet)
   )
   expect_equal(coef(m_cstr), coef(m_ref), tolerance = 1e-6)
@@ -88,7 +88,7 @@ test_that("gather_compute consumes the choice constraint natively (== default)",
     sub_model = "choice",
     data = fx$data,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_estimation_opt(engine = "default")
+    control_estimation = set_algorithm_newton(engine = "default")
   )
   # the R gather filters candidates directly, so no downgrade warning fires
   m_gc <- estimate_dynam(
@@ -96,7 +96,7 @@ test_that("gather_compute consumes the choice constraint natively (== default)",
     sub_model = "choice",
     data = fx$data,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_estimation_opt(engine = "gather_compute")
+    control_estimation = set_algorithm_newton(engine = "gather_compute")
   )
   expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
   expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
@@ -109,7 +109,7 @@ test_that("default_c consumes the choice constraint natively (== default)", {
     sub_model = "choice",
     data = fx$data,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_estimation_opt(engine = "default")
+    control_estimation = set_algorithm_newton(engine = "default")
   )
   # the C++ estimator filters receivers directly (no downgrade)
   m_dc <- estimate_dynam(
@@ -117,7 +117,7 @@ test_that("default_c consumes the choice constraint natively (== default)", {
     sub_model = "choice",
     data = fx$data,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_estimation_opt(engine = "default_c")
+    control_estimation = set_algorithm_newton(engine = "default_c")
   )
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-6)
   expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-6)
@@ -129,14 +129,14 @@ test_that("a support_constraint actually restricts the risk set (vs unconstraine
     calls_dependent ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    control_estimation = set_estimation_opt(engine = "default"),
+    control_estimation = set_algorithm_newton(engine = "default"),
     support_constraint = ~ tie(allowedNet)
   )
   m_unc <- estimate_dynam(
     calls_dependent ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    control_estimation = set_estimation_opt(engine = "default")
+    control_estimation = set_algorithm_newton(engine = "default")
   )
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
@@ -149,7 +149,7 @@ test_that("an observed dyad excluded by its own constraint errors", {
       calls_dependent ~ inertia + recip,
       sub_model = "choice",
       data = fx$data,
-      control_estimation = set_estimation_opt(engine = "default"),
+      control_estimation = set_algorithm_newton(engine = "default"),
       support_constraint = ~ tie(call_network)
     )
   )

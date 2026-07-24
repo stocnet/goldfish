@@ -160,7 +160,7 @@ estimate_emdynam <- function(
 
     cat(paste0("\nCalculating new probability for sample \n"))
     newCalcProbInit <- lapply(1:length(newParameters), function(x) {
-      set_estimation_opt(
+      set_algorithm_newton(
         initial_parameters = newParameters[[x]],
         fixed_parameters = fixedParameters[[x]],
         max_iterations = 0L,
@@ -356,7 +356,7 @@ estimate_emdynam <- function(
               x = formula,
               sub_model = sub_model,
               data = environmentsChains[[iChain]],
-              control_estimation = set_estimation_opt(
+              control_estimation = set_algorithm_newton(
                 engine = "default",
                 fixed_parameters = fix
               ),
@@ -533,7 +533,7 @@ estimate_emdynam <- function(
                 x = formula,
                 sub_model = sub_model,
                 data = environmentsChains[[iChain]],
-                control_estimation = set_estimation_opt(
+                control_estimation = set_algorithm_newton(
                   engine = "default",
                   fixed_parameters = fix
                 ),

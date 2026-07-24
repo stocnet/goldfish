@@ -18,7 +18,7 @@
 #'   calls ~ inertia + recip + trans,
 #'   sub_model = "choice",
 #'   data = social_evolution,
-#'   control_estimation = set_estimation_opt(
+#'   control_estimation = set_algorithm_newton(
 #'     return_interval_loglik = TRUE,
 #'     engine = "default_c"
 #'   )

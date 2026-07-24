@@ -96,7 +96,7 @@ test_that("estimation emits the probabilities guardrail once per call", {
       model = "DyNAM",
       sub_model = "choice",
       data = dataTest,
-      control_estimation = set_estimation_opt(diagnostics = "probabilities")
+      control_estimation = set_algorithm_newton(diagnostics = "probabilities")
     ),
     regexp = "per-event probabilities"
   )

@@ -925,12 +925,13 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
   invisible(NULL)
 }
 
-# Print estimation_opt.goldfish object
+# Print algorithm_newton.goldfish object
 #' @export
 #' @rdname print-method
-#' @return For objects of class `estimation_opt.goldfish`, print a summary of the estimation control options.
-print.estimation_opt.goldfish <- function(x, ...) {
-  cat("Estimation Control Options (estimation_opt.goldfish):\n")
+#' @return For objects of class `algorithm_newton.goldfish`, print a summary
+#'   of the estimation algorithm options.
+print.algorithm_newton.goldfish <- function(x, ...) {
+  cat("Estimation Algorithm Options (algorithm_newton.goldfish):\n")
   for (name in names(x)) {
     value <- x[[name]]
     if (is.null(value)) {

@@ -1,4 +1,4 @@
-# Per-event score matrix: set_estimation_opt(return_event_scores) and the
+# Per-event score matrix: set_algorithm_newton(return_event_scores) and the
 # `event_scores` result component. The per-event score is the same
 # observed-minus-expected statistic the estimators accumulate into the aggregate
 # derivative each event; here we assert the two engines expose it consistently.
@@ -9,7 +9,7 @@
 # converged estimates agree only to the cross-engine ~1e-6, far coarser than the
 # 1e-10 the per-event decomposition itself holds to.
 event_scores_eval <- function(spec, engine, data_list, params) {
-  opt <- set_estimation_opt(
+  opt <- set_algorithm_newton(
     engine = engine,
     initial_parameters = params,
     max_iterations = 0,
@@ -114,7 +114,7 @@ test_that("event_scores follows the scores diagnostic (default on)", {
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_estimation = set_estimation_opt(
+      control_estimation = set_algorithm_newton(
         engine = engine,
         diagnostics = "loglik"
       ),
@@ -134,7 +134,7 @@ test_that("gather_compute rejects an explicit scores request", {
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_estimation = set_estimation_opt(
+      control_estimation = set_algorithm_newton(
         engine = "gather_compute",
         return_event_scores = TRUE
       ),
@@ -147,7 +147,7 @@ test_that("gather_compute rejects an explicit scores request", {
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_estimation = set_estimation_opt(
+      control_estimation = set_algorithm_newton(
         engine = "gather_compute",
         diagnostics = c("loglik", "scores")
       ),
@@ -167,7 +167,7 @@ test_that("gather_compute silently drops default-sourced scores", {
     spec$formula,
     data = data_list$social_evolution,
     sub_model = spec$sub_model,
-    control_estimation = set_estimation_opt(engine = "gather_compute"),
+    control_estimation = set_algorithm_newton(engine = "gather_compute"),
     progress = FALSE
   ))
   expect_null(fit$event_scores)
