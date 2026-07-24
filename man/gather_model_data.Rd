@@ -9,7 +9,7 @@ gather_model_data(
   model = c("DyNAM", "REM"),
   sub_model = c("choice", "choice_coordination", "rate"),
   data = NULL,
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   progress = getOption("progress"),
   max_length = 63L
 )
@@ -60,9 +60,9 @@ It is an environment that contains the nodesets, networks,
 attributes and dependent events objects. Default to \code{NULL}.}
 
 \item{control_preprocessing}{An object of class
-\code{"preprocessing_options.goldfish"}, usually the result of a call to
-\code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}}. This object contains parameters that control
-the data preprocessing. See \code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}} for details on
+\code{"preprocessing.goldfish"}, usually the result of a call to
+\code{\link[=set_preprocessing]{set_preprocessing()}}. This object contains parameters that control
+the data preprocessing. See \code{\link[=set_preprocessing]{set_preprocessing()}} for details on
 the available parameters.}
 
 \item{progress}{logical indicating whether should print a minimal output

@@ -82,7 +82,7 @@
 #'   specifying the algorithm and its parameters for the estimation.
 #' @param control_preprocessing An object of class
 #'   `control_preprocessing.goldfish` (typically created by
-#'   [set_preprocessing_opt()]),
+#'   [set_preprocessing()]),
 #'   specifying parameters for data preprocessing. This is only used
 #'   if `preprocessing_init` is not a `preprocessed.goldfish` object or NULL.
 #' @param preprocessing_init an optional preprocessed object of class
@@ -283,7 +283,7 @@ estimate_dynam <- function(
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   data = NULL,
   control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
@@ -328,7 +328,7 @@ estimate_dynami <- function(
   sub_model = c("choice", "rate"),
   data = NULL,
   control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
@@ -373,7 +373,7 @@ estimate_rem <- function(
   sub_model = c("rate", "rate_ordered", "choice"),
   data = NULL,
   control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
@@ -509,9 +509,9 @@ estimate_from_specification <- function(
 #'   `preprocessed.goldfish` object; `"gather"` returns the gather stack (one
 #'   row per event x alternative, as in [gather_model_data()]); `"db"` streams
 #'   the gather rows to the database table configured via
-#'   [set_preprocessing_opt()] (`db` / `db_table`) and returns a descriptor.
+#'   [set_preprocessing()] (`db` / `db_table`) and returns a descriptor.
 #' @param ... additional arguments passed to the preprocessing stage, e.g.,
-#'   `control_preprocessing` (see [set_preprocessing_opt()]) and `progress`.
+#'   `control_preprocessing` (see [set_preprocessing()]) and `progress`.
 #'
 #' @return an object of class `"preprocessed.goldfish"` with the change
 #'   statistics of the effects for the event sequence and the information
@@ -519,7 +519,7 @@ estimate_from_specification <- function(
 #'   [estimate_dynam()] for the `preprocessing_only = TRUE` case.
 #'
 #' @seealso [estimate_dynam()], [estimate_rem()], [estimate_dynami()],
-#'   [set_preprocessing_opt()]
+#'   [set_preprocessing()]
 #' @export
 #' @examples
 #' data("social_evolution")
@@ -928,7 +928,7 @@ estimate_wrapper <- function(
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   data = NULL,
   control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
   output = c("default", "gather", "db"),
@@ -1019,7 +1019,7 @@ estimate_wrapper <- function(
     is.null(preprocessing_init) ||
       inherits(preprocessing_init, "preprocessed.goldfish"),
     inherits(control_estimation, "algorithm.goldfish"),
-    inherits(control_preprocessing, "preprocessing_opt.goldfish")
+    inherits(control_preprocessing, "preprocessing.goldfish")
   )
 
   if (is.null(progress)) {

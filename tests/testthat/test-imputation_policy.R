@@ -48,9 +48,9 @@ test_that("deliberate missingness survives to a summarizer as a category", {
   fixture <- make_stocnet_fixture_missing_nodal()
   run <- function(policy) {
     ctrl <- if (is.null(policy)) {
-      set_preprocessing_opt()
+      set_preprocessing()
     } else {
-      set_preprocessing_opt(impute = policy)
+      set_preprocessing(impute = policy)
     }
     suppressWarnings(estimate_dynam(
       contact ~ same(party),
@@ -80,9 +80,9 @@ test_that("a missing event value becomes the reserved level, not pooled", {
 
   run <- function(policy) {
     ctrl <- if (is.null(policy)) {
-      set_preprocessing_opt()
+      set_preprocessing()
     } else {
-      set_preprocessing_opt(impute = policy)
+      set_preprocessing(impute = policy)
     }
     suppressWarnings(gather_model_data(
       contact ~ same(party),
@@ -106,7 +106,7 @@ test_that("as_category on a numeric attribute aborts", {
       sub_model = "choice",
       data = as_goldfish(fixture),
       preprocessing_only = TRUE,
-      control_preprocessing = set_preprocessing_opt(
+      control_preprocessing = set_preprocessing(
         impute = c(income = "as_category")
       )
     ))
@@ -123,7 +123,7 @@ test_that("a policy naming an unread attribute aborts", {
       sub_model = "choice",
       data = as_goldfish(fixture),
       preprocessing_only = TRUE,
-      control_preprocessing = set_preprocessing_opt(
+      control_preprocessing = set_preprocessing(
         impute = c(nowhere = "as_category")
       )
     ))

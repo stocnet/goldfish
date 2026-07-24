@@ -172,7 +172,7 @@ test_that("opportunity folds active_dyad at the point encoding (dense)", {
     data = fx$data,
     preprocessing_only = TRUE,
     control_estimation = set_algorithm_newton(engine = "default"),
-    control_preprocessing = set_preprocessing_opt(opportunities_list = fx$opp)
+    control_preprocessing = set_preprocessing(opportunities_list = fx$opp)
   )
   expect_identical(prep$active_dyad_encoding, "point")
   expect_true(isTRUE(prep$active_dyad_folded))
@@ -192,7 +192,7 @@ test_that("folded point buffer equals from-scratch intersection every event", {
     data = fx$data,
     preprocessing_only = TRUE,
     control_estimation = set_algorithm_newton(engine = "default"),
-    control_preprocessing = set_preprocessing_opt(opportunities_list = fx$opp)
+    control_preprocessing = set_preprocessing(opportunities_list = fx$opp)
   )
   # Receiver presence base = the unconstrained model's alter vector (no
   # composition change in this fixture, so it is constant across events).

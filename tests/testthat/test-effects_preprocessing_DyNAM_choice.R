@@ -256,7 +256,7 @@ test_that("inertia/tie startTime endTime preprocessing", {
     sub_model = "choice", # modelType = "DyNAM-M"
     data = dataTest,
     preprocessing_only = TRUE,
-    control_preprocessing = set_preprocessing_opt(
+    control_preprocessing = set_preprocessing(
       start_time = 10,
       end_time = 30
     )

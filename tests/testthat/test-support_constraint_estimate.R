@@ -69,7 +69,7 @@ test_that("a support_constraint matches the opportunities_list restriction", {
     sub_model = "choice",
     data = fx$data,
     control_estimation = set_algorithm_newton(engine = "default"),
-    control_preprocessing = set_preprocessing_opt(opportunities_list = opp)
+    control_preprocessing = set_preprocessing(opportunities_list = opp)
   )
   m_cstr <- estimate_dynam(
     calls_dependent ~ inertia + recip,

@@ -11,7 +11,7 @@
 \alias{print.data.goldfish}
 \alias{print.preprocessed.goldfish}
 \alias{print.algorithm_newton.goldfish}
-\alias{print.preprocessing_opt.goldfish}
+\alias{print.preprocessing.goldfish}
 \title{Methods for \code{goldfish} objects.}
 \usage{
 \method{print}{result.goldfish}(
@@ -45,7 +45,7 @@
 
 \method{print}{algorithm_newton.goldfish}(x, ...)
 
-\method{print}{preprocessing_opt.goldfish}(x, ...)
+\method{print}{preprocessing.goldfish}(x, ...)
 }
 \arguments{
 \item{x}{an object of class \code{result.goldfish}, \code{summary.result.goldfish},
@@ -131,7 +131,8 @@ overview of the model, dependent process, and formulas.
 For objects of class \code{algorithm_newton.goldfish}, print a summary
 of the estimation algorithm options.
 
-For objects of class \code{preprocessing_opt.goldfish}, print a summary of the preprocessing control options.
+For objects of class \code{preprocessing.goldfish}, print a summary
+of the preprocessing control options.
 }
 \description{
 Printing functions for \code{goldfish} objects.

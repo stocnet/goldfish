@@ -263,7 +263,7 @@ writer_gather <- function() {
 
 #' @describeIn preprocess_writers DBI streaming writer producing the same
 #'   gather rows as `writer_gather()` but persisting them to a database table
-#'   (`set_preprocessing_opt(db = , db_table = )`) instead of holding the full
+#'   (`set_preprocessing(db = , db_table = )`) instead of holding the full
 #'   stack in memory. The connection is validated up front (fail fast before
 #'   the event loop); the actual event-aligned batched append happens after
 #'   `finalize()` via `write_gather_to_db()` once the effect names are
@@ -279,7 +279,7 @@ writer_db <- function(db = NULL, db_table = "stats") {
   if (is.null(db)) {
     cli::cli_abort(c(
       "A DBI connection is required for {.code output = \"db\"}.",
-      "i" = "Configure one with {.code set_preprocessing_opt(db =
+      "i" = "Configure one with {.code set_preprocessing(db =
              <DBIConnection>, db_table = ...)}."
     ))
   }

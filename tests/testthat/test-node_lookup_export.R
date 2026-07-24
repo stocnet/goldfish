@@ -144,7 +144,7 @@ test_that("the db export descriptor carries the node lookup", {
     sub_model = "choice",
     output = "db",
     data = make_stocnet_fixture(),
-    control_preprocessing = set_preprocessing_opt(db = con, db_table = "stats")
+    control_preprocessing = set_preprocessing(db = con, db_table = "stats")
   )
 
   expect_s3_class(descriptor, "preprocessed_db.goldfish")

@@ -109,7 +109,7 @@ test_that("in/out/deg startTime endTime preprocessing", {
     sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE,
-    control_preprocessing = set_preprocessing_opt(
+    control_preprocessing = set_preprocessing(
       start_time = 10,
       end_time = 30
     )
@@ -217,7 +217,7 @@ test_that("in/out/deg startTime endTime exact preprocessing", {
     sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE,
-    control_preprocessing = set_preprocessing_opt(start_time = 6, end_time = 24)
+    control_preprocessing = set_preprocessing(start_time = 6, end_time = 24)
   )
   statsChange <- ReducePreprocess(preproData)
   expect_equal(

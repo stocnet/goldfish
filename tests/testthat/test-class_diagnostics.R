@@ -3,7 +3,7 @@ test_that("diagnostic methods throw errors when intervalLogLikelihood isn't pres
     depNetwork ~ inertia,
     sub_model = "choice",
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0L),
+    control_preprocessing = set_preprocessing(start_time = 0L),
     control_estimation = set_algorithm_newton(return_interval_loglik = FALSE),
     progress = FALSE,
     verbose = FALSE
@@ -37,7 +37,7 @@ test_that("diagnostic methods work on \"choice\" models.", {
     depNetwork ~ inertia + trans + indeg,
     sub_model = "choice",
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0L),
+    control_preprocessing = set_preprocessing(start_time = 0L),
     control_estimation = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
@@ -94,7 +94,7 @@ test_that("diagnostic methods work on \"rate\" models.", {
     calls_dependent ~ 1 + indeg + outdeg + indeg(friendshipNetwork),
     sub_model = "rate",
     data = social_evolution_data,
-    control_preprocessing = set_preprocessing_opt(start_time = 0L),
+    control_preprocessing = set_preprocessing(start_time = 0L),
     control_estimation = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
@@ -140,7 +140,7 @@ test_that("diagnostic methods work on \"rem\" models.", {
   mod00 <- estimate_rem(
     calls_dependent ~ 1 + indeg + outdeg + indeg(friendshipNetwork),
     data = social_evolution_data,
-    control_preprocessing = set_preprocessing_opt(start_time = 0L),
+    control_preprocessing = set_preprocessing(start_time = 0L),
     control_estimation = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE

@@ -34,10 +34,10 @@ preprocessed statistics. \code{"default"} returns the estimation-ready
 \code{preprocessed.goldfish} object; \code{"gather"} returns the gather stack (one
 row per event x alternative, as in \code{\link[=gather_model_data]{gather_model_data()}}); \code{"db"} streams
 the gather rows to the database table configured via
-\code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}} (\code{db} / \code{db_table}) and returns a descriptor.}
+\code{\link[=set_preprocessing]{set_preprocessing()}} (\code{db} / \code{db_table}) and returns a descriptor.}
 
 \item{...}{additional arguments passed to the preprocessing stage, e.g.,
-\code{control_preprocessing} (see \code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}}) and \code{progress}.}
+\code{control_preprocessing} (see \code{\link[=set_preprocessing]{set_preprocessing()}}) and \code{progress}.}
 }
 \value{
 an object of class \code{"preprocessed.goldfish"} with the change
@@ -64,5 +64,5 @@ prep
 }
 \seealso{
 \code{\link[=estimate_dynam]{estimate_dynam()}}, \code{\link[=estimate_rem]{estimate_rem()}}, \code{\link[=estimate_dynami]{estimate_dynami()}},
-\code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}}
+\code{\link[=set_preprocessing]{set_preprocessing()}}
 }

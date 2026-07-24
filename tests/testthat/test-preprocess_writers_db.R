@@ -19,7 +19,7 @@ test_that("compute_stats(output = 'db') round-trips against the gather writer", 
     model = "DyNAM",
     sub_model = "choice",
     output = "db",
-    control_preprocessing = set_preprocessing_opt(db = con, db_table = "stats")
+    control_preprocessing = set_preprocessing(db = con, db_table = "stats")
   )
   expect_s3_class(descriptor, "preprocessed_db.goldfish")
   expect_null(descriptor$stat_all_events)
@@ -113,7 +113,7 @@ test_that("db writer round-trips for a rate model", {
     model = "DyNAM",
     sub_model = "rate",
     output = "db",
-    control_preprocessing = set_preprocessing_opt(
+    control_preprocessing = set_preprocessing(
       db = con,
       db_table = "rate_stats"
     )

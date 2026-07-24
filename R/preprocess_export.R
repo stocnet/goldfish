@@ -41,9 +41,9 @@
 #'  \item{REM}{Relational Event Model (Butts, 2008)}
 #' }
 #' @param control_preprocessing An object of class
-#'   `"preprocessing_options.goldfish"`, usually the result of a call to
-#'   [set_preprocessing_opt()]. This object contains parameters that control
-#'   the data preprocessing. See [set_preprocessing_opt()] for details on
+#'   `"preprocessing.goldfish"`, usually the result of a call to
+#'   [set_preprocessing()]. This object contains parameters that control
+#'   the data preprocessing. See [set_preprocessing()] for details on
 #'   the available parameters.
 #' @param max_length integer. Maximum number of characters for each produced
 #'   effect/column name in `namesEffects` (default `63`, a database-safe value).
@@ -125,7 +125,7 @@ gather_model_data <- function(
   model = c("DyNAM", "REM"),
   sub_model = c("choice", "choice_coordination", "rate"),
   data = NULL,
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   progress = getOption("progress"),
   max_length = 63L
 ) {

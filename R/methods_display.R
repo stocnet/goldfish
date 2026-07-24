@@ -958,12 +958,13 @@ print.algorithm_newton.goldfish <- function(x, ...) {
   invisible(x)
 }
 
-# Print preprocessing_opt.goldfish object
+# Print preprocessing.goldfish object
 #' @export
 #' @rdname print-method
-#' @return For objects of class `preprocessing_opt.goldfish`, print a summary of the preprocessing control options.
-print.preprocessing_opt.goldfish <- function(x, ...) {
-  cat("Preprocessing Control Options (preprocessing_opt.goldfish):\n")
+#' @return For objects of class `preprocessing.goldfish`, print a summary
+#'   of the preprocessing control options.
+print.preprocessing.goldfish <- function(x, ...) {
+  cat("Preprocessing Control Options (preprocessing.goldfish):\n")
   for (name in names(x)) {
     value <- x[[name]]
     if (is.null(value)) {

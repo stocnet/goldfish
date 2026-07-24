@@ -1026,7 +1026,7 @@ ds_realize_derivations.data_source_stocnet <- function(src, derivations) {
 #' @param src a data source.
 #' @param objects_effects_link matrix from `get_objects_effects_link()`.
 #' @param policy an optional named character vector, keyed by attribute, giving
-#'   the per-attribute imputation policy from `set_preprocessing_opt(impute =)`.
+#'   the per-attribute imputation policy from `set_preprocessing(impute =)`.
 #'   `NULL` (or an unnamed attribute) uses the default summary contract.
 #' @return the source, with imputed values resolvable through the accessors.
 #' @noRd

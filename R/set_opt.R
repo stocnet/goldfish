@@ -542,7 +542,7 @@ reconcile_legacy_diagnostics <- function(
 # @param keep_receiver_index A logical value. If `TRUE`, the receiver index,
 #  the index in the nodeset, of the potential receivers of the events is
 #  kept in the preprocessed data.
-#' @return An object of class `preprocessing_opt.goldfish` (a list object), with
+#' @return An object of class `preprocessing.goldfish` (a list object), with
 #'  where the components values are the default values or the values provided
 #'  to the function. The list object has the following components:
 #'   \item{start_time}{Value from `start_time` argument.}
@@ -551,11 +551,11 @@ reconcile_legacy_diagnostics <- function(
 #'   \item{impute}{Value from `impute` argument.}
 #' @export
 #' @examples
-#' prep_ctrl <- set_preprocessing_opt(
+#' prep_ctrl <- set_preprocessing(
 #'   start_time = "2000-01-01 00:00:00",
 #'   end_time = "2000-12-31 23:59:59"
 #' )
-set_preprocessing_opt <- function(
+set_preprocessing <- function(
   start_time = NULL,
   end_time = NULL,
   opportunities_list = NULL,
@@ -594,7 +594,7 @@ set_preprocessing_opt <- function(
   if (!is.null(opportunities_list)) {
     lifecycle::deprecate_warn(
       when = "1.8.6",
-      what = "set_preprocessing_opt(opportunities_list)",
+      what = "set_preprocessing(opportunities_list)",
       details = c(
         i = paste(
           "Use the `support_constraint` argument of `estimate_dynam()` /",
@@ -683,6 +683,6 @@ set_preprocessing_opt <- function(
     db_table = db_table
   )
 
-  class(control_list) <- c("preprocessing_opt.goldfish", "list")
+  class(control_list) <- c("preprocessing.goldfish", "list")
   return(control_list)
 }

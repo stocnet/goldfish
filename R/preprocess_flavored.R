@@ -596,7 +596,7 @@ render_process_label <- function(process_map, fid) {
 # `process_map` identity table as an attribute.
 preprocess_flavored <- function(
   spec,
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE)
 ) {

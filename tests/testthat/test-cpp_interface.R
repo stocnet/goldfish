@@ -9,7 +9,7 @@ test_that("DyNAM-rate", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(
       engine = "default",
       return_interval_loglik = TRUE
@@ -22,7 +22,7 @@ test_that("DyNAM-rate", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(
       engine = "default_c",
       return_interval_loglik = TRUE
@@ -33,7 +33,7 @@ test_that("DyNAM-rate", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "gather_compute")
   )
   expect_equal(coef(modR), coef(modCd))
@@ -53,7 +53,7 @@ test_that("DyNAM-rate ordered", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "default")
   )
   modCd <- estimate_wrapper(
@@ -61,7 +61,7 @@ test_that("DyNAM-rate ordered", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "default_c")
   )
   modCgc <- estimate_wrapper(
@@ -69,7 +69,7 @@ test_that("DyNAM-rate ordered", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "gather_compute")
   )
   expect_equal(coef(modR), coef(modCd))
@@ -89,7 +89,7 @@ test_that("DyNAM-choice", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "default")
   )
   modCd <- estimate_wrapper(
@@ -97,7 +97,7 @@ test_that("DyNAM-choice", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "default_c")
   )
   modCgc <- estimate_wrapper(
@@ -105,7 +105,7 @@ test_that("DyNAM-choice", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "gather_compute")
   )
   expect_equal(coef(modR), coef(modCd))
@@ -128,7 +128,7 @@ test_that("REM", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "default")
   )
   modCd <- estimate_wrapper(
@@ -136,7 +136,7 @@ test_that("REM", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "default_c")
   )
   modCgc <- estimate_wrapper(
@@ -144,7 +144,7 @@ test_that("REM", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "gather_compute")
   )
   expect_equal(coef(modR), coef(modCd))
@@ -166,7 +166,7 @@ test_that("REM ordered", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "default")
   )
   modCd <- estimate_wrapper(
@@ -174,7 +174,7 @@ test_that("REM ordered", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "default_c")
   )
   modCgc <- estimate_wrapper(
@@ -182,7 +182,7 @@ test_that("REM ordered", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "gather_compute")
   )
   expect_equal(coef(modR), coef(modCd))
@@ -207,7 +207,7 @@ test_that("DyNAM-choice_coordination", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "default")
   )
   modCd <- estimate_wrapper(
@@ -215,7 +215,7 @@ test_that("DyNAM-choice_coordination", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "default_c")
   )
   modCgc <- estimate_wrapper(
@@ -223,7 +223,7 @@ test_that("DyNAM-choice_coordination", {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_preprocessing = set_preprocessing_opt(start_time = 0),
+    control_preprocessing = set_preprocessing(start_time = 0),
     control_estimation = set_algorithm_newton(engine = "gather_compute")
   )
   expect_equal(coef(modR), coef(modCd))

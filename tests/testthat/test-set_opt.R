@@ -174,7 +174,7 @@ test_that("mixing diagnostics with a legacy flag aborts", {
   )
 })
 
-test_that("set_preprocessing_opt works correctly", {
+test_that("set_preprocessing works correctly", {
   expected_prep_names <- c(
     "start_time",
     "end_time",
@@ -183,10 +183,10 @@ test_that("set_preprocessing_opt works correctly", {
   )
 
   # Test defaults
-  default_opts <- set_preprocessing_opt()
+  default_opts <- set_preprocessing()
   expect_s3_class(
     default_opts,
-    c("preprocessing_opt.goldfish", "list"),
+    c("preprocessing.goldfish", "list"),
     exact = TRUE
   )
   expect_true(is.list(default_opts))
@@ -199,14 +199,14 @@ test_that("set_preprocessing_opt works correctly", {
   # Test setting specific parameters (opportunities_list is soft-deprecated)
   withr::local_options(lifecycle_verbosity = "quiet")
   dummy_opportunities <- list(c("A", "B"), c("C", "D"))
-  custom_opts <- set_preprocessing_opt(
+  custom_opts <- set_preprocessing(
     start_time = 10,
     end_time = 100,
     opportunities_list = dummy_opportunities
   )
   expect_s3_class(
     custom_opts,
-    c("preprocessing_opt.goldfish", "list"),
+    c("preprocessing.goldfish", "list"),
     exact = TRUE
   )
   expect_true(is.list(custom_opts))
@@ -216,22 +216,22 @@ test_that("set_preprocessing_opt works correctly", {
   expect_equal(custom_opts$end_time, 100)
   expect_equal(custom_opts$opportunities_list, dummy_opportunities)
 })
-test_that("set_preprocessing_opt throw errors", {
+test_that("set_preprocessing throw errors", {
   withr::local_options(lifecycle_verbosity = "quiet")
-  expect_error(set_preprocessing_opt(start_time = character(3)))
-  expect_error(set_preprocessing_opt(end_time = character(3)))
-  expect_error(set_preprocessing_opt(opportunities_list = -1))
+  expect_error(set_preprocessing(start_time = character(3)))
+  expect_error(set_preprocessing(end_time = character(3)))
+  expect_error(set_preprocessing(opportunities_list = -1))
 })
 
 test_that("opportunities_list is deprecated in favour of support_constraint", {
   # Fires the once-per-session lifecycle warning pointing to support_constraint.
   withr::local_options(lifecycle_verbosity = "warning")
   expect_snapshot(
-    invisible(set_preprocessing_opt(opportunities_list = list(c("A", "B"))))
+    invisible(set_preprocessing(opportunities_list = list(c("A", "B"))))
   )
   # It still works (soft deprecation): the value is retained.
   withr::local_options(lifecycle_verbosity = "quiet")
-  opt <- set_preprocessing_opt(opportunities_list = list(c("A", "B")))
+  opt <- set_preprocessing(opportunities_list = list(c("A", "B")))
   expect_equal(opt$opportunities_list, list(c("A", "B")))
 })
 
@@ -242,29 +242,29 @@ local_cli_context <- function(env = parent.frame()) {
 }
 
 test_that("the impute policy is stored and defaults to NULL", {
-  expect_null(set_preprocessing_opt()$impute)
-  opt <- set_preprocessing_opt(impute = c(party = "as_category"))
+  expect_null(set_preprocessing()$impute)
+  opt <- set_preprocessing(impute = c(party = "as_category"))
   expect_equal(opt$impute, c(party = "as_category"))
 })
 
 test_that("a valid summary or as_category policy is accepted", {
-  expect_no_error(set_preprocessing_opt(impute = c(x = "summary")))
+  expect_no_error(set_preprocessing(impute = c(x = "summary")))
   expect_no_error(
-    set_preprocessing_opt(impute = c(x = "as_category", y = "summary"))
+    set_preprocessing(impute = c(x = "as_category", y = "summary"))
   )
 })
 
 test_that("an unnamed impute vector aborts", {
   local_cli_context()
-  expect_snapshot(set_preprocessing_opt(impute = "as_category"), error = TRUE)
+  expect_snapshot(set_preprocessing(impute = "as_category"), error = TRUE)
 })
 
 test_that("an unknown impute policy value aborts, listing supported values", {
   local_cli_context()
-  expect_snapshot(set_preprocessing_opt(impute = c(x = "bogus")), error = TRUE)
+  expect_snapshot(set_preprocessing(impute = c(x = "bogus")), error = TRUE)
 })
 
 test_that("the reserved locf policy aborts as unimplemented", {
   local_cli_context()
-  expect_snapshot(set_preprocessing_opt(impute = c(x = "locf")), error = TRUE)
+  expect_snapshot(set_preprocessing(impute = c(x = "locf")), error = TRUE)
 })

@@ -12,7 +12,7 @@ estimate_dynam(
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   data = NULL,
   control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
@@ -25,7 +25,7 @@ estimate_dynami(
   sub_model = c("choice", "rate"),
   data = NULL,
   control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
@@ -38,7 +38,7 @@ estimate_rem(
   sub_model = c("rate", "rate_ordered", "choice"),
   data = NULL,
   control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing_opt(),
+  control_preprocessing = set_preprocessing(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
@@ -86,7 +86,7 @@ specifying the algorithm and its parameters for the estimation.}
 
 \item{control_preprocessing}{An object of class
 \code{control_preprocessing.goldfish} (typically created by
-\code{\link[=set_preprocessing_opt]{set_preprocessing_opt()}}),
+\code{\link[=set_preprocessing]{set_preprocessing()}}),
 specifying parameters for data preprocessing. This is only used
 if \code{preprocessing_init} is not a \code{preprocessed.goldfish} object or NULL.}
 
