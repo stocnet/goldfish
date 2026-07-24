@@ -244,6 +244,14 @@ the diff consumes the layer's transition/support specification and inverts the
 never a latent variable. A value change larger than one allowed step decomposes into
 a **per-dyad ordered chain** of events (0→2 under ±1 transitions is two events with
 a forced order); net-zero changes produce no events (excursions are out of v1, D16).
+**A panel (latent) layer MAY be two-mode** — a disjoint mode-pair under
+`multimode-network-support`'s mode map (e.g. an advice layer `{staff}×{director}`).
+Wave-diffing and the per-dyad ordered chains run over its n1×n2 dyad space exactly
+as over a one-mode n×n space; the candidate flip set is the two-mode dyad set.
+A coupled RE reader lives on its own mode-pair block (`make-multivariate-spec` D8)
+and reads the latent layer across a **whole shared mode** (identity-conforming) —
+subset/nested coupling (a mode ⊂ a union containing it) is out of v1 and rejected at
+composition.
 v1 data restrictions: all panel-flagged layers share **one wave grid** (nested grids
 — e.g. yearly surveys plus weekly ones — are a recorded future development); the
 **node set is fixed** over the whole period (composition changes / presence windows
@@ -526,6 +534,16 @@ decision):
 block-structured vcov inside `estimate_dynes()`) — the joint fit already handles the
 separable fids correctly; the message is a user-guidance nicety, not a fork.
 
+**Node-space generality** (`make-multivariate-spec` D8): the joined RE and PE
+layers MAY be one- or two-mode over one shared mode-map object, and dependent
+layers MAY be over *distinct* mode-pairs. Every cross-layer coupling read
+(an RE reader reading a modeled PE layer's latent state) conforms by **mode-set
+identity** — the reader and the panel layer share a *whole* mode. A read bridging
+a mode *subset* to a union containing it is rejected at composition (Gap B, future
+development), so `estimate_dynes()` never sees one; the augmenter and the batched
+evaluator therefore evaluate every coupled fid on its own mode-pair block with no
+subset projection required. The two-mode panel case (D8) is the concrete driver.
+
 **History spans**: modeled REs before the first wave are history — they inform the
 process state at the first wave but contribute no likelihood terms; modeled REs
 after the last wave are discarded. (A spec wanting full RE history with no PE
@@ -615,6 +633,28 @@ support-violating proposals via zero target density (never pay a preprocess for 
 proposal a lookup can exclude — and the walk is not guaranteed to return −Inf on an
 illegal transition rather than error); a separate per-dyad pending-queue structure
 in the simulation (the support masks already encode applicability).
+
+### D21 — Generative-readiness completion is consumed, not built here (see `make-multivariate-spec` D9)
+The joint likelihood needs every modeled DyNAM flavor complete (rate **and**
+choice): the augmenters draw waiting times and receivers from rates/choices, and
+the evaluator scores both halves. That completion — filling a half-specified
+flavor's missing sub-model with its zero-information default (uniform choice /
+uniform ordered rate; intercept-only baseline for a missing timed rate) and
+warning once, erroring only when a **modeled panel** layer omits a flavor entirely
+(the "all flavors or not at all" rule, D8/D19) — is owned by `make-multivariate-spec`
+**D9** and consumed here, not re-derived.
+
+The decisive constraint this change imposes on D9: **only `augment_seq_sim()` drives
+`walk_open`**. `augment_seq_mcmc()` evaluates through the injected
+`make_proposal_evaluator()` closure (D20), `augment_seq_random()` draws over the
+flip set, and `evaluate_sequence_pool()` (D2) is a batched pass — none call
+`walk_open`. So completion **cannot** live inside `walk_open`; `estimate_dynes()`
+runs it **once** at entry and hands the single completed spec to all four paths, so
+the augmenters and the evaluator agree fid-for-fid. `make_proposal_evaluator(spec,
+θ_k)` (D20) is built on that completed spec. Completed fids are marked in the
+`process_map` and appear in θ (0 params for a uniform choice, 1 for an added
+baseline hazard), so the result (D7) reports every auto-supplied sub-model. This
+supersedes any reading of D2/D20 in which an augmenter completes its own spec.
 
 ## Risks / Trade-offs
 

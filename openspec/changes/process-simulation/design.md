@@ -88,6 +88,24 @@ performs. Repeated simulation (`nsim > 1`) returns sequences in the augmenter/po
 format, so simulated pools feed the DyNES pool evaluator without conversion;
 trajectory statistics are optionally recordable via a writer sink on the walk.
 
+### D5 — Simulation requires a generatively-complete spec (see `make-multivariate-spec` D9)
+Drawing a DyNAM event needs a rate (who acts, when) **and** a choice (whom), so
+`simulate()` requires a generatively-complete specification. This closes the gap in
+the base spec (which never said what `simulate()` does with a rate-only DyNAM): the
+completion transform owned by `make-multivariate-spec` **D9** runs **once** at
+`simulate()`'s entry and fills any half-specified flavor's missing sub-model with
+its zero-information default — a **rate-only DyNAM** gains a **uniform choice** (zero
+parameters, so no extra `coef` is needed; receivers are drawn equiprobably); a
+missing **timed rate** gains an intercept-only baseline hazard (its one coefficient
+supplied via `coef`). A **choice-only DyNAM** is *not* rate-completed — its timing
+uses this change's ordered modes (D2, pseudo-time / fixed-template). REM is already
+complete (rate only). Completion warns once and marks the added fids in the
+`process_map` and print. `walk_open()` **asserts** completeness rather than
+performing it, so the `simulate()` driver loop (D1) never opens an incomplete spec.
+The completion transform is the same one `estimate_dynes()` and the augmenters run,
+so a simulated pool and an augmented pool carry identical fid sets into
+`evaluate_sequence_pool()`.
+
 ## Risks / Trade-offs
 
 - **Divergence from the batch walk** → `simulate()` is a driver over the *same*

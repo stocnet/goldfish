@@ -88,6 +88,43 @@
 - [x] 1b.5 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
       `devtools::document()`; commit
 
+## 1c. Generative-readiness completion (D9)
+
+> Owned here (the spec/walk substrate); consumed by `estimate_dynes()`
+> (`dynes-augmentation`) and `simulate()` (`process-simulation`), which call the
+> transform once at entry. The single-process / flavored **estimation** path is
+> excluded — rate-only estimation stays valid and the frozen baselines gate it.
+
+- [ ] 1c.1 Relax `make_specification()` to **build** a half-specified flavored
+      spec (a flavor keyed in one sub-model list, omitted from the other) instead
+      of aborting: record the per-`(flavor, sub-model)` gaps on the spec without
+      fabricating defaults. Keep the existing same-flavor-set message; the
+      single-process estimators (`estimate_dynam()` / `estimate_rem()`) re-impose
+      it at estimation time on an unfilled gap (the abort **relocates** from
+      construction to estimation for the excluded path)
+- [ ] 1c.2 Completion transform (one shared function, e.g.
+      `complete_generative_spec()`): fill each recorded gap with its
+      zero-information default — uniform choice / uniform `rate_ordered`
+      (0 params), intercept-only baseline hazard for a missing **timed** rate
+      (1 param) — building the default bundle via the existing
+      `build_specification_bundle()`; emit **one** `cli::cli_warn` naming
+      layer/flavor/sub-model/default; abort (no default) when a **modeled panel**
+      layer omits a flavor from both lists (Case A, panel-gated — RE subset
+      modeling stays legal); idempotent on an already-complete spec
+- [ ] 1c.3 `process_map` gains a `completed` logical column (beside `coupled`,
+      D3); completion sets it TRUE for added fids, and a completed timed-rate fid
+      contributes its baseline-hazard parameter to the fid / θ layout
+- [ ] 1c.4 Print marking (extends 1.3): completed fids rendered as auto-supplied
+      defaults (cli semantic elements) alongside the coupled/separable marking
+- [ ] 1c.5 Tests: half-specified rate-only flavor → uniform choice + warning
+      snapshot; missing timed rate → baseline parameter added; modeled-panel
+      missing-whole-flavor → abort; RE subset stays legal; single `estimate_dynam`
+      on a rate-only spec NOT completed (byte-identical, baselines PASS);
+      idempotence on a complete spec; `process_map$completed` correctness; print
+      snapshot under a pinned cli context
+- [ ] 1c.6 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
+      `devtools::document()`; commit
+
 ## 2. Cross-process union planning
 
 - [x] 2.1 Generalize the union planner across processes: per statistic block,
@@ -179,11 +216,16 @@
       `walk_inject()` over the merged walk's stepper; evaluation applies the
       fid's compiled mask; injection updates shared state for all consumers;
       roxygen with lifecycle experimental badges; `devtools::document()`
+- [ ] 4.1b `walk_open()` **asserts** generative completeness (D9): abort with a
+      `cli` error pointing to `simulate()` / `estimate_dynes()` when handed a spec
+      with unfilled completion gaps; it NEVER performs completion (that transform
+      is 1c.2, run once at the consumer entry). Keep `walk_open` internal (not
+      user-exported) in this change
 - [ ] 4.2 Batch-vs-replay equality: replaying observed fixtures through the
       handle reproduces the batch driver's per-fid quantities
 - [ ] 4.3 Tests: advance/evaluate between events, injection visibility across
-      fids, handle misuse aborts (evaluate before open, inject out of order)
-      with cli errors
+      fids, handle misuse aborts (evaluate before open, inject out of order,
+      **open on an incomplete spec** → 4.1b assert) with cli errors
 - [ ] 4.4 Verification: full `NOT_CRAN=true` run (baselines PASS not SKIP);
       commit
 

@@ -37,8 +37,14 @@ are `dynes-augmentation`'s.
   duplicated dependent layer aborts, naming it), while covariate reuse across specs
   is allowed (it is the coupling); a layer's flavors all live in one specification.
   DyNAM-i processes are excluded; choice_coordination and mixed ordered/timed
-  processes are in scope; all processes share one node set in v1
-  (`multimode-network-support` relaxes this later).
+  processes are in scope. Processes compose over **one shared mode-map object**
+  (`multimode-network-support`, now landed): one- and two-mode processes may be
+  joined, and dependent processes over *distinct* mode-pairs compose as long as
+  every cross-process read **conforms by mode-set identity** — i.e. the shared
+  node space is a *whole* shared mode (advice `{staff}×{director}` + nominations
+  `{director}×{project}`). A cross-process read bridging a mode *subset* to a
+  union containing it (directors-only ↔ all-employees) does not conform and
+  aborts at construction, recorded as future development.
 - **Event-stream estimators reject the joint object**: `estimate_dynam()` and
   `estimate_rem()` abort on a `make_joint_specification()` object (pointing to
   `estimate_dynes()`) and on a single specification with a panel-observed focal
@@ -103,7 +109,10 @@ are `dynes-augmentation`'s.
   batched `evaluate_engine()` bind to this change's walk handle), and
   `process-simulation` (whose `simulate()` drives it). These proposals are
   re-grounded against this change's walk handle (2026-07-21).
-  `multimode-network-support` later relaxes the same-node-set restriction.
+  `multimode-network-support` (landed) supplies the mode map this change's
+  per-mode-pair walk blocks build on (D8); `formula-drives-focal` supplies the
+  per-process focal/side/mode resolution a join of several dependent processes
+  requires.
 - **Parallel development vs the 2.0.0 release changes** (branch plan in
   `.plan/mv_branch.md`, local): sections 1–2 (surface, coupling, union
   planning, routing) and section 4 (walk handle — its evaluation substrate,
@@ -111,10 +120,11 @@ are `dynes-augmentation`'s.
   parallel-safe against `residuals-gof` (file overlap: only `R/model_estimate.R`,
   different regions). Section 3 (the merged walk) MUST wait for
   `spec-driven-dispatch` (rewrites `fold_active_dyad_support` in
-  `R/model_preprocess.R` and the writer's dyad encoding) and for
-  `multimode-network-support` (touches `R/make_specification.R` /
-  `R/formula_parser.R`) to land — all three edit the loop/writer/surface files
-  this change's riskiest step rewrites. This change needs nothing from
+  `R/model_preprocess.R` and the writer's dyad encoding) to land — it edits the
+  loop/writer files this change's riskiest step rewrites.
+  `multimode-network-support` (which touched `R/make_specification.R` /
+  `R/formula_parser.R`) has landed; its mode map is the per-mode-pair block
+  substrate D8 builds on. This change needs nothing from
   `residuals-gof`; the `evaluate_engine()` dependency is
   `dynes-augmentation`'s (E-step evaluation), not this change's.
 - **R**: `R/make_joint_specification.R` (surface, validation, coupling, print);

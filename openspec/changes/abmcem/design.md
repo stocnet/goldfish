@@ -74,8 +74,14 @@ question is resolved to consuming that constructor, not an interim named-list. T
 loop machinery here has no hard dependency on it (tests drive the loop with a stub
 augmenter and analytic evaluator over a minimal spec fixture), but the public
 signature binds to the multivariate spec so the surface does not churn when the real
-data path lands. Four constructors, one per concern, nested under the EM
-constructor:
+data path lands. The joint spec MAY span multiple mode-pairs — one- and
+two-mode dependent processes over distinct mode-pairs, `make-multivariate-spec`
+D8 — but the loop is **fid-indexed** throughout: θ concatenates per-fid
+sub-model parameters, the pools and the coupling/`coupled` separability column
+are per fid, and mode-pair keying lives entirely in the walk beneath the
+evaluator contract. So node-space generality is transparent to this change's
+machinery; nothing here keys on mode. Four constructors, one per concern, nested
+under the EM constructor:
 
 - `set_alg_em(n_sequences, max_iterations, accept_quantile, growth_quantile,
   stop_quantile, tolerance, stop_count = 1L, max_retries, seed,

@@ -11,7 +11,10 @@ process's effects or support-constraint atoms (per the layer-info observation
 metadata); a combination that references no panel-observed layer SHALL abort
 explaining that the processes are exactly separable and should be estimated with
 the per-process estimators. DyNAM-i processes SHALL be rejected. All processes
-MUST share one node set (the multimode change relaxes this). DyNAM (rate, choice,
+MUST reference one shared mode-map object; one- and two-mode processes MAY be
+composed, and dependent processes over distinct mode-pairs MAY be joined
+provided every cross-process read conforms by mode-set identity (see the
+node-space conformance requirement below). DyNAM (rate, choice,
 choice_coordination) and REM processes, timed or ordered, MAY be freely mixed,
 flavored or plain.
 
@@ -35,6 +38,35 @@ flavored or plain.
   exogenous)
 - **THEN** construction aborts with a cli error stating the processes are
   separable and each specification can be estimated on its own.
+
+### Requirement: Composition over a shared mode-map object conforms by mode-set identity
+
+`make_joint_specification()` SHALL compose processes over one shared mode-map
+object (`multimode-network-support`). Processes MAY be one-mode or two-mode, and
+dependent processes MAY be over distinct mode-pairs. A cross-process read — an
+effect argument or support-constraint atom of one process reading another
+process's layer — SHALL be admitted only when it **conforms by mode-set
+identity**: the shared node space is a whole shared mode. A read that would
+bridge a mode **subset** to a union containing it (a directors-only process
+coupling to an all-employees process) SHALL abort at construction with a `cli`
+error naming the two layers and the offending modes, and noting subset/nested
+cross-process coupling as future development.
+
+#### Scenario: whole-shared-mode multilevel composition succeeds
+- **WHEN** `make_joint_specification(advice_spec, nominations_spec, data = x)` is
+  called with advice two-mode `{staff}×{director}` and nominations two-mode
+  `{director}×{project}`, and nominations reads `indeg(advice)` on the director
+  side
+- **THEN** a multivariate specification is returned — the director-indexed read
+  conforms by mode-set identity — with the advice and nominations fids on their
+  own mode-pair blocks.
+
+#### Scenario: subset/nested cross-process read rejected
+- **WHEN** an all-employees process over `{staff, director}` and a directors-only
+  process over `{director}` are composed and one reads the other's layer across
+  the `{director}` ⊂ `{staff, director}` boundary
+- **THEN** construction aborts naming the two layers and the offending modes, and
+  states subset/nested cross-process coupling is future development.
 
 ### Requirement: The process_map extends across processes
 
@@ -141,3 +173,90 @@ specification).
   `estimate_dynam()`, `estimate_rem()`, or `estimate_dynami()`
 - **THEN** it aborts pointing to `estimate_dynes()` as the estimator for
   panel-dependent processes.
+
+### Requirement: Generative-readiness completion fills half-specified flavors
+
+A specification used to **generate** events (drive the walk handle via
+`simulate()` or an augmenter) or to be estimated **jointly** (`estimate_dynes()`)
+SHALL be made *generatively complete* — every modeled DyNAM flavor (the choice /
+choice_coordination sub-model family) carrying both a rate and a choice — by a
+completion transform run **once** at the consumer's entry. A flavor **keyed in one
+sub-model list and omitted from the other** SHALL have the missing sub-model filled
+with its zero-information default and SHALL emit a single `cli` **warning** naming
+the layer, flavor, sub-model, and the default applied. The defaults SHALL be: a
+**uniform choice** (no effects, zero parameters) for a missing choice or
+choice_coordination; a **uniform ordered rate** (no effects, zero parameters) for a
+missing `rate_ordered`; an **intercept-only baseline hazard** (one parameter,
+estimated in the joint fit or supplied via `coef` for `simulate()`) for a missing
+**timed** rate. A **rate-only DyNAM** flavor (choice absent) SHALL therefore
+complete to a uniform choice. A **choice-only DyNAM** flavor SHALL NOT be
+rate-completed (its timing is supplied by the `process-simulation` ordered modes).
+REM requires only a rate and is already complete.
+
+Completion is a **single transform** shared by every consumer (`simulate()`,
+`estimate_dynes()`, and each augmenter's setup) so that the walk-driven and
+non-walk-driven paths carry identical fid sets; it SHALL NOT be performed inside
+`walk_open()`, and it SHALL NOT be applied to the single-process / flavored
+estimation path (`estimate_dynam()` / `estimate_rem()` over one
+`specification.goldfish`), which keeps rate-only and choice-only specifications
+unchanged. `make_specification()` SHALL NOT abort on a half-specified flavored
+specification (so it can be built and reach a generative consumer); the
+same-flavor-set error is re-imposed by the single-process estimators at estimation
+time on an unfilled gap.
+
+#### Scenario: rate-only flavor completed with a uniform choice
+- **WHEN** a flavored specification passed to `simulate()` or composed into a
+  `estimate_dynes()` join keys a flavor in `rate` but omits it from `choice`
+  (e.g. `rate = list(creation ~ x, dissolution ~ y)`, `choice = list(creation ~ z)`)
+- **THEN** the missing `dissolution` choice is completed to a uniform (zero-effect)
+  choice, a single warning names the layer, flavor `dissolution`, the `choice`
+  sub-model, and the uniform default, and no extra parameter enters θ.
+
+#### Scenario: missing timed rate adds a baseline-hazard parameter
+- **WHEN** a flavor is keyed in a **timed** `rate`-model specification's `choice`
+  list but omitted from its `rate` list
+- **THEN** the missing rate is completed to an intercept-only baseline hazard, the
+  warning names the added constant rate, and one baseline-hazard parameter is added
+  to θ (estimated in the joint fit, or required in `coef` for `simulate()`).
+
+#### Scenario: single-process estimation is not completed
+- **WHEN** a rate-only DyNAM `specification.goldfish` (choice `NULL`) is passed to
+  `estimate_dynam()`
+- **THEN** no choice is added, the specification estimates as rate-only, and the
+  preprocessed output is byte-identical to the pre-change path (frozen baselines
+  PASS).
+
+#### Scenario: modeled panel layer missing a whole flavor aborts
+- **WHEN** a **modeled panel** focal layer's data carries a flavor that the
+  specification keys in neither `rate` nor `choice`
+- **THEN** the completion transform aborts (no default) stating a modeled panel
+  layer must model all its flavors, naming the unmodeled flavor.
+
+#### Scenario: RE subset modeling stays legal
+- **WHEN** an **RE** focal layer models a subset of its data flavors (the others
+  keyed nowhere)
+- **THEN** no completion or abort occurs for the unmodeled flavors — they update
+  network state, and only the keyed flavors are modeled processes.
+
+### Requirement: The walk handle asserts completeness; completed fids are marked
+
+`walk_open()` SHALL validate that its specification is generatively complete and
+abort with a `cli` error pointing to `simulate()` / `estimate_dynes()` when it is
+not; it SHALL NOT perform completion itself. `walk_open()` remains an internal
+developer substrate (not user-exported) in this change. Fids added by completion
+SHALL be marked in the `process_map` (a `completed` logical column beside
+`coupled`) and rendered as such in the specification / result print, so the
+auto-supplied sub-models are visible beyond the one-time construction warning.
+
+#### Scenario: walk_open aborts on an incomplete spec
+- **WHEN** `walk_open()` is called (directly, or on a path that skipped the
+  completion transform) with a half-specified flavored specification
+- **THEN** it aborts naming the incomplete flavor and directing the caller to
+  `simulate()` / `estimate_dynes()`, rather than opening a walk with a mismatched
+  fid set.
+
+#### Scenario: completed fids are marked in the process_map and print
+- **WHEN** a specification whose flavor was completed with a default sub-model is
+  printed (or carried into a fitted result)
+- **THEN** the `process_map` row for the added fid has `completed = TRUE` and the
+  print marks it as an auto-supplied default.

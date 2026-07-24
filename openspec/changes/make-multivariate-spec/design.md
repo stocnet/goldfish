@@ -10,9 +10,11 @@ exist, and this design supersedes those sketches where they conflict (notably:
 no global effects table — gids are scoped per statistic block; no
 `estimate_dynes`-independent multivariate estimator).
 
-Sequencing: post-2.0.0, after `flavored-processes` completes; before (and
-consumed by) `dynes-augmentation`. Same-node-set restriction until
-`multimode-network-support`.
+Sequencing: post-2.0.0, after `flavored-processes` and
+`multimode-network-support` complete; before (and consumed by)
+`dynes-augmentation`. Node-space generality (D8) rides the landed mode map —
+processes compose over one shared mode-map object with per-mode-pair walk
+blocks; only subset/nested cross-process coupling stays future work.
 
 ## Goals / Non-Goals
 
@@ -31,7 +33,14 @@ consumed by) `dynes-augmentation`. Same-node-set restriction until
 - Any estimator for fully observed multivariate specifications (exactly
   separable; per-process estimation is the answer, enforced by construction
   and by the estimation-surface contract).
-- Mixed node sets (`multimode-network-support` relaxes v1's restriction).
+- Subset/nested cross-process coupling — a cross-process effect or constraint
+  read that bridges a mode to a *union containing it* (the directors-only ↔
+  all-employees shape, "Gap B"). It needs a subset embed/marginalize projection
+  no landed capability provides (`multimode-network-support`'s conformance is
+  mode-set-identity only), and is recorded future development (D8). Note the
+  in-scope case: identity-conforming composition across *distinct* mode-pairs
+  that share a *whole* mode (advice `{staff}×{director}` + nominations
+  `{director}×{project}`) IS supported (D8).
 - DyNAM-i processes (their shape is `dynami-stocnet-boundary`'s to settle).
 - Cross-family effect deduplication (see D5).
 
@@ -242,7 +251,8 @@ check is deferred to `estimate_dynes()`.)
 
 ### D5 — Merged one-walk; gid scope per statistic block; dedup within block only
 The two per-family walks merge into one single-clock walk hosting both
-statistic blocks: `stat_block = (model, sub-model family, statistic dims)`,
+statistic blocks (generalized to per-mode-pair blocks by D8):
+`stat_block = (model, sub-model family, statistic dims)`,
 gids scoped per block. Per event, the walk updates each block's effect
 statistics once and routes to consumers via the `(layer, flavor) → fid`
 lookup: an event is dependent for its own `(layer, flavor)` fids, a
@@ -290,8 +300,157 @@ Composable processes are DyNAM (rate, choice, choice_coordination), REM, in
 timed or ordered sub-models, freely mixed — per-fid `has_intercept` already
 carries timed-vs-ordered right-censoring semantics per consumer, and
 choice_coordination rides the dyad block with its own dispatch family (no
-cross-family dedup per D5). DyNAM-i processes are rejected:
+cross-family dedup per D5). Processes MAY be one-mode or two-mode over the
+shared mode-map object (D8). DyNAM-i processes are rejected:
 `dynami-stocnet-boundary` owns their future shape.
+
+### D8 — Node-space generality: per-mode-pair blocks; identity-conforming composition in, subset projection out
+With `multimode-network-support` landed, the v1 "one shared node set"
+restriction is lifted to **one shared mode-map object**. The merged walk (D5)
+keys its statistic blocks by the mode-map's mode-pair — `stat_block = (model,
+sub-model family, mode-pair)`, the "statistic dims" of D5 read as the sender
+mode (rate) or the `(sender mode, receiver mode)` pair (choice/dyad). The
+"two blocks" framing is the single-mode-pair special case; a multi-mode-pair
+join yields one sender block per distinct sender mode and one dyad block per
+distinct mode-pair among the composed processes. Processes MAY therefore be
+one-mode or two-mode, and dependent processes over *distinct* mode-pairs
+compose. This reuses machinery the mode map already ships: nodal state is
+keyed by mode-set and **not capped at two** views, and **layers sharing a side
+share one view**, so a statistic on a shared mode's marginal is a candidate to
+compute once and read from every block that touches that mode (the state layer
+already does this for attribute views; whether statistic dedup follows across
+blocks is Open Question / a task-time measurement).
+
+**The v1 boundary is mode-set-identity conformance** (the mode map's own rule).
+A cross-process effect argument or support-constraint atom that reads another
+process's layer is admitted only when the read **conforms by mode-set
+identity** — i.e. the shared node space is a *whole* shared mode. Advice
+`{staff}×{director}` composed with nominations `{director}×{project}` share the
+full `director` mode: a director-indexed read (`indeg(advice)` feeding the
+nominations sender block) conforms, so this multilevel shape is in scope with
+no new primitive. A read that would bridge a mode **subset** to a union
+containing it (a directors-only process coupling to an all-employees process,
+`{director}` ⊂ `{staff,director}`) does **not** conform;
+`make_joint_specification()` SHALL abort at construction naming the two layers
+and the offending modes, recorded as future development ("Gap B" — a subset
+embed/marginalize projection with its own embed-with-zeros-vs-marginalize
+semantics that no landed capability provides). *Rejected:* keeping the strict
+one-node-set restriction — it needlessly blocks the whole-shared-mode
+multilevel case and two-mode multiplex, both of which the landed mode map
+supports directly; *also rejected:* silently admitting a subset read by
+dimension match — `multimode-network-support` deliberately refuses that
+("equal-sized distinct modes do not conform"), and coupling on a wrong
+projection would silently bias DyNES estimates.
+
+**Hard dependency on `formula-drives-focal` (blocking edge, not a soft
+preference).** Each composed process resolves its sides and modes against **its
+own** modeled dependent layer, not a single object-level `info$focal`. This is
+unavoidable for a join: one shared data object carries at most one `info$focal`,
+but a joint specification models N dependent layers, so all but at most one
+process is modeling a layer that is *not* `info$focal` — precisely the case
+`formula-drives-focal` exists to fix (its two-mode side-validity check otherwise
+resolves the wrong dyad's sides against `info$focal`, silently accepting or
+rejecting an effect). Rather than replicate and re-sync that fix here, this
+change consumes it: section 1b/3 start only after `formula-drives-focal` lands,
+and `make_joint_specification()` and the walk never touch focal resolution
+themselves. The `info$focal` field and the `manynet::add_info(focal = ...)`
+convention are unchanged — this decision changes *nothing* about the vocabulary,
+only which layer drives resolution when several are modeled. *Rejected (Option
+B):* stamping per-process focal resolution locally to decouple sequencing — it
+duplicates `formula-drives-focal`'s fix, and the two-mode side-validity check is
+exactly where a drifted copy would silently bias results.
+
+### D9 — Generative-readiness completion: one transform at the consumer entry; the walk handle asserts
+
+**The requirement.** A specification that will *generate* events (drive the walk
+handle) or be estimated *jointly* (the coupled DyNES likelihood) must be
+**generatively complete**: every modeled DyNAM flavor (the choice /
+choice_coordination sub-model family) carries **both** a rate and a choice; REM
+carries a rate (already enforced — choice is rejected for REM). This is the shared
+precondition of `simulate()` (`process-simulation`), every augmenter and the pool
+evaluator (`dynes-augmentation`), and `estimate_dynes()`'s joint preprocessing: a
+DyNAM event needs a rate (who acts, when) and a choice (whom), so a half-specified
+process cannot be drawn or jointly scored.
+
+**Scope — and the hard exclusion.** Completion applies to the *generative/joint*
+consumers only. The single-process / flavored **estimation** path
+(`estimate_dynam()` / `estimate_rem()` over one `specification.goldfish`) is
+**excluded**, for two independent reasons: (1) rate-only DyNAM estimation is a
+legitimate standalone model whose home is the formula interface
+(`estimate_dynam(dep ~ ..., rate_sub_model = "rate")`) and the rate-only spec
+object — it never draws an event, so it needs no choice; and (2) that path routes
+through the merged walk (D5) under the frozen 1e-6 baseline gate, so silently
+adding a choice block would change its preprocessed output and break byte-identity.
+Completion must never touch it.
+
+**Defaults (per missing sub-model).** The missing half is filled with its
+zero-information default:
+
+| missing half | default | parameters |
+|---|---|---|
+| choice / choice_coordination | uniform (no effects; every alternative equiprobable) | 0 |
+| rate_ordered | uniform (no effects) | 0 |
+| timed rate | intercept-only baseline hazard | 1 (estimated in the joint fit; supplied via `coef` for `simulate()`) |
+
+A **rate-only DyNAM** (choice absent) completes to a **uniform choice** — zero
+parameters, so `simulate()` needs no extra coefficient and the joint fit gains no
+free parameter. A flavor keyed in `choice` but absent from a **timed** `rate` list
+is the only non-free case: its completion adds one estimated/supplied
+baseline-hazard parameter (reported in θ). A **choice-only DyNAM** is *not*
+rate-completed — its timing rides `process-simulation` D2's pseudo-time /
+fixed-template modes.
+
+**Two missing cases, opposite treatment** (the "modeled for all flavors or not at
+all" rule, `dynes-augmentation` D8/D19):
+- **Half-specified flavor** (keyed in one sub-model list, omitted from the other):
+  *complete* with the default above, and **warn once** (naming layer, flavor,
+  sub-model, and the default applied).
+- **Flavor absent from both** on a **modeled panel** layer: *error* — no default. A
+  modeled panel layer must model every flavor its wave-diff produces (the augmenter
+  must place events of each). This is **panel-gated**: on an **RE** focal layer,
+  modeling a subset of flavors stays legal (unmodeled data-flavors update state —
+  unchanged `flavored-processes` behavior).
+
+**Where it lives — once, at the consumer entry, NOT inside the walk handle.** The
+augmenters are the proof: only `augment_seq_sim()` drives `walk_open`;
+`augment_seq_mcmc()` evaluates through an injected `make_proposal_evaluator()`
+closure (preprocess + likelihood, "never touches the pool API"),
+`augment_seq_random()` draws over the flip set, and `evaluate_sequence_pool()` is a
+batched C++ pass — **three of four consumers never call `walk_open`**. Completion
+inside `walk_open` would leave the MCMC / random / pool paths on an *uncompleted*
+spec, so a run mixing a sim draw with an MCMC or pool evaluation would disagree
+fid-for-fid and silently bias estimates. Completion is therefore a **single spec
+transform run once at each consumer's entry** (`estimate_dynes()`, `simulate()`,
+the shared augmenter `init()`), warned once, producing one completed spec that
+*every* downstream path shares — `walk_open`, `make_proposal_evaluator`, the random
+augmenter, and the pool evaluator alike. Because `make_specification()` must be able
+to *build* a half-specified spec for it to reach these consumers, the constructor
+**relaxes** its current same-flavor-set abort (it records the gaps without
+fabricating defaults); the single-process estimators re-impose the error at
+estimation time on an unfilled gap — the abort **relocates** from construction to
+estimation for the excluded path.
+
+**`walk_open` asserts, and stays internal.** `walk_open()` **validates** that its
+spec is generatively complete and errors otherwise (pointing to `simulate()` /
+`estimate_dynes()`); it never performs completion. It remains an internal developer
+substrate (not user-exported) in this change; a future export decision inherits the
+assert contract, so a direct caller must pre-complete.
+
+**Durable marking.** Completed fids are marked in the `process_map` (a `completed`
+logical column beside `coupled`, D3) and rendered in the specification / result
+print, so a user inspecting a fitted DyNES or simulated object sees which
+sub-models were auto-supplied — the one-time construction warning is not the only
+record.
+
+*Rejected:* completion inside `walk_open` (misses the three non-`walk_open`
+consumers — the MCMC augmenter is the counterexample); completion baked into
+`make_specification()` (the *same* rate-only spec must estimate as rate-only under
+`estimate_dynam()` yet simulate with a uniform choice — completion is
+per-consumer-purpose, not a property of the object); rejecting rate-only DyNAM on
+the generative surface (a uniform choice is a valid zero-parameter model and
+friendlier than an abort); per-open completion in the ABEM loop (warning spam plus
+a fid-consistency hazard across the augmenter / evaluator split — complete once,
+share the result).
 
 ## Risks / Trade-offs
 
@@ -314,6 +473,12 @@ cross-family dedup per D5). DyNAM-i processes are rejected:
   the merged walk's per-fid outputs, and the general `simulate()` moved to the
   `process-simulation` change. Its "per-event simulation hook" framing and its
   modification of `preprocess-output-writers` are dropped.
+- **Completion drift across the four consumer paths** (D9) → a sim draw on a
+  completed spec while an MCMC / random / pool evaluation runs on an uncompleted
+  one would disagree fid-for-fid and silently bias estimates. Mitigation: one
+  completion transform produces a single completed spec that every path consumes,
+  and `walk_open` **asserts** completeness — any path that skipped the transform
+  fails loudly rather than evaluating a mismatched fid set.
 
 ## Migration Plan
 
@@ -327,3 +492,18 @@ Rollback is reverting commits; no data-format or baseline impact.
   walk handle or a sibling over a shared stepper is an implementation choice
   measured at task time (replay-driver purity vs. the batch path's current
   performance).
+- Whether effect-statistic dedup crosses mode-pair blocks when a statistic
+  reduces to a *shared mode's marginal* (D8): a director in-degree read by both
+  an advice block and a nominations block is one director-length vector, and the
+  mode map already shares nodal *state* views across layers on a shared side.
+  Compute-once-across-blocks vs recompute-per-block is a task-time measurement,
+  gated the same way D3c's atom pooling is (worth it only if the shared
+  computation is a substantial share of the block's work).
+- Whether fid separability (D4) should be computed as **coupled OR
+  on-a-modeled-panel-layer**, not `coupled` alone. D9's uniform-choice completion
+  makes reads-nothing panel fids common, so a modeled panel flavor's own completed
+  fid could be marked separable purely because its formula reads nothing (it is
+  rescued today only when a derived support constraint reads its own layer's
+  state). This interacts with `dynes-augmentation` D19's "all fids separable ⟺ no
+  modeled panel process" equivalence; deferred, but settle it before the coupling
+  column is consumed by `estimate_dynes()`.

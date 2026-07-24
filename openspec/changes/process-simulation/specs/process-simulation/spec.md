@@ -91,3 +91,41 @@ writer sink to the simulation walk.
 - **THEN** the pool evaluates through `evaluate_sequence_pool()` directly, and the
   mean log-likelihood at the generating parameters exceeds that at perturbed
   parameters on seeded fixtures.
+
+### Requirement: Simulation requires a generatively-complete specification
+
+`simulate()` SHALL require a generatively-complete specification — every modeled
+DyNAM flavor carrying both a rate and a choice, so an event's who/when (rate) and
+whom (choice) can both be drawn — by running the generative-readiness completion
+transform (`make-multivariate-spec`) **once** at entry, before the draw loop opens
+the walk handle. A flavor keyed in one sub-model and omitted from the other SHALL
+be completed with its zero-information default and warned once: a **rate-only
+DyNAM** flavor SHALL gain a **uniform choice** (receivers drawn equiprobably, no
+extra `coef`); a missing **timed** rate SHALL gain an intercept-only baseline hazard
+whose one coefficient SHALL be required in `coef`. A **choice-only** (ordered) DyNAM
+SHALL NOT be rate-completed — its timing uses the ordered strategies (fixed-template
+or pseudo-time). REM requires only a rate and is already complete. `walk_open()`
+SHALL assert completeness, so the draw loop never opens an incomplete specification.
+Because `simulate()` runs the same completion transform as `estimate_dynes()` and
+the augmenters, a simulated pool and an augmented pool SHALL carry identical fid
+sets into `evaluate_sequence_pool()`.
+
+#### Scenario: rate-only DyNAM simulates with a uniform choice
+
+- **WHEN** a rate-only DyNAM specification (no choice) is simulated
+- **THEN** the completion transform adds a uniform choice, a single warning reports
+  it, and each event's receiver is drawn equiprobably from the risk set — no
+  additional coefficient is required.
+
+#### Scenario: incomplete spec that reaches the walk is rejected
+
+- **WHEN** a code path reaches `walk_open()` with a half-specified DyNAM
+  specification that skipped the completion transform
+- **THEN** `walk_open()` aborts naming the incomplete flavor, rather than
+  simulating events with a missing rate or choice.
+
+#### Scenario: choice-only DyNAM keeps ordered timing
+
+- **WHEN** a choice-only (ordered) DyNAM specification is simulated
+- **THEN** no baseline rate is fabricated; timing comes from the fixed-template or
+  pseudo-time strategy, and only the choice marks are drawn from the model.
