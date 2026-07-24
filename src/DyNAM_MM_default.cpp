@@ -35,7 +35,8 @@ List estimate_DyNAM_MM(
     bool impute = true,
     const bool active_dyad_is_point = false,
     const bool return_event_scores = false,
-    const bool return_ranks = false
+    const bool return_ranks = false,
+    const bool return_margins = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -72,6 +73,16 @@ List estimate_DyNAM_MM(
     // (rank 1 = highest fitted probability); allocated only when requested.
     IntegerVector observed_rank;
     if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
+    // Opt-in per-actor margin accumulators over unordered pairs. Each event
+    // credits both members of the observed pair on the observed side and, on the
+    // expected side, both members of every risk-set pair by its fitted
+    // probability; each vector therefore totals 2n. Allocated only when requested.
+    arma::vec margin_observed;
+    arma::vec margin_expected;
+    if (return_margins) {
+        margin_observed = arma::vec(n_actors_1, fill::zeros);
+        margin_expected = arma::vec(n_actors_1, fill::zeros);
+    }
 
 
     // Check whether there are composition change and initialize
@@ -239,6 +250,24 @@ List estimate_DyNAM_MM(
             }
             observed_rank[id_event] = rank;
         }
+        if (return_margins) {
+            // Walk the same unordered-dyad triangle as the build loop above so
+            // dyad index `idx_m` reconstructs its members (a > b); credit each
+            // member with the dyad's fitted probability.
+            int idx_m = 0;
+            for (int a = 1; a < n_actors_1; ++a) {
+                for (int b = 0; b < a; ++b) {
+                    if (allowed_dyad(idx_m) == 1) {
+                        const double p = dyad_weights(idx_m) / normalizer;
+                        margin_expected(a) += p;
+                        margin_expected(b) += p;
+                    }
+                    ++idx_m;
+                }
+            }
+            margin_observed(id_sender) += 1;
+            margin_observed(id_receiver) += 1;
+        }
         // expected gradient g = sum_d P_d D_d; score = grad log w_obs - g
         arma::rowvec g = (dyad_weights.t() * D) / normalizer;
         if (return_event_scores) {
@@ -259,7 +288,9 @@ List estimate_DyNAM_MM(
       Named("logLikelihood") = logLikelihood,
       Named("intervalLogL") = intervalLogL,
       Named("event_scores") = event_scores,
-      Named("observed_rank") = observed_rank
+      Named("observed_rank") = observed_rank,
+      Named("margin_observed") = margin_observed,
+      Named("margin_expected") = margin_expected
     );
 }
 

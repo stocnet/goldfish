@@ -29,6 +29,7 @@ estimate_c_int <- function(
   returnIntervalLogL = FALSE,
   return_event_scores = FALSE,
   return_ranks = FALSE,
+  return_margins = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -300,7 +301,12 @@ estimate_c_int <- function(
   } else {
     active_dyad_init
   }
-  evaluate_default_c <- function(pars, need_scores, need_ranks = FALSE) {
+  evaluate_default_c <- function(
+    pars,
+    need_scores,
+    need_ranks = FALSE,
+    need_margins = FALSE
+  ) {
     estimate_(
       spec = spec,
       parameters = pars,
@@ -324,7 +330,8 @@ estimate_c_int <- function(
       impute = impute,
       active_dyad_is_point = dyad_is_point,
       return_event_scores = need_scores,
-      return_ranks = need_ranks
+      return_ranks = need_ranks,
+      return_margins = need_margins
     )
   }
 
@@ -368,7 +375,12 @@ estimate_c_int <- function(
 
     ### DEFAULT_C ENGINE
     if (engine == "default_c") {
-      res <- evaluate_default_c(parameters, return_event_scores, return_ranks)
+      res <- evaluate_default_c(
+        parameters,
+        return_event_scores,
+        return_ranks,
+        return_margins
+      )
     }
 
     logLikelihood <- res$logLikelihood
@@ -583,6 +595,27 @@ estimate_c_int <- function(
   if (return_ranks) {
     estimationResult$observed_rank <- observed_rank
   }
+  if (return_margins) {
+    # `res` holds the final evaluation pass. REM engines return both sender and
+    # receiver margins; the single-sided engines return one pair. The
+    # gather_compute engine returns neither, leaving margins unset.
+    margins <- if (!is.null(res$margin_expected_sender)) {
+      list(
+        observed_sender = as.numeric(res$margin_observed_sender),
+        expected_sender = as.numeric(res$margin_expected_sender),
+        observed_receiver = as.numeric(res$margin_observed_receiver),
+        expected_receiver = as.numeric(res$margin_expected_receiver)
+      )
+    } else if (!is.null(res$margin_expected)) {
+      list(
+        observed = as.numeric(res$margin_observed),
+        expected = as.numeric(res$margin_expected)
+      )
+    } else {
+      NULL
+    }
+    if (!is.null(margins)) estimationResult$margins <- margins
+  }
   if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
   }
@@ -761,7 +794,8 @@ estimate_ <- function(
   impute,
   active_dyad_is_point = FALSE,
   return_event_scores = FALSE,
-  return_ranks = FALSE
+  return_ranks = FALSE,
+  return_margins = FALSE
 ) {
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
@@ -787,7 +821,8 @@ estimate_ <- function(
       impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
-      return_ranks = return_ranks
+      return_ranks = return_ranks,
+      return_margins = return_margins
     )
   }
 
@@ -809,7 +844,8 @@ estimate_ <- function(
       impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
-      return_ranks = return_ranks
+      return_ranks = return_ranks,
+      return_margins = return_margins
     )
   }
 
@@ -834,7 +870,8 @@ estimate_ <- function(
       impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
-      return_ranks = return_ranks
+      return_ranks = return_ranks,
+      return_margins = return_margins
     )
   }
 
@@ -861,7 +898,8 @@ estimate_ <- function(
       impute,
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
-      return_ranks = return_ranks
+      return_ranks = return_ranks,
+      return_margins = return_margins
     )
   }
 
@@ -887,7 +925,8 @@ estimate_ <- function(
       twomode_or_reflexive,
       impute,
       return_event_scores = return_event_scores,
-      return_ranks = return_ranks
+      return_ranks = return_ranks,
+      return_margins = return_margins
     )
   }
 
@@ -911,7 +950,8 @@ estimate_ <- function(
       twomode_or_reflexive,
       impute,
       return_event_scores = return_event_scores,
-      return_ranks = return_ranks
+      return_ranks = return_ranks,
+      return_margins = return_margins
     )
   }
   return(res)

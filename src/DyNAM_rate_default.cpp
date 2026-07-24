@@ -38,7 +38,8 @@ inline arma::mat reduce_mat_to_vector(
      const bool twomode_or_reflexive,
      bool impute = true,
      const bool return_event_scores = false,
-     const bool return_ranks = false
+     const bool return_ranks = false,
+     const bool return_margins = false
  ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -66,6 +67,18 @@ inline arma::mat reduce_mat_to_vector(
    // when requested so the default path pays nothing.
    IntegerVector observed_rank;
    if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
+   // Opt-in sender-margin accumulators (per-sender observed and expected event
+   // counts). `expected[s]` sums the interevent-time exposure times the sender's
+   // fitted rate over every likelihood interval where s is active, including
+   // right-censored intervals (accumulated in the sender loop that runs for
+   // every event); at the MLE it totals the number of events via the intercept
+   // score equation. Allocated only when requested.
+   arma::vec margin_observed;
+   arma::vec margin_expected;
+   if (return_margins) {
+     margin_observed = arma::vec(n_actors_1, fill::zeros);
+     margin_expected = arma::vec(n_actors_1, fill::zeros);
+   }
 
    // Check whether there are composition change and initialize
    // the presence of actor1 and actor2
@@ -157,6 +170,9 @@ inline arma::mat reduce_mat_to_vector(
          double exp_current_sender =
            std::exp(dot(reduce_stat_mat.row(i), parameters));
          if (do_rank && exp_current_sender > obs_rate) rank++;
+         if (return_margins) {
+           margin_expected(i) += timespan_current_event * exp_current_sender;
+         }
          normalizer += exp_current_sender;
          weighted_sum_current_event +=
            exp_current_sender * (reduce_stat_mat.row(i));
@@ -189,6 +205,7 @@ inline arma::mat reduce_mat_to_vector(
        derivative += reduce_stat_mat.row(id_sender);
        //Rcpp::Rcout << "Der +:" << reduce_stat_mat.row(id_sender) << std::endl;
        //Rcpp::Rcout << "sender:" << id_sender << std::endl;
+       if (return_margins) margin_observed(id_sender) += 1;
      }
      if (do_rank) observed_rank[id_event] = rank;
      if (return_event_scores) {
@@ -204,7 +221,9 @@ inline arma::mat reduce_mat_to_vector(
      Named("intervalLogL") = intervalLogL,
      Named("logLikelihood") = logLikelihood,
      Named("event_scores") = event_scores,
-     Named("observed_rank") = observed_rank
+     Named("observed_rank") = observed_rank,
+     Named("margin_observed") = margin_observed,
+     Named("margin_expected") = margin_expected
    );
  }
 

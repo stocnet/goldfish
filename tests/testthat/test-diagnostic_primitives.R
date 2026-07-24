@@ -89,3 +89,142 @@ test_that("observed_rank is a valid rank vector on exact-time REM", {
   dependent <- !is.na(ranks)
   expect_true(all(ranks[dependent] >= 1L))
 })
+
+# In-pass actor margins (per-actor observed vs expected event counts). The
+# calibration identity splits by flavor: multinomial expected counts sum
+# algebraically to the event count at ANY parameter, so those are checked at a
+# non-MLE vector (`max_iterations = 0` pins the evaluation there); exact-time
+# expected counts sum to the event count only at the converged MLE via the
+# intercept score equation, so those are fit to convergence. REM stores both
+# sender and receiver margins whose totals coincide identically.
+margins_eval <- function(spec, data_list, params = NULL) {
+  opt_args <- c(
+    list(diagnostics = c("loglik", "margins")),
+    spec$estimation_args
+  )
+  if (!is.null(params)) {
+    opt_args$initial_parameters <- params
+    opt_args$max_iterations <- 0
+  }
+  args <- list(
+    x = spec$formula,
+    data = data_list[[spec$dataset]],
+    control_estimation = do.call(set_estimation_opt, opt_args),
+    progress = FALSE,
+    verbose = FALSE
+  )
+  if (spec$model == "DyNAM") {
+    args$sub_model <- spec$sub_model
+    suppressWarnings(do.call(estimate_dynam, args))
+  } else {
+    if (!is.null(spec$sub_model)) {
+      args$sub_model <- spec$sub_model
+    }
+    suppressWarnings(do.call(estimate_rem, args))
+  }
+}
+
+test_that("multinomial margins sum to the event count at a non-MLE vector", {
+  skip_on_cran()
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+  # (spec key, number of free parameters). The expected-count total matches the
+  # observed total for every flavor; for choice_coordination both already sum to
+  # 2 * n because each event credits both members of the pair.
+  cases <- list(
+    list(nm = "se_dynam_choice", p = 3),
+    list(nm = "se_dynam_rate_ordered", p = 3),
+    list(nm = "se_dynam_choice_coord", p = 2),
+    list(nm = "se_rem_ordered", p = 3)
+  )
+  for (case in cases) {
+    fit <- margins_eval(grid[[case$nm]], data_list, params = rep(0.3, case$p))
+    margins <- fit$margins
+    expect_false(is.null(margins), info = case$nm)
+    if (!is.null(margins$expected_sender)) {
+      # REM carries both sides; each totals the event count.
+      n_obs_sender <- sum(margins$observed_sender)
+      expect_equal(
+        sum(margins$expected_sender),
+        n_obs_sender,
+        tolerance = 1e-8,
+        info = case$nm
+      )
+      expect_equal(
+        sum(margins$expected_receiver),
+        sum(margins$observed_receiver),
+        tolerance = 1e-8,
+        info = case$nm
+      )
+      expect_equal(
+        sum(margins$expected_sender),
+        sum(margins$expected_receiver),
+        tolerance = 1e-8,
+        info = case$nm
+      )
+      # Observed vectors tabulate whole actors of the dependent events.
+      expect_equal(
+        margins$observed_sender,
+        round(margins$observed_sender),
+        info = case$nm
+      )
+    } else {
+      expect_equal(
+        sum(margins$expected),
+        sum(margins$observed),
+        tolerance = 1e-8,
+        info = case$nm
+      )
+      expect_equal(margins$observed, round(margins$observed), info = case$nm)
+      expect_true(all(margins$expected >= 0), info = case$nm)
+    }
+  }
+})
+
+test_that("exact-time margins sum to the event count at the MLE", {
+  skip_on_cran()
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+
+  # DyNAM rate: sender margins, exposure-weighted, right-censored intervals
+  # included; equals the dependent-event count at the MLE (intercept present).
+  fit_rate <- margins_eval(grid[["se_dynam_rate"]], data_list)
+  m_rate <- fit_rate$margins
+  expect_false(is.null(m_rate$expected))
+  expect_equal(
+    sum(m_rate$expected),
+    sum(m_rate$observed),
+    tolerance = 1e-4
+  )
+
+  # REM (exact-time): both sides; each side equals the event count at the MLE
+  # and the two totals are identical (the same double sum).
+  fit_rem <- margins_eval(grid[["se_rem"]], data_list)
+  m_rem <- fit_rem$margins
+  expect_false(is.null(m_rem$expected_sender))
+  expect_equal(
+    sum(m_rem$expected_sender),
+    sum(m_rem$observed_sender),
+    tolerance = 1e-4
+  )
+  expect_equal(
+    sum(m_rem$expected_receiver),
+    sum(m_rem$observed_receiver),
+    tolerance = 1e-4
+  )
+  expect_equal(
+    sum(m_rem$expected_sender),
+    sum(m_rem$expected_receiver),
+    tolerance = 1e-7
+  )
+})
+
+test_that("margins are absent unless requested", {
+  fit <- estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest
+  )
+  expect_null(fit$margins)
+})
