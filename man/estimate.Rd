@@ -105,9 +105,12 @@ the function will skip the preprocessing of the effects that are already
 present in the object and only preprocess the new effects. Default to
 \code{NULL}.}
 
-\item{preprocessing_only}{logical. If \code{TRUE}, the function will only run
-the preprocessing stage and return an object of class
-\code{preprocessed.goldfish}. Default to \code{FALSE}.}
+\item{preprocessing_only}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} logical. If
+\code{TRUE}, the function will only run the preprocessing stage and return an
+object of class \code{preprocessed.goldfish}. Default to \code{FALSE}. Superseded in
+goldfish 2.0.0 by \code{\link[=compute_statistics]{compute_statistics()}} with \code{output = "preprocessed"},
+which returns the same object from a function that says what it does; it
+keeps working through 2.x.}
 
 \item{support_constraint}{a one-sided formula restricting the per-event risk
 set, written in the restricted boolean-tree grammar: effect atoms

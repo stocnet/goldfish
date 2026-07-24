@@ -90,9 +90,12 @@
 #'  the function will skip the preprocessing of the effects that are already
 #'  present in the object and only preprocess the new effects. Default to
 #'  `NULL`.
-#' @param preprocessing_only logical. If `TRUE`, the function will only run
-#'  the preprocessing stage and return an object of class
-#'  `preprocessed.goldfish`. Default to `FALSE`.
+#' @param preprocessing_only `r lifecycle::badge("deprecated")` logical. If
+#'  `TRUE`, the function will only run the preprocessing stage and return an
+#'  object of class `preprocessed.goldfish`. Default to `FALSE`. Superseded in
+#'  goldfish 2.0.0 by [compute_statistics()] with `output = "preprocessed"`,
+#'  which returns the same object from a function that says what it does; it
+#'  keeps working through 2.x.
 #' @param control_estimation `r lifecycle::badge("deprecated")` Renamed to
 #'  `control_algo` in goldfish 2.0.0.
 #' @param control_preprocessing `r lifecycle::badge("deprecated")` Renamed to
@@ -300,6 +303,9 @@ estimate_dynam <- function(
   control_preprocessing = deprecated(),
   preprocessing_init = deprecated()
 ) {
+  if (!missing(preprocessing_only)) {
+    warn_preprocessing_only("estimate_dynam")
+  }
   control_algo <- fold_renamed_arg(
     control_algo,
     !missing(control_algo),
@@ -372,6 +378,9 @@ estimate_dynami <- function(
   control_preprocessing = deprecated(),
   preprocessing_init = deprecated()
 ) {
+  if (!missing(preprocessing_only)) {
+    warn_preprocessing_only("estimate_dynami")
+  }
   control_algo <- fold_renamed_arg(
     control_algo,
     !missing(control_algo),
@@ -444,6 +453,9 @@ estimate_rem <- function(
   control_preprocessing = deprecated(),
   preprocessing_init = deprecated()
 ) {
+  if (!missing(preprocessing_only)) {
+    warn_preprocessing_only("estimate_rem")
+  }
   control_algo <- fold_renamed_arg(
     control_algo,
     !missing(control_algo),
@@ -514,7 +526,9 @@ estimate_from_specification <- function(
   preprocessed,
   preprocessing_only,
   progress,
-  verbose
+  verbose,
+  output = "default",
+  max_length = 63L
 ) {
   if (!identical(spec$model, model)) {
     cli::cli_abort(c(
@@ -568,7 +582,9 @@ estimate_from_specification <- function(
     verbose = verbose,
     parsed_formula = if (reuse_parsed) bundle$parsed else NULL,
     support_constraint = spec$constraint,
-    modeled_flavor = spec$modeled_flavor
+    modeled_flavor = spec$modeled_flavor,
+    output = output,
+    max_length = max_length
   )
 }
 
@@ -584,7 +600,9 @@ estimate_from_specification <- function(
 #' @param x a formula that defines at the left-hand side the dependent
 #'   network (see [make_dependent_events()]) and at the right-hand side the
 #'   effects and the variables for which the effects are expected to occur
-#'   (see `vignette("goldfish_effects")`).
+#'   (see `vignette("goldfish_effects")`), or a `specification.goldfish` object
+#'   from [make_specification()] — the same first argument the `estimate_*()`
+#'   functions take.
 #' @param model a character string specifying the model. Current options are
 #'   `"DyNAM"`, `"REM"` or `"DyNAMi"`, see [estimate_dynam()],
 #'   [estimate_rem()] and [estimate_dynami()].
@@ -662,6 +680,24 @@ compute_statistics <- function(
     sub_model <- if (identical(model, "REM")) "rate" else "choice"
   }
   output <- match.arg(output)
+  # A specification takes the same front door here as at estimation, so the two
+  # entry points cannot disagree about what a specification means.
+  if (inherits(x, "specification.goldfish")) {
+    return(estimate_from_specification(
+      spec = x,
+      model = model,
+      sub_model = sub_model,
+      data = data,
+      control_algo = set_algorithm_newton(),
+      control_prep = control_prep,
+      preprocessed = NULL,
+      preprocessing_only = TRUE,
+      progress = progress,
+      verbose = FALSE,
+      output = if (output == "preprocessed") "default" else output,
+      max_length = max_length
+    ))
+  }
   estimate_wrapper(
     x = x,
     model = model,

@@ -135,6 +135,59 @@ test_that("a stale preprocessed object is rejected through preprocessed =", {
   )
 })
 
+test_that("preprocessing_only soft-deprecates onto compute_statistics()", {
+  expect_snapshot(invisible(estimate_rem(
+    depNetwork ~ inertia(networkState),
+    sub_model = "rate_ordered",
+    data = dataTest,
+    preprocessing_only = TRUE
+  )))
+})
+
+test_that("compute_statistics(output = 'preprocessed') matches the legacy flag", {
+  withr::local_options(lifecycle_verbosity = "quiet")
+  formula_test <- depNetwork ~ inertia(networkState) + recip
+
+  expect_identical(
+    compute_statistics(
+      formula_test,
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest
+    ),
+    estimate_dynam(
+      formula_test,
+      sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
+    )
+  )
+
+  # The same holds for a specification input, which routes through a different
+  # front door (estimate_from_specification) to the same preprocessing.
+  spec <- make_specification(
+    choice = ~ inertia(networkState) + recip,
+    layer = "depNetwork",
+    model = "DyNAM",
+    choice_sub_model = "choice",
+    data = dataTest
+  )
+  expect_identical(
+    compute_statistics(
+      spec,
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest
+    ),
+    estimate_dynam(
+      spec,
+      sub_model = "choice",
+      data = dataTest,
+      preprocessing_only = TRUE
+    )
+  )
+})
+
 test_that("an alias reached from inside goldfish stays quiet", {
   # deprecate_soft() warns the direct caller only, so an alias reached from
   # package code stays silent. Under testthat lifecycle warns unconditionally,

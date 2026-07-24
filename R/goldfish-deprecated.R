@@ -71,6 +71,19 @@ examine_changepoints <- function(...) {
   diagnose_changepoints(...)
 }
 
+# Warn for the estimators' `preprocessing_only`, whose replacement is a
+# function rather than another argument: compute_statistics(). Called from each
+# estimator with its own name so the message names the call the user wrote;
+# `user_env` reaches past this helper and that estimator.
+warn_preprocessing_only <- function(fn, user_env = rlang::caller_env(2)) {
+  lifecycle::deprecate_soft(
+    when = "2.0.0",
+    what = paste0(fn, "(preprocessing_only)"),
+    with = I('compute_statistics(output = "preprocessed")'),
+    user_env = user_env
+  )
+}
+
 # Fold a pre-2.0.0 estimator argument into the argument that replaced it.
 # `new_supplied` decides precedence: an explicitly supplied new argument wins
 # over the deprecated one, which is otherwise honored unchanged. The warning is

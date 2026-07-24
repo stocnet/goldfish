@@ -56,3 +56,13 @@
       x Objects preprocessed with a previous goldfish version cannot be reused for estimation.
       i Recompute the preprocessing object with `compute_statistics()`.
 
+# preprocessing_only soft-deprecates onto compute_statistics()
+
+    Code
+      invisible(estimate_rem(depNetwork ~ inertia(networkState), sub_model = "rate_ordered",
+      data = dataTest, preprocessing_only = TRUE))
+    Condition
+      Warning:
+      The `preprocessing_only` argument of `estimate_rem()` is deprecated as of goldfish 2.0.0.
+      i Please use compute_statistics(output = "preprocessed") instead.
+
