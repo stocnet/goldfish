@@ -17,7 +17,7 @@ this change supplies the panel data path (wave diffing, augmenters, batched
 evaluation) those contracts consume.
 
 #### Scenario: two-wave friendship model estimates
-- **WHEN** `estimate_dynes(spec, algorithm = set_alg_em(n_sequences = 100,
+- **WHEN** `estimate_dynes(spec, control_algo = set_algorithm_em(n_sequences = 100,
   augmenter = set_alg_augment(routine = "random")))` runs on a two-wave panel
   friendship layer with creation/dissolution formulas
 - **THEN** estimation returns per-flavor parameter estimates with convergence

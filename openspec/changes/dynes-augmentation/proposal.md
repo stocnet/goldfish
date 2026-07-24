@@ -29,8 +29,8 @@ package's estimation core.
   **static step-covariate** (wave-time jumps, the living `single-data-object`
   behavior — not latent) or to draw its path with the **random augmenter**. A panel
   layer referenced nowhere is not augmented.
-- **`estimate_dynes(spec, algorithm = set_alg_em(...))`** — the estimation
-  surface, the four nested `set_alg_*()` control constructors, the ABMCEM
+- **`estimate_dynes(spec, control_algo = set_algorithm_em(...))`** — the estimation
+  surface, `set_algorithm_em()` and its three nested control constructors, the ABMCEM
   loop, and the result contract are **carved out to the `abmcem` change**
   (which implements them now against a prototype-path evaluator); this change
   supplies the panel data path and validation those contracts consume, and
@@ -90,7 +90,7 @@ package's estimation core.
   augmentation under `estimate_dynes()`, the multi-layer specification validation
   (consuming `make-multivariate-spec`'s coupling detection, not re-deriving it),
   and the parameter-recovery study. (The `estimate_dynes()` surface, the
-  `set_alg_*()` constructors, the ABEM loop, and the result contract are the
+  `set_algorithm_em()` constructors, the ABEM loop, and the result contract are the
   `abmcem` change's share of the same capability.)
 
 ### Modified Capabilities

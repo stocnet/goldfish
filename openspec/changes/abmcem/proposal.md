@@ -22,11 +22,11 @@ This change **carves out** `dynes-augmentation` phases 5 and 7.1 (the
 D1, D7, D13–D18 are restated here as this change's own decisions and
 implemented here):
 
-- **Nested `set_alg_*()` control constructors**: `set_alg_em()` (EM loop,
+- **`set_algorithm_em()` plus nested component constructors**: `set_algorithm_em()` (EM loop,
   stop-rule quantiles, single seed, `n_cores`, `em_trace_se`) nesting
   `set_alg_augment()`, `set_alg_weights()`, and `set_alg_sgd()`; child-local
   cli validation, all cross-object rules (augmenter × weighting validity
-  matrix, precedence warn-and-ignore) enforced in `set_alg_em()`.
+  matrix, precedence warn-and-ignore) enforced in `set_algorithm_em()`.
 - **E-step weighting machinery**: importance/uniform weighting, likelihood-ratio
   reweighting against each sequence's stored reference record, pre-normalization
   weight transformations, resampling schemes (stratified / residual / random),
@@ -38,7 +38,7 @@ implemented here):
   cyclic batches with importance-weighted gradients; constant default step size
   plus AdaGrad/Adam/momentum at literature defaults; state reset per M-step;
   score-only evaluation requests.
-- **EM ascent control flow**: θ₀ via `set_estimation_opt()` (which gains a
+- **EM ascent control flow**: θ₀ via `set_algorithm_newton()` (which gains a
   warm-start initializer option), bounded within-iteration pool growth
   (`max_retries`), hard `cli_abort()` failure semantics, and the always-on
   `em_trace` per-iteration diagnostics.
@@ -75,7 +75,8 @@ evaluator.
   (accept/grow/stop, bounded growth, failure semantics, `em_trace`), and the
   prototype-path pool evaluation contract.
 - `dynes-estimation`: the user surface — `estimate_dynes()` running the ABEM
-  loop through the step contracts, the nested `set_alg_*()` constructors, and
+  loop through the step contracts, `set_algorithm_em()` and its nested
+  component constructors, and
   the result object (Fisher-based `vcov()`, MC standard errors, `em_trace`,
   `summary()` diagnostics). *Shared capability*: `dynes-augmentation` also adds
   to `dynes-estimation` (specification validation, parameter recovery); the
@@ -83,7 +84,7 @@ evaluator.
 
 ### Modified Capabilities
 
-- `optimizer-selection`: `set_estimation_opt()` gains a warm-start
+- `optimizer-selection`: `set_algorithm_newton()` gains a warm-start
   initial-parameters option (draw one random augmentation, estimate on it, use
   those estimates as θ₀; default remains the zero vector).
 

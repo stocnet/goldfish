@@ -2,7 +2,7 @@
 
 ### Requirement: estimate_dynes runs the ascent-based Monte Carlo EM loop
 
-The package SHALL provide `estimate_dynes(spec, algorithm = set_alg_em(...))`,
+The package SHALL provide `estimate_dynes(spec, control_algo = set_algorithm_em(...))`,
 where `spec` is a `make_multivariate_spec()` object (`make-multivariate-spec`),
 estimating the specification's concatenated parameter vector by ascent-based
 Monte Carlo EM: per iteration, augment or refresh a pool of endpoint-hitting
@@ -11,7 +11,7 @@ at the current parameters via the evaluator contract, take an M-step via the
 optimizer contract, and decide accept/grow/stop from Q and its standard error
 — with no branching on algorithm variants inside the loop beyond contract
 dispatch. The initial parameter vector SHALL come from
-`set_estimation_opt()`'s `initial_parameters` (default zero vector, warm-start
+`set_algorithm_newton()`'s `initial_parameters` (default zero vector, warm-start
 option available). Exhausting `max_retries` or `max_iterations` without
 convergence SHALL abort with a cli error explaining the non-convergence from
 the trace-derived diagnostics. `estimate_dynes()` SHALL be marked experimental
@@ -28,10 +28,10 @@ the trace-derived diagnostics. `estimate_dynes()` SHALL be marked experimental
   pool-growth retries within one EM iteration
 - **THEN** estimation aborts with a cli error explaining the non-convergence.
 
-### Requirement: Nested set_alg_*() constructors control the ABEM algorithm
+### Requirement: set_algorithm_em() and its nested constructors control the ABEM algorithm
 
 The package SHALL provide four control constructors, one per algorithm
-concern: `set_alg_em()` (the EM loop: `n_sequences`, `max_iterations`, the
+concern: `set_algorithm_em()` (the EM loop: `n_sequences`, `max_iterations`, the
 `accept_quantile`/`growth_quantile`/`stop_quantile` stop-rule quantiles,
 `tolerance`, `max_retries`, the single `seed` governing all draws,
 `em_trace_se`, `n_cores`), nesting `set_alg_augment()` (routine
@@ -45,7 +45,7 @@ importance/resampling, `resampling_scheme` stratified/residual/random,
 constant/adagrad/adam/momentum, `max_iterations`, `tolerance`). Argument
 names SHALL be descriptive, never Greek. Each child constructor SHALL
 validate its own arguments with cli errors naming the valid options;
-`set_alg_em()` SHALL enforce the cross-object rules — the
+`set_algorithm_em()` SHALL enforce the cross-object rules — the
 augmenter × weighting validity matrix (uniform weighting only with the mcmc
 routine and pool refresh) and the precedence table — warning and ignoring
 inconsistent-but-ignorable combinations, aborting on impossible ones. The
@@ -54,7 +54,7 @@ implementations through their contracts, so new variants extend the options
 without modifying `estimate_dynes()`.
 
 #### Scenario: control object selects the steps
-- **WHEN** `set_alg_em(augmenter = set_alg_augment(routine = "mcmc"),
+- **WHEN** `set_algorithm_em(augmenter = set_alg_augment(routine = "mcmc"),
   weights = set_alg_weights(weighting = "importance"))` is passed to
   `estimate_dynes()`
 - **THEN** the ABEM loop runs the mutation augmenter with importance-weighted
@@ -66,7 +66,7 @@ without modifying `estimate_dynes()`.
 - **THEN** a cli error lists the valid routines.
 
 #### Scenario: invalid cross-object combination warns and is corrected
-- **WHEN** `set_alg_em(augmenter = set_alg_augment(routine = "random"),
+- **WHEN** `set_algorithm_em(augmenter = set_alg_augment(routine = "random"),
   weights = set_alg_weights(weighting = "uniform"))` is constructed
 - **THEN** a cli warning explains that uniform weighting requires the mcmc
   routine with pool refresh, and importance weighting is used instead.

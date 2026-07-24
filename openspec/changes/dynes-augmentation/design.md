@@ -28,7 +28,7 @@ Decisions below marked **[spike-gated]** are written from the prototypes and the
 answers but are revised from the Phase-1 spike measurements before their implementing
 phase starts.
 
-**Carve-out**: the ABMCEM algorithm core — the `set_alg_*()` surface (D1), the
+**Carve-out**: the ABMCEM algorithm core — the `set_algorithm_em()` surface (D1), the
 result contract (D7), the weighting/Q-ASE/M-step/EM-control decisions
 (D13–D15, D17, D18), and the map-seam half of D10 — is implemented by the
 separate `abmcem` change against a prototype-path evaluator (zero-iteration
@@ -66,12 +66,12 @@ process simulation, specification validation, and the recovery study.
 
 ## Decisions
 
-### D1 — Surface: `estimate_dynes()` + nested `set_alg_*()` control constructors **[→ abmcem]**
-`estimate_dynes(spec, algorithm = set_alg_em(...))`. The originally proposed flat
+### D1 — Surface: `estimate_dynes()` + `set_algorithm_em()` with nested component constructors **[→ abmcem]**
+`estimate_dynes(spec, control_algo = set_algorithm_em(...))`. The originally proposed flat
 `set_algorithm_abem()` is superseded by **four constructors, one per algorithm
 concern, nested under the EM constructor** so every cross-object rule has one home:
 
-- `set_alg_em(n_sequences, max_iterations, accept_quantile, growth_quantile,
+- `set_algorithm_em(n_sequences, max_iterations, accept_quantile, growth_quantile,
   stop_quantile, tolerance, max_retries, seed, em_trace_se = FALSE,
   augmenter = set_alg_augment(), weights = set_alg_weights(),
   optimizer = set_alg_sgd())` — the ascent-based MCEM loop (D18) plus the **only
@@ -100,11 +100,13 @@ concern, nested under the EM constructor** so every cross-object rule has one ho
 
 Argument names are **descriptive, never Greek**: `accept_quantile` /
 `growth_quantile` / `stop_quantile` for the ascent-based MCEM paper's α/β/γ, with
-the correspondence documented in roxygen. All names above are working names; the
-`set_alg_*` prefix is provisional pending the package naming-convention discussion
-(`set_*_opt()` alignment). Each child constructor validates only its own
+the correspondence documented in roxygen. The parent constructor's name is
+settled as `set_algorithm_em()` (algorithm-naming: `set_algorithm_<family>()`,
+returning an object with the shared `algorithm.goldfish` superclass); the three
+nested component constructors keep their working `set_alg_*` names until abmcem
+decides them. Each child constructor validates only its own
 arguments; **all cross-object rules (the D13 validity matrix and precedence
-table) execute in `set_alg_em()`'s constructor**, since siblings cannot see each
+table) execute in `set_algorithm_em()`'s constructor**, since siblings cannot see each
 other — inconsistent-but-ignorable combinations warn and are ignored, impossible
 ones abort.
 
@@ -123,7 +125,7 @@ future-extension surfaces, and a flat argument bag hides the cross-object rules.
 
 ### D2 — Step families as contracts mirroring the writer strategy
 Three constructor families, each returning an object with `init(spec, waves, control)`
-/ step / `finalize()` hooks, dispatched by the `set_alg_*()` controls (D1):
+/ step / `finalize()` hooks, dispatched by the `set_algorithm_em()` controls (D1):
 
 - **Augmenters** — `augment_seq_random()` (iid-uniform times with within-chain
   sorting over the wave-diff flip set, D20; prototype `getChainSample()`),
@@ -172,7 +174,7 @@ evaluates through the same contract without a separate assembly path. Rate/proba
 computation at a given process state reuses the estimation kernels (the same
 `process-state-evaluators` the walk handle's `walk_evaluate()` wraps), replacing the
 prototypes' hand-rolled `getDyNAMRates()`/`getDyNAMChoices()`. This is the
-`evaluate_engine()` `make-multivariate-spec` D6 assigns to this change (E-step
+`evaluate_model()` `make-multivariate-spec` D6 assigns to this change (E-step
 evaluation), built on that change's walk substrate. The B1 spike (K ∈ {10, 100, 1000, 10000}
 sequences on the packaged `social_evolution` dataset, wall time + peak RSS,
 R-loop-per-sequence vs batched C++) confirms or revises this before the evaluator
@@ -303,7 +305,7 @@ receive only θ and sequence draws per iteration — precisely the access patter
 base PSOCK's `clusterExport`/re-serialization is at its worst (visible in the
 prototype's `sgd_refactor()` cluster block). FORK/`mclapply` is excluded outright
 (Windows unsupported; forking a process with live OpenBLAS threads is undefined
-behavior). `set_alg_em()` gains `n_cores` (default honoring CRAN's 2-core
+behavior). `set_algorithm_em()` gains `n_cores` (default honoring CRAN's 2-core
 check cap) and parallel RNG streams for reproducible draws; no per-block parallel
 arguments exist — the SGD batch evaluation is the same per-sequence loop this
 decision governs. The B1 spike's
@@ -360,7 +362,7 @@ while no stale (previous-iteration) sequences remain in the pool (i.e. with
 `refresh = TRUE`); every other combination warns and switches to importance
 weighting — the default. This matrix, the batch-scheme/gradient coupling (D17), and
 the refresh-inapplicability rules (D14) form the **precedence table**
-`set_alg_em()` enforces via warn-and-ignore (e.g. cyclic batches ⇒ weight-based
+`set_algorithm_em()` enforces via warn-and-ignore (e.g. cyclic batches ⇒ weight-based
 selection arguments are ignored with a warning; the dominant setting wins). The
 prototypes' random-draw + equal-weight combination is deliberately not carried into
 the API: it estimates an expectation under the uniform law, not under the model.
@@ -472,7 +474,7 @@ decision stays joint either way). Semantics:
 
 ### D18 — EM control flow: θ₀, bounded pool growth, hard failure, `em_trace` **[→ abmcem]**
 - **θ₀**: user-supplied through the existing `initial_parameters` mechanism in
-  `set_estimation_opt()`, which gains a **warm-start option** (draw one random
+  `set_algorithm_newton()`, which gains a **warm-start option** (draw one random
   augmentation, estimate on it, use those estimates as θ₀); the default is the
   zero vector.
 - **Bounded within-iteration growth**: a rejected update (ascent lower bound < 0)
@@ -638,8 +640,8 @@ in the simulation (the support masks already encode applicability).
 
 ## Migration Plan
 
-Purely additive surface (`estimate_dynes()`, the nested `set_alg_*()` controls, step
-constructors) plus one extension to an existing control (`set_estimation_opt()`
+Purely additive surface (`estimate_dynes()`, `set_algorithm_em()` and its nested controls, step
+constructors) plus one extension to an existing control (`set_algorithm_newton()`
 gains the warm-start initializer, D18); no existing estimator behavior changes except the panel-focal error
 message gaining the DyNES pointer it already promises. The frozen coefficient
 baselines are untouched throughout. Rollback is reverting the change's commits;
@@ -661,9 +663,9 @@ package.
 - **[to discuss]** Whether MCMC retained draws enter the pool through the proposal
   evaluator's cache (preprocessed object + loglik reuse, D20 note) — deliberately
   not in the v1 contract yet.
-- **[naming]** The `set_alg_*` prefix vs the `set_*_opt()` house convention —
-  under discussion; the working names in D1 are provisional and rename cheaply
-  before the surface ships.
+- **[naming]** Component names for the three nested constructors under the
+  settled `set_algorithm_em()` parent — owned by abmcem; the working
+  `set_alg_*` names in D1 rename cheaply before the surface ships.
 - **[gated by Phase 1]** The D10 thread-budget crossover (when, if ever, BLAS threads
   beat sequence sharding on the large-n cell) — resolved by the B1 spike's
   BLAS × sharding crossing.

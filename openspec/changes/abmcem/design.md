@@ -66,9 +66,9 @@ amending both changes' artifacts. *Rejected:* implementing the loop inside
 `dynes-augmentation` phase 5 as originally planned — the loop has no hard
 dependency on phases 1–4, and burying it serializes work that can land now.
 
-### D2 — Surface: `estimate_dynes()` + nested `set_alg_*()` constructors (from dynes-augmentation D1)
+### D2 — Surface: `estimate_dynes()` + `set_algorithm_em()` with nested component constructors (from dynes-augmentation D1)
 
-`estimate_dynes(spec, algorithm = set_alg_em(...))`, where `spec` is a
+`estimate_dynes(spec, control_algo = set_algorithm_em(...))`, where `spec` is a
 `make_multivariate_spec()` object (`make-multivariate-spec`) — the spec-input
 question is resolved to consuming that constructor, not an interim named-list. The
 loop machinery here has no hard dependency on it (tests drive the loop with a stub
@@ -77,7 +77,7 @@ signature binds to the multivariate spec so the surface does not churn when the 
 data path lands. Four constructors, one per concern, nested under the EM
 constructor:
 
-- `set_alg_em(n_sequences, max_iterations, accept_quantile, growth_quantile,
+- `set_algorithm_em(n_sequences, max_iterations, accept_quantile, growth_quantile,
   stop_quantile, tolerance, stop_count = 1L, max_retries, seed,
   em_trace_se = FALSE, n_cores, augmenter = set_alg_augment(),
   weights = set_alg_weights(), optimizer = set_alg_sgd())` — the EM loop plus
@@ -102,12 +102,15 @@ constructor:
 Argument names descriptive, never Greek (`accept_quantile`/`growth_quantile`/
 `stop_quantile` for the paper's α/β/γ, correspondence documented in roxygen).
 Child constructors validate only their own arguments (cli errors naming valid
-options); **all cross-object rules run in `set_alg_em()`** — the D4 validity
+options); **all cross-object rules run in `set_algorithm_em()`** — the D4 validity
 matrix and the precedence table, warn-and-ignore for inconsistent-but-ignorable
-combinations, abort for impossible ones. The `set_alg_*` prefix remains
-provisional pending the `set_*_opt()` naming discussion; renames are cheap
-until the surface ships. `estimate_dynes()` carries the lifecycle experimental
-badge. *Rejected:* one flat constructor (hides the cross-object rules);
+combinations, abort for impossible ones. The EM constructor's name is settled:
+`set_algorithm_em()`, joining the `algorithm.goldfish` superclass that
+`set_algorithm_newton()` introduces, so `estimate_dynes()` gates on the same
+`inherits()` check as the DyNAM/REM estimators. The three nested component
+constructors keep their working `set_alg_*` names here; naming them is this
+change's call, decided before the surface ships (renames are cheap until then).
+`estimate_dynes()` carries the lifecycle experimental badge. *Rejected:* one flat constructor (hides the cross-object rules);
 overloading `estimate_dynam()` with an `algorithm` switch (different estimand,
 different uncertainty semantics).
 
@@ -121,8 +124,8 @@ is an internal adapter reproducing the prototypes' pattern:
   is built and preprocessed through the existing pipeline; the preprocessed
   statistics are stored with the sequence.
 - **Evaluate at any θ**: per sub-model, `estimate_wrapper()` with
-  `preprocessing_init` = the stored statistics and
-  `set_estimation_opt(initial_parameters = theta_block, fixed_parameters = ...,
+  `preprocessed` = the stored statistics and
+  `set_algorithm_newton(initial_parameters = theta_block, fixed_parameters = ...,
   max_iterations = 0L, engine = "default")`, harvesting `logLikelihood`,
   `finalScore`, and `finalInformationMatrix`; θ is the concatenation across
   sub-models, split/reassembled by the adapter.
@@ -159,7 +162,7 @@ conditional distribution at the current θ:
 `weighting = "uniform"` is accepted only with `routine = "mcmc"` and
 `refresh = TRUE`; every other combination warns and switches to importance
 weighting (the default). This matrix, the batch-scheme coupling (D6), and the
-refresh-inapplicability rules (D5) form the precedence table `set_alg_em()`
+refresh-inapplicability rules (D5) form the precedence table `set_algorithm_em()`
 enforces.
 
 ### D5 — Weight state: reference records, refresh, ESS guard (from dynes-augmentation D14)
@@ -238,7 +241,7 @@ recorded future development.
 
 ### D7 — EM control flow: the per-pass decision loop (from dynes-augmentation D18, refined)
 
-- **θ₀** via `set_estimation_opt()`'s existing `initial_parameters`, which
+- **θ₀** via `set_algorithm_newton()`'s existing `initial_parameters`, which
   gains a **warm-start option** (draw one random augmentation, estimate on it,
   use those estimates); default zero vector.
 - The loop runs in **passes** — an EM iteration is one initial pass plus up
@@ -350,7 +353,7 @@ entry, pool evaluation): default serial `lapply()`; when mirai (Suggests) is
 installed and `n_cores > 1`, persistent daemons hold the data once and receive
 only θ and draws per iteration. Governing invariant: workers × BLAS threads ≤
 cores (`blas_threads = max(1, floor(n_cores / n_workers))`). `n_cores` lives
-on `set_alg_em()` (default within CRAN's 2-core cap) with parallel RNG
+on `set_algorithm_em()` (default within CRAN's 2-core cap) with parallel RNG
 streams. FORK/`mclapply` excluded; PSOCK rejected (the prototype's
 `clusterExport` tax across hundreds of iterations is the anti-pattern this
 seam removes). MCMC chain generation stays serial by nature — the seam covers
@@ -399,7 +402,7 @@ draws and evaluation, not the chain.
 
 ## Migration Plan
 
-Purely additive: new surface + one extension to `set_estimation_opt()`
+Purely additive: new surface + one extension to `set_algorithm_newton()`
 (warm-start option). No existing estimator behavior changes; frozen coefficient
 baselines untouched. mirai enters Suggests only. Rollback is reverting the
 change's commits. The `dynes-augmentation` trim (tasks 5.x/7.1 removal, spec
@@ -408,8 +411,11 @@ changes never double-claim.
 
 ## Open Questions
 
-- **[naming]** `set_alg_*` prefix vs the `set_*_opt()` house convention —
-  inherited from `dynes-augmentation`; decide before the constructors ship
+- **[naming]** Component names for the three nested constructors
+  (`set_alg_augment/weights/sgd`) under the settled `set_algorithm_em()`
+  parent — the house convention itself is fixed (algorithm-naming: verb-first
+  `set_algorithm_<family>()`, `control_algo =` on estimators), so what is left
+  is only what to call the components; decide before the constructors ship
   (rename is cheap until then).
 - **[resolved]** What `estimate_dynes()` accepts as its specification: a
   `make_multivariate_spec()` object (`make-multivariate-spec`). The interim

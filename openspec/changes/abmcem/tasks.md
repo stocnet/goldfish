@@ -3,10 +3,10 @@
 - [ ] 1.1 Child constructors `set_alg_augment()`, `set_alg_weights()`,
       `set_alg_sgd()` with child-local cli validation (errors naming valid
       options; descriptive argument names per design D2)
-- [ ] 1.2 `set_alg_em()` nesting the three: single `seed`, `n_cores` (CRAN
+- [ ] 1.2 `set_algorithm_em()` nesting the three: single `seed`, `n_cores` (CRAN
       2-core default), stop-rule quantiles, `max_retries`, `em_trace_se`; the
       cross-object validity matrix and precedence table (warn-and-ignore /
-      abort per design D4); the `set_estimation_opt()` warm-start
+      abort per design D4); the `set_algorithm_newton()` warm-start
       initial-parameters option (inert outside augmentation-based
       estimation); `devtools::document()`
 - [ ] 1.3 Tests (testthat 3e): constructor validation snapshots, validity
@@ -77,7 +77,7 @@
       with opt-in per-iteration SEs; contract-conformant stub augmenter as a
       test fixture (design D11)
 - [ ] 5.2 `estimate_dynes()` surface: lifecycle experimental badge, θ₀ via
-      `set_estimation_opt()` (zero default / warm start), the mirai-backed
+      `set_algorithm_newton()` (zero default / warm start), the mirai-backed
       parallel seam behind the serial default (Suggests dependency, parallel
       RNG streams, non-nested `workers × BLAS threads ≤ cores` budget,
       seed-identical serial vs parallel); mirai added to Suggests;
