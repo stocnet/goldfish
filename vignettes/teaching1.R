@@ -119,7 +119,7 @@ mod01Rate <- estimate_dynam(
   simpleFormulaRate,
   sub_model = "rate",
   data = social_evolution,
-  control_estimation = set_estimation_opt(max_iterations = 40)
+  control_algo = set_algorithm_newton(max_iterations = 40)
 )
 summary(mod01Rate)
 
@@ -225,8 +225,8 @@ allFormulaREM <-
 # mod01REM <- estimate_rem(
 #   allFormulaREM,
 #   data = social_evolution,
-#   control_estimation =
-#     set_estimation_opt(initial_damping = 40, engine = "default_c")
+#   control_algo =
+#     set_algorithm_newton(initial_damping = 40, engine = "default_c")
 # )
 
 
@@ -234,7 +234,7 @@ allFormulaREM <-
 mod01REM <- estimate_rem(
   allFormulaREM,
   data = social_evolution,
-  control_estimation = set_estimation_opt(engine = "gather_compute")
+  control_algo = set_algorithm_newton(engine = "gather_compute")
 )
 
 summary(mod01REM)

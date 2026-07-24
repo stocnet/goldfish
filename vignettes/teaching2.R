@@ -108,7 +108,7 @@ partnerSpec <- make_specification(
   data = fisheries_treaties
 )
 
-est_opts <- set_estimation_opt(
+est_opts <- set_algorithm_newton(
   return_interval_loglik = TRUE,
   initial_damping = 40,
   max_iterations = 30,
@@ -120,13 +120,13 @@ system.time(
     partnerSpec,
     sub_model = "choice_coordination",
     data = fisheries_treaties,
-    control_estimation = est_opts
+    control_algo = est_opts
   )
 )
 
 
 ## ----estimate-rerun-----------------------------------------------------------
-est_opts <- set_estimation_opt(
+est_opts <- set_algorithm_newton(
   return_interval_loglik = TRUE,
   initial_damping = 40,
   max_iterations = 30,
@@ -138,7 +138,7 @@ partnerModel <- estimate_dynam(
   partnerSpec,
   sub_model = "choice_coordination",
   data = fisheries_treaties,
-  control_estimation = est_opts
+  control_algo = est_opts
 )
 summary(partnerModel)
 
@@ -159,7 +159,7 @@ tieSpec <- make_specification(
   data = fisheries_treaties
 )
 
-est_opts <- set_estimation_opt(
+est_opts <- set_algorithm_newton(
   return_interval_loglik = TRUE,
   initial_damping = 40,
   max_iterations = 30
@@ -170,7 +170,7 @@ system.time(
     tieSpec,
     sub_model = "choice_coordination",
     data = fisheries_treaties,
-    control_estimation = est_opts
+    control_algo = est_opts
   )
 )
 
@@ -188,6 +188,6 @@ glance(tieModel)
 
 
 ## ----plot-examine, fig.width=6, fig.height=4, fig.align='center', fig.retina=3----
-examine_outliers(tieModel)
-examine_changepoints(tieModel)
+diagnose_outliers(tieModel)
+diagnose_changepoints(tieModel)
 

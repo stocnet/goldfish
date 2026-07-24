@@ -238,7 +238,7 @@ estRateM1 <- estimate_dynami(
   formulaRateM1,
   sub_model = "rate",
   data = rfidData,
-  control_estimation = set_estimation_opt(engine = "default")
+  control_algo = set_algorithm_newton(engine = "default")
 )
 ```
 
@@ -262,7 +262,7 @@ summary(estRateM1)
 ##     joining = -1, subType = "proportion") + same(actors$group, 
 ##     joining = -1, subType = "proportion") + tie(known.before, 
 ##     joining = -1, subType = "proportion"), sub_model = "rate", 
-##     data = rfidData, control_estimation = set_estimation_opt(engine = "default"))
+##     data = rfidData, control_algo = set_algorithm_newton(engine = "default"))
 ## 
 ## 
 ## Coefficients:
@@ -295,7 +295,7 @@ estChoiceM1 <- estimate_dynami(
   formulaChoiceM1,
   sub_model = "choice",
   data = rfidData,
-  control_estimation = set_estimation_opt(engine = "default")
+  control_algo = set_algorithm_newton(engine = "default")
 )
 ```
 
@@ -315,7 +315,7 @@ summary(estChoiceM1)
 ##     subType = "averaged_sum") + diff(actors$level, subType = "averaged_sum") + 
 ##     same(actors$gender, subType = "proportion") + same(actors$group, 
 ##     subType = "proportion") + tie(known.before, subType = "proportion"), 
-##     sub_model = "choice", data = rfidData, control_estimation = set_estimation_opt(engine = "default"))
+##     sub_model = "choice", data = rfidData, control_algo = set_algorithm_newton(engine = "default"))
 ## 
 ## 
 ## Coefficients:
@@ -403,7 +403,7 @@ estRateM2 <- estimate_dynami(
   formulaRateM2,
   sub_model = "rate",
   data = rfidData,
-  control_estimation = set_estimation_opt(engine = "default")
+  control_algo = set_algorithm_newton(engine = "default")
 )
 ```
 
@@ -429,7 +429,7 @@ summary(estRateM2)
 ##     joining = -1, subType = "proportion") + size(interactions, 
 ##     joining = -1, subType = "identity") + egopop(past, joining = 1, 
 ##     subType = "normalized") + egopop(past, joining = -1, subType = "normalized"), 
-##     sub_model = "rate", data = rfidData, control_estimation = set_estimation_opt(engine = "default"))
+##     sub_model = "rate", data = rfidData, control_algo = set_algorithm_newton(engine = "default"))
 ## 
 ## 
 ## Coefficients:
@@ -465,7 +465,7 @@ estChoiceM2 <- estimate_dynami(
   formulaChoiceM2,
   sub_model = "choice",
   data = rfidData,
-  control_estimation = set_estimation_opt(engine = "default")
+  control_algo = set_algorithm_newton(engine = "default")
 )
 ```
 
@@ -488,7 +488,7 @@ summary(estChoiceM2)
 ##     tie(known.before, subType = "proportion") + size(interactions, 
 ##     subType = "identity") + alterpop(past, subType = "mean_normalized") + 
 ##     inertia(past, subType = "mean"), sub_model = "choice", data = rfidData, 
-##     control_estimation = set_estimation_opt(engine = "default"))
+##     control_algo = set_algorithm_newton(engine = "default"))
 ## 
 ## 
 ## Coefficients:

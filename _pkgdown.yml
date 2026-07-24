@@ -53,7 +53,7 @@ reference:
   - title: "Diagnostics"
     contents:
       - logLik.result.goldfish
-      - starts_with("examine")
+      - starts_with("diagnose")
   - title: "Data"
     desc: |
       The package contains several datasets that are used in vignettes

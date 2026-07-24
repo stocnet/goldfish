@@ -190,7 +190,7 @@ period_fits <- lapply(seq_len(4), function(p) {
       choice = list(modeled ~ indeg(support) + four(support)),
       model = "DyNAM", choice_sub_model = "choice", data = nuclear
     ),
-    control_preprocessing = set_preprocessing_opt(
+    control_prep = set_preprocessing(
       start_time = window[p], end_time = window[p + 1]
     )
   )

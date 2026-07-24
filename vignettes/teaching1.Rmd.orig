@@ -318,18 +318,18 @@ mod01Rate <- estimate_dynam(
 Sometimes, the default values for the algorithm are not enough
 to reach convergence.
 The default values for the estimation algorithm are set by the function
-`set_estimation_opt()`, you can take a look to the different arguments and
+`set_algorithm_newton()`, you can take a look to the different arguments and
 options that can be modified for the estimation algorithm taking a look to its
 documentation.
 We can remedy this by increasing the number of iterations setting a different
-value using the `control_estimation` argument:
+value using the `control_algo` argument:
 
 ```{r estimate-init}
 mod01Rate <- estimate_dynam(
   simpleFormulaRate,
   sub_model = "rate",
   data = social_evolution,
-  control_estimation = set_estimation_opt(max_iterations = 40)
+  control_algo = set_algorithm_newton(max_iterations = 40)
 )
 summary(mod01Rate)
 ```
@@ -493,8 +493,8 @@ representing the data in a more usual tabular way but reducing time estimation.
 mod01REM <- estimate_rem(
   allFormulaREM,
   data = social_evolution,
-  control_estimation =
-    set_estimation_opt(initial_damping = 40, engine = "default_c")
+  control_algo =
+    set_algorithm_newton(initial_damping = 40, engine = "default_c")
 )
 ```
 
@@ -502,7 +502,7 @@ mod01REM <- estimate_rem(
 mod01REM <- estimate_rem(
   allFormulaREM,
   data = social_evolution,
-  control_estimation = set_estimation_opt(engine = "gather_compute")
+  control_algo = set_algorithm_newton(engine = "gather_compute")
 )
 
 summary(mod01REM)

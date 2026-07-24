@@ -287,7 +287,7 @@ partnerSpec <- make_specification(
   data = fisheries_treaties
 )
 
-est_opts <- set_estimation_opt(
+est_opts <- set_algorithm_newton(
   return_interval_loglik = TRUE,
   initial_damping = 40,
   max_iterations = 30,
@@ -299,7 +299,7 @@ system.time(
     partnerSpec,
     sub_model = "choice_coordination",
     data = fisheries_treaties,
-    control_estimation = est_opts
+    control_algo = est_opts
   )
 )
 #> Warning: ℹ Missing data has been detected. The mean is used to impute numeric
@@ -315,7 +315,7 @@ the same specification and current parameter estimates:
 
 
 ``` r
-est_opts <- set_estimation_opt(
+est_opts <- set_algorithm_newton(
   return_interval_loglik = TRUE,
   initial_damping = 40,
   max_iterations = 30,
@@ -327,7 +327,7 @@ partnerModel <- estimate_dynam(
   partnerSpec,
   sub_model = "choice_coordination",
   data = fisheries_treaties,
-  control_estimation = est_opts
+  control_algo = est_opts
 )
 #> Warning: ℹ Missing data has been detected. The mean is used to impute numeric
 #>   attributes.
@@ -388,7 +388,7 @@ tieSpec <- make_specification(
   data = fisheries_treaties
 )
 
-est_opts <- set_estimation_opt(
+est_opts <- set_algorithm_newton(
   return_interval_loglik = TRUE,
   initial_damping = 40,
   max_iterations = 30
@@ -399,7 +399,7 @@ system.time(
     tieSpec,
     sub_model = "choice_coordination",
     data = fisheries_treaties,
-    control_estimation = est_opts
+    control_algo = est_opts
   )
 )
 #> Warning: ℹ Missing data has been detected. The mean is used to impute numeric
@@ -455,7 +455,7 @@ help users identify areas for improving their model specification.
 
 
 ``` r
-examine_outliers(tieModel)
+diagnose_outliers(tieModel)
 #> Identified 0 Outliers(s):
 #> # A tibble: 69 × 8
 #>    time                sender receiver increment rightCensoredEvent intervalLogL
@@ -472,7 +472,7 @@ examine_outliers(tieModel)
 #> 10 1962-02-22 00:00:00 NOR    RUS              1 FALSE                     -4.62
 #> # ℹ 59 more rows
 #> # ℹ 2 more variables: label <chr>, outlier <lgl>
-examine_changepoints(tieModel)
+diagnose_changepoints(tieModel)
 #> Identified 8 Change Point(s):
 #> # A tibble: 69 × 7
 #>    time                sender receiver increment rightCensoredEvent intervalLogL
