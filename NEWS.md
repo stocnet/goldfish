@@ -1,3 +1,46 @@
+# goldfish 1.9.11
+
+## Naming migration (2.0.0)
+
+The estimation control surface now follows the naming conventions shared across
+the [stocnet](https://github.com/stocnet) family: control constructors are
+`set_algorithm_*()` / `set_*()`, estimators take them as `control_algo` /
+`control_prep`, and model criticism is `diagnose_[mode]()`. Every old name keeps
+working: renamed functions are thin wrappers and renamed arguments are
+sentinels, each emitting a soft-deprecation warning that names its replacement.
+
+| Old | New |
+|---|---|
+| `set_estimation_opt()` | `set_algorithm_newton()` |
+| `set_preprocessing_opt()` | `set_preprocessing()` |
+| `examine_outliers()` | `diagnose_outliers()` |
+| `examine_changepoints()` | `diagnose_changepoints()` |
+| `estimate_*(control_estimation =)` | `estimate_*(control_algo =)` |
+| `estimate_*(control_preprocessing =)` | `estimate_*(control_prep =)` |
+| `estimate_*(preprocessing_init =)` | `estimate_*(preprocessed =)` |
+| `diagnose_outliers(parameter =)` | `diagnose_outliers(threshold =)` |
+
+* `set_algorithm_newton()` is named for the algorithm family it configures --
+  direct maximization with Newton-type steps -- so the ascent-based Monte Carlo
+  EM algorithm arriving with DyNES gets its own constructor rather than
+  overloading this one. Its result carries the shared `algorithm.goldfish`
+  superclass, which is the single check estimators validate against.
+
+* `preprocessed =` is now the one name for supplying a `preprocessed.goldfish`
+  object, matching what the diagnostic consumers already use.
+
+* `gather_model_data()` deliberately keeps `control_preprocessing`: it is
+  superseded as a whole in the next release, so renaming an argument on a call
+  you are about to replace would be churn for nothing.
+
+* `estimate_*(preprocessing_only = TRUE)` is **not** deprecated yet. Its
+  replacement, `compute_statistics(output = "preprocessed")`, lands in the next
+  release; the argument is retired then, together with its replacement.
+
+* **Removal horizon.** This 2.0.0 alias layer and the 1.7.0 camelCase layer
+  (`examineOutliers()`, `defineNodes()`, ...) are both scheduled for removal no
+  earlier than goldfish 3.0.0.
+
 # goldfish 1.9.10
 
 ## Breaking changes
