@@ -10,7 +10,7 @@ argument columns `ignore_repetitions`, `weighted`, `type`, `window`,
 into a character vector of compact term strings, one per effect row. The
 console summary, `tidy()`, `gather_model_data()`, and the diagnostic
 effect-selection surfaces (the `effect =` / `effects =` arguments of the
-`test_*` and `examine_*` families) SHALL all obtain their term strings from
+`test_*` and `diagnose_*` families) SHALL all obtain their term strings from
 this builder rather than assembling them independently, so the string a user
 reads in the printed summary is the string that selects the term in the
 diagnostics.

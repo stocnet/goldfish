@@ -38,7 +38,7 @@ as the typical violation. `"information"` places increment `k` at
 `u_k = I_d(k) / I_d(n)` computed from cumulative outer-product (OPG) sums
 of the stored score rows — the martingale time change that restores the
 bridge limit under non-uniform accrual — with zero evaluation passes. The
-documentation SHALL cross-reference `examine_onset()`'s
+documentation SHALL cross-reference `diagnose_onset()`'s
 information-accrual curve as the diagnostic for choosing the clock.
 
 #### Scenario: bridge property holds at the MLE
@@ -86,7 +86,7 @@ information-accrual curve as the diagnostic for choosing the clock.
 `test_parameter()` SHALL implement the score (LM) test of candidate effect
 blocks: given a constrained fit and the candidate effects, it SHALL
 evaluate the full model's score `U` and information `I` at the constrained
-estimate via `evaluate_engine()` (statistics via the diagnostic-primitives
+estimate via `evaluate_model()` (statistics via the diagnostic-primitives
 replay rules) and report `LM = t(U) %*% solve(I) %*% U` with its chi-square
 p-value on the tested block's degrees of freedom (efficient-score form).
 The Wald form for linear parameter combinations (restriction matrix on an

@@ -35,8 +35,8 @@ autograph methods never re-derive node identity.
 - **THEN** it produces the plot from the object's components alone.
 
 ### Requirement: examine functions adopt the autograph classes
-`examine_outliers()` SHALL return an object of class `outliers.goldfish`
-and `examine_changepoints()` an object of class `changepoints.goldfish`
+`diagnose_outliers()` SHALL return an object of class `outliers.goldfish`
+and `diagnose_changepoints()` an object of class `changepoints.goldfish`
 (each also inheriting `data.frame`), replacing the shared
 `diagnostic.goldfish` class. The `outlier` and `cpt` columns SHALL be
 logical, and the autograph methods `plot.outliers.goldfish` /
@@ -46,7 +46,7 @@ The goldfish `print` method SHALL dispatch on the new classes. This is a
 breaking change recorded in NEWS.
 
 #### Scenario: outliers object carries the aligned contract
-- **WHEN** `examine_outliers(fit)` runs
+- **WHEN** `diagnose_outliers(fit)` runs
 - **THEN** the result has classes `c("outliers.goldfish", "data.frame")`,
   a logical `outlier` column, and a `label` column for flagged events.
 
@@ -57,13 +57,13 @@ breaking change recorded in NEWS.
   and labeled.
 
 ### Requirement: term-wise examine series via effect selection
-The functions `examine_changepoints()` and `examine_outliers()` SHALL
+The functions `diagnose_changepoints()` and `diagnose_outliers()` SHALL
 accept an `effect =` argument selecting a single model term by its compact
 term string (or integer position), per the effect-selection semantics of
 the diagnostic-tests capability (ambiguous family names abort with the
-candidate list). With `effect =` set, `examine_changepoints()` SHALL run
+candidate list). With `effect =` set, `diagnose_changepoints()` SHALL run
 its changepoint methods on that term's scaled Schoenfeld residual series
-(regime shifts in the coefficient) and `examine_outliers()` SHALL rank
+(regime shifts in the coefficient) and `diagnose_outliers()` SHALL rank
 events by the absolute dfbeta contribution for that term (influence
 localization), both requiring only stored primitives. Without `effect =`,
 current `intervalLogL` behavior SHALL be unchanged. The returned objects
@@ -74,24 +74,24 @@ re-tested with `test_time(method = "periods")` on the same data as
 confirmatory evidence.
 
 #### Scenario: term-wise changepoints on the score series
-- **WHEN** `examine_changepoints(fit, effect = "inertia/net [W]")` runs on
+- **WHEN** `diagnose_changepoints(fit, effect = "inertia/net [W]")` runs on
   a fit with stored `event_scores`
 - **THEN** the changepoint detection operates on that term's scaled
   Schoenfeld series, the result records the compact term string, and no
   replay is required.
 
 #### Scenario: term-wise outliers rank by influence
-- **WHEN** `examine_outliers(fit, effect = "inertia/net [W]")` runs
+- **WHEN** `diagnose_outliers(fit, effect = "inertia/net [W]")` runs
 - **THEN** flagged events are those with the largest absolute dfbeta for
   that term, labeled with sender-receiver pairs as in the default mode.
 
 #### Scenario: default behavior unchanged
-- **WHEN** `examine_changepoints(fit)` is called without `effect`
+- **WHEN** `diagnose_changepoints(fit)` is called without `effect`
 - **THEN** the series analyzed is `intervalLogL`, identical to the
   pre-change behavior.
 
-### Requirement: onset diagnostic examine_onset
-A function `examine_onset()` SHALL be provided that diagnoses the
+### Requirement: onset diagnostic diagnose_onset
+A function `diagnose_onset()` SHALL be provided that diagnoses the
 cold-start (left-censored-history) segment of the event sequence from
 stored primitives only, computing: (a) the leave-initial-segment-out
 one-step parameter path (`coef(fit) - solve(I) %*% cumsum-of-score-rows`,
@@ -109,7 +109,7 @@ reliably surface this phase (short segment vs penalty, plateau at the
 null benchmark, zero endogenous score contributions).
 
 #### Scenario: cold-start fixture shows drift then stabilization
-- **WHEN** `examine_onset(fit)` runs on a fixture estimated from an event
+- **WHEN** `diagnose_onset(fit)` runs on a fixture estimated from an event
   stream whose statistics start empty
 - **THEN** the parameter paths drift over the initial segment and
   stabilize, the accrual curve is near-flat over that segment, and no
@@ -117,12 +117,12 @@ null benchmark, zero endogenous score contributions).
 
 #### Scenario: warm-started fixture shows flat paths
 - **WHEN** the same model is estimated after warm-starting the networks
-  with pre-observation events and `examine_onset(fit)` runs
+  with pre-observation events and `diagnose_onset(fit)` runs
 - **THEN** the parameter paths show no initial drift beyond noise and the
   accrual curve has no initial flat segment.
 
 #### Scenario: onset object is plot-ready
-- **WHEN** a saved `examine_onset()` result is inspected without goldfish
+- **WHEN** a saved `diagnose_onset()` result is inspected without goldfish
   attached
 - **THEN** the paths (with compact term-string labels), accrual series,
   and stabilization summary are readable as documented components.

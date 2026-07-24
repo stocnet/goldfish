@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: User-facing return_event_scores option
-`set_estimation_opt()` SHALL accept a logical `return_event_scores` argument
+`set_algorithm_newton()` SHALL accept a logical `return_event_scores` argument
 (default `FALSE`), parallel to the existing `return_interval_loglik` and
 `return_probabilities` flags. All three flags are soft-deprecated
 (lifecycle) in favor of the `diagnostics` primitives vector defined in the
@@ -46,7 +46,7 @@ the non-deprecated surface.
   engines.
 
 #### Scenario: legacy flag deprecation
-- **WHEN** `set_estimation_opt(return_event_scores = TRUE)` is called
+- **WHEN** `set_algorithm_newton(return_event_scores = TRUE)` is called
 - **THEN** a lifecycle soft-deprecation warning names
   `diagnostics = "scores"` and the stored result is identical to requesting
   that primitive.

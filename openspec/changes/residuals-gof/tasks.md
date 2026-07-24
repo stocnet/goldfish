@@ -23,13 +23,13 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       the `return_event_scores` per-event score rows, and `cpp_interface.R`
       still returns the `pMatrix` "not implemented" fallback (ranks/margins
       really do need in-pass C++); (b) `modelTypeCall` is still the dispatch
-      `evaluate_engine()` (task 2.1) routes through, and note where it now
+      `evaluate_model()` (task 2.1) routes through, and note where it now
       lives post-`spec-driven-dispatch` (`preprocess_writers.R` /
       `preprocess_export.R` / `cpp_interface.R`); (c) the
       `make_specification()`-based fit shape `test_gof()` dispatches on, incl.
       the risk-set descriptor now attached to the spec; (d)
-      `preprocessing_only` / `preprocessing_init` still the replay surface;
-      (e) `augment.result.goldfish` shape and the `examine_*` /
+      `preprocessing_only` / `preprocessed` still the replay surface;
+      (e) `augment.result.goldfish` shape and the `diagnose_*` /
       `diagnostic.goldfish` classes. Inventory the flavored (per-fid) and
       two-mode (`node_lookup`) fit shapes the fit-shape-compatibility
       paragraph depends on, against the landed multimode surface. Record any
@@ -40,7 +40,7 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 
 ## 1. Diagnostic primitives (phase 1)
 
-- [x] 1.1 `set_estimation_opt(diagnostics =)`: vocabulary validation
+- [x] 1.1 `set_algorithm_newton(diagnostics =)`: vocabulary validation
       (`loglik`/`scores`/`ranks`/`margins`/`probabilities`, TRUE/"all"/
       FALSE), default `c("loglik","scores")`, cli errors for unknown
       names; unit tests.
@@ -77,7 +77,7 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 - [x] 1.7 Route `diagnostics` primitives through estimation to the result
       object (all engines); parity test `default` vs `default_c` for
       ranks/margins on a fixture.
-- [ ] 1.8 `estimate_*(keep_preprocessed =)`: attach `preprocessed.goldfish`
+- [ ] 1.8 `estimate_*(return_preprocessed =)`: attach `preprocessed.goldfish`
       to the fit with a cli size message; consumer-side `preprocessed =`
       precedence helper + guiding cli error (both routes named); tests.
 - [ ] 1.9 Milestone: DESCRIPTION bump + NEWS entry for the diagnostics
@@ -85,7 +85,7 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 
 ## 2. Evaluator and residual methods (phase 1)
 
-- [ ] 2.1 `evaluate_engine()` generic + methods: generalize the existing
+- [ ] 2.1 `evaluate_model()` generic + methods: generalize the existing
       single-pass closure `evaluate_default_c()` (`cpp_interface.R`) —
       dispatch is inside the Rcpp `estimate_()`/`compute_()` entry points
       keyed on `spec` (R-side `modelTypeCall` retired by
@@ -99,13 +99,13 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       canonical roxygen page defining all types **including the explicit
       caveats section** (likelihood-vs-history deletion, onset/null-
       benchmark reading, cold-start zero-score property, cross-reference
-      to `examine_onset()`).
+      to `diagnose_onset()`).
 - [ ] 2.3 `residuals()` recompute types: scaled_schoenfeld (corrected
       Grambsch–Therneau scaling `θ̂ + V̄⁻¹ s_k` = `θ̂ + n I⁻¹ s_k`, with
       the diagnosed submodel's own n — REM and DyNAM submodels differ),
       cox_snell, response (conditional multinomial `λ/Σλ` for
       exact-time), martingale (margins; `level = "dyad"` map) via
-      `evaluate_engine()`; submodel-conditional semantics for DyNAM;
+      `evaluate_model()`; submodel-conditional semantics for DyNAM;
       cox_snell restricted to exact-time rate/REM with cli error
       elsewhere; tests incl. schoenfeld column sums ≈ 0 (multinomial
       submodels only, free parameters, no offsets — exact-time schoenfeld
@@ -116,7 +116,7 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       `events =` subset), documented as non-forecasting; tests: predict
       ranks equal stored `observed_rank`.
 - [ ] 2.5 `augment.result.goldfish()` gains `.fitted`/`.resid` broom
-      columns (censored rows NA); update `examine_*` internals to reuse
+      columns (censored rows NA); update `diagnose_*` internals to reuse
       them; tests.
 - [ ] 2.6 Cross-package validation (NOT_CRAN): scaled Schoenfeld vs
       `survival::cox.zph`-consistent reference on a Cox-expressible REM
@@ -125,20 +125,20 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 - [ ] 2.7 Milestone: DESCRIPTION bump + NEWS entry for residual/fitted/
       predict/augment methods.
 
-## 3. examine_* class alignment (phase 1, goldfish + autograph)
+## 3. diagnose_* class alignment (phase 1, goldfish + autograph)
 
-- [ ] 3.1 goldfish: `examine_outliers()` → class
-      `c("outliers.goldfish","data.frame")`, `examine_changepoints()` →
+- [ ] 3.1 goldfish: `diagnose_outliers()` → class
+      `c("outliers.goldfish","data.frame")`, `diagnose_changepoints()` →
       `c("changepoints.goldfish","data.frame")`; logical `outlier`/`cpt`
       columns; cli print methods dispatching on the new classes; NEWS
       breaking-change entry; tests + snapshots.
-- [ ] 3.2 Term-wise `examine_*`: `effect =` argument (compact-term-string
+- [ ] 3.2 Term-wise `diagnose_*`: `effect =` argument (compact-term-string
       selection, single-series ambiguity error) switching
-      `examine_changepoints()` to the term's scaled Schoenfeld series and
-      `examine_outliers()` to dfbeta-based influence ranking; selected
+      `diagnose_changepoints()` to the term's scaled Schoenfeld series and
+      `diagnose_outliers()` to dfbeta-based influence ranking; selected
       term recorded on the object for plot labeling; post-selection
       caveat documented; tests + snapshots.
-- [ ] 3.3 `examine_onset()`: leave-initial-segment-out one-step parameter
+- [ ] 3.3 `diagnose_onset()`: leave-initial-segment-out one-step parameter
       path + information-accrual curve from stored primitives (OPG
       default; exact-information option via the evaluator); plot-ready
       classed object with compact-term-string labels; descriptive cli
@@ -169,7 +169,7 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       per-block and joint Cauchy omnibus; cli print method (grouped by
       block) + snapshot.
 - [ ] 4.3 `test_parameter()` score test: constrained fit + candidate
-      effects → `evaluate_engine()` at the constrained estimate →
+      effects → `evaluate_model()` at the constrained estimate →
       efficient-score LM with chi-square p-value; equivalence test
       LM = t(Δ) I Δ; omitted-reciprocity power fixture; docs pointing to
       `lmtest::lrtest`/`waldtest` for nested fitted pairs.
@@ -217,7 +217,7 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       the waiting-time Q-Q from `total_rate` (panel drops out when the
       fit lacks the primitive or is ordinal); precooked fixture;
       autograph tests.
-- [ ] 5.4 autograph plot method for the `examine_onset` class:
+- [ ] 5.4 autograph plot method for the `diagnose_onset` class:
       per-coefficient path panel (with stabilization marker) +
       information-accrual panel; precooked fixture; autograph tests.
 - [ ] 5.5 autograph NEWS + pkgdown reference entries for the goldfish
@@ -234,7 +234,7 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       maps, both sides on REM, the ghost-effects heterogeneity
       motivation, explicitly-not-tests caveat, `test_parameter()` as the
       formal route); the `test_*` family walkthrough incl. the clock
-      workflow (`examine_onset()` accrual curve →
+      workflow (`diagnose_onset()` accrual curve →
       `clock = "information"`); literature positioning from
       `.plan/residuals-gof.md` §0.4. autograph-gated chunks; precompile
       rebuild; pkgdown reference entry.
@@ -247,7 +247,7 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       (chunks gated on `requireNamespace("autograph")`; autograph added
       to Suggests); rebuild through the precompile workflow.
 - [ ] 6.2 `vignettes/teaching2.Rmd.orig`: expand the existing
-      `plot-examine` section — the `examine_*` calls gain their new
+      `plot-examine` section — the `diagnose_*` calls gain their new
       classes/plots, plus REM-specific additions kept **short** (D14):
       Cox–Snell waiting-time Q-Q, scaled Schoenfeld/`test_time()` for the
       tie model, `test_parameter()` score-test example (test an effect
@@ -256,7 +256,7 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       a pointer to the diagnostics vignette; same autograph gating and
       precompile rebuild.
 - [ ] 6.3 Roxygen inheritance audit: canonical pages
-      (`residuals.result.goldfish`, `evaluate_engine`, `test_gof`)
+      (`residuals.result.goldfish`, `evaluate_model`, `test_gof`)
       inherited elsewhere; `devtools::document()`; man pages checked for
       resolved inheritance; full `NOT_CRAN=true` suite green.
 - [ ] 6.4 Update `.plan/residuals-gof.md` status header (phases 1-2

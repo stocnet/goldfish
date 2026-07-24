@@ -6,7 +6,7 @@ preprocessed-object plumbing that on-demand diagnostics consume.
 ## ADDED Requirements
 
 ### Requirement: diagnostics option names stored primitives
-`set_estimation_opt()` SHALL accept a `diagnostics` argument taking a
+`set_algorithm_newton()` SHALL accept a `diagnostics` argument taking a
 character vector of primitive names from `c("loglik", "scores", "ranks",
 "margins", "probabilities")`, or `TRUE` (equivalent to
 `c("loglik", "scores")`), `"all"` (all five), or `FALSE`/`character(0)`
@@ -50,7 +50,7 @@ error listing the valid primitives.
 
 #### Scenario: invalid name rejected
 - **WHEN** `diagnostics = c("loglik", "devianc")` is passed
-- **THEN** `set_estimation_opt()` aborts with a cli error naming the valid
+- **THEN** `set_algorithm_newton()` aborts with a cli error naming the valid
   primitive names.
 
 ### Requirement: probabilities guardrail
@@ -129,7 +129,7 @@ activity/popularity candidate effect.
 ### Requirement: legacy flags are soft-deprecated onto diagnostics
 The legacy flags SHALL remain accepted: `return_interval_loglik`,
 `return_probabilities`, and
-`return_event_scores` keep working in `set_estimation_opt()` with
+`return_event_scores` keep working in `set_algorithm_newton()` with
 their current
 semantics, each emitting a lifecycle soft-deprecation warning that names
 the corresponding `diagnostics` primitive (`"loglik"`, `"probabilities"`,
@@ -137,31 +137,31 @@ the corresponding `diagnostics` primitive (`"loglik"`, `"probabilities"`,
 value SHALL abort with a cli error.
 
 #### Scenario: legacy flag maps with deprecation warning
-- **WHEN** `set_estimation_opt(return_interval_loglik = TRUE)` is called
+- **WHEN** `set_algorithm_newton(return_interval_loglik = TRUE)` is called
 - **THEN** a lifecycle deprecation warning points to
   `diagnostics = "loglik"` and the resulting options store the loglik
   primitive.
 
-### Requirement: keep_preprocessed attaches the replay object
+### Requirement: return_preprocessed attaches the replay object
 `estimate_dynam()`, `estimate_rem()`, and `estimate_dynami()` SHALL accept
-`keep_preprocessed = FALSE`; when `TRUE`, the returned fit SHALL carry the
+`return_preprocessed = FALSE`; when `TRUE`, the returned fit SHALL carry the
 `preprocessed.goldfish` object used for estimation, and a cli message SHALL
 report its approximate size. Diagnostic consumers requiring a statistics
 replay SHALL accept a `preprocessed =` argument and SHALL use, in order of
 precedence: the supplied `preprocessed`, then the object attached to the
 fit. When neither is available, they SHALL abort with a cli error naming
-both routes (`keep_preprocessed = TRUE` at estimation, or
+both routes (`return_preprocessed = TRUE` at estimation, or
 `preprocessed = compute_statistics(...)` — the consolidated producer from
 the revise-gather-output change; `estimate_*(..., preprocessing_only =
 TRUE)` remains its equivalent until superseded).
 
 #### Scenario: replay unavailable produces guiding error
 - **WHEN** a diagnostic requiring a replay is called on a fit estimated
-  without `keep_preprocessed` and without a `preprocessed` argument
+  without `return_preprocessed` and without a `preprocessed` argument
 - **THEN** it aborts with a cli error that names both supported routes.
 
 #### Scenario: attached object is used
-- **WHEN** a model is estimated with `keep_preprocessed = TRUE` and a
+- **WHEN** a model is estimated with `return_preprocessed = TRUE` and a
   replay-requiring diagnostic is called without `preprocessed`
 - **THEN** the diagnostic runs using the attached object without
   re-preprocessing.

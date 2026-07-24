@@ -32,7 +32,7 @@ probabilities `lambda / sum lambda` for exact-time submodels; martingale
 = per-actor observed minus expected counts exactly as defined by the
 `"margins"` primitive (both sender and receiver margins on REM fits),
 with `level = "dyad"` returning the per-dyad observed-minus-expected map
-via `evaluate_engine()` (never a stored primitive);
+via `evaluate_model()` (never a stored primitive);
 dfbeta/dfbetas = `solve(I) %*% s_k` (scaled by standard errors for
 dfbetas); cooks = `t(s_k) %*% solve(I) %*% s_k`, the scalar one-step
 self-influence (Cook's-distance analog; the frequentist counterpart of a
@@ -40,7 +40,7 @@ per-event influence flag such as PSIS-LOO's Pareto k). dfbeta, dfbetas,
 and cooks are stored-primitive types (scores plus the stored information
 matrix). Types computable from stored primitives SHALL NOT trigger an
 evaluation pass; the remaining types SHALL recompute via
-`evaluate_engine()` under the diagnostic-primitives replay rules. For DyNAM
+`evaluate_model()` under the diagnostic-primitives replay rules. For DyNAM
 fits all residuals SHALL be conditional per submodel (rate residuals over
 the sender risk set, choice residuals over the receiver risk set given the
 observed sender).
@@ -91,7 +91,7 @@ SHALL return, for `"outcome"` (default), `exp(intervalLogL)` — the fitted
 probability (density contribution for exact-time submodels) of each
 observed event from stored primitives; and for `"probabilities"`, the full
 per-event fitted probability vectors via stored primitives or
-`evaluate_engine()`.
+`evaluate_model()`.
 
 #### Scenario: outcome probabilities are free
 - **WHEN** `fitted(fit)` is called on a fit with stored `intervalLogL`
@@ -102,7 +102,7 @@ The method `predict.result.goldfish()` SHALL accept
 `type = c("probabilities", "ranks")`, an optional `events` index subset,
 and `preprocessed`, and SHALL return, at the observed decision points, the
 fitted next-event probability vectors or observed ranks via
-`evaluate_engine()`. The documentation SHALL state that this is in-sample
+`evaluate_model()`. The documentation SHALL state that this is in-sample
 prediction given the observed history — not forecasting (which requires
 `simulate()`) and not marginal effects.
 
@@ -137,7 +137,7 @@ property at cold start** — endogenous statistics constant across the risk
 set give exactly zero score contributions, so score-based diagnostics
 show no influence of onset events on endogenous coefficients while
 intercept and exogenous blocks can still absorb them. The section SHALL
-cross-reference `examine_onset()` and the warm-start / event-exclusion
+cross-reference `diagnose_onset()` and the warm-start / event-exclusion
 remedies.
 
 #### Scenario: caveats section present and complete
@@ -145,7 +145,7 @@ remedies.
   inspected
 - **THEN** it contains a caveats section addressing likelihood-vs-history
   deletion, the onset/null-benchmark reading, and the cold-start
-  zero-score property, with a cross-reference to `examine_onset()`.
+  zero-score property, with a cross-reference to `diagnose_onset()`.
 
 ### Requirement: cross-package validation of residual definitions
 The scaled Schoenfeld residuals SHALL be validated against

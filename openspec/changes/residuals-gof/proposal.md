@@ -4,7 +4,7 @@
 
 goldfish estimates DyNAM/REM models but offers almost no model criticism: no
 `residuals()`/`fitted()` methods, no goodness-of-fit test, no score test, and
-`examine_outliers()`/`examine_changepoints()` are the only diagnostics.
+`diagnose_outliers()`/`diagnose_changepoints()` are the only diagnostics.
 The statistical design is settled in `.plan/residuals-gof.md` (survey of
 relevent/remstimate/mlogit + Boschi & Wit 2024): all residual primitives are
 already computed by the C++ engines (`event_scores`, `intervalLogL`), the
@@ -16,7 +16,7 @@ auxiliary statistics) waits for DyNES to land.
 
 ## What Changes
 
-- `set_estimation_opt()` gains a `diagnostics =` character vector naming
+- `set_algorithm_newton()` gains a `diagnostics =` character vector naming
   stored *primitives* (`"loglik"`, `"scores"`, `"ranks"`, `"margins"`,
   `"probabilities"`; `TRUE` ≡ `c("loglik", "scores")`, `"all"` shorthand),
   soft-deprecating `return_interval_loglik`, `return_probabilities`, and
@@ -29,11 +29,11 @@ auxiliary statistics) waits for DyNES to land.
   the full probability matrix. Margins are documented as calibration
   descriptives; per-event/sequence-level diagnostics remain the default
   surface (margins are opt-in).
-- `estimate_*()` gains `keep_preprocessed = FALSE` attaching the
+- `estimate_*()` gains `return_preprocessed = FALSE` attaching the
   `preprocessed.goldfish` to the fit; diagnostic consumers accept
   `preprocessed =` and abort with a cli error naming both routes when a
   replay is needed but unavailable.
-- New single-pass evaluator `evaluate_engine()`: log-likelihood, score,
+- New single-pass evaluator `evaluate_model()`: log-likelihood, score,
   information, per-event quantities at an arbitrary parameter vector using
   the estimation engine (shared by residuals-on-demand, the score test, and
   later DyNES ascent-based Monte Carlo).
@@ -52,9 +52,9 @@ auxiliary statistics) waits for DyNES to land.
   Schoenfeld slope test default, and a sienaTimeTest-style period-dummy
   score test computed by masking stored scores — no preprocessing;
   `information = c("expected", "opg")`). Effect-selecting arguments match
-  the compact term strings shown in the printed summary; `examine_*` gain
+  the compact term strings shown in the printed summary; `diagnose_*` gain
   a term-wise `effect =` mode (changepoints on the scaled Schoenfeld
-  series, outliers by dfbeta influence). New `examine_onset()` cold-start
+  series, outliers by dfbeta influence). New `diagnose_onset()` cold-start
   diagnostic (leave-initial-segment-out parameter path + information-
   accrual curve from stored primitives — the frequentist counterpart of
   the PSIS-LOO Pareto-k flag on history-less first events); `"cooks"`
@@ -63,8 +63,8 @@ auxiliary statistics) waits for DyNES to land.
 - Diagnostic result objects carry all plot-ready data with cli print
   methods; **all plotting lives in autograph** (branch
   `feature/goldfish-diag` off `develop`): new plot methods for the test and
-  residual classes, and alignment of `examine_outliers()`/
-  `examine_changepoints()` to autograph's existing `outliers.goldfish`/
+  residual classes, and alignment of `diagnose_outliers()`/
+  `diagnose_changepoints()` to autograph's existing `outliers.goldfish`/
   `changepoints.goldfish` methods (**BREAKING**: their return class changes
   from `diagnostic.goldfish`; the `outlier` column contract is fixed on the
   autograph side).
@@ -78,7 +78,7 @@ auxiliary statistics) waits for DyNES to land.
   `diagnostic-plot-classes` contract BEFORE the autograph branch work
   starts, since that contract is frozen for the parallel track.
 - Documentation avoids roxygen duplication via `@inheritParams`/`@inherit`
-  from canonical pages (`residuals.result.goldfish`, `evaluate_engine`).
+  from canonical pages (`residuals.result.goldfish`, `evaluate_model`).
 - A new long-form diagnostics vignette (`vignettes/diagnostics.Rmd.orig`,
   D14) is the canonical prose home for residual types, the margins
   calibration-descriptive reading, and the test workflow; the teaching
@@ -91,8 +91,8 @@ auxiliary statistics) waits for DyNES to land.
 - `diagnostic-primitives`: which per-event quantities estimation stores
   (`diagnostics =` vocabulary, defaults, memory guardrail, engine parity for
   ranks/margins) and how the preprocessed object is kept/fed
-  (`keep_preprocessed =` / `preprocessed =`).
-- `model-evaluation-pass`: `evaluate_engine()` — single no-iteration
+  (`return_preprocessed =` / `preprocessed =`).
+- `model-evaluation-pass`: `evaluate_model()` — single no-iteration
   evaluation at arbitrary parameters on the estimation engine, returning
   requested quantities; numerical consistency with the fit.
 - `residual-methods`: `residuals()`, `fitted()`, `predict()`, `augment()`
@@ -114,7 +114,7 @@ auxiliary statistics) waits for DyNES to land.
   one-to-one mapping, unchanged storage semantics).
 - `compact-term-strings`: the shared builder gains the diagnostic
   effect-selection surfaces (`effect =` / `effects =` of the `test_*` and
-  `examine_*` families) as consumers — the printed term string is the
+  `diagnose_*` families) as consumers — the printed term string is the
   selection key.
 
 ## Impact

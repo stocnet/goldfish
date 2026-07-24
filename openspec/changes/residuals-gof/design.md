@@ -26,10 +26,10 @@ simulation-based). Key code facts it establishes:
 - No `default_c` engine returns a probability matrix (`pMatrix` falls back
   to a "not implemented" string in `cpp_interface.R`); ranks, recall, and
   margins therefore require in-pass computation.
-- `preprocessing_only = TRUE` / `preprocessing_init =` already exist as the
+- `preprocessing_only = TRUE` / `preprocessed =` already exist as the
   preprocessed-object producer/consumer surface.
 - `augment.result.goldfish` exists (events + `intervalLogL`);
-  `examine_outliers()`/`examine_changepoints()` return class
+  `diagnose_outliers()`/`diagnose_changepoints()` return class
   `diagnostic.goldfish`.
 - autograph (separate repo, stocnet umbrella) already ships
   `plot.outliers.goldfish` and `plot.changepoints.goldfish` (expecting
@@ -57,9 +57,9 @@ edit; the dispatch/spec portion re-runs against the landed surface once
 **Goals:**
 
 - Phase 1: diagnostic primitives (`diagnostics =`), in-pass C++ ranks and
-  margins, `keep_preprocessed`/`preprocessed` plumbing, `evaluate_engine()`,
+  margins, `return_preprocessed`/`preprocessed` plumbing, `evaluate_model()`,
   `residuals()`/`fitted()`/`predict()`/`augment()` methods,
-  `examine_*` class alignment.
+  `diagnose_*` class alignment.
 - Phase 2: `test_gof()`, `test_parameter()`, `test_time()`; autograph plot
   methods on `feature/goldfish-diag`; coverage/power verification.
 - cli-rendered print methods on every new user-facing object; plotting
@@ -81,7 +81,7 @@ edit; the dispatch/spec portion re-runs against the landed surface once
 
 ### D1 — `diagnostics =` names stored primitives, replacing the three return flags
 
-`set_estimation_opt(diagnostics = c("loglik", "scores", "ranks", "margins",
+`set_algorithm_newton(diagnostics = c("loglik", "scores", "ranks", "margins",
 "probabilities"))`; `TRUE` ≡ `c("loglik", "scores")`, `"all"` = everything,
 `FALSE`/`character(0)` = none. Default `c("loglik", "scores")` (preserves
 today's `return_interval_loglik = TRUE` behavior and adds the free scores).
@@ -126,9 +126,9 @@ boundary flat. `"probabilities"` stays available for the choice model and
 small risk sets via the existing R-engine `pMatrix` path or an explicit
 opt-in. cpp-recompile discipline applies to every `src/` edit.
 
-### D3 — `evaluate_engine()` is the single shared evaluator
+### D3 — `evaluate_model()` is the single shared evaluator
 
-`evaluate_engine(x, at = coef(x), return = c("loglik", "score",
+`evaluate_model(x, at = coef(x), return = c("loglik", "score",
 "information", "interval_loglik", "event_scores", "ranks", "recall",
 "margins", "probabilities"), preprocessed = NULL, engine = <estimation
 engine>)`, dispatched per model/submodel inside the Rcpp entry points
@@ -137,7 +137,7 @@ the `spec` object — the R-side `modelTypeCall` routing no longer exists
 (retired by `spec-driven-dispatch`; see task 0.1 findings). The existing
 single-pass closure `evaluate_default_c(pars, need_scores)` in
 `cpp_interface.R` (already fed to `estimate_via_maxlik()`) is the substrate
-to generalize into `evaluate_engine()`. One no-iteration engine pass at `at`.
+to generalize into `evaluate_model()`. One no-iteration engine pass at `at`.
 Consumers:
 `residuals()` on-demand types, `test_parameter()` (full model at the
 constrained estimate), `test_time(method = "windows")`, `predict()`, and
@@ -146,7 +146,7 @@ used for estimation: diagnostics must be numerically consistent with the
 fit they diagnose (1e-6 baseline discipline; engines differ in
 accumulation order).
 
-**Reflexive/two-mode flag consistency.** `evaluate_engine()` and the new
+**Reflexive/two-mode flag consistency.** `evaluate_model()` and the new
 in-pass C++ quantities (ranks/margins) reconstruct per-event statistics, so
 their broadcast fan-out and risk-set iteration MUST key on the unified
 `twomode_or_reflexive = allowReflexive || is_two_mode`, exactly as the
@@ -160,14 +160,14 @@ but the new evaluator must not reintroduce the asymmetry.)
 ### D4 — coxph storage/recompute split
 
 Store by default what the last iteration produced (`loglik`, `scores`);
-recompute everything else on demand through `evaluate_engine()`, mirroring
+recompute everything else on demand through `evaluate_model()`, mirroring
 `residuals.coxph`. On-demand types need the statistics replay:
-`estimate_*()` gains `keep_preprocessed = FALSE` (attaches the
+`estimate_*()` gains `return_preprocessed = FALSE` (attaches the
 `preprocessed.goldfish` to the fit); consumers take `preprocessed =`
-(named after the class, consistent with `preprocessing_init =`; `stats_data`
-rejected — collides mentally with remstats). When a replay is needed and
+(named after the class, the same name the estimators take it under;
+`stats_data` rejected — collides mentally with remstats). When a replay is needed and
 unavailable, `cli_abort` names both routes (re-estimate with
-`keep_preprocessed = TRUE`, or supply
+`return_preprocessed = TRUE`, or supply
 `preprocessed = compute_statistics(...)` — the consolidated producer from
 revise-gather-output; `estimate_*(..., preprocessing_only = TRUE)` remains
 its equivalent until the naming pass supersedes it).
@@ -177,7 +177,7 @@ its equivalent until the naming pass supersedes it).
 `residuals(object, type = c("deviance", "schoenfeld", "scaled_schoenfeld",
 "score", "cox_snell", "response", "martingale", "dfbeta", "dfbetas"),
 preprocessed = NULL)` — survival::coxph type vocabulary; deviance default
-($-2 \cdot$ `intervalLogL`; continuity with `examine_*`). All DyNAM
+($-2 \cdot$ `intervalLogL`; continuity with `diagnose_*`). All DyNAM
 residuals are conditional per submodel (the exact score residuals of the
 factorized likelihood — no dyad-rate transformation; see the reference
 doc §5). `fitted(type = "outcome")` = `exp(intervalLogL)` (stored, free);
@@ -226,7 +226,7 @@ same phenomenon D13 diagnoses. `test_gof(clock = c("event",
 "information"))`: `"information"` places increment $k$ at
 $u_k = \hat I_d(k)/\hat I_d(n)$ from OPG cumulative sums of stored scores
 (zero passes) — the martingale time change restoring the bridge limit
-under non-uniform accrual. `examine_onset()`'s information-accrual curve
+under non-uniform accrual. `diagnose_onset()`'s information-accrual curve
 is exactly the clock map (one diagnostic, no second variant); its docs and
 the diagnostics vignette present the workflow: flat onset segment →
 rerun with the information clock. Derivation:
@@ -235,7 +235,7 @@ rerun with the information clock. Derivation:
 ### D8 — test_parameter(): score/LM test, plus Wald for combinations
 
 Score test of a candidate effect block: estimate the constrained model,
-run `evaluate_engine()` on the full model (candidate statistics included)
+run `evaluate_model()` on the full model (candidate statistics included)
 at $\tilde\theta = (\hat\theta_1, 0)$, form
 $\mathrm{LM} = U^\top I^{-1} U \sim \chi^2_q$ (efficient-score form
 $U_2^\top [I^{-1}]_{22} U_2$). This is RSiena's score-type test
@@ -298,7 +298,7 @@ context). No ggplot2 code lands in goldfish. autograph, on
 `feature/goldfish-diag` off `develop`, gains `plot.test_gof.goldfish`,
 `plot.test_time.goldfish` (and `test_parameter` if a plot is meaningful),
 following its RSiena/ergm/MoNAn dispatch-on-class pattern with no goldfish
-dependency. `examine_outliers()`/`examine_changepoints()` change their
+dependency. `diagnose_outliers()`/`diagnose_changepoints()` change their
 return classes to `outliers.goldfish`/`changepoints.goldfish` (BREAKING for
 anyone dispatching on `diagnostic.goldfish`; NEWS entry) and autograph's
 `plot.outliers.goldfish` is fixed to test the logical `outlier` column
@@ -309,12 +309,12 @@ uniform across the stocnet umbrella.
 ### D11 — Documentation via inheritance
 
 `residuals.result.goldfish` is the canonical page for residual-type
-definitions; `evaluate_engine` for `preprocessed`/`at`/`return`;
+definitions; `evaluate_model` for `preprocessed`/`at`/`return`;
 `test_gof` for the omnibus/Cauchy description. Other methods use
 `@inheritParams`/`@inherit`. `devtools::document()` runs inside any task
 touching roxygen; man pages checked for resolved inheritance.
 
-### D12 — Effect selection by compact term string; term-wise examine_*
+### D12 — Effect selection by compact term string; term-wise diagnose_*
 
 Effect-selecting arguments (`effect =` / `effects =`) match against the
 **compact term strings** (the shared builder behind print/`tidy()`/
@@ -323,12 +323,12 @@ unique per term by construction; integer positions are the fallback.
 Matching semantics follow function semantics: an exact compact-string
 match always wins; a bare family name (`"inertia"`) matching several terms
 **selects the whole family in the vectorized `test_*` functions** but
-**errors in the single-series `examine_*` functions**, with the cli error
+**errors in the single-series `diagnose_*` functions**, with the cli error
 listing the matching compact strings (doubling as discoverability). The
 compact-term-strings spec gains "selection" as a consuming surface
 (delta in this change).
 
-`examine_changepoints()` and `examine_outliers()` gain `effect =`:
+`diagnose_changepoints()` and `diagnose_outliers()` gain `effect =`:
 term-wise diagnosis on the stored score columns. Changepoints run on the
 effect's scaled Schoenfeld series (regime shifts in $\theta_d(t)$ — the
 structural-break literature's empirical fluctuation processes,
@@ -341,18 +341,18 @@ coefficient $d$). Default (no `effect =`) keeps the current
 supported workflow is exploration here, a priori periods (or the other
 submodel) for confirmation.
 
-### D13 — examine_onset(): the cold-start / left-censored-history diagnostic
+### D13 — diagnose_onset(): the cold-start / left-censored-history diagnostic
 
 Motivation: for early events the endogenous statistics are constant across
 the risk set (no accumulated history), so the model predicts at the
 per-event null benchmark — the frequentist face of the PSIS-LOO
 `influence_pareto_k` signal goldfish.latent observed on first
-observations. Empirically, `examine_changepoints()` on `intervalLogL`
+observations. Empirically, `diagnose_changepoints()` on `intervalLogL`
 does **not** surface this phase (short segment vs the PELT penalty, the
 `minseglen` default, a plateau *at* rather than away from the null, and —
 decisively — the endogenous score contributions are exactly zero at cold
 start, a series the changepoint detector never sees). Hence a dedicated
-diagnostic, `examine_onset()` (named for the process onset; the docs give
+diagnostic, `diagnose_onset()` (named for the process onset; the docs give
 the exact term, left-censoring of the endogenous statistics; `burnin`/
 `warmup` rejected for MCMC connotations beside goldfish.latent), computing
 from stored primitives only:
@@ -399,7 +399,7 @@ submodel and flavor), the margins **calibration-descriptive** reading —
 observed-vs-expected actor maps as a screen for unmodeled heterogeneity
 (the Juozaitienė–Wit "ghost effects" motivation), explicitly not
 per-actor tests, with `test_parameter()` as the formal route — the
-`test_*` family with the clock-choice workflow (`examine_onset()` accrual
+`test_*` family with the clock-choice workflow (`diagnose_onset()` accrual
 curve → `clock = "information"`), and where each identity holds
 (algebraic vs at-the-MLE). The teaching vignettes gain only **short**
 diagnostics sections (fit → a couple of residual calls → one test) with a
@@ -412,7 +412,7 @@ justification, not assume it.
 
 ## Risks / Trade-offs
 
-- [BREAKING class rename of `examine_*` returns] → goldfish and autograph
+- [BREAKING class rename of `diagnose_*` returns] → goldfish and autograph
   are versioned together under stocnet; NEWS entries in both; autograph
   branch merges before/with the goldfish release; `print` method kept for
   both old and new class names during one release via an alias class
@@ -431,7 +431,7 @@ justification, not assume it.
 - [Kolmogorov approximation poor for small n] → document; verification
   includes null-coverage simulation at n ∈ {1000, 5000} mirroring
   Boschi & Wit §4 (NOT_CRAN tests).
-- [Memory: `keep_preprocessed = TRUE` on large data] → documented cost;
+- [Memory: `return_preprocessed = TRUE` on large data] → documented cost;
   default FALSE; cli message states the object size when attached.
 - [autograph coordination: two repos, one feature] → goldfish tasks only
   emit stable classes/columns (the contract in `diagnostic-plot-classes`
@@ -442,7 +442,7 @@ justification, not assume it.
 
 1. goldfish phase 1 lands behind default-compatible options (`diagnostics`
    default preserves current behavior; new methods are additive except the
-   `examine_*` class rename).
+   `diagnose_*` class rename).
 2. autograph `feature/goldfish-diag` branch developed in parallel; merged
    to autograph `develop` when goldfish phase 2 is complete.
 3. Old return flags removed no earlier than one minor release after

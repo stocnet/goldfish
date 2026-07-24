@@ -5,8 +5,8 @@ parameter vector, returning requested quantities.
 
 ## ADDED Requirements
 
-### Requirement: evaluate_engine single-pass evaluator
-goldfish SHALL provide `evaluate_engine(x, at = coef(x), return, preprocessed
+### Requirement: evaluate_model single-pass evaluator
+goldfish SHALL provide `evaluate_model(x, at = coef(x), return, preprocessed
 = NULL, ...)` performing exactly one evaluation pass (no Newton-Raphson
 iterations) of the model's likelihood machinery at the parameter vector
 `at`. The `return` argument SHALL accept any subset of `c("loglik",
@@ -17,7 +17,7 @@ model/submodel routing. Statistics SHALL come from the attached or supplied
 `preprocessed.goldfish` per the diagnostic-primitives precedence rules.
 
 #### Scenario: evaluation at the MLE reproduces the fit
-- **WHEN** `evaluate_engine(fit, at = coef(fit), return = c("loglik",
+- **WHEN** `evaluate_model(fit, at = coef(fit), return = c("loglik",
   "score"))` runs on a converged fixture fit
 - **THEN** the log-likelihood equals `logLik(fit)` within 1e-10 and the
   score of the free (non-offset) parameters is near zero (max absolute
@@ -25,13 +25,13 @@ model/submodel routing. Statistics SHALL come from the attached or supplied
   fixed value's nonzero score and are reported, not tested).
 
 #### Scenario: evaluation at a constrained vector
-- **WHEN** `evaluate_engine` is called at a parameter vector with one
+- **WHEN** `evaluate_model` is called at a parameter vector with one
   effect fixed to zero on a model whose statistics include that effect
 - **THEN** it returns the score and information of the full model evaluated
   at that vector, with dimensions matching the full effect set.
 
 ### Requirement: evaluator uses the estimation engine
-`evaluate_engine()` SHALL default to the engine used for the original
+`evaluate_model()` SHALL default to the engine used for the original
 estimation and SHALL record which engine produced its output. Requesting an
 engine that does not support a requested quantity SHALL abort with a cli
 error naming the supported engines for that quantity.
@@ -50,7 +50,7 @@ thresholds; named per-actor margins). The full per-event probability matrix
 SHALL NOT be materialized unless `"probabilities"` is explicitly requested.
 
 #### Scenario: ranks without probability matrix
-- **WHEN** `evaluate_engine(fit, return = "ranks")` runs on a REM fixture
+- **WHEN** `evaluate_model(fit, return = "ranks")` runs on a REM fixture
 - **THEN** an integer vector of observed ranks (one per event) is returned
   and no probability matrix is allocated in the returned object.
 
