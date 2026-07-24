@@ -31,6 +31,39 @@ test_that("the renamed constructors soft-deprecate onto their new names", {
   })
 })
 
+test_that("the 1.7.0 camelCase shims skip the middle name", {
+  # examineOutliers() -> diagnose_outliers() in one hop, never via the
+  # examine_outliers() name that is itself deprecated now.
+  fit <- estimate_dynam(
+    depNetwork ~ inertia,
+    sub_model = "choice",
+    data = dataTest,
+    control_algo = set_algorithm_newton(diagnostics = "loglik")
+  )
+  expect_snapshot({
+    invisible(examineOutliers(fit, method = "Top", parameter = 2))
+    invisible(examineChangepoints(fit, moment = "mean", method = "PELT"))
+  })
+})
+
+test_that("examine_* return exactly what diagnose_* return", {
+  withr::local_options(lifecycle_verbosity = "quiet")
+  fit <- estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest,
+    control_algo = set_algorithm_newton(diagnostics = "loglik")
+  )
+  expect_identical(
+    examine_outliers(fit, method = "Top", parameter = 2),
+    diagnose_outliers(fit, method = "Top", threshold = 2)
+  )
+  expect_identical(
+    examine_changepoints(fit, moment = "mean", method = "PELT"),
+    diagnose_changepoints(fit, moment = "mean", method = "PELT")
+  )
+})
+
 test_that("the renamed estimator arguments still work, with a warning", {
   withr::local_options(lifecycle_verbosity = "quiet")
   formula_test <- depNetwork ~ inertia + recip

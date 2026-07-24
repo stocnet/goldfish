@@ -3,11 +3,17 @@
 \name{goldfish-deprecated}
 \alias{set_estimation_opt}
 \alias{set_preprocessing_opt}
+\alias{examine_outliers}
+\alias{examine_changepoints}
 \title{Functions renamed in goldfish 2.0.0}
 \usage{
 set_estimation_opt(...)
 
 set_preprocessing_opt(...)
+
+examine_outliers(...)
+
+examine_changepoints(...)
 }
 \arguments{
 \item{...}{Arguments passed on to the replacement function.}
@@ -22,6 +28,8 @@ the estimators take them as \code{control_algo} / \code{control_prep}.
 \itemize{
 \item \code{set_estimation_opt()} -> \code{\link[=set_algorithm_newton]{set_algorithm_newton()}}
 \item \code{set_preprocessing_opt()} -> \code{\link[=set_preprocessing]{set_preprocessing()}}
+\item \code{examine_outliers()} -> \code{\link[=diagnose_outliers]{diagnose_outliers()}}
+\item \code{examine_changepoints()} -> \code{\link[=diagnose_changepoints]{diagnose_changepoints()}}
 }
 
 The old names keep working as thin wrappers that forward every argument

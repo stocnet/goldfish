@@ -9,12 +9,12 @@ test_that("diagnostic methods throw errors when intervalLogLikelihood isn't pres
     verbose = FALSE
   )
   expect_error(
-    examine_outliers(mod00, method = "Top", parameter = 2),
+    diagnose_outliers(mod00, method = "Top", threshold = 2),
     "Outlier identification only available when interval log likelihood
       returned in results object."
   )
   expect_error(
-    examine_changepoints(mod00, moment = "mean", method = "PELT"),
+    diagnose_changepoints(mod00, moment = "mean", method = "PELT"),
     "Changepoint identification only available when interval log likelihood
       returned in results object."
   )
@@ -22,11 +22,11 @@ test_that("diagnostic methods throw errors when intervalLogLikelihood isn't pres
 
 test_that("diagnostic methods does not accept non-result objects", {
   expect_error(
-    examine_outliers(depNetwork, method = "Top", parameter = 2),
+    diagnose_outliers(depNetwork, method = "Top", threshold = 2),
     "Not a goldfish results object."
   )
   expect_error(
-    examine_changepoints(depNetwork, moment = "mean", method = "PELT"),
+    diagnose_changepoints(depNetwork, moment = "mean", method = "PELT"),
     "Not a goldfish results object."
   )
 })
@@ -43,14 +43,14 @@ test_that("diagnostic methods work on \"choice\" models.", {
     verbose = FALSE
   )
 
-  p1 <- examine_outliers(mod00, method = "Top", parameter = 2)
+  p1 <- diagnose_outliers(mod00, method = "Top", threshold = 2)
   expect_s3_class(p1, "diagnostic.goldfish")
   expect_equal(sum(p1$outlier), 2)
-  p11 <- examine_outliers(mod00, method = "IQR")
+  p11 <- diagnose_outliers(mod00, method = "IQR")
   expect_s3_class(p11, "diagnostic.goldfish")
-  p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")
+  p2 <- diagnose_changepoints(mod00, moment = "mean", method = "PELT")
   expect_s3_class(p2, "diagnostic.goldfish")
-  p21 <- examine_changepoints(
+  p21 <- diagnose_changepoints(
     mod00,
     moment = "variance",
     method = "PELT",
@@ -86,7 +86,7 @@ test_that("diagnostic methods work on \"rate\" models.", {
     actors
   )
 
-  # this block is required for examine_changepoints otherwise "calls_dependent" throws an error
+  # this block is required for diagnose_changepoints otherwise "calls_dependent" throws an error
   assign("calls_dependent", calls_dependent, envir = .GlobalEnv)
   on.exit(rm(calls_dependent, envir = .GlobalEnv))
 
@@ -100,9 +100,9 @@ test_that("diagnostic methods work on \"rate\" models.", {
     verbose = FALSE
   )
 
-  p1 <- examine_outliers(mod00, method = "Top", parameter = 2)
+  p1 <- diagnose_outliers(mod00, method = "Top", threshold = 2)
   expect_s3_class(p1, "diagnostic.goldfish")
-  p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")
+  p2 <- diagnose_changepoints(mod00, moment = "mean", method = "PELT")
   expect_s3_class(p2, "diagnostic.goldfish")
 })
 
@@ -133,7 +133,7 @@ test_that("diagnostic methods work on \"rem\" models.", {
     actors
   )
 
-  # this block is required for examine_changepoints otherwise "calls_dependent" throws an error
+  # this block is required for diagnose_changepoints otherwise "calls_dependent" throws an error
   assign("calls_dependent", calls_dependent, envir = .GlobalEnv)
   on.exit(rm(calls_dependent, envir = .GlobalEnv))
 
@@ -146,8 +146,8 @@ test_that("diagnostic methods work on \"rem\" models.", {
     verbose = FALSE
   )
 
-  p1 <- examine_outliers(mod00, method = "Top", parameter = 2)
+  p1 <- diagnose_outliers(mod00, method = "Top", threshold = 2)
   expect_s3_class(p1, "diagnostic.goldfish")
-  p2 <- examine_changepoints(mod00, moment = "mean", method = "PELT")
+  p2 <- diagnose_changepoints(mod00, moment = "mean", method = "PELT")
   expect_s3_class(p2, "diagnostic.goldfish")
 })

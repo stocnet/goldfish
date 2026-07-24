@@ -17,8 +17,8 @@
 #' * `defineGroups_interaction()` -> `make_groups_interaction()`
 #' * `linkEvents(x)` -> `link_events(x)`
 #' * `estimate()` -> `estimate_dynam()`, `estimate_rem()` & `estimate_dynami()`
-#' * `examineOutliers()` -> `examine_outliers()`
-#' * `examineChangepoints()` -> `examine_changepoints()`
+#' * `examineOutliers()` -> `diagnose_outliers()`
+#' * `examineChangepoints()` -> `diagnose_changepoints()`
 #' * `egoAlterInt()` -> `ego_alter_interaction()`
 #' * `nodeTrans()` -> `node_trans()`
 #' * `commonSender()` & `commonReceiver()` -> `common_sender()` &
@@ -158,15 +158,17 @@ examineOutliers <- function(
   parameter = 3,
   window = NULL
 ) {
+  # Points at the 2.0.0 name directly: a deprecation message must never send
+  # users to a name that is itself deprecated.
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "examineOutliers()",
-    with = "examine_outliers()"
+    with = "diagnose_outliers()"
   )
-  examine_outliers(
+  diagnose_outliers(
     x = x,
     method = method,
-    parameter = parameter,
+    threshold = parameter,
     window = window
   )
 }
@@ -183,9 +185,9 @@ examineChangepoints <- function(
   lifecycle::deprecate_warn(
     when = "1.7.0",
     what = "examineChangepoints()",
-    with = "examine_changepoints()"
+    with = "diagnose_changepoints()"
   )
-  examine_changepoints(
+  diagnose_changepoints(
     x = x,
     moment = moment,
     method = method,

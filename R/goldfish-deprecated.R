@@ -10,6 +10,8 @@
 #'
 #' * `set_estimation_opt()` -> [set_algorithm_newton()]
 #' * `set_preprocessing_opt()` -> [set_preprocessing()]
+#' * `examine_outliers()` -> [diagnose_outliers()]
+#' * `examine_changepoints()` -> [diagnose_changepoints()]
 #'
 #' The old names keep working as thin wrappers that forward every argument
 #' unchanged, so results are identical; calling one directly emits a
@@ -45,6 +47,28 @@ set_preprocessing_opt <- function(...) {
     with = "set_preprocessing()"
   )
   set_preprocessing(...)
+}
+
+#' @rdname goldfish-deprecated
+#' @export
+examine_outliers <- function(...) {
+  lifecycle::deprecate_soft(
+    when = "2.0.0",
+    what = "examine_outliers()",
+    with = "diagnose_outliers()"
+  )
+  diagnose_outliers(...)
+}
+
+#' @rdname goldfish-deprecated
+#' @export
+examine_changepoints <- function(...) {
+  lifecycle::deprecate_soft(
+    when = "2.0.0",
+    what = "examine_changepoints()",
+    with = "diagnose_changepoints()"
+  )
+  diagnose_changepoints(...)
 }
 
 # Fold a pre-2.0.0 estimator argument into the argument that replaced it.

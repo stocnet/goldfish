@@ -10,7 +10,7 @@
 # A subset of the dependent event data frame
 # (see [make_dependent_events()]) with the events identified as
 # outliers or change point inflections.
-#' @name examine
+#' @name diagnose
 #' @examples
 #' # A multinomial receiver choice model on the prebuilt `social_evolution` data
 #' data("social_evolution")
@@ -24,9 +24,9 @@
 #'   )
 #' )
 #'
-#' examine_outliers(mod01)
+#' diagnose_outliers(mod01)
 #'
-#' examine_changepoints(mod01)
+#' diagnose_changepoints(mod01)
 NULL
 
 # Examine outlier cases
@@ -34,28 +34,39 @@ NULL
 #'   The current options are "Hampel" for a Hampel filter/identifier,
 #'   "IQR" for identifying outliers on the basis of lying outside
 #'   the interquartile range, and "Top" which returns the
-#'   `parameter` number of outliers.
-#' @param parameter An integer that represents the number of absolute outliers
-#'   to identify, the threshold for the Hampel filter, i.e. `parameter * MAD`,
+#'   `threshold` number of outliers.
+#' @param threshold An integer that represents the number of absolute outliers
+#'   to identify, the threshold for the Hampel filter, i.e. `threshold * MAD`,
 #'   or the threshold beyond the interquartile range halved, i.e.
-#'   `parameter/2 * IQR`.
+#'   `threshold/2 * IQR`.
+#' @param parameter `r lifecycle::badge("deprecated")` Renamed to `threshold`
+#'   in goldfish 2.0.0.
 #' @param window The window half-width for the Hampel filter.
 #'   By default it is half the width of the event sequence.
 #' @section Outliers:
-#' \code{examineOutliers} creates a plot with the log-likelihood of the events
+#' \code{diagnose_outliers} creates a plot with the log-likelihood of the events
 #' in the y-axis and the event index in the x-axis, identifying observations
 #' with labels indicating the sender and recipient.
 #' The function call creates an object identifying the outliers
 #' identified by the method
 #' @importFrom stats IQR median na.exclude
 #' @export
-#' @rdname examine
-examine_outliers <- function(
+#' @rdname diagnose
+diagnose_outliers <- function(
   x,
   method = c("Hampel", "IQR", "Top"),
-  parameter = 3,
-  window = NULL
+  threshold = 3,
+  window = NULL,
+  parameter = deprecated()
 ) {
+  threshold <- fold_renamed_arg(
+    threshold,
+    !missing(threshold),
+    parameter,
+    "diagnose_outliers",
+    "parameter",
+    "threshold"
+  )
   if (!"result.goldfish" %in% attr(x, "class")) {
     stop("Not a goldfish results object.")
   }
@@ -73,12 +84,12 @@ examine_outliers <- function(
   data <- transform(data, outlier = FALSE)
 
   if (method == "Top") {
-    outlierIndexes <- order(data$intervalLogL)[1:parameter]
+    outlierIndexes <- order(data$intervalLogL)[1:threshold]
   } else if (method == "IQR") {
     outlierIndexes <- which(
       data$intervalLogL <
         median(data$intervalLogL) -
-          (parameter / 2) * IQR(data$intervalLogL)
+          (threshold / 2) * IQR(data$intervalLogL)
     )
   } else if (method == "Hampel") {
     if (is.null(window)) {
@@ -89,13 +100,13 @@ examine_outliers <- function(
     # which(vapply((window + 1):(n - window), function(i) {
     #   x0 <- median(data$intervalLogL[(i - window):(i + window)])
     #   S0 <- L * median(abs(data$intervalLogL[(i - window):(i + window)] - x0))
-    #   if (abs(data$intervalLogL[i] - x0) > parameter * S0) TRUE else FALSE
+    #   if (abs(data$intervalLogL[i] - x0) > threshold * S0) TRUE else FALSE
     # }, FUN.VALUE = logical(1)))
     outlierIndexes <- numeric(0)
     for (i in (window + 1):(n - window)) {
       x0 <- median(data$intervalLogL[(i - window):(i + window)])
       S0 <- L * median(abs(data$intervalLogL[(i - window):(i + window)] - x0))
-      if (abs(data$intervalLogL[i] - x0) > parameter * S0) {
+      if (abs(data$intervalLogL[i] - x0) > threshold * S0) {
         outlierIndexes <- c(outlierIndexes, i)
       }
     }
@@ -140,8 +151,8 @@ examine_outliers <- function(
 #' The function call creates an object identifying the change
 #' point sections identified by the method.
 #' @export
-#' @rdname examine
-examine_changepoints <- function(
+#' @rdname diagnose
+diagnose_changepoints <- function(
   x,
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),

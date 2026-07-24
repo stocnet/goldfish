@@ -13,6 +13,21 @@
       `set_preprocessing_opt()` was deprecated in goldfish 2.0.0.
       i Please use `set_preprocessing()` instead.
 
+# the 1.7.0 camelCase shims skip the middle name
+
+    Code
+      invisible(examineOutliers(fit, method = "Top", parameter = 2))
+    Condition
+      Warning:
+      `examineOutliers()` was deprecated in goldfish 1.7.0.
+      i Please use `diagnose_outliers()` instead.
+    Code
+      invisible(examineChangepoints(fit, moment = "mean", method = "PELT"))
+    Condition
+      Warning:
+      `examineChangepoints()` was deprecated in goldfish 1.7.0.
+      i Please use `diagnose_changepoints()` instead.
+
 # renamed estimator arguments soft-deprecate onto their new names
 
     Code
