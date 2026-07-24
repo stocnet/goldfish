@@ -29,8 +29,10 @@ the non-deprecated surface.
   `diagnostics` or the deprecated flag) on the `default_c` or `default`
   engine
 - **THEN** the result contains `event_scores` with one row per dependent event
-  and one column per effect, and its column sums agree with the (near-zero)
-  aggregate score at convergence.
+  and one column per effect, and its column sums agree with the aggregate
+  score at convergence (an algebraic 1e-10 identity; the aggregate score is
+  near zero only for free parameters — offset columns carry the fixed
+  value's nonzero score).
 
 #### Scenario: engines agree on the score matrix
 - **WHEN** the same fixture model is estimated on `default` and `default_c`

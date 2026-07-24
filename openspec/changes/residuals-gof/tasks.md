@@ -56,15 +56,25 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       `REM_default.cpp`, `REM_ordered_default.cpp`; wire through
       `cpp_interface.R`; cpp-recompile; correctness test vs R-enumerated
       probabilities on a small fixture; NOT_CRAN baselines green.
-- [ ] 1.5 C++ in-pass margins accumulation (receiver/actor expected +
-      observed counts; sender margins for rate with exact-time exposure);
-      wire-through; consistency tests (expected counts sum to n_events).
-- [ ] 1.6 `total_rate` under the `"loglik"` primitive for exact-time
+- [x] 1.5 C++ in-pass margins accumulation per the corrected margins
+      requirement (`.plan/residuals-gof.md` §0.2 table): receiver margins
+      for choice; **both sender and receiver margins for REM**
+      (exact-time = compensator sums incl. right-censored intervals;
+      ordinal = coarsened-softmax sums); sender margins for rate
+      (exact-time exposure incl. right-censored intervals / ordinal
+      probability sums); per-actor pair margins for MM (each event credits
+      both members); accumulation over the realized risk set
+      (`twomode_or_reflexive`); wire-through. Consistency tests split
+      per flavor: multinomial sums = n_events (2·n_events for MM) at
+      machine tolerance and at a non-MLE parameter vector; exact-time
+      sums = n_events at the converged MLE only (convergence tolerance,
+      intercept present); REM sender total == receiver total identically.
+- [x] 1.6 `total_rate` under the `"loglik"` primitive for exact-time
       engines (per-event sum of fitted rates over the realized risk set;
       O(n) vector, on by default); consistency test: `total_rate × Δt`
       equals the Cox–Snell residuals; large-dataset cli storage note per
       spec.
-- [ ] 1.7 Route `diagnostics` primitives through estimation to the result
+- [x] 1.7 Route `diagnostics` primitives through estimation to the result
       object (all engines); parity test `default` vs `default_c` for
       ranks/margins on a fixture.
 - [ ] 1.8 `estimate_*(keep_preprocessed =)`: attach `preprocessed.goldfish`
@@ -90,12 +100,17 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       caveats section** (likelihood-vs-history deletion, onset/null-
       benchmark reading, cold-start zero-score property, cross-reference
       to `examine_onset()`).
-- [ ] 2.3 `residuals()` recompute types: scaled_schoenfeld, cox_snell,
-      response, martingale (margins) via
+- [ ] 2.3 `residuals()` recompute types: scaled_schoenfeld (corrected
+      Grambsch–Therneau scaling `θ̂ + V̄⁻¹ s_k` = `θ̂ + n I⁻¹ s_k`, with
+      the diagnosed submodel's own n — REM and DyNAM submodels differ),
+      cox_snell, response (conditional multinomial `λ/Σλ` for
+      exact-time), martingale (margins; `level = "dyad"` map) via
       `evaluate_engine()`; submodel-conditional semantics for DyNAM;
       cox_snell restricted to exact-time rate/REM with cli error
-      elsewhere; tests incl. schoenfeld column sums ≈ 0 and cox_snell
-      KS-vs-Exp(1) on simulated-null fixture.
+      elsewhere; tests incl. schoenfeld column sums ≈ 0 (multinomial
+      submodels only, free parameters, no offsets — exact-time schoenfeld
+      rows deliberately do NOT sum to zero) and cox_snell KS-vs-Exp(1) on
+      simulated-null fixture.
 - [ ] 2.4 `fitted()` (`outcome` from stored loglik; `probabilities` via
       evaluator) and in-sample `predict()` (`probabilities`/`ranks`,
       `events =` subset), documented as non-forecasting; tests: predict
@@ -139,10 +154,17 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 ## 4. Diagnostic tests (phase 2)
 
 - [ ] 4.1 `test_gof()` core on `result.goldfish`: standardized cumulative
-      score processes from stored `event_scores`, observed-information
-      (fallback empirical) standardization, sup statistic, Kolmogorov
-      p-value; object stores process paths + per-effect table; bridge
-      property test (process ends at 0).
+      score processes from stored `event_scores`, standardization by the
+      average per-event information `J_d = I_dd/n` (fallback empirical
+      variance of centered contributions), sup statistic, Kolmogorov
+      p-value; `clock = c("event", "information")` with the information
+      clock from OPG cumulative score sums (zero passes) and the
+      proportional-accrual assumption documented on the event clock;
+      offset terms excluded with a cli error pointing to
+      `test_parameter()`; object stores process paths + clock-labeled
+      axis + per-effect table; bridge property test (process ends at 0,
+      free effects, both clocks); cold-start clock-comparison coverage
+      fixture (NOT_CRAN).
 - [ ] 4.2 `test_gof()` on the specification fit: per-block tests,
       per-block and joint Cauchy omnibus; cli print method (grouped by
       block) + snapshot.
@@ -181,8 +203,10 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 
 - [ ] 5.1 `plot` method for the test_gof class: per-effect standardized
       process paths with Brownian-bridge reference bands, faceted by
-      block; precooked fixture object; renders without goldfish attached;
-      autograph tests.
+      block, x-axis from the object's clock-labeled process-time axis
+      (bands are valid on whichever clock produced the process — the
+      plot must not re-derive an event-index axis); precooked fixture
+      object; renders without goldfish attached; autograph tests.
 - [ ] 5.2 `plot` method for the test_time class: scaled Schoenfeld
       scatter + weighted smooth per effect with zero reference; precooked
       fixture; autograph tests.
@@ -202,19 +226,34 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 
 ## 6. Documentation and closure
 
-- [ ] 6.1 `vignettes/teaching1.Rmd.orig`: add a model-diagnostics section
-      after the estimation walkthrough — deviance residuals and
+- [ ] 6.0 New long-form vignette `vignettes/diagnostics.Rmd.orig` (D14),
+      the canonical prose documentation of the diagnostics layer:
+      residual-type map per submodel/flavor (which primitive feeds which
+      type; where each identity holds — algebraic vs at-the-MLE);
+      **margins as calibration descriptives** (observed-vs-expected actor
+      maps, both sides on REM, the ghost-effects heterogeneity
+      motivation, explicitly-not-tests caveat, `test_parameter()` as the
+      formal route); the `test_*` family walkthrough incl. the clock
+      workflow (`examine_onset()` accrual curve →
+      `clock = "information"`); literature positioning from
+      `.plan/residuals-gof.md` §0.4. autograph-gated chunks; precompile
+      rebuild; pkgdown reference entry.
+- [ ] 6.1 `vignettes/teaching1.Rmd.orig`: add a **short** model-diagnostics
+      section after the estimation walkthrough — deviance residuals and
       surprising events (`residuals()`, `fitted()`), `test_gof()` on the
       fitted DyNAM (per-block + omnibus reading), `test_time()` trend
-      plot, with plots rendered via autograph (chunks gated on
-      `requireNamespace("autograph")`; autograph added to Suggests);
-      rebuild through the precompile workflow.
+      plot, closing with a pointer to the diagnostics vignette for depth
+      (D14: keep it short and sweet); plots rendered via autograph
+      (chunks gated on `requireNamespace("autograph")`; autograph added
+      to Suggests); rebuild through the precompile workflow.
 - [ ] 6.2 `vignettes/teaching2.Rmd.orig`: expand the existing
       `plot-examine` section — the `examine_*` calls gain their new
-      classes/plots, plus REM-specific additions: Cox–Snell waiting-time
-      Q-Q, scaled Schoenfeld/`test_time()` for the tie model,
-      `test_parameter()` score-test example (test an effect without
-      re-estimating), `lmtest::lrtest()` usage; same autograph gating and
+      classes/plots, plus REM-specific additions kept **short** (D14):
+      Cox–Snell waiting-time Q-Q, scaled Schoenfeld/`test_time()` for the
+      tie model, `test_parameter()` score-test example (test an effect
+      without re-estimating), `lmtest::lrtest()` usage, REM margins shown
+      once as a calibration map with the descriptive-not-test caveat and
+      a pointer to the diagnostics vignette; same autograph gating and
       precompile rebuild.
 - [ ] 6.3 Roxygen inheritance audit: canonical pages
       (`residuals.result.goldfish`, `evaluate_engine`, `test_gof`)

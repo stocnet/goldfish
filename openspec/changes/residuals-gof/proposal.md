@@ -23,8 +23,12 @@ auxiliary statistics) waits for DyNES to land.
   `return_event_scores` (lifecycle), with a cli size guardrail before
   storing probabilities.
 - New in-pass C++ derived quantities: `observed_rank` + recall (`"ranks"`)
-  and per-actor observed-vs-expected margins (`"margins"`) for all four
-  engines — never materializing the full probability matrix.
+  and per-actor observed-vs-expected margins (`"margins"`; both sender and
+  receiver margins on REM, per-flavor expected-count formulas — see the
+  diagnostic-primitives spec) for all six engines — never materializing
+  the full probability matrix. Margins are documented as calibration
+  descriptives; per-event/sequence-level diagnostics remain the default
+  surface (margins are opt-in).
 - `estimate_*()` gains `keep_preprocessed = FALSE` attaching the
   `preprocessed.goldfish` to the fit; diagnostic consumers accept
   `preprocessed =` and abort with a cli error naming both routes when a
@@ -75,6 +79,10 @@ auxiliary statistics) waits for DyNES to land.
   starts, since that contract is frozen for the parallel track.
 - Documentation avoids roxygen duplication via `@inheritParams`/`@inherit`
   from canonical pages (`residuals.result.goldfish`, `evaluate_engine`).
+- A new long-form diagnostics vignette (`vignettes/diagnostics.Rmd.orig`,
+  D14) is the canonical prose home for residual types, the margins
+  calibration-descriptive reading, and the test workflow; the teaching
+  vignettes keep short diagnostics sections pointing to it.
 
 ## Capabilities
 

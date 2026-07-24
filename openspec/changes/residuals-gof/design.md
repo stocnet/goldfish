@@ -7,7 +7,15 @@ derives every residual formula (deviance, Cox–Snell, Schoenfeld/scaled,
 score, martingale, response), the Boschi–Wit cumulative-score bridge test,
 the score/LM test, and the per-submodel conditional-residual argument for
 DyNAM, and it records the survey of relevent, remstimate, mlogit, and the
-Boschi–Wit GOF implementation. Key code facts it establishes:
+Boschi–Wit GOF implementation. Its §0 (added 2026-07-24 after an
+agent-verified literature pass; bibliography in `.plan/residuals-gof.bib`)
+is the decision layer: margins validity derivations and the authoritative
+margins table (REM stores both sender and receiver margins; per-flavor
+expected-count formulas; coordination sums to 2n), the scaled-Schoenfeld
+scaling correction, the information-clock transform for the bridge tests,
+and the verified package landscape (no package ships analytic actor
+margins; residuals in the wild are per-event, per-effect, or
+simulation-based). Key code facts it establishes:
 
 - All four `default_c` engines (`DyNAM_choice`, `DyNAM_rate`,
   `DyNAM_MM`, `REM`, plus the `_ordered` variants) already compute
@@ -92,9 +100,26 @@ before running; no silent thresholds.
 Each engine gains flags to accumulate, inside the event loop:
 `observed_rank` (rank of the observed alternative among the risk-set
 weights, $O(|R|)$ per event, integer vector) and margins (per-actor
-observed vs expected counts: receiver margins $\sum_k \hat p(r|s_k)$ for
-choice/MM/REM; sender margins $\sum_k \Delta t_k \hat\lambda_s$ for rate).
-Recall@k derives from ranks in R. Rationale: the full probability matrix is
+observed vs expected counts as defined in `.plan/residuals-gof.md` §0.2,
+the authoritative table): receiver margins $\sum_k \hat p(r|s_k)$ for
+choice; **both sender and receiver margins for REM** (exact-time via the
+in-/out-degree compensators $\sum_k \Delta t_k \sum_{\cdot}
+\hat\lambda_{sr}$ including right-censored intervals — NOT probability
+sums, which are the ordinal formula; ordinal via coarsened-softmax sums);
+sender margins $\sum_k \Delta t_k \hat\lambda_s$ (exact-time, incl.
+right-censored intervals) or probability sums (ordinal) for rate;
+per-actor pair margins for coordination (each event credits both members;
+totals sum to $2n$, not $n$). Margins accumulate over the same realized
+risk set as estimation (`twomode_or_reflexive`, support constraints).
+Calibration identities split by flavor: multinomial sums are algebraic
+(machine tolerance, any $\theta$); exact-time sums equal $n$ only at the
+MLE via the intercept score equation (convergence tolerance; goldfish
+force-adds the intercept for exact-time models). Margins are documented as
+calibration descriptives, never per-actor tests (plug-in, negatively
+correlated across actors; formal route = `test_parameter()` with an
+activity/popularity candidate effect). Defaults unchanged: margins are
+opt-in; REM keeps per-event/sequence-level diagnostics as the default
+surface. Recall@k derives from ranks in R. Rationale: the full probability matrix is
 $O(n|R|)$ (≈ 11 GB for a 57k-event, 159-actor REM) while every consumer
 needs only these summaries; returning small vectors keeps the C++→R
 boundary flat. `"probabilities"` stays available for the choice model and
@@ -143,7 +168,9 @@ recompute everything else on demand through `evaluate_engine()`, mirroring
 rejected — collides mentally with remstats). When a replay is needed and
 unavailable, `cli_abort` names both routes (re-estimate with
 `keep_preprocessed = TRUE`, or supply
-`preprocessed = estimate_*(..., preprocessing_only = TRUE)`).
+`preprocessed = compute_statistics(...)` — the consolidated producer from
+revise-gather-output; `estimate_*(..., preprocessing_only = TRUE)` remains
+its equivalent until the naming pass supersedes it).
 
 ### D5 — residuals()/fitted()/predict()/augment() semantics
 
@@ -178,13 +205,32 @@ Per effect $d$: standardized cumulative score process
 $\widehat W_d(u) = \hat J_d^{-1/2} n^{-1/2} \sum_{k \le \lfloor nu \rfloor}
 s_{kd}$ from stored `event_scores`; $T_d = \sup_u |\widehat W_d|$ with
 Kolmogorov p-value $p(t) = 2\sum_{j\ge1} (-1)^{j-1} e^{-2j^2t^2}$;
-$\hat J_d$ from the observed information (empirical variance of centered
-contributions as fallback). Omnibus per block and joint: Cauchy combination
+$\hat J_d = I[\hat\theta]_{dd}/n$ — the **average per-event** observed
+information, not the total (the $n^{-1/2}$ normalization requires the
+per-event scale; the empirical variance of centered contributions is the
+fallback estimator of the same quantity). Omnibus per block and joint:
+Cauchy combination
 $T_o = \frac{1}{L}\sum_l \tan(\pi(0.5 - P_l))$,
 $p = \frac12 - \arctan(t_o)/\pi$ (valid under arbitrary dependence).
 All-FLE goldfish models need no penalty centering, no multivariate-block
-simulation, no model simulation. Verification includes the exact bridge
-property (process returns to 0 at $u = 1$).
+simulation, no model simulation. Offset (fixed-coefficient) terms are
+excluded — their score processes are not bridges; a cli error points to
+`test_parameter()`. Verification includes the exact bridge property
+(process returns to 0 at $u = 1$, free effects, no offsets).
+
+**Clock choice (added 2026-07-24).** The event-index normalization
+$u_k = k/n$ inherits Boschi–Wit's proportional-information-accrual
+assumption (their covariance $\min(t,u) \cdot J$ presumes constant
+increment variance), which cold-start endogenous statistics violate — the
+same phenomenon D13 diagnoses. `test_gof(clock = c("event",
+"information"))`: `"information"` places increment $k$ at
+$u_k = \hat I_d(k)/\hat I_d(n)$ from OPG cumulative sums of stored scores
+(zero passes) — the martingale time change restoring the bridge limit
+under non-uniform accrual. `examine_onset()`'s information-accrual curve
+is exactly the clock map (one diagnostic, no second variant); its docs and
+the diagnostics vignette present the workflow: flat onset segment →
+rerun with the information clock. Derivation:
+`.plan/residuals-gof.md` §0.3(b), §7.4.
 
 ### D8 — test_parameter(): score/LM test, plus Wald for combinations
 
@@ -204,8 +250,12 @@ not reimplemented.
 ### D9 — test_time(): trend (default) and periods methods
 
 `method = "trend"`: zph-style — scaled Schoenfeld residuals
-$\hat s^*_k = \hat\theta + n \bar V^{-1} \hat s_k$ against a time
-transform (`transform = c("identity", "rank", "km")`), per-effect
+$\hat s^*_k = \hat\theta + \bar V^{-1} \hat s_k = \hat\theta + n\,
+I(\hat\theta)^{-1} \hat s_k$ with $\bar V = I(\hat\theta)/n$ (corrected
+2026-07-24 — an earlier draft wrote $\hat\theta + n \bar V^{-1} \hat s_k$,
+an extra factor $n$; $n$ is the diagnosed submodel's own event count,
+never shared across submodels) against a time transform
+(`transform = c("identity", "rank", "km")`), per-effect
 zero-slope score test + global test, from stored primitives only.
 
 `method = "periods"` (named to avoid colliding with windowed effects):
@@ -339,6 +389,26 @@ and requires a replay per deletion; none of these measures estimate that.
 For the onset segment the distinction is benign (conditioning on early
 history is the standard REM move), but the caveat must be stated where
 the residual types are defined.
+
+### D14 — Dedicated diagnostics vignette; teaching vignettes stay short (2026-07-24)
+
+A new long-form vignette (`vignettes/diagnostics.Rmd.orig`, precompiled
+like the others) is the canonical prose documentation of the diagnostics
+layer: the residual-type map (which primitive feeds which type, per
+submodel and flavor), the margins **calibration-descriptive** reading —
+observed-vs-expected actor maps as a screen for unmodeled heterogeneity
+(the Juozaitienė–Wit "ghost effects" motivation), explicitly not
+per-actor tests, with `test_parameter()` as the formal route — the
+`test_*` family with the clock-choice workflow (`examine_onset()` accrual
+curve → `clock = "information"`), and where each identity holds
+(algebraic vs at-the-MLE). The teaching vignettes gain only **short**
+diagnostics sections (fit → a couple of residual calls → one test) with a
+pointer to the diagnostics vignette; depth lives in one place.
+Literature grounding: `.plan/residuals-gof.md` §0.4 and
+`.plan/residuals-gof.bib` — no surveyed package ships analytic actor
+margins (relevent/remstimate are per-event/per-effect; degree calibration
+exists only as simulation workflows), so the vignette must carry the
+justification, not assume it.
 
 ## Risks / Trade-offs
 

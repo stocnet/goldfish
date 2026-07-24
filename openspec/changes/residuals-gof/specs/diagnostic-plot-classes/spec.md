@@ -24,9 +24,10 @@ autograph methods never re-derive node identity.
 #### Scenario: test_gof object is self-contained for plotting
 - **WHEN** a `test_gof()` result is inspected
 - **THEN** it contains the standardized process paths per effect, the
-  normalized event-index axis, and the per-effect statistics table, each as
-  documented components sufficient to draw the bridge plot without calling
-  goldfish.
+  normalized process-time axis (event-index or information-clock,
+  labeled by which clock produced it), and the per-effect statistics
+  table, each as documented components sufficient to draw the bridge plot
+  without calling goldfish.
 
 #### Scenario: autograph renders without goldfish
 - **WHEN** the autograph plot method for the test_gof class is called on a
