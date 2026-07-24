@@ -12,6 +12,7 @@ compute_statistics(
   output = c("preprocessed", "gather", "db"),
   control_prep = set_preprocessing(),
   progress = getOption("progress", default = FALSE),
+  max_length = 63L,
   ...
 )
 }
@@ -44,8 +45,12 @@ with \code{\link[=set_preprocessing]{set_preprocessing()}}.}
 \item{progress}{logical. Whether to print a progress bar during
 preprocessing.}
 
-\item{...}{additional arguments passed to the preprocessing stage, e.g.,
-\code{max_length} for the \code{"db"} output.}
+\item{max_length}{integer. Maximum number of characters for each produced
+effect/column name in the \code{"gather"} and \code{"db"} outputs (default \code{63}, a
+database-safe value). Names are made valid and unique; the uniqueness
+suffix is applied after truncation so uniqueness is preserved.}
+
+\item{...}{additional arguments passed to the preprocessing stage.}
 }
 \value{
 an object of class \code{"preprocessed.goldfish"} with the change

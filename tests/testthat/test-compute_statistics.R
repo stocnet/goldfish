@@ -1,4 +1,24 @@
-test_that("compute_stats returns a preprocessed.goldfish object", {
+test_that("the compute_stats name is gone, with no stub", {
+  # Deleted outright rather than deprecated: the name only ever existed in the
+  # unreleased 2.0.0 development line, so no released user is served by a stub.
+  expect_false("compute_stats" %in% getNamespaceExports("goldfish"))
+  expect_false(exists("compute_stats", envir = asNamespace("goldfish")))
+})
+
+test_that("max_length bounds the produced statistic-column names", {
+  gathered <- compute_statistics(
+    depNetwork ~ inertia(networkState) + recip,
+    data = dataTest,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather",
+    max_length = 8L
+  )
+  expect_lte(max(nchar(gathered$namesEffects)), 8L)
+  expect_identical(anyDuplicated(gathered$namesEffects), 0L)
+})
+
+test_that("compute_statistics returns a preprocessed.goldfish object", {
   prep <- compute_statistics(
     depNetwork ~ inertia + recip,
     data = dataTest,
@@ -9,7 +29,7 @@ test_that("compute_stats returns a preprocessed.goldfish object", {
   expect_s3_class(prep$model_spec, "dynam_choice_spec")
 })
 
-test_that("compute_stats matches the estimate preprocessing only output", {
+test_that("compute_statistics matches the estimate preprocessing only output", {
   formulaTest <- depNetwork ~ inertia + recip
   prep <- compute_statistics(
     formulaTest,
@@ -26,7 +46,7 @@ test_that("compute_stats matches the estimate preprocessing only output", {
   expect_equal(prep, prepEstimate)
 })
 
-test_that("compute_stats output is usable for estimation", {
+test_that("compute_statistics output is usable for estimation", {
   formulaTest <- depNetwork ~ inertia + recip
   prep <- compute_statistics(
     formulaTest,
@@ -48,7 +68,7 @@ test_that("compute_stats output is usable for estimation", {
   expect_equal(coef(fitInit), coef(fitDirect))
 })
 
-test_that("compute_stats validates the output argument", {
+test_that("compute_statistics validates the output argument", {
   gathered <- compute_statistics(
     depNetwork ~ inertia,
     data = dataTest,
@@ -79,7 +99,7 @@ test_that("compute_stats validates the output argument", {
   )
 })
 
-test_that("compute_stats validates model and sub_model values", {
+test_that("compute_statistics validates model and sub_model values", {
   expect_error(
     compute_statistics(
       depNetwork ~ inertia,

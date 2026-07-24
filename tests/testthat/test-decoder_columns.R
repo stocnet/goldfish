@@ -15,6 +15,7 @@ test_that("decoder columns persisted on result$names", {
 })
 
 test_that("decoder columns carried through gather_model_data", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   out <- gather_model_data(
     depNetwork ~ inertia(networkState) +
       outdeg(networkExog, weighted = TRUE),

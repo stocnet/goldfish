@@ -135,11 +135,17 @@ a logical vector indicating if the event is dependent or right-censored.}
 }
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
+
+\code{gather_model_data()} was deprecated in goldfish 2.0.0. Use
+\code{\link[=compute_statistics]{compute_statistics()}} with \code{output = "gather"}, which produces the same
+stack and additionally reaches the sub-models this wrapper's own narrower
+validation rejected (\code{sub_model = "rate_ordered"}).
+
 Gather the preprocess data from a formula given a model and sub model,
 where the output corresponds to the data structure used by the engine
 \code{gather_compute}; see \link{estimate}.
-}
-\details{
+
 It differs from the \code{estimate_dynam()}, \code{estimate_rem()} and
 \code{estimate_dynami()} output when the argument \code{preprocessing_only}
 is set to \code{TRUE} regarding the memory space requirement.

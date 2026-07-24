@@ -14,6 +14,7 @@ test_that("compute_statistics(output = 'preprocessed') returns a preprocessed ob
 
 test_that("compute_statistics(output = 'gather') matches gather_model_data (choice)", {
   skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
   old <- gather_model_data(
     calls_dependent ~ inertia + recip + trans,
     model = "DyNAM",
@@ -42,6 +43,7 @@ test_that("compute_statistics(output = 'gather') matches gather_model_data (choi
 
 test_that("compute_statistics(output = 'gather') matches gather_model_data (REM)", {
   skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
   old <- gather_model_data(
     calls_dependent ~ 1 + inertia + recip,
     model = "REM",
@@ -71,6 +73,7 @@ test_that("compute_statistics(output = 'gather') matches gather_model_data (REM)
 
 test_that("compute_statistics(output = 'gather') matches gather_model_data (coordination)", {
   skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
   old <- gather_model_data(
     calls_dependent ~ inertia + trans,
     model = "DyNAM",

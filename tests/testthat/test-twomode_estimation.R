@@ -48,6 +48,7 @@ test_that("two-mode coordination is rejected, naming the sub-model and layer", {
 })
 
 test_that("the two-mode export lookup joins each side's indices to labels", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   x <- make_stocnet_fixture_twomode_estimable()
   out <- gather_model_data(
     membership ~ inertia + alter(y),

@@ -602,8 +602,11 @@ estimate_from_specification <- function(
 #'   with [set_preprocessing()].
 #' @param progress logical. Whether to print a progress bar during
 #'   preprocessing.
-#' @param ... additional arguments passed to the preprocessing stage, e.g.,
-#'   `max_length` for the `"db"` output.
+#' @param max_length integer. Maximum number of characters for each produced
+#'   effect/column name in the `"gather"` and `"db"` outputs (default `63`, a
+#'   database-safe value). Names are made valid and unique; the uniqueness
+#'   suffix is applied after truncation so uniqueness is preserved.
+#' @param ... additional arguments passed to the preprocessing stage.
 #'
 #' @return an object of class `"preprocessed.goldfish"` with the change
 #'   statistics of the effects for the event sequence and the information
@@ -629,6 +632,7 @@ compute_statistics <- function(
   output = c("preprocessed", "gather", "db"),
   control_prep = set_preprocessing(),
   progress = getOption("progress", default = FALSE),
+  max_length = 63L,
   ...
 ) {
   model <- match.arg(model)
@@ -648,6 +652,7 @@ compute_statistics <- function(
     control_prep = control_prep,
     progress = progress,
     preprocessing_only = TRUE,
+    max_length = max_length,
     ...
   )
 }

@@ -1,4 +1,29 @@
+test_that("gather_model_data() is soft-deprecated onto compute_statistics()", {
+  expect_snapshot(invisible(gather_model_data(
+    depNetwork ~ inertia(networkState),
+    data = dataTest
+  )))
+})
+
+test_that("gather_model_data() returns what compute_statistics() returns", {
+  withr::local_options(lifecycle_verbosity = "quiet")
+  expect_identical(
+    gather_model_data(
+      depNetwork ~ inertia(networkState) + recip,
+      data = dataTest
+    ),
+    compute_statistics(
+      depNetwork ~ inertia(networkState) + recip,
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      output = "gather"
+    )
+  )
+})
+
 test_that("Args check", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   expect_error(
     gather_model_data(
       depNetwork ~ inertia(networkState, ignore_repetitions = TRUE),
@@ -27,6 +52,7 @@ test_that("Args check", {
   )
 })
 test_that("Printing", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   expect_output(
     gather_model_data(
       depNetwork ~ inertia(networkState),
@@ -38,6 +64,7 @@ test_that("Printing", {
   )
 })
 test_that("Output", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   out <- gather_model_data(
     depNetwork ~ inertia(networkState),
     data = dataTest
@@ -48,6 +75,7 @@ test_that("Output", {
   expect_length(out, 11)
 })
 test_that("export names are valid, unique R names", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   out <- gather_model_data(
     depNetwork ~ inertia(networkState, weighted = TRUE) + outdeg(networkExog),
     data = dataTest

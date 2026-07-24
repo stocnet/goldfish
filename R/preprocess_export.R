@@ -6,6 +6,14 @@
 
 #' Gather model data from a formula
 #'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' `gather_model_data()` was deprecated in goldfish 2.0.0. Use
+#' [compute_statistics()] with `output = "gather"`, which produces the same
+#' stack and additionally reaches the sub-models this wrapper's own narrower
+#' validation rejected (`sub_model = "rate_ordered"`).
+#'
 #' Gather the preprocess data from a formula given a model and sub model,
 #' where the output corresponds to the data structure used by the engine
 #' `gather_compute`; see [estimate].
@@ -131,6 +139,11 @@ gather_model_data <- function(
   progress = getOption("progress"),
   max_length = 63L
 ) {
+  lifecycle::deprecate_soft(
+    when = "2.0.0",
+    what = "gather_model_data()",
+    with = I('compute_statistics(output = "gather")')
+  )
   model <- match.arg(
     arg = if (length(model) > 1) model[1] else model,
     choices = c("DyNAM", "REM")

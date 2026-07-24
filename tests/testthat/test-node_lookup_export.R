@@ -39,6 +39,7 @@ join_side <- function(lookup, index, side) {
 }
 
 test_that("one-mode gather lookup joins index_i/index_j back to node labels", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   x <- make_stocnet_fixture()
   out <- gather_model_data(
     calls ~ inertia,
@@ -61,6 +62,7 @@ test_that("one-mode gather lookup joins index_i/index_j back to node labels", {
 })
 
 test_that("subset one-mode lookup carries global ids that skip off-side nodes", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   x <- subset_one_mode_fixture()
   out <- gather_model_data(
     calls ~ inertia,
@@ -85,6 +87,7 @@ test_that("subset one-mode lookup carries global ids that skip off-side nodes", 
 })
 
 test_that("two-mode gather lookup resolves each side's indices", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   x <- make_stocnet_fixture_twomode()
   out <- gather_model_data(
     membership ~ inertia,

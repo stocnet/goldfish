@@ -5,6 +5,7 @@
 # `info$focal` is only the default for *which* layer to model.
 
 test_that("a focal-less two-mode object estimates, resolving modeled sides", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   obj <- as_goldfish(make_stocnet_fixture_twomode_estimable_nofocal())
   fit <- estimate_dynam(membership ~ 1 + ego(x), sub_model = "rate", data = obj)
   expect_s3_class(fit, "result.goldfish")
@@ -32,6 +33,7 @@ test_that("a focal-less one-mode object estimates", {
 })
 
 test_that("modeling a layer other than info$focal resolves to that layer", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   # multipartite: attend (actor -> event), coauthor (actor -> actor),
   # member (actor -> org). Point info$focal at the one-mode `coauthor` but model
   # the two-mode `attend`: side/mode resolution must follow `attend`.
@@ -61,6 +63,7 @@ test_that("modeling a layer other than info$focal resolves to that layer", {
 })
 
 test_that("two-mode side-validity is keyed to the modeled layer's mode pair", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   # `inertia(member)` (actor -> org) over focal `attend` (actor -> event) is
   # invalid: the argument's receiver side (org) is not the modeled layer's
   # receiver side (event). The abort must name `attend`'s pair, proving the
@@ -81,6 +84,7 @@ test_that("two-mode side-validity is keyed to the modeled layer's mode pair", {
 })
 
 test_that("no resolvable dependent is a clear error, not an indexing crash", {
+  withr::local_options(lifecycle_verbosity = "quiet")
   tm <- make_stocnet_fixture_twomode_estimable_nofocal()
 
   # Specification surface: neither `layer` nor `info$focal`.
