@@ -126,7 +126,8 @@ List estimate_REM(
     const bool active_dyad_is_point,
     const bool return_event_scores = false,
     const bool return_ranks = false,
-    const bool return_margins = false
+    const bool return_margins = false,
+    const bool return_total_rate = false
 ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -170,6 +171,12 @@ List estimate_REM(
      margin_observed_receiver = arma::vec(n_actors_2, fill::zeros);
      margin_expected_receiver = arma::vec(n_actors_2, fill::zeros);
    }
+   // Opt-in per-event total rate: the summed fitted intensity over the realized
+   // risk set, one value per event. `total_rate * interevent time` is the
+   // Cox-Snell/compensator residual, recovered without an evaluation pass.
+   // Allocated only when requested.
+   arma::vec total_rate;
+   if (return_total_rate) total_rate = arma::vec(n_events, fill::zeros);
 
 
    // Check whether there are composition change and initialize
@@ -280,6 +287,7 @@ List estimate_REM(
      arma::vec e = arma::exp(lin_pred);
      e.elem(arma::find(allowed < 0.5)).zeros();
      double normalizer = accu(e);
+     if (return_total_rate) total_rate(id_event) = normalizer;
      if (return_margins) {
        // `e` is already zero on masked dyads, so the double sum ranges over the
        // realized risk set; sender and receiver totals coincide by construction.
@@ -336,6 +344,7 @@ List estimate_REM(
      Named("margin_observed_sender") = margin_observed_sender,
      Named("margin_expected_sender") = margin_expected_sender,
      Named("margin_observed_receiver") = margin_observed_receiver,
-     Named("margin_expected_receiver") = margin_expected_receiver
+     Named("margin_expected_receiver") = margin_expected_receiver,
+     Named("total_rate") = total_rate
    );
  }

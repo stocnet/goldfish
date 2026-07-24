@@ -228,3 +228,139 @@ test_that("margins are absent unless requested", {
   )
   expect_null(fit$margins)
 })
+
+# total_rate (per-event summed fitted rate over the realized risk set) rides
+# along with the "loglik" primitive on exact-time submodels and is default-on.
+# `total_rate * interevent time` is the Cox-Snell/compensator residual, recovered
+# from stored primitives with no evaluation pass; at the MLE the compensators sum
+# to the dependent-event count via the intercept score equation.
+total_rate_fit <- function(spec, data_list, preprocessing_only = FALSE) {
+  args <- list(
+    x = spec$formula,
+    data = data_list[[spec$dataset]],
+    control_estimation = do.call(
+      set_estimation_opt,
+      c(list(), spec$estimation_args)
+    ),
+    preprocessing_only = preprocessing_only,
+    progress = FALSE,
+    verbose = FALSE
+  )
+  if (spec$model == "DyNAM") {
+    args$sub_model <- spec$sub_model
+    suppressWarnings(do.call(estimate_dynam, args))
+  } else {
+    if (!is.null(spec$sub_model)) {
+      args$sub_model <- spec$sub_model
+    }
+    suppressWarnings(do.call(estimate_rem, args))
+  }
+}
+
+test_that("total_rate reproduces the Cox-Snell residuals on exact-time fits", {
+  skip_on_cran()
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+
+  # DyNAM rate: default diagnostics store total_rate; the compensator identity is
+  # exact on right-censored intervals (intervalLogL = -Dt * total_rate there) and
+  # the compensators sum to the dependent-event count at the MLE.
+  fit_rate <- total_rate_fit(grid[["se_dynam_rate"]], data_list)
+  prep_rate <- total_rate_fit(grid[["se_dynam_rate"]], data_list, TRUE)
+  dt_rate <- prep_rate$intervals
+  expect_false(is.null(fit_rate$total_rate))
+  expect_length(fit_rate$total_rate, fit_rate$nEvents)
+  expect_true(all(fit_rate$total_rate > 0))
+  censored <- prep_rate$is_dependent == 0
+  expect_equal(
+    fit_rate$total_rate[censored] * dt_rate[censored],
+    -fit_rate$intervalLogL[censored]
+  )
+  expect_equal(
+    sum(fit_rate$total_rate * dt_rate),
+    sum(prep_rate$is_dependent == 1),
+    tolerance = 1e-4
+  )
+
+  # REM (exact-time): same compensator-sum identity.
+  fit_rem <- total_rate_fit(grid[["se_rem"]], data_list)
+  prep_rem <- total_rate_fit(grid[["se_rem"]], data_list, TRUE)
+  expect_false(is.null(fit_rem$total_rate))
+  expect_equal(
+    sum(fit_rem$total_rate * prep_rem$intervals),
+    sum(prep_rem$is_dependent == 1),
+    tolerance = 1e-4
+  )
+})
+
+test_that("total_rate is stored only for exact-time submodels", {
+  fit_choice <- estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest
+  )
+  expect_null(fit_choice$total_rate)
+
+  fit_ordered <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "REM",
+    sub_model = "rate_ordered",
+    data = dataTest
+  ))
+  expect_null(fit_ordered$total_rate)
+
+  # Dropping "loglik" from diagnostics drops total_rate on an exact-time fit.
+  fit_no_loglik <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "REM",
+    sub_model = "rate",
+    data = dataTest,
+    control_estimation = set_estimation_opt(diagnostics = "scores")
+  ))
+  expect_null(fit_no_loglik$total_rate)
+})
+
+test_that("large per-event storage emits a footprint note above the threshold", {
+  # Pure helper: fires above the event threshold, silent below, and scales the
+  # reported footprint with the requested primitives.
+  expect_message(
+    note_diagnostic_storage_footprint(
+      n_events = 2e5,
+      diagnostics = c("loglik", "scores"),
+      n_params = 4,
+      is_exact_time = TRUE,
+      threshold = 1e5
+    ),
+    "per-event diagnostics"
+  )
+  expect_message(
+    note_diagnostic_storage_footprint(
+      n_events = 2e5,
+      diagnostics = c("loglik", "scores"),
+      n_params = 4,
+      is_exact_time = TRUE,
+      threshold = 1e5
+    ),
+    "diagnostics = FALSE"
+  )
+  expect_no_message(
+    note_diagnostic_storage_footprint(
+      n_events = 500,
+      diagnostics = c("loglik", "scores"),
+      n_params = 4,
+      is_exact_time = TRUE,
+      threshold = 1e5
+    )
+  )
+  # diagnostics = FALSE (no per-event vectors) stays silent even above threshold.
+  expect_no_message(
+    note_diagnostic_storage_footprint(
+      n_events = 2e5,
+      diagnostics = character(0),
+      n_params = 4,
+      is_exact_time = TRUE,
+      threshold = 1e5
+    )
+  )
+})

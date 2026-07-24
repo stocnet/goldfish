@@ -30,6 +30,7 @@ estimate_c_int <- function(
   return_event_scores = FALSE,
   return_ranks = FALSE,
   return_margins = FALSE,
+  return_total_rate = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -305,7 +306,8 @@ estimate_c_int <- function(
     pars,
     need_scores,
     need_ranks = FALSE,
-    need_margins = FALSE
+    need_margins = FALSE,
+    need_total_rate = FALSE
   ) {
     estimate_(
       spec = spec,
@@ -331,7 +333,8 @@ estimate_c_int <- function(
       active_dyad_is_point = dyad_is_point,
       return_event_scores = need_scores,
       return_ranks = need_ranks,
-      return_margins = need_margins
+      return_margins = need_margins,
+      return_total_rate = need_total_rate
     )
   }
 
@@ -379,7 +382,8 @@ estimate_c_int <- function(
         parameters,
         return_event_scores,
         return_ranks,
-        return_margins
+        return_margins,
+        return_total_rate
       )
     }
 
@@ -616,6 +620,15 @@ estimate_c_int <- function(
     }
     if (!is.null(margins)) estimationResult$margins <- margins
   }
+  if (
+    return_total_rate &&
+      !is.null(res$total_rate) &&
+      length(res$total_rate) > 0
+  ) {
+    # Only the exact-time engines (rate, REM) return a total rate; the
+    # multinomial engines leave it empty, so it stays off their fits.
+    estimationResult$total_rate <- as.numeric(res$total_rate)
+  }
   if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
   }
@@ -795,7 +808,8 @@ estimate_ <- function(
   active_dyad_is_point = FALSE,
   return_event_scores = FALSE,
   return_ranks = FALSE,
-  return_margins = FALSE
+  return_margins = FALSE,
+  return_total_rate = FALSE
 ) {
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
@@ -899,7 +913,8 @@ estimate_ <- function(
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
-      return_margins = return_margins
+      return_margins = return_margins,
+      return_total_rate = return_total_rate
     )
   }
 
@@ -926,7 +941,8 @@ estimate_ <- function(
       impute,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
-      return_margins = return_margins
+      return_margins = return_margins,
+      return_total_rate = return_total_rate
     )
   }
 

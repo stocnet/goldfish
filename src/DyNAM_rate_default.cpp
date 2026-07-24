@@ -39,7 +39,8 @@ inline arma::mat reduce_mat_to_vector(
      bool impute = true,
      const bool return_event_scores = false,
      const bool return_ranks = false,
-     const bool return_margins = false
+     const bool return_margins = false,
+     const bool return_total_rate = false
  ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -79,6 +80,12 @@ inline arma::mat reduce_mat_to_vector(
      margin_observed = arma::vec(n_actors_1, fill::zeros);
      margin_expected = arma::vec(n_actors_1, fill::zeros);
    }
+   // Opt-in per-event total rate: the summed fitted rate over the realized risk
+   // set (the softmax normalizer), one value per event. `total_rate * interevent
+   // time` is the Cox-Snell/compensator residual, recovered without an
+   // evaluation pass. Allocated only when requested.
+   arma::vec total_rate;
+   if (return_total_rate) total_rate = arma::vec(n_events, fill::zeros);
 
    // Check whether there are composition change and initialize
    // the presence of actor1 and actor2
@@ -197,6 +204,7 @@ inline arma::mat reduce_mat_to_vector(
      // fisher matrix
      fisher += timespan_current_event * fisher_current_event;
      //Rcpp::Rcout << "fisher:" << std::endl << fisher_current_event << std::endl;
+     if (return_total_rate) total_rate(id_event) = normalizer;
      // logLikelihood
      intervalLogL(id_event) = - timespan_current_event * normalizer;
      if (is_dependent(id_event)) {
@@ -223,7 +231,8 @@ inline arma::mat reduce_mat_to_vector(
      Named("event_scores") = event_scores,
      Named("observed_rank") = observed_rank,
      Named("margin_observed") = margin_observed,
-     Named("margin_expected") = margin_expected
+     Named("margin_expected") = margin_expected,
+     Named("total_rate") = total_rate
    );
  }
 

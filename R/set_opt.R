@@ -98,7 +98,10 @@
 #'   `observed_rank`, `"margins"` to per-actor observed and expected counts, and
 #'   `"probabilities"` to per-event probability vectors. Unknown names abort with
 #'   an error listing the valid primitives. Default is `c("loglik", "scores")`,
-#'   preserving today's stored log-likelihood and adding the (free) scores.
+#'   preserving today's stored log-likelihood and adding the (free) scores. For
+#'   fits with more than 100,000 events a one-time message reports the
+#'   approximate footprint of the per-event vectors and names `diagnostics =
+#'   FALSE` as the opt-out.
 #' @param optimizer `r lifecycle::badge("experimental")` A character string
 #'   naming the optimization algorithm. Options are:
 #'   \describe{

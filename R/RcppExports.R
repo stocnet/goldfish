@@ -19,8 +19,8 @@ estimate_DyNAM_choice <- function(parameters, dep_event_mat, stat_mat_init, stat
 
 #' Calculation for estimating an DyNAM-rate model
 #' @noRd
-estimate_DyNAM_rate <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE) {
-    .Call('_goldfish_estimate_DyNAM_rate', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, return_event_scores, return_ranks, return_margins)
+estimate_DyNAM_rate <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_total_rate = FALSE) {
+    .Call('_goldfish_estimate_DyNAM_rate', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, return_event_scores, return_ranks, return_margins, return_total_rate)
 }
 
 #' Calculation for estimating an DyNAM-rate-ordered model
@@ -126,8 +126,8 @@ estimate_DyNAM_rate_ordered <- function(parameters, dep_event_mat, stat_mat_init
 #'         given the input parameter and data.}
 #' }
 #' @noRd
-estimate_REM <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE) {
-    .Call('_goldfish_estimate_REM', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins)
+estimate_REM <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_total_rate = FALSE) {
+    .Call('_goldfish_estimate_REM', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_total_rate)
 }
 
 #' Calculation for estimating an REM-choice-ordered model

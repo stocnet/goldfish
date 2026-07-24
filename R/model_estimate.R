@@ -879,6 +879,45 @@ warn_probabilities_footprint <- function(
   invisible()
 }
 
+# Pre-run note: with a large event count the per-event diagnostic vectors
+# (`intervalLogL`, `total_rate`, and the `event_scores` columns) occupy
+# noticeable memory. Emit a one-time cli message with the estimated footprint and
+# the `diagnostics = FALSE` opt-out. Fires only above `threshold` events so
+# ordinary fits stay quiet; `total_rate` is stored only for exact-time submodels.
+note_diagnostic_storage_footprint <- function(
+  n_events,
+  diagnostics,
+  n_params,
+  is_exact_time,
+  threshold = 1e5,
+  call = rlang::caller_env()
+) {
+  if (n_events < threshold) {
+    return(invisible())
+  }
+  doubles_per_event <- 0
+  if ("loglik" %in% diagnostics) {
+    doubles_per_event <- doubles_per_event + 1 + as.integer(is_exact_time)
+  }
+  if ("scores" %in% diagnostics) {
+    doubles_per_event <- doubles_per_event + n_params
+  }
+  if (doubles_per_event == 0) {
+    return(invisible())
+  }
+  bytes <- as.numeric(n_events) * doubles_per_event * 8
+  size <- format(structure(bytes, class = "object_size"), units = "auto")
+  cli::cli_inform(
+    c(
+      "i" = "Storing per-event diagnostics for {n_events} event{?s} will use
+             about {size}.",
+      "i" = "Set {.code diagnostics = FALSE} to skip per-event storage."
+    ),
+    call = call
+  )
+  invisible()
+}
+
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
 #' @importFrom stats as.formula
@@ -1777,6 +1816,12 @@ estimate_wrapper <- function(
   if (prob_requested) {
     warn_probabilities_footprint(prep, model_spec)
   }
+  note_diagnostic_storage_footprint(
+    n_events = length(prep$is_dependent),
+    diagnostics = control_estimation$diagnostics,
+    n_params = length(rhs_names) + as.integer(isTRUE(has_intercept)),
+    is_exact_time = identical(sub_model, "rate")
+  )
 
   ### 3.4 Assemble the fixed-coefficient (offset) vector----
   # offset() terms fix their coefficient rather than estimate it.
@@ -1921,7 +1966,8 @@ estimate_wrapper <- function(
             engine = control_estimation$engine,
             optimizer = optimizer,
             return_ranks = "ranks" %in% control_estimation$diagnostics,
-            return_margins = "margins" %in% control_estimation$diagnostics
+            return_margins = "margins" %in% control_estimation$diagnostics,
+            return_total_rate = "loglik" %in% control_estimation$diagnostics
           )
         )
       ),

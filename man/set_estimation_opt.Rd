@@ -118,7 +118,9 @@ exact-time submodels), \code{"scores"} to \code{event_scores}, \code{"ranks"} to
 \code{observed_rank}, \code{"margins"} to per-actor observed and expected counts, and
 \code{"probabilities"} to per-event probability vectors. Unknown names abort with
 an error listing the valid primitives. Default is \code{c("loglik", "scores")},
-preserving today's stored log-likelihood and adding the (free) scores.}
+preserving today's stored log-likelihood and adding the (free) scores. For
+fits with more than 100,000 events a one-time message reports the
+approximate footprint of the per-event vectors and names \code{diagnostics = FALSE} as the opt-out.}
 
 \item{optimizer}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A character string
 naming the optimization algorithm. Options are:
