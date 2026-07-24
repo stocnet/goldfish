@@ -1072,17 +1072,23 @@ estimate_wrapper <- function(
 
   # The per-event score matrix is produced by the two per-event engines
   # (default_c via the C++ evaluator flag, default in its contribution loop);
-  # gather_compute has no per-event decomposition to expose.
+  # gather_compute has no per-event decomposition to expose. Because "scores" is
+  # in the default diagnostics, aborting whenever it is on would break every
+  # gather_compute fit; instead abort only when scores were requested explicitly
+  # and silently drop the default-sourced request.
   if (
     isTRUE(control_estimation$return_event_scores) &&
       control_estimation$engine == "gather_compute"
   ) {
-    cli::cli_abort(c(
-      "{.arg return_event_scores} is not supported with
-       {.code engine = \"gather_compute\"}.",
-      "i" = "Use {.code engine = \"default_c\"} or {.code engine = \"default\"}
-             to return the per-event score matrix."
-    ))
+    if (isTRUE(control_estimation$scores_explicit)) {
+      cli::cli_abort(c(
+        "The {.val scores} diagnostic (per-event score matrix) is not supported
+         with {.code engine = \"gather_compute\"}.",
+        "i" = "Use {.code engine = \"default_c\"} or {.code engine = \"default\"}
+               to store the per-event score matrix."
+      ))
+    }
+    control_estimation$return_event_scores <- FALSE
   }
 
   # Optimizers other than the built-in Newton-Raphson are maxLik-backed:

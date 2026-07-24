@@ -190,12 +190,20 @@ set_estimation_opt <- function(
     return_event_scores
   )
   diagnostics <- resolved$diagnostics
-  # The three flags drive estimation storage until it reads `diagnostics`
-  # directly; deriving them from the legacy view keeps the pre-deprecation
-  # default behavior (and the gather_compute score guard) unchanged.
-  return_interval_loglik <- resolved$return_interval_loglik
-  return_probabilities <- resolved$return_probabilities
-  return_event_scores <- resolved$return_event_scores
+  # `diagnostics` is the single source of truth for per-event storage. The three
+  # legacy booleans are derived from it (reconcile has already folded any supplied
+  # return_* flag into `diagnostics`), so the default `c("loglik", "scores")`
+  # stores the per-event scores.
+  return_interval_loglik <- "loglik" %in% diagnostics
+  return_probabilities <- "probabilities" %in% diagnostics
+  return_event_scores <- "scores" %in% diagnostics
+  # Whether the score matrix was asked for explicitly (a supplied `diagnostics`
+  # naming "scores", or the legacy `return_event_scores` flag) rather than
+  # inherited from the default. The gather_compute engine, which has no per-event
+  # decomposition, aborts only on an explicit request and silently drops
+  # default-sourced scores.
+  scores_explicit <- return_event_scores &&
+    (diagnostics_supplied || "return_event_scores" %in% resolved$deprecated)
 
   # Emit the soft-deprecation from this frame so lifecycle attributes it to the
   # direct caller (a nested helper frame reads as an internal, silent call).
@@ -322,6 +330,7 @@ set_estimation_opt <- function(
     return_interval_loglik = return_interval_loglik,
     return_probabilities = return_probabilities,
     return_event_scores = return_event_scores,
+    scores_explicit = scores_explicit,
     diagnostics = diagnostics,
     optimizer = optimizer,
     engine = engine

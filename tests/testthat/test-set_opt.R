@@ -143,11 +143,26 @@ test_that("legacy flags map onto diagnostics and the derived flags", {
   expect_equal(opt3$diagnostics, c("loglik", "probabilities"))
 })
 
-test_that("diagnostics default preserves historical storage flags", {
+test_that("diagnostics default drives the storage flags (scores on)", {
   opt <- set_estimation_opt()
+  # `diagnostics = c("loglik", "scores")` is the single source of truth, so the
+  # derived storage flags follow it: loglik and scores on, probabilities off.
   expect_true(opt$return_interval_loglik)
   expect_false(opt$return_probabilities)
-  expect_false(opt$return_event_scores)
+  expect_true(opt$return_event_scores)
+  # Default-sourced scores are not an explicit request (gather_compute drops
+  # them silently rather than aborting).
+  expect_false(opt$scores_explicit)
+})
+
+test_that("scores_explicit tracks explicit score requests", {
+  withr::local_options(lifecycle_verbosity = "quiet")
+  expect_true(
+    set_estimation_opt(diagnostics = c("loglik", "scores"))$scores_explicit
+  )
+  expect_true(set_estimation_opt(return_event_scores = TRUE)$scores_explicit)
+  expect_false(set_estimation_opt(diagnostics = "loglik")$scores_explicit)
+  expect_false(set_estimation_opt(diagnostics = FALSE)$scores_explicit)
 })
 
 test_that("mixing diagnostics with a legacy flag aborts", {

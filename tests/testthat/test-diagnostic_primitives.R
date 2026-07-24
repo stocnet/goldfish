@@ -1,8 +1,9 @@
 # In-pass diagnostic primitives (ranks, margins, total_rate) computed by the
 # default_c engines. For the multinomial engines observed_rank is validated
 # against ranks enumerated from the default R engine's per-event probabilities
-# at the same MLE; the exact-time engines are cross-checked against the default
-# R engine in the engine-parity tests (see test-diagnostic_parity).
+# at the same MLE, and the parity tests at the end compare default_c ranks and
+# margins to the default R engine evaluated at identical parameters; the
+# exact-time engines get their own structural and Cox-Snell identity checks.
 
 # Rank of the observed alternative among the risk set, enumerated from a fit
 # that stored per-event probabilities. For a multinomial submodel
@@ -363,4 +364,77 @@ test_that("large per-event storage emits a footprint note above the threshold", 
       threshold = 1e5
     )
   )
+})
+
+# Cross-engine parity: the in-pass default_c ranks and margins must equal the
+# independent quantities the default R engine computes from its per-event
+# probability matrix. Both engines are evaluated at the SAME parameter vector
+# (default_c's MLE, pinned on the default engine via max_iterations = 0) so the
+# parity is machine-precision rather than the coarser cross-engine tolerance.
+parity_fit <- function(spec, data_list, ...) {
+  ctrl <- do.call(set_estimation_opt, list(...))
+  args <- list(
+    x = spec$formula,
+    data = data_list[[spec$dataset]],
+    control_estimation = ctrl,
+    progress = FALSE,
+    verbose = FALSE
+  )
+  if (spec$model == "DyNAM") {
+    args$sub_model <- spec$sub_model
+    suppressWarnings(do.call(estimate_dynam, args))
+  } else {
+    if (!is.null(spec$sub_model)) {
+      args$sub_model <- spec$sub_model
+    }
+    suppressWarnings(do.call(estimate_rem, args))
+  }
+}
+
+test_that("default_c ranks match the default engine at the same parameters", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+  for (nm in c("se_dynam_choice", "se_dynam_rate_ordered", "se_rem_ordered")) {
+    spec <- grid[[nm]]
+    fc <- parity_fit(spec, data_list, diagnostics = c("loglik", "ranks"))
+    fd <- parity_fit(
+      spec,
+      data_list,
+      engine = "default",
+      return_probabilities = TRUE,
+      initial_parameters = fc$parameters,
+      max_iterations = 0
+    )
+    expect_equal(fc$observed_rank, ranks_from_probabilities(fd), info = nm)
+  }
+})
+
+test_that("default_c margins match the default engine at the same parameters", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+  # Single-sided multinomial margins are the column sums of the default engine's
+  # per-event probability vectors (receiver for choice, sender for ordered rate).
+  for (nm in c("se_dynam_choice", "se_dynam_rate_ordered")) {
+    spec <- grid[[nm]]
+    fc <- parity_fit(spec, data_list, diagnostics = c("loglik", "margins"))
+    fd <- parity_fit(
+      spec,
+      data_list,
+      engine = "default",
+      return_probabilities = TRUE,
+      initial_parameters = fc$parameters,
+      max_iterations = 0
+    )
+    expected_from_prob <- Reduce(`+`, fd$eventProbabilities)
+    expect_equal(
+      fc$margins$expected,
+      expected_from_prob,
+      tolerance = 1e-9,
+      info = nm
+    )
+  }
 })

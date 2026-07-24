@@ -101,22 +101,36 @@ test_that("event_scores columns are named by effect", {
   expect_identical(colnames(fit$event_scores), rownames(fit$names))
 })
 
-test_that("event_scores is absent unless requested", {
+test_that("event_scores follows the scores diagnostic (default on)", {
   skip_on_cran()
   data_list <- list(social_evolution = baselines_social_evolution_data())
   spec <- baselines_model_grid()$se_dynam_choice
   for (engine in c("default_c", "default")) {
-    fit <- suppressWarnings(baselines_fit(spec, engine, data_list))
-    expect_null(fit$event_scores, info = engine)
+    # scores are in the default diagnostics, so the matrix is present by default
+    fit_default <- suppressWarnings(baselines_fit(spec, engine, data_list))
+    expect_false(is.null(fit_default$event_scores), info = engine)
+    # dropping "scores" from diagnostics drops the matrix
+    fit_no_scores <- suppressWarnings(estimate_dynam(
+      spec$formula,
+      data = data_list$social_evolution,
+      sub_model = spec$sub_model,
+      control_estimation = set_estimation_opt(
+        engine = engine,
+        diagnostics = "loglik"
+      ),
+      progress = FALSE
+    ))
+    expect_null(fit_no_scores$event_scores, info = engine)
   }
 })
 
-test_that("gather_compute rejects return_event_scores", {
+test_that("gather_compute rejects an explicit scores request", {
   skip_on_cran()
   data_list <- list(social_evolution = baselines_social_evolution_data())
   spec <- baselines_model_grid()$se_dynam_choice
+  # Explicit request (legacy flag or diagnostics) aborts naming the engine.
   expect_error(
-    estimate_dynam(
+    suppressWarnings(estimate_dynam(
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
@@ -125,7 +139,36 @@ test_that("gather_compute rejects return_event_scores", {
         return_event_scores = TRUE
       ),
       progress = FALSE
+    )),
+    "gather_compute"
+  )
+  expect_error(
+    estimate_dynam(
+      spec$formula,
+      data = data_list$social_evolution,
+      sub_model = spec$sub_model,
+      control_estimation = set_estimation_opt(
+        engine = "gather_compute",
+        diagnostics = c("loglik", "scores")
+      ),
+      progress = FALSE
     ),
     "gather_compute"
   )
+})
+
+test_that("gather_compute silently drops default-sourced scores", {
+  skip_on_cran()
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  spec <- baselines_model_grid()$se_dynam_choice
+  # Default diagnostics include "scores", but gather_compute cannot produce them;
+  # the fit succeeds with no per-event score matrix rather than aborting.
+  fit <- suppressWarnings(estimate_dynam(
+    spec$formula,
+    data = data_list$social_evolution,
+    sub_model = spec$sub_model,
+    control_estimation = set_estimation_opt(engine = "gather_compute"),
+    progress = FALSE
+  ))
+  expect_null(fit$event_scores)
 })
