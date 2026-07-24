@@ -29,3 +29,39 @@
       -- Layers 
       * calls (focal): event, directed, increment
 
+# the estimation surface rejects a legacy environment
+
+    Code
+      estimate_dynam(y ~ 1, data = env)
+    Condition
+      Error in `estimate_dynam()`:
+      ! `data` must be a <stocnet> object, not a legacy <data.goldfish> environment.
+      i Rebuild the object with `make_data()` / `make_groups_interaction()` (both now return a <stocnet>).
+
+---
+
+    Code
+      estimate_rem(y ~ 1, data = env)
+    Condition
+      Error in `estimate_rem()`:
+      ! `data` must be a <stocnet> object, not a legacy <data.goldfish> environment.
+      i Rebuild the object with `make_data()` / `make_groups_interaction()` (both now return a <stocnet>).
+
+---
+
+    Code
+      estimate_dynami(y ~ 1, data = env)
+    Condition
+      Error in `estimate_dynami()`:
+      ! `data` must be a <stocnet> object, not a legacy <data.goldfish> environment.
+      i Rebuild the object with `make_data()` / `make_groups_interaction()` (both now return a <stocnet>).
+
+---
+
+    Code
+      make_specification(rate = list(y ~ 1), model = "DyNAM", data = env)
+    Condition
+      Error in `make_specification()`:
+      ! `data` must be a <stocnet> object, not a legacy <data.goldfish> environment.
+      i Rebuild the object with `make_data()` / `make_groups_interaction()` (both now return a <stocnet>).
+

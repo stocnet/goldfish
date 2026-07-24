@@ -27,18 +27,21 @@ be some random choice to be made.}
 should be printed in the console.}
 }
 \value{
-a \code{list} with the following data frames
-\describe{
-\item{interaction.updates}{containing all joining and leaving events}
-\item{groups}{containing the nodeset corresponding to interaction groups
-(the second mode of the network)}
-\item{dependent.events}{for the events that should be modeled}
-\item{exogenous.events}{that are not modeled (for example when an actor
-leaves a group and joins its own singleton group, only the leaving event
-is modeled but not the joining event)}
-\item{composition.changes}{that is an events list that should be attached
-to the groups nodeset to indicate when a group is present or not}
-}
+a model-ready \code{goldfish} data object (a stamped multipartite
+\code{stocnet}). Its \code{nodes} table holds the actors (\code{mode = "actor"}, keeping
+their attributes) and the derived interaction groups (\code{mode = "group"}); a
+focal two-mode \code{interactions} layer carries the actors x groups join/leave
+history (dependent joins stamped \code{flavor = "join"}, dependent leaves
+\code{flavor = "leave"}, exogenous group-composition rows \code{flavor = NA}, and the
+construction's total event order in the reserved \code{order} column); and a
+one-mode \code{past} layer carries the actors x actors past-interaction updates.
+Pass the object directly to \code{estimate_dynami()} or \code{make_specification()}.
+
+This replaces the previous five-component list return
+(\code{interaction.updates}, \code{groups}, \code{dependent.events}, \code{exogenous.events},
+\code{opportunities}): those pieces are now components of the returned object,
+and the \code{opportunities} list is retired in favor of the choice model's
+auto-derived group-availability support constraint.
 }
 \description{
 This function create all objects necessary to the estimation of a DyNAM-i

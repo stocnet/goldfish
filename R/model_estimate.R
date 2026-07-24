@@ -276,6 +276,27 @@ reject_joint_specification <- function(x, call = rlang::caller_env()) {
   invisible(x)
 }
 
+# Reject a legacy `data.goldfish` environment at the public surface. Every model
+# family now assembles to a stocnet (`make_data()` / `make_groups_interaction()`
+# return one, or abort), so no public entrypoint needs an environment; the only
+# environments left are objects saved before the 2.0.0 flip. The internal
+# stocnet -> environment bridge for DyNAM-i is built inside `estimate_wrapper()`,
+# after this guard, so it is unaffected.
+abort_legacy_environment <- function(data, call = rlang::caller_env()) {
+  if (is.environment(data)) {
+    cli::cli_abort(
+      c(
+        "{.arg data} must be a {.cls stocnet} object, not a legacy
+         {.cls data.goldfish} environment.",
+        "i" = "Rebuild the object with {.fn make_data} /
+               {.fn make_groups_interaction} (both now return a {.cls stocnet})."
+      ),
+      call = call
+    )
+  }
+  invisible(data)
+}
+
 #' @rdname estimate
 #' @export
 estimate_dynam <- function(
@@ -292,6 +313,7 @@ estimate_dynam <- function(
 ) {
   sub_model <- match.arg(sub_model)
   reject_joint_specification(x)
+  abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
     return(estimate_from_specification(
       spec = x,
@@ -331,6 +353,7 @@ estimate_dynami <- function(
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
+  support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE)
 ) {
@@ -338,6 +361,21 @@ estimate_dynami <- function(
   # No joint-specification guard here: DyNAM-i is under development and is
   # rejected at joint composition, so it cannot appear in a joint object. An
   # explicit rejection is deferred to when DyNAM-i becomes composable.
+  abort_legacy_environment(data)
+  if (inherits(x, "specification.goldfish")) {
+    return(estimate_from_specification(
+      spec = x,
+      model = "DyNAMi",
+      sub_model = sub_model,
+      data = data,
+      control_estimation = control_estimation,
+      control_preprocessing = control_preprocessing,
+      preprocessing_init = preprocessing_init,
+      preprocessing_only = preprocessing_only,
+      progress = progress,
+      verbose = verbose
+    ))
+  }
   estimate_wrapper(
     x = x,
     model = "DyNAMi",
@@ -347,6 +385,7 @@ estimate_dynami <- function(
     control_preprocessing = control_preprocessing,
     preprocessing_init = preprocessing_init,
     preprocessing_only = preprocessing_only,
+    support_constraint = support_constraint,
     progress = progress,
     verbose = verbose
   )
@@ -368,6 +407,7 @@ estimate_rem <- function(
 ) {
   sub_model <- match.arg(sub_model)
   reject_joint_specification(x)
+  abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
     return(estimate_from_specification(
       spec = x,
@@ -537,35 +577,6 @@ compute_stats <- function(
     preprocessing_only = TRUE,
     ...
   )
-}
-
-# Reduce the support mask to a per-event receiver filter for the DyNAM-choice
-# default engine. A choice event has a single sender, so its
-# allowed receivers are the sender's row of the support mask conjoined with
-# receiver presence downstream; the resulting per-event id list is consumed by
-# the existing opportunities machinery in `compute_iteration_step()`, which
-# shrinks `n_candidates` and reindexes `selected` within the constrained set. A
-# user-supplied `opportunities_list` is intersected in (both restrict the set).
-mask_to_opportunities <- function(support_mask, statsList, user_opp = NULL) {
-  support <- support_mask$support
-  senders <- statsList$event_sender
-  if (length(support) != length(senders)) {
-    cli::cli_abort(
-      "The support mask ({length(support)}) and event count
-       ({length(senders)}) are misaligned."
-    )
-  }
-  lapply(seq_along(support), function(e) {
-    allowed <- which(support[[e]][senders[[e]], ])
-    if (
-      !is.null(user_opp) &&
-        length(user_opp) >= e &&
-        !is.null(user_opp[[e]])
-    ) {
-      allowed <- intersect(allowed, user_opp[[e]])
-    }
-    allowed
-  })
 }
 
 # Preprocessing-time set-size validation for a support_constraint.
@@ -857,6 +868,43 @@ check_estimation_data <- function(data, call = rlang::caller_env()) {
   )
 }
 
+# Pre-run guardrail: when per-event probabilities are requested, warn once with
+# the estimated storage footprint (n_events x |riskset| x 8 bytes) and point to
+# the scalable `ranks`/`margins` primitives. Best-effort on the dimensions: if
+# the preprocessed object lacks the presence vectors (e.g. some DyNAMi shapes)
+# the warning is skipped rather than dropping the request.
+warn_probabilities_footprint <- function(
+  prep,
+  spec,
+  call = rlang::caller_env()
+) {
+  n_senders <- length(prep$active_sender_init)
+  n_receivers <- length(prep$active_dyad_init)
+  if (n_senders == 0 && n_receivers == 0) {
+    return(invisible())
+  }
+  riskset <- if (isTRUE(risk_set_is_dyadic(spec))) {
+    as.numeric(n_senders) * as.numeric(n_receivers)
+  } else if (identical(risk_set_axis(spec), "sender")) {
+    as.numeric(n_senders)
+  } else {
+    as.numeric(n_receivers)
+  }
+  n_events <- sum(prep$is_dependent == 1L)
+  bytes <- n_events * riskset * 8
+  size <- format(structure(bytes, class = "object_size"), units = "auto")
+  cli::cli_warn(
+    c(
+      "!" = "Storing per-event probabilities for {n_events} event{?s} over a
+             risk set of size {riskset} will use about {size}.",
+      "i" = "For scalable diagnostics request {.val ranks} or {.val margins}
+             instead of {.val probabilities}."
+    ),
+    call = call
+  )
+  invisible()
+}
+
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
 #' @importFrom stats as.formula
@@ -914,20 +962,41 @@ estimate_wrapper <- function(
 
   check_estimation_data(data)
 
-  # DyNAMi still consumes the legacy environment, but make_data() no longer
-  # mints one: it assembles every legacy bundle into a stocnet, two-mode
-  # included, so a DyNAMi bundle now arrives here as a stocnet its engine
-  # cannot read. Abort where the mismatch is legible rather than deep in the
-  # interaction preprocessing.
-  if (model == "DyNAMi" && !is.null(data) && !is.environment(data)) {
-    cli::cli_abort(c(
-      "{.fn estimate_dynami} does not accept a {.cls stocnet} data object yet.",
-      "x" = "{.fn make_data} now assembles two-mode input into a \\
-             {.cls stocnet}, so the DyNAMi environment is no longer produced.",
-      "i" = "DyNAMi support for the single data object is the subject of a \\
-             follow-up change; pin an earlier goldfish version to run DyNAMi \\
-             in the meantime."
-    ))
+  # DyNAMi consumes the legacy environment, which make_data() no longer mints
+  # (it assembles every bundle into a stocnet). At the boundary a stocnet is
+  # rewritten onto the environment names and reversed into the environment shape
+  # the interaction monolith reads; the bridge is internal and never returned.
+  dynami_availability <- NULL
+  if (model == "DyNAMi" && inherits(data, "stocnet")) {
+    focal <- data$info$focal
+    if (
+      identical(
+        unname(data$info$sender[[focal]]),
+        unname(data$info$receiver[[focal]])
+      )
+    ) {
+      cli::cli_abort(c(
+        "{.fn estimate_dynami} needs a two-mode actors x groups data object.",
+        "x" = "The focal layer {.val {focal}} runs within one mode, so it is \\
+               not an interaction-groups object.",
+        "i" = "Build the object with {.fn make_groups_interaction}."
+      ))
+    }
+    if (inherits(x, "formula")) {
+      x <- rewrite_dynami_formula(x, data)
+    }
+    # The joining choice set is the groups occupied at the decision point
+    # (Hoffman et al. Eq. 8's denominator over the present second-mode nodes,
+    # which includes the joiner's own singleton -- an isolate may choose to
+    # remain isolated, and the construction records such observed choices). It is
+    # derived from the focal layer's occupancy here, while the stocnet is still
+    # intact, and folded into the dense `active_dyad` after preprocessing -- the
+    # standard maintained-availability path the estimation kernel reads, not the
+    # deprecated opportunities channel.
+    if (sub_model %in% c("choice", "choice_coordination")) {
+      dynami_availability <- dynami_choice_availability(data)
+    }
+    data <- stocnet_to_dynami_env(data, parent_env = environment(x))
   }
 
   stopifnot(
@@ -1171,19 +1240,29 @@ estimate_wrapper <- function(
     )
     parsed_formula$has_intercept <- has_intercept <- FALSE
   }
+  # `sub_model = "rate"` models the waiting times between events; the time
+  # intercept is the baseline hazard that likelihood needs, so a rate formula
+  # without an explicit `1` gets the intercept added rather than collapsing to
+  # the order-only (ordinal) partial likelihood. Ordinal modeling is requested
+  # explicitly with `sub_model = "rate_ordered"`.
+  if (sub_model == "rate" && !has_intercept) {
+    cli::cli_inform(c(
+      "i" = "{.code sub_model = \"rate\"} models the waiting times between
+             events; a time intercept has been added.",
+      "i" = "Use {.code sub_model = \"rate_ordered\"} to model only the order
+             of the events (ordinal likelihood)."
+    ))
+    parsed_formula$has_intercept <- has_intercept <- TRUE
+  }
   right_censored <- has_intercept
 
   # Per-(model, sub_model) main-effect validity. Unavailable effects
   # (no bare implementation, e.g. global in choice) abort in every phase;
   # computable-but-unidentified effects stay producible via preprocessing
   # (compute_stats, as design columns for interactions / random effects) and are
-  # rejected only when estimating. Uses the effective sub_model (a rate formula
-  # without the time intercept is the ordinal case) and runs after `*` expansion.
-  # All effects are main until interaction terms land.
+  # rejected only when estimating. Runs after `*` expansion. All effects are
+  # main until interaction terms land.
   validity_sub_model <- sub_model
-  if (sub_model == "rate" && !has_intercept) {
-    validity_sub_model <- "rate_ordered"
-  }
   # Validity is role-aware. Offset (fixed-coefficient) terms and
   # interaction operand-only terms are NOT bare main effects, so they are held
   # out of the main-effect identification check: an offset warns rather than
@@ -1226,15 +1305,6 @@ estimate_wrapper <- function(
       character(1)
     )
   )
-
-  if (model == "DyNAM" && sub_model == "rate" && !has_intercept) {
-    cli::cli_warn(c(
-      "!" = "{.code sub_model = \"rate\"} with a formula without the time
-             intercept is deprecated.",
-      "i" = "Use {.code sub_model = \"rate_ordered\"} to model only the order
-             of the events."
-    ))
-  }
 
   legacy_sub_model <- sub_model
   if (sub_model == "rate_ordered") {
@@ -1379,13 +1449,9 @@ estimate_wrapper <- function(
     is_two_mode <- ds_model_is_two_mode(work_src, .nodes, .nodes2)
   }
 
-  spec_sub_model <- sub_model
-  if (sub_model == "rate" && !has_intercept) {
-    spec_sub_model <- "rate_ordered"
-  }
   model_spec <- new_model_spec(
     model = model,
-    sub_model = spec_sub_model,
+    sub_model = sub_model,
     is_two_mode = is_two_mode,
     nodes = .nodes,
     nodes2 = .nodes2,
@@ -1720,6 +1786,24 @@ estimate_wrapper <- function(
     return(prep)
   }
 
+  # The interaction monolith emits the pre-recipe preprocessing shape; map it to
+  # the recipe statsList the shared estimation kernel reads. Done after the
+  # preprocessing_only return so the raw monolith object (which the DyNAM-i
+  # preprocessing tests inspect) is preserved. Temporary seam retired with the
+  # monolith by the DyNAM-i engine conversion.
+  if (model == "DyNAMi") {
+    prep <- dynami_recipe_statslist(prep, sub_model, is_two_mode)
+    if (!is.null(dynami_availability)) {
+      prep <- dynami_fold_availability(prep, dynami_availability)
+    }
+  }
+
+  prob_requested <- isTRUE(control_estimation$return_probabilities) ||
+    "probabilities" %in% control_estimation$diagnostics
+  if (prob_requested) {
+    warn_probabilities_footprint(prep, model_spec)
+  }
+
   ### 3.4 Assemble the fixed-coefficient (offset) vector----
   # offset() terms fix their coefficient rather than estimate it.
   # The parameter vector is [intercept?, effects...], so an offset at rhs
@@ -1773,20 +1857,17 @@ estimate_wrapper <- function(
     )
   }
 
-  # Consume a support_constraint on the R (default) engine. DyNAM-choice reduces
-  # the mask to a per-event receiver filter routed through the existing
-  # opportunities machinery (shrinks n_candidates, reindexes selected);
-  # DyNAM-rate reduces it to a per-event sender gate (a sender is at risk only
-  # with >= 1 allowed present receiver) and recomputes the constrained
-  # intercept denominator; REM keeps the full per-event dyad mask (the risk set is
-  # 2D). DyNAM rate_ordered and the compiled engines land with the C++ gather
-  # rewrite, so they abort rather than silently ignore the constraint.
+  # A support_constraint is folded into the maintained availability during
+  # preprocessing — a rate constraint into `active_sender`, a choice / REM /
+  # coordination constraint into `active_dyad` — so every engine reads the
+  # folded buffers and no standalone mask is assembled here. The capability map
+  # aborts an unwired family below.
   opportunities_effective <- control_preprocessing$opportunities_list
   # A constraint-free opportunity list is folded into `active_dyad` at the point
   # encoding during preprocessing: the default engine reads it
   # through the point accessor, so it is not also passed as a per-iteration
-  # opportunity recompute. (With a support_constraint the mask path below
-  # carries the intersection, so the list still rides there.)
+  # opportunity recompute. (A support_constraint folds the opportunity list in
+  # too, so it is nulled below once the constraint is folded.)
   if (
     is.null(constraint_plan) &&
       !is.null(opportunities_effective) &&
@@ -1794,142 +1875,33 @@ estimate_wrapper <- function(
   ) {
     opportunities_effective <- NULL
   }
-  sender_gate <- NULL
-  rem_mask <- NULL
-  support_gather <- NULL
   if (!is.null(constraint_plan) && !is.null(prep$support_mask)) {
-    is_choice_family <- model == "DyNAM" &&
-      sub_model %in% c("choice", "choice_coordination")
-    # Coordination (`choice_coordination` / `DyNAM-MM`) is a dyad-part choice
-    # family for the guard + validation, but its two-sided likelihood consumes a
-    # symmetrised FULL mask like REM, not the one-sided-choice row —
-    # so folding/consumption below splits it from one-sided choice.
-    is_coord_family <- model == "DyNAM" && sub_model == "choice_coordination"
-    is_one_sided_choice <- is_choice_family && !is_coord_family
-    is_rate_family <- model == "DyNAM" && sub_model == "rate"
-    # Standard REM (`rem_rate_spec`, time intercept) zeroes disallowed dyads in the
-    # Poisson contribution; ordinal REM (`rem_rate_ordered_spec`, no intercept)
-    # zeroes their utility before the multinomial normalizer. Both fold both
-    # presences ∩ support into a dense point `active_dyad` and consume
-    # it as the maintained risk mask.
-    is_rem_family <- model == "REM" && sub_model == "rate" && has_intercept
-    is_rem_ordered_family <- model == "REM" && sub_model == "rate_ordered"
-    if (
-      !is_choice_family &&
-        !is_rate_family &&
-        !is_rem_family &&
-        !is_rem_ordered_family
-    ) {
-      cli::cli_abort(c(
-        "{.arg support_constraint} is not yet consumed for {.val {model}}
-         {.val {sub_model}} estimation.",
-        "i" = "Risk-set restriction is currently wired for the DyNAM
-               {.val choice} / {.val choice_coordination} / {.val rate} and
-               {.val REM} sub-models on the default engine; the preprocessed mask
-               is available in {.code prep$support_mask}."
-      ))
+    # Only families wired to consume a folded constraint reach the likelihood;
+    # the engine-capability table (keyed on the spec class) is the single guard.
+    if (!constrained_estimation_supported(model_spec)) {
+      abort_constraint_unsupported(model_spec)
     }
-    # Fail fast before the likelihood: excluded observed dyads / empty
-    # risk sets error; forced choices and never-active nodes warn. Rate uses the
-    # sender-gate policy; choice and REM both check the observed dyad directly.
-    # A multi-flavor object was already validated at preprocessing time, with a
-    # message naming its process; re-running here would only duplicate every
-    # warning it emitted.
+    # Fail fast before the likelihood: excluded observed dyads / empty risk sets
+    # error; forced choices and never-active nodes warn. The rate (sender-axis)
+    # family uses the sender-gate policy; choice and REM check the observed dyad
+    # directly. A multi-flavor object was validated at preprocessing time, so
+    # re-running here would only duplicate every warning it emitted.
     if (!isTRUE(prep$support_validated)) {
-      validate_prep_support(prep, is_rate_family)
+      validate_prep_support(
+        prep,
+        identical(risk_set_axis(model_spec), "sender")
+      )
     }
-    # `avg_active_entity` (the rate intercept init) is now computed during
-    # preprocessing from the folded `active_sender`; no
-    # estimation-time recombination.
-    # The compiled engines consume the mask natively where wired: gather_compute
-    # for DyNAM choice / rate (the R gather filters candidates), and default_c for
-    # DyNAM choice (the C++ estimator filters receivers). Other engine/model
-    # combinations fall back to the default (R) engine, which consumes the mask via
-    # the sender/receiver filters or the REM contribution.
-    # A DyNAM-choice constraint (alter or point) folds into `active_dyad`, and a
-    # DyNAM-rate constraint folds its sender gate into `active_sender`, during
-    # preprocessing: every engine reads the folded object
-    # directly, so neither the standalone mask nor the per-event opportunity
-    # reduction is passed. An ego-kind (outer) choice constraint is not yet folded
-    # and still rides the standalone mask path.
-    choice_folded <- is_one_sided_choice && isTRUE(prep$active_dyad_folded)
-    rate_folded <- is_rate_family && isTRUE(prep$active_sender_folded)
-    # A folded standard- or ordinal-REM constraint rides the dense point
-    # `active_dyad`, which `estimate_REM` / `estimate_REM_ordered`
-    # consume cell-wise, so `default_c` runs it natively; the gather likewise
-    # builds masked candidates. A folded rate constraint rides `active_sender`,
-    # which `estimate_DyNAM_rate` already consumes as its sender
-    # filter. A folded coordination constraint rides the symmetrised dense point
-    # `active_dyad`, consumed as the full mask by `estimate_DyNAM_MM`
-    # and the encoding-aware gather.
-    rem_folded <- is_rem_family && isTRUE(prep$active_dyad_folded)
-    rem_ordered_folded <- is_rem_ordered_family &&
-      isTRUE(prep$active_dyad_folded)
-    coord_folded <- is_coord_family && isTRUE(prep$active_dyad_folded)
-    # A constrained coordination model now runs natively on `gather_compute`:
-    # the gather emits the symmetrically-folded off-diagonal dyad list (only
-    # mask-allowed rows) plus the per-sender groups and (i,j)<->(j,i) pairing,
-    # and the dyad-triangle kernel reads that ragged list directly — no square
-    # n x n candidate matrix is required. The former redirect to
-    # `default_c` is retired.
-    native_compiled <-
-      (control_estimation$engine == "gather_compute" &&
-        (is_one_sided_choice ||
-          is_rate_family ||
-          (is_rem_family && rem_folded) ||
-          (is_rem_ordered_family && rem_ordered_folded) ||
-          (is_coord_family && coord_folded))) ||
-      (control_estimation$engine == "default_c" &&
-        (is_one_sided_choice ||
-          (is_rate_family && rate_folded) ||
-          (is_rem_family && rem_folded) ||
-          (is_rem_ordered_family && rem_ordered_folded) ||
-          (is_coord_family && coord_folded)))
-    if (native_compiled) {
-      if (
-        !choice_folded &&
-          !rate_folded &&
-          !rem_folded &&
-          !rem_ordered_folded &&
-          !coord_folded
-      ) {
-        support_gather <- prep$support_mask$support
-      }
-    } else {
-      # Non-native path = the default (R) engine only: every reachable constrained
-      # model (DyNAM choice / rate / coordination, standard + ordinal REM) folds
-      # its availability and runs natively on gather_compute / default_c above, and
-      # the other families abort at the guard before this branch — so the former
-      # "engine does not yet consume … using default" downgrade is dead and has
-      # been lifted.
-      if (is_one_sided_choice) {
-        if (!choice_folded) {
-          # An unfolded (ego-kind / outer) choice constraint still reduces to the
-          # per-event opportunity list for the default engine.
-          opportunities_effective <- mask_to_opportunities(
-            prep$support_mask,
-            prep,
-            opportunities_effective
-          )
-        }
-      } else if (is_rate_family) {
-        # The default engine consumes the folded `active_sender` directly as its
-        # sender filter; no separate sender gate is passed.
-      } else if (is_coord_family) {
-        # Coordination consumes the folded symmetrised dense `active_dyad` as its
-        # full risk mask on the default engine (the `folded_full` path); nothing
-        # separate is passed.
-      } else if (!isTRUE(prep$active_dyad_folded)) {
-        # REM (standard or ordinal): the contribution zeroes disallowed dyads from
-        # the risk set. A REM constraint is folded into `active_dyad` during
-        # preprocessing and consumed as the maintained risk mask; the
-        # standalone mask remains only as a fallback when the fold did not apply.
-        rem_mask <- prep$support_mask$support
-      }
-    }
-    if (choice_folded) {
-      # The folded `active_dyad` already carries any user opportunity list, so
-      # the per-iteration opportunity recompute is skipped.
+    # Every wired family folds its availability during preprocessing — a rate
+    # constraint into `active_sender`, a choice / REM / coordination constraint
+    # into `active_dyad` — and the engines read the folded buffers directly, so
+    # no standalone mask or sender gate is assembled here. A folded one-sided
+    # choice constraint already carries any user opportunity list, so the
+    # per-iteration opportunity recompute is skipped.
+    if (
+      identical(risk_set_axis(model_spec), "receiver_given_sender") &&
+        isTRUE(prep$active_dyad_folded)
+    ) {
       opportunities_effective <- NULL
     }
   }
@@ -1950,7 +1922,6 @@ estimate_wrapper <- function(
     nodes2 = ds_nodes_frame(orig_src, .nodes2),
     hasIntercept = has_intercept,
     is_two_mode = is_two_mode,
-    modelType = legacy_model_type(model_spec),
     # overridden damping
     initialDamping = if (!is.null(control_estimation$initial_damping)) {
       control_estimation$initial_damping
@@ -1961,10 +1932,7 @@ estimate_wrapper <- function(
     cpus = 1,
     verbose = verbose,
     progress = progress,
-    opportunitiesList = opportunities_effective,
-    senderGate = sender_gate,
-    remMask = rem_mask,
-    supportMask = support_gather
+    opportunitiesList = opportunities_effective
   )
 
   # Call the appropriate estimation engine
@@ -1974,7 +1942,12 @@ estimate_wrapper <- function(
         "estimate_c_int",
         args = c(
           args_estimation,
-          list(engine = control_estimation$engine, optimizer = optimizer)
+          list(
+            spec = model_spec,
+            engine = control_estimation$engine,
+            optimizer = optimizer,
+            return_ranks = "ranks" %in% control_estimation$diagnostics
+          )
         )
       ),
       error = \(e) {

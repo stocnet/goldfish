@@ -93,11 +93,14 @@ test_that("a:b keeps operands but estimates only the product", {
 
 test_that("REM supports interaction terms", {
   d <- make_interaction_fixture()
+  # Ordinal REM (no intercept) keeps the three effect columns aligned with the
+  # operand product; the timed-rate case adds the intercept and is covered by
+  # the DyNAM-rate interaction test below.
   g <- compute_stats(
     calls_dependent ~ inertia:recip,
     data = d,
     model = "REM",
-    sub_model = "rate",
+    sub_model = "rate_ordered",
     output = "gather"
   )
   m <- g$stat_all_events

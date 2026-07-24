@@ -1,3 +1,81 @@
+# goldfish 1.9.10
+
+## Breaking changes
+
+* **`sub_model = "rate"` always models the waiting times between events.** A
+  rate formula written without an explicit time intercept (e.g.
+  `estimate_rem(y ~ inertia, sub_model = "rate")`) no longer auto-converts to
+  the ordinal (order-only) model: the time intercept -- the baseline hazard the
+  waiting-time likelihood needs -- is added, with an informative message. To
+  model only the order of events, request the ordinal likelihood explicitly with
+  `sub_model = "rate_ordered"`. Formulas that already carried a `1` intercept, or
+  that already used `sub_model = "rate_ordered"`, are unaffected.
+
+## Internal
+
+* Risk-set dispatch is now spec-driven end to end. The typed model spec carries
+  a risk-set descriptor (axis, fold target, encoding, symmetrization,
+  normalizer), decided once at parse time; preprocessing, the estimation guard,
+  the compiled interface, and the gather routines read it instead of
+  re-deriving the model family from model-type strings or statistics-array
+  dimensionality. A single engine-capability table guards constrained
+  estimation. An ego-kind (outer) `support_constraint` on a DyNAM-choice model
+  now folds into the maintained availability like every other kind, so
+  estimation consumes maintained buffers only. The internal model-type string
+  vocabulary (`legacy_model_type()`) has been removed. No change to fitted
+  coefficients: the frozen 1e-6 baselines and C++ golden tests pass unchanged.
+
+# goldfish 1.9.9
+
+## Breaking changes
+
+* **`make_data()` never silently returns a legacy environment.** A bundle of
+  constructor objects either assembles to a `stocnet` or aborts with the reason.
+  The common case is a layer built from a compound expression -- e.g.
+  `make_network(nodes = fx$actors)` records the node set as an unresolvable name
+  -- which previously degraded to a legacy environment with no signal and now
+  errors, telling you to bind the node set to a plain name
+  (`actors <- fx$actors; make_network(nodes = actors, ...)`). Bundles with no
+  node set or no layer abort likewise.
+
+* **Legacy `data.goldfish` environments are rejected at the public surface.**
+  `estimate_dynam()`, `estimate_rem()`, `estimate_dynami()`, and
+  `make_specification()` now abort when `data` is an environment (obtainable only
+  from objects saved before the 2.0.0 flip), since every model family assembles
+  to a `stocnet`. Rebuild the object with `make_data()` /
+  `make_groups_interaction()`, both of which return a `stocnet`.
+
+# goldfish 1.9.8
+
+## New features
+
+* **DyNAM-i on the single `stocnet` data object.** `estimate_dynami()` and
+  `make_specification(model = "DyNAMi")` accept the single `stocnet` data object,
+  matching the API the DyNAM and REM families already use.
+  `make_groups_interaction()` returns that object directly, so the records ->
+  model-ready flow is one step. The actors x groups interaction data is a
+  two-mode `stocnet` layer (`interactions`) with a one-mode past-interaction
+  covariate layer (`past`); nodal attributes are named bare (`ego(age)`,
+  `same(gender)`) as on the rest of the stocnet surface, and networks by layer
+  name (`interactions`, `past`). The two rate processes ride the flavor-keyed
+  grammar `rate = list(join ~ ..., leave ~ ...)`; the joining `choice` is a plain
+  formula. The joining choice's group-availability restriction (the groups
+  occupied at each decision point, Hoffman et al. 2020 Eq. 8) is derived from the
+  object's occupancy and folded automatically -- there is no `opportunities`
+  argument. The vignette M1 rate and choice models on the RFID data reproduce
+  the goldfish 1.7.0 coefficients to 1e-6, now frozen as regression baselines.
+
+## Breaking changes
+
+* **`make_groups_interaction()` returns a `stocnet`, not a five-component list.**
+  The records->events transformation is unchanged, but its result is the
+  assembled multipartite `stocnet` (ready to pass to `estimate_dynami()` /
+  `make_specification()`), replacing the previous `groups` /
+  `dependent.events` / `exogenous.events` / `interaction.updates` /
+  `opportunities` list. The `opportunities` component is retired: group
+  availability for the joining choice is derived from the object's occupancy at
+  estimation, not stored.
+
 # goldfish 1.9.7
 
 ## Bug fixes

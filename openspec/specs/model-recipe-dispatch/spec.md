@@ -2,9 +2,7 @@
 
 ## Purpose
 Define the internal S3 `model_spec` class hierarchy (constructed by `new_model_spec()`) that drives recipe and effect dispatch across all model variants.
-
 ## Requirements
-
 ### Requirement: S3 model_spec class hierarchy
 The package SHALL define 9 internal S3 classes covering all model variants. Each class SHALL be constructed by `new_model_spec(model, sub_model, is_two_mode, nodes, nodes2, ...)` which is NOT exported. The class vector SHALL follow the pattern `c("<variant>_spec", "<indexing>_spec", "model_spec")`.
 
@@ -76,11 +74,33 @@ A formula containing a `global()` effect SHALL cause `estimate_dynam()` with `su
 - **THEN** estimation completes without error
 
 ### Requirement: estimate_int dispatches per recipe
-`estimate_int()` SHALL be an S3 generic dispatching on the `model_spec` class. The internal `modelType` string (`"DyNAM-M"`, `"DyNAM-MM"`, etc.) SHALL NOT appear in any method after this change.
+`estimate_int()` SHALL be an S3 generic dispatching on the `model_spec`
+class. The internal model-type strings (`"DyNAM-M"`, `"DyNAM-MM"`,
+`"REM"`, `"REM-ordered"`, `"DyNAM-M-Rate"`, `"DyNAM-M-Rate-ordered"`) SHALL
+NOT drive branching anywhere in the R pipeline — `R/estimation_core.R`,
+`R/cpp_interface.R`, `R/model_estimate.R`, `R/model_preprocess.R`, and
+`R/preprocess_writers.R` — including the compiled-interface entry
+(`estimate_c_int`) and the gather routines, which SHALL select estimators
+and shape arguments via spec-class dispatch or risk-set-descriptor reads.
+The `legacy_model_type()` spec-to-string converter SHALL be removed.
+Model-type strings MAY appear as values inside exported output or
+user-facing documentation, never as branch keys.
 
 #### Scenario: No modelType string in dispatched estimation methods
 - **WHEN** `grep -rn '"DyNAM-M"\|"DyNAM-MM"\|"REM-ordered"\|"DyNAM-M-Rate"' R/estimation_core.R` is run after the change
 - **THEN** zero matches are returned
+
+#### Scenario: No model-type branching in the compiled interface or writers
+- **WHEN** the model-type string literals are searched in
+  `R/cpp_interface.R`, `R/model_estimate.R`, and `R/preprocess_writers.R`
+  after the change
+- **THEN** no match is a branching condition (`if`/`switch`/`%in%` guard);
+  any remaining literal is a value in exported output or documentation
+
+#### Scenario: legacy converter removed
+- **WHEN** the package sources are searched for `legacy_model_type` after
+  the change
+- **THEN** the function definition and all call sites are gone
 
 ### Requirement: S3 dispatch only at stage boundaries
 S3 dispatch on the model spec SHALL occur at most once per pipeline stage: at entry into `preprocess()`, `estimate_int()`, and writer selection in `compute_stats()`. Methods SHALL bind per-event helper functions (the `compute_event_contribution()` and `compute_step()` methods) to local function variables before entering any per-event loop. No generic call dispatched via `UseMethod` SHALL execute inside a per-event loop body in `R/model_preprocess.R`, `R/estimation_core.R`, or `R/cpp_interface.R`.
@@ -136,3 +156,4 @@ Recipe methods SHALL maintain all evolving data objects in a named-list state co
 #### Scenario: DyNAMi coefficients are unchanged after dispatch wiring
 - **WHEN** DyNAMi model coefficients are compared before and after the dispatch refactor
 - **THEN** all coefficients agree to within 1e-6
+

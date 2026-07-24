@@ -1,9 +1,8 @@
 # support_constraint consumption on the R (default) engine, choice family.
 # The mask reduces to a per-event receiver filter routed
 # through the existing opportunities machinery, so a constrained model matches
-# the established opportunities_list restriction to numerical precision, an
-# observed dyad excluded by its own constraint errors,
-# and the not-yet-wired paths abort rather than silently ignore the constraint.
+# the established opportunities_list restriction to numerical precision, and an
+# observed dyad excluded by its own constraint errors.
 
 make_estimate_fixture <- function(n_events = 120L, seed = 1L) {
   data("Social_Evolution", package = "goldfish", envir = environment())
@@ -156,17 +155,18 @@ test_that("an observed dyad excluded by its own constraint errors", {
   )
 })
 
-test_that("support_constraint aborts on ordinal REM (no intercept, unwired)", {
+test_that("a no-intercept REM rate constraint adds the intercept and runs", {
   fx <- make_estimate_fixture(n_events = 60L)
-  # `~ inertia + recip` (no time intercept) is ordinal REM (rem_rate_ordered),
-  # which uses the multinomial path and is not yet wired.
-  expect_error(
-    estimate_rem(
-      calls_dependent ~ inertia + recip,
-      sub_model = "rate",
-      data = fx$data,
-      support_constraint = ~ tie(allowedNet)
-    ),
-    "not yet consumed"
-  )
+  # Dropping auto-ordinal: `sub_model = "rate"` without a time intercept is a
+  # waiting-time model (the intercept is added), so its support_constraint is
+  # consumed like any standard REM rate constraint rather than aborting. Ordinal
+  # (rate_ordered) REM constraints are covered in test-support_constraint_rem.R.
+  m <- suppressMessages(estimate_rem(
+    calls_dependent ~ inertia + recip,
+    sub_model = "rate",
+    data = fx$data,
+    support_constraint = ~ tie(allowedNet)
+  ))
+  expect_s3_class(m$model_spec, "rem_rate_spec")
+  expect_true(m$model_spec$has_intercept)
 })

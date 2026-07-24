@@ -28,6 +28,7 @@ estimate_dynami(
   control_preprocessing = set_preprocessing_opt(),
   preprocessing_init = NULL,
   preprocessing_only = FALSE,
+  support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE)
 )

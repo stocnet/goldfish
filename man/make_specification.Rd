@@ -7,7 +7,7 @@
 make_specification(
   rate = NULL,
   choice = NULL,
-  model = c("DyNAM", "REM"),
+  model = c("DyNAM", "REM", "DyNAMi"),
   rate_sub_model = c("rate", "rate_ordered"),
   choice_sub_model = c("choice", "choice_coordination"),
   layer = NULL,
@@ -23,8 +23,12 @@ effects, a flavor-keyed list of one such formula, or \code{NULL}.}
 choice-model effects, a flavor-keyed list of one such formula, or \code{NULL}.
 Not applicable to \code{model = "REM"}.}
 
-\item{model}{a character string, either \code{"DyNAM"} or \code{"REM"}. DyNAM-i is
-deferred to its own preprocessing-path change.}
+\item{model}{a character string, \code{"DyNAM"}, \code{"REM"}, or \code{"DyNAMi"}. For
+\code{"DyNAMi"} the \code{data} is an actors x groups object (see
+\code{\link[=make_groups_interaction]{make_groups_interaction()}}) and \code{rate} is the flavor-keyed list
+\code{list(join ~ ..., leave ~ ...)} expressing the joining and leaving rate
+models; \code{choice} is a plain formula denoting the joining choice (the
+leaving choice is deterministic, so a flavor-keyed \code{choice} is rejected).}
 
 \item{rate_sub_model}{a character string, the rate sub-model:
 \code{"rate"} or \code{"rate_ordered"}.}

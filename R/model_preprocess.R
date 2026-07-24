@@ -1158,7 +1158,7 @@ crossings_from_vectors <- function(vecs) {
 fold_active_dyad_support <- function(
   out,
   support_mask,
-  model_type,
+  spec,
   mask_kind,
   opportunitiesList = NULL
 ) {
@@ -1171,33 +1171,29 @@ fold_active_dyad_support <- function(
   support <- support_mask$support
   has_opportunity <- !is.null(opportunitiesList)
   encoding <- active_dyad_encoding_decide(
-    model_type,
+    risk_set_encoding(spec),
     mask_kind,
     has_opportunity
   )
   # Standard/ordinal REM and DyNAM coordination all fold BOTH presences ∩ their
   # support atoms into a dense point `active_dyad` — the risk-set mask each engine
-  # consumes directly, replacing the per-event `riskMask` snapshot. These families
+  # consumes directly, replacing the per-event `active_dyad_mask` snapshot. These families
   # share a dyadic / two-sided risk set (only the normalizer differs:
   # timespan-weighted Poisson, multinomial, or the mutual `getLikelihoodMM`
   # product), so one fold serves them. Coordination (`DyNAM-MM`) is additionally
   # symmetrised so `(i, j)` is available iff both directions are
-  # allowed — required for the mutual likelihood. The one-mode choice ego-kind
-  # (outer) fold is still pending, so an outer-encoded choice constraint stays on
-  # the standalone `support_mask` path; the DyNAM choice alter and point encodings
-  # fold below.
-  if (model_type %in% c("REM", "REM-ordered", "DyNAM-MM")) {
+  # allowed — required for the mutual likelihood. Every DyNAM choice encoding
+  # folds below: alter/scalar as the receiver vector, point (dyadic atom or
+  # opportunity list) and ego-kind (outer) as dense point row flips.
+  if (risk_set_is_dyadic(spec)) {
     return(fold_active_dyad_support_rem(
       out,
       support,
       n1,
       n2,
       n_stored,
-      symmetric = identical(model_type, "DyNAM-MM")
+      symmetric = risk_set_symmetrize(spec)
     ))
-  }
-  if (identical(encoding, "outer")) {
-    return(out)
   }
 
   recv <- walk_presence_buffer(
@@ -1221,10 +1217,11 @@ fold_active_dyad_support <- function(
     out$active_dyad_encoding <- "alter"
     out$active_dyad_folded <- TRUE
   } else {
-    # point (a genuinely dyadic support atom, or any support atom together with a
-    # user opportunity list): fold receiver presence ∩ the sender's support row ∩
-    # opportunity into the dense point buffer. The choice
-    # risk set reads only the event sender's row, so only that row is emitted.
+    # point/outer: fold receiver presence ∩ the sender's support row ∩
+    # opportunity into the dense point buffer. Covers a genuinely dyadic (point)
+    # atom, any atom together with a user opportunity list, and an ego-kind
+    # (outer) atom whose support row is sender-constant. The choice risk set
+    # reads only the event sender's row, so only that row is emitted.
     senders <- out$event_sender
     opp_row <- function(e) {
       if (!has_opportunity) {
@@ -1247,7 +1244,7 @@ fold_active_dyad_support <- function(
 # REM risk set is the whole dyad matrix, so per event the mask is
 # `presence1[i] & presence2[j] & support[i, j]` — both presences folded in — and
 # the default engine consumes it directly as the per-event risk mask, replacing
-# the standalone `riskMask` snapshot. The raw presences are stashed on
+# the standalone `active_dyad_mask` snapshot. The raw presences are stashed on
 # `support_mask` for the fail-fast validation, which needs them unfolded.
 fold_active_dyad_support_rem <- function(
   out,
@@ -1876,7 +1873,7 @@ run_dyad_recipe_loop <- function(
         return(fold_active_dyad_support(
           out,
           out$support_mask,
-          legacy_model_type(spec),
+          spec,
           constraint$mask_kind,
           opportunitiesList = opportunitiesList
         ))

@@ -399,10 +399,8 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
 #'
 #' @noRd
 gather_from_prep <- function(prep, spec) {
-  modelTypeCall <- legacy_model_type(spec)
-  has_intercept <- modelTypeCall %in% c("DyNAM-M-Rate", "REM")
-  is_rate_model <- modelTypeCall %in%
-    c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
+  has_intercept <- identical(risk_set_normalizer(spec), "poisson")
+  is_rate_model <- identical(risk_set_axis(spec), "sender")
   is_two_mode <- isTRUE(spec$is_two_mode)
   # Rate models reduce over a single receiver column; the estimation
   # gather_compute path forces twomode_or_reflexive = TRUE there (avoiding the
@@ -413,7 +411,8 @@ gather_from_prep <- function(prep, spec) {
   statsList <- prepare_statslist(
     statsList = prep,
     excludeParameters = NULL,
-    addInterceptEffect = has_intercept
+    addInterceptEffect = has_intercept,
+    is_sender = is_rate_model
   )
 
   active_sender_update <- statsList$active_sender_update
@@ -456,9 +455,12 @@ gather_from_prep <- function(prep, spec) {
     }
   }
 
-  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM", "DyNAM-MM")) {
+  # Poisson (rate / standard REM) and coordination carry per-event timespans;
+  # coordination weights them to zero, the others take the intervals; the
+  # remaining multinomial families read no timespan.
+  if (risk_set_normalizer(spec) %in% c("poisson", "coordination")) {
     is_dependent <- as.logical(statsList$is_dependent)
-    timespan <- if (modelTypeCall != "DyNAM-MM") {
+    timespan <- if (!identical(risk_set_normalizer(spec), "coordination")) {
       statsList$intervals
     } else {
       numeric(length(is_dependent))
@@ -480,7 +482,7 @@ gather_from_prep <- function(prep, spec) {
   }
 
   gathered_data <- gather_(
-    modelTypeCall = modelTypeCall,
+    spec = spec,
     event_mat = event_mat,
     timespan = timespan,
     is_dependent = is_dependent,
@@ -514,7 +516,6 @@ gather_from_prep <- function(prep, spec) {
   attr(gathered_data, "event_receiver") <- prep$event_receiver
   attr(gathered_data, "is_dependent") <- is_dependent
   attr(gathered_data, "timespan") <- timespan
-  attr(gathered_data, "model_type_call") <- modelTypeCall
   gathered_data
 }
 
@@ -537,15 +538,17 @@ gather_from_prep <- function(prep, spec) {
 #'     length-n2 vector.}
 #' }
 #' `mask_kind` codes: `0` point, `1` alter, `2` ego, `3` scalar; `NULL` when
-#' unconstrained. With `mask_kind = NULL` and `has_opportunity = FALSE` this
-#' reproduces the pre-fold assignment (REM/MM outer, otherwise alter).
+#' unconstrained. `base_encoding` is the spec descriptor's base `active_dyad`
+#' encoding (`"outer"` for the dyadic risk sets that fold both presences,
+#' `"alter"` for choice); with `mask_kind = NULL` and `has_opportunity = FALSE`
+#' this reproduces the pre-fold assignment (dyadic outer, otherwise alter).
 #' @noRd
 active_dyad_encoding_decide <- function(
-  model_type,
+  base_encoding,
   mask_kind = NULL,
   has_opportunity = FALSE
 ) {
-  base_row <- model_type %in% c("REM", "REM-ordered", "DyNAM-MM")
+  base_row <- identical(base_encoding, "outer")
   has_point <- (!is.null(mask_kind) && mask_kind == 0L) ||
     isTRUE(has_opportunity)
   row_from_atom <- !is.null(mask_kind) && mask_kind == 2L
@@ -560,7 +563,7 @@ active_dyad_encoding_decide <- function(
 
 #' @noRd
 active_dyad_encoding_for <- function(spec) {
-  active_dyad_encoding_decide(legacy_model_type(spec))
+  active_dyad_encoding_decide(risk_set_encoding(spec))
 }
 
 #' `active_dyad` read accessors

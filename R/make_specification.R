@@ -39,8 +39,12 @@
 #' @param choice a one-sided formula (empty left-hand side) with the
 #'   choice-model effects, a flavor-keyed list of one such formula, or `NULL`.
 #'   Not applicable to `model = "REM"`.
-#' @param model a character string, either `"DyNAM"` or `"REM"`. DyNAM-i is
-#'   deferred to its own preprocessing-path change.
+#' @param model a character string, `"DyNAM"`, `"REM"`, or `"DyNAMi"`. For
+#'   `"DyNAMi"` the `data` is an actors x groups object (see
+#'   [make_groups_interaction()]) and `rate` is the flavor-keyed list
+#'   `list(join ~ ..., leave ~ ...)` expressing the joining and leaving rate
+#'   models; `choice` is a plain formula denoting the joining choice (the
+#'   leaving choice is deterministic, so a flavor-keyed `choice` is rejected).
 #' @param rate_sub_model a character string, the rate sub-model:
 #'   `"rate"` or `"rate_ordered"`.
 #' @param choice_sub_model a character string, the choice sub-model:
@@ -87,7 +91,7 @@
 make_specification <- function(
   rate = NULL,
   choice = NULL,
-  model = c("DyNAM", "REM"),
+  model = c("DyNAM", "REM", "DyNAMi"),
   rate_sub_model = c("rate", "rate_ordered"),
   choice_sub_model = c("choice", "choice_coordination"),
   layer = NULL,
@@ -98,14 +102,25 @@ make_specification <- function(
   rate_sub_model <- match.arg(rate_sub_model)
   choice_sub_model <- match.arg(choice_sub_model)
 
-  is_legacy <- is.environment(data)
-  if (!is_legacy && !(is.list(data) && !is.data.frame(data))) {
+  if (is.environment(data)) {
+    cli::cli_abort(c(
+      "{.arg data} must be a {.cls stocnet} object, not a legacy
+       {.cls data.goldfish} environment.",
+      "i" = "Rebuild the object with {.fn make_data} /
+             {.fn make_groups_interaction} (both now return a {.cls stocnet})."
+    ))
+  }
+  if (!(is.list(data) && !is.data.frame(data))) {
     cli::cli_abort(c(
       "{.arg data} must be a {.cls stocnet} object.",
       "i" = "Build it with {.fn manynet::make_stocnet}, or gate it early with
              {.fn as_goldfish}."
     ))
   }
+  # Legacy environments are rejected above, so `data` is always a stocnet here;
+  # the downstream `is_legacy` branches are retained until the interaction
+  # engine conversion drops the environment path entirely.
+  is_legacy <- FALSE
   if (is.null(rate) && is.null(choice)) {
     cli::cli_abort(
       "At least one of {.arg rate} or {.arg choice} must be supplied."
@@ -115,6 +130,22 @@ make_specification <- function(
     cli::cli_abort(c(
       "{.arg choice} is not applicable to {.val REM} models.",
       "i" = "REM is tie-oriented; supply the effects through {.arg rate}."
+    ))
+  }
+
+  # DyNAM-i keeps a thin specification: its rate is desugared from the
+  # flavor-keyed list into the single legacy formula the monolith consumes, its
+  # choice is a plain formula, and both stay unparsed so estimation parses them
+  # against the environment the boundary bridge builds.
+  if (model == "DyNAMi") {
+    return(make_dynami_specification(
+      rate = rate,
+      choice = choice,
+      data = data,
+      layer = layer,
+      rate_sub_model = rate_sub_model,
+      choice_sub_model = choice_sub_model,
+      support_constraint = support_constraint
     ))
   }
 
@@ -298,6 +329,92 @@ make_specification <- function(
       },
       support_constraint = support_constraint,
       constraint = constraint_plan,
+      valid = TRUE,
+      data = data,
+      call = match.call()
+    ),
+    class = "specification.goldfish"
+  )
+}
+
+# Build the thin DyNAM-i specification. DyNAM-i estimation still runs on the
+# interaction monolith via the boundary bridge, so the specification only
+# desugars the flavor-keyed rate into the single legacy formula and carries the
+# plain choice formula, both unparsed: `estimate_from_specification()` forwards
+# them to the wrapper, which bridges the stocnet and parses against the
+# environment. A flavor-keyed `choice` is rejected -- the leaving choice is
+# deterministic, so `choice` is only the joining choice.
+make_dynami_specification <- function(
+  rate,
+  choice,
+  data,
+  layer,
+  rate_sub_model,
+  choice_sub_model,
+  support_constraint,
+  call = rlang::caller_env()
+) {
+  if (!inherits(data, "stocnet")) {
+    cli::cli_abort(
+      c(
+        "{.fn make_specification} for {.val DyNAMi} needs a {.cls stocnet}.",
+        "i" = "Build the actors x groups object with \\
+               {.fn make_groups_interaction}."
+      ),
+      call = call
+    )
+  }
+  focal <- layer %||% data$info$focal
+  validate_goldfish_data(data, focal = focal)
+
+  if (is.list(choice) && !inherits(choice, "formula")) {
+    cli::cli_abort(
+      c(
+        "A flavor-keyed {.arg choice} is not valid for {.val DyNAMi}.",
+        "x" = "The leaving choice is deterministic (an actor leaves the group \\
+               it is in), so there is no leaving choice to model.",
+        "i" = "Pass a plain {.arg choice} formula -- it is the joining choice."
+      ),
+      call = call
+    )
+  }
+
+  focal_symbol <- as.symbol(focal)
+  submodels <- list()
+  if (!is.null(rate)) {
+    submodels$rate <- list(
+      formula = desugar_dynami_rate(rate, data, focal, call = call),
+      sub_model = rate_sub_model,
+      parsed = NULL
+    )
+  }
+  if (!is.null(choice)) {
+    # The one-sided choice formula gains the focal layer on its LHS so the
+    # boundary rewrite resolves it to the dependent process.
+    choice_formula <- stats::as.formula(
+      call("~", focal_symbol, choice[[length(choice)]]),
+      env = environment(choice)
+    )
+    submodels$choice <- list(
+      formula = choice_formula,
+      sub_model = choice_sub_model,
+      parsed = NULL
+    )
+  }
+
+  structure(
+    list(
+      model = "DyNAMi",
+      submodels = submodels,
+      layer = focal,
+      focal = focal,
+      modeled_flavor = NULL,
+      modeled_flavors = character(0),
+      support_constraint = support_constraint,
+      # The availability constraint is derived at estimation (choice only), so
+      # the specification carries only the user constraint; DyNAM-i keeps it
+      # unparsed for the wrapper to parse against the bridged environment.
+      constraint = support_constraint,
       valid = TRUE,
       data = data,
       call = match.call()

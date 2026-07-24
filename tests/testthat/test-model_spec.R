@@ -152,17 +152,71 @@ test_that("new_model_spec two-mode requires both node sets", {
   expect_identical(spec$nodes2, "clubs")
 })
 
-test_that("legacy_model_type maps every spec class to its legacy string", {
-  expected <- c(
-    dynam_rate = "DyNAM-M-Rate",
-    dynam_rate_ordered = "DyNAM-M-Rate-ordered",
-    dynam_choice = "DyNAM-M",
-    dynam_choice_coord = "DyNAM-MM",
-    dynami_rate = "DyNAM-M-Rate",
-    dynami_rate_ordered = "DyNAM-M-Rate-ordered",
-    dynami_choice = "DyNAM-M",
-    rem_rate = "REM",
-    rem_rate_ordered = "REM-ordered"
+test_that("every spec class carries the documented risk-set descriptor", {
+  expected <- list(
+    dynam_rate = list(
+      axis = "sender",
+      fold_target = "active_sender",
+      encoding = NA_character_,
+      symmetrize = FALSE,
+      normalizer = "poisson"
+    ),
+    dynam_rate_ordered = list(
+      axis = "sender",
+      fold_target = "active_sender",
+      encoding = NA_character_,
+      symmetrize = FALSE,
+      normalizer = "multinomial"
+    ),
+    dynam_choice = list(
+      axis = "receiver_given_sender",
+      fold_target = "active_dyad",
+      encoding = "alter",
+      symmetrize = FALSE,
+      normalizer = "multinomial"
+    ),
+    dynam_choice_coord = list(
+      axis = "dyad_symmetric",
+      fold_target = "active_dyad",
+      encoding = "outer",
+      symmetrize = TRUE,
+      normalizer = "coordination"
+    ),
+    dynami_rate = list(
+      axis = "sender",
+      fold_target = "active_sender",
+      encoding = NA_character_,
+      symmetrize = FALSE,
+      normalizer = "poisson"
+    ),
+    dynami_rate_ordered = list(
+      axis = "sender",
+      fold_target = "active_sender",
+      encoding = NA_character_,
+      symmetrize = FALSE,
+      normalizer = "multinomial"
+    ),
+    dynami_choice = list(
+      axis = "receiver_given_sender",
+      fold_target = "active_dyad",
+      encoding = "alter",
+      symmetrize = FALSE,
+      normalizer = "multinomial"
+    ),
+    rem_rate = list(
+      axis = "dyad",
+      fold_target = "active_dyad",
+      encoding = "outer",
+      symmetrize = FALSE,
+      normalizer = "poisson"
+    ),
+    rem_rate_ordered = list(
+      axis = "dyad",
+      fold_target = "active_dyad",
+      encoding = "outer",
+      symmetrize = FALSE,
+      normalizer = "multinomial"
+    )
   )
   constructors <- list(
     dynam_rate = dynam_rate_spec,
@@ -176,15 +230,46 @@ test_that("legacy_model_type maps every spec class to its legacy string", {
     rem_rate_ordered = rem_rate_ordered_spec
   )
   for (variant in names(expected)) {
+    spec <- constructors[[variant]](nodes = "actors")
+    expect_identical(spec$risk_set, expected[[variant]], info = variant)
+    expect_identical(risk_set_axis(spec), expected[[variant]]$axis)
     expect_identical(
-      legacy_model_type(constructors[[variant]](nodes = "actors")),
-      unname(expected[variant])
+      risk_set_fold_target(spec),
+      expected[[variant]]$fold_target
+    )
+    expect_identical(risk_set_encoding(spec), expected[[variant]]$encoding)
+    expect_identical(
+      risk_set_symmetrize(spec),
+      expected[[variant]]$symmetrize
+    )
+    expect_identical(
+      risk_set_normalizer(spec),
+      expected[[variant]]$normalizer
     )
   }
-  expect_error(
-    legacy_model_type(structure(list(), class = "unknown_spec")),
-    "No legacy model type"
+})
+
+test_that("risk_set_is_dyadic tracks the axis (dyad and symmetric-dyad)", {
+  expect_true(risk_set_is_dyadic(rem_rate_spec(nodes = "actors")))
+  expect_true(risk_set_is_dyadic(rem_rate_ordered_spec(nodes = "actors")))
+  expect_true(risk_set_is_dyadic(dynam_choice_coord_spec(nodes = "actors")))
+  expect_false(risk_set_is_dyadic(dynam_choice_spec(nodes = "actors")))
+  expect_false(risk_set_is_dyadic(dynam_rate_spec(nodes = "actors")))
+})
+
+test_that("coordination symmetrize follows one-mode vs two-mode", {
+  # One-mode coordination symmetrizes the dyad for the mutual likelihood; a
+  # two-mode risk set (rejected before construction elsewhere) would not.
+  one_mode <- dynam_choice_coord_spec(nodes = "actors")
+  expect_identical(risk_set_axis(one_mode), "dyad_symmetric")
+  expect_true(risk_set_symmetrize(one_mode))
+  two_mode <- dynam_choice_coord_spec(
+    is_two_mode = TRUE,
+    nodes = "actors",
+    nodes2 = "clubs"
   )
+  expect_identical(risk_set_axis(two_mode), "dyad")
+  expect_false(risk_set_symmetrize(two_mode))
 })
 
 test_that("estimate_dynam constructs and forwards the typed spec", {
@@ -209,19 +294,19 @@ test_that("estimate_dynam constructs and forwards the typed spec", {
   )
   expect_s3_class(prepRate$model_spec, "dynam_rate_spec")
   expect_true(prepRate$model_spec$has_intercept)
-  expect_warning(
-    prepRateOrdered <- estimate_dynam(
-      depNetwork ~ indeg,
-      sub_model = "rate",
-      data = dataTest,
-      preprocessing_only = TRUE
-    ),
-    "rate_ordered"
-  )
-  expect_s3_class(prepRateOrdered$model_spec, "dynam_rate_ordered_spec")
+  # A no-intercept `rate` formula gets the intercept added (waiting-time model),
+  # not the ordinal spec.
+  prepRateAdded <- suppressMessages(estimate_dynam(
+    depNetwork ~ indeg,
+    sub_model = "rate",
+    data = dataTest,
+    preprocessing_only = TRUE
+  ))
+  expect_s3_class(prepRateAdded$model_spec, "dynam_rate_spec")
+  expect_true(prepRateAdded$model_spec$has_intercept)
 })
 
-test_that("estimate_dynam accepts the explicit rate_ordered sub_model", {
+test_that("explicit rate_ordered is ordinal; implicit rate adds an intercept", {
   prepExplicit <- estimate_dynam(
     depNetwork ~ indeg,
     sub_model = "rate_ordered",
@@ -230,13 +315,17 @@ test_that("estimate_dynam accepts the explicit rate_ordered sub_model", {
   )
   expect_s3_class(prepExplicit$model_spec, "dynam_rate_ordered_spec")
   expect_identical(prepExplicit$sub_model, "rate")
-  prepImplicit <- suppressWarnings(estimate_dynam(
+  expect_false(isTRUE(prepExplicit$model_spec$has_intercept))
+  # Dropping auto-ordinal: a no-intercept `rate` formula is now a waiting-time
+  # model with the intercept added, NOT the ordinal spec.
+  prepImplicit <- suppressMessages(estimate_dynam(
     depNetwork ~ indeg,
     sub_model = "rate",
     data = dataTest,
     preprocessing_only = TRUE
   ))
-  expect_equal(prepExplicit, prepImplicit)
+  expect_s3_class(prepImplicit$model_spec, "dynam_rate_spec")
+  expect_true(prepImplicit$model_spec$has_intercept)
   expect_warning(
     estimate_dynam(
       depNetwork ~ 1 + indeg,
@@ -270,28 +359,30 @@ test_that("estimate_rem constructs and forwards the typed spec", {
   fitRem <- estimate_rem(depNetwork ~ 1 + inertia, data = dataTest)
   expect_s3_class(fitRem$model_spec, "rem_rate_spec")
   expect_true(fitRem$model_spec$has_intercept)
-  prepRemOrdered <- estimate_rem(
+  # A no-intercept REM rate formula adds the intercept (waiting times), not the
+  # ordinal spec; ordinal requires explicit `rate_ordered`.
+  prepRemAdded <- suppressMessages(estimate_rem(
     depNetwork ~ inertia,
     data = dataTest,
     preprocessing_only = TRUE
-  )
-  expect_s3_class(prepRemOrdered$model_spec, "rem_rate_ordered_spec")
+  ))
+  expect_s3_class(prepRemAdded$model_spec, "rem_rate_spec")
+  expect_true(prepRemAdded$model_spec$has_intercept)
 })
 
 test_that("estimate_dynami constructs and forwards the typed spec", {
+  snet <- as_goldfish(make_stocnet_fixture_dynami())
   prepRate <- estimate_dynami(
-    dependent.depevents_DyNAMi ~ 1 +
-      intercept(interaction_network_DyNAMi, joining = -1),
+    interactions ~ 1 + intercept(interactions, joining = -1),
     sub_model = "rate",
-    data = dataDyNAMi,
+    data = snet,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepRate$model_spec, "dynami_rate_spec")
   prepChoice <- estimate_dynami(
-    dependent.depevents_DyNAMi ~
-      inertia(past_network_DyNAMi, weighted = TRUE, sub_type = "count"),
+    interactions ~ inertia(past, weighted = TRUE, sub_type = "count"),
     sub_model = "choice",
-    data = dataDyNAMi,
+    data = snet,
     preprocessing_only = TRUE
   )
   expect_s3_class(prepChoice$model_spec, "dynami_choice_spec")

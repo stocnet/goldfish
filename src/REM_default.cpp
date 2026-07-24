@@ -124,7 +124,8 @@ List estimate_REM(
     const bool twomode_or_reflexive,
     bool impute,
     const bool active_dyad_is_point,
-    const bool return_event_scores = false
+    const bool return_event_scores = false,
+    const bool return_ranks = false
 ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -146,6 +147,11 @@ List estimate_REM(
    // requested so the default path pays nothing.
    arma::mat event_scores;
    if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+   // Opt-in per-event rank of the observed dyad among the risk set by fitted
+   // rate (rank 1 = highest rate); NA for right-censored events. Allocated
+   // only when requested so the default path pays nothing.
+   IntegerVector observed_rank;
+   if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
 
 
    // Check whether there are composition change and initialize
@@ -271,6 +277,14 @@ List estimate_REM(
        const int id_obs = id_sender * n_actors_2 + id_receiver;
        intervalLogL(id_event) += lin_pred(id_obs);
        derivative += stat_mat.row(id_obs);
+       if (return_ranks) {
+         const double obs_rate = e(id_obs);
+         int rank = 1;
+         for (unsigned int d = 0; d < e.n_elem; d++) {
+           if (allowed(d) == 1 && e(d) > obs_rate) rank++;
+         }
+         observed_rank[id_event] = rank;
+       }
      }
      if (return_event_scores) {
        event_scores.row(id_event) = derivative.row(0) - score_before;
@@ -284,6 +298,7 @@ List estimate_REM(
      Named("fisher") = fisher,
      Named("intervalLogL") = intervalLogL,
      Named("logLikelihood") = logLikelihood,
-     Named("event_scores") = event_scores
+     Named("event_scores") = event_scores,
+     Named("observed_rank") = observed_rank
    );
  }

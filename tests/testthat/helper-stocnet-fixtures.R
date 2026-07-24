@@ -396,6 +396,29 @@ make_stocnet_fixture_twomode_legacy_equiv <- function() {
   )
 }
 
+# DyNAM-i actors x groups fixture ---------------------------------------------
+#
+# The load-time legacy DyNAM-i fixture (`R/zzz_testthat_helpers.R`:
+# `actors_DyNAMi`, `depevents_DyNAMi`, `exoevents_DyNAMi`, `pastupdates_DyNAMi`,
+# and the constructor-built `interaction_network_DyNAMi` / `past_network_DyNAMi`
+# / `dependent.depevents_DyNAMi`) expressed as the assembled multipartite
+# stocnet -- the same events, both ways. It is the constructor-vs-stocnet
+# equivalence input for the DyNAM-i boundary (the bridge reverses this stocnet
+# back into an environment and its components must equal the load-time objects).
+make_stocnet_fixture_dynami <- function() {
+  assemble_interaction_stocnet(
+    actors = as.data.frame(actors_DyNAMi),
+    groups = data.frame(
+      label = groups_DyNAMi$label,
+      present = TRUE,
+      stringsAsFactors = FALSE
+    ),
+    dependent_events = depevents_DyNAMi,
+    exogenous_events = exoevents_DyNAMi,
+    interaction_updates = pastupdates_DyNAMi
+  )
+}
+
 # Focal-less fixtures ---------------------------------------------------------
 #
 # The estimable fixtures with `info$focal` stripped: the formula LHS (or the

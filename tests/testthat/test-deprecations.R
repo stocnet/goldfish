@@ -1,22 +1,26 @@
-test_that("DyNAM rate sub_model with no-intercept formula warns", {
-  expect_warning(
+test_that("DyNAM rate with no-intercept formula adds the intercept", {
+  # `sub_model = "rate"` always models waiting times: a formula without the time
+  # intercept gets it added (and an informative message), rather than collapsing
+  # to the ordinal spec. Ordinal modeling requires explicit `rate_ordered`.
+  expect_message(
     prep <- estimate_dynam(
       depNetwork ~ indeg,
       sub_model = "rate",
       data = dataTest,
       preprocessing_only = TRUE
     ),
-    "rate_ordered"
+    "waiting times"
   )
-  expect_s3_class(prep$model_spec, "dynam_rate_ordered_spec")
-  expect_warning(
+  expect_s3_class(prep$model_spec, "dynam_rate_spec")
+  expect_true(prep$model_spec$has_intercept)
+  expect_message(
     compute_stats(
       depNetwork ~ indeg,
       data = dataTest,
       model = "DyNAM",
       sub_model = "rate"
     ),
-    "rate_ordered"
+    "waiting times"
   )
 })
 

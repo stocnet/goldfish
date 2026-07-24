@@ -1,7 +1,8 @@
 # dynami-data-boundary Specification
 
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change dynami-stocnet-boundary. Update Purpose after archive.
+## Requirements
 ### Requirement: DyNAMi data assembles to a stocnet
 `make_groups_interaction()` SHALL return the assembled multipartite stocnet
 directly (**BREAKING**: the previous 5-component list, including the
@@ -82,31 +83,32 @@ that the leaving choice is deterministic.
 
 ### Requirement: Group availability is a derived support constraint
 The public surface SHALL NOT take an `opportunities` list: the DyNAMi choice
-specification SHALL auto-derive the constraint
-`~ indeg(<focal layer>) >= 1 & !tie(<focal layer>)` (existing
-support-constraint grammar — a second-mode node is in the choice set iff
-occupied at the decision point in event order AND not the joiner's own
-current affiliation; the own singleton is excluded per the paper's choice
-set), AND-combined with any user `support_constraint`. The constraint SHALL
-be compiled and folded through the standard support-constraint machinery —
-DyNAMi choice estimates as a normal constrained model — and SHALL NOT be fed
-through the internal `opportunitiesList` channel. The dead
-`setopportunities_interaction()` SHALL be removed.
+specification SHALL auto-derive the constraint `~ indeg(<focal layer>) >= 1`
+(existing support-constraint grammar — a second-mode node is in the choice set
+iff it is occupied at the decision point in event order). This is Hoffman et al.
+Eq. 8's denominator over the present second-mode nodes, which INCLUDES the
+joiner's own singleton: an isolate may choose to stay isolated, so its own
+singleton is a valid, sometimes-observed choice (excluding it would assign zero
+probability to those events). The constraint SHALL be folded into the dense
+maintained-availability object the estimation kernel reads (the `active_dyad`
+point encoding) and SHALL NOT be fed through the internal `opportunitiesList`
+channel. The dead `setopportunities_interaction()` SHALL be removed.
 
-#### Scenario: Derived availability equals the stored list minus the own singleton
+#### Scenario: Derived availability equals the stored opportunity list
 - **WHEN** a fixture that legacy code drove with an explicit `opportunities`
   list is estimated through the stocnet boundary without one
 - **THEN** the per-event derived availability equals the constructor-stored
-  list with the joiner's own singleton removed.
+  occupied-groups list (own singleton included).
 
-#### Scenario: Own-exclusion correction is baselined
+#### Scenario: Choice reproduces the established baselines
 - **WHEN** the DyNAMi choice model estimates under the derived constraint
-- **THEN** coefficients match the new versioned choice baselines (own
-  singleton excluded from the denominator) to 1e-6, and the rate baselines
-  PASS unchanged.
+- **THEN** coefficients match the frozen choice baselines (the established
+  goldfish 1.7.0 values, own singleton included) to 1e-6, and the rate
+  baselines PASS unchanged.
 
 #### Scenario: User constraint composes with the derived one
 - **WHEN** a DyNAMi choice specification also supplies a user
   `support_constraint`
 - **THEN** the effective risk set is the AND of the derived constraint and
   the user constraint.
+

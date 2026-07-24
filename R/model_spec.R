@@ -31,9 +31,163 @@ model_spec_structure <- function(
       is_two_mode = is_two_mode,
       nodes = nodes,
       nodes2 = nodes2,
+      risk_set = risk_set_descriptor(indexing, sub_model, is_two_mode),
       ...
     ),
     class = c(variant, indexing, "model_spec")
+  )
+}
+
+#' Risk-set dispatch descriptor
+#'
+#' The single parse-time decision point for the risk-set geometry a model
+#' spec carries. Derived once, at construction, from the resolved
+#' `(indexing, sub_model, is_two_mode)`; every downstream site (availability
+#' encoding selection, fold-family selection, validation family, rate
+#' detection, estimation guards) reads it through the accessors below and
+#' none re-derives the family or geometry from model/sub_model strings or
+#' from array dimensionality. Fields:
+#' \describe{
+#'   \item{`axis`}{the risk-set axis: `"sender"` (rate models, sender-indexed),
+#'     `"receiver_given_sender"` (choice — one sender's receiver row),
+#'     `"dyad"` (REM / REM-ordered / two-mode coordination — the full dyad
+#'     matrix), or `"dyad_symmetric"` (one-mode coordination — the dyad matrix
+#'     symmetrized for the mutual likelihood).}
+#'   \item{`fold_target`}{the maintained availability object a support
+#'     constraint folds into: `"active_sender"` for rate, `"active_dyad"`
+#'     for every dyad-loop family.}
+#'   \item{`encoding`}{the base `active_dyad` encoding when no constraint
+#'     sharpens it: `"outer"` for the dyadic risk sets (both presences fold),
+#'     `"alter"` for choice (receiver presence only), `NA` for rate.}
+#'   \item{`symmetrize`}{`TRUE` only for one-mode coordination; the value the
+#'     undirected-REM discussion will reuse.}
+#'   \item{`normalizer`}{the likelihood normalizer, from `sub_model`:
+#'     `"poisson"` (rate — timespan-weighted waiting times), `"multinomial"`
+#'     (choice / ordinal rate — the softmax over the risk set), or
+#'     `"coordination"` (the mutual `getLikelihoodMM` product). The compiled
+#'     interface selects the timespan handling, the `compute_` kernel, and the
+#'     intercept-init family from this, never from a model-type string.}
+#' }
+#' @noRd
+risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
+  # The likelihood normalizer follows the sub-model: `rate` is the
+  # timespan-weighted Poisson, `choice_coordination` the mutual product, and
+  # everything else (`choice`, ordinal `rate_ordered`) the multinomial softmax.
+  normalizer <- switch(
+    sub_model,
+    rate = "poisson",
+    choice_coordination = "coordination",
+    "multinomial"
+  )
+  if (identical(indexing, "sender_spec")) {
+    return(list(
+      axis = "sender",
+      fold_target = "active_sender",
+      encoding = NA_character_,
+      symmetrize = FALSE,
+      normalizer = normalizer
+    ))
+  }
+  if (identical(sub_model, "choice")) {
+    return(list(
+      axis = "receiver_given_sender",
+      fold_target = "active_dyad",
+      encoding = "alter",
+      symmetrize = FALSE,
+      normalizer = normalizer
+    ))
+  }
+  if (identical(sub_model, "choice_coordination")) {
+    # One-mode coordination symmetrizes the dyad matrix for the mutual
+    # likelihood; a (rejected-before-construction) two-mode coordination would
+    # not. Deriving from is_two_mode keeps the value correct either way.
+    symmetrize <- !isTRUE(is_two_mode)
+    return(list(
+      axis = if (symmetrize) "dyad_symmetric" else "dyad",
+      fold_target = "active_dyad",
+      encoding = "outer",
+      symmetrize = symmetrize,
+      normalizer = normalizer
+    ))
+  }
+  # REM rate / rate_ordered: the whole dyad matrix, both presences fold.
+  list(
+    axis = "dyad",
+    fold_target = "active_dyad",
+    encoding = "outer",
+    symmetrize = FALSE,
+    normalizer = normalizer
+  )
+}
+
+#' @noRd
+risk_set_axis <- function(spec) spec$risk_set$axis
+
+#' @noRd
+risk_set_normalizer <- function(spec) spec$risk_set$normalizer
+
+#' @noRd
+risk_set_fold_target <- function(spec) spec$risk_set$fold_target
+
+#' @noRd
+risk_set_encoding <- function(spec) spec$risk_set$encoding
+
+#' @noRd
+risk_set_symmetrize <- function(spec) isTRUE(spec$risk_set$symmetrize)
+
+#' Whether the risk set spans the full dyad matrix (both presences fold)
+#' @noRd
+risk_set_is_dyadic <- function(spec) {
+  risk_set_axis(spec) %in% c("dyad", "dyad_symmetric")
+}
+
+#' Engine capability for constrained (support_constraint) estimation
+#'
+#' The single table answering whether an engine consumes a `support_constraint`
+#' for a given model family. Every wired recipe family folds its availability
+#' during preprocessing and reads the folded buffers natively on all engines, so
+#' the capability is engine-independent: one row per spec class. The DyNAMi
+#' monolith and the ordinal DyNAM-rate path do not yet consume a folded
+#' constraint. Keyed by `class(spec)[1]`; the value is a human-readable family
+#' label for supported classes and `NA` for unsupported ones, so the abort
+#' message enumerates the supported families from the table and wiring a new
+#' family is a one-row edit.
+#' @noRd
+constrained_support_map <- function() {
+  c(
+    dynam_choice_spec = "DyNAM choice",
+    dynam_choice_coord_spec = "DyNAM choice_coordination",
+    dynam_rate_spec = "DyNAM rate",
+    dynam_rate_ordered_spec = NA_character_,
+    rem_rate_spec = "REM rate",
+    rem_rate_ordered_spec = "REM rate_ordered",
+    dynami_rate_spec = NA_character_,
+    dynami_rate_ordered_spec = NA_character_,
+    dynami_choice_spec = NA_character_
+  )
+}
+
+#' @noRd
+constrained_estimation_supported <- function(spec) {
+  !is.na(constrained_support_map()[class(spec)[1]])
+}
+
+#' Abort when a support_constraint reaches an unwired model family
+#'
+#' The message enumerates the supported families from the capability table so
+#' it stays in sync with [constrained_support_map()].
+#' @noRd
+abort_constraint_unsupported <- function(spec, call = rlang::caller_env()) {
+  supported <- unname(constrained_support_map())
+  supported <- supported[!is.na(supported)]
+  cli::cli_abort(
+    c(
+      "{.arg support_constraint} is not consumed for {.val {spec$model}}
+       {.val {spec$sub_model}} estimation.",
+      "i" = "Risk-set restriction is wired for {.val {supported}}.",
+      "i" = "The preprocessed mask is available in {.code prep$support_mask}."
+    ),
+    call = call
   )
 }
 
@@ -325,33 +479,5 @@ new_model_spec <- function(
     nodes = nodes,
     nodes2 = if (is.null(nodes2)) nodes else nodes2,
     ...
-  )
-}
-
-#' Legacy model type string from a spec class
-#'
-#' Maps the spec class to the internal model type string still consumed by
-#' the estimation routines. To be removed when `estimate_int()` dispatches
-#' on the spec class.
-#'
-#' @param spec a `model_spec` object.
-#'
-#' @return a character scalar.
-#' @noRd
-legacy_model_type <- function(spec) {
-  switch(
-    class(spec)[1],
-    dynam_rate_spec = ,
-    dynami_rate_spec = "DyNAM-M-Rate",
-    dynam_rate_ordered_spec = ,
-    dynami_rate_ordered_spec = "DyNAM-M-Rate-ordered",
-    dynam_choice_spec = ,
-    dynami_choice_spec = "DyNAM-M",
-    dynam_choice_coord_spec = "DyNAM-MM",
-    rem_rate_spec = "REM",
-    rem_rate_ordered_spec = "REM-ordered",
-    cli::cli_abort(
-      "No legacy model type for class {.cls {class(spec)[1]}}."
-    )
   )
 }

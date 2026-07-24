@@ -70,27 +70,11 @@
       Warning:
       `defineGroups_interaction()` was deprecated in goldfish 1.7.0.
       i Please use `make_groups_interaction()` instead.
-    Output
-      $interaction.updates
-      [1] time      sender    receiver  increment
-      <0 rows> (or 0-length row.names)
+    Message
       
-      $groups
-         label present
-      1 Group1    TRUE
-      2 Group2    TRUE
-      3 Group3    TRUE
-      4 Group4    TRUE
+      -- DyNAM-i interaction groups --------------------------------------------------
+      1 layer, 8 nodes, 4 ties.
       
-      $dependent.events
-      [1] time      sender    receiver  increment
-      <0 rows> (or 0-length row.names)
-      
-      $exogenous.events
-      [1] time      sender    receiver  increment
-      <0 rows> (or 0-length row.names)
-      
-      $opportunities
-      list()
-      
+      -- Layers 
+      * interactions (focal): event, directed, increment
 

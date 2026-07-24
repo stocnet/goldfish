@@ -34,7 +34,8 @@ List estimate_DyNAM_MM(
     const bool twomode_or_reflexive,
     bool impute = true,
     const bool active_dyad_is_point = false,
-    const bool return_event_scores = false
+    const bool return_event_scores = false,
+    const bool return_ranks = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -67,6 +68,10 @@ List estimate_DyNAM_MM(
     // requested so the default path pays nothing.
     arma::mat event_scores;
     if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+    // Opt-in per-event rank of the observed dyad among the risk set
+    // (rank 1 = highest fitted probability); allocated only when requested.
+    IntegerVector observed_rank;
+    if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
 
 
     // Check whether there are composition change and initialize
@@ -226,6 +231,14 @@ List estimate_DyNAM_MM(
         const int a_obs = (id_sender > id_receiver) ? id_sender : id_receiver;
         const int b_obs = (id_sender > id_receiver) ? id_receiver : id_sender;
         const int idx_obs = a_obs * (a_obs - 1) / 2 + b_obs;
+        if (return_ranks) {
+            const double obs_weight = dyad_weights(idx_obs);
+            int rank = 1;
+            for (int d = 0; d < n_dyads; d++) {
+                if (allowed_dyad(d) == 1 && dyad_weights(d) > obs_weight) rank++;
+            }
+            observed_rank[id_event] = rank;
+        }
         // expected gradient g = sum_d P_d D_d; score = grad log w_obs - g
         arma::rowvec g = (dyad_weights.t() * D) / normalizer;
         if (return_event_scores) {
@@ -245,7 +258,8 @@ List estimate_DyNAM_MM(
       Named("fisher") = fisher,
       Named("logLikelihood") = logLikelihood,
       Named("intervalLogL") = intervalLogL,
-      Named("event_scores") = event_scores
+      Named("event_scores") = event_scores,
+      Named("observed_rank") = observed_rank
     );
 }
 

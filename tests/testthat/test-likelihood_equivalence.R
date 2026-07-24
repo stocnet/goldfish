@@ -40,7 +40,7 @@ test_that("rate/REM core: riskMask and reflexive zeroing (golden fixture)", {
       sc$refl,
       is_two_mode = FALSE,
       isREM = TRUE,
-      riskMask = sc$mask
+      active_dyad_mask = sc$mask
     )
   })
   expect_snapshot_value(results, style = "serialize", tolerance = 1e-10)

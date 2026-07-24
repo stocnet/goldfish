@@ -7,34 +7,35 @@
 # ---- 4.1: static encoding decision ----
 
 test_that("active_dyad_encoding_decide reproduces the pre-fold assignment", {
-  # unconstrained: receiver-only families are alter, dyadic-risk-set are outer.
-  expect_identical(active_dyad_encoding_decide("DyNAM-M"), "alter")
-  expect_identical(active_dyad_encoding_decide("REM"), "outer")
-  expect_identical(active_dyad_encoding_decide("REM-ordered"), "outer")
-  expect_identical(active_dyad_encoding_decide("DyNAM-MM"), "outer")
+  # unconstrained: the spec descriptor's base encoding passes straight through
+  # -- receiver-only families (choice) are "alter", dyadic-risk-set families
+  # (REM / REM-ordered / coordination) are "outer".
+  expect_identical(active_dyad_encoding_decide("alter"), "alter")
+  expect_identical(active_dyad_encoding_decide("outer"), "outer")
 })
 
 test_that("active_dyad_encoding_decide folds the constraint axis-union kind", {
   # mask_kind: 0 point, 1 alter, 2 ego, 3 scalar.
-  # choice (receiver axis only): alter/scalar stay alter; ego adds a sender
-  # factor -> outer; point -> point.
-  expect_identical(active_dyad_encoding_decide("DyNAM-M", 1L), "alter")
-  expect_identical(active_dyad_encoding_decide("DyNAM-M", 3L), "alter")
-  expect_identical(active_dyad_encoding_decide("DyNAM-M", 2L), "outer")
-  expect_identical(active_dyad_encoding_decide("DyNAM-M", 0L), "point")
-  # REM already folds both presences -> outer, unless a point atom forces point.
-  expect_identical(active_dyad_encoding_decide("REM", 1L), "outer")
-  expect_identical(active_dyad_encoding_decide("REM", 2L), "outer")
-  expect_identical(active_dyad_encoding_decide("REM", 0L), "point")
+  # choice (base "alter", receiver axis only): alter/scalar stay alter; ego adds
+  # a sender factor -> outer; point -> point.
+  expect_identical(active_dyad_encoding_decide("alter", 1L), "alter")
+  expect_identical(active_dyad_encoding_decide("alter", 3L), "alter")
+  expect_identical(active_dyad_encoding_decide("alter", 2L), "outer")
+  expect_identical(active_dyad_encoding_decide("alter", 0L), "point")
+  # dyadic base ("outer") already folds both presences -> stays outer, unless a
+  # point atom forces point.
+  expect_identical(active_dyad_encoding_decide("outer", 1L), "outer")
+  expect_identical(active_dyad_encoding_decide("outer", 2L), "outer")
+  expect_identical(active_dyad_encoding_decide("outer", 0L), "point")
 })
 
 test_that("an opportunity list forces the point encoding", {
   expect_identical(
-    active_dyad_encoding_decide("DyNAM-M", 1L, has_opportunity = TRUE),
+    active_dyad_encoding_decide("alter", 1L, has_opportunity = TRUE),
     "point"
   )
   expect_identical(
-    active_dyad_encoding_decide("DyNAM-M", NULL, has_opportunity = TRUE),
+    active_dyad_encoding_decide("alter", NULL, has_opportunity = TRUE),
     "point"
   )
 })

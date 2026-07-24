@@ -10,14 +10,6 @@ estimate_c_int <- function(
   statsList,
   nodes,
   nodes2,
-  modelTypeCall = c(
-    "DyNAM-MM",
-    "DyNAM-M",
-    "REM-ordered",
-    "DyNAM-M-Rate",
-    "REM",
-    "DyNAM-M-Rate-ordered"
-  ),
   initialParameters = NULL,
   fixedParameters = NULL,
   excludeParameters = NULL,
@@ -36,6 +28,7 @@ estimate_c_int <- function(
   hasIntercept = FALSE,
   returnIntervalLogL = FALSE,
   return_event_scores = FALSE,
+  return_ranks = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -44,9 +37,7 @@ estimate_c_int <- function(
   get_data_matrix = FALSE,
   impute = FALSE,
   opportunitiesList = NULL,
-  senderGate = NULL,
-  remMask = NULL,
-  supportMask = NULL,
+  spec = NULL,
   engine = c("default_c", "gather_compute"),
   optimizer = "newton_raphson"
 ) {
@@ -56,27 +47,11 @@ estimate_c_int <- function(
       call. = FALSE
     )
   }
-  # gather_compute consumes the mask via the R gather; default_c consumes it in
-  # the per-model C++ estimator, wired for DyNAM-M (choice) only. Other
-  # combinations are a caller error (they downgrade to the default engine
-  # upstream).
-  default_c_support_ok <- identical(modelTypeCall, "DyNAM-M")
-  if (
-    (!is.null(senderGate) || !is.null(remMask)) ||
-      (!is.null(supportMask) &&
-        identical(engine, "default_c") &&
-        !default_c_support_ok)
-  ) {
-    stop(
-      "support_constraint is not supported in this C interface engine.",
-      call. = FALSE
-    )
-  }
 
   minDampingFactor <- initialDamping
   # CHANGED MARION
   # nParams: number of effects + 1 (if has intercept)
-  is_rate_model <- modelTypeCall %in% c("DyNAM-M-Rate", "DyNAM-M-Rate-ordered")
+  is_rate_model <- identical(risk_set_axis(spec), "sender")
   nParams <- (if (is_rate_model) {
     ncol(statsList$initialStats)
   } else {
@@ -118,7 +93,6 @@ estimate_c_int <- function(
     idFixedCompnents <- which(!is.na(fixedParameters))
   }
 
-  modelTypeCall <- match.arg(modelTypeCall)
   engine <- match.arg(engine)
 
   ## PARAMETER CHECKS
@@ -166,7 +140,8 @@ estimate_c_int <- function(
   statsList <- prepare_statslist(
     statsList = statsList,
     excludeParameters = excludeParameters,
-    addInterceptEffect = hasIntercept
+    addInterceptEffect = hasIntercept,
+    is_sender = is_rate_model
   )
 
   ## PRESENCE UPDATES PRECOMPUTED DURING PREPROCESSING
@@ -198,8 +173,7 @@ estimate_c_int <- function(
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
   if (
-    modelTypeCall %in%
-      c("REM", "DyNAM-M-Rate") &&
+    identical(risk_set_normalizer(spec), "poisson") &&
       hasIntercept &&
       is.null(initialParameters) &&
       (is.null(fixedParameters) || is.na(fixedParameters[1]))
@@ -241,13 +215,13 @@ estimate_c_int <- function(
 
   ## CONVERT TYPES OF EVENTS AND TIMESPANS INTO THE FORMAT ACCEPTED
   ## BY C FUNCTIONS
-  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
+  # Poisson (rate / standard REM) carries a timespan; the ordinal and
+  # coordination sender-set families need is_dependent but no timespan; choice
+  # (receiver-given-sender) reads neither.
+  if (identical(risk_set_normalizer(spec), "poisson")) {
     is_dependent <- as.logical(statsList$is_dependent)
     timespan <- statsList$intervals
-  } else if (
-    modelTypeCall %in%
-      c("DyNAM-M-Rate-ordered", "REM-ordered", "DyNAM-MM")
-  ) {
+  } else if (!identical(risk_set_axis(spec), "receiver_given_sender")) {
     is_dependent <- as.logical(statsList$is_dependent)
   } else {
     timespan <- NA
@@ -271,7 +245,7 @@ estimate_c_int <- function(
   ## ESTIMATION: INITIALIZATION
 
   if (verbose) {
-    cat("Estimating model type", modelTypeCall, ".\n")
+    cat("Estimating model ", spec$model, " ", spec$sub_model, ".\n", sep = "")
   }
 
   iIteration <- 1
@@ -290,7 +264,7 @@ estimate_c_int <- function(
   ## GATHERING INFO IF WE USE THE GATHER-COMPUTE ENGINE.
   if (engine == "gather_compute") {
     gathered_data <- gather_(
-      modelTypeCall = modelTypeCall,
+      spec = spec,
       event_mat = event_mat,
       timespan = timespan,
       is_dependent = is_dependent,
@@ -310,7 +284,6 @@ estimate_c_int <- function(
       twomode_or_reflexive = twomode_or_reflexive,
       verbose = progress, # output the progress of data gathering
       impute = impute,
-      support = supportMask,
       active_dyad_encoding = active_dyad_encoding
     )
     size_gathered_data <- utils::object.size(gathered_data)
@@ -320,17 +293,16 @@ estimate_c_int <- function(
   # both the Newton-Raphson iterations and the maxLik adapter reuse it: at the
   # point encoding `active_dyad_init` is flattened sender-major to a
   # dense n1 x n2 mask; otherwise it is the length-n2 receiver vector.
-  dyad_is_point <- modelTypeCall %in%
-    c("DyNAM-M", "REM", "REM-ordered", "DyNAM-MM") &&
+  dyad_is_point <- !identical(risk_set_axis(spec), "sender") &&
     identical(active_dyad_encoding, "point")
   dyad_init_c <- if (dyad_is_point) {
     as.vector(t(active_dyad_init))
   } else {
     active_dyad_init
   }
-  evaluate_default_c <- function(pars, need_scores) {
+  evaluate_default_c <- function(pars, need_scores, need_ranks = FALSE) {
     estimate_(
-      modelTypeCall = modelTypeCall,
+      spec = spec,
       parameters = pars,
       event_mat = event_mat,
       timespan = timespan,
@@ -351,7 +323,8 @@ estimate_c_int <- function(
       twomode_or_reflexive = twomode_or_reflexive,
       impute = impute,
       active_dyad_is_point = dyad_is_point,
-      return_event_scores = need_scores
+      return_event_scores = need_scores,
+      return_ranks = need_ranks
     )
   }
 
@@ -380,7 +353,7 @@ estimate_c_int <- function(
     ## GATHER-COMPUTE ENGINE
     if (engine == "gather_compute") {
       res <- compute_(
-        modelTypeCall = modelTypeCall,
+        spec = spec,
         parameters = parameters,
         stat_all_events = gathered_data$stat_all_events,
         selected = gathered_data$selected,
@@ -395,7 +368,7 @@ estimate_c_int <- function(
 
     ### DEFAULT_C ENGINE
     if (engine == "default_c") {
-      res <- evaluate_default_c(parameters, return_event_scores)
+      res <- evaluate_default_c(parameters, return_event_scores, return_ranks)
     }
 
     logLikelihood <- res$logLikelihood
@@ -407,10 +380,13 @@ estimate_c_int <- function(
     if (return_event_scores) {
       event_scores <- res$event_scores
     }
+    if (return_ranks) {
+      observed_rank <- res$observed_rank
+    }
 
     if (returnEventProbabilities) {
       eventProbabilities <- if (is.null(res$pMatrix)) {
-        paste("not implemented for model type", modelTypeCall)
+        paste("not implemented for model", spec$model, spec$sub_model)
       } else {
         res$pMatrix
       }
@@ -604,6 +580,9 @@ estimate_c_int <- function(
   if (return_event_scores) {
     estimationResult$event_scores <- event_scores
   }
+  if (return_ranks) {
+    estimationResult$observed_rank <- observed_rank
+  }
   if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
   }
@@ -757,8 +736,10 @@ estimate_via_maxlik <- function(
 }
 
 ## ESTIMATE FOR DIFFERENT MODELS
+# The C++ estimator is selected by the spec class (stage-boundary dispatch), not
+# a model-type string; each family shapes its own argument list.
 estimate_ <- function(
-  modelTypeCall,
+  spec,
   parameters,
   event_mat,
   timespan,
@@ -779,12 +760,13 @@ estimate_ <- function(
   twomode_or_reflexive,
   impute,
   active_dyad_is_point = FALSE,
-  return_event_scores = FALSE
+  return_event_scores = FALSE,
+  return_ranks = FALSE
 ) {
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
   # (node1, node2, replace) buffer; otherwise it is the length-n2 receiver vector.
-  if (modelTypeCall == "DyNAM-MM") {
+  if (inherits(spec, "dynam_choice_coord_spec")) {
     res <- estimate_DyNAM_MM(
       parameters,
       event_mat,
@@ -804,11 +786,12 @@ estimate_ <- function(
       twomode_or_reflexive,
       impute,
       active_dyad_is_point = active_dyad_is_point,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
 
-  if (modelTypeCall == "DyNAM-M") {
+  if (inherits(spec, "dynam_choice_spec")) {
     res <- estimate_DyNAM_choice(
       parameters,
       event_mat,
@@ -825,11 +808,12 @@ estimate_ <- function(
       twomode_or_reflexive,
       impute,
       active_dyad_is_point = active_dyad_is_point,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
 
-  if (modelTypeCall == "REM-ordered") {
+  if (inherits(spec, "rem_rate_ordered_spec")) {
     res <- estimate_REM_ordered(
       parameters,
       event_mat,
@@ -849,11 +833,12 @@ estimate_ <- function(
       twomode_or_reflexive,
       impute,
       active_dyad_is_point = active_dyad_is_point,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
 
-  if (modelTypeCall == "REM") {
+  if (inherits(spec, "rem_rate_spec")) {
     res <- estimate_REM(
       parameters,
       event_mat,
@@ -875,11 +860,12 @@ estimate_ <- function(
       twomode_or_reflexive,
       impute,
       active_dyad_is_point = active_dyad_is_point,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
 
-  if (modelTypeCall == "DyNAM-M-Rate") {
+  if (inherits(spec, "dynam_rate_spec")) {
     res <- estimate_DyNAM_rate(
       parameters,
       event_mat,
@@ -900,11 +886,12 @@ estimate_ <- function(
       n_actors2,
       twomode_or_reflexive,
       impute,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
 
-  if (modelTypeCall == "DyNAM-M-Rate-ordered") {
+  if (inherits(spec, "dynam_rate_ordered_spec")) {
     res <- estimate_DyNAM_rate_ordered(
       parameters,
       event_mat,
@@ -923,7 +910,8 @@ estimate_ <- function(
       n_actors2,
       twomode_or_reflexive,
       impute,
-      return_event_scores = return_event_scores
+      return_event_scores = return_event_scores,
+      return_ranks = return_ranks
     )
   }
   return(res)
@@ -945,7 +933,7 @@ estimate_ <- function(
 #' code paths (the impute machinery was dropped from estimation).
 #' @noRd
 gather_ <- function(
-  modelTypeCall,
+  spec,
   event_mat,
   timespan,
   is_dependent,
@@ -965,10 +953,9 @@ gather_ <- function(
   twomode_or_reflexive,
   verbose,
   impute,
-  support = NULL,
   active_dyad_encoding = "alter"
 ) {
-  if (modelTypeCall %in% c("REM-ordered", "REM", "DyNAM-MM")) {
+  if (risk_set_is_dyadic(spec)) {
     # DyNAM-MM (coordination) now emits the off-diagonal directed dyad list — no
     # forced `twomode_or_reflexive` and no reflexive rows. The
     # dyad-triangle kernel reads the emitted index structures (per-sender groups
@@ -992,9 +979,9 @@ gather_ <- function(
       n_actors2,
       twomode_or_reflexive,
       active_dyad_encoding = active_dyad_encoding,
-      is_coordination = (modelTypeCall == "DyNAM-MM")
+      is_coordination = identical(risk_set_normalizer(spec), "coordination")
     )
-  } else if (modelTypeCall == "DyNAM-M") {
+  } else if (identical(risk_set_axis(spec), "receiver_given_sender")) {
     gathered_data <- gather_receiver_model_r(
       event_mat,
       stat_mat_init,
@@ -1010,7 +997,7 @@ gather_ <- function(
       twomode_or_reflexive,
       active_dyad_encoding = active_dyad_encoding
     )
-  } else if (modelTypeCall %in% c("DyNAM-M-Rate-ordered", "DyNAM-M-Rate")) {
+  } else if (identical(risk_set_axis(spec), "sender")) {
     gathered_data <- gather_sender_model_r(
       event_mat,
       is_dependent,
@@ -1528,8 +1515,10 @@ gather_sender_model_r <- function(
 
 
 ## COMPUTE FOR DIFFERENT MODELS
+# The likelihood kernel is selected by the spec's normalizer, not a model-type
+# string: multinomial (choice / ordinal rate), Poisson (rate), or coordination.
 compute_ <- function(
-  modelTypeCall,
+  spec,
   parameters,
   stat_all_events,
   selected,
@@ -1540,7 +1529,7 @@ compute_ <- function(
   sender_of_row = NULL,
   dyad_partner = NULL
 ) {
-  if (modelTypeCall %in% c("DyNAM-M", "REM-ordered", "DyNAM-M-Rate-ordered")) {
+  if (identical(risk_set_normalizer(spec), "multinomial")) {
     res <- compute_multinomial_selection(
       parameters,
       stat_all_events,
@@ -1549,7 +1538,7 @@ compute_ <- function(
     )
   }
 
-  if (modelTypeCall %in% c("DyNAM-M-Rate", "REM")) {
+  if (identical(risk_set_normalizer(spec), "poisson")) {
     res <- compute_poisson_selection(
       parameters,
       stat_all_events,
@@ -1560,7 +1549,7 @@ compute_ <- function(
     )
   }
 
-  if (modelTypeCall == "DyNAM-MM") {
+  if (identical(risk_set_normalizer(spec), "coordination")) {
     res <- compute_coordination_selection(
       parameters,
       stat_all_events,

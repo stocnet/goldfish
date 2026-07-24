@@ -15,9 +15,10 @@ set_estimation_opt(
   initial_damping = NULL,
   damping_increase_factor = 2,
   damping_decrease_factor = 3,
-  return_interval_loglik = TRUE,
-  return_probabilities = FALSE,
-  return_event_scores = FALSE,
+  return_interval_loglik = deprecated(),
+  return_probabilities = deprecated(),
+  return_event_scores = deprecated(),
+  diagnostics = c("loglik", "scores"),
   optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
   engine = c("default_c", "default", "gather_compute")
 )
@@ -79,23 +80,23 @@ in the estimation are found. Must be >= 1. Default is \code{2}.}
 Factor by which damping is decreased when no improvements
 in the estimation are found. Must be >= 1. Default is \code{3}.}
 
-\item{return_interval_loglik}{A logical value.
-Whether to keep and return the
-log-likelihood for each event. Default is \code{FALSE}.}
+\item{return_interval_loglik}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Superseded by
+\code{diagnostics = "loglik"}. Whether to keep and return the log-likelihood for
+each event.}
 
-\item{return_probabilities}{A logical value.
-Whether to keep and return the
+\item{return_probabilities}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Superseded by
+\code{diagnostics = "probabilities"}. Whether to keep and return the
 probabilities for all alternatives for each event.
 \itemize{
 \item When \code{sub_model = "choice"} the probabilities correspond to all actors in
 the choice set present at the time of the event.
 \item When \code{model = "REM"} the probabilities correspond to all dyads present at
 the time of the event.
-Default is \code{FALSE}.
 }}
 
-\item{return_event_scores}{A logical value.
-Whether to keep and return the per-event score matrix (one row per
+\item{return_event_scores}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Superseded by
+\code{diagnostics = "scores"}. Whether to keep and return the per-event score
+matrix (one row per
 dependent event, one column per effect) evaluated at the returned
 parameter estimates, stored as the \code{event_scores} component of the result.
 Each row is the observation-level gradient contribution whose column sums
@@ -104,8 +105,20 @@ equal the aggregate score. The matrix supports downstream diagnostics
 standard errors from the outer product of gradients \code{crossprod(event_scores)},
 per-effect score-process diagnostics that localize where individual effects
 drift over the event sequence, and event-influence measures. Only the
-\code{"default_c"} and \code{"default"} engines support it; \code{"gather_compute"} aborts.
-Default is \code{FALSE}.}
+\code{"default_c"} and \code{"default"} engines support it; \code{"gather_compute"} aborts.}
+
+\item{diagnostics}{Names the per-event diagnostic \emph{primitives} estimation
+stores on the fitted result, superseding the three \verb{return_*} flags above.
+Accepts a character vector drawn from
+\code{c("loglik", "scores", "ranks", "margins", "probabilities")}, or the
+shorthands \code{TRUE} (equivalent to \code{c("loglik", "scores")}), \code{"all"} (all
+five), and \code{FALSE} / \code{character(0)} (none). Each primitive maps to a stored
+component of the result: \code{"loglik"} to \code{intervalLogL} (and \code{total_rate} on
+exact-time submodels), \code{"scores"} to \code{event_scores}, \code{"ranks"} to
+\code{observed_rank}, \code{"margins"} to per-actor observed and expected counts, and
+\code{"probabilities"} to per-event probability vectors. Unknown names abort with
+an error listing the valid primitives. Default is \code{c("loglik", "scores")},
+preserving today's stored log-likelihood and adding the (free) scores.}
 
 \item{optimizer}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A character string
 naming the optimization algorithm. Options are:
@@ -156,6 +169,8 @@ decreased when no improvements in the estimation are found.}
 return the log-likelihood for each event.}
 \item{return_event_scores}{Logical value indicating whether to
 return the per-event score matrix.}
+\item{diagnostics}{Character vector of the diagnostic primitives to store
+on the fitted result.}
 \item{optimizer}{Optimization algorithm used in the estimation process.}
 \item{engine}{Estimation engine used in the estimation process.}
 }

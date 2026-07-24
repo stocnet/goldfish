@@ -34,6 +34,16 @@ generic); `test_time()` implements both trend and window methods;
 goldfish adopts autograph's `outliers.goldfish`/`changepoints.goldfish`
 classes; in-sample `predict()` ships now.
 
+**These code facts predate the dispatch/estimation churn.** They were
+established 2026-07-17; since then `refactor-single-data-object` archived,
+`multimode` (two-mode fits) landed, and `spec-driven-dispatch` (risk-set
+descriptor onto the model spec, legacy-vocabulary retirement) is still in
+flight — all of which reshape exactly the `modelTypeCall` dispatch,
+`make_specification()` fit shape, and engine surface this change routes
+through. Task 0.1 re-verifies each fact and refreshes the anchors before any
+edit; the dispatch/spec portion re-runs against the landed surface once
+`spec-driven-dispatch` archives.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -96,8 +106,14 @@ opt-in. cpp-recompile discipline applies to every `src/` edit.
 `evaluate_engine(x, at = coef(x), return = c("loglik", "score",
 "information", "interval_loglik", "event_scores", "ranks", "recall",
 "margins", "probabilities"), preprocessed = NULL, engine = <estimation
-engine>)`, S3-dispatched per model/submodel via the existing
-`modelTypeCall` routing. One no-iteration engine pass at `at`. Consumers:
+engine>)`, dispatched per model/submodel inside the Rcpp entry points
+(`estimate_()` for `default_c`, `compute_()` for `gather_compute`) keyed on
+the `spec` object — the R-side `modelTypeCall` routing no longer exists
+(retired by `spec-driven-dispatch`; see task 0.1 findings). The existing
+single-pass closure `evaluate_default_c(pars, need_scores)` in
+`cpp_interface.R` (already fed to `estimate_via_maxlik()`) is the substrate
+to generalize into `evaluate_engine()`. One no-iteration engine pass at `at`.
+Consumers:
 `residuals()` on-demand types, `test_parameter()` (full model at the
 constrained estimate), `test_time(method = "windows")`, `predict()`, and
 later DyNES ascent-based Monte Carlo. The engine MUST default to the one

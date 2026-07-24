@@ -57,12 +57,14 @@ rem_data <- function(fx, n_excluded = 0L) {
       }
     }
   }
+  # Bind the node set to a plain name so make_data() can resolve it (a layer
+  # built with nodes = fx$actors records the unresolvable name "fx$actors").
+  actors <- fx$actors
   allowedNet <- make_network(
     matrix = allowed,
-    nodes = fx$actors,
+    nodes = actors,
     directed = TRUE
   )
-  actors <- fx$actors
   calls <- fx$calls
   call_network <- fx$call_network
   calls_dependent <- fx$calls_dependent

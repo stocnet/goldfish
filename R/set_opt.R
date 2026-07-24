@@ -65,19 +65,19 @@
 #' @param damping_decrease_factor A positive numeric value.
 #'   Factor by which damping is decreased when no improvements
 #'   in the estimation are found. Must be >= 1. Default is `3`.
-#' @param return_interval_loglik A logical value.
-#'   Whether to keep and return the
-#'   log-likelihood for each event. Default is `FALSE`.
-#' @param return_probabilities A logical value.
-#'   Whether to keep and return the
+#' @param return_interval_loglik `r lifecycle::badge("deprecated")` Superseded by
+#'   `diagnostics = "loglik"`. Whether to keep and return the log-likelihood for
+#'   each event.
+#' @param return_probabilities `r lifecycle::badge("deprecated")` Superseded by
+#'   `diagnostics = "probabilities"`. Whether to keep and return the
 #'   probabilities for all alternatives for each event.
 #'   * When `sub_model = "choice"` the probabilities correspond to all actors in
 #'     the choice set present at the time of the event.
 #'   * When `model = "REM"` the probabilities correspond to all dyads present at
 #'     the time of the event.
-#'   Default is `FALSE`.
-#' @param return_event_scores A logical value.
-#'   Whether to keep and return the per-event score matrix (one row per
+#' @param return_event_scores `r lifecycle::badge("deprecated")` Superseded by
+#'   `diagnostics = "scores"`. Whether to keep and return the per-event score
+#'   matrix (one row per
 #'   dependent event, one column per effect) evaluated at the returned
 #'   parameter estimates, stored as the `event_scores` component of the result.
 #'   Each row is the observation-level gradient contribution whose column sums
@@ -87,7 +87,18 @@
 #'   per-effect score-process diagnostics that localize where individual effects
 #'   drift over the event sequence, and event-influence measures. Only the
 #'   `"default_c"` and `"default"` engines support it; `"gather_compute"` aborts.
-#'   Default is `FALSE`.
+#' @param diagnostics Names the per-event diagnostic *primitives* estimation
+#'   stores on the fitted result, superseding the three `return_*` flags above.
+#'   Accepts a character vector drawn from
+#'   `c("loglik", "scores", "ranks", "margins", "probabilities")`, or the
+#'   shorthands `TRUE` (equivalent to `c("loglik", "scores")`), `"all"` (all
+#'   five), and `FALSE` / `character(0)` (none). Each primitive maps to a stored
+#'   component of the result: `"loglik"` to `intervalLogL` (and `total_rate` on
+#'   exact-time submodels), `"scores"` to `event_scores`, `"ranks"` to
+#'   `observed_rank`, `"margins"` to per-actor observed and expected counts, and
+#'   `"probabilities"` to per-event probability vectors. Unknown names abort with
+#'   an error listing the valid primitives. Default is `c("loglik", "scores")`,
+#'   preserving today's stored log-likelihood and adding the (free) scores.
 #' @param optimizer `r lifecycle::badge("experimental")` A character string
 #'   naming the optimization algorithm. Options are:
 #'   \describe{
@@ -135,6 +146,8 @@
 #'      return the log-likelihood for each event.}
 #'   \item{return_event_scores}{Logical value indicating whether to
 #'      return the per-event score matrix.}
+#'   \item{diagnostics}{Character vector of the diagnostic primitives to store
+#'      on the fitted result.}
 #'   \item{optimizer}{Optimization algorithm used in the estimation process.}
 #'   \item{engine}{Estimation engine used in the estimation process.}
 #' @export
@@ -155,14 +168,51 @@ set_estimation_opt <- function(
   initial_damping = NULL,
   damping_increase_factor = 2,
   damping_decrease_factor = 3,
-  return_interval_loglik = TRUE,
-  return_probabilities = FALSE,
-  return_event_scores = FALSE,
+  return_interval_loglik = deprecated(),
+  return_probabilities = deprecated(),
+  return_event_scores = deprecated(),
+  diagnostics = c("loglik", "scores"),
   optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
   engine = c("default_c", "default", "gather_compute")
 ) {
   engine <- match.arg(engine)
   optimizer <- match.arg(optimizer)
+  diagnostics_supplied <- !missing(diagnostics)
+  diagnostics <- resolve_diagnostics(diagnostics)
+  resolved <- reconcile_legacy_diagnostics(
+    diagnostics,
+    diagnostics_supplied,
+    return_interval_loglik,
+    return_probabilities,
+    return_event_scores
+  )
+  diagnostics <- resolved$diagnostics
+  # The three flags drive estimation storage until it reads `diagnostics`
+  # directly; deriving them from the legacy view keeps the pre-deprecation
+  # default behavior (and the gather_compute score guard) unchanged.
+  return_interval_loglik <- resolved$return_interval_loglik
+  return_probabilities <- resolved$return_probabilities
+  return_event_scores <- resolved$return_event_scores
+
+  # Emit the soft-deprecation from this frame so lifecycle attributes it to the
+  # direct caller (a nested helper frame reads as an internal, silent call).
+  for (flag_name in resolved$deprecated) {
+    primitive <- LEGACY_DIAGNOSTIC_FLAGS[[flag_name]]
+    lifecycle::deprecate_soft(
+      when = "1.9.11",
+      what = paste0("set_estimation_opt(", flag_name, ")"),
+      with = "set_estimation_opt(diagnostics)",
+      details = c(
+        "i" = paste0(
+          "Request the ",
+          encodeString(primitive, quote = "\""),
+          " primitive via diagnostics = ",
+          encodeString(primitive, quote = "\""),
+          "."
+        )
+      )
+    )
+  }
 
   if (lifecycle::is_present(convergence_criterion)) {
     lifecycle::deprecate_warn(
@@ -256,25 +306,6 @@ set_estimation_opt <- function(
       call. = FALSE
     )
   }
-  if (!rlang::is_scalar_logical(return_interval_loglik)) {
-    stop(
-      "'return_interval_loglik' must be a single logical value.",
-      call. = FALSE
-    )
-  }
-  if (!rlang::is_scalar_logical(return_probabilities)) {
-    stop(
-      "'return_probabilities' must be a single logical value.",
-      call. = FALSE
-    )
-  }
-  if (!rlang::is_scalar_logical(return_event_scores)) {
-    stop(
-      "'return_event_scores' must be a single logical value.",
-      call. = FALSE
-    )
-  }
-
   control_list <- list(
     initial_parameters = initial_parameters,
     fixed_parameters = fixed_parameters,
@@ -288,12 +319,149 @@ set_estimation_opt <- function(
     return_interval_loglik = return_interval_loglik,
     return_probabilities = return_probabilities,
     return_event_scores = return_event_scores,
+    diagnostics = diagnostics,
     optimizer = optimizer,
     engine = engine
   )
 
   class(control_list) <- c("estimation_opt.goldfish", "list")
   return(control_list)
+}
+
+# The per-event diagnostic primitives estimation can store, in the order the
+# `diagnostics =` help and error messages list them.
+DIAGNOSTIC_PRIMITIVES <- c(
+  "loglik",
+  "scores",
+  "ranks",
+  "margins",
+  "probabilities"
+)
+
+# Resolve the user-facing `diagnostics =` value (TRUE/FALSE/"all"/name vector)
+# to the canonical character vector of primitive names stored in the options.
+resolve_diagnostics <- function(diagnostics, call = rlang::caller_env()) {
+  if (is.logical(diagnostics)) {
+    if (!rlang::is_scalar_logical(diagnostics) || is.na(diagnostics)) {
+      cli::cli_abort(
+        "{.arg diagnostics} must be a single {.code TRUE} or {.code FALSE}, or a
+         character vector of primitive names.",
+        call = call
+      )
+    }
+    return(if (diagnostics) c("loglik", "scores") else character(0))
+  }
+  if (is.null(diagnostics) || length(diagnostics) == 0) {
+    return(character(0))
+  }
+  if (!is.character(diagnostics)) {
+    cli::cli_abort(
+      c(
+        "{.arg diagnostics} must be a character vector, {.code TRUE},
+         {.code FALSE}, or {.val all}.",
+        "x" = "You supplied a {.cls {class(diagnostics)}} vector."
+      ),
+      call = call
+    )
+  }
+  if ("all" %in% diagnostics) {
+    return(DIAGNOSTIC_PRIMITIVES)
+  }
+  diagnostics <- unique(diagnostics)
+  unknown <- setdiff(diagnostics, DIAGNOSTIC_PRIMITIVES)
+  if (length(unknown) > 0) {
+    cli::cli_abort(
+      c(
+        "Unknown {.arg diagnostics} primitive{?s} {.val {unknown}}.",
+        "i" = "Valid primitives are {.val {DIAGNOSTIC_PRIMITIVES}}, or one of
+               {.code TRUE} / {.code FALSE} / {.val all}."
+      ),
+      call = call
+    )
+  }
+  diagnostics
+}
+
+# The one-to-one mapping from each deprecated return_* flag to the diagnostics
+# primitive it stores; the third element is the flag's historical default.
+LEGACY_DIAGNOSTIC_FLAGS <- c(
+  return_interval_loglik = "loglik",
+  return_probabilities = "probabilities",
+  return_event_scores = "scores"
+)
+LEGACY_DIAGNOSTIC_DEFAULTS <- c(
+  return_interval_loglik = TRUE,
+  return_probabilities = FALSE,
+  return_event_scores = FALSE
+)
+
+# Reconcile the deprecated return_* flags with the `diagnostics` vector.
+# Each flag drives exactly one primitive; a flag left unset falls back to its
+# historical default so the returned booleans preserve the pre-deprecation
+# storage behavior downstream. When any flag is supplied the diagnostics vector
+# is rebuilt from those booleans so the two surfaces agree. Supplying any flag
+# together with an explicit `diagnostics` aborts, since the two surfaces would
+# then both drive the same storage. The soft-deprecation itself is emitted by
+# the caller so lifecycle attributes it to the direct user.
+reconcile_legacy_diagnostics <- function(
+  diagnostics,
+  diagnostics_supplied,
+  return_interval_loglik,
+  return_probabilities,
+  return_event_scores,
+  call = rlang::caller_env()
+) {
+  values <- list(
+    return_interval_loglik = return_interval_loglik,
+    return_probabilities = return_probabilities,
+    return_event_scores = return_event_scores
+  )
+  present <- vapply(values, lifecycle::is_present, logical(1))
+
+  if (any(present) && diagnostics_supplied) {
+    cli::cli_abort(
+      c(
+        "Cannot supply {.arg diagnostics} together with the deprecated
+         {.arg {names(present)[present]}} flag{?s}.",
+        "i" = "Use {.arg diagnostics} alone; it supersedes the {.code return_*}
+               flags."
+      ),
+      call = call
+    )
+  }
+
+  flags <- vapply(
+    names(values),
+    function(name) {
+      flag <- if (present[[name]]) {
+        values[[name]]
+      } else {
+        LEGACY_DIAGNOSTIC_DEFAULTS[[name]]
+      }
+      if (!rlang::is_scalar_logical(flag) || is.na(flag)) {
+        cli::cli_abort(
+          "{.arg {name}} must be a single {.code TRUE} or {.code FALSE}.",
+          call = call
+        )
+      }
+      flag
+    },
+    logical(1)
+  )
+
+  # When a legacy flag was used, the diagnostics vector mirrors the flag view so
+  # the two surfaces agree; otherwise the resolved `diagnostics` stands.
+  if (any(present)) {
+    diagnostics <- unname(LEGACY_DIAGNOSTIC_FLAGS[names(flags)[flags]])
+  }
+
+  list(
+    diagnostics = diagnostics,
+    deprecated = names(present)[present],
+    return_interval_loglik = flags[["return_interval_loglik"]],
+    return_probabilities = flags[["return_probabilities"]],
+    return_event_scores = flags[["return_event_scores"]]
+  )
 }
 
 #' Control Parameters for Preprocessing

@@ -32,18 +32,21 @@
 #' @param progress logical weather detailed information of intermediate steps
 #' should be printed in the console.
 #' @export
-#' @return a `list` with the following data frames
-#' \describe{
-#'   \item{interaction.updates}{containing all joining and leaving events}
-#'   \item{groups}{containing the nodeset corresponding to interaction groups
-#'     (the second mode of the network)}
-#'   \item{dependent.events}{for the events that should be modeled}
-#'   \item{exogenous.events}{that are not modeled (for example when an actor
-#'     leaves a group and joins its own singleton group, only the leaving event
-#'     is modeled but not the joining event)}
-#'   \item{composition.changes}{that is an events list that should be attached
-#'     to the groups nodeset to indicate when a group is present or not}
-#' }
+#' @return a model-ready `goldfish` data object (a stamped multipartite
+#'   `stocnet`). Its `nodes` table holds the actors (`mode = "actor"`, keeping
+#'   their attributes) and the derived interaction groups (`mode = "group"`); a
+#'   focal two-mode `interactions` layer carries the actors x groups join/leave
+#'   history (dependent joins stamped `flavor = "join"`, dependent leaves
+#'   `flavor = "leave"`, exogenous group-composition rows `flavor = NA`, and the
+#'   construction's total event order in the reserved `order` column); and a
+#'   one-mode `past` layer carries the actors x actors past-interaction updates.
+#'   Pass the object directly to `estimate_dynami()` or `make_specification()`.
+#'
+#'   This replaces the previous five-component list return
+#'   (`interaction.updates`, `groups`, `dependent.events`, `exogenous.events`,
+#'   `opportunities`): those pieces are now components of the returned object,
+#'   and the `opportunities` list is retired in favor of the choice model's
+#'   auto-derived group-availability support constraint.
 make_groups_interaction <- function(
   records,
   actors,
@@ -955,16 +958,104 @@ make_groups_interaction <- function(
     )
   }
 
-  groupsResult <- list(
-    interaction.updates = interaction.updates,
+  assemble_interaction_stocnet(
+    actors = actors,
     groups = groups,
-    dependent.events = dependent.events,
-    exogenous.events = exogenous.events,
-    opportunities = opportunities
+    dependent_events = dependent.events,
+    exogenous_events = exogenous.events,
+    interaction_updates = interaction.updates
   )
-  # composition.changes = composition.changes)
+}
 
-  return(groupsResult)
+# Assemble the DyNAM-i construction products into a single multipartite stocnet.
+# The records->events transformation above is untouched; this only reshapes its
+# outputs into the object the estimation surface consumes:
+#   - `nodes`: the actors (mode "actor", carrying their attributes) and the
+#     `Group1..GroupN` set (mode "group"), one table with a `mode` column.
+#   - focal two-mode `interactions` layer: the diagonal initial state (each actor
+#     starts in their own singleton group, as `time = NA` rows), the dependent
+#     join/leave events (`flavor = "join"`/`"leave"`), and the exogenous rows
+#     (`flavor = NA`, state-only). The construction's `order` attributes become
+#     the reserved `order` column, so the total within-construction event order
+#     survives as the single-object ordering contract.
+#   - one-mode `past` covariate layer: the actors x actors past-interaction
+#     updates (the paper's X^past).
+# The opportunity list is not carried: group availability is a derived support
+# constraint on the choice specification, not stored state.
+assemble_interaction_stocnet <- function(
+  actors,
+  groups,
+  dependent_events,
+  exogenous_events,
+  interaction_updates
+) {
+  n_actors <- nrow(actors)
+  n_groups <- nrow(groups)
+  labels <- c(actors$label, groups$label)
+  local_index <- function(x) match(x, labels)
+
+  # Nodes: actors keep their attributes; groups fill NA. `present` is the
+  # default, so it is not carried as an attribute column.
+  attr_cols <- setdiff(names(actors), c("label", "present"))
+  nodes <- data.frame(
+    label = labels,
+    mode = c(rep("actor", n_actors), rep("group", n_groups)),
+    stringsAsFactors = FALSE
+  )
+  for (col in attr_cols) {
+    nodes[[col]] <- c(actors[[col]], rep(NA, n_groups))
+  }
+
+  event_ties <- function(events, layer, flavor) {
+    if (is.null(events) || nrow(events) == 0) {
+      return(NULL)
+    }
+    data.frame(
+      from = local_index(events$sender),
+      to = local_index(events$receiver),
+      time = events$time,
+      weight = events$increment,
+      order = attr(events, "order"),
+      flavor = flavor,
+      layer = layer,
+      stringsAsFactors = FALSE
+    )
+  }
+  # The initial diagonal: actor i affiliated with group i before any event.
+  initial_ties <- data.frame(
+    from = seq_len(n_actors),
+    to = n_actors + seq_len(n_actors),
+    time = NA_real_,
+    weight = 1,
+    order = NA_integer_,
+    flavor = NA_character_,
+    layer = "interactions",
+    stringsAsFactors = FALSE
+  )
+  dependent_flavor <- ifelse(dependent_events$increment > 0, "join", "leave")
+  ties <- rbind(
+    initial_ties,
+    event_ties(dependent_events, "interactions", dependent_flavor),
+    event_ties(exogenous_events, "interactions", NA_character_),
+    event_ties(interaction_updates, "past", NA_character_)
+  )
+
+  # Declare only the layers that carry ties: a records set with no past
+  # interactions produces no `past` rows, and a layer named in sender/receiver
+  # with no ties fails validation.
+  present <- intersect(c("interactions", "past"), unique(ties$layer))
+  info <- list(
+    name = "DyNAM-i interaction groups",
+    focal = "interactions",
+    ties = present,
+    update = c(interactions = "increment", past = "increment")[present],
+    directed = c(interactions = TRUE, past = FALSE)[present],
+    observation = c(interactions = "event", past = "event")[present],
+    sender = c(interactions = "actor", past = "actor")[present],
+    receiver = c(interactions = "group", past = "actor")[present]
+  )
+
+  as_goldfish(manynet::make_stocnet(info = info, nodes = nodes, ties = ties))
 }
 
 
@@ -1037,78 +1128,4 @@ clean_interaction_events <- function(
   }
 
   return(events)
-}
-
-# For the estimation of a submodel choice
-# remove own groups from the sets of options
-setopportunities_interaction <- function(
-  nodes,
-  nodes2,
-  events_objects_link,
-  groups.network
-) {
-  # get objects
-  getactors <- get(nodes)
-  getgroups <- get(nodes2)
-  groups.network.object <- get(groups.network)
-  events <- attr(groups.network.object, "events")
-  dname <- events_objects_link[1, 1]
-
-  # get events
-  for (e in events) {
-    if (all(get(dname) == get(e))) {
-      dep.events <- get(e)
-    } else {
-      exo.events <- get(e)
-    }
-  }
-
-  # create opportunity restriction list
-  opportunitysets <- list()
-
-  # get event orders and create pointer to go through all events
-  deporder <- attr(dep.events, "order")
-  exoorder <- attr(exo.events, "order")
-  maxorder <- max(deporder, exoorder)
-  cptorder <- 0
-  cptopportunity <- 0
-
-  while (cptorder <= maxorder) {
-    cptorder <- cptorder + 1
-
-    # get event characteristics, and go to next if there is no cptorder
-    # in the joining leaving events
-    # (in this case it's because of the events in the past interaction updates)
-    if (cptorder %in% deporder) {
-      i <- which(deporder == cptorder)
-      evsender <- dep.events$sender[i]
-      evreceiver <- dep.events$receiver[i]
-      evincrement <- dep.events$increment[i]
-    } else if (cptorder %in% exoorder) {
-      i <- which(exoorder == cptorder)
-      evsender <- exo.events$sender[i]
-      evreceiver <- exo.events$receiver[i]
-      evincrement <- exo.events$increment[i]
-    } else {
-      next
-    }
-
-    # if there is a dependent joining event, we restrist opportuinities to
-    # current available groups
-    # and we remove the option of joining the actor's own group
-    if (cptorder %in% deporder && evincrement == 1) {
-      opportunities <- which(colSums(groups.network.object) > 0)
-      opportunities <-
-        opportunities[
-          opportunities != which(groups.network.object[evsender, ] == 1)
-        ]
-
-      cptopportunity <- cptopportunity + 1
-      opportunitysets[[cptopportunity]] <- opportunities
-    }
-
-    # update for any event the groups network
-    groups.network.object[evsender, evreceiver] <-
-      groups.network.object[evsender, evreceiver] + evincrement
-  }
 }
