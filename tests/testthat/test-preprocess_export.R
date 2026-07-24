@@ -71,8 +71,10 @@ test_that("Output", {
   )
   expect_type(out, "list")
   # +2 vs the legacy 8: the shared index vocabulary index_i / index_j; +1 for the
-  # node_lookup resolving those indices to original node identity (stocnet path).
-  expect_length(out, 11)
+  # node_lookup resolving those indices to original node identity (stocnet path);
+  # +1 for right_censored, reported alongside has_intercept on every output form.
+  expect_length(out, 12)
+  expect_contains(names(out), c("has_intercept", "right_censored"))
 })
 test_that("export names are valid, unique R names", {
   withr::local_options(lifecycle_verbosity = "quiet")

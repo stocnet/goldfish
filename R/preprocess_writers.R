@@ -107,11 +107,18 @@ writer_default <- function() {
   event_receiver <- NULL
   n_stored <- 0L
   initial_stats_fn <- NULL
+  has_intercept <- FALSE
 
   structure(
     list(
       output = "default",
       init = function(spec, dims) {
+        # One flag, two consumer-facing names: the exact-time (poisson-
+        # normalized) sub-models are exactly those that carry a time intercept
+        # AND store right-censored rows -- two halves of the same waiting-time
+        # likelihood. `init_consumers()` already passes a single value for
+        # both, so reporting them separately renames rather than re-derives.
+        has_intercept <<- isTRUE(dims$has_intercept)
         buf_capacity <<- min(as.double(dims$buf_capacity), .Machine$integer.max)
         stat_mat_buf <<- matrix(0, 4L, buf_capacity)
         buf_n <<- 0
@@ -225,7 +232,8 @@ writer_default <- function() {
           active_dyad_encoding = active_dyad_encoding_for(tail$spec),
           startTime = tail$startTime,
           endTime = tail$endTime,
-          intercept_scalars = tail$intercept_scalars
+          intercept_scalars = tail$intercept_scalars,
+          has_intercept = has_intercept
         )
       }
     ),
@@ -652,6 +660,7 @@ assemble_default_output <- function(
   startTime,
   endTime,
   intercept_scalars,
+  has_intercept = intercept_scalars,
   stat_mat_broadcast = matrix(0, 4L, 0L),
   stat_mat_broadcast_pointer = numeric(n_stored)
 ) {
@@ -740,6 +749,8 @@ assemble_default_output <- function(
       active_sender_update_pointer = active_sender_update_pointer,
       active_dyad_update = active_dyad_update,
       active_dyad_update_pointer = active_dyad_update_pointer,
+      has_intercept = has_intercept,
+      right_censored = has_intercept,
       version = PREPROCESSED_GOLDFISH_VERSION
     ),
     class = "preprocessed.goldfish"

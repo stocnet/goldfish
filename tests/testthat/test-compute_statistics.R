@@ -122,6 +122,73 @@ test_that("rate_ordered flows through, for REM and for DyNAM", {
   }
 })
 
+test_that("an exact-time model reports its intercept and censoring", {
+  # A fixture with real censoring intervals: dataTest's events leave none.
+  suppressWarnings(suppressMessages({
+    data("Social_Evolution", envir = environment())
+    call_network <- make_network(nodes = actors, directed = TRUE)
+    call_network <- link_events(
+      x = call_network,
+      change_event = calls,
+      nodes = actors
+    )
+    dep <- make_dependent_events(
+      events = calls,
+      nodes = actors,
+      default_network = call_network
+    )
+    dep <- dep[1:80, ]
+    d <- make_data(dep, call_network, calls, actors)
+    gathered <- compute_statistics(
+      dep ~ inertia(call_network),
+      model = "REM",
+      sub_model = "rate",
+      data = d,
+      output = "gather"
+    )
+  }))
+
+  expect_true(gathered$has_intercept)
+  expect_true(gathered$right_censored)
+  expect_true("Intercept" %in% colnames(gathered$stat_all_events))
+  # Right-censored rows are the ones the waiting-time likelihood needs the
+  # exposure for, so they must carry timespan and be marked non-dependent.
+  censored <- gathered$isDependent == 0
+  expect_gt(sum(censored), 0)
+  expect_true(all(is.finite(gathered$timespan[censored])))
+})
+
+test_that("an ordinal model reports neither, on gather and on the replay object", {
+  args <- list(
+    depNetwork ~ inertia(networkState),
+    data = dataTest,
+    model = "REM",
+    sub_model = "rate_ordered"
+  )
+  gathered <- do.call(compute_statistics, c(args, output = "gather"))
+  prep <- do.call(compute_statistics, args)
+
+  expect_false(gathered$has_intercept)
+  expect_false(gathered$right_censored)
+  expect_false("Intercept" %in% colnames(gathered$stat_all_events))
+  expect_null(gathered$timespan)
+  # The replay object reports the same pair, so a consumer holding only the
+  # preprocessed object knows the likelihood shape without re-deriving it.
+  expect_false(prep$has_intercept)
+  expect_false(prep$right_censored)
+})
+
+test_that("the replay object reports the flags for an exact-time model", {
+  prep <- compute_statistics(
+    depNetwork ~ indeg(networkState),
+    data = dataTest,
+    model = "DyNAM",
+    sub_model = "rate"
+  )
+  expect_true(prep$has_intercept)
+  expect_true(prep$right_censored)
+})
+
 test_that("an unavailable sub_model names the model's allowed set", {
   expect_snapshot(
     error = TRUE,

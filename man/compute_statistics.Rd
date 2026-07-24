@@ -28,7 +28,10 @@ effects and the variables for which the effects are expected to occur
 
 \item{sub_model}{a character string specifying the sub-model, see
 \code{\link[=estimate_dynam]{estimate_dynam()}}. The default value \code{NULL} resolves to \code{"rate"} for
-\code{model = "REM"} and \code{"choice"} otherwise.}
+\code{model = "REM"} and \code{"choice"} otherwise. Mind the consequence of that
+default: \code{"rate"} is the \emph{exact-time} sub-model, so it force-adds the time
+intercept and stores right-censored rows. Use \code{"rate_ordered"} to model
+only the order of the events, which has neither.}
 
 \item{data}{a \code{data.goldfish} object created with \code{\link[=make_data]{make_data()}}.}
 
@@ -57,6 +60,13 @@ an object of class \code{"preprocessed.goldfish"} with the change
 statistics of the effects for the event sequence and the information
 of the model variant computed. See the \code{Value} section of
 \code{\link[=estimate_dynam]{estimate_dynam()}} for the \code{preprocessing_only = TRUE} case.
+
+Every output form reports two logical fields describing the likelihood
+shape it was produced under, so a consumer never has to infer it from the
+columns: \code{has_intercept} (the exact-time time intercept is present) and
+\code{right_censored} (right-censored rows are stored, carrying \code{timespan} and
+\code{isDependent}). Both are \code{TRUE} for \code{sub_model = "rate"} and \code{FALSE} for
+\code{"rate_ordered"} and the choice sub-models.
 }
 \description{
 Runs the preprocessing stage of a model and returns the change statistics
@@ -66,6 +76,15 @@ The returned object can be passed to the estimation functions
 \code{preprocessed} argument, or used directly by users who want to
 work with the sufficient statistics of a model.
 }
+\section{Indexing statistic columns}{
+
+Index statistic columns \strong{by name}, never by position. The exact-time
+sub-models prepend an \code{Intercept} column, so the same formula yields
+statistics at different positions under \code{sub_model = "rate"} and
+\code{"rate_ordered"}. The names are in \code{namesEffects} and on the columns of
+\code{stat_all_events}.
+}
+
 \examples{
 data("social_evolution")
 prep <- compute_statistics(

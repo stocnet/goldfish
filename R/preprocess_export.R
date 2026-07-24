@@ -195,7 +195,13 @@ finalize_gather_output <- function(
   gathered$sender <- nodes$label[event_sender]
   if (model == "REM" || (model == "DyNAM" && sub_model != "rate")) {
     gathered$receiver <- nodes2$label[event_receiver]
-  } else if (model == "DyNAM" && sub_model == "rate" && has_intercept) {
+  }
+  # Exposure fields ride on the intercept, not on the model: an exact-time REM
+  # stores right-censored rows exactly as an exact-time DyNAM rate does, and
+  # without `timespan` those rows cannot be told apart or used as an offset.
+  # The documented return has always promised them for `model = "REM"`; only
+  # the DyNAM branch ever delivered.
+  if (has_intercept) {
     gathered$timespan <- timespan
     gathered$isDependent <- is_dependent
   }
@@ -211,6 +217,11 @@ finalize_gather_output <- function(
   gathered$namesEffects <- namesEffects
   colnames(gathered$stat_all_events) <- namesEffects
   gathered$effect_description <- effect_description
+  # Reported on every output form so a consumer never has to infer the
+  # likelihood shape from the columns: an exact-time sub-model carries the time
+  # intercept and the right-censored rows, an ordinal one carries neither.
+  gathered$has_intercept <- has_intercept
+  gathered$right_censored <- has_intercept
 
   attr(gathered, "event_sender") <- NULL
   attr(gathered, "event_receiver") <- NULL

@@ -590,7 +590,10 @@ estimate_from_specification <- function(
 #'   [estimate_rem()] and [estimate_dynami()].
 #' @param sub_model a character string specifying the sub-model, see
 #'   [estimate_dynam()]. The default value `NULL` resolves to `"rate"` for
-#'   `model = "REM"` and `"choice"` otherwise.
+#'   `model = "REM"` and `"choice"` otherwise. Mind the consequence of that
+#'   default: `"rate"` is the *exact-time* sub-model, so it force-adds the time
+#'   intercept and stores right-censored rows. Use `"rate_ordered"` to model
+#'   only the order of the events, which has neither.
 #' @param data a `data.goldfish` object created with [make_data()].
 #' @param output a character string specifying the output format of the
 #'   preprocessed statistics. `"preprocessed"` returns the estimation-ready
@@ -612,6 +615,20 @@ estimate_from_specification <- function(
 #'   statistics of the effects for the event sequence and the information
 #'   of the model variant computed. See the `Value` section of
 #'   [estimate_dynam()] for the `preprocessing_only = TRUE` case.
+#'
+#'   Every output form reports two logical fields describing the likelihood
+#'   shape it was produced under, so a consumer never has to infer it from the
+#'   columns: `has_intercept` (the exact-time time intercept is present) and
+#'   `right_censored` (right-censored rows are stored, carrying `timespan` and
+#'   `isDependent`). Both are `TRUE` for `sub_model = "rate"` and `FALSE` for
+#'   `"rate_ordered"` and the choice sub-models.
+#'
+#' @section Indexing statistic columns:
+#' Index statistic columns **by name**, never by position. The exact-time
+#' sub-models prepend an `Intercept` column, so the same formula yields
+#' statistics at different positions under `sub_model = "rate"` and
+#' `"rate_ordered"`. The names are in `namesEffects` and on the columns of
+#' `stat_all_events`.
 #'
 #' @seealso [estimate_dynam()], [estimate_rem()], [estimate_dynami()],
 #'   [set_preprocessing()]
