@@ -82,7 +82,7 @@ are `dynes-augmentation`'s.
   (fid/process_map vocabulary D9, walk-count-agnostic consumers D10, derived
   flavor constraints) and precedes `abmcem` (whose `estimate_dynes()` takes a
   `make_multivariate_spec()` object), `dynes-augmentation` (whose augmenters and
-  batched `evaluate_engine()` bind to this change's walk handle), and
+  batched `evaluate_model()` bind to this change's walk handle), and
   `process-simulation` (whose `simulate()` drives it). These proposals are
   re-grounded against this change's walk handle (2026-07-21).
   `multimode-network-support` later relaxes the same-node-set restriction.
@@ -97,7 +97,7 @@ are `dynes-augmentation`'s.
   `multimode-network-support` (touches `R/make_specification.R` /
   `R/formula_parser.R`) to land — all three edit the loop/writer/surface files
   this change's riskiest step rewrites. This change needs nothing from
-  `residuals-gof`; the `evaluate_engine()` dependency is
+  `residuals-gof`; the `evaluate_model()` dependency is
   `dynes-augmentation`'s (E-step evaluation), not this change's.
 - **R**: `R/make_multivariate_spec.R` (surface, validation, coupling, print);
   generalization of `R/preprocess_flavored.R` (routing lookup, cross-process

@@ -249,7 +249,7 @@ cross-family dedup per D5). DyNAM-i processes are rejected:
   variants referencing the panel layer.
 - **dynes-augmentation drift**: its proposal predated this change's walk
   handle → re-grounded (2026-07-21): the augmenters and `augment_seq_sim()` are
-  external drivers of `multi-process-walk`, the batched `evaluate_engine()` reads
+  external drivers of `multi-process-walk`, the batched `evaluate_model()` reads
   the merged walk's per-fid outputs, and the general `simulate()` moved to the
   `process-simulation` change. Its "per-event simulation hook" framing and its
   modification of `preprocess-output-writers` are dropped.
