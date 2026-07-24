@@ -109,15 +109,15 @@ test_that("a constant-across-alternatives offset in choice warns, not aborts", {
 
 test_that("offset_coef arity and pairing are validated", {
   d <- make_offset_fixture()
-  # too many values
-  expect_error(
+  # too many values; snapshot pins the hint, which names the constructor
+  expect_snapshot(
+    error = TRUE,
     estimate_dynam(
       calls_dependent ~ inertia + offset(recip),
       sub_model = "choice",
       data = d,
       control_estimation = set_algorithm_newton(offset_coef = c(1, 2))
-    ),
-    "one value per"
+    )
   )
   # offset_coef with no offset term
   expect_error(

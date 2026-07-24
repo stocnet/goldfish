@@ -78,11 +78,17 @@ test_that("set_algorithm_newton throw errors", {
   expect_error(set_algorithm_newton(initial_parameters = character(3)))
 })
 
-test_that("set_algorithm_newton deprecation warning for convergence_criterion", {
-  expect_warning(
-    set_algorithm_newton(convergence_criterion = 1e-4),
-    regexp = "convergence_criterion"
-  )
+test_that("convergence_criterion is deprecated in favor of score_tol", {
+  expect_snapshot(invisible(set_algorithm_newton(convergence_criterion = 1e-4)))
+})
+
+test_that("deprecation messages name the current constructor", {
+  # No two-hop chains: a message must never send users to a name that is itself
+  # deprecated, so these render against set_algorithm_newton(), not the alias.
+  expect_snapshot({
+    invisible(set_algorithm_newton(fixed_parameters = c(NA, 2)))
+    invisible(set_preprocessing(opportunities_list = list(c("A", "B"))))
+  })
 })
 test_that("set_algorithm_newton resolves the diagnostics vocabulary", {
   expect_equal(set_algorithm_newton()$diagnostics, c("loglik", "scores"))

@@ -217,8 +217,8 @@ set_algorithm_newton <- function(
     primitive <- LEGACY_DIAGNOSTIC_FLAGS[[flag_name]]
     lifecycle::deprecate_soft(
       when = "1.9.11",
-      what = paste0("set_estimation_opt(", flag_name, ")"),
-      with = "set_estimation_opt(diagnostics)",
+      what = paste0("set_algorithm_newton(", flag_name, ")"),
+      with = "set_algorithm_newton(diagnostics)",
       details = c(
         "i" = paste0(
           "Request the ",
@@ -234,7 +234,7 @@ set_algorithm_newton <- function(
   if (lifecycle::is_present(convergence_criterion)) {
     lifecycle::deprecate_warn(
       when = "1.7.2",
-      what = "set_estimation_opt(convergence_criterion)",
+      what = "set_algorithm_newton(convergence_criterion)",
       details = paste0(
         "`convergence_criterion` is ignored; ",
         "please use `score_tol` instead (default: 1e-6)."
@@ -258,7 +258,7 @@ set_algorithm_newton <- function(
     }
     lifecycle::deprecate_soft(
       when = "1.8.4",
-      what = "set_estimation_opt(fixed_parameters)",
+      what = "set_algorithm_newton(fixed_parameters)",
       details = c(
         "!" = "Wrap the term in `offset()` in the model formula and supply its
                value through `offset_coef` instead.",

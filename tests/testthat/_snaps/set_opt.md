@@ -1,3 +1,28 @@
+# convergence_criterion is deprecated in favor of score_tol
+
+    Code
+      invisible(set_algorithm_newton(convergence_criterion = 1e-04))
+    Condition
+      Warning:
+      The `convergence_criterion` argument of `set_algorithm_newton()` is deprecated as of goldfish 1.7.2.
+      i `convergence_criterion` is ignored; please use `score_tol` instead (default: 1e-6).
+
+# deprecation messages name the current constructor
+
+    Code
+      invisible(set_algorithm_newton(fixed_parameters = c(NA, 2)))
+    Condition
+      Warning:
+      The `fixed_parameters` argument of `set_algorithm_newton()` is deprecated as of goldfish 1.8.4.
+      ! Wrap the term in `offset()` in the model formula and supply its value through `offset_coef` instead.
+      i `offset()` aligns fixed values to terms by name rather than by counting coefficient positions.
+    Code
+      invisible(set_preprocessing(opportunities_list = list(c("A", "B"))))
+    Condition
+      Warning:
+      The `opportunities_list` argument of `set_preprocessing()` is deprecated as of goldfish 1.8.6.
+      i Use the `support_constraint` argument of `estimate_dynam()` / `make_specification()` instead.
+
 # set_algorithm_newton rejects invalid diagnostics
 
     Code
@@ -30,7 +55,7 @@
       invisible(set_algorithm_newton(return_interval_loglik = TRUE))
     Condition
       Warning:
-      The `return_interval_loglik` argument of `set_estimation_opt()` is deprecated as of goldfish 1.9.11.
+      The `return_interval_loglik` argument of `set_algorithm_newton()` is deprecated as of goldfish 1.9.11.
       i Please use the `diagnostics` argument instead.
       i Request the "loglik" primitive via diagnostics = "loglik".
 
@@ -40,7 +65,7 @@
       invisible(set_algorithm_newton(return_probabilities = TRUE))
     Condition
       Warning:
-      The `return_probabilities` argument of `set_estimation_opt()` is deprecated as of goldfish 1.9.11.
+      The `return_probabilities` argument of `set_algorithm_newton()` is deprecated as of goldfish 1.9.11.
       i Please use the `diagnostics` argument instead.
       i Request the "probabilities" primitive via diagnostics = "probabilities".
 
@@ -50,7 +75,7 @@
       invisible(set_algorithm_newton(return_event_scores = TRUE))
     Condition
       Warning:
-      The `return_event_scores` argument of `set_estimation_opt()` is deprecated as of goldfish 1.9.11.
+      The `return_event_scores` argument of `set_algorithm_newton()` is deprecated as of goldfish 1.9.11.
       i Please use the `diagnostics` argument instead.
       i Request the "scores" primitive via diagnostics = "scores".
 

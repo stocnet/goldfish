@@ -271,7 +271,7 @@ assemble_fixed_parameters <- function(
         "{.arg offset_coef} must supply one value per {.fn offset} term.",
         "x" = "The formula has {length(offset_positions)} offset term{?s} but
                {.arg offset_coef} has {length(offset_coef)} value{?s}.",
-        "i" = "Set it via {.code set_estimation_opt(offset_coef = ...)}."
+        "i" = "Set it via {.code set_algorithm_newton(offset_coef = ...)}."
       ))
     }
     fixed[offset_positions] <- offset_coef
