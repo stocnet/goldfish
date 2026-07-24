@@ -11,7 +11,7 @@
 # different estimator.
 #
 # Each process is estimated through the ordinary estimation path with its own
-# preprocessed object as `preprocessing_init`: the object's formula, statistics
+# preprocessed object as `preprocessed`: the object's formula, statistics
 # columns, folded availability and mask are already its own, so the engines,
 # offset handling, and printing metadata all apply unchanged.
 # =========================================================================== #
@@ -26,17 +26,17 @@ estimate_flavored <- function(
   spec,
   model,
   data = NULL,
-  control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
   progress = FALSE,
   verbose = FALSE,
   call = NULL
 ) {
-  if (!is.null(preprocessing_init)) {
+  if (!is.null(preprocessed)) {
     cli::cli_abort(c(
-      "{.arg preprocessing_init} is not supported for a multi-flavor
+      "{.arg preprocessed} is not supported for a multi-flavor
        specification.",
       "i" = "Its processes are preprocessed together in one pass; pass the
              specification itself and let estimation drive that pass."
@@ -53,7 +53,7 @@ estimate_flavored <- function(
 
   preps <- preprocess_flavored(
     spec,
-    control_preprocessing = control_preprocessing,
+    control_prep = control_prep,
     progress = progress,
     verbose = verbose
   )
@@ -77,9 +77,9 @@ estimate_flavored <- function(
       model = model,
       sub_model = spec$processes[[flavor]]$submodels[[family]]$sub_model,
       data = spec$data,
-      control_estimation = control_estimation,
-      control_preprocessing = control_preprocessing,
-      preprocessing_init = prep,
+      control_algo = control_algo,
+      control_prep = control_prep,
+      preprocessed = prep,
       support_constraint = spec$processes[[flavor]]$constraint,
       progress = progress,
       verbose = verbose

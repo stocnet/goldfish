@@ -77,15 +77,15 @@
 #' For `estimate_rem()` the valid values are `"rate"` (full dyadic hazard
 #' model, the default) and `"rate_ordered"` (only the order of the events is
 #' modeled); `"choice"` is kept as a deprecated alias of `"rate"`.
-#' @param control_estimation An object of class `algorithm.goldfish`
+#' @param control_algo An object of class `algorithm.goldfish`
 #'   (typically created by [set_algorithm_newton()]),
 #'   specifying the algorithm and its parameters for the estimation.
-#' @param control_preprocessing An object of class
-#'   `control_preprocessing.goldfish` (typically created by
+#' @param control_prep An object of class
+#'   `preprocessing.goldfish` (typically created by
 #'   [set_preprocessing()]),
 #'   specifying parameters for data preprocessing. This is only used
-#'   if `preprocessing_init` is not a `preprocessed.goldfish` object or NULL.
-#' @param preprocessing_init an optional preprocessed object of class
+#'   if `preprocessed` is not a `preprocessed.goldfish` object or NULL.
+#' @param preprocessed an optional preprocessed object of class
 #'  `preprocessed.goldfish` from a previous estimation. When it is provided,
 #'  the function will skip the preprocessing of the effects that are already
 #'  present in the object and only preprocess the new effects. Default to
@@ -93,6 +93,13 @@
 #' @param preprocessing_only logical. If `TRUE`, the function will only run
 #'  the preprocessing stage and return an object of class
 #'  `preprocessed.goldfish`. Default to `FALSE`.
+#' @param control_estimation `r lifecycle::badge("deprecated")` Renamed to
+#'  `control_algo` in goldfish 2.0.0.
+#' @param control_preprocessing `r lifecycle::badge("deprecated")` Renamed to
+#'  `control_prep` in goldfish 2.0.0.
+#' @param preprocessing_init `r lifecycle::badge("deprecated")` Renamed to
+#'  `preprocessed` in goldfish 2.0.0, the name every diagnostic consumer of a
+#'  `preprocessed.goldfish` object uses.
 #' @param support_constraint a one-sided formula restricting the per-event risk
 #'   set, written in the restricted boolean-tree grammar: effect atoms
 #'   (`tie(net)`, `indeg(net)`, ...) combined with `& | !`, comparisons
@@ -197,7 +204,7 @@
 #' mod01 <- estimate_dynam(calls ~ inertia + recip + trans,
 #'   sub_model = "choice",
 #'   data = social_evolution,
-#'   control_estimation = set_algorithm_newton(engine = "gather_compute")
+#'   control_algo = set_algorithm_newton(engine = "gather_compute")
 #' )
 #' summary(mod01)
 #'
@@ -205,7 +212,7 @@
 #' mod02 <- estimate_dynam(calls ~ 1 + node_trans + indeg + outdeg,
 #'   sub_model = "rate",
 #'   data = social_evolution,
-#'   control_estimation = set_algorithm_newton(engine = "gather_compute")
+#'   control_algo = set_algorithm_newton(engine = "gather_compute")
 #' )
 #' summary(mod02)
 #'
@@ -216,7 +223,7 @@
 #'     indeg(calls, type = "ego") + outdeg(calls, type = "ego") +
 #'     inertia + recip + trans,
 #'   data = social_evolution,
-#'   control_estimation = set_algorithm_newton(engine = "gather_compute")
+#'   control_algo = set_algorithm_newton(engine = "gather_compute")
 #' )
 #' summary(mod03)
 #'
@@ -244,7 +251,7 @@
 #'   partner_spec,
 #'   sub_model = "choice_coordination",
 #'   data = fish,
-#'   control_estimation =
+#'   control_algo =
 #'     set_algorithm_newton(
 #'       initial_damping = 40, max_iterations = 30,
 #'       engine = "default"
@@ -282,14 +289,41 @@ estimate_dynam <- function(
   x,
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   data = NULL,
-  control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
-  verbose = getOption("verbose", default = FALSE)
+  verbose = getOption("verbose", default = FALSE),
+  control_estimation = deprecated(),
+  control_preprocessing = deprecated(),
+  preprocessing_init = deprecated()
 ) {
+  control_algo <- fold_renamed_arg(
+    control_algo,
+    !missing(control_algo),
+    control_estimation,
+    "estimate_dynam",
+    "control_estimation",
+    "control_algo"
+  )
+  control_prep <- fold_renamed_arg(
+    control_prep,
+    !missing(control_prep),
+    control_preprocessing,
+    "estimate_dynam",
+    "control_preprocessing",
+    "control_prep"
+  )
+  preprocessed <- fold_renamed_arg(
+    preprocessed,
+    !missing(preprocessed),
+    preprocessing_init,
+    "estimate_dynam",
+    "preprocessing_init",
+    "preprocessed"
+  )
   sub_model <- match.arg(sub_model)
   abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
@@ -298,9 +332,9 @@ estimate_dynam <- function(
       model = "DyNAM",
       sub_model = sub_model,
       data = data,
-      control_estimation = control_estimation,
-      control_preprocessing = control_preprocessing,
-      preprocessing_init = preprocessing_init,
+      control_algo = control_algo,
+      control_prep = control_prep,
+      preprocessed = preprocessed,
       preprocessing_only = preprocessing_only,
       progress = progress,
       verbose = verbose
@@ -311,9 +345,9 @@ estimate_dynam <- function(
     model = "DyNAM",
     sub_model = sub_model,
     data = data,
-    control_estimation = control_estimation,
-    control_preprocessing = control_preprocessing,
-    preprocessing_init = preprocessing_init,
+    control_algo = control_algo,
+    control_prep = control_prep,
+    preprocessed = preprocessed,
     preprocessing_only = preprocessing_only,
     progress = progress,
     verbose = verbose,
@@ -327,14 +361,41 @@ estimate_dynami <- function(
   x,
   sub_model = c("choice", "rate"),
   data = NULL,
-  control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
-  verbose = getOption("verbose", default = FALSE)
+  verbose = getOption("verbose", default = FALSE),
+  control_estimation = deprecated(),
+  control_preprocessing = deprecated(),
+  preprocessing_init = deprecated()
 ) {
+  control_algo <- fold_renamed_arg(
+    control_algo,
+    !missing(control_algo),
+    control_estimation,
+    "estimate_dynami",
+    "control_estimation",
+    "control_algo"
+  )
+  control_prep <- fold_renamed_arg(
+    control_prep,
+    !missing(control_prep),
+    control_preprocessing,
+    "estimate_dynami",
+    "control_preprocessing",
+    "control_prep"
+  )
+  preprocessed <- fold_renamed_arg(
+    preprocessed,
+    !missing(preprocessed),
+    preprocessing_init,
+    "estimate_dynami",
+    "preprocessing_init",
+    "preprocessed"
+  )
   sub_model <- match.arg(sub_model)
   abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
@@ -343,9 +404,9 @@ estimate_dynami <- function(
       model = "DyNAMi",
       sub_model = sub_model,
       data = data,
-      control_estimation = control_estimation,
-      control_preprocessing = control_preprocessing,
-      preprocessing_init = preprocessing_init,
+      control_algo = control_algo,
+      control_prep = control_prep,
+      preprocessed = preprocessed,
       preprocessing_only = preprocessing_only,
       progress = progress,
       verbose = verbose
@@ -356,9 +417,9 @@ estimate_dynami <- function(
     model = "DyNAMi",
     sub_model = sub_model,
     data = data,
-    control_estimation = control_estimation,
-    control_preprocessing = control_preprocessing,
-    preprocessing_init = preprocessing_init,
+    control_algo = control_algo,
+    control_prep = control_prep,
+    preprocessed = preprocessed,
     preprocessing_only = preprocessing_only,
     support_constraint = support_constraint,
     progress = progress,
@@ -372,14 +433,41 @@ estimate_rem <- function(
   x,
   sub_model = c("rate", "rate_ordered", "choice"),
   data = NULL,
-  control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
-  verbose = getOption("verbose", default = FALSE)
+  verbose = getOption("verbose", default = FALSE),
+  control_estimation = deprecated(),
+  control_preprocessing = deprecated(),
+  preprocessing_init = deprecated()
 ) {
+  control_algo <- fold_renamed_arg(
+    control_algo,
+    !missing(control_algo),
+    control_estimation,
+    "estimate_rem",
+    "control_estimation",
+    "control_algo"
+  )
+  control_prep <- fold_renamed_arg(
+    control_prep,
+    !missing(control_prep),
+    control_preprocessing,
+    "estimate_rem",
+    "control_preprocessing",
+    "control_prep"
+  )
+  preprocessed <- fold_renamed_arg(
+    preprocessed,
+    !missing(preprocessed),
+    preprocessing_init,
+    "estimate_rem",
+    "preprocessing_init",
+    "preprocessed"
+  )
   sub_model <- match.arg(sub_model)
   abort_legacy_environment(data)
   if (inherits(x, "specification.goldfish")) {
@@ -388,9 +476,9 @@ estimate_rem <- function(
       model = "REM",
       sub_model = sub_model,
       data = data,
-      control_estimation = control_estimation,
-      control_preprocessing = control_preprocessing,
-      preprocessing_init = preprocessing_init,
+      control_algo = control_algo,
+      control_prep = control_prep,
+      preprocessed = preprocessed,
       preprocessing_only = preprocessing_only,
       progress = progress,
       verbose = verbose
@@ -401,9 +489,9 @@ estimate_rem <- function(
     model = "REM",
     sub_model = sub_model,
     data = data,
-    control_estimation = control_estimation,
-    control_preprocessing = control_preprocessing,
-    preprocessing_init = preprocessing_init,
+    control_algo = control_algo,
+    control_prep = control_prep,
+    preprocessed = preprocessed,
     preprocessing_only = preprocessing_only,
     progress = progress,
     verbose = verbose,
@@ -421,9 +509,9 @@ estimate_from_specification <- function(
   model,
   sub_model,
   data = NULL,
-  control_estimation,
-  control_preprocessing,
-  preprocessing_init,
+  control_algo,
+  control_prep,
+  preprocessed,
   preprocessing_only,
   progress,
   verbose
@@ -443,9 +531,9 @@ estimate_from_specification <- function(
       spec = spec,
       model = model,
       data = data,
-      control_estimation = control_estimation,
-      control_preprocessing = control_preprocessing,
-      preprocessing_init = preprocessing_init,
+      control_algo = control_algo,
+      control_prep = control_prep,
+      preprocessed = preprocessed,
       preprocessing_only = preprocessing_only,
       progress = progress,
       verbose = verbose
@@ -462,9 +550,9 @@ estimate_from_specification <- function(
 
   est_data <- if (is.null(data)) spec$data else data
   # Reuse the parsed bundle only when it matches the data it was parsed against
-  # and no incremental preprocessing_init re-parse is involved; otherwise let the
+  # and no incremental preprocessed re-parse is involved; otherwise let the
   # wrapper parse afresh against the supplied data.
-  reuse_parsed <- is.null(preprocessing_init) &&
+  reuse_parsed <- is.null(preprocessed) &&
     (is.null(data) || identical(data, spec$data))
 
   estimate_wrapper(
@@ -472,9 +560,9 @@ estimate_from_specification <- function(
     model = model,
     sub_model = bundle$sub_model,
     data = est_data,
-    control_estimation = control_estimation,
-    control_preprocessing = control_preprocessing,
-    preprocessing_init = preprocessing_init,
+    control_algo = control_algo,
+    control_prep = control_prep,
+    preprocessed = preprocessed,
     preprocessing_only = preprocessing_only,
     progress = progress,
     verbose = verbose,
@@ -490,7 +578,7 @@ estimate_from_specification <- function(
 #' of the effects for the event sequence, without estimating the model.
 #' The returned object can be passed to the estimation functions
 #' ([estimate_dynam()], [estimate_rem()], [estimate_dynami()]) through their
-#' `preprocessing_init` argument, or used directly by users who want to
+#' `preprocessed` argument, or used directly by users who want to
 #' work with the sufficient statistics of a model.
 #'
 #' @param formula a formula that defines at the left-hand side the dependent
@@ -511,7 +599,7 @@ estimate_from_specification <- function(
 #'   the gather rows to the database table configured via
 #'   [set_preprocessing()] (`db` / `db_table`) and returns a descriptor.
 #' @param ... additional arguments passed to the preprocessing stage, e.g.,
-#'   `control_preprocessing` (see [set_preprocessing()]) and `progress`.
+#'   `control_prep` (see [set_preprocessing()]) and `progress`.
 #'
 #' @return an object of class `"preprocessed.goldfish"` with the change
 #'   statistics of the effects for the event sequence and the information
@@ -705,7 +793,7 @@ preprocess_recipe <- function(
   events_objects_link,
   events_effects_link,
   fetch_plan,
-  control_preprocessing,
+  control_prep,
   progress,
   work_env,
   support_constraint = NULL,
@@ -730,7 +818,7 @@ preprocess_recipe <- function(
   )
   # The per-attribute imputation policy rides on the compiled spec so the recipe
   # context reaches it without threading through every loop's `...`.
-  spec_map$impute_policy <- control_preprocessing$impute
+  spec_map$impute_policy <- control_prep$impute
   # A multi-flavor walk drives K consumers instead of the single writer. The
   # consumer specs can only be assembled here, after the spec_map has compiled
   # each `(layer, flavor)` constraint into `plan$support_constraints`: a
@@ -749,9 +837,9 @@ preprocess_recipe <- function(
   # so no pre-fetched events list is threaded here.
   prep <- preprocess(
     spec_map,
-    startTime = control_preprocessing$start_time,
-    endTime = control_preprocessing$end_time,
-    opportunitiesList = control_preprocessing$opportunities_list,
+    startTime = control_prep$start_time,
+    endTime = control_prep$end_time,
+    opportunitiesList = control_prep$opportunities_list,
     progress = progress,
     prep_envir = work_env,
     writer = writer,
@@ -786,7 +874,7 @@ preprocess_dynami <- function(
   is_two_mode,
   ignore_rep_parameter,
   right_censored,
-  control_preprocessing,
+  control_prep,
   parsed_formula,
   progress,
   work_env,
@@ -815,10 +903,10 @@ preprocess_dynami <- function(
     nodes = nodes,
     nodes2 = nodes2,
     is_two_mode = is_two_mode,
-    startTime = control_preprocessing$start_time,
-    endTime = control_preprocessing$end_time,
+    startTime = control_prep$start_time,
+    endTime = control_prep$end_time,
     right_censored = right_censored,
-    opportunitiesList = control_preprocessing$opportunities_list,
+    opportunitiesList = control_prep$opportunities_list,
     progress = progress,
     groups_network = parsed_formula$default_network_name,
     prep_envir = work_env,
@@ -927,9 +1015,9 @@ estimate_wrapper <- function(
   model = c("DyNAM", "REM", "DyNAMi"),
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   data = NULL,
-  control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
   output = c("default", "gather", "db"),
   progress = getOption("progress", default = FALSE),
@@ -1016,10 +1104,10 @@ estimate_wrapper <- function(
     rlang::is_scalar_logical(preprocessing_only),
     rlang::is_scalar_logical(verbose),
     is.null(progress) || rlang::is_scalar_logical(progress),
-    is.null(preprocessing_init) ||
-      inherits(preprocessing_init, "preprocessed.goldfish"),
-    inherits(control_estimation, "algorithm.goldfish"),
-    inherits(control_preprocessing, "preprocessing.goldfish")
+    is.null(preprocessed) ||
+      inherits(preprocessed, "preprocessed.goldfish"),
+    inherits(control_algo, "algorithm.goldfish"),
+    inherits(control_prep, "preprocessing.goldfish")
   )
 
   if (is.null(progress)) {
@@ -1028,22 +1116,22 @@ estimate_wrapper <- function(
 
   # The multi-flavor walk emits one object per consumer, which only the
   # preprocessing return shape can carry: the gather/db writers and the
-  # incremental `preprocessing_init` re-parse are single-output by construction,
+  # incremental `preprocessed` re-parse are single-output by construction,
   # and per-flavor estimation drives this walk through its own loop.
   if (!is.null(flavor_plan)) {
     stopifnot(
       preprocessing_only,
       identical(output, "default"),
-      is.null(preprocessing_init)
+      is.null(preprocessed)
     )
   }
 
   if (
-    !is.null(preprocessing_init) &&
-      !identical(preprocessing_init$version, PREPROCESSED_GOLDFISH_VERSION)
+    !is.null(preprocessed) &&
+      !identical(preprocessed$version, PREPROCESSED_GOLDFISH_VERSION)
   ) {
     cli::cli_abort(c(
-      "The {.arg preprocessing_init} object uses an outdated preprocessing
+      "The {.arg preprocessed} object uses an outdated preprocessing
        format.",
       "x" = "Objects preprocessed with a previous goldfish version cannot be
              reused for estimation.",
@@ -1053,12 +1141,12 @@ estimate_wrapper <- function(
 
   # gather_compute and default_c don't support returnEventProbabilities
   if (
-    control_estimation$return_probabilities &&
-      control_estimation$engine != "default"
+    control_algo$return_probabilities &&
+      control_algo$engine != "default"
   ) {
     warning(
       "engine = ",
-      dQuote(control_estimation$engine),
+      dQuote(control_algo$engine),
       " doesn't support",
       dQuote("return_probabilities"),
       ". engine =",
@@ -1067,7 +1155,7 @@ estimate_wrapper <- function(
       call. = FALSE,
       immediate. = TRUE
     )
-    control_estimation$engine <- "default"
+    control_algo$engine <- "default"
   }
 
   # The per-event score matrix is produced by the two per-event engines
@@ -1077,10 +1165,10 @@ estimate_wrapper <- function(
   # gather_compute fit; instead abort only when scores were requested explicitly
   # and silently drop the default-sourced request.
   if (
-    isTRUE(control_estimation$return_event_scores) &&
-      control_estimation$engine == "gather_compute"
+    isTRUE(control_algo$return_event_scores) &&
+      control_algo$engine == "gather_compute"
   ) {
-    if (isTRUE(control_estimation$scores_explicit)) {
+    if (isTRUE(control_algo$scores_explicit)) {
       cli::cli_abort(c(
         "The {.val scores} diagnostic (per-event score matrix) is not supported
          with {.code engine = \"gather_compute\"}.",
@@ -1088,24 +1176,24 @@ estimate_wrapper <- function(
                to store the per-event score matrix."
       ))
     }
-    control_estimation$return_event_scores <- FALSE
+    control_algo$return_event_scores <- FALSE
   }
 
   # Optimizers other than the built-in Newton-Raphson are maxLik-backed:
   # they run only on the default_c evaluator and require the
   # Suggests-only maxLik package. Both are resolved before any preprocessing so
   # the abort is free of side effects.
-  optimizer <- control_estimation$optimizer
+  optimizer <- control_algo$optimizer
   if (is.null(optimizer)) {
     optimizer <- "newton_raphson"
   }
   if (!identical(optimizer, "newton_raphson")) {
-    if (control_estimation$engine != "default_c") {
+    if (control_algo$engine != "default_c") {
       cli::cli_abort(c(
         "{.arg optimizer} {.val {optimizer}} requires
          {.code engine = \"default_c\"}.",
         "x" = "It is not available with
-               {.code engine = {.val {control_estimation$engine}}}.",
+               {.code engine = {.val {control_algo$engine}}}.",
         "i" = "maxLik-backed optimizers run only on the default_c evaluator."
       ))
     }
@@ -1119,12 +1207,12 @@ estimate_wrapper <- function(
 
   # gather_compute and default_c don't support restrictions of opportunity sets
   if (
-    !is.null(control_preprocessing$opportunities_list) &&
-      control_estimation$engine != "default"
+    !is.null(control_prep$opportunities_list) &&
+      control_algo$engine != "default"
   ) {
     warning(
       "engine = ",
-      dQuote(control_estimation$engine),
+      dQuote(control_algo$engine),
       " doesn't support",
       dQuote("opportunities_list"),
       ". engine =",
@@ -1133,7 +1221,7 @@ estimate_wrapper <- function(
       call. = FALSE,
       immediate. = TRUE
     )
-    control_estimation$engine <- "default"
+    control_algo$engine <- "default"
   }
 
   ### 1. PARSE the formula----
@@ -1183,16 +1271,16 @@ estimate_wrapper <- function(
     }
   }
 
-  ## 1.1 PARSE for all cases: preprocessing_init or not
+  ## 1.1 PARSE for all cases: preprocessed or not
   # On the fresh recipe (DyNAM/REM) path the shared parser stays free of
   # environment mutations: parse_formula() records the window
   # derivation recipe but does not realize it, and the recipe state container
   # realizes it from `plan$derivations`. DyNAMi and the
-  # preprocessing_init path keep the eager parse-time realization
+  # preprocessed path keep the eager parse-time realization
   # (byte-identical) via realize_windows = TRUE.
   recipe_deferred_windows <- model %in%
     c("DyNAM", "REM") &&
-    is.null(preprocessing_init)
+    is.null(preprocessed)
   # A specification.goldfish object supplies its parsed bundle so estimation
   # reuses it rather than re-parsing; it was parsed with the same
   # recipe-deferred window semantics. Otherwise parse the formula here.
@@ -1348,11 +1436,11 @@ estimate_wrapper <- function(
   # if (progress && !all(vapply(window_parameters, is.null, logical(1))))
   #   cat("Creating window objects in global environment.")
 
-  ## 1.2 PARSE for preprocessing_init: check the formula consistency
-  if (!is.null(preprocessing_init)) {
+  ## 1.2 PARSE for preprocessed: check the formula consistency
+  if (!is.null(preprocessed)) {
     # find the old and new effects indexes, do basic consistency checks
     old_parsed_formula <- parse_formula(
-      preprocessing_init$formula,
+      preprocessed$formula,
       envir = work_env,
       data = work_data
     )
@@ -1366,7 +1454,7 @@ estimate_wrapper <- function(
       stop(
         "The comparison of the new formula and old formula is not able\n",
         "to identify the effects properly.\n",
-        "It's not possible to use the preprocessing_init object in this case.",
+        "It's not possible to use the preprocessed object in this case.",
         call. = FALSE
       )
     }
@@ -1417,7 +1505,7 @@ estimate_wrapper <- function(
     ))
   }
 
-  ## 2.1 INITIALIZE OBJECTS for all cases: preprocessing_init or not
+  ## 2.1 INITIALIZE OBJECTS for all cases: preprocessed or not
   # enviroment from which get the objects
 
   effects <- create_effects_functions(
@@ -1430,8 +1518,8 @@ estimate_wrapper <- function(
   )
   objects_effects_link <- get_objects_effects_link(rhs_names)
 
-  ## 2.2 INITIALIZE OBJECTS for preprocessing_init == NULL
-  if (is.null(preprocessing_init)) {
+  ## 2.2 INITIALIZE OBJECTS for preprocessed == NULL
+  if (is.null(preprocessed)) {
     # Build the event-stream link metadata + fetch plan (no tables). The recipe
     # (DyNAM/REM) path defers fetching to state creation;
     # DyNAMi realizes windows eagerly at parse time and fetches here (its
@@ -1459,10 +1547,10 @@ estimate_wrapper <- function(
   }
 
   ### 3. PREPROCESS statistics----
-  if (!is.null(preprocessing_init)) {
+  if (!is.null(preprocessed)) {
     # recover the nodesets
-    .nodes <- preprocessing_init$nodes
-    .nodes2 <- preprocessing_init$nodes2
+    .nodes <- preprocessed$nodes
+    .nodes2 <- preprocessed$nodes2
     # The focal layer's mode map decides two-modeness (stocnet); the legacy
     # source, which has no map, answers from the recovered side names.
     is_two_mode <- ds_model_is_two_mode(work_src, .nodes, .nodes2)
@@ -1480,13 +1568,13 @@ estimate_wrapper <- function(
   # Recipe (DyNAM/REM) models compile the spec_map upfront and
   # dispatch preprocess() on it (`preprocess_recipe()`); DyNAMi runs its own
   # isolated front-end (`preprocess_dynami()`). `spec_map` stays NULL
-  # for DyNAMi and for the preprocessing_init path (the printing step falls back
+  # for DyNAMi and for the preprocessed path (the printing step falls back
   # to `GetDetailPrint`).
   spec_map <- NULL
 
-  ## 3.1 INITIALIZE OBJECTS for preprocessing_init: remove old effects,
+  ## 3.1 INITIALIZE OBJECTS for preprocessed: remove old effects,
   ## add new ones
-  if (!is.null(preprocessing_init)) {
+  if (!is.null(preprocessed)) {
     # find new effects
     if (min(effects_indexes) == 0) {
       if (progress) {
@@ -1538,7 +1626,7 @@ estimate_wrapper <- function(
           is_two_mode,
           ignore_rep_parameter,
           right_censored,
-          control_preprocessing,
+          control_prep,
           parsed_formula,
           progress,
           work_env
@@ -1553,15 +1641,14 @@ estimate_wrapper <- function(
           new_events_objects_link,
           new_events_effects_link,
           new_fetch_plan,
-          control_preprocessing,
+          control_prep,
           progress,
           work_env
         )$prep
       }
 
       if (
-        sum(preprocessing_init$is_dependent == 1L) !=
-          sum(newprep$is_dependent == 1L)
+        sum(preprocessed$is_dependent == 1L) != sum(newprep$is_dependent == 1L)
       ) {
         stop(
           "The numbers of dependent events in the formula and in the ",
@@ -1572,8 +1659,7 @@ estimate_wrapper <- function(
       }
 
       if (
-        sum(preprocessing_init$is_dependent == 0L) !=
-          sum(newprep$is_dependent == 0L)
+        sum(preprocessed$is_dependent == 0L) != sum(newprep$is_dependent == 0L)
       ) {
         stop(
           "The numbers of right-censored events in the formula and in the ",
@@ -1588,14 +1674,14 @@ estimate_wrapper <- function(
     if (progress) {
       cat("Removing no longer required effects.\n")
     }
-    allprep <- preprocessing_init
-    is_rate_model <- preprocessing_init$model == "DyNAM" &&
-      preprocessing_init$sub_model == "rate"
-    init_is_flat <- is.null(preprocessing_init$stats_change)
+    allprep <- preprocessed
+    is_rate_model <- preprocessed$model == "DyNAM" &&
+      preprocessed$sub_model == "rate"
+    init_is_flat <- is.null(preprocessed$stats_change)
     has_new_effects <- min(effects_indexes) == 0
     if (has_new_effects && init_is_flat != is.null(newprep$stats_change)) {
       cli::cli_abort(c(
-        "The {.arg preprocessing_init} object format does not match the
+        "The {.arg preprocessed} object format does not match the
          format produced by the current preprocessing.",
         "i" = "Recompute the preprocessing object with {.fn compute_stats}."
       ))
@@ -1623,10 +1709,10 @@ estimate_wrapper <- function(
       if (effects_indexes[e] > 0) {
         if (is_rate_model) {
           allprep$initialStats[, e] <-
-            preprocessing_init$initialStats[, effects_indexes[e]]
+            preprocessed$initialStats[, effects_indexes[e]]
         } else {
           allprep$initialStats[,, e] <-
-            preprocessing_init$initialStats[,, effects_indexes[e]]
+            preprocessed$initialStats[,, effects_indexes[e]]
         }
       }
     }
@@ -1634,7 +1720,7 @@ estimate_wrapper <- function(
     # stats updates (unified dependent + right-censored)
     if (init_is_flat) {
       merged <- merge_flat_updates(
-        preprocessing_init,
+        preprocessed,
         if (has_new_effects) newprep else NULL,
         effects_indexes
       )
@@ -1642,7 +1728,7 @@ estimate_wrapper <- function(
       allprep$stat_mat_pointer <- merged$stat_mat_pointer
     } else {
       allprep$stats_change <- list()
-      for (t in seq_along(preprocessing_init$stats_change)) {
+      for (t in seq_along(preprocessed$stats_change)) {
         cptnew <- 1
         allprep$stats_change[[t]] <-
           lapply(seq_along(effects_indexes), function(x) NULL)
@@ -1657,11 +1743,11 @@ estimate_wrapper <- function(
           if (effects_indexes[e] > 0) {
             if (
               !is.null(
-                preprocessing_init$stats_change[[t]][[effects_indexes[e]]]
+                preprocessed$stats_change[[t]][[effects_indexes[e]]]
               )
             ) {
               allprep$stats_change[[t]][[e]] <-
-                preprocessing_init$stats_change[[t]][[effects_indexes[e]]]
+                preprocessed$stats_change[[t]][[effects_indexes[e]]]
             }
           }
         }
@@ -1677,8 +1763,8 @@ estimate_wrapper <- function(
     prep$node_lookup <- ds_node_lookup(orig_src)
   }
 
-  ## 3.2 PREPROCESS when preprocessing_init == NULL
-  if (is.null(preprocessing_init)) {
+  ## 3.2 PREPROCESS when preprocessed == NULL
+  if (is.null(preprocessed)) {
     if (progress) {
       cat("Starting preprocessing.\n")
     }
@@ -1687,8 +1773,8 @@ estimate_wrapper <- function(
       default = writer_default(),
       gather = writer_gather(),
       db = writer_db(
-        control_preprocessing$db,
-        control_preprocessing$db_table
+        control_prep$db,
+        control_prep$db_table
       )
     )
     # Preprocess through the model's front-end: recipe (DyNAM/REM)
@@ -1710,7 +1796,7 @@ estimate_wrapper <- function(
         is_two_mode,
         ignore_rep_parameter,
         right_censored,
-        control_preprocessing,
+        control_prep,
         parsed_formula,
         progress,
         work_env,
@@ -1726,7 +1812,7 @@ estimate_wrapper <- function(
         events_objects_link,
         events_effects_link,
         fetch_plan,
-        control_preprocessing,
+        control_prep,
         progress,
         work_env,
         support_constraint = constraint_plan,
@@ -1756,14 +1842,14 @@ estimate_wrapper <- function(
       if (output == "db") {
         return(write_gather_to_db(
           gathered,
-          control_preprocessing$db,
-          control_preprocessing$db_table
+          control_prep$db,
+          control_prep$db_table
         ))
       }
       return(gathered)
     }
     # The formula, nodes, nodes2 are added to the preprocessed object so that
-    # we can call the estimation with preprocessing_init later
+    # we can call the estimation with preprocessed later
     # (for parsing AND composition changes)
     decorate <- function(p, own_formula = formula) {
       p$formula <- own_formula
@@ -1779,7 +1865,7 @@ estimate_wrapper <- function(
     # carries its OWN formula, not the union that drove the walk: its statistics
     # columns are the projection onto that formula's effects, so stamping the
     # union here would describe columns the object does not hold and misalign
-    # any later `preprocessing_init` re-parse.
+    # any later `preprocessed` re-parse.
     prep <- if (is.null(flavor_plan)) {
       decorate(prep)
     } else {
@@ -1817,14 +1903,14 @@ estimate_wrapper <- function(
     }
   }
 
-  prob_requested <- isTRUE(control_estimation$return_probabilities) ||
-    "probabilities" %in% control_estimation$diagnostics
+  prob_requested <- isTRUE(control_algo$return_probabilities) ||
+    "probabilities" %in% control_algo$diagnostics
   if (prob_requested) {
     warn_probabilities_footprint(prep, model_spec)
   }
   note_diagnostic_storage_footprint(
     n_events = length(prep$is_dependent),
-    diagnostics = control_estimation$diagnostics,
+    diagnostics = control_algo$diagnostics,
     n_params = length(rhs_names) + as.integer(isTRUE(has_intercept)),
     is_exact_time = identical(sub_model, "rate")
   )
@@ -1842,15 +1928,15 @@ estimate_wrapper <- function(
     has_intercept,
     model,
     sub_model,
-    control_estimation$fixed_parameters,
-    control_estimation$offset_coef
+    control_algo$fixed_parameters,
+    control_algo$offset_coef
   )
 
   ### 4. PREPARE PRINTING----
   # functions_utility.R
   # Reuse the spec_map's single-source-of-truth description when available
   # (recipe models, no fixed-coefficient marking); otherwise compute it (the
-  # fixed-coefficient case adds a column, and the DyNAMi / preprocessing_init
+  # fixed-coefficient case adds a column, and the DyNAMi / preprocessed
   # paths have no spec_map). Behaviour is identical to the unconditional call.
   effect_description <-
     if (
@@ -1887,7 +1973,7 @@ estimate_wrapper <- function(
   # coordination constraint into `active_dyad` — so every engine reads the
   # folded buffers and no standalone mask is assembled here. The capability map
   # aborts an unwired family below.
-  opportunities_effective <- control_preprocessing$opportunities_list
+  opportunities_effective <- control_prep$opportunities_list
   # A constraint-free opportunity list is folded into `active_dyad` at the point
   # encoding during preprocessing: the default engine reads it
   # through the point accessor, so it is not also passed as a per-iteration
@@ -1932,24 +2018,24 @@ estimate_wrapper <- function(
   }
 
   args_estimation <- list(
-    initialParameters = control_estimation$initial_parameters,
+    initialParameters = control_algo$initial_parameters,
     fixedParameters = effective_fixed_parameters,
-    maxIterations = as.integer(control_estimation$max_iterations),
-    score_tol = control_estimation$score_tol,
-    step_tol = control_estimation$step_tol,
-    dampingIncreaseFactor = control_estimation$damping_increase_factor,
-    dampingDecreaseFactor = control_estimation$damping_decrease_factor,
-    returnEventProbabilities = control_estimation$return_probabilities,
-    returnIntervalLogL = control_estimation$return_interval_loglik,
-    return_event_scores = isTRUE(control_estimation$return_event_scores),
+    maxIterations = as.integer(control_algo$max_iterations),
+    score_tol = control_algo$score_tol,
+    step_tol = control_algo$step_tol,
+    dampingIncreaseFactor = control_algo$damping_increase_factor,
+    dampingDecreaseFactor = control_algo$damping_decrease_factor,
+    returnEventProbabilities = control_algo$return_probabilities,
+    returnIntervalLogL = control_algo$return_interval_loglik,
+    return_event_scores = isTRUE(control_algo$return_event_scores),
     statsList = prep,
     nodes = ds_nodes_frame(orig_src, .nodes),
     nodes2 = ds_nodes_frame(orig_src, .nodes2),
     hasIntercept = has_intercept,
     is_two_mode = is_two_mode,
     # overridden damping
-    initialDamping = if (!is.null(control_estimation$initial_damping)) {
-      control_estimation$initial_damping
+    initialDamping = if (!is.null(control_algo$initial_damping)) {
+      control_algo$initial_damping
     } else {
       ifelse(has_windows, 30, 10)
     },
@@ -1961,7 +2047,7 @@ estimate_wrapper <- function(
   )
 
   # Call the appropriate estimation engine
-  if (control_estimation$engine %in% c("default_c", "gather_compute")) {
+  if (control_algo$engine %in% c("default_c", "gather_compute")) {
     tryCatch(
       result <- do.call(
         "estimate_c_int",
@@ -1969,11 +2055,11 @@ estimate_wrapper <- function(
           args_estimation,
           list(
             spec = model_spec,
-            engine = control_estimation$engine,
+            engine = control_algo$engine,
             optimizer = optimizer,
-            return_ranks = "ranks" %in% control_estimation$diagnostics,
-            return_margins = "margins" %in% control_estimation$diagnostics,
-            return_total_rate = "loglik" %in% control_estimation$diagnostics
+            return_ranks = "ranks" %in% control_algo$diagnostics,
+            return_margins = "margins" %in% control_algo$diagnostics,
+            return_total_rate = "loglik" %in% control_algo$diagnostics
           )
         )
       ),

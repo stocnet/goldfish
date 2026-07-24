@@ -38,7 +38,7 @@ test_that("compute_stats output is usable for estimation", {
     formulaTest,
     sub_model = "choice",
     data = dataTest,
-    preprocessing_init = prep
+    preprocessed = prep
   )
   fitDirect <- estimate_dynam(
     formulaTest,
@@ -114,7 +114,7 @@ test_that("preprocessed objects carry the format version", {
       depNetwork ~ inertia,
       sub_model = "choice",
       data = dataTest,
-      preprocessing_init = oldFormat
+      preprocessed = oldFormat
     ),
     "outdated preprocessing format"
   )

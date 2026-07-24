@@ -44,7 +44,9 @@
 #'   `"preprocessing.goldfish"`, usually the result of a call to
 #'   [set_preprocessing()]. This object contains parameters that control
 #'   the data preprocessing. See [set_preprocessing()] for details on
-#'   the available parameters.
+#'   the available parameters. This function keeps the pre-2.0.0 argument
+#'   name: it is superseded as a whole, so renaming it here would ask users
+#'   to update a call they are about to replace.
 #' @param max_length integer. Maximum number of characters for each produced
 #'   effect/column name in `namesEffects` (default `63`, a database-safe value).
 #'   Names are made valid and unique; the uniqueness suffix is applied after
@@ -144,7 +146,7 @@ gather_model_data <- function(
     model = model,
     sub_model = sub_model,
     output = "gather",
-    control_preprocessing = control_preprocessing,
+    control_prep = control_preprocessing,
     progress = progress,
     max_length = max_length
   )

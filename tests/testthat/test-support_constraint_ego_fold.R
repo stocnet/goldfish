@@ -41,7 +41,7 @@ fit_ego <- function(fx, engine = "default", constrained = TRUE) {
     fx$formula,
     sub_model = "choice",
     data = fx$data,
-    control_estimation = set_algorithm_newton(
+    control_algo = set_algorithm_newton(
       return_interval_loglik = TRUE,
       engine = engine
     )

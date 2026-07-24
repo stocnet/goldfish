@@ -210,7 +210,7 @@ parse_formula <- function(
 }
 
 
-# Comparison of two parsed formulas for preprocessing_init
+# Comparison of two parsed formulas for preprocessed
 # throws errors when: dependent events or default network are not the same,
 #  when there is righ-censoring
 # for one and not the other
@@ -231,7 +231,7 @@ compare_formulas <- function(
   if (old_parsed_formula$dep_name != new_parsed_formula$dep_name) {
     stop(
       "The dependent events in the formula are not the ones used in",
-      " the preprocessed object given in preprocessing_init."
+      " the preprocessed object given in preprocessed."
     )
   }
   if (
@@ -242,7 +242,7 @@ compare_formulas <- function(
   ) {
     stop(
       "The default network in the formula is not the one used in",
-      " the preprocessed object given in preprocessing_init."
+      " the preprocessed object given in preprocessed."
     )
   }
   old_has_intercept <- old_parsed_formula$has_intercept
@@ -258,13 +258,13 @@ compare_formulas <- function(
   }
   if (old_has_intercept && !new_has_intercept) {
     stop(
-      "The preprocessing for the object in preprocessing_init was not done",
+      "The preprocessing for the object in preprocessed was not done",
       " with the right-censored intervals that this formula requires."
     )
   }
   if (!old_has_intercept && new_has_intercept) {
     stop(
-      "The preprocessing for the object in preprocessing_init was done",
+      "The preprocessing for the object in preprocessed was done",
       " with right-censored intervals and this formula does not include those."
     )
   }

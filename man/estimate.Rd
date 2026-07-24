@@ -11,39 +11,48 @@ estimate_dynam(
   x,
   sub_model = c("choice", "rate", "rate_ordered", "choice_coordination"),
   data = NULL,
-  control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
-  verbose = getOption("verbose", default = FALSE)
+  verbose = getOption("verbose", default = FALSE),
+  control_estimation = deprecated(),
+  control_preprocessing = deprecated(),
+  preprocessing_init = deprecated()
 )
 
 estimate_dynami(
   x,
   sub_model = c("choice", "rate"),
   data = NULL,
-  control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
-  verbose = getOption("verbose", default = FALSE)
+  verbose = getOption("verbose", default = FALSE),
+  control_estimation = deprecated(),
+  control_preprocessing = deprecated(),
+  preprocessing_init = deprecated()
 )
 
 estimate_rem(
   x,
   sub_model = c("rate", "rate_ordered", "choice"),
   data = NULL,
-  control_estimation = set_algorithm_newton(),
-  control_preprocessing = set_preprocessing(),
-  preprocessing_init = NULL,
+  control_algo = set_algorithm_newton(),
+  control_prep = set_preprocessing(),
+  preprocessed = NULL,
   preprocessing_only = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
-  verbose = getOption("verbose", default = FALSE)
+  verbose = getOption("verbose", default = FALSE),
+  control_estimation = deprecated(),
+  control_preprocessing = deprecated(),
+  preprocessing_init = deprecated()
 )
 }
 \arguments{
@@ -80,17 +89,17 @@ modeled); \code{"choice"} is kept as a deprecated alias of \code{"rate"}.}
 It is an environment that contains the nodesets, networks,
 attributes and dependent events objects. Default to \code{NULL}.}
 
-\item{control_estimation}{An object of class \code{algorithm.goldfish}
+\item{control_algo}{An object of class \code{algorithm.goldfish}
 (typically created by \code{\link[=set_algorithm_newton]{set_algorithm_newton()}}),
 specifying the algorithm and its parameters for the estimation.}
 
-\item{control_preprocessing}{An object of class
-\code{control_preprocessing.goldfish} (typically created by
+\item{control_prep}{An object of class
+\code{preprocessing.goldfish} (typically created by
 \code{\link[=set_preprocessing]{set_preprocessing()}}),
 specifying parameters for data preprocessing. This is only used
-if \code{preprocessing_init} is not a \code{preprocessed.goldfish} object or NULL.}
+if \code{preprocessed} is not a \code{preprocessed.goldfish} object or NULL.}
 
-\item{preprocessing_init}{an optional preprocessed object of class
+\item{preprocessed}{an optional preprocessed object of class
 \code{preprocessed.goldfish} from a previous estimation. When it is provided,
 the function will skip the preprocessing of the effects that are already
 present in the object and only preprocess the new effects. Default to
@@ -118,6 +127,16 @@ estimation processes.}
 \item{verbose}{logical indicating whether should print
 very detailed intermediate results of the iterative Newton-Raphson
 procedure; slows down the routine significantly.}
+
+\item{control_estimation}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to
+\code{control_algo} in goldfish 2.0.0.}
+
+\item{control_preprocessing}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to
+\code{control_prep} in goldfish 2.0.0.}
+
+\item{preprocessing_init}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to
+\code{preprocessed} in goldfish 2.0.0, the name every diagnostic consumer of a
+\code{preprocessed.goldfish} object uses.}
 }
 \value{
 returns an object of \code{\link[=class]{class()}} \code{"result.goldfish"}
@@ -288,7 +307,7 @@ data("social_evolution")
 mod01 <- estimate_dynam(calls ~ inertia + recip + trans,
   sub_model = "choice",
   data = social_evolution,
-  control_estimation = set_algorithm_newton(engine = "gather_compute")
+  control_algo = set_algorithm_newton(engine = "gather_compute")
 )
 summary(mod01)
 
@@ -296,7 +315,7 @@ summary(mod01)
 mod02 <- estimate_dynam(calls ~ 1 + node_trans + indeg + outdeg,
   sub_model = "rate",
   data = social_evolution,
-  control_estimation = set_algorithm_newton(engine = "gather_compute")
+  control_algo = set_algorithm_newton(engine = "gather_compute")
 )
 summary(mod02)
 
@@ -307,7 +326,7 @@ mod03 <- estimate_rem(
     indeg(calls, type = "ego") + outdeg(calls, type = "ego") +
     inertia + recip + trans,
   data = social_evolution,
-  control_estimation = set_algorithm_newton(engine = "gather_compute")
+  control_algo = set_algorithm_newton(engine = "gather_compute")
 )
 summary(mod03)
 
@@ -335,7 +354,7 @@ partner_model <- estimate_dynam(
   partner_spec,
   sub_model = "choice_coordination",
   data = fish,
-  control_estimation =
+  control_algo =
     set_algorithm_newton(
       initial_damping = 40, max_iterations = 30,
       engine = "default"

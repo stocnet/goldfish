@@ -80,13 +80,13 @@ test_that("an all-allowing REM constraint is an identity (equals unconstrained)"
     sub_model = "rate",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = opt
+    control_algo = opt
   )
   m_unc <- estimate_rem(
     calls_dependent ~ 1 + inertia + recip,
     sub_model = "rate",
     data = d,
-    control_estimation = opt
+    control_algo = opt
   )
   expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-8)
   expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-8)
@@ -101,13 +101,13 @@ test_that("a restricting REM constraint changes the estimate", {
     sub_model = "rate",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = opt
+    control_algo = opt
   ))
   m_unc <- estimate_rem(
     calls_dependent ~ 1 + inertia + recip,
     sub_model = "rate",
     data = d,
-    control_estimation = opt
+    control_algo = opt
   )
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
@@ -121,7 +121,7 @@ test_that("gather_compute / default_c consume the REM constraint natively", {
     sub_model = "rate",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_algorithm_newton(engine = "default")
+    control_algo = set_algorithm_newton(engine = "default")
   ))
   # both compiled engines read the folded dense point active_dyad,
   # so they match the default engine with no downgrade fallback.
@@ -130,14 +130,14 @@ test_that("gather_compute / default_c consume the REM constraint natively", {
     sub_model = "rate",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_algorithm_newton(engine = "gather_compute")
+    control_algo = set_algorithm_newton(engine = "gather_compute")
   ))
   m_dc <- suppressWarnings(estimate_rem(
     spec,
     sub_model = "rate",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_algorithm_newton(engine = "default_c")
+    control_algo = set_algorithm_newton(engine = "default_c")
   ))
   expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-8)
@@ -156,7 +156,7 @@ test_that("an observed dyad excluded by its own REM constraint errors", {
       sub_model = "rate",
       data = d,
       support_constraint = ~ tie(call_network),
-      control_estimation = opt
+      control_algo = opt
     )
   )
 })
@@ -170,13 +170,13 @@ test_that("an all-allowing REM rate_ordered constraint is an identity", {
     sub_model = "rate_ordered",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = opt
+    control_algo = opt
   )
   m_unc <- estimate_rem(
     calls_dependent ~ inertia + recip,
     sub_model = "rate_ordered",
     data = d,
-    control_estimation = opt
+    control_algo = opt
   )
   expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-8)
   expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-8)
@@ -191,13 +191,13 @@ test_that("a restricting REM rate_ordered constraint changes the estimate", {
     sub_model = "rate_ordered",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = opt
+    control_algo = opt
   ))
   m_unc <- estimate_rem(
     calls_dependent ~ inertia + recip,
     sub_model = "rate_ordered",
     data = d,
-    control_estimation = opt
+    control_algo = opt
   )
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
@@ -211,7 +211,7 @@ test_that("REM rate_ordered constraint runs natively on gather / default_c", {
     sub_model = "rate_ordered",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_algorithm_newton(engine = "default")
+    control_algo = set_algorithm_newton(engine = "default")
   ))
   # Ordinal REM masks the disallowed dyads' utility before the multinomial
   # normalizer (and the probability-weighted score / information sums). Both
@@ -222,14 +222,14 @@ test_that("REM rate_ordered constraint runs natively on gather / default_c", {
     sub_model = "rate_ordered",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_algorithm_newton(engine = "gather_compute")
+    control_algo = set_algorithm_newton(engine = "gather_compute")
   ))
   m_dc <- suppressWarnings(estimate_rem(
     spec,
     sub_model = "rate_ordered",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_algorithm_newton(engine = "default_c")
+    control_algo = set_algorithm_newton(engine = "default_c")
   ))
   expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-8)

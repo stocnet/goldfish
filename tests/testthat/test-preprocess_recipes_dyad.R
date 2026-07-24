@@ -109,7 +109,7 @@ test_that("choice coordination recipe matches the choice recipe output", {
   expect_equal(prepCoord$is_dependent, prepChoice$is_dependent)
 })
 
-test_that("flat choice preprocessing reused through preprocessing_init", {
+test_that("flat choice preprocessing reused through preprocessed", {
   formulaFull <- depNetwork ~ inertia(networkState, weighted = TRUE) +
     tie(networkExog, weighted = TRUE)
   preproData <- estimate_wrapper(
@@ -124,7 +124,7 @@ test_that("flat choice preprocessing reused through preprocessing_init", {
     model = "DyNAM",
     sub_model = "choice",
     data = dataTest,
-    preprocessing_init = preproData,
+    preprocessed = preproData,
     preprocessing_only = TRUE
   )
   prepDirect <- estimate_wrapper(

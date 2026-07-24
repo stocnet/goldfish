@@ -24,7 +24,7 @@ estimate_with_ranks <- function(formula, model, sub_model) {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_estimation = set_algorithm_newton(
+    control_algo = set_algorithm_newton(
       diagnostics = c("loglik", "ranks")
     )
   )
@@ -36,7 +36,7 @@ estimate_with_probabilities <- function(formula, model, sub_model) {
     model = model,
     sub_model = sub_model,
     data = dataTest,
-    control_estimation = set_algorithm_newton(
+    control_algo = set_algorithm_newton(
       engine = "default",
       return_probabilities = TRUE
     )
@@ -112,7 +112,7 @@ margins_eval <- function(spec, data_list, params = NULL) {
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
-    control_estimation = do.call(set_algorithm_newton, opt_args),
+    control_algo = do.call(set_algorithm_newton, opt_args),
     progress = FALSE,
     verbose = FALSE
   )
@@ -241,7 +241,7 @@ total_rate_fit <- function(spec, data_list, preprocessing_only = FALSE) {
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
-    control_estimation = do.call(
+    control_algo = do.call(
       set_algorithm_newton,
       c(list(), spec$estimation_args)
     ),
@@ -319,7 +319,7 @@ test_that("total_rate is stored only for exact-time submodels", {
     model = "REM",
     sub_model = "rate",
     data = dataTest,
-    control_estimation = set_algorithm_newton(diagnostics = "scores")
+    control_algo = set_algorithm_newton(diagnostics = "scores")
   ))
   expect_null(fit_no_loglik$total_rate)
 })
@@ -378,7 +378,7 @@ parity_fit <- function(spec, data_list, ...) {
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
-    control_estimation = ctrl,
+    control_algo = ctrl,
     progress = FALSE,
     verbose = FALSE
   )

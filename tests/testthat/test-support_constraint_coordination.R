@@ -84,13 +84,13 @@ test_that("an all-allowing coordination constraint is an identity", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = opt
+    control_algo = opt
   )
   m_unc <- estimate_dynam(
     coord_formula,
     sub_model = "choice_coordination",
     data = d,
-    control_estimation = opt
+    control_algo = opt
   )
   expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-6)
   expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-6)
@@ -109,13 +109,13 @@ test_that("a restricting coordination constraint changes the estimate", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = opt
+    control_algo = opt
   ))
   m_unc <- estimate_dynam(
     coord_formula,
     sub_model = "choice_coordination",
     data = d,
-    control_estimation = opt
+    control_algo = opt
   )
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
@@ -128,7 +128,7 @@ test_that("coordination constraint runs natively on default_c", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_algorithm_newton(
+    control_algo = set_algorithm_newton(
       engine = "default",
       max_iterations = 30,
       initial_damping = 40
@@ -141,7 +141,7 @@ test_that("coordination constraint runs natively on default_c", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = set_algorithm_newton(
+    control_algo = set_algorithm_newton(
       engine = "default_c",
       max_iterations = 30,
       initial_damping = 40
@@ -166,7 +166,7 @@ test_that("gather_compute runs a coordination constraint natively", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_estimation = opt("default_c")
+    control_algo = opt("default_c")
   ))
   # The gather now emits the symmetrically-folded off-diagonal dyad list (only
   # mask-allowed rows) plus the per-sender groups and (i,j)<->(j,i) pairing, and
@@ -178,7 +178,7 @@ test_that("gather_compute runs a coordination constraint natively", {
       sub_model = "choice_coordination",
       data = d,
       support_constraint = ~ tie(allowedNet),
-      control_estimation = opt("gather_compute")
+      control_algo = opt("gather_compute")
     ))
   )
   expect_equal(coef(m_gc), coef(m_dc), tolerance = 1e-6)

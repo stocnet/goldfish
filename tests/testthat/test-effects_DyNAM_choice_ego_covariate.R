@@ -97,14 +97,14 @@ test_that("an ego() atom in a choice support_constraint parses/constrains", {
     calls_dependent ~ inertia + recip,
     sub_model = "choice",
     data = data,
-    control_estimation = set_algorithm_newton(engine = "default"),
+    control_algo = set_algorithm_newton(engine = "default"),
     support_constraint = ~ ego(actors$active_flag) & tie(allowedNet)
   )
   m_unc <- estimate_dynam(
     calls_dependent ~ inertia + recip,
     sub_model = "choice",
     data = data,
-    control_estimation = set_algorithm_newton(engine = "default")
+    control_algo = set_algorithm_newton(engine = "default")
   )
   # a vacuous ego ∩ full-allowed constraint leaves the estimate unchanged.
   expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-6)
@@ -126,7 +126,7 @@ test_that("a bare ego() main effect in choice is still rejected (softmax)", {
       calls_dependent ~ inertia + ego(actors$active_flag),
       sub_model = "choice",
       data = data,
-      control_estimation = set_algorithm_newton(engine = "default")
+      control_algo = set_algorithm_newton(engine = "default")
     ),
     "ego"
   )

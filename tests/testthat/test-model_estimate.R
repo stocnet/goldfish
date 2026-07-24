@@ -31,7 +31,7 @@ test_that("preprocess init", {
     estimate_wrapper(
       formulaTest,
       data = dataTest,
-      preprocessing_init = preproData
+      preprocessed = preproData
     )[toCompare]
   )
   formulaTest <- depNetwork ~ 1 +
@@ -52,7 +52,7 @@ test_that("preprocess init", {
       formulaTest,
       data = dataTest,
       sub_model = "rate",
-      preprocessing_init = preproData
+      preprocessed = preproData
     )[toCompare]
   )
 })
@@ -96,7 +96,7 @@ test_that("estimation emits the probabilities guardrail once per call", {
       model = "DyNAM",
       sub_model = "choice",
       data = dataTest,
-      control_estimation = set_algorithm_newton(diagnostics = "probabilities")
+      control_algo = set_algorithm_newton(diagnostics = "probabilities")
     ),
     regexp = "per-event probabilities"
   )

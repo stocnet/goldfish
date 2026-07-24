@@ -2,7 +2,7 @@
 
     Code
       suppressWarnings(estimate_dynam(contact ~ alter(income), sub_model = "choice",
-      data = as_goldfish(fixture), preprocessing_only = TRUE, control_preprocessing = set_preprocessing(
+      data = as_goldfish(fixture), preprocessing_only = TRUE, control_prep = set_preprocessing(
         impute = c(income = "as_category"))))
     Condition
       Error in `validate_imputation_policy()`:
@@ -14,7 +14,7 @@
 
     Code
       suppressWarnings(estimate_dynam(contact ~ same(party), sub_model = "choice",
-      data = as_goldfish(fixture), preprocessing_only = TRUE, control_preprocessing = set_preprocessing(
+      data = as_goldfish(fixture), preprocessing_only = TRUE, control_prep = set_preprocessing(
         impute = c(nowhere = "as_category"))))
     Condition
       Error in `validate_imputation_policy()`:

@@ -18,7 +18,7 @@ event_scores_eval <- function(spec, engine, data_list, params) {
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
-    control_estimation = opt,
+    control_algo = opt,
     progress = FALSE,
     verbose = FALSE
   )
@@ -114,7 +114,7 @@ test_that("event_scores follows the scores diagnostic (default on)", {
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_estimation = set_algorithm_newton(
+      control_algo = set_algorithm_newton(
         engine = engine,
         diagnostics = "loglik"
       ),
@@ -134,7 +134,7 @@ test_that("gather_compute rejects an explicit scores request", {
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_estimation = set_algorithm_newton(
+      control_algo = set_algorithm_newton(
         engine = "gather_compute",
         return_event_scores = TRUE
       ),
@@ -147,7 +147,7 @@ test_that("gather_compute rejects an explicit scores request", {
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_estimation = set_algorithm_newton(
+      control_algo = set_algorithm_newton(
         engine = "gather_compute",
         diagnostics = c("loglik", "scores")
       ),
@@ -167,7 +167,7 @@ test_that("gather_compute silently drops default-sourced scores", {
     spec$formula,
     data = data_list$social_evolution,
     sub_model = spec$sub_model,
-    control_estimation = set_algorithm_newton(engine = "gather_compute"),
+    control_algo = set_algorithm_newton(engine = "gather_compute"),
     progress = FALSE
   ))
   expect_null(fit$event_scores)

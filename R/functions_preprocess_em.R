@@ -74,11 +74,11 @@ preprocess_emdynam_competition <- function() {
           x = formula,
           sub_model = sub_model,
           data = environmentsChains[[iChain]],
-          control_estimation = set_algorithm_newton(
+          control_algo = set_algorithm_newton(
             engine = "default",
             fixed_parameters = fix
           ),
-          control_preprocessing = set_preprocessing(
+          control_prep = set_preprocessing(
             start_time = time1,
             end_time = time2,
             opportunities_list = op_list
@@ -186,10 +186,10 @@ preprocess_emdynam_competition <- function() {
         estimate_dynam(
           x = formula,
           sub_model = sub_model,
-          preprocessing_init = preproc_init,
+          preprocessed = preproc_init,
           data = environmentsChains[[iChain]],
-          control_estimation = control_est,
-          control_preprocessing = set_preprocessing(
+          control_algo = control_est,
+          control_prep = set_preprocessing(
             start_time = time1,
             end_time = time2,
             opportunities_list = op_list
@@ -463,11 +463,11 @@ preprocess_emdynam_competition <- function() {
           x = formula,
           sub_model = sub_model,
           data = environmentsChains[[iChain]],
-          control_estimation = set_algorithm_newton(
+          control_algo = set_algorithm_newton(
             engine = "default",
             fixed_parameters = fix
           ),
-          control_preprocessing = set_preprocessing(
+          control_prep = set_preprocessing(
             start_time = time1,
             end_time = time2,
             opportunities_list = op_list
@@ -502,10 +502,10 @@ preprocess_emdynam_competition <- function() {
         estimate_dynam(
           x = formula,
           sub_model = sub_model,
-          preprocessing_init = preproc_init,
+          preprocessed = preproc_init,
           data = environmentsChains[[iChain]],
-          control_estimation = control_est,
-          control_preprocessing = set_preprocessing(
+          control_algo = control_est,
+          control_prep = set_preprocessing(
             start_time = time1,
             end_time = time2,
             opportunities_list = op_list

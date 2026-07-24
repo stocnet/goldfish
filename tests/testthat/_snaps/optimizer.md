@@ -22,8 +22,7 @@
 
     Code
       estimate_dynam(spec$formula, data = data_list$social_evolution, sub_model = spec$
-        sub_model, control_estimation = set_algorithm_newton(optimizer = "bfgs"),
-      progress = FALSE)
+        sub_model, control_algo = set_algorithm_newton(optimizer = "bfgs"), progress = FALSE)
     Condition
       Error in `estimate_wrapper()`:
       ! `optimizer` "bfgs" requires the maxLik package.

@@ -47,7 +47,7 @@ test_that("a single offset fixes the right coefficient (equals fixed_parameters)
     calls_dependent ~ inertia + offset(recip) + trans,
     sub_model = "choice",
     data = d,
-    control_estimation = set_algorithm_newton(offset_coef = 2)
+    control_algo = set_algorithm_newton(offset_coef = 2)
   )
   # the offset term's coefficient is held at 2 and its stat column is retained
   expect_identical(rownames(m_off$names), c("inertia", "recip", "trans"))
@@ -60,7 +60,7 @@ test_that("a single offset fixes the right coefficient (equals fixed_parameters)
     calls_dependent ~ inertia + recip + trans,
     sub_model = "choice",
     data = d,
-    control_estimation = set_algorithm_newton(fixed_parameters = c(NA, 2, NA))
+    control_algo = set_algorithm_newton(fixed_parameters = c(NA, 2, NA))
   )
   expect_equal(coef(m_off), coef(m_leg), tolerance = 1e-6)
 })
@@ -71,7 +71,7 @@ test_that("multiple offsets are aligned to offset_coef by formula order", {
     calls_dependent ~ inertia + offset(recip) + offset(trans),
     sub_model = "choice",
     data = d,
-    control_estimation = set_algorithm_newton(offset_coef = c(2, -1))
+    control_algo = set_algorithm_newton(offset_coef = c(2, -1))
   )
   expect_equal(m$parameters[2], 2)
   expect_equal(m$parameters[3], -1)
@@ -85,7 +85,7 @@ test_that("a rate offset shifts the rate and is accepted", {
       calls_dependent ~ 1 + offset(indeg) + outdeg,
       sub_model = "rate",
       data = d,
-      control_estimation = set_algorithm_newton(offset_coef = 0.5)
+      control_algo = set_algorithm_newton(offset_coef = 0.5)
     )
   )
   # parameters are [Intercept, indeg (fixed), outdeg]
@@ -100,7 +100,7 @@ test_that("a constant-across-alternatives offset in choice warns, not aborts", {
       calls_dependent ~ inertia + offset(indeg(call_network, type = "ego")),
       sub_model = "choice",
       data = d,
-      control_estimation = set_algorithm_newton(offset_coef = 1)
+      control_algo = set_algorithm_newton(offset_coef = 1)
     ),
     "constant across the choice alternatives"
   )
@@ -116,7 +116,7 @@ test_that("offset_coef arity and pairing are validated", {
       calls_dependent ~ inertia + offset(recip),
       sub_model = "choice",
       data = d,
-      control_estimation = set_algorithm_newton(offset_coef = c(1, 2))
+      control_algo = set_algorithm_newton(offset_coef = c(1, 2))
     )
   )
   # offset_coef with no offset term
@@ -125,7 +125,7 @@ test_that("offset_coef arity and pairing are validated", {
       calls_dependent ~ inertia + recip,
       sub_model = "choice",
       data = d,
-      control_estimation = set_algorithm_newton(offset_coef = 1)
+      control_algo = set_algorithm_newton(offset_coef = 1)
     ),
     "no .*offset.* terms|has no"
   )

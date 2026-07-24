@@ -46,3 +46,39 @@ set_preprocessing_opt <- function(...) {
   )
   set_preprocessing(...)
 }
+
+# Fold a pre-2.0.0 estimator argument into the argument that replaced it.
+# `new_supplied` decides precedence: an explicitly supplied new argument wins
+# over the deprecated one, which is otherwise honored unchanged. The warning is
+# emitted whenever the old name is used, since that is what the user has to
+# change. `user_env` reaches past this helper and its caller so lifecycle
+# attributes the warning to the user's own call.
+fold_renamed_arg <- function(
+  new,
+  new_supplied,
+  old,
+  fn,
+  old_name,
+  new_name,
+  user_env = rlang::caller_env(2)
+) {
+  if (!lifecycle::is_present(old)) {
+    return(new)
+  }
+  lifecycle::deprecate_soft(
+    when = "2.0.0",
+    what = paste0(fn, "(", old_name, ")"),
+    with = paste0(fn, "(", new_name, ")"),
+    details = if (new_supplied) {
+      c(
+        "!" = paste0(
+          "Both were supplied; the value of `",
+          new_name,
+          "` is used."
+        )
+      )
+    },
+    user_env = user_env
+  )
+  if (new_supplied) new else old
+}

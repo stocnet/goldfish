@@ -2,7 +2,7 @@
 
     Code
       estimate_dynam(calls_dependent ~ inertia + offset(recip), sub_model = "choice",
-      data = d, control_estimation = set_algorithm_newton(offset_coef = c(1, 2)))
+      data = d, control_algo = set_algorithm_newton(offset_coef = c(1, 2)))
     Condition
       Error in `assemble_fixed_parameters()`:
       ! `offset_coef` must supply one value per `offset()` term.

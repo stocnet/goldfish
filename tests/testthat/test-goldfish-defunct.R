@@ -111,8 +111,8 @@ test_that("examineOutliers deprecated", {
     depNetwork ~ inertia + trans + indeg,
     sub_model = "choice",
     data = dataTest,
-    control_preprocessing = set_preprocessing(start_time = 0L),
-    control_estimation = set_algorithm_newton(return_interval_loglik = TRUE),
+    control_prep = set_preprocessing(start_time = 0L),
+    control_algo = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
   )
@@ -131,8 +131,8 @@ test_that("examineChangepoints deprecated", {
     depNetwork ~ inertia + trans + indeg,
     sub_model = "choice",
     data = dataTest,
-    control_preprocessing = set_preprocessing(start_time = 0L),
-    control_estimation = set_algorithm_newton(return_interval_loglik = TRUE),
+    control_prep = set_preprocessing(start_time = 0L),
+    control_algo = set_algorithm_newton(return_interval_loglik = TRUE),
     progress = FALSE,
     verbose = FALSE
   )

@@ -43,7 +43,7 @@ test_that("maxLik optimizers reject engines other than default_c", {
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_estimation = set_algorithm_newton(
+      control_algo = set_algorithm_newton(
         optimizer = "bfgs",
         engine = engine
       ),
@@ -71,7 +71,7 @@ test_that("a maxLik optimizer aborts when maxLik is not installed", {
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_estimation = set_algorithm_newton(optimizer = "bfgs"),
+      control_algo = set_algorithm_newton(optimizer = "bfgs"),
       progress = FALSE
     ),
     error = TRUE
@@ -88,7 +88,7 @@ test_that("BFGS and BHHH agree with Newton-Raphson on baseline fixtures", {
     args <- list(
       x = spec$formula,
       data = data_list[[spec$dataset]],
-      control_estimation = opt,
+      control_algo = opt,
       progress = FALSE
     )
     if (spec$model == "DyNAM") {
@@ -125,14 +125,14 @@ test_that("maxLik result supports the standard post-estimation methods", {
     spec$formula,
     data = data_list$social_evolution,
     sub_model = spec$sub_model,
-    control_estimation = set_algorithm_newton(engine = "default_c"),
+    control_algo = set_algorithm_newton(engine = "default_c"),
     progress = FALSE
   )
   fit <- estimate_dynam(
     spec$formula,
     data = data_list$social_evolution,
     sub_model = spec$sub_model,
-    control_estimation = set_algorithm_newton(
+    control_algo = set_algorithm_newton(
       engine = "default_c",
       optimizer = "bfgs"
     ),

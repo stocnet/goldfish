@@ -57,7 +57,7 @@ test_that("deliberate missingness survives to a summarizer as a category", {
       sub_model = "choice",
       data = as_goldfish(fixture),
       preprocessing_only = TRUE,
-      control_preprocessing = ctrl
+      control_prep = ctrl
     ))$initialStats[,, 1]
   }
   summary_stats <- run(NULL)
@@ -88,7 +88,7 @@ test_that("a missing event value becomes the reserved level, not pooled", {
       contact ~ same(party),
       sub_model = "choice",
       data = as_goldfish(fixture),
-      control_preprocessing = ctrl
+      control_prep = ctrl
     ))$stat_all_events
   }
   # The mid-walk NA is recoded to the reserved level under as_category and to
@@ -106,7 +106,7 @@ test_that("as_category on a numeric attribute aborts", {
       sub_model = "choice",
       data = as_goldfish(fixture),
       preprocessing_only = TRUE,
-      control_preprocessing = set_preprocessing(
+      control_prep = set_preprocessing(
         impute = c(income = "as_category")
       )
     ))
@@ -123,7 +123,7 @@ test_that("a policy naming an unread attribute aborts", {
       sub_model = "choice",
       data = as_goldfish(fixture),
       preprocessing_only = TRUE,
-      control_preprocessing = set_preprocessing(
+      control_prep = set_preprocessing(
         impute = c(nowhere = "as_category")
       )
     ))

@@ -50,7 +50,7 @@ fit_ordering <- function(fx, engine, constrained = TRUE) {
     callsDep ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    control_estimation = set_algorithm_newton(engine = engine),
+    control_algo = set_algorithm_newton(engine = engine),
     support_constraint = if (constrained) ~ tie(allowedNet) else NULL
   )
 }
@@ -89,8 +89,8 @@ test_that("opportunities_list[[1]] restricting event 1 equals the constraint", {
     callsDep ~ inertia + recip,
     sub_model = "choice",
     data = fx$data,
-    control_estimation = set_algorithm_newton(engine = "default"),
-    control_preprocessing = set_preprocessing(opportunities_list = opp)
+    control_algo = set_algorithm_newton(engine = "default"),
+    control_prep = set_preprocessing(opportunities_list = opp)
   )
   m_cstr <- fit_ordering(fx, "default")
   # opp[[1]] rides in active_dyad_init exactly as the support atom does.

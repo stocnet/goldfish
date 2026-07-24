@@ -192,7 +192,7 @@ baselines_fit <- function(spec, engine, data_list) {
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
-    control_estimation = do.call(set_algorithm_newton, controlArgs),
+    control_algo = do.call(set_algorithm_newton, controlArgs),
     progress = FALSE,
     verbose = FALSE
   )

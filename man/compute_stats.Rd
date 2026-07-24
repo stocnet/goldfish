@@ -37,7 +37,7 @@ the gather rows to the database table configured via
 \code{\link[=set_preprocessing]{set_preprocessing()}} (\code{db} / \code{db_table}) and returns a descriptor.}
 
 \item{...}{additional arguments passed to the preprocessing stage, e.g.,
-\code{control_preprocessing} (see \code{\link[=set_preprocessing]{set_preprocessing()}}) and \code{progress}.}
+\code{control_prep} (see \code{\link[=set_preprocessing]{set_preprocessing()}}) and \code{progress}.}
 }
 \value{
 an object of class \code{"preprocessed.goldfish"} with the change
@@ -50,7 +50,7 @@ Runs the preprocessing stage of a model and returns the change statistics
 of the effects for the event sequence, without estimating the model.
 The returned object can be passed to the estimation functions
 (\code{\link[=estimate_dynam]{estimate_dynam()}}, \code{\link[=estimate_rem]{estimate_rem()}}, \code{\link[=estimate_dynami]{estimate_dynami()}}) through their
-\code{preprocessing_init} argument, or used directly by users who want to
+\code{preprocessed} argument, or used directly by users who want to
 work with the sufficient statistics of a model.
 }
 \examples{

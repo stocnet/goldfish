@@ -114,7 +114,7 @@ test_that("dynam rate ordered recipe stores dependent events only", {
   )
 })
 
-test_that("flat preprocessing reused through preprocessing_init", {
+test_that("flat preprocessing reused through preprocessed", {
   formulaFull <- depNetwork ~ 1 +
     outdeg(networkState, weighted = TRUE) +
     indeg(networkExog, weighted = TRUE)
@@ -130,7 +130,7 @@ test_that("flat preprocessing reused through preprocessing_init", {
     model = "DyNAM",
     sub_model = "rate",
     data = dataTest,
-    preprocessing_init = preproData,
+    preprocessed = preproData,
     preprocessing_only = TRUE
   )
   prepDirect <- estimate_wrapper(

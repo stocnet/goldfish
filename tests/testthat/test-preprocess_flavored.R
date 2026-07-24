@@ -152,7 +152,7 @@ test_that("each object carries its own formula, not the union", {
   # The union formula that drove the walk is `~ 1 + indeg + outdeg`, but each
   # object holds only its own projected columns, so stamping the union here
   # would describe columns the object does not have — and misalign the effect
-  # matching of any later `preprocessing_init` re-parse.
+  # matching of any later `preprocessed` re-parse.
   creation <- prep_of(out, "creation", "rate")
   dissolution <- prep_of(out, "dissolution", "rate")
 
