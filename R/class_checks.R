@@ -1067,6 +1067,9 @@ check_presence <- function(
 #' @param model_list character string vector defining allowed options
 #' @param sub_model_list list with character string vectors defining allowed
 #'    sub_model options by each model
+#' @param deprecated_sub_models list, keyed by model, of sub_model values that
+#'    are still accepted but no longer advertised in the error message
+#' @param call environment the error is attributed to
 #'
 #' @return invisible TRUE if model and sub_model check conditions
 #'
@@ -1080,7 +1083,14 @@ check_presence <- function(
 #' )
 #' @noRd
 
-check_model_par <- function(model, sub_model, model_list, sub_model_list) {
+check_model_par <- function(
+  model,
+  sub_model,
+  model_list,
+  sub_model_list,
+  deprecated_sub_models = list(),
+  call = rlang::caller_env()
+) {
   stopifnot(
     inherits(model, "character"),
     length(model) == 1,
@@ -1088,17 +1098,28 @@ check_model_par <- function(model, sub_model, model_list, sub_model_list) {
     length(sub_model) == 1
   )
   if (!model %in% model_list) {
-    stop("model: '", model, "' is not between the available options")
+    cli::cli_abort(
+      c(
+        "Unknown {.arg model} {.val {model}}.",
+        "i" = "Available model{?s}: {.val {model_list}}."
+      ),
+      call = call
+    )
   }
   if (!sub_model %in% sub_model_list[[model]]) {
-    stop(
-      "model: '",
-      model,
-      "' doesn't allow sub_model: '",
-      sub_model,
-      "' available options '",
-      paste(sub_model_list[[model]], collapse = ", "),
-      "'"
+    # Deprecated values still pass the membership test above; they are left out
+    # here so the message never advertises a value on its way out.
+    advertised <- setdiff(
+      sub_model_list[[model]],
+      deprecated_sub_models[[model]]
+    )
+    cli::cli_abort(
+      c(
+        "{.arg sub_model} {.val {sub_model}} is not available for model
+         {.val {model}}.",
+        "i" = "Model {.val {model}} allows {.val {advertised}}."
+      ),
+      call = call
     )
   }
 

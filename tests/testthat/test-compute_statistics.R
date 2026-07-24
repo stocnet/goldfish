@@ -99,6 +99,51 @@ test_that("compute_statistics validates the output argument", {
   )
 })
 
+test_that("rate_ordered flows through, for REM and for DyNAM", {
+  # The vocabulary is validated once downstream, so this surface reaches every
+  # sub_model estimation reaches -- gather_model_data() rejected this one at its
+  # own match.arg while estimation ran it.
+  # A REM is dyad-indexed, a DyNAM rate model sender-indexed, so each takes the
+  # effect its own risk-set axis supports.
+  formulas <- list(
+    REM = depNetwork ~ inertia(networkState),
+    DyNAM = depNetwork ~ indeg(networkState)
+  )
+  for (model in c("REM", "DyNAM")) {
+    gathered <- expect_no_warning(compute_statistics(
+      formulas[[model]],
+      data = dataTest,
+      model = model,
+      sub_model = "rate_ordered",
+      output = "gather"
+    ))
+    expect_false(gathered$has_intercept)
+    expect_false("(Intercept)" %in% colnames(gathered$stat_all_events))
+  }
+})
+
+test_that("an unavailable sub_model names the model's allowed set", {
+  expect_snapshot(
+    error = TRUE,
+    compute_statistics(
+      depNetwork ~ inertia,
+      data = dataTest,
+      model = "REM",
+      sub_model = "choice_coordination"
+    )
+  )
+})
+
+test_that("REM sub_model = choice points at both successors", {
+  expect_snapshot(invisible(compute_statistics(
+    depNetwork ~ inertia(networkState),
+    data = dataTest,
+    model = "REM",
+    sub_model = "choice",
+    output = "gather"
+  )))
+})
+
 test_that("compute_statistics validates model and sub_model values", {
   expect_error(
     compute_statistics(

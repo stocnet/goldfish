@@ -635,9 +635,14 @@ compute_statistics <- function(
   max_length = 63L,
   ...
 ) {
-  model <- match.arg(model)
+  # No local match.arg on model/sub_model: the vocabulary is validated once,
+  # downstream in estimate_wrapper(), so this surface cannot drift from what
+  # estimation accepts (the drift that made gather_model_data() reject
+  # sub_model = "rate_ordered" while estimation ran it). Only the default is
+  # resolved here, since the sub_model default depends on the model.
+  model <- if (length(model) > 1) model[[1]] else model
   if (is.null(sub_model)) {
-    sub_model <- if (model == "REM") "rate" else "choice"
+    sub_model <- if (identical(model, "REM")) "rate" else "choice"
   }
   output <- match.arg(output)
   estimate_wrapper(
@@ -1065,14 +1070,17 @@ estimate_wrapper <- function(
       DyNAM = c("rate", "rate_ordered", "choice", "choice_coordination"),
       REM = c("rate", "rate_ordered", "choice"),
       DyNAMi = c("choice", "rate")
-    )
+    ),
+    deprecated_sub_models = list(REM = "choice")
   )
 
   if (model == "REM" && sub_model == "choice") {
     cli::cli_warn(c(
       "!" = "{.code sub_model = \"choice\"} is deprecated for REM models.",
-      "i" = "Use {.code sub_model = \"rate\"} instead; REM models the rate
-             of dyadic events."
+      "i" = "Use {.code sub_model = \"rate\"} to model the timing of the
+             dyadic events (exact-time), or {.code sub_model =
+             \"rate_ordered\"} to model only their order (ordinal).",
+      "i" = "Continuing with {.code sub_model = \"rate\"}."
     ))
     sub_model <- "rate"
   }
