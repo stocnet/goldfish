@@ -10,19 +10,47 @@ inline whenever roxygen/exports change; roxygen inheritance
 happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 `feature/goldfish-diag` (create from `develop`).
 
+## 0. Re-ground the 2026-07-17 design (added 2026-07-23)
+
+- [x] 0.1 Re-verify the Context "key code facts" before any edit: the design
+      was written 2026-07-17 against a dispatch/estimation surface that has
+      since moved — `refactor-single-data-object` archived, `multimode`
+      (two-mode fits) landing, and `spec-driven-dispatch` (risk-set
+      descriptor onto the model spec + legacy-vocabulary retirement) still
+      in flight (16/21). Confirm each Context claim still holds and refresh
+      every symbol/line anchor cited in `design.md`/`tasks.md`:
+      (a) the six `*_default.cpp` engines still compute `intervalLogL` and
+      the `return_event_scores` per-event score rows, and `cpp_interface.R`
+      still returns the `pMatrix` "not implemented" fallback (ranks/margins
+      really do need in-pass C++); (b) `modelTypeCall` is still the dispatch
+      `evaluate_engine()` (task 2.1) routes through, and note where it now
+      lives post-`spec-driven-dispatch` (`preprocess_writers.R` /
+      `preprocess_export.R` / `cpp_interface.R`); (c) the
+      `make_specification()`-based fit shape `test_gof()` dispatches on, incl.
+      the risk-set descriptor now attached to the spec; (d)
+      `preprocessing_only` / `preprocessing_init` still the replay surface;
+      (e) `augment.result.goldfish` shape and the `examine_*` /
+      `diagnostic.goldfish` classes. Inventory the flavored (per-fid) and
+      two-mode (`node_lookup`) fit shapes the fit-shape-compatibility
+      paragraph depends on, against the landed multimode surface. Record any
+      drift as `design.md`/`tasks.md` deltas BEFORE touching 1.1. Because
+      `spec-driven-dispatch` is not yet archived, re-run the dispatch/spec
+      portion of this audit against the landed surface once it lands. Write
+      findings to `progress.md`.
+
 ## 1. Diagnostic primitives (phase 1)
 
-- [ ] 1.1 `set_estimation_opt(diagnostics =)`: vocabulary validation
+- [x] 1.1 `set_estimation_opt(diagnostics =)`: vocabulary validation
       (`loglik`/`scores`/`ranks`/`margins`/`probabilities`, TRUE/"all"/
       FALSE), default `c("loglik","scores")`, cli errors for unknown
       names; unit tests.
-- [ ] 1.2 Lifecycle soft-deprecation of `return_interval_loglik`,
+- [x] 1.2 Lifecycle soft-deprecation of `return_interval_loglik`,
       `return_probabilities`, `return_event_scores` with one-to-one
       mapping and conflict error; tests for warning text and mapping.
-- [ ] 1.3 Probabilities guardrail: pre-run cli warning with estimated
+- [x] 1.3 Probabilities guardrail: pre-run cli warning with estimated
       size (`n_events × |riskset| × 8` bytes, human-readable), once per
       call; snapshot test.
-- [ ] 1.4 C++ in-pass `observed_rank` accumulation behind a flag in
+- [x] 1.4 C++ in-pass `observed_rank` accumulation behind a flag in
       `DyNAM_choice_default.cpp`, `DyNAM_rate_default.cpp`,
       `DyNAM_rate_ordered_default.cpp`, `DyNAM_MM_default.cpp`,
       `REM_default.cpp`, `REM_ordered_default.cpp`; wire through
@@ -47,8 +75,11 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 
 ## 2. Evaluator and residual methods (phase 1)
 
-- [ ] 2.1 `evaluate_engine()` generic + methods routing through the
-      existing modelTypeCall dispatch: single pass at `at`, `return`
+- [ ] 2.1 `evaluate_engine()` generic + methods: generalize the existing
+      single-pass closure `evaluate_default_c()` (`cpp_interface.R`) —
+      dispatch is inside the Rcpp `estimate_()`/`compute_()` entry points
+      keyed on `spec` (R-side `modelTypeCall` retired by
+      `spec-driven-dispatch`; see task 0.1); single pass at `at`, `return`
       subsetting, engine defaulting to the fit's engine; tests: loglik/
       score at MLE reproduce the fit (1e-10), evaluation at a constrained
       vector returns full-model score/information.
