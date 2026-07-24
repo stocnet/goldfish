@@ -1,7 +1,8 @@
 # preprocessing-controls Specification
 
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change algorithm-naming. Update Purpose after archive.
+## Requirements
 ### Requirement: set_preprocessing() constructs the preprocessing control object
 The package SHALL export `set_preprocessing()` (the renamed
 `set_preprocessing_opt()`) with the same arguments and semantics —
@@ -61,3 +62,4 @@ everywhere; the standalone producer of that object is
 - **WHEN** a `preprocessed.goldfish` with an outdated format version is
   supplied via `preprocessed =`
 - **THEN** estimation aborts with the existing outdated-format error.
+

@@ -4,7 +4,7 @@
 Define the flat-buffer `preprocessed.goldfish` output: combined `stat_mat_update` / `stat_mat_pointer` point updates, `stat_mat_broadcast` fan-out, unified event fields, and engine-native initial stats, consumed by the R (`default`) and C++ (`default_c`) estimation engines without restructuring.
 ## Requirements
 ### Requirement: Combined flat update matrix in preprocessed output
-The `preprocessed.goldfish` object SHALL contain `stat_mat_update` (a 4 × K integer/numeric matrix with rows `node1`, `node2`, `effect`, `replace` — all 0-indexed) covering **both** dependent and right-censored events in event-sequence order, holding only cell-specific (point) updates. `stat_mat_pointer` (numeric vector, length = number of stored events) SHALL record the end-column index in `stat_mat_update` after each stored event's updates are written. The object SHALL additionally contain `stat_mat_broadcast` (a 4 × M matrix with rows `kind`, `fixed`, `effect`, `replace`) and `stat_mat_broadcast_pointer` (length = number of stored events) holding the constant-value fan-out updates that were previously materialised as duplicate `stat_mat_update` columns; both SHALL be empty (0 columns) for models with no broadcast-eligible effects. The existing `is_dependent` integer vector (1L = dependent, 0L = right-censored) distinguishes event types. The `stats_change` nested list SHALL NOT be present in the returned object. The `preprocessed.goldfish` format `version` SHALL be bumped so that objects preprocessed by earlier versions are rejected by the `preprocessing_init` version check.
+The `preprocessed.goldfish` object SHALL contain `stat_mat_update` (a 4 × K integer/numeric matrix with rows `node1`, `node2`, `effect`, `replace` — all 0-indexed) covering **both** dependent and right-censored events in event-sequence order, holding only cell-specific (point) updates. `stat_mat_pointer` (numeric vector, length = number of stored events) SHALL record the end-column index in `stat_mat_update` after each stored event's updates are written. The object SHALL additionally contain `stat_mat_broadcast` (a 4 × M matrix with rows `kind`, `fixed`, `effect`, `replace`) and `stat_mat_broadcast_pointer` (length = number of stored events) holding the constant-value fan-out updates that were previously materialised as duplicate `stat_mat_update` columns; both SHALL be empty (0 columns) for models with no broadcast-eligible effects. The existing `is_dependent` integer vector (1L = dependent, 0L = right-censored) distinguishes event types. The `stats_change` nested list SHALL NOT be present in the returned object. The `preprocessed.goldfish` format `version` SHALL be bumped so that objects preprocessed by earlier versions are rejected by the `preprocessed` version check.
 
 #### Scenario: Combined flat matrix is built during preprocessing
 - **WHEN** `preprocess()` is called on any valid model formula
@@ -17,14 +17,6 @@ The `preprocessed.goldfish` object SHALL contain `stat_mat_update` (a 4 × K int
 #### Scenario: Fan-out effects do not bloat the point buffer
 - **WHEN** `preprocess()` runs on a dyad model with an `alter()` effect where a node attribute change fans out to all senders of one alter
 - **THEN** that fan-out adds one column to `stat_mat_broadcast` and zero columns to `stat_mat_update` for that effect at that event
-
-#### Scenario: Buffer grows without error for large models
-- **WHEN** the total number of point updates across all stored events exceeds the initial buffer allocation
-- **THEN** `preprocess()` completes successfully and `ncol(stat_mat_update)` equals the total number of point updates written
-
-#### Scenario: No broadcast buffer for models without fan-out effects
-- **WHEN** `preprocess()` runs on a model whose effects are all cell-specific dyad effects (e.g., `inertia`, `recip`, `trans`)
-- **THEN** `stat_mat_broadcast` has 0 columns and the point `stat_mat_update` is unchanged from the pre-encoding behaviour
 
 ### Requirement: Unified event fields retained
 The `preprocessed.goldfish` object SHALL retain the unified event fields already produced by the monolithic loop: `is_dependent`, `event_time`, `event_sender`, `event_receiver`, `intervals`, `event_pos`, `active_mode1_init`, `active_mode1_changes`, `active_mode2_init`, `active_mode2_changes`, `startTime`, and `endTime`. Recipe methods SHALL produce these fields with the same semantics as the pre-refactor monolith.

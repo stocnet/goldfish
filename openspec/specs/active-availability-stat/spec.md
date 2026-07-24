@@ -6,9 +6,7 @@ statistic: one `active_sender` object from the sender loop and one folded
 `active_dyad` object from the dyad loop, with per-family folding, opportunity
 absorption, sender-loop row-reduction, and a homogenized name consumed through
 accessors across all engines. Created by archiving change support-constraint-as-stat.
-
 ## Requirements
-
 ### Requirement: Availability output keyed by recipe loop
 Preprocessing SHALL emit exactly ONE availability object per recipe loop:
 `active_sender` (a length-n1 logical stat) from the sender recipe loop
@@ -223,7 +221,8 @@ site that today references `presence1`/`presence2` or
 writers. The object keeps its name at every encoding; consumers switch on the
 encoding field, never on the name. Because this changes the
 `preprocessed.goldfish` structure, the preprocessed format version SHALL be
-bumped so stale `preprocessing_init` objects are rejected with the existing
+bumped so stale objects supplied through the estimators' `preprocessed =`
+argument (formerly `preprocessing_init =`) are rejected with the existing
 outdated-format error.
 
 #### Scenario: consistent naming end to end
@@ -231,9 +230,9 @@ outdated-format error.
 - **THEN** it reads `active_sender`/`active_dyad` (not `presence1`/`presence2`,
   `active_mode1_*`/`active_mode2_*`, or `active1`/`active2`).
 
-#### Scenario: stale preprocessing_init rejected
-- **WHEN** a `preprocessing_init` object produced before this change is passed to
-  estimation
+#### Scenario: stale preprocessed object rejected
+- **WHEN** a preprocessed object produced before this change is passed to
+  estimation via `preprocessed =`
 - **THEN** it is rejected with the outdated-preprocessing-format error, prompting
   recomputation.
 
@@ -248,3 +247,4 @@ diagonal) in one-mode choice/REM models; it SHALL NOT be folded into
 - **THEN** `active_dyad` is at the alter encoding (not outer/point), carries no
   diagonal information, and self-ties are still excluded from every event's
   candidate set by the likelihood.
+

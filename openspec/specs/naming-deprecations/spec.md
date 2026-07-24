@@ -1,7 +1,8 @@
 # naming-deprecations Specification
 
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change algorithm-naming. Update Purpose after archive.
+## Requirements
 ### Requirement: Renamed functions keep working as soft-deprecated aliases
 Each renamed function SHALL remain exported as a thin wrapper that forwards
 all arguments unchanged to the new name and emits
@@ -96,3 +97,4 @@ removal no earlier than 3.0.0.
 - **WHEN** the 2.0.0 NEWS section is read
 - **THEN** every rename in this change appears in an old→new table with the
   removal horizon stated.
+

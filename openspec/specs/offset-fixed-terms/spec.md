@@ -23,13 +23,13 @@ offsets MUST NOT be dropped from the design as in GLM `model.matrix`.
 
 ### Requirement: offset coefficients supplied via offset_coef
 
-`set_estimation_opt()` SHALL accept an `offset_coef` argument giving the fixed coefficient
+`set_algorithm_newton()` SHALL accept an `offset_coef` argument giving the fixed coefficient
 value(s) for the offset terms, aligned to the offset terms in formula order. The estimation
 front-end SHALL assemble the existing positional `fixedParameters` vector from the offset term
 positions and `offset_coef`, so the Newton-Raphson core is reused unchanged.
 
 #### Scenario: single offset value
-- **WHEN** a formula has one `offset(...)` term and `set_estimation_opt(offset_coef = 2)`
+- **WHEN** a formula has one `offset(...)` term and `set_algorithm_newton(offset_coef = 2)`
 - **THEN** that term's coefficient is held at 2 during estimation and the remaining
   coefficients are estimated.
 
