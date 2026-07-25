@@ -175,17 +175,56 @@ design change.
       here: the initial-parameters NA guard read `observed_rank`'s by-design NAs
       (right-censored intervals) as a numerical failure, so requesting ranks on
       any model with a censored interval aborted.
-- [ ] 3.5 **Pre-existing bug, unmasked by 3.4's guard fix and NOT yet
-      diagnosed:** on the `cpp` backend, requesting `ranks` for the timed
-      DyNAM-rate model on the Social Evolution fixture makes the information
-      matrix non-invertible ("Matrix cannot be inverted; probably due to
-      collinearity"), while the identical fit without `ranks` converges — at the
-      same parameter vector, with `max_iterations = 0`, so no convergence-path
-      difference is involved. `DyNAM_rate_default.cpp` is untouched by this
-      change, the smaller `dataTest` rate fixture is unaffected, and no existing
-      test covers `cpp` + ranks on a timed rate model. Isolate the cause before
-      section 5's parity suite, which cannot pass on that sub-model until this
-      is fixed.
+- [ ] 3.5 **Pre-existing bug in the `cpp` timed-rate rank path, unmasked by
+      3.4's guard fix. Characterised but NOT diagnosed** — the remaining step is
+      mechanical and needs a debugger, not more reading.
+
+      **Minimal repro** (two parameters, one effect, a *free* fit — no
+      `max_iterations = 0` or fixed-vector subtlety involved):
+
+      ```r
+      estimate_dynam(calls_dependent ~ 1 + indeg(friendshipNetwork),
+                     data = social_evolution, sub_model = "rate",
+                     control_algo = set_algorithm_newton(
+                       backend = "cpp", diagnostics = c("loglik", "ranks")))
+      #> Matrix cannot be inverted; probably due to collinearity between parameters.
+      # the identical fit with diagnostics = "loglik" converges
+      ```
+
+      **Ruled out, with evidence** — do not re-test these:
+
+      | hypothesis | verdict |
+      |---|---|
+      | the intercept | no: `~ 1 + indeg` and `~ 1 + indeg + outdeg` both rank fine, `rate_ordered` without an intercept also fine |
+      | the exact-time family / REM | no: exact-time REM with an intercept ranks fine, so neither the family nor the dyad axis |
+      | parameter count | no: 4 params with `ego(gradeType)` is fine, 2 params with `indeg(friendshipNetwork)` fails |
+      | any opt-in flag (allocation, result shape) | no: `scores` and `margins` are both fine; only `ranks` fails |
+
+      **What it does track:** every failing formula carries an effect on an
+      *exogenous* network (`friendshipNetwork`); every passing one does not. The
+      structural difference is right-censored intervals — that fixture
+      preprocesses to **441 intervals for 439 dependent events**, while the
+      focal-only models have none (439/439, `stat_mat_broadcast` empty in both,
+      so broadcast decoding is not involved).
+
+      That is the **same axis as the guard bug 3.4 fixed**: both defects need a
+      right-censored interval, which is why neither had ever been seen, and why
+      no existing test caught them (the rank parity tests cover choice,
+      rate_ordered and REM_ordered — none of which have censored events).
+
+      **Where to look:** the rank block in `DyNAM_rate_default.cpp`, which reads
+      `id_sender = dep_event_mat(0, id_event) - 1` — meaningless for a
+      right-censored interval — with a commented-out `sender_corr` correction
+      just below it, evidence someone previously hit an index-space problem
+      here. Note `do_rank` already guards the *read*, and the build has
+      Armadillo bounds checking on (`-UNDEBUG`) which would throw rather than
+      silently corrupt, so the naive out-of-bounds story does not close on its
+      own.
+
+      **Next step:** build with `-fsanitize=address` (project CLAUDE.md's C++
+      debugging notes) and run the two-line repro; the repro is small enough
+      that the trace will be readable. Fix before section 5's parity suite,
+      which cannot pass on that sub-model until this is closed.
 
 ## 4. The r backend
 

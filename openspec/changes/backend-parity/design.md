@@ -524,7 +524,9 @@ construction. Superseded the same day by the uniform-scale insight: every
 family forms the probability scale `p_ej = w_ej / sum_j w_ej` — the
 multinomial choice probability and, on exact-time sub-models, the
 competing-risks probability that `j` creates the *next* event — so
-probability-margins `sum_e p_ej` are the parallel-to-choice calibration map
+probability-margins `sum_e p_ej` (over dependent events only — a
+right-censored interval realizes no mover, so it feeds the expected-count
+variant alone; Appendix item 4) are the parallel-to-choice calibration map
 in both families, totalling the event count at **any** parameter vector.
 Exact-time fits additionally store the expected-count variant
 `sum_e Δt_e λ_ej` (the compensator, including right-censored intervals),
@@ -899,15 +901,38 @@ The conditional score `s_obs − s̄_e` is exactly the Schoenfeld residual;
 `evaluate_model()` pass). Column sums of the stored estimation score equal
 the aggregate score — the parity suite's identity.
 
-**(4) The two margins and their identities.** Probability variant (both
-families): `M^p_j = sum_e p_ej 1{j ∈ R_e}`; since each event contributes
-total 1, `sum_j M^p_j = n_events` at **any** parameter vector. Expected-count
-variant (exact-time only): `M^c_j = sum_e Δt_e λ_ej` over dependent and
-right-censored intervals; the intercept score equation
-`sum_e (1 − Δt_e T_e) = 0` gives `sum_j M^c_j = n_events` at the **MLE**
-only. Per-actor `observed_j − M^c_j` is the martingale residual (the
-Boschi–Wit GOF substrate); per-actor `observed_j − M^p_j` is the
-parallel-to-choice calibration map (D12).
+**(4) The two margins and their identities — and their different
+accumulation sets.** The two variants deliberately sum over different sets,
+because they condition on different information:
+
+- Probability variant (both families): `M^p_j = sum_{e dependent} p_ej
+  1{j ∈ R_e}` — over **dependent events only**. `p_e` is the conditional
+  distribution of *who moves given that an event occurs*; a right-censored
+  interval realizes no mover, so it carries no "which" outcome to calibrate
+  against. Since each dependent event contributes total 1,
+  `sum_j M^p_j = n_events` at **any** parameter vector, and
+  `observed_j − M^p_j` is a sum of conditionally-mean-zero terms — including
+  censored intervals would add probability mass with no corresponding
+  observed count, biasing the map by construction (measured in task 4.x
+  grounding: 441 interval-sum vs 439 observed on the fixture).
+- Expected-count variant (exact-time only): `M^c_j = sum_e Δt_e λ_ej` over
+  **dependent and right-censored intervals** — the compensator integrates
+  over all exposure time. The expected side is indexed by the *risk set*,
+  not the mover: every `j` at risk accumulates its own `Δt_e λ_ej`, so a
+  censored interval always has accumulation targets (only the observed side
+  needs a realized mover, and there it correctly adds 0). Excluding
+  censored intervals would understate
+  exposure and break both the martingale-residual interpretation and the
+  MLE identity. The intercept score equation `sum_e (1 − Δt_e T_e) = 0`
+  (summed over all intervals) gives `sum_j M^c_j = n_events` at the **MLE**
+  only.
+
+Per-actor `observed_j − M^c_j` is the martingale residual (the Boschi–Wit
+GOF substrate); per-actor `observed_j − M^p_j` is the parallel-to-choice
+calibration map (D12). The asymmetry is itself diagnostic — it is the
+which/when split of (2) applied to margins: a discrepancy visible in `M^c`
+but not `M^p` localizes misfit to the timing/rate part; one visible in both
+implicates the allocation part.
 
 **(5) The bridge.** `m^c_ej = Δt_e λ_ej = Δt_e T_e · p_ej` — the compensator
 scale is a per-event scalar rescaling of the probability scale. So
