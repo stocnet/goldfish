@@ -1,5 +1,5 @@
 #include <RcppArmadillo.h>
-#include "stable_softmax.h"
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -140,7 +140,7 @@ List compute_coordination_selection(
             arma::vec lin_pred_g(
                 lin_pred_all.memptr() + id_start + start, gsize, false);
             arma::vec allowed_g(ones_mask.memptr(), gsize, false);
-            logZ(gid) = stable_softmax_masked(lin_pred_g, allowed_g, sender_weights);
+            logZ(gid) = log_sum_exp_masked(lin_pred_g, allowed_g, sender_weights);
             double norm_g = accu(sender_weights);
             E.row(gid) = (sender_weights.t() *
               stat_all_events.rows(id_start + start, id_start + row - 1)) / norm_g;
@@ -177,7 +177,7 @@ List compute_coordination_selection(
         arma::vec logw_event(logw_dyad.memptr(), n_dyads, false);
         arma::vec allowed_event(ones_mask.memptr(), n_dyads, false);
         double log_normalizer =
-          stable_softmax_masked(logw_event, allowed_event, dyad_weights);
+          log_sum_exp_masked(logw_event, allowed_event, dyad_weights);
         double normalizer = accu(dyad_weights);
         arma::subview<double> D_event = D.rows(0, n_dyads - 1);
         // expected gradient g = sum_d P_d D_d; score = grad log w_obs - g

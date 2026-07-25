@@ -7,26 +7,30 @@
 // Per-event reductions shared by every backend, so a primitive is written once
 // rather than once per kernel. The R mirror in `estimation_core.R` implements
 // the same three reductions, exactly as the R `stable_softmax()` helper mirrors
-// `stable_softmax_masked()`, and a parity test pins the two together.
+// `log_sum_exp_masked()`, and a parity test pins the two together.
 //
 // The contract. At each event every backend forms a nonnegative weight vector
-// `w` over that event's risk set and a scalar scale `c`, and the expected-count
-// contribution of alternative j is m_j = c * w_j:
+// `w` over that event's risk set and a scalar scale `c`, and the contribution
+// of alternative j is m_j = c * w_j. Callers pass the **probability vector** as
+// `w` in every family, taken from the stable log-sum-exp
+// (`p_j = exp(x_j - lse)`, so it is exact whether or not the rates overflow or
+// underflow); `c` alone carries the family difference:
 //
-//   family                              w_j                     c
-//   ----------------------------------  ----------------------  ---------------
-//   multinomial (choice, rate_ordered,  max-shifted softmax     1 / sum(w)
-//     REM_ordered, coordination)          weight
-//   exact-time (rate, REM)              rate exp(beta' s_j)     interval Dt
+//   family / scale                                w_j    c
+//   --------------------------------------------  -----  ------------------
+//   multinomial (choice, rate_ordered,             p_j    1
+//     REM_ordered, coordination)
+//   exact-time (rate, REM), probability scale      p_j    1
+//   exact-time (rate, REM), compensator scale      p_j    Dt * total_rate
 //
-// so sum_j m_j is 1 in the multinomial family and Dt * total_rate in the
-// exact-time one. Both families additionally have the probability scale
-// p_j = w_j / sum(w) — the choice probability, and on exact-time sub-models the
-// competing-risks probability that j produces the next event — which is just
-// `c = 1 / sum(w)` handed to the same helpers.
+// so sum_j m_j is 1 on the probability scale in both families, and
+// Dt * total_rate on the exact-time compensator — where m_j = Dt * rate_j
+// exactly, since Dt * T * p_j = Dt * lambda_j. Splitting it this way keeps the
+// only large factor in a scalar: an overflowing rate inside `w` would meet a
+// mixed-sign statistic and give Inf - Inf = NaN, whereas p is bounded in [0, 1].
 //
 // **`w` MUST be zero outside the event's risk set.** Every caller already
-// satisfies this: `stable_softmax_masked()` returns 0 for masked entries (the
+// satisfies this: `log_sum_exp_masked()` returns 0 for masked entries (the
 // four multinomial event-loop kernels), REM zeroes explicitly before use, the
 // rate kernel only ever writes active senders, and the gather backend's slices
 // are pre-masked.

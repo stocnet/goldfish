@@ -1,7 +1,7 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
 #include "flat_updates.h"
-#include "stable_softmax.h"
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -156,7 +156,7 @@ List estimate_DyNAM_choice(
             }
         }
         arma::vec weights;
-        double log_normalizer = stable_softmax_masked(lin_pred, allowed, weights);
+        double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
         double normalizer = accu(weights);
         if (return_ranks) {
             const double obs_weight = weights(id_receiver);

@@ -1,7 +1,7 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
 #include "flat_updates.h"
-#include "stable_softmax.h"
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -202,7 +202,7 @@ List estimate_DyNAM_MM(
                 lin_pred.memptr() + i * n_actors_2, n_actors_2, false);
             arma::vec allowed_i(
                 allowed.memptr() + i * n_actors_2, n_actors_2, false);
-            logZ(i) = stable_softmax_masked(lin_pred_i, allowed_i, sender_weights);
+            logZ(i) = log_sum_exp_masked(lin_pred_i, allowed_i, sender_weights);
             double norm_i = accu(sender_weights);
             if (norm_i > 0) {
                 E.row(i) = (sender_weights.t() *
@@ -237,7 +237,7 @@ List estimate_DyNAM_MM(
 
         // d-alternative dyad softmax, then one weighted-crossprod GEMM Fisher
         double log_normalizer =
-          stable_softmax_masked(logw_dyad, allowed_dyad, dyad_weights);
+          log_sum_exp_masked(logw_dyad, allowed_dyad, dyad_weights);
         double normalizer = accu(dyad_weights);
         const int a_obs = (id_sender > id_receiver) ? id_sender : id_receiver;
         const int b_obs = (id_sender > id_receiver) ? id_receiver : id_sender;

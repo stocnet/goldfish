@@ -1,8 +1,8 @@
-#include "stable_softmax.h"
+#include "log_sum_exp.h"
 
 // [[Rcpp::depends(RcppArmadillo)]]
 
-double stable_softmax_masked(
+double log_sum_exp_masked(
     const arma::vec& lin_pred,
     const arma::vec& allowed,
     arma::vec& weights

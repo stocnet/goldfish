@@ -116,7 +116,7 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       `compute_poisson_selection()` signatures (coordination already receives
       `sender_of_row` / `dyad_partner`). No behavior change yet; verify the
       `RcppExports` interface diff shows exactly the intended arity change.
-- [ ] 3.2a Rename `stable_softmax_masked()` -> `log_sum_exp_masked()` (D19):
+- [x] 3.2a Rename `stable_softmax_masked()` -> `log_sum_exp_masked()` (D19):
       the helper returns a log-sum-exp and the shifted weights, never a softmax,
       and the misnomer already produced a wrong task line here. Pure symbol
       rename, no arithmetic -- 7 call sites across 4 kernels plus

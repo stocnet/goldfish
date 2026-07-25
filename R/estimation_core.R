@@ -1635,16 +1635,18 @@ stable_softmax <- function(x, rowwise = FALSE) {
 }
 
 # Per-event reductions, mirroring `src/event_reductions.h` so the r backend
-# produces the same primitives as the compiled ones, exactly as
-# `stable_softmax()` above mirrors `stable_softmax_masked()`. A parity test
-# (test-event_reductions.R) pins the two implementations to each other on
-# constructed inputs, which is what keeps a mirror honest.
+# produces the same primitives as the compiled ones. This is a *strict* mirror —
+# same inputs, same outputs, pinned to the C++ by a parity test
+# (test-event_reductions.R) on constructed values, which is what keeps a mirror
+# honest. (`stable_softmax()` above is only an algorithmic cousin of
+# `log_sum_exp_masked()`: same max-shift, different arguments and returns.)
 #
 # Same contract as the header: `w` is a nonnegative weight vector over the
 # event's risk set and ZERO outside it, `c` the scale whose product `c * w` is
-# each alternative's expected-count contribution (`1 / sum(w)` for the
-# probability scale in both families, the interval length for the exact-time
-# compensator). `observed` indexes `w`, 1-based here as R code reads.
+# each alternative's contribution. Callers pass the probability vector as `w` in
+# every family, with `c = 1` for the probability scale and `c = Dt * total_rate`
+# for the exact-time compensator. `observed` indexes `w`, 1-based here as R code
+# reads.
 
 # 1 + the number of alternatives with a strictly greater weight; ties share the
 # better rank. Scale-free, so `c` never enters.

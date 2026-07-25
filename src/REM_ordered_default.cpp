@@ -1,7 +1,7 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
 #include "flat_updates.h"
-#include "stable_softmax.h"
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -176,7 +176,7 @@ List estimate_REM_ordered(
         arma::vec lin_pred = stat_mat * parameters;
         arma::vec weights;
         double log_normalizer =
-          stable_softmax_masked(lin_pred, allowed, weights);
+          log_sum_exp_masked(lin_pred, allowed, weights);
         double normalizer = accu(weights);
         const int id_obs = id_sender * n_actors_2 + id_receiver;
         if (return_ranks) {

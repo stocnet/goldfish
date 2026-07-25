@@ -1,5 +1,5 @@
-#ifndef GOLDFISH_STABLE_SOFTMAX_H
-#define GOLDFISH_STABLE_SOFTMAX_H
+#ifndef GOLDFISH_LOG_SUM_EXP_H
+#define GOLDFISH_LOG_SUM_EXP_H
 
 #include <RcppArmadillo.h>
 
@@ -16,7 +16,7 @@
 //
 // Scope: the multinomial (shift-invariant) contributions only. The timed
 // rate/REM hazard path keeps plain exp() — its scale is absolute (Non-Goal).
-double stable_softmax_masked(
+double log_sum_exp_masked(
     const arma::vec& lin_pred,
     const arma::vec& allowed,
     arma::vec& weights
