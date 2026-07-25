@@ -2151,7 +2151,15 @@ estimate_wrapper <- function(
     tryCatch(
       result <- do.call(
         "estimate_int",
-        args = c(list(spec = model_spec), args_estimation)
+        args = c(
+          list(spec = model_spec),
+          args_estimation,
+          list(
+            return_ranks = "ranks" %in% control_algo$diagnostics,
+            return_margins = "margins" %in% control_algo$diagnostics,
+            return_total_rate = "loglik" %in% control_algo$diagnostics
+          )
+        )
       ),
       error = \(e) {
         stop(

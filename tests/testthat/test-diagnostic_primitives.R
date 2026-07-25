@@ -518,6 +518,69 @@ test_that("cpp margins match the r backend at the same parameters", {
   }
 })
 
+# The r backend accumulates ranks and margins in its contribution loop from the
+# per-event probability vector, without materializing the whole probability
+# matrix. These directly compare the native r reductions to the cpp kernels at a
+# fixed parameter vector, for the families the reconstruction tests above do not
+# cover (the exact-time rate / REM, whose margins carry both scale variants).
+test_that("r ranks and margins match cpp at the same parameters (exact-time)", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+  for (nm in c("se_dynam_rate", "se_rem")) {
+    spec <- grid[[nm]]
+    fc <- parity_fit(
+      spec,
+      data_list,
+      diagnostics = c("loglik", "ranks", "margins")
+    )
+    fr <- parity_fit(
+      spec,
+      data_list,
+      backend = "r",
+      diagnostics = c("loglik", "ranks", "margins"),
+      initial_parameters = fc$parameters,
+      max_iterations = 0
+    )
+    expect_equal(fr$observed_rank, fc$observed_rank, info = nm)
+    # total_rate and the conditional loglik component now exist natively on r.
+    expect_equal(fr$total_rate, fc$total_rate, tolerance = 1e-10, info = nm)
+    # Compensator-scale margins (the variant cpp also carries) agree; the
+    # probability-scale variant is r-only until cpp gains it in task 5.1.
+    mc <- fc$margins
+    mr <- fr$margins
+    for (field in intersect(names(mc), names(mr))) {
+      expect_equal(
+        mr[[field]],
+        mc[[field]],
+        tolerance = 1e-9,
+        info = paste(nm, field)
+      )
+    }
+  }
+})
+
+test_that("requesting margins but not probabilities carries no probability matrix", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # The point of accumulating in the loop rather than reconstructing: margins
+  # come back without the O(events x actors) probability matrix ever forming.
+  fit <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    control_algo = set_algorithm_newton(
+      backend = "r",
+      diagnostics = c("loglik", "margins")
+    )
+  ))
+  expect_false(is.null(fit$margins))
+  expect_null(fit$eventProbabilities)
+  expect_null(fit$pMatrix)
+})
+
 test_that("a right-censored interval's NA rank is not read as a failure", {
   # `observed_rank` is allocated NA-filled and written only for dependent
   # events, so any model with a right-censored interval leaves NAs behind when
