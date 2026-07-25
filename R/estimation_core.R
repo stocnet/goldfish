@@ -1634,6 +1634,58 @@ stable_softmax <- function(x, rowwise = FALSE) {
   list(probabilities = probabilities, logProbabilities = logProbabilities)
 }
 
+# Per-event reductions, mirroring `src/event_reductions.h` so the r backend
+# produces the same primitives as the compiled ones, exactly as
+# `stable_softmax()` above mirrors `stable_softmax_masked()`. A parity test
+# (test-event_reductions.R) pins the two implementations to each other on
+# constructed inputs, which is what keeps a mirror honest.
+#
+# Same contract as the header: `w` is a nonnegative weight vector over the
+# event's risk set and ZERO outside it, `c` the scale whose product `c * w` is
+# each alternative's expected-count contribution (`1 / sum(w)` for the
+# probability scale in both families, the interval length for the exact-time
+# compensator). `observed` indexes `w`, 1-based here as R code reads.
+
+# 1 + the number of alternatives with a strictly greater weight; ties share the
+# better rank. Scale-free, so `c` never enters.
+rank_of_observed <- function(w, observed) {
+  1L + sum(w > w[observed])
+}
+
+# Accumulate `expected[actor(j)] += c * w[j]` over the risk set, and
+# `observed[actor(obs)] += 1` for a dependent event. `sides` is a list of
+# `list(index = , observed = , expected = )`; `index` maps risk-set position to
+# accumulator slot, or NULL when position IS the slot. Two sides are the REM /
+# coordination shape (sender and receiver from one contribution).
+accumulate_margins <- function(w, c, observed, dependent, sides) {
+  contribution <- c * w
+  lapply(sides, function(side) {
+    slot <- if (is.null(side$index)) seq_along(w) else side$index
+    # tapply-free scatter: one add per accumulator slot, order-independent.
+    side$expected <- side$expected +
+      vapply(
+        seq_along(side$expected),
+        function(k) sum(contribution[slot == k]),
+        numeric(1)
+      )
+    if (dependent) {
+      side$observed[slot[observed]] <- side$observed[slot[observed]] + 1
+    }
+    side
+  })
+}
+
+# The event's score contribution: the observed statistic (dependent events only)
+# minus the contribution-weighted mean `c * w'X`. `w` being zero outside the
+# risk set is what lets this ignore the mask.
+event_score_row <- function(x_mat, w, c, observed, dependent) {
+  score <- -c * as.vector(w %*% x_mat)
+  if (dependent) {
+    score <- score + x_mat[observed, ]
+  }
+  score
+}
+
 # Function to calculate a matrix of i->j multinomial choice probabilities
 # (non-logged) for one term of the model. Returns a list with `probabilities`
 # and the matching stable `logProbabilities`: the excluded

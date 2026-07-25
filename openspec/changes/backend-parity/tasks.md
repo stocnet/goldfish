@@ -101,7 +101,7 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       doc states the `(w_e, c_e)` contract and both families' instantiation, in
       the register `stable_softmax.h` established. No kernel wired yet; a
       standalone C++ unit exercise plus the R mirror in 2.2 is the proof.
-- [ ] 2.2 R mirror of the three reductions in `estimation_core.R`, alongside the
+- [x] 2.2 R mirror of the three reductions in `estimation_core.R`, alongside the
       existing `stable_softmax()` mirror, with a comment naming the C++ header
       as its counterpart. Tests: helper-level parity of the R mirror against the
       C++ helper on constructed `(w, c, X, obs)` inputs — exact for ranks, 1e-10

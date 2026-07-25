@@ -151,3 +151,106 @@ test_that("the score is the observed statistic minus the weighted mean", {
   res_rc <- reduce(fx, c = c_prob, obs = 3L, dependent = FALSE)
   expect_equal(as.vector(res_rc$score), -expected_mean)
 })
+
+# --- R mirror parity ---------------------------------------------------------
+# The r backend cannot call the inline C++, so it mirrors the same three
+# reductions. These tests pin the two implementations to each other on
+# constructed inputs -- the mechanism that keeps a mirror from drifting, and the
+# reason the R backend can be trusted as the reference in cross-backend parity.
+# The mirror is 1-based, the probe 0-based.
+
+mirror_rank <- getFromNamespace("rank_of_observed", "goldfish")
+mirror_margins <- getFromNamespace("accumulate_margins", "goldfish")
+mirror_score <- getFromNamespace("event_score_row", "goldfish")
+
+test_that("the R mirror agrees with the C++ helper on ranks", {
+  fx <- reductions_fixture()
+  for (obs in seq_along(fx$w)) {
+    expect_identical(
+      mirror_rank(fx$w, obs),
+      reduce(fx, 1, obs = obs - 1L)$rank,
+      info = paste("obs", obs)
+    )
+  }
+  # ...including under ties, where the strict `>` rule has to match exactly.
+  fx$w <- c(4, 4, 0, 4, 3)
+  for (obs in seq_along(fx$w)) {
+    expect_identical(mirror_rank(fx$w, obs), reduce(fx, 1, obs = obs - 1L)$rank)
+  }
+})
+
+test_that("the R mirror agrees with the C++ helper on scores", {
+  fx <- reductions_fixture()
+  for (scale in list(1 / sum(fx$w), 2.5)) {
+    for (dependent in c(TRUE, FALSE)) {
+      expect_equal(
+        mirror_score(fx$X, fx$w, scale, observed = 4L, dependent = dependent),
+        as.vector(reduce(fx, c = scale, obs = 3L, dependent = dependent)$score),
+        tolerance = 1e-10
+      )
+    }
+  }
+})
+
+test_that("the R mirror agrees with the C++ helper on margins, both sides", {
+  fx <- reductions_fixture()
+  sender <- c(1L, 1L, 2L, 2L, 2L) # 1-based for the mirror
+  receiver <- c(1L, 2L, 1L, 2L, 3L)
+  scale <- 1 / sum(fx$w)
+
+  mirrored <- mirror_margins(
+    fx$w,
+    c = scale,
+    observed = 4L,
+    dependent = TRUE,
+    sides = list(
+      list(index = sender, observed = numeric(2), expected = numeric(2)),
+      list(index = receiver, observed = numeric(3), expected = numeric(3))
+    )
+  )
+  cpp <- reduce(
+    fx,
+    c = scale,
+    obs = 3L,
+    index_a = sender - 1L,
+    index_b = receiver - 1L,
+    n_a = 2L,
+    n_b = 3L
+  )
+
+  expect_equal(
+    mirrored[[1]]$expected,
+    as.vector(cpp$expected_a),
+    tolerance = 1e-10
+  )
+  expect_equal(
+    mirrored[[2]]$expected,
+    as.vector(cpp$expected_b),
+    tolerance = 1e-10
+  )
+  expect_equal(mirrored[[1]]$observed, as.vector(cpp$observed_a))
+  expect_equal(mirrored[[2]]$observed, as.vector(cpp$observed_b))
+})
+
+test_that("the R mirror agrees on a single side with implicit slots", {
+  fx <- reductions_fixture()
+  scale <- 2.5 # the exact-time compensator scale
+  mirrored <- mirror_margins(
+    fx$w,
+    c = scale,
+    observed = 4L,
+    dependent = TRUE,
+    sides = list(list(
+      index = NULL,
+      observed = numeric(5),
+      expected = numeric(5)
+    ))
+  )
+  cpp <- reduce(fx, c = scale, obs = 3L)
+  expect_equal(
+    mirrored[[1]]$expected,
+    as.vector(cpp$expected_a),
+    tolerance = 1e-10
+  )
+  expect_equal(mirrored[[1]]$observed, as.vector(cpp$observed_a))
+})
