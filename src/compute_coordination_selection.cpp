@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
 #include "log_sum_exp.h"
+#include "event_reductions.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -86,7 +87,13 @@ List compute_coordination_selection(
     const arma::uvec& n_candidates,
     const arma::uvec& selected,
     const arma::uvec& sender_of_row,
-    const arma::uvec& dyad_partner
+    const arma::uvec& dyad_partner,
+    const arma::uvec& index_i,
+    const arma::uvec& index_j,
+    const arma::uword n_actors_1,
+    const bool return_event_scores,
+    const bool return_ranks,
+    const bool return_margins
 ) {
     int n_events = selected.size();
     int n_parameters = parameters.size();
@@ -118,6 +125,26 @@ List compute_coordination_selection(
     arma::vec ones_mask(max_n_cand, fill::ones);
     arma::vec sender_weights;
     arma::vec dyad_weights;
+    // Opt-in per-event primitives. The event's realized risk set is the DYAD
+    // list, not the row list and not the per-sender CSR groups -- the score,
+    // the likelihood and the softmax below all range over dyads -- so the
+    // reductions run on the dyad-level probability vector (D14).
+    arma::mat event_scores;
+    if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+    IntegerVector observed_rank;
+    if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
+    arma::vec margin_observed, margin_expected;
+    const bool do_margins = return_margins && index_i.n_elem > 0;
+    if (do_margins) {
+        margin_observed = arma::vec(n_actors_1, fill::zeros);
+        margin_expected = arma::vec(n_actors_1, fill::zeros);
+    }
+    // A dyad credits BOTH its endpoints, into the same accumulator pair -- one
+    // actor set, two contributions per dyad, matching the cpp MM kernel. Two
+    // reduction sides over one pair of vectors expresses exactly that.
+    arma::uvec dyad_endpoint_a(max_n_dyads);
+    arma::uvec dyad_endpoint_b(max_n_dyads);
+    arma::vec dyad_probabilities;
     // start address in stat_all_events of current events
     int id_start = 0;
 
@@ -169,6 +196,11 @@ List compute_coordination_selection(
                     pr == id_obs_row) {
                     idx_obs = idx;
                 }
+                if (do_margins) {
+                    // The canonical directed row carries both endpoints.
+                    dyad_endpoint_a(idx) = index_i(id_start + r);
+                    dyad_endpoint_b(idx) = index_j(id_start + r);
+                }
                 ++idx;
             }
         }
@@ -186,6 +218,34 @@ List compute_coordination_selection(
         // Fisher: sum_d P_d D_d D_d^T - g^T g
         fisher += (D_event.each_col() % dyad_weights).t() * D_event /
           normalizer - g.t() * g;
+        // Opt-in primitives, all reductions of the dyad-level probability
+        // vector on the probability scale (c = 1).
+        if (return_event_scores || return_ranks || do_margins) {
+            dyad_probabilities = dyad_weights / normalizer;
+        }
+        if (return_ranks) {
+            observed_rank[id_event] =
+              rank_of_observed(dyad_probabilities, allowed_event, idx_obs);
+        }
+        if (do_margins) {
+            arma::uvec endpoint_a(dyad_endpoint_a.memptr(), n_dyads, false);
+            arma::uvec endpoint_b(dyad_endpoint_b.memptr(), n_dyads, false);
+            std::vector<margin_side> sides;
+            sides.push_back(margin_side(
+              &margin_observed, &margin_expected, &endpoint_a
+            ));
+            sides.push_back(margin_side(
+              &margin_observed, &margin_expected, &endpoint_b
+            ));
+            accumulate_margins(
+              dyad_probabilities, 1.0, allowed_event, idx_obs, true, sides
+            );
+        }
+        if (return_event_scores) {
+            event_scores.row(id_event) = event_score_row(
+              D_event, dyad_probabilities, 1.0, idx_obs, true
+            );
+        }
         // logLikelihood from the shifted predictor (finite under underflow)
         intervalLogL(id_event) = logw_dyad(idx_obs) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
@@ -198,6 +258,10 @@ List compute_coordination_selection(
       Named("derivative") = derivative,
       Named("fisher") = fisher,
       Named("logLikelihood") = logLikelihood,
-      Named("intervalLogL") = intervalLogL
+      Named("intervalLogL") = intervalLogL,
+      Named("event_scores") = event_scores,
+      Named("observed_rank") = observed_rank,
+      Named("margin_observed") = margin_observed,
+      Named("margin_expected") = margin_expected
     );
 }

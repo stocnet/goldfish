@@ -459,3 +459,66 @@ test_that("gather and cpp agree on the exact-time margins", {
   expect_equal(m_gather$observed, m_cpp$observed)
   expect_equal(m_gather$expected, m_cpp$expected, tolerance = 1e-10)
 })
+
+# --- gather coordination kernel: the ragged risk set ---------------------------
+# D14: the rank counts strictly-greater weights over the event's whole realized
+# risk set. For coordination that risk set is the DYAD list -- the per-sender CSR
+# groups are an intermediate the normalizer is built from, not the alternatives.
+# If the groups were semantically load-bearing for ranks, gather and cpp would
+# disagree here; they do not.
+
+test_that("coordination ranks and margins agree with the cpp MM kernel", {
+  skip_on_cran()
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  spec <- baselines_model_grid()$se_dynam_choice_coord
+  beta <- suppressWarnings(baselines_fit(spec, "cpp", data_list))$parameters
+  pinned <- function(backend) {
+    suppressWarnings(estimate_dynam(
+      spec$formula,
+      data = data_list$social_evolution,
+      sub_model = spec$sub_model,
+      control_algo = set_algorithm_newton(
+        backend = backend,
+        diagnostics = c("loglik", "ranks", "margins"),
+        initial_parameters = beta,
+        max_iterations = 0
+      ),
+      progress = FALSE
+    ))
+  }
+  fit_cpp <- pinned("cpp")
+  fit_gather <- pinned("gather")
+
+  expect_identical(names(fit_gather$margins), names(fit_cpp$margins))
+  expect_identical(
+    as.integer(fit_gather$observed_rank),
+    as.integer(fit_cpp$observed_rank)
+  )
+  expect_equal(
+    fit_gather$margins$expected,
+    fit_cpp$margins$expected,
+    tolerance = 1e-10
+  )
+  expect_equal(fit_gather$margins$observed, fit_cpp$margins$observed)
+})
+
+test_that("a coordination dyad credits both of its endpoints", {
+  skip_on_cran()
+  # One event contributes 1 to each of the two actors in the observed dyad, so
+  # the observed margins total twice the event count -- the cpp MM kernel's
+  # behaviour, and what makes the margins per-actor rather than per-dyad.
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  spec <- baselines_model_grid()$se_dynam_choice_coord
+  fit <- suppressWarnings(estimate_dynam(
+    spec$formula,
+    data = data_list$social_evolution,
+    sub_model = spec$sub_model,
+    control_algo = set_algorithm_newton(
+      backend = "gather",
+      diagnostics = c("loglik", "margins")
+    ),
+    progress = FALSE
+  ))
+  expect_equal(sum(fit$margins$observed), 2 * fit$nEvents)
+  expect_equal(sum(fit$margins$expected), 2 * fit$nEvents, tolerance = 1e-6)
+})

@@ -1690,7 +1690,13 @@ compute_ <- function(
       n_candidates,
       selected,
       sender_of_row,
-      dyad_partner
+      dyad_partner,
+      margin_i,
+      margin_j,
+      n_actors_1,
+      return_event_scores,
+      return_ranks,
+      return_margins
     )
   }
 

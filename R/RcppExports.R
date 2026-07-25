@@ -209,8 +209,8 @@ estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_
 #'     guarantees the partner exists, so each unordered dyad has exactly two
 #'     rows pointing at each other.
 #' @noRd
-compute_coordination_selection <- function(parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner) {
-    .Call('_goldfish_compute_coordination_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner)
+compute_coordination_selection <- function(parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner, index_i, index_j, n_actors_1, return_event_scores, return_ranks, return_margins) {
+    .Call('_goldfish_compute_coordination_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner, index_i, index_j, n_actors_1, return_event_scores, return_ranks, return_margins)
 }
 
 #' Estimate a multinomial selection model with gathered data

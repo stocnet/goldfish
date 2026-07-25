@@ -160,7 +160,7 @@ design change.
       through `cpp_interface.R` onto the result (D13, D17). Tests: both margin
       variants; the compensator variant totals the event count at the MLE and
       the probability variant totals it at any parameter vector.
-- [ ] 3.3c Gather **coordination** kernel gains the same three over its ragged
+- [x] 3.3c Gather **coordination** kernel gains the same three over its ragged
       CSR risk set. Rank counts strictly-greater weights over the event's
       **whole realized risk set**, not within a sender group (D14) -- if the
       groups turn out to be semantically load-bearing for ranks, that is an
