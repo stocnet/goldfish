@@ -1,3 +1,34 @@
+# goldfish 1.9.13
+
+* `set_algorithm_newton(backend =)` replaces `engine =`, with values that name
+  what actually runs rather than recording implementation history: `"cpp"` (the
+  C++ event loop, still the default), `"r"` (the R reference implementation),
+  and `"gather"` (the gather-stack C++ variant). The old values misled twice
+  over -- `"default_c"` *was* the default while `"default"` was not, and
+  `"gather_compute"` is an internal strategy name on a user-facing argument.
+
+  | Old | New |
+  |---|---|
+  | `set_algorithm_newton(engine =)` | `set_algorithm_newton(backend =)` |
+  | `engine = "default_c"` | `backend = "cpp"` |
+  | `engine = "default"` | `backend = "r"` |
+  | `engine = "gather_compute"` | `backend = "gather"` |
+
+  Every previous call keeps working. `engine =` remains a sentinel, and the
+  legacy values are accepted wherever they are supplied -- on `engine`, or on
+  `backend` in a half-migrated call -- each producing exactly one
+  soft-deprecation warning that names the final spelling, never an intermediate.
+  Nothing about the computation changes: the value resolves at the constructor
+  to the token the estimation path already read, so coefficients are identical.
+  Removal follows the rest of the 2.0.0 alias layer, no earlier than goldfish
+  3.0.0.
+
+* Estimation messages that name a computational path now speak the same
+  vocabulary: the maxLik-optimizer gate asks for `backend = "cpp"`, the
+  per-event score matrix names the `cpp` and `r` backends as the two that store
+  it, and the `return_probabilities` / `opportunities_list` redirects say they
+  are estimating with `backend = "r"` instead.
+
 # goldfish 1.9.12
 
 * `compute_statistics()` replaces `compute_stats()`, which is deleted without a

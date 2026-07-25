@@ -74,7 +74,7 @@ interface's tokens are unchanged (D1).
 
 ## 4. Closure
 
-- [ ] 4.1 NEWS entry: the rename with the value map
+- [x] 4.1 NEWS entry: the rename with the value map
       (`default_c → cpp`, `default → r`, `gather_compute → gather`), the
       sentinel, and the ≥3.0.0 removal horizon shared with the rest of the
       2.0.0 alias layer. DESCRIPTION version bump. Full `NOT_CRAN=true` suite
