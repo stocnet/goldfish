@@ -234,8 +234,8 @@ compute_multinomial_selection <- function(parameters, stat_all_events, n_candida
 #' for models with poisson selection processes,
 #' e.g., DyNAM-rate and REM-choice models.
 #' @noRd
-compute_poisson_selection <- function(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j) {
-    .Call('_goldfish_compute_poisson_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j)
+compute_poisson_selection <- function(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins) {
+    .Call('_goldfish_compute_poisson_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins)
 }
 
 #' a function to extract the update of composition change

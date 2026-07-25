@@ -380,3 +380,82 @@ test_that("gather primitives are absent unless requested", {
   expect_length(res$observed_rank, 0)
   expect_length(res$margin_expected_receiver, 0)
 })
+
+# --- gather Poisson kernel: dual margin scales --------------------------------
+# Exact-time sub-models carry margins on two scales from one weight vector. The
+# identities are what tell them apart, so they are what these tests assert.
+
+test_that("the two exact-time margin scales have their distinguishing totals", {
+  skip_on_cran()
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  spec <- baselines_model_grid()$se_dynam_rate
+  fit <- suppressWarnings(estimate_dynam(
+    spec$formula,
+    data = data_list$social_evolution,
+    sub_model = spec$sub_model,
+    control_algo = set_algorithm_newton(
+      backend = "gather",
+      diagnostics = c("loglik", "margins")
+    ),
+    progress = FALSE
+  ))
+  n_dependent <- sum(fit$margins$observed)
+  # Compensator scale: totals the event count only because this is the MLE (the
+  # intercept score equation), which is what makes observed-minus-expected the
+  # martingale residual.
+  expect_equal(sum(fit$margins$expected), n_dependent, tolerance = 1e-6)
+  # Probability scale: each dependent event contributes exactly 1, so this holds
+  # at any parameter vector -- the parallel-to-choice calibration map.
+  expect_equal(sum(fit$margins$expected_probability), n_dependent)
+})
+
+test_that("the probability scale totals events, not intervals", {
+  skip_on_cran()
+  # Away from the MLE the two scales must separate: the compensator drifts, the
+  # probability scale does not. A model with right-censored intervals also pins
+  # that the probability scale counts events rather than intervals.
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  spec <- baselines_model_grid()$se_dynam_rate
+  fit <- suppressWarnings(estimate_dynam(
+    spec$formula,
+    data = data_list$social_evolution,
+    sub_model = spec$sub_model,
+    control_algo = set_algorithm_newton(
+      backend = "gather",
+      diagnostics = c("loglik", "margins"),
+      initial_parameters = rep(0, 4),
+      max_iterations = 0
+    ),
+    progress = FALSE
+  ))
+  n_dependent <- sum(fit$margins$observed)
+  expect_equal(sum(fit$margins$expected_probability), n_dependent)
+  expect_false(isTRUE(all.equal(sum(fit$margins$expected), n_dependent)))
+})
+
+test_that("gather and cpp agree on the exact-time margins", {
+  skip_on_cran()
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  spec <- baselines_model_grid()$se_dynam_rate
+  beta <- suppressWarnings(baselines_fit(spec, "cpp", data_list))$parameters
+  pinned <- function(backend) {
+    suppressWarnings(estimate_dynam(
+      spec$formula,
+      data = data_list$social_evolution,
+      sub_model = spec$sub_model,
+      control_algo = set_algorithm_newton(
+        backend = backend,
+        diagnostics = c("loglik", "margins"),
+        initial_parameters = beta,
+        max_iterations = 0
+      ),
+      progress = FALSE
+    ))$margins
+  }
+  m_cpp <- pinned("cpp")
+  m_gather <- pinned("gather")
+  # Same shape (the cpp backend has no probability variant yet -- task 5.1), and
+  # the shared compensator agrees within the cross-backend tolerance.
+  expect_equal(m_gather$observed, m_cpp$observed)
+  expect_equal(m_gather$expected, m_cpp$expected, tolerance = 1e-10)
+})

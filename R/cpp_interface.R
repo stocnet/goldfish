@@ -607,23 +607,40 @@ estimate_c_int <- function(
     estimationResult$observed_rank <- observed_rank
   }
   if (return_margins) {
-    # `res` holds the final evaluation pass. REM engines return both sender and
-    # receiver margins; the single-sided engines return one pair. The
-    # gather backend returns neither, leaving margins unset.
-    margins <- if (!is.null(res$margin_expected_sender)) {
+    # `res` holds the final evaluation pass. Two-sided sub-models (REM,
+    # REM_ordered, coordination) return sender and receiver margins; the
+    # single-sided ones return one pair. Tested on LENGTH, not on NULL: the
+    # gather kernels return every slot unconditionally and leave the absent side
+    # empty, so a NULL test would give a gather fit the two-sided shape where
+    # its cpp counterpart has the one-sided one.
+    has_length <- function(x) !is.null(x) && length(x) > 0
+    margins <- if (has_length(res$margin_expected_sender)) {
       list(
         observed_sender = as.numeric(res$margin_observed_sender),
         expected_sender = as.numeric(res$margin_expected_sender),
         observed_receiver = as.numeric(res$margin_observed_receiver),
         expected_receiver = as.numeric(res$margin_expected_receiver)
       )
-    } else if (!is.null(res$margin_expected)) {
+    } else if (has_length(res$margin_expected)) {
       list(
         observed = as.numeric(res$margin_observed),
         expected = as.numeric(res$margin_expected)
       )
     } else {
       NULL
+    }
+    # Exact-time sub-models additionally carry the probability-scale variant
+    # (D12): the compensator margins above total the event count only at the
+    # MLE, while these total it at any parameter vector. The final labelled
+    # shape is `residuals-gof`'s to define; this carries the vectors so parity
+    # can be asserted across backends.
+    if (!is.null(margins) && has_length(res$margin_probability)) {
+      margins$expected_probability <- as.numeric(res$margin_probability)
+    } else if (!is.null(margins) && has_length(res$margin_probability_sender)) {
+      margins$expected_probability_sender <-
+        as.numeric(res$margin_probability_sender)
+      margins$expected_probability_receiver <-
+        as.numeric(res$margin_probability_receiver)
     }
     if (!is.null(margins)) estimationResult$margins <- margins
   }
@@ -1613,8 +1630,24 @@ compute_ <- function(
   # Per-row actor slots for the margin sides, as the shared reduction wants
   # them: 0-based, and empty for an axis this shape does not have (the sender
   # models reduce away the receiver axis and carry index_j = NA).
+  #
+  # Which sides a model marginalises is its risk-set axis, NOT which indices
+  # happen to exist. A choice model carries both a (constant) sender index and a
+  # receiver index, but its cpp counterpart accumulates receiver margins only --
+  # so handing the kernel both would give a gather fit a sender margin its cpp
+  # counterpart does not have, and the two backends would disagree in SHAPE
+  # while agreeing in every value. Blanking the unused side here keeps the
+  # kernels free of model knowledge: they already read an empty index as "no
+  # such side".
+  axis <- risk_set_axis(spec)
   margin_i <- margin_slots(index_i)
   margin_j <- margin_slots(index_j)
+  if (identical(axis, "receiver_given_sender")) {
+    margin_i <- integer(0) # receiver margins only
+  } else if (identical(axis, "sender")) {
+    margin_j <- integer(0) # sender margins only
+  }
+  # dyad / dyad_symmetric keep both sides.
 
   if (identical(risk_set_normalizer(spec), "multinomial")) {
     res <- compute_multinomial_selection(
@@ -1641,7 +1674,12 @@ compute_ <- function(
       timespan,
       is_dependent,
       margin_i,
-      margin_j
+      margin_j,
+      n_actors_1,
+      n_actors_2,
+      return_event_scores,
+      return_ranks,
+      return_margins
     )
   }
 

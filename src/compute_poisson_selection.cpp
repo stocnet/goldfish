@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
 #include "log_sum_exp.h"
+#include "event_reductions.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -25,13 +26,16 @@ List compute_poisson_selection(
     const arma::vec& timespan,
     const arma::vec& is_dependent,
     const arma::uvec& index_i,
-    const arma::uvec& index_j
+    const arma::uvec& index_j,
+    const arma::uword n_actors_1,
+    const arma::uword n_actors_2,
+    const bool return_event_scores,
+    const bool return_ranks,
+    const bool return_margins
 ) {
     // `index_i` / `index_j` are the 0-based per-row actor slots the shared
     // margin reduction scatters into; an empty vector means this shape has no
-    // such axis. Threaded here ahead of the accumulators that consume them.
-    (void) index_i;
-    (void) index_j;
+    // such axis.
     int n_events = timespan.size();
     int n_parameters = parameters.size();
     // declare auxilliary variables
@@ -59,6 +63,33 @@ List compute_poisson_selection(
     // evaluated away from the MLE lives in.
     arma::vec total_rate(n_events, fill::zeros);
     arma::vec conditional_logl(n_events, fill::zeros);
+
+    // Opt-in per-event primitives, allocated only when requested. Exact-time
+    // sub-models carry margins on BOTH scales from the one probability vector
+    // (D12/D20): the probability scale totals the event count at any parameter
+    // vector, the compensator scale `Dt * T` totals it only at the MLE and its
+    // observed-minus-expected is the martingale residual. `observed` is
+    // scale-free, so one vector serves both.
+    arma::mat event_scores;
+    if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+    IntegerVector observed_rank;
+    if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
+    arma::vec margin_observed_i, margin_expected_i, margin_prob_i;
+    arma::vec margin_observed_j, margin_expected_j, margin_prob_j;
+    const bool has_side_i = return_margins && index_i.n_elem > 0;
+    const bool has_side_j = return_margins && index_j.n_elem > 0;
+    if (has_side_i) {
+        margin_observed_i = arma::vec(n_actors_1, fill::zeros);
+        margin_expected_i = arma::vec(n_actors_1, fill::zeros);
+        margin_prob_i = arma::vec(n_actors_1, fill::zeros);
+    }
+    if (has_side_j) {
+        margin_observed_j = arma::vec(n_actors_2, fill::zeros);
+        margin_expected_j = arma::vec(n_actors_2, fill::zeros);
+        margin_prob_j = arma::vec(n_actors_2, fill::zeros);
+    }
+    arma::vec probabilities;
+    arma::uvec index_i_event, index_j_event;
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -115,11 +146,85 @@ List compute_poisson_selection(
             intervalLogL(id_event) += lin_pred_current_event(id_selected);
             derivative += stat_mat_current_event.row(id_selected);
         }
+        // Opt-in primitives. Ranks and observed margins count only dependent
+        // events; a right-censored interval contributes its expected mass but
+        // has no observed alternative.
+        if (return_event_scores || return_ranks || return_margins) {
+            probabilities = weights / shifted_total;
+        }
+        if (return_ranks && is_dependent_current_event) {
+            observed_rank[id_event] =
+              rank_of_observed(probabilities, no_mask, id_selected);
+        }
+        if (return_margins) {
+            if (has_side_i) index_i_event = index_i.subvec(id_start, id_end - 1);
+            if (has_side_j) index_j_event = index_j.subvec(id_start, id_end - 1);
+            // Compensator scale: c = Dt * T, and the pass that counts observed.
+            std::vector<margin_side> sides_compensator;
+            if (has_side_i) {
+                sides_compensator.push_back(margin_side(
+                  &margin_observed_i, &margin_expected_i, &index_i_event
+                ));
+            }
+            if (has_side_j) {
+                sides_compensator.push_back(margin_side(
+                  &margin_observed_j, &margin_expected_j, &index_j_event
+                ));
+            }
+            accumulate_margins(
+              probabilities, compensator, no_mask, id_selected,
+              is_dependent_current_event, sides_compensator
+            );
+            // Probability scale: c = 1, and accumulated over DEPENDENT events
+            // only. This is the parallel-to-choice calibration map, so it has to
+            // total the same set `observed` counts -- events, not intervals.
+            // Including right-censored intervals would total the interval count
+            // instead and leave expected systematically above observed by the
+            // censored count, which is exactly the comparison the map exists to
+            // make. (The compensator scale above does span censored intervals:
+            // its identity is the intercept score equation at the MLE, not a
+            // per-event one.) `dependent = false` in the call so the shared
+            // observed vectors, already counted above, are not double-counted.
+            std::vector<margin_side> sides_probability;
+            if (has_side_i) {
+                sides_probability.push_back(margin_side(
+                  &margin_observed_i, &margin_prob_i, &index_i_event
+                ));
+            }
+            if (has_side_j) {
+                sides_probability.push_back(margin_side(
+                  &margin_observed_j, &margin_prob_j, &index_j_event
+                ));
+            }
+            if (is_dependent_current_event) {
+                accumulate_margins(
+                  probabilities, 1.0, no_mask, id_selected, false,
+                  sides_probability
+                );
+            }
+        }
+        if (return_event_scores) {
+            // The estimation score, so on the compensator scale: it must sum to
+            // the derivative this kernel accumulates.
+            event_scores.row(id_event) = event_score_row(
+              stat_mat_current_event, probabilities, compensator,
+              id_selected, is_dependent_current_event
+            );
+        }
         // loglikelihood
         logLikelihood += intervalLogL(id_event);
 
         id_start = id_end;
     }
+
+    const bool two_sided = has_side_i && has_side_j;
+    const arma::vec empty;
+    const arma::vec& one_sided_observed =
+      has_side_i ? margin_observed_i : margin_observed_j;
+    const arma::vec& one_sided_expected =
+      has_side_i ? margin_expected_i : margin_expected_j;
+    const arma::vec& one_sided_probability =
+      has_side_i ? margin_prob_i : margin_prob_j;
 
     return List::create(
       Named("derivative") = derivative,
@@ -127,6 +232,21 @@ List compute_poisson_selection(
       Named("intervalLogL") = intervalLogL,
       Named("logLikelihood") = logLikelihood,
       Named("total_rate") = total_rate,
-      Named("conditional_logl") = conditional_logl
+      Named("conditional_logl") = conditional_logl,
+      Named("event_scores") = event_scores,
+      Named("observed_rank") = observed_rank,
+      // A model is two-sided only when it marginalises BOTH axes; otherwise the
+      // one side ships under the unnamed slot, matching what the single-sided
+      // cpp kernels return. Populating both shapes would give a gather fit the
+      // two-sided form where its cpp counterpart has the one-sided one.
+      Named("margin_observed") = two_sided ? empty : one_sided_observed,
+      Named("margin_expected") = two_sided ? empty : one_sided_expected,
+      Named("margin_probability") = two_sided ? empty : one_sided_probability,
+      Named("margin_observed_sender") = two_sided ? margin_observed_i : empty,
+      Named("margin_expected_sender") = two_sided ? margin_expected_i : empty,
+      Named("margin_probability_sender") = two_sided ? margin_prob_i : empty,
+      Named("margin_observed_receiver") = two_sided ? margin_observed_j : empty,
+      Named("margin_expected_receiver") = two_sided ? margin_expected_j : empty,
+      Named("margin_probability_receiver") = two_sided ? margin_prob_j : empty
     );
 }

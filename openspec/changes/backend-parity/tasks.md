@@ -153,7 +153,7 @@ design change.
       Reduction called with `w = p`, `c = 1` (D20). Tests: `event_scores` column
       sums equal the aggregate score; ranks and margins present and agreeing
       with the `cpp` backend at a fixed parameter vector.
-- [ ] 3.3b Gather **Poisson** kernel gains the same three, with margins on
+- [x] 3.3b Gather **Poisson** kernel gains the same three, with margins on
       **both** exact-time scales from one weight vector (D20: `c = 1` for the
       probability scale, `c = Δt * T` for the compensator), and wires the
       `total_rate` / conditional-log-probability that task 3.2c already computes

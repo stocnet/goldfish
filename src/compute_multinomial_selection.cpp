@@ -155,6 +155,13 @@ List compute_multinomial_selection(
         id_start = id_end;
     }
 
+    const bool two_sided = has_side_i && has_side_j;
+    const arma::vec empty;
+    const arma::vec& one_sided_observed =
+      has_side_j ? margin_observed_j : margin_observed_i;
+    const arma::vec& one_sided_expected =
+      has_side_j ? margin_expected_j : margin_expected_i;
+
     return List::create(
       Named("derivative") = derivative,
       Named("fisher") = fisher,
@@ -162,11 +169,14 @@ List compute_multinomial_selection(
       Named("intervalLogL") = intervalLogL,
       Named("event_scores") = event_scores,
       Named("observed_rank") = observed_rank,
-      Named("margin_observed") = has_side_j ? margin_observed_j : margin_observed_i,
-      Named("margin_expected") = has_side_j ? margin_expected_j : margin_expected_i,
-      Named("margin_observed_sender") = margin_observed_i,
-      Named("margin_expected_sender") = margin_expected_i,
-      Named("margin_observed_receiver") = margin_observed_j,
-      Named("margin_expected_receiver") = margin_expected_j
+      // See the Poisson kernel: the named sender/receiver pair ships only for a
+      // genuinely two-sided model, so a gather fit has the same margin shape as
+      // its cpp counterpart.
+      Named("margin_observed") = two_sided ? empty : one_sided_observed,
+      Named("margin_expected") = two_sided ? empty : one_sided_expected,
+      Named("margin_observed_sender") = two_sided ? margin_observed_i : empty,
+      Named("margin_expected_sender") = two_sided ? margin_expected_i : empty,
+      Named("margin_observed_receiver") = two_sided ? margin_observed_j : empty,
+      Named("margin_expected_receiver") = two_sided ? margin_expected_j : empty
     );
 }
