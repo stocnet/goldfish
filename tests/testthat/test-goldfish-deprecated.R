@@ -1,8 +1,8 @@
 test_that("set_estimation_opt() forwards to set_algorithm_newton()", {
   withr::local_options(lifecycle_verbosity = "quiet")
   expect_identical(
-    set_estimation_opt(max_iterations = 5, engine = "default"),
-    set_algorithm_newton(max_iterations = 5, engine = "default")
+    set_estimation_opt(max_iterations = 5, backend = "r"),
+    set_algorithm_newton(max_iterations = 5, backend = "r")
   )
   expect_s3_class(
     set_estimation_opt(),

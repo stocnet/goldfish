@@ -112,7 +112,7 @@ est_opts <- set_algorithm_newton(
   return_interval_loglik = TRUE,
   initial_damping = 40,
   max_iterations = 30,
-  engine = "default"
+  backend = "r"
 )
 
 system.time(
@@ -131,7 +131,7 @@ est_opts <- set_algorithm_newton(
   initial_damping = 40,
   max_iterations = 30,
   initial_parameters = coef(partnerModel),
-  engine = "default"
+  backend = "r"
 )
 
 partnerModel <- estimate_dynam(

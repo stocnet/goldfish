@@ -37,7 +37,7 @@ estimate_with_probabilities <- function(formula, model, sub_model) {
     sub_model = sub_model,
     data = dataTest,
     control_algo = set_algorithm_newton(
-      engine = "default",
+      backend = "r",
       return_probabilities = TRUE
     )
   )
@@ -404,7 +404,7 @@ test_that("default_c ranks match the default engine at the same parameters", {
     fd <- parity_fit(
       spec,
       data_list,
-      engine = "default",
+      backend = "r",
       return_probabilities = TRUE,
       initial_parameters = fc$parameters,
       max_iterations = 0
@@ -426,7 +426,7 @@ test_that("default_c margins match the default engine at the same parameters", {
     fd <- parity_fit(
       spec,
       data_list,
-      engine = "default",
+      backend = "r",
       return_probabilities = TRUE,
       initial_parameters = fc$parameters,
       max_iterations = 0

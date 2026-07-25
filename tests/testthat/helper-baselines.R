@@ -1,4 +1,4 @@
-baselines_engines <- c("default", "default_c")
+baselines_backends <- c("r", "cpp")
 
 baselines_social_evolution_data <- function() {
   data("Social_Evolution", envir = environment())
@@ -187,8 +187,8 @@ baselines_global_model_grid <- function() {
   )
 }
 
-baselines_fit <- function(spec, engine, data_list) {
-  controlArgs <- c(list(engine = engine), spec$estimation_args)
+baselines_fit <- function(spec, backend, data_list) {
+  controlArgs <- c(list(backend = backend), spec$estimation_args)
   args <- list(
     x = spec$formula,
     data = data_list[[spec$dataset]],
@@ -228,26 +228,26 @@ baselines_cores <- function(n_jobs) {
   max(1L, min(n, n_jobs))
 }
 
-# Fit every (model, engine) cell of a baseline grid up front, in parallel, so
+# Fit every (model, backend) cell of a baseline grid up front, in parallel, so
 # the per-cell test_that() blocks only assert. The independent fits are the
 # suite's dominant cost; forking them (copy-on-write over the parent-loaded
 # datasets) collapses that wall time without touching the frozen baselines.
-# Returns a named list keyed "<model>::<engine>" holding each fit, or the
+# Returns a named list keyed "<model>::<backend>" holding each fit, or the
 # captured error condition so the owning test can re-raise it with the right
 # attribution. `run` gates fitting to when the tests will actually execute
 # (skip_on_cran() stays authoritative): nothing is fit on CRAN.
 baselines_precompute_fits <- function(
   grid,
   get_data,
-  engines = baselines_engines,
+  backends = baselines_backends,
   run = interactive() || identical(Sys.getenv("NOT_CRAN"), "true")
 ) {
   keys <- expand.grid(
     model = names(grid),
-    engine = engines,
+    backend = backends,
     stringsAsFactors = FALSE
   )
-  labels <- paste(keys$model, keys$engine, sep = "::")
+  labels <- paste(keys$model, keys$backend, sep = "::")
   if (!run) {
     return(stats::setNames(vector("list", length(labels)), labels))
   }
@@ -261,7 +261,7 @@ baselines_precompute_fits <- function(
       {
         spec <- grid[[keys$model[i]]]
         suppressWarnings(
-          baselines_fit(spec, keys$engine[i], get_data(spec$dataset))
+          baselines_fit(spec, keys$backend[i], get_data(spec$dataset))
         )
       },
       error = function(e) e
@@ -283,8 +283,8 @@ baselines_precompute_fits <- function(
 
 # Retrieve a precomputed fit, re-raising a worker-side failure (error condition,
 # try-error, or NULL from a crashed fork) as a test failure attributed here.
-baselines_fits_cell <- function(fits, model, engine) {
-  key <- paste(model, engine, sep = "::")
+baselines_fits_cell <- function(fits, model, backend) {
+  key <- paste(model, backend, sep = "::")
   fit <- fits[[key]]
   if (is.null(fit)) {
     stop("baseline fit missing or crashed for ", key, call. = FALSE)

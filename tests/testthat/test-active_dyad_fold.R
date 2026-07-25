@@ -110,7 +110,7 @@ test_that("the folded active_dyad equals the from-scratch intersection every eve
 
 test_that("a vacuous alter constraint reproduces the unconstrained fit (fold consumed)", {
   fx <- make_choice_fold_fixture()
-  opt <- set_algorithm_newton(engine = "default")
+  opt <- set_algorithm_newton(backend = "r")
   m_cstr <- estimate_dynam(
     callsDep ~ inertia + recip,
     sub_model = "choice",
@@ -171,7 +171,7 @@ test_that("opportunity folds active_dyad at the point encoding (dense)", {
     sub_model = "choice",
     data = fx$data,
     preprocessing_only = TRUE,
-    control_algo = set_algorithm_newton(engine = "default"),
+    control_algo = set_algorithm_newton(backend = "r"),
     control_prep = set_preprocessing(opportunities_list = fx$opp)
   )
   expect_identical(prep$active_dyad_encoding, "point")
@@ -191,7 +191,7 @@ test_that("folded point buffer equals from-scratch intersection every event", {
     sub_model = "choice",
     data = fx$data,
     preprocessing_only = TRUE,
-    control_algo = set_algorithm_newton(engine = "default"),
+    control_algo = set_algorithm_newton(backend = "r"),
     control_prep = set_preprocessing(opportunities_list = fx$opp)
   )
   # Receiver presence base = the unconstrained model's alter vector (no

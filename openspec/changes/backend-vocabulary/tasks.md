@@ -39,7 +39,7 @@ interface's tokens are unchanged (D1).
 
 ## 2. Call-site migration
 
-- [ ] 2.1 Migrate the test suite and vignettes to `backend =` (grep gate: no
+- [x] 2.1 Migrate the test suite and vignettes to `backend =` (grep gate: no
       `engine =` outside the deprecation tests and their snapshots). Vignette
       sources and their precompiled outputs move together — the rename changes
       no printed result. Full `NOT_CRAN=true` suite with baselines PASS: the

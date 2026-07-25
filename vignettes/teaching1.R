@@ -226,7 +226,7 @@ allFormulaREM <-
 #   allFormulaREM,
 #   data = social_evolution,
 #   control_algo =
-#     set_algorithm_newton(initial_damping = 40, engine = "default_c")
+#     set_algorithm_newton(initial_damping = 40, backend = "cpp")
 # )
 
 
@@ -234,7 +234,7 @@ allFormulaREM <-
 mod01REM <- estimate_rem(
   allFormulaREM,
   data = social_evolution,
-  control_algo = set_algorithm_newton(engine = "gather_compute")
+  control_algo = set_algorithm_newton(backend = "gather")
 )
 
 summary(mod01REM)

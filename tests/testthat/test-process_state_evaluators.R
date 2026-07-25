@@ -33,7 +33,7 @@ pse_data_list <- function() {
 pse_reference <- function(cell, data_list) {
   spec <- baselines_model_grid()[[cell[[1]]]]
   data <- data_list[[spec$dataset]]
-  fit <- suppressWarnings(baselines_fit(spec, "default_c", data_list))
+  fit <- suppressWarnings(baselines_fit(spec, "cpp", data_list))
   coefs <- coef(fit)
 
   withr::local_options(lifecycle_verbosity = "quiet")
@@ -41,7 +41,7 @@ pse_reference <- function(cell, data_list) {
     list(
       fixed_parameters = coefs,
       return_interval_loglik = TRUE,
-      engine = "default_c"
+      backend = "cpp"
     ),
     spec$estimation_args
   )

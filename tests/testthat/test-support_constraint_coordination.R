@@ -75,7 +75,7 @@ test_that("an all-allowing coordination constraint is an identity", {
   skip_on_cran()
   d <- make_coord_fixture()
   opt <- set_algorithm_newton(
-    engine = "default",
+    backend = "r",
     max_iterations = 30,
     initial_damping = 40
   )
@@ -100,7 +100,7 @@ test_that("a restricting coordination constraint changes the estimate", {
   skip_on_cran()
   d <- make_coord_fixture(n_excluded = 2000L)
   opt <- set_algorithm_newton(
-    engine = "default",
+    backend = "r",
     max_iterations = 30,
     initial_damping = 40
   )
@@ -129,7 +129,7 @@ test_that("coordination constraint runs natively on default_c", {
     data = d,
     support_constraint = ~ tie(allowedNet),
     control_algo = set_algorithm_newton(
-      engine = "default",
+      backend = "r",
       max_iterations = 30,
       initial_damping = 40
     )
@@ -142,7 +142,7 @@ test_that("coordination constraint runs natively on default_c", {
     data = d,
     support_constraint = ~ tie(allowedNet),
     control_algo = set_algorithm_newton(
-      engine = "default_c",
+      backend = "cpp",
       max_iterations = 30,
       initial_damping = 40
     )
@@ -154,9 +154,9 @@ test_that("coordination constraint runs natively on default_c", {
 test_that("gather_compute runs a coordination constraint natively", {
   skip_on_cran()
   d <- make_coord_fixture(n_excluded = 1000L)
-  opt <- function(engine) {
+  opt <- function(backend) {
     set_algorithm_newton(
-      engine = engine,
+      backend = backend,
       max_iterations = 30,
       initial_damping = 40
     )
@@ -166,7 +166,7 @@ test_that("gather_compute runs a coordination constraint natively", {
     sub_model = "choice_coordination",
     data = d,
     support_constraint = ~ tie(allowedNet),
-    control_algo = opt("default_c")
+    control_algo = opt("cpp")
   ))
   # The gather now emits the symmetrically-folded off-diagonal dyad list (only
   # mask-allowed rows) plus the per-sender groups and (i,j)<->(j,i) pairing, and
@@ -178,7 +178,7 @@ test_that("gather_compute runs a coordination constraint natively", {
       sub_model = "choice_coordination",
       data = d,
       support_constraint = ~ tie(allowedNet),
-      control_algo = opt("gather_compute")
+      control_algo = opt("gather")
     ))
   )
   expect_equal(coef(m_gc), coef(m_dc), tolerance = 1e-6)

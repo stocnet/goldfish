@@ -812,13 +812,13 @@ allFormulaREM <-
 
 And we can estimate this model, to speed up estimation, we can use any of the
 two `C` implementations of the estimation algorithm.
-Setting the option `engine` on the `estimationInit` argument, we can choose
+Setting the option `backend` on the `control_algo` argument, we can choose
 which version of the `C` code to use.
-`"default_c"` implements the same algorithm as
-the default one implemented in plain `R` code that reduces the memory use
+`"cpp"` implements the same algorithm as
+the `"r"` one implemented in plain `R` code that reduces the memory use
 by exploiting the sparsity of the dyads that change the effects' statistics
 after each event.
-`"gather_compute"` implements a version with an overhead of memory use,
+`"gather"` implements a version with an overhead of memory use,
 representing the data in a more usual tabular way but reducing time estimation.
 
 
@@ -827,7 +827,7 @@ mod01REM <- estimate_rem(
   allFormulaREM,
   data = social_evolution,
   control_algo =
-    set_algorithm_newton(initial_damping = 40, engine = "default_c")
+    set_algorithm_newton(initial_damping = 40, backend = "cpp")
 )
 ```
 
@@ -836,7 +836,7 @@ mod01REM <- estimate_rem(
 mod01REM <- estimate_rem(
   allFormulaREM,
   data = social_evolution,
-  control_algo = set_algorithm_newton(engine = "gather_compute")
+  control_algo = set_algorithm_newton(backend = "gather")
 )
 #> Warning: ℹ Missing data has been detected. The mean is used to impute numeric
 #>   attributes.
@@ -848,7 +848,7 @@ summary(mod01REM)
 #>     type = "ego") + indeg(friendship, type = "ego") + inertia(calls) + 
 #>     recip(calls) + inertia(calls, window = 300) + recip(calls, 
 #>     window = 300) + tie(friendship) + recip(friendship) + same(gradeType) + 
-#>     same(floor), data = social_evolution, control_algo = set_algorithm_newton(engine = "gather_compute"))
+#>     same(floor), data = social_evolution, control_algo = set_algorithm_newton(backend = "gather"))
 #> 
 #> 
 #> Coefficients:
