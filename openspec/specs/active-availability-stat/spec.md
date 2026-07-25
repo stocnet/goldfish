@@ -166,8 +166,8 @@ re-derived per estimation iteration. For each dependent event `e` with sender
 update slice SHALL be applied before that event's likelihood, and the first
 dependent event's opportunity SHALL be in `active_dyad_init`. The
 `updateopportunities` per-iteration recompute and the `mask_to_opportunities`
-adapter SHALL be removed, and the `default_c`/`gather_compute` opportunity
-rejection SHALL be lifted.
+adapter SHALL be removed, and the opportunity rejection on the `cpp` and
+`gather` backends SHALL be lifted.
 
 #### Scenario: opportunity produces per-event point updates
 - **WHEN** a choice model is estimated with an `opportunities_list`
@@ -186,8 +186,8 @@ rejection SHALL be lifted.
 #### Scenario: opportunity reproduces the pre-change coefficients
 - **WHEN** the same `opportunities_list` model is estimated before and after this
   change
-- **THEN** the estimated coefficients agree to within 1e-6 on every engine
-  (`default`, `gather_compute`, `default_c`).
+- **THEN** the estimated coefficients agree to within 1e-6 on every backend
+  (`r`, `gather`, `cpp`).
 
 ### Requirement: avg_active_entity declared by the recipe constructor
 The rate-intercept denominator SHALL be stored as `avg_active_entity` (renaming

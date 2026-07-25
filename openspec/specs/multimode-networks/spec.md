@@ -12,9 +12,7 @@ imputation, the two-mode specification/estimation surface and node identity,
 the flagship two-mode dataset docs/vignette, and two-mode coefficient
 equivalence with the legacy path. Created by archiving change
 multimode-network-support.
-
 ## Requirements
-
 ### Requirement: Multipartite object with dyadic layers over mode pairs
 
 The package SHALL support a stocnet object carrying any number of `nodes$mode`
@@ -289,14 +287,15 @@ a frozen subset stored under `tests/`, insulated from upstream data revisions.
 ### Requirement: Two-mode coefficient equivalence with the legacy path
 
 A two-mode model built as a mode-map stocnet SHALL produce the same coefficients
-(to within 1e-6, both engines) as the same model built through the legacy two
-node-set constructors (now assembling to stocnet), and a mixed one/two-mode-layer
-object SHALL estimate consistently. Frozen one-mode DyNAM/REM baselines SHALL
-remain PASS (not SKIP) under `NOT_CRAN=true`.
+(to within 1e-6, on both compute backends) as the same model built through the
+legacy two node-set constructors (now assembling to stocnet), and a mixed
+one/two-mode-layer object SHALL estimate consistently. Frozen one-mode DyNAM/REM
+baselines SHALL remain PASS (not SKIP) under `NOT_CRAN=true`.
 
 #### Scenario: Stocnet and legacy two-mode paths agree
 
 - **WHEN** the same two-mode model is estimated via the mode-map stocnet path and
   via the legacy two node-set constructors
-- **THEN** the coefficients agree to within 1e-6 for both the `default` and
-  `default_c` engines.
+- **THEN** the coefficients agree to within 1e-6 for both the `r` and
+  `cpp` backends.
+
