@@ -62,11 +62,15 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       support-constraint and diagnostic-primitives suites). `NOT_CRAN=true`
       with the frozen baselines PASS is the proof that the rename touched no
       numerical path.
-- [ ] 1.3 Internal callers off the deprecated surface (D8):
+- [x] 1.3 Internal callers off the deprecated surface (D8):
       `functions_preprocess_em.R`'s five `set_algorithm_newton(engine =
-      "default")` calls become `backend = "r"`. Tests: the EM preprocessing
-      path emits no deprecation signal under testthat (where
-      `deprecate_soft` always warns).
+      "default")` calls become `backend = "r"`. **Verification revised:** the
+      planned behavioral test (no deprecation signal from the EM path) is not
+      achievable — that code is unexported, referenced by no test, and has
+      unresolved free variables (`nChains`, `net1`, `formulas`, ...), i.e.
+      research prototype that cannot execute. The gate is instead the static
+      one: no `set_algorithm_newton(` call anywhere in `R/` passes `engine =`,
+      and the migrated file parses.
 - [ ] 1.4 The fit records its backend (D10): one write in the `### 6. RESULTS`
       assembly in `model_estimate.R`; the `@return` component list documents
       it. Tests: each backend's fit carries the matching value (the three-way

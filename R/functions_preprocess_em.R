@@ -75,7 +75,7 @@ preprocess_emdynam_competition <- function() {
           sub_model = sub_model,
           data = environmentsChains[[iChain]],
           control_algo = set_algorithm_newton(
-            engine = "default",
+            backend = "r",
             fixed_parameters = fix
           ),
           control_prep = set_preprocessing(
@@ -118,7 +118,7 @@ preprocess_emdynam_competition <- function() {
         initial_parameters = NULL,
         fixed_parameters = fixedParameters[[x]],
         max_iterations = 0L,
-        engine = "default",
+        backend = "r",
         return_interval_loglik = TRUE
       )
     })
@@ -128,7 +128,7 @@ preprocess_emdynam_competition <- function() {
         initial_parameters = initialParameters[[x]],
         fixed_parameters = fixedParameters[[x]],
         max_iterations = 0L,
-        engine = "default",
+        backend = "r",
         return_interval_loglik = TRUE
       )
     })
@@ -451,7 +451,7 @@ preprocess_emdynam_competition <- function() {
       initial_parameters = initialParameters[[x]],
       fixed_parameters = fixedParameters[[x]],
       max_iterations = 0L,
-      engine = "default"
+      backend = "r"
     )
   })
 
@@ -464,7 +464,7 @@ preprocess_emdynam_competition <- function() {
           sub_model = sub_model,
           data = environmentsChains[[iChain]],
           control_algo = set_algorithm_newton(
-            engine = "default",
+            backend = "r",
             fixed_parameters = fix
           ),
           control_prep = set_preprocessing(
