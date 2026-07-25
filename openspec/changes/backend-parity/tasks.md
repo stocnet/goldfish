@@ -133,7 +133,7 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       attributable. Tests: cross-backend agreement unchanged on the
       well-conditioned fixtures; an extreme-parameter fixture where the naive
       path underflows to `-Inf` and the shifted one does not.
-- [ ] 3.2c Gather **Poisson** kernel moves to one shifted `exp` pass (D19), from
+- [x] 3.2c Gather **Poisson** kernel moves to one shifted `exp` pass (D19), from
       which it derives `T = exp(lse)` (bit-identical to the old raw normalizer,
       and overflowing at the same point -- the likelihood is NOT stabilized and
       must not be), the derivative with the shift restored, `p = w/sum(w)`, and

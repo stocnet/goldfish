@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -42,11 +43,22 @@ List compute_poisson_selection(
     arma::vec intervalLogL(n_events, fill::zeros);
     double logLikelihood = 0;
 
-    // Get exp(\beta^T S) for each pair of actors in each events
-    arma::vec exps = arma::exp(stat_all_events * parameters);
+    // The linear predictors, hoisted as one GEMV. The exponentiation is per
+    // event because the max-shift is; the pass count is unchanged.
+    arma::vec lin_pred = stat_all_events * parameters;
     // start address in stat_all_events of current events
     int id_start = 0;
-    // int id_dep_event = 0;
+    // Gather slices are pre-masked, so the helper needs no risk-set mask.
+    const arma::vec no_mask;
+    arma::vec weights;
+    // Per-event total rate, and the conditional log-probability of the observed
+    // alternative. Both fall out of the log-normalizer, which is why they are
+    // computed here rather than reassembled downstream: the algebraic route
+    // (intervalLogL - log T + Dt*T) cancels a term against itself and loses
+    // digits in proportion to Dt*T, which is exactly the regime a diagnostic
+    // evaluated away from the MLE lives in.
+    arma::vec total_rate(n_events, fill::zeros);
+    arma::vec conditional_logl(n_events, fill::zeros);
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -54,9 +66,9 @@ List compute_poisson_selection(
         int id_end = id_start + n_candidates(id_event);
         bool is_dependent_current_event = is_dependent(id_event);
         double timespan_current_event = timespan(id_event);
-        // the subviewsof th stat mat and exps corresponding to this event
-        const arma::colvec& exp_current_event =
-          exps.subvec(id_start, id_end - 1);
+        // the subviews of the stat mat and predictors for this event
+        const arma::vec& lin_pred_current_event =
+          lin_pred.subvec(id_start, id_end - 1);
         const arma::mat& stat_mat_current_event =
           stat_all_events.rows(id_start, id_end - 1);
         // reset auxilliary variables
@@ -64,33 +76,47 @@ List compute_poisson_selection(
         fisher_current_event.zeros();
         // declare the selected and the normalizer (partition function)
         int id_selected = selected(id_event);
-        double normalizer = arma::sum(exp_current_event);
-        // go through all candidates
+        // One shifted exp pass yields both scales. The likelihood needs the
+        // total rate on the ABSOLUTE scale -- it enters as -Dt * T, not as a
+        // ratio, so it is recovered as exp(log_normalizer) and overflows exactly
+        // where the raw sum did. Deliberately not stabilized: shifting it would
+        // be a different model, and an overflowing step is already rejected by
+        // the estimation loop's is.finite() gate.
+        double log_normalizer =
+          log_sum_exp_masked(lin_pred_current_event, no_mask, weights);
+        double shifted_total = arma::sum(weights);
+        double normalizer = std::exp(log_normalizer);
+        total_rate(id_event) = normalizer;
+        conditional_logl(id_event) =
+          lin_pred_current_event(id_selected) - log_normalizer;
+        // go through all candidates. The reduction runs on the probability
+        // scale p = w / sum(w) with the compensator scale Dt * T applied once
+        // outside, since Dt * T * p_j == Dt * lambda_j. That keeps the only
+        // large factor in a scalar: a rate that overflows inside the vector
+        // would meet a mixed-sign statistic and give Inf - Inf = NaN.
         for (unsigned int j = 0; j < n_candidates(id_event); j++) {
-            // probability_current_selected = exp_current_event(j) / normalizer;
+            double probability_current_selected = weights(j) / shifted_total;
             weighted_sum_current_event +=
-              exp_current_event(j) * (stat_mat_current_event.row(j));
+              probability_current_selected * (stat_mat_current_event.row(j));
             fisher_current_event +=
-              exp_current_event(j) * ((stat_mat_current_event.row(j).t()) *
+              probability_current_selected *
+              ((stat_mat_current_event.row(j).t()) *
               (stat_mat_current_event.row(j)));
         }
         // add the quantities of a current event to the variables to be returned
+        const double compensator = timespan_current_event * normalizer;
         // derivative
-        // if (id_event == 1) Rcout << timespan_current_event * weighted_sum_current_event << std::endl;
-        derivative -= timespan_current_event * weighted_sum_current_event;
+        derivative -= compensator * weighted_sum_current_event;
         // fisher matrix
-        fisher += timespan_current_event * fisher_current_event;
+        fisher += compensator * fisher_current_event;
         // logLikelihood
-        intervalLogL(id_event) = -timespan_current_event * normalizer;
-        // update id_dep_event
+        intervalLogL(id_event) = -compensator;
         if (is_dependent_current_event) {
-            intervalLogL(id_event) += dot(stat_mat_current_event.row(id_selected), parameters);
+            intervalLogL(id_event) += lin_pred_current_event(id_selected);
             derivative += stat_mat_current_event.row(id_selected);
-            //id_dep_event++;
         }
         // loglikelihood
         logLikelihood += intervalLogL(id_event);
-
 
         id_start = id_end;
     }
@@ -99,6 +125,8 @@ List compute_poisson_selection(
       Named("derivative") = derivative,
       Named("fisher") = fisher,
       Named("intervalLogL") = intervalLogL,
-      Named("logLikelihood") = logLikelihood
+      Named("logLikelihood") = logLikelihood,
+      Named("total_rate") = total_rate,
+      Named("conditional_logl") = conditional_logl
     );
 }
