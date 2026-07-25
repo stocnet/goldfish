@@ -1,5 +1,5 @@
 # support_constraint consumption for DyNAM choice_coordination (DyNAM-MM) across
-# the default / gather_compute / default_c engines. Coordination's
+# the r / gather / cpp backends. Coordination's
 # likelihood is two-sided (`getLikelihoodMM` pairs both directed choices), so
 # constraint is symmetrised (`support[i, j] & support[j, i]`) and folded into a
 # dense point `active_dyad` consumed as the FULL risk mask — never a per-sender
@@ -120,7 +120,7 @@ test_that("a restricting coordination constraint changes the estimate", {
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
 
-test_that("coordination constraint runs natively on default_c", {
+test_that("coordination constraint runs natively on cpp", {
   skip_on_cran()
   d <- make_coord_fixture(n_excluded = 1000L)
   m_def <- suppressWarnings(estimate_dynam(
@@ -135,7 +135,7 @@ test_that("coordination constraint runs natively on default_c", {
     )
   ))
   # estimate_DyNAM_MM reads the symmetrised dense point active_dyad cell-wise,
-  # default_c matches the default engine exactly.
+  # cpp matches the r backend exactly.
   m_dc <- suppressWarnings(estimate_dynam(
     coord_formula,
     sub_model = "choice_coordination",
@@ -151,7 +151,7 @@ test_that("coordination constraint runs natively on default_c", {
   expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-6)
 })
 
-test_that("gather_compute runs a coordination constraint natively", {
+test_that("gather runs a coordination constraint natively", {
   skip_on_cran()
   d <- make_coord_fixture(n_excluded = 1000L)
   opt <- function(backend) {
@@ -171,7 +171,7 @@ test_that("gather_compute runs a coordination constraint natively", {
   # The gather now emits the symmetrically-folded off-diagonal dyad list (only
   # mask-allowed rows) plus the per-sender groups and (i,j)<->(j,i) pairing, and
   # the dyad-triangle kernel reads that ragged list directly — no square
-  # candidate matrix, no redirect to default_c, no informational message.
+  # candidate matrix, no redirect to cpp, no informational message.
   expect_no_message(
     m_gc <- suppressWarnings(estimate_dynam(
       coord_formula,

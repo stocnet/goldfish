@@ -81,7 +81,7 @@ test_that("a support_constraint matches the opportunities_list restriction", {
   expect_equal(coef(m_cstr), coef(m_ref), tolerance = 1e-6)
 })
 
-test_that("gather_compute consumes the choice constraint natively (== default)", {
+test_that("gather consumes the choice constraint natively (== r)", {
   fx <- make_estimate_fixture()
   m_def <- estimate_dynam(
     calls_dependent ~ inertia + recip,
@@ -102,7 +102,7 @@ test_that("gather_compute consumes the choice constraint natively (== default)",
   expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
 })
 
-test_that("default_c consumes the choice constraint natively (== default)", {
+test_that("cpp consumes the choice constraint natively (== r)", {
   fx <- make_estimate_fixture()
   m_def <- estimate_dynam(
     calls_dependent ~ inertia + recip,

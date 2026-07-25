@@ -396,7 +396,7 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
 
 #' Build the gather stack from an assembled flat preprocessing object
 #'
-#' Mirrors the gather-input construction of the `gather_compute` estimation
+#' Mirrors the gather-input construction of the `gather` backend's estimation
 #' path (`estimate_c_int`): intercept prepend, presence C-format, flattened
 #' `stat_mat_init`, effect-index shift, and the `gather_()` expansion. The
 #' `twomode_or_reflexive` flag follows `gather_model_data()` (`is_two_mode`),
@@ -411,7 +411,7 @@ gather_from_prep <- function(prep, spec) {
   is_rate_model <- identical(risk_set_axis(spec), "sender")
   is_two_mode <- isTRUE(spec$is_two_mode)
   # Rate models reduce over a single receiver column; the estimation
-  # gather_compute path forces twomode_or_reflexive = TRUE there (avoiding the
+  # gather path forces twomode_or_reflexive = TRUE there (avoiding the
   # n_actors2 - 1 == 0 reduction that makes the legacy gather_model_data()
   # error on one-mode rate). Dyad models follow gather_model_data().
   twomode_or_reflexive <- if (is_rate_model) TRUE else is_two_mode

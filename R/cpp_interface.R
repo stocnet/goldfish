@@ -40,7 +40,7 @@ estimate_c_int <- function(
   impute = FALSE,
   opportunitiesList = NULL,
   spec = NULL,
-  engine = c("default_c", "gather_compute"),
+  backend = c("cpp", "gather"),
   optimizer = "newton_raphson"
 ) {
   if (!is.null(opportunitiesList)) {
@@ -95,7 +95,7 @@ estimate_c_int <- function(
     idFixedCompnents <- which(!is.na(fixedParameters))
   }
 
-  engine <- match.arg(engine)
+  backend <- match.arg(backend)
 
   ## PARAMETER CHECKS
 
@@ -263,8 +263,8 @@ estimate_c_int <- function(
   score.old <- NULL
   informationMatrix.old <- NULL
 
-  ## GATHERING INFO IF WE USE THE GATHER-COMPUTE ENGINE.
-  if (engine == "gather_compute") {
+  ## GATHERING INFO IF WE USE THE GATHER BACKEND.
+  if (backend == "gather") {
     gathered_data <- gather_(
       spec = spec,
       event_mat = event_mat,
@@ -360,8 +360,8 @@ estimate_c_int <- function(
     ## CALCULATE THE LOGLIKELIHOOD,
     ## THE FISHER INFORMATION MATRIX, AND THE DERIVATIVE
 
-    ## GATHER-COMPUTE ENGINE
-    if (engine == "gather_compute") {
+    ## GATHER BACKEND
+    if (backend == "gather") {
       res <- compute_(
         spec = spec,
         parameters = parameters,
@@ -376,8 +376,8 @@ estimate_c_int <- function(
       )
     }
 
-    ### DEFAULT_C ENGINE
-    if (engine == "default_c") {
+    ### CPP BACKEND
+    if (backend == "cpp") {
       res <- evaluate_default_c(
         parameters,
         return_event_scores,
@@ -584,7 +584,7 @@ estimate_c_int <- function(
     nIterations = iIteration,
     nEvents = nEvents
   )
-  if (engine == "gather_compute") {
+  if (backend == "gather") {
     estimationResult$sizeIntermediate <- size_gathered_data
     if (testing) estimationResult$intermediate <- gathered_data
   }
@@ -602,7 +602,7 @@ estimate_c_int <- function(
   if (return_margins) {
     # `res` holds the final evaluation pass. REM engines return both sender and
     # receiver margins; the single-sided engines return one pair. The
-    # gather_compute engine returns neither, leaving margins unset.
+    # gather backend returns neither, leaving margins unset.
     margins <- if (!is.null(res$margin_expected_sender)) {
       list(
         observed_sender = as.numeric(res$margin_observed_sender),
@@ -660,7 +660,7 @@ make_memoized_evaluator <- function(evaluate, need_scores) {
 #' closures on the `default_c` evaluator, then maps the result into the standard
 #' `result.goldfish` object so `summary()` / `vcov()` / `logLik()` and the
 #' post-estimation methods work unchanged. Only reached for
-#' `optimizer != "newton_raphson"`, guarded upstream to the default_c engine
+#' `optimizer != "newton_raphson"`, guarded upstream to the cpp backend
 #' with maxLik installed.
 #'
 #' @param evaluate closure `function(pars, need_scores)` returning the C++
@@ -981,7 +981,7 @@ estimate_ <- function(
 #' `gather_sender_model()`, `gather_receiver_model()`, and
 #' `gather_sender_receiver_model()` (removed in the writer refactor): the
 #' gather stack is now produced once, in R, from `writer_default()`'s flat
-#' output and consumed by both `engine = "gather_compute"` and
+#' output and consumed by both `backend = "gather"` and
 #' `gather_model_data()`. The per-iteration model fitting stays in C++ via
 #' `compute_()`, so the one-time expansion in R does not affect the
 #' estimation hot path. The `verbose` / `impute` arguments are retained for

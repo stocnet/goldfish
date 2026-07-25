@@ -50,7 +50,7 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       `devtools::document()` inline. Tests: `test-set_opt.R` migrated,
       `_snaps/set_opt.md` regenerated, new expectations for the two spec
       scenarios (control object carries `backend`, has no `engine`).
-- [ ] 1.2 The estimation path reads backend (D8): the four gates and the silent
+- [x] 1.2 The estimation path reads backend (D8): the four gates and the silent
       downgrade in `model_estimate.R:1223-1291` and the dispatch at
       `model_estimate.R:2147-2155` compare backend values; the read shim
       resolves a control list carrying only a legacy `engine` component (the

@@ -1,7 +1,7 @@
 # In-pass diagnostic primitives (ranks, margins, total_rate) computed by the
-# default_c engines. For the multinomial engines observed_rank is validated
+# cpp backend. For the multinomial sub-models observed_rank is validated
 # against ranks enumerated from the default R engine's per-event probabilities
-# at the same MLE, and the parity tests at the end compare default_c ranks and
+# at the same MLE, and the parity tests at the end compare cpp ranks and
 # margins to the default R engine evaluated at identical parameters; the
 # exact-time engines get their own structural and Cox-Snell identity checks.
 
@@ -368,10 +368,10 @@ test_that("large per-event storage emits a footprint note above the threshold", 
   )
 })
 
-# Cross-engine parity: the in-pass default_c ranks and margins must equal the
+# Cross-backend parity: the in-pass cpp ranks and margins must equal the
 # independent quantities the default R engine computes from its per-event
 # probability matrix. Both engines are evaluated at the SAME parameter vector
-# (default_c's MLE, pinned on the default engine via max_iterations = 0) so the
+# (cpp's MLE, pinned on the r backend via max_iterations = 0) so the
 # parity is machine-precision rather than the coarser cross-engine tolerance.
 parity_fit <- function(spec, data_list, ...) {
   ctrl <- do.call(set_algorithm_newton, list(...))
@@ -393,7 +393,7 @@ parity_fit <- function(spec, data_list, ...) {
   }
 }
 
-test_that("default_c ranks match the default engine at the same parameters", {
+test_that("cpp ranks match the r backend at the same parameters", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
   data_list <- list(social_evolution = baselines_social_evolution_data())
@@ -413,7 +413,7 @@ test_that("default_c ranks match the default engine at the same parameters", {
   }
 })
 
-test_that("default_c margins match the default engine at the same parameters", {
+test_that("cpp margins match the r backend at the same parameters", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
   data_list <- list(social_evolution = baselines_social_evolution_data())

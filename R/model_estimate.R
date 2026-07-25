@@ -1216,28 +1216,30 @@ estimate_wrapper <- function(
     ))
   }
 
-  # gather_compute and default_c don't support returnEventProbabilities
+  # The cpp and gather backends don't support returnEventProbabilities
+  backend <- algo_backend(control_algo)
   if (
     control_algo$return_probabilities &&
-      control_algo$engine != "default"
+      backend != "r"
   ) {
     cli::cli_warn(c(
-      "{.code backend = {.val {engine_backend(control_algo$engine)}}} does not
+      "{.code backend = {.val {backend}}} does not
        support {.arg return_probabilities}.",
       "i" = "Estimating with {.code backend = \"r\"} instead."
     ))
-    control_algo$engine <- "default"
+    backend <- "r"
+    control_algo$backend <- backend
   }
 
-  # The per-event score matrix is produced by the two per-event engines
-  # (default_c via the C++ evaluator flag, default in its contribution loop);
-  # gather_compute has no per-event decomposition to expose. Because "scores" is
+  # The per-event score matrix is produced by the two per-event backends
+  # (cpp via the C++ evaluator flag, r in its contribution loop);
+  # gather has no per-event decomposition to expose. Because "scores" is
   # in the default diagnostics, aborting whenever it is on would break every
-  # gather_compute fit; instead abort only when scores were requested explicitly
+  # gather fit; instead abort only when scores were requested explicitly
   # and silently drop the default-sourced request.
   if (
     isTRUE(control_algo$return_event_scores) &&
-      control_algo$engine == "gather_compute"
+      backend == "gather"
   ) {
     if (isTRUE(control_algo$scores_explicit)) {
       cli::cli_abort(c(
@@ -1251,7 +1253,7 @@ estimate_wrapper <- function(
   }
 
   # Optimizers other than the built-in Newton-Raphson are maxLik-backed:
-  # they run only on the default_c evaluator and require the
+  # they run only on the cpp evaluator and require the
   # Suggests-only maxLik package. Both are resolved before any preprocessing so
   # the abort is free of side effects.
   optimizer <- control_algo$optimizer
@@ -1259,12 +1261,12 @@ estimate_wrapper <- function(
     optimizer <- "newton_raphson"
   }
   if (!identical(optimizer, "newton_raphson")) {
-    if (control_algo$engine != "default_c") {
+    if (backend != "cpp") {
       cli::cli_abort(c(
         "{.arg optimizer} {.val {optimizer}} requires
          {.code backend = \"cpp\"}.",
         "x" = "It is not available with
-               {.code backend = {.val {engine_backend(control_algo$engine)}}}.",
+               {.code backend = {.val {backend}}}.",
         "i" = "maxLik-backed optimizers run only on the {.val cpp} backend."
       ))
     }
@@ -1276,17 +1278,18 @@ estimate_wrapper <- function(
     }
   }
 
-  # gather_compute and default_c don't support restrictions of opportunity sets
+  # The cpp and gather backends don't support restrictions of opportunity sets
   if (
     !is.null(control_prep$opportunities_list) &&
-      control_algo$engine != "default"
+      backend != "r"
   ) {
     cli::cli_warn(c(
-      "{.code backend = {.val {engine_backend(control_algo$engine)}}} does not
+      "{.code backend = {.val {backend}}} does not
        support {.arg opportunities_list}.",
       "i" = "Estimating with {.code backend = \"r\"} instead."
     ))
-    control_algo$engine <- "default"
+    backend <- "r"
+    control_algo$backend <- backend
   }
 
   ### 1. PARSE the formula----
@@ -2112,7 +2115,7 @@ estimate_wrapper <- function(
   )
 
   # Call the appropriate estimation engine
-  if (control_algo$engine %in% c("default_c", "gather_compute")) {
+  if (backend %in% c("cpp", "gather")) {
     tryCatch(
       result <- do.call(
         "estimate_c_int",
@@ -2120,7 +2123,7 @@ estimate_wrapper <- function(
           args_estimation,
           list(
             spec = model_spec,
-            engine = control_algo$engine,
+            backend = backend,
             optimizer = optimizer,
             return_ranks = "ranks" %in% control_algo$diagnostics,
             return_margins = "margins" %in% control_algo$diagnostics,

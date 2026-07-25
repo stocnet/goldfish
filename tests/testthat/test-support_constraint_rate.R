@@ -184,7 +184,7 @@ test_that("a restricting rate gate changes the estimate vs unconstrained", {
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
 
-test_that("gather_compute consumes the rate constraint natively (== default)", {
+test_that("gather consumes the rate constraint natively (== r)", {
   fx <- make_rate_fixture()
   gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
   d <- rate_data_with_gate(fx, gated)
@@ -210,7 +210,7 @@ test_that("gather_compute consumes the rate constraint natively (== default)", {
   expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
 })
 
-test_that("default_c consumes the rate constraint natively (== default)", {
+test_that("cpp consumes the rate constraint natively (== r)", {
   fx <- make_rate_fixture()
   gated <- setdiff(seq_len(fx$n), fx$observed_senders)[1:5]
   d <- rate_data_with_gate(fx, gated)

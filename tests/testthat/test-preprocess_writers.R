@@ -105,7 +105,7 @@ test_that("gather output for rate models is internally consistent", {
   skip_on_cran()
   # gather_model_data() errors on one-mode rate (twomode_or_reflexive = FALSE
   # with a single receiver column); the gather writer follows the working
-  # gather_compute estimation path (twomode_or_reflexive = TRUE) instead.
+  # gather backend's estimation path (twomode_or_reflexive = TRUE) instead.
   gathered <- compute_statistics(
     calls_dependent ~ 1 + indeg + outdeg,
     model = "DyNAM",

@@ -1,7 +1,7 @@
 # Cross-engine agreement for the shared C++ stable-softmax helper.
 # The converged-coefficient cross-engine checks in test-cpp_interface.R only
 # exercise benign predictors at the optimum; here we drive the exported
-# default_c multinomial estimators at a FIXED extreme parameter and confirm they
+# cpp multinomial estimators at a FIXED extreme parameter and confirm they
 # agree with the R stable-softmax contribution path (finite logL / score /
 # information where the earlier code overflowed to NaN or underflowed to -Inf).
 
@@ -22,7 +22,7 @@ empty_update <- matrix(numeric(0), 4, 0)
 empty_presence_update <- matrix(numeric(0), 2, 0)
 zero_pointer <- 0
 
-test_that("default_c DyNAM-choice matches R stable softmax at extreme beta", {
+test_that("cpp DyNAM-choice matches R stable softmax at extreme beta", {
   skip_on_cran()
   n1 <- 4L
   n2 <- 4L
@@ -78,7 +78,7 @@ test_that("default_c DyNAM-choice matches R stable softmax at extreme beta", {
   expect_true(all(is.finite(res$fisher)))
 })
 
-test_that("default_c rate-ordered matches R stable softmax at extreme beta", {
+test_that("cpp rate-ordered matches R stable softmax at extreme beta", {
   skip_on_cran()
   n1 <- 4L
   n2 <- 4L

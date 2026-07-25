@@ -47,7 +47,7 @@ event_scores_specs <- function() {
   )]
 }
 
-test_that("column sums of event_scores equal the aggregate score (default_c)", {
+test_that("column sums of event_scores equal the aggregate score (cpp)", {
   skip_on_cran()
   data_list <- list(social_evolution = baselines_social_evolution_data())
   for (nm in names(event_scores_specs())) {

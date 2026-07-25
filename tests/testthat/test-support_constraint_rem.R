@@ -112,7 +112,7 @@ test_that("a restricting REM constraint changes the estimate", {
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
 
-test_that("gather_compute / default_c consume the REM constraint natively", {
+test_that("gather / cpp consume the REM constraint natively", {
   fx <- make_rem_fixture(n_events = 40L)
   d <- rem_data(fx, n_excluded = 50L)
   spec <- calls_dependent ~ 1 + inertia + recip
@@ -202,7 +202,7 @@ test_that("a restricting REM rate_ordered constraint changes the estimate", {
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
 
-test_that("REM rate_ordered constraint runs natively on gather / default_c", {
+test_that("REM rate_ordered constraint runs natively on gather / cpp", {
   fx <- make_rem_fixture(n_events = 40L)
   d <- rem_data(fx, n_excluded = 50L)
   spec <- calls_dependent ~ inertia + recip

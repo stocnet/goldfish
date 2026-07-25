@@ -1,6 +1,6 @@
 # optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead") and the
 # maxLik-backed adapter. newton_raphson is the built-in loop; the
-# other three run maxLik::maxLik() over the default_c evaluator.
+# other three run maxLik::maxLik() over the cpp evaluator.
 
 test_that("set_algorithm_newton validates the optimizer against the flat list", {
   expect_identical(set_algorithm_newton()$optimizer, "newton_raphson")

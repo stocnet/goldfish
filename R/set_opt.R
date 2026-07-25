@@ -392,10 +392,18 @@ LEGACY_ENGINE_BACKENDS <- stats::setNames(
   BACKEND_ENGINE_TOKENS
 )
 
-# Name a resolved engine token in the vocabulary the user selects it with, so
-# estimation messages speak of backends even though the options carry tokens.
-engine_backend <- function(engine) {
-  unname(LEGACY_ENGINE_BACKENDS[[engine]])
+# The backend an algorithm-control object selects. A control list built before
+# 2.0.0 carries only the legacy `engine` token (`set_estimation_opt()` since
+# 1.7.0, or `set_algorithm_newton()` in the 1.9 line) — restored from an .rds or
+# built once in a long-lived script — so its token resolves here on read.
+# Deliberately silent: the deprecated surface already warned when the object was
+# constructed, and warning again at estimation time would charge a serialized
+# object twice for one mistake.
+algo_backend <- function(control_algo) {
+  if (!is.null(control_algo$backend)) {
+    return(control_algo$backend)
+  }
+  unname(LEGACY_ENGINE_BACKENDS[[control_algo$engine]])
 }
 
 # Translate a pre-2.0.0 `engine` value to its backend spelling, leaving anything

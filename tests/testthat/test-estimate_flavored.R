@@ -240,3 +240,78 @@ test_that("the container prints a section per flavor", {
     }
   )
 })
+
+test_that("flavored gather is fid-keyed and carries the process_map", {
+  data <- flavored_fixture_data()
+  spec <- make_specification(
+    choice = list(creation ~ trans, dissolution ~ trans),
+    model = "DyNAM",
+    data = data
+  )
+  gathered <- suppressWarnings(compute_statistics(
+    spec,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  ))
+
+  map <- attr(gathered, "process_map")
+  expect_s3_class(gathered, "flavored_statistics.goldfish")
+  expect_named(gathered, as.character(map$fid))
+  expect_setequal(map$flavor, c("creation", "dissolution"))
+  # The keying is the estimation container's keying, not a parallel convention.
+  container <- suppressWarnings(estimate_dynam(spec))
+  expect_identical(map$fid, container$process_map$fid)
+  expect_identical(map$flavor, container$process_map$flavor)
+})
+
+test_that("a per-fid gather stack equals its single-flavor run", {
+  data <- flavored_fixture_data()
+  flavored <- suppressWarnings(compute_statistics(
+    make_specification(
+      choice = list(creation ~ trans, dissolution ~ trans),
+      model = "DyNAM",
+      data = data
+    ),
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  ))
+  map <- attr(flavored, "process_map")
+
+  singles <- list(
+    creation = creation ~ trans,
+    dissolution = dissolution ~ trans
+  )
+  for (flavor in names(singles)) {
+    single <- suppressWarnings(compute_statistics(
+      make_specification(
+        choice = list(singles[[flavor]]),
+        model = "DyNAM",
+        data = data
+      ),
+      model = "DyNAM",
+      sub_model = "choice",
+      output = "gather"
+    ))
+    fid <- map$fid[map$flavor == flavor]
+    expect_equal(flavored[[as.character(fid)]], single, info = flavor)
+  }
+})
+
+test_that("flavored db output refuses rather than merging processes", {
+  data <- flavored_fixture_data()
+  expect_snapshot(
+    error = TRUE,
+    compute_statistics(
+      make_specification(
+        choice = list(creation ~ trans, dissolution ~ trans),
+        model = "DyNAM",
+        data = data
+      ),
+      model = "DyNAM",
+      sub_model = "choice",
+      output = "db"
+    )
+  )
+})

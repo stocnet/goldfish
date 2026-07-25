@@ -133,6 +133,18 @@ test_that("an unknown backend aborts naming the vocabulary", {
   expect_snapshot(set_algorithm_newton(backend = "fortran"), error = TRUE)
 })
 
+test_that("a pre-2.0.0 control object resolves its legacy engine token", {
+  # A control list built by any pre-2.0.0 constructor carries only `engine`
+  # (e.g. restored from an .rds); the read shim resolves it silently.
+  for (token in names(LEGACY_ENGINE_BACKENDS)) {
+    legacy <- list(engine = token)
+    expect_equal(algo_backend(legacy), LEGACY_ENGINE_BACKENDS[[token]])
+    expect_no_warning(algo_backend(legacy))
+  }
+  # A 2.0.0 object answers from its own component.
+  expect_equal(algo_backend(list(backend = "gather")), "gather")
+})
+
 test_that("convergence_criterion is deprecated in favor of score_tol", {
   expect_snapshot(invisible(set_algorithm_newton(convergence_criterion = 1e-4)))
 })
