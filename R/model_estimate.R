@@ -876,6 +876,7 @@ preprocess_recipe <- function(
   work_env,
   support_constraint = NULL,
   writer = writer_default(),
+  new_writer = writer_default,
   work_data = NULL,
   modeled_flavor = NULL,
   flavor_plan = NULL
@@ -907,7 +908,8 @@ preprocess_recipe <- function(
   } else {
     build_consumer_specs(
       flavor_plan$consumers,
-      spec_map$plan$support_constraints
+      spec_map$plan$support_constraints,
+      new_writer = new_writer
     )
   }
   # The recipe loop realizes derived inputs (from plan$derivations) and fetches
@@ -1840,15 +1842,19 @@ estimate_wrapper <- function(
     if (progress) {
       cat("Starting preprocessing.\n")
     }
-    writer <- switch(
+    # A factory rather than a single instance: each consumer of a multi-flavor
+    # walk needs its own writer (its own buffers), and they must be of the
+    # requested output's kind so a flavored gather/db output renders per fid
+    # through the same render stage as the single-output path.
+    new_writer <- switch(
       output,
-      default = writer_default(),
-      gather = writer_gather(),
-      db = writer_db(
-        control_prep$db,
-        control_prep$db_table
-      )
+      default = writer_default,
+      gather = writer_gather,
+      db = function() {
+        writer_db(control_prep$db, control_prep$db_table)
+      }
     )
+    writer <- new_writer()
     # Preprocess through the model's front-end: recipe (DyNAM/REM)
     # compiles + dispatches on the spec_map; DyNAMi runs its isolated path and
     # leaves `spec_map` NULL (the printing step falls back to `GetDetailPrint`).
@@ -1889,6 +1895,7 @@ estimate_wrapper <- function(
         work_env,
         support_constraint = constraint_plan,
         writer = writer,
+        new_writer = new_writer,
         work_data = work_data,
         modeled_flavor = modeled_flavor,
         flavor_plan = flavor_plan

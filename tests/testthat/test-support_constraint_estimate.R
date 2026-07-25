@@ -141,6 +141,66 @@ test_that("a support_constraint actually restricts the risk set (vs unconstraine
   expect_gt(max(abs(coef(m_cstr) - coef(m_unc))), 1e-4)
 })
 
+test_that("a constrained gather emits only the allowed candidates", {
+  # The gather product is rendered AFTER the constraint folds, so the expansion
+  # enumerates the post-fold risk set. Before the writer render stage this path
+  # errored (the fold ran on a stack with no `event_time`); it had never had a
+  # test despite 20 files exercising `support_constraint`.
+  fx <- make_estimate_fixture()
+  g_cstr <- compute_statistics(
+    calls_dependent ~ inertia + recip,
+    data = fx$data,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather",
+    support_constraint = ~ tie(allowedNet)
+  )
+  g_unc <- compute_statistics(
+    calls_dependent ~ inertia + recip,
+    data = fx$data,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  )
+  # The constraint removes candidate rows, never adds them.
+  expect_lt(sum(g_cstr$n_candidates), sum(g_unc$n_candidates))
+  # Per event the candidate count is exactly the sender's allowed-receiver
+  # count: the static allowed-dyad network reduced to the choice risk set.
+  expected <- unname(rowSums(fx$allowed)[fx$obs[, 1]])
+  expect_identical(as.integer(g_cstr$n_candidates), as.integer(expected))
+  expect_equal(nrow(g_cstr$stat_all_events), sum(g_cstr$n_candidates))
+})
+
+test_that("a point-encoded stored object renders through the gather stage", {
+  # The fold upgrades availability to the `point` encoding; the gather expansion
+  # must read that encoding (as estimation does) rather than flatten the dense
+  # mask as a vector. This is the replay surface -- a stored constrained object
+  # converted to a stack -- independent of how the object was produced.
+  fx <- make_estimate_fixture()
+  prep <- compute_statistics(
+    calls_dependent ~ inertia + recip,
+    data = fx$data,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "preprocessed",
+    support_constraint = ~ tie(allowedNet)
+  )
+  expect_identical(prep$active_dyad_encoding, "point")
+
+  direct <- compute_statistics(
+    calls_dependent ~ inertia + recip,
+    data = fx$data,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather",
+    support_constraint = ~ tie(allowedNet)
+  )
+  rendered <- gather_from_prep(prep, prep$model_spec)
+  expect_equal(rendered$n_candidates, direct$n_candidates)
+  expect_equal(rendered$selected, direct$selected)
+  expect_equal(unname(rendered$stat_all_events), unname(direct$stat_all_events))
+})
+
 test_that("an observed dyad excluded by its own constraint errors", {
   fx <- make_estimate_fixture(n_events = 60L)
   # `~ tie(call_network)` excludes the very first call (no prior tie exists yet).

@@ -369,28 +369,31 @@ finalize_consumers <- function(
   finish_output,
   scalar_entity = "sender"
 ) {
+  # The writer contract is three staged calls: `finalize()` assembles the
+  # default shape, `finish_output()` realizes and folds the support constraint
+  # on it (it still carries `event_time` and the availability encoding), and
+  # `render()` produces the writer's product from the folded object. Rendering
+  # last is what lets a candidate-enumerating product (the gather stack) expand
+  # only the post-fold risk set.
   if (is.null(consumer_specs)) {
-    return(finish_output(
-      consumers[[1L]]$writer$finalize(tail),
-      default_constraint
-    ))
+    writer <- consumers[[1L]]$writer
+    out <- finish_output(writer$finalize(tail), default_constraint)
+    return(writer$render(out, tail$spec))
   }
 
   outputs <- lapply(names(consumers), function(fl) {
     cspec <- consumer_specs[[fl]]
+    writer <- consumers[[fl]]$writer
     flavor_tail <- tail
     flavor_tail$initialStats <- project_initial_stats(
       tail$initialStats,
       cspec$effect_map
     )
-    out <- finish_output(
-      consumers[[fl]]$writer$finalize(flavor_tail),
-      cspec$constraint
-    )
+    out <- finish_output(writer$finalize(flavor_tail), cspec$constraint)
     if (!is.null(out$avg_active_entity)) {
       out$avg_active_entity <- time_weighted_risk_set(out, scalar_entity)
     }
-    out
+    writer$render(out, flavor_tail$spec)
   })
   names(outputs) <- names(consumers)
   outputs

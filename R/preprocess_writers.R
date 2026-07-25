@@ -235,7 +235,13 @@ writer_default <- function() {
           intercept_scalars = tail$intercept_scalars,
           has_intercept = has_intercept
         )
-      }
+      },
+      # The render stage turns the assembled object into the writer's product.
+      # It runs AFTER the support constraint is realized and folded (see
+      # `finalize_consumers()`), so a product that enumerates candidates -- the
+      # gather stack -- expands the post-fold risk set rather than the full one.
+      # For the default writer the product is the assembled object itself.
+      render = function(out, spec) out
     ),
     class = c("writer_default", "preprocess_writer")
   )
@@ -260,10 +266,12 @@ writer_gather <- function() {
       output = "gather",
       init = base$init,
       write_event = base$write_event,
-      finalize = function(tail) {
-        prep <- base$finalize(tail)
-        gather_from_prep(prep, tail$spec)
-      }
+      # `finalize()` returns the assembled default shape so the constraint can be
+      # realized and folded on an object that still carries `event_time` and the
+      # availability encoding; the gather expansion happens in `render()`, after
+      # the fold, so it enumerates only the candidates the constraint allows.
+      finalize = base$finalize,
+      render = function(out, spec) gather_from_prep(out, spec)
     ),
     class = c("writer_gather", "preprocess_writer")
   )
@@ -305,7 +313,11 @@ writer_db <- function(db = NULL, db_table = "stats") {
       db_table = db_table,
       init = base$init,
       write_event = base$write_event,
-      finalize = base$finalize
+      # Persistence stays in `write_gather_to_db()` after the effect names
+      # resolve; the writer's product is the same rendered gather stack as
+      # `writer_gather()`, so both finalize and render are inherited from it.
+      finalize = base$finalize,
+      render = base$render
     ),
     class = c("writer_db", "writer_gather", "preprocess_writer")
   )
@@ -437,6 +449,15 @@ gather_from_prep <- function(prep, spec) {
   }
   active_sender_init <- statsList$active_sender_init
   active_dyad_init <- statsList$active_dyad_init
+  # Folding a support constraint upgrades the availability to the `point`
+  # encoding (a dense n1 x n2 mask). The gather expansion must read that
+  # encoding, exactly as `estimate_c_int()` does, or it flattens the matrix as a
+  # length-n2 vector and indexes past the statistics matrix.
+  active_dyad_encoding <- if (is.null(statsList$active_dyad_encoding)) {
+    "alter"
+  } else {
+    statsList$active_dyad_encoding
+  }
 
   if (is_rate_model) {
     n_parameters <- ncol(statsList$initialStats)
@@ -509,7 +530,8 @@ gather_from_prep <- function(prep, spec) {
     n_actors2 = n_actors2,
     twomode_or_reflexive = twomode_or_reflexive,
     verbose = FALSE,
-    impute = FALSE
+    impute = FALSE,
+    active_dyad_encoding = active_dyad_encoding
   )
 
   gathered_data$selected <- gathered_data$selected +
