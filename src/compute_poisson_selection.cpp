@@ -22,8 +22,15 @@ List compute_poisson_selection(
     const arma::uvec& n_candidates,
     const arma::uvec& selected,
     const arma::vec& timespan,
-    const arma::vec& is_dependent
+    const arma::vec& is_dependent,
+    const arma::uvec& index_i,
+    const arma::uvec& index_j
 ) {
+    // `index_i` / `index_j` are the 0-based per-row actor slots the shared
+    // margin reduction scatters into; an empty vector means this shape has no
+    // such axis. Threaded here ahead of the accumulators that consume them.
+    (void) index_i;
+    (void) index_j;
     int n_events = timespan.size();
     int n_parameters = parameters.size();
     // declare auxilliary variables

@@ -371,6 +371,8 @@ estimate_c_int <- function(
         timespan = timespan,
         is_dependent = is_dependent,
         twomode_or_reflexive = twomode_or_reflexive,
+        index_i = gathered_data$index_i,
+        index_j = gathered_data$index_j,
         sender_of_row = gathered_data$sender_of_row,
         dyad_partner = gathered_data$dyad_partner
       )
@@ -1571,6 +1573,17 @@ gather_sender_model_r <- function(
 
 
 ## COMPUTE FOR DIFFERENT MODELS
+# Translate a gather stack's 1-based per-row actor index into the 0-based slots
+# the shared C++ reduction scatters margins into. An absent axis -- the sender
+# models carry `index_j = NA` after reducing the receiver axis away -- becomes
+# an empty vector, which the kernel reads as "this side does not exist".
+margin_slots <- function(index) {
+  if (is.null(index) || length(index) == 0 || all(is.na(index))) {
+    return(integer(0))
+  }
+  as.integer(index) - 1L
+}
+
 # The likelihood kernel is selected by the spec's normalizer, not a model-type
 # string: multinomial (choice / ordinal rate), Poisson (rate), or coordination.
 compute_ <- function(
@@ -1582,15 +1595,25 @@ compute_ <- function(
   timespan,
   is_dependent,
   twomode_or_reflexive,
+  index_i = NULL,
+  index_j = NULL,
   sender_of_row = NULL,
   dyad_partner = NULL
 ) {
+  # Per-row actor slots for the margin sides, as the shared reduction wants
+  # them: 0-based, and empty for an axis this shape does not have (the sender
+  # models reduce away the receiver axis and carry index_j = NA).
+  margin_i <- margin_slots(index_i)
+  margin_j <- margin_slots(index_j)
+
   if (identical(risk_set_normalizer(spec), "multinomial")) {
     res <- compute_multinomial_selection(
       parameters,
       stat_all_events,
       n_candidates,
-      selected
+      selected,
+      margin_i,
+      margin_j
     )
   }
 
@@ -1601,7 +1624,9 @@ compute_ <- function(
       n_candidates,
       selected,
       timespan,
-      is_dependent
+      is_dependent,
+      margin_i,
+      margin_j
     )
   }
 

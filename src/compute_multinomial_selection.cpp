@@ -19,8 +19,15 @@ List compute_multinomial_selection(
     arma::colvec& parameters,
     const arma::mat& stat_all_events,
     const arma::uvec& n_candidates,
-    const arma::uvec& selected
+    const arma::uvec& selected,
+    const arma::uvec& index_i,
+    const arma::uvec& index_j
 ) {
+    // `index_i` / `index_j` are the 0-based per-row actor slots the shared
+    // margin reduction scatters into; an empty vector means this shape has no
+    // such axis. Threaded here ahead of the accumulators that consume them.
+    (void) index_i;
+    (void) index_j;
     int n_events = selected.size();
     int n_parameters = parameters.size();
     // declare auxilliary variables

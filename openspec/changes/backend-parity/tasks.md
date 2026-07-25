@@ -110,7 +110,7 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
 
 ## 3. The gather backend
 
-- [ ] 3.1 Thread the per-row actor index into the gather kernel dispatch:
+- [x] 3.1 Thread the per-row actor index into the gather kernel dispatch:
       `index_i` / `index_j` from the gather stack through
       `R/cpp_interface.R` into `compute_multinomial_selection()` and
       `compute_poisson_selection()` signatures (coordination already receives

@@ -215,8 +215,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // compute_multinomial_selection
-List compute_multinomial_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected);
-RcppExport SEXP _goldfish_compute_multinomial_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP) {
+List compute_multinomial_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::uvec& index_i, const arma::uvec& index_j);
+RcppExport SEXP _goldfish_compute_multinomial_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP index_iSEXP, SEXP index_jSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -224,13 +224,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type stat_all_events(stat_all_eventsSEXP);
     Rcpp::traits::input_parameter< const arma::uvec& >::type n_candidates(n_candidatesSEXP);
     Rcpp::traits::input_parameter< const arma::uvec& >::type selected(selectedSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_multinomial_selection(parameters, stat_all_events, n_candidates, selected));
+    Rcpp::traits::input_parameter< const arma::uvec& >::type index_i(index_iSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type index_j(index_jSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_multinomial_selection(parameters, stat_all_events, n_candidates, selected, index_i, index_j));
     return rcpp_result_gen;
 END_RCPP
 }
 // compute_poisson_selection
-List compute_poisson_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::vec& timespan, const arma::vec& is_dependent);
-RcppExport SEXP _goldfish_compute_poisson_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP timespanSEXP, SEXP is_dependentSEXP) {
+List compute_poisson_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::vec& timespan, const arma::vec& is_dependent, const arma::uvec& index_i, const arma::uvec& index_j);
+RcppExport SEXP _goldfish_compute_poisson_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP timespanSEXP, SEXP is_dependentSEXP, SEXP index_iSEXP, SEXP index_jSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -240,7 +242,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::uvec& >::type selected(selectedSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type timespan(timespanSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type is_dependent(is_dependentSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_poisson_selection(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent));
+    Rcpp::traits::input_parameter< const arma::uvec& >::type index_i(index_iSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type index_j(index_jSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_poisson_selection(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -308,8 +312,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_goldfish_estimate_REM", (DL_FUNC) &_goldfish_estimate_REM, 24},
     {"_goldfish_estimate_REM_ordered", (DL_FUNC) &_goldfish_estimate_REM_ordered, 21},
     {"_goldfish_compute_coordination_selection", (DL_FUNC) &_goldfish_compute_coordination_selection, 6},
-    {"_goldfish_compute_multinomial_selection", (DL_FUNC) &_goldfish_compute_multinomial_selection, 4},
-    {"_goldfish_compute_poisson_selection", (DL_FUNC) &_goldfish_compute_poisson_selection, 6},
+    {"_goldfish_compute_multinomial_selection", (DL_FUNC) &_goldfish_compute_multinomial_selection, 6},
+    {"_goldfish_compute_poisson_selection", (DL_FUNC) &_goldfish_compute_poisson_selection, 8},
     {"_goldfish_C_convert_composition_change", (DL_FUNC) &_goldfish_C_convert_composition_change, 2},
     {"_goldfish_convert_composition_change", (DL_FUNC) &_goldfish_convert_composition_change, 2},
     {"_goldfish_convert_change", (DL_FUNC) &_goldfish_convert_change, 1},

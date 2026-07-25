@@ -254,3 +254,23 @@ test_that("the R mirror agrees on a single side with implicit slots", {
   )
   expect_equal(mirrored[[1]]$observed, as.vector(cpp$observed_a))
 })
+
+# --- gather index boundary ---------------------------------------------------
+# `margin_slots()` translates a gather stack's 1-based per-row actor index into
+# the 0-based slots the C++ reduction scatters into. The NA case is the one that
+# matters: the sender models reduce the receiver axis away and carry
+# `index_j = NA`, and NA_integer_ read into an unsigned index would be garbage
+# rather than an error.
+
+margin_slots <- getFromNamespace("margin_slots", "goldfish")
+
+test_that("margin_slots zero-bases a present axis", {
+  expect_identical(margin_slots(c(1L, 1L, 2L, 3L)), c(0L, 0L, 1L, 2L))
+})
+
+test_that("margin_slots reports an absent axis as empty", {
+  # The sender models' index_j, and the defensive NULL / zero-length cases.
+  expect_identical(margin_slots(rep(NA_integer_, 4)), integer(0))
+  expect_identical(margin_slots(NULL), integer(0))
+  expect_identical(margin_slots(integer(0)), integer(0))
+})
