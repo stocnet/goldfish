@@ -455,10 +455,10 @@ run_nr_loop <- function(
       # print(informationMatrix)
     }
 
-    stepAccepted <- !any(is.na(unlist(res))) &&
+    step_accepted <- !has_unexpected_na(res) &&
       is.finite(logLikelihood) &&
       logLikelihood > logLikelihood.old
-    if (!stepAccepted) {
+    if (!step_accepted) {
       if (verbose) {
         cat(
           "\nNo improvement in estimation.",
@@ -523,7 +523,7 @@ run_nr_loop <- function(
       score = score,
       log_likelihood = logLikelihood,
       update = update,
-      step_accepted = stepAccepted,
+      step_accepted = step_accepted,
       score_tol = score_tol,
       step_tol = step_tol
     )

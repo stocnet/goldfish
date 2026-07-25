@@ -465,3 +465,49 @@ test_that("a right-censored interval's NA rank is not read as a failure", {
   expect_true(all(is.na(fit$observed_rank[fit$right_censored_events])))
   expect_true(all(!is.na(fit$observed_rank[!fit$right_censored_events])))
 })
+
+# The guard above runs once, at the initial parameters. The Newton loop scans
+# the same result again every iteration to decide whether to accept a step, so
+# a by-design NA has to be excluded there too. `indeg(networkExog)` is what
+# gives this fixture right-censored intervals at all: an effect on an exogenous
+# network turns that network's events into likelihood intervals with no mover,
+# which is why the plain `~ 1 + indeg` fixture above cannot exercise either
+# guard (it preprocesses to zero censored intervals).
+test_that("requesting ranks does not perturb a free fit with censored events", {
+  formula <- depNetwork ~ 1 + indeg(networkExog)
+  fit_free <- function(diagnostics, backend) {
+    suppressWarnings(estimate_wrapper(
+      formula,
+      model = "DyNAM",
+      sub_model = "rate",
+      data = dataTest,
+      control_algo = set_algorithm_newton(
+        backend = backend,
+        diagnostics = diagnostics
+      )
+    ))
+  }
+
+  for (backend in c("cpp", "gather")) {
+    reference <- fit_free("loglik", backend)
+    expect_gt(sum(reference$right_censored_events), 0)
+
+    # Before the step-acceptance guard learned to skip `observed_rank`, every
+    # step was rejected as a numerical failure and the first reset restored a
+    # NULL information matrix, surfacing as "Matrix cannot be inverted".
+    with_ranks <- expect_no_error(fit_free(c("loglik", "ranks"), backend))
+    expect_equal(
+      coef(with_ranks),
+      coef(reference),
+      info = backend
+    )
+    expect_true(
+      all(is.na(with_ranks$observed_rank[with_ranks$right_censored_events])),
+      info = backend
+    )
+    expect_true(
+      all(!is.na(with_ranks$observed_rank[!with_ranks$right_censored_events])),
+      info = backend
+    )
+  }
+})

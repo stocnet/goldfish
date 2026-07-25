@@ -5,12 +5,13 @@
 #
 ##################### ###
 
-# The initial-parameters guard scans the kernel result for NA, which means "the
-# likelihood could not be evaluated here". Some opt-in per-event components
-# carry NA by DESIGN and must be excluded, or the guard reports a numerical
-# failure that did not happen: `observed_rank` is allocated NA-filled and
-# written only for dependent events, so any model with a right-censored
-# interval leaves NAs behind whenever ranks are requested.
+# Both NA guards on the kernel result -- the initial-parameters check and the
+# Newton loop's step acceptance -- read NA as "the likelihood could not be
+# evaluated here". Some opt-in per-event components carry NA by DESIGN and must
+# be excluded, or the guards report a numerical failure that did not happen:
+# `observed_rank` is allocated NA-filled and written only for dependent events,
+# so any model with a right-censored interval leaves NAs behind whenever ranks
+# are requested.
 diagnostic_components_with_na <- c("observed_rank")
 
 has_unexpected_na <- function(res) {
@@ -467,10 +468,10 @@ estimate_c_int <- function(
       # print(informationMatrix)
     }
 
-    stepAccepted <- !any(is.na(unlist(res))) &&
+    step_accepted <- !has_unexpected_na(res) &&
       is.finite(logLikelihood) &&
       logLikelihood > logLikelihood.old
-    if (!stepAccepted) {
+    if (!step_accepted) {
       if (verbose) {
         cat(
           "\nNo improvement in estimation.",
@@ -538,7 +539,7 @@ estimate_c_int <- function(
       score = score,
       log_likelihood = logLikelihood,
       update = update,
-      step_accepted = stepAccepted,
+      step_accepted = step_accepted,
       score_tol = score_tol,
       step_tol = step_tol
     )
