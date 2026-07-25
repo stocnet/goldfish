@@ -76,7 +76,7 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       it. Tests: each backend's fit carries the matching value (the three-way
       spec scenario); a fit stripped of the component passes the
       NULL-tolerance contract everywhere the package itself gates on it.
-- [ ] 1.5 Remove the superseded EM prototype from `R/` (D18): `git rm`
+- [x] 1.5 Remove the superseded EM prototype from `R/` (D18): `git rm`
       `R/functions_estimate_emdynam.R` and `R/functions_preprocess_em.R`,
       moving the working copies into `.plan/DyNES/` beside the helper half they
       call (`sgd_refactor()`, `get_weights()`, the resampling schemes,

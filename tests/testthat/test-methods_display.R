@@ -1,7 +1,8 @@
 test_that("summary goldfish", {
   objSum <- summary(resModObject)
   expect_s3_class(objSum, "summary.result.goldfish")
-  expect_length(objSum, 18)
+  # 19 since the fit carries the backend that produced it.
+  expect_length(objSum, 19)
   expect_true(inherits(objSum$coefMat, "array"))
   expect_type(objSum$coefMat, "double")
   expect_length(objSum$coefMat, resModObject$nParams * 4)
