@@ -11,8 +11,12 @@
 # be excluded, or the guards report a numerical failure that did not happen:
 # `observed_rank` is allocated NA-filled and written only for dependent events,
 # so any model with a right-censored interval leaves NAs behind whenever ranks
-# are requested.
-diagnostic_components_with_na <- c("observed_rank")
+# are requested. `conditional_logl` (the Cox partial-likelihood component of the
+# exact-time loglik) is NA on right-censored intervals for the same reason: a
+# censored interval realizes no mover, so log p_obs is undefined there. This is
+# the ONLY place the by-design-NA exclusion list lives -- any future per-event
+# NA scan MUST route through this guard, never an ad-hoc is.na() sweep.
+diagnostic_components_with_na <- c("observed_rank", "conditional_logl")
 
 has_unexpected_na <- function(res) {
   scanned <- res[setdiff(names(res), diagnostic_components_with_na)]

@@ -324,6 +324,83 @@ test_that("total_rate is stored only for exact-time submodels", {
   expect_null(fit_no_loglik$total_rate)
 })
 
+# conditional_logl (the "which" component of the exact-time loglik, the Cox
+# partial-likelihood contribution log p_obs) is NA on right-censored intervals
+# by design: a censored interval realizes no mover, so there is no observed
+# alternative to condition on (D21). The gather Poisson kernel previously stored
+# a placeholder (lin_pred[selected] - lse, `selected` being the exogenous
+# event's actor) there; it now stores NA at exactly those positions, matching
+# the r backend. `indeg(networkExog)` -- an effect on an exogenous network -- is
+# what gives this fixture right-censored intervals at all, so the precondition
+# is asserted rather than assumed (the vacuous-fixture trap of D21).
+test_that("gather conditional_logl is NA on right-censored intervals only", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  formula <- depNetwork ~ 1 + indeg + outdeg(networkExog, weighted = TRUE)
+
+  # A converged gather fit supplies the fixed parameter vector both fits share.
+  conv <- suppressWarnings(estimate_wrapper(
+    formula,
+    model = "DyNAM",
+    sub_model = "rate",
+    data = dataTest,
+    control_prep = set_preprocessing(start_time = 0),
+    control_algo = set_algorithm_newton(
+      backend = "gather",
+      diagnostics = "loglik"
+    )
+  ))
+  params <- conv$parameters
+
+  fit_gather <- suppressWarnings(estimate_wrapper(
+    formula,
+    model = "DyNAM",
+    sub_model = "rate",
+    data = dataTest,
+    control_prep = set_preprocessing(start_time = 0),
+    control_algo = set_algorithm_newton(
+      backend = "gather",
+      diagnostics = "loglik",
+      initial_parameters = params,
+      max_iterations = 0
+    )
+  ))
+
+  censored <- fit_gather$right_censored_events
+  # Precondition: the fixture must actually carry a right-censored interval, or
+  # every NA assertion below would pass vacuously.
+  expect_gt(sum(censored), 0)
+
+  expect_false(is.null(fit_gather$conditional_logl))
+  # NA at exactly the censored positions, finite log-probabilities elsewhere.
+  expect_true(all(is.na(fit_gather$conditional_logl[censored])))
+  expect_true(all(!is.na(fit_gather$conditional_logl[!censored])))
+  expect_true(all(fit_gather$conditional_logl[!censored] <= 0))
+
+  # Independent r-backend reference: the conditional component log p_obs is the
+  # ordinal ("which", timing removed) per-event log-likelihood, so a DyNAM
+  # rate_ordered fit at the same non-intercept coefficients reproduces it
+  # through an entirely different kernel (the intercept cancels in the softmax).
+  ord_r <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ indeg + outdeg(networkExog, weighted = TRUE),
+    model = "DyNAM",
+    sub_model = "rate_ordered",
+    data = dataTest,
+    control_prep = set_preprocessing(start_time = 0),
+    control_algo = set_algorithm_newton(
+      backend = "r",
+      return_interval_loglik = TRUE,
+      initial_parameters = params[-1],
+      max_iterations = 0
+    )
+  ))
+  expect_equal(
+    fit_gather$conditional_logl[!censored],
+    ord_r$intervalLogL,
+    tolerance = 1e-10
+  )
+})
+
 test_that("large per-event storage emits a footprint note above the threshold", {
   # Pure helper: fires above the event threshold, silent below, and scales the
   # reported footprint with the requested primitives.

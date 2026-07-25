@@ -118,8 +118,17 @@ List compute_poisson_selection(
         double shifted_total = arma::sum(weights);
         double normalizer = std::exp(log_normalizer);
         total_rate(id_event) = normalizer;
-        conditional_logl(id_event) =
-          lin_pred_current_event(id_selected) - log_normalizer;
+        // The Cox partial-likelihood contribution log p_obs = x_obs - lse. A
+        // right-censored interval realizes no mover, so `id_selected` is a
+        // placeholder (the exogenous event's actor), not an observed
+        // alternative, and there is nothing to condition on: the component is
+        // NA there by design, matching the `r` backend (D21).
+        if (is_dependent_current_event) {
+          conditional_logl(id_event) =
+            lin_pred_current_event(id_selected) - log_normalizer;
+        } else {
+          conditional_logl(id_event) = NA_REAL;
+        }
         // go through all candidates. The reduction runs on the probability
         // scale p = w / sum(w) with the compensator scale Dt * T applied once
         // outside, since Dt * T * p_j == Dt * lambda_j. That keeps the only
