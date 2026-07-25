@@ -167,6 +167,9 @@ whose primitive-level consequences are invisible.
 - Changing which backend is the default, or any coefficient on `r` / `cpp`.
 - The `diagnostics` vocabulary, defaults and storage guardrail — owned by
   `residuals-gof`'s `diagnostic-primitives` capability (see D6).
+- **Sweeping the EM prototype's vocabulary — the fragment leaves `R/`
+  instead** (D18). Not an exclusion with a dangling pointer: the two files are
+  removed by this change rather than maintained in either vocabulary.
 
 ## Decisions
 
@@ -569,6 +572,67 @@ Schoenfeld residual, Appendix eq. 3) is by the same interview NOT stored:
 `event_scores` stays the estimation score, whose column-sums identity is its
 test anchor, and `residuals(type = "schoenfeld")` derives the conditional
 variant on demand.
+
+### D18 — The EM prototype leaves `R/` rather than being swept
+
+Task 1.3 migrated five `set_algorithm_newton(engine = "default")` calls in
+`R/functions_preprocess_em.R` off the deprecated argument, and then its
+verification failed in an informative way: the planned behavioral gate could not
+run, because the code cannot execute. What the grounding found:
+
+- `estimate_emdynam()` and `preprocess_emdynam_competition()` are the **driver
+  half** of a prototype. The helper half — `sgd_refactor()`, `get_weights()`,
+  `residual_resample()`, `stratified_resample()`, `getChainSample()`,
+  `computeSupportConstrain()` — exists only in `.plan/DyNES/`, and was never
+  brought into the package.
+- Neither function is exported; nothing in `R/`, `tests/`, `man/`, `inst/`,
+  `_pkgdown.yml` or `vignettes/` references either.
+- They call **14 functions that do not exist** anywhere resolvable, read 26 and
+  31 free variables from a calling frame they no longer have (they were written
+  to be `source()`d into a script environment), and use `parallel` and `dplyr`
+  without either being declared in DESCRIPTION.
+- `functions_estimate_emdynam.R:623` is `retunr(list(...))` — a typo for
+  `return`, which would abort on first execution. The code has never run in
+  this form, and it entered the package this way in a single bulk commit.
+- Those two files are the **entire** source of the package's undefined-global
+  surface: all 14 come from them, and removing them leaves none in `R/`.
+
+They are also superseded, not merely stale. `abmcem` productizes the same
+research line (confirmed 2026-07-25) as `set_algorithm_em()` / `estimate_dynes()`
+with the E-step weighting machinery and the SGD M-step — sourcing from
+`.plan/DyNES/`, the directory that holds this fragment's own missing helpers.
+
+**Decision.** The two files move to `.plan/DyNES/`, rejoining the helper half
+they were split from, and this change stops sweeping EM vocabulary. Because
+`.plan/*` is gitignored (three files excepted), the move takes them out of
+version control — deliberately, and consistently: the helper half was never
+tracked either, so afterwards the whole prototype lives in one untracked place
+instead of being split across a tracked driver and an untracked helper set. The
+content stays recoverable at `git show 628b4d7:R/functions_estimate_emdynam.R`,
+the same "history retains it" rule the repo already applies to archived changes.
+
+**Why here rather than in `abmcem`.** The Non-Goal and the removal are one
+thought; splitting them leaves this change pointing at a task in a change with
+20 open tasks that has not started, while 2.0.0 ships the fragment to CRAN
+in mid-August. `abmcem` gets a pointer note instead, so a later reader does not
+rediscover a fragment that is already gone.
+
+Task 1.3 is left as it stands: the removal subsumes it, and reverting five
+tokens in a file about to be deleted would only add a commit. The history reads
+"migrated, then removed", which is what happened.
+
+Rejected: keeping and sweeping it (maintains a superseded fragment forever, and
+the sweep is what exposed that it cannot run); keeping and excluding it (the two
+EM files are already split — `functions_estimate_emdynam.R` went to `backend`
+under the archived `backend-vocabulary`, so an exclusion would leave siblings on
+opposite vocabularies for no reason a reader could reconstruct);
+`.Rbuildignore` or `inst/prototypes/` (keeps it in git and out of the build, but
+separates the driver from its helpers again — the split that caused this).
+
+**Not fixed here:** `tests/testthat/helper-baselines.R` uses
+`parallel::detectCores()` / `parallel::mclapply()` while `parallel` is in
+neither Imports nor Suggests. A real gap, pre-existing and independent of the
+EM files; it does not belong to this change.
 
 ## Risks / Trade-offs
 

@@ -158,7 +158,18 @@ that silently lacks its input.
   "User-facing return_event_scores option", which `residuals-gof` also modifies. The two must
   not both carry a version of that requirement into the archive; the division is
   settled in design D6, and rebasing `residuals-gof`'s delta is a task here.
+- **Superseded EM prototype removed** (design D18): the vocabulary push found
+  `R/functions_estimate_emdynam.R` and `R/functions_preprocess_em.R` to be the
+  driver half of a prototype whose helper half lives only in `.plan/DyNES/` —
+  unexported, referenced nowhere, calling 14 functions that do not exist, and
+  carrying a `retunr(...)` typo proving it has never executed. `abmcem`
+  productizes the same research line as `set_algorithm_em()` /
+  `estimate_dynes()`. The two files move to `.plan/DyNES/` to rejoin their own
+  helpers rather than being maintained in either vocabulary; this removes the
+  package's entire undefined-global surface before the 2.0.0 CRAN submission.
 - **Not in scope**: the `opportunities_list` backend redirect (a preprocessing
   capability, not a per-event primitive), the timed-family Non-Goal that keeps
-  plain `exp()` for the absolute-scale hazard, and any new primitive beyond the
-  five `diagnostics` already names.
+  plain `exp()` for the absolute-scale hazard, any new primitive beyond the
+  five `diagnostics` already names, and the undeclared `parallel` dependency in
+  `tests/testthat/helper-baselines.R` (a real but pre-existing and unrelated
+  gap).

@@ -76,6 +76,17 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       it. Tests: each backend's fit carries the matching value (the three-way
       spec scenario); a fit stripped of the component passes the
       NULL-tolerance contract everywhere the package itself gates on it.
+- [ ] 1.5 Remove the superseded EM prototype from `R/` (D18): `git rm`
+      `R/functions_estimate_emdynam.R` and `R/functions_preprocess_em.R`,
+      moving the working copies into `.plan/DyNES/` beside the helper half they
+      call (`sgd_refactor()`, `get_weights()`, the resampling schemes,
+      `getChainSample()`, `computeSupportConstrain()`). Neither function is
+      exported, and nothing in `R/`, `tests/`, `man/`, `inst/`, `_pkgdown.yml`
+      or `vignettes/` references either, so nothing else moves with them.
+      Verification: `devtools::load_all()` clean; the package's undefined-global
+      surface drops to zero (all 14 came from these two files); `NOT_CRAN=true`
+      suite green with the frozen baselines PASS. Do **not** revert task 1.3 —
+      the removal subsumes it.
 
 ## 2. The shared reduction
 

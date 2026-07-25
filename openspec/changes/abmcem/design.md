@@ -25,6 +25,22 @@ preprocessed statistics). The loop therefore needs neither the batched C++
 evaluator nor the real augmenters to be implemented and validated — only
 contracts they can later fill.
 
+**A superseded fragment of this algorithm used to sit in the package.**
+`R/functions_estimate_emdynam.R` (`estimate_emdynam()`) and
+`R/functions_preprocess_em.R` (`preprocess_emdynam_competition()`) were the
+driver half of an earlier pass at this same research line — they called
+`sgd_refactor()`, `get_weights()`, `residual_resample()`,
+`stratified_resample()`, `getChainSample()` and `computeSupportConstrain()`,
+i.e. exactly the `.plan/dynes/` helpers listed above, which were never brought
+into the package. They were unexported, referenced by nothing, and could not
+execute (14 unresolvable functions, ~30 free variables read from an absent
+calling frame, and a `retunr(...)` typo). `backend-parity` removed them to
+`.plan/dynes/` (its design D18) so the whole prototype sits in one place. Noted
+here so this change is not read as duplicating something still in `R/`, and so
+a later reader does not go looking for a fragment that is deliberately gone:
+the algorithm lands here as `set_algorithm_em()` / `estimate_dynes()`, not as
+a revival of `estimate_emdynam()`.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -126,7 +142,7 @@ is an internal adapter reproducing the prototypes' pattern:
 - **Evaluate at any θ**: per sub-model, `estimate_wrapper()` with
   `preprocessed` = the stored statistics and
   `set_algorithm_newton(initial_parameters = theta_block, fixed_parameters = ...,
-  max_iterations = 0L, engine = "default")`, harvesting `logLikelihood`,
+  max_iterations = 0L, backend = "r")`, harvesting `logLikelihood`,
   `finalScore`, and `finalInformationMatrix`; θ is the concatenation across
   sub-models, split/reassembled by the adapter.
 - **`what` is honored at the harvest level** in v1 (the engine computes what it
