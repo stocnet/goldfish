@@ -89,7 +89,7 @@
 #'   standard errors from the outer product of gradients `crossprod(event_scores)`,
 #'   per-effect score-process diagnostics that localize where individual effects
 #'   drift over the event sequence, and event-influence measures. Only the
-#'   `"default_c"` and `"default"` engines support it; `"gather_compute"` aborts.
+#'   `"cpp"` and `"r"` backends support it; `"gather"` aborts.
 #' @param diagnostics Names the per-event diagnostic *primitives* estimation
 #'   stores on the fitted result, superseding the three `return_*` flags above.
 #'   Accepts a character vector drawn from
@@ -116,18 +116,23 @@
 #'      \item{nelder_mead}{Derivative-free Nelder-Mead, via `maxLik::maxLik()`.}
 #'    }
 #'   Any value other than `"newton_raphson"` requires the \pkg{maxLik} package
-#'   (in `Suggests`) and runs only on the `"default_c"` engine. Default is
+#'   (in `Suggests`) and runs only on the `"cpp"` backend. Default is
 #'   `"newton_raphson"`.
-#' @param engine A character string specifying the estimation engine.
-#'   Options are:
+#' @param backend A character string naming the computational implementation
+#'   that runs the estimation. Options are:
 #'   \describe{
-#'      \item{default_c}{`C++` based implementation using RcppEigen
+#'      \item{cpp}{`C++` based implementation using RcppEigen
 #'       and RcppParallel.}
-#'      \item{default}{R-based implementation.}
-#'      \item{gather_compute}{`C++` based implementation with a different data
+#'      \item{r}{R-based reference implementation.}
+#'      \item{gather}{`C++` based implementation with a different data
 #'       structure that reduces the time but it can increase the memory usage.}
 #'    }
-#'   Default is `"default_c"`.
+#'   Default is `"cpp"`.
+#' @param engine `r lifecycle::badge("deprecated")` Renamed to `backend`, whose
+#'   values name what runs instead of recording implementation history:
+#'   `"default_c"` is now `"cpp"`, `"default"` is now `"r"`, and
+#'   `"gather_compute"` is now `"gather"`. The legacy values are still accepted
+#'   and mapped, with one warning naming the new spelling.
 #'
 #' @return An object of class
 #'  `c("algorithm_newton.goldfish", "algorithm.goldfish", "list")`,
@@ -158,7 +163,8 @@
 #'   \item{diagnostics}{Character vector of the diagnostic primitives to store
 #'      on the fitted result.}
 #'   \item{optimizer}{Optimization algorithm used in the estimation process.}
-#'   \item{engine}{Estimation engine used in the estimation process.}
+#'   \item{engine}{The engine token the selected `backend` resolves to, the name
+#'      the estimation path reads.}
 #' @export
 #' @examples
 #' est_ctrl <- set_algorithm_newton(
@@ -182,9 +188,20 @@ set_algorithm_newton <- function(
   return_event_scores = deprecated(),
   diagnostics = c("loglik", "scores"),
   optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
-  engine = c("default_c", "default", "gather_compute")
+  backend = c("cpp", "r", "gather"),
+  engine = deprecated()
 ) {
-  engine <- match.arg(engine)
+  backend_supplied <- !missing(backend)
+  backend <- fold_renamed_arg(
+    backend,
+    backend_supplied,
+    engine,
+    "set_algorithm_newton",
+    "engine",
+    "backend",
+    details = if (!backend_supplied) legacy_backend_note(engine)
+  )
+  backend <- match.arg(map_legacy_backend(backend), BACKEND_VALUES)
   optimizer <- match.arg(optimizer)
   diagnostics_supplied <- !missing(diagnostics)
   diagnostics <- resolve_diagnostics(diagnostics)
@@ -339,7 +356,7 @@ set_algorithm_newton <- function(
     scores_explicit = scores_explicit,
     diagnostics = diagnostics,
     optimizer = optimizer,
-    engine = engine
+    engine = BACKEND_ENGINE_TOKENS[[backend]]
   )
 
   class(control_list) <- c(
@@ -348,6 +365,54 @@ set_algorithm_newton <- function(
     "list"
   )
   return(control_list)
+}
+
+# The user-facing backend vocabulary and the engine token each value resolves
+# to. The rename stops at this boundary: the compiled interface, the R
+# estimators and the writers keep reading the tokens on the right.
+BACKEND_ENGINE_TOKENS <- c(
+  cpp = "default_c",
+  r = "default",
+  gather = "gather_compute"
+)
+BACKEND_VALUES <- names(BACKEND_ENGINE_TOKENS)
+# The inverse map: the pre-2.0.0 `engine` values, keyed by token, valued by the
+# backend that replaced each one. Also how estimation names a resolved engine
+# token in the backend vocabulary.
+LEGACY_ENGINE_BACKENDS <- stats::setNames(
+  BACKEND_VALUES,
+  BACKEND_ENGINE_TOKENS
+)
+
+# Translate a pre-2.0.0 `engine` value to its backend spelling, leaving anything
+# else (including the unevaluated default vector) untouched for `match.arg()`.
+map_legacy_backend <- function(value) {
+  if (length(value) == 1L && value %in% names(LEGACY_ENGINE_BACKENDS)) {
+    return(unname(LEGACY_ENGINE_BACKENDS[[value]]))
+  }
+  value
+}
+
+# The bullet that carries the value half of the rename, so a call using both the
+# old argument and an old value gets one warning naming the final spelling
+# rather than being pointed at `backend = "default_c"`, itself deprecated.
+legacy_backend_note <- function(value) {
+  if (
+    !lifecycle::is_present(value) ||
+      length(value) != 1L ||
+      !value %in% names(LEGACY_ENGINE_BACKENDS)
+  ) {
+    return(NULL)
+  }
+  c(
+    "i" = paste0(
+      "The value ",
+      encodeString(value, quote = "\""),
+      " is now ",
+      encodeString(LEGACY_ENGINE_BACKENDS[[value]], quote = "\""),
+      "."
+    )
+  )
 }
 
 # The per-event diagnostic primitives estimation can store, in the order the

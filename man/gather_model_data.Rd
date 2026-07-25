@@ -143,8 +143,8 @@ stack and additionally reaches the sub-models this wrapper's own narrower
 validation rejected (\code{sub_model = "rate_ordered"}).
 
 Gather the preprocess data from a formula given a model and sub model,
-where the output corresponds to the data structure used by the engine
-\code{gather_compute}; see \link{estimate}.
+where the output corresponds to the data structure used by the \code{gather}
+backend; see \link{estimate}.
 
 It differs from the \code{estimate_dynam()}, \code{estimate_rem()} and
 \code{estimate_dynami()} output when the argument \code{preprocessing_only}

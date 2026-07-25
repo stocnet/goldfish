@@ -20,7 +20,8 @@ set_algorithm_newton(
   return_event_scores = deprecated(),
   diagnostics = c("loglik", "scores"),
   optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
-  engine = c("default_c", "default", "gather_compute")
+  backend = c("cpp", "r", "gather"),
+  engine = deprecated()
 )
 }
 \arguments{
@@ -105,7 +106,7 @@ equal the aggregate score. The matrix supports downstream diagnostics
 standard errors from the outer product of gradients \code{crossprod(event_scores)},
 per-effect score-process diagnostics that localize where individual effects
 drift over the event sequence, and event-influence measures. Only the
-\code{"default_c"} and \code{"default"} engines support it; \code{"gather_compute"} aborts.}
+\code{"cpp"} and \code{"r"} backends support it; \code{"gather"} aborts.}
 
 \item{diagnostics}{Names the per-event diagnostic \emph{primitives} estimation
 stores on the fitted result, superseding the three \verb{return_*} flags above.
@@ -133,19 +134,25 @@ as observation-level gradients, via \code{maxLik::maxLik()}.}
 \item{nelder_mead}{Derivative-free Nelder-Mead, via \code{maxLik::maxLik()}.}
 }
 Any value other than \code{"newton_raphson"} requires the \pkg{maxLik} package
-(in \code{Suggests}) and runs only on the \code{"default_c"} engine. Default is
+(in \code{Suggests}) and runs only on the \code{"cpp"} backend. Default is
 \code{"newton_raphson"}.}
 
-\item{engine}{A character string specifying the estimation engine.
-Options are:
+\item{backend}{A character string naming the computational implementation
+that runs the estimation. Options are:
 \describe{
-\item{default_c}{\verb{C++} based implementation using RcppEigen
+\item{cpp}{\verb{C++} based implementation using RcppEigen
 and RcppParallel.}
-\item{default}{R-based implementation.}
-\item{gather_compute}{\verb{C++} based implementation with a different data
+\item{r}{R-based reference implementation.}
+\item{gather}{\verb{C++} based implementation with a different data
 structure that reduces the time but it can increase the memory usage.}
 }
-Default is \code{"default_c"}.}
+Default is \code{"cpp"}.}
+
+\item{engine}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to \code{backend}, whose
+values name what runs instead of recording implementation history:
+\code{"default_c"} is now \code{"cpp"}, \code{"default"} is now \code{"r"}, and
+\code{"gather_compute"} is now \code{"gather"}. The legacy values are still accepted
+and mapped, with one warning naming the new spelling.}
 }
 \value{
 An object of class
@@ -177,7 +184,8 @@ return the per-event score matrix.}
 \item{diagnostics}{Character vector of the diagnostic primitives to store
 on the fitted result.}
 \item{optimizer}{Optimization algorithm used in the estimation process.}
-\item{engine}{Estimation engine used in the estimation process.}
+\item{engine}{The engine token the selected \code{backend} resolves to, the name
+the estimation path reads.}
 }
 \description{
 Specifies the algorithm and its control parameters for the model estimation

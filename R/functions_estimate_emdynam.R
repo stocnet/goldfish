@@ -164,7 +164,7 @@ estimate_emdynam <- function(
         initial_parameters = newParameters[[x]],
         fixed_parameters = fixedParameters[[x]],
         max_iterations = 0L,
-        engine = "default"
+        backend = "r"
       )
     })
 
@@ -357,7 +357,7 @@ estimate_emdynam <- function(
               sub_model = sub_model,
               data = environmentsChains[[iChain]],
               control_algo = set_algorithm_newton(
-                engine = "default",
+                backend = "r",
                 fixed_parameters = fix
               ),
               control_prep = set_preprocessing(
@@ -534,7 +534,7 @@ estimate_emdynam <- function(
                 sub_model = sub_model,
                 data = environmentsChains[[iChain]],
                 control_algo = set_algorithm_newton(
-                  engine = "default",
+                  backend = "r",
                   fixed_parameters = fix
                 ),
                 control_prep = set_preprocessing(

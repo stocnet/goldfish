@@ -24,7 +24,7 @@ test_that("set_algorithm_newton works correctly", {
   # Check that all expected names are present
   expect_true(all(expected_est_names %in% names(default_opts)))
 
-  expect_equal(default_opts$engine, "default_c") # Default engine is default_c
+  expect_equal(default_opts$engine, "default_c") # Default backend is cpp
   expect_equal(default_opts$max_iterations, 20)
   expect_equal(default_opts$score_tol, 1e-6)
   expect_equal(default_opts$step_tol, 1e-8)
@@ -38,7 +38,7 @@ test_that("set_algorithm_newton works correctly", {
   withr::local_options(lifecycle_verbosity = "quiet")
   custom_opts <- set_algorithm_newton(
     max_iterations = 50,
-    engine = "default", # Change from default_c
+    backend = "r", # Change from cpp
     score_tol = 1e-7,
     step_tol = 1e-9,
     return_interval_loglik = TRUE,
@@ -65,7 +65,7 @@ test_that("set_algorithm_newton works correctly", {
   expect_equal(custom_opts$damping_increase_factor, 2)
 })
 test_that("set_algorithm_newton throw errors", {
-  expect_error(set_algorithm_newton(engine = "invalid"))
+  expect_error(set_algorithm_newton(backend = "invalid"))
   expect_error(set_algorithm_newton(max_iterations = -1))
   expect_error(set_algorithm_newton(score_tol = -1))
   expect_error(set_algorithm_newton(step_tol = -1))
@@ -76,6 +76,26 @@ test_that("set_algorithm_newton throw errors", {
   expect_error(set_algorithm_newton(return_probabilities = -1))
   expect_error(set_algorithm_newton(fixed_parameters = character(3)))
   expect_error(set_algorithm_newton(initial_parameters = character(3)))
+})
+
+test_that("backend resolves to the engine token estimation reads", {
+  expect_equal(set_algorithm_newton()$engine, "default_c")
+  expect_equal(set_algorithm_newton(backend = "cpp")$engine, "default_c")
+  expect_equal(set_algorithm_newton(backend = "r")$engine, "default")
+  expect_equal(
+    set_algorithm_newton(backend = "gather")$engine,
+    "gather_compute"
+  )
+})
+
+test_that("the engine sentinel selects the same path as its backend", {
+  withr::local_options(lifecycle_verbosity = "quiet")
+  for (legacy in c("default_c", "default", "gather_compute")) {
+    expect_equal(
+      set_algorithm_newton(engine = legacy)$engine,
+      set_algorithm_newton(backend = LEGACY_ENGINE_BACKENDS[[legacy]])$engine
+    )
+  }
 })
 
 test_that("convergence_criterion is deprecated in favor of score_tol", {

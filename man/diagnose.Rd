@@ -91,7 +91,7 @@ mod01 <- estimate_dynam(
   data = social_evolution,
   control_algo = set_algorithm_newton(
     return_interval_loglik = TRUE,
-    engine = "default_c"
+    backend = "cpp"
   )
 )
 

@@ -15,8 +15,8 @@
 #' validation rejected (`sub_model = "rate_ordered"`).
 #'
 #' Gather the preprocess data from a formula given a model and sub model,
-#' where the output corresponds to the data structure used by the engine
-#' `gather_compute`; see [estimate].
+#' where the output corresponds to the data structure used by the `gather`
+#' backend; see [estimate].
 #'
 #' It differs from the `estimate_dynam()`, `estimate_rem()` and
 #' `estimate_dynami()` output when the argument `preprocessing_only`

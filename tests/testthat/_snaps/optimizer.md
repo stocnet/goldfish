@@ -1,7 +1,7 @@
 # maxLik optimizers reject engines other than default_c
 
     Code
-      fit_call("gather_compute")
+      fit_call("gather")
     Condition
       Error in `estimate_wrapper()`:
       ! `optimizer` "bfgs" requires `engine = "default_c"`.
@@ -11,7 +11,7 @@
 ---
 
     Code
-      fit_call("default")
+      fit_call("r")
     Condition
       Error in `estimate_wrapper()`:
       ! `optimizer` "bfgs" requires `engine = "default_c"`.

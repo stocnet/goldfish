@@ -38,20 +38,20 @@ test_that("maxLik optimizers reject engines other than default_c", {
   local_reproducible_output()
   data_list <- list(social_evolution = baselines_social_evolution_data())
   spec <- baselines_model_grid()$se_dynam_choice
-  fit_call <- function(engine) {
+  fit_call <- function(backend) {
     estimate_dynam(
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
       control_algo = set_algorithm_newton(
         optimizer = "bfgs",
-        engine = engine
+        backend = backend
       ),
       progress = FALSE
     )
   }
-  expect_snapshot(fit_call("gather_compute"), error = TRUE)
-  expect_snapshot(fit_call("default"), error = TRUE)
+  expect_snapshot(fit_call("gather"), error = TRUE)
+  expect_snapshot(fit_call("r"), error = TRUE)
 })
 
 test_that("a maxLik optimizer aborts when maxLik is not installed", {
@@ -84,7 +84,7 @@ test_that("BFGS and BHHH agree with Newton-Raphson on baseline fixtures", {
   data_list <- list(social_evolution = baselines_social_evolution_data())
   grid <- baselines_model_grid()
   fit_opt <- function(spec, optimizer) {
-    opt <- set_algorithm_newton(engine = "default_c", optimizer = optimizer)
+    opt <- set_algorithm_newton(backend = "cpp", optimizer = optimizer)
     args <- list(
       x = spec$formula,
       data = data_list[[spec$dataset]],
@@ -125,7 +125,7 @@ test_that("maxLik result supports the standard post-estimation methods", {
     spec$formula,
     data = data_list$social_evolution,
     sub_model = spec$sub_model,
-    control_algo = set_algorithm_newton(engine = "default_c"),
+    control_algo = set_algorithm_newton(backend = "cpp"),
     progress = FALSE
   )
   fit <- estimate_dynam(
@@ -133,7 +133,7 @@ test_that("maxLik result supports the standard post-estimation methods", {
     data = data_list$social_evolution,
     sub_model = spec$sub_model,
     control_algo = set_algorithm_newton(
-      engine = "default_c",
+      backend = "cpp",
       optimizer = "bfgs"
     ),
     progress = FALSE

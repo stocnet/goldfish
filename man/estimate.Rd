@@ -310,7 +310,7 @@ data("social_evolution")
 mod01 <- estimate_dynam(calls ~ inertia + recip + trans,
   sub_model = "choice",
   data = social_evolution,
-  control_algo = set_algorithm_newton(engine = "gather_compute")
+  control_algo = set_algorithm_newton(backend = "gather")
 )
 summary(mod01)
 
@@ -318,7 +318,7 @@ summary(mod01)
 mod02 <- estimate_dynam(calls ~ 1 + node_trans + indeg + outdeg,
   sub_model = "rate",
   data = social_evolution,
-  control_algo = set_algorithm_newton(engine = "gather_compute")
+  control_algo = set_algorithm_newton(backend = "gather")
 )
 summary(mod02)
 
@@ -329,7 +329,7 @@ mod03 <- estimate_rem(
     indeg(calls, type = "ego") + outdeg(calls, type = "ego") +
     inertia + recip + trans,
   data = social_evolution,
-  control_algo = set_algorithm_newton(engine = "gather_compute")
+  control_algo = set_algorithm_newton(backend = "gather")
 )
 summary(mod03)
 
@@ -360,7 +360,7 @@ partner_model <- estimate_dynam(
   control_algo =
     set_algorithm_newton(
       initial_damping = 40, max_iterations = 30,
-      engine = "default"
+      backend = "r"
     )
 )
 summary(partner_model)
