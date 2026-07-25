@@ -32,7 +32,9 @@ estimate_flavored <- function(
   preprocessing_only = FALSE,
   progress = FALSE,
   verbose = FALSE,
-  call = NULL
+  call = NULL,
+  output = "default",
+  max_length = 63L
 ) {
   if (!is.null(preprocessed)) {
     cli::cli_abort(c(
@@ -58,7 +60,16 @@ estimate_flavored <- function(
     verbose = verbose
   )
   if (preprocessing_only) {
-    return(preps)
+    return(flavored_statistics_output(
+      preps,
+      spec = spec,
+      model = model,
+      control_prep = control_prep,
+      output = output,
+      max_length = max_length,
+      progress = progress,
+      verbose = verbose
+    ))
   }
   process_map <- attr(preps, "process_map")
 
@@ -97,5 +108,65 @@ estimate_flavored <- function(
       call = call %||% spec$call
     ),
     class = "flavored_result.goldfish"
+  )
+}
+
+# Render the flavored preprocessing pass into the requested statistics product.
+# The identity convention is the same at every output form: a list keyed by
+# integer fid carrying the `process_map` table, never keys parsed back into
+# meaning. Each fid is rendered by re-entering the shared wrapper with its own
+# preprocessed object and its own formula, which is exactly what a single-flavor
+# run of that process does -- so the per-fid stack cannot drift from the
+# single-flavor one, and each flavor's own effect names come from its own parse
+# rather than from the union formula that drove the shared walk.
+flavored_statistics_output <- function(
+  preps,
+  spec,
+  model,
+  control_prep,
+  output,
+  max_length,
+  progress,
+  verbose
+) {
+  if (identical(output, "default")) {
+    return(preps)
+  }
+  if (identical(output, "db")) {
+    cli::cli_abort(c(
+      "{.code output = \"db\"} is not available for a multi-flavor
+       specification.",
+      "x" = "Its processes would append to one table with nothing to tell
+             their rows apart.",
+      "i" = "Use {.code output = \"gather\"}, or preprocess one flavor at a
+             time with its own {.arg db_table}."
+    ))
+  }
+  process_map <- attr(preps, "process_map")
+  outputs <- lapply(seq_len(nrow(process_map)), function(i) {
+    flavor <- process_map$flavor[i]
+    family <- process_map$family[i]
+    prep <- preps[[as.character(process_map$fid[i])]]
+    estimate_wrapper(
+      x = prep$formula,
+      model = model,
+      sub_model = spec$processes[[flavor]]$submodels[[family]]$sub_model,
+      data = spec$data,
+      control_prep = control_prep,
+      preprocessed = prep,
+      preprocessing_only = TRUE,
+      output = output,
+      max_length = max_length,
+      support_constraint = spec$processes[[flavor]]$constraint,
+      progress = progress,
+      verbose = verbose
+    )
+  })
+  names(outputs) <- as.character(process_map$fid)
+
+  structure(
+    outputs,
+    process_map = process_map,
+    class = "flavored_statistics.goldfish"
   )
 }

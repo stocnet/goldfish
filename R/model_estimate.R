@@ -554,7 +554,9 @@ estimate_from_specification <- function(
       preprocessed = preprocessed,
       preprocessing_only = preprocessing_only,
       progress = progress,
-      verbose = verbose
+      verbose = verbose,
+      output = output,
+      max_length = max_length
     ))
   }
   family <- if (sub_model %in% c("rate", "rate_ordered")) "rate" else "choice"
@@ -1953,6 +1955,36 @@ estimate_wrapper <- function(
       }) |>
         stats::setNames(names(prep))
     }
+  }
+
+  # A supplied `preprocessed` object skips the writer that would have shaped the
+  # output, so it arrives in the flat preprocessed form whatever `output` asks
+  # for. Convert it here exactly as `writer_gather()` does at finalize -- a
+  # gather stack is a pure function of an assembled object plus its spec -- so
+  # replaying a stored object into a gather stack or a db table works instead of
+  # silently returning the object unchanged.
+  if (!is.null(preprocessed) && output %in% c("gather", "db")) {
+    gathered <- finalize_gather_output(
+      gather_from_prep(prep, model_spec),
+      model,
+      sub_model,
+      has_intercept,
+      ds_nodes_frame(orig_src, .nodes),
+      ds_nodes_frame(orig_src, .nodes2),
+      objects_effects_link,
+      parsed_formula,
+      max_length = max_length,
+      effect_description = spec_map$effect_description
+    )
+    gathered$node_lookup <- ds_node_lookup(orig_src)
+    if (output == "db") {
+      return(write_gather_to_db(
+        gathered,
+        control_prep$db,
+        control_prep$db_table
+      ))
+    }
+    return(gathered)
   }
 
   prep <- if (is.null(flavor_plan)) {
