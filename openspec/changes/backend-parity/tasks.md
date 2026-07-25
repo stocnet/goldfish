@@ -161,14 +161,20 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
 
 - [ ] 4.1 `r` backend accumulates `ranks` and `margins` in its contribution loop
       via the 2.2 mirror (margins on both exact-time scales from one `p`
-      vector, D20), **plus
-      `total_rate` on exact-time sub-models, which task 0.1 found the R backend
-      does not compute at all** (it exists only in the two timed `cpp`
-      kernels), since D13's parity contract and D17's conditional component
-      both need it — **without** materializing the per-event probability
-      matrix. Tests: a fit requesting `margins` but not `probabilities` carries
-      margins and carries no probability matrix (the spec scenario, and the
-      point of accumulating rather than reconstructing).
+      vector, D20), **without** materializing the per-event probability matrix.
+      The multinomial path already has what it needs from `stable_softmax()`.
+      The exact-time path does **not**: `event_contribution_rate()` computes
+      `rates <- exp(objectiveFunctions); ratesSum <- sum(rates)` raw and
+      unshifted, and task 0.1 found the R backend has no `total_rate` at all
+      (it exists only in the two timed `cpp` kernels). So that function gets the
+      **same shifted-weights treatment as task 3.2c** — one shifted pass giving
+      `total_rate = exp(lse)` (value unchanged), exact `p`, and the conditional
+      component `x_obs - lse` (D13, D16, D17). This is not a rename of
+      `stable_softmax()`, which the exact-time path never calls (D19).
+      Tests: a fit requesting `margins` but not `probabilities` carries margins
+      and carries no probability matrix (the spec scenario, and the point of
+      accumulating rather than reconstructing); exact-time `p` correct where the
+      raw ratio gives `NaN` or a spurious `1`.
 - [ ] 4.2 Rewrite the two existing parity tests that reconstruct `r` ranks and
       margins from `return_probabilities` into direct `r`-vs-`cpp` comparisons,
       and keep one reconstruction as an independent third expectation on a

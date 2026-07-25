@@ -228,7 +228,15 @@ the two factors is the vector.
 `src/stable_softmax.h` is the precedent, including its stated purpose:
 "mirroring the R `stable_softmax()` helper so the `default` and `default_c`
 engines share the same numerics". The same shape applies here — one header of
-small inline reductions taking `(w_e, c_e, X_e, obs, index)` and nothing else:
+small inline reductions taking `(w_e, c_e, X_e, obs, index)` and nothing else.
+
+One clarification, since the word "mirror" does two jobs in this change: the
+reductions below are a **strict** mirror — same inputs, same outputs, pinned to
+each other by a parity test on constructed values. `stable_softmax()` and
+`log_sum_exp_masked()` are only an *algorithmic* mirror: they share the
+max-shift but differ in parameters (`rowwise` vs a mask) and in what they return
+(derived scales vs the normalizer plus shifted weights). Do not read the
+precedent as implying a symmetry that was never there — see D19.
 
 ```
    src/event_reductions.h  ── consumed by all 9 kernels
@@ -711,10 +719,30 @@ nonsense because it *is* nonsense — adopting the *lse* is the sensible thing.
 So: **`stable_softmax_masked()` → `log_sum_exp_masked()`**. A pure symbol rename
 with no arithmetic — 7 call sites across 4 kernels plus the header and impl.
 Three of those kernels are frozen-baseline paths, but section 6 opens them
-anyway, and a rename cannot move a coefficient. The R-side `stable_softmax()` is
-a different function and keeps its name for now: it genuinely returns
-probabilities. (If it grows a `logNormalizer` member — which the R backend needs
-for `total_rate` and D17 — that name gets shakier, and is revisited then.)
+anyway, and a rename cannot move a coefficient.
+
+**The R-side `stable_softmax()` keeps its name, and this is settled rather than
+deferred.** An earlier draft of this decision said it kept the name "for now"
+because it would grow a `logNormalizer` for `total_rate` and D17; that was
+wrong on both halves, and grounding it corrected two things:
+
+- It is **not** the R counterpart of the C++ helper. `stable_softmax(x, rowwise)`
+  returns `list(probabilities, logProbabilities)`; `log_sum_exp_masked(lin_pred,
+  allowed, weights)` returns the normalizer and fills shifted weights. Different
+  parameter, different return — they share the max-shift algorithm, not the
+  interface. Its return value genuinely *is* a softmax, so unlike the C++ helper
+  its name is accurate.
+- The R exact-time path **never calls it**. `event_contribution_rate()` computes
+  `rates <- exp(objectiveFunctions); ratesSum <- sum(rates)` on its own — raw
+  and unshifted. So the R side's `total_rate`, conditional component and exact
+  `p` come from *that* function, not from `stable_softmax()`, and no R caller
+  ever needs a normalizer out of it (`total_rate` and the conditional component
+  are exact-time-only concepts; the multinomial callers want `p` and `log p`,
+  which they already get).
+
+So the R lse work is real but lives in `event_contribution_rate()` — the same
+shifted-weights treatment this decision gives the gather Poisson kernel, applied
+to the R backend's exact-time core, and carried by task 4.1. It is not a rename.
 
 **The Poisson kernel adopts it, on one shifted `exp` pass.** Since
 `λ_j = e^m · w_j`, a single pass over the shifted weights yields every quantity
