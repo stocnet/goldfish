@@ -184,10 +184,20 @@ at each event `e` every backend forms a nonnegative weight vector `w_e` over the
 risk set and a scalar scale `c_e`, and the expected-count contribution of
 alternative `j` is `m_ej = c_e * w_ej`.
 
+**Amended 2026-07-25 (D20):** `w_e` is the **probability vector `p_e` in every
+family**, and `c_e` alone carries the family difference. The contract value
+`m_ej` is unchanged — only its factorization is:
+
 | family | `w_ej` | `c_e` | `sum_j m_ej` |
 |---|---|---|---|
-| multinomial (choice, rate_ordered, REM_ordered, coordination) | `exp(x_j - max)` softmax weight | `1 / sum_j w_ej` | `1` |
-| timed (rate, REM) | rate `exp(beta' s_j)` | interval length `Δt_e` | `Δt_e * total_rate_e` |
+| multinomial (choice, rate_ordered, REM_ordered, coordination) | `p_j = exp(x_j - lse)` | `1` | `1` |
+| exact-time (rate, REM), probability scale | `p_j = exp(x_j - lse)` | `1` | `1` |
+| exact-time (rate, REM), compensator scale | `p_j = exp(x_j - lse)` | `Δt_e * T_e` | `Δt_e * T_e` |
+
+This is the same `m` as the original `(rate, Δt)` factorization, by Appendix
+eq. (5): `m_ej = Δt_e * λ_ej = Δt_e * T_e * p_ej`. Grounds for preferring it are
+in D20 — one weight vector per event feeding both exact-time scales, and the
+only large factor living in a scalar rather than inside the vector.
 
 The four primitives are then the same four reductions in both families:
 
@@ -207,9 +217,11 @@ accumulates `timespan_current_event * exp_current_sender`.
 
 Rejected: defining the contract per submodel (six definitions, six test
 matrices, and the next submodel starts from nothing). Rejected: normalizing the
-timed family into a probability so one formula covers both — it would divide out
-`Δt` and lose the property that timed margins total the expected number of
-events, which is what makes them comparable to observed counts.
+timed family into a probability *and dropping the compensator* so one formula
+covers both — that would divide out `Δt` and lose the property that timed
+margins total the expected number of events, which is what makes them
+comparable to observed counts. D20 keeps both scales; it only changes which of
+the two factors is the vector.
 
 ### D2 — A shared C++ reduction header, mirrored once in R
 
@@ -293,7 +305,29 @@ only where naive `exp` overflows — which the well-conditioned fixtures do not.
 So this is the cheap moment to close the gap, and it must not be confused with
 the `default_c` adoption, which did move a frozen floor.
 
-The timed hazard path keeps plain `exp()` in both backends, per the Non-Goal.
+**Clarified 2026-07-25 — the split is per quantity, not per kernel.** The
+original wording ("the gather multinomial and Poisson kernels adopt the stable
+softmax") is wrong for the Poisson kernel and contradicted this decision's own
+closing sentence. A max-shift is only invariant where the normalizer enters as a
+*ratio*:
+
+```
+  multinomial   intervalLogL = log( exp(x_obs) / Σ exp(x_j) )   a RATIO
+                every other use is p_j = exp(x_j)/Σ, also ratios
+                ⇒ the shift cancels; adopting it is exact AND fixes the
+                  underflow (x_obs − lse instead of log(p_obs))
+
+  exact-time    intervalLogL = −Δt · Σ exp(x_j) + x_obs         Σλ ENTERS RAW
+                ⇒ shifting would give Σλ·e^(−m): a different model, not a
+                  stabilization. The likelihood keeps the raw total rate.
+```
+
+So the timed *likelihood* keeps plain `exp()`, per the Non-Goal — but the timed
+*kernel* still adopts the log-sum-exp, as the substrate for the quantities that
+are ratios or logs (D19). Overflow in the likelihood is already handled: the
+Newton loop gates step acceptance on `is.finite(logLikelihood)`
+(`cpp_interface.R:453`), so an overflowing step is rejected and damping backs
+off, rather than producing a silent wrong answer.
 
 ### D5 — Parity is proven per (primitive × submodel family × backend pair), at declared tolerances
 
@@ -561,13 +595,41 @@ for REM.
 
 On exact-time sub-models the `"loglik"` primitive stores, besides
 `intervalLogL` (the full per-event log-likelihood) and `total_rate` (D13),
-the conditional component `log p_obs = intervalLogL − log T_e + Δt_e T_e` —
-the Cox-partial-likelihood contribution, the "which" of the which/when
-decomposition (Appendix, eq. 2). It is derivable by algebra from the other
-two; storing it anyway is an explicit user choice (2026-07-25 interview,
-against the derive-on-demand recommendation) so partial-likelihood
-diagnostics read it directly. It is computed at the R-side result assembly
-from stored pieces — no kernel change. The conditional *score* (the
+the conditional component `log p_obs` — the Cox-partial-likelihood
+contribution, the "which" of the which/when decomposition (Appendix, eq. 2).
+Storing it rather than deriving it on demand is an explicit user choice
+(2026-07-25 interview, against the derive-on-demand recommendation) so
+partial-likelihood diagnostics read it directly.
+
+**Revised 2026-07-25 — it is computed in the kernel, not at the R-side
+assembly.** The original decision said "computed at the R-side result assembly
+from stored pieces — no kernel change", via the algebraic identity
+`log p_obs = intervalLogL − log T_e + Δt_e T_e`. That route is catastrophic
+cancellation: `intervalLogL` is itself `x_obs − Δt_e T_e`, so the term added
+back cancels one just subtracted, and the surviving digits fall with
+`log10(Δt_e T_e)`:
+
+```
+  Dt*T      assembly (the identity)   direct (x_obs - lse)     digits lost
+  1         -0.495181898085856        -0.495181898085856        0
+  1e+03     -0.495181898085889        -0.495181898085856        3.8
+  1e+06     -0.495181898120791        -0.495181898085856        6.8
+  1e+09     -0.495181918144226        -0.495181898085856        9.6
+  1e+15     -0.500000000000000        -0.495181898085856       15.0
+```
+
+`Δt_e T_e` is the expected event count over the interval, and by the intercept
+score equation it averages ~1 **at the MLE** — so the identity is accurate
+exactly where it is least needed, and degrades away from the MLE, which is
+where `evaluate_model()`, `test_parameter()` and every diagnostic operate. At
+`Δt_e T_e = 1e6` the relative error is ~7e-8, **already coarser than the 1e-10
+cross-backend tolerance this change requires**, so the specified route could not
+have met its own parity requirement.
+
+The kernel has `x_obs` and the log-normalizer in hand, so
+`log p_obs = x_obs − lse` is one subtraction, exact, and finite even where `T_e`
+has overflowed. The identity remains a useful *cross-check* near the MLE and is
+asserted there, not used as the computation. The conditional *score* (the
 Schoenfeld residual, Appendix eq. 3) is by the same interview NOT stored:
 `event_scores` stays the estimation score, whose column-sums identity is its
 test anchor, and `residuals(type = "schoenfeld")` derives the conditional
@@ -633,6 +695,85 @@ separates the driver from its helpers again — the split that caused this).
 `parallel::detectCores()` / `parallel::mclapply()` while `parallel` is in
 neither Imports nor Suggests. A real gap, pre-existing and independent of the
 EM files; it does not belong to this change.
+
+### D19 — `stable_softmax_masked()` is a log-sum-exp, and is named one; the Poisson kernel adopts it
+
+The helper's name says softmax; its return value is
+`m + log Σ exp(x − m)` and it never forms a softmax. Callers derive both scales
+from its two outputs — `p_j = w_j / Σw` from the shifted weights out-param, and
+`log p_obs = x_obs − lse` from the return value. That is the standard shape
+(log-sum-exp is the primitive, log-softmax is free and exact, softmax is a
+transformation), and the implementation already follows it. Only the name does
+not, and the misnomer has already cost: it is what produced the wrong task line
+"the Poisson kernel adopts the stable softmax", which for a rate model reads as
+nonsense because it *is* nonsense — adopting the *lse* is the sensible thing.
+
+So: **`stable_softmax_masked()` → `log_sum_exp_masked()`**. A pure symbol rename
+with no arithmetic — 7 call sites across 4 kernels plus the header and impl.
+Three of those kernels are frozen-baseline paths, but section 6 opens them
+anyway, and a rename cannot move a coefficient. The R-side `stable_softmax()` is
+a different function and keeps its name for now: it genuinely returns
+probabilities. (If it grows a `logNormalizer` member — which the R backend needs
+for `total_rate` and D17 — that name gets shakier, and is revisited then.)
+
+**The Poisson kernel adopts it, on one shifted `exp` pass.** Since
+`λ_j = e^m · w_j`, a single pass over the shifted weights yields every quantity
+the kernel needs, with the likelihood unchanged in value *and* in overflow
+behavior:
+
+```
+  m, w = e^(x−m), lse = m + log Σw        one exp pass, as today
+  T   = exp(lse)                          == the old raw normalizer (measured
+                                             bit-identical; overflows at the
+                                             same max(x) ≈ 710, unavoidably)
+  Σλs = e^m · Σ w_j s_j                   derivative (measured to 1.4e-14)
+  p_j = w_j / Σw                          exact where the raw ratio gives
+                                             `1` (subnormal) or `NaN`
+  lse                                     log T for D17, total_rate for D13
+```
+
+The underflow cell is the one that justifies this on correctness rather than
+taste: at `max(x) = −745` the naive ratio returns **`1`** where the truth is
+`0.705` — silently wrong, no `NaN`, no warning, and nothing downstream sanity-
+checks a probability. Ranks and probability-scale margins built on it would be
+quietly wrong.
+
+Rejected: leaving the Poisson kernel on the raw pass and computing a separate
+lse only when primitives are requested — two passes, two code paths, and the
+raw ratio still silently wrong whenever someone asks for probabilities.
+
+### D20 — The reduction takes the probability vector as its weights in every family
+
+Given D19's lse, the kernel has `p_e` in hand, so it hands the shared reduction
+`(w = p_e, c = Δt_e T_e)` rather than `(w = λ_e, c = Δt_e)`. Algebraically
+identical (Appendix eq. 5), and better in two ways.
+
+**The large factor moves into the scalar.** With `w = λ`, an overflowing rate
+multiplies a mixed-sign statistic and gives `Inf − Inf = NaN`; with `w = p`
+bounded in `[0, 1]`, only the scalar carries the infinity:
+
+```
+  max(x)   score via (λ, Δt)          score via (p, Δt·T)
+  0        -1.796  0.359 -1.343       -1.796  0.359 -1.343    identical
+  700      -1.82e+304 ...             -1.82e+304 ...          identical
+  710      -Inf  Inf  -Inf            -Inf  Inf  -Inf         identical
+  800      NaN   Inf   NaN     ✗      -Inf  Inf  -Inf    ✓
+```
+
+For estimation this is immaterial — the damping loop rejects either. It matters
+for `evaluate_model()` at fixed parameters, which rejects nothing and hands
+whatever it computed to a diagnostic; an `Inf` is a signal, a `NaN` is a
+corruption.
+
+**One weight vector serves both exact-time scales.** D12's dual margins become
+`accumulate_margins(p, 1, …)` and `accumulate_margins(p, Δt·T, …)` — one vector,
+two scales — instead of `(λ, 1/T)` and `(λ, Δt)`. The same helper with `c = 1`
+also yields the conditional (Schoenfeld) score that D17 leaves derivable on
+demand, so `residuals-gof` gets it without new machinery.
+
+Rejected: keeping `(λ, Δt)` because it reads closer to the likelihood's algebra.
+It does, but the reduction contract is about the *contribution* `m`, and `m` is
+identical either way; the factorization should be chosen for conditioning.
 
 ## Risks / Trade-offs
 

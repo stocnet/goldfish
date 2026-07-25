@@ -3,21 +3,22 @@
 ## ADDED Requirements
 
 ### Requirement: Every backend computes the same per-event reduction inputs
-Every estimation backend SHALL form, at each event, a nonnegative weight vector
-`w_e` over that event's risk set and a scalar scale `c_e`, such that
-`m_ej = c_e * w_ej` is the expected-count contribution of alternative `j`. For
-multinomial sub-models (DyNAM-choice, DyNAM-rate_ordered, REM_ordered,
-choice_coordination) `w_e` SHALL be the max-shifted softmax weights and
-`c_e = 1 / sum_j w_ej`, so `sum_j m_ej = 1`. For timed sub-models (DyNAM-rate,
-REM) `w_e` SHALL be the per-alternative rates and `c_e` the interval length, so
-`sum_j m_ej` is the expected number of events over the interval. Every family
-SHALL additionally form the probability scale `p_ej = w_ej / sum_j w_ej` —
-the multinomial choice probability and, on exact-time sub-models, the
-competing-risks probability that alternative `j` produces the next event —
-linked to the expected-count scale by `m_ej = c_e * sum_j w_ej * p_ej`, so
-probability-scale primitives plus the per-event total rate span both scales.
+Every estimation backend SHALL form, at each event, the probability vector
+`p_e` over that event's risk set together with a scalar scale `c_e`, such that
+`m_ej = c_e * p_ej` is the contribution of alternative `j`. `p_e` SHALL be
+derived from a numerically stable log-sum-exp of the linear predictors —
+`p_ej = exp(x_ej - lse_e)` where `lse_e = log sum_j exp(x_ej)` — so it is exact
+whether or not the corresponding rates overflow or underflow, and SHALL sum to
+1 per event in every family: the choice probability on multinomial sub-models
+(DyNAM-choice, DyNAM-rate_ordered, REM_ordered, choice_coordination) and the
+competing-risks probability that alternative `j` produces the next event on
+exact-time sub-models (DyNAM-rate, REM). The scale SHALL carry the family
+difference: `c_e = 1` for the probability scale in every family, and
+`c_e = Δt_e * T_e` for the exact-time compensator scale, where `T_e` is the
+per-event total rate — so exact-time compensator contributions total the
+expected number of events over the interval, and `m_ej = Δt_e * λ_ej` exactly.
 The four per-event diagnostic primitives SHALL be defined as reductions of
-`(w_e, c_e)` and SHALL NOT be defined per backend.
+`(p_e, c_e)` and SHALL NOT be defined per backend.
 
 #### Scenario: multinomial contributions form a probability vector
 - **WHEN** any backend evaluates a multinomial sub-model at a fixed parameter
@@ -36,6 +37,20 @@ The four per-event diagnostic primitives SHALL be defined as reductions of
 - **THEN** the per-event probability-scale vector `p_e` sums to 1 — the
   probability that each sender (rate) or dyad (REM) is the next to create an
   event.
+
+#### Scenario: the probability scale survives an overflowing total rate
+- **WHEN** an exact-time sub-model is evaluated at a parameter vector where the
+  per-event total rate exceeds the double range, so the per-event
+  log-likelihood is not finite
+- **THEN** `p_e` is still exact and sums to 1, and the per-event ranks derived
+  from it are unaffected — the stable log-sum-exp, not the raw rate sum, is
+  what the probability scale is built on.
+
+#### Scenario: the probability scale survives underflowing rates
+- **WHEN** every rate in an event's risk set underflows to zero on the linear
+  scale
+- **THEN** `p_e` is still exact, rather than the `NaN` or the spurious `1` a
+  ratio of underflowed rates produces.
 
 ### Requirement: The per-event reductions live in one shared implementation
 The rank, margin and event-score reductions SHALL be implemented once as shared
@@ -124,10 +139,23 @@ backend.
 - **WHEN** an exact-time sub-model is estimated on each of `cpp`, `r` and
   `gather` with the `loglik` primitive requested
 - **THEN** each fit carries the per-event `total_rate` and the conditional
-  log-probability component, the three backends' vectors agree within 1e-10
-  at a fixed parameter vector, and the identity
-  `conditional = intervalLogL − log(total_rate) + Δt · total_rate` holds per
-  event.
+  log-probability component, and the three backends' vectors agree within
+  1e-10 at a fixed parameter vector.
+
+#### Scenario: the conditional component is computed from the log-normalizer
+- **WHEN** the conditional log-probability is stored for an exact-time fit
+- **THEN** it equals the observed alternative's linear predictor minus the
+  per-event log-sum-exp, and it is finite whenever `p_obs` is non-zero — including
+  where the total rate has overflowed and the per-event log-likelihood has not.
+
+#### Scenario: the algebraic identity is a check near the MLE, not the route
+- **WHEN** an exact-time model is evaluated at its MLE, where the per-event
+  expected count is of order one
+- **THEN** the stored conditional component agrees with
+  `intervalLogL − log(total_rate) + Δt · total_rate` — an independent check that
+  is only accurate in that regime, since the identity loses digits in proportion
+  to the expected count and cannot itself meet the cross-backend tolerance away
+  from the MLE.
 
 #### Scenario: both margins variants agree across backends
 - **WHEN** an exact-time sub-model is estimated on each backend with

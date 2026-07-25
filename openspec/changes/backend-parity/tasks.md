@@ -116,17 +116,40 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       `compute_poisson_selection()` signatures (coordination already receives
       `sender_of_row` / `dyad_partner`). No behavior change yet; verify the
       `RcppExports` interface diff shows exactly the intended arity change.
-- [ ] 3.2 Gather multinomial + Poisson kernels adopt the shared stable softmax
-      (spec: likelihood-computation). Own commit, before the accumulators, so
-      any numerical movement is attributable to the softmax and not to a new
-      reduction. Tests: cross-backend agreement unchanged on the
-      well-conditioned fixtures; a new extreme-parameter fixture where the
-      naive `exp()` path overflows and the shifted one does not.
+- [ ] 3.2a Rename `stable_softmax_masked()` -> `log_sum_exp_masked()` (D19):
+      the helper returns a log-sum-exp and the shifted weights, never a softmax,
+      and the misnomer already produced a wrong task line here. Pure symbol
+      rename, no arithmetic -- 7 call sites across 4 kernels plus
+      `stable_softmax.{h,cpp}` and the prose in `event_reductions.h`. The R-side
+      `stable_softmax()` keeps its name (it does return probabilities). Own
+      commit, so the numerical tasks that follow have a clean diff.
+      `NOT_CRAN=true` with the frozen baselines PASS is the whole gate -- a
+      rename cannot move a coefficient.
+- [ ] 3.2b Gather **multinomial** kernel takes its normalizer from the shared
+      helper (spec: likelihood-computation). Its likelihood is a ratio, so the
+      shift cancels exactly and `log(exp_obs/normalizer)` becomes
+      `x_obs - lse` -- the same underflow fix the `default_c` kernels already
+      have. Own commit, before the accumulators, so any movement is
+      attributable. Tests: cross-backend agreement unchanged on the
+      well-conditioned fixtures; an extreme-parameter fixture where the naive
+      path underflows to `-Inf` and the shifted one does not.
+- [ ] 3.2c Gather **Poisson** kernel moves to one shifted `exp` pass (D19), from
+      which it derives `T = exp(lse)` (bit-identical to the old raw normalizer,
+      and overflowing at the same point -- the likelihood is NOT stabilized and
+      must not be), the derivative with the shift restored, `p = w/sum(w)`, and
+      the log-normalizer that D13's `total_rate` and D17's conditional component
+      need. Tests: per-event logLik / score / information unchanged against the
+      pre-change kernel on the baseline fixtures; `p` exact where the raw ratio
+      gives `NaN` (overflow) or a spurious `1` (subnormal underflow).
 - [ ] 3.3 Gather kernels gain `return_event_scores`, `return_ranks`,
       `return_margins` via the shared helpers, plus `total_rate` from the
       Poisson kernel's existing `normalizer`. All three kernels
       (multinomial, Poisson, coordination); the Poisson kernel accumulates
-      margins on both exact-time scales (D12: `c = 1/sum(w)` and `c = Δt`).
+      margins on both exact-time scales from **one** weight vector (D20:
+      `w = p`, with `c = 1` for the probability scale and `c = Δt * T` for the
+      compensator), and stores the conditional log-probability as
+      `x_obs - lse` (D17 revised -- computed here, not assembled R-side from an
+      identity that loses digits away from the MLE).
       Tests: gather `event_scores` column
       sums equal the aggregate score; gather ranks/margins present.
 - [ ] 3.4 Return the new gather components through `R/cpp_interface.R` onto the
@@ -137,7 +160,8 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
 ## 4. The r backend
 
 - [ ] 4.1 `r` backend accumulates `ranks` and `margins` in its contribution loop
-      via the 2.2 mirror (margins on both exact-time scales, D12), **plus
+      via the 2.2 mirror (margins on both exact-time scales from one `p`
+      vector, D20), **plus
       `total_rate` on exact-time sub-models, which task 0.1 found the R backend
       does not compute at all** (it exists only in the two timed `cpp`
       kernels), since D13's parity contract and D17's conditional component
@@ -179,8 +203,12 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       risk set, not within a CSR group): ranks exact, margins (both exact-time
       scale variants, D12) / scores /
       probabilities (incl. exact-time next-event probabilities, D16) /
-      exact-time `total_rate` and the conditional-loglik identity
-      `log p_obs = intervalLogL − log T + Δt·T` (D13, D17) within 1e-10. This
+      exact-time `total_rate` and the conditional log-probability (D13, D17)
+      within 1e-10 -- the conditional compared across backends directly, with
+      the algebraic identity `intervalLogL − log T + Δt·T` asserted only at the
+      MLE, where the per-event expected count is order one and the identity is
+      still accurate (away from it, it loses digits faster than the tolerance
+      allows, which is why D17 was revised). This
       is the
       requirement's teeth; it must be green before section 6 touches a frozen
       path.
