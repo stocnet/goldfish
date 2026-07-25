@@ -88,6 +88,37 @@ test_that("probabilities guardrail skips when dims are unavailable", {
   )
 })
 
+test_that("backends without per-event probabilities redirect to r", {
+  withr::local_options(cli.num_colors = 1L)
+  local_reproducible_output()
+  expect_snapshot(invisible(estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    control_algo = set_algorithm_newton(
+      backend = "gather",
+      diagnostics = "probabilities"
+    )
+  )))
+})
+
+test_that("backends without an opportunity list redirect to r", {
+  withr::local_options(cli.num_colors = 1L)
+  local_reproducible_output()
+  # One entry per dependent event; the redirect fires before the list is read,
+  # but estimation continues on the r backend and consumes it.
+  opportunities <- rep(list(seq_len(nrow(actors_ex))), nrow(eventsIncrement))
+  expect_snapshot(invisible(estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    control_algo = set_algorithm_newton(backend = "cpp"),
+    control_prep = set_preprocessing(opportunities_list = opportunities)
+  )))
+})
+
 test_that("estimation emits the probabilities guardrail once per call", {
   formulaTest <- depNetwork ~ inertia + recip
   expect_warning(

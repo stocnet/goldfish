@@ -30,7 +30,7 @@ interface's tokens are unchanged (D1).
       — no two-hop. Invalid values abort with a cli error listing the new
       vocabulary. Tests: snapshots for argument-deprecation, value-mapping, and
       the invalid-value error; supplying both arguments resolves to `backend`.
-- [ ] 1.3 Estimation gating messages speak the backend vocabulary:
+- [x] 1.3 Estimation gating messages speak the backend vocabulary:
       maxLik-requires-`cpp`, the `gather` rejections
       (`return_event_scores`, and any other), and the coordination redirect
       text if still present. Grep gate: no user-facing message names

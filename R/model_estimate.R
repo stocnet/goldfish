@@ -1221,17 +1221,11 @@ estimate_wrapper <- function(
     control_algo$return_probabilities &&
       control_algo$engine != "default"
   ) {
-    warning(
-      "engine = ",
-      dQuote(control_algo$engine),
-      " doesn't support",
-      dQuote("return_probabilities"),
-      ". engine =",
-      dQuote("default"),
-      " is used instead.",
-      call. = FALSE,
-      immediate. = TRUE
-    )
+    cli::cli_warn(c(
+      "{.code backend = {.val {engine_backend(control_algo$engine)}}} does not
+       support {.arg return_probabilities}.",
+      "i" = "Estimating with {.code backend = \"r\"} instead."
+    ))
     control_algo$engine <- "default"
   }
 
@@ -1248,9 +1242,9 @@ estimate_wrapper <- function(
     if (isTRUE(control_algo$scores_explicit)) {
       cli::cli_abort(c(
         "The {.val scores} diagnostic (per-event score matrix) is not supported
-         with {.code engine = \"gather_compute\"}.",
-        "i" = "Use {.code engine = \"default_c\"} or {.code engine = \"default\"}
-               to store the per-event score matrix."
+         with {.code backend = \"gather\"}.",
+        "i" = "Use {.code backend = \"cpp\"} or {.code backend = \"r\"} to store
+               the per-event score matrix."
       ))
     }
     control_algo$return_event_scores <- FALSE
@@ -1268,10 +1262,10 @@ estimate_wrapper <- function(
     if (control_algo$engine != "default_c") {
       cli::cli_abort(c(
         "{.arg optimizer} {.val {optimizer}} requires
-         {.code engine = \"default_c\"}.",
+         {.code backend = \"cpp\"}.",
         "x" = "It is not available with
-               {.code engine = {.val {control_algo$engine}}}.",
-        "i" = "maxLik-backed optimizers run only on the default_c evaluator."
+               {.code backend = {.val {engine_backend(control_algo$engine)}}}.",
+        "i" = "maxLik-backed optimizers run only on the {.val cpp} backend."
       ))
     }
     if (!requireNamespace("maxLik", quietly = TRUE)) {
@@ -1287,17 +1281,11 @@ estimate_wrapper <- function(
     !is.null(control_prep$opportunities_list) &&
       control_algo$engine != "default"
   ) {
-    warning(
-      "engine = ",
-      dQuote(control_algo$engine),
-      " doesn't support",
-      dQuote("opportunities_list"),
-      ". engine =",
-      dQuote("default"),
-      " is used instead.",
-      call. = FALSE,
-      immediate. = TRUE
-    )
+    cli::cli_warn(c(
+      "{.code backend = {.val {engine_backend(control_algo$engine)}}} does not
+       support {.arg opportunities_list}.",
+      "i" = "Estimating with {.code backend = \"r\"} instead."
+    ))
     control_algo$engine <- "default"
   }
 

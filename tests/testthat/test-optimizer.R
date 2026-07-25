@@ -32,7 +32,7 @@ test_that("the maxLik evaluator runs the C++ pass once per parameter vector", {
   expect_equal(calls, 2L)
 })
 
-test_that("maxLik optimizers reject engines other than default_c", {
+test_that("maxLik optimizers reject backends other than cpp", {
   skip_on_cran()
   withr::local_options(cli.num_colors = 1L)
   local_reproducible_output()

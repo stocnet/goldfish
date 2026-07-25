@@ -124,50 +124,44 @@ test_that("event_scores follows the scores diagnostic (default on)", {
   }
 })
 
-test_that("gather_compute rejects an explicit scores request", {
+test_that("the gather backend rejects an explicit scores request", {
   skip_on_cran()
+  withr::local_options(cli.num_colors = 1L)
+  local_reproducible_output()
   data_list <- list(social_evolution = baselines_social_evolution_data())
   spec <- baselines_model_grid()$se_dynam_choice
-  # Explicit request (legacy flag or diagnostics) aborts naming the engine.
-  expect_error(
-    suppressWarnings(estimate_dynam(
-      spec$formula,
-      data = data_list$social_evolution,
-      sub_model = spec$sub_model,
-      control_algo = set_algorithm_newton(
-        engine = "gather_compute",
-        return_event_scores = TRUE
-      ),
-      progress = FALSE
-    )),
-    "gather_compute"
-  )
-  expect_error(
+  fit_scores <- function(...) {
     estimate_dynam(
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
-      control_algo = set_algorithm_newton(
-        engine = "gather_compute",
-        diagnostics = c("loglik", "scores")
-      ),
+      control_algo = set_algorithm_newton(backend = "gather", ...),
       progress = FALSE
-    ),
-    "gather_compute"
+    )
+  }
+  # Explicit request, whether through the legacy flag or through diagnostics,
+  # aborts naming the backends that do store the matrix.
+  expect_snapshot(
+    suppressWarnings(fit_scores(return_event_scores = TRUE)),
+    error = TRUE
+  )
+  expect_snapshot(
+    fit_scores(diagnostics = c("loglik", "scores")),
+    error = TRUE
   )
 })
 
-test_that("gather_compute silently drops default-sourced scores", {
+test_that("the gather backend silently drops default-sourced scores", {
   skip_on_cran()
   data_list <- list(social_evolution = baselines_social_evolution_data())
   spec <- baselines_model_grid()$se_dynam_choice
-  # Default diagnostics include "scores", but gather_compute cannot produce them;
-  # the fit succeeds with no per-event score matrix rather than aborting.
+  # Default diagnostics include "scores", but the gather backend cannot produce
+  # them; the fit succeeds with no per-event score matrix rather than aborting.
   fit <- suppressWarnings(estimate_dynam(
     spec$formula,
     data = data_list$social_evolution,
     sub_model = spec$sub_model,
-    control_algo = set_algorithm_newton(engine = "gather_compute"),
+    control_algo = set_algorithm_newton(backend = "gather"),
     progress = FALSE
   ))
   expect_null(fit$event_scores)

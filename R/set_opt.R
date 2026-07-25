@@ -392,6 +392,12 @@ LEGACY_ENGINE_BACKENDS <- stats::setNames(
   BACKEND_ENGINE_TOKENS
 )
 
+# Name a resolved engine token in the vocabulary the user selects it with, so
+# estimation messages speak of backends even though the options carry tokens.
+engine_backend <- function(engine) {
+  unname(LEGACY_ENGINE_BACKENDS[[engine]])
+}
+
 # Translate a pre-2.0.0 `engine` value to its backend spelling, leaving anything
 # else (including the untouched default vector) for `resolve_backend()` to
 # judge.
