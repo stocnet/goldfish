@@ -23,7 +23,7 @@ interface's tokens are unchanged (D1).
       already reads. Roxygen for both arguments (deprecated badge on `engine`);
       `devtools::document()`. Tests: each value selects the same path its
       legacy counterpart did; the default is `"cpp"`.
-- [ ] 1.2 Legacy values map with one warning (D4): `default_c → cpp`,
+- [x] 1.2 Legacy values map with one warning (D4): `default_c → cpp`,
       `default → r`, `gather_compute → gather`, accepted whether supplied to
       `engine` (old argument) or to `backend` (half-migrated call), each
       producing exactly one soft-deprecation warning naming the final spelling

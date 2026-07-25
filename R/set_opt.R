@@ -192,6 +192,9 @@ set_algorithm_newton <- function(
   engine = deprecated()
 ) {
   backend_supplied <- !missing(backend)
+  engine_present <- lifecycle::is_present(engine)
+  # `backend` wins when both are supplied, as `fold_renamed_arg()` decides.
+  selected <- if (backend_supplied || !engine_present) backend else engine
   backend <- fold_renamed_arg(
     backend,
     backend_supplied,
@@ -199,9 +202,14 @@ set_algorithm_newton <- function(
     "set_algorithm_newton",
     "engine",
     "backend",
-    details = if (!backend_supplied) legacy_backend_note(engine)
+    details = legacy_backend_note(selected)
   )
-  backend <- match.arg(map_legacy_backend(backend), BACKEND_VALUES)
+  # A legacy value on the new argument is the half-migrated call; it warns on
+  # its own only when the argument fold above has not already named it.
+  if (!engine_present) {
+    warn_legacy_backend_value(backend)
+  }
+  backend <- resolve_backend(backend)
   optimizer <- match.arg(optimizer)
   diagnostics_supplied <- !missing(diagnostics)
   diagnostics <- resolve_diagnostics(diagnostics)
@@ -385,12 +393,53 @@ LEGACY_ENGINE_BACKENDS <- stats::setNames(
 )
 
 # Translate a pre-2.0.0 `engine` value to its backend spelling, leaving anything
-# else (including the unevaluated default vector) untouched for `match.arg()`.
+# else (including the untouched default vector) for `resolve_backend()` to
+# judge.
 map_legacy_backend <- function(value) {
   if (length(value) == 1L && value %in% names(LEGACY_ENGINE_BACKENDS)) {
     return(unname(LEGACY_ENGINE_BACKENDS[[value]]))
   }
   value
+}
+
+# Settle `backend` to one of the three values: the untouched default vector
+# resolves to its first element, a legacy value maps, anything else aborts
+# naming the vocabulary the user should pick from.
+resolve_backend <- function(backend, call = rlang::caller_env()) {
+  if (identical(backend, BACKEND_VALUES)) {
+    return(BACKEND_VALUES[[1L]])
+  }
+  backend <- map_legacy_backend(backend)
+  if (!rlang::is_string(backend) || !backend %in% BACKEND_VALUES) {
+    cli::cli_abort(
+      c(
+        "{.arg backend} must be one of {.val {BACKEND_VALUES}}.",
+        "x" = "You supplied {.val {backend}}."
+      ),
+      call = call
+    )
+  }
+  backend
+}
+
+# Warn for a pre-2.0.0 value supplied to `backend` itself. `user_env` reaches
+# past this helper and `set_algorithm_newton()` so lifecycle attributes the
+# warning to the user's own call.
+warn_legacy_backend_value <- function(value, user_env = rlang::caller_env(2)) {
+  if (length(value) != 1L || !value %in% names(LEGACY_ENGINE_BACKENDS)) {
+    return(invisible())
+  }
+  # `I()` because lifecycle's `fn(arg = "...")` spec reads what follows the `=`
+  # as a reason, not as the deprecated value.
+  lifecycle::deprecate_soft(
+    when = "2.0.0",
+    what = I(paste0(
+      "The `set_algorithm_newton()` backend value ",
+      encodeString(value, quote = "\"")
+    )),
+    with = I(encodeString(LEGACY_ENGINE_BACKENDS[[value]], quote = "\"")),
+    user_env = user_env
+  )
 }
 
 # The bullet that carries the value half of the rename, so a call using both the

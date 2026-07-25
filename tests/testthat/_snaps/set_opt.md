@@ -1,3 +1,50 @@
+# the engine argument and the legacy values are deprecated
+
+    Code
+      invisible(set_algorithm_newton(engine = "cpp"))
+    Condition
+      Warning:
+      The `engine` argument of `set_algorithm_newton()` is deprecated as of goldfish 2.0.0.
+      i Please use the `backend` argument instead.
+
+---
+
+    Code
+      invisible(set_algorithm_newton(engine = "gather_compute"))
+    Condition
+      Warning:
+      The `engine` argument of `set_algorithm_newton()` is deprecated as of goldfish 2.0.0.
+      i Please use the `backend` argument instead.
+      i The value "gather_compute" is now "gather".
+
+---
+
+    Code
+      invisible(set_algorithm_newton(backend = "default"))
+    Condition
+      Warning:
+      The `set_algorithm_newton()` backend value "default" was deprecated in goldfish 2.0.0.
+      i Please use "r" instead.
+
+---
+
+    Code
+      invisible(set_algorithm_newton(engine = "default", backend = "gather"))
+    Condition
+      Warning:
+      The `engine` argument of `set_algorithm_newton()` is deprecated as of goldfish 2.0.0.
+      i Please use the `backend` argument instead.
+      ! Both were supplied; the value of `backend` is used.
+
+# an unknown backend aborts naming the vocabulary
+
+    Code
+      set_algorithm_newton(backend = "fortran")
+    Condition
+      Error in `set_algorithm_newton()`:
+      ! `backend` must be one of "cpp", "r", and "gather".
+      x You supplied "fortran".
+
 # convergence_criterion is deprecated in favor of score_tol
 
     Code

@@ -105,4 +105,5 @@ compiled interface are unchanged.
 
 #### Scenario: invalid backend value lists the new vocabulary
 - **WHEN** `set_algorithm_newton(backend = "fortran")` is called
-- **THEN** `match.arg()` rejects it naming `cpp`, `r`, and `gather`.
+- **THEN** it aborts with a cli error naming `cpp`, `r`, and `gather`, and the
+  value that was supplied.

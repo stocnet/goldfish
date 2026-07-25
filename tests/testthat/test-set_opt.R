@@ -98,6 +98,41 @@ test_that("the engine sentinel selects the same path as its backend", {
   }
 })
 
+test_that("a legacy value on backend selects the backend that replaced it", {
+  withr::local_options(lifecycle_verbosity = "quiet")
+  for (legacy in names(LEGACY_ENGINE_BACKENDS)) {
+    expect_equal(set_algorithm_newton(backend = legacy)$engine, legacy)
+  }
+})
+
+test_that("both arguments supplied resolves to backend", {
+  withr::local_options(lifecycle_verbosity = "quiet")
+  opts <- set_algorithm_newton(engine = "default", backend = "gather")
+  expect_equal(opts$engine, "gather_compute")
+})
+
+test_that("the engine argument and the legacy values are deprecated", {
+  local_reproducible_output()
+  withr::local_options(lifecycle_verbosity = "warning")
+  # The old argument alone: one warning naming `backend`.
+  expect_snapshot(invisible(set_algorithm_newton(engine = "cpp")))
+  # The old argument with an old value: still one warning, naming both halves
+  # of the rename rather than the deprecated intermediate `backend =
+  # "gather_compute"`.
+  expect_snapshot(invisible(set_algorithm_newton(engine = "gather_compute")))
+  # The half-migrated call: the new argument with an old value.
+  expect_snapshot(invisible(set_algorithm_newton(backend = "default")))
+  # Both arguments, new value on `backend`: one warning, and `backend` wins.
+  expect_snapshot(
+    invisible(set_algorithm_newton(engine = "default", backend = "gather"))
+  )
+})
+
+test_that("an unknown backend aborts naming the vocabulary", {
+  local_reproducible_output()
+  expect_snapshot(set_algorithm_newton(backend = "fortran"), error = TRUE)
+})
+
 test_that("convergence_criterion is deprecated in favor of score_tol", {
   expect_snapshot(invisible(set_algorithm_newton(convergence_criterion = 1e-4)))
 })
