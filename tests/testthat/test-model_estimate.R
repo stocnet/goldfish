@@ -88,6 +88,43 @@ test_that("probabilities guardrail skips when dims are unavailable", {
   )
 })
 
+test_that("the fit records the backend that produced it", {
+  fit_on <- function(backend, ...) {
+    suppressWarnings(estimate_wrapper(
+      depNetwork ~ inertia + recip,
+      model = "DyNAM",
+      sub_model = "choice",
+      data = dataTest,
+      control_algo = set_algorithm_newton(backend = backend, ...)
+    ))
+  }
+  for (backend in BACKEND_VALUES) {
+    expect_equal(fit_on(backend)$backend, backend)
+  }
+  # After a redirect the component names what actually ran, not what was asked
+  # for -- a diagnostic gating on it must see the backend that made the numbers.
+  expect_equal(fit_on("cpp", diagnostics = "probabilities")$backend, "r")
+})
+
+test_that("a fit without a backend component still works", {
+  # Objects fitted before 2.0.0 carry no `backend`; nothing in the package's own
+  # post-estimation surface may error on its absence.
+  fit <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    control_algo = set_algorithm_newton(backend = "cpp")
+  ))
+  fit$backend <- NULL
+  expect_null(fit$backend)
+  expect_no_error(print(fit))
+  expect_no_error(summary(fit))
+  expect_no_error(coef(fit))
+  expect_no_error(logLik(fit))
+  expect_no_error(vcov(fit))
+})
+
 test_that("backends without per-event probabilities redirect to r", {
   withr::local_options(cli.num_colors = 1L)
   local_reproducible_output()

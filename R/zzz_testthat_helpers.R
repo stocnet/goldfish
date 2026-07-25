@@ -850,6 +850,7 @@ resModObject <- structure(
     ),
     model = "DyNAM",
     sub_model = "choice",
+    backend = "cpp",
     right_censored = FALSE,
     nParams = 3L,
     call = str2lang(

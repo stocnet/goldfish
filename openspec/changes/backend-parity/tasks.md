@@ -71,7 +71,7 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       research prototype that cannot execute. The gate is instead the static
       one: no `set_algorithm_newton(` call anywhere in `R/` passes `engine =`,
       and the migrated file parses.
-- [ ] 1.4 The fit records its backend (D10): one write in the `### 6. RESULTS`
+- [x] 1.4 The fit records its backend (D10): one write in the `### 6. RESULTS`
       assembly in `model_estimate.R`; the `@return` component list documents
       it. Tests: each backend's fit carries the matching value (the three-way
       spec scenario); a fit stripped of the component passes the

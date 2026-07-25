@@ -162,6 +162,10 @@
 #'   \item{formula}{a formula with the information of the model fitted.}
 #'   \item{model}{a character value of the model type.}
 #'   \item{sub_model}{a character value of the sub_model type.}
+#'   \item{backend}{a character value naming the computational implementation
+#'   that produced the fit (`"cpp"`, `"r"` or `"gather"`), after any
+#'   estimation-time redirect. Absent on objects fitted before goldfish 2.0.0;
+#'   consumers treat a missing value as an unknown backend.}
 #'   \item{right_censored}{
 #'   a logical value indicating if the estimation process considered
 #'   right-censored events.
@@ -2195,6 +2199,10 @@ estimate_wrapper <- function(
   result$node_lookup <- ds_node_lookup(orig_src)
   result$model <- model
   result$sub_model <- sub_model
+  # The backend that actually ran, after the gates above may have redirected it.
+  # Post-estimation consumers gate primitive availability on this, so it must be
+  # what produced the numbers, not what was requested.
+  result$backend <- backend
   result$right_censored <- has_intercept
   result$nParams <- sum(!GetFixed(result))
   # Reconstruct the call for printing. On the direct path `sys.call(-1L)` is the

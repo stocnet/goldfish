@@ -177,6 +177,10 @@ additional parameter description.}
 \item{formula}{a formula with the information of the model fitted.}
 \item{model}{a character value of the model type.}
 \item{sub_model}{a character value of the sub_model type.}
+\item{backend}{a character value naming the computational implementation
+that produced the fit (\code{"cpp"}, \code{"r"} or \code{"gather"}), after any
+estimation-time redirect. Absent on objects fitted before goldfish 2.0.0;
+consumers treat a missing value as an unknown backend.}
 \item{right_censored}{
 a logical value indicating if the estimation process considered
 right-censored events.
