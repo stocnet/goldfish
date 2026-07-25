@@ -135,3 +135,27 @@ test_that("cpp rate-ordered matches R stable softmax at extreme beta", {
   expect_equal(res$fisher, ref$informationMatrix, tolerance = 1e-8)
   expect_true(all(is.finite(res$fisher)))
 })
+
+test_that("gather multinomial matches cpp at a predictor that underflows", {
+  skip_on_cran()
+  # One dominant alternative drives the observed alternative's probability below
+  # the double floor, so the pre-adoption `log(exp_obs / normalizer)` returned
+  # -Inf while `x_obs - log_normalizer` stays finite. The gather kernel now
+  # takes the same route as the cpp one, so the two agree here rather than
+  # agreeing only on well-conditioned fixtures.
+  gather_k <- getFromNamespace("compute_multinomial_selection", "goldfish")
+  n <- 4L
+  stat <- matrix(0, n, 1L)
+  stat[2L, 1L] <- 1000 # alternative 2 dominates
+  res <- gather_k(
+    parameters = 1,
+    stat_all_events = stat,
+    n_candidates = n,
+    selected = 0L, # the observed alternative is the underflowing one
+    index_i = integer(0),
+    index_j = integer(0)
+  )
+  expect_true(is.finite(res$logLikelihood))
+  # log p_obs = x_obs - lse = 0 - 1000 (to within the other terms' rounding).
+  expect_equal(as.numeric(res$intervalLogL), -1000, tolerance = 1e-9)
+})

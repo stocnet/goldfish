@@ -125,7 +125,7 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       commit, so the numerical tasks that follow have a clean diff.
       `NOT_CRAN=true` with the frozen baselines PASS is the whole gate -- a
       rename cannot move a coefficient.
-- [ ] 3.2b Gather **multinomial** kernel takes its normalizer from the shared
+- [x] 3.2b Gather **multinomial** kernel takes its normalizer from the shared
       helper (spec: likelihood-computation). Its likelihood is a ratio, so the
       shift cancels exactly and `log(exp_obs/normalizer)` becomes
       `x_obs - lse` -- the same underflow fix the `default_c` kernels already

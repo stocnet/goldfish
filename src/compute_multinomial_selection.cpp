@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -40,18 +41,23 @@ List compute_multinomial_selection(
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
 
-    // Get exp(\beta^T S) for each pair of actors in each events
-    arma::vec exps = arma::exp(stat_all_events * parameters);
+    // The linear predictors, hoisted as one GEMV over every row. The
+    // exponentiation is now per event, because the max-shift is per event.
+    arma::vec lin_pred = stat_all_events * parameters;
     // start address in stat_all_events of current events
     int id_start = 0;
+    // Gather slices are pre-masked -- every row of an event's block is in its
+    // risk set -- so the helper's mask is empty.
+    const arma::vec no_mask;
+    arma::vec weights;
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
         // Initialize data for each event
         int id_end = id_start + n_candidates(id_event);
-        // the subviewsof th stat mat and exps corresponding to this event
-        const arma::colvec& exp_current_event =
-          exps.subvec(id_start, id_end - 1);
+        // the subviews of the stat mat and predictors for this event
+        const arma::vec& lin_pred_current_event =
+          lin_pred.subvec(id_start, id_end - 1);
         const arma::mat& currentEffect =
           stat_all_events.rows(id_start, id_end - 1);
         // reset auxilliary variables
@@ -59,10 +65,16 @@ List compute_multinomial_selection(
         fisher_current_event.zeros();
         // declare the receiver and the normalizer (partition function)
         int id_receiver = selected(id_event);
-        double normalizer = arma::sum(exp_current_event);
+        // Max-shifted weights and the log-normalizer. This likelihood is a
+        // ratio, so the shift cancels exactly -- and the observed
+        // log-probability below becomes a subtraction that stays finite where
+        // log(exp_obs / normalizer) underflowed to -inf.
+        double log_normalizer =
+          log_sum_exp_masked(lin_pred_current_event, no_mask, weights);
+        double normalizer = arma::sum(weights);
         // go through all candidates
         for (unsigned int j = 0; j < n_candidates(id_event); j++) {
-            probability_current_receiver = exp_current_event(j) / normalizer;
+            probability_current_receiver = weights(j) / normalizer;
             expected_stat_current_event +=
               probability_current_receiver * (currentEffect.row(j));
             fisher_current_event += probability_current_receiver *
@@ -77,7 +89,7 @@ List compute_multinomial_selection(
         fisher += fisher_current_event;
         // logLikelihood
         intervalLogL(id_event) =
-          log(exp_current_event(id_receiver) / normalizer);
+          lin_pred_current_event(id_receiver) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
         id_start = id_end;
     }
