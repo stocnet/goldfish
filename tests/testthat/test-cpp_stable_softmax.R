@@ -153,7 +153,12 @@ test_that("gather multinomial matches cpp at a predictor that underflows", {
     n_candidates = n,
     selected = 0L, # the observed alternative is the underflowing one
     index_i = integer(0),
-    index_j = integer(0)
+    index_j = integer(0),
+    n_actors_1 = 0L,
+    n_actors_2 = 0L,
+    return_event_scores = FALSE,
+    return_ranks = FALSE,
+    return_margins = FALSE
   )
   expect_true(is.finite(res$logLikelihood))
   # log p_obs = x_obs - lse = 0 - 1000 (to within the other terms' rounding).

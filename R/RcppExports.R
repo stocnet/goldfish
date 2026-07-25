@@ -221,8 +221,8 @@ compute_coordination_selection <- function(parameters, stat_all_events, n_candid
 #'   multinomial selection processes, e.g. DyNAM-rate-ordered, DyNAM-choice,
 #'   and REM-choice models.
 #' @noRd
-compute_multinomial_selection <- function(parameters, stat_all_events, n_candidates, selected, index_i, index_j) {
-    .Call('_goldfish_compute_multinomial_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, index_i, index_j)
+compute_multinomial_selection <- function(parameters, stat_all_events, n_candidates, selected, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins) {
+    .Call('_goldfish_compute_multinomial_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins)
 }
 
 #' Estimate a poisson selection model with gathered data

@@ -141,17 +141,31 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
       need. Tests: per-event logLik / score / information unchanged against the
       pre-change kernel on the baseline fixtures; `p` exact where the raw ratio
       gives `NaN` (overflow) or a spurious `1` (subnormal underflow).
-- [ ] 3.3 Gather kernels gain `return_event_scores`, `return_ranks`,
-      `return_margins` via the shared helpers, plus `total_rate` from the
-      Poisson kernel's existing `normalizer`. All three kernels
-      (multinomial, Poisson, coordination); the Poisson kernel accumulates
-      margins on both exact-time scales from **one** weight vector (D20:
-      `w = p`, with `c = 1` for the probability scale and `c = Δt * T` for the
-      compensator), and stores the conditional log-probability as
-      `x_obs - lse` (D17 revised -- computed here, not assembled R-side from an
-      identity that loses digits away from the MLE).
-      Tests: gather `event_scores` column
-      sums equal the aggregate score; gather ranks/margins present.
+Split for bisectability (three kernels, three arity bumps; D7's "one commit per
+family so a baseline movement is bisectable" applied to the gather side). No
+design change.
+
+- [x] 3.3a Gather **multinomial** kernel gains `return_event_scores`,
+      `return_ranks`, `return_margins` via the shared reduction, plus the
+      plumbing all three kernels need: `compute_()` gains the flags and the
+      margin accumulator sizes (`n_actors1` / `n_actors2`, already in scope at
+      the call site in `estimate_c_int()`), and the new components are returned.
+      Reduction called with `w = p`, `c = 1` (D20). Tests: `event_scores` column
+      sums equal the aggregate score; ranks and margins present and agreeing
+      with the `cpp` backend at a fixed parameter vector.
+- [ ] 3.3b Gather **Poisson** kernel gains the same three, with margins on
+      **both** exact-time scales from one weight vector (D20: `c = 1` for the
+      probability scale, `c = Δt * T` for the compensator), and wires the
+      `total_rate` / conditional-log-probability that task 3.2c already computes
+      through `cpp_interface.R` onto the result (D13, D17). Tests: both margin
+      variants; the compensator variant totals the event count at the MLE and
+      the probability variant totals it at any parameter vector.
+- [ ] 3.3c Gather **coordination** kernel gains the same three over its ragged
+      CSR risk set. Rank counts strictly-greater weights over the event's
+      **whole realized risk set**, not within a sender group (D14) -- if the
+      groups turn out to be semantically load-bearing for ranks, that is an
+      escalation back to design, not a silent reinterpretation. Tests: ranks and
+      margins agree with the `cpp` MM kernel at a fixed parameter vector.
 - [ ] 3.4 Return the new gather components through `R/cpp_interface.R` onto the
       result object under the same names the `cpp` backend uses, so no consumer
       branches on backend. Tests: component names and shapes identical across

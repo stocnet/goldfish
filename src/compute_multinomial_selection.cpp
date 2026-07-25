@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
 #include "log_sum_exp.h"
+#include "event_reductions.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -22,13 +23,16 @@ List compute_multinomial_selection(
     const arma::uvec& n_candidates,
     const arma::uvec& selected,
     const arma::uvec& index_i,
-    const arma::uvec& index_j
+    const arma::uvec& index_j,
+    const arma::uword n_actors_1,
+    const arma::uword n_actors_2,
+    const bool return_event_scores,
+    const bool return_ranks,
+    const bool return_margins
 ) {
     // `index_i` / `index_j` are the 0-based per-row actor slots the shared
     // margin reduction scatters into; an empty vector means this shape has no
-    // such axis. Threaded here ahead of the accumulators that consume them.
-    (void) index_i;
-    (void) index_j;
+    // such axis.
     int n_events = selected.size();
     int n_parameters = parameters.size();
     // declare auxilliary variables
@@ -50,6 +54,30 @@ List compute_multinomial_selection(
     // risk set -- so the helper's mask is empty.
     const arma::vec no_mask;
     arma::vec weights;
+
+    // Opt-in per-event primitives, allocated only when requested so the default
+    // path pays nothing. All three are reductions of the probability vector via
+    // the shared helpers, so this kernel carries no reduction arithmetic of its
+    // own. Margin sides come from the per-row actor index the gather stack
+    // carries; an empty index means this shape has no such axis.
+    arma::mat event_scores;
+    if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+    IntegerVector observed_rank;
+    if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
+    arma::vec margin_observed_i, margin_expected_i;
+    arma::vec margin_observed_j, margin_expected_j;
+    const bool has_side_i = return_margins && index_i.n_elem > 0;
+    const bool has_side_j = return_margins && index_j.n_elem > 0;
+    if (has_side_i) {
+        margin_observed_i = arma::vec(n_actors_1, fill::zeros);
+        margin_expected_i = arma::vec(n_actors_1, fill::zeros);
+    }
+    if (has_side_j) {
+        margin_observed_j = arma::vec(n_actors_2, fill::zeros);
+        margin_expected_j = arma::vec(n_actors_2, fill::zeros);
+    }
+    arma::vec probabilities;
+    arma::uvec index_i_event, index_j_event;
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -87,6 +115,39 @@ List compute_multinomial_selection(
         fisher_current_event -= expected_stat_current_event.t() *
           expected_stat_current_event;
         fisher += fisher_current_event;
+        // Opt-in primitives, all reductions of the probability vector on the
+        // probability scale (c = 1), which is the only scale a multinomial
+        // sub-model has.
+        if (return_event_scores || return_ranks || return_margins) {
+            probabilities = weights / normalizer;
+        }
+        if (return_ranks) {
+            observed_rank[id_event] =
+              rank_of_observed(probabilities, no_mask, id_receiver);
+        }
+        if (return_margins) {
+            std::vector<margin_side> sides;
+            if (has_side_i) {
+                index_i_event = index_i.subvec(id_start, id_end - 1);
+                sides.push_back(margin_side(
+                  &margin_observed_i, &margin_expected_i, &index_i_event
+                ));
+            }
+            if (has_side_j) {
+                index_j_event = index_j.subvec(id_start, id_end - 1);
+                sides.push_back(margin_side(
+                  &margin_observed_j, &margin_expected_j, &index_j_event
+                ));
+            }
+            accumulate_margins(
+              probabilities, 1.0, no_mask, id_receiver, true, sides
+            );
+        }
+        if (return_event_scores) {
+            event_scores.row(id_event) = event_score_row(
+              currentEffect, probabilities, 1.0, id_receiver, true
+            );
+        }
         // logLikelihood
         intervalLogL(id_event) =
           lin_pred_current_event(id_receiver) - log_normalizer;
@@ -98,6 +159,14 @@ List compute_multinomial_selection(
       Named("derivative") = derivative,
       Named("fisher") = fisher,
       Named("logLikelihood") = logLikelihood,
-      Named("intervalLogL") = intervalLogL
+      Named("intervalLogL") = intervalLogL,
+      Named("event_scores") = event_scores,
+      Named("observed_rank") = observed_rank,
+      Named("margin_observed") = has_side_j ? margin_observed_j : margin_observed_i,
+      Named("margin_expected") = has_side_j ? margin_expected_j : margin_expected_i,
+      Named("margin_observed_sender") = margin_observed_i,
+      Named("margin_expected_sender") = margin_expected_i,
+      Named("margin_observed_receiver") = margin_observed_j,
+      Named("margin_expected_receiver") = margin_expected_j
     );
 }

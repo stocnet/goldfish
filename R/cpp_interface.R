@@ -373,6 +373,11 @@ estimate_c_int <- function(
         twomode_or_reflexive = twomode_or_reflexive,
         index_i = gathered_data$index_i,
         index_j = gathered_data$index_j,
+        n_actors_1 = n_actors1,
+        n_actors_2 = n_actors2,
+        return_event_scores = return_event_scores,
+        return_ranks = return_ranks,
+        return_margins = return_margins,
         sender_of_row = gathered_data$sender_of_row,
         dyad_partner = gathered_data$dyad_partner
       )
@@ -1597,6 +1602,11 @@ compute_ <- function(
   twomode_or_reflexive,
   index_i = NULL,
   index_j = NULL,
+  n_actors_1 = 0L,
+  n_actors_2 = 0L,
+  return_event_scores = FALSE,
+  return_ranks = FALSE,
+  return_margins = FALSE,
   sender_of_row = NULL,
   dyad_partner = NULL
 ) {
@@ -1613,7 +1623,12 @@ compute_ <- function(
       n_candidates,
       selected,
       margin_i,
-      margin_j
+      margin_j,
+      n_actors_1,
+      n_actors_2,
+      return_event_scores,
+      return_ranks,
+      return_margins
     )
   }
 

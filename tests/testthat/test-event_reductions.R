@@ -274,3 +274,109 @@ test_that("margin_slots reports an absent axis as empty", {
   expect_identical(margin_slots(NULL), integer(0))
   expect_identical(margin_slots(integer(0)), integer(0))
 })
+
+# --- gather multinomial kernel primitives -------------------------------------
+# The kernel carries no reduction arithmetic of its own -- it calls the shared
+# helpers -- so these tests check the wiring and the identities the primitives
+# must satisfy, against independent R computations.
+
+multinomial_k <- getFromNamespace("compute_multinomial_selection", "goldfish")
+
+multinomial_fixture <- function() {
+  set.seed(5)
+  list(
+    s_mat = matrix(round(rnorm(7 * 2), 3), 7, 2),
+    b = c(0.5, -0.3),
+    nc = c(4L, 3L),
+    sel = c(2L, 1L),
+    # sender and receiver slot per row, 0-based, as the gather stack carries
+    ii = c(1L, 1L, 1L, 1L, 2L, 2L, 2L) - 1L,
+    jj = c(1L, 2L, 3L, 4L, 1L, 2L, 3L) - 1L
+  )
+}
+
+test_that("gather event_scores column sums equal the aggregate score", {
+  fx <- multinomial_fixture()
+  res <- multinomial_k(
+    fx$b,
+    fx$s_mat,
+    fx$nc,
+    fx$sel,
+    fx$ii,
+    fx$jj,
+    2L,
+    4L,
+    TRUE,
+    TRUE,
+    TRUE
+  )
+  # The per-event score is the increment the derivative already accumulates, so
+  # storing it per event must sum back to the aggregate exactly.
+  expect_equal(
+    colSums(res$event_scores),
+    as.vector(res$derivative),
+    tolerance = 1e-12
+  )
+})
+
+test_that("gather ranks and margins match an independent computation", {
+  fx <- multinomial_fixture()
+  res <- multinomial_k(
+    fx$b,
+    fx$s_mat,
+    fx$nc,
+    fx$sel,
+    fx$ii,
+    fx$jj,
+    2L,
+    4L,
+    TRUE,
+    TRUE,
+    TRUE
+  )
+  expected_rank <- integer(2)
+  expected_margin <- numeric(4)
+  observed_margin <- numeric(4)
+  st <- 1L
+  for (e in seq_along(fx$nc)) {
+    idx <- st:(st + fx$nc[e] - 1L)
+    p <- exp(fx$s_mat[idx, , drop = FALSE] %*% fx$b)[, 1]
+    p <- p / sum(p)
+    expected_rank[e] <- 1L + sum(p > p[fx$sel[e] + 1L])
+    slot <- fx$jj[idx] + 1L
+    expected_margin[slot] <- expected_margin[slot] + p
+    observed_margin[slot[fx$sel[e] + 1L]] <-
+      observed_margin[slot[fx$sel[e] + 1L]] + 1
+    st <- st + fx$nc[e]
+  }
+  expect_identical(as.integer(res$observed_rank), expected_rank)
+  expect_equal(
+    as.vector(res$margin_expected_receiver),
+    expected_margin,
+    tolerance = 1e-12
+  )
+  expect_equal(as.vector(res$margin_observed_receiver), observed_margin)
+  # On the probability scale the expected margins total the event count at ANY
+  # parameter vector -- each event contributes exactly 1.
+  expect_equal(sum(res$margin_expected_receiver), length(fx$nc))
+})
+
+test_that("gather primitives are absent unless requested", {
+  fx <- multinomial_fixture()
+  res <- multinomial_k(
+    fx$b,
+    fx$s_mat,
+    fx$nc,
+    fx$sel,
+    fx$ii,
+    fx$jj,
+    2L,
+    4L,
+    FALSE,
+    FALSE,
+    FALSE
+  )
+  expect_length(res$event_scores, 0)
+  expect_length(res$observed_rank, 0)
+  expect_length(res$margin_expected_receiver, 0)
+})
