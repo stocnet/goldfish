@@ -163,8 +163,8 @@
 #'   \item{diagnostics}{Character vector of the diagnostic primitives to store
 #'      on the fitted result.}
 #'   \item{optimizer}{Optimization algorithm used in the estimation process.}
-#'   \item{engine}{The engine token the selected `backend` resolves to, the name
-#'      the estimation path reads.}
+#'   \item{backend}{Computational implementation used in the estimation
+#'      process, one of `"cpp"`, `"r"` or `"gather"`.}
 #' @export
 #' @examples
 #' est_ctrl <- set_algorithm_newton(
@@ -364,7 +364,7 @@ set_algorithm_newton <- function(
     scores_explicit = scores_explicit,
     diagnostics = diagnostics,
     optimizer = optimizer,
-    engine = BACKEND_ENGINE_TOKENS[[backend]]
+    backend = backend
   )
 
   class(control_list) <- c(
@@ -375,9 +375,11 @@ set_algorithm_newton <- function(
   return(control_list)
 }
 
-# The user-facing backend vocabulary and the engine token each value resolves
-# to. The rename stops at this boundary: the compiled interface, the R
-# estimators and the writers keep reading the tokens on the right.
+# The backend vocabulary, paired with the pre-2.0.0 engine token each value
+# replaced. Nothing downstream reads a token any more: the pair survives as the
+# input-side compatibility map (the `engine =` sentinel, its legacy values, and
+# the read shim for control objects built before 2.0.0), plus the key the frozen
+# coefficient baselines were written under.
 BACKEND_ENGINE_TOKENS <- c(
   cpp = "default_c",
   r = "default",
@@ -385,8 +387,7 @@ BACKEND_ENGINE_TOKENS <- c(
 )
 BACKEND_VALUES <- names(BACKEND_ENGINE_TOKENS)
 # The inverse map: the pre-2.0.0 `engine` values, keyed by token, valued by the
-# backend that replaced each one. Also how estimation names a resolved engine
-# token in the backend vocabulary.
+# backend that replaced each one.
 LEGACY_ENGINE_BACKENDS <- stats::setNames(
   BACKEND_VALUES,
   BACKEND_ENGINE_TOKENS

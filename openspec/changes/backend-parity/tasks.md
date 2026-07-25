@@ -41,7 +41,7 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
 
 ## 1. The backend vocabulary push (design D8–D10, pure R, no numerics)
 
-- [ ] 1.1 The control object speaks backend (D8, D9): `set_opt.R` stores the
+- [x] 1.1 The control object speaks backend (D8, D9): `set_opt.R` stores the
       resolved value as `backend` and drops the `$engine` component; the
       `BACKEND_ENGINE_TOKENS` / `LEGACY_ENGINE_BACKENDS` pair survives only as
       the input-side legacy map (`engine =` sentinel and legacy values still

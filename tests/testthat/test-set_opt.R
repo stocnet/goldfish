@@ -10,7 +10,7 @@ test_that("set_algorithm_newton works correctly", {
     "damping_decrease_factor",
     "return_interval_loglik",
     "return_probabilities",
-    "engine"
+    "backend"
   )
 
   # Test defaults
@@ -24,7 +24,7 @@ test_that("set_algorithm_newton works correctly", {
   # Check that all expected names are present
   expect_true(all(expected_est_names %in% names(default_opts)))
 
-  expect_equal(default_opts$engine, "default_c") # Default backend is cpp
+  expect_equal(default_opts$backend, "cpp") # Default backend is cpp
   expect_equal(default_opts$max_iterations, 20)
   expect_equal(default_opts$score_tol, 1e-6)
   expect_equal(default_opts$step_tol, 1e-8)
@@ -54,7 +54,7 @@ test_that("set_algorithm_newton works correctly", {
   # Check that all expected names are present
   expect_true(all(expected_est_names %in% names(custom_opts)))
   expect_equal(custom_opts$max_iterations, 50)
-  expect_equal(custom_opts$engine, "default")
+  expect_equal(custom_opts$backend, "r")
   expect_equal(custom_opts$score_tol, 1e-7)
   expect_equal(custom_opts$step_tol, 1e-9)
   expect_true(custom_opts$return_interval_loglik)
@@ -78,22 +78,20 @@ test_that("set_algorithm_newton throw errors", {
   expect_error(set_algorithm_newton(initial_parameters = character(3)))
 })
 
-test_that("backend resolves to the engine token estimation reads", {
-  expect_equal(set_algorithm_newton()$engine, "default_c")
-  expect_equal(set_algorithm_newton(backend = "cpp")$engine, "default_c")
-  expect_equal(set_algorithm_newton(backend = "r")$engine, "default")
-  expect_equal(
-    set_algorithm_newton(backend = "gather")$engine,
-    "gather_compute"
-  )
+test_that("the control object carries backend and no engine component", {
+  expect_equal(set_algorithm_newton()$backend, "cpp")
+  for (b in BACKEND_VALUES) {
+    expect_equal(set_algorithm_newton(backend = b)$backend, b)
+  }
+  expect_false("engine" %in% names(set_algorithm_newton(backend = "cpp")))
 })
 
 test_that("the engine sentinel selects the same path as its backend", {
   withr::local_options(lifecycle_verbosity = "quiet")
   for (legacy in c("default_c", "default", "gather_compute")) {
     expect_equal(
-      set_algorithm_newton(engine = legacy)$engine,
-      set_algorithm_newton(backend = LEGACY_ENGINE_BACKENDS[[legacy]])$engine
+      set_algorithm_newton(engine = legacy)$backend,
+      set_algorithm_newton(backend = LEGACY_ENGINE_BACKENDS[[legacy]])$backend
     )
   }
 })
@@ -101,14 +99,17 @@ test_that("the engine sentinel selects the same path as its backend", {
 test_that("a legacy value on backend selects the backend that replaced it", {
   withr::local_options(lifecycle_verbosity = "quiet")
   for (legacy in names(LEGACY_ENGINE_BACKENDS)) {
-    expect_equal(set_algorithm_newton(backend = legacy)$engine, legacy)
+    expect_equal(
+      set_algorithm_newton(backend = legacy)$backend,
+      LEGACY_ENGINE_BACKENDS[[legacy]]
+    )
   }
 })
 
 test_that("both arguments supplied resolves to backend", {
   withr::local_options(lifecycle_verbosity = "quiet")
   opts <- set_algorithm_newton(engine = "default", backend = "gather")
-  expect_equal(opts$engine, "gather_compute")
+  expect_equal(opts$backend, "gather")
 })
 
 test_that("the engine argument and the legacy values are deprecated", {

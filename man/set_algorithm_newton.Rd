@@ -184,8 +184,8 @@ return the per-event score matrix.}
 \item{diagnostics}{Character vector of the diagnostic primitives to store
 on the fitted result.}
 \item{optimizer}{Optimization algorithm used in the estimation process.}
-\item{engine}{The engine token the selected \code{backend} resolves to, the name
-the estimation path reads.}
+\item{backend}{Computational implementation used in the estimation
+process, one of \code{"cpp"}, \code{"r"} or \code{"gather"}.}
 }
 \description{
 Specifies the algorithm and its control parameters for the model estimation
