@@ -64,7 +64,7 @@ interface's tokens are unchanged (D1).
       implementation, whose tokens D1 keeps; generic prose
       ("cross-engine tolerance", "formula→engine boundary") is domain
       vocabulary, not the argument. Record the list in progress.md.
-- [ ] 3.3 Cross-change coherence: sweep the OTHER active changes' artifacts for
+- [x] 3.3 Cross-change coherence: sweep the OTHER active changes' artifacts for
       legacy engine values used as user-facing vocabulary (residuals-gof's
       optimizer-selection delta, and any change minting new requirements
       against `engine =`), leaving implementation references alone.

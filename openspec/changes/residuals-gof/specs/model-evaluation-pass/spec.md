@@ -30,16 +30,16 @@ model/submodel routing. Statistics SHALL come from the attached or supplied
 - **THEN** it returns the score and information of the full model evaluated
   at that vector, with dimensions matching the full effect set.
 
-### Requirement: evaluator uses the estimation engine
-`evaluate_model()` SHALL default to the engine used for the original
-estimation and SHALL record which engine produced its output. Requesting an
-engine that does not support a requested quantity SHALL abort with a cli
-error naming the supported engines for that quantity.
+### Requirement: evaluator uses the estimation backend
+`evaluate_model()` SHALL default to the backend used for the original
+estimation and SHALL record which backend produced its output. Requesting a
+backend that does not support a requested quantity SHALL abort with a cli
+error naming the supported backends for that quantity.
 
-#### Scenario: engine defaults to the fit's engine
-- **WHEN** a fit estimated with `engine = "default_c"` is evaluated without
-  an explicit engine
-- **THEN** the evaluation runs on `default_c` and per-event quantities agree
+#### Scenario: backend defaults to the fit's backend
+- **WHEN** a fit estimated with `backend = "cpp"` is evaluated without
+  an explicit backend
+- **THEN** the evaluation runs on `cpp` and per-event quantities agree
   with those stored on the fit within 1e-10.
 
 ### Requirement: derived quantities computed in-pass
