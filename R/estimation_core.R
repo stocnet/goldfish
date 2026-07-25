@@ -417,7 +417,7 @@ run_nr_loop <- function(
 
     if (
       isInitialEstimation &&
-        any(is.na(unlist(res))) &&
+        has_unexpected_na(res) &&
         !all(parameters[-1] == 0)
     ) {
       # # Check

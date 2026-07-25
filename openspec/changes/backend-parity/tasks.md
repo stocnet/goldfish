@@ -166,10 +166,26 @@ design change.
       groups turn out to be semantically load-bearing for ranks, that is an
       escalation back to design, not a silent reinterpretation. Tests: ranks and
       margins agree with the `cpp` MM kernel at a fixed parameter vector.
-- [ ] 3.4 Return the new gather components through `R/cpp_interface.R` onto the
+- [x] 3.4 Return the new gather components through `R/cpp_interface.R` onto the
       result object under the same names the `cpp` backend uses, so no consumer
       branches on backend. Tests: component names and shapes identical across
-      `cpp` and `gather` for the same fit.
+      `cpp` and `gather` for the same fit. **Shape parity is complete except for
+      the exact-time probability-scale margins, which `cpp` gains in task 5.1**
+      — until then gather legitimately carries one component more. Also fixed
+      here: the initial-parameters NA guard read `observed_rank`'s by-design NAs
+      (right-censored intervals) as a numerical failure, so requesting ranks on
+      any model with a censored interval aborted.
+- [ ] 3.5 **Pre-existing bug, unmasked by 3.4's guard fix and NOT yet
+      diagnosed:** on the `cpp` backend, requesting `ranks` for the timed
+      DyNAM-rate model on the Social Evolution fixture makes the information
+      matrix non-invertible ("Matrix cannot be inverted; probably due to
+      collinearity"), while the identical fit without `ranks` converges — at the
+      same parameter vector, with `max_iterations = 0`, so no convergence-path
+      difference is involved. `DyNAM_rate_default.cpp` is untouched by this
+      change, the smaller `dataTest` rate fixture is unaffected, and no existing
+      test covers `cpp` + ranks on a timed rate model. Isolate the cause before
+      section 5's parity suite, which cannot pass on that sub-model until this
+      is fixed.
 
 ## 4. The r backend
 

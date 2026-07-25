@@ -440,3 +440,28 @@ test_that("cpp margins match the r backend at the same parameters", {
     )
   }
 })
+
+test_that("a right-censored interval's NA rank is not read as a failure", {
+  # `observed_rank` is allocated NA-filled and written only for dependent
+  # events, so any model with a right-censored interval leaves NAs behind when
+  # ranks are requested. The initial-parameters guard scans the kernel result
+  # for NA meaning "the likelihood could not be evaluated"; before the guard
+  # learned to skip this component, requesting ranks on such a model aborted
+  # with "Estimation not possible with initial parameters".
+  fit <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ 1 + indeg,
+    model = "DyNAM",
+    sub_model = "rate",
+    data = dataTest,
+    control_algo = set_algorithm_newton(
+      backend = "cpp",
+      diagnostics = c("loglik", "ranks"),
+      initial_parameters = c(-3, 0.1),
+      max_iterations = 0
+    )
+  ))
+  expect_false(is.null(fit$observed_rank))
+  # Right-censored intervals keep their NA; dependent events are ranked.
+  expect_true(all(is.na(fit$observed_rank[fit$right_censored_events])))
+  expect_true(all(!is.na(fit$observed_rank[!fit$right_censored_events])))
+})

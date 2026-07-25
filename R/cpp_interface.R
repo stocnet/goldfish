@@ -5,6 +5,19 @@
 #
 ##################### ###
 
+# The initial-parameters guard scans the kernel result for NA, which means "the
+# likelihood could not be evaluated here". Some opt-in per-event components
+# carry NA by DESIGN and must be excluded, or the guard reports a numerical
+# failure that did not happen: `observed_rank` is allocated NA-filled and
+# written only for dependent events, so any model with a right-censored
+# interval leaves NAs behind whenever ranks are requested.
+diagnostic_components_with_na <- c("observed_rank")
+
+has_unexpected_na <- function(res) {
+  scanned <- res[setdiff(names(res), diagnostic_components_with_na)]
+  any(is.na(unlist(scanned)))
+}
+
 # Estimation
 estimate_c_int <- function(
   statsList,
@@ -417,7 +430,7 @@ estimate_c_int <- function(
 
     if (
       isInitialEstimation &&
-        any(is.na(unlist(res))) &&
+        has_unexpected_na(res) &&
         !all(parameters[-1] == 0)
     ) {
       stop(
@@ -652,6 +665,19 @@ estimate_c_int <- function(
     # Only the exact-time engines (rate, REM) return a total rate; the
     # multinomial engines leave it empty, so it stays off their fits.
     estimationResult$total_rate <- as.numeric(res$total_rate)
+  }
+  if (
+    return_total_rate &&
+      !is.null(res$conditional_logl) &&
+      length(res$conditional_logl) > 0
+  ) {
+    # The which/when split of the exact-time log-likelihood: the conditional
+    # component is the Cox partial-likelihood contribution, the log probability
+    # that the observed alternative is the one to move next. It rides the same
+    # `loglik` primitive as total_rate, and is computed in the kernel as
+    # x_obs - log_normalizer rather than reassembled from the identity, which
+    # cancels a term against itself and loses digits away from the MLE.
+    estimationResult$conditional_logl <- as.numeric(res$conditional_logl)
   }
   if (returnEventProbabilities) {
     estimationResult$eventProbabilities <- eventProbabilities
