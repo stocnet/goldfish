@@ -24,3 +24,4 @@ develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD
 1.9.9,local,stocnet/goldfish,ec5a9d3,ec5a9d3,archive,FALSE,Archived OpenSpec change 'make-data-always-assembles' on 2026-07-23 (version 1.9.9); see openspec/changes/archive/.
 1.9.10,local,stocnet/goldfish,20a08c8,20a08c8,archive,FALSE,Archived OpenSpec change 'spec-driven-dispatch' on 2026-07-23 (version 1.9.10); see openspec/changes/archive/.
 1.9.11,local,stocnet/goldfish,5ea7beb,5ea7beb,archive,FALSE,Archived OpenSpec change 'algorithm-naming' on 2026-07-24 (version 1.9.11); see openspec/changes/archive/.
+1.9.13,local,stocnet/goldfish,12a55c9,12a55c9,archive,FALSE,Archived OpenSpec change 'backend-vocabulary' on 2026-07-25 (version 1.9.13); see openspec/changes/archive/.
