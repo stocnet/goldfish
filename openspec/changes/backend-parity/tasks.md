@@ -90,7 +90,7 @@ names; section 6 (the frozen `cpp` engines) is sequenced last on purpose
 
 ## 2. The shared reduction
 
-- [ ] 2.1 `src/event_reductions.h` (+ `.cpp` if any helper is out-of-line):
+- [x] 2.1 `src/event_reductions.h` (+ `.cpp` if any helper is out-of-line):
       `rank_of_observed()`, `accumulate_margins()`, `event_score_row()`, taking
       only `(w_e, c_e, X_e, observed index, actor index, allowed mask)`.
       `accumulate_margins()` takes a **side list** (task 0.2): three of the six

@@ -265,3 +265,15 @@ convert_change <- function(changeList) {
     .Call('_goldfish_convert_change', PACKAGE = 'goldfish', changeList)
 }
 
+#' Exercise the shared per-event reductions from R
+#'
+#' Test-only entry point: it feeds constructed `(w, c, X, obs)` inputs to the
+#' three reductions so the R mirror can be pinned to this implementation
+#' directly, rather than only through a kernel that happens to call them.
+#' Supplying `index_b` adds a second margin side, which is how the two-sided
+#' kernels (REM, REM_ordered, MM) use `accumulate_margins()`.
+#' @noRd
+event_reductions_probe <- function(X, w, c, obs, allowed, dependent, index_a, index_b, n_a, n_b) {
+    .Call('_goldfish_event_reductions_probe', PACKAGE = 'goldfish', X, w, c, obs, allowed, dependent, index_a, index_b, n_a, n_b)
+}
+

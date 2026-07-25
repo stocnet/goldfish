@@ -279,6 +279,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// event_reductions_probe
+List event_reductions_probe(const arma::mat& X, const arma::vec& w, double c, arma::uword obs, const arma::vec& allowed, bool dependent, const arma::uvec& index_a, const arma::uvec& index_b, arma::uword n_a, arma::uword n_b);
+RcppExport SEXP _goldfish_event_reductions_probe(SEXP XSEXP, SEXP wSEXP, SEXP cSEXP, SEXP obsSEXP, SEXP allowedSEXP, SEXP dependentSEXP, SEXP index_aSEXP, SEXP index_bSEXP, SEXP n_aSEXP, SEXP n_bSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type w(wSEXP);
+    Rcpp::traits::input_parameter< double >::type c(cSEXP);
+    Rcpp::traits::input_parameter< arma::uword >::type obs(obsSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type allowed(allowedSEXP);
+    Rcpp::traits::input_parameter< bool >::type dependent(dependentSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type index_a(index_aSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type index_b(index_bSEXP);
+    Rcpp::traits::input_parameter< arma::uword >::type n_a(n_aSEXP);
+    Rcpp::traits::input_parameter< arma::uword >::type n_b(n_bSEXP);
+    rcpp_result_gen = Rcpp::wrap(event_reductions_probe(X, w, c, obs, allowed, dependent, index_a, index_b, n_a, n_b));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_goldfish_estimate_DyNAM_MM", (DL_FUNC) &_goldfish_estimate_DyNAM_MM, 21},
@@ -293,6 +313,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_goldfish_C_convert_composition_change", (DL_FUNC) &_goldfish_C_convert_composition_change, 2},
     {"_goldfish_convert_composition_change", (DL_FUNC) &_goldfish_convert_composition_change, 2},
     {"_goldfish_convert_change", (DL_FUNC) &_goldfish_convert_change, 1},
+    {"_goldfish_event_reductions_probe", (DL_FUNC) &_goldfish_event_reductions_probe, 10},
     {NULL, NULL, 0}
 };
 
