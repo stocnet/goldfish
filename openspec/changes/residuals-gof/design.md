@@ -23,9 +23,16 @@ simulation-based). Key code facts it establishes:
   rows (`D.row(obs) - g` for multinomial engines; full score increments for
   exact-time rate/REM). These are byproducts of the final Newton–Raphson
   iteration — storing them costs no extra compute.
-- No `default_c` engine returns a probability matrix (`pMatrix` falls back
+- ~~No `default_c` engine returns a probability matrix (`pMatrix` falls back
   to a "not implemented" string in `cpp_interface.R`); ranks, recall, and
-  margins therefore require in-pass computation.
+  margins therefore require in-pass computation.~~ **Superseded by
+  `backend-parity` (D16/D23):** all nine kernels now return per-event
+  probabilities natively, actor-indexed over the whole node set and zero off
+  the risk set, and the `"not implemented"` fallback is gone. The conclusion
+  still holds and for a better reason: ranks, recall and margins remain in-pass
+  computations because reducing them from a stored probability matrix would
+  materialize the $O(n|R|)$ object D2 exists to avoid, not because the matrix
+  is unavailable.
 - `preprocessing_only = TRUE` / `preprocessed =` already exist as the
   preprocessed-object producer/consumer surface.
 - `augment.result.goldfish` exists (events + `intervalLogL`);
@@ -85,8 +92,13 @@ edit; the dispatch/spec portion re-runs against the landed surface once
 "probabilities"))`; `TRUE` ≡ `c("loglik", "scores")`, `"all"` = everything,
 `FALSE`/`character(0)` = none. Default `c("loglik", "scores")` (preserves
 today's `return_interval_loglik = TRUE` behavior and adds the free scores).
-`return_interval_loglik`, `return_probabilities`, `return_event_scores` are
-soft-deprecated (lifecycle) with one-to-one mapping. Rationale: residual
+`return_interval_loglik` and `return_probabilities` are soft-deprecated
+(lifecycle) with one-to-one mapping — both shipped publicly (CRAN 1.6.x as
+camelCase `estimationInit` entries, v1.7.0 as arguments). `return_event_scores`
+never shipped (introduced on the development branch after the v1.7.0 tag), so
+it is removed outright at 2.0.0 with no lifecycle ceremony — the
+deprecation-scope audit lives in `backend-parity` design D11; task 1.9 undoes
+the uniform three-flag deprecation task 1.2 had implemented. Rationale: residual
 *types* are transformations of stored *primitives*; naming primitives makes
 the storage cost legible and avoids false economies (deviance and outcome
 probability are the same stored vector). Alternative rejected: tiered
@@ -123,16 +135,18 @@ surface. Recall@k derives from ranks in R. Rationale: the full probability matri
 $O(n|R|)$ (≈ 11 GB for a 57k-event, 159-actor REM) while every consumer
 needs only these summaries; returning small vectors keeps the C++→R
 boundary flat. `"probabilities"` stays available for the choice model and
-small risk sets via the existing R-engine `pMatrix` path or an explicit
-opt-in. cpp-recompile discipline applies to every `src/` edit.
+small risk sets behind the size guardrail; with `backend-parity` landed,
+every backend returns it natively (the silent redirect onto the R backend is
+removed), so availability is governed by the guardrail alone, not by which
+backend ran. cpp-recompile discipline applies to every `src/` edit.
 
 ### D3 — `evaluate_model()` is the single shared evaluator
 
 `evaluate_model(x, at = coef(x), return = c("loglik", "score",
 "information", "interval_loglik", "event_scores", "ranks", "recall",
-"margins", "probabilities"), preprocessed = NULL, engine = <estimation
-engine>)`, dispatched per model/submodel inside the Rcpp entry points
-(`estimate_()` for `default_c`, `compute_()` for `gather_compute`) keyed on
+"margins", "probabilities"), preprocessed = NULL, backend = <the fit's
+recorded backend>)`, dispatched per model/submodel inside the Rcpp entry points
+(`estimate_()` for the `cpp` backend, `compute_()` for `gather`) keyed on
 the `spec` object — the R-side `modelTypeCall` routing no longer exists
 (retired by `spec-driven-dispatch`; see task 0.1 findings). The existing
 single-pass closure `evaluate_default_c(pars, need_scores)` in
@@ -141,9 +155,12 @@ to generalize into `evaluate_model()`. One no-iteration engine pass at `at`.
 Consumers:
 `residuals()` on-demand types, `test_parameter()` (full model at the
 constrained estimate), `test_time(method = "windows")`, `predict()`, and
-later DyNES ascent-based Monte Carlo. The engine MUST default to the one
-used for estimation: diagnostics must be numerically consistent with the
-fit they diagnose (1e-6 baseline discipline; engines differ in
+later DyNES ascent-based Monte Carlo. The backend MUST default to the one
+used for estimation, read from the fit's `backend` component
+(`backend-parity` D10 records it on every `result.goldfish`; a pre-2.0.0 fit
+without the component means unknown — fall back to the default backend, never
+error on the absence): diagnostics must be numerically consistent with the
+fit they diagnose (1e-6 baseline discipline; backends differ in
 accumulation order).
 
 **Reflexive/two-mode flag consistency.** `evaluate_model()` and the new
@@ -173,6 +190,14 @@ revise-gather-output; `estimate_*(..., preprocessing_only = TRUE)` remains
 its equivalent until the naming pass supersedes it).
 
 ### D5 — residuals()/fitted()/predict()/augment() semantics
+
+`augment` wiring rides this decision (2026-07-25 audit finding): the
+method is currently a bare `export(augment.result.goldfish)` with no
+S3 registration and no re-exported generic — unlike `tidy`/`glance`.
+Since this change reworks the method anyway, it lands wired like its
+siblings (registration + `generics::augment` re-export; bare export
+removed under the dev-line-only rule); pkgdown indexing of the topic is
+owned by the pkgdown-update change.
 
 `residuals(object, type = c("deviance", "schoenfeld", "scaled_schoenfeld",
 "score", "cox_snell", "response", "martingale", "dfbeta", "dfbetas"),
@@ -410,6 +435,28 @@ margins (relevent/remstimate are per-event/per-effect; degree calibration
 exists only as simulation workflows), so the vignette must carry the
 justification, not assume it.
 
+The vignette also carries a **REM-vs-DyNAM model comparison section**
+(2026-07-25), descriptive only and built purely from what the fits already
+store — no new function surface. Its basis is the exact-time likelihood
+algebra in backend-parity's design appendix (items 8–10): both models factor
+into a categorical "which dyad" part and an `Exp(T)` timing part, and
+DyNAM's dyad probability composes exactly as
+`p_rate(sender) × p_choice(receiver | sender)`, so the stored conditional
+components put the two parameterizations on one categorical scale. The
+section illustrates, with figure code: (a) the per-event conditional
+difference `d_e = conditional^REM − (conditional^rate + loglik^choice)` and
+its cumulative trace over the event sequence; (b) the total decomposition
+table — full loglik difference split into categorical vs timing parts, with
+AIC/BIC on the full likelihoods; (c) calibration side-by-side — REM
+sender/receiver margins against DyNAM's composed probability-scale margins;
+(d) pacing — Cox–Snell Q-Q panels from each model's `total_rate`; (e)
+`predict()`-based who-is-next agreement on a small fixture. Requirements:
+both fits on the same dependent events and consistent risk sets (dyads =
+senders × choice sets); the timing and categorical parts are reported side
+by side, never pooled. Formal non-nested inference (the Vuong statistic,
+derivation recorded in backend-parity's appendix item 11) is deliberately
+NOT implemented here — the vignette names it as the future formal route.
+
 ## Risks / Trade-offs
 
 - [BREAKING class rename of `diagnose_*` returns] → goldfish and autograph
@@ -421,9 +468,11 @@ justification, not assume it.
   → additions are read-only accumulators behind flags default-off;
   NOT_CRAN=true baseline suite must PASS (not SKIP) at every commit;
   cpp-recompile skill after every src/ edit.
-- [`diagnostics` deprecation breaks scripts using the old flags] →
-  lifecycle soft deprecation with mapping, at least one release cycle;
-  old flags keep working with a warning.
+- [`diagnostics` deprecation breaks scripts using the old flags] → the two
+  publicly-shipped flags (`return_interval_loglik`, `return_probabilities`)
+  get lifecycle soft deprecation with mapping, at least one release cycle;
+  `return_event_scores` never shipped publicly, so its outright removal can
+  break no released script (backend-parity D11).
 - [Scaled-Schoenfeld scaling constants differ across references
   (Grambsch–Therneau variants)] → cross-check against `survival::cox.zph`
   on a REM expressible as a Cox model and against
@@ -445,8 +494,9 @@ justification, not assume it.
    `diagnose_*` class rename).
 2. autograph `feature/goldfish-diag` branch developed in parallel; merged
    to autograph `develop` when goldfish phase 2 is complete.
-3. Old return flags removed no earlier than one minor release after
-   deprecation.
+3. The two public return flags removed no earlier than one minor release
+   after deprecation; `return_event_scores` is already gone at 2.0.0 (never
+   public, no cycle owed).
 4. Rollback: every task is one focused commit with green tests; the C++
    accumulators are flag-gated so reverting R surface alone is safe.
 

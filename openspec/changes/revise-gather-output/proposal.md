@@ -41,6 +41,23 @@ deprecation cycle — or even a defunct stub — would serve.
 - **DyNAMi supported** through `compute_statistics()` (the isolated DyNAMi
   preprocessing front-end must route or post-convert to the gather writer —
   verified, not assumed).
+- **Constrained gather/db output is fixed** (D9, found while implementing the
+  flavored outputs): products are rendered *after* a `support_constraint` is
+  realized and folded into availability, and the gather expansion honors the
+  `active_dyad_encoding` that folding produces. Today either combination errors
+  out — a pre-existing defect with no test covering it, and a prerequisite here
+  because every flavored gather is a constrained gather.
+- **The db export becomes self-describing, with one uniform schema** (D10):
+  statistic columns are named by their effect rather than `stat_<i>`, a
+  `<db_table>_nodes` table resolves the `index_i`/`index_j` identity columns
+  back to the original nodes, and **every** export — flavored or not — writes
+  one table per process (`<db_table>_<fid>`) plus a `<db_table>_map` naming
+  them, so one reader handles both cases and a model that later gains flavors
+  does not change the schema. What is in the database can be read without the
+  session that wrote it, and only the rows the constraint allows are ever
+  written. The single-process table is renamed in the process (`<db_table>` →
+  `<db_table>_1`), free of charge: `output = "db"` has only ever existed in
+  the unreleased 2.0.0 line.
 - **Flavored specifications** return, for every output form, a fid-indexed
   list carrying the `process_map` table attribute — the same identity
   authority used by flavored preprocessing and the estimation container;
@@ -63,6 +80,13 @@ deprecation cycle — or even a defunct stub — would serve.
   is born here; the other estimator argument renames stay with
   `algorithm-naming`.
 
+- **The `engine` → `backend` rename moved out** (2026-07-25) to its own
+  `backend-vocabulary` change: the rename is small, but the vocabulary it
+  retires reaches 16 living requirements across 8 capabilities this change
+  never touches. That change implements FIRST, so the requirements added here
+  are written under the final vocabulary (`backend = "gather"`, the `cpp`
+  backend).
+
 ## Capabilities
 
 ### New Capabilities
@@ -81,14 +105,20 @@ deprecation cycle — or even a defunct stub — would serve.
   user surface changes from `gather_model_data()` (wrapper) to
   `compute_statistics()` (with `gather_model_data()` deprecated), and the
   db-writer user-facing pointers rename accordingly. The stack format
-  itself is unchanged.
+  itself is unchanged. The writer contract gains a render stage that runs
+  after constraint realization, and the expansion is required to honor the
+  availability encoding (D9) — the format is untouched, the ordering is what
+  changes.
 
 ## Impact
 
 - **goldfish R**: `R/model_estimate.R` (`compute_stats` →
   `compute_statistics`, `check_model_par` cli upgrade, REM-choice message),
   `R/preprocess_export.R` (deprecation wrapper, finalization fields, frame
-  assembly), `R/preprocess_writers.R` (message pointers), DyNAMi front-end
+  assembly), `R/preprocess_writers.R` (message pointers, the render stage and
+  the encoding forward, D9), `R/preprocess_flavored.R` /
+  `R/model_preprocess.R` (`finalize_consumers()` render ordering,
+  `build_consumer_specs()` writer factory), DyNAMi front-end
   routing; roxygen + examples; NEWS; lifecycle deprecations.
 - **Cross-change**: residuals-gof's diagnostic-primitives guiding-error
   text names `compute_statistics(output = "preprocessed")` as the

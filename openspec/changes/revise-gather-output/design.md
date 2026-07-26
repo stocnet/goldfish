@@ -178,6 +178,165 @@ name). This change adds no second replay path; `algorithm-naming` dropped
 its `make_preprocessed()` sketch in favor of this single route
 (2026-07-24 alignment session).
 
+### D9 — Products are rendered after the constraint folds, and the gather expansion honors the availability encoding
+
+Discovered while implementing D4 (2026-07-25): `output = "gather"` and
+`output = "db"` are broken today for **any** model carrying a
+`support_constraint`, flavored or not. Verified pre-existing on `HEAD`, and not
+covered by a test — 20 test files exercise `support_constraint`, none with a
+gather output. Two independent defects:
+
+**(A) Rendering precedes constraint realization.** `writer_gather()$finalize()`
+converts the assembled object into the gather stack, and only then does
+`finalize_consumers()` call `finish_output()`, which realizes the mask with
+`preprocess_support_mask(snapshot_times = out$event_time)` and folds it into
+availability. The stack carries no `event_time`, so this raises
+`order(): argument 1 is not a vector`. The ordering is wrong in principle, not
+only in its error: the fold has to precede the expansion, or the expansion
+enumerates candidates the mask excludes — the opposite of what the
+`preprocess-output-writers` requirement "constrained gather emits only allowed
+candidates" states.
+
+**(B) The gather expansion drops the availability encoding.** Folding a
+constraint upgrades availability from the `alter` encoding (a length-n2 vector)
+to `point` (an n1 x n2 matrix). `estimate_c_int()` reads
+`statsList$active_dyad_encoding` and flattens accordingly; `gather_from_prep()`
+never passes it to `gather_()`, which then falls back to its own `"alter"`
+default and reads the matrix as a vector — `which(mask == 1)` yields up to
+n1*n2 linear indices, so the row index runs past the statistics matrix and
+raises `subscript out of bounds`. (B) is independent of (A): it bites whenever
+the availability is point-encoded, including when a stored constrained object is
+replayed into a stack, where the fold has already happened correctly.
+
+**Decision.** The writer contract gains a **render stage**, and the encoding is
+forwarded:
+
+```
+finalize_consumers()
+  out <- writer$finalize(tail)        # ALWAYS the assembled default shape
+  out <- finish_output(out, constraint)   # mask realized + folded, per consumer
+  writer$render(out, spec)            # the product
+```
+
+`render()` is identity for `writer_default()`, `gather_from_prep()` for
+`writer_gather()`, and inherited by `writer_db()` (persistence stays where it is,
+in `write_gather_to_db()` after the names resolve). `gather_from_prep()` passes
+`active_dyad_encoding` through to `gather_()` exactly as the estimation path
+does.
+
+Two consequences worth stating, because they are why this belongs here rather
+than in a follow-up:
+
+- It is the *only* ordering under which flavored gather output is correct. The
+  fold is per consumer (`finish_output(out, cspec$constraint)`), so rendering
+  after it gives each fid a stack constrained by its own derived mask — which is
+  what D4's "per-fid stacks match single-flavor runs with the derived
+  constraint" asserts. Mutually exclusive flavors always derive masks, so
+  **every** flavored gather hits this path.
+- The consumer writers must therefore be the output's writers, not always
+  `writer_default()`: `build_consumer_specs()` takes the factory for the
+  requested output. Per-fid naming is then the union description projected onto
+  that consumer's `effect_map`, which the consumer plan already carries.
+
+*Alternative rejected:* leave the writer contract alone and render flavored
+products by re-entering `estimate_wrapper()` per fid with the stored object
+(`preprocessed = prep, output = "gather"`). It works — a replayed stack is
+byte-identical to a direct one — and it gets per-flavor naming free from the
+re-parse. But it still requires (B), it leaves the direct
+`compute_statistics(spec, output = "gather")` path broken for constrained
+models, and it introduces a second product-shaping route for the same product,
+which is the duplication this whole change exists to remove. The replay path
+still has to work (a stored object is the D8 replay surface), so the supplied-
+object conversion is kept — it is just no longer the mechanism flavoring
+depends on.
+
+**Implementation note (2026-07-25, tasks 2.1/2.2 as landed).** The shipped
+flavored mechanism IS the per-fid re-entry (`flavored_statistics_output()`
+re-entering `estimate_wrapper()` per fid) — but the objection above did not
+materialize, because each re-entered run flows through the D9 writer contract
+itself: there is one product-shaping route (finalize → finish_output →
+render), invoked per fid by the re-entry rather than duplicated beside it.
+The 2.1 render stage independently fixed the direct constrained
+single-flavor path (its own tests), and the per-fid equality test passes
+precisely because both routes share it. Consequences: 2.1(c)'s writer-factory
+threading is correct but a no-op on the flavored path
+(`preprocess_flavored()` always preprocesses with `writer_default`, the flat
+shape re-entry needs); and 2.2's flavored `output = "db"` abort is temporary
+scaffolding that task 2.3 (D10) removes.
+
+### D10 — The db export is self-describing: one table per fid, effect-named columns, map and node tables
+
+`output = "db"` is available for flavored specifications too (decided
+2026-07-25, superseding an implementation sketch that refused it). The db route
+exists for data that does not fit in memory, so the exported schema has to be
+readable without the R session that produced it:
+
+```
+stats_1, stats_2, …   one long table per fid, named <db_table>_<fid>
+stats_map             the process_map, plus each fid's table name
+stats_nodes           side, local, global, label -- shared by every fid
+```
+
+- **One table per process, not one shared table.** Rejected alternative: a
+  single table with a `fid` column. Flavors carry different formulas, so their
+  statistic sets differ; one table would need the union of all effects with
+  NULLs wherever a process does not have that effect, and every query would
+  filter by fid anyway. Per-fid tables keep each process's schema exactly its
+  own.
+- **The schema is uniform: an export is always K processes, K >= 1.** A
+  single-process export writes `<db_table>_1` and a one-row map, not a bare
+  `<db_table>`. A consumer reads the map, then the tables it names, without
+  knowing or asking whether the run was flavored — and the same script keeps
+  working when a model later gains flavors. The one-row map is not degenerate:
+  it names the layer, family, and intercept of the process whose table it
+  points at. This mirrors how the package already thinks internally, where
+  `init_consumers()` returns a one-element consumer list for the non-flavored
+  case and `finalize_consumers()` reads `consumers[[1L]]`; fids stay 1-based,
+  so a single process is fid 1 under exactly the numbering flavoring uses.
+  Cost: the pre-existing single-table name changes. That is free by this
+  change's own precedent (D1) — `output = "db"` arrived in 1.8.0 and the last
+  CRAN release is 1.6.12, so the whole db surface, table name and `stat_<i>`
+  columns alike, exists only in the unreleased 2.0.0 line and has no released
+  users to protect.
+- **The R return value stays asymmetric on purpose**: a single process returns
+  its descriptor, a flavored one a fid-keyed list. The two surfaces have
+  different consumers. A database is a published artifact, read later by other
+  tools and other people, where a stable schema beats convenience; an R return
+  is read immediately by the caller, who knows what they asked for and should
+  not have to write `[[1]]` for the common case. A future reader should not
+  "fix" this asymmetry into uniformity without that argument changing.
+- **Statistic columns are named by effect, not `stat_<i>`.** The positional
+  naming is a trap this change exists to close (the proposal's *Why* cites it
+  as hit in practice), and it is worse per fid, where `stat_2` means different
+  effects in different tables. `namesEffects` is already valid, unique and
+  bounded by `max_length = 63L`, documented as "a database-safe value" -- the
+  identifier limit this default was chosen for. The reserved identity columns
+  (`event_id`, `is_selected`, `index_i`, `index_j`) participate in the
+  uniqueness pass, so an effect name colliding with one is disambiguated rather
+  than silently overwriting it. This applies at every export, single or
+  flavored.
+- **Rows exclude what the constraint excludes.** The db writer persists the
+  rendered gather stack, so with D9's ordering (fold, then render) a
+  `support_constraint` removes candidate rows before they are ever written, and
+  `n_candidates` on the descriptor reflects the constrained set. This is the
+  property the whole schema rests on: rows that reach the database are the rows
+  the model actually had in its risk set.
+- **The identity columns are the join back to the original data.**
+  `index_i`/`index_j` are sanitized local indices, which alone cannot address
+  the original `nodes` rows on a subset or two-mode model; `<db_table>_nodes`
+  carries `(side, local, global, label)` so the join is doable in SQL. It is
+  written once per export, since every fid of a flavored specification shares
+  the layer's node set.
+- **The map table is the authority for what belongs to a run.** Re-running with
+  fewer flavors than a previous run leaves orphan `<db_table>_<fid>` tables
+  behind; they are NOT dropped automatically (a prefix-matching drop would be a
+  destructive guess against tables the connection may own for other reasons).
+  The map lists exactly the tables of the current run.
+- **A mid-export failure names the process.** The existing contract reports the
+  last successfully written event index; with several tables it also names the
+  fid whose table failed, since "event 812" is otherwise ambiguous across
+  processes.
+
 ## Risks / Trade-offs
 
 - [Retiring exported names] → `gather_model_data()` keeps working one
@@ -196,12 +355,38 @@ its `make_preprocessed()` sketch in favor of this single route
   a unit test with a ≤1e-4 gate.
 - [Cross-change edit inside residuals-gof] → one wording edit in an
   unimplemented requirement; validated in both changes after the edit.
+- [D9 changes the writer contract mid-change, and the writers are shared with
+  estimation] → the render stage moves *when* the conversion happens, not what
+  it computes; `writer_default()`'s render is identity, so the estimation path
+  (which consumes the default product) is unchanged by construction. The
+  unconstrained gather output is pinned byte-for-byte against
+  `gather_model_data()` by existing tests, which is the regression net for the
+  move; the constrained case gains the tests it never had.
+
+### D11 — `backend` replaces `engine` — MOVED to the `backend-vocabulary` change
+
+Recorded here on 2026-07-25 and carved out the same day. The rename itself is
+small, but the vocabulary it retires reaches 16 living requirements across 8
+capabilities — broadcast decoding, multimode equivalence, the data object —
+none of which this change otherwise touches. Folding it here would make this
+change's archive rewrite requirements unrelated to statistics export, the same
+shape `algorithm-naming` was carved out for. See `backend-vocabulary` for the
+decision, the value map, and the sweep.
+
+Consequence here: `backend-vocabulary` implements FIRST, so this change writes
+its own requirements under the final vocabulary — `backend = "gather"`, the
+`cpp` backend — and the `optimizer-selection` delta moved out with it. The
+division is strict: that change does not touch `preprocess-output-writers`,
+this one does not touch `optimizer-selection`, so no requirement is modified by
+both (which would mean whichever archived second silently overwrote the first).
 
 ## Migration Plan
 
 1. `compute_statistics()` rename + delegation + cli `check_model_par` +
    reported fields (D1–D3); deprecation wrappers.
-2. Flavored fid-list outputs (D4); DyNAMi verification then routing (D5).
+2. Writer render stage + encoding forward (D9) — a prerequisite for D4, since
+   every flavored gather is a constrained gather. Then flavored fid-list
+   outputs (D4); DyNAMi verification then routing (D5).
 3. Frame output + examples + NEWS/DESCRIPTION (D6); residuals-gof wording
    edit (D8); qmd consumer switch.
 4. Rollback: wrappers are self-contained; the rename is alias-backed, so

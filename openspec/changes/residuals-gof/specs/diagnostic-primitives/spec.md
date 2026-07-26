@@ -15,14 +15,21 @@ to a stored component on the fitted result: `"loglik"` → `intervalLogL`
 (numeric, one per event) and, for exact-time submodels, `total_rate` (the
 per-event sum of fitted rates over the realized risk set, numeric, one per
 event — the quantity the waiting-time/Cox–Snell diagnostics and the
-autograph Q-Q panel consume), `"scores"` → `event_scores` (n_events × p,
+autograph Q-Q panel consume) and the conditional component (the per-event
+log next-event probability — the Cox-partial-likelihood contribution —
+computed in the estimation pass as the observed linear predictor minus the
+per-event log-normalizer; defined on dependent events, `NA` on
+right-censored intervals),
+`"scores"` → `event_scores` (n_events × p,
 columns named by effect), `"ranks"` → `observed_rank` (integer, one per
 event, rank of the observed alternative among the risk-set weights),
-`"margins"` → per-actor observed and expected count vectors (both sender
+`"margins"` → per-actor observed and expected vectors (both sender
 and receiver margins on REM fits; see the margins requirement),
 `"probabilities"` → per-event probability vectors aligned to the realized
 risk set using the sanitized index/label vocabulary of the
-process-state-evaluators capability. Unknown names SHALL abort with a cli
+process-state-evaluators capability — on exact-time submodels the
+probability that each sender (rate) or dyad (REM) creates the next event,
+summing to 1 per event. Unknown names SHALL abort with a cli
 error listing the valid primitives.
 
 #### Scenario: default stores loglik and scores
@@ -36,6 +43,14 @@ error listing the valid primitives.
 - **THEN** the result contains `total_rate` with one value per event, and
   `total_rate * interevent time` reproduces the Cox–Snell residuals without
   an evaluation pass.
+
+#### Scenario: conditional loglik component stored on exact-time models
+- **WHEN** an exact-time rate or REM submodel stores `"loglik"`
+- **THEN** the result carries the per-event conditional component — `NA` at
+  right-censored positions, and near the MLE (where the per-event expected
+  count is order one) agreeing with the algebraic check
+  `intervalLogL − log(total_rate) + interevent time × total_rate` — so
+  partial-likelihood diagnostics read it without an evaluation pass.
 
 #### Scenario: large-dataset storage note
 - **WHEN** a model with a large event count (threshold documented on the
@@ -103,7 +118,19 @@ descriptives (observed-vs-expected maps screening for unmodeled actor
 heterogeneity), not per-actor tests: per-actor differences are plug-in
 quantities, negatively correlated across actors; the formal test of actor
 heterogeneity is the `test_parameter()` score test with an
-activity/popularity candidate effect.
+activity/popularity candidate effect. Margins SHALL be stored on the
+probability scale on every family — per-event next-event-probability sums
+accumulated over **dependent events only**, the direct parallel of the
+choice margins, totalling the event count at any parameter vector (a
+right-censored interval realizes no mover, so it contributes nothing to
+this variant) — and exact-time fits SHALL additionally store the
+expected-count variant (compensator sums over **all intervals, dependent
+and right-censored** — the compensator integrates over all exposure time),
+whose per-actor observed-minus-expected is the
+martingale residual. Each stored vector SHALL be labeled with its scale
+(`"probability"` / `"expected_count"`) so a consumer can tell them apart
+programmatically, and labels and shapes SHALL be identical whichever backend
+produced the fit.
 
 #### Scenario: multinomial margins sum exactly
 - **WHEN** a choice, ordinal-rate, ordinal-REM, or choice_coordination
@@ -113,34 +140,58 @@ activity/popularity candidate effect.
   the number of events for choice_coordination), and the observed-count
   vector reproduces the tabulated actors of the dependent events.
 
-#### Scenario: exact-time margins sum at the MLE
+#### Scenario: exact-time expected-count margins sum at the MLE
 - **WHEN** a converged exact-time rate or REM fit (time intercept present,
   as goldfish enforces for exact-time models) stores `"margins"`
-- **THEN** each expected-count vector sums to the number of events within
+- **THEN** the `"expected_count"` vector sums to the number of events within
   the convergence tolerance (the intercept score-equation identity — not a
   floating-point identity), and for REM the sender and receiver expected
   totals are identical.
+
+#### Scenario: exact-time probability margins sum at any parameter vector
+- **WHEN** an exact-time rate or REM fit stores `"margins"` at any parameter
+  vector (converged or not)
+- **THEN** the `"probability"` vector sums, within floating-point tolerance,
+  to the number of dependent events — the same identity the multinomial
+  families satisfy, since each event contributes a probability vector
+  summing to 1.
 
 #### Scenario: REM margins carry both sides
 - **WHEN** a REM is estimated with `diagnostics` including `"margins"`
 - **THEN** the result contains both sender and receiver margin vectors
   under the single `"margins"` primitive.
 
+#### Scenario: the margins scales are labeled
+- **WHEN** a multinomial fit and an exact-time fit each store `"margins"`
+- **THEN** the multinomial fit carries the `"probability"` vector only, the
+  exact-time fit carries both the `"probability"` and `"expected_count"`
+  vectors, each labeled, and neither the labels nor the shapes vary with the
+  backend that produced the fit.
+
 ### Requirement: legacy flags are soft-deprecated onto diagnostics
-The legacy flags SHALL remain accepted: `return_interval_loglik`,
-`return_probabilities`, and
-`return_event_scores` keep working in `set_algorithm_newton()` with
-their current
+The two publicly-shipped legacy flags SHALL remain accepted:
+`return_interval_loglik` and `return_probabilities` (public since CRAN 1.6.x
+and v1.7.0) keep working in `set_algorithm_newton()` with their current
 semantics, each emitting a lifecycle soft-deprecation warning that names
-the corresponding `diagnostics` primitive (`"loglik"`, `"probabilities"`,
-`"scores"`). Supplying both a legacy flag and a conflicting `diagnostics`
-value SHALL abort with a cli error.
+the corresponding `diagnostics` primitive (`"loglik"`, `"probabilities"`).
+Supplying both a legacy flag and a conflicting `diagnostics` value SHALL
+abort with a cli error. `return_event_scores` SHALL NOT be an argument of
+`set_algorithm_newton()`: it never shipped in a public release, so it is
+removed at 2.0.0 without a deprecation cycle (the deprecation-scope audit is
+`backend-parity` design D11; the scores primitive itself is specced there as
+"Per-event scores primitive").
 
 #### Scenario: legacy flag maps with deprecation warning
 - **WHEN** `set_algorithm_newton(return_interval_loglik = TRUE)` is called
 - **THEN** a lifecycle deprecation warning points to
   `diagnostics = "loglik"` and the resulting options store the loglik
   primitive.
+
+#### Scenario: the never-public flag is gone
+- **WHEN** `set_algorithm_newton(return_event_scores = TRUE)` is called at
+  2.0.0
+- **THEN** the call fails as an unknown argument, with no lifecycle warning
+  path for it.
 
 ### Requirement: return_preprocessed attaches the replay object
 `estimate_dynam()`, `estimate_rem()`, and `estimate_dynami()` SHALL accept

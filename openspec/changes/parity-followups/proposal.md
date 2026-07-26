@@ -9,28 +9,32 @@ its `design.md` and `progress.md`; the problems are still there.
 
 They share a shape: something currently *works*, but nothing *guards* it, or the
 contract stops short of what a consumer actually needs. That is exactly the
-class of issue that gets rediscovered — expensively — by the next change. Two of
-them (the score conditioning, the summation-order fragility) are latent
-numerical hazards; three are missing guards on controls that already exist; one
-is a contract this package's own diagnostics surface is about to depend on
-(`residuals-gof`); two are open questions worth answering while the measurements
-are fresh.
+class of issue that gets rediscovered — expensively — by the next change. One
+(the summation-order fragility) is a latent numerical hazard; three are missing
+guards on controls that already exist; one is a contract this package's own
+diagnostics surface is about to depend on (`residuals-gof`); one is a
+consistency cleanup whose original precision justification did not survive
+measurement and is kept on narrower grounds; two are open questions worth
+answering while the measurements are fresh.
 
 ## What Changes
 
-- **The per-event diagnostic object describes itself.** `margins` uses one
-  component vocabulary across every risk-set geometry instead of two, the fit
-  records which axis a per-event index refers to, per-event vectors carry actor
-  labels, and coordination's doubled totals are marked rather than implied.
-  Today a length-5 margin vector means senders on DyNAM-rate and receivers on
-  DyNAM-choice, with nothing on the object to say which. **BREAKING** for code
-  reading the two-sided `*_sender` / `*_receiver` component names.
-- **The six `*_default.cpp` engines compute `event_scores` directly**
-  (`X_obs − c·w'X`) rather than as a before/after difference of the running
-  derivative. The two are algebraically identical; the difference form is the
-  worse-conditioned one, subtracting two large partial sums late in a sequence.
-  This changes stored `event_scores` values slightly, which is why
-  `backend-parity` D7 could not do it inside a behavior-preserving refactor.
+- **A fitted model declares what its per-event indices mean.** Today a
+  length-5 vector indexes senders on DyNAM-rate and receivers on DyNAM-choice,
+  and the axis that distinguishes them is readable only through
+  `goldfish:::risk_set_axis()`. It becomes documented, exported surface, and the
+  node lookup is specified as the way any index resolves to an actor. Additive,
+  not breaking. (Reshaping or labelling `margins` itself is **not** here —
+  `residuals-gof` owns that object and is already opening it; see design D1 as
+  revised.)
+- **The six `*_default.cpp` engines produce `event_scores` through the shared
+  reduction** instead of six private copies of the arithmetic — the same
+  one-implementation argument that carried the ranks and margins folds. It
+  shifts stored values slightly, which is why `backend-parity` D7 could not do
+  it inside a behavior-preserving refactor. It is *not* justified as a precision
+  fix: the conditioning penalty of the current form was measured at 1.2e-14 to
+  9.2e-13 relative, far inside the 1e-10 tolerance (design D4 as revised), so
+  this is a consistency cleanup and is prioritized as one.
 - **A regression guard for the summation-order hazard.** `DyNAM_rate_default`
   deliberately stores the doubles its loop already computes rather than
   rebuilding the rate vector as a GEMV, because the two summation orders differ
@@ -63,27 +67,27 @@ are fresh.
 
 ### New Capabilities
 
-- `diagnostic-object-contract`: what a fitted model's per-event diagnostic
-  components mean and how a consumer reads them without re-deriving the model
-  family — uniform component naming across risk-set geometries, the recorded
-  index axis, actor labels, and the marked accumulation set for each stored
-  scale.
+- `diagnostic-object-contract`: what a position in a per-event diagnostic
+  component *means*, and how a consumer resolves it to an actor without
+  re-deriving the model family — the recorded index axis and the node-lookup
+  resolution contract.
 
 ### Modified Capabilities
 
-- `likelihood-computation`: adds the per-event score conditioning requirement —
-  the stored score is computed directly from the event's own quantities rather
-  than differenced out of an accumulating total.
+- `likelihood-computation`: adds the requirement that the stored per-event
+  score comes from the one shared reduction rather than a per-kernel copy.
 
 ## Impact
 
 - **Code:** the six `src/*_default.cpp` engines (`event_scores` block only);
-  `R/cpp_interface.R` and `R/estimation_core.R` result assembly (margin naming,
-  axis marker, labels); `DESCRIPTION` (`parallel`); `tests/testthat/helper-baselines.R`
-  and the `_baselines/` generator scripts.
+  the results assembly in `R/model_estimate.R` plus an accessor for the axis;
+  `DESCRIPTION` (`parallel`); `tests/testthat/helper-baselines.R` and the
+  `_baselines/` generator scripts. **`margins` is untouched here.**
 - **Consumers:** `residuals-gof` reads these components directly and is the
   reason the contract matters now; its `diagnose_*()` and `residuals()` surfaces
-  are written against them. `autograph` consumes fitted objects downstream.
+  are written against them, and its task 1.10 owns the margins labels and the
+  uniform accessor this change deliberately leaves to it. `autograph` consumes
+  fitted objects downstream.
 - **Sequencing:** depends on `backend-parity` being **archived first**. Its
   deltas rename `optimizer-selection` :: "User-facing return_event_scores
   option" to "Per-event scores primitive" and add the parity requirements; a

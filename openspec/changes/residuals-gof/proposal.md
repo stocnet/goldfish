@@ -19,14 +19,18 @@ auxiliary statistics) waits for DyNES to land.
 - `set_algorithm_newton()` gains a `diagnostics =` character vector naming
   stored *primitives* (`"loglik"`, `"scores"`, `"ranks"`, `"margins"`,
   `"probabilities"`; `TRUE` ≡ `c("loglik", "scores")`, `"all"` shorthand),
-  soft-deprecating `return_interval_loglik`, `return_probabilities`, and
-  `return_event_scores` (lifecycle), with a cli size guardrail before
-  storing probabilities.
+  soft-deprecating `return_interval_loglik` and `return_probabilities`
+  (lifecycle; both public since CRAN/v1.7.0) and removing
+  `return_event_scores` outright (never in a public release — no deprecation
+  cycle owed; `backend-parity` design D11 records the audit), with a cli size
+  guardrail before storing probabilities.
 - New in-pass C++ derived quantities: `observed_rank` + recall (`"ranks"`)
   and per-actor observed-vs-expected margins (`"margins"`; both sender and
-  receiver margins on REM, per-flavor expected-count formulas — see the
-  diagnostic-primitives spec) for all six engines — never materializing
-  the full probability matrix. Margins are documented as calibration
+  receiver margins on REM; probability-scale everywhere with the
+  expected-count compensator variant additionally stored on exact-time fits,
+  each labeled — see the diagnostic-primitives spec and backend-parity's
+  design appendix for the derivations) for all six engines — never
+  materializing the full probability matrix. Margins are documented as calibration
   descriptives; per-event/sequence-level diagnostics remain the default
   surface (margins are opt-in).
 - `estimate_*()` gains `return_preprocessed = FALSE` attaching the
@@ -108,10 +112,10 @@ auxiliary statistics) waits for DyNES to land.
 
 ### Modified Capabilities
 
-- `optimizer-selection`: the `return_interval_loglik` /
-  `return_probabilities` / `return_event_scores` requirements are
-  superseded by the `diagnostics =` primitives vector (soft deprecation,
-  one-to-one mapping, unchanged storage semantics).
+- `optimizer-selection`: no delta from this change. The scores requirement
+  (renamed "Per-event scores primitive") is owned wholesale by
+  `backend-parity` (its revised D6); this change's deprecation/removal prose
+  for the legacy flags lives in its own `diagnostic-primitives` capability.
 - `compact-term-strings`: the shared builder gains the diagnostic
   effect-selection surfaces (`effect =` / `effects =` of the `test_*` and
   `diagnose_*` families) as consumers — the printed term string is the

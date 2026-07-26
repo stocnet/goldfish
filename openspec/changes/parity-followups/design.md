@@ -28,6 +28,9 @@ needs to do):
   expected_probability_sender, expected_probability_receiver` on REM. A
   consumer must branch on family to read them, and a length-5 vector means
   senders on rate and receivers on choice with nothing on the object saying so.
+  **This is `residuals-gof`'s to solve** (D1 as revised): it owns the capability
+  and is already opening the object. What this change contributes is the axis
+  that makes the second half of that sentence answerable.
 - The frozen-baseline PreToolUse hook matches `Edit|Write|MultiEdit` on
   `.tool_input.file_path`. Shell writes bypass it — necessarily, since the
   sanctioned generator writes through `Rscript` + `saveRDS`, which the
@@ -43,10 +46,10 @@ needs to do):
 
 **Goals:**
 
-- A consumer reads per-event diagnostics without knowing the model family:
-  one component vocabulary, one documented way to learn what an index means.
-- The stored per-event score is the better-conditioned of two algebraically
-  equal forms.
+- A consumer can learn what a per-event index means from the fit itself,
+  through documented and exported surface rather than through `:::`.
+- The per-event reductions have one implementation rather than six private
+  copies, the same argument that carried the ranks and margins folds.
 - Every control that currently depends on someone remembering something —
   the summation order, the frozen files, the generators — depends instead on
   something that fails loudly.
@@ -62,54 +65,57 @@ needs to do):
 - The `(backend, primitive)` capability table — `backend-parity` owns it and it
   is uniformly supported; nothing here changes availability.
 - Duplicating actor labels onto per-event components (see D3).
+- **The shape, labelling or accessor of `margins`** — `residuals-gof` owns that
+  object and is already opening it (D1 as revised).
 - Re-freezing any baseline. v2's r/cpp columns are v1's numbers carried forward
   bit-identically and stay that way.
 
 ## Decisions
 
-### D1 — `margins` has one shape, keyed by role, with the roles declared
+### D1 (revised 2026-07-26) — margins keep their storage; uniformity comes from an accessor, owned by residuals-gof
 
-The two-vocabulary split is the whole problem, so the fix is a single schema
-that every geometry fills in:
+The original decision reshaped `margins` into a role-keyed schema. Two things
+killed it.
 
-```
-fit$margins = list(
-  axis  = "dyad",                    # the risk-set axis, verbatim
-  roles = c("sender", "receiver"),   # which role slots are populated
-  sender   = list(observed =, expected =, expected_probability =),
-  receiver = list(observed =, expected =, expected_probability =)
-)
-```
+**Ownership.** `residuals-gof` already carries the `margins primitive content`
+requirement in `diagnostic-primitives` — the capability `backend-parity` D6
+assigned it — and its task 1.10 is already scheduled to open that object to
+attach the `"probability"` / `"expected_count"` labels. Reshaping from here
+would restructure margins twice, in two changes, breaking consumers twice, and
+would split one concept across two capabilities: precisely the hazard D6 exists
+to prevent. `openspec validate` would not catch it, because the two live in
+different capabilities; only the runtime object would, and it can satisfy one
+shape.
 
-A consumer writes `for (role in m$roles) m[[role]]$expected` and never branches
-on family. Single-sided families declare one role; exact-time families carry
-`expected_probability` and multinomial ones do not, which is already true and
-now visible rather than inferred from which names happen to exist.
+**Necessity.** The uniformity a consumer actually needs is deliverable without
+touching storage. With actor labels (which residuals-gof's requirement already
+mandates and 1.10 already adds) and the exported axis of D2, a per-family
+accessor returning a normalized view gives every consumer one shape to program
+against, additively and without a breaking change. The residual cost is that a
+consumer bypassing the accessor still meets two shapes — real, but small
+against a break plus cross-change coordination.
 
-Coordination declares `roles = "participant"`, not `"sender"`. Its realized risk
-set is the unordered pair list and a pair credits **both** members into one
-actor set, so its vectors total `2n` where every other family totals `n`. Naming
-that slot `sender` would be a lie a consumer would silently divide by two the
-wrong way; naming it `participant` makes the fourth geometry legible. The
-doubling is additionally recorded as `attr(m, "events_per_observation") = 2L`
-so a calibration routine can normalize without special-casing.
+**Decision.** This change does not touch `margins`. `residuals-gof` task 1.10
+owns labels plus a uniform accessor; this change contributes only the axis
+(D2) that makes an index interpretable. The `diagnostic-object-contract`
+capability shrinks to the index-semantics contract, which is coherent alone and
+genuinely not `residuals-gof`'s.
 
-Rejected: keeping both vocabularies and documenting the branch — it pushes a
-family lookup into every consumer, which is the cost this change exists to
-remove. Rejected: a tidy one-row-per-(actor, role, scale) data frame — the
-friendliest surface, but margins are also read by the parity tests and by
-`residuals-gof` in hot paths, and a frame per fit is a heavier object than the
-vectors it wraps; the frame belongs in an `augment`-style accessor built *on*
-this, not in the stored component.
+Rejected: reshaping inside `residuals-gof` 1.10 so consumers break exactly once
+— defensible, and the better option if a stored-shape break is wanted at all,
+but it buys uniformity for non-accessor users at the cost of a break that the
+accessor makes unnecessary. Rejected: keeping the reshape here (the ownership
+split above).
 
 ### D2 — the index axis is documented fit surface, not an unexported accessor
 
 The axis is already stored (inside `model_spec`); this promotes it to a
 documented component and an exported reader, so no consumer needs
-`goldfish:::risk_set_axis()`. `fit$margins$axis` (D1) carries it for margins,
-and the same value answers "what does position `i` of this per-event
-probability vector mean" — sender, receiver-given-sender, dyad, or unordered
-pair.
+`goldfish:::risk_set_axis()`. It answers "what does position `i` of this
+per-event component mean" — sender, receiver-given-sender, dyad, or unordered
+pair — for probabilities, ranks and margins alike, which is what lets
+`residuals-gof`'s accessor (D1 as revised) normalize margins without this
+change touching them.
 
 The reason this is worth a requirement rather than a docs line: `residuals-gof`
 is about to build `diagnose_*()`, `residuals()` and `predict()` on exactly this
@@ -139,33 +145,40 @@ Task 0.2 grounds that before anything depends on it.
 Rejected: labelling per-event components (storage); rejected: a `labels =
 TRUE` opt-in (a second shape for the same primitive, which is the disease).
 
-### D4 — the stored score is computed directly, and that changes values on purpose
+### D4 (revised 2026-07-26) — the score fold is a consistency cleanup; the precision argument did not survive measurement
 
-The six `*_default.cpp` engines derive `event_scores` as
-`derivative_after − derivative_before`: a difference of two accumulating
-partial sums. `event_score_row()` computes the same quantity as
-`X_obs − c·w'X` from the event's own terms. Algebraically identical; the
-difference form loses relative precision as the running derivative grows, so
-late events in a long sequence are the worst-conditioned — exactly the events a
-sequence-level diagnostic cares about.
+The original decision moved the six engines onto `event_score_row()` on the
+grounds that their before/after difference of the running derivative is
+worse-conditioned than a direct evaluation, badly so for late events in a long
+sequence. The mechanism is real. The magnitude was asserted, not measured, and
+measuring it removes the argument:
 
-`backend-parity` D7 required the engine fold to change nothing it computed, so
-this could not go in there; smuggling a numerical improvement into a refactor
-commit would also have made any baseline movement unattributable. Here it is the
-point of the change and is specced as such.
+```
+  family                  ‖running total‖ / ‖increment‖   implied relative loss
+  DyNAM choice                        4125                      9.2e-13
+  DyNAM rate_ordered                   184                      4.1e-14
+  REM_ordered                          174                      3.9e-14
+  DyNAM rate                           132                      2.9e-14
+  REM                                   53                      1.2e-14
+```
 
-Two consequences to hold onto. First, the aggregate identity — column sums of
-`event_scores` equal the final score — must still hold, and it becomes a
-*stronger* statement: currently it holds by construction (the increments are
-literally the differences that built the total), afterwards it holds because the
-independently computed rows agree with the accumulated total, which is a real
-check rather than a tautology. Second, cross-backend parity must be re-verified:
-`gather` and `r` already use the direct form, so this should *reduce*
-disagreement, and the parity suite's 1e-10 becomes easier to meet, not harder.
+That is 100× to 8000× tighter than the 1e-10 cross-backend tolerance, and
+extrapolating the worst case to a 57k-event sequence still lands near 1e-11. A
+**breaking change to stored values** to buy 1e-13 is not a trade worth making,
+and specifying a precision benefit the numbers do not support would be worse
+than not specifying it.
 
-Rejected: changing `derivative` itself to accumulate the direct rows — that
-would move coefficients, and the estimator's accumulation is not what is
-mis-conditioned.
+**Decision.** The fold stays, on its remaining honest justification — one
+implementation of the reduction instead of six private copies, which is the
+same argument that carried the ranks and margins folds — and the small value
+shift is documented as an accepted consequence rather than sold as an
+improvement. Its priority drops accordingly: it is worth doing when those
+kernels are next opened, not worth opening them for.
+
+Rejected: dropping the fold entirely (the one-implementation benefit is real
+and the six copies are exactly what the shared header exists to remove).
+Rejected: keeping the conditioning justification (the measurement contradicts
+it, and a spec asserting it would be false).
 
 ### D5 — the summation-order invariant gets a test where one is portable, and honesty where it is not
 

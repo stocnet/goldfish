@@ -1,6 +1,6 @@
 ## Why
 
-The `gather_compute` engine materializes, for REM and DyNAM-coordination, **every
+The `gather` backend materializes, for REM and DyNAM-coordination, **every
 present dyad's statistics row for every event** (`gather_sender_receiver_model_r`,
 `R/cpp_interface.R:1054`: `stat_mat[idx, ]` stacked into `stat_all_events`) —
 O(n_events × n²) × p doubles with no deduplication, even though (a) consecutive
@@ -48,7 +48,7 @@ out-of-scope opportunity in `refactor-likelihood-compute`.
   discussion settles the format.
 - **Estimation consumers updated** (`compute_multinomial_selection`,
   `compute_coordination_selection`) to read the new representation; the
-  `default_c` and `default` engines are untouched.
+  `cpp` and `r` backends are untouched.
 - **`gather_model_data()` (exported API) keeps its documented output shape** —
   expanded/materialized from the internal representation on demand, so user
   code is unaffected. **BREAKING** (internal only): the gather intermediate
@@ -76,15 +76,20 @@ out-of-scope opportunity in `refactor-likelihood-compute`.
   (`gather_model_data()` expansion path). cpp-reviewer on every `src/` diff.
 - **Memory/time**: gather preprocessing and gather estimation for REM/
   coordination; unchanged for choice/rate (already n-sized per event).
-- **Tests**: equivalence vs the current gather engine at tight tolerance;
-  frozen baselines PASS (gather engine is not part of the baseline grid —
-  verified: `baselines_engines = c("default", "default_c")` — so cross-engine
+- **Tests**: equivalence vs the current gather backend at tight tolerance;
+  frozen baselines PASS (the gather backend is not part of the baseline grid —
+  verified: `baselines_backends = c("r", "cpp")`, with the frozen `.rds` keys
+  keeping their legacy `default` / `default_c` names — so cross-backend
   agreement tests carry the floor here).
-- **Sequencing**: after `refactor-likelihood-compute` only — plain ordering,
+- **Sequencing**: after `refactor-likelihood-compute` — plain ordering,
   no task-level coupling remains (its D9/D13 fix the index-based compute
   contract and the ragged emit this change's storage sits behind; its former
   pairing with task 2.4 here was dissolved 2026-07-10 by moving the emit half
-  there). `support-constraint-as-stat` is ARCHIVED (2026-07-10), so the
+  there) — and after `backend-parity` (added 2026-07-25), which rewrites the
+  same three gather kernels first: it threads `index_i` / `index_j` into
+  their signatures, adopts the shared stable softmax, and adds the per-event
+  reduction accumulators, all of which this change's new storage format must
+  feed rather than fork. `support-constraint-as-stat` is ARCHIVED (2026-07-10), so the
   availability representation in the gather loop is final. Implementation
   additionally gated on the §1 discussion phase (undirected-dependent REM
   semantics, symmetry audit) — this case has no real usage yet and the

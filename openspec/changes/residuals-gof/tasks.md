@@ -38,6 +38,56 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       portion of this audit against the landed surface once it lands. Write
       findings to `progress.md`.
 
+### What `backend-parity` changed under this change (added 2026-07-26)
+
+`backend-parity` archived on 2026-07-26. It landed work this change was written
+before, and settled two questions that belong here. Read this before section 1
+so nothing is built twice or against a retired assumption.
+
+- [ ] 0.2 **This change owns the `margins` shape decision — and it is now
+      "accessor, not reshape".** Explored and decided 2026-07-26: `margins`
+      storage stays as it is (`observed`/`expected` single-sided,
+      `*_sender`/`*_receiver` two-sided, coordination single-sided over one
+      actor set totalling 2n). Task 1.10 additionally delivers (a) the actor
+      labels this change's `margins primitive content` requirement already
+      mandates, and (b) a **uniform accessor** presenting one shape to every
+      consumer, so `residuals()` / `diagnose_*()` / `predict()` never branch on
+      family. Non-breaking, and it keeps the concept in one capability.
+      `parity-followups` originally proposed reshaping the storage from its own
+      capability and **dropped it** for this reason (its task 0.3); it
+      contributes only the exported risk-set axis, which the accessor consumes.
+      Fold this into 1.10's scope rather than adding a task.
+- [ ] 0.3 **Do not re-implement primitives that now exist on every backend.**
+      `backend-parity` extended the in-pass accumulation this change's tasks
+      1.4–1.6 started (all marked done) to all three backends, and added what
+      they did not cover: per-event `probabilities` on `cpp` and `gather`
+      (actor-indexed over the whole node set, zero off the risk set — its D23,
+      a BREAKING shape change to the `r` backend's existing output);
+      `conditional_logl` on the two exact-time `cpp` kernels, which had never
+      computed it; and probability-scale margins beside the compensator scale
+      on those kernels. Verify against the code before writing anything in
+      sections 1–2 — several design paragraphs here are written in the future
+      tense about work that has landed.
+- [ ] 0.4 **Assumptions this change was written under that are now false.**
+      Corrected in place already, listed so the corrections are not undone:
+      the design's key-code-fact "No `default_c` engine returns a probability
+      matrix" (they all do now — the conclusion that ranks/margins stay in-pass
+      still holds, but because materializing the matrix is $O(n|R|)$, not
+      because it is unavailable); and task 1.9's "`scores_explicit` reduces to
+      an explicit `diagnostics` request" (it no longer exists — `backend-parity`
+      removed it from the control object with the gather+scores abort and the
+      silent default-sourced drop it existed to choose between). **Task 1.9 is
+      otherwise still real work**: the `return_event_scores` *argument* still
+      exists in `set_opt.R` and this change still owns removing it.
+- [ ] 0.5 **The evaluator substrate is further along than the design says.**
+      D3 names `evaluate_default_c(pars, need_scores)` as the closure to
+      generalize into `evaluate_model()`. It now takes six flags
+      (`need_scores`, `need_ranks`, `need_margins`, `need_total_rate`,
+      `need_probabilities`), and the `(backend, primitive)` support table plus
+      `check_diagnostic_support()` already exist in `set_opt.R`. Re-read both
+      before designing `evaluate_model()`: most of the threading is done, and
+      the capability check it needs is written.
+
 ## 1. Diagnostic primitives (phase 1)
 
 - [x] 1.1 `set_algorithm_newton(diagnostics =)`: vocabulary validation
@@ -80,8 +130,32 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 - [ ] 1.8 `estimate_*(return_preprocessed =)`: attach `preprocessed.goldfish`
       to the fit with a cli size message; consumer-side `preprocessed =`
       precedence helper + guiding cli error (both routes named); tests.
-- [ ] 1.9 Milestone: DESCRIPTION bump + NEWS entry for the diagnostics
-      surface (including the deprecations).
+- [ ] 1.9 Remove `return_event_scores` outright (deprecation-scope audit,
+      backend-parity D11: never in a public release — no lifecycle cycle
+      owed), partially undoing 1.2: drop the argument, its
+      `LEGACY_DIAGNOSTIC_FLAGS` / reconcile branch and deprecation test.
+      **`scores_explicit` no longer exists** — `backend-parity` removed it from
+      the control object along with the gather+scores abort and the silent
+      default-sourced drop it existed to choose between, so there is nothing
+      left here to reduce to an explicit `diagnostics` request. The two
+      public flags (`return_interval_loglik`, `return_probabilities`) keep
+      their 1.2 soft-deprecation unchanged. r-lib:lifecycle before the work;
+      snapshot updates; `devtools::document()`.
+- [ ] 1.10 Exact-time scale variants — labels and docs (decisions in
+      backend-parity design D12/D16/D17 as revised, spec here): margins ship
+      labeled — `"probability"` on every family, plus `"expected_count"` on
+      exact-time fits. The conditional loglik component is produced **in the
+      estimation pass** by backend-parity (its D17 revision: the assembly
+      identity is catastrophic cancellation; the kernel computes
+      `x_obs − lse` directly, `NA` on right-censored intervals per its D21) —
+      this task documents it and labels the margins, it does not compute
+      either. Tests: one fit per family; the any-θ probability-margins
+      identity vs the MLE-only expected-count identity; the algebraic
+      conditional identity asserted **near the MLE only** and over dependent
+      events; label/component invariance across backends.
+- [ ] 1.11 Milestone: DESCRIPTION bump + NEWS entry for the diagnostics
+      surface (the two soft-deprecations, the `return_event_scores`
+      removal, and the margins scale marker).
 
 ## 2. Evaluator and residual methods (phase 1)
 
@@ -116,8 +190,12 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       `events =` subset), documented as non-forecasting; tests: predict
       ranks equal stored `observed_rank`.
 - [ ] 2.5 `augment.result.goldfish()` gains `.fitted`/`.resid` broom
-      columns (censored rows NA); update `diagnose_*` internals to reuse
-      them; tests.
+      columns (censored rows NA); fix the wiring while touched: register
+      `S3method(augment, result.goldfish)` + re-export
+      `generics::augment` and drop the bare
+      `export(augment.result.goldfish)` (dev-line-only, no stub; NEWS
+      note); update `diagnose_*` internals to reuse the columns; tests
+      (incl. dispatch through the generic).
 - [ ] 2.6 Cross-package validation (NOT_CRAN): scaled Schoenfeld vs
       `survival::cox.zph`-consistent reference on a Cox-expressible REM
       fixture; residual comparison vs `remstimate::diagnostics()` on a
@@ -235,7 +313,14 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
       motivation, explicitly-not-tests caveat, `test_parameter()` as the
       formal route); the `test_*` family walkthrough incl. the clock
       workflow (`diagnose_onset()` accrual curve →
-      `clock = "information"`); literature positioning from
+      `clock = "information"`); a **REM-vs-DyNAM comparison section** (D14,
+      descriptive only, stored primitives only): per-event conditional
+      difference `conditional^REM − (conditional^rate + loglik^choice)` with
+      cumulative trace figure, which/when decomposition table with AIC/BIC,
+      REM margins vs DyNAM composed probability-scale margins side by side,
+      Cox–Snell Q-Q per model, `predict()` who-is-next agreement; closes by
+      naming the Vuong statistic (backend-parity appendix item 11) as the
+      future formal route, not implemented; literature positioning from
       `.plan/residuals-gof.md` §0.4. autograph-gated chunks; precompile
       rebuild; pkgdown reference entry.
 - [ ] 6.1 `vignettes/teaching1.Rmd.orig`: add a **short** model-diagnostics

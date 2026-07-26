@@ -115,13 +115,24 @@ prediction given the observed history — not forecasting (which requires
 `augment.result.goldfish()` SHALL add `.fitted` (fitted outcome
 probability) and `.resid` (deviance residual) columns alongside the
 existing event columns and `intervalLogL`, following broom naming
-conventions. Existing columns SHALL be unchanged.
+conventions. Existing columns SHALL be unchanged. The method SHALL be
+wired like `tidy`/`glance`: registered with
+`S3method(augment, result.goldfish)` and the `generics::augment` generic
+re-exported, replacing the current bare `export(augment.result.goldfish)`
+(the bare export is dev-line-only, so it is removed without a stub;
+NEWS records the wiring fix).
 
 #### Scenario: augmented tibble carries broom columns
 - **WHEN** `augment(fit)` is called on a fit with stored `intervalLogL`
 - **THEN** the tibble contains `.fitted = exp(intervalLogL)` and
   `.resid = -2 * intervalLogL` for non-censored rows, with prior columns
   intact.
+
+#### Scenario: augment dispatches like the other broom generics
+- **WHEN** `augment(fit)` is called after attaching goldfish
+- **THEN** dispatch reaches the method through the re-exported generic,
+  and `augment.result.goldfish` is no longer an exported name (matching
+  how `tidy`/`glance` are wired).
 
 ### Requirement: documented caveats on residual use
 The canonical residuals documentation page SHALL contain an explicit
