@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
+#include "event_reductions.h"
 #include "flat_updates.h"
 #include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -250,31 +251,40 @@ List estimate_DyNAM_MM(
         const int a_obs = (id_sender > id_receiver) ? id_sender : id_receiver;
         const int b_obs = (id_sender > id_receiver) ? id_receiver : id_sender;
         const int idx_obs = a_obs * (a_obs - 1) / 2 + b_obs;
+        // Opt-in primitives via the shared reductions, over the unordered-dyad
+        // triangle (D14: coordination ranks and marginalises over its realized
+        // risk set, which is that pair list, not the n1 x n2 grid).
+        arma::vec dyad_probabilities;
+        if (return_margins || return_probabilities) {
+            dyad_probabilities = dyad_weights / normalizer;
+        }
         if (return_ranks) {
-            const double obs_weight = dyad_weights(idx_obs);
-            int rank = 1;
-            for (int d = 0; d < n_dyads; d++) {
-                if (allowed_dyad(d) == 1 && dyad_weights(d) > obs_weight) rank++;
-            }
-            observed_rank[id_event] = rank;
+            observed_rank[id_event] =
+              rank_of_observed(dyad_weights, allowed_dyad, idx_obs);
         }
         if (return_margins) {
-            // Walk the same unordered-dyad triangle as the build loop above so
-            // dyad index `idx_m` reconstructs its members (a > b); credit each
-            // member with the dyad's fitted probability.
+            // A dyad credits BOTH its members, into the same accumulator pair:
+            // two reduction sides over one pair of vectors, so each totals 2n.
+            arma::uvec endpoint_a(n_dyads);
+            arma::uvec endpoint_b(n_dyads);
             int idx_m = 0;
             for (int a = 1; a < n_actors_1; ++a) {
                 for (int b = 0; b < a; ++b) {
-                    if (allowed_dyad(idx_m) == 1) {
-                        const double p = dyad_weights(idx_m) / normalizer;
-                        margin_expected(a) += p;
-                        margin_expected(b) += p;
-                    }
+                    endpoint_a(idx_m) = a;
+                    endpoint_b(idx_m) = b;
                     ++idx_m;
                 }
             }
-            margin_observed(id_sender) += 1;
-            margin_observed(id_receiver) += 1;
+            std::vector<margin_side> sides;
+            sides.push_back(
+              margin_side(&margin_observed, &margin_expected, &endpoint_a)
+            );
+            sides.push_back(
+              margin_side(&margin_observed, &margin_expected, &endpoint_b)
+            );
+            accumulate_margins(
+              dyad_probabilities, 1.0, allowed_dyad, idx_obs, true, sides
+            );
         }
         if (return_probabilities) {
             // Same triangle walk as the margin block: `idx_m` reconstructs its
@@ -285,7 +295,7 @@ List estimate_DyNAM_MM(
             for (int a = 1; a < n_actors_1; ++a) {
                 for (int b = 0; b < a; ++b) {
                     if (allowed_dyad(idx_m) == 1) {
-                        const double p = dyad_weights(idx_m) / normalizer;
+                        const double p = dyad_probabilities(idx_m);
                         probabilities(a, b) = p;
                         probabilities(b, a) = p;
                     }

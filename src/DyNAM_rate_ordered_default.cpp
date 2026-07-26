@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
+#include "event_reductions.h"
 #include "flat_updates.h"
 #include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -162,22 +163,25 @@ List estimate_DyNAM_rate_ordered(
         arma::vec weights;
         double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
         double normalizer = accu(weights);
+        // Opt-in primitives via the shared reductions. Ranks read the shifted
+        // weights directly (scale-free); margins take the probability vector
+        // with c = 1, which is the multinomial family's only scale.
+        arma::vec probabilities;
+        if (return_margins || return_probabilities) {
+            probabilities = weights / normalizer;
+        }
         if (return_ranks) {
-            const double obs_weight = weights(id_sender);
-            int rank = 1;
-            for (int i = 0; i < n_actors_1; ++i) {
-                if (allowed(i) == 1 && weights(i) > obs_weight) rank++;
-            }
-            observed_rank[id_event] = rank;
+            observed_rank[id_event] =
+              rank_of_observed(weights, allowed, id_sender);
         }
         if (return_margins) {
-            for (int i = 0; i < n_actors_1; ++i) {
-                if (allowed(i) == 1) margin_expected(i) += weights(i) / normalizer;
-            }
-            margin_observed(id_sender) += 1;
+            std::vector<margin_side> sides;
+            sides.push_back(margin_side(&margin_observed, &margin_expected));
+            accumulate_margins(
+              probabilities, 1.0, allowed, id_sender, true, sides
+            );
         }
         if (return_probabilities) {
-            arma::vec probabilities = weights / normalizer;
             event_probabilities[id_event] =
               NumericVector(probabilities.begin(), probabilities.end());
         }

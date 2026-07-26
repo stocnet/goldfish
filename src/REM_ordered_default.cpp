@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
+#include "event_reductions.h"
 #include "flat_updates.h"
 #include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -72,6 +73,17 @@ List estimate_REM_ordered(
         margin_expected_sender = arma::vec(n_actors_1, fill::zeros);
         margin_observed_receiver = arma::vec(n_actors_2, fill::zeros);
         margin_expected_receiver = arma::vec(n_actors_2, fill::zeros);
+    }
+    // Flat dyad position -> actor id on each axis, for the shared two-sided
+    // margin reduction. `weights` is flattened sender-major (dyad (i, j) at
+    // i * n_actors_2 + j), and the map is the same at every event.
+    arma::uvec dyad_sender(n_actors_1 * n_actors_2);
+    arma::uvec dyad_receiver(n_actors_1 * n_actors_2);
+    for (int i = 0; i < n_actors_1; ++i) {
+        for (int j = 0; j < n_actors_2; ++j) {
+            dyad_sender(i * n_actors_2 + j) = i;
+            dyad_receiver(i * n_actors_2 + j) = j;
+        }
     }
     // Opt-in per-event probability grid over the WHOLE dyad set, zero off the
     // risk set (the max-shift helper leaves masked dyads at 0). `weights` is
@@ -186,31 +198,32 @@ List estimate_REM_ordered(
           log_sum_exp_masked(lin_pred, allowed, weights);
         double normalizer = accu(weights);
         const int id_obs = id_sender * n_actors_2 + id_receiver;
+        // Opt-in primitives via the shared reductions. Ranks read the shifted
+        // weights directly (scale-free); margins take the probability vector
+        // with c = 1 and scatter one contribution into both endpoints.
+        arma::vec probabilities;
+        if (return_margins || return_probabilities) {
+            probabilities = weights / normalizer;
+        }
         if (return_ranks) {
-            const double obs_weight = weights(id_obs);
-            int rank = 1;
-            for (unsigned int d = 0; d < weights.n_elem; d++) {
-                if (allowed(d) == 1 && weights(d) > obs_weight) rank++;
-            }
-            observed_rank[id_event] = rank;
+            observed_rank[id_event] =
+              rank_of_observed(weights, allowed, id_obs);
         }
         if (return_margins) {
-            // `weights` is zero on masked dyads, so the double sum ranges over
-            // the realized risk set; sender and receiver totals coincide.
-            for (int i = 0; i < n_actors_1; ++i) {
-                for (int j = 0; j < n_actors_2; j++) {
-                    const double p = weights(i * n_actors_2 + j) / normalizer;
-                    margin_expected_sender(i) += p;
-                    margin_expected_receiver(j) += p;
-                }
-            }
-            margin_observed_sender(id_sender) += 1;
-            margin_observed_receiver(id_receiver) += 1;
+            std::vector<margin_side> sides;
+            sides.push_back(margin_side(
+              &margin_observed_sender, &margin_expected_sender, &dyad_sender
+            ));
+            sides.push_back(margin_side(
+              &margin_observed_receiver, &margin_expected_receiver,
+              &dyad_receiver
+            ));
+            accumulate_margins(probabilities, 1.0, allowed, id_obs, true, sides);
         }
         if (return_probabilities) {
-            arma::mat probabilities =
-              arma::reshape(weights / normalizer, n_actors_2, n_actors_1).t();
-            event_probabilities[id_event] = wrap(probabilities);
+            event_probabilities[id_event] = wrap(
+              arma::mat(arma::reshape(probabilities, n_actors_2, n_actors_1).t())
+            );
         }
         expected_stat_current_event = (weights.t() * stat_mat) / normalizer;
         // derivative
