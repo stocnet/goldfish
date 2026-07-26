@@ -288,7 +288,7 @@ partnerSpec <- make_specification(
 )
 
 est_opts <- set_algorithm_newton(
-  return_interval_loglik = TRUE,
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30,
   backend = "r"
@@ -307,7 +307,7 @@ system.time(
 #> ℹ Missing data has been detected. The mean is used to impute numeric
 #>   attributes.
 #>    user  system elapsed 
-#>   9.596   0.406   8.945
+#>  17.751   0.343  17.076
 ```
 
 Did the model converge? If not, you can restart the estimation process using
@@ -316,7 +316,7 @@ the same specification and current parameter estimates:
 
 ``` r
 est_opts <- set_algorithm_newton(
-  return_interval_loglik = TRUE,
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30,
   initial_parameters = coef(partnerModel),
@@ -389,7 +389,7 @@ tieSpec <- make_specification(
 )
 
 est_opts <- set_algorithm_newton(
-  return_interval_loglik = TRUE,
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30
 )
@@ -407,7 +407,7 @@ system.time(
 #> ℹ Missing data has been detected. The mean is used to impute numeric
 #>   attributes.
 #>    user  system elapsed 
-#>   3.554   0.176   3.409
+#>   3.453   0.223   3.321
 ```
 
 # Extensions...
@@ -458,37 +458,37 @@ help users identify areas for improving their model specification.
 diagnose_outliers(tieModel)
 #> Identified 0 Outliers(s):
 #> # A tibble: 69 × 8
-#>    time                sender receiver increment rightCensoredEvent intervalLogL
-#>    <dttm>              <chr>  <chr>        <dbl> <lgl>                     <dbl>
-#>  1 1960-03-19 00:00:00 FIN    SWE              1 FALSE                     -7.52
-#>  2 1960-06-23 00:00:00 FIN    RUS              1 FALSE                     -5.21
-#>  3 1960-11-15 00:00:00 FIN    NOR              1 FALSE                     -3.40
-#>  4 1960-11-17 00:00:00 GBR    NOR              1 FALSE                     -3.78
-#>  5 1961-03-11 00:00:00 GBR    ISL              1 FALSE                     -8.16
-#>  6 1961-07-19 00:00:00 DEU    ISL              1 FALSE                     -8.41
-#>  7 1961-07-19 00:00:00 DEU    ISL              1 FALSE                     -8.41
-#>  8 1961-08-01 00:00:00 DNK    ISL              1 FALSE                     -5.73
-#>  9 1962-01-23 00:00:00 BGR    SRB              1 FALSE                     -9.32
-#> 10 1962-02-22 00:00:00 NOR    RUS              1 FALSE                     -4.62
+#>    time                sender receiver increment right_censored_event
+#>    <dttm>              <chr>  <chr>        <dbl> <lgl>               
+#>  1 1960-03-19 00:00:00 FIN    SWE              1 FALSE               
+#>  2 1960-06-23 00:00:00 FIN    RUS              1 FALSE               
+#>  3 1960-11-15 00:00:00 FIN    NOR              1 FALSE               
+#>  4 1960-11-17 00:00:00 GBR    NOR              1 FALSE               
+#>  5 1961-03-11 00:00:00 GBR    ISL              1 FALSE               
+#>  6 1961-07-19 00:00:00 DEU    ISL              1 FALSE               
+#>  7 1961-07-19 00:00:00 DEU    ISL              1 FALSE               
+#>  8 1961-08-01 00:00:00 DNK    ISL              1 FALSE               
+#>  9 1962-01-23 00:00:00 BGR    SRB              1 FALSE               
+#> 10 1962-02-22 00:00:00 NOR    RUS              1 FALSE               
 #> # ℹ 59 more rows
-#> # ℹ 2 more variables: label <chr>, outlier <lgl>
+#> # ℹ 3 more variables: interval_log_lik <dbl>, label <chr>, outlier <lgl>
 diagnose_changepoints(tieModel)
 #> Identified 8 Change Point(s):
 #> # A tibble: 69 × 7
-#>    time                sender receiver increment rightCensoredEvent intervalLogL
-#>    <dttm>              <chr>  <chr>        <dbl> <lgl>                     <dbl>
-#>  1 1960-03-19 00:00:00 FIN    SWE              1 FALSE                     -7.52
-#>  2 1960-06-23 00:00:00 FIN    RUS              1 FALSE                     -5.21
-#>  3 1960-11-15 00:00:00 FIN    NOR              1 FALSE                     -3.40
-#>  4 1960-11-17 00:00:00 GBR    NOR              1 FALSE                     -3.78
-#>  5 1961-03-11 00:00:00 GBR    ISL              1 FALSE                     -8.16
-#>  6 1961-07-19 00:00:00 DEU    ISL              1 FALSE                     -8.41
-#>  7 1961-07-19 00:00:00 DEU    ISL              1 FALSE                     -8.41
-#>  8 1961-08-01 00:00:00 DNK    ISL              1 FALSE                     -5.73
-#>  9 1962-01-23 00:00:00 BGR    SRB              1 FALSE                     -9.32
-#> 10 1962-02-22 00:00:00 NOR    RUS              1 FALSE                     -4.62
+#>    time                sender receiver increment right_censored_event
+#>    <dttm>              <chr>  <chr>        <dbl> <lgl>               
+#>  1 1960-03-19 00:00:00 FIN    SWE              1 FALSE               
+#>  2 1960-06-23 00:00:00 FIN    RUS              1 FALSE               
+#>  3 1960-11-15 00:00:00 FIN    NOR              1 FALSE               
+#>  4 1960-11-17 00:00:00 GBR    NOR              1 FALSE               
+#>  5 1961-03-11 00:00:00 GBR    ISL              1 FALSE               
+#>  6 1961-07-19 00:00:00 DEU    ISL              1 FALSE               
+#>  7 1961-07-19 00:00:00 DEU    ISL              1 FALSE               
+#>  8 1961-08-01 00:00:00 DNK    ISL              1 FALSE               
+#>  9 1962-01-23 00:00:00 BGR    SRB              1 FALSE               
+#> 10 1962-02-22 00:00:00 NOR    RUS              1 FALSE               
 #> # ℹ 59 more rows
-#> # ℹ 1 more variable: cpt <lgl>
+#> # ℹ 2 more variables: interval_log_lik <dbl>, cpt <lgl>
 ```
 
 For more, please see Hollway (2020) Network Embeddedness and
