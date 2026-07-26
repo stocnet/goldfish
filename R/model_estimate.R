@@ -664,14 +664,14 @@ estimate_from_specification <- function(
 #'   shape it was produced under, so a consumer never has to infer it from the
 #'   columns: `has_intercept` (the exact-time time intercept is present) and
 #'   `right_censored` (right-censored rows are stored, carrying `timespan` and
-#'   `isDependent`). Both are `TRUE` for `sub_model = "rate"` and `FALSE` for
+#'   `is_dependent`). Both are `TRUE` for `sub_model = "rate"` and `FALSE` for
 #'   `"rate_ordered"` and the choice sub-models.
 #'
 #' @section Indexing statistic columns:
 #' Index statistic columns **by name**, never by position. The exact-time
 #' sub-models prepend an `Intercept` column, so the same formula yields
 #' statistics at different positions under `sub_model = "rate"` and
-#' `"rate_ordered"`. The names are in `namesEffects` and on the columns of
+#' `"rate_ordered"`. The names are in `names_effects` and on the columns of
 #' `stat_all_events`.
 #'
 #' @seealso [estimate_dynam()], [estimate_rem()], [estimate_dynami()],
@@ -1766,9 +1766,9 @@ estimate_wrapper <- function(
     n2_val <- ds_n_nodes(work_src, .nodes2)
     n_effects_new <- length(effects_indexes)
     if (is_rate_model) {
-      allprep$initialStats <- matrix(0, nrow = n1_val, ncol = n_effects_new)
+      allprep$initial_stats <- matrix(0, nrow = n1_val, ncol = n_effects_new)
     } else {
-      allprep$initialStats <- array(0, dim = c(n1_val, n2_val, n_effects_new))
+      allprep$initial_stats <- array(0, dim = c(n1_val, n2_val, n_effects_new))
     }
     cptnew <- 1
 
@@ -1776,19 +1776,19 @@ estimate_wrapper <- function(
     for (e in seq_along(effects_indexes)) {
       if (effects_indexes[e] == 0) {
         if (is_rate_model) {
-          allprep$initialStats[, e] <- newprep$initialStats[, cptnew]
+          allprep$initial_stats[, e] <- newprep$initial_stats[, cptnew]
         } else {
-          allprep$initialStats[,, e] <- newprep$initialStats[,, cptnew]
+          allprep$initial_stats[,, e] <- newprep$initial_stats[,, cptnew]
         }
         cptnew <- cptnew + 1
       }
       if (effects_indexes[e] > 0) {
         if (is_rate_model) {
-          allprep$initialStats[, e] <-
-            preprocessed$initialStats[, effects_indexes[e]]
+          allprep$initial_stats[, e] <-
+            preprocessed$initial_stats[, effects_indexes[e]]
         } else {
-          allprep$initialStats[,, e] <-
-            preprocessed$initialStats[,, effects_indexes[e]]
+          allprep$initial_stats[,, e] <-
+            preprocessed$initial_stats[,, effects_indexes[e]]
         }
       }
     }

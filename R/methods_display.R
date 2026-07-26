@@ -841,7 +841,7 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
 
   description <- data.frame(
     name = c(
-      "initialStats",
+      "initial_stats",
       "stat_mat_update",
       "stat_mat_pointer",
       "stat_mat_broadcast",
@@ -862,8 +862,8 @@ print.preprocessed.goldfish <- function(x, ..., width = getOption("width")) {
       "n_dep_events",
       "total_time",
       "avg_active_entity",
-      "startTime",
-      "endTime",
+      "start_time",
+      "end_time",
       "formula",
       "nodes",
       "nodes2"

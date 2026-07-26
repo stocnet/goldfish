@@ -14,8 +14,8 @@ test_that("max_length bounds the produced statistic-column names", {
     output = "gather",
     max_length = 8L
   )
-  expect_lte(max(nchar(gathered$namesEffects)), 8L)
-  expect_identical(anyDuplicated(gathered$namesEffects), 0L)
+  expect_lte(max(nchar(gathered$names_effects)), 8L)
+  expect_identical(anyDuplicated(gathered$names_effects), 0L)
 })
 
 test_that("compute_statistics returns a preprocessed.goldfish object", {
@@ -153,7 +153,7 @@ test_that("an exact-time model reports its intercept and censoring", {
   expect_true("Intercept" %in% colnames(gathered$stat_all_events))
   # Right-censored rows are the ones the waiting-time likelihood needs the
   # exposure for, so they must carry timespan and be marked non-dependent.
-  censored <- gathered$isDependent == 0
+  censored <- gathered$is_dependent == 0
   expect_gt(sum(censored), 0)
   expect_true(all(is.finite(gathered$timespan[censored])))
 })
@@ -237,10 +237,13 @@ test_that("preprocessed objects carry the format version", {
     model = "DyNAM",
     sub_model = "choice"
   )
-  expect_identical(prep$version, 4L)
+  # Pinned to the constant, not a literal: the contract under test is "a fresh
+  # object carries the current version and a stale one is refused", which a
+  # hardcoded number restates as "the version is 4" and breaks on every bump.
+  expect_identical(prep$version, PREPROCESSED_GOLDFISH_VERSION)
   expect_identical(prep$active_dyad_encoding, "alter")
   oldFormat <- prep
-  oldFormat$version <- 3L
+  oldFormat$version <- PREPROCESSED_GOLDFISH_VERSION - 1L
   expect_error(
     estimate_dynam(
       depNetwork ~ inertia,

@@ -58,7 +58,7 @@ test_that("deliberate missingness survives to a summarizer as a category", {
       data = as_goldfish(fixture),
       preprocessing_only = TRUE,
       control_prep = ctrl
-    ))$initialStats[,, 1]
+    ))$initial_stats[,, 1]
   }
   summary_stats <- run(NULL)
   category_stats <- run(c(party = "as_category"))

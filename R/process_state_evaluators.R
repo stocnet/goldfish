@@ -48,25 +48,25 @@ materialize_process_state <- function(
   )
 
   if (is_rate) {
-    n_parameters <- ncol(sl$initialStats)
-    n_actors1 <- nrow(sl$initialStats)
+    n_parameters <- ncol(sl$initial_stats)
+    n_actors1 <- nrow(sl$initial_stats)
     n_actors2 <- 1L
     twomode_or_reflexive <- TRUE
   } else {
-    n_parameters <- dim(sl$initialStats)[3]
-    n_actors1 <- dim(sl$initialStats)[1]
-    n_actors2 <- dim(sl$initialStats)[2]
+    n_parameters <- dim(sl$initial_stats)[3]
+    n_actors1 <- dim(sl$initial_stats)[1]
+    n_actors2 <- dim(sl$initial_stats)[2]
     twomode_or_reflexive <- allow_reflexive || is_two_mode
   }
 
   # Flatten the initial statistics to the sender-major layout the compiled
   # estimators use (dyad (i, j) at row (i - 1) * n2 + j); rate stats stay n1xp.
   if (is_rate) {
-    stat_mat <- sl$initialStats
+    stat_mat <- sl$initial_stats
   } else {
     stat_mat <- matrix(0, n_actors1 * n_actors2, n_parameters)
     for (i in seq_len(n_parameters)) {
-      stat_mat[, i] <- t(sl$initialStats[,, i])
+      stat_mat[, i] <- t(sl$initial_stats[,, i])
     }
   }
 

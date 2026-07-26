@@ -34,7 +34,7 @@ test_that("compute_statistics(output = 'gather') matches gather_model_data (choi
     "n_candidates",
     "sender",
     "receiver",
-    "namesEffects",
+    "names_effects",
     "has_intercept"
   )) {
     expect_equal(new[[f]], old[[f]], ignore_attr = TRUE, info = f)
@@ -65,7 +65,7 @@ test_that("compute_statistics(output = 'gather') matches gather_model_data (REM)
     "index_j",
     "sender",
     "receiver",
-    "namesEffects"
+    "names_effects"
   )) {
     expect_equal(new[[f]], old[[f]], ignore_attr = TRUE, info = f)
   }
@@ -95,7 +95,7 @@ test_that("compute_statistics(output = 'gather') matches gather_model_data (coor
     "index_j",
     "sender",
     "receiver",
-    "namesEffects"
+    "names_effects"
   )) {
     expect_equal(new[[f]], old[[f]], ignore_attr = TRUE, info = f)
   }
@@ -116,7 +116,7 @@ test_that("gather output for rate models is internally consistent", {
   expect_equal(nrow(gathered$stat_all_events), sum(gathered$n_candidates))
   expect_true(gathered$has_intercept)
   expect_equal(ncol(gathered$stat_all_events), 3L)
-  expect_equal(gathered$namesEffects[1], "Intercept")
+  expect_equal(gathered$names_effects[1], "Intercept")
 })
 
 test_that("compute_statistics rejects unknown output values", {

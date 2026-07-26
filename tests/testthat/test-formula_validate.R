@@ -162,7 +162,7 @@ test_that("choice global is computable and equals the REM expansion", {
     sub_model = "rate_ordered"
   )
   expect_s3_class(choice, "preprocessed.goldfish")
-  expect_equal(choice$initialStats, rem$initialStats, tolerance = 1e-6)
+  expect_equal(choice$initial_stats, rem$initial_stats, tolerance = 1e-6)
   expect_equal(
     ReducePreprocess(choice),
     ReducePreprocess(rem),

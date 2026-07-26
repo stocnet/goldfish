@@ -82,7 +82,7 @@ test_that("export names are valid, unique R names", {
     depNetwork ~ inertia(networkState, weighted = TRUE) + outdeg(networkExog),
     data = dataTest
   )
-  nm <- out$namesEffects
+  nm <- out$names_effects
   expect_equal(nm, colnames(out$stat_all_events))
   expect_true(all(make.names(nm) == nm))
   expect_false(any(grepl("[/·\\[\\] ]", nm, perl = TRUE)))

@@ -633,7 +633,7 @@ test_that("a two-mode alter statistic keeps no excluded diagonal", {
     data = as_goldfish(make_stocnet_fixture_multipartite()),
     preprocessing_only = TRUE
   )
-  stat <- prep$initialStats[,, 1]
+  stat <- prep$initial_stats[,, 1]
 
   expect_equal(
     nrow(unique(stat)),

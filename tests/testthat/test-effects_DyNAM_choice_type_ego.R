@@ -23,8 +23,8 @@ test_that("DyNAM choice indeg(type = 'ego') equals the REM-derived expansion", {
   )
 
   expect_equal(
-    choice_ego$initialStats,
-    rem_ego$initialStats,
+    choice_ego$initial_stats,
+    rem_ego$initial_stats,
     tolerance = 1e-6,
     label = "initial ego-perspective statistic matches REM"
   )
@@ -50,7 +50,7 @@ test_that("DyNAM choice outdeg(type = 'ego') equals the REM-derived expansion", 
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_equal(choice_ego$initialStats, rem_ego$initialStats, tolerance = 1e-6)
+  expect_equal(choice_ego$initial_stats, rem_ego$initial_stats, tolerance = 1e-6)
   expect_equal(
     ReducePreprocess(choice_ego),
     ReducePreprocess(rem_ego),
@@ -81,15 +81,15 @@ test_that("DyNAM choice degree default stays the alter perspective", {
     preprocessing_only = TRUE
   )
   expect_equal(
-    default_choice$initialStats,
-    alter_choice$initialStats,
+    default_choice$initial_stats,
+    alter_choice$initial_stats,
     tolerance = 1e-12,
     label = "default perspective is unchanged (alter)"
   )
   # the ego perspective genuinely differs from the alter default.
   expect_false(isTRUE(all.equal(
-    ego_choice$initialStats,
-    alter_choice$initialStats
+    ego_choice$initial_stats,
+    alter_choice$initial_stats
   )))
 })
 

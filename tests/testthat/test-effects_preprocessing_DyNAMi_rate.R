@@ -25,7 +25,7 @@ test_that("intercept with objects weighted with all possible options", {
   }
 
   expect_equal(
-    preproData$initialStats[,, 1],
+    preproData$initial_stats[,, 1],
     matrix(
       c(
         0,
@@ -53,8 +53,8 @@ test_that("intercept with objects weighted with all possible options", {
   )
 
   # Detail
-  stat <- preproData$initialStats[,, 1]
-  change <- preproData$dependentStatsChange[[2]][[1]]
+  stat <- preproData$initial_stats[,, 1]
+  change <- preproData$dependent_stats_change[[2]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -83,7 +83,7 @@ test_that("intercept with objects weighted with all possible options", {
     ),
     label = "update of the statistics vector intercept (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[1]]
+  change <- preproData$dependent_stats_change[[3]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -112,7 +112,7 @@ test_that("intercept with objects weighted with all possible options", {
     ),
     label = "update of the statistics vector intercept (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[1]]
+  change <- preproData$dependent_stats_change[[4]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -141,7 +141,7 @@ test_that("intercept with objects weighted with all possible options", {
     ),
     label = "update of the statistics vector intercept (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[1]]
+  change <- preproData$dependent_stats_change[[5]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -170,7 +170,7 @@ test_that("intercept with objects weighted with all possible options", {
     ),
     label = "update of the statistics vector intercept (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[1]]
+  change <- preproData$dependent_stats_change[[6]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -199,7 +199,7 @@ test_that("intercept with objects weighted with all possible options", {
     ),
     label = "update of the statistics vector intercept (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[1]]
+  change <- preproData$dependent_stats_change[[7]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -228,7 +228,7 @@ test_that("intercept with objects weighted with all possible options", {
     ),
     label = "update of the statistics vector intercept (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[1]]
+  change <- preproData$dependent_stats_change[[8]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -337,7 +337,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
 
   for (i in c(1, 3, 5, 7, 9, 11)) {
     expect_equal(
-      preproData$initialStats[,, i],
+      preproData$initial_stats[,, i],
       matrix(
         c(
           0,
@@ -366,7 +366,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
   }
   for (i in c(2, 4, 6, 8, 10, 12)) {
     expect_equal(
-      preproData$initialStats[,, i],
+      preproData$initial_stats[,, i],
       matrix(
         c(
           0,
@@ -395,8 +395,8 @@ test_that("inertia/tie with objects weighted with all possible options", {
   }
 
   # Detail for inertia/count
-  stat <- preproData$initialStats[,, 1]
-  change <- preproData$dependentStatsChange[[2]][[1]]
+  stat <- preproData$initial_stats[,, 1]
+  change <- preproData$dependent_stats_change[[2]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -425,7 +425,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix inertia (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[1]]
+  change <- preproData$dependent_stats_change[[3]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -454,7 +454,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix inertia (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[1]]
+  change <- preproData$dependent_stats_change[[4]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -483,7 +483,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix inertia (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[1]]
+  change <- preproData$dependent_stats_change[[5]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -512,7 +512,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix inertia (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[1]]
+  change <- preproData$dependent_stats_change[[6]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -541,7 +541,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix inertia (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[1]]
+  change <- preproData$dependent_stats_change[[7]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -570,7 +570,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix inertia (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[1]]
+  change <- preproData$dependent_stats_change[[8]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -601,8 +601,8 @@ test_that("inertia/tie with objects weighted with all possible options", {
   )
 
   # Detail for tie/count
-  stat <- preproData$initialStats[,, 2]
-  change <- preproData$dependentStatsChange[[2]][[2]]
+  stat <- preproData$initial_stats[,, 2]
+  change <- preproData$dependent_stats_change[[2]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -631,7 +631,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix tie (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[2]]
+  change <- preproData$dependent_stats_change[[3]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -660,7 +660,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix tie (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[2]]
+  change <- preproData$dependent_stats_change[[4]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -689,7 +689,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix tie (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[2]]
+  change <- preproData$dependent_stats_change[[5]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -718,7 +718,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix tie (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[2]]
+  change <- preproData$dependent_stats_change[[6]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -747,7 +747,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix tie (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[2]]
+  change <- preproData$dependent_stats_change[[7]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -776,7 +776,7 @@ test_that("inertia/tie with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix tie (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[2]]
+  change <- preproData$dependent_stats_change[[8]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -809,9 +809,9 @@ test_that("inertia/tie with objects weighted with all possible options", {
   # Final stats for other inertia effects:
   #  proportion, presence, min, mean, max
   for (i in c(3, 5, 7, 9, 11)) {
-    stat <- preproData$initialStats[,, i]
+    stat <- preproData$initial_stats[,, i]
     for (t in 1:8) {
-      change <- preproData$dependentStatsChange[[t]][[i]]
+      change <- preproData$dependent_stats_change[[t]][[i]]
       stat <- updFun(stat, change)
     }
     expect_equal(
@@ -846,9 +846,9 @@ test_that("inertia/tie with objects weighted with all possible options", {
   # Final stats for other tie effects:
   #  proportion, presence, min, mean, mean
   for (i in c(4, 6, 8, 10, 12)) {
-    stat <- preproData$initialStats[,, i]
+    stat <- preproData$initial_stats[,, i]
     for (t in 1:8) {
-      change <- preproData$dependentStatsChange[[t]][[i]]
+      change <- preproData$dependent_stats_change[[t]][[i]]
       stat <- updFun(stat, change)
     }
     expect_equal(
@@ -927,7 +927,7 @@ test_that("inertia computes correct preprocessing objects with window", {
 
   for (i in c(1, 2, 3)) {
     expect_equal(
-      preproData$initialStats[,, i],
+      preproData$initial_stats[,, i],
       matrix(
         c(
           0,
@@ -956,8 +956,8 @@ test_that("inertia computes correct preprocessing objects with window", {
   }
 
   # Detail for inertia no window
-  stat <- preproData$initialStats[,, 1]
-  change <- preproData$dependentStatsChange[[2]][[1]]
+  stat <- preproData$initial_stats[,, 1]
+  change <- preproData$dependent_stats_change[[2]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -986,7 +986,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[1]]
+  change <- preproData$dependent_stats_change[[3]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1015,7 +1015,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[1]]
+  change <- preproData$dependent_stats_change[[4]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1044,7 +1044,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[1]]
+  change <- preproData$dependent_stats_change[[5]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1073,7 +1073,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[1]]
+  change <- preproData$dependent_stats_change[[6]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1102,7 +1102,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[1]]
+  change <- preproData$dependent_stats_change[[7]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1131,7 +1131,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[1]]
+  change <- preproData$dependent_stats_change[[8]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1162,8 +1162,8 @@ test_that("inertia computes correct preprocessing objects with window", {
   )
 
   # Detail for inertia with window = 2
-  stat <- preproData$initialStats[,, 2]
-  change <- preproData$dependentStatsChange[[2]][[2]]
+  stat <- preproData$initial_stats[,, 2]
+  change <- preproData$dependent_stats_change[[2]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1192,7 +1192,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[2]]
+  change <- preproData$dependent_stats_change[[3]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1221,7 +1221,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[2]]
+  change <- preproData$dependent_stats_change[[4]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1250,7 +1250,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[2]]
+  change <- preproData$dependent_stats_change[[5]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1279,7 +1279,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[2]]
+  change <- preproData$dependent_stats_change[[6]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1308,7 +1308,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[2]]
+  change <- preproData$dependent_stats_change[[7]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1337,7 +1337,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[2]]
+  change <- preproData$dependent_stats_change[[8]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1368,8 +1368,8 @@ test_that("inertia computes correct preprocessing objects with window", {
   )
 
   # Detail for inertia with window = 7
-  stat <- preproData$initialStats[,, 3]
-  change <- preproData$dependentStatsChange[[2]][[3]]
+  stat <- preproData$initial_stats[,, 3]
+  change <- preproData$dependent_stats_change[[2]][[3]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1398,7 +1398,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[3]]
+  change <- preproData$dependent_stats_change[[3]][[3]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1427,7 +1427,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[3]]
+  change <- preproData$dependent_stats_change[[4]][[3]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1456,7 +1456,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[3]]
+  change <- preproData$dependent_stats_change[[5]][[3]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1485,7 +1485,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[3]]
+  change <- preproData$dependent_stats_change[[6]][[3]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1514,7 +1514,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[3]]
+  change <- preproData$dependent_stats_change[[7]][[3]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1543,7 +1543,7 @@ test_that("inertia computes correct preprocessing objects with window", {
     ),
     label = "update of the statistics matrix inertia (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[3]]
+  change <- preproData$dependent_stats_change[[8]][[3]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1672,7 +1672,7 @@ test_that("egopop/egodeg for joining and leaving", {
 
   for (i in c(1, 3, 5, 6, 7, 8, 9, 11, 12)) {
     expect_equal(
-      preproData$initialStats[,, i],
+      preproData$initial_stats[,, i],
       matrix(
         c(
           0,
@@ -1700,7 +1700,7 @@ test_that("egopop/egodeg for joining and leaving", {
     )
   }
   expect_equal(
-    preproData$initialStats[,, 2],
+    preproData$initial_stats[,, 2],
     matrix(
       c(
         2,
@@ -1728,7 +1728,7 @@ test_that("egopop/egodeg for joining and leaving", {
   )
   for (i in c(4, 10)) {
     expect_equal(
-      preproData$initialStats[,, i],
+      preproData$initial_stats[,, i],
       matrix(
         c(
           0.5,
@@ -1757,8 +1757,8 @@ test_that("egopop/egodeg for joining and leaving", {
   }
 
   # Detail for egopop/joining/identity
-  stat <- preproData$initialStats[,, 1]
-  change <- preproData$dependentStatsChange[[2]][[1]]
+  stat <- preproData$initial_stats[,, 1]
+  change <- preproData$dependent_stats_change[[2]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1787,7 +1787,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[1]]
+  change <- preproData$dependent_stats_change[[3]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1816,7 +1816,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[1]]
+  change <- preproData$dependent_stats_change[[4]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1845,7 +1845,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[1]]
+  change <- preproData$dependent_stats_change[[5]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1874,7 +1874,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[1]]
+  change <- preproData$dependent_stats_change[[6]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1903,7 +1903,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[1]]
+  change <- preproData$dependent_stats_change[[7]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1932,7 +1932,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[1]]
+  change <- preproData$dependent_stats_change[[8]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1963,8 +1963,8 @@ test_that("egopop/egodeg for joining and leaving", {
   )
 
   # Detail for egopop/leaving/identity
-  stat <- preproData$initialStats[,, 5]
-  change <- preproData$dependentStatsChange[[2]][[5]]
+  stat <- preproData$initial_stats[,, 5]
+  change <- preproData$dependent_stats_change[[2]][[5]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -1993,7 +1993,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[5]]
+  change <- preproData$dependent_stats_change[[3]][[5]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2022,7 +2022,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[5]]
+  change <- preproData$dependent_stats_change[[4]][[5]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2051,7 +2051,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[5]]
+  change <- preproData$dependent_stats_change[[5]][[5]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2080,7 +2080,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[5]]
+  change <- preproData$dependent_stats_change[[6]][[5]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2109,7 +2109,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[5]]
+  change <- preproData$dependent_stats_change[[7]][[5]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2138,7 +2138,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[5]]
+  change <- preproData$dependent_stats_change[[8]][[5]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2169,8 +2169,8 @@ test_that("egopop/egodeg for joining and leaving", {
   )
 
   # Detail for egodeg/joining/identity
-  stat <- preproData$initialStats[,, 2]
-  change <- preproData$dependentStatsChange[[2]][[2]]
+  stat <- preproData$initial_stats[,, 2]
+  change <- preproData$dependent_stats_change[[2]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2199,7 +2199,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egodeg (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[2]]
+  change <- preproData$dependent_stats_change[[3]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2228,7 +2228,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egodeg (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[2]]
+  change <- preproData$dependent_stats_change[[4]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2257,7 +2257,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egodeg (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[2]]
+  change <- preproData$dependent_stats_change[[5]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2286,7 +2286,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egodeg (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[2]]
+  change <- preproData$dependent_stats_change[[6]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2315,7 +2315,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egodeg (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[2]]
+  change <- preproData$dependent_stats_change[[7]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2344,7 +2344,7 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egodeg (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[2]]
+  change <- preproData$dependent_stats_change[[8]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2375,9 +2375,9 @@ test_that("egopop/egodeg for joining and leaving", {
   )
 
   # Final stats for other effects
-  stat <- preproData$initialStats[,, 3]
+  stat <- preproData$initial_stats[,, 3]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[3]]
+    change <- preproData$dependent_stats_change[[t]][[3]]
     stat <- updFun(stat, change)
   }
   v <- (4 - 3.5) / sd(c(3, 3, 4, 4))
@@ -2408,9 +2408,9 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop"
   )
-  stat <- preproData$initialStats[,, 4]
+  stat <- preproData$initial_stats[,, 4]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[4]]
+    change <- preproData$dependent_stats_change[[t]][[4]]
     stat <- updFun(stat, change)
   }
   v <- (2 - 1.5) / sd(c(2, 2, 2, 0))
@@ -2441,9 +2441,9 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egodeg"
   )
-  stat <- preproData$initialStats[,, 6]
+  stat <- preproData$initial_stats[,, 6]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[6]]
+    change <- preproData$dependent_stats_change[[t]][[6]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -2473,9 +2473,9 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egodeg"
   )
-  stat <- preproData$initialStats[,, 7]
+  stat <- preproData$initial_stats[,, 7]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[7]]
+    change <- preproData$dependent_stats_change[[t]][[7]]
     stat <- updFun(stat, change)
   }
   v <- (3 - 3.5) / sd(c(3, 3, 4, 4))
@@ -2506,9 +2506,9 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop"
   )
-  stat <- preproData$initialStats[,, 8]
+  stat <- preproData$initial_stats[,, 8]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[8]]
+    change <- preproData$dependent_stats_change[[t]][[8]]
     stat <- updFun(stat, change)
   }
   v <- (2 - 1.5) / sd(c(2, 2, 2, 0))
@@ -2540,9 +2540,9 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egodeg"
   )
-  stat <- preproData$initialStats[,, 9]
+  stat <- preproData$initial_stats[,, 9]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[9]]
+    change <- preproData$dependent_stats_change[[t]][[9]]
     stat <- updFun(stat, change)
   }
   v <- (4 - 3.5)
@@ -2573,9 +2573,9 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop"
   )
-  stat <- preproData$initialStats[,, 10]
+  stat <- preproData$initial_stats[,, 10]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[10]]
+    change <- preproData$dependent_stats_change[[t]][[10]]
     stat <- updFun(stat, change)
   }
   v <- (2 - 1.5)
@@ -2606,9 +2606,9 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egodeg"
   )
-  stat <- preproData$initialStats[,, 11]
+  stat <- preproData$initial_stats[,, 11]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[11]]
+    change <- preproData$dependent_stats_change[[t]][[11]]
     stat <- updFun(stat, change)
   }
   v <- (3 - 3.5)
@@ -2639,9 +2639,9 @@ test_that("egopop/egodeg for joining and leaving", {
     ),
     label = "update of the statistics matrix egopop"
   )
-  stat <- preproData$initialStats[,, 12]
+  stat <- preproData$initial_stats[,, 12]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[12]]
+    change <- preproData$dependent_stats_change[[t]][[12]]
     stat <- updFun(stat, change)
   }
   v <- (2 - 1.5)
@@ -2761,7 +2761,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
 
   for (i in 1:8) {
     expect_equal(
-      preproData$initialStats[,, i],
+      preproData$initial_stats[,, i],
       matrix(
         c(
           0,
@@ -2790,8 +2790,8 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
   }
 
   # Detail for alterpop mean normalized
-  stat <- preproData$initialStats[,, 3]
-  change <- preproData$dependentStatsChange[[2]][[3]]
+  stat <- preproData$initial_stats[,, 3]
+  change <- preproData$dependent_stats_change[[2]][[3]]
   stat <- updFun(stat, change)
   v <- (1 - 0.5) / sd(c(0, 0, 1, 1))
   expect_equal(
@@ -2821,7 +2821,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterpop (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[3]]
+  change <- preproData$dependent_stats_change[[3]][[3]]
   stat <- updFun(stat, change)
   v <- (1 - mean(c(0, 1, 1, 1))) / sd(c(0, 1, 1, 1))
   expect_equal(
@@ -2851,7 +2851,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterpop (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[3]]
+  change <- preproData$dependent_stats_change[[4]][[3]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2880,7 +2880,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterpop (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[3]]
+  change <- preproData$dependent_stats_change[[5]][[3]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2909,7 +2909,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterpop (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[3]]
+  change <- preproData$dependent_stats_change[[6]][[3]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -2938,7 +2938,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix egopop (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[3]]
+  change <- preproData$dependent_stats_change[[7]][[3]]
   stat <- updFun(stat, change)
   v1 <- (2 - 1.5) / sd(c(1, 1, 2, 2))
   v2 <- (1 - 1.5) / sd(c(1, 1, 2, 2))
@@ -2969,7 +2969,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterpop (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[3]]
+  change <- preproData$dependent_stats_change[[8]][[3]]
   stat <- updFun(stat, change)
   v <- (1 - 1.5) / sd(c(1, 1, 2, 2))
   expect_equal(
@@ -3001,8 +3001,8 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
   )
 
   # Detail for alterdeg mean normalized
-  stat <- preproData$initialStats[,, 4]
-  change <- preproData$dependentStatsChange[[2]][[4]]
+  stat <- preproData$initial_stats[,, 4]
+  change <- preproData$dependent_stats_change[[2]][[4]]
   stat <- updFun(stat, change)
   v <- (2 - 1.5) / 1
   expect_equal(
@@ -3032,7 +3032,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterdeg (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[4]]
+  change <- preproData$dependent_stats_change[[3]][[4]]
   stat <- updFun(stat, change)
   v <- (2 - 1.5) / 1
   expect_equal(
@@ -3062,7 +3062,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterdeg (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[4]]
+  change <- preproData$dependent_stats_change[[4]][[4]]
   stat <- updFun(stat, change)
   v1 <- (mean(c(0, 2, 2)) - 1.5) / 1
   v2 <- (2 - 1.5) / 1
@@ -3093,7 +3093,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterdeg (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[4]]
+  change <- preproData$dependent_stats_change[[5]][[4]]
   stat <- updFun(stat, change)
   v1 <- (mean(c(0, 2)) - 1.5) / 1
   v2 <- (2 - 1.5) / 1
@@ -3124,7 +3124,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterdeg (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[4]]
+  change <- preproData$dependent_stats_change[[6]][[4]]
   stat <- updFun(stat, change)
   v1 <- (0 - 1.5) / 1
   v2 <- (2 - 1.5) / 1
@@ -3155,7 +3155,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterdeg (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[4]]
+  change <- preproData$dependent_stats_change[[7]][[4]]
   stat <- updFun(stat, change)
   v1 <- (0 - 1.5) / 1
   v2 <- (2 - 1.5) / 1
@@ -3186,7 +3186,7 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterdeg (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[4]]
+  change <- preproData$dependent_stats_change[[8]][[4]]
   stat <- updFun(stat, change)
   v1 <- (0 - 1.5) / 1
   v2 <- (2 - 1.5) / 1
@@ -3219,9 +3219,9 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
   )
 
   # Final stats for other effects
-  stat <- preproData$initialStats[,, 1]
+  stat <- preproData$initial_stats[,, 1]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[1]]
+    change <- preproData$dependent_stats_change[[t]][[1]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -3251,9 +3251,9 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterpop"
   )
-  stat <- preproData$initialStats[,, 2]
+  stat <- preproData$initial_stats[,, 2]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[2]]
+    change <- preproData$dependent_stats_change[[t]][[2]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -3283,9 +3283,9 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterdeg"
   )
-  stat <- preproData$initialStats[,, 5]
+  stat <- preproData$initial_stats[,, 5]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[5]]
+    change <- preproData$dependent_stats_change[[t]][[5]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -3315,9 +3315,9 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterpop"
   )
-  stat <- preproData$initialStats[,, 6]
+  stat <- preproData$initial_stats[,, 6]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[6]]
+    change <- preproData$dependent_stats_change[[t]][[6]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -3347,9 +3347,9 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterdeg"
   )
-  stat <- preproData$initialStats[,, 7]
+  stat <- preproData$initial_stats[,, 7]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[7]]
+    change <- preproData$dependent_stats_change[[t]][[7]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -3379,9 +3379,9 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterpop"
   )
-  stat <- preproData$initialStats[,, 8]
+  stat <- preproData$initial_stats[,, 8]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[8]]
+    change <- preproData$dependent_stats_change[[t]][[8]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -3411,9 +3411,9 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterdeg"
   )
-  stat <- preproData$initialStats[,, 9]
+  stat <- preproData$initial_stats[,, 9]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[9]]
+    change <- preproData$dependent_stats_change[[t]][[9]]
     stat <- updFun(stat, change)
   }
   v <- (1 - 1.5)
@@ -3444,9 +3444,9 @@ test_that("alterpop/alterdeg for leaving objects weighted with all possible opti
     ),
     label = "update of the statistics matrix alterpop"
   )
-  stat <- preproData$initialStats[,, 10]
+  stat <- preproData$initial_stats[,, 10]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[10]]
+    change <- preproData$dependent_stats_change[[t]][[10]]
     stat <- updFun(stat, change)
   }
   v1 <- (0 - 1.5)
@@ -3514,7 +3514,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
 
   for (i in c(2, 4, 6, 8)) {
     expect_equal(
-      preproData$initialStats[,, i],
+      preproData$initial_stats[,, i],
       matrix(
         c(
           0,
@@ -3542,7 +3542,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     )
   }
   expect_equal(
-    preproData$initialStats[,, 1],
+    preproData$initial_stats[,, 1],
     matrix(
       c(
         20,
@@ -3573,7 +3573,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
   v3 <- (26 - 24.5) / sd(c(20, 22, 26, 30))
   v4 <- (30 - 24.5) / sd(c(20, 22, 26, 30))
   expect_equal(
-    preproData$initialStats[,, 3],
+    preproData$initial_stats[,, 3],
     matrix(
       c(
         v1,
@@ -3600,7 +3600,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     label = "initialization of the statistics matrix ego"
   )
   expect_equal(
-    preproData$initialStats[,, 5],
+    preproData$initial_stats[,, 5],
     matrix(
       c(
         400,
@@ -3631,7 +3631,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
   v3 <- (26 - 24.5)
   v4 <- (30 - 24.5)
   expect_equal(
-    preproData$initialStats[,, 7],
+    preproData$initial_stats[,, 7],
     matrix(
       c(
         v1,
@@ -3659,8 +3659,8 @@ test_that("ego for joining and leaving objects weighted with all possible option
   )
 
   # Detail for ego identity joining
-  stat <- preproData$initialStats[,, 1]
-  change <- preproData$dependentStatsChange[[2]][[1]]
+  stat <- preproData$initial_stats[,, 1]
+  change <- preproData$dependent_stats_change[[2]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3689,7 +3689,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[1]]
+  change <- preproData$dependent_stats_change[[3]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3718,7 +3718,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[1]]
+  change <- preproData$dependent_stats_change[[4]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3747,7 +3747,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[1]]
+  change <- preproData$dependent_stats_change[[5]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3776,7 +3776,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[1]]
+  change <- preproData$dependent_stats_change[[6]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3805,7 +3805,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[1]]
+  change <- preproData$dependent_stats_change[[7]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3834,7 +3834,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[1]]
+  change <- preproData$dependent_stats_change[[8]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3865,8 +3865,8 @@ test_that("ego for joining and leaving objects weighted with all possible option
   )
 
   # Detail for ego identity leaving
-  stat <- preproData$initialStats[,, 2]
-  change <- preproData$dependentStatsChange[[2]][[2]]
+  stat <- preproData$initial_stats[,, 2]
+  change <- preproData$dependent_stats_change[[2]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3895,7 +3895,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[2]]
+  change <- preproData$dependent_stats_change[[3]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3924,7 +3924,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[2]]
+  change <- preproData$dependent_stats_change[[4]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3953,7 +3953,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[2]]
+  change <- preproData$dependent_stats_change[[5]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -3982,7 +3982,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[2]]
+  change <- preproData$dependent_stats_change[[6]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -4011,7 +4011,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[2]]
+  change <- preproData$dependent_stats_change[[7]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -4040,7 +4040,7 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[2]]
+  change <- preproData$dependent_stats_change[[8]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -4075,9 +4075,9 @@ test_that("ego for joining and leaving objects weighted with all possible option
   v2 <- (22 - 24.5) / sd(c(20, 22, 26, 30))
   v3 <- (26 - 24.5) / sd(c(20, 22, 26, 30))
   v4 <- (30 - 24.5) / sd(c(20, 22, 26, 30))
-  stat <- preproData$initialStats[,, 3]
+  stat <- preproData$initial_stats[,, 3]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[3]]
+    change <- preproData$dependent_stats_change[[t]][[3]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -4107,9 +4107,9 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego"
   )
-  stat <- preproData$initialStats[,, 4]
+  stat <- preproData$initial_stats[,, 4]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[4]]
+    change <- preproData$dependent_stats_change[[t]][[4]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -4139,9 +4139,9 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego"
   )
-  stat <- preproData$initialStats[,, 5]
+  stat <- preproData$initial_stats[,, 5]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[5]]
+    change <- preproData$dependent_stats_change[[t]][[5]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -4171,9 +4171,9 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego"
   )
-  stat <- preproData$initialStats[,, 6]
+  stat <- preproData$initial_stats[,, 6]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[6]]
+    change <- preproData$dependent_stats_change[[t]][[6]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -4207,9 +4207,9 @@ test_that("ego for joining and leaving objects weighted with all possible option
   v2 <- (22 - 24.5)
   v3 <- (26 - 24.5)
   v4 <- (30 - 24.5)
-  stat <- preproData$initialStats[,, 7]
+  stat <- preproData$initial_stats[,, 7]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[7]]
+    change <- preproData$dependent_stats_change[[t]][[7]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -4239,9 +4239,9 @@ test_that("ego for joining and leaving objects weighted with all possible option
     ),
     label = "update of the statistics matrix ego"
   )
-  stat <- preproData$initialStats[,, 8]
+  stat <- preproData$initial_stats[,, 8]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[8]]
+    change <- preproData$dependent_stats_change[[t]][[8]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -4305,7 +4305,7 @@ test_that("alter for leaving with objects weighted with all possible options", {
 
   for (i in 1:6) {
     expect_equal(
-      preproData$initialStats[,, i],
+      preproData$initial_stats[,, i],
       matrix(
         c(
           0,
@@ -4334,8 +4334,8 @@ test_that("alter for leaving with objects weighted with all possible options", {
   }
 
   # Detail for alter mean normalized
-  stat <- preproData$initialStats[,, 3]
-  change <- preproData$dependentStatsChange[[2]][[3]]
+  stat <- preproData$initial_stats[,, 3]
+  change <- preproData$dependent_stats_change[[2]][[3]]
   stat <- updFun(stat, change)
   v1 <- (22 - 24.5) / sd(c(20, 22, 26, 30))
   v2 <- (20 - 24.5) / sd(c(20, 22, 26, 30))
@@ -4366,7 +4366,7 @@ test_that("alter for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix alter (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[3]]
+  change <- preproData$dependent_stats_change[[3]][[3]]
   stat <- updFun(stat, change)
   v1 <- (24 - 24.5) / sd(c(20, 22, 26, 30))
   v2 <- (23 - 24.5) / sd(c(20, 22, 26, 30))
@@ -4398,7 +4398,7 @@ test_that("alter for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix alter (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[3]]
+  change <- preproData$dependent_stats_change[[4]][[3]]
   stat <- updFun(stat, change)
   v1 <- (mean(c(22, 26, 30)) - 24.5) / sd(c(20, 22, 26, 30))
   v2 <- (mean(c(20, 26, 30)) - 24.5) / sd(c(20, 22, 26, 30))
@@ -4431,7 +4431,7 @@ test_that("alter for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix alter (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[3]]
+  change <- preproData$dependent_stats_change[[5]][[3]]
   stat <- updFun(stat, change)
   v1 <- (28 - 24.5) / sd(c(20, 22, 26, 30))
   v2 <- (26 - 24.5) / sd(c(20, 22, 26, 30))
@@ -4463,7 +4463,7 @@ test_that("alter for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix alter (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[3]]
+  change <- preproData$dependent_stats_change[[6]][[3]]
   stat <- updFun(stat, change)
   v1 <- (30 - 24.5) / sd(c(20, 22, 26, 30))
   v2 <- (22 - 24.5) / sd(c(20, 22, 26, 30))
@@ -4494,7 +4494,7 @@ test_that("alter for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix alter (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[3]]
+  change <- preproData$dependent_stats_change[[7]][[3]]
   stat <- updFun(stat, change)
   v1 <- (26 - 24.5) / sd(c(20, 22, 26, 30))
   v2 <- (30 - 24.5) / sd(c(20, 22, 26, 30))
@@ -4527,7 +4527,7 @@ test_that("alter for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix alter (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[3]]
+  change <- preproData$dependent_stats_change[[8]][[3]]
   stat <- updFun(stat, change)
   v1 <- (30 - 24.5) / sd(c(20, 22, 26, 30))
   v2 <- (22 - 24.5) / sd(c(20, 22, 26, 30))
@@ -4560,9 +4560,9 @@ test_that("alter for leaving with objects weighted with all possible options", {
   )
 
   # Final stats for other effects
-  stat <- preproData$initialStats[,, 1]
+  stat <- preproData$initial_stats[,, 1]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[1]]
+    change <- preproData$dependent_stats_change[[t]][[1]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -4592,9 +4592,9 @@ test_that("alter for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix alter"
   )
-  stat <- preproData$initialStats[,, 2]
+  stat <- preproData$initial_stats[,, 2]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[2]]
+    change <- preproData$dependent_stats_change[[t]][[2]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -4624,9 +4624,9 @@ test_that("alter for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix alter"
   )
-  stat <- preproData$initialStats[,, 4]
+  stat <- preproData$initial_stats[,, 4]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[4]]
+    change <- preproData$dependent_stats_change[[t]][[4]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -4656,9 +4656,9 @@ test_that("alter for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix alter"
   )
-  stat <- preproData$initialStats[,, 5]
+  stat <- preproData$initial_stats[,, 5]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[5]]
+    change <- preproData$dependent_stats_change[[t]][[5]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -4688,9 +4688,9 @@ test_that("alter for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix alter"
   )
-  stat <- preproData$initialStats[,, 6]
+  stat <- preproData$initial_stats[,, 6]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[6]]
+    change <- preproData$dependent_stats_change[[t]][[6]]
     stat <- updFun(stat, change)
   }
   v1 <- (30 - 24.5)
@@ -4753,7 +4753,7 @@ test_that("same for leaving with objects weighted with all possible options", {
 
   for (i in 1:3) {
     expect_equal(
-      preproData$initialStats[,, i],
+      preproData$initial_stats[,, i],
       matrix(
         c(
           0,
@@ -4782,8 +4782,8 @@ test_that("same for leaving with objects weighted with all possible options", {
   }
 
   # Detail for same proportion
-  stat <- preproData$initialStats[,, 2]
-  change <- preproData$dependentStatsChange[[2]][[2]]
+  stat <- preproData$initial_stats[,, 2]
+  change <- preproData$dependent_stats_change[[2]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -4812,7 +4812,7 @@ test_that("same for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix same (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[2]]
+  change <- preproData$dependent_stats_change[[3]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -4841,7 +4841,7 @@ test_that("same for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix same (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[2]]
+  change <- preproData$dependent_stats_change[[4]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -4870,7 +4870,7 @@ test_that("same for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix same (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[2]]
+  change <- preproData$dependent_stats_change[[5]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -4899,7 +4899,7 @@ test_that("same for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix same (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[2]]
+  change <- preproData$dependent_stats_change[[6]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -4928,7 +4928,7 @@ test_that("same for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix same (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[2]]
+  change <- preproData$dependent_stats_change[[7]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -4957,7 +4957,7 @@ test_that("same for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix same (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[2]]
+  change <- preproData$dependent_stats_change[[8]][[2]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -4988,9 +4988,9 @@ test_that("same for leaving with objects weighted with all possible options", {
   )
 
   # Final stats for other effects
-  stat <- preproData$initialStats[,, 1]
+  stat <- preproData$initial_stats[,, 1]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[1]]
+    change <- preproData$dependent_stats_change[[t]][[1]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -5020,9 +5020,9 @@ test_that("same for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix same"
   )
-  stat <- preproData$initialStats[,, 2]
+  stat <- preproData$initial_stats[,, 2]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[2]]
+    change <- preproData$dependent_stats_change[[t]][[2]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -5084,7 +5084,7 @@ test_that("diff for leaving with objects weighted with all possible options", {
 
   for (i in 1:3) {
     expect_equal(
-      preproData$initialStats[,, i],
+      preproData$initial_stats[,, i],
       matrix(
         c(
           0,
@@ -5113,8 +5113,8 @@ test_that("diff for leaving with objects weighted with all possible options", {
   }
 
   # Detail for diff averaged_sum
-  stat <- preproData$initialStats[,, 1]
-  change <- preproData$dependentStatsChange[[2]][[1]]
+  stat <- preproData$initial_stats[,, 1]
+  change <- preproData$dependent_stats_change[[2]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -5143,7 +5143,7 @@ test_that("diff for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix diff (2/8)"
   )
-  change <- preproData$dependentStatsChange[[3]][[1]]
+  change <- preproData$dependent_stats_change[[3]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -5172,7 +5172,7 @@ test_that("diff for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix diff (3/8)"
   )
-  change <- preproData$dependentStatsChange[[4]][[1]]
+  change <- preproData$dependent_stats_change[[4]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -5201,7 +5201,7 @@ test_that("diff for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix diff (4/8)"
   )
-  change <- preproData$dependentStatsChange[[5]][[1]]
+  change <- preproData$dependent_stats_change[[5]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -5230,7 +5230,7 @@ test_that("diff for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix diff (5/8)"
   )
-  change <- preproData$dependentStatsChange[[6]][[1]]
+  change <- preproData$dependent_stats_change[[6]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -5259,7 +5259,7 @@ test_that("diff for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix diff (6/8)"
   )
-  change <- preproData$dependentStatsChange[[7]][[1]]
+  change <- preproData$dependent_stats_change[[7]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -5288,7 +5288,7 @@ test_that("diff for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix diff (7/8)"
   )
-  change <- preproData$dependentStatsChange[[8]][[1]]
+  change <- preproData$dependent_stats_change[[8]][[1]]
   stat <- updFun(stat, change)
   expect_equal(
     stat,
@@ -5319,9 +5319,9 @@ test_that("diff for leaving with objects weighted with all possible options", {
   )
 
   # Final stats for other effects
-  stat <- preproData$initialStats[,, 2]
+  stat <- preproData$initial_stats[,, 2]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[2]]
+    change <- preproData$dependent_stats_change[[t]][[2]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -5351,9 +5351,9 @@ test_that("diff for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix diff"
   )
-  stat <- preproData$initialStats[,, 3]
+  stat <- preproData$initial_stats[,, 3]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[3]]
+    change <- preproData$dependent_stats_change[[t]][[3]]
     stat <- updFun(stat, change)
   }
   expect_equal(
@@ -5383,9 +5383,9 @@ test_that("diff for leaving with objects weighted with all possible options", {
     ),
     label = "update of the statistics matrix diff"
   )
-  stat <- preproData$initialStats[,, 4]
+  stat <- preproData$initial_stats[,, 4]
   for (t in 1:8) {
-    change <- preproData$dependentStatsChange[[t]][[4]]
+    change <- preproData$dependent_stats_change[[t]][[4]]
     stat <- updFun(stat, change)
   }
   expect_equal(

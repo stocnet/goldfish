@@ -8,7 +8,7 @@
 #'     model spec and a `dims` list describing the problem
 #'     (`nEffects`, `n1`, `n2`, `is_sender`, `buf_capacity`, `max_store`,
 #'     `has_intercept`, `twomode_or_reflexive`, `initial_stats_fn` — a thunk
-#'     returning the recipe's `initialStats` once pre-start updates are
+#'     returning the recipe's `initial_stats` once pre-start updates are
 #'     applied).}
 #'   \item{`write_event(event_updates, event_info, event_broadcast)`}{called
 #'     once per stored event. `event_updates` is a 4 x k matrix of flat point
@@ -20,9 +20,9 @@
 #'     broadcast-update entry format documented on `writer_default()`),
 #'     defaulting to an empty 4 x 0 matrix.}
 #'   \item{`finalize(tail)`}{called once after the loop with a `tail` list of
-#'     recipe-computed assembly inputs (`initialStats`,
+#'     recipe-computed assembly inputs (`initial_stats`,
 #'     `active_sender_init` / `active_sender_changes`,
-#'     `active_dyad_init` / `active_dyad_changes`, `startTime`, `endTime`,
+#'     `active_dyad_init` / `active_dyad_changes`, `start_time`, `end_time`,
 #'     `intercept_scalars`). Returns the writer's output.}
 #' }
 #'
@@ -214,7 +214,7 @@ writer_default <- function() {
         event_receiver <- event_receiver[keep]
 
         assemble_default_output(
-          initialStats = tail$initialStats,
+          initial_stats = tail$initial_stats,
           stat_mat_update = stat_mat_update,
           stat_mat_pointer = stat_mat_pointer,
           stat_mat_broadcast = stat_mat_broadcast,
@@ -230,8 +230,8 @@ writer_default <- function() {
           active_dyad_init = tail$active_dyad_init,
           active_dyad_changes = tail$active_dyad_changes,
           active_dyad_encoding = active_dyad_encoding_for(tail$spec),
-          startTime = tail$startTime,
-          endTime = tail$endTime,
+          start_time = tail$start_time,
+          end_time = tail$end_time,
           intercept_scalars = tail$intercept_scalars,
           has_intercept = has_intercept
         )
@@ -413,7 +413,7 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
 #' `stat_mat_init`, effect-index shift, and the `gather_()` expansion. The
 #' `twomode_or_reflexive` flag follows `gather_model_data()` (`is_two_mode`),
 #' not the rate-model override used at estimation time, so the output matches
-#' the legacy `gather_model_data()` result. Naming (`namesEffects`,
+#' the legacy `gather_model_data()` result. Naming (`names_effects`,
 #' `effect_description`) and label resolution are added by the caller, which
 #' holds the parsed formula and node sets.
 #'
@@ -460,13 +460,13 @@ gather_from_prep <- function(prep, spec) {
   }
 
   if (is_rate_model) {
-    n_parameters <- ncol(statsList$initialStats)
-    n_actors1 <- nrow(statsList$initialStats)
+    n_parameters <- ncol(statsList$initial_stats)
+    n_actors1 <- nrow(statsList$initial_stats)
     n_actors2 <- 1L
   } else {
-    n_parameters <- dim(statsList$initialStats)[3]
-    n_actors1 <- dim(statsList$initialStats)[1]
-    n_actors2 <- dim(statsList$initialStats)[2]
+    n_parameters <- dim(statsList$initial_stats)[3]
+    n_actors1 <- dim(statsList$initial_stats)[1]
+    n_actors2 <- dim(statsList$initial_stats)[2]
   }
 
   stat_mat_update <- statsList$stat_mat_update
@@ -502,11 +502,11 @@ gather_from_prep <- function(prep, spec) {
   event_mat <- rbind(statsList$event_sender, statsList$event_receiver)
 
   if (is_rate_model) {
-    stat_mat_init <- statsList$initialStats
+    stat_mat_init <- statsList$initial_stats
   } else {
     stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
     for (i in seq_len(n_parameters)) {
-      stat_mat_init[, i] <- t(statsList$initialStats[,, i])
+      stat_mat_init[, i] <- t(statsList$initial_stats[,, i])
     }
   }
 
@@ -665,7 +665,7 @@ active_dyad_count <- function(encoding, active_dyad, active_sender = NULL) {
 #'
 #' @noRd
 assemble_default_output <- function(
-  initialStats,
+  initial_stats,
   stat_mat_update,
   stat_mat_pointer,
   intervals,
@@ -679,8 +679,8 @@ assemble_default_output <- function(
   active_dyad_init,
   active_dyad_changes,
   active_dyad_encoding,
-  startTime,
-  endTime,
+  start_time,
+  end_time,
   intercept_scalars,
   has_intercept = intercept_scalars,
   stat_mat_broadcast = matrix(0, 4L, 0L),
@@ -701,7 +701,7 @@ assemble_default_output <- function(
         logical(1),
         "replace"
       )
-      timeAcc <- startTime
+      timeAcc <- start_time
       previousTime <- -Inf
       activeAcc <- 0
       for (i in seq_len(n_stored)) {
@@ -746,7 +746,7 @@ assemble_default_output <- function(
 
   structure(
     list(
-      initialStats = initialStats,
+      initial_stats = initial_stats,
       stat_mat_update = stat_mat_update,
       stat_mat_pointer = stat_mat_pointer,
       stat_mat_broadcast = stat_mat_broadcast,
@@ -762,8 +762,8 @@ assemble_default_output <- function(
       active_dyad_init = active_dyad_init,
       active_dyad_changes = active_dyad_changes,
       active_dyad_encoding = active_dyad_encoding,
-      startTime = startTime,
-      endTime = endTime,
+      start_time = start_time,
+      end_time = end_time,
       n_dep_events = n_dep_events,
       total_time = total_time,
       avg_active_entity = avg_active_entity,

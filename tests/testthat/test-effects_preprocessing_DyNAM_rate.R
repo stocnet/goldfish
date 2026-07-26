@@ -10,12 +10,12 @@ test_that("out/in/deg weighted right censored preprocessing", {
   )
   statsChange <- ReducePreprocess(preproData)
   expect_equal(
-    preproData$initialStats[, 1],
+    preproData$initial_stats[, 1],
     c(3, 3, 1, 1, 0),
     label = "init outdeg stat vector"
   )
   expect_equal(
-    preproData$initialStats[, 2],
+    preproData$initial_stats[, 2],
     c(2, 4, 0, 1, 0),
     label = "init indeg stat vector"
   )
@@ -89,12 +89,12 @@ test_that("out/in/deg weighted right censored preprocessing", {
     label = "receiver events"
   )
   expect_equal(
-    preproData$startTime,
+    preproData$start_time,
     min(c(eventsIncrement$time, eventsExogenous$time)),
     label = "start time"
   )
   expect_equal(
-    preproData$endTime,
+    preproData$end_time,
     max(c(eventsIncrement$time, eventsExogenous$time)),
     label = "end Time"
   )
@@ -116,12 +116,12 @@ test_that("in/out/deg startTime endTime preprocessing", {
   )
   statsChange <- ReducePreprocess(preproData)
   expect_equal(
-    preproData$initialStats[, 1],
+    preproData$initial_stats[, 1],
     c(4, 4, 3, 1, 0),
     label = "init outdeg stat vector"
   )
   expect_equal(
-    preproData$initialStats[, 2],
+    preproData$initial_stats[, 2],
     c(2, 5, 0, 1, 0),
     label = "init indeg stat vector"
   )
@@ -198,12 +198,12 @@ test_that("in/out/deg startTime endTime preprocessing", {
     label = "receiver events"
   )
   expect_equal(
-    preproData$startTime,
+    preproData$start_time,
     10,
     label = "start time"
   )
   expect_equal(
-    preproData$endTime,
+    preproData$end_time,
     30,
     label = "end Time"
   )
@@ -221,12 +221,12 @@ test_that("in/out/deg startTime endTime exact preprocessing", {
   )
   statsChange <- ReducePreprocess(preproData)
   expect_equal(
-    preproData$initialStats[, 1],
+    preproData$initial_stats[, 1],
     c(4, 3, 1, 1, 0),
     label = "init outdeg stat vector"
   )
   expect_equal(
-    preproData$initialStats[, 2],
+    preproData$initial_stats[, 2],
     c(2, 4, 0, 1, 0),
     label = "init indeg stat vector"
   )
@@ -303,12 +303,12 @@ test_that("in/out/deg startTime endTime exact preprocessing", {
     label = "receiver events"
   )
   expect_equal(
-    preproData$startTime,
+    preproData$start_time,
     6,
     label = "start time"
   )
   expect_equal(
-    preproData$endTime,
+    preproData$end_time,
     24,
     label = "end Time"
   )
@@ -330,7 +330,7 @@ test_that("global effect preprocessing: stat initializes to global value and upd
   )
 
   expect_equal(
-    preproData$initialStats[, 1],
+    preproData$initial_stats[, 1],
     c(0, 0, 0, 0, 0),
     label = "initial global stat is 0 for all actors"
   )

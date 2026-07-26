@@ -19,9 +19,9 @@ test_that("dynam rate recipe produces the flat preprocessing output", {
     )
   )
   expect_true(all(diff(preproData$stat_mat_pointer) >= 0))
-  expect_length(dim(preproData$initialStats), 2L)
+  expect_length(dim(preproData$initial_stats), 2L)
   expect_identical(
-    dim(preproData$initialStats),
+    dim(preproData$initial_stats),
     c(5L, 2L)
   )
 })
@@ -72,7 +72,7 @@ test_that("dynam rate recipe replay matches the replayed initial stats", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  statsArray <- preproData$initialStats
+  statsArray <- preproData$initial_stats
   pointer <- 0L
   for (i in seq_along(preproData$stat_mat_pointer)) {
     upto <- preproData$stat_mat_pointer[i]
@@ -103,7 +103,7 @@ test_that("dynam rate ordered recipe stores dependent events only", {
   expect_null(preproData$stats_change)
   expect_true(is.matrix(preproData$stat_mat_update))
   expect_true(all(preproData$is_dependent == 1L))
-  expect_length(dim(preproData$initialStats), 2L)
+  expect_length(dim(preproData$initial_stats), 2L)
   expect_null(preproData$n_dep_events)
   expect_null(preproData$total_time)
   expect_null(preproData$avg_active_entity)
@@ -140,7 +140,7 @@ test_that("flat preprocessing reused through preprocessed", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  expect_equal(prepSubset$initialStats, prepDirect$initialStats)
+  expect_equal(prepSubset$initial_stats, prepDirect$initial_stats)
   expect_equal(prepSubset$stat_mat_update, prepDirect$stat_mat_update)
   expect_equal(prepSubset$stat_mat_pointer, prepDirect$stat_mat_pointer)
 })

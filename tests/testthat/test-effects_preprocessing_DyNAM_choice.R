@@ -22,7 +22,7 @@ test_that("inertia/tie weighted preprocessing", {
     byrow = TRUE
   )
   expect_equal(
-    preproData$initialStats[,, 1],
+    preproData$initial_stats[,, 1],
     initMatrix,
     label = "initialization of the statistics matrix"
   )
@@ -40,7 +40,7 @@ test_that("inertia/tie weighted preprocessing", {
     byrow = TRUE
   )
   expect_equal(
-    preproData$initialStats[,, 2],
+    preproData$initial_stats[,, 2],
     initMatrix2,
     label = "initialization of the statistics matrix"
   )
@@ -54,8 +54,8 @@ test_that("inertia/tie weighted preprocessing", {
       preproData$stat_mat_pointer[length(preproData$stat_mat_pointer)]
     )
   )
-  expect_length(dim(preproData$initialStats), 3L)
-  expect_identical(dim(preproData$initialStats), c(5L, 5L, 2L))
+  expect_length(dim(preproData$initial_stats), 3L)
+  expect_identical(dim(preproData$initial_stats), c(5L, 5L, 2L))
   expect_equal(
     ReducePreprocess(preproData, type = "withoutTime")[[1]],
     cbind(
@@ -101,12 +101,12 @@ test_that("inertia/tie weighted preprocessing", {
     label = "receiver events"
   )
   expect_equal(
-    preproData$startTime,
+    preproData$start_time,
     head(eventsIncrement$time, 1),
     label = "start time"
   )
   expect_equal(
-    preproData$endTime,
+    preproData$end_time,
     tail(eventsIncrement$time, 1),
     label = "end Time"
   )
@@ -134,7 +134,7 @@ test_that("inertia not weighted preprocessing", {
     byrow = TRUE
   )
   expect_equal(
-    preproData$initialStats[,, 1],
+    preproData$initial_stats[,, 1],
     initMatrix,
     label = "initialization of the statistics matrix"
   )
@@ -174,12 +174,12 @@ test_that("inertia not weighted preprocessing", {
     label = "receiver events"
   )
   expect_equal(
-    preproData$startTime,
+    preproData$start_time,
     head(eventsIncrement$time, 1),
     label = "start time"
   )
   expect_equal(
-    preproData$endTime,
+    preproData$end_time,
     tail(eventsIncrement$time, 1),
     label = "end Time"
   )
@@ -196,7 +196,7 @@ test_that("inertia windowed and weighted preprocessing", {
 
   outDependentStatChange <- ReducePreprocess(preproData)[[1]]
   expect_equal(
-    preproData$initialStats[,, 1],
+    preproData$initial_stats[,, 1],
     matrix(0, 5, 5, TRUE),
     label = "initialization of the stats matrix"
   )
@@ -237,12 +237,12 @@ test_that("inertia windowed and weighted preprocessing", {
     label = "receiver events"
   )
   expect_equal(
-    preproData$startTime,
+    preproData$start_time,
     head(eventsIncrement$time, 1),
     label = "start time"
   )
   expect_equal(
-    preproData$endTime,
+    preproData$end_time,
     tail(eventsIncrement$time, 1),
     label = "end Time"
   ) # end time includes non dependent events
@@ -278,7 +278,7 @@ test_that("inertia/tie startTime endTime preprocessing", {
   )
 
   expect_equal(
-    preproData$initialStats[,, 1],
+    preproData$initial_stats[,, 1],
     initMatrix,
     label = "initialization of the statistics matrix"
   )
@@ -296,7 +296,7 @@ test_that("inertia/tie startTime endTime preprocessing", {
     byrow = TRUE
   )
   expect_equal(
-    preproData$initialStats[,, 2],
+    preproData$initial_stats[,, 2],
     initMatrix2,
     label = "initialization of the statistics matrix"
   )
@@ -336,12 +336,12 @@ test_that("inertia/tie startTime endTime preprocessing", {
     label = "receiver events"
   )
   expect_equal(
-    preproData$startTime,
+    preproData$start_time,
     10,
     label = "start time"
   )
   expect_equal(
-    preproData$endTime,
+    preproData$end_time,
     30,
     label = "end Time"
   )
@@ -391,12 +391,12 @@ test_that("inertia/tie startTime endTime preprocessing", {
     label = "receiver events"
   )
   expect_equal(
-    preproData$startTime,
+    preproData$start_time,
     10,
     label = "start time"
   )
   expect_equal(
-    preproData$endTime,
+    preproData$end_time,
     30,
     label = "end Time"
   )
@@ -479,7 +479,7 @@ test_that("mixed_trans with window and list(net1, net2) preprocesses without err
     preprocessing_only = TRUE
   )
   expect_equal(
-    preproData$initialStats[,, 1],
+    preproData$initial_stats[,, 1],
     matrix(0, nrow = 5, ncol = 5),
     label = "windowed mixed_trans initializes with zero stat",
     ignore_attr = TRUE
@@ -499,7 +499,7 @@ test_that("mixed_cycle with window and list(net1, net2) preprocesses without err
   )
   outDependentStatChange <- ReducePreprocess(preproData, type = "withTime")
   expect_equal(
-    preproData$initialStats[,, 1],
+    preproData$initial_stats[,, 1],
     matrix(0, nrow = 5, ncol = 5),
     label = "windowed mixed_cycle initializes with zero stat",
     ignore_attr = TRUE
@@ -518,7 +518,7 @@ test_that("mixed_common_sender with window and list(net1, net2) preprocesses wit
     preprocessing_only = TRUE
   )
   expect_equal(
-    preproData$initialStats[,, 1],
+    preproData$initial_stats[,, 1],
     matrix(0, nrow = 5, ncol = 5),
     label = "windowed mixed_common_sender initializes with zero stat",
     ignore_attr = TRUE
@@ -537,7 +537,7 @@ test_that("mixed_common_receiver with window and list(net1, net2) preprocesses w
     preprocessing_only = TRUE
   )
   expect_equal(
-    preproData$initialStats[,, 1],
+    preproData$initial_stats[,, 1],
     matrix(0, nrow = 5, ncol = 5),
     label = "windowed mixed_common_receiver initializes with zero stat",
     ignore_attr = TRUE

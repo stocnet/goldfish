@@ -72,7 +72,8 @@ to the console of the progress of the preprocessing and
 estimation processes.}
 
 \item{max_length}{integer. Maximum number of characters for each produced
-effect/column name in \code{namesEffects} (default \code{63}, a database-safe value).
+effect/column name in \code{names_effects} (default \code{63}, a database-safe
+value).
 Names are made valid and unique; the uniqueness suffix is applied after
 truncation so uniqueness is preserved.}
 }
@@ -115,7 +116,7 @@ a character vector with the label of the sender/receiver actor.
 For right-censored events the receiver values is not meaningful.}
 \item{has_intercept}{
 a logical value indicating if the model has an intercept.}
-\item{namesEffects}{a character vector with a short name of the effect.
+\item{names_effects}{a character vector with a short name of the effect.
 It includes the name of the object used to calculate the effects and
 modifiers of the effect, e.g., the type of effect, weighted effect.}
 \item{effect_description}{
@@ -130,7 +131,7 @@ additional elements are included:
 \item{timespan}{
 a numeric vector with the time span between events,
 including right-censored events.}
-\item{isDependent}{
+\item{is_dependent}{
 a logical vector indicating if the event is dependent or right-censored.}
 }
 }

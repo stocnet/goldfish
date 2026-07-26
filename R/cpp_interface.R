@@ -73,9 +73,9 @@ estimate_c_int <- function(
   # nParams: number of effects + 1 (if has intercept)
   is_rate_model <- identical(risk_set_axis(spec), "sender")
   nParams <- (if (is_rate_model) {
-    ncol(statsList$initialStats)
+    ncol(statsList$initial_stats)
   } else {
-    dim(statsList$initialStats)[3]
+    dim(statsList$initial_stats)[3]
   }) -
     length(excludeParameters) +
     hasIntercept
@@ -207,14 +207,14 @@ estimate_c_int <- function(
   ## SET VARIABLES BASED ON STATSLIST
   twomode_or_reflexive <- (allowReflexive || is_two_mode)
   if (is_rate_model) {
-    n_parameters <- ncol(statsList$initialStats)
-    n_actors1 <- nrow(statsList$initialStats)
+    n_parameters <- ncol(statsList$initial_stats)
+    n_actors1 <- nrow(statsList$initial_stats)
     n_actors2 <- 1L
     twomode_or_reflexive <- TRUE
   } else {
-    n_parameters <- dim(statsList$initialStats)[3]
-    n_actors1 <- dim(statsList$initialStats)[1]
-    n_actors2 <- dim(statsList$initialStats)[2]
+    n_parameters <- dim(statsList$initial_stats)[3]
+    n_actors1 <- dim(statsList$initial_stats)[1]
+    n_actors2 <- dim(statsList$initial_stats)[2]
   }
 
   ## CONVERT UPDATES INTO THE FORMAT ACCEPTED BY C FUNCTIONS
@@ -254,11 +254,11 @@ estimate_c_int <- function(
   ## CONVERT THE INITIALIZATION OF DATA MATRIX INTO THE FORMAT ACCEPTED
   ##  BY C FUNCTIONS
   if (is_rate_model) {
-    stat_mat_init <- statsList$initialStats
+    stat_mat_init <- statsList$initial_stats
   } else {
     stat_mat_init <- matrix(0, n_actors1 * n_actors2, n_parameters)
     for (i in seq_len(n_parameters)) {
-      stat_mat_init[, i] <- t(statsList$initialStats[,, i])
+      stat_mat_init[, i] <- t(statsList$initial_stats[,, i])
     }
   }
 

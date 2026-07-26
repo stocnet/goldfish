@@ -22,8 +22,8 @@ test_that("DyNAM choice ego(covariate) equals the REM-derived expansion", {
     preprocessing_only = TRUE
   )
   expect_equal(
-    choice_ego$initialStats,
-    rem_ego$initialStats,
+    choice_ego$initial_stats,
+    rem_ego$initial_stats,
     tolerance = 1e-6,
     label = "initial ego covariate statistic matches REM"
   )
@@ -42,7 +42,7 @@ test_that("the ego covariate broadcasts the sender attribute to receivers", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  stat <- choice_ego$initialStats[,, 1]
+  stat <- choice_ego$initial_stats[,, 1]
   n <- nrow(stat)
   # attr1's start value broadcast down each sender's row (one-mode diagonal 0).
   hand <- matrix(actors_ex$attr1, nrow = n, ncol = n, byrow = FALSE)

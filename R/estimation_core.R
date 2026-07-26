@@ -70,13 +70,13 @@ estimate_int_impl <- function(
   ## SET VARIABLES
 
   # preprocessing guarantees NA-free statistics
-  stopifnot(!anyNA(statsList$initialStats))
+  stopifnot(!anyNA(statsList$initial_stats))
 
   minDampingFactor <- initialDamping
   nParams <- (if (is_rate_model) {
-    ncol(statsList$initialStats)
+    ncol(statsList$initial_stats)
   } else {
-    dim(statsList$initialStats)[3]
+    dim(statsList$initial_stats)[3]
   }) -
     length(excludeParameters) +
     hasIntercept
@@ -1844,9 +1844,9 @@ compute_iteration_step <- function(
   # never from the statistics array dimensionality.
   is_rate <- identical(risk_set_axis(spec), "sender")
   nParams <- if (is_rate) {
-    ncol(statsList$initialStats)
+    ncol(statsList$initial_stats)
   } else {
-    dim(statsList$initialStats)[3]
+    dim(statsList$initial_stats)[3]
   }
   # Margin accumulators are per-actor over the WHOLE node set (not the
   # per-event reduced risk set), so the reduced-position -> global-slot mapping
@@ -1940,8 +1940,8 @@ compute_iteration_step <- function(
   # CHANGED Marion: fill in the loop! stats array needs to be computed
   # also changes for dependent and rc events!
   state <- list(
-    statsArray = statsList$initialStats,
-    time = statsList$startTime,
+    statsArray = statsList$initial_stats,
+    time = statsList$start_time,
     flatPointer = 0L,
     bcPointer = 0L,
     oldTime = -Inf,
@@ -2269,7 +2269,7 @@ getMultinomialProbabilities <- function(
 #'
 #' The only two transformations estimation applies to a preprocessed
 #' object: dropping the effect columns listed in `excludeParameters` from
-#' `initialStats`, and prepending the constant rate-intercept statistic
+#' `initial_stats`, and prepending the constant rate-intercept statistic
 #' (a dummy for the theta_0 parameter) when the model carries a time
 #' intercept. Replaces `modifyStatisticsList()` in the estimation entries;
 #' the right-censoring and array reductions of `reduceStatisticsList()`
@@ -2295,9 +2295,9 @@ prepare_statslist <- function(
   is_sender_stats <- isTRUE(is_sender)
   if (!is.null(excludeParameters)) {
     nEffects <- if (is_sender_stats) {
-      ncol(statsList$initialStats)
+      ncol(statsList$initial_stats)
     } else {
-      dim(statsList$initialStats)[3]
+      dim(statsList$initial_stats)[3]
     }
     unknownIndexes <- setdiff(excludeParameters, seq_len(nEffects))
     if (length(unknownIndexes) > 0) {
@@ -2306,19 +2306,19 @@ prepare_statslist <- function(
         paste(unknownIndexes, collapse = " ")
       )
     }
-    statsList$initialStats <- if (is_sender_stats) {
-      statsList$initialStats[, -excludeParameters, drop = FALSE]
+    statsList$initial_stats <- if (is_sender_stats) {
+      statsList$initial_stats[, -excludeParameters, drop = FALSE]
     } else {
-      statsList$initialStats[,, -excludeParameters, drop = FALSE]
+      statsList$initial_stats[,, -excludeParameters, drop = FALSE]
     }
   }
   if (addInterceptEffect) {
-    dimensions <- dim(statsList$initialStats)
-    statsList$initialStats <- if (is_sender_stats) {
-      cbind(1, statsList$initialStats)
+    dimensions <- dim(statsList$initial_stats)
+    statsList$initial_stats <- if (is_sender_stats) {
+      cbind(1, statsList$initial_stats)
     } else {
       array(
-        c(matrix(1, dimensions[1], dimensions[2]), statsList$initialStats),
+        c(matrix(1, dimensions[1], dimensions[2]), statsList$initial_stats),
         dim = dimensions + c(0, 0, 1)
       )
     }

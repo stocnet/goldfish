@@ -228,11 +228,11 @@ ReducePreprocess <- function(
   )
   type <- match.arg(type)
 
-  is_rate <- length(dim(preproData$initialStats)) == 2L
+  is_rate <- length(dim(preproData$initial_stats)) == 2L
   nEffects <- if (is_rate) {
-    ncol(preproData$initialStats)
+    ncol(preproData$initial_stats)
   } else {
-    dim(preproData$initialStats)[3]
+    dim(preproData$initial_stats)[3]
   }
 
   stopifnot(
@@ -332,8 +332,8 @@ ReducePreprocess <- function(
     colsKeep <- eventsKeep[colEvent]
     bcK <- bc[, colsKeep, drop = FALSE]
     bcEvent <- colEvent[colsKeep]
-    n1 <- dim(preproData$initialStats)[1]
-    n2 <- if (is_rate) 1L else dim(preproData$initialStats)[2]
+    n1 <- dim(preproData$initial_stats)[1]
+    n2 <- if (is_rate) 1L else dim(preproData$initial_stats)[2]
     # The mode-map reading rides on the spec; the side-name comparison stays only
     # as a fallback for a bare object that never carried a spec.
     is_two_mode <- preproData$model_spec$is_two_mode %||%

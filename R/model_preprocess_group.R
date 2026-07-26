@@ -68,7 +68,7 @@ preprocess_interaction <- function(
   )
 
   # We put the initial stats to the previous format of 3 dimensional array
-  initialStats <- array(unlist(stats), dim = c(n1, n2, nEffects))
+  initial_stats <- array(unlist(stats), dim = c(n1, n2, nEffects))
 
   # stat_cache <- lapply(stat_cache, "[[", "cache")
 
@@ -88,7 +88,7 @@ preprocess_interaction <- function(
   #  order of events
   # between dependent and right-censored events
   # 1 is for dependent and 2 if for right-censored
-  orderEvents <- list()
+  order_events <- list()
   event_time <- list()
   event_sender <- list()
   event_receiver <- list()
@@ -259,7 +259,9 @@ preprocess_interaction <- function(
       objects_effects_link,
       rep(NA, dim(objects_effects_link)[2])
     )
-    rownames(objects_effects_link)[dim(objects_effects_link)[1]] <- groups_network
+    rownames(objects_effects_link)[dim(objects_effects_link)[
+      1
+    ]] <- groups_network
 
     # reset the pointers for ALL events
     pointers <- rep(1, length(events))
@@ -394,8 +396,8 @@ preprocess_interaction <- function(
       time_intervals[[i_dependent_events]] <- interval
       updates_dependent <- vector("list", nEffects)
       updates_intervals <- vector("list", nEffects)
-      # CHANGED MARION: added orderEvents
-      orderEvents[[(pointerDependent + pointer_temp_right_censored - 1)]] <- 1
+      # CHANGED MARION: added order_events
+      order_events[[(pointerDependent + pointer_temp_right_censored - 1)]] <- 1
       # CHANGDE SIWEI: added time point of each event
       # (dependent & right-censorde)
       event_time[[(pointerDependent + pointer_temp_right_censored - 1)]] <- time
@@ -454,9 +456,9 @@ preprocess_interaction <- function(
           interval
         )
         updates_intervals <- vector("list", nEffects)
-        # CHANGED MARION: added orderEvents
+        # CHANGED MARION: added order_events
         nextPointer <- (pointers[depindex] + pointer_temp_right_censored - 1)
-        orderEvents[[nextPointer]] <- 2
+        order_events[[nextPointer]] <- 2
         event_time[[nextPointer]] <- time
         # CHANGED MARION: added sender and receiver
         # CHANGED WEIGUTIAN: removed "increment" which results a bug
@@ -568,7 +570,9 @@ preprocess_interaction <- function(
         # create the ordered list for the objects
         objects_to_pass <-
           objects_effects_link[, id][!is.na(objects_effects_link[, id])]
-        names <- rownames(objects_effects_link)[!is.na(objects_effects_link[, id])]
+        names <- rownames(objects_effects_link)[
+          !is.na(objects_effects_link[, id])
+        ]
         ordered_names <- names[order(objects_to_pass)]
         ordered_object_table <- get_data_objects(list(list("", ordered_names)))
         unnamedOrderedParameters <- get_element_from_data_object_table(
@@ -624,18 +628,18 @@ preprocess_interaction <- function(
 
   return(structure(
     list(
-      initialStats = initialStats,
-      dependentStatsChange = dependentStatistics,
-      rightCensoredStatsChange = rightCensoredStatistics,
+      initial_stats = initial_stats,
+      dependent_stats_change = dependentStatistics,
+      right_censored_stats_change = rightCensoredStatistics,
       intervals = time_intervals,
       # CHANGED MARION
-      rightCensoredIntervals = timeIntervalsRightCensored,
-      orderEvents = orderEvents,
+      right_censored_intervals = timeIntervalsRightCensored,
+      order_events = order_events,
       event_time = event_time,
       event_sender = event_sender,
       event_receiver = event_receiver,
-      startTime = startTime,
-      endTime = endTime
+      start_time = startTime,
+      end_time = endTime
     ),
     class = "preprocessed.goldfish"
   ))

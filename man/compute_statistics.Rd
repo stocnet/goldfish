@@ -67,7 +67,7 @@ Every output form reports two logical fields describing the likelihood
 shape it was produced under, so a consumer never has to infer it from the
 columns: \code{has_intercept} (the exact-time time intercept is present) and
 \code{right_censored} (right-censored rows are stored, carrying \code{timespan} and
-\code{isDependent}). Both are \code{TRUE} for \code{sub_model = "rate"} and \code{FALSE} for
+\code{is_dependent}). Both are \code{TRUE} for \code{sub_model = "rate"} and \code{FALSE} for
 \code{"rate_ordered"} and the choice sub-models.
 }
 \description{
@@ -83,7 +83,7 @@ work with the sufficient statistics of a model.
 Index statistic columns \strong{by name}, never by position. The exact-time
 sub-models prepend an \code{Intercept} column, so the same formula yields
 statistics at different positions under \code{sub_model = "rate"} and
-\code{"rate_ordered"}. The names are in \code{namesEffects} and on the columns of
+\code{"rate_ordered"}. The names are in \code{names_effects} and on the columns of
 \code{stat_all_events}.
 }
 

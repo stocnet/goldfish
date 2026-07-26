@@ -104,9 +104,9 @@ test_that("preprocessing through the bridge equals the constructor path", {
     preprocessing_only = TRUE
   )
 
-  expect_equal(bridge_fit$initialStats, legacy_fit$initialStats)
+  expect_equal(bridge_fit$initial_stats, legacy_fit$initial_stats)
   expect_equal(
-    bridge_fit$dependentStatsChange,
-    legacy_fit$dependentStatsChange
+    bridge_fit$dependent_stats_change,
+    legacy_fit$dependent_stats_change
   )
 })

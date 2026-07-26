@@ -56,7 +56,8 @@
 #'   name: it is superseded as a whole, so renaming it here would ask users
 #'   to update a call they are about to replace.
 #' @param max_length integer. Maximum number of characters for each produced
-#'   effect/column name in `namesEffects` (default `63`, a database-safe value).
+#'   effect/column name in `names_effects` (default `63`, a database-safe
+#'   value).
 #'   Names are made valid and unique; the uniqueness suffix is applied after
 #'   truncation so uniqueness is preserved.
 #'
@@ -98,7 +99,7 @@
 #'    For right-censored events the receiver values is not meaningful.}
 #'   \item{has_intercept}{
 #'    a logical value indicating if the model has an intercept.}
-#'   \item{namesEffects}{a character vector with a short name of the effect.
+#'   \item{names_effects}{a character vector with a short name of the effect.
 #'   It includes the name of the object used to calculate the effects and
 #'   modifiers of the effect, e.g., the type of effect, weighted effect.}
 #'   \item{effect_description}{
@@ -113,7 +114,7 @@
 #'   \item{timespan}{
 #'    a numeric vector with the time span between events,
 #'    including right-censored events.}
-#'   \item{isDependent}{
+#'   \item{is_dependent}{
 #'    a logical vector indicating if the event is dependent or right-censored.}
 #'  }
 #'
@@ -169,7 +170,7 @@ gather_model_data <- function(
 #'
 #' Completes the gather output produced by `gather_from_prep()` (via
 #' `writer_gather()`) with the sender/receiver labels, the rate-model
-#' `timespan` / `isDependent` fields, and the `namesEffects` /
+#' `timespan` / `is_dependent` fields, and the `names_effects` /
 #' `effect_description` printing metadata, matching the field set and order of
 #' the legacy `gather_model_data()` result. Internal carry attributes are
 #' stripped so the returned list is value-comparable to the legacy output.
@@ -203,7 +204,7 @@ finalize_gather_output <- function(
   # the DyNAM branch ever delivered.
   if (has_intercept) {
     gathered$timespan <- timespan
-    gathered$isDependent <- is_dependent
+    gathered$is_dependent <- is_dependent
   }
 
   # Single source of truth from the spec mapping when supplied;
@@ -212,10 +213,10 @@ finalize_gather_output <- function(
   if (is.null(effect_description)) {
     effect_description <- GetDetailPrint(objects_effects_link, parsed_formula)
   }
-  namesEffects <- CreateNames(effect_description, max_length = max_length)
+  names_effects <- CreateNames(effect_description, max_length = max_length)
 
-  gathered$namesEffects <- namesEffects
-  colnames(gathered$stat_all_events) <- namesEffects
+  gathered$names_effects <- names_effects
+  colnames(gathered$stat_all_events) <- names_effects
   gathered$effect_description <- effect_description
   # Reported on every output form so a consumer never has to infer the
   # likelihood shape from the columns: an exact-time sub-model carries the time

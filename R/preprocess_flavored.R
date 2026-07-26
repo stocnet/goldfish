@@ -170,7 +170,7 @@ project_update_block <- function(block, gid_lookup) {
 # right-censoring -- over the shared union walk.
 #
 # `initial_stats_fn` stays a thunk all the way down: the recipe applies
-# pre-start updates to `initialStats` after this call, and the writers read it
+# pre-start updates to `initial_stats` after this call, and the writers read it
 # only at finalize.
 init_consumers <- function(
   consumer_specs,
@@ -385,8 +385,8 @@ finalize_consumers <- function(
     cspec <- consumer_specs[[fl]]
     writer <- consumers[[fl]]$writer
     flavor_tail <- tail
-    flavor_tail$initialStats <- project_initial_stats(
-      tail$initialStats,
+    flavor_tail$initial_stats <- project_initial_stats(
+      tail$initial_stats,
       cspec$effect_map
     )
     out <- finish_output(writer$finalize(flavor_tail), cspec$constraint)
