@@ -13,11 +13,12 @@ baselines_get_global_data <- function(dataset) {
 
 baselinesGlobalFits <- baselines_precompute_fits(
   baselinesGlobalGrid,
-  baselines_get_global_data
+  baselines_get_global_data,
+  backends = baselines_backends_global
 )
 
 for (modelName in names(baselinesGlobalGrid)) {
-  for (backend in baselines_backends) {
+  for (backend in baselines_backends_global) {
     test_that(
       sprintf(
         "global baseline coefficients: %s backend %s",

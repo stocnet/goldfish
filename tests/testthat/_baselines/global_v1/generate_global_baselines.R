@@ -6,8 +6,12 @@ grid <- baselines_global_model_grid()
 
 baselines <- list()
 for (modelName in names(grid)) {
-  for (engine in baselines_engines) {
-    fit <- baselines_fit(grid[[modelName]], engine, dataList)
+  for (backend in baselines_backends) {
+    # The stored keys stay the legacy engine tokens this file was written with,
+    # so a regeneration reproduces the existing key scheme rather than silently
+    # rewriting it; the fit itself runs under the current backend vocabulary.
+    engine <- BACKEND_ENGINE_TOKENS[[backend]]
+    fit <- baselines_fit(grid[[modelName]], backend, dataList)
     stopifnot(isTRUE(fit$convergence$isConverged))
     baselines[[modelName]][[engine]] <- list(
       coef = coef(fit),

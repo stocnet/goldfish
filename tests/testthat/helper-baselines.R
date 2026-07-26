@@ -1,4 +1,13 @@
-baselines_backends <- c("r", "cpp")
+# Backends covered by the main coefficient set (v2). gather joined at v2 and is
+# the only column computed fresh there; r and cpp are v1's numbers carried
+# forward, so the floor frozen at b890cd0 is unchanged.
+baselines_backends <- c("r", "cpp", "gather")
+
+# The separately versioned `global_v1` set predates the gather freeze and holds
+# no gather column, so it states its own coverage rather than inheriting a
+# vector that has since grown. Extending it is a deliberate regeneration, not
+# something that should happen by editing a shared constant.
+baselines_backends_global <- c("r", "cpp")
 
 baselines_social_evolution_data <- function() {
   data("Social_Evolution", envir = environment())

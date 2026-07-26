@@ -1,4 +1,4 @@
-baselines <- readRDS(test_path("_baselines", "coefficient_baselines_v1.rds"))
+baselines <- readRDS(test_path("_baselines", "coefficient_baselines_v2.rds"))
 baselinesGrid <- baselines_model_grid()
 baselinesDataEnv <- new.env()
 
@@ -25,10 +25,10 @@ for (modelName in names(baselinesGrid)) {
       {
         skip_on_cran()
         fit <- baselines_fits_cell(baselinesFits, modelName, backend)
-        # The frozen baseline file is keyed by the engine token the fits
-        # carried when it was written; the backend translates to it.
-        token <- BACKEND_ENGINE_TOKENS[[backend]]
-        expected <- baselines[[modelName]][[token]]
+        # v2 is keyed by backend value. Its r and cpp entries are v1's numbers
+        # carried forward unchanged, so this is still the floor frozen at
+        # b890cd0; gather is the column v1 never had.
+        expected <- baselines[[modelName]][[backend]]
         expect_true(fit$convergence$isConverged)
         expect_equal(
           coef(fit),
