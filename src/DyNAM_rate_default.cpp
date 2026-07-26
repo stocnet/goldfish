@@ -1,6 +1,7 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
 #include "flat_updates.h"
+#include "event_reductions.h"
 #include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
@@ -178,25 +179,22 @@ inline arma::mat reduce_mat_to_vector(
      arma::mat reduce_stat_mat =
        reduce_mat_to_vector(stat_mat, n_actors_1, n_actors_2,
                             twomode_or_reflexive);
-     // Rank the observed sender's rate against the other active senders in the
-     // same pass; the observed sender's own rate equals `obs_rate`, so the
-     // strict `>` test excludes it (rank 1 = highest rate).
      const bool do_rank = return_ranks && (is_dependent(id_event) == 1);
-     double obs_rate = 0;
-     int rank = 1;
-     if (do_rank) {
-       obs_rate = std::exp(dot(reduce_stat_mat.row(id_sender), parameters));
-     }
+     // The shared reductions read a rate vector, which this loop does not
+     // otherwise need. Rather than rebuild it as one matrix-vector product --
+     // whose summation order differs from the per-row `dot()` below, and so
+     // could move a frozen coefficient -- the loop stores the very doubles it
+     // already computes. Zero on inactive senders, as the header requires.
+     const bool need_rates = do_rank || return_margins;
+     arma::vec rates;
+     if (need_rates) rates = arma::vec(n_actors_1, fill::zeros);
      // go through all actor1
      for (int i = 0; i < n_actors_1; ++i) {
        if (active_sender(i) == 1) {
          // exp_current_sender is \exp(\beta^T s)
          double exp_current_sender =
            std::exp(dot(reduce_stat_mat.row(i), parameters));
-         if (do_rank && exp_current_sender > obs_rate) rank++;
-         if (return_margins) {
-           margin_expected(i) += timespan_current_event * exp_current_sender;
-         }
+         if (need_rates) rates(i) = exp_current_sender;
          normalizer += exp_current_sender;
          weighted_sum_current_event +=
            exp_current_sender * (reduce_stat_mat.row(i));
@@ -230,9 +228,22 @@ inline arma::mat reduce_mat_to_vector(
        derivative += reduce_stat_mat.row(id_sender);
        //Rcpp::Rcout << "Der +:" << reduce_stat_mat.row(id_sender) << std::endl;
        //Rcpp::Rcout << "sender:" << id_sender << std::endl;
-       if (return_margins) margin_observed(id_sender) += 1;
      }
-     if (do_rank) observed_rank[id_event] = rank;
+     if (return_margins) {
+       // Compensator scale: c = Dt on the raw rates, so the contribution is
+       // Dt * lambda_i. A right-censored interval still accumulates exposure on
+       // the expected side but has no observed mover to count.
+       std::vector<margin_side> sides;
+       sides.push_back(margin_side(&margin_observed, &margin_expected));
+       accumulate_margins(
+         rates, timespan_current_event, active_sender, id_sender,
+         is_dependent(id_event) == 1, sides
+       );
+     }
+     if (do_rank) {
+       observed_rank[id_event] =
+         rank_of_observed(rates, active_sender, id_sender);
+     }
      // Quantities that enter as a ratio or as a log of the normalizer, from a
      // max-shifted pass computed BESIDE the raw one above rather than replacing
      // it. The likelihood's total rate must stay on the absolute scale — it

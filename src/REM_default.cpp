@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
+#include "event_reductions.h"
 #include "flat_updates.h"
 #include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -179,6 +180,17 @@ List estimate_REM(
    // Allocated only when requested.
    arma::vec total_rate;
    if (return_total_rate) total_rate = arma::vec(n_events, fill::zeros);
+   // Flat dyad position -> actor id on each axis, for the shared two-sided
+   // margin reduction. `e` is flattened sender-major (dyad (i, j) at
+   // i * n_actors_2 + j), and the map is the same at every event.
+   arma::uvec dyad_sender(n_actors_1 * n_actors_2);
+   arma::uvec dyad_receiver(n_actors_1 * n_actors_2);
+   for (int i = 0; i < n_actors_1; ++i) {
+     for (int j = 0; j < n_actors_2; ++j) {
+       dyad_sender(i * n_actors_2 + j) = i;
+       dyad_receiver(i * n_actors_2 + j) = j;
+     }
+   }
    // Opt-in probability-scale margins, beside the compensator-scale ones above.
    // These sum the competing-risks probability that the dyad creates the next
    // event, over DEPENDENT events only, so each side totals the event count at
@@ -312,15 +324,20 @@ List estimate_REM(
      double normalizer = accu(e);
      if (return_total_rate) total_rate(id_event) = normalizer;
      if (return_margins) {
-       // `e` is already zero on masked dyads, so the double sum ranges over the
-       // realized risk set; sender and receiver totals coincide by construction.
-       for (int i = 0; i < n_actors_1; ++i) {
-         for (int j = 0; j < n_actors_2; j++) {
-           const double contrib = timespan_current_event * e(i * n_actors_2 + j);
-           margin_expected_sender(i) += contrib;
-           margin_expected_receiver(j) += contrib;
-         }
-       }
+       // Compensator scale: c = Dt applied to the raw intensities, so the
+       // contribution is Dt * lambda_ij, credited to both endpoints. The
+       // observed side is counted in the dependent-event branch below, which is
+       // why `dependent` is false here.
+       std::vector<margin_side> sides;
+       sides.push_back(margin_side(
+         &margin_observed_sender, &margin_expected_sender, &dyad_sender
+       ));
+       sides.push_back(margin_side(
+         &margin_observed_receiver, &margin_expected_receiver, &dyad_receiver
+       ));
+       accumulate_margins(
+         e, timespan_current_event, allowed, 0, false, sides
+       );
      }
      weighted_sum_current_event = e.t() * stat_mat;
      fisher_current_event = (stat_mat.each_col() % e).t() * stat_mat;
@@ -342,12 +359,7 @@ List estimate_REM(
          margin_observed_receiver(id_receiver) += 1;
        }
        if (return_ranks) {
-         const double obs_rate = e(id_obs);
-         int rank = 1;
-         for (unsigned int d = 0; d < e.n_elem; d++) {
-           if (allowed(d) == 1 && e(d) > obs_rate) rank++;
-         }
-         observed_rank[id_event] = rank;
+         observed_rank[id_event] = rank_of_observed(e, allowed, id_obs);
        }
      }
      // Quantities that enter as a ratio or as a log of the normalizer, from a
