@@ -454,11 +454,6 @@ rem_rate_ordered_spec <- function(
 #' @inheritParams model_spec
 #' @param model character, one of `"DyNAM"`, `"REM"`, `"DyNAMi"`.
 #' @param sub_model character, a valid sub model for `model`.
-#' @param engine character, the estimation algorithm variant. Only
-#'   `"default"` (full-recompute) is currently implemented. `"incremental"`
-#'   is reserved for the future `rem_rate_fast_spec` REM variant, which will
-#'   reuse the shared preprocessing recipe and override
-#'   `compute_step()` with cached partial sums.
 #'
 #' @return an object of class `model_spec`.
 #' @noRd
@@ -468,23 +463,13 @@ new_model_spec <- function(
   is_two_mode = FALSE,
   nodes = NULL,
   nodes2 = NULL,
-  engine = "default",
   ...
 ) {
   stopifnot(
     rlang::is_string(model),
     rlang::is_string(sub_model),
-    rlang::is_scalar_logical(is_two_mode),
-    rlang::is_string(engine)
+    rlang::is_scalar_logical(is_two_mode)
   )
-  if (!identical(engine, "default")) {
-    cli::cli_abort(c(
-      "{.arg engine} {.val {engine}} is not yet supported.",
-      "i" = "Only {.val default} is currently available.",
-      "i" = "{.val incremental} is reserved for the future
-       {.cls rem_rate_fast_spec} REM estimation variant."
-    ))
-  }
   constructors <- list(
     DyNAM = list(
       rate = dynam_rate_spec,

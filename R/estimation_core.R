@@ -354,8 +354,8 @@ estimate_int_impl <- function(
 #' updates, and stops on the dual `score_tol` / `step_tol` criteria with the
 #' documented return codes (1 = gradient close to zero, 2 = step size close
 #' to zero). The convergence logic is unchanged from the in-lined version;
-#' algorithm variants (e.g. the future incremental REM engine) reuse it by
-#' overriding `compute_step()`.
+#' an algorithm variant reuses it by overriding `compute_step()` rather than
+#' reimplementing the loop.
 #'
 #' @param step_args list of arguments forwarded to `compute_iteration_step()`
 #'   each iteration (everything except `parameters`).
@@ -1196,8 +1196,8 @@ bind_compute_step <- function(spec) {
 # running statsArray via apply_flat_update(), filter the active presence /
 # opportunity set, zero the reflexive diagonal where applicable, call the
 # bound compute_event_contribution(), and accumulate logL / score /
-# information into `state`. Algorithm variants (e.g. the future incremental
-# REM engine) override this method. `ctx` carries the loop-invariant context
+# information into `state`. An algorithm variant overrides this method rather
+# than the loop around it. `ctx` carries the loop-invariant context
 # and `state` the mutable running quantities; the updated `state` is
 # returned.
 compute_step <- function(spec, state, i, ctx) {

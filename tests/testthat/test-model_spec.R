@@ -110,16 +110,6 @@ test_that("new_model_spec rejects invalid model and sub_model values", {
   )
 })
 
-test_that("new_model_spec accepts engine = 'default' and rejects others", {
-  expect_no_error(
-    new_model_spec("REM", "rate", nodes = "actors", engine = "default")
-  )
-  expect_error(
-    new_model_spec("REM", "rate", nodes = "actors", engine = "incremental"),
-    "not yet supported"
-  )
-})
-
 test_that("new_model_spec two-mode requires both node sets", {
   expect_error(
     new_model_spec(
