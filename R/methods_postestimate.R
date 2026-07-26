@@ -33,6 +33,9 @@
 #' )
 #' coef(mod01)
 coef.result.goldfish <- function(object, ..., complete = FALSE) {
+  # Deliberately unguarded: `parameters` was never renamed, so an old object's
+  # coefficients are still the right numbers, and `print()` -- which calls this
+  # twice -- already carries the diagnosis for the interactive case.
   result <- object$parameters
   names(result) <- term_label(object$names, ".coef_name", "coef")
   isFixed <- GetFixed(object)
@@ -84,6 +87,9 @@ coef.result.goldfish <- function(object, ..., complete = FALSE) {
 #' @export
 #' @method logLik result.goldfish
 logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
+  # Guards the AIC() / BIC() path too: the default methods reach the fit only
+  # through logLik(), and a NULL `df` is exactly what let them misreport.
+  abort_if_stale_result(object, "a log-likelihood")
   if (avgPerEvent) {
     return(object$log_likelihood / object$n_events)
   }
@@ -99,6 +105,7 @@ logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
 #' @export
 #' @method vcov result.goldfish
 vcov.result.goldfish <- function(object, complete = FALSE, ...) {
+  abort_if_stale_result(object, "a variance-covariance matrix")
   isFixed <- GetFixed(object)
   namesCoef <- term_label(object$names, ".coef_name", "coef")
 

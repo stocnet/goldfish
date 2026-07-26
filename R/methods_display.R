@@ -52,6 +52,7 @@ print.result.goldfish <- function(
   width = getOption("width"),
   complete = FALSE
 ) {
+  inform_if_stale_result(x)
   cat("\nCall:\n")
   print(x$call)
   cat("\n\n")
@@ -75,6 +76,7 @@ print.result.goldfish <- function(
 #' @export
 #' @noRd
 summary.result.goldfish <- function(object, ...) {
+  abort_if_stale_result(object, "a summary")
   nParams <- object$n_params
 
   if (is.null(object$names)) {
@@ -1093,6 +1095,10 @@ glance.result.goldfish <- function(x, ...) {
 #' @return tibble
 #' @export
 augment.result.goldfish <- function(x, ...) {
+  # Aborts: the per-event column it appends comes from `interval_log_lik`, so on
+  # an old object it would hand back a tibble with a column of NULL-turned-NA
+  # rather than the per-event log-likelihood it promises.
+  abort_if_stale_result(x, "an augmented event table")
   # The stocnet path carries the modeled dependent events on the result; the
   # legacy path resolves the dependent-events object from the formula LHS name.
   data <- x$dependent_events %||% get(as.character(x$formula[2]))
