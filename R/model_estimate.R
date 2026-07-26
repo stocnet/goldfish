@@ -159,6 +159,11 @@
 #'    a matrix with a description of the effects used for model fitting.
 #'    It includes the name of the object used to calculate the effects and
 #'    additional parameter description.}
+#'   \item{format_version}{an integer identifying the layout of this object —
+#'   which components it carries and how they are spelled. It moves only when
+#'   that layout changes, not on every release, so a fit stays current across
+#'   ordinary upgrades. Absent on objects fitted before goldfish 2.0.0, which
+#'   the post-estimation methods recognize and refuse rather than compute from.}
 #'   \item{formula}{a formula with the information of the model fitted.}
 #'   \item{model}{a character value of the model type.}
 #'   \item{sub_model}{a character value of the sub_model type.}
@@ -2250,6 +2255,12 @@ estimate_wrapper <- function(
   # recording it here is what makes an index interpretable through documented
   # surface, the same reason `backend` is recorded above.
   result$risk_set_axis <- risk_set_axis(model_spec)
+  # The layout of this object, so recognizing an older fit does not rest on
+  # reasoning from which components happen to be absent. An integer epoch rather
+  # than the package version: it moves only when the component set or its
+  # spelling changes, so a fit stays current across ordinary releases. Epoch 2
+  # is the snake_case component set.
+  result$format_version <- goldfish_result_format
   result$right_censored <- has_intercept
   result$n_params <- sum(!GetFixed(result))
   # Reconstruct the call for printing. On the direct path `sys.call(-1L)` is the

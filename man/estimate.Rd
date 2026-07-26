@@ -174,6 +174,11 @@ an integer reporting the number of events considered in the model.}
 a matrix with a description of the effects used for model fitting.
 It includes the name of the object used to calculate the effects and
 additional parameter description.}
+\item{format_version}{an integer identifying the layout of this object —
+which components it carries and how they are spelled. It moves only when
+that layout changes, not on every release, so a fit stays current across
+ordinary upgrades. Absent on objects fitted before goldfish 2.0.0, which
+the post-estimation methods recognize and refuse rather than compute from.}
 \item{formula}{a formula with the information of the model fitted.}
 \item{model}{a character value of the model type.}
 \item{sub_model}{a character value of the sub_model type.}
