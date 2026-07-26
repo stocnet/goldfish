@@ -184,28 +184,50 @@ it, and a spec asserting it would be false).
 
 `DyNAM_rate_default` stores the doubles its loop already computed rather than
 rebuilding the rate vector with a GEMV, because per-row `dot()` and a
-matrix-vector product sum in different orders and can differ in the last bit,
-which on a frozen coefficient is a movement nobody intended. The technique is
-right; nothing currently fails if it is "simplified" back.
+matrix-vector product sum in different orders and can differ in the last bit.
+The technique is right; nothing currently fails if it is "simplified" back.
 
 The honest difficulty: the natural guard — assert bitwise equality against a
 stored vector — is not portable, because different BLAS implementations
 legitimately differ. So the guard is layered:
 
 1. a comment at the site stating the invariant and why (already written);
-2. a test asserting the *reduction inputs* equal the *likelihood inputs* within
-   the same process — that `total_rate` equals the sum of the rate vector the
-   margins reduction consumed, exactly (0 tolerance), since both come from the
-   same doubles in the same run and no cross-platform comparison is involved;
+2. a test asserting, within the same process, that requesting a primitive which
+   consumes the rate vector leaves the likelihood bitwise unchanged — both runs
+   are the same doubles in the same run, so no cross-platform comparison is
+   involved;
 3. if (2) proves fragile in CI, it degrades to documentation and that outcome is
    **recorded**, not silently dropped.
 
-Point (2) is the load-bearing one: it fails if someone rebuilds the vector by a
-different route, because the rebuilt values would no longer be the ones the
-likelihood summed, while staying immune to platform BLAS differences.
+**Revised 2026-07-26, after measuring.** As originally written this decision
+claimed the GEMV rebuild "could move a frozen coefficient", and specified (2) as
+`total_rate` equalling the sum of the consumed rate vector at 0 tolerance. Both
+halves failed measurement, in D4's pattern:
+
+- The rebuild **cannot** move a coefficient. `rates` feeds only the reductions;
+  the normalizer and derivative accumulate from `exp_current_sender` directly.
+  Patching the GEMV in and recompiling leaves every frozen 1e-6 baseline
+  passing and every log-likelihood and score bitwise unchanged, moving only the
+  stored margins — 18 of 84 actors, at most 2.6e-15 relative.
+- The per-event equality is not observable from R at all: the vector is
+  internal, and every route to it through the returned surface reorders the
+  summation, leaving a residual of the same magnitude as the difference it would
+  need to detect.
+
+**Decision.** (2) lands in the achievable form above — 0 tolerance, portable, on
+all three backends — plus a compensator identity checking the reduction consumed
+the raw rates on the interval scale over the active senders (tolerance set by
+Newton convergence, 1e-7). The last-bit half takes fallback (3): documented at
+the kernel site, with the corrected justification, which is that a stored
+diagnostic should report the numbers the likelihood actually used rather than a
+near-copy recomputed by another route. That is a consistency argument, not a
+coefficient-safety one, and stating it correctly is the point.
 
 Rejected: tightening the baseline tolerance for the rate cells — it would fail
-on a different machine for a reason unrelated to the invariant.
+on a different machine for a reason unrelated to the invariant, and 2.6e-15 is
+below any tolerance that would still pass on one machine. Rejected: keeping the
+coefficient-movement justification (the measurement contradicts it, exactly as
+D4's did).
 
 ### D6 — the frozen baselines get a content guard, because the tool guard cannot be closed
 

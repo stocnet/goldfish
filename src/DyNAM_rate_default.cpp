@@ -181,10 +181,28 @@ inline arma::mat reduce_mat_to_vector(
                             twomode_or_reflexive);
      const bool do_rank = return_ranks && (is_dependent(id_event) == 1);
      // The shared reductions read a rate vector, which this loop does not
-     // otherwise need. Rather than rebuild it as one matrix-vector product --
-     // whose summation order differs from the per-row `dot()` below, and so
-     // could move a frozen coefficient -- the loop stores the very doubles it
-     // already computes. Zero on inactive senders, as the header requires.
+     // otherwise need, so it stores the very doubles it already computes rather
+     // than rebuilding them as one matrix-vector product afterwards. A GEMV
+     // sums in a different order from the per-row `dot()` below, so the rebuilt
+     // values differ in the last bits.
+     //
+     // The reason is consistency, NOT coefficient safety, and the difference
+     // between those two was measured rather than assumed. `rates` feeds only
+     // the reductions; the normalizer and the derivative are accumulated from
+     // `exp_current_sender` directly, so rebuilding it CANNOT move a
+     // coefficient, and does not: patching in the GEMV leaves every frozen
+     // 1e-6 baseline passing and every log-likelihood and score bitwise
+     // unchanged, shifting only the stored margins -- 18 of 84 actors on the
+     // social-evolution rate model, by at most 2.6e-15 relative.
+     //
+     // What is preserved is therefore worth stating exactly: a stored
+     // diagnostic should report the numbers the likelihood actually used, not a
+     // near-copy recomputed by another route. That is cheap to keep here and
+     // impossible to verify from R -- 2.6e-15 in a diagnostic is far inside
+     // both the 1e-10 cross-backend and 1e-6 baseline tolerances -- so this
+     // comment, not a test, is the guard on this line.
+     //
+     // Zero on inactive senders, as the header requires.
      const bool need_rates = do_rank || return_margins;
      arma::vec rates;
      if (need_rates) rates = arma::vec(n_actors_1, fill::zeros);
