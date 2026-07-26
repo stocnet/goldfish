@@ -228,13 +228,6 @@ set_algorithm_newton <- function(
   return_interval_loglik <- "loglik" %in% diagnostics
   return_probabilities <- "probabilities" %in% diagnostics
   return_event_scores <- "scores" %in% diagnostics
-  # Whether the score matrix was asked for explicitly (a supplied `diagnostics`
-  # naming "scores", or the legacy `return_event_scores` flag) rather than
-  # inherited from the default. The gather_compute engine, which has no per-event
-  # decomposition, aborts only on an explicit request and silently drops
-  # default-sourced scores.
-  scores_explicit <- return_event_scores &&
-    (diagnostics_supplied || "return_event_scores" %in% resolved$deprecated)
 
   # Emit the soft-deprecation from this frame so lifecycle attributes it to the
   # direct caller (a nested helper frame reads as an internal, silent call).
@@ -361,7 +354,6 @@ set_algorithm_newton <- function(
     return_interval_loglik = return_interval_loglik,
     return_probabilities = return_probabilities,
     return_event_scores = return_event_scores,
-    scores_explicit = scores_explicit,
     diagnostics = diagnostics,
     optimizer = optimizer,
     backend = backend
@@ -488,6 +480,67 @@ DIAGNOSTIC_PRIMITIVES <- c(
   "margins",
   "probabilities"
 )
+
+# Which backends produce which primitive: the one source of truth, consulted
+# once before any preprocessing. Every cell is currently supported, because each
+# primitive is a reduction of the same per-event weight vector and so is
+# computable wherever that vector is formed.
+#
+# The table stays even so. It replaced three different reactions to the same
+# class of problem -- an abort for one primitive, a silent drop for another, an
+# unmarked absence for two more, plus a backend substitution that made the
+# verdict depend on what else was requested alongside. Encoding availability as
+# data means the next primitive that is not universal on day one gets the one
+# existing failure mode rather than a fourth invented one.
+DIAGNOSTIC_BACKEND_SUPPORT <- list(
+  loglik = BACKEND_VALUES,
+  scores = BACKEND_VALUES,
+  ranks = BACKEND_VALUES,
+  margins = BACKEND_VALUES,
+  probabilities = BACKEND_VALUES
+)
+
+# Abort if the chosen backend cannot produce a requested primitive, naming the
+# backends that can. Nothing is dropped, downgraded, or rerouted: the caller
+# chose a backend, and silently honoring the request somewhere else is what the
+# `probabilities` redirect used to do.
+check_diagnostic_support <- function(
+  diagnostics,
+  backend,
+  support = DIAGNOSTIC_BACKEND_SUPPORT,
+  call = rlang::caller_env()
+) {
+  supported <- vapply(
+    diagnostics,
+    function(primitive) {
+      backends <- support[[primitive]]
+      is.null(backends) || backend %in% backends
+    },
+    logical(1)
+  )
+  if (all(supported)) {
+    return(invisible(NULL))
+  }
+  # Report the first unsupported primitive in the vocabulary's own order, so the
+  # verdict does not depend on the order the user happened to request them in.
+  unsupported <- diagnostics[!supported]
+  primitive <- intersect(DIAGNOSTIC_PRIMITIVES, unsupported)[1]
+  # Pre-format one code span per backend: interpolating the vector inside a
+  # single `{.code}` collapses it into one span reading `backend = "cpp" or "r"`,
+  # which is not a call anyone can copy.
+  alternatives <- paste0(
+    "backend = ",
+    encodeString(support[[primitive]], quote = "\"")
+  )
+  cli::cli_abort(
+    c(
+      "The {.val {primitive}} diagnostic is not available with
+       {.code backend = {.val {backend}}}.",
+      "i" = "Use {.or {.code {alternatives}}} to store it."
+    ),
+    call = call
+  )
+}
 
 # Resolve the user-facing `diagnostics =` value (TRUE/FALSE/"all"/name vector)
 # to the canonical character vector of primitive names stored in the options.

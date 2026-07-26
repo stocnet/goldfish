@@ -124,45 +124,29 @@ test_that("event_scores follows the scores diagnostic (default on)", {
   }
 })
 
-test_that("the gather backend rejects an explicit scores request", {
+test_that("the gather backend stores scores, however they were requested", {
   skip_on_cran()
-  withr::local_options(cli.num_colors = 1L)
-  local_reproducible_output()
   data_list <- list(social_evolution = baselines_social_evolution_data())
   spec <- baselines_model_grid()$se_dynam_choice
   fit_scores <- function(...) {
-    estimate_dynam(
+    suppressWarnings(estimate_dynam(
       spec$formula,
       data = data_list$social_evolution,
       sub_model = spec$sub_model,
       control_algo = set_algorithm_newton(backend = "gather", ...),
       progress = FALSE
-    )
+    ))
   }
-  # Explicit request, whether through the legacy flag or through diagnostics,
-  # aborts naming the backends that do store the matrix.
-  expect_snapshot(
-    suppressWarnings(fit_scores(return_event_scores = TRUE)),
-    error = TRUE
-  )
-  expect_snapshot(
+  # An explicit request used to abort and a default-sourced one used to be
+  # dropped without a word, so the same backend both refused and quietly
+  # ignored the same primitive depending only on how it was asked for. The
+  # gather kernels compute per-event scores, so all three routes store them.
+  for (fit in list(
+    fit_scores(return_event_scores = TRUE),
     fit_scores(diagnostics = c("loglik", "scores")),
-    error = TRUE
-  )
-})
-
-test_that("the gather backend silently drops default-sourced scores", {
-  skip_on_cran()
-  data_list <- list(social_evolution = baselines_social_evolution_data())
-  spec <- baselines_model_grid()$se_dynam_choice
-  # Default diagnostics include "scores", but the gather backend cannot produce
-  # them; the fit succeeds with no per-event score matrix rather than aborting.
-  fit <- suppressWarnings(estimate_dynam(
-    spec$formula,
-    data = data_list$social_evolution,
-    sub_model = spec$sub_model,
-    control_algo = set_algorithm_newton(backend = "gather"),
-    progress = FALSE
-  ))
-  expect_null(fit$event_scores)
+    fit_scores()
+  )) {
+    expect_equal(fit$backend, "gather")
+    expect_false(is.null(fit$event_scores))
+  }
 })

@@ -171,3 +171,12 @@
       ! Imputation policy "locf" is reserved but not yet implemented.
       i Supported values are "summary" and "as_category".
 
+# an unsupported primitive aborts naming the backends that produce it
+
+    Code
+      check_diagnostic_support(c("loglik", "scores"), "gather", support = support)
+    Condition
+      Error:
+      ! The "scores" diagnostic is not available with `backend = "gather"`.
+      i Use `backend = "cpp"` or `backend = "r"` to store it.
+

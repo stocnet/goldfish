@@ -226,19 +226,19 @@ test_that("diagnostics default drives the storage flags (scores on)", {
   expect_true(opt$return_interval_loglik)
   expect_false(opt$return_probabilities)
   expect_true(opt$return_event_scores)
-  # Default-sourced scores are not an explicit request (gather_compute drops
-  # them silently rather than aborting).
-  expect_false(opt$scores_explicit)
 })
 
-test_that("scores_explicit tracks explicit score requests", {
+test_that("the control object does not track how scores were requested", {
   withr::local_options(lifecycle_verbosity = "quiet")
-  expect_true(
+  # `scores_explicit` existed only so the gather backend could abort on an
+  # explicit score request and silently drop a default-sourced one. Gather
+  # computes per-event scores now, both branches are gone, and a request is
+  # honored or refused rather than partially honored -- so the distinction has
+  # nothing left to decide.
+  expect_null(
     set_algorithm_newton(diagnostics = c("loglik", "scores"))$scores_explicit
   )
-  expect_true(set_algorithm_newton(return_event_scores = TRUE)$scores_explicit)
-  expect_false(set_algorithm_newton(diagnostics = "loglik")$scores_explicit)
-  expect_false(set_algorithm_newton(diagnostics = FALSE)$scores_explicit)
+  expect_null(set_algorithm_newton(return_event_scores = TRUE)$scores_explicit)
 })
 
 test_that("mixing diagnostics with a legacy flag aborts", {
@@ -341,4 +341,49 @@ test_that("an unknown impute policy value aborts, listing supported values", {
 test_that("the reserved locf policy aborts as unimplemented", {
   local_cli_context()
   expect_snapshot(set_preprocessing(impute = c(x = "locf")), error = TRUE)
+})
+
+# The (backend, primitive) capability table. Every shipped cell is supported --
+# each primitive is a reduction of the same per-event weight vector, so it is
+# computable wherever that vector is formed -- which is why the refusal path
+# below is exercised through a synthetic table. The mechanism has to keep
+# working for the next primitive that is not universal on day one; that is the
+# reason the table exists rather than being collapsed into a constant.
+test_that("every primitive is available on every backend", {
+  for (primitive in DIAGNOSTIC_PRIMITIVES) {
+    expect_setequal(DIAGNOSTIC_BACKEND_SUPPORT[[primitive]], BACKEND_VALUES)
+  }
+})
+
+test_that("an unsupported primitive aborts naming the backends that produce it", {
+  local_cli_context()
+  support <- list(loglik = BACKEND_VALUES, scores = c("cpp", "r"))
+  expect_snapshot(
+    check_diagnostic_support(
+      c("loglik", "scores"),
+      "gather",
+      support = support
+    ),
+    error = TRUE
+  )
+  expect_no_error(
+    check_diagnostic_support(c("loglik", "scores"), "cpp", support = support)
+  )
+})
+
+test_that("the support verdict does not depend on request order", {
+  # The ordering artifact this change exists to remove was exactly a verdict
+  # that moved with what else was requested alongside, so the check reports the
+  # first offender in the vocabulary's order rather than the caller's.
+  support <- list(ranks = "cpp", margins = "r")
+  message_for <- function(diagnostics) {
+    tryCatch(
+      check_diagnostic_support(diagnostics, "gather", support = support),
+      error = conditionMessage
+    )
+  }
+  expect_equal(
+    message_for(c("ranks", "margins")),
+    message_for(c("margins", "ranks"))
+  )
 })

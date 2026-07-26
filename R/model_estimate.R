@@ -1232,26 +1232,13 @@ estimate_wrapper <- function(
   # strip ranks and margins from a cpp fit by moving it onto r.
   backend <- algo_backend(control_algo)
 
-  # The per-event score matrix is produced by the two per-event backends
-  # (cpp via the C++ evaluator flag, r in its contribution loop);
-  # gather has no per-event decomposition to expose. Because "scores" is
-  # in the default diagnostics, aborting whenever it is on would break every
-  # gather fit; instead abort only when scores were requested explicitly
-  # and silently drop the default-sourced request.
-  if (
-    isTRUE(control_algo$return_event_scores) &&
-      backend == "gather"
-  ) {
-    if (isTRUE(control_algo$scores_explicit)) {
-      cli::cli_abort(c(
-        "The {.val scores} diagnostic (per-event score matrix) is not supported
-         with {.code backend = \"gather\"}.",
-        "i" = "Use {.code backend = \"cpp\"} or {.code backend = \"r\"} to store
-               the per-event score matrix."
-      ))
-    }
-    control_algo$return_event_scores <- FALSE
-  }
+  # One check against the capability table, before any preprocessing, for every
+  # requested primitive. This replaces the gather+scores abort and the silent
+  # `return_event_scores <- FALSE` drop beside it: the gather kernels compute
+  # per-event scores now, so the limitation those encoded is gone, and the drop
+  # meant a default-sourced request quietly produced a fit without them. The
+  # request is now honored or refused, never partially honored.
+  check_diagnostic_support(control_algo$diagnostics, backend)
 
   # Optimizers other than the built-in Newton-Raphson are maxLik-backed:
   # they run only on the cpp evaluator and require the
