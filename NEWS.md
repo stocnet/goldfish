@@ -1,3 +1,72 @@
+# goldfish 1.9.14
+
+* **Every per-event diagnostic primitive is now available on every backend.**
+  `loglik`, `scores`, `ranks`, `margins` and `probabilities` are produced by
+  `backend = "cpp"`, `"r"` and `"gather"` alike, and agree numerically across
+  the three -- ranks exactly, everything else to 1e-10 at a fixed parameter
+  vector. Previously the answer to "which backend gives me which diagnostic"
+  had four different shapes: an abort for `scores` on `gather`, a silent drop
+  of that same primitive when it came from the default rather than being named,
+  an unmarked absence for `ranks` and `margins`, and a backend substitution for
+  `probabilities`.
+
+  Because the substitution ran first, the verdict for one primitive depended on
+  what else was requested alongside it -- asking for *more* could return
+  *less*:
+
+  ```r
+  # before 1.9.14
+  set_algorithm_newton(backend = "cpp", diagnostics = c("loglik", "ranks", "margins"))
+  #> carries ranks and margins
+  set_algorithm_newton(backend = "cpp", diagnostics = "all")   # a superset
+  #> silently dropped ranks and margins by moving the fit onto `backend = "r"`
+  ```
+
+  There is now one rule: a requested primitive is produced by the backend you
+  chose, or the call aborts naming the backends that produce it. Nothing is
+  dropped, downgraded, or rerouted.
+
+* **BREAKING** -- `set_algorithm_newton(diagnostics = "probabilities")` no
+  longer moves the fit to `backend = "r"`. Code that relied on the redirect now
+  gets per-event probabilities computed by the backend it asked for. The
+  redirect already emitted a warning, so no silent path changes behavior; but a
+  fit that was quietly produced by `r` is now produced by `cpp` or `gather`,
+  and the coefficients differ at the usual cross-backend tolerance.
+
+* **BREAKING** -- the per-event probability vectors in `$eventProbabilities`
+  are indexed by actor over the whole node set, with `0` for alternatives
+  outside that event's risk set. They previously covered only the event's
+  reduced risk set, so a position meant a different actor at different events
+  (on one fixture with composition change, 13 distinct lengths across 215
+  events), and a non-reflexive receiver was dropped rather than zeroed. Code
+  that indexed into these vectors positionally must be updated; code that
+  matched them against actor ids now works without replaying the presence
+  history, and they are indexed consistently with `$margins`.
+
+* **BREAKING** -- the control object returned by `set_algorithm_newton()` no
+  longer carries `$engine`. Read `$backend` instead. A control list built by a
+  pre-2.0.0 constructor (restored from an `.rds`, say) still estimates: its
+  legacy token is translated on read, silently, since the deprecated surface
+  already warned at construction time.
+
+* Fitted models record which backend produced them, in a new `backend`
+  component, so a diagnostic can tell a `gather` fit from a `cpp` one instead
+  of inferring it. Fits from earlier versions lack the component; consumers
+  treat its absence as unknown rather than erroring.
+
+* Exact-time sub-models (DyNAM-rate, REM) gain two per-event quantities on the
+  `cpp` backend that it never computed: the Cox partial-likelihood contribution
+  `log p_obs`, and actor margins on the probability scale beside the existing
+  expected-count scale. The two margin scales answer different questions -- the
+  probability scale totals the event count at any parameter vector and
+  calibrates *who* moves, while the expected-count scale integrates exposure
+  over every interval and totals the event count only at the maximum. Both are
+  stored under `"margins"`.
+
+* DyNAM-rate gains the `probabilities` primitive, defined there as the
+  competing-risks probability that each sender creates the *next* event. It
+  sums to 1 per event, exactly as the choice model's does.
+
 # goldfish 1.9.13
 
 * `set_algorithm_newton(backend =)` replaces `engine =`, with values that name
@@ -24,10 +93,11 @@
   3.0.0.
 
 * Estimation messages that name a computational path now speak the same
-  vocabulary: the maxLik-optimizer gate asks for `backend = "cpp"`, the
-  per-event score matrix names the `cpp` and `r` backends as the two that store
-  it, and the `return_probabilities` / `opportunities_list` redirects say they
-  are estimating with `backend = "r"` instead.
+  vocabulary: the maxLik-optimizer gate asks for `backend = "cpp"`, and the
+  `opportunities_list` redirect says it is estimating with `backend = "r"`
+  instead. (The per-event score and `return_probabilities` messages this bullet
+  originally also listed are gone in 1.9.14, which makes every primitive
+  available on every backend.)
 
 # goldfish 1.9.12
 
