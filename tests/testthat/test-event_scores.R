@@ -57,6 +57,17 @@ test_that("column sums of event_scores equal the aggregate score (cpp)", {
     )$parameters
     # Evaluate away from the optimum (all-zero start) so the aggregate score is
     # far from zero and the column-sum identity is a strong check, not 0 == 0.
+    #
+    # This identity used to hold by construction and no longer does, which is
+    # what makes it worth asserting. The event-loop kernels once stored each row
+    # as the before/after difference of the running derivative, so summing the
+    # rows telescoped back to that same total whatever the arithmetic did -- a
+    # tautology that would have passed even if the reduction were wrong. The
+    # rows now come from the shared `event_score_row()`, computed from the
+    # weights and the statistics independently of the accumulated total, so
+    # agreement is a real algebraic check on two separate computations. That is
+    # also why the residual grew from ~1e-16 to ~1e-12: it is now measuring
+    # something.
     fit <- event_scores_eval(spec, "cpp", data_list, rep(0, length(beta)))
     expect_false(is.null(fit$event_scores), info = nm)
     expect_equal(nrow(fit$event_scores), fit$nEvents, info = nm)

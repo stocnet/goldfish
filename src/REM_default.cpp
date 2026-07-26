@@ -343,8 +343,6 @@ List estimate_REM(
      fisher_current_event = (stat_mat.each_col() % e).t() * stat_mat;
      // add the quantities of a current event to the variables to be returned
      // derivative
-     arma::rowvec score_before;
-     if (return_event_scores) score_before = derivative.row(0);
      derivative -= timespan_current_event * weighted_sum_current_event;
      // fisher matrix
      fisher += timespan_current_event * fisher_current_event;
@@ -402,8 +400,22 @@ List estimate_REM(
          event_probabilities[id_event] = wrap(grid);
        }
      }
+     // The stored per-event score comes from the shared reduction over the same
+     // raw rate vector `e` the margin reduction reads, rather than from the
+     // before/after difference of the running derivative, so the definition
+     // lives in one place instead of once per kernel. On a right-censored
+     // interval there is no observed dyad, so the observed-row index is unused
+     // and passed as 0, exactly as the margin call above does. The derivative
+     // is deliberately untouched: it drives the optimizer, and no coefficient
+     // may move.
      if (return_event_scores) {
-       event_scores.row(id_event) = derivative.row(0) - score_before;
+       const bool dependent_event = is_dependent(id_event) == 1;
+       const arma::uword obs_row = dependent_event
+         ? static_cast<arma::uword>(id_sender * n_actors_2 + id_receiver)
+         : 0;
+       event_scores.row(id_event) = event_score_row(
+         stat_mat, e, timespan_current_event, obs_row, dependent_event
+       );
      }
      // loglikelihood
      logLikelihood += intervalLogL(id_event);

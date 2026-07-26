@@ -202,7 +202,7 @@ List estimate_REM_ordered(
         // weights directly (scale-free); margins take the probability vector
         // with c = 1 and scatter one contribution into both endpoints.
         arma::vec probabilities;
-        if (return_margins || return_probabilities) {
+        if (return_margins || return_probabilities || return_event_scores) {
             probabilities = weights / normalizer;
         }
         if (return_ranks) {
@@ -227,12 +227,16 @@ List estimate_REM_ordered(
         }
         expected_stat_current_event = (weights.t() * stat_mat) / normalizer;
         // derivative
-        arma::rowvec score_before;
-        if (return_event_scores) score_before = derivative.row(0);
         derivative += stat_mat.row(id_obs);
         derivative -= expected_stat_current_event;
+        // The stored per-event score comes from the shared reduction rather
+        // than from the before/after difference of the running derivative, so
+        // the definition lives in one place instead of once per kernel. The
+        // derivative above is deliberately left as it was: it drives the
+        // optimizer, and no coefficient may move.
         if (return_event_scores) {
-            event_scores.row(id_event) = derivative.row(0) - score_before;
+            event_scores.row(id_event) =
+              event_score_row(stat_mat, probabilities, 1.0, id_obs, true);
         }
         // fisher matrix: sum_d p_d s_d s_d^T - E^T E
         fisher_current_event =

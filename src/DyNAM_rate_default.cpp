@@ -188,12 +188,13 @@ inline arma::mat reduce_mat_to_vector(
      //
      // The reason is consistency, NOT coefficient safety, and the difference
      // between those two was measured rather than assumed. `rates` feeds only
-     // the reductions; the normalizer and the derivative are accumulated from
+     // the reductions -- the margins, the rank, and the stored per-event score;
+     // the normalizer and the derivative are accumulated from
      // `exp_current_sender` directly, so rebuilding it CANNOT move a
      // coefficient, and does not: patching in the GEMV leaves every frozen
-     // 1e-6 baseline passing and every log-likelihood and score bitwise
-     // unchanged, shifting only the stored margins -- 18 of 84 actors on the
-     // social-evolution rate model, by at most 2.6e-15 relative.
+     // 1e-6 baseline passing and every log-likelihood and aggregate score
+     // bitwise unchanged, shifting only stored diagnostics -- 18 of 84 actors'
+     // margins on the social-evolution rate model, by at most 2.6e-15 relative.
      //
      // What is preserved is therefore worth stating exactly: a stored
      // diagnostic should report the numbers the likelihood actually used, not a
@@ -203,7 +204,7 @@ inline arma::mat reduce_mat_to_vector(
      // comment, not a test, is the guard on this line.
      //
      // Zero on inactive senders, as the header requires.
-     const bool need_rates = do_rank || return_margins;
+     const bool need_rates = do_rank || return_margins || return_event_scores;
      arma::vec rates;
      if (need_rates) rates = arma::vec(n_actors_1, fill::zeros);
      // go through all actor1
@@ -230,8 +231,6 @@ inline arma::mat reduce_mat_to_vector(
      //Rcpp::Rcout << "mat:" << std::endl << reduce_stat_mat << std::endl;
      //Rcpp::Rcout << "timespan:" << timespan_current_event << std::endl;
      //Rcpp::Rcout << "Derivative:" << weighted_sum_current_event << std::endl;
-     arma::rowvec score_before;
-     if (return_event_scores) score_before = derivative.row(0);
      derivative -= timespan_current_event * weighted_sum_current_event;
 
      // fisher matrix
@@ -293,8 +292,17 @@ inline arma::mat reduce_mat_to_vector(
            NumericVector(probabilities.begin(), probabilities.end());
        }
      }
+     // The stored per-event score comes from the shared reduction over the same
+     // `rates` the margin and rank reductions read, rather than from the
+     // before/after difference of the running derivative, so the definition
+     // lives in one place instead of once per kernel. The derivative above is
+     // deliberately untouched: it drives the optimizer, and no coefficient may
+     // move.
      if (return_event_scores) {
-       event_scores.row(id_event) = derivative.row(0) - score_before;
+       event_scores.row(id_event) = event_score_row(
+         reduce_stat_mat, rates, timespan_current_event, id_sender,
+         is_dependent(id_event) == 1
+       );
      }
      // loglikelihood
      logLikelihood += intervalLogL(id_event);

@@ -255,7 +255,7 @@ List estimate_DyNAM_MM(
         // triangle (D14: coordination ranks and marginalises over its realized
         // risk set, which is that pair list, not the n1 x n2 grid).
         arma::vec dyad_probabilities;
-        if (return_margins || return_probabilities) {
+        if (return_margins || return_probabilities || return_event_scores) {
             dyad_probabilities = dyad_weights / normalizer;
         }
         if (return_ranks) {
@@ -306,8 +306,13 @@ List estimate_DyNAM_MM(
         }
         // expected gradient g = sum_d P_d D_d; score = grad log w_obs - g
         arma::rowvec g = (dyad_weights.t() * D) / normalizer;
+        // The stored per-event score comes from the shared reduction, so the
+        // definition lives in one place instead of once per kernel. The
+        // derivative below keeps its own expression deliberately: it drives the
+        // optimizer, and no coefficient may move.
         if (return_event_scores) {
-            event_scores.row(id_event) = D.row(idx_obs) - g;
+            event_scores.row(id_event) =
+              event_score_row(D, dyad_probabilities, 1.0, idx_obs, true);
         }
         derivative += D.row(idx_obs) - g;
         // Fisher: sum_d P_d D_d D_d^T - g^T g
