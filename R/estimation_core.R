@@ -1488,7 +1488,14 @@ compute_step.default <- function(spec, state, i, ctx) {
     state$event_scores[i, ] <- eventValues$score
   }
   if (ctx$returnEventProbabilities) {
-    state$EventProbabilities[[i]] <- eventValues$pMatrix
+    state$EventProbabilities[[i]] <- expand_event_probabilities(
+      eventValues$pMatrix,
+      ctx$margin_axis,
+      sender_slots,
+      receiver_slots,
+      ctx$n_actors1,
+      ctx$n_actors2
+    )
   }
 
   if (ctx$return_ranks || ctx$return_margins || ctx$return_total_rate) {
@@ -1511,6 +1518,45 @@ compute_step.default <- function(spec, state, i, ctx) {
     eventValues$informationMatrix
 
   state
+}
+
+# Scatter the contribution's reduced-risk-set probability vector over the whole
+# node set, so that a position IS an actor id at every event regardless of which
+# actors were present or in the risk set; alternatives absent from the risk set
+# read 0. Without this the vector is uninterpretable downstream: the reduction
+# is per event, so index 3 is a different actor at different events, and the
+# reflexive receiver is dropped rather than zeroed even when nobody enters or
+# leaves. The reduced -> global slot maps are the same `which(keepIn)` ones the
+# margin accumulators already scatter through, which is what keeps the two
+# primitives agreeing about what an index means.
+expand_event_probabilities <- function(
+  p_reduced,
+  axis,
+  sender_slots,
+  receiver_slots,
+  n_actors1,
+  n_actors2
+) {
+  switch(
+    axis,
+    sender = {
+      full <- numeric(n_actors1)
+      full[sender_slots] <- as.numeric(p_reduced)
+      full
+    },
+    receiver_given_sender = {
+      full <- numeric(n_actors2)
+      full[receiver_slots] <- as.numeric(p_reduced)
+      full
+    },
+    # dyad (REM, REM_ordered) and dyad_symmetric (coordination) carry the
+    # reduced n1r x n2r grid, which scatters into the whole n1 x n2 grid.
+    {
+      full <- matrix(0, n_actors1, n_actors2)
+      full[sender_slots, receiver_slots] <- p_reduced
+      full
+    }
+  )
 }
 
 # The per-event opt-in reductions on the r backend (ranks, margins,
@@ -1884,6 +1930,10 @@ compute_iteration_step <- function(
     return_total_rate = return_total_rate,
     margin_axis = margin_axis,
     is_exact_time = is_exact_time,
+    # Whole-node-set sizes, used to scatter the reduced per-event risk set back
+    # onto actor ids: margins accumulate into them, probabilities expand to them.
+    n_actors1 = n_actors1,
+    n_actors2 = n_actors2,
     contribution_fn = contribution_fn
   )
 

@@ -628,6 +628,102 @@ test_that("requesting margins but not probabilities carries no probability matri
   expect_null(fit$pMatrix)
 })
 
+# Per-event probabilities are indexed by actor over the whole node set, not by
+# position in the event's reduced risk set, so a position means the same actor
+# at every event and on every backend. Requesting margins alongside is the point
+# of the contract: the two primitives must agree about what an index is, which
+# is why each shape below is asserted against the margin vector's own length.
+probability_fit <- function(model, sub_model, formula, data = dataTest) {
+  suppressWarnings(suppressMessages(estimate_wrapper(
+    formula,
+    model = model,
+    sub_model = sub_model,
+    data = data,
+    control_algo = set_algorithm_newton(
+      backend = "r",
+      diagnostics = c("loglik", "margins", "probabilities"),
+      max_iterations = 1
+    )
+  )))
+}
+
+test_that("per-event probabilities are actor-indexed on the sender axis", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  for (sub_model in c("rate", "rate_ordered")) {
+    formula <- if (identical(sub_model, "rate")) {
+      depNetwork ~ 1 + indeg
+    } else {
+      depNetwork ~ indeg + outdeg
+    }
+    fit <- probability_fit("DyNAM", sub_model, formula)
+    p <- fit$eventProbabilities[[1]]
+    expect_length(p, length(fit$margins$expected))
+    expect_equal(sum(p), 1, info = sub_model)
+  }
+})
+
+test_that("per-event probabilities zero the receivers outside the risk set", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  fit <- probability_fit("DyNAM", "choice", depNetwork ~ inertia + recip)
+  p <- fit$eventProbabilities[[1]]
+  expect_length(p, length(fit$margins$expected))
+  expect_equal(sum(p), 1)
+  # A DyNAM-choice sender cannot choose itself, so the reflexive position is a
+  # zero rather than a dropped entry -- the case that made the old reduced
+  # shape ragged even with no composition change at all. Every event therefore
+  # carries strictly fewer alternatives at risk than the vector is long.
+  n_at_risk <- vapply(
+    fit$eventProbabilities,
+    function(p) sum(p > 0),
+    integer(1)
+  )
+  expect_true(all(n_at_risk < length(p)))
+})
+
+test_that("per-event probabilities span the whole dyad grid", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  fit <- probability_fit("REM", "rate", depNetwork ~ 1 + inertia)
+  p <- fit$eventProbabilities[[1]]
+  n1 <- length(fit$margins$expected_sender)
+  n2 <- length(fit$margins$expected_receiver)
+  expect_equal(dim(p), c(n1, n2))
+  expect_equal(sum(p), 1)
+})
+
+test_that("per-event probability length is constant under composition change", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # The fisheries fixture's actors enter and leave, which under the reduced
+  # shape gave 13 distinct per-event lengths across 215 events. Actor indexing
+  # makes the length constant and moves the variation into how many entries are
+  # nonzero -- the same information, at a stable position per actor.
+  data_list <- list(fisheries = baselines_fisheries_data())
+  spec <- baselines_model_grid()[["fish_dynam_rate"]]
+  fit <- parity_fit(
+    spec,
+    data_list,
+    backend = "r",
+    diagnostics = c("loglik", "margins", "probabilities"),
+    max_iterations = 1
+  )
+
+  lengths <- vapply(fit$eventProbabilities, length, integer(1))
+  expect_equal(unique(lengths), length(fit$margins$expected))
+  # The precondition: this fixture must actually exercise composition change,
+  # or the test passes vacuously on a constant risk set.
+  n_at_risk <- vapply(
+    fit$eventProbabilities,
+    function(p) sum(p > 0),
+    integer(1)
+  )
+  expect_gt(length(unique(n_at_risk)), 1L)
+  expect_true(all(n_at_risk < unique(lengths)))
+  expect_equal(vapply(fit$eventProbabilities, sum, numeric(1)), rep(1, 215))
+})
+
 test_that("a right-censored interval's NA rank is not read as a failure", {
   # `observed_rank` is allocated NA-filled and written only for dependent
   # events, so any model with a right-censored interval leaves NAs behind when
