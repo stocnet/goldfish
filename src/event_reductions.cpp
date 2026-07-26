@@ -62,6 +62,36 @@ arma::rowvec event_score_row(
   return score;
 }
 
+Rcpp::RObject scatter_event_probabilities(
+    const arma::vec& probabilities,
+    const arma::uvec& index_i,
+    const arma::uvec& index_j,
+    arma::uword n_actors_1,
+    arma::uword n_actors_2
+) {
+  const bool axis_i = index_i.n_elem > 0;
+  const bool axis_j = index_j.n_elem > 0;
+  // With neither index there is no actor identity to scatter onto and the
+  // shape is undefined. Fail loudly: silently returning an empty or unscattered
+  // vector would put a meaningless per-event entry on the fit.
+  if (!axis_i && !axis_j) {
+    Rcpp::stop("scatter_event_probabilities(): no actor index for either axis");
+  }
+  if (axis_i && axis_j) {
+    arma::mat grid(n_actors_1, n_actors_2, fill::zeros);
+    for (arma::uword r = 0; r < probabilities.n_elem; ++r) {
+      grid(index_i(r), index_j(r)) = probabilities(r);
+    }
+    return Rcpp::wrap(grid);
+  }
+  const arma::uvec& index = axis_j ? index_j : index_i;
+  arma::vec full(axis_j ? n_actors_2 : n_actors_1, fill::zeros);
+  for (arma::uword r = 0; r < probabilities.n_elem; ++r) {
+    full(index(r)) = probabilities(r);
+  }
+  return Rcpp::wrap(full);
+}
+
 //' Exercise the shared per-event reductions from R
 //'
 //' Test-only entry point: it feeds constructed `(w, c, X, obs)` inputs to the

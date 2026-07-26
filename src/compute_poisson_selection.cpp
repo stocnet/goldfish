@@ -31,7 +31,8 @@ List compute_poisson_selection(
     const arma::uword n_actors_2,
     const bool return_event_scores,
     const bool return_ranks,
-    const bool return_margins
+    const bool return_margins,
+    const bool return_probabilities = false
 ) {
     // `index_i` / `index_j` are the 0-based per-row actor slots the shared
     // margin reduction scatters into; an empty vector means this shape has no
@@ -90,6 +91,15 @@ List compute_poisson_selection(
     }
     arma::vec probabilities;
     arma::uvec index_i_event, index_j_event;
+    // Opt-in per-event probabilities, actor-indexed over the whole node set.
+    // Gather rows are the realized risk set only, so they scatter through the
+    // same per-row actor index the margin reduction uses; positions off the
+    // risk set stay 0. Which axes the shape has is read from the indices
+    // themselves, NOT from the margin flags, since probabilities can be
+    // requested without margins.
+    const bool axis_i = index_i.n_elem > 0;
+    const bool axis_j = index_j.n_elem > 0;
+    List event_probabilities(return_probabilities ? n_events : 0);
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -158,7 +168,10 @@ List compute_poisson_selection(
         // Opt-in primitives. Ranks and observed margins count only dependent
         // events; a right-censored interval contributes its expected mass but
         // has no observed alternative.
-        if (return_event_scores || return_ranks || return_margins) {
+        if (
+          return_event_scores || return_ranks || return_margins ||
+          return_probabilities
+        ) {
             probabilities = weights / shifted_total;
         }
         if (return_ranks && is_dependent_current_event) {
@@ -220,6 +233,15 @@ List compute_poisson_selection(
               id_selected, is_dependent_current_event
             );
         }
+        if (return_probabilities) {
+            event_probabilities[id_event] = scatter_event_probabilities(
+              probabilities,
+              axis_i ? index_i.subvec(id_start, id_end - 1) : arma::uvec(),
+              axis_j ? index_j.subvec(id_start, id_end - 1) : arma::uvec(),
+              n_actors_1,
+              n_actors_2
+            );
+        }
         // loglikelihood
         logLikelihood += intervalLogL(id_event);
 
@@ -256,6 +278,7 @@ List compute_poisson_selection(
       Named("margin_probability_sender") = two_sided ? margin_prob_i : empty,
       Named("margin_observed_receiver") = two_sided ? margin_observed_j : empty,
       Named("margin_expected_receiver") = two_sided ? margin_expected_j : empty,
-      Named("margin_probability_receiver") = two_sided ? margin_prob_j : empty
+      Named("margin_probability_receiver") = two_sided ? margin_prob_j : empty,
+      Named("event_probabilities") = event_probabilities
     );
 }

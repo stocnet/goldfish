@@ -101,4 +101,23 @@ arma::rowvec event_score_row(
     bool dependent
 );
 
+// Scatter a per-event probability vector onto the whole node set, so a position
+// is an actor id at every event rather than a position in that event's risk
+// set. Positions off the risk set stay 0.
+//
+// This exists for the gather kernels, whose rows ARE the realized risk set and
+// so carry no actor identity of their own; the event-loop kernels already hold
+// full-length vectors and store them directly. `index_i` / `index_j` are the
+// same 0-based per-row actor slots the margin reduction scatters through, and
+// which of them are non-empty is what fixes the shape: both give the
+// n_actors_1 x n_actors_2 grid of the dyad families, one alone gives a vector
+// on that axis.
+Rcpp::RObject scatter_event_probabilities(
+    const arma::vec& probabilities,
+    const arma::uvec& index_i,
+    const arma::uvec& index_j,
+    arma::uword n_actors_1,
+    arma::uword n_actors_2
+);
+
 #endif

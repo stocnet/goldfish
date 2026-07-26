@@ -1224,20 +1224,13 @@ estimate_wrapper <- function(
     ))
   }
 
-  # The cpp and gather backends don't support returnEventProbabilities
+  # Every backend produces per-event probabilities natively, so the request no
+  # longer substitutes one backend for another. The redirect this replaces was
+  # also the mechanism behind an ordering artifact: because it fired before the
+  # scores gate below, adding an unrelated primitive to the request could turn
+  # an abort into a success on a backend the user did not choose, and could
+  # strip ranks and margins from a cpp fit by moving it onto r.
   backend <- algo_backend(control_algo)
-  if (
-    control_algo$return_probabilities &&
-      backend != "r"
-  ) {
-    cli::cli_warn(c(
-      "{.code backend = {.val {backend}}} does not
-       support {.arg return_probabilities}.",
-      "i" = "Estimating with {.code backend = \"r\"} instead."
-    ))
-    backend <- "r"
-    control_algo$backend <- backend
-  }
 
   # The per-event score matrix is produced by the two per-event backends
   # (cpp via the C++ evaluator flag, r in its contribution loop);

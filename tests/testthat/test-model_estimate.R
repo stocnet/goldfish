@@ -101,9 +101,23 @@ test_that("the fit records the backend that produced it", {
   for (backend in BACKEND_VALUES) {
     expect_equal(fit_on(backend)$backend, backend)
   }
-  # After a redirect the component names what actually ran, not what was asked
-  # for -- a diagnostic gating on it must see the backend that made the numbers.
-  expect_equal(fit_on("cpp", diagnostics = "probabilities")$backend, "r")
+  # Requesting probabilities used to move the fit onto r; every backend now
+  # produces them natively, so the chosen backend is the one that runs.
+  expect_equal(fit_on("cpp", diagnostics = "probabilities")$backend, "cpp")
+  # `opportunities_list` still redirects (a preprocessing restriction, not a
+  # per-event primitive), and there the component must name what actually ran,
+  # not what was asked for -- a diagnostic gating on it needs the backend that
+  # made the numbers.
+  opportunities <- rep(list(seq_len(nrow(actors_ex))), nrow(eventsIncrement))
+  redirected <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    control_algo = set_algorithm_newton(backend = "cpp"),
+    control_prep = set_preprocessing(opportunities_list = opportunities)
+  ))
+  expect_equal(redirected$backend, "r")
 })
 
 test_that("a fit without a backend component still works", {
@@ -123,21 +137,6 @@ test_that("a fit without a backend component still works", {
   expect_no_error(coef(fit))
   expect_no_error(logLik(fit))
   expect_no_error(vcov(fit))
-})
-
-test_that("backends without per-event probabilities redirect to r", {
-  withr::local_options(cli.num_colors = 1L)
-  local_reproducible_output()
-  expect_snapshot(invisible(estimate_wrapper(
-    depNetwork ~ inertia + recip,
-    model = "DyNAM",
-    sub_model = "choice",
-    data = dataTest,
-    control_algo = set_algorithm_newton(
-      backend = "gather",
-      diagnostics = "probabilities"
-    )
-  )))
 })
 
 test_that("backends without an opportunity list redirect to r", {

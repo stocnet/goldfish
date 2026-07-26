@@ -93,7 +93,8 @@ List compute_coordination_selection(
     const arma::uword n_actors_1,
     const bool return_event_scores,
     const bool return_ranks,
-    const bool return_margins
+    const bool return_margins,
+    const bool return_probabilities = false
 ) {
     int n_events = selected.size();
     int n_parameters = parameters.size();
@@ -135,6 +136,10 @@ List compute_coordination_selection(
     if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
     arma::vec margin_observed, margin_expected;
     const bool do_margins = return_margins && index_i.n_elem > 0;
+    // The dyad endpoints are also what an actor-indexed probability grid needs,
+    // so they are built whenever EITHER primitive is requested.
+    const bool need_endpoints =
+      do_margins || (return_probabilities && index_i.n_elem > 0);
     if (do_margins) {
         margin_observed = arma::vec(n_actors_1, fill::zeros);
         margin_expected = arma::vec(n_actors_1, fill::zeros);
@@ -145,6 +150,9 @@ List compute_coordination_selection(
     arma::uvec dyad_endpoint_a(max_n_dyads);
     arma::uvec dyad_endpoint_b(max_n_dyads);
     arma::vec dyad_probabilities;
+    // Opt-in per-event probability grid, actor-indexed over the whole node set
+    // and zero off the risk set. Allocated only when requested.
+    List event_probabilities(return_probabilities ? n_events : 0);
     // start address in stat_all_events of current events
     int id_start = 0;
 
@@ -196,7 +204,7 @@ List compute_coordination_selection(
                     pr == id_obs_row) {
                     idx_obs = idx;
                 }
-                if (do_margins) {
+                if (need_endpoints) {
                     // The canonical directed row carries both endpoints.
                     dyad_endpoint_a(idx) = index_i(id_start + r);
                     dyad_endpoint_b(idx) = index_j(id_start + r);
@@ -220,7 +228,10 @@ List compute_coordination_selection(
           normalizer - g.t() * g;
         // Opt-in primitives, all reductions of the dyad-level probability
         // vector on the probability scale (c = 1).
-        if (return_event_scores || return_ranks || do_margins) {
+        if (
+          return_event_scores || return_ranks || do_margins ||
+          return_probabilities
+        ) {
             dyad_probabilities = dyad_weights / normalizer;
         }
         if (return_ranks) {
@@ -246,6 +257,20 @@ List compute_coordination_selection(
               D_event, dyad_probabilities, 1.0, idx_obs, true
             );
         }
+        if (return_probabilities) {
+            // Coordination's risk set is the unordered-pair list, so the grid
+            // is symmetric: each dyad's probability lands on both sides of the
+            // diagonal and the event totals 2, one per pair. Not the shared
+            // scatter helper, which writes one direction per row.
+            arma::mat grid(n_actors_1, n_actors_1, fill::zeros);
+            for (int d = 0; d < n_dyads; ++d) {
+                const arma::uword a = dyad_endpoint_a(d);
+                const arma::uword b = dyad_endpoint_b(d);
+                grid(a, b) = dyad_probabilities(d);
+                grid(b, a) = dyad_probabilities(d);
+            }
+            event_probabilities[id_event] = wrap(grid);
+        }
         // logLikelihood from the shifted predictor (finite under underflow)
         intervalLogL(id_event) = logw_dyad(idx_obs) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
@@ -262,6 +287,7 @@ List compute_coordination_selection(
       Named("event_scores") = event_scores,
       Named("observed_rank") = observed_rank,
       Named("margin_observed") = margin_observed,
-      Named("margin_expected") = margin_expected
+      Named("margin_expected") = margin_expected,
+      Named("event_probabilities") = event_probabilities
     );
 }

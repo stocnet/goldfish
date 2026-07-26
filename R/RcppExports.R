@@ -209,8 +209,8 @@ estimate_REM_ordered <- function(parameters, dep_event_mat, stat_mat_init, stat_
 #'     guarantees the partner exists, so each unordered dyad has exactly two
 #'     rows pointing at each other.
 #' @noRd
-compute_coordination_selection <- function(parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner, index_i, index_j, n_actors_1, return_event_scores, return_ranks, return_margins) {
-    .Call('_goldfish_compute_coordination_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner, index_i, index_j, n_actors_1, return_event_scores, return_ranks, return_margins)
+compute_coordination_selection <- function(parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner, index_i, index_j, n_actors_1, return_event_scores, return_ranks, return_margins, return_probabilities = FALSE) {
+    .Call('_goldfish_compute_coordination_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner, index_i, index_j, n_actors_1, return_event_scores, return_ranks, return_margins, return_probabilities)
 }
 
 #' Estimate a multinomial selection model with gathered data
@@ -221,8 +221,8 @@ compute_coordination_selection <- function(parameters, stat_all_events, n_candid
 #'   multinomial selection processes, e.g. DyNAM-rate-ordered, DyNAM-choice,
 #'   and REM-choice models.
 #' @noRd
-compute_multinomial_selection <- function(parameters, stat_all_events, n_candidates, selected, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins) {
-    .Call('_goldfish_compute_multinomial_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins)
+compute_multinomial_selection <- function(parameters, stat_all_events, n_candidates, selected, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins, return_probabilities = FALSE) {
+    .Call('_goldfish_compute_multinomial_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins, return_probabilities)
 }
 
 #' Estimate a poisson selection model with gathered data
@@ -234,8 +234,8 @@ compute_multinomial_selection <- function(parameters, stat_all_events, n_candida
 #' for models with poisson selection processes,
 #' e.g., DyNAM-rate and REM-choice models.
 #' @noRd
-compute_poisson_selection <- function(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins) {
-    .Call('_goldfish_compute_poisson_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins)
+compute_poisson_selection <- function(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins, return_probabilities = FALSE) {
+    .Call('_goldfish_compute_poisson_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins, return_probabilities)
 }
 
 #' a function to extract the update of composition change

@@ -28,7 +28,8 @@ List compute_multinomial_selection(
     const arma::uword n_actors_2,
     const bool return_event_scores,
     const bool return_ranks,
-    const bool return_margins
+    const bool return_margins,
+    const bool return_probabilities = false
 ) {
     // `index_i` / `index_j` are the 0-based per-row actor slots the shared
     // margin reduction scatters into; an empty vector means this shape has no
@@ -78,6 +79,15 @@ List compute_multinomial_selection(
     }
     arma::vec probabilities;
     arma::uvec index_i_event, index_j_event;
+    // Opt-in per-event probabilities, actor-indexed over the whole node set.
+    // Gather rows are the realized risk set only, so unlike the event-loop
+    // engines this one has to scatter through the same per-row actor index the
+    // margin reduction uses; positions off the risk set stay 0. Which axes the
+    // shape has is read from the indices themselves, NOT from the margin flags,
+    // since probabilities can be requested without margins.
+    const bool axis_i = index_i.n_elem > 0;
+    const bool axis_j = index_j.n_elem > 0;
+    List event_probabilities(return_probabilities ? n_events : 0);
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -118,7 +128,10 @@ List compute_multinomial_selection(
         // Opt-in primitives, all reductions of the probability vector on the
         // probability scale (c = 1), which is the only scale a multinomial
         // sub-model has.
-        if (return_event_scores || return_ranks || return_margins) {
+        if (
+          return_event_scores || return_ranks || return_margins ||
+          return_probabilities
+        ) {
             probabilities = weights / normalizer;
         }
         if (return_ranks) {
@@ -146,6 +159,15 @@ List compute_multinomial_selection(
         if (return_event_scores) {
             event_scores.row(id_event) = event_score_row(
               currentEffect, probabilities, 1.0, id_receiver, true
+            );
+        }
+        if (return_probabilities) {
+            event_probabilities[id_event] = scatter_event_probabilities(
+              probabilities,
+              axis_i ? index_i.subvec(id_start, id_end - 1) : arma::uvec(),
+              axis_j ? index_j.subvec(id_start, id_end - 1) : arma::uvec(),
+              n_actors_1,
+              n_actors_2
             );
         }
         // logLikelihood
@@ -177,6 +199,7 @@ List compute_multinomial_selection(
       Named("margin_observed_sender") = two_sided ? margin_observed_i : empty,
       Named("margin_expected_sender") = two_sided ? margin_expected_i : empty,
       Named("margin_observed_receiver") = two_sided ? margin_observed_j : empty,
-      Named("margin_expected_receiver") = two_sided ? margin_expected_j : empty
+      Named("margin_expected_receiver") = two_sided ? margin_expected_j : empty,
+      Named("event_probabilities") = event_probabilities
     );
 }

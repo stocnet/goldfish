@@ -398,6 +398,7 @@ estimate_c_int <- function(
         return_event_scores = return_event_scores,
         return_ranks = return_ranks,
         return_margins = return_margins,
+        return_probabilities = returnEventProbabilities,
         sender_of_row = gathered_data$sender_of_row,
         dyad_partner = gathered_data$dyad_partner
       )
@@ -1664,6 +1665,7 @@ compute_ <- function(
   return_event_scores = FALSE,
   return_ranks = FALSE,
   return_margins = FALSE,
+  return_probabilities = FALSE,
   sender_of_row = NULL,
   dyad_partner = NULL
 ) {
@@ -1701,7 +1703,8 @@ compute_ <- function(
       n_actors_2,
       return_event_scores,
       return_ranks,
-      return_margins
+      return_margins,
+      return_probabilities
     )
   }
 
@@ -1719,7 +1722,8 @@ compute_ <- function(
       n_actors_2,
       return_event_scores,
       return_ranks,
-      return_margins
+      return_margins,
+      return_probabilities
     )
   }
 
@@ -1736,7 +1740,8 @@ compute_ <- function(
       n_actors_1,
       return_event_scores,
       return_ranks,
-      return_margins
+      return_margins,
+      return_probabilities
     )
   }
 

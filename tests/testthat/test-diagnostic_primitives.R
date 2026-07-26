@@ -724,7 +724,7 @@ test_that("per-event probability length is constant under composition change", {
   expect_equal(vapply(fit$eventProbabilities, sum, numeric(1)), rep(1, 215))
 })
 
-test_that("cpp per-event probabilities match the r backend", {
+test_that("per-event probabilities agree on all three backends", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
   data_list <- list(social_evolution = baselines_social_evolution_data())
@@ -743,28 +743,104 @@ test_that("cpp per-event probabilities match the r backend", {
       data_list,
       diagnostics = c("loglik", "probabilities")
     )
-    fr <- parity_fit(
-      spec,
-      data_list,
-      backend = "r",
-      diagnostics = c("loglik", "probabilities"),
-      initial_parameters = fc$parameters,
-      max_iterations = 0
-    )
+    at_fixed <- function(backend) {
+      parity_fit(
+        spec,
+        data_list,
+        backend = backend,
+        diagnostics = c("loglik", "probabilities"),
+        initial_parameters = fc$parameters,
+        max_iterations = 0
+      )
+    }
+    fr <- at_fixed("r")
+    fg <- at_fixed("gather")
+
+    # Precondition, not decoration: requesting probabilities used to redirect
+    # every non-r backend onto r, which would make each comparison below run r
+    # against r -- passing while proving nothing.
+    expect_equal(fc$backend, "cpp", info = nm)
+    expect_equal(fg$backend, "gather", info = nm)
+
     expect_equal(
       lapply(fc$eventProbabilities, as.numeric),
       lapply(fr$eventProbabilities, as.numeric),
       tolerance = 1e-10,
       info = nm
     )
-    # The same softmax on the same predictors, so the per-event totals hold to
-    # machine precision on every family (D16's next-event probability).
+    expect_equal(
+      lapply(fg$eventProbabilities, as.numeric),
+      lapply(fr$eventProbabilities, as.numeric),
+      tolerance = 1e-10,
+      info = nm
+    )
+    # The same softmax on the same predictors, so the per-event totals hold on
+    # every family (D16's next-event probability).
     expect_equal(
       vapply(fc$eventProbabilities, sum, numeric(1)),
       rep(1, fc$nEvents),
       info = nm
     )
   }
+})
+
+test_that("requesting probabilities does not substitute the backend", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # The redirect this replaces warned and moved the fit onto r. It also drove
+  # an ordering artifact: firing before the scores gate, it could turn an abort
+  # into a success on a backend the user did not choose.
+  for (backend in c("cpp", "gather")) {
+    # Collect rather than suppress: the storage-footprint guardrail legitimately
+    # warns whenever probabilities are requested, so the assertion has to name
+    # the substitution warning instead of demanding silence.
+    warned <- character(0)
+    withCallingHandlers(
+      fit <- suppressMessages(estimate_wrapper(
+        depNetwork ~ inertia + recip,
+        model = "DyNAM",
+        sub_model = "choice",
+        data = dataTest,
+        control_algo = set_algorithm_newton(
+          backend = backend,
+          diagnostics = c("loglik", "probabilities"),
+          max_iterations = 1
+        )
+      )),
+      warning = function(w) {
+        warned <<- c(warned, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    )
+    expect_false(any(grepl("does not.*support", warned)), info = backend)
+    expect_false(any(grepl("Estimating with", warned)), info = backend)
+    expect_equal(fit$backend, backend)
+    expect_false(is.null(fit$eventProbabilities))
+  }
+})
+
+test_that("a superset request keeps every primitive it names", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # Asking for more used to return less: the redirect moved a cpp fit onto r
+  # for the sake of probabilities, and ranks and margins silently vanished from
+  # the result -- on the default backend, with no message.
+  fit <- suppressWarnings(suppressMessages(estimate_wrapper(
+    depNetwork ~ inertia + recip,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest,
+    control_algo = set_algorithm_newton(
+      backend = "cpp",
+      diagnostics = c("loglik", "scores", "ranks", "margins", "probabilities"),
+      max_iterations = 1
+    )
+  )))
+  expect_equal(fit$backend, "cpp")
+  expect_false(is.null(fit$observed_rank))
+  expect_false(is.null(fit$margins))
+  expect_false(is.null(fit$event_scores))
+  expect_false(is.null(fit$eventProbabilities))
 })
 
 test_that("the cpp exact-time kernels carry the conditional loglik component", {

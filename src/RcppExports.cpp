@@ -205,8 +205,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // compute_coordination_selection
-List compute_coordination_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::uvec& sender_of_row, const arma::uvec& dyad_partner, const arma::uvec& index_i, const arma::uvec& index_j, const arma::uword n_actors_1, const bool return_event_scores, const bool return_ranks, const bool return_margins);
-RcppExport SEXP _goldfish_compute_coordination_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP sender_of_rowSEXP, SEXP dyad_partnerSEXP, SEXP index_iSEXP, SEXP index_jSEXP, SEXP n_actors_1SEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP) {
+List compute_coordination_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::uvec& sender_of_row, const arma::uvec& dyad_partner, const arma::uvec& index_i, const arma::uvec& index_j, const arma::uword n_actors_1, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities);
+RcppExport SEXP _goldfish_compute_coordination_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP sender_of_rowSEXP, SEXP dyad_partnerSEXP, SEXP index_iSEXP, SEXP index_jSEXP, SEXP n_actors_1SEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -222,13 +222,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type return_event_scores(return_event_scoresSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_ranks(return_ranksSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_margins(return_marginsSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_coordination_selection(parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner, index_i, index_j, n_actors_1, return_event_scores, return_ranks, return_margins));
+    Rcpp::traits::input_parameter< const bool >::type return_probabilities(return_probabilitiesSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_coordination_selection(parameters, stat_all_events, n_candidates, selected, sender_of_row, dyad_partner, index_i, index_j, n_actors_1, return_event_scores, return_ranks, return_margins, return_probabilities));
     return rcpp_result_gen;
 END_RCPP
 }
 // compute_multinomial_selection
-List compute_multinomial_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::uvec& index_i, const arma::uvec& index_j, const arma::uword n_actors_1, const arma::uword n_actors_2, const bool return_event_scores, const bool return_ranks, const bool return_margins);
-RcppExport SEXP _goldfish_compute_multinomial_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP index_iSEXP, SEXP index_jSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP) {
+List compute_multinomial_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::uvec& index_i, const arma::uvec& index_j, const arma::uword n_actors_1, const arma::uword n_actors_2, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities);
+RcppExport SEXP _goldfish_compute_multinomial_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP index_iSEXP, SEXP index_jSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -243,13 +244,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type return_event_scores(return_event_scoresSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_ranks(return_ranksSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_margins(return_marginsSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_multinomial_selection(parameters, stat_all_events, n_candidates, selected, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins));
+    Rcpp::traits::input_parameter< const bool >::type return_probabilities(return_probabilitiesSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_multinomial_selection(parameters, stat_all_events, n_candidates, selected, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins, return_probabilities));
     return rcpp_result_gen;
 END_RCPP
 }
 // compute_poisson_selection
-List compute_poisson_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::vec& timespan, const arma::vec& is_dependent, const arma::uvec& index_i, const arma::uvec& index_j, const arma::uword n_actors_1, const arma::uword n_actors_2, const bool return_event_scores, const bool return_ranks, const bool return_margins);
-RcppExport SEXP _goldfish_compute_poisson_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP timespanSEXP, SEXP is_dependentSEXP, SEXP index_iSEXP, SEXP index_jSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP) {
+List compute_poisson_selection(arma::colvec& parameters, const arma::mat& stat_all_events, const arma::uvec& n_candidates, const arma::uvec& selected, const arma::vec& timespan, const arma::vec& is_dependent, const arma::uvec& index_i, const arma::uvec& index_j, const arma::uword n_actors_1, const arma::uword n_actors_2, const bool return_event_scores, const bool return_ranks, const bool return_margins, const bool return_probabilities);
+RcppExport SEXP _goldfish_compute_poisson_selection(SEXP parametersSEXP, SEXP stat_all_eventsSEXP, SEXP n_candidatesSEXP, SEXP selectedSEXP, SEXP timespanSEXP, SEXP is_dependentSEXP, SEXP index_iSEXP, SEXP index_jSEXP, SEXP n_actors_1SEXP, SEXP n_actors_2SEXP, SEXP return_event_scoresSEXP, SEXP return_ranksSEXP, SEXP return_marginsSEXP, SEXP return_probabilitiesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -266,7 +268,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type return_event_scores(return_event_scoresSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_ranks(return_ranksSEXP);
     Rcpp::traits::input_parameter< const bool >::type return_margins(return_marginsSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_poisson_selection(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins));
+    Rcpp::traits::input_parameter< const bool >::type return_probabilities(return_probabilitiesSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_poisson_selection(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins, return_probabilities));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -333,9 +336,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_goldfish_estimate_DyNAM_rate_ordered", (DL_FUNC) &_goldfish_estimate_DyNAM_rate_ordered, 21},
     {"_goldfish_estimate_REM", (DL_FUNC) &_goldfish_estimate_REM, 25},
     {"_goldfish_estimate_REM_ordered", (DL_FUNC) &_goldfish_estimate_REM_ordered, 22},
-    {"_goldfish_compute_coordination_selection", (DL_FUNC) &_goldfish_compute_coordination_selection, 12},
-    {"_goldfish_compute_multinomial_selection", (DL_FUNC) &_goldfish_compute_multinomial_selection, 11},
-    {"_goldfish_compute_poisson_selection", (DL_FUNC) &_goldfish_compute_poisson_selection, 13},
+    {"_goldfish_compute_coordination_selection", (DL_FUNC) &_goldfish_compute_coordination_selection, 13},
+    {"_goldfish_compute_multinomial_selection", (DL_FUNC) &_goldfish_compute_multinomial_selection, 12},
+    {"_goldfish_compute_poisson_selection", (DL_FUNC) &_goldfish_compute_poisson_selection, 14},
     {"_goldfish_C_convert_composition_change", (DL_FUNC) &_goldfish_C_convert_composition_change, 2},
     {"_goldfish_convert_composition_change", (DL_FUNC) &_goldfish_convert_composition_change, 2},
     {"_goldfish_convert_change", (DL_FUNC) &_goldfish_convert_change, 1},

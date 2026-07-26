@@ -25,20 +25,6 @@
       ! Storing per-event probabilities for 100 events over a risk set of size 10 will use about 7.8 Kb.
       i For scalable diagnostics request "ranks" or "margins" instead of "probabilities".
 
-# backends without per-event probabilities redirect to r
-
-    Code
-      invisible(estimate_wrapper(depNetwork ~ inertia + recip, model = "DyNAM",
-      sub_model = "choice", data = dataTest, control_algo = set_algorithm_newton(
-        backend = "gather", diagnostics = "probabilities")))
-    Condition
-      Warning:
-      `backend = "gather"` does not support `return_probabilities`.
-      i Estimating with `backend = "r"` instead.
-      Warning in `estimate_wrapper()`:
-      ! Storing per-event probabilities for 12 events over a risk set of size 5 will use about 480 bytes.
-      i For scalable diagnostics request "ranks" or "margins" instead of "probabilities".
-
 # backends without an opportunity list redirect to r
 
     Code
