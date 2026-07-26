@@ -218,6 +218,59 @@ baselines_fit <- function(spec, backend, data_list) {
   }
 }
 
+# The shared baseline build loop, used by every generator script under
+# `_baselines/`. It lives here rather than in those scripts because nothing runs
+# them: both generators had rotted against the `baselines_engines` ->
+# `baselines_backends` rename and no test noticed. Every baseline test sources
+# this file, so a rename now breaks a test immediately instead of lying dormant.
+#
+# Each generator keeps its own policy as an argument:
+#   `backends`  the columns to produce.
+#   `carry`     function(model_name, backend) returning an already-frozen entry
+#               to copy VERBATIM instead of refitting, or NULL to fit. This is
+#               how v2 keeps v1's r/cpp numbers bit-identical -- refitting them
+#               would absorb the drift accumulated since v1 and make any later
+#               regression smaller than that drift invisible.
+#   `key`       backend value -> stored column name, because `global_v1` records
+#               the legacy engine tokens it was written with while v2 records
+#               backend values. A new artifact should not record a retired
+#               vocabulary, but an existing one should not silently rewrite its
+#               own key scheme on regeneration either.
+#   `fit_fn`    the fitter, injectable so the fresh-fit path is testable without
+#               a full grid refit (minutes, and duplicating what the baseline
+#               tests already assert).
+baselines_build <- function(
+  grid,
+  get_data,
+  backends,
+  carry = NULL,
+  key = function(backend) backend,
+  fit_fn = baselines_fit
+) {
+  baselines <- list()
+  for (model_name in names(grid)) {
+    spec <- grid[[model_name]]
+    for (backend in backends) {
+      entry <- if (is.null(carry)) NULL else carry(model_name, backend)
+      carried <- !is.null(entry)
+      if (!carried) {
+        fit <- suppressWarnings(fit_fn(spec, backend, get_data(spec$dataset)))
+        stopifnot(isTRUE(fit$convergence$isConverged))
+        entry <- list(coef = coef(fit), logLik = as.numeric(logLik(fit)))
+      }
+      baselines[[model_name]][[key(backend)]] <- entry
+      cat(sprintf(
+        "%-28s %-7s logLik: %.8f  (%s)\n",
+        model_name,
+        backend,
+        entry$logLik,
+        if (carried) "carried" else "fitted"
+      ))
+    }
+  }
+  baselines
+}
+
 # Worker count for parallel baseline fitting. Serial on Windows (no fork), when
 # `parallel` is not installed (it is only Suggests -- these helpers are its sole
 # consumer, so requiring it would make every user install it just to fit a
