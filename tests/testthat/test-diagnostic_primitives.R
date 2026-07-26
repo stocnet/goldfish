@@ -909,8 +909,13 @@ test_that("a right-censored interval's NA rank is not read as a failure", {
   # for NA meaning "the likelihood could not be evaluated"; before the guard
   # learned to skip this component, requesting ranks on such a model aborted
   # with "Estimation not possible with initial parameters".
+  #
+  # The effect must sit on an EXOGENOUS network: that is what turns its events
+  # into likelihood intervals with no mover. A plain `indeg` here preprocesses
+  # to zero censored intervals, which this test used to use -- leaving both
+  # assertions below quantified over an empty set and passing vacuously.
   fit <- suppressWarnings(estimate_wrapper(
-    depNetwork ~ 1 + indeg,
+    depNetwork ~ 1 + indeg(networkExog),
     model = "DyNAM",
     sub_model = "rate",
     data = dataTest,
@@ -921,6 +926,7 @@ test_that("a right-censored interval's NA rank is not read as a failure", {
       max_iterations = 0
     )
   ))
+  expect_gt(sum(fit$right_censored_events), 0L)
   expect_false(is.null(fit$observed_rank))
   # Right-censored intervals keep their NA; dependent events are ranked.
   expect_true(all(is.na(fit$observed_rank[fit$right_censored_events])))

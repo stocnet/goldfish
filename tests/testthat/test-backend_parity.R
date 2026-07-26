@@ -291,3 +291,55 @@ test_that("the conditional component matches its identity at the MLE", {
     tolerance = 1e-8
   )
 })
+
+test_that("estimation iterates with every primitive on", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # The parity tests above are fixed-theta on purpose: their job is numerical
+  # agreement, not loop mechanics. But `max_iterations = 0` breaks out of the
+  # Newton loop BEFORE step acceptance, and step acceptance is where the guard
+  # bug lived -- it scanned the kernel result for any NA and read
+  # `observed_rank`'s by-design NAs as a numerical failure, rejecting every
+  # step. The first rejection restored a still-NULL information matrix, and
+  # `NULL[i, j]` being silently NULL turned it into "Matrix cannot be inverted;
+  # probably due to collinearity between parameters" -- a message naming the
+  # wrong subsystem entirely. Only a free fit on a censored fixture reaches it.
+  for (backend in BACKEND_VALUES) {
+    fit <- suppressWarnings(suppressMessages(estimate_dynam(
+      depNetwork ~ 1 + indeg(networkExog),
+      data = dataTest,
+      sub_model = "rate",
+      control_algo = set_algorithm_newton(
+        backend = backend,
+        diagnostics = ALL_PRIMITIVES,
+        max_iterations = 5
+      ),
+      progress = FALSE,
+      verbose = FALSE
+    )))
+    # Precondition: without a censored interval there are no by-design NAs and
+    # the guard is never exercised.
+    expect_gt(sum(fit$right_censored_events), 0L)
+    # The loop ran rather than bailing out at the first step.
+    expect_gt(fit$nIterations, 1L)
+    expect_equal(fit$backend, backend, info = backend)
+    for (component in c(
+      "intervalLogL",
+      "event_scores",
+      "observed_rank",
+      "margins",
+      "eventProbabilities",
+      "total_rate",
+      "conditional_logl"
+    )) {
+      expect_false(is.null(fit[[component]]), info = paste(backend, component))
+    }
+    # The NAs that survive are exactly the by-design ones, on the two
+    # components that are undefined without an observed mover.
+    censored <- unname(fit$right_censored_events)
+    expect_equal(is.na(fit$observed_rank), censored, info = backend)
+    expect_equal(is.na(fit$conditional_logl), censored, info = backend)
+    expect_false(any(is.na(fit$intervalLogL)), info = backend)
+    expect_false(any(is.na(fit$event_scores)), info = backend)
+  }
+})
