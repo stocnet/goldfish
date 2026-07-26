@@ -1,7 +1,8 @@
-# diagnostic-object-contract (delta)
+# diagnostic-object-contract Specification
 
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change parity-followups. Update Purpose after archive.
+## Requirements
 ### Requirement: A fitted model SHALL declare the axis its per-event indices refer to
 A fitted model SHALL expose, through documented and exported surface, the
 risk-set axis that gives meaning to a position in any per-event diagnostic
