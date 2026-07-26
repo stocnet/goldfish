@@ -288,10 +288,10 @@ assume the answer.
 
 ## Risks / Trade-offs
 
-- [D1 renames margin components, breaking any consumer reading
-  `expected_sender`] → it is a 2.0.0 breaking item with a NEWS entry, and the
-  in-repo consumers are this package's own tests plus `residuals-gof`, which is
-  unarchived and can be written against the new shape directly.
+- [D1 as revised leaves two `margins` shapes in the wild, so a consumer that
+  bypasses `residuals-gof`'s accessor still branches on family] → accepted, and
+  cheaper than a stored-shape break plus cross-change coordination; the axis
+  (D2) is what makes the branch decidable from the fit rather than guessed.
 - [D4 changes stored `event_scores` values, and something may compare them to
   stored expectations] → the aggregate identity and cross-backend parity are the
   gates, and both should get *easier*; any snapshot of raw score values is
