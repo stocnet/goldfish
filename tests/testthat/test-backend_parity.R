@@ -242,6 +242,49 @@ test_that("by-design NAs land at exactly the censored positions", {
   expect_parity(fits, "censored_rate")
 })
 
+test_that("parity holds when half the intervals are right-censored", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # A windowed effect is a second, independent source of right-censoring: the
+  # window's expiry is an interval with no mover, exactly as an exogenous
+  # network's events are. It censors on a different mechanism and at a far
+  # heavier rate than the dataTest fixture above -- roughly half of 869
+  # intervals rather than 4 of 16 -- so an error in how censored intervals are
+  # handled shows up as a large discrepancy here rather than a marginal one.
+  fits <- parity_trio(
+    calls_dependent ~ 1 + indeg(call_network, window = "2 hours"),
+    baselines_social_evolution_data(),
+    "DyNAM",
+    "rate",
+    ALL_PRIMITIVES
+  )
+  censored <- unname(fits$cpp$right_censored_events)
+  # Precondition: the point of this fixture is heavy censoring, so assert it
+  # rather than trusting the window to keep producing it.
+  expect_gt(sum(censored), 0.25 * length(censored))
+
+  for (backend in BACKEND_VALUES) {
+    fit <- fits[[backend]]
+    expect_equal(is.na(fit$observed_rank), censored, info = backend)
+    expect_equal(is.na(fit$conditional_logl), censored, info = backend)
+  }
+  expect_parity(fits, "windowed_censored_rate")
+
+  # The two margin scales deliberately accumulate over DIFFERENT sets. The
+  # probability scale is the conditional distribution of who moves GIVEN that an
+  # event occurred, so a censored interval -- which realizes no mover --
+  # contributes nothing and the total is the dependent-event count. The
+  # compensator integrates exposure over every interval instead. On this fixture
+  # the two sets differ by 430, so confusing them is unmissable.
+  for (backend in BACKEND_VALUES) {
+    expect_equal(
+      sum(fits[[backend]]$margins$expected_probability),
+      sum(!censored),
+      info = backend
+    )
+  }
+})
+
 test_that("the conditional component matches its identity at the MLE", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
@@ -304,42 +347,77 @@ test_that("estimation iterates with every primitive on", {
   # `NULL[i, j]` being silently NULL turned it into "Matrix cannot be inverted;
   # probably due to collinearity between parameters" -- a message naming the
   # wrong subsystem entirely. Only a free fit on a censored fixture reaches it.
-  for (backend in BACKEND_VALUES) {
-    fit <- suppressWarnings(suppressMessages(estimate_dynam(
-      depNetwork ~ 1 + indeg(networkExog),
-      data = dataTest,
-      sub_model = "rate",
-      control_algo = set_algorithm_newton(
-        backend = backend,
-        diagnostics = ALL_PRIMITIVES,
-        max_iterations = 5
-      ),
-      progress = FALSE,
-      verbose = FALSE
-    )))
-    # Precondition: without a censored interval there are no by-design NAs and
-    # the guard is never exercised.
-    expect_gt(sum(fit$right_censored_events), 0L)
-    # The loop ran rather than bailing out at the first step.
-    expect_gt(fit$nIterations, 1L)
-    expect_equal(fit$backend, backend, info = backend)
-    for (component in c(
-      "intervalLogL",
-      "event_scores",
-      "observed_rank",
-      "margins",
-      "eventProbabilities",
-      "total_rate",
-      "conditional_logl"
-    )) {
-      expect_false(is.null(fit[[component]]), info = paste(backend, component))
+  # Two censoring mechanisms, because the guard is about the NAs rather than
+  # about how they arose: an exogenous network's events on the small fixture,
+  # and a window's expiry on social evolution, where roughly half the intervals
+  # are censored and so nearly every Newton step meets them.
+  fixtures <- list(
+    list(
+      label = "exogenous_network",
+      formula = depNetwork ~ 1 + indeg(networkExog),
+      data = dataTest
+    ),
+    list(
+      label = "window_expiry",
+      formula = calls_dependent ~ 1 + indeg(call_network, window = "2 hours"),
+      data = baselines_social_evolution_data()
+    )
+  )
+  for (fixture in fixtures) {
+    for (backend in BACKEND_VALUES) {
+      fit <- suppressWarnings(suppressMessages(estimate_dynam(
+        fixture$formula,
+        data = fixture$data,
+        sub_model = "rate",
+        control_algo = set_algorithm_newton(
+          backend = backend,
+          diagnostics = ALL_PRIMITIVES,
+          max_iterations = 5
+        ),
+        progress = FALSE,
+        verbose = FALSE
+      )))
+      # Precondition: without a censored interval there are no by-design NAs and
+      # the guard is never exercised.
+      expect_gt(sum(fit$right_censored_events), 0L, label = fixture$label)
+      # The loop ran rather than bailing out at the first step.
+      expect_gt(fit$nIterations, 1L)
+      expect_equal(fit$backend, backend, info = fixture$label)
+      for (component in c(
+        "intervalLogL",
+        "event_scores",
+        "observed_rank",
+        "margins",
+        "eventProbabilities",
+        "total_rate",
+        "conditional_logl"
+      )) {
+        expect_false(
+          is.null(fit[[component]]),
+          info = paste(fixture$label, backend, component)
+        )
+      }
+      # The NAs that survive are exactly the by-design ones, on the two
+      # components that are undefined without an observed mover.
+      censored <- unname(fit$right_censored_events)
+      expect_equal(
+        is.na(fit$observed_rank),
+        censored,
+        info = paste(fixture$label, backend)
+      )
+      expect_equal(
+        is.na(fit$conditional_logl),
+        censored,
+        info = paste(fixture$label, backend)
+      )
+      expect_false(
+        any(is.na(fit$intervalLogL)),
+        info = paste(fixture$label, backend)
+      )
+      expect_false(
+        any(is.na(fit$event_scores)),
+        info = paste(fixture$label, backend)
+      )
     }
-    # The NAs that survive are exactly the by-design ones, on the two
-    # components that are undefined without an observed mover.
-    censored <- unname(fit$right_censored_events)
-    expect_equal(is.na(fit$observed_rank), censored, info = backend)
-    expect_equal(is.na(fit$conditional_logl), censored, info = backend)
-    expect_false(any(is.na(fit$intervalLogL)), info = backend)
-    expect_false(any(is.na(fit$event_scores)), info = backend)
   }
 })
