@@ -39,7 +39,8 @@ List estimate_DyNAM_rate_ordered(
     bool impute = true,
     const bool return_event_scores = false,
     const bool return_ranks = false,
-    const bool return_margins = false
+    const bool return_margins = false,
+    const bool return_probabilities = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -74,6 +75,11 @@ List estimate_DyNAM_rate_ordered(
         margin_observed = arma::vec(n_actors_1, fill::zeros);
         margin_expected = arma::vec(n_actors_1, fill::zeros);
     }
+    // Opt-in per-event probability vector over the WHOLE sender set, zero off
+    // the risk set: the shared max-shift helper already leaves disallowed
+    // entries at 0, so `weights / normalizer` is the actor-indexed vector the
+    // contract asks for with no scatter step. Allocated only when requested.
+    List event_probabilities(return_probabilities ? n_events : 0);
 
 
     // Check whether there are composition change and initialize
@@ -170,6 +176,11 @@ List estimate_DyNAM_rate_ordered(
             }
             margin_observed(id_sender) += 1;
         }
+        if (return_probabilities) {
+            arma::vec probabilities = weights / normalizer;
+            event_probabilities[id_event] =
+              NumericVector(probabilities.begin(), probabilities.end());
+        }
         expected_stat_current_event = (weights.t() * reduced_stat_mat) /
           normalizer;
         // derivative
@@ -199,7 +210,8 @@ List estimate_DyNAM_rate_ordered(
       Named("event_scores") = event_scores,
       Named("observed_rank") = observed_rank,
       Named("margin_observed") = margin_observed,
-      Named("margin_expected") = margin_expected
+      Named("margin_expected") = margin_expected,
+      Named("event_probabilities") = event_probabilities
     );
 }
 

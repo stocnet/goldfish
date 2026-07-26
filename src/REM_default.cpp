@@ -1,6 +1,7 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
 #include "flat_updates.h"
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -127,7 +128,8 @@ List estimate_REM(
     const bool return_event_scores = false,
     const bool return_ranks = false,
     const bool return_margins = false,
-    const bool return_total_rate = false
+    const bool return_total_rate = false,
+    const bool return_probabilities = false
 ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -177,6 +179,27 @@ List estimate_REM(
    // Allocated only when requested.
    arma::vec total_rate;
    if (return_total_rate) total_rate = arma::vec(n_events, fill::zeros);
+   // Opt-in probability-scale margins, beside the compensator-scale ones above.
+   // These sum the competing-risks probability that the dyad creates the next
+   // event, over DEPENDENT events only, so each side totals the event count at
+   // ANY parameter vector rather than only at the MLE. Allocated when requested.
+   arma::vec margin_probability_sender;
+   arma::vec margin_probability_receiver;
+   if (return_margins) {
+     margin_probability_sender = arma::vec(n_actors_1, fill::zeros);
+     margin_probability_receiver = arma::vec(n_actors_2, fill::zeros);
+   }
+   // Opt-in Cox partial-likelihood contribution log p_obs, the "which" half of
+   // the which/when split of the per-event log-likelihood. NA on a
+   // right-censored interval, which realizes no mover and so has no observed
+   // alternative to condition on. Allocated only when requested.
+   arma::vec conditional_logl;
+   if (return_total_rate) conditional_logl = arma::vec(n_events, fill::zeros);
+   // Opt-in per-event probability grid over the WHOLE dyad set, zero off the
+   // risk set. `weights` is flattened sender-major (dyad (i, j) at
+   // i * n_actors_2 + j) while an arma::mat fills column-major, so the n1 x n2
+   // grid is recovered by reshaping to n2 x n1 and transposing.
+   List event_probabilities(return_probabilities ? n_events : 0);
 
 
    // Check whether there are composition change and initialize
@@ -327,6 +350,46 @@ List estimate_REM(
          observed_rank[id_event] = rank;
        }
      }
+     // Quantities that enter as a ratio or as a log of the normalizer, from a
+     // max-shifted pass computed BESIDE the raw `e` above rather than replacing
+     // it. The likelihood's total rate must stay on the absolute scale — it
+     // enters as -Dt * T, so shifting it would be a different model, not a
+     // stabilization — and leaving the raw pass untouched is also what keeps
+     // every frozen coefficient exactly where it was. These three are
+     // shift-invariant, and are exact where the raw ratio silently returns 1
+     // (subnormal underflow) or NaN (overflow).
+     if (return_probabilities || return_margins || return_total_rate) {
+       arma::vec weights;
+       double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
+       double shifted_total = arma::sum(weights);
+       arma::vec probabilities = weights / shifted_total;
+       if (return_total_rate) {
+         conditional_logl(id_event) = NA_REAL;
+       }
+       if (is_dependent(id_event)) {
+         const int id_obs = id_sender * n_actors_2 + id_receiver;
+         if (return_total_rate) {
+           conditional_logl(id_event) = lin_pred(id_obs) - log_normalizer;
+         }
+         if (return_margins) {
+           // Probability scale, over dependent events only: this is the
+           // parallel-to-choice calibration map, so it must total the same set
+           // the observed sides count — events, not intervals.
+           for (int i = 0; i < n_actors_1; ++i) {
+             for (int j = 0; j < n_actors_2; j++) {
+               const double p = probabilities(i * n_actors_2 + j);
+               margin_probability_sender(i) += p;
+               margin_probability_receiver(j) += p;
+             }
+           }
+         }
+       }
+       if (return_probabilities) {
+         arma::mat grid =
+           arma::reshape(probabilities, n_actors_2, n_actors_1).t();
+         event_probabilities[id_event] = wrap(grid);
+       }
+     }
      if (return_event_scores) {
        event_scores.row(id_event) = derivative.row(0) - score_before;
      }
@@ -345,6 +408,10 @@ List estimate_REM(
      Named("margin_expected_sender") = margin_expected_sender,
      Named("margin_observed_receiver") = margin_observed_receiver,
      Named("margin_expected_receiver") = margin_expected_receiver,
-     Named("total_rate") = total_rate
+     Named("margin_probability_sender") = margin_probability_sender,
+     Named("margin_probability_receiver") = margin_probability_receiver,
+     Named("total_rate") = total_rate,
+     Named("conditional_logl") = conditional_logl,
+     Named("event_probabilities") = event_probabilities
    );
  }

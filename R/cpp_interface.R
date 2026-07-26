@@ -325,7 +325,8 @@ estimate_c_int <- function(
     need_scores,
     need_ranks = FALSE,
     need_margins = FALSE,
-    need_total_rate = FALSE
+    need_total_rate = FALSE,
+    need_probabilities = FALSE
   ) {
     estimate_(
       spec = spec,
@@ -352,7 +353,8 @@ estimate_c_int <- function(
       return_event_scores = need_scores,
       return_ranks = need_ranks,
       return_margins = need_margins,
-      return_total_rate = need_total_rate
+      return_total_rate = need_total_rate,
+      return_probabilities = need_probabilities
     )
   }
 
@@ -408,7 +410,8 @@ estimate_c_int <- function(
         return_event_scores,
         return_ranks,
         return_margins,
-        return_total_rate
+        return_total_rate,
+        returnEventProbabilities
       )
     }
 
@@ -426,11 +429,10 @@ estimate_c_int <- function(
     }
 
     if (returnEventProbabilities) {
-      eventProbabilities <- if (is.null(res$pMatrix)) {
-        paste("not implemented for model", spec$model, spec$sub_model)
-      } else {
-        res$pMatrix
-      }
+      # One per-event element, actor-indexed over the whole node set and zero
+      # off the risk set, in the same shape the r backend produces: a vector on
+      # the sender / receiver axes, an n1 x n2 grid on the dyad axes.
+      eventProbabilities <- res$event_probabilities
     }
 
     if (
@@ -864,7 +866,8 @@ estimate_ <- function(
   return_event_scores = FALSE,
   return_ranks = FALSE,
   return_margins = FALSE,
-  return_total_rate = FALSE
+  return_total_rate = FALSE,
+  return_probabilities = FALSE
 ) {
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
@@ -891,7 +894,8 @@ estimate_ <- function(
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
-      return_margins = return_margins
+      return_margins = return_margins,
+      return_probabilities = return_probabilities
     )
   }
 
@@ -914,7 +918,8 @@ estimate_ <- function(
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
-      return_margins = return_margins
+      return_margins = return_margins,
+      return_probabilities = return_probabilities
     )
   }
 
@@ -940,7 +945,8 @@ estimate_ <- function(
       active_dyad_is_point = active_dyad_is_point,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
-      return_margins = return_margins
+      return_margins = return_margins,
+      return_probabilities = return_probabilities
     )
   }
 
@@ -969,7 +975,8 @@ estimate_ <- function(
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
-      return_total_rate = return_total_rate
+      return_total_rate = return_total_rate,
+      return_probabilities = return_probabilities
     )
   }
 
@@ -997,7 +1004,8 @@ estimate_ <- function(
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
-      return_total_rate = return_total_rate
+      return_total_rate = return_total_rate,
+      return_probabilities = return_probabilities
     )
   }
 
@@ -1022,7 +1030,8 @@ estimate_ <- function(
       impute,
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
-      return_margins = return_margins
+      return_margins = return_margins,
+      return_probabilities = return_probabilities
     )
   }
   return(res)

@@ -32,7 +32,8 @@ List estimate_REM_ordered(
     const bool active_dyad_is_point = false,
     const bool return_event_scores = false,
     const bool return_ranks = false,
-    const bool return_margins = false
+    const bool return_margins = false,
+    const bool return_probabilities = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -72,6 +73,12 @@ List estimate_REM_ordered(
         margin_observed_receiver = arma::vec(n_actors_2, fill::zeros);
         margin_expected_receiver = arma::vec(n_actors_2, fill::zeros);
     }
+    // Opt-in per-event probability grid over the WHOLE dyad set, zero off the
+    // risk set (the max-shift helper leaves masked dyads at 0). `weights` is
+    // flattened sender-major (dyad (i, j) at i * n_actors_2 + j) while an
+    // arma::mat fills column-major, so the n1 x n2 grid is recovered by
+    // reshaping to n2 x n1 and transposing. Allocated only when requested.
+    List event_probabilities(return_probabilities ? n_events : 0);
 
     // Check whether there are composition change and initialize
     // the presence of actor1 and actor2
@@ -200,6 +207,11 @@ List estimate_REM_ordered(
             margin_observed_sender(id_sender) += 1;
             margin_observed_receiver(id_receiver) += 1;
         }
+        if (return_probabilities) {
+            arma::mat probabilities =
+              arma::reshape(weights / normalizer, n_actors_2, n_actors_1).t();
+            event_probabilities[id_event] = wrap(probabilities);
+        }
         expected_stat_current_event = (weights.t() * stat_mat) / normalizer;
         // derivative
         arma::rowvec score_before;
@@ -229,6 +241,7 @@ List estimate_REM_ordered(
       Named("margin_observed_sender") = margin_observed_sender,
       Named("margin_expected_sender") = margin_expected_sender,
       Named("margin_observed_receiver") = margin_observed_receiver,
-      Named("margin_expected_receiver") = margin_expected_receiver
+      Named("margin_expected_receiver") = margin_expected_receiver,
+      Named("event_probabilities") = event_probabilities
     );
 }

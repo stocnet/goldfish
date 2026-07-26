@@ -1,6 +1,7 @@
 #include <RcppArmadillo.h>
 #include "broadcast_updates.h"
 #include "flat_updates.h"
+#include "log_sum_exp.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 using namespace arma;
@@ -40,7 +41,8 @@ inline arma::mat reduce_mat_to_vector(
      const bool return_event_scores = false,
      const bool return_ranks = false,
      const bool return_margins = false,
-     const bool return_total_rate = false
+     const bool return_total_rate = false,
+     const bool return_probabilities = false
  ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -86,6 +88,21 @@ inline arma::mat reduce_mat_to_vector(
    // evaluation pass. Allocated only when requested.
    arma::vec total_rate;
    if (return_total_rate) total_rate = arma::vec(n_events, fill::zeros);
+   // Opt-in probability-scale margins, beside the compensator-scale ones above.
+   // `expected[s]` sums the competing-risks probability that s creates the next
+   // event, over DEPENDENT events only, so it totals the event count at ANY
+   // parameter vector rather than only at the MLE. Allocated only when requested.
+   arma::vec margin_probability;
+   if (return_margins) margin_probability = arma::vec(n_actors_1, fill::zeros);
+   // Opt-in Cox partial-likelihood contribution log p_obs, the "which" half of
+   // the which/when split of the per-event log-likelihood. NA on a
+   // right-censored interval, which realizes no mover and so has no observed
+   // alternative to condition on. Allocated only when requested.
+   arma::vec conditional_logl;
+   if (return_total_rate) conditional_logl = arma::vec(n_events, fill::zeros);
+   // Opt-in per-event probability vector over the WHOLE sender set, zero off
+   // the risk set. Allocated only when requested.
+   List event_probabilities(return_probabilities ? n_events : 0);
 
    // Check whether there are composition change and initialize
    // the presence of actor1 and actor2
@@ -216,6 +233,37 @@ inline arma::mat reduce_mat_to_vector(
        if (return_margins) margin_observed(id_sender) += 1;
      }
      if (do_rank) observed_rank[id_event] = rank;
+     // Quantities that enter as a ratio or as a log of the normalizer, from a
+     // max-shifted pass computed BESIDE the raw one above rather than replacing
+     // it. The likelihood's total rate must stay on the absolute scale — it
+     // enters as -Dt * T, so shifting it would be a different model, not a
+     // stabilization — and leaving the raw pass untouched is also what keeps
+     // every frozen coefficient exactly where it was. These three are
+     // shift-invariant, and are exact where the raw ratio silently returns 1
+     // (subnormal underflow) or NaN (overflow).
+     if (return_probabilities || return_margins || return_total_rate) {
+       arma::vec lin_pred = reduce_stat_mat * parameters;
+       arma::vec weights;
+       double log_normalizer =
+         log_sum_exp_masked(lin_pred, active_sender, weights);
+       double shifted_total = arma::sum(weights);
+       arma::vec probabilities = weights / shifted_total;
+       if (return_total_rate) {
+         conditional_logl(id_event) = is_dependent(id_event)
+           ? lin_pred(id_sender) - log_normalizer
+           : NA_REAL;
+       }
+       if (return_margins && is_dependent(id_event)) {
+         // Probability scale, over dependent events only: this is the
+         // parallel-to-choice calibration map, so it must total the same set
+         // `margin_observed` counts — events, not intervals.
+         margin_probability += probabilities;
+       }
+       if (return_probabilities) {
+         event_probabilities[id_event] =
+           NumericVector(probabilities.begin(), probabilities.end());
+       }
+     }
      if (return_event_scores) {
        event_scores.row(id_event) = derivative.row(0) - score_before;
      }
@@ -232,7 +280,10 @@ inline arma::mat reduce_mat_to_vector(
      Named("observed_rank") = observed_rank,
      Named("margin_observed") = margin_observed,
      Named("margin_expected") = margin_expected,
-     Named("total_rate") = total_rate
+     Named("margin_probability") = margin_probability,
+     Named("total_rate") = total_rate,
+     Named("conditional_logl") = conditional_logl,
+     Named("event_probabilities") = event_probabilities
    );
  }
 

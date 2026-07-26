@@ -724,6 +724,108 @@ test_that("per-event probability length is constant under composition change", {
   expect_equal(vapply(fit$eventProbabilities, sum, numeric(1)), rep(1, 215))
 })
 
+test_that("cpp per-event probabilities match the r backend", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+  families <- c(
+    "se_dynam_rate",
+    "se_dynam_rate_ordered",
+    "se_dynam_choice",
+    "se_rem",
+    "se_rem_ordered"
+  )
+  for (nm in families) {
+    spec <- grid[[nm]]
+    fc <- parity_fit(
+      spec,
+      data_list,
+      diagnostics = c("loglik", "probabilities")
+    )
+    fr <- parity_fit(
+      spec,
+      data_list,
+      backend = "r",
+      diagnostics = c("loglik", "probabilities"),
+      initial_parameters = fc$parameters,
+      max_iterations = 0
+    )
+    expect_equal(
+      lapply(fc$eventProbabilities, as.numeric),
+      lapply(fr$eventProbabilities, as.numeric),
+      tolerance = 1e-10,
+      info = nm
+    )
+    # The same softmax on the same predictors, so the per-event totals hold to
+    # machine precision on every family (D16's next-event probability).
+    expect_equal(
+      vapply(fc$eventProbabilities, sum, numeric(1)),
+      rep(1, fc$nEvents),
+      info = nm
+    )
+  }
+})
+
+test_that("the cpp exact-time kernels carry the conditional loglik component", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  # The Cox partial-likelihood contribution log p_obs. The cpp kernels compute
+  # it from a max-shifted pass added beside the raw one -- the same `x_obs - lse`
+  # form the gather kernel uses -- so the three backends agree exactly rather
+  # than only where nothing over- or underflows.
+  formula <- depNetwork ~ 1 + indeg(networkExog)
+  fit_at <- function(backend, initial = NULL, iterations = 1) {
+    suppressWarnings(suppressMessages(estimate_wrapper(
+      formula,
+      model = "DyNAM",
+      sub_model = "rate",
+      data = dataTest,
+      control_algo = set_algorithm_newton(
+        backend = backend,
+        diagnostics = c("loglik", "margins"),
+        initial_parameters = initial,
+        max_iterations = iterations
+      )
+    )))
+  }
+  fc <- fit_at("cpp")
+  fr <- fit_at("r", fc$parameters, 0)
+  fg <- fit_at("gather", fc$parameters, 0)
+
+  # Precondition: without a right-censored interval the NA contract below is
+  # vacuous, and this fixture is the one that produces them (an effect on an
+  # exogenous network turns its events into intervals with no mover).
+  censored <- fc$right_censored_events
+  expect_gt(sum(censored), 0L)
+
+  expect_false(is.null(fc$conditional_logl))
+  expect_equal(is.na(fc$conditional_logl), unname(censored))
+  dependent <- !censored
+  expect_equal(
+    fc$conditional_logl[dependent],
+    fr$conditional_logl[dependent],
+    tolerance = 1e-10
+  )
+  expect_equal(
+    fc$conditional_logl[dependent],
+    fg$conditional_logl[dependent],
+    tolerance = 1e-10
+  )
+  # Exact-time margins now carry BOTH scales on cpp, so its component set
+  # matches the r backend's rather than trailing it by one.
+  expect_named(fc$margins, names(fr$margins))
+  expect_equal(
+    fc$margins$expected_probability,
+    fr$margins$expected_probability,
+    tolerance = 1e-10
+  )
+  # The probability scale totals the event count at ANY parameter vector,
+  # which is what makes it the calibration map; the compensator scale does so
+  # only at the MLE.
+  expect_equal(sum(fc$margins$expected_probability), sum(dependent))
+})
+
 test_that("a right-censored interval's NA rank is not read as a failure", {
   # `observed_rank` is allocated NA-filled and written only for dependent
   # events, so any model with a right-censored interval leaves NAs behind when
