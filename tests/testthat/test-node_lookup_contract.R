@@ -14,13 +14,23 @@ lookup_labels <- function(lookup, index, side) {
 
 test_that("a per-event index resolves to one node row and label", {
   data("social_evolution", envir = environment())
-  fit <- estimate_dynam(
+  # `"probabilities"` must be requested (it is not in the default `diagnostics`
+  # set) and the component is spelled `eventProbabilities`. Reading the wrong
+  # name yields NULL, and `seq_along(NULL)` is `integer(0)`, which would make
+  # the resolution check below pass over an empty set of positions.
+  # suppressWarnings() covers exactly one expected condition: the
+  # storage-footprint guardrail warns by design when probabilities are
+  # requested.
+  fit <- suppressWarnings(estimate_dynam(
     calls ~ inertia + recip,
     sub_model = "choice",
     data = social_evolution,
+    control_algo = set_algorithm_newton(
+      diagnostics = c("loglik", "scores", "probabilities")
+    ),
     progress = FALSE,
     verbose = FALSE
-  )
+  ))
 
   lookup <- fit$node_lookup
   expect_named(lookup, c("side", "local", "global", "label"))
@@ -29,7 +39,8 @@ test_that("a per-event index resolves to one node row and label", {
   # declared axis resolves against it.
   expect_identical(risk_set_axis(fit), "receiver_given_sender")
   expect_setequal(lookup$side, 1L)
-  positions <- seq_along(fit$event_probabilities[[1]])
+  positions <- seq_along(fit$eventProbabilities[[1]])
+  expect_gt(length(positions), 1L)
   expect_false(anyNA(lookup_labels(lookup, positions, 1L)))
   # Exactly one row per local index -- a join, not a many-to-one collapse.
   expect_equal(anyDuplicated(lookup$local[lookup$side == 1L]), 0L)
@@ -41,14 +52,17 @@ test_that("both sides resolve on a two-mode fit", {
   # latter is collinear under a full choice fit, and this scenario needs a
   # genuinely fitted object, not a preprocessed one.
   data <- as_goldfish(readRDS(test_path("fixtures", "irps_nuclear_subset.rds")))
-  fit <- estimate_dynam(
+  fit <- suppressWarnings(estimate_dynam(
     make_specification(
       choice = list(modeled ~ indeg(support) + indeg(contestation)),
       model = "DyNAM",
       choice_sub_model = "choice",
       data = data
+    ),
+    control_algo = set_algorithm_newton(
+      diagnostics = c("loglik", "scores", "probabilities")
     )
-  )
+  ))
 
   lookup <- fit$node_lookup
   expect_named(lookup, c("side", "local", "global", "label"))
@@ -64,7 +78,8 @@ test_that("both sides resolve on a two-mode fit", {
   expect_equal(side1$label, data$nodes$label[side1$global])
   expect_equal(side2$label, data$nodes$label[side2$global])
   # A receiver position on the choice axis resolves on side 2, independently.
-  positions <- seq_along(fit$event_probabilities[[1]])
+  positions <- seq_along(fit$eventProbabilities[[1]])
+  expect_gt(length(positions), 1L)
   expect_false(anyNA(lookup_labels(lookup, positions, 2L)))
 })
 
@@ -109,18 +124,28 @@ test_that("a node-subset fit resolves local back to the original global row", {
 
 test_that("per-event components carry no per-event copy of the node labels", {
   data("social_evolution", envir = environment())
-  fit <- estimate_dynam(
+  fit <- suppressWarnings(estimate_dynam(
     calls ~ inertia + recip,
     sub_model = "choice",
     data = social_evolution,
+    control_algo = set_algorithm_newton(
+      diagnostics = c("loglik", "scores", "probabilities")
+    ),
     progress = FALSE,
     verbose = FALSE
-  )
+  ))
 
   # The storage property the resolution contract rests on. If someone
   # "helpfully" adds names() here, the one-table-per-fit mapping becomes one
   # copy per event and this fails.
-  expect_null(names(fit$event_probabilities[[1]]))
-  expect_null(names(fit$event_probabilities[[length(fit$event_probabilities)]]))
+  #
+  # The components must be present for the assertion to mean anything: an
+  # absent component is NULL, and `names(NULL)` is also NULL, so this would
+  # pass on a fit that stored nothing at all.
+  probabilities <- fit$eventProbabilities
+  expect_gt(length(probabilities), 1L)
+  expect_false(is.null(fit$event_scores))
+  expect_null(names(probabilities[[1]]))
+  expect_null(names(probabilities[[length(probabilities)]]))
   expect_null(rownames(fit$event_scores))
 })

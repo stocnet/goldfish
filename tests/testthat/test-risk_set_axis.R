@@ -6,26 +6,39 @@
 
 test_that("same-length per-event vectors from two axes are distinguishable", {
   data("social_evolution", envir = environment())
-  rate <- estimate_dynam(
+  # `"probabilities"` is NOT in the default `diagnostics` set, and the stored
+  # component is spelled `eventProbabilities` while its neighbours are
+  # snake_case. Reading the wrong name gives NULL, and `NULL[[1]]` is NULL
+  # rather than an error, so the length comparison below would silently compare
+  # 0 to 0 and prove nothing. Both are load-bearing here.
+  with_probabilities <- set_algorithm_newton(
+    diagnostics = c("loglik", "scores", "probabilities")
+  )
+  # suppressWarnings() covers exactly one expected condition: the
+  # storage-footprint guardrail warns by design whenever probabilities are
+  # requested. These tests assert nothing about warnings.
+  rate <- suppressWarnings(estimate_dynam(
     calls ~ 1 + indeg + outdeg,
     sub_model = "rate",
     data = social_evolution,
+    control_algo = with_probabilities,
     progress = FALSE,
     verbose = FALSE
-  )
-  choice <- estimate_dynam(
+  ))
+  choice <- suppressWarnings(estimate_dynam(
     calls ~ inertia + recip,
     sub_model = "choice",
     data = social_evolution,
+    control_algo = with_probabilities,
     progress = FALSE,
     verbose = FALSE
-  )
+  ))
 
-  # The premise: identical length, so length alone cannot tell them apart.
-  expect_equal(
-    length(rate$event_probabilities[[1]]),
-    length(choice$event_probabilities[[1]])
-  )
+  # The premise: identical, non-trivial length, so length alone cannot tell the
+  # two axes apart.
+  rate_length <- length(rate$eventProbabilities[[1]])
+  expect_gt(rate_length, 1L)
+  expect_equal(length(choice$eventProbabilities[[1]]), rate_length)
   expect_identical(risk_set_axis(rate), "sender")
   expect_identical(risk_set_axis(choice), "receiver_given_sender")
 })
