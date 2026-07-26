@@ -34,3 +34,4 @@ openspec/changes/*/progress.md
 !.plan/goldfish_versions.csv
 !.plan/profile_goldfish.R
 !.plan/opsx-archive-track.sh
+!.plan/opsx-spec-placement-check.sh
