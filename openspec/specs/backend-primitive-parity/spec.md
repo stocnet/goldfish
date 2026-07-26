@@ -1,7 +1,8 @@
-# backend-primitive-parity (delta)
+# backend-primitive-parity Specification
 
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change backend-parity. Update Purpose after archive.
+## Requirements
 ### Requirement: Every backend computes the same per-event reduction inputs
 Every estimation backend SHALL form, at each event, the probability vector
 `p_e` over that event's risk set together with a scalar scale `c_e`, such that
@@ -111,7 +112,9 @@ return per-event probabilities without redirecting to another backend.
 next-event probabilities, summing to 1 per event, on exact-time sub-models.
 On exact-time sub-models the `loglik` primitive SHALL include, on every
 backend, the per-event `total_rate` and the conditional component (the
-per-event log next-event probability), and the `margins` primitive SHALL
+per-event log next-event probability — defined on dependent events;
+right-censored intervals SHALL carry `NA`, as SHALL `observed_rank` there,
+identically on every backend), and the `margins` primitive SHALL
 carry both labeled scale variants (probability and expected-count) as
 defined by the diagnostic-primitives capability. The per-event storage
 guardrail SHALL continue to govern the cost of `probabilities` on every
@@ -140,7 +143,17 @@ backend.
   `gather` with the `loglik` primitive requested
 - **THEN** each fit carries the per-event `total_rate` and the conditional
   log-probability component, and the three backends' vectors agree within
-  1e-10 at a fixed parameter vector.
+  1e-10 at a fixed parameter vector, with `NA` at exactly the right-censored
+  positions on every backend.
+
+#### Scenario: primitives undefined on right-censored intervals carry NA
+- **WHEN** an exact-time fit whose data carries at least one right-censored
+  interval (asserted as a fixture precondition) stores `ranks` and `loglik`
+  on any backend
+- **THEN** `observed_rank` and the conditional component are `NA` at exactly
+  the right-censored positions — never a placeholder value — and estimation
+  under iteration completes, the by-design `NA`s passing the single shared
+  guard rather than any ad-hoc `is.na` scan.
 
 #### Scenario: the conditional component is computed from the log-normalizer
 - **WHEN** the conditional log-probability is stored for an exact-time fit
