@@ -181,6 +181,11 @@ additional parameter description.}
 that produced the fit (\code{"cpp"}, \code{"r"} or \code{"gather"}), after any
 estimation-time redirect. Absent on objects fitted before goldfish 2.0.0;
 consumers treat a missing value as an unknown backend.}
+\item{risk_set_axis}{a character value naming the axis a position in any
+per-event diagnostic component refers to: \code{"sender"},
+\code{"receiver_given_sender"}, \code{"dyad"} or \code{"dyad_symmetric"}. Read it with
+\code{\link[=risk_set_axis]{risk_set_axis()}}, which documents the four values and how each joins to
+\code{node_lookup}. Absent on objects fitted before goldfish 2.0.0.}
 \item{right_censored}{
 a logical value indicating if the estimation process considered
 right-censored events.

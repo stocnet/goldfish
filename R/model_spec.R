@@ -120,8 +120,81 @@ risk_set_descriptor <- function(indexing, sub_model, is_two_mode) {
   )
 }
 
-#' @noRd
-risk_set_axis <- function(spec) spec$risk_set$axis
+#' Risk-set axis of a fitted model or a model specification
+#'
+#' The axis that gives meaning to a position in a per-event diagnostic component
+#' — `event_probabilities`, `event_scores`, ranks, margins. Two fits over the
+#' same node set can return per-event vectors of identical length that index
+#' different things: on a DyNAM-rate model position `i` is a *sender*, on a
+#' DyNAM-choice model it is a *receiver given the sender*. The axis is what
+#' distinguishes them, so a consumer resolves an index without re-deriving the
+#' model family from `model` / `sub_model`.
+#'
+#' Join a per-event index to the fit's `node_lookup` on the side the axis names:
+#' side 1 for `"sender"`, side 2 for `"receiver_given_sender"` on a two-mode
+#' model. A one-mode model draws both dyad axes from side 1, because its sender
+#' and receiver sets are the same nodes, so its lookup carries side 1 only.
+#'
+#' @param x a fitted model of class `"result.goldfish"` (from
+#'   [estimate_dynam()], [estimate_rem()]), a preprocessed object, or a model
+#'   specification.
+#'
+#' @return A length-one character vector, one of:
+#'   \describe{
+#'     \item{`"sender"`}{rate models — the risk set is the sender set, so a
+#'       per-event position is an actor who could have acted.}
+#'     \item{`"receiver_given_sender"`}{choice models — one sender's receiver
+#'       row, so a per-event position is a candidate receiver.}
+#'     \item{`"dyad"`}{REM, REM-ordered and two-mode coordination — the full
+#'       ordered dyad grid.}
+#'     \item{`"dyad_symmetric"`}{one-mode coordination — the dyad matrix
+#'       symmetrized for the mutual likelihood, so a position names an
+#'       unordered pair.}
+#'   }
+#'   `NULL` for a fit produced before goldfish 2.0.0, which did not record it;
+#'   consumers treat a missing value as an unknown axis, as they do for
+#'   `backend`.
+#'
+#' @examples
+#' data("social_evolution")
+#' rate <- estimate_dynam(
+#'   calls ~ 1 + indeg + outdeg,
+#'   sub_model = "rate",
+#'   data = social_evolution
+#' )
+#' choice <- estimate_dynam(
+#'   calls ~ inertia + recip,
+#'   sub_model = "choice",
+#'   data = social_evolution
+#' )
+#' # Same node set, same per-event length, different meaning.
+#' risk_set_axis(rate)
+#' risk_set_axis(choice)
+#'
+#' @seealso [estimate_dynam()] for the fitted object's other components.
+#' @export
+risk_set_axis <- function(x) {
+  # Three shapes carry the axis: a model spec has the `risk_set` descriptor, a
+  # fit has the resolved `risk_set_axis` copied onto it at assembly, and a
+  # preprocessed object has the spec it was built from. Specs come first because
+  # every internal caller passes one.
+  #
+  # Matched by name with `[[`, never `$`: `$risk_set` on a FIT would partially
+  # match its `risk_set_axis` component and return the axis string, which then
+  # fails on `$axis`. Testing membership first also keeps a pre-2.0.0 fit
+  # carrying none of the three on the NULL path rather than a subscript error.
+  nms <- names(x)
+  if ("risk_set" %in% nms) {
+    return(x[["risk_set"]][["axis"]])
+  }
+  if ("risk_set_axis" %in% nms) {
+    return(x[["risk_set_axis"]])
+  }
+  if ("model_spec" %in% nms) {
+    return(x[["model_spec"]][["risk_set"]][["axis"]])
+  }
+  NULL
+}
 
 #' @noRd
 risk_set_normalizer <- function(spec) spec$risk_set$normalizer

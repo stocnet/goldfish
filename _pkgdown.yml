@@ -54,6 +54,7 @@ reference:
     contents:
       - logLik.result.goldfish
       - starts_with("diagnose")
+      - risk_set_axis
   - title: "Data"
     desc: |
       The package contains several datasets that are used in vignettes

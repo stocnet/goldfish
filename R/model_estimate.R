@@ -166,6 +166,11 @@
 #'   that produced the fit (`"cpp"`, `"r"` or `"gather"`), after any
 #'   estimation-time redirect. Absent on objects fitted before goldfish 2.0.0;
 #'   consumers treat a missing value as an unknown backend.}
+#'   \item{risk_set_axis}{a character value naming the axis a position in any
+#'   per-event diagnostic component refers to: `"sender"`,
+#'   `"receiver_given_sender"`, `"dyad"` or `"dyad_symmetric"`. Read it with
+#'   [risk_set_axis()], which documents the four values and how each joins to
+#'   `node_lookup`. Absent on objects fitted before goldfish 2.0.0.}
 #'   \item{right_censored}{
 #'   a logical value indicating if the estimation process considered
 #'   right-censored events.
@@ -2230,6 +2235,11 @@ estimate_wrapper <- function(
   # Post-estimation consumers gate primitive availability on this, so it must be
   # what produced the numbers, not what was requested.
   result$backend <- backend
+  # The axis a per-event diagnostic index refers to. Recoverable from
+  # `model_spec`, but only through an accessor a user cannot call on the fit;
+  # recording it here is what makes an index interpretable through documented
+  # surface, the same reason `backend` is recorded above.
+  result$risk_set_axis <- risk_set_axis(model_spec)
   result$right_censored <- has_intercept
   result$nParams <- sum(!GetFixed(result))
   # Reconstruct the call for printing. On the direct path `sys.call(-1L)` is the
