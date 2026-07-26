@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: DyNAMi preprocessing runs through the shared recipe architecture
 
