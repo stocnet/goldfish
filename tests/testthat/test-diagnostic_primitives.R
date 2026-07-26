@@ -445,11 +445,11 @@ test_that("large per-event storage emits a footprint note above the threshold", 
   )
 })
 
-# Cross-backend parity: the in-pass cpp ranks and margins must equal the
-# independent quantities the default R engine computes from its per-event
-# probability matrix. Both engines are evaluated at the SAME parameter vector
-# (cpp's MLE, pinned on the r backend via max_iterations = 0) so the
-# parity is machine-precision rather than the coarser cross-engine tolerance.
+# Cross-backend parity: the in-pass ranks and margins of the cpp and r backends
+# are the same reduction over the same per-event weights, so they must agree
+# natively -- no reconstruction in between. Both backends are evaluated at the
+# SAME parameter vector (cpp's MLE, pinned on r via max_iterations = 0) so the
+# parity is machine-precision rather than the coarser cross-backend tolerance.
 parity_fit <- function(spec, data_list, ...) {
   ctrl <- do.call(set_algorithm_newton, list(...))
   args <- list(
@@ -470,7 +470,7 @@ parity_fit <- function(spec, data_list, ...) {
   }
 }
 
-test_that("cpp ranks match the r backend at the same parameters", {
+test_that("r ranks match cpp at the same parameters (multinomial)", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
   data_list <- list(social_evolution = baselines_social_evolution_data())
@@ -478,44 +478,91 @@ test_that("cpp ranks match the r backend at the same parameters", {
   for (nm in c("se_dynam_choice", "se_dynam_rate_ordered", "se_rem_ordered")) {
     spec <- grid[[nm]]
     fc <- parity_fit(spec, data_list, diagnostics = c("loglik", "ranks"))
-    fd <- parity_fit(
+    fr <- parity_fit(
       spec,
       data_list,
       backend = "r",
-      return_probabilities = TRUE,
+      diagnostics = c("loglik", "ranks"),
       initial_parameters = fc$parameters,
       max_iterations = 0
     )
-    expect_equal(fc$observed_rank, ranks_from_probabilities(fd), info = nm)
+    # A count of strict inequalities on both sides: exact, not toleranced.
+    expect_equal(fr$observed_rank, fc$observed_rank, info = nm)
   }
 })
 
-test_that("cpp margins match the r backend at the same parameters", {
+test_that("r margins match cpp at the same parameters (multinomial)", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
   data_list <- list(social_evolution = baselines_social_evolution_data())
   grid <- baselines_model_grid()
-  # Single-sided multinomial margins are the column sums of the default engine's
-  # per-event probability vectors (receiver for choice, sender for ordered rate).
-  for (nm in c("se_dynam_choice", "se_dynam_rate_ordered")) {
+  # choice and rate_ordered are single-sided (receiver / sender); REM_ordered is
+  # two-sided, a geometry the probability-matrix reconstruction could not reach.
+  for (nm in c("se_dynam_choice", "se_dynam_rate_ordered", "se_rem_ordered")) {
     spec <- grid[[nm]]
     fc <- parity_fit(spec, data_list, diagnostics = c("loglik", "margins"))
-    fd <- parity_fit(
+    fr <- parity_fit(
       spec,
       data_list,
       backend = "r",
-      return_probabilities = TRUE,
+      diagnostics = c("loglik", "margins"),
       initial_parameters = fc$parameters,
       max_iterations = 0
     )
-    expected_from_prob <- Reduce(`+`, fd$eventProbabilities)
-    expect_equal(
-      fc$margins$expected,
-      expected_from_prob,
-      tolerance = 1e-9,
-      info = nm
-    )
+    expect_named(fr$margins, names(fc$margins), info = nm)
+    for (field in names(fc$margins)) {
+      expect_equal(
+        fr$margins[[field]],
+        fc$margins[[field]],
+        tolerance = 1e-10,
+        info = paste(nm, field)
+      )
+    }
   }
+})
+
+# Both backends now run the same shared reduction, so agreeing with each other
+# cannot rule out a shared mistake inside it. One fixture keeps the original
+# reconstruction from the per-event probability matrix as an independent third
+# expectation: it recomputes ranks and margins outside the reduction entirely,
+# from probabilities the estimator stores rather than from the accumulators.
+test_that("probability-matrix reconstruction confirms both backends (choice)", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  spec <- baselines_model_grid()[["se_dynam_choice"]]
+
+  fc <- parity_fit(
+    spec,
+    data_list,
+    diagnostics = c("loglik", "ranks", "margins")
+  )
+  fr <- parity_fit(
+    spec,
+    data_list,
+    backend = "r",
+    diagnostics = c("loglik", "ranks", "margins"),
+    initial_parameters = fc$parameters,
+    max_iterations = 0
+  )
+  fp <- parity_fit(
+    spec,
+    data_list,
+    backend = "r",
+    return_probabilities = TRUE,
+    initial_parameters = fc$parameters,
+    max_iterations = 0
+  )
+
+  reconstructed_ranks <- ranks_from_probabilities(fp)
+  expect_equal(fc$observed_rank, reconstructed_ranks)
+  expect_equal(fr$observed_rank, reconstructed_ranks)
+
+  # Single-sided multinomial expected margins are the column sums of the
+  # per-event probability vectors (receiver for choice).
+  reconstructed_margins <- Reduce(`+`, fp$eventProbabilities)
+  expect_equal(fc$margins$expected, reconstructed_margins, tolerance = 1e-9)
+  expect_equal(fr$margins$expected, reconstructed_margins, tolerance = 1e-9)
 })
 
 # The r backend accumulates ranks and margins in its contribution loop from the
