@@ -218,9 +218,12 @@ baselines_fit <- function(spec, backend, data_list) {
   }
 }
 
-# Worker count for parallel baseline fitting. Serial on Windows (no fork) and
-# for a tiny grid; otherwise detectCores(), overridable via TESTTHAT_CPUS. The
-# baseline blocks are skip_on_cran(), so CRAN's 2-core limit does not apply.
+# Worker count for parallel baseline fitting. Serial on Windows (no fork), when
+# `parallel` is not installed (it is only Suggests -- these helpers are its sole
+# consumer, so requiring it would make every user install it just to fit a
+# model), and for a tiny grid; otherwise detectCores(), overridable via
+# TESTTHAT_CPUS. The baseline blocks are skip_on_cran(), so CRAN's 2-core limit
+# does not apply.
 baselines_cores <- function(n_jobs) {
   if (.Platform$OS.type == "windows") {
     return(1L)
@@ -228,8 +231,10 @@ baselines_cores <- function(n_jobs) {
   env <- Sys.getenv("TESTTHAT_CPUS", "")
   n <- if (nzchar(env)) {
     suppressWarnings(as.integer(env))
-  } else {
+  } else if (requireNamespace("parallel", quietly = TRUE)) {
     parallel::detectCores()
+  } else {
+    1L
   }
   if (is.na(n) || n < 1L) {
     n <- 1L
@@ -277,7 +282,9 @@ baselines_precompute_fits <- function(
     )
   }
   cores <- baselines_cores(nrow(keys))
-  results <- if (cores > 1L) {
+  # baselines_cores() already returns 1 when `parallel` is absent, so the guard
+  # here covers a TESTTHAT_CPUS override on a machine that lacks it.
+  results <- if (cores > 1L && requireNamespace("parallel", quietly = TRUE)) {
     parallel::mclapply(
       seq_len(nrow(keys)),
       fit_cell,

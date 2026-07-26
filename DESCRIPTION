@@ -65,7 +65,8 @@ Suggests:
     RSQLite,
     ggplot2,
     maxLik,
-    mitools
+    mitools,
+    parallel
 VignetteBuilder: knitr 
 LazyData: true
 Roxygen: list(markdown = TRUE)
