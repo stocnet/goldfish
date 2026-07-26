@@ -1,3 +1,68 @@
+# goldfish 1.9.16
+
+* **BREAKING** -- **every component of every object goldfish returns is now
+  snake_case.** The 1.7.0 renames retired camelCase from the exported function
+  API but never swept the returned objects, so a single fitted model carried
+  `logLikelihood` beside `event_scores`. A reader could not predict which
+  convention a component followed, and reading the wrong spelling yields `NULL`
+  rather than an error -- silently, because `NULL[[i]]` is `NULL` again, so code
+  written against a wrong name runs and reports nothing.
+
+  On a fitted model: `standardErrors` becomes `standard_errors`,
+  `logLikelihood` becomes `log_likelihood`, `finalScore` becomes `final_score`,
+  `finalInformationMatrix` becomes `final_information_matrix`, `nIterations`
+  becomes `n_iterations`, `nEvents` becomes `n_events`, `nParams` becomes
+  `n_params`, `intervalLogL` becomes `interval_log_lik`, `eventProbabilities`
+  becomes `event_probabilities`, and `sizeIntermediate` becomes
+  `size_intermediate`.
+
+  In the nested `convergence` report, where four of the five components were
+  camelCase and one was not: `isConverged` becomes `is_converged`, `returnCode`
+  becomes `return_code`, `maxAbsScore` becomes `max_abs_score`, and
+  `maxAbsUpdate` becomes `max_abs_update`. `score_rel_norm` is unchanged.
+
+  `summary()` now returns `coef_mat` rather than `coefMat`. `augment()` now
+  returns the columns `interval_log_lik` and `right_censored_event` rather than
+  `intervalLogL` and `rightCensoredEvent`.
+
+  On a `gather_model_data()` export: `namesEffects` becomes `names_effects` and
+  `isDependent` becomes `is_dependent`.
+
+  On a preprocessed object: `initialStats` becomes `initial_stats`,
+  `dependentStatsChange` becomes `dependent_stats_change`,
+  `rightCensoredStatsChange` becomes `right_censored_stats_change`,
+  `rightCensoredIntervals` becomes `right_censored_intervals`, `orderEvents`
+  becomes `order_events`, `startTime` becomes `start_time`, and `endTime`
+  becomes `end_time`.
+
+* **The old component names stop working immediately, rather than after a
+  deprecation period.** This is deliberate, not an oversight. A fitted object
+  from the last CRAN release (1.6.12) is already unusable for reasons unrelated
+  to spelling: the 1.7.0 renames left it without components the current methods
+  require, so its `summary()` fails and its `logLik()` returns a value carrying
+  no degrees of freedom, which makes `AIC()` and `BIC()` report wrong numbers
+  without saying so. Keeping the old spellings alive would have preserved
+  `fit$logLikelihood` on an object whose model comparison is silently wrong,
+  and would have cost permanent bookkeeping to do it.
+
+* A fitted model now records `format_version`, the layout of the object it was
+  built with, so an older fit is recognized rather than met with an internal
+  error. `print()` reports that the object predates the current version and
+  still shows the coefficients it can; `summary()`, `logLik()`, `vcov()`,
+  `augment()` and the `AIC()` / `BIC()` path fail with the same explanation,
+  because returning a number whose degrees of freedom are unknown is worse than
+  refusing. `coef()` is unaffected -- `parameters` was never renamed.
+
+* A preprocessed object stored by an earlier version is refused with a message
+  telling you to recompute it, via the format counter that already guarded the
+  preprocessing shape.
+
+* The internal model-specification constructor no longer carries the reserved
+  `engine` parameter. It accepted only its default and aborted on every other
+  value, reserving an incremental estimation variant that was never
+  implemented, and it reintroduced `engine` -- the vocabulary replaced by
+  `backend`.
+
 # goldfish 1.9.15
 
 * `risk_set_axis()` is a new exported accessor reporting which axis a position in
