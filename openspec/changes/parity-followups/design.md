@@ -180,6 +180,20 @@ and the six copies are exactly what the shared header exists to remove).
 Rejected: keeping the conditioning justification (the measurement contradicts
 it, and a spec asserting it would be false).
 
+**Measured after the fold landed (2026-07-26).** One further expectation
+attached to this decision did not survive either, and is recorded so it is not
+re-asserted. Task 3.3 expected cross-backend agreement on the stored scores to
+*shrink*, on the grounds that `r` and `gather` already used the direct form and
+this brought the third backend to them. Measured across the twelve baseline
+cells: six comparisons shrank, two were unchanged, four grew — all within the
+same order of magnitude, all still at or under 3.8e-12. The premise about `r`
+was right (`R/estimation_core.R:2196` computes directly), but "direct in R" and
+"direct in C++" remain two implementations over different BLAS paths, so
+cross-backend agreement is floating-point-limited at ~1e-12 regardless of which
+form each uses, and the difference form was already inside that band. There was
+no gap to close. The decision's own justification — one implementation instead
+of six — is unaffected and was delivered.
+
 ### D5 — the summation-order invariant gets a test where one is portable, and honesty where it is not
 
 `DyNAM_rate_default` stores the doubles its loop already computed rather than
