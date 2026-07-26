@@ -306,28 +306,28 @@ estimate_int_impl <- function(
   # define, type and return result
   estimationResult <- list(
     parameters = parameters,
-    standardErrors = stdErrors,
-    logLikelihood = logLikelihood,
-    finalScore = score,
-    finalInformationMatrix = informationMatrix,
+    standard_errors = stdErrors,
+    log_likelihood = logLikelihood,
+    final_score = score,
+    final_information_matrix = informationMatrix,
     convergence = list(
-      isConverged = isConverged,
-      returnCode = returnCode,
-      maxAbsScore = max(abs(score)),
-      maxAbsUpdate = max(abs(update)),
+      is_converged = isConverged,
+      return_code = returnCode,
+      max_abs_score = max(abs(score)),
+      max_abs_update = max(abs(update)),
       score_rel_norm = max(abs(score)) / max(1, abs(logLikelihood))
     ),
-    nIterations = iIteration,
-    nEvents = nEvents
+    n_iterations = iIteration,
+    n_events = nEvents
   )
   if (returnIntervalLogL) {
-    estimationResult$intervalLogL <- intervalLogL
+    estimationResult$interval_log_lik <- intervalLogL
   }
   if (return_event_scores) {
     estimationResult$event_scores <- event_scores
   }
   if (returnEventProbabilities) {
-    estimationResult$eventProbabilities <- eventProbabilities
+    estimationResult$event_probabilities <- eventProbabilities
   }
   if (return_ranks && !is.null(nr$observed_rank)) {
     estimationResult$observed_rank <- nr$observed_rank

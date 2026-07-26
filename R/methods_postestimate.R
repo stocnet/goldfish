@@ -85,13 +85,13 @@ coef.result.goldfish <- function(object, ..., complete = FALSE) {
 #' @method logLik result.goldfish
 logLik.result.goldfish <- function(object, ..., avgPerEvent = FALSE) {
   if (avgPerEvent) {
-    return(object$logLikelihood / object$nEvents)
+    return(object$log_likelihood / object$n_events)
   }
 
-  val <- object$logLikelihood
-  # attr(val, "nall") <- object$nEvents
-  attr(val, "nobs") <- object$nEvents
-  attr(val, "df") <- object$nParams
+  val <- object$log_likelihood
+  # attr(val, "nall") <- object$n_events
+  attr(val, "nobs") <- object$n_events
+  attr(val, "df") <- object$n_params
   class(val) <- "logLik"
   return(val)
 }
@@ -102,7 +102,7 @@ vcov.result.goldfish <- function(object, complete = FALSE, ...) {
   isFixed <- GetFixed(object)
   namesCoef <- term_label(object$names, ".coef_name", "coef")
 
-  vc <- solve(object$finalInformationMatrix[!isFixed, !isFixed])
+  vc <- solve(object$final_information_matrix[!isFixed, !isFixed])
   vc <- stats::.vcov.aliased(isFixed, vc, complete = complete)
   if (!complete) {
     namesCoef <- namesCoef[!isFixed]

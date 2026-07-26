@@ -93,7 +93,7 @@ test_that("an all-allowing coordination constraint is an identity", {
     control_algo = opt
   )
   expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-6)
-  expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-6)
+  expect_equal(m_cstr$log_likelihood, m_unc$log_likelihood, tolerance = 1e-6)
 })
 
 test_that("a restricting coordination constraint changes the estimate", {
@@ -148,7 +148,7 @@ test_that("coordination constraint runs natively on cpp", {
     )
   ))
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-6)
-  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-6)
+  expect_equal(m_dc$log_likelihood, m_def$log_likelihood, tolerance = 1e-6)
 })
 
 test_that("gather runs a coordination constraint natively", {
@@ -182,7 +182,7 @@ test_that("gather runs a coordination constraint natively", {
     ))
   )
   expect_equal(coef(m_gc), coef(m_dc), tolerance = 1e-6)
-  expect_equal(m_gc$logLikelihood, m_dc$logLikelihood, tolerance = 1e-6)
+  expect_equal(m_gc$log_likelihood, m_dc$log_likelihood, tolerance = 1e-6)
 })
 
 test_that("a coordination constraint folds active_dyad symmetric point", {

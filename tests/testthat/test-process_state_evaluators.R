@@ -27,9 +27,9 @@ pse_data_list <- function() {
 }
 
 # Fit the cell, then re-evaluate the estimation path at exactly the fitted
-# coefficients (pinned via fixed_parameters) so the returned intervalLogL is the
+# coefficients (pinned via fixed_parameters) so the returned interval_log_lik is the
 # reference the evaluators must reproduce. Returns coefs, the preprocessed
-# statsList, and the per-event reference intervalLogL.
+# statsList, and the per-event reference interval_log_lik.
 pse_reference <- function(cell, data_list) {
   spec <- baselines_model_grid()[[cell[[1]]]]
   data <- data_list[[spec$dataset]]
@@ -72,11 +72,11 @@ pse_reference <- function(cell, data_list) {
   list(
     coefs = coefs,
     pre = pre,
-    interval_logL = as.numeric(fit_ref$intervalLogL)
+    interval_logL = as.numeric(fit_ref$interval_log_lik)
   )
 }
 
-test_that("evaluators reproduce the estimation-path intervalLogL at 1e-10", {
+test_that("evaluators reproduce the estimation-path interval_log_lik at 1e-10", {
   data_list <- pse_data_list()
   for (cell in pse_cells) {
     ref <- pse_reference(cell, data_list)

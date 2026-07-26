@@ -15,7 +15,7 @@ lookup_labels <- function(lookup, index, side) {
 test_that("a per-event index resolves to one node row and label", {
   data("social_evolution", envir = environment())
   # `"probabilities"` must be requested (it is not in the default `diagnostics`
-  # set) and the component is spelled `eventProbabilities`. Reading the wrong
+  # set) and the component is spelled `event_probabilities`. Reading the wrong
   # name yields NULL, and `seq_along(NULL)` is `integer(0)`, which would make
   # the resolution check below pass over an empty set of positions.
   # suppressWarnings() covers exactly one expected condition: the
@@ -39,7 +39,7 @@ test_that("a per-event index resolves to one node row and label", {
   # declared axis resolves against it.
   expect_identical(risk_set_axis(fit), "receiver_given_sender")
   expect_setequal(lookup$side, 1L)
-  positions <- seq_along(fit$eventProbabilities[[1]])
+  positions <- seq_along(fit$event_probabilities[[1]])
   expect_gt(length(positions), 1L)
   expect_false(anyNA(lookup_labels(lookup, positions, 1L)))
   # Exactly one row per local index -- a join, not a many-to-one collapse.
@@ -78,7 +78,7 @@ test_that("both sides resolve on a two-mode fit", {
   expect_equal(side1$label, data$nodes$label[side1$global])
   expect_equal(side2$label, data$nodes$label[side2$global])
   # A receiver position on the choice axis resolves on side 2, independently.
-  positions <- seq_along(fit$eventProbabilities[[1]])
+  positions <- seq_along(fit$event_probabilities[[1]])
   expect_gt(length(positions), 1L)
   expect_false(anyNA(lookup_labels(lookup, positions, 2L)))
 })
@@ -142,7 +142,7 @@ test_that("per-event components carry no per-event copy of the node labels", {
   # The components must be present for the assertion to mean anything: an
   # absent component is NULL, and `names(NULL)` is also NULL, so this would
   # pass on a fit that stored nothing at all.
-  probabilities <- fit$eventProbabilities
+  probabilities <- fit$event_probabilities
   expect_gt(length(probabilities), 1L)
   expect_false(is.null(fit$event_scores))
   expect_null(names(probabilities[[1]]))

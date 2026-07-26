@@ -598,28 +598,28 @@ estimate_c_int <- function(
   # define, type and return result
   estimationResult <- list(
     parameters = parameters,
-    standardErrors = stdErrors,
-    logLikelihood = logLikelihood,
-    finalScore = score,
-    finalInformationMatrix = informationMatrix,
+    standard_errors = stdErrors,
+    log_likelihood = logLikelihood,
+    final_score = score,
+    final_information_matrix = informationMatrix,
     convergence = list(
-      isConverged = isConverged,
-      returnCode = returnCode,
-      maxAbsScore = max(abs(score)),
-      maxAbsUpdate = max(abs(update)),
+      is_converged = isConverged,
+      return_code = returnCode,
+      max_abs_score = max(abs(score)),
+      max_abs_update = max(abs(update)),
       score_rel_norm = max(abs(score)) / max(1, abs(logLikelihood))
     ),
-    nIterations = iIteration,
-    nEvents = nEvents
+    n_iterations = iIteration,
+    n_events = nEvents
   )
   if (backend == "gather") {
-    estimationResult$sizeIntermediate <- size_gathered_data
+    estimationResult$size_intermediate <- size_gathered_data
     if (testing) estimationResult$intermediate <- gathered_data
   }
   # if (testing) estimationResult$intermediateData <-
   #  DataMatrixAndId$intermediate_data
   if (returnIntervalLogL) {
-    estimationResult$intervalLogL <- intervalLogL
+    estimationResult$interval_log_lik <- intervalLogL
   }
   if (return_event_scores) {
     estimationResult$event_scores <- event_scores
@@ -688,7 +688,7 @@ estimate_c_int <- function(
     estimationResult$conditional_logl <- as.numeric(res$conditional_logl)
   }
   if (returnEventProbabilities) {
-    estimationResult$eventProbabilities <- eventProbabilities
+    estimationResult$event_probabilities <- eventProbabilities
   }
   attr(estimationResult, "class") <- "result.goldfish"
   estimationResult
@@ -815,22 +815,22 @@ estimate_via_maxlik <- function(
 
   estimation_result <- list(
     parameters = fit_pars,
-    standardErrors = std_errors,
-    logLikelihood = log_likelihood,
-    finalScore = score,
-    finalInformationMatrix = information_matrix,
+    standard_errors = std_errors,
+    log_likelihood = log_likelihood,
+    final_score = score,
+    final_information_matrix = information_matrix,
     convergence = list(
-      isConverged = is_converged,
-      returnCode = return_code,
-      maxAbsScore = max(abs(score)),
-      maxAbsUpdate = NA_real_,
+      is_converged = is_converged,
+      return_code = return_code,
+      max_abs_score = max(abs(score)),
+      max_abs_update = NA_real_,
       score_rel_norm = max(abs(score)) / max(1, abs(log_likelihood))
     ),
-    nIterations = n_iter,
-    nEvents = n_events
+    n_iterations = n_iter,
+    n_events = n_events
   )
   if (return_interval_loglik) {
-    estimation_result$intervalLogL <- as.numeric(final$intervalLogL)
+    estimation_result$interval_log_lik <- as.numeric(final$intervalLogL)
   }
   if (return_event_scores) {
     estimation_result$event_scores <- final$event_scores

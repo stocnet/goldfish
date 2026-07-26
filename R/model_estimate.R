@@ -134,26 +134,26 @@
 #'
 #' An object of class `"result.goldfish"` is a list including:
 #'   \item{parameters}{a numeric vector with the coefficients estimates.}
-#'   \item{standardErrors}{
+#'   \item{standard_errors}{
 #'    a numeric vector with the standard errors of the coefficients estimates.}
-#'   \item{logLikelihood}{the log-likelihood of the estimated model}
-#'   \item{finalScore}{
+#'   \item{log_likelihood}{the log-likelihood of the estimated model}
+#'   \item{final_score}{
 #'    a vector with the final score reach by the parameters during estimation.}
-#'   \item{finalInformationMatrix}{
+#'   \item{final_information_matrix}{
 #'    a matrix with the final values of the negative Fisher information matrix.
 #'    The inverse of this matrix gives the variance-covariance matrix for the
 #'    parameters estimates.}
 #'   \item{convergence}{a list reporting the convergence of the
-#'    Newton-Raphson procedure: \code{isConverged} (logical),
-#'    \code{returnCode} (\code{1} gradient close to zero, \code{2} step size
-#'    close to zero, \code{0} not converged), \code{maxAbsScore} (final maximum
-#'    absolute score), \code{maxAbsUpdate} (final step, the maximum absolute
+#'    Newton-Raphson procedure: \code{is_converged} (logical),
+#'    \code{return_code} (\code{1} gradient close to zero, \code{2} step size
+#'    close to zero, \code{0} not converged), \code{max_abs_score} (final maximum
+#'    absolute score), \code{max_abs_update} (final step, the maximum absolute
 #'    parameter update), and \code{score_rel_norm} (the likelihood-scaled
 #'    relative gradient norm compared against \code{score_tol}).}
-#'   \item{nIterations}{
+#'   \item{n_iterations}{
 #'    an integer with the total number of iterations performed during the
 #'    estimation process.}
-#'   \item{nEvents}{
+#'   \item{n_events}{
 #'    an integer reporting the number of events considered in the model.}
 #'   \item{names}{
 #'    a matrix with a description of the effects used for model fitting.
@@ -1065,7 +1065,7 @@ warn_probabilities_footprint <- function(
 }
 
 # Pre-run note: with a large event count the per-event diagnostic vectors
-# (`intervalLogL`, `total_rate`, and the `event_scores` columns) occupy
+# (`interval_log_lik`, `total_rate`, and the `event_scores` columns) occupy
 # noticeable memory. Emit a one-time cli message with the estimated footprint and
 # the `diagnostics = FALSE` opt-out. Fires only above `threshold` events so
 # ordinary fits stay quiet; `total_rate` is stored only for exact-time submodels.
@@ -2251,7 +2251,7 @@ estimate_wrapper <- function(
   # surface, the same reason `backend` is recorded above.
   result$risk_set_axis <- risk_set_axis(model_spec)
   result$right_censored <- has_intercept
-  result$nParams <- sum(!GetFixed(result))
+  result$n_params <- sum(!GetFixed(result))
   # Reconstruct the call for printing. On the direct path `sys.call(-1L)` is the
   # user's estimate_*() call. On the specification path the estimator is reached
   # through an internal hop, so `match.call()` surfaces a wrapper frame -- and

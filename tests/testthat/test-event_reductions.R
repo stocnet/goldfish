@@ -519,6 +519,6 @@ test_that("a coordination dyad credits both of its endpoints", {
     ),
     progress = FALSE
   ))
-  expect_equal(sum(fit$margins$observed), 2 * fit$nEvents)
-  expect_equal(sum(fit$margins$expected), 2 * fit$nEvents, tolerance = 1e-6)
+  expect_equal(sum(fit$margins$observed), 2 * fit$n_events)
+  expect_equal(sum(fit$margins$expected), 2 * fit$n_events, tolerance = 1e-6)
 })

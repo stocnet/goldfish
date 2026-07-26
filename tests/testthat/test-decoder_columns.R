@@ -9,7 +9,7 @@ test_that("decoder columns persisted on result$names", {
   expect_true(all(
     c(".effect_short", ".object_short", ".term_export", ".coef_name") %in% cols
   ))
-  expect_length(mod$names[, ".coef_name"], mod$nParams)
+  expect_length(mod$names[, ".coef_name"], mod$n_params)
   expect_false(anyDuplicated(mod$names[, ".coef_name"]) > 0)
   expect_false(anyDuplicated(mod$names[, ".term_export"]) > 0)
 })

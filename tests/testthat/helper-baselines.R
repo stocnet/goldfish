@@ -255,7 +255,7 @@ baselines_build <- function(
       carried <- !is.null(entry)
       if (!carried) {
         fit <- suppressWarnings(fit_fn(spec, backend, get_data(spec$dataset)))
-        stopifnot(isTRUE(fit$convergence$isConverged))
+        stopifnot(isTRUE(fit$convergence$is_converged))
         entry <- list(coef = coef(fit), logLik = as.numeric(logLik(fit)))
       }
       baselines[[model_name]][[key(backend)]] <- entry

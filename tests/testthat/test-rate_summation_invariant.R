@@ -63,11 +63,11 @@ for (backend in baselines_backends) {
       # identical(), not expect_equal(): the point is bitwise, and a tolerance
       # here would pass through exactly the last-bit movement being guarded.
       expect_identical(coef(with_margins), coef(base))
-      expect_identical(with_margins$logLikelihood, base$logLikelihood)
-      expect_identical(with_margins$finalScore, base$finalScore)
+      expect_identical(with_margins$log_likelihood, base$log_likelihood)
+      expect_identical(with_margins$final_score, base$final_score)
       expect_identical(coef(with_ranks), coef(base))
-      expect_identical(with_ranks$logLikelihood, base$logLikelihood)
-      expect_identical(with_ranks$finalScore, base$finalScore)
+      expect_identical(with_ranks$log_likelihood, base$log_likelihood)
+      expect_identical(with_ranks$final_score, base$final_score)
     }
   )
 

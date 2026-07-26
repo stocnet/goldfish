@@ -70,7 +70,7 @@ diagnose_outliers <- function(
   if (!"result.goldfish" %in% attr(x, "class")) {
     stop("Not a goldfish results object.")
   }
-  if (is.null(x$intervalLogL)) {
+  if (is.null(x$interval_log_lik)) {
     stop(
       "Outlier identification only available when interval log likelihood
       returned in results object."
@@ -84,29 +84,31 @@ diagnose_outliers <- function(
   data <- transform(data, outlier = FALSE)
 
   if (method == "Top") {
-    outlierIndexes <- order(data$intervalLogL)[1:threshold]
+    outlierIndexes <- order(data$interval_log_lik)[1:threshold]
   } else if (method == "IQR") {
     outlierIndexes <- which(
-      data$intervalLogL <
-        median(data$intervalLogL) -
-          (threshold / 2) * IQR(data$intervalLogL)
+      data$interval_log_lik <
+        median(data$interval_log_lik) -
+          (threshold / 2) * IQR(data$interval_log_lik)
     )
   } else if (method == "Hampel") {
     if (is.null(window)) {
       window <- (nrow(data) / 2) - 1
     }
-    n <- length(data$intervalLogL)
+    n <- length(data$interval_log_lik)
     L <- 1.4826
     # which(vapply((window + 1):(n - window), function(i) {
-    #   x0 <- median(data$intervalLogL[(i - window):(i + window)])
-    #   S0 <- L * median(abs(data$intervalLogL[(i - window):(i + window)] - x0))
-    #   if (abs(data$intervalLogL[i] - x0) > threshold * S0) TRUE else FALSE
+    #   x0 <- median(data$interval_log_lik[(i - window):(i + window)])
+    #   S0 <- L *
+    #     median(abs(data$interval_log_lik[(i - window):(i + window)] - x0))
+    #   if (abs(data$interval_log_lik[i] - x0) > threshold * S0) TRUE else FALSE
     # }, FUN.VALUE = logical(1)))
     outlierIndexes <- numeric(0)
     for (i in (window + 1):(n - window)) {
-      x0 <- median(data$intervalLogL[(i - window):(i + window)])
-      S0 <- L * median(abs(data$intervalLogL[(i - window):(i + window)] - x0))
-      if (abs(data$intervalLogL[i] - x0) > threshold * S0) {
+      x0 <- median(data$interval_log_lik[(i - window):(i + window)])
+      S0 <- L *
+        median(abs(data$interval_log_lik[(i - window):(i + window)] - x0))
+      if (abs(data$interval_log_lik[i] - x0) > threshold * S0) {
         outlierIndexes <- c(outlierIndexes, i)
       }
     }
@@ -162,7 +164,7 @@ diagnose_changepoints <- function(
   if (!methods::is(x, "result.goldfish")) {
     stop("Not a goldfish results object.", call. = FALSE)
   }
-  if (is.null(x$intervalLogL)) {
+  if (is.null(x$interval_log_lik)) {
     stop(
       "Changepoint identification only available when interval log likelihood
       returned in results object."
@@ -180,7 +182,7 @@ diagnose_changepoints <- function(
 
   if (moment == "mean") {
     cpt <- changepoint::cpt.mean(
-      data$intervalLogL,
+      data$interval_log_lik,
       method = method,
       minseglen = window,
       ...
@@ -188,7 +190,7 @@ diagnose_changepoints <- function(
   }
   if (moment == "variance") {
     cpt <- changepoint::cpt.var(
-      data$intervalLogL,
+      data$interval_log_lik,
       method = method,
       minseglen = window,
       ...

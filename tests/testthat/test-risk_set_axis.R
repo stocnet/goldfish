@@ -7,7 +7,7 @@
 test_that("same-length per-event vectors from two axes are distinguishable", {
   data("social_evolution", envir = environment())
   # `"probabilities"` is NOT in the default `diagnostics` set, and the stored
-  # component is spelled `eventProbabilities` while its neighbours are
+  # component is spelled `event_probabilities` while its neighbours are
   # snake_case. Reading the wrong name gives NULL, and `NULL[[1]]` is NULL
   # rather than an error, so the length comparison below would silently compare
   # 0 to 0 and prove nothing. Both are load-bearing here.
@@ -36,9 +36,9 @@ test_that("same-length per-event vectors from two axes are distinguishable", {
 
   # The premise: identical, non-trivial length, so length alone cannot tell the
   # two axes apart.
-  rate_length <- length(rate$eventProbabilities[[1]])
+  rate_length <- length(rate$event_probabilities[[1]])
   expect_gt(rate_length, 1L)
-  expect_equal(length(choice$eventProbabilities[[1]]), rate_length)
+  expect_equal(length(choice$event_probabilities[[1]]), rate_length)
   expect_identical(risk_set_axis(rate), "sender")
   expect_identical(risk_set_axis(choice), "receiver_given_sender")
 })

@@ -114,8 +114,8 @@ Accepts a character vector drawn from
 \code{c("loglik", "scores", "ranks", "margins", "probabilities")}, or the
 shorthands \code{TRUE} (equivalent to \code{c("loglik", "scores")}), \code{"all"} (all
 five), and \code{FALSE} / \code{character(0)} (none). Each primitive maps to a stored
-component of the result: \code{"loglik"} to \code{intervalLogL} (and \code{total_rate} on
-exact-time submodels), \code{"scores"} to \code{event_scores}, \code{"ranks"} to
+component of the result: \code{"loglik"} to \code{interval_log_lik} (and \code{total_rate}
+on exact-time submodels), \code{"scores"} to \code{event_scores}, \code{"ranks"} to
 \code{observed_rank}, \code{"margins"} to per-actor observed and expected counts, and
 \code{"probabilities"} to per-event probability vectors. Unknown names abort with
 an error listing the valid primitives. Default is \code{c("loglik", "scores")},

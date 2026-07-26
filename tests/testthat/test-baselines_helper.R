@@ -36,11 +36,11 @@ test_that("baselines_cores is serial for an unusable TESTTHAT_CPUS", {
 fake_fit <- function(log_lik) {
   structure(
     list(
-      convergence = list(isConverged = TRUE),
+      convergence = list(is_converged = TRUE),
       parameters = c(a = 1, b = 2),
-      logLikelihood = log_lik,
-      nEvents = 10L,
-      nParams = 2L,
+      log_likelihood = log_lik,
+      n_events = 10L,
+      n_params = 2L,
       names = matrix(
         c("net", "net", "FALSE", "FALSE"),
         ncol = 2,
@@ -113,7 +113,7 @@ test_that("baselines_build refuses a cell that did not converge", {
     get_data = function(dataset) list(),
     backends = "r",
     fit_fn = function(spec, backend, data) {
-      list(convergence = list(isConverged = FALSE))
+      list(convergence = list(is_converged = FALSE))
     }
   ))
 })

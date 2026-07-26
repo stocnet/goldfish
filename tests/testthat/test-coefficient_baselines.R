@@ -29,7 +29,7 @@ for (modelName in names(baselinesGrid)) {
         # carried forward unchanged, so this is still the floor frozen at
         # b890cd0; gather is the column v1 never had.
         expected <- baselines[[modelName]][[backend]]
-        expect_true(fit$convergence$isConverged)
+        expect_true(fit$convergence$is_converged)
         expect_equal(
           coef(fit),
           expected$coef,

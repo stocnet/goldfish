@@ -7,13 +7,13 @@
 
 # Rank of the observed alternative among the risk set, enumerated from a fit
 # that stored per-event probabilities. For a multinomial submodel
-# exp(intervalLogL) is the observed alternative's probability, so its rank is
+# exp(interval_log_lik) is the observed alternative's probability, so its rank is
 # 1 + (# alternatives strictly more likely).
 ranks_from_probabilities <- function(fit) {
-  p_obs <- exp(fit$intervalLogL)
+  p_obs <- exp(fit$interval_log_lik)
   vapply(
-    seq_along(fit$eventProbabilities),
-    function(i) 1L + sum(fit$eventProbabilities[[i]] > p_obs[i] + 1e-9),
+    seq_along(fit$event_probabilities),
+    function(i) 1L + sum(fit$event_probabilities[[i]] > p_obs[i] + 1e-9),
     integer(1)
   )
 }
@@ -50,7 +50,7 @@ test_that("observed_rank matches enumerated probabilities (DyNAM choice)", {
   fit_probs <- estimate_with_probabilities(formula, "DyNAM", "choice")
 
   expect_type(fit_ranks$observed_rank, "integer")
-  expect_length(fit_ranks$observed_rank, fit_ranks$nEvents)
+  expect_length(fit_ranks$observed_rank, fit_ranks$n_events)
   expect_equal(fit_ranks$observed_rank, ranks_from_probabilities(fit_probs))
 })
 
@@ -88,7 +88,7 @@ test_that("observed_rank is a valid rank vector on exact-time REM", {
 
   ranks <- fit$observed_rank
   expect_type(ranks, "integer")
-  expect_length(ranks, fit$nEvents)
+  expect_length(ranks, fit$n_events)
   dependent <- !is.na(ranks)
   expect_true(all(ranks[dependent] >= 1L))
 })
@@ -266,18 +266,18 @@ test_that("total_rate reproduces the Cox-Snell residuals on exact-time fits", {
   grid <- baselines_model_grid()
 
   # DyNAM rate: default diagnostics store total_rate; the compensator identity is
-  # exact on right-censored intervals (intervalLogL = -Dt * total_rate there) and
+  # exact on right-censored intervals (interval_log_lik = -Dt * total_rate there) and
   # the compensators sum to the dependent-event count at the MLE.
   fit_rate <- total_rate_fit(grid[["se_dynam_rate"]], data_list)
   prep_rate <- total_rate_fit(grid[["se_dynam_rate"]], data_list, TRUE)
   dt_rate <- prep_rate$intervals
   expect_false(is.null(fit_rate$total_rate))
-  expect_length(fit_rate$total_rate, fit_rate$nEvents)
+  expect_length(fit_rate$total_rate, fit_rate$n_events)
   expect_true(all(fit_rate$total_rate > 0))
   censored <- prep_rate$is_dependent == 0
   expect_equal(
     fit_rate$total_rate[censored] * dt_rate[censored],
-    -fit_rate$intervalLogL[censored]
+    -fit_rate$interval_log_lik[censored]
   )
   expect_equal(
     sum(fit_rate$total_rate * dt_rate),
@@ -396,7 +396,7 @@ test_that("gather conditional_logl is NA on right-censored intervals only", {
   ))
   expect_equal(
     fit_gather$conditional_logl[!censored],
-    ord_r$intervalLogL,
+    ord_r$interval_log_lik,
     tolerance = 1e-10
   )
 })
@@ -560,7 +560,7 @@ test_that("probability-matrix reconstruction confirms both backends (choice)", {
 
   # Single-sided multinomial expected margins are the column sums of the
   # per-event probability vectors (receiver for choice).
-  reconstructed_margins <- Reduce(`+`, fp$eventProbabilities)
+  reconstructed_margins <- Reduce(`+`, fp$event_probabilities)
   expect_equal(fc$margins$expected, reconstructed_margins, tolerance = 1e-9)
   expect_equal(fr$margins$expected, reconstructed_margins, tolerance = 1e-9)
 })
@@ -624,7 +624,7 @@ test_that("requesting margins but not probabilities carries no probability matri
     )
   ))
   expect_false(is.null(fit$margins))
-  expect_null(fit$eventProbabilities)
+  expect_null(fit$event_probabilities)
   expect_null(fit$pMatrix)
 })
 
@@ -657,7 +657,7 @@ test_that("per-event probabilities are actor-indexed on the sender axis", {
       depNetwork ~ indeg + outdeg
     }
     fit <- probability_fit("DyNAM", sub_model, formula)
-    p <- fit$eventProbabilities[[1]]
+    p <- fit$event_probabilities[[1]]
     expect_length(p, length(fit$margins$expected))
     expect_equal(sum(p), 1, info = sub_model)
   }
@@ -667,7 +667,7 @@ test_that("per-event probabilities zero the receivers outside the risk set", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
   fit <- probability_fit("DyNAM", "choice", depNetwork ~ inertia + recip)
-  p <- fit$eventProbabilities[[1]]
+  p <- fit$event_probabilities[[1]]
   expect_length(p, length(fit$margins$expected))
   expect_equal(sum(p), 1)
   # A DyNAM-choice sender cannot choose itself, so the reflexive position is a
@@ -675,7 +675,7 @@ test_that("per-event probabilities zero the receivers outside the risk set", {
   # shape ragged even with no composition change at all. Every event therefore
   # carries strictly fewer alternatives at risk than the vector is long.
   n_at_risk <- vapply(
-    fit$eventProbabilities,
+    fit$event_probabilities,
     function(p) sum(p > 0),
     integer(1)
   )
@@ -686,7 +686,7 @@ test_that("per-event probabilities span the whole dyad grid", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
   fit <- probability_fit("REM", "rate", depNetwork ~ 1 + inertia)
-  p <- fit$eventProbabilities[[1]]
+  p <- fit$event_probabilities[[1]]
   n1 <- length(fit$margins$expected_sender)
   n2 <- length(fit$margins$expected_receiver)
   expect_equal(dim(p), c(n1, n2))
@@ -710,18 +710,18 @@ test_that("per-event probability length is constant under composition change", {
     max_iterations = 1
   )
 
-  lengths <- vapply(fit$eventProbabilities, length, integer(1))
+  lengths <- vapply(fit$event_probabilities, length, integer(1))
   expect_equal(unique(lengths), length(fit$margins$expected))
   # The precondition: this fixture must actually exercise composition change,
   # or the test passes vacuously on a constant risk set.
   n_at_risk <- vapply(
-    fit$eventProbabilities,
+    fit$event_probabilities,
     function(p) sum(p > 0),
     integer(1)
   )
   expect_gt(length(unique(n_at_risk)), 1L)
   expect_true(all(n_at_risk < unique(lengths)))
-  expect_equal(vapply(fit$eventProbabilities, sum, numeric(1)), rep(1, 215))
+  expect_equal(vapply(fit$event_probabilities, sum, numeric(1)), rep(1, 215))
 })
 
 test_that("per-event probabilities agree on all three backends", {
@@ -763,22 +763,22 @@ test_that("per-event probabilities agree on all three backends", {
     expect_equal(fg$backend, "gather", info = nm)
 
     expect_equal(
-      lapply(fc$eventProbabilities, as.numeric),
-      lapply(fr$eventProbabilities, as.numeric),
+      lapply(fc$event_probabilities, as.numeric),
+      lapply(fr$event_probabilities, as.numeric),
       tolerance = 1e-10,
       info = nm
     )
     expect_equal(
-      lapply(fg$eventProbabilities, as.numeric),
-      lapply(fr$eventProbabilities, as.numeric),
+      lapply(fg$event_probabilities, as.numeric),
+      lapply(fr$event_probabilities, as.numeric),
       tolerance = 1e-10,
       info = nm
     )
     # The same softmax on the same predictors, so the per-event totals hold on
     # every family (D16's next-event probability).
     expect_equal(
-      vapply(fc$eventProbabilities, sum, numeric(1)),
-      rep(1, fc$nEvents),
+      vapply(fc$event_probabilities, sum, numeric(1)),
+      rep(1, fc$n_events),
       info = nm
     )
   }
@@ -815,7 +815,7 @@ test_that("requesting probabilities does not substitute the backend", {
     expect_false(any(grepl("does not.*support", warned)), info = backend)
     expect_false(any(grepl("Estimating with", warned)), info = backend)
     expect_equal(fit$backend, backend)
-    expect_false(is.null(fit$eventProbabilities))
+    expect_false(is.null(fit$event_probabilities))
   }
 })
 
@@ -840,7 +840,7 @@ test_that("a superset request keeps every primitive it names", {
   expect_false(is.null(fit$observed_rank))
   expect_false(is.null(fit$margins))
   expect_false(is.null(fit$event_scores))
-  expect_false(is.null(fit$eventProbabilities))
+  expect_false(is.null(fit$event_probabilities))
 })
 
 test_that("the cpp exact-time kernels carry the conditional loglik component", {

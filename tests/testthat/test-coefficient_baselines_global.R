@@ -31,7 +31,7 @@ for (modelName in names(baselinesGlobalGrid)) {
         # Keyed by the engine token frozen into the baseline file.
         token <- BACKEND_ENGINE_TOKENS[[backend]]
         expected <- baselinesGlobal[[modelName]][[token]]
-        expect_true(fit$convergence$isConverged)
+        expect_true(fit$convergence$is_converged)
         expect_equal(
           coef(fit),
           expected$coef,

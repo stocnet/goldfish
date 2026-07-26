@@ -75,7 +75,7 @@ print.result.goldfish <- function(
 #' @export
 #' @noRd
 summary.result.goldfish <- function(object, ...) {
-  nParams <- object$nParams
+  nParams <- object$n_params
 
   if (is.null(object$names)) {
     object$names <- seq_len(nParams)
@@ -83,7 +83,7 @@ summary.result.goldfish <- function(object, ...) {
   # names <- object$names
 
   est <- object$parameters
-  std.err <- object$standardErrors
+  std.err <- object$standard_errors
   z <- est / std.err
   p <- 2 * (1 - stats::pnorm(abs(z)))
 
@@ -110,7 +110,7 @@ summary.result.goldfish <- function(object, ...) {
     c("Estimate", "Std. Error", "z-value", "Pr(>|z|)")
   )
 
-  object$coefMat <- coefmat
+  object$coef_mat <- coefmat
   object$AIC <- stats::AIC(object)
   object$BIC <- stats::BIC(object)
   class(object) <- "summary.result.goldfish"
@@ -146,8 +146,8 @@ print.summary.result.goldfish <- function(
   compact = TRUE,
   complete = FALSE
 ) {
-  nParams <- x$nParams
-  aicc <- x$AIC + 2 * nParams * (nParams + 1) / (x$nEvents - nParams - 1)
+  nParams <- x$n_params
+  aicc <- x$AIC + 2 * nParams * (nParams + 1) / (x$n_events - nParams - 1)
   cat("\nCall:\n")
   print(x$call, width = width, ...)
   cat("\n")
@@ -161,12 +161,12 @@ print.summary.result.goldfish <- function(
   displayCols <- !startsWith(colnames(x$names), ".")
   if (!complete && any(isFixed)) {
     names <- x$names[!isFixed, displayCols, drop = FALSE]
-    coefMat <- x$coefMat[!isFixed, ]
+    coefMat <- x$coef_mat[!isFixed, ]
     isDetPrint <- !((ncol(names) == 2) &&
       (length(unique(names[, "Object"])) == 1))
   } else {
     names <- x$names[, displayCols, drop = FALSE]
-    coefMat <- x$coefMat
+    coefMat <- x$coef_mat
     isDetPrint <- !((ncol(names) == 1) &&
       (length(unique(names[, "Object"])) == 1))
   }
@@ -200,7 +200,7 @@ print.summary.result.goldfish <- function(
     writeLines(strwrap(legendLines, width = width, exdent = 2))
   }
   cat("\n")
-  rc <- x$convergence$returnCode
+  rc <- x$convergence$return_code
   if (is.null(rc) || rc == 0L) {
     cat("  Not converged (return code 0)\n")
   } else if (rc == 1L) {
@@ -209,10 +209,10 @@ print.summary.result.goldfish <- function(
     cat("  Return code 2: step size close to zero (damped)\n")
   }
   scoreRel <- x$convergence$score_rel_norm
-  if (is.null(scoreRel) && !is.null(x$convergence$maxAbsScore)) {
-    scoreRel <- x$convergence$maxAbsScore / max(1, abs(x$logLikelihood))
+  if (is.null(scoreRel) && !is.null(x$convergence$max_abs_score)) {
+    scoreRel <- x$convergence$max_abs_score / max(1, abs(x$log_likelihood))
   }
-  stepAbs <- x$convergence$maxAbsUpdate
+  stepAbs <- x$convergence$max_abs_update
   if (!is.null(scoreRel) && !is.null(stepAbs)) {
     cat(sprintf(
       "    score (rel. norm): %s    step (max|update|): %s\n",
@@ -220,7 +220,7 @@ print.summary.result.goldfish <- function(
       formatC(stepAbs, format = "e", digits = 2)
     ))
   }
-  nFree <- x$nParams
+  nFree <- x$n_params
   nTotal <- length(x$parameters)
   nFixed <- nTotal - nFree
   cat(
@@ -233,7 +233,7 @@ print.summary.result.goldfish <- function(
   )
   cat(
     " ",
-    paste("Log-Likelihood: ", signif(x$logLikelihood, digits), "\n", sep = "")
+    paste("Log-Likelihood: ", signif(x$log_likelihood, digits), "\n", sep = "")
   )
   cat(
     " ",
@@ -1003,7 +1003,7 @@ tidy.result.goldfish <- function(
   ...
 ) {
   isFixed <- GetFixed(x)
-  coefMat <- summary.result.goldfish(x)$coefMat
+  coefMat <- summary.result.goldfish(x)$coef_mat
   colnames(coefMat) <- c("estimate", "std.error", "statistic", "p.value")
 
   if (conf.int) {
@@ -1079,8 +1079,8 @@ glance.result.goldfish <- function(x, ...) {
       BIC = stats::BIC(x),
       # deviance = stats::deviance(x),
       # df.residual = df.residual(x),
-      df = x$nParams,
-      nobs = x$nEvents
+      df = x$n_params,
+      nobs = x$n_events
     )
   )
 }
@@ -1099,13 +1099,13 @@ augment.result.goldfish <- function(x, ...) {
   class(data) <- "data.frame"
   tib <- tibble::as_tibble(data)
   N <- nrow(tib)
-  tib$rightCensoredEvent <- rep(FALSE, N)
+  tib$right_censored_event <- rep(FALSE, N)
   if (x$right_censored) {
     censoredTime <- x$event_time[x$right_censored_events]
     tibCen <- tibble::as_tibble(censoredTime)
     names(tibCen) <- c("time")
     N_censored <- nrow(tibCen)
-    tibCen$rightCensoredEvent <- TRUE
+    tibCen$right_censored_event <- TRUE
     tibCen$sender <- rep(NA_character_, N_censored)
     tibCen$receiver <- rep(NA_character_, N_censored)
     tibCen$increment <- rep(NA_integer_, N_censored)
@@ -1114,7 +1114,7 @@ augment.result.goldfish <- function(x, ...) {
   if (!is.numeric(tib$time)) {
     tib$time <- as.POSIXct(tib$time)
   }
-  tib$intervalLogL <- x$intervalLogL
+  tib$interval_log_lik <- x$interval_log_lik
   return(tib)
 }
 

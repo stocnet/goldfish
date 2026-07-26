@@ -817,10 +817,10 @@ dependent.depevents_DyNAMi <- make_dependent_events(
 resModObject <- structure(
   list(
     parameters = c(5.3751, 1, -0.0816),
-    standardErrors = c(0.155388602931316, 0, 0.197511081339697),
-    logLikelihood = -699.4532,
-    finalScore = c(0.000200290995642893, 0, 1.49135840820103e-05),
-    finalInformationMatrix = matrix(
+    standard_errors = c(0.155388602931316, 0, 0.197511081339697),
+    log_likelihood = -699.4532,
+    final_score = c(0.000200290995642893, 0, 1.49135840820103e-05),
+    final_information_matrix = matrix(
       c(
         41.6502772825771,
         20.354755811421,
@@ -835,9 +835,9 @@ resModObject <- structure(
       ncol = 3,
       nrow = 3
     ),
-    convergence = list(isConverged = TRUE, maxAbsScore = 0.000200291),
-    nIterations = 7L,
-    nEvents = 439L,
+    convergence = list(is_converged = TRUE, max_abs_score = 0.000200291),
+    n_iterations = 7L,
+    n_events = 439L,
     names = matrix(
       c(rep("call_network", 3), c("FALSE", "TRUE", "FALSE")),
       ncol = 2,
@@ -852,7 +852,7 @@ resModObject <- structure(
     sub_model = "choice",
     backend = "cpp",
     right_censored = FALSE,
-    nParams = 3L,
+    n_params = 3L,
     call = str2lang(
       "estimate(x = calls_dependent ~ inertia + recip + trans,
        control_algo = estimation_options(fixedParameters = c(NA, 1, NA)))"

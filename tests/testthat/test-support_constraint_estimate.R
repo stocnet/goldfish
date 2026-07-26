@@ -99,7 +99,7 @@ test_that("gather consumes the choice constraint natively (== r)", {
     control_algo = set_algorithm_newton(backend = "gather")
   )
   expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
-  expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_gc$log_likelihood, m_def$log_likelihood, tolerance = 1e-8)
 })
 
 test_that("cpp consumes the choice constraint natively (== r)", {
@@ -120,7 +120,7 @@ test_that("cpp consumes the choice constraint natively (== r)", {
     control_algo = set_algorithm_newton(backend = "cpp")
   )
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-6)
-  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-6)
+  expect_equal(m_dc$log_likelihood, m_def$log_likelihood, tolerance = 1e-6)
 })
 
 test_that("a support_constraint actually restricts the risk set (vs unconstrained)", {

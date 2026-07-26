@@ -71,13 +71,13 @@ test_that("folded ego fit reproduces the captured standalone-mask reference", {
   fit <- fit_ego(fx, backend = "r")
   expect_equal(fit$parameters, ref$parameters, tolerance = 1e-10)
   expect_equal(
-    as.numeric(fit$logLikelihood),
-    ref$logLikelihood,
+    as.numeric(fit$log_likelihood),
+    ref$log_likelihood,
     tolerance = 1e-10
   )
-  expect_equal(fit$standardErrors, ref$standardErrors, tolerance = 1e-10)
+  expect_equal(fit$standard_errors, ref$standard_errors, tolerance = 1e-10)
   # per-event log-likelihood: the representation-invariant per-event quantity.
-  expect_equal(fit$intervalLogL, ref$intervalLogL, tolerance = 1e-10)
+  expect_equal(fit$interval_log_lik, ref$interval_log_lik, tolerance = 1e-10)
 })
 
 test_that("folded ego constraint agrees across engines", {
@@ -87,8 +87,8 @@ test_that("folded ego constraint agrees across engines", {
   cpp <- fit_ego(fx, backend = "cpp")
   expect_equal(gather$parameters, r$parameters, tolerance = 1e-8)
   expect_equal(cpp$parameters, r$parameters, tolerance = 1e-8)
-  expect_equal(gather$intervalLogL, r$intervalLogL, tolerance = 1e-8)
-  expect_equal(cpp$intervalLogL, r$intervalLogL, tolerance = 1e-8)
+  expect_equal(gather$interval_log_lik, r$interval_log_lik, tolerance = 1e-8)
+  expect_equal(cpp$interval_log_lik, r$interval_log_lik, tolerance = 1e-8)
 })
 
 test_that("an identity ego mask equals the unconstrained fit", {
@@ -101,8 +101,8 @@ test_that("an identity ego mask equals the unconstrained fit", {
     tolerance = 1e-10
   )
   expect_equal(
-    constrained$intervalLogL,
-    unconstrained$intervalLogL,
+    constrained$interval_log_lik,
+    unconstrained$interval_log_lik,
     tolerance = 1e-10
   )
 })

@@ -96,8 +96,8 @@
 #'   `c("loglik", "scores", "ranks", "margins", "probabilities")`, or the
 #'   shorthands `TRUE` (equivalent to `c("loglik", "scores")`), `"all"` (all
 #'   five), and `FALSE` / `character(0)` (none). Each primitive maps to a stored
-#'   component of the result: `"loglik"` to `intervalLogL` (and `total_rate` on
-#'   exact-time submodels), `"scores"` to `event_scores`, `"ranks"` to
+#'   component of the result: `"loglik"` to `interval_log_lik` (and `total_rate`
+#'   on exact-time submodels), `"scores"` to `event_scores`, `"ranks"` to
 #'   `observed_rank`, `"margins"` to per-actor observed and expected counts, and
 #'   `"probabilities"` to per-event probability vectors. Unknown names abort with
 #'   an error listing the valid primitives. Default is `c("loglik", "scores")`,

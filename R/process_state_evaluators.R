@@ -13,8 +13,8 @@
 # The per-event math mirrors the compiled estimators one-for-one (choice /
 # rate / rate-ordered / REM / REM-ordered / coordination), and the consistency
 # tests assert the reconstructed per-event interval log-likelihood reproduces
-# the estimator's `intervalLogL` at 1e-10 — that gate guards the buffer assembly
-# here against drift from `estimate_c_int()`'s sibling assembly.
+# the estimator's `interval_log_lik` at 1e-10 — that gate guards the buffer
+# assembly here against drift from `estimate_c_int()`'s sibling assembly.
 
 # Reproduce, for a single event index, the buffer assembly that
 # `estimate_c_int()` performs once for a whole fit: prepare the statistics list

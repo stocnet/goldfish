@@ -98,7 +98,7 @@ test_that("the new estimator argument wins when both are supplied", {
     data = dataTest,
     control_algo = set_algorithm_newton(max_iterations = 2)
   ))
-  expect_equal(both$nIterations, only_new$nIterations)
+  expect_equal(both$n_iterations, only_new$n_iterations)
   expect_equal(coef(both), coef(only_new))
 })
 

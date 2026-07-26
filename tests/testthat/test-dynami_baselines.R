@@ -52,7 +52,7 @@ test_that("frozen DyNAM-i rate baseline (RFID M1)", {
     data = rfid_dynami_stocnet(),
     control_algo = set_algorithm_newton(backend = "r")
   )
-  expect_true(fit$convergence$isConverged)
+  expect_true(fit$convergence$is_converged)
   expect_equal(
     coef(fit),
     c(
@@ -83,7 +83,7 @@ test_that("frozen DyNAM-i choice baseline (RFID M1)", {
     data = rfid_dynami_stocnet(),
     control_algo = set_algorithm_newton(backend = "r")
   )
-  expect_true(fit$convergence$isConverged)
+  expect_true(fit$convergence$is_converged)
   expect_equal(
     coef(fit),
     c(

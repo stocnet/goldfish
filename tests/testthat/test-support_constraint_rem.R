@@ -89,7 +89,7 @@ test_that("an all-allowing REM constraint is an identity (equals unconstrained)"
     control_algo = opt
   )
   expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-8)
-  expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_cstr$log_likelihood, m_unc$log_likelihood, tolerance = 1e-8)
 })
 
 test_that("a restricting REM constraint changes the estimate", {
@@ -141,8 +141,8 @@ test_that("gather / cpp consume the REM constraint natively", {
   ))
   expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-8)
-  expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
-  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_gc$log_likelihood, m_def$log_likelihood, tolerance = 1e-8)
+  expect_equal(m_dc$log_likelihood, m_def$log_likelihood, tolerance = 1e-8)
 })
 
 test_that("an observed dyad excluded by its own REM constraint errors", {
@@ -179,7 +179,7 @@ test_that("an all-allowing REM rate_ordered constraint is an identity", {
     control_algo = opt
   )
   expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-8)
-  expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_cstr$log_likelihood, m_unc$log_likelihood, tolerance = 1e-8)
 })
 
 test_that("a restricting REM rate_ordered constraint changes the estimate", {
@@ -233,8 +233,8 @@ test_that("REM rate_ordered constraint runs natively on gather / cpp", {
   ))
   expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-8)
-  expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
-  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_gc$log_likelihood, m_def$log_likelihood, tolerance = 1e-8)
+  expect_equal(m_dc$log_likelihood, m_def$log_likelihood, tolerance = 1e-8)
 })
 
 test_that("a REM support_constraint folds active_dyad at the point encoding", {

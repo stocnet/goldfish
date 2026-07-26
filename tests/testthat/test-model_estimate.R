@@ -12,19 +12,19 @@ test_that("preprocess init", {
   )
   toCompare <- c(
     "parameters",
-    "standardErrors",
-    "logLikelihood",
-    "finalScore",
-    "finalInformationMatrix",
+    "standard_errors",
+    "log_likelihood",
+    "final_score",
+    "final_information_matrix",
     "convergence",
-    "nIterations",
-    "nEvents",
+    "n_iterations",
+    "n_events",
     "names",
     "formula",
     "model",
     "sub_model",
     "right_censored",
-    "nParams"
+    "n_params"
   )
   expect_equal(
     estimate_wrapper(formulaTest, data = dataTest)[toCompare],

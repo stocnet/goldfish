@@ -125,7 +125,7 @@ test_that("a vacuous alter constraint reproduces the unconstrained fit (fold con
     control_algo = opt
   )
   expect_equal(coef(m_cstr), coef(m_unc), tolerance = 1e-8)
-  expect_equal(m_cstr$logLikelihood, m_unc$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_cstr$log_likelihood, m_unc$log_likelihood, tolerance = 1e-8)
 })
 
 # ---- 4.5: from-scratch equivalence at every encoding + invariants ----

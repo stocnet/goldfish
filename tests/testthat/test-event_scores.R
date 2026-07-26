@@ -70,10 +70,10 @@ test_that("column sums of event_scores equal the aggregate score (cpp)", {
     # something.
     fit <- event_scores_eval(spec, "cpp", data_list, rep(0, length(beta)))
     expect_false(is.null(fit$event_scores), info = nm)
-    expect_equal(nrow(fit$event_scores), fit$nEvents, info = nm)
+    expect_equal(nrow(fit$event_scores), fit$n_events, info = nm)
     expect_equal(
       unname(colSums(fit$event_scores)),
-      unname(fit$finalScore),
+      unname(fit$final_score),
       tolerance = 1e-10,
       info = nm
     )
@@ -97,7 +97,7 @@ test_that("event_scores agree across engines and vanish at the optimum", {
     # (max|score| / max(1, |logLik|) <= score_tol), not raw magnitude, since the
     # timed sub-models carry a large |logLik|.
     expect_lt(
-      max(abs(colSums(es_c))) / max(1, abs(fit_c$logLikelihood)),
+      max(abs(colSums(es_c))) / max(1, abs(fit_c$log_likelihood)),
       1e-3,
       label = nm
     )

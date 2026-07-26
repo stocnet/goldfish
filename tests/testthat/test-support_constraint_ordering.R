@@ -60,7 +60,7 @@ test_that("the event-1 restriction lands (constrained != unconstrained)", {
   m_cstr <- fit_ordering(fx, "r")
   m_unc <- fit_ordering(fx, "r", constrained = FALSE)
   # Reading event 1 from the init (not the unconstrained set) moves the fit.
-  expect_gt(abs(m_cstr$logLikelihood - m_unc$logLikelihood), 1e-3)
+  expect_gt(abs(m_cstr$log_likelihood - m_unc$log_likelihood), 1e-3)
 })
 
 test_that("every wired engine consumes the event-1 slice identically", {
@@ -68,8 +68,8 @@ test_that("every wired engine consumes the event-1 slice identically", {
   m_def <- fit_ordering(fx, "r")
   m_gc <- fit_ordering(fx, "gather")
   m_dc <- fit_ordering(fx, "cpp")
-  expect_equal(m_gc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
-  expect_equal(m_dc$logLikelihood, m_def$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_gc$log_likelihood, m_def$log_likelihood, tolerance = 1e-8)
+  expect_equal(m_dc$log_likelihood, m_def$log_likelihood, tolerance = 1e-8)
   expect_equal(coef(m_gc), coef(m_def), tolerance = 1e-8)
   expect_equal(coef(m_dc), coef(m_def), tolerance = 1e-8)
 })
@@ -94,6 +94,6 @@ test_that("opportunities_list[[1]] restricting event 1 equals the constraint", {
   )
   m_cstr <- fit_ordering(fx, "r")
   # opp[[1]] rides in active_dyad_init exactly as the support atom does.
-  expect_equal(m_opp$logLikelihood, m_cstr$logLikelihood, tolerance = 1e-8)
+  expect_equal(m_opp$log_likelihood, m_cstr$log_likelihood, tolerance = 1e-8)
   expect_equal(coef(m_opp), coef(m_cstr), tolerance = 1e-8)
 })

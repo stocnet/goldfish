@@ -80,14 +80,14 @@ expect_parity <- function(fits, label) {
       info = nm
     )
     expect_equal(
-      lapply(other$eventProbabilities, as.numeric),
-      lapply(ref$eventProbabilities, as.numeric),
+      lapply(other$event_probabilities, as.numeric),
+      lapply(ref$event_probabilities, as.numeric),
       tolerance = 1e-10,
       info = nm
     )
     expect_equal(
-      other$intervalLogL,
-      ref$intervalLogL,
+      other$interval_log_lik,
+      ref$interval_log_lik,
       tolerance = 1e-10,
       info = nm
     )
@@ -177,11 +177,11 @@ test_that("two-sided exact-time primitives agree across backends (REM)", {
 # the rank of the observed alternative is decided by rounding rather than by the
 # model, and two implementations that both round correctly can still disagree.
 worst_near_tie_block <- function(fit, tol = 1e-12) {
-  p_obs <- exp(fit$intervalLogL)
+  p_obs <- exp(fit$interval_log_lik)
   max(vapply(
-    seq_along(fit$eventProbabilities),
+    seq_along(fit$event_probabilities),
     function(i) {
-      p <- as.numeric(fit$eventProbabilities[[i]])
+      p <- as.numeric(fit$event_probabilities[[i]])
       p <- p[p > 0]
       sum(abs(p - p_obs[i]) <= tol * p_obs[i])
     },
@@ -212,8 +212,8 @@ test_that("coordination primitives agree across backends", {
   expect_lt(worst_near_tie_block(fits$cpp), 50)
   expect_parity(fits, "coordination")
   expect_equal(
-    vapply(fits$cpp$eventProbabilities, sum, numeric(1)),
-    rep(2, fits$cpp$nEvents)
+    vapply(fits$cpp$event_probabilities, sum, numeric(1)),
+    rep(2, fits$cpp$n_events)
   )
 })
 
@@ -288,7 +288,7 @@ test_that("parity holds when half the intervals are right-censored", {
 test_that("the conditional component matches its identity at the MLE", {
   skip_on_cran()
   withr::local_options(lifecycle_verbosity = "quiet")
-  # log p_obs == intervalLogL - log T + Dt * T. This is a CHECK, never the
+  # log p_obs == interval_log_lik - log T + Dt * T. This is a CHECK, never the
   # computation: the identity adds back a term the log-likelihood just
   # subtracted, losing digits in proportion to Dt * T. At the MLE the per-event
   # expected count is order one by the intercept score equation, so the identity
@@ -311,7 +311,7 @@ test_that("the conditional component matches its identity at the MLE", {
   # successive difference. The first interval runs from the observation window's
   # start, which no stored component carries, so it is left out.
   interval_length <- c(NA_real_, diff(fit$event_time))
-  usable <- seq_len(fit$nEvents)[-1]
+  usable <- seq_len(fit$n_events)[-1]
   censored <- fit$right_censored_events
 
   # Validate that reconstruction before relying on it: a right-censored
@@ -320,12 +320,12 @@ test_that("the conditional component matches its identity at the MLE", {
   expect_gt(length(pinned), 0L)
   expect_equal(
     interval_length[pinned] * fit$total_rate[pinned],
-    -fit$intervalLogL[pinned],
+    -fit$interval_log_lik[pinned],
     tolerance = 1e-9
   )
 
   dependent <- usable[!censored[usable]]
-  identity <- fit$intervalLogL[dependent] -
+  identity <- fit$interval_log_lik[dependent] -
     log(fit$total_rate[dependent]) +
     interval_length[dependent] * fit$total_rate[dependent]
   expect_equal(
@@ -381,14 +381,14 @@ test_that("estimation iterates with every primitive on", {
       # the guard is never exercised.
       expect_gt(sum(fit$right_censored_events), 0L, label = fixture$label)
       # The loop ran rather than bailing out at the first step.
-      expect_gt(fit$nIterations, 1L)
+      expect_gt(fit$n_iterations, 1L)
       expect_equal(fit$backend, backend, info = fixture$label)
       for (component in c(
-        "intervalLogL",
+        "interval_log_lik",
         "event_scores",
         "observed_rank",
         "margins",
-        "eventProbabilities",
+        "event_probabilities",
         "total_rate",
         "conditional_logl"
       )) {
@@ -411,7 +411,7 @@ test_that("estimation iterates with every primitive on", {
         info = paste(fixture$label, backend)
       )
       expect_false(
-        any(is.na(fit$intervalLogL)),
+        any(is.na(fit$interval_log_lik)),
         info = paste(fixture$label, backend)
       )
       expect_false(
