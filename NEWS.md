@@ -1,3 +1,22 @@
+# goldfish 1.9.15
+
+* `risk_set_axis()` is a new exported accessor reporting which axis a position in
+  a per-event diagnostic component refers to -- `"sender"`,
+  `"receiver_given_sender"`, `"dyad"` or `"dyad_symmetric"`. Fitted models carry
+  the value as `$risk_set_axis`. Two fits over the same actors can return
+  per-event vectors of identical length that index different things: on a
+  DyNAM-rate model position `i` is a sender, on a DyNAM-choice model it is a
+  candidate receiver. The axis was recoverable only through an unexported
+  function, so a diagnostic written outside the package had to reach in with
+  `:::` or re-derive the geometry from `model` / `sub_model`.
+
+* The fitted object's `node_lookup` is now documented as *the* resolver for a
+  per-event index: join a position to the side the axis names, and read the
+  original node row and label from there. Per-event components deliberately carry
+  no actor names of their own -- one lookup table per fit rather than one copy per
+  event. Nothing about the stored data changed; the contract it satisfies is now
+  written down.
+
 # goldfish 1.9.14
 
 * **Every per-event diagnostic primitive is now available on every backend.**
