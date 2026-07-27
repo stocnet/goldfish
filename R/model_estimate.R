@@ -646,8 +646,11 @@ estimate_from_specification <- function(
 #'   preprocessed statistics. `"preprocessed"` returns the estimation-ready
 #'   `preprocessed.goldfish` object; `"gather"` returns the gather stack (one
 #'   row per event x alternative, as in [gather_model_data()]); `"db"` streams
-#'   the gather rows to the database table configured via
-#'   [set_preprocessing()] (`db` / `db_table`) and returns a descriptor.
+#'   the gather rows to the database configured via [set_preprocessing()]
+#'   (`db` / `db_table`) and returns a descriptor. A db export writes one
+#'   statistics table per modeled process, `<db_table>_<fid>`, plus the
+#'   `<db_table>_map` and `<db_table>_nodes` tables that make it readable
+#'   without the session that produced it.
 #' @param control_prep an object of class `preprocessing.goldfish` created
 #'   with [set_preprocessing()].
 #' @param progress logical. Whether to print a progress bar during
@@ -1936,10 +1939,14 @@ estimate_wrapper <- function(
       # The node lookup resolves index_i/index_j back to original node identity.
       gathered$node_lookup <- ds_node_lookup(orig_src)
       if (output == "db") {
-        return(write_gather_to_db(
+        return(export_single_process_db(
           gathered,
           control_prep$db,
-          control_prep$db_table
+          control_prep$db_table,
+          model,
+          sub_model,
+          ds_focal_layer(orig_src),
+          has_intercept
         ))
       }
       return(gathered)
@@ -1993,10 +2000,14 @@ estimate_wrapper <- function(
     )
     gathered$node_lookup <- ds_node_lookup(orig_src)
     if (output == "db") {
-      return(write_gather_to_db(
+      return(export_single_process_db(
         gathered,
         control_prep$db,
-        control_prep$db_table
+        control_prep$db_table,
+        model,
+        sub_model,
+        ds_focal_layer(orig_src),
+        has_intercept
       ))
     }
     return(gathered)

@@ -292,19 +292,7 @@ writer_gather <- function() {
 #'   streaming lands with the native in-loop gather expansion.
 #' @noRd
 writer_db <- function(db = NULL, db_table = "stats") {
-  if (is.null(db)) {
-    cli::cli_abort(c(
-      "A DBI connection is required for {.code output = \"db\"}.",
-      "i" = "Configure one with {.code set_preprocessing(db =
-             <DBIConnection>, db_table = ...)}."
-    ))
-  }
-  if (!inherits(db, "DBIConnection")) {
-    cli::cli_abort("{.arg db} must be a {.cls DBIConnection} object.")
-  }
-  if (!is.character(db_table) || length(db_table) != 1L) {
-    cli::cli_abort("{.arg db_table} must be a single character string.")
-  }
+  validate_db_target(db, db_table)
   base <- writer_gather()
   structure(
     list(
@@ -323,19 +311,73 @@ writer_db <- function(db = NULL, db_table = "stats") {
   )
 }
 
+#' Check the export target of `output = "db"` before any work happens
+#'
+#' Called where the db route is decided — when the db writer is constructed on
+#' the single-process path, and before the shared preprocessing pass on the
+#' flavored one, which renders and persists per process afterwards. A run that
+#' cannot write must fail before the event loop, not after it.
+#'
+#' @noRd
+validate_db_target <- function(db, db_table) {
+  if (is.null(db)) {
+    cli::cli_abort(c(
+      "A DBI connection is required for {.code output = \"db\"}.",
+      "i" = "Configure one with {.code set_preprocessing(db =
+             <DBIConnection>, db_table = ...)}."
+    ))
+  }
+  if (!inherits(db, "DBIConnection")) {
+    cli::cli_abort("{.arg db} must be a {.cls DBIConnection} object.")
+  }
+  if (!is.character(db_table) || length(db_table) != 1L) {
+    cli::cli_abort("{.arg db_table} must be a single character string.")
+  }
+  invisible(NULL)
+}
+
+# The identity columns every exported long table reserves, whatever the model
+# family: a rate export leaves `index_j` unwritten but the name stays reserved,
+# so the same effect resolves to the same column name across families.
+DB_RESERVED_COLUMNS <- c("event_id", "is_selected", "index_i", "index_j")
+
+#' Resolve the statistics column names of a db export
+#'
+#' The exported statistics columns are named by their effect (`names_effects`)
+#' rather than by position, so a table read without the producing session still
+#' says which effect each column holds. The reserved identity columns take part
+#' in the uniqueness pass: an effect whose short name collides with one of them
+#' is disambiguated instead of overwriting it.
+#'
+#' @noRd
+db_stat_column_names <- function(names_effects) {
+  resolved <- make.unique(c(DB_RESERVED_COLUMNS, names_effects), sep = "_")
+  utils::tail(resolved, length(names_effects))
+}
+
 #' Stream a named gather stack to a DBI table in event-aligned batches
 #'
 #' Writes the gather long table (one row per event x alternative) produced by
-#' `finalize_gather_output()` to `db_table` on `db`. Rows are appended in
-#' batches aligned to event boundaries, so on a mid-stream failure the last
-#' fully written event index is known and reported. The returned descriptor
-#' omits `stat_all_events` (now persisted in the table) and keeps the per-event
+#' `finalize_gather_output()` to the process table `<db_table>_<fid>` on `db`.
+#' Rows are appended in batches aligned to event boundaries, so on a mid-stream
+#' failure the last fully written event index is known and reported, together
+#' with the process whose table failed (an event index alone is ambiguous once
+#' an export holds several processes). The returned descriptor omits
+#' `stat_all_events` (now persisted in the table) and keeps the per-event
 #' metadata. The long table has an `event_id` column, an `is_selected` flag
-#' (1 for the chosen alternative of an event, 0 otherwise), and one
-#' `stat_<i>` column per effect statistic.
+#' (1 for the chosen alternative of an event, 0 otherwise), the identity columns
+#' `index_i`/`index_j`, and one column per effect statistic named by that
+#' effect.
 #'
 #' @noRd
-write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
+write_gather_to_db <- function(
+  gathered,
+  db,
+  db_table,
+  fid = 1L,
+  batch_events = 1000L
+) {
+  stats_table <- paste0(db_table, "_", fid)
   stat <- gathered$stat_all_events
   n_candidates <- gathered$n_candidates
   n_events <- length(n_candidates)
@@ -350,11 +392,11 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
   is_selected[ev_starts[has_sel] + selected[has_sel]] <- 1L
 
   stat_df <- as.data.frame(stat)
-  names(stat_df) <- paste0("stat_", seq_len(n_parameters))
+  names(stat_df) <- db_stat_column_names(gathered$names_effects)
   # Row identity in SQL: without index_i/index_j the long table
-  # (event_id / is_selected / stat_<i>) leaves each candidate row unidentifiable
-  # once the risk set is filtered. The index columns decode to the sanitized
-  # actor ids (index_j is NA for sender-set rate rows).
+  # (event_id / is_selected / statistics) leaves each candidate row
+  # unidentifiable once the risk set is filtered. The index columns decode to
+  # the sanitized actor ids (index_j is NA for sender-set rate rows).
   id_df <- data.frame(event_id = event_id, is_selected = is_selected)
   if (!is.null(gathered$index_i)) {
     id_df$index_i <- gathered$index_i
@@ -378,10 +420,10 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
     res <- tryCatch(
       {
         if (first) {
-          DBI::dbWriteTable(db, db_table, batch, overwrite = TRUE)
+          DBI::dbWriteTable(db, stats_table, batch, overwrite = TRUE)
           first <- FALSE
         } else {
-          DBI::dbAppendTable(db, db_table, batch)
+          DBI::dbAppendTable(db, stats_table, batch)
         }
         TRUE
       },
@@ -389,8 +431,9 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
     )
     if (!isTRUE(res)) {
       cli::cli_abort(c(
-        "Failed to write gather rows to table {.val {db_table}}.",
-        "x" = "Last successfully written event index: {.val {last_event}}.",
+        "Failed to write gather rows to table {.val {stats_table}}.",
+        "x" = "Process {.val {fid}}, last successfully written event index:
+               {.val {last_event}}.",
         "i" = conditionMessage(res)
       ))
     }
@@ -401,9 +444,101 @@ write_gather_to_db <- function(gathered, db, db_table, batch_events = 1000L) {
   gathered$stat_all_events <- NULL
   gathered$db <- db
   gathered$db_table <- db_table
+  gathered$db_tables <- c(stats = stats_table)
+  gathered$fid <- fid
   gathered$n_rows <- n_rows
   gathered$n_parameters <- n_parameters
   structure(gathered, class = "preprocessed_db.goldfish")
+}
+
+#' Complete a db export with its map and node tables
+#'
+#' A db export is always K processes, K >= 1: every export writes one statistics
+#' table per process plus the two tables that make it readable without the
+#' session that produced it — `<db_table>_map` (the `process_map` identity
+#' columns and each process's table name) and `<db_table>_nodes` (the
+#' `(side, local, global, label)` lookup the `index_i`/`index_j` columns join
+#' to). The node lookup is one layer's, shared by every process, so it is
+#' written once; the legacy environment path carries none and writes no node
+#' table.
+#'
+#' The map is the authority for which tables belong to this export. Tables a
+#' previous export with more processes left behind are NOT dropped: a
+#' prefix-matching drop would be a destructive guess against tables the
+#' connection may own for other reasons.
+#'
+#' @param descriptors fid-keyed list of `preprocessed_db.goldfish` descriptors,
+#'   one per written process table.
+#' @param process_map the identity table of the export, one row per fid.
+#' @noRd
+finish_db_export <- function(descriptors, db, db_table, process_map) {
+  map_table <- paste0(db_table, "_map")
+  nodes_table <- paste0(db_table, "_nodes")
+  written <- vapply(descriptors, function(d) unname(d$db_tables["stats"]), "")
+  map_df <- process_map
+  map_df$table_name <- unname(written[as.character(process_map$fid)])
+
+  node_lookup <- descriptors[[1L]]$node_lookup
+  has_nodes <- !is.null(node_lookup)
+  if (has_nodes) {
+    DBI::dbWriteTable(db, nodes_table, node_lookup, overwrite = TRUE)
+  }
+  DBI::dbWriteTable(db, map_table, map_df, overwrite = TRUE)
+
+  tables <- c(map = map_table, if (has_nodes) c(nodes = nodes_table))
+  lapply(descriptors, function(d) {
+    d$db_tables <- c(d$db_tables, tables)
+    d$process_map <- map_df
+    d
+  })
+}
+
+#' The one-row `process_map` of a single-process export
+#'
+#' The db schema is the same whether or not the specification is flavored, so a
+#' single process is fid 1 under exactly the numbering flavoring uses. Its map
+#' row is synthesized from the model itself: there is no flavor to name, but
+#' the layer, family and intercept of the process whose table it points at are
+#' what a later reader needs.
+#'
+#' @noRd
+single_process_map <- function(model, sub_model, layer, has_intercept) {
+  data.frame(
+    fid = 1L,
+    layer = layer %||% NA_character_,
+    flavor = NA_character_,
+    family = sub_model,
+    stat_block = paste(model, sub_model, sep = ":"),
+    has_intercept = has_intercept,
+    constraint_id = NA_integer_,
+    stringsAsFactors = FALSE
+  )
+}
+
+#' Export one gather stack as a complete single-process db export
+#'
+#' Writes `<db_table>_1`, the one-row map and the node table, and returns that
+#' process's descriptor — the asymmetric return of D10: a single process gives
+#' back its descriptor, a flavored specification a fid-keyed list, because the
+#' caller of the first knows there is only one.
+#'
+#' @noRd
+export_single_process_db <- function(
+  gathered,
+  db,
+  db_table,
+  model,
+  sub_model,
+  layer,
+  has_intercept
+) {
+  descriptors <- finish_db_export(
+    list("1" = write_gather_to_db(gathered, db, db_table, fid = 1L)),
+    db,
+    db_table,
+    single_process_map(model, sub_model, layer, has_intercept)
+  )
+  descriptors[[1L]]
 }
 
 #' Build the gather stack from an assembled flat preprocessing object

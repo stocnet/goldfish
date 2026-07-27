@@ -520,6 +520,17 @@ ds_node_lookup.data_source_stocnet <- function(src) {
   layer_node_lookup(src$mode_map, src$focal)
 }
 
+# The name of the focal layer, for exports that record which layer a process
+# belongs to. The legacy environment has no layer vocabulary at all -- its
+# dependent events name a network object, not a layer -- so it answers NA.
+ds_focal_layer <- function(src) UseMethod("ds_focal_layer")
+
+#' @exportS3Method
+ds_focal_layer.data_source_envir <- function(src) NA_character_
+
+#' @exportS3Method
+ds_focal_layer.data_source_stocnet <- function(src) src$focal
+
 # Does `nodeset` name the global-attribute container rather than a node set?
 ds_is_global <- function(src, nodeset) UseMethod("ds_is_global")
 

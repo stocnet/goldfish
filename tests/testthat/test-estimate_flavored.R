@@ -299,19 +299,76 @@ test_that("a per-fid gather stack equals its single-flavor run", {
   }
 })
 
-test_that("flavored db output refuses rather than merging processes", {
+test_that("flavored db output writes a table per process, plus map and nodes", {
+  skip_on_cran()
+  skip_if_not_installed("RSQLite")
   data <- flavored_fixture_data()
-  expect_snapshot(
-    error = TRUE,
-    compute_statistics(
-      make_specification(
-        choice = list(creation ~ trans, dissolution ~ trans),
-        model = "DyNAM",
-        data = data
-      ),
-      model = "DyNAM",
-      sub_model = "choice",
-      output = "db"
-    )
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  spec <- make_specification(
+    choice = list(creation ~ trans, dissolution ~ trans),
+    model = "DyNAM",
+    data = data
   )
+  descriptors <- suppressWarnings(compute_statistics(
+    spec,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "db",
+    control_prep = set_preprocessing(db = con, db_table = "stats")
+  ))
+
+  expect_setequal(
+    DBI::dbListTables(con),
+    c("stats_1", "stats_2", "stats_map", "stats_nodes")
+  )
+  map <- DBI::dbReadTable(con, "stats_map")
+  expect_identical(map$table_name, c("stats_1", "stats_2"))
+  # The map's keying is the estimation container's keying, read back from SQL.
+  container <- suppressWarnings(estimate_dynam(spec))
+  expect_identical(map$fid, container$process_map$fid)
+  expect_identical(map$flavor, container$process_map$flavor)
+
+  # Each process's rows are its own gather stack, named by its own effects.
+  gathered <- suppressWarnings(compute_statistics(
+    spec,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  ))
+  for (fid in map$fid) {
+    tbl <- DBI::dbReadTable(con, paste0("stats_", fid))
+    stack <- gathered[[as.character(fid)]]
+    written <- as.matrix(tbl[, stack$names_effects, drop = FALSE])
+    dimnames(written) <- NULL
+    expect_equal(written, unname(stack$stat_all_events))
+    expect_equal(
+      as.integer(table(tbl$event_id)),
+      as.integer(stack$n_candidates)
+    )
+  }
+
+  # The R return keeps the fid-keyed shape; each descriptor names its tables.
+  expect_named(descriptors, as.character(map$fid))
+  expect_identical(
+    unname(descriptors[["1"]]$db_tables["stats"]),
+    "stats_1"
+  )
+
+  # Re-exporting with fewer processes leaves the earlier run's extra table
+  # behind: dropping by prefix would be a destructive guess against tables the
+  # connection may own for other reasons. The map is the authority instead.
+  suppressWarnings(compute_statistics(
+    make_specification(
+      choice = list(creation ~ trans),
+      model = "DyNAM",
+      data = data
+    ),
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "db",
+    control_prep = set_preprocessing(db = con, db_table = "stats")
+  ))
+  expect_true("stats_2" %in% DBI::dbListTables(con))
+  expect_identical(nrow(DBI::dbReadTable(con, "stats_map")), 1L)
 })

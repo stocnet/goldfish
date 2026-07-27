@@ -714,10 +714,14 @@ reconcile_legacy_diagnostics <- function(
 #'   Default is `NULL`.
 #' @param db A `DBIConnection` object or `NULL` (default). When supplied
 #'   together with `compute_statistics(..., output = "db")`, the gather statistics
-#'   are streamed to the database table named by `db_table` instead of being
-#'   held in memory.
-#' @param db_table A single character string naming the database table to
-#'   write to when a `db` connection is configured. Default is `"stats"`.
+#'   are streamed to the database tables prefixed by `db_table` instead of
+#'   being held in memory.
+#' @param db_table A single character string naming the table prefix of the
+#'   export written when a `db` connection is configured. Default is
+#'   `"stats"`. Every export writes one statistics table per modeled process,
+#'   `<db_table>_<fid>` (a specification without flavors is process 1), plus
+#'   `<db_table>_map` naming those tables and `<db_table>_nodes` resolving the
+#'   `index_i` / `index_j` columns back to the original nodes.
 # @param keep_sender_index A logical value. If `TRUE`, the sender index,
 #   the index in the nodeset, of the potential senders of the events is
 #   kept in the preprocessed data.

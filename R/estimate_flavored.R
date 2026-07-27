@@ -53,6 +53,13 @@ estimate_flavored <- function(
     ))
   }
 
+  # The flavored pass preprocesses with the default writer and renders per fid
+  # afterwards, so an unwritable db target would otherwise surface only once the
+  # whole pass had run.
+  if (preprocessing_only && identical(output, "db")) {
+    validate_db_target(control_prep$db, control_prep$db_table)
+  }
+
   preps <- preprocess_flavored(
     spec,
     control_prep = control_prep,
@@ -132,22 +139,20 @@ flavored_statistics_output <- function(
   if (identical(output, "default")) {
     return(preps)
   }
-  if (identical(output, "db")) {
-    cli::cli_abort(c(
-      "{.code output = \"db\"} is not available for a multi-flavor
-       specification.",
-      "x" = "Its processes would append to one table with nothing to tell
-             their rows apart.",
-      "i" = "Use {.code output = \"gather\"}, or preprocess one flavor at a
-             time with its own {.arg db_table}."
-    ))
-  }
   process_map <- attr(preps, "process_map")
+  is_db <- identical(output, "db")
+  # A db export renders each process as a gather stack and persists it before
+  # the next one is rendered, so the run holds one stack at a time -- the reason
+  # the db route exists. The per-process table, the map and the node table are
+  # written by the shared export helpers, in the same schema a single-process
+  # export writes.
+  render_output <- if (is_db) "gather" else output
   outputs <- lapply(seq_len(nrow(process_map)), function(i) {
     flavor <- process_map$flavor[i]
     family <- process_map$family[i]
-    prep <- preps[[as.character(process_map$fid[i])]]
-    estimate_wrapper(
+    fid <- process_map$fid[i]
+    prep <- preps[[as.character(fid)]]
+    rendered <- estimate_wrapper(
       x = prep$formula,
       model = model,
       sub_model = spec$processes[[flavor]]$submodels[[family]]$sub_model,
@@ -155,14 +160,31 @@ flavored_statistics_output <- function(
       control_prep = control_prep,
       preprocessed = prep,
       preprocessing_only = TRUE,
-      output = output,
+      output = render_output,
       max_length = max_length,
       support_constraint = spec$processes[[flavor]]$constraint,
       progress = progress,
       verbose = verbose
     )
+    if (!is_db) {
+      return(rendered)
+    }
+    write_gather_to_db(
+      rendered,
+      control_prep$db,
+      control_prep$db_table,
+      fid = fid
+    )
   })
   names(outputs) <- as.character(process_map$fid)
+  if (is_db) {
+    outputs <- finish_db_export(
+      outputs,
+      control_prep$db,
+      control_prep$db_table,
+      process_map
+    )
+  }
 
   structure(
     outputs,

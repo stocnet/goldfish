@@ -57,11 +57,15 @@ Default is \code{NULL}.}
 
 \item{db}{A \code{DBIConnection} object or \code{NULL} (default). When supplied
 together with \code{compute_statistics(..., output = "db")}, the gather statistics
-are streamed to the database table named by \code{db_table} instead of being
-held in memory.}
+are streamed to the database tables prefixed by \code{db_table} instead of
+being held in memory.}
 
-\item{db_table}{A single character string naming the database table to
-write to when a \code{db} connection is configured. Default is \code{"stats"}.}
+\item{db_table}{A single character string naming the table prefix of the
+export written when a \code{db} connection is configured. Default is
+\code{"stats"}. Every export writes one statistics table per modeled process,
+\verb{<db_table>_<fid>} (a specification without flavors is process 1), plus
+\verb{<db_table>_map} naming those tables and \verb{<db_table>_nodes} resolving the
+\code{index_i} / \code{index_j} columns back to the original nodes.}
 }
 \value{
 An object of class \code{preprocessing.goldfish} (a list object), with

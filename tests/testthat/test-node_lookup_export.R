@@ -154,6 +154,6 @@ test_that("the db export descriptor carries the node lookup", {
   lookup <- descriptor$node_lookup
   expect_named(lookup, c("side", "local", "global", "label"))
   # The long SQL table's index_i / index_j join to this lookup off-database.
-  tbl <- DBI::dbReadTable(con, "stats")
+  tbl <- DBI::dbReadTable(con, "stats_1")
   expect_false(anyNA(join_side(lookup, tbl$index_i, 1L)))
 })

@@ -201,6 +201,41 @@ test_that("a point-encoded stored object renders through the gather stage", {
   expect_equal(unname(rendered$stat_all_events), unname(direct$stat_all_events))
 })
 
+test_that("a constrained db export writes only the allowed candidates", {
+  skip_on_cran()
+  skip_if_not_installed("RSQLite")
+  fx <- make_estimate_fixture()
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  gathered <- compute_statistics(
+    calls_dependent ~ inertia + recip,
+    data = fx$data,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather",
+    support_constraint = ~ tie(allowedNet)
+  )
+  compute_statistics(
+    calls_dependent ~ inertia + recip,
+    data = fx$data,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "db",
+    support_constraint = ~ tie(allowedNet),
+    control_prep = set_preprocessing(db = con, db_table = "stats")
+  )
+  tbl <- DBI::dbReadTable(con, "stats_1")
+  # Rows that reach the database are the rows the model actually had in its
+  # risk set: the constraint folds before the stack is rendered and written.
+  expect_identical(
+    as.integer(table(tbl$event_id)),
+    as.integer(unname(rowSums(fx$allowed)[fx$obs[, 1]]))
+  )
+  written <- as.matrix(tbl[, gathered$names_effects])
+  dimnames(written) <- NULL
+  expect_equal(written, unname(gathered$stat_all_events))
+})
+
 test_that("an observed dyad excluded by its own constraint errors", {
   fx <- make_estimate_fixture(n_events = 60L)
   # `~ tie(call_network)` excludes the very first call (no prior tie exists yet).

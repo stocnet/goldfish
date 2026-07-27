@@ -41,8 +41,11 @@ only the order of the events, which has neither.}
 preprocessed statistics. \code{"preprocessed"} returns the estimation-ready
 \code{preprocessed.goldfish} object; \code{"gather"} returns the gather stack (one
 row per event x alternative, as in \code{\link[=gather_model_data]{gather_model_data()}}); \code{"db"} streams
-the gather rows to the database table configured via
-\code{\link[=set_preprocessing]{set_preprocessing()}} (\code{db} / \code{db_table}) and returns a descriptor.}
+the gather rows to the database configured via \code{\link[=set_preprocessing]{set_preprocessing()}}
+(\code{db} / \code{db_table}) and returns a descriptor. A db export writes one
+statistics table per modeled process, \verb{<db_table>_<fid>}, plus the
+\verb{<db_table>_map} and \verb{<db_table>_nodes} tables that make it readable
+without the session that produced it.}
 
 \item{control_prep}{an object of class \code{preprocessing.goldfish} created
 with \code{\link[=set_preprocessing]{set_preprocessing()}}.}
