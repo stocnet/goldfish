@@ -72,3 +72,13 @@
       x Unknown: `inrt`.
       i Available: `rec`.
 
+# a position outside the coefficient vector aborts naming the term
+
+    Code
+      resolve_coefficient_mask(new_fixed_spec(4L, 1, "trans"), NULL, 3L)
+    Condition
+      Error in `check_spec_positions()`:
+      ! A fixed coefficient falls outside this model's 3 coefficients.
+      x Out of range: `trans` at position 4.
+      i The model the values were written for is not the model being estimated.
+

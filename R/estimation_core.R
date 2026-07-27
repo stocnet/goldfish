@@ -5,6 +5,54 @@
 #
 #################### ###
 
+# The estimation-side counterpart of the front-end assembler: it turns the two
+# contracts -- which coefficients are held at supplied values, which were seeded
+# with starting values -- into the pieces the estimation loops need. Every
+# estimation path reads them from here, so the alignment between a term and its
+# position is decided once, where the coefficient count is known, instead of
+# being re-derived from an encoded vector by each consumer.
+#
+# Seeding is applied first and fixing overwrites it, so a coefficient named by
+# both ends up at its fixed value. `intercept_seeded` is what a data-derived
+# intercept start must consult: seeding some other coefficient says nothing
+# about the intercept, which is why "was any starting vector supplied at all"
+# is not the question to ask.
+resolve_coefficient_mask <- function(fixed_spec, initial_spec, n_params) {
+  parameters <- numeric(n_params)
+  if (!is.null(initial_spec)) {
+    check_spec_positions(initial_spec, n_params, "seeded")
+    parameters[initial_spec$idx] <- initial_spec$values
+  }
+  if (!is.null(fixed_spec)) {
+    check_spec_positions(fixed_spec, n_params, "fixed")
+    parameters[fixed_spec$idx] <- fixed_spec$values
+  }
+  id_fixed <- fixed_spec$idx
+  list(
+    parameters = parameters,
+    id_fixed = id_fixed,
+    id_unfixed = setdiff(seq_len(n_params), id_fixed),
+    likelihood_only = length(id_fixed) == n_params && n_params > 0,
+    intercept_fixed = 1L %in% id_fixed,
+    intercept_seeded = 1L %in% initial_spec$idx
+  )
+}
+
+check_spec_positions <- function(spec, n_params, what) {
+  bad <- spec$idx > n_params | spec$idx < 1L
+  if (!any(bad)) {
+    return(invisible(NULL))
+  }
+  cli::cli_abort(c(
+    "A {what} coefficient falls outside this model's {n_params}
+     coefficient{?s}.",
+    "x" = "Out of range: {.code {spec$names[bad]}} at
+           position {.val {spec$idx[bad]}}.",
+    "i" = "The model the values were written for is not the model being
+           estimated."
+  ))
+}
+
 # Estimation
 #
 # S3 generic dispatched on the model specification class. The family

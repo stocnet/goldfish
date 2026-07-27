@@ -359,6 +359,63 @@ test_that("list-shaped starting values are accepted by the constructor", {
   )
 })
 
+# The estimation-side decode. Every estimation path reads its masking from
+# here, so the alignment between a term and its position is settled once.
+
+test_that("nothing fixed or seeded leaves every coefficient free at zero", {
+  mask <- resolve_coefficient_mask(NULL, NULL, 3L)
+  expect_identical(mask$parameters, c(0, 0, 0))
+  expect_null(mask$id_fixed)
+  expect_identical(mask$id_unfixed, 1:3)
+  expect_false(mask$likelihood_only)
+  expect_false(mask$intercept_fixed)
+  expect_false(mask$intercept_seeded)
+})
+
+test_that("fixing masks the fixed positions out of estimation", {
+  fixed <- new_fixed_spec(2L, 1.5, "recip")
+  mask <- resolve_coefficient_mask(fixed, NULL, 3L)
+  expect_identical(mask$parameters, c(0, 1.5, 0))
+  expect_identical(mask$id_fixed, 2L)
+  expect_identical(mask$id_unfixed, c(1L, 3L))
+  expect_false(mask$likelihood_only)
+})
+
+test_that("every coefficient fixed is likelihood-only evaluation", {
+  fixed <- new_fixed_spec(1:3, c(1, 2, 3), c("a", "b", "c"))
+  mask <- resolve_coefficient_mask(fixed, NULL, 3L)
+  expect_true(mask$likelihood_only)
+  expect_identical(mask$id_unfixed, integer(0))
+  expect_true(mask$intercept_fixed)
+})
+
+test_that("seeding is applied first and fixing overwrites it", {
+  initial <- new_initial_spec(c(1L, 2L), c(-3, 0.9), c("Intercept", "recip"))
+  fixed <- new_fixed_spec(2L, 1.5, "recip")
+  mask <- resolve_coefficient_mask(fixed, initial, 3L)
+  expect_identical(mask$parameters, c(-3, 1.5, 0))
+  expect_true(mask$intercept_seeded)
+  expect_false(mask$intercept_fixed)
+})
+
+test_that("seeding a non-intercept term leaves the intercept unseeded", {
+  initial <- new_initial_spec(3L, 0.5, "outdeg")
+  mask <- resolve_coefficient_mask(NULL, initial, 3L)
+  expect_identical(mask$parameters, c(0, 0, 0.5))
+  expect_false(mask$intercept_seeded)
+})
+
+test_that("a position outside the coefficient vector aborts naming the term", {
+  expect_snapshot(
+    error = TRUE,
+    resolve_coefficient_mask(new_fixed_spec(4L, 1, "trans"), NULL, 3L)
+  )
+  expect_error(
+    resolve_coefficient_mask(NULL, new_initial_spec(9L, 1, "trans"), 3L),
+    "seeded coefficient falls outside"
+  )
+})
+
 test_that("a contract flattens to the positional encoding", {
   spec <- new_fixed_spec(c(1L, 3L), c(0.5, -1), c("Intercept", "trans"))
   expect_identical(fixed_spec_to_vector(spec, 4L), c(0.5, NA, -1, NA))
