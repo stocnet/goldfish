@@ -1,8 +1,10 @@
 test_that("summary goldfish", {
   objSum <- summary(resModObject)
   expect_s3_class(objSum, "summary.result.goldfish")
-  # 19 since the fit carries the backend that produced it.
-  expect_length(objSum, 19)
+  # The fixture's own components plus the three `summary()` adds (`coef_mat`,
+  # `AIC`, `BIC`), so this count moves whenever the fit's layout does -- 20 now
+  # that the fixture records `fit_version`.
+  expect_length(objSum, 20)
   expect_true(inherits(objSum$coef_mat, "array"))
   expect_type(objSum$coef_mat, "double")
   expect_length(objSum$coef_mat, resModObject$n_params * 4)

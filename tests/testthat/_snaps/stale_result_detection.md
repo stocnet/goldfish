@@ -1,3 +1,13 @@
+# a preprocessed object is refused on kind, not accepted by default
+
+    Code
+      abort_if_stale_result(prep, "a summary")
+    Condition
+      Error:
+      ! Cannot compute a summary from a <preprocessed.goldfish> object.
+      x A <result.goldfish> object is required.
+      i Pass the fitted model itself, not one of its components.
+
 # the messages name the cause and the fix
 
     Code

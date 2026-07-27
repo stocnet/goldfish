@@ -41,6 +41,9 @@ fake_fit <- function(log_lik) {
       log_likelihood = log_lik,
       n_events = 10L,
       n_params = 2L,
+      # `logLik()` refuses an object that records no layout, and this fixture is
+      # classed precisely so that call routes through the real method.
+      fit_version = FIT_VERSION,
       names = matrix(
         c("net", "net", "FALSE", "FALSE"),
         ncol = 2,

@@ -852,6 +852,11 @@ resModObject <- structure(
     sub_model = "choice",
     backend = "cpp",
     right_censored = FALSE,
+    # Declares which layout this hand-built fixture emulates. The
+    # post-estimation methods refuse an object carrying no record, so a fixture
+    # they are called on has to say -- and when the layout next moves, this line
+    # is what fails loudly instead of the fixture drifting unnoticed.
+    fit_version = FIT_VERSION,
     n_params = 3L,
     call = str2lang(
       "estimate(x = calls_dependent ~ inertia + recip + trans,

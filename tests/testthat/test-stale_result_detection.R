@@ -40,9 +40,10 @@ old_cran_fit <- function() {
 
 test_that("an old object is recognized, and a current one is not", {
   old <- old_cran_fit()
-  # The premise: recognition must rest on something the object actually carries.
-  expect_contains(names(old), "logLikelihood")
+  # The evidence is the missing record, not the camelCase components. Those are
+  # asserted only to document that this fixture really is 1.6.12-shaped.
   expect_false("fit_version" %in% names(old))
+  expect_contains(names(old), "logLikelihood")
   expect_identical(result_format_status(old), "outdated")
 
   data("social_evolution", envir = environment())
@@ -62,16 +63,46 @@ test_that("an old object is recognized, and a current one is not", {
   expect_identical(result_format_status(future), "newer")
 })
 
-test_that("an unstamped object without retired components is left alone", {
-  # The stamp postdates the rename, so absence alone cannot mean "old". Tests
-  # and downstream code legitimately build fit-shaped lists by hand; treating
-  # them as stale would reject objects that are perfectly current.
-  hand_built <- structure(
+test_that("an object carrying no record predates it, whatever else it holds", {
+  # One rule for both kinds of object: the missing record is the evidence, and
+  # it needs no corroboration. Nothing goldfish builds today lacks the record,
+  # so an object without one either predates it or was assembled by hand -- and
+  # in both cases computing from it is the thing to refuse.
+  no_record <- structure(
     list(parameters = c(a = 1), log_likelihood = -10, n_params = 1L),
     class = "result.goldfish"
   )
-  expect_identical(result_format_status(hand_built), "current")
-  expect_no_condition(inform_if_stale_result(hand_built))
+  # Deliberately carries none of the retired camelCase components: the verdict
+  # must not depend on finding one, which is what the old rule did.
+  expect_false(any(c("logLikelihood", "subModel") %in% names(no_record)))
+  expect_identical(result_format_status(no_record), "outdated")
+
+  # A fixture that wants the methods to run records the layout it emulates.
+  declared <- no_record
+  declared$fit_version <- FIT_VERSION
+  expect_identical(result_format_status(declared), "current")
+  expect_no_condition(inform_if_stale_result(declared))
+})
+
+test_that("the two objects are recognized by the same rule", {
+  # The asymmetry this replaced had the fit needing a retired component to
+  # confirm an absent stamp while the preprocessed object did not. Both now read
+  # their own slot against their own epoch and nothing else.
+  bare_fit <- structure(list(), class = "result.goldfish")
+  bare_prep <- structure(list(), class = "preprocessed.goldfish")
+  expect_identical(result_format_status(bare_fit), "outdated")
+  expect_identical(preprocessed_format_status(bare_prep), "outdated")
+
+  stamped_fit <- structure(
+    list(fit_version = FIT_VERSION),
+    class = "result.goldfish"
+  )
+  stamped_prep <- structure(
+    list(prep_version = PREP_VERSION),
+    class = "preprocessed.goldfish"
+  )
+  expect_identical(result_format_status(stamped_fit), "current")
+  expect_identical(preprocessed_format_status(stamped_prep), "current")
 })
 
 test_that("a preprocessed object is refused on kind, not accepted by default", {
@@ -82,21 +113,20 @@ test_that("a preprocessed object is refused on kind, not accepted by default", {
     data = social_evolution,
     output = "preprocessed"
   )
-  # The premise, and the whole reason kind is checked separately from the stamp:
-  # a current preprocessed object carries no `fit_version`, so the stamp alone
-  # would fall through the absent-stamp path and report it as a current fit.
+  # Kind is checked for the message, not the verdict: reading the fit's slot on
+  # a preprocessed object finds nothing, so it is refused either way -- but as
+  # "outdated", which is false about a freshly built object.
   expect_false("fit_version" %in% names(prep))
-  expect_identical(result_format_status(prep), "current")
+  expect_identical(result_format_status(prep), "outdated")
 
-  # The two stamps are also readable side by side without either shadowing the
-  # other, which is what lets a fit carry the object it was estimated from.
+  # The two stamps are readable side by side without either shadowing the other,
+  # which is what lets a fit carry the object it was estimated from.
   expect_contains(names(prep), "prep_version")
   expect_identical(prep$prep_version, PREP_VERSION)
 
-  expect_error(
-    abort_if_stale_result(prep, "a summary"),
-    class = "rlang_error"
-  )
+  # The class gate is what makes the refusal say the true thing: the object is
+  # the wrong kind, not the wrong vintage.
+  expect_snapshot(abort_if_stale_result(prep, "a summary"), error = TRUE)
 })
 
 test_that("a stale preprocessed object is refused at estimation entry", {
