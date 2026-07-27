@@ -59,7 +59,15 @@ estimate_rem(
 \item{x}{a formula that defines at the left-hand side the dependent
 network (see \code{\link[=make_dependent_events]{make_dependent_events()}}) and at the right-hand side the
 effects and the variables for which the effects are expected to occur
-(see \code{vignette("goldfish_effects")}).}
+(see \code{vignette("goldfish_effects")}).
+Wrapping a term in \code{offset()} holds its coefficient at a supplied value
+instead of estimating it, keeping the term's statistic in the model. The
+value can ride in the formula itself, as
+\code{offset(inertia(net), coef = -1.2)}, or come from
+\code{\link[=set_algorithm_newton]{set_algorithm_newton()}}'s \code{offset_coef}; a term given a value by both
+routes aborts. A multi-process specification takes offset values from its
+process formulas only, since a value written in a formula is unambiguous
+about which process it belongs to.}
 
 \item{sub_model}{A character string specifying the sub-model to be estimated.
 It can be \code{"rate"} to model the waiting times between events,

@@ -123,6 +123,14 @@
 #'   network (see [make_dependent_events()]) and at the right-hand side the
 #'   effects and the variables for which the effects are expected to occur
 #'   (see `vignette("goldfish_effects")`).
+#'   Wrapping a term in `offset()` holds its coefficient at a supplied value
+#'   instead of estimating it, keeping the term's statistic in the model. The
+#'   value can ride in the formula itself, as
+#'   `offset(inertia(net), coef = -1.2)`, or come from
+#'   [set_algorithm_newton()]'s `offset_coef`; a term given a value by both
+#'   routes aborts. A multi-process specification takes offset values from its
+#'   process formulas only, since a value written in a formula is unambiguous
+#'   about which process it belongs to.
 #' @param data a `data.goldfish` object created with [make_data()].
 #' It is an environment that contains the nodesets, networks,
 #' attributes and dependent events objects. Default to `NULL`.

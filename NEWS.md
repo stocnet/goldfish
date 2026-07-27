@@ -1,3 +1,45 @@
+# goldfish 1.9.18
+
+* **A fixed coefficient can be written where it belongs: in the formula.**
+  `offset(inertia(net), coef = -1.2)` holds that term at that value, in that
+  formula. This is what makes a multi-process specification estimable with
+  offsets at all: its processes are estimated from one shared control object,
+  so `offset_coef` there cannot say which process a value is for -- the same
+  term can appear in several of them, on the log-rate and the log-odds scale
+  at once, under the same coefficient label. A formula belongs to exactly one
+  process, so a value written in it cannot be misread. `offset_coef` and the
+  superseded `fixed_parameters` now abort on a multi-process specification and
+  point at `coef =`; single-process models keep both routes, and a term given
+  a value by both aborts naming the term. A specification where only one
+  process carries an `offset()` term now estimates, instead of aborting at the
+  processes that carry none.
+
+* **Starting values align to terms by name.**
+  `set_algorithm_newton(initial_parameters = c(inertia = 0.5))` seeds the
+  coefficients it names -- matched against the labels `coef()` reports -- and
+  leaves every other one at its default. Seeding one term no longer means
+  counting positions for all of them, and it no longer silently disables the
+  rate intercept's data-derived starting value: that now depends on whether
+  the intercept itself was seeded, not on whether any starting vector was
+  supplied. The full-length unnamed form is unchanged. On a multi-process
+  specification a flat named vector applies to every process carrying a
+  matching label, and a list keyed by flavor -- optionally by family within it
+  -- targets particular processes.
+
+* **Errors about fixed and seeded coefficients name the term.** An
+  `offset_coef` of the wrong length, a value from two sources, an offset term
+  with no value, a misspelled coefficient name: each says which term it means,
+  and an unknown name lists the ones that were available. Internally, which
+  coefficients are held and where they start is now decided once, at the point
+  where term names and coefficient positions are both known, and read by every
+  estimation path from one place.
+
+* **A fitted model records fixedness as a logical.** The effect description is
+  a typed table with a stable set of columns, so `tidy()` reports `fixed` as a
+  logical rather than the string `"TRUE"`. Objects fitted before goldfish
+  2.0.0 are unaffected by this in practice: they are already refused by the
+  result-format check, which tells you to re-fit.
+
 # goldfish 1.9.17
 
 * **`compute_statistics()` is the single statistics-product function, and it
