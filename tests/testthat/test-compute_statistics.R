@@ -254,3 +254,152 @@ test_that("preprocessed objects carry the format version", {
     "outdated preprocessing format"
   )
 })
+
+# DyNAM-i statistics export -------------------------------------------------
+#
+# The interaction front-end is fenced off the shared recipe path and ignores
+# the writer, so its preprocessing product is the monolith object rather than a
+# rendered stack. The export converts it exactly as estimation does, which is
+# what these tests pin: not merely that a stack comes back, but that the stack
+# describes the risk set the fit used. Each reconstructs the model's own
+# log-likelihood from the stack alone and compares it to the fit's.
+
+rfid_interaction_data <- function() {
+  env <- new.env()
+  data("RFID_Validity_Study", package = "goldfish", envir = env)
+  participants <- env$participants
+  participants$label <- as.character(participants$label)
+  make_groups_interaction(env$video, participants, seed_randomization = 1)
+}
+
+event_row_starts <- function(gathered) {
+  cumsum(c(0L, utils::head(gathered$n_candidates, -1L)))
+}
+
+test_that("a DyNAM-i choice gather describes the risk set the fit uses", {
+  data <- suppressWarnings(rfid_interaction_data())
+  formula <- interactions ~
+    diff(age, subType = "averaged_sum") + same(gender, subType = "proportion")
+  gathered <- suppressWarnings(compute_statistics(
+    formula,
+    model = "DyNAMi",
+    sub_model = "choice",
+    data = data,
+    output = "gather"
+  ))
+  fit <- suppressWarnings(estimate_dynami(
+    formula,
+    sub_model = "choice",
+    data = data,
+    control_algo = set_algorithm_newton(backend = "r")
+  ))
+
+  actors <- data$nodes$label[data$nodes$mode == "actor"]
+  groups <- data$nodes$label[data$nodes$mode == "group"]
+  expect_identical(gathered$names_effects, c("diff_age", "same_gender"))
+  expect_equal(nrow(gathered$stat_all_events), sum(gathered$n_candidates))
+  # The joining choice set is the groups occupied at the decision point, so it
+  # is bounded by the groups and genuinely narrower than all of them.
+  expect_true(all(gathered$n_candidates <= length(groups)))
+  expect_lt(min(gathered$n_candidates), length(groups))
+
+  # An actor x group dyad: the selected row decodes to the observed pair.
+  selected_rows <- event_row_starts(gathered) + gathered$selected
+  expect_equal(actors[gathered$index_i[selected_rows]], gathered$sender)
+  expect_equal(groups[gathered$index_j[selected_rows]], gathered$receiver)
+
+  # The multinomial log-likelihood rebuilt from the stack alone.
+  starts <- event_row_starts(gathered)
+  log_lik <- sum(vapply(
+    seq_along(gathered$n_candidates),
+    function(e) {
+      rows <- starts[e] + seq_len(gathered$n_candidates[e])
+      utility <- gathered$stat_all_events[rows, , drop = FALSE] %*% coef(fit)
+      utility[gathered$selected[e]] - log(sum(exp(utility)))
+    },
+    numeric(1)
+  ))
+  expect_equal(log_lik, fit$log_likelihood, tolerance = 1e-10)
+})
+
+test_that("a DyNAM-i rate gather carries the intercept and its exposure", {
+  data <- suppressWarnings(rfid_interaction_data())
+  formula <- interactions ~
+    1 +
+    intercept(interactions, joining = 1) +
+    ego(age, joining = 1, subType = "centered")
+  gathered <- suppressWarnings(compute_statistics(
+    formula,
+    model = "DyNAMi",
+    sub_model = "rate",
+    data = data,
+    output = "gather"
+  ))
+  fit <- suppressWarnings(estimate_dynami(
+    formula,
+    sub_model = "rate",
+    data = data,
+    control_algo = set_algorithm_newton(backend = "r")
+  ))
+
+  # Exact-time: the forced time intercept column and the exposure fields.
+  expect_true(gathered$has_intercept)
+  expect_true(gathered$right_censored)
+  expect_identical(gathered$names_effects[1L], "Intercept")
+  expect_length(gathered$timespan, length(gathered$n_candidates))
+  # Sender-indexed rows carry no receiver identity.
+  expect_true(all(is.na(gathered$index_j)))
+  expect_null(gathered$receiver)
+
+  starts <- event_row_starts(gathered)
+  log_lik <- sum(vapply(
+    seq_along(gathered$n_candidates),
+    function(e) {
+      rows <- starts[e] + seq_len(gathered$n_candidates[e])
+      rate <- exp(gathered$stat_all_events[rows, , drop = FALSE] %*% coef(fit))
+      chosen <- if (gathered$is_dependent[e]) {
+        log(rate[gathered$selected[e]])
+      } else {
+        0
+      }
+      chosen - gathered$timespan[e] * sum(rate)
+    },
+    numeric(1)
+  ))
+  expect_equal(log_lik, fit$log_likelihood, tolerance = 1e-8)
+})
+
+test_that("a DyNAM-i model exports to a database in the standard shape", {
+  skip_on_cran()
+  skip_if_not_installed("RSQLite")
+  data <- suppressWarnings(rfid_interaction_data())
+  formula <- interactions ~ diff(age, subType = "averaged_sum")
+  gathered <- suppressWarnings(compute_statistics(
+    formula,
+    model = "DyNAMi",
+    sub_model = "choice",
+    data = data,
+    output = "gather"
+  ))
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  suppressWarnings(compute_statistics(
+    formula,
+    model = "DyNAMi",
+    sub_model = "choice",
+    data = data,
+    output = "db",
+    control_prep = set_preprocessing(db = con, db_table = "stats")
+  ))
+
+  # DyNAM-i reaches the interaction monolith through the legacy environment,
+  # which carries no mode map -- so there is no node table to write, and the
+  # map plus the process table are the whole export.
+  expect_setequal(DBI::dbListTables(con), c("stats_1", "stats_map"))
+  tbl <- DBI::dbReadTable(con, "stats_1")
+  expect_equal(tbl[[gathered$names_effects]], gathered$stat_all_events[, 1L])
+  expect_identical(
+    DBI::dbReadTable(con, "stats_map")$stat_block,
+    "DyNAMi:choice"
+  )
+})

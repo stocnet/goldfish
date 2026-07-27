@@ -194,7 +194,12 @@ finalize_gather_output <- function(
   timespan <- attr(gathered, "timespan")
 
   gathered$sender <- nodes$label[event_sender]
-  if (model == "REM" || (model == "DyNAM" && sub_model != "rate")) {
+  # A DyNAM-i choice row is an actor x group dyad, so its receiver (the group
+  # joined or left) labels exactly as a DyNAM choice receiver does; the
+  # interaction rate model is sender-indexed, like the DyNAM one.
+  is_dyad_labelled <- model == "REM" ||
+    (model %in% c("DyNAM", "DyNAMi") && sub_model != "rate")
+  if (is_dyad_labelled) {
     gathered$receiver <- nodes2$label[event_receiver]
   }
   # Exposure fields ride on the intercept, not on the model: an exact-time REM
@@ -264,5 +269,9 @@ CreateNames <- function(names, max_length = 63L) {
     )
   }
 
-  return(nombres)
+  # `GetDetailPrint()` (the DyNAM-i and legacy paths) builds a list-mode matrix,
+  # so a column of it is a list; the recipe spec_map builds a character one.
+  # Both describe the same thing, and the return is documented -- and consumed
+  # as column names -- as a character vector.
+  as.character(nombres)
 }

@@ -1924,6 +1924,21 @@ estimate_wrapper <- function(
       spec_map <- recipe_out$spec_map
     }
     if (output %in% c("gather", "db")) {
+      # The interaction front-end ignores the writer, so its product is the
+      # monolith object rather than a rendered stack: convert it exactly as
+      # estimation does, then expand. The gather stack a DyNAM-i model exports
+      # is therefore the risk set its fit uses, joining availability included.
+      if (model == "DyNAMi") {
+        prep <- gather_from_prep(
+          dynami_recipe_input(
+            prep,
+            sub_model,
+            is_two_mode,
+            dynami_availability
+          ),
+          model_spec
+        )
+      }
       gathered <- finalize_gather_output(
         prep,
         model,
@@ -2034,10 +2049,12 @@ estimate_wrapper <- function(
   # preprocessing tests inspect) is preserved. Temporary seam retired with the
   # monolith by the DyNAM-i engine conversion.
   if (model == "DyNAMi") {
-    prep <- dynami_recipe_statslist(prep, sub_model, is_two_mode)
-    if (!is.null(dynami_availability)) {
-      prep <- dynami_fold_availability(prep, dynami_availability)
-    }
+    prep <- dynami_recipe_input(
+      prep,
+      sub_model,
+      is_two_mode,
+      dynami_availability
+    )
   }
 
   prob_requested <- isTRUE(control_algo$return_probabilities) ||

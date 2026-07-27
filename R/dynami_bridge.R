@@ -142,6 +142,24 @@ dynami_fold_availability <- function(prep, masks) {
   build_active_dyad_point(prep, recv, masks, senders, n1, n2)
 }
 
+# The monolith object mapped to the recipe shape every shared consumer reads,
+# joining availability folded in where the sub-model has one. Estimation and the
+# statistics export both enter through here, so a gather stack and a fit
+# describe the same risk set by construction rather than by two matching call
+# sequences.
+dynami_recipe_input <- function(
+  prep,
+  sub_model,
+  is_two_mode,
+  availability = NULL
+) {
+  prep <- dynami_recipe_statslist(prep, sub_model, is_two_mode)
+  if (!is.null(availability)) {
+    prep <- dynami_fold_availability(prep, availability)
+  }
+  prep
+}
+
 # The DyNAM-i choice availability as a support-constraint formula: a joining
 # actor chooses among the groups occupied at the decision point (`indeg >= 1`).
 # This is the grammar statement of what `dynami_choice_availability()` folds
