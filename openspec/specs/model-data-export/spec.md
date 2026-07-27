@@ -1,14 +1,19 @@
-# model-data-export
+# model-data-export Specification
 
-The `compute_statistics()` contract: the single statistics-product
-function (outputs: preprocessed replay object, gather stack,
-ready-to-estimate frame, DBI stream), delegated model/sub_model
-validation, per-sub_model intercept and right-censoring semantics,
-flavored fid-list keying, DyNAMi coverage, cross-package example recipes,
-and the deprecations of the previous surfaces. The gather stack format
-itself is owned by the preprocess-output-writers capability.
+## Purpose
+Define the `compute_statistics()` contract: the single statistics-product
+function of the package, its `output` vocabulary (`"preprocessed"` replay
+object, `"gather"` stack, `"data.frame"` ready-to-estimate frame, `"db"`
+DBI stream), model/sub_model validation delegated to the estimation path so
+the two surfaces cannot drift, the per-sub_model intercept and
+right-censoring semantics it reports, fid-keyed output for flavored
+specifications, DyNAM-i coverage, the cross-package example recipes on its
+help page, and the retirement of the surfaces it replaces
+(`gather_model_data()` soft-deprecated, `compute_stats()` deleted). The
+gather stack format itself is owned by the preprocess-output-writers
+capability. Created by archiving change revise-gather-output.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: compute_statistics is the single statistics-product function
 goldfish SHALL export `compute_statistics(x, model, sub_model = NULL,
