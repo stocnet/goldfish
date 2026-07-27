@@ -63,6 +63,7 @@ Suggests:
     broom,
     lmtest,
     RSQLite,
+    survival,
     ggplot2,
     maxLik,
     mitools,

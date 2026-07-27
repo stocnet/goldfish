@@ -540,3 +540,47 @@ test_that("right-censored frame rows are marked and never chosen", {
   expect_true(all(is.finite(frame$timespan[censored])))
   expect_identical(sum(frame$chosen), length(unique(frame$event[!censored])))
 })
+
+test_that("the frame reproduces the estimator through conditional logit", {
+  # The parity gate on the export surface: goldfish's choice likelihood IS a
+  # conditional logit with one case per stratum, so the same specification fitted
+  # through `estimate_dynam()` and through `clogit()` on the frame must agree.
+  # A drift between what is exported and what is estimated shows up here as
+  # differing coefficients, whatever caused it.
+  skip_if_not_installed("survival")
+  withr::local_package("survival")
+
+  formula <- calls_dependent ~ inertia + recip
+  fit <- estimate_dynam(formula, sub_model = "choice", data = se_frame_data)
+  frame <- compute_statistics(
+    formula,
+    data = se_frame_data,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "data.frame"
+  )
+  stats <- setdiff(names(frame), FRAME_RESERVED_COLUMNS)
+  clogit_fit <- clogit(
+    stats::as.formula(
+      paste("chosen ~", paste(c(stats, "strata(event)"), collapse = " + "))
+    ),
+    data = frame,
+    # One case per stratum, so the tie methods coincide and this is the exact
+    # conditional likelihood -- the same one goldfish maximizes.
+    method = "exact"
+  )
+
+  # Observed agreement on this fixture is ~2e-6 on the coefficients; the gate is
+  # set at 1e-4, the distance between two optimizers stopping on their own
+  # convergence rules rather than a claim about the arithmetic.
+  expect_equal(
+    unname(coef(fit)),
+    unname(coef(clogit_fit)),
+    tolerance = 1e-4
+  )
+  expect_equal(
+    fit$log_likelihood,
+    as.numeric(logLik(clogit_fit)),
+    tolerance = 1e-4
+  )
+})
