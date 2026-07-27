@@ -113,15 +113,16 @@ are `dynes-augmentation`'s.
   per-mode-pair walk blocks build on (D8); `formula-drives-focal` supplies the
   per-process focal/side/mode resolution a join of several dependent processes
   requires.
-- **Parallel development vs the 2.0.0 release changes** (branch plan in
-  `.plan/mv_branch.md`, local): sections 1–2 (surface, coupling, union
-  planning, routing) and section 4 (walk handle — its evaluation substrate,
-  the `process-state-evaluators` capability, is already implemented) are
-  parallel-safe against `residuals-gof` (file overlap: only `R/model_estimate.R`,
-  different regions). Section 3 (the merged walk) MUST wait for
-  `spec-driven-dispatch` (rewrites `fold_active_dyad_support` in
-  `R/model_preprocess.R` and the writer's dyad encoding) to land — it edits the
-  loop/writer files this change's riskiest step rewrites.
+- **Parallel development vs the 2.0.0 release changes** (the `.plan/mv_branch.md`
+  branch plan and the 2.0.0 release plan were deleted 2026-07-24 as obsolete once
+  every upstream gate landed — see `.plan/goldfish_versions.csv` for the landing
+  order): sections 1–2 (surface, coupling, union planning, routing) and section 4
+  (walk handle — its evaluation substrate, the `process-state-evaluators`
+  capability, is already implemented) were parallel-safe against `residuals-gof`
+  (file overlap: only `R/model_estimate.R`, different regions). Section 3 (the
+  merged walk) required `spec-driven-dispatch` (rewrites `fold_active_dyad_support`
+  in `R/model_preprocess.R` and the writer's dyad encoding) — landed v1.9.10 as
+  capability `risk-set-dispatch`, so §3 is now unblocked.
   `multimode-network-support` (which touched `R/make_specification.R` /
   `R/formula_parser.R`) has landed; its mode map is the per-mode-pair block
   substrate D8 builds on. This change needs nothing from

@@ -1,18 +1,19 @@
-> Sequencing: post-2.0.0, DyNES track. Blocked until `flavored-processes` is
-> complete (its D9 fid vocabulary and D10 consumer seam are this change's
-> foundation). Precedes `dynes-augmentation`; re-ground that proposal's
-> simulation-hook/evaluator seams against `multi-process-walk` before starting.
-> Parallel-development ordering (see `.plan/mv_branch.md`): sections 1, 2, and 4
-> may run in parallel with `residuals-gof`; section 3 (merged walk) starts only
-> after `spec-driven-dispatch` lands — it edits the same loop/writer files.
-> `multimode-network-support` has landed; its mode map is the substrate for the
-> per-mode-pair block keying (D8, section 1b/3). Section 1b additionally blocks on
-> `formula-drives-focal` (D8, Option A): a join models N dependent layers over one
-> object, so per-process focal resolution is a hard dependency, not stamped locally.
-> Task 3.0 is exempt: it is a measurement
-> spike that runs the profiler against already-landed code and edits no source,
-> so it can and should run early — its number is an input to D3b, not a
-> consequence of the merge.
+> Sequencing: post-2.0.0, DyNES track. All upstream gates have landed
+> (`flavored-processes` v1.9.3, `multimode-networks` v1.9.6, `formula-drives-focal`
+> v1.9.7, `spec-driven-dispatch`→`risk-set-dispatch` v1.9.10 — see
+> `.plan/goldfish_versions.csv` for the ledger). The `.plan/mv_branch.md` branch
+> plan and the 2.0.0 release plan were deleted 2026-07-24 as obsolete; the ledger
+> and `git log` are the source of truth for what has landed. This change consumed
+> `flavored-processes`' D9 fid vocabulary and D10 consumer seam, and precedes
+> `dynes-augmentation` (re-ground that proposal's simulation-hook/evaluator seams
+> against `multi-process-walk` before starting). Sections 1, 2, 4 were
+> parallel-safe with `residuals-gof`; section 3 (merged walk) required
+> `spec-driven-dispatch` (loop/writer files) and `multimode` — both landed, so §3
+> is unblocked. `multimode`'s mode map is the substrate for per-mode-pair block
+> keying (D8, section 1b/3); §1b's `formula-drives-focal` dependency (D8 Option A:
+> per-process focal resolution, not stamped locally) is satisfied. Task 3.0 is a
+> measurement spike that edits no source and can run early — its number is an
+> input to D3b, not a consequence of the merge.
 
 ## 1. Multivariate specification surface
 
