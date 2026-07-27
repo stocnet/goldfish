@@ -109,7 +109,7 @@ partnerSpec <- make_specification(
 )
 
 est_opts <- set_algorithm_newton(
-  return_interval_loglik = TRUE,
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30,
   backend = "r"
@@ -127,7 +127,7 @@ system.time(
 
 ## ----estimate-rerun-----------------------------------------------------------
 est_opts <- set_algorithm_newton(
-  return_interval_loglik = TRUE,
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30,
   initial_parameters = coef(partnerModel),
@@ -160,7 +160,7 @@ tieSpec <- make_specification(
 )
 
 est_opts <- set_algorithm_newton(
-  return_interval_loglik = TRUE,
+  diagnostics = "loglik",
   initial_damping = 40,
   max_iterations = 30
 )
