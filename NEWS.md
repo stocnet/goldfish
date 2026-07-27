@@ -1,3 +1,74 @@
+# goldfish 1.9.17
+
+* **`compute_statistics()` is the single statistics-product function, and it
+  now covers everything `gather_model_data()` did plus two products it did
+  not.** `output` takes `"preprocessed"` (the estimation-ready replay object),
+  `"gather"` (the stack), `"data.frame"` (new -- the ready-to-estimate long
+  frame), and `"db"` (the DBI stream). `gather_model_data()` is soft-deprecated
+  onto it and keeps working for a release cycle; it rejected
+  `sub_model = "rate_ordered"` at its own `match.arg` while estimation ran that
+  model perfectly well, which is the drift a single function removes -- the
+  model vocabulary is now validated once, on the estimation path, so the two
+  surfaces cannot disagree again.
+
+* **`output = "data.frame"` returns a long frame you can hand straight to a
+  standard estimator.** One row per event x candidate -- the same rows the
+  gather stack holds, so a `support_constraint` has already removed what it
+  excludes -- with `event`, `chosen`, `sender`, `receiver`, `index_i`,
+  `index_j`, `timespan`, `is_dependent`, then one column per effect named by
+  that effect. `sender` and `receiver` are the labels of *that row's* dyad,
+  decoded from its own indices rather than the observed event's actors
+  repeated down the event's rows. The help page carries four verified recipes
+  on it: `survival::clogit` and `survival::coxph` for the choice sub-models,
+  `mlogit::mlogit` through `dfidx()` keyed on `index_j`, and a Poisson `glm()`
+  with `offset(log(timespan))` for the exact-time ones. Each reproduces the
+  corresponding `estimate_*()` fit; a test pins the conditional-logit route at
+  1e-4 (observed: 2e-6).
+
+* **A db export is now readable without the session that wrote it.** Statistic
+  columns are named by their effect instead of `stat_<i>`, and every export --
+  flavored or not -- writes one statistics table per modeled process
+  (`<db_table>_<fid>`), a `<db_table>_map` naming those tables with the process
+  identity, and a `<db_table>_nodes` resolving `index_i` / `index_j` back to
+  the original nodes in SQL. One reader therefore handles both cases, and a
+  model that later gains flavors does not change the schema. The single-process
+  table is renamed in the process (`<db_table>` becomes `<db_table>_1`), which
+  costs nothing: `output = "db"` has only ever existed in the unreleased 2.0.0
+  line.
+
+* **Constrained `gather` and `db` output worked in neither form before and
+  works in both now.** Products are rendered *after* a `support_constraint` is
+  realized and folded into availability, and the expansion honors the
+  availability encoding that folding produces. Previously the first defect
+  raised `order(): argument 1 is not a vector` and the second read a dense mask
+  as a vector and indexed past the statistics matrix.
+
+* **Flavored specifications return every output form**, as a list with one
+  element per modeled process, keyed by the integer formula id and carrying the
+  `process_map` identity table -- the same keying `estimate_*()` returns.
+
+* **`model = "DyNAMi"` is supported at every output form.** Its preprocessing
+  runs through the interaction front-end and is converted with the same bridge
+  estimation uses, so the exported rows are the risk set the fit has, joining
+  availability included.
+
+* **`has_intercept` and `right_censored` are reported on every output form**,
+  so a consumer never has to infer the likelihood shape from the columns. Both
+  are `TRUE` for `sub_model = "rate"` and `FALSE` for `"rate_ordered"` and the
+  choice sub-models. Index statistic columns by name: the exact-time sub-models
+  prepend an `Intercept` column, so the same formula puts the same effect at
+  different positions.
+
+* `estimate_*(preprocessing_only = TRUE)` is soft-deprecated in favor of
+  `compute_statistics(output = "preprocessed")`, which returns the same object.
+
+* `check_model_par()` now reports an unavailable `sub_model` with a cli error
+  listing what the model does allow, and the deprecated
+  `model = "REM", sub_model = "choice"` warning names both successors --
+  `"rate"` (exact-time) and `"rate_ordered"` (ordinal). The remap lands on the
+  exact-time flavor with a force-added intercept, which shifts every statistic
+  column by one; the warning now says so.
+
 # goldfish 1.9.16
 
 * **BREAKING** -- **every component of every object goldfish returns is now
