@@ -32,8 +32,8 @@
   `dependentStatsChange` becomes `dependent_stats_change`,
   `rightCensoredStatsChange` becomes `right_censored_stats_change`,
   `rightCensoredIntervals` becomes `right_censored_intervals`, `orderEvents`
-  becomes `order_events`, `startTime` becomes `start_time`, and `endTime`
-  becomes `end_time`.
+  becomes `order_events`, `startTime` becomes `start_time`, `endTime` becomes
+  `end_time`, and `version` becomes `prep_version`.
 
 * **The old component names stop working immediately, rather than after a
   deprecation period.** This is deliberate, not an oversight. A fitted object
@@ -45,17 +45,26 @@
   `fit$logLikelihood` on an object whose model comparison is silently wrong,
   and would have cost permanent bookkeeping to do it.
 
-* A fitted model now records `format_version`, the layout of the object it was
-  built with, so an older fit is recognized rather than met with an internal
-  error. `print()` reports that the object predates the current version and
-  still shows the coefficients it can; `summary()`, `logLik()`, `vcov()`,
-  `augment()` and the `AIC()` / `BIC()` path fail with the same explanation,
-  because returning a number whose degrees of freedom are unknown is worse than
-  refusing. `coef()` is unaffected -- `parameters` was never renamed.
+* **Objects now record the layout they were built with, and it is format version
+  2 for everything 2.0.0 produces.** A fitted model records `fit_version` and a
+  preprocessed object records `prep_version` — two names rather than one, so both
+  stay readable when a fit carries the preprocessed object it was estimated from.
+  The number identifies the *shape* of the object rather than the release, so it
+  moves only when the components change and a stored object stays current across
+  ordinary upgrades.
 
-* A preprocessed object stored by an earlier version is refused with a message
-  telling you to recompute it, via the format counter that already guarded the
-  preprocessing shape.
+  An older fit is now recognized rather than met with an internal error.
+  `print()` reports that the object predates the current version and still shows
+  the coefficients it can; `summary()`, `logLik()`, `vcov()`, `augment()` and the
+  `AIC()` / `BIC()` path fail with the same explanation, because returning a
+  number whose degrees of freedom are unknown is worse than refusing. `coef()` is
+  unaffected — `parameters` was never renamed. A preprocessed object from an
+  earlier version is refused when it is passed back for estimation, with a
+  message telling you to recompute it.
+
+* The internal event-ordering helper is renamed `arrange_events()`, so that the
+  preprocessed component now spelled `order_events` no longer shares a name with
+  an unrelated function. Neither is user-facing.
 
 * The internal model-specification constructor no longer carries the reserved
   `engine` parameter. It accepted only its default and aborted on every other
