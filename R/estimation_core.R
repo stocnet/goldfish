@@ -87,9 +87,8 @@ estimate_int_impl <- function(
   reduceArrayToMatrix,
   nodes,
   nodes2,
-  initialParameters = NULL,
-  fixedParameters = NULL,
-  excludeParameters = NULL,
+  initial_spec = NULL,
+  fixed_spec = NULL,
   initialDamping = 1,
   maxIterations = 20,
   dampingIncreaseFactor = 2,
@@ -125,14 +124,13 @@ estimate_int_impl <- function(
     ncol(statsList$initial_stats)
   } else {
     dim(statsList$initial_stats)[3]
-  }) -
-    length(excludeParameters) +
+  }) +
     hasIntercept
   # The same decode the compiled path reads: one helper, so the two backends
   # cannot drift on which coefficients they hold or where they start.
   mask <- resolve_coefficient_mask(
-    fixed_spec_from_vector(fixedParameters, nParams),
-    initial_spec_from_vector(initialParameters, nParams),
+    fixed_spec,
+    initial_spec,
     nParams
   )
   parameters <- mask$parameters
@@ -171,7 +169,6 @@ estimate_int_impl <- function(
 
   statsList <- prepare_statslist(
     statsList = statsList,
-    excludeParameters = excludeParameters,
     addInterceptEffect = hasIntercept,
     is_sender = is_rate_model
   )
@@ -243,7 +240,6 @@ estimate_int_impl <- function(
   nr <- run_nr_loop(
     spec = spec,
     parameters = parameters,
-    initialParameters = initialParameters,
     nParams = nParams,
     id_unfixed = id_unfixed,
     id_fixed = id_fixed,
@@ -384,7 +380,6 @@ estimate_int_impl <- function(
 run_nr_loop <- function(
   spec,
   parameters,
-  initialParameters,
   nParams,
   id_unfixed,
   id_fixed,
@@ -414,7 +409,8 @@ run_nr_loop <- function(
   update <- rep(0, nParams)
   isInitialEstimation <- TRUE
   logLikelihood.old <- -Inf
-  parameters.old <- initialParameters
+  # The starting point is the last accepted one until a step is accepted.
+  parameters.old <- parameters
   score.old <- NULL
   informationMatrix.old <- NULL
   intervalLogL <- NULL
@@ -2284,16 +2280,14 @@ getMultinomialProbabilities <- function(
 
 #' Prepare the statistics list for estimation
 #'
-#' The only two transformations estimation applies to a preprocessed
-#' object: dropping the effect columns listed in `excludeParameters` from
-#' `initial_stats`, and prepending the constant rate-intercept statistic
-#' (a dummy for the theta_0 parameter) when the model carries a time
-#' intercept. Replaces `modifyStatisticsList()` in the estimation entries;
-#' the right-censoring and array reductions of `reduceStatisticsList()`
-#' were no-ops at those call sites.
+#' The one transformation estimation applies to a preprocessed object:
+#' prepending the constant rate-intercept statistic (a dummy for the theta_0
+#' parameter) when the model carries a time intercept. Replaces
+#' `modifyStatisticsList()` in the estimation entries; the right-censoring and
+#' array reductions of `reduceStatisticsList()` were no-ops at those call
+#' sites.
 #'
 #' @param statsList a `preprocessed.goldfish` object.
-#' @param excludeParameters integer positions of effects to drop.
 #' @param addInterceptEffect logical, whether to prepend the intercept
 #'   statistic.
 #' @param is_sender logical, whether the statistics are sender-indexed (a rate
@@ -2305,30 +2299,10 @@ getMultinomialProbabilities <- function(
 #' @noRd
 prepare_statslist <- function(
   statsList,
-  excludeParameters = NULL,
   addInterceptEffect = FALSE,
   is_sender = FALSE
 ) {
   is_sender_stats <- isTRUE(is_sender)
-  if (!is.null(excludeParameters)) {
-    nEffects <- if (is_sender_stats) {
-      ncol(statsList$initial_stats)
-    } else {
-      dim(statsList$initial_stats)[3]
-    }
-    unknownIndexes <- setdiff(excludeParameters, seq_len(nEffects))
-    if (length(unknownIndexes) > 0) {
-      stop(
-        "Unknown parameter indexes in 'excludeIndexes': ",
-        paste(unknownIndexes, collapse = " ")
-      )
-    }
-    statsList$initial_stats <- if (is_sender_stats) {
-      statsList$initial_stats[, -excludeParameters, drop = FALSE]
-    } else {
-      statsList$initial_stats[,, -excludeParameters, drop = FALSE]
-    }
-  }
   if (addInterceptEffect) {
     dimensions <- dim(statsList$initial_stats)
     statsList$initial_stats <- if (is_sender_stats) {

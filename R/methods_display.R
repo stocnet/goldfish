@@ -17,7 +17,7 @@
 #' printing `summary.result.goldfish` and `preprocessed.goldfish`,
 #' see  [print.default()].
 #' @param complete logical. Indicates whether the parameter coefficients
-#' of effects fixed during estimation using `fixedParameters` should be printed.
+#' of effects held fixed during estimation (via `offset()`) should be printed.
 #' The default value is `FALSE`. _Note:_ applies for objects of class
 #' `result.goldfish` and `summary.result.goldfish`.
 #' @param compact logical. For objects of class `summary.result.goldfish`,

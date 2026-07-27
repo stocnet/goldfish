@@ -422,45 +422,6 @@ fixed_spec_to_vector <- function(fixed_spec, n_params) {
   out
 }
 
-# Rebuild the contracts from the positional encodings, for the callers that
-# still hand those down. A position is all such a vector carries, so a position
-# is all the term can be named by -- which is exactly why the encoding is being
-# retired.
-fixed_spec_from_vector <- function(x, n_params) {
-  if (is.null(x)) {
-    return(NULL)
-  }
-  if (length(x) != n_params) {
-    cli::cli_abort(c(
-      "The fixed-coefficient vector does not match the model.",
-      "x" = "It has {length(x)} entr{?y/ies} but the model has {n_params}
-             coefficient{?s}."
-    ))
-  }
-  idx <- which(!is.na(x))
-  if (length(idx) == 0) {
-    return(NULL)
-  }
-  new_fixed_spec(idx, x[idx], paste("coefficient", idx))
-}
-
-initial_spec_from_vector <- function(x, n_params) {
-  if (is.null(x)) {
-    return(NULL)
-  }
-  if (length(x) != n_params) {
-    cli::cli_abort(c(
-      "The starting-value vector does not match the model.",
-      "x" = "It has {length(x)} value{?s} but the model has {n_params}
-             coefficient{?s}."
-    ))
-  }
-  new_initial_spec(
-    seq_len(n_params),
-    x,
-    paste("coefficient", seq_len(n_params))
-  )
-}
 
 # Assemble the fixed-coefficient contract at the single point where term names
 # and coefficient positions are both known. Three sources fix a coefficient:

@@ -1591,7 +1591,7 @@ estimate_wrapper <- function(
   # Validity is role-aware. Offset (fixed-coefficient) terms and
   # interaction operand-only terms are NOT bare main effects, so they are held
   # out of the main-effect identification check: an offset warns rather than
-  # aborts (handled in the fixedParameters assembly below), and an operand
+  # aborts (handled in the fixed-coefficient assembly below), and an operand
   # (e.g. `global`/`ego` feeding an interaction that restores variation) follows
   # the separate operand rule. A term that is both a requested main effect and an
   # operand (the `a*b` case, is_main) stays in the main-effect check.
@@ -2243,8 +2243,8 @@ estimate_wrapper <- function(
     coef_labels,
     length(coef_labels)
   )
-  # The Newton-Raphson kernels and the effect description still read the
-  # positional NA-vector encoding, so the contract is flattened for them here.
+  # The effect description marks fixed coefficients from the positional
+  # encoding, so the contract is flattened for it here.
   effective_fixed_parameters <- fixed_spec_to_vector(
     fixed_spec,
     length(coef_labels)
@@ -2330,8 +2330,8 @@ estimate_wrapper <- function(
   }
 
   args_estimation <- list(
-    initialParameters = control_algo$initial_parameters,
-    fixedParameters = effective_fixed_parameters,
+    initial_spec = initial_spec,
+    fixed_spec = fixed_spec,
     maxIterations = as.integer(control_algo$max_iterations),
     score_tol = control_algo$score_tol,
     step_tol = control_algo$step_tol,

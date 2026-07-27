@@ -62,7 +62,7 @@ printing \code{summary.result.goldfish} and \code{preprocessed.goldfish},
 see  \code{\link[=print.default]{print.default()}}.}
 
 \item{complete}{logical. Indicates whether the parameter coefficients
-of effects fixed during estimation using \code{fixedParameters} should be printed.
+of effects held fixed during estimation (via \code{offset()}) should be printed.
 The default value is \code{FALSE}. \emph{Note:} applies for objects of class
 \code{result.goldfish} and \code{summary.result.goldfish}.}
 

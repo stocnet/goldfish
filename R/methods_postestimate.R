@@ -8,7 +8,7 @@
 #' @param object an object of class `result.goldfish` output from an
 #' [estimate] call.
 #' @param complete logical. Indicates whether the parameter coefficients of
-#' effects fixed during estimation using `fixedParameters` should be printed.
+#' effects held fixed during estimation (via `offset()`) should be printed.
 #' @param ... additional arguments to be passed.
 #' @method coef result.goldfish
 #' @export

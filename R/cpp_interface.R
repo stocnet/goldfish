@@ -28,9 +28,8 @@ estimate_c_int <- function(
   statsList,
   nodes,
   nodes2,
-  initialParameters = NULL,
-  fixedParameters = NULL,
-  excludeParameters = NULL,
+  initial_spec = NULL,
+  fixed_spec = NULL,
   initialDamping = 1,
   maxIterations = 20,
   dampingIncreaseFactor = 2,
@@ -76,8 +75,7 @@ estimate_c_int <- function(
     ncol(statsList$initial_stats)
   } else {
     dim(statsList$initial_stats)[3]
-  }) -
-    length(excludeParameters) +
+  }) +
     hasIntercept
   #
 
@@ -85,8 +83,8 @@ estimate_c_int <- function(
   # parameter vector both produce: decided once, by the shared helper every
   # estimation path reads.
   mask <- resolve_coefficient_mask(
-    fixed_spec_from_vector(fixedParameters, nParams),
-    initial_spec_from_vector(initialParameters, nParams),
+    fixed_spec,
+    initial_spec,
     nParams
   )
   parameters <- mask$parameters
@@ -127,7 +125,6 @@ estimate_c_int <- function(
 
   statsList <- prepare_statslist(
     statsList = statsList,
-    excludeParameters = excludeParameters,
     addInterceptEffect = hasIntercept,
     is_sender = is_rate_model
   )
@@ -248,7 +245,8 @@ estimate_c_int <- function(
   update <- rep(0, nParams)
   isInitialEstimation <- TRUE
   logLikelihood.old <- -Inf
-  parameters.old <- initialParameters
+  # The starting point is the last accepted one until a step is accepted.
+  parameters.old <- parameters
   score.old <- NULL
   informationMatrix.old <- NULL
 

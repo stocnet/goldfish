@@ -42,7 +42,6 @@ materialize_process_state <- function(
 
   sl <- prepare_statslist(
     statsList = statsList,
-    excludeParameters = NULL,
     addInterceptEffect = has_intercept,
     is_sender = is_rate
   )
