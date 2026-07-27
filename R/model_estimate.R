@@ -2211,14 +2211,13 @@ estimate_wrapper <- function(
     is_exact_time = identical(sub_model, "rate")
   )
 
-  ### 3.4 Assemble the fixed-coefficient (offset) vector----
+  ### 3.4 Assemble the fixed-coefficient (offset) contract----
   # offset() terms fix their coefficient rather than estimate it.
-  # The parameter vector is [intercept?, effects...], so an offset at rhs
-  # position j fixes parameter j (+1 when the intercept is prepended); the
-  # existing positional `fixedParameters` (Newton-Raphson) is reused unchanged.
-  # Constant-across-alternatives offsets in choice cancel in the softmax, so
-  # they warn rather than abort.
-  effective_fixed_parameters <- assemble_fixed_parameters(
+  # The parameter vector is [intercept?, effects..., interactions...], so an
+  # offset at rhs position j fixes parameter j (+1 when the intercept is
+  # prepended). Constant-across-alternatives offsets in choice cancel in the
+  # softmax, so they warn rather than abort.
+  fixed_spec <- assemble_fixed_parameters(
     parsed_formula,
     rhs_names,
     has_intercept,
@@ -2226,6 +2225,14 @@ estimate_wrapper <- function(
     sub_model,
     control_algo$fixed_parameters,
     control_algo$offset_coef
+  )
+  # The Newton-Raphson kernels and the effect description still read the
+  # positional NA-vector encoding, so the contract is flattened for them here.
+  effective_fixed_parameters <- fixed_spec_to_vector(
+    fixed_spec,
+    length(rhs_names) +
+      length(parsed_formula$interactions) +
+      as.integer(isTRUE(has_intercept))
   )
 
   ### 4. PREPARE PRINTING----

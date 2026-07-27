@@ -6,6 +6,6 @@
     Condition
       Error in `assemble_fixed_parameters()`:
       ! `offset_coef` must supply one value per `offset()` term.
-      x The formula has 1 offset term but `offset_coef` has 2 values.
+      x The formula has 1 offset term (`recip(call_network)`) but `offset_coef` has 2 values.
       i Set it via `set_algorithm_newton(offset_coef = ...)`.
 
