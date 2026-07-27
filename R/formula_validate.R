@@ -343,10 +343,23 @@ match_coef_labels <- function(wanted, coef_labels, arg, candidates = NULL) {
 resolve_initial_parameters <- function(
   initial_parameters,
   coef_labels,
-  n_params
+  n_params,
+  broadcast = FALSE
 ) {
   if (is.null(initial_parameters)) {
     return(NULL)
+  }
+  # Broadcasting across the processes of one specification: a name is meant for
+  # whichever processes carry that coefficient, so a process without it seeds
+  # nothing rather than rejecting the name. Whether a name reached *some*
+  # process is checked once, across all of them.
+  if (broadcast && !is.null(names(initial_parameters))) {
+    initial_parameters <- initial_parameters[
+      names(initial_parameters) %in% coef_labels
+    ]
+    if (length(initial_parameters) == 0) {
+      return(NULL)
+    }
   }
   supplied_names <- names(initial_parameters)
   if (is.null(supplied_names) || !any(nzchar(supplied_names))) {

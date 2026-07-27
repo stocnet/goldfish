@@ -295,9 +295,14 @@ compare_formulas <- function(
         # interactions is one row per interaction term, not per effect, so it is
         # likewise excluded from the elementwise effect comparison.
         "interactions",
-        # The value an offset term is fixed at does not change the statistic
-        # column that was preprocessed, so re-estimating at a different value
-        # must still recognize the effect as the one already computed.
+        # Neither whether a term's coefficient is fixed nor the value it is
+        # fixed at changes the statistic column that was preprocessed: an
+        # `offset()` keeps the column and only decides that the coefficient is
+        # not estimated. So a term must still be recognized as the effect
+        # already computed when it is wrapped, unwrapped, or given another
+        # value -- which is also what lets two processes of one specification
+        # share a statistic while only one of them fixes it.
+        "offset_parameter",
         "offset_coef_parameter"
       )
   ]

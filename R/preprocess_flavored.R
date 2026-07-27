@@ -23,8 +23,8 @@
 #
 # `bundles_by_flavor` is a named list flavor -> specification bundle (as built
 # by build_specification_bundle(): `input_formula`, `has_intercept`,
-# `sub_model`). The union deduplicates effect terms by their canonical
-# `term.labels` (which align with `rhs_names` order and capture every argument),
+# `sub_model`). The union deduplicates effect terms by their canonical rendered
+# call (which aligns with `rhs_names` order and captures every argument),
 # preserving first-appearance order. The union formula carries an explicit `1`
 # iff some flavor has a time intercept, so the union walk stores right-censored
 # events whenever any flavor needs them; each flavor's own right-censoring is
@@ -33,12 +33,34 @@
 # Returns the `union_formula` to compile, the ordered `union_labels`, the
 # `union_intercept` flag, and per-flavor `effect_maps` (each a vector of union
 # column indices in that flavor's formula order) and `has_intercept`.
+# The statistic-bearing terms of one flavor's formula, in the order that
+# flavor's own parse produces its columns. Read off the terms' variables rather
+# than `term.labels`, because `term.labels` omits `offset()` terms: an offset
+# keeps its statistic column and only fixes its coefficient, so a union built
+# from the labels would leave that column uncomputed for every flavor that
+# wraps a term. The wrapper is stripped here -- the union exists to compute
+# statistics, and which flavor holds which coefficient is settled per process
+# at estimation.
+flavor_statistic_labels <- function(formula) {
+  parsed <- stats::terms(formula, keep.order = TRUE)
+  variables <- as.list(attr(parsed, "variables"))[-1]
+  response <- attr(parsed, "response")
+  offset_pos <- attr(parsed, "offset")
+  if (response > 0) {
+    variables <- variables[-response]
+    offset_pos <- offset_pos - response
+  }
+  formula_env <- environment(formula) %||% parent.frame()
+  for (i in offset_pos) {
+    variables[[i]] <- unwrap_offset_term(variables[[i]], formula_env)$term
+  }
+  vapply(variables, deparse1, character(1))
+}
+
 build_flavor_union <- function(bundles_by_flavor) {
   flavors <- names(bundles_by_flavor)
   formulas <- lapply(bundles_by_flavor, `[[`, "input_formula")
-  labels_by_flavor <- lapply(formulas, function(f) {
-    attr(stats::terms(f), "term.labels")
-  })
+  labels_by_flavor <- lapply(formulas, flavor_statistic_labels)
   has_intercept <- vapply(bundles_by_flavor, `[[`, logical(1), "has_intercept")
 
   union_labels <- unique(unlist(labels_by_flavor, use.names = FALSE))

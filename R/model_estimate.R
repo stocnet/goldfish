@@ -2241,7 +2241,8 @@ estimate_wrapper <- function(
   initial_spec <- resolve_initial_parameters(
     control_algo$initial_parameters,
     coef_labels,
-    length(coef_labels)
+    length(coef_labels),
+    broadcast = isTRUE(control_algo$initial_broadcast)
   )
   # The effect description marks fixed coefficients from the positional
   # encoding, so the contract is flattened for it here.

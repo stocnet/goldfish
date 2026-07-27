@@ -408,3 +408,193 @@ test_that("a flavored specification returns one frame per process", {
     expect_identical(sum(frames[[fid]]$chosen), length(stack$n_candidates))
   }
 })
+
+# The value channel for a multi-process specification. The four processes here
+# (two flavors x rate/choice) all carry `indeg`, so they share a coefficient
+# label across the log-rate and the log-odds scale -- the case a shared
+# positional or name-matched control value cannot tell apart.
+
+flavored_value_spec <- function(data, rate_rhs, choice_rhs) {
+  make_specification(
+    rate = list(
+      stats::as.formula(paste("creation ~", rate_rhs)),
+      stats::as.formula(paste("dissolution ~", rate_rhs))
+    ),
+    choice = list(
+      stats::as.formula(paste("creation ~", choice_rhs)),
+      stats::as.formula(paste("dissolution ~", choice_rhs))
+    ),
+    model = "DyNAM",
+    data = data
+  )
+}
+
+test_that("per-process offset values ride the formulas", {
+  data <- flavored_fixture_data()
+  # every formula keeps an estimated term: a formula whose only terms are
+  # offsets does not parse (`terms()` leaves no factors matrix to map), which
+  # is a limitation of the parser rather than of the value channel.
+  container <- suppressWarnings(estimate_dynam(make_specification(
+    rate = list(
+      creation ~ 1 + offset(indeg, coef = 0.4) + outdeg,
+      dissolution ~ 1 + offset(indeg, coef = -0.4) + outdeg
+    ),
+    choice = list(
+      creation ~ offset(indeg, coef = 0.2) + trans,
+      dissolution ~ offset(indeg, coef = -0.2) + trans
+    ),
+    model = "DyNAM",
+    data = data
+  )))
+
+  # each process holds the shared label at the value its own formula carries
+  expect_equal(
+    coef(fit_of(container, "creation", "rate"), complete = TRUE)[["ideg"]],
+    0.4
+  )
+  expect_equal(
+    coef(fit_of(container, "dissolution", "rate"), complete = TRUE)[["ideg"]],
+    -0.4
+  )
+  expect_equal(
+    coef(fit_of(container, "creation", "choice"), complete = TRUE)[["ideg"]],
+    0.2
+  )
+  expect_equal(
+    coef(fit_of(container, "dissolution", "choice"), complete = TRUE)[["ideg"]],
+    -0.2
+  )
+  expect_true(GetFixed(fit_of(container, "creation", "rate"))[[2]])
+})
+
+test_that("only one process needs to carry an offset", {
+  data <- flavored_fixture_data()
+  container <- suppressWarnings(estimate_dynam(make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+    choice = list(
+      creation ~ offset(indeg, coef = 0.2) + trans,
+      dissolution ~ indeg + trans
+    ),
+    model = "DyNAM",
+    data = data
+  )))
+  expect_equal(
+    coef(fit_of(container, "creation", "choice"), complete = TRUE)[["ideg"]],
+    0.2
+  )
+  # the offset-less processes fix nothing
+  expect_false(any(GetFixed(fit_of(container, "dissolution", "choice"))))
+  expect_false(any(GetFixed(fit_of(container, "creation", "rate"))))
+})
+
+test_that("control-object coefficient values abort on a multi-process spec", {
+  data <- flavored_fixture_data()
+  spec <- flavored_value_spec(data, "1 + indeg", "indeg")
+  expect_snapshot(
+    error = TRUE,
+    estimate_dynam(
+      spec,
+      control_algo = set_algorithm_newton(offset_coef = 2)
+    )
+  )
+  withr::local_options(lifecycle_verbosity = "quiet")
+  expect_error(
+    estimate_dynam(
+      spec,
+      control_algo = set_algorithm_newton(fixed_parameters = c(NA, 2))
+    ),
+    "does not apply to a multi-process"
+  )
+})
+
+test_that("a flat named vector broadcasts to every matching process", {
+  data <- flavored_fixture_data()
+  spec <- flavored_value_spec(data, "1 + indeg", "indeg + trans")
+  seeded <- suppressWarnings(estimate_dynam(
+    spec,
+    control_algo = set_algorithm_newton(initial_parameters = c(ideg = 0.5))
+  ))
+  plain <- suppressWarnings(estimate_dynam(spec))
+  # a starting value moves the path, never the optimum
+  for (case in list(
+    c("creation", "rate"),
+    c("dissolution", "rate"),
+    c("creation", "choice"),
+    c("dissolution", "choice")
+  )) {
+    expect_equal(
+      coef(fit_of(seeded, case[[1]], case[[2]])),
+      coef(fit_of(plain, case[[1]], case[[2]])),
+      tolerance = 1e-5
+    )
+  }
+})
+
+test_that("a name matching no process aborts", {
+  data <- flavored_fixture_data()
+  spec <- flavored_value_spec(data, "1 + indeg", "indeg")
+  expect_error(
+    suppressWarnings(estimate_dynam(
+      spec,
+      control_algo = set_algorithm_newton(initial_parameters = c(idge = 0.5))
+    )),
+    "names a coefficient no process has"
+  )
+})
+
+test_that("a nested list targets one process", {
+  data <- flavored_fixture_data()
+  spec <- flavored_value_spec(data, "1 + indeg", "indeg")
+  targeted <- suppressWarnings(estimate_dynam(
+    spec,
+    control_algo = set_algorithm_newton(
+      initial_parameters = list(creation = list(rate = c(ideg = 0.5)))
+    )
+  ))
+  plain <- suppressWarnings(estimate_dynam(spec))
+  expect_equal(
+    coef(fit_of(targeted, "creation", "rate")),
+    coef(fit_of(plain, "creation", "rate")),
+    tolerance = 1e-5
+  )
+  expect_equal(
+    coef(fit_of(targeted, "dissolution", "choice")),
+    coef(fit_of(plain, "dissolution", "choice")),
+    tolerance = 1e-8
+  )
+})
+
+test_that("unknown flavor and family keys abort naming the valid ones", {
+  data <- flavored_fixture_data()
+  spec <- flavored_value_spec(data, "1 + indeg", "indeg")
+  expect_snapshot(
+    error = TRUE,
+    estimate_dynam(
+      spec,
+      control_algo = set_algorithm_newton(
+        initial_parameters = list(creaton = c(ideg = 0.5))
+      )
+    )
+  )
+  expect_error(
+    suppressWarnings(estimate_dynam(
+      spec,
+      control_algo = set_algorithm_newton(
+        initial_parameters = list(creation = list(rat = c(ideg = 0.5)))
+      )
+    )),
+    "does not model"
+  )
+})
+
+test_that("an unnamed positional vector aborts on a multi-process spec", {
+  data <- flavored_fixture_data()
+  spec <- flavored_value_spec(data, "1 + indeg", "indeg")
+  expect_error(
+    estimate_dynam(
+      spec,
+      control_algo = set_algorithm_newton(initial_parameters = c(-3, 0.5))
+    ),
+    "does not apply to a multi-process"
+  )
+})
