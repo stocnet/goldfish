@@ -128,52 +128,19 @@ estimate_int_impl <- function(
   }) -
     length(excludeParameters) +
     hasIntercept
-  parameters <- initialParameters
-  if (is.null(initialParameters)) {
-    parameters <- numeric(nParams)
-  }
-  # deal with fixedParameters
-  idUnfixedCompnents <- seq_len(nParams)
-  idFixedCompnents <- NULL
-  likelihoodOnly <- FALSE
-  if (!is.null(fixedParameters)) {
-    if (length(fixedParameters) != nParams) {
-      stop(
-        "The length of fixedParameters is inconsistent with",
-        "the number of the parameters.",
-        "\n\tLength ",
-        dQuote("fixedParameters"),
-        " vector:",
-        length(fixedParameters),
-        "\n\tNumber of parameters:",
-        nParams,
-        call. = FALSE
-      )
-    }
-
-    if (all(!is.na(fixedParameters))) {
-      likelihoodOnly <- TRUE
-    }
-    parameters[!is.na(fixedParameters)] <-
-      fixedParameters[!is.na(fixedParameters)]
-    idUnfixedCompnents <- which(is.na(fixedParameters))
-    idFixedCompnents <- which(!is.na(fixedParameters))
-  }
+  # The same decode the compiled path reads: one helper, so the two backends
+  # cannot drift on which coefficients they hold or where they start.
+  mask <- resolve_coefficient_mask(
+    fixed_spec_from_vector(fixedParameters, nParams),
+    initial_spec_from_vector(initialParameters, nParams),
+    nParams
+  )
+  parameters <- mask$parameters
+  id_unfixed <- mask$id_unfixed
+  id_fixed <- mask$id_fixed
+  likelihood_only <- mask$likelihood_only
 
   ## PARAMETER CHECKS
-
-  if (length(parameters) != nParams) {
-    stop(
-      " Wrong number of initial parameters passed to function.",
-      "\n\tLength ",
-      dQuote("parameters"),
-      " vector:",
-      length(parameters),
-      "\n\tNumber of parameters:",
-      nParams,
-      call. = FALSE
-    )
-  }
 
   if (!(length(minDampingFactor) %in% c(1, nParams))) {
     stop(
@@ -251,11 +218,13 @@ estimate_int_impl <- function(
   ## ADD INTERCEPT
   # CHANGED MARION
   # replace first parameter with an initial estimate of the intercept
+  # Applied unless the intercept itself carries a value: fixed, so there is
+  # nothing to start, or seeded, so the user chose the start.
   if (
     inherits(spec, c("dynam_rate_spec", "dynami_rate_spec", "rem_rate_spec")) &&
       hasIntercept &&
-      is.null(initialParameters) &&
-      (is.null(fixedParameters) || is.na(fixedParameters[1]))
+      !mask$intercept_fixed &&
+      !mask$intercept_seeded
   ) {
     parameters[1] <- log(
       statsList$n_dep_events /
@@ -276,9 +245,9 @@ estimate_int_impl <- function(
     parameters = parameters,
     initialParameters = initialParameters,
     nParams = nParams,
-    idUnfixedCompnents = idUnfixedCompnents,
-    idFixedCompnents = idFixedCompnents,
-    likelihoodOnly = likelihoodOnly,
+    id_unfixed = id_unfixed,
+    id_fixed = id_fixed,
+    likelihood_only = likelihood_only,
     minDampingFactor = minDampingFactor,
     maxIterations = maxIterations,
     dampingIncreaseFactor = dampingIncreaseFactor,
@@ -349,7 +318,7 @@ estimate_int_impl <- function(
   # calculate standard errors
   # the variance for the fixed compenents should be 0
   stdErrors <- rep(0, nParams)
-  stdErrors[idUnfixedCompnents] <- sqrt(diag(inverseInformationUnfixed))
+  stdErrors[id_unfixed] <- sqrt(diag(inverseInformationUnfixed))
 
   # define, type and return result
   estimationResult <- list(
@@ -417,9 +386,9 @@ run_nr_loop <- function(
   parameters,
   initialParameters,
   nParams,
-  idUnfixedCompnents,
-  idFixedCompnents,
-  likelihoodOnly,
+  id_unfixed,
+  id_fixed,
+  likelihood_only,
   minDampingFactor,
   maxIterations,
   dampingIncreaseFactor,
@@ -516,7 +485,7 @@ run_nr_loop <- function(
     }
 
     # If we only want the likelihood break here
-    if (likelihoodOnly) {
+    if (likelihood_only) {
       inverseInformationUnfixed <- matrix(0, nParams, nParams)
       score <- rep(0, nParams)
       isConverged <- TRUE
@@ -526,7 +495,7 @@ run_nr_loop <- function(
 
     # we don't consider the fixed components of the score.
     # It's for the fixing parameter feature. \
-    score[idFixedCompnents] <- 0
+    score[id_fixed] <- 0
 
     if (verbose) {
       cat(
@@ -580,7 +549,7 @@ run_nr_loop <- function(
     # The fixed components of the score have already be set to be 0.
     # It's for the fixing parameter feature.
     informationMatrixUnfixed <-
-      informationMatrix[idUnfixedCompnents, idUnfixedCompnents]
+      informationMatrix[id_unfixed, id_unfixed]
     inverseInformationUnfixed <- try(
       solve(informationMatrixUnfixed),
       silent = TRUE
@@ -593,8 +562,8 @@ run_nr_loop <- function(
     }
 
     update <- rep(0, nParams)
-    update[idUnfixedCompnents] <-
-      (inverseInformationUnfixed %*% score[idUnfixedCompnents]) / dampingFactor
+    update[id_unfixed] <-
+      (inverseInformationUnfixed %*% score[id_unfixed]) / dampingFactor
 
     if (verbose) {
       cat(
