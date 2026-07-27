@@ -830,7 +830,7 @@ ds_composition.data_source_stocnet <- function(src, nodeset, n) {
   if (is.null(cc) || nrow(cc) == 0) {
     return(list(init = init, changes = list()))
   }
-  cc <- order_events(cc[!is.na(cc$time), , drop = FALSE])
+  cc <- arrange_events(cc[!is.na(cc$time), , drop = FALSE])
   values <- unlist(cc$value, use.names = FALSE)
   list(
     init = init,
@@ -893,7 +893,7 @@ ds_fetch_stream.data_source_stocnet <- function(src, key) {
   }
   if (key %in% names(src$streams$global)) {
     stream <- src$streams$global[[key]]
-    timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
+    timed <- arrange_events(stream[!is.na(stream$time), , drop = FALSE])
     return(data.frame(
       time = timed$time,
       replace = unlist(timed$value, use.names = FALSE),
@@ -915,7 +915,7 @@ ds_fetch_stream.data_source_stocnet <- function(src, key) {
     return(dyadic_stream_events(src, src$streams$network[[key]], key))
   }
   stream <- src$streams$attribute[[key]]
-  timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
+  timed <- arrange_events(stream[!is.na(stream$time), , drop = FALSE])
   data.frame(
     time = timed$time,
     node = timed$node,
@@ -929,7 +929,7 @@ ds_fetch_stream.data_source_stocnet <- function(src, key) {
 # value column is named for -- the dependent stream carries the focal layer's
 # rows, so it takes the focal layer's semantics.
 dyadic_stream_events <- function(src, stream, layer, keep_flavor = FALSE) {
-  timed <- order_events(stream[!is.na(stream$time), , drop = FALSE])
+  timed <- arrange_events(stream[!is.na(stream$time), , drop = FALSE])
   events <- data.frame(
     time = timed$time,
     sender = timed$from,

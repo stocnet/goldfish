@@ -1,6 +1,6 @@
 # Deterministic ordering ------------------------------------------------------
 
-make_order_events <- function() {
+make_unorder_events <- function() {
   data.frame(
     time = c(2, 1, 1, 1, 2),
     is_dependent = c(TRUE, FALSE, TRUE, FALSE, FALSE),
@@ -14,8 +14,8 @@ make_order_events <- function() {
 }
 
 test_that("ordering follows the sort key and is independent of input order", {
-  events <- make_order_events()
-  ordered <- order_events(events)
+  events <- make_unorder_events()
+  ordered <- arrange_events(events)
 
   expect_equal(
     ordered$time,
@@ -41,7 +41,7 @@ test_that("ordering follows the sort key and is independent of input order", {
   set.seed(42)
   permuted <- events[sample(nrow(events)), , drop = FALSE]
   expect_equal(
-    order_events(permuted),
+    arrange_events(permuted),
     ordered,
     ignore_attr = "row.names",
     label = "a permuted input yields the same schedule"
@@ -60,7 +60,7 @@ test_that("the order column replaces from/to as the final tie-break", {
     stringsAsFactors = FALSE
   )
   expect_equal(
-    order_events(events)$order,
+    arrange_events(events)$order,
     c(1L, 2L, 3L),
     label = "same-time rows sequence by order, not by from/to"
   )
@@ -76,16 +76,16 @@ test_that("same-time replaces on one target abort without an order tie-break", {
     update = "replace",
     stringsAsFactors = FALSE
   )
-  expect_error(order_events(events), "Ambiguous same-time")
+  expect_error(arrange_events(events), "Ambiguous same-time")
 
   resolved <- events
   resolved$order <- c(1L, 2L)
-  expect_no_error(order_events(resolved))
+  expect_no_error(arrange_events(resolved))
 
   tied <- events
   tied$order <- c(1L, 1L)
   expect_error(
-    order_events(tied),
+    arrange_events(tied),
     "Ambiguous same-time",
     label = "an order column with duplicate values resolves nothing"
   )
@@ -101,7 +101,7 @@ test_that("same-time increments on one target commute and pass silently", {
     update = "increment",
     stringsAsFactors = FALSE
   )
-  expect_no_error(order_events(events))
+  expect_no_error(arrange_events(events))
 })
 
 test_that("same-time replaces on different targets are unambiguous", {
@@ -114,7 +114,7 @@ test_that("same-time replaces on different targets are unambiguous", {
     update = "replace",
     stringsAsFactors = FALSE
   )
-  expect_no_error(order_events(events))
+  expect_no_error(arrange_events(events))
 })
 
 # Component splitting ---------------------------------------------------------
