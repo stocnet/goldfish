@@ -65,6 +65,10 @@ parse_formula <- function(
   if (is.null(is_offset)) {
     is_offset <- logical(length(rhs_names))
   }
+  offset_coef <- attr(rhs_names, "offset_coef")
+  if (is.null(offset_coef)) {
+    offset_coef <- rep(NA_real_, length(rhs_names))
+  }
   is_main <- attr(rhs_names, "is_main")
   if (is.null(is_main)) {
     is_main <- rep(TRUE, length(rhs_names))
@@ -78,6 +82,7 @@ parse_formula <- function(
     interactions <- list()
   }
   attr(rhs_names, "offset") <- NULL
+  attr(rhs_names, "offset_coef") <- NULL
   attr(rhs_names, "is_main") <- NULL
   attr(rhs_names, "is_operand") <- NULL
   attr(rhs_names, "interactions") <- NULL
@@ -86,6 +91,7 @@ parse_formula <- function(
   has_intercept <- int[[2]]
   if (has_intercept) {
     is_offset <- is_offset[-1]
+    offset_coef <- offset_coef[-1]
     is_main <- is_main[-1]
     is_operand <- is_operand[-1]
   }
@@ -196,9 +202,14 @@ parse_formula <- function(
     sub_type_parameter = sub_type_parameter,
     history_parameter = history_parameter,
     offset_parameter = as.list(is_offset),
+    # The fixed value an `offset()` term carries in the formula itself
+    # (`coef =`), NA where the term leaves it to `offset_coef`. Per effect, so
+    # it stays aligned through the intercept drop above.
+    offset_coef_parameter = as.list(offset_coef),
     # Interaction roles: an operand-only term is retained but not
-    # freely estimated; a requested main effect (and an offset, fixed via
-    # `fixedParameters`) is an estimated column. `interactions` lists each
+    # freely estimated; a requested main effect (and an offset, whose
+    # coefficient is fixed rather than estimated) is an estimated column.
+    # `interactions` lists each
     # interaction's ordered operand indices (rhs_names frame), label, and arity.
     is_main_parameter = as.list(is_main),
     is_operand_parameter = as.list(is_operand),
@@ -283,7 +294,11 @@ compare_formulas <- function(
         "window_derivations",
         # interactions is one row per interaction term, not per effect, so it is
         # likewise excluded from the elementwise effect comparison.
-        "interactions"
+        "interactions",
+        # The value an offset term is fixed at does not change the statistic
+        # column that was preprocessed, so re-estimating at a different value
+        # must still recognize the effect as the one already computed.
+        "offset_coef_parameter"
       )
   ]
   for (i in seq.int(size_new)) {
@@ -1103,6 +1118,55 @@ get_objects_effects_link <- function(rhs_names) {
   objects_effects_link
 }
 
+# Split an `offset()` term into the effect it wraps and the fixed coefficient
+# value it may carry. Arguments are matched by name against `(object, coef)`, so
+# `offset(coef = -1.2, inertia(net))` reads the same as the positional form.
+# The value is evaluated rather than read as a literal because a negative number
+# in a call is itself a call; it is evaluated in the formula's environment, the
+# same place the term's own object references resolve from.
+unwrap_offset_term <- function(term, envir) {
+  matched <- tryCatch(
+    match.call(function(object, coef) NULL, term),
+    error = function(e) {
+      cli::cli_abort(c(
+        "{.fn offset} accepts a term and an optional {.arg coef} value.",
+        "x" = "{.code {deparse1(term)}} has other arguments.",
+        "i" = "Write {.code offset(term, coef = value)} to fix a coefficient
+               in the formula."
+      ))
+    }
+  )
+  args <- as.list(matched)[-1]
+  if (is.null(args$object)) {
+    cli::cli_abort(c(
+      "{.fn offset} needs a term to wrap.",
+      "x" = "{.code {deparse1(term)}} wraps nothing."
+    ))
+  }
+  value <- NA_real_
+  if (!is.null(args$coef)) {
+    value <- tryCatch(
+      eval(args$coef, envir = envir),
+      error = function(e) {
+        cli::cli_abort(c(
+          "The {.arg coef} value of {.code {deparse1(args$object)}} cannot be
+           evaluated.",
+          "x" = conditionMessage(e)
+        ))
+      }
+    )
+    if (!is.numeric(value) || length(value) != 1L || !is.finite(value)) {
+      cli::cli_abort(c(
+        "The {.arg coef} value of an {.fn offset} term must be a single finite
+         number.",
+        "x" = "{.code {deparse1(args$object)}} was given
+               {.code {deparse1(args$coef)}}."
+      ))
+    }
+  }
+  list(term = args$object, coef = as.numeric(value))
+}
+
 get_rhs_names <- function(formula) {
   parsed <- stats::terms(formula, keep.order = TRUE)
 
@@ -1116,17 +1180,23 @@ get_rhs_names <- function(formula) {
   # list (1-based, response included). Unlike GLM model.matrix we KEEP the
   # statistic column and only TAG the term as fixed-coefficient: the
   # inner call is unwrapped and parsed like any effect, and `offset = TRUE` is
-  # carried per term so the estimation front-end can assemble `fixedParameters`.
+  # carried per term so the estimation front-end can assemble the
+  # fixed-coefficient contract. The term may carry its own fixed value
+  # (`offset(term, coef = -1.2)`), which is carried alongside the tag.
   offset_pos <- attr(parsed, "offset")
   if (response > 0) {
     variables <- variables[-response]
     offset_pos <- offset_pos - response
   }
   is_offset <- logical(length(variables))
+  offset_coef <- rep(NA_real_, length(variables))
   if (length(offset_pos) > 0) {
     is_offset[offset_pos] <- TRUE
+    formula_env <- environment(formula) %||% parent.frame()
     for (i in offset_pos) {
-      variables[[i]] <- variables[[i]][[2]]
+      unwrapped <- unwrap_offset_term(variables[[i]], formula_env)
+      variables[[i]] <- unwrapped$term
+      offset_coef[i] <- unwrapped$coef
     }
   }
 
@@ -1183,11 +1253,13 @@ get_rhs_names <- function(formula) {
   if (has_explicit_intercept(formula[[length(formula)]])) {
     rhs_names <- c(list(list("1")), rhs_names)
     is_offset <- c(FALSE, is_offset)
+    offset_coef <- c(NA_real_, offset_coef)
     is_main <- c(FALSE, is_main)
     is_operand <- c(FALSE, is_operand)
   }
 
   attr(rhs_names, "offset") <- is_offset
+  attr(rhs_names, "offset_coef") <- offset_coef
   attr(rhs_names, "is_main") <- is_main
   attr(rhs_names, "is_operand") <- is_operand
   attr(rhs_names, "interactions") <- interactions

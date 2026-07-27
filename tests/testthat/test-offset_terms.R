@@ -65,6 +65,26 @@ test_that("a single offset fixes the right coefficient (equals fixed_parameters)
   expect_equal(coef(m_off), coef(m_leg), tolerance = 1e-6)
 })
 
+test_that("an offset value carried in the formula fixes the same coefficient", {
+  d <- make_offset_fixture()
+  m_in_formula <- estimate_dynam(
+    calls_dependent ~ inertia + offset(recip, coef = 2) + trans,
+    sub_model = "choice",
+    data = d
+  )
+  expect_equal(m_in_formula$parameters[2], 2)
+  expect_true(GetFixed(m_in_formula)[2])
+
+  m_control <- estimate_dynam(
+    calls_dependent ~ inertia + offset(recip) + trans,
+    sub_model = "choice",
+    data = d,
+    control_algo = set_algorithm_newton(offset_coef = 2)
+  )
+  expect_equal(coef(m_in_formula), coef(m_control), tolerance = 1e-8)
+  expect_identical(rownames(m_in_formula$names), rownames(m_control$names))
+})
+
 test_that("multiple offsets are aligned to offset_coef by formula order", {
   d <- make_offset_fixture()
   m <- estimate_dynam(

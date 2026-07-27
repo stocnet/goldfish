@@ -1,3 +1,24 @@
+# two value sources for one term abort
+
+    Code
+      assemble_from_formula(calls_dependent ~ inertia + offset(recip, coef = 2),
+      offset_coef = 2)
+    Condition
+      Error in `assemble_fixed_parameters()`:
+      ! A fixed coefficient cannot come from two sources.
+      x `recip(call_network)` has a `coef` value in the formula and a value in `offset_coef`.
+      i Keep one: the formula's `coef = ` or `set_algorithm_newton(offset_coef = ...)`.
+
+# an offset term with no value from either source aborts
+
+    Code
+      assemble_from_formula(calls_dependent ~ inertia + offset(recip))
+    Condition
+      Error in `assemble_fixed_parameters()`:
+      ! Every `offset()` term needs a fixed coefficient value.
+      x No value for `recip(call_network)`.
+      i Supply it in the formula as `offset(term, coef = value)` or via `set_algorithm_newton(offset_coef = ...)`.
+
 # fixed-coefficient errors name the offending term
 
     Code

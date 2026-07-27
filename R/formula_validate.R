@@ -311,13 +311,14 @@ fixed_spec_to_vector <- function(fixed_spec, n_params) {
 
 # Assemble the fixed-coefficient contract at the single point where term names
 # and coefficient positions are both known. Three sources fix a coefficient:
-# `offset()` terms (fixed at `offset_coef`, aligned by formula order),
-# interaction operand-only terms (kept in the design but held out of estimation
-# by fixing at 0 — a 0 coefficient contributes 0 * stat, i.e. the column is
-# excluded from the model while retained for downstream), and the superseded
-# positional `fixed_parameters` vector, which is converted here so the wire
-# carries one encoding only. An effect at rhs position j maps to coefficient j
-# (+1 when the intercept is prepended); interaction columns are estimated.
+# `offset()` terms (fixed at the value the formula carries, `coef =`, or at
+# `offset_coef`, aligned by formula order), interaction operand-only terms (kept
+# in the design but held out of estimation by fixing at 0 — a 0 coefficient
+# contributes 0 * stat, i.e. the column is excluded from the model while
+# retained for downstream), and the superseded positional `fixed_parameters`
+# vector, which is converted here so the wire carries one encoding only. An
+# effect at rhs position j maps to coefficient j (+1 when the intercept is
+# prepended); interaction columns are estimated.
 # Returns `NULL` when no coefficient is fixed. A constant-across-alternatives
 # offset in choice cancels in the softmax, so it warns rather than aborts.
 assemble_fixed_parameters <- function(
@@ -344,6 +345,14 @@ assemble_fixed_parameters <- function(
   labels <- coefficient_term_labels(parsed_formula, rhs_names, has_intercept)
 
   offset_positions <- which(is_offset) + intercept_shift
+  # The value each offset term carries in the formula itself, NA where it does
+  # not carry one.
+  in_formula <- unlist(parsed_formula$offset_coef_parameter)
+  if (is.null(in_formula)) {
+    in_formula <- rep(NA_real_, length(rhs_names))
+  }
+  in_formula <- in_formula[is_offset]
+
   if (length(offset_positions) == 0 && !is.null(offset_coef)) {
     cli::cli_abort(c(
       "{.arg offset_coef} was supplied but the formula has no
@@ -351,16 +360,34 @@ assemble_fixed_parameters <- function(
       "i" = "Wrap a term in {.fn offset} to fix its coefficient."
     ))
   }
-  if (
-    length(offset_positions) > 0 &&
-      length(offset_coef) != length(offset_positions)
-  ) {
+  if (!is.null(offset_coef)) {
+    if (length(offset_coef) != length(offset_positions)) {
+      cli::cli_abort(c(
+        "{.arg offset_coef} must supply one value per {.fn offset} term.",
+        "x" = "The formula has {length(offset_positions)} offset term{?s}
+               ({.code {labels[offset_positions]}}) but {.arg offset_coef} has
+               {length(offset_coef)} value{?s}.",
+        "i" = "Set it via {.code set_algorithm_newton(offset_coef = ...)}."
+      ))
+    }
+    conflicted <- !is.na(in_formula)
+    if (any(conflicted)) {
+      cli::cli_abort(c(
+        "A fixed coefficient cannot come from two sources.",
+        "x" = "{.code {labels[offset_positions[conflicted]]}} {?has/have} a
+               {.arg coef} value in the formula and {?a value/values} in
+               {.arg offset_coef}.",
+        "i" = "Keep one: the formula's {.code coef = } or
+               {.code set_algorithm_newton(offset_coef = ...)}."
+      ))
+    }
+  } else if (anyNA(in_formula)) {
+    unvalued <- is.na(in_formula)
     cli::cli_abort(c(
-      "{.arg offset_coef} must supply one value per {.fn offset} term.",
-      "x" = "The formula has {length(offset_positions)} offset term{?s}
-             ({.code {labels[offset_positions]}}) but {.arg offset_coef} has
-             {length(offset_coef)} value{?s}.",
-      "i" = "Set it via {.code set_algorithm_newton(offset_coef = ...)}."
+      "Every {.fn offset} term needs a fixed coefficient value.",
+      "x" = "No value for {.code {labels[offset_positions[unvalued]]}}.",
+      "i" = "Supply it in the formula as {.code offset(term, coef = value)} or
+             via {.code set_algorithm_newton(offset_coef = ...)}."
     ))
   }
   if (!is.null(fixed_parameters) && length(fixed_parameters) != n_params) {
@@ -382,7 +409,11 @@ assemble_fixed_parameters <- function(
     supplied <- !is.na(fixed_parameters)
     values[supplied] <- fixed_parameters[supplied]
   }
-  values[offset_positions] <- offset_coef
+  values[offset_positions] <- if (is.null(offset_coef)) {
+    in_formula
+  } else {
+    offset_coef
+  }
 
   if (
     model %in%

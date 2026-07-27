@@ -101,6 +101,93 @@ test_that("operand-only interaction terms are fixed at zero", {
   expect_identical(spec$names, c("recip(call_network)", "trans(call_network)"))
 })
 
+test_that("an offset term carries its own value in the formula", {
+  parsed <- parse_formula(
+    calls_dependent ~ inertia + offset(recip, coef = -1.2) + trans,
+    envir = fixed_spec_envir()
+  )
+  # the inner call is still unwrapped and parsed like any effect
+  expect_identical(
+    vapply(parsed$rhs_names, "[[", character(1), 1),
+    c("inertia", "recip", "trans")
+  )
+  expect_identical(unlist(parsed$offset_parameter), c(FALSE, TRUE, FALSE))
+  expect_identical(
+    unlist(parsed$offset_coef_parameter),
+    c(NA, -1.2, NA)
+  )
+
+  spec <- assemble_from_formula(
+    calls_dependent ~ inertia + offset(recip, coef = -1.2) + trans
+  )
+  expect_identical(spec$idx, 2L)
+  expect_identical(spec$values, -1.2)
+})
+
+test_that("the coef value is matched by name, not by position", {
+  parsed <- parse_formula(
+    calls_dependent ~ inertia + offset(coef = 2, recip),
+    envir = fixed_spec_envir()
+  )
+  expect_identical(
+    vapply(parsed$rhs_names, "[[", character(1), 1),
+    c("inertia", "recip")
+  )
+  expect_identical(unlist(parsed$offset_coef_parameter), c(NA, 2))
+})
+
+test_that("the intercept keeps the formula's offset values aligned", {
+  spec <- assemble_from_formula(
+    calls_dependent ~ 1 + offset(indeg, coef = 0.5) + outdeg,
+    sub_model = "rate"
+  )
+  expect_identical(spec$idx, 2L)
+  expect_identical(spec$values, 0.5)
+})
+
+test_that("per-term values distinguish two offsets in one formula", {
+  spec <- assemble_from_formula(
+    calls_dependent ~
+      inertia + offset(recip, coef = 2) + offset(trans, coef = -1)
+  )
+  expect_identical(spec$idx, c(2L, 3L))
+  expect_identical(spec$values, c(2, -1))
+})
+
+test_that("two value sources for one term abort", {
+  expect_snapshot(
+    error = TRUE,
+    assemble_from_formula(
+      calls_dependent ~ inertia + offset(recip, coef = 2),
+      offset_coef = 2
+    )
+  )
+})
+
+test_that("an offset term with no value from either source aborts", {
+  expect_snapshot(
+    error = TRUE,
+    assemble_from_formula(calls_dependent ~ inertia + offset(recip))
+  )
+})
+
+test_that("a coef value must be a single finite number", {
+  expect_error(
+    parse_formula(
+      calls_dependent ~ inertia + offset(recip, coef = c(1, 2)),
+      envir = fixed_spec_envir()
+    ),
+    "single finite number"
+  )
+  expect_error(
+    parse_formula(
+      calls_dependent ~ inertia + offset(recip, wrong = 2),
+      envir = fixed_spec_envir()
+    ),
+    "accepts a term and an optional"
+  )
+})
+
 test_that("the superseded positional vector is converted to a contract", {
   spec <- assemble_from_formula(
     calls_dependent ~ inertia + recip + trans,
