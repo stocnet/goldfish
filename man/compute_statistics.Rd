@@ -9,7 +9,7 @@ compute_statistics(
   model = c("DyNAM", "REM", "DyNAMi"),
   sub_model = NULL,
   data = NULL,
-  output = c("preprocessed", "gather", "db"),
+  output = c("preprocessed", "gather", "data.frame", "db"),
   control_prep = set_preprocessing(),
   progress = getOption("progress", default = FALSE),
   max_length = 63L,
@@ -40,12 +40,19 @@ only the order of the events, which has neither.}
 \item{output}{a character string specifying the output format of the
 preprocessed statistics. \code{"preprocessed"} returns the estimation-ready
 \code{preprocessed.goldfish} object; \code{"gather"} returns the gather stack (one
-row per event x alternative, as in \code{\link[=gather_model_data]{gather_model_data()}}); \code{"db"} streams
-the gather rows to the database configured via \code{\link[=set_preprocessing]{set_preprocessing()}}
-(\code{db} / \code{db_table}) and returns a descriptor. A db export writes one
-statistics table per modeled process, \verb{<db_table>_<fid>}, plus the
-\verb{<db_table>_map} and \verb{<db_table>_nodes} tables that make it readable
-without the session that produced it.}
+row per event x alternative, as in \code{\link[=gather_model_data]{gather_model_data()}});
+\code{"data.frame"} returns the same rows as a ready-to-estimate long frame
+(see below); \code{"db"} streams the gather rows to the database configured
+via \code{\link[=set_preprocessing]{set_preprocessing()}} (\code{db} / \code{db_table}) and returns a descriptor.
+A db export writes one statistics table per modeled process,
+\verb{<db_table>_<fid>}, plus the \verb{<db_table>_map} and \verb{<db_table>_nodes}
+tables that make it readable without the session that produced it.
+
+The \code{"gather"}, \code{"data.frame"} and \code{"db"} outputs all hold one row per
+event x candidate, so their size is \code{sum(n_candidates)} — the number of
+events (right-censored ones included, where the model has them) times
+the candidates alive at each. That is where the memory goes on a large
+sequence: use \code{output = "db"} when the rows do not fit in memory.}
 
 \item{control_prep}{an object of class \code{preprocessing.goldfish} created
 with \code{\link[=set_preprocessing]{set_preprocessing()}}.}
@@ -54,9 +61,10 @@ with \code{\link[=set_preprocessing]{set_preprocessing()}}.}
 preprocessing.}
 
 \item{max_length}{integer. Maximum number of characters for each produced
-effect/column name in the \code{"gather"} and \code{"db"} outputs (default \code{63}, a
-database-safe value). Names are made valid and unique; the uniqueness
-suffix is applied after truncation so uniqueness is preserved.}
+effect/column name in the \code{"gather"}, \code{"data.frame"} and \code{"db"} outputs
+(default \code{63}, a database-safe value). Names are made valid and unique;
+the uniqueness suffix is applied after truncation so uniqueness is
+preserved.}
 
 \item{...}{additional arguments passed to the preprocessing stage.}
 }
@@ -81,6 +89,31 @@ The returned object can be passed to the estimation functions
 \code{preprocessed} argument, or used directly by users who want to
 work with the sufficient statistics of a model.
 }
+\section{The \code{"data.frame"} output}{
+
+A base data frame with one row per event x candidate — the same rows the
+gather stack holds, so an active \code{support_constraint} has already removed
+what it excludes. Its columns are, in order:
+\describe{
+\item{\code{event}}{integer event id; the stratum for a conditional-logit fit.}
+\item{\code{chosen}}{\code{1} on the selected candidate of a dependent event, \code{0}
+elsewhere; a right-censored event has no chosen row.}
+\item{\code{sender}, \code{receiver}}{the labels of \strong{that row's} dyad, decoded
+from its own \code{index_i} / \code{index_j}, not the observed event's actors
+repeated. \code{receiver} is \code{NA} for sender-set rate rows.}
+\item{\code{index_i}, \code{index_j}}{the 1-based node indices of the row, as in
+the gather stack.}
+\item{\code{timespan}}{the event's exposure, \code{NA} for the multinomial
+families, which have no waiting time.}
+\item{\code{is_dependent}}{\code{FALSE} marks the rows of a right-censored event.}
+\item{statistics}{one column per effect, named by its short name
+(\code{names_effects}); the effect table is attached as the
+\code{effect_description} attribute.}
+}
+On a flavored specification the return is a list of such frames, one per
+process, keyed by fid and carrying the \code{process_map} attribute.
+}
+
 \section{Indexing statistic columns}{
 
 Index statistic columns \strong{by name}, never by position. The exact-time

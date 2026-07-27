@@ -372,3 +372,39 @@ test_that("flavored db output writes a table per process, plus map and nodes", {
   expect_true("stats_2" %in% DBI::dbListTables(con))
   expect_identical(nrow(DBI::dbReadTable(con, "stats_map")), 1L)
 })
+
+test_that("a flavored specification returns one frame per process", {
+  data <- flavored_fixture_data()
+  spec <- make_specification(
+    choice = list(creation ~ trans, dissolution ~ trans),
+    model = "DyNAM",
+    data = data
+  )
+  frames <- suppressWarnings(compute_statistics(
+    spec,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "data.frame"
+  ))
+  gathered <- suppressWarnings(compute_statistics(
+    spec,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "gather"
+  ))
+
+  # Same fid keying and the same process_map as every other output form: the
+  # frame is a reshape of that fid's stack, not a separate walk.
+  map <- attr(frames, "process_map")
+  expect_named(frames, as.character(map$fid))
+  expect_identical(map, attr(gathered, "process_map"))
+  for (fid in as.character(map$fid)) {
+    stack <- gathered[[fid]]
+    expect_s3_class(frames[[fid]], "data.frame")
+    expect_equal(
+      unname(as.matrix(frames[[fid]][, stack$names_effects])),
+      unname(stack$stat_all_events)
+    )
+    expect_identical(sum(frames[[fid]]$chosen), length(stack$n_candidates))
+  }
+})

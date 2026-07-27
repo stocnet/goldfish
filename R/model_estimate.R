@@ -645,20 +645,28 @@ estimate_from_specification <- function(
 #' @param output a character string specifying the output format of the
 #'   preprocessed statistics. `"preprocessed"` returns the estimation-ready
 #'   `preprocessed.goldfish` object; `"gather"` returns the gather stack (one
-#'   row per event x alternative, as in [gather_model_data()]); `"db"` streams
-#'   the gather rows to the database configured via [set_preprocessing()]
-#'   (`db` / `db_table`) and returns a descriptor. A db export writes one
-#'   statistics table per modeled process, `<db_table>_<fid>`, plus the
-#'   `<db_table>_map` and `<db_table>_nodes` tables that make it readable
-#'   without the session that produced it.
+#'   row per event x alternative, as in [gather_model_data()]);
+#'   `"data.frame"` returns the same rows as a ready-to-estimate long frame
+#'   (see below); `"db"` streams the gather rows to the database configured
+#'   via [set_preprocessing()] (`db` / `db_table`) and returns a descriptor.
+#'   A db export writes one statistics table per modeled process,
+#'   `<db_table>_<fid>`, plus the `<db_table>_map` and `<db_table>_nodes`
+#'   tables that make it readable without the session that produced it.
+#'
+#'   The `"gather"`, `"data.frame"` and `"db"` outputs all hold one row per
+#'   event x candidate, so their size is `sum(n_candidates)` — the number of
+#'   events (right-censored ones included, where the model has them) times
+#'   the candidates alive at each. That is where the memory goes on a large
+#'   sequence: use `output = "db"` when the rows do not fit in memory.
 #' @param control_prep an object of class `preprocessing.goldfish` created
 #'   with [set_preprocessing()].
 #' @param progress logical. Whether to print a progress bar during
 #'   preprocessing.
 #' @param max_length integer. Maximum number of characters for each produced
-#'   effect/column name in the `"gather"` and `"db"` outputs (default `63`, a
-#'   database-safe value). Names are made valid and unique; the uniqueness
-#'   suffix is applied after truncation so uniqueness is preserved.
+#'   effect/column name in the `"gather"`, `"data.frame"` and `"db"` outputs
+#'   (default `63`, a database-safe value). Names are made valid and unique;
+#'   the uniqueness suffix is applied after truncation so uniqueness is
+#'   preserved.
 #' @param ... additional arguments passed to the preprocessing stage.
 #'
 #' @return an object of class `"preprocessed.goldfish"` with the change
@@ -672,6 +680,29 @@ estimate_from_specification <- function(
 #'   `right_censored` (right-censored rows are stored, carrying `timespan` and
 #'   `is_dependent`). Both are `TRUE` for `sub_model = "rate"` and `FALSE` for
 #'   `"rate_ordered"` and the choice sub-models.
+#'
+#' @section The `"data.frame"` output:
+#' A base data frame with one row per event x candidate — the same rows the
+#' gather stack holds, so an active `support_constraint` has already removed
+#' what it excludes. Its columns are, in order:
+#' \describe{
+#'   \item{`event`}{integer event id; the stratum for a conditional-logit fit.}
+#'   \item{`chosen`}{`1` on the selected candidate of a dependent event, `0`
+#'     elsewhere; a right-censored event has no chosen row.}
+#'   \item{`sender`, `receiver`}{the labels of **that row's** dyad, decoded
+#'     from its own `index_i` / `index_j`, not the observed event's actors
+#'     repeated. `receiver` is `NA` for sender-set rate rows.}
+#'   \item{`index_i`, `index_j`}{the 1-based node indices of the row, as in
+#'     the gather stack.}
+#'   \item{`timespan`}{the event's exposure, `NA` for the multinomial
+#'     families, which have no waiting time.}
+#'   \item{`is_dependent`}{`FALSE` marks the rows of a right-censored event.}
+#'   \item{statistics}{one column per effect, named by its short name
+#'     (`names_effects`); the effect table is attached as the
+#'     `effect_description` attribute.}
+#' }
+#' On a flavored specification the return is a list of such frames, one per
+#' process, keyed by fid and carrying the `process_map` attribute.
 #'
 #' @section Indexing statistic columns:
 #' Index statistic columns **by name**, never by position. The exact-time
@@ -696,7 +727,7 @@ compute_statistics <- function(
   model = c("DyNAM", "REM", "DyNAMi"),
   sub_model = NULL,
   data = NULL,
-  output = c("preprocessed", "gather", "db"),
+  output = c("preprocessed", "gather", "data.frame", "db"),
   control_prep = set_preprocessing(),
   progress = getOption("progress", default = FALSE),
   max_length = 63L,
@@ -1127,7 +1158,7 @@ estimate_wrapper <- function(
   control_prep = set_preprocessing(),
   preprocessed = NULL,
   preprocessing_only = FALSE,
-  output = c("default", "gather", "db"),
+  output = c("default", "gather", "data.frame", "db"),
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
   max_length = 63L,
@@ -1870,6 +1901,10 @@ estimate_wrapper <- function(
       output,
       default = writer_default,
       gather = writer_gather,
+      # The frame is assembled in R from the gather stack, so it preprocesses
+      # as a gather and reshapes at the export boundary, where the node frames
+      # that turn its indices into labels are in scope.
+      "data.frame" = writer_gather,
       db = function() {
         writer_db(control_prep$db, control_prep$db_table)
       }
@@ -1923,7 +1958,7 @@ estimate_wrapper <- function(
       prep <- recipe_out$prep
       spec_map <- recipe_out$spec_map
     }
-    if (output %in% c("gather", "db")) {
+    if (output %in% c("gather", "data.frame", "db")) {
       # The interaction front-end ignores the writer, so its product is the
       # monolith object rather than a rendered stack: convert it exactly as
       # estimation does, then expand. The gather stack a DyNAM-i model exports
@@ -1964,6 +1999,13 @@ estimate_wrapper <- function(
           has_intercept
         ))
       }
+      if (output == "data.frame") {
+        return(gather_to_frame(
+          gathered,
+          ds_nodes_frame(orig_src, .nodes),
+          ds_nodes_frame(orig_src, .nodes2)
+        ))
+      }
       return(gathered)
     }
     # The formula, nodes, nodes2 are added to the preprocessed object so that
@@ -2000,7 +2042,7 @@ estimate_wrapper <- function(
   # gather stack is a pure function of an assembled object plus its spec -- so
   # replaying a stored object into a gather stack or a db table works instead of
   # silently returning the object unchanged.
-  if (!is.null(preprocessed) && output %in% c("gather", "db")) {
+  if (!is.null(preprocessed) && output %in% c("gather", "data.frame", "db")) {
     gathered <- finalize_gather_output(
       gather_from_prep(prep, model_spec),
       model,
@@ -2023,6 +2065,13 @@ estimate_wrapper <- function(
         sub_model,
         ds_focal_layer(orig_src),
         has_intercept
+      ))
+    }
+    if (output == "data.frame") {
+      return(gather_to_frame(
+        gathered,
+        ds_nodes_frame(orig_src, .nodes),
+        ds_nodes_frame(orig_src, .nodes2)
       ))
     }
     return(gathered)

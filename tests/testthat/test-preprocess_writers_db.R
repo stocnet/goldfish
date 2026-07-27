@@ -134,10 +134,23 @@ test_that("an effect colliding with an identity column is disambiguated", {
   # The reserved names take part in the uniqueness pass, so a statistic named
   # like an identity column gets its own column instead of overwriting one.
   expect_identical(
-    db_stat_column_names(c("inertia", "index_j", "recip")),
+    stat_column_names(c("inertia", "index_j", "recip"), DB_RESERVED_COLUMNS),
     c("inertia", "index_j_1", "recip")
   )
-  expect_identical(db_stat_column_names(character(0)), character(0))
+  expect_identical(
+    stat_column_names(character(0), DB_RESERVED_COLUMNS),
+    character(0)
+  )
+  # The frame reserves labels and exposure on top of the indices, so an effect
+  # colliding with one of those is disambiguated there and not in the db export.
+  expect_identical(
+    stat_column_names("timespan", FRAME_RESERVED_COLUMNS),
+    "timespan_1"
+  )
+  expect_identical(
+    stat_column_names("timespan", DB_RESERVED_COLUMNS),
+    "timespan"
+  )
 })
 
 test_that("a single-process export writes the flavored four-table shape", {

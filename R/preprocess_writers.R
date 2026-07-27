@@ -341,17 +341,30 @@ validate_db_target <- function(db, db_table) {
 # so the same effect resolves to the same column name across families.
 DB_RESERVED_COLUMNS <- c("event_id", "is_selected", "index_i", "index_j")
 
-#' Resolve the statistics column names of a db export
+# The same, for the ready-to-estimate frame, which carries labels and exposure
+# alongside the indices.
+FRAME_RESERVED_COLUMNS <- c(
+  "event",
+  "chosen",
+  "sender",
+  "receiver",
+  "index_i",
+  "index_j",
+  "timespan",
+  "is_dependent"
+)
+
+#' Resolve the statistics column names of an export
 #'
 #' The exported statistics columns are named by their effect (`names_effects`)
 #' rather than by position, so a table read without the producing session still
-#' says which effect each column holds. The reserved identity columns take part
-#' in the uniqueness pass: an effect whose short name collides with one of them
-#' is disambiguated instead of overwriting it.
+#' says which effect each column holds. The `reserved` identity columns take
+#' part in the uniqueness pass: an effect whose short name collides with one of
+#' them is disambiguated instead of overwriting it.
 #'
 #' @noRd
-db_stat_column_names <- function(names_effects) {
-  resolved <- make.unique(c(DB_RESERVED_COLUMNS, names_effects), sep = "_")
+stat_column_names <- function(names_effects, reserved) {
+  resolved <- make.unique(c(reserved, names_effects), sep = "_")
   utils::tail(resolved, length(names_effects))
 }
 
@@ -392,7 +405,10 @@ write_gather_to_db <- function(
   is_selected[ev_starts[has_sel] + selected[has_sel]] <- 1L
 
   stat_df <- as.data.frame(stat)
-  names(stat_df) <- db_stat_column_names(gathered$names_effects)
+  names(stat_df) <- stat_column_names(
+    gathered$names_effects,
+    DB_RESERVED_COLUMNS
+  )
   # Row identity in SQL: without index_i/index_j the long table
   # (event_id / is_selected / statistics) leaves each candidate row
   # unidentifiable once the risk set is filtered. The index columns decode to

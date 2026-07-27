@@ -236,6 +236,68 @@ finalize_gather_output <- function(
   gathered
 }
 
+#' Assemble the ready-to-estimate long frame from a gather stack
+#'
+#' One row per event x realized candidate — the same rows the gather stack
+#' holds, so a constraint has already removed what it excludes. The identity
+#' block comes first (`event`, `chosen`, `sender`, `receiver`, `index_i`,
+#' `index_j`, `timespan`, `is_dependent`), then one column per effect
+#' statistic; `effect_description` rides along as an attribute.
+#'
+#' `sender` / `receiver` are the labels of THAT ROW's dyad, decoded from its
+#' own `index_i` / `index_j`, not the observed event's actors repeated down the
+#' event's rows: for a dyad-indexed family the rows enumerate candidate dyads,
+#' so repeating the observed pair would label most rows with actors they do not
+#' describe. `receiver` is NA where the family has no receiver axis
+#' (sender-set rate rows), which is exactly where `index_j` is NA.
+#'
+#' @noRd
+gather_to_frame <- function(gathered, nodes, nodes2) {
+  n_candidates <- gathered$n_candidates
+  n_events <- length(n_candidates)
+  # A right-censored event has no selected row (`selected` is 0 there), so the
+  # comparison marks none of its rows -- `chosen` is 0 across the event.
+  chosen <- as.integer(
+    sequence(n_candidates) == rep.int(gathered$selected, n_candidates)
+  )
+  index_i <- gathered$index_i %||% rep(NA_integer_, sum(n_candidates))
+  index_j <- gathered$index_j %||% rep(NA_integer_, sum(n_candidates))
+  # The exposure fields exist only on an exact-time model; the multinomial
+  # families have no waiting time and no right-censored rows.
+  timespan <- if (is.null(gathered$timespan)) {
+    rep(NA_real_, sum(n_candidates))
+  } else {
+    rep.int(gathered$timespan, n_candidates)
+  }
+  is_dependent <- if (is.null(gathered$is_dependent)) {
+    rep(TRUE, sum(n_candidates))
+  } else {
+    rep.int(as.logical(gathered$is_dependent), n_candidates)
+  }
+
+  stat_df <- as.data.frame(gathered$stat_all_events)
+  names(stat_df) <- stat_column_names(
+    gathered$names_effects,
+    FRAME_RESERVED_COLUMNS
+  )
+  frame <- cbind(
+    data.frame(
+      event = rep.int(seq_len(n_events), n_candidates),
+      chosen = chosen,
+      sender = nodes$label[index_i],
+      receiver = nodes2$label[index_j],
+      index_i = index_i,
+      index_j = index_j,
+      timespan = timespan,
+      is_dependent = is_dependent,
+      stringsAsFactors = FALSE
+    ),
+    stat_df
+  )
+  attr(frame, "effect_description") <- gathered$effect_description
+  frame
+}
+
 #' Generate names for statistics effects
 #'
 #' Using the names data frame from `goldfish` generate valid, unique and

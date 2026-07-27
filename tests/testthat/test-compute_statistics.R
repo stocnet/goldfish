@@ -88,14 +88,23 @@ test_that("compute_statistics validates the output argument", {
     ),
     "DBI connection"
   )
+  frame <- compute_statistics(
+    depNetwork ~ inertia,
+    data = dataTest,
+    model = "DyNAM",
+    sub_model = "choice",
+    output = "data.frame"
+  )
+  expect_s3_class(frame, "data.frame")
   expect_error(
     compute_statistics(
       depNetwork ~ inertia,
       data = dataTest,
       model = "DyNAM",
       sub_model = "choice",
-      output = "data.frame"
-    )
+      output = "long"
+    ),
+    "should be one of"
   )
 })
 
@@ -402,4 +411,132 @@ test_that("a DyNAM-i model exports to a database in the standard shape", {
     DBI::dbReadTable(con, "stats_map")$stat_block,
     "DyNAMi:choice"
   )
+})
+
+# The ready-to-estimate frame ------------------------------------------------
+
+se_frame_data <- baselines_social_evolution_data()
+
+test_that("the frame reproduces the gather stack row for row", {
+  args <- list(
+    calls_dependent ~ inertia + recip,
+    data = se_frame_data,
+    model = "DyNAM",
+    sub_model = "choice"
+  )
+  gathered <- do.call(compute_statistics, c(args, output = "gather"))
+  frame <- do.call(compute_statistics, c(args, output = "data.frame"))
+
+  expect_s3_class(frame, "data.frame")
+  expect_identical(
+    names(frame),
+    c(
+      "event",
+      "chosen",
+      "sender",
+      "receiver",
+      "index_i",
+      "index_j",
+      "timespan",
+      "is_dependent",
+      gathered$names_effects
+    )
+  )
+  expect_equal(nrow(frame), nrow(gathered$stat_all_events))
+  expect_equal(
+    unname(as.matrix(frame[, gathered$names_effects])),
+    unname(gathered$stat_all_events)
+  )
+  expect_identical(
+    attr(frame, "effect_description"),
+    gathered$effect_description
+  )
+
+  # One chosen row per dependent event, at the stack's selected position.
+  expect_identical(sum(frame$chosen), length(gathered$n_candidates))
+  expect_identical(
+    as.integer(table(frame$event)),
+    as.integer(gathered$n_candidates)
+  )
+  starts <- cumsum(c(0L, utils::head(gathered$n_candidates, -1L)))
+  expect_equal(which(frame$chosen == 1L), starts + gathered$selected)
+
+  # Labels are the row's own dyad, decoded from its own indices rather than the
+  # event's observed pair repeated down its rows; on the chosen rows the two
+  # coincide, which is what ties the decode to the stack's own labels.
+  labels <- se_frame_data$nodes$label
+  expect_identical(frame$sender, labels[frame$index_i])
+  expect_identical(frame$receiver, labels[frame$index_j])
+  expect_identical(frame$receiver[frame$chosen == 1L], gathered$receiver)
+  expect_identical(frame$sender[frame$chosen == 1L], gathered$sender)
+})
+
+test_that("a rate frame carries exposure and no receiver", {
+  args <- list(
+    calls_dependent ~ 1 + indeg + outdeg,
+    data = se_frame_data,
+    model = "DyNAM",
+    sub_model = "rate"
+  )
+  gathered <- do.call(compute_statistics, c(args, output = "gather"))
+  frame <- do.call(compute_statistics, c(args, output = "data.frame"))
+
+  # Sender-set rows have no receiver axis, so the label is NA exactly where the
+  # index is; the exposure the waiting-time likelihood needs rides on every row.
+  expect_true(all(is.na(frame$index_j)))
+  expect_true(all(is.na(frame$receiver)))
+  expect_equal(
+    frame$timespan,
+    rep.int(gathered$timespan, gathered$n_candidates)
+  )
+  expect_identical(names(frame)[9L], "Intercept")
+})
+
+test_that("an ordinal frame has neither intercept nor exposure", {
+  frame <- compute_statistics(
+    calls_dependent ~ indeg + outdeg,
+    data = se_frame_data,
+    model = "DyNAM",
+    sub_model = "rate_ordered",
+    output = "data.frame"
+  )
+  expect_true(all(is.na(frame$timespan)))
+  expect_true(all(frame$is_dependent))
+  expect_false("Intercept" %in% names(frame))
+})
+
+test_that("right-censored frame rows are marked and never chosen", {
+  # A fixture with real censoring intervals: dataTest's events leave none.
+  suppressWarnings(suppressMessages({
+    data("Social_Evolution", envir = environment())
+    call_network <- make_network(nodes = actors, directed = TRUE)
+    call_network <- link_events(
+      x = call_network,
+      change_event = calls,
+      nodes = actors
+    )
+    dep <- make_dependent_events(
+      events = calls,
+      nodes = actors,
+      default_network = call_network
+    )
+    dep <- dep[1:80, ]
+    d <- make_data(dep, call_network, calls, actors)
+    frame <- compute_statistics(
+      dep ~ inertia(call_network),
+      model = "REM",
+      sub_model = "rate",
+      data = d,
+      output = "data.frame"
+    )
+  }))
+
+  censored <- !frame$is_dependent
+  expect_gt(sum(censored), 0)
+  # A right-censored event contributes exposure but no choice: none of its rows
+  # is chosen, and every one of them still carries the timespan the
+  # waiting-time likelihood integrates over.
+  expect_identical(sum(frame$chosen[censored]), 0L)
+  expect_true(all(is.finite(frame$timespan[censored])))
+  expect_identical(sum(frame$chosen), length(unique(frame$event[!censored])))
 })
