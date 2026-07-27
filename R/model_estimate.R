@@ -2217,6 +2217,17 @@ estimate_wrapper <- function(
   # offset at rhs position j fixes parameter j (+1 when the intercept is
   # prepended). Constant-across-alternatives offsets in choice cancel in the
   # softmax, so they warn rather than abort.
+  #
+  # The effect description is built first because the by-name surfaces resolve
+  # against the coefficient labels it carries -- the labels the fit renders.
+  # It is built without the fixed column: fixedness is what is being decided
+  # here, and a name is matched against the term, not against whether that term
+  # ended up estimated. Reuse the spec_map's single-source-of-truth description
+  # when available (recipe models); the DyNAMi and preprocessed paths have none.
+  base_description <- spec_map$effect_description %||%
+    GetDetailPrint(objects_effects_link, parsed_formula)
+  coef_labels <- term_label(base_description, ".coef_name", "coef")
+
   fixed_spec <- assemble_fixed_parameters(
     parsed_formula,
     rhs_names,
@@ -2224,36 +2235,34 @@ estimate_wrapper <- function(
     model,
     sub_model,
     control_algo$fixed_parameters,
-    control_algo$offset_coef
+    control_algo$offset_coef,
+    coef_labels
+  )
+  initial_spec <- resolve_initial_parameters(
+    control_algo$initial_parameters,
+    coef_labels,
+    length(coef_labels)
   )
   # The Newton-Raphson kernels and the effect description still read the
   # positional NA-vector encoding, so the contract is flattened for them here.
   effective_fixed_parameters <- fixed_spec_to_vector(
     fixed_spec,
-    length(rhs_names) +
-      length(parsed_formula$interactions) +
-      as.integer(isTRUE(has_intercept))
+    length(coef_labels)
   )
 
   ### 4. PREPARE PRINTING----
   # functions_utility.R
-  # Reuse the spec_map's single-source-of-truth description when available
-  # (recipe models, no fixed-coefficient marking); otherwise compute it (the
-  # fixed-coefficient case adds a column, and the DyNAMi / preprocessed
-  # paths have no spec_map). Behaviour is identical to the unconditional call.
-  effect_description <-
-    if (
-      !is.null(spec_map$effect_description) &&
-        is.null(effective_fixed_parameters)
-    ) {
-      spec_map$effect_description
-    } else {
-      GetDetailPrint(
-        objects_effects_link,
-        parsed_formula,
-        effective_fixed_parameters
-      )
-    }
+  # A fixed coefficient adds a column to the description, so it is rebuilt when
+  # anything is fixed; otherwise the one built above is the description.
+  effect_description <- if (is.null(effective_fixed_parameters)) {
+    base_description
+  } else {
+    GetDetailPrint(
+      objects_effects_link,
+      parsed_formula,
+      effective_fixed_parameters
+    )
+  }
   has_windows <- attr(effect_description, "has_windows")
   if (is.null(has_windows)) {
     has_windows <- !all(vapply(window_parameters, is.null, logical(1)))

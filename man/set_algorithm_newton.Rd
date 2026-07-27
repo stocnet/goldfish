@@ -25,10 +25,19 @@ set_algorithm_newton(
 )
 }
 \arguments{
-\item{initial_parameters}{A numeric vector. It includes initial parameter
-values used to initialize the estimation process.
+\item{initial_parameters}{Starting values for the estimation process.
+Accepts an unnamed numeric vector of the same length as the number of
+coefficients, aligned by position, or a \emph{named} numeric vector matched
+against the coefficient labels the model reports (the names \code{coef()}
+returns), which seeds only the coefficients it names and leaves every
+other one at its default. For a multi-process specification a flat named
+vector applies to every process carrying a matching label, while a list
+keyed by flavor (\code{list(creation = c(inertia = 0.5))}), optionally by
+family within it (\code{list(creation = list(rate = c(inertia = 0.5)))}),
+targets the named process(es).
 Default is \code{NULL}, which means parameters are initialized at zero,
-except for the rate intercept when present.}
+except for the rate intercept when present. Seeding only non-intercept
+coefficients keeps that intercept's data-derived starting value.}
 
 \item{fixed_parameters}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#superseded}{\figure{lifecycle-superseded.svg}{options: alt='[Superseded]'}}}{\strong{[Superseded]}} A numeric vector
 of the same length as the number of parameters to be estimated in the model.
@@ -43,9 +52,12 @@ name instead of by counting coefficient positions.}
 
 \item{offset_coef}{A numeric vector giving the fixed coefficient value(s) for
 the \code{offset()} term(s) in the model formula, aligned to the offset terms in
-formula order. For example, \code{~ inertia + offset(ego(sex)) + recip} with
+formula order when unnamed, or matched to them by coefficient label when
+named. For example, \code{~ inertia + offset(ego(sex)) + recip} with
 \code{offset_coef = 2} holds the \code{ego(sex)} coefficient at 2 while estimating the
-rest. Default is \code{NULL} (no offsets).}
+rest. An offset term can also carry its value in the formula itself, as
+\code{offset(ego(sex), coef = 2)}; a term given a value by both routes aborts.
+Default is \code{NULL} (no offsets).}
 
 \item{max_iterations}{An integer non-negative.
 The maximum number of iterations in the Gauss-Fisher scoring algorithm.

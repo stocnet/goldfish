@@ -269,6 +269,119 @@ new_fixed_spec <- function(idx, values, names) {
 
 is_fixed_spec <- function(x) inherits(x, "fixed_spec")
 
+# The starting-value contract, the same shape as the fixed-coefficient one:
+# which coefficients the user seeded, at what value, under which label. What is
+# NOT seeded matters as much as what is -- a coefficient absent from `idx` keeps
+# its default start, which for a rate intercept is the data-derived warm start.
+new_initial_spec <- function(idx, values, names) {
+  idx <- as.integer(idx)
+  values <- as.numeric(values)
+  names <- as.character(names)
+  if (length(idx) != length(values) || length(idx) != length(names)) {
+    cli::cli_abort(
+      "A starting-value contract needs one value and one term label per
+       position ({length(idx)} position{?s}, {length(values)} value{?s},
+       {length(names)} label{?s}).",
+      .internal = TRUE
+    )
+  }
+  if (length(idx) == 0) {
+    cli::cli_abort(
+      "A starting-value contract cannot be empty; use {.code NULL} when no
+       coefficient is seeded.",
+      .internal = TRUE
+    )
+  }
+  if (anyNA(values)) {
+    cli::cli_abort(c(
+      "A seeded coefficient needs a value.",
+      "x" = "Missing value for term{?s}: {.code {names[is.na(values)]}}."
+    ))
+  }
+  structure(
+    list(idx = idx, values = values, names = names),
+    class = "initial_spec"
+  )
+}
+
+is_initial_spec <- function(x) inherits(x, "initial_spec")
+
+# Match the names of a user-supplied vector against the coefficient labels a fit
+# renders (the `tidy()` / `coef()` names), returning their positions. A name
+# that matches nothing aborts listing what was available: a typo that silently
+# seeded or fixed nothing is precisely the failure the by-name surface exists to
+# prevent. `candidates` restricts the match to a subset of positions, so
+# `offset_coef` can be matched against the offset terms alone.
+match_coef_labels <- function(wanted, coef_labels, arg, candidates = NULL) {
+  pool <- if (is.null(candidates)) seq_along(coef_labels) else candidates
+  idx <- pool[match(wanted, coef_labels[pool])]
+  if (anyNA(idx)) {
+    unknown <- wanted[is.na(idx)]
+    cli::cli_abort(c(
+      "{cli::qty(length(unknown))}{.arg {arg}} names {?a coefficient/
+       coefficients} this model does not have.",
+      "x" = "Unknown: {.code {unknown}}.",
+      "i" = "Available: {.code {coef_labels[pool]}}."
+    ))
+  }
+  if (anyDuplicated(wanted)) {
+    cli::cli_abort(c(
+      "{.arg {arg}} names the same coefficient more than once.",
+      "x" = "Repeated: {.code {unique(wanted[duplicated(wanted)])}}."
+    ))
+  }
+  idx
+}
+
+# Resolve user-supplied starting values into a contract. Two forms are accepted:
+# the full-length unnamed vector, which seeds every coefficient (including the
+# intercept, so a rate model's data-derived warm start is deliberately
+# replaced), and a named vector matched against the coefficient labels, which
+# seeds only the coefficients it names and leaves every other one at its
+# default. A partial-length unnamed vector is the counting mistake the named
+# form exists to end, so it aborts rather than being padded.
+resolve_initial_parameters <- function(
+  initial_parameters,
+  coef_labels,
+  n_params
+) {
+  if (is.null(initial_parameters)) {
+    return(NULL)
+  }
+  supplied_names <- names(initial_parameters)
+  if (is.null(supplied_names) || !any(nzchar(supplied_names))) {
+    if (length(initial_parameters) != n_params) {
+      cli::cli_abort(c(
+        "An unnamed {.arg initial_parameters} must supply one value per
+         coefficient.",
+        "x" = "The model has {n_params} coefficient{?s} but
+               {.arg initial_parameters} has {length(initial_parameters)}
+               value{?s}.",
+        "i" = "Name the values to seed only some of them, e.g.
+               {.code initial_parameters = c({coef_labels[[1]]} = 0.5)}."
+      ))
+    }
+    return(new_initial_spec(
+      seq_len(n_params),
+      initial_parameters,
+      coef_labels
+    ))
+  }
+  if (!all(nzchar(supplied_names))) {
+    cli::cli_abort(c(
+      "{.arg initial_parameters} must be either fully named or fully unnamed.",
+      "x" = "{sum(!nzchar(supplied_names))} value{?s} {?is/are} unnamed.",
+      "i" = "Available coefficient{?s}: {.code {coef_labels}}."
+    ))
+  }
+  idx <- match_coef_labels(
+    supplied_names,
+    coef_labels,
+    "initial_parameters"
+  )
+  new_initial_spec(idx, unname(initial_parameters), coef_labels[idx])
+}
+
 # Term labels for every coefficient position, in coefficient order
 # [intercept?, function-effects..., interactions...]. A function effect is
 # rendered as the call the user wrote (arguments kept, names restored) so an
@@ -328,7 +441,8 @@ assemble_fixed_parameters <- function(
   model,
   sub_model,
   fixed_parameters,
-  offset_coef
+  offset_coef,
+  coef_labels = NULL
 ) {
   is_offset <- unlist(parsed_formula$offset_parameter)
   if (is.null(is_offset)) {
@@ -360,18 +474,44 @@ assemble_fixed_parameters <- function(
       "i" = "Wrap a term in {.fn offset} to fix its coefficient."
     ))
   }
+  # One value per offset term, taken from the formula where it carries one and
+  # from `offset_coef` otherwise -- aligned to the offset terms by formula order
+  # when unnamed, matched to them by coefficient label when named.
+  offset_values <- in_formula
   if (!is.null(offset_coef)) {
-    if (length(offset_coef) != length(offset_positions)) {
-      cli::cli_abort(c(
-        "{.arg offset_coef} must supply one value per {.fn offset} term.",
-        "x" = "The formula has {length(offset_positions)} offset term{?s}
-               ({.code {labels[offset_positions]}}) but {.arg offset_coef} has
-               {length(offset_coef)} value{?s}.",
-        "i" = "Set it via {.code set_algorithm_newton(offset_coef = ...)}."
-      ))
+    supplied_names <- names(offset_coef)
+    if (!is.null(supplied_names) && any(nzchar(supplied_names))) {
+      if (!all(nzchar(supplied_names))) {
+        cli::cli_abort(c(
+          "{.arg offset_coef} must be either fully named or fully unnamed.",
+          "x" = "{sum(!nzchar(supplied_names))} value{?s} {?is/are} unnamed.",
+          "i" = "Unnamed values align to the {.fn offset} terms in formula
+                 order."
+        ))
+      }
+      at <- match(
+        match_coef_labels(
+          supplied_names,
+          coef_labels,
+          "offset_coef",
+          candidates = offset_positions
+        ),
+        offset_positions
+      )
+    } else {
+      if (length(offset_coef) != length(offset_positions)) {
+        cli::cli_abort(c(
+          "{.arg offset_coef} must supply one value per {.fn offset} term.",
+          "x" = "The formula has {length(offset_positions)} offset term{?s}
+                 ({.code {labels[offset_positions]}}) but {.arg offset_coef}
+                 has {length(offset_coef)} value{?s}.",
+          "i" = "Set it via {.code set_algorithm_newton(offset_coef = ...)}."
+        ))
+      }
+      at <- seq_along(offset_positions)
     }
-    conflicted <- !is.na(in_formula)
-    if (any(conflicted)) {
+    conflicted <- at[!is.na(offset_values[at])]
+    if (length(conflicted) > 0) {
       cli::cli_abort(c(
         "A fixed coefficient cannot come from two sources.",
         "x" = "{.code {labels[offset_positions[conflicted]]}} {?has/have} a
@@ -381,8 +521,10 @@ assemble_fixed_parameters <- function(
                {.code set_algorithm_newton(offset_coef = ...)}."
       ))
     }
-  } else if (anyNA(in_formula)) {
-    unvalued <- is.na(in_formula)
+    offset_values[at] <- unname(offset_coef)
+  }
+  if (anyNA(offset_values)) {
+    unvalued <- is.na(offset_values)
     cli::cli_abort(c(
       "Every {.fn offset} term needs a fixed coefficient value.",
       "x" = "No value for {.code {labels[offset_positions[unvalued]]}}.",
@@ -409,11 +551,7 @@ assemble_fixed_parameters <- function(
     supplied <- !is.na(fixed_parameters)
     values[supplied] <- fixed_parameters[supplied]
   }
-  values[offset_positions] <- if (is.null(offset_coef)) {
-    in_formula
-  } else {
-    offset_coef
-  }
+  values[offset_positions] <- offset_values
 
   if (
     model %in%

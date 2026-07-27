@@ -52,7 +52,12 @@ assemble_from_formula <- function(
     model,
     sub_model,
     fixed_parameters,
-    offset_coef
+    offset_coef,
+    coef_labels = term_label(
+      GetDetailPrint(get_objects_effects_link(parsed$rhs_names), parsed),
+      ".coef_name",
+      "coef"
+    )
   )
 }
 
@@ -236,6 +241,122 @@ test_that("the contract constructor rejects malformed input", {
     "needs a value"
   )
   expect_error(new_fixed_spec(integer(0), numeric(0), character(0)))
+})
+
+# Starting values resolve against the coefficient labels the fit renders, which
+# `.coefTerms()` dedups when two terms share an effect name -- so the labels a
+# user matches against are the ones `coef()` shows, collisions included.
+labels_of <- function(formula) {
+  envir <- fixed_spec_envir()
+  parsed <- parse_formula(formula, envir = envir)
+  term_label(
+    GetDetailPrint(get_objects_effects_link(parsed$rhs_names), parsed),
+    ".coef_name",
+    "coef"
+  )
+}
+
+test_that("an unnamed full-length vector seeds every coefficient", {
+  labels <- c("Intercept", "ideg", "odeg")
+  spec <- resolve_initial_parameters(c(-3, 0.1, 0.2), labels, 3L)
+  expect_s3_class(spec, "initial_spec")
+  expect_identical(spec$idx, 1:3)
+  expect_identical(spec$values, c(-3, 0.1, 0.2))
+  expect_identical(spec$names, labels)
+})
+
+test_that("a named vector seeds only the coefficients it names", {
+  labels <- c("Intercept", "ideg", "odeg")
+  spec <- resolve_initial_parameters(c(odeg = 0.5), labels, 3L)
+  expect_identical(spec$idx, 3L)
+  expect_identical(spec$values, 0.5)
+  expect_identical(spec$names, "odeg")
+})
+
+test_that("nothing supplied resolves to no contract", {
+  expect_null(resolve_initial_parameters(NULL, c("a", "b"), 2L))
+})
+
+test_that("names are matched against collision-deduped labels", {
+  labels <- labels_of(
+    calls_dependent ~
+      1 + indeg + outdeg(call_network, window = "1 hour") + outdeg
+  )
+  # two `outdeg` terms, so the labels carry the object and window that tell
+  # them apart
+  expect_length(unique(labels), length(labels))
+  spec <- resolve_initial_parameters(
+    stats::setNames(0.5, labels[[3]]),
+    labels,
+    length(labels)
+  )
+  expect_identical(spec$idx, 3L)
+  expect_identical(spec$names, labels[[3]])
+})
+
+test_that("an unnamed partial vector aborts naming the expected length", {
+  expect_snapshot(
+    error = TRUE,
+    resolve_initial_parameters(c(0.5), c("Intercept", "ideg", "odeg"), 3L)
+  )
+})
+
+test_that("an unknown name aborts listing the available labels", {
+  expect_snapshot(
+    error = TRUE,
+    resolve_initial_parameters(c(inertai = 1.5), c("Intercept", "inrt"), 2L)
+  )
+})
+
+test_that("a partly named vector aborts", {
+  expect_error(
+    resolve_initial_parameters(c(ideg = 1, 2), c("ideg", "odeg"), 2L),
+    "fully named or fully unnamed"
+  )
+})
+
+test_that("offset_coef can name the offset terms it values", {
+  spec <- assemble_from_formula(
+    calls_dependent ~ inertia + offset(recip) + offset(trans),
+    offset_coef = c(trans = -1, rec = 2)
+  )
+  expect_identical(spec$idx, c(2L, 3L))
+  expect_identical(spec$values, c(2, -1))
+})
+
+test_that("a named offset_coef entry must name an offset term", {
+  expect_snapshot(
+    error = TRUE,
+    assemble_from_formula(
+      calls_dependent ~ inertia + offset(recip),
+      offset_coef = c(inrt = 2)
+    )
+  )
+})
+
+test_that("list-shaped starting values are accepted by the constructor", {
+  expect_no_error(
+    set_algorithm_newton(initial_parameters = c(inertia = 0.5))
+  )
+  expect_no_error(
+    set_algorithm_newton(
+      initial_parameters = list(creation = list(rate = c(inertia = 0.5)))
+    )
+  )
+  expect_error(
+    set_algorithm_newton(initial_parameters = list(c(inertia = 0.5))),
+    "must be named"
+  )
+  expect_error(
+    set_algorithm_newton(
+      initial_parameters = list(creation = list(rate = list(c(1))))
+    ),
+    "nest one level only"
+  )
+  expect_error(
+    set_algorithm_newton(initial_parameters = "a"),
+    "must be a numeric vector"
+  )
 })
 
 test_that("a contract flattens to the positional encoding", {

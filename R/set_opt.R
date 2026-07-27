@@ -22,10 +22,19 @@
 #' (in a similar vein to the step size parameter in gradient descendent).
 
 #'
-#' @param initial_parameters A numeric vector. It includes initial parameter
-#'   values used to initialize the estimation process.
+#' @param initial_parameters Starting values for the estimation process.
+#'   Accepts an unnamed numeric vector of the same length as the number of
+#'   coefficients, aligned by position, or a *named* numeric vector matched
+#'   against the coefficient labels the model reports (the names `coef()`
+#'   returns), which seeds only the coefficients it names and leaves every
+#'   other one at its default. For a multi-process specification a flat named
+#'   vector applies to every process carrying a matching label, while a list
+#'   keyed by flavor (`list(creation = c(inertia = 0.5))`), optionally by
+#'   family within it (`list(creation = list(rate = c(inertia = 0.5)))`),
+#'   targets the named process(es).
 #'   Default is `NULL`, which means parameters are initialized at zero,
-#'   except for the rate intercept when present.
+#'   except for the rate intercept when present. Seeding only non-intercept
+#'   coefficients keeps that intercept's data-derived starting value.
 #' @param fixed_parameters `r lifecycle::badge("superseded")` A numeric vector
 #'   of the same length as the number of parameters to be estimated in the model.
 #'   `NA` values indicate parameters to be estimated,
@@ -38,9 +47,12 @@
 #'   name instead of by counting coefficient positions.
 #' @param offset_coef A numeric vector giving the fixed coefficient value(s) for
 #'   the `offset()` term(s) in the model formula, aligned to the offset terms in
-#'   formula order. For example, `~ inertia + offset(ego(sex)) + recip` with
+#'   formula order when unnamed, or matched to them by coefficient label when
+#'   named. For example, `~ inertia + offset(ego(sex)) + recip` with
 #'   `offset_coef = 2` holds the `ego(sex)` coefficient at 2 while estimating the
-#'   rest. Default is `NULL` (no offsets).
+#'   rest. An offset term can also carry its value in the formula itself, as
+#'   `offset(ego(sex), coef = 2)`; a term given a value by both routes aborts.
+#'   Default is `NULL` (no offsets).
 #' @param max_iterations An integer non-negative.
 #'   The maximum number of iterations in the Gauss-Fisher scoring algorithm.
 #'   Default is `20`.
@@ -261,12 +273,7 @@ set_algorithm_newton <- function(
   }
 
   # Argument checks
-  if (!is.null(initial_parameters) && !is.numeric(initial_parameters)) {
-    stop(
-      "'initial_parameters' must be a numeric vector or NULL.",
-      call. = FALSE
-    )
-  }
+  check_initial_parameters(initial_parameters)
   if (!is.null(fixed_parameters)) {
     if (!is.numeric(fixed_parameters)) {
       stop(
@@ -871,4 +878,55 @@ set_preprocessing <- function(
 
   class(control_list) <- c("preprocessing.goldfish", "list")
   return(control_list)
+}
+
+# Starting values come in three shapes, all resolved to positions at estimation
+# where the coefficient labels are known: a full-length unnamed vector (aligned
+# by position), a named vector (aligned by coefficient label, seeding only the
+# names it carries), and -- for a multi-process specification, whose processes
+# have separate coefficient vectors -- a list keyed by flavor and optionally by
+# family within it. Only the shape is checked here; the labels a name has to
+# match are not known until a formula is parsed.
+check_initial_parameters <- function(x, arg = "initial_parameters") {
+  if (is.null(x) || is.numeric(x)) {
+    return(invisible(NULL))
+  }
+  if (!is.list(x)) {
+    cli::cli_abort(
+      "{.arg {arg}} must be a numeric vector, a named list of them, or
+       {.code NULL}."
+    )
+  }
+  if (is.null(names(x)) || !all(nzchar(names(x)))) {
+    cli::cli_abort(c(
+      "Every entry of a list-valued {.arg {arg}} must be named.",
+      "i" = "Key the outer level by flavor, e.g.
+             {.code list(creation = c(inertia = 0.5))}."
+    ))
+  }
+  for (key in names(x)) {
+    entry <- x[[key]]
+    if (is.numeric(entry)) {
+      next
+    }
+    if (!is.list(entry)) {
+      cli::cli_abort(
+        "{.arg {arg}}${key} must be a numeric vector or a named list of them."
+      )
+    }
+    if (is.null(names(entry)) || !all(nzchar(names(entry)))) {
+      cli::cli_abort(c(
+        "Every entry of {.arg {arg}}${key} must be named.",
+        "i" = "Key the inner level by family, e.g.
+               {.code list({key} = list(rate = c(inertia = 0.5)))}."
+      ))
+    }
+    if (!all(vapply(entry, is.numeric, logical(1)))) {
+      cli::cli_abort(
+        "{.arg {arg}}${key} may nest one level only; its entries must be
+         numeric vectors."
+      )
+    }
+  }
+  invisible(NULL)
 }
