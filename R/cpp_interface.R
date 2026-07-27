@@ -1047,8 +1047,9 @@ estimate_ <- function(
 #' `gather_sender_receiver_model()` (removed in the writer refactor): the
 #' gather stack is now produced once, in R, from `writer_default()`'s flat
 #' output and consumed by both `backend = "gather"` and
-#' `gather_model_data()`. The per-iteration model fitting stays in C++ via
-#' `compute_()`, so the one-time expansion in R does not affect the
+#' `compute_statistics(output = "gather")`. The per-iteration model fitting
+#' stays in C++ via `compute_()`, so the one-time expansion in R does not
+#' affect the
 #' estimation hot path. The `verbose` / `impute` arguments are retained for
 #' call-site compatibility; `impute` is always `FALSE` in the current
 #' code paths (the impute machinery was dropped from estimation).

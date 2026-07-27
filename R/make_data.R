@@ -759,7 +759,7 @@ make_global_attributes_goldfish <- make_global_attributes
 #' as specified by attributes common in the 'goldfish' package.
 #' This is useful for creating a self-contained data context for
 #' `estimate_dynam()`, `estimate_rem()`, `estimate_dynami()`
-#' and `gather_model_data()`.
+#' and [compute_statistics()].
 #'
 #' The function recursively searches for linked objects:
 #' \itemize{

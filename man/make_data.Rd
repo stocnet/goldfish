@@ -27,7 +27,7 @@ populates it with the provided \code{R} objects and their linked objects,
 as specified by attributes common in the 'goldfish' package.
 This is useful for creating a self-contained data context for
 \code{estimate_dynam()}, \code{estimate_rem()}, \code{estimate_dynami()}
-and \code{gather_model_data()}.
+and \code{\link[=compute_statistics]{compute_statistics()}}.
 }
 \details{
 The function recursively searches for linked objects:

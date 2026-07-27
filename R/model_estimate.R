@@ -180,7 +180,7 @@
 #'   [risk_set_axis()], which documents the four values and how each joins to
 #'   `node_lookup`. Absent on objects fitted before goldfish 2.0.0.}
 #'   \item{node_lookup}{the `(side, local, global, label)` table documented
-#'   under [gather_model_data()], carried on the fit so a per-event diagnostic
+#'   under [compute_statistics()], carried on the fit so a per-event diagnostic
 #'   index resolves to the original node row and its label. It is *the* index
 #'   resolver: join a position to the side [risk_set_axis()] names — side 1 for
 #'   `"sender"`, side 2 for `"receiver_given_sender"` on a two-mode model, and
@@ -645,7 +645,8 @@ estimate_from_specification <- function(
 #' @param output a character string specifying the output format of the
 #'   preprocessed statistics. `"preprocessed"` returns the estimation-ready
 #'   `preprocessed.goldfish` object; `"gather"` returns the gather stack (one
-#'   row per event x alternative, as in [gather_model_data()]);
+#'   row per event x alternative, the format the deprecated
+#'   [gather_model_data()] produced);
 #'   `"data.frame"` returns the same rows as a ready-to-estimate long frame
 #'   (see below); `"db"` streams the gather rows to the database configured
 #'   via [set_preprocessing()] (`db` / `db_table`) and returns a descriptor.
@@ -704,6 +705,26 @@ estimate_from_specification <- function(
 #' On a flavored specification the return is a list of such frames, one per
 #' process, keyed by fid and carrying the `process_map` attribute.
 #'
+#' @section Flavored specifications:
+#' When `x` is a [make_specification()] object defining flavors, every output
+#' form returns a list with one element per modeled process, keyed by the
+#' integer formula id (fid) and carrying the `process_map` table as an
+#' attribute — the same identity table the estimation container reports.
+#' Read labels from that table (`layer`, `flavor`, `family`), never by
+#' parsing the keys. A db export writes one table per process under the same
+#' keying.
+#'
+#' @section DyNAM-i:
+#' `model = "DyNAMi"` is supported at every output form. Its preprocessing
+#' runs through the interaction front-end and is converted with the same
+#' bridge estimation uses, so the exported rows are the risk set the fit
+#' has — the joining choice set (the groups occupied at the decision point)
+#' included. An interaction choice row is an actor x group dyad, with the
+#' group as its `receiver`; the interaction rate model is sender-indexed and
+#' carries no receiver. DyNAM-i reaches its front-end through the legacy
+#' environment, which has no node lookup, so a db export of one writes no
+#' `<db_table>_nodes` table.
+#'
 #' @section Indexing statistic columns:
 #' Index statistic columns **by name**, never by position. The exact-time
 #' sub-models prepend an `Intercept` column, so the same formula yields
@@ -722,6 +743,78 @@ estimate_from_specification <- function(
 #'   data = social_evolution
 #' )
 #' prep
+#'
+#' # The ready-to-estimate frame. The identity columns are fixed and
+#' # documented, so the statistics are whatever is left.
+#' frame <- compute_statistics(
+#'   calls ~ inertia + recip,
+#'   model = "DyNAM", sub_model = "choice",
+#'   data = social_evolution, output = "data.frame"
+#' )
+#' identity_cols <- c(
+#'   "event", "chosen", "sender", "receiver",
+#'   "index_i", "index_j", "timespan", "is_dependent"
+#' )
+#' stats <- setdiff(names(frame), identity_cols)
+#' head(frame[, c("event", "chosen", "sender", "receiver", stats)])
+#'
+#' # Exact-time rate models are a piecewise-exponential likelihood, which is
+#' # the Poisson one with the exposure as offset, over the dependent AND the
+#' # right-censored rows. goldfish's own `Intercept` column is the constant
+#' # the glm fits as `(Intercept)`, so it is dropped from the right-hand side.
+#' \donttest{
+#' rate_frame <- compute_statistics(
+#'   calls ~ 1 + indeg + outdeg,
+#'   model = "DyNAM", sub_model = "rate",
+#'   data = social_evolution, output = "data.frame"
+#' )
+#' rate_stats <- setdiff(names(rate_frame), c(identity_cols, "Intercept"))
+#' # Tied event times leave an event with zero exposure. Such an event still
+#' # contributes its chosen term to the goldfish likelihood, but `log(0)` is
+#' # not an offset a glm can take, so those rows come out and the two fits
+#' # differ by exactly those events' contributions.
+#' positive_exposure <- rate_frame[rate_frame$timespan > 0, ]
+#' glm(
+#'   stats::reformulate(
+#'     c(rate_stats, "offset(log(timespan))"), response = "chosen"
+#'   ),
+#'   family = poisson, data = positive_exposure
+#' )
+#' }
+#'
+#' @examplesIf requireNamespace("survival", quietly = TRUE)
+#' # Conditional logit on the choice frame: one case per stratum, so the tie
+#' # methods coincide and this is the exact conditional likelihood goldfish
+#' # maximizes. `strata(event)` is the risk set of one decision.
+#' \donttest{
+#' library(survival)
+#' rhs <- paste(c(stats, "strata(event)"), collapse = " + ")
+#' clogit(stats::as.formula(paste("chosen ~", rhs)), data = frame)
+#'
+#' # The same fit as a Cox model with every case at the same "time": the
+#' # partial likelihood over a stratum's risk set IS the multinomial one.
+#' coxph(
+#'   stats::as.formula(
+#'     paste("Surv(rep(1, nrow(frame)), chosen) ~", rhs)
+#'   ),
+#'   data = frame
+#' )
+#' }
+#'
+#' @examplesIf requireNamespace("mlogit", quietly = TRUE)
+#' # McFadden conditional logit. The alternative id is `index_j` -- the real
+#' # receiver identity, so an alternative-specific term means what it says.
+#' \donttest{
+#' frame$option <- frame$index_j
+#' indexed <- mlogit::dfidx(
+#'   frame, idx = c("event", "option"), choice = "chosen"
+#' )
+#' choice_rhs <- paste(paste(stats, collapse = " + "), "| 0")
+#' mlogit::mlogit(
+#'   stats::as.formula(paste("chosen ~", choice_rhs)),
+#'   data = indexed
+#' )
+#' }
 compute_statistics <- function(
   x,
   model = c("DyNAM", "REM", "DyNAMi"),

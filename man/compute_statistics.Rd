@@ -40,7 +40,8 @@ only the order of the events, which has neither.}
 \item{output}{a character string specifying the output format of the
 preprocessed statistics. \code{"preprocessed"} returns the estimation-ready
 \code{preprocessed.goldfish} object; \code{"gather"} returns the gather stack (one
-row per event x alternative, as in \code{\link[=gather_model_data]{gather_model_data()}});
+row per event x alternative, the format the deprecated
+\code{\link[=gather_model_data]{gather_model_data()}} produced);
 \code{"data.frame"} returns the same rows as a ready-to-estimate long frame
 (see below); \code{"db"} streams the gather rows to the database configured
 via \code{\link[=set_preprocessing]{set_preprocessing()}} (\code{db} / \code{db_table}) and returns a descriptor.
@@ -114,6 +115,30 @@ On a flavored specification the return is a list of such frames, one per
 process, keyed by fid and carrying the \code{process_map} attribute.
 }
 
+\section{Flavored specifications}{
+
+When \code{x} is a \code{\link[=make_specification]{make_specification()}} object defining flavors, every output
+form returns a list with one element per modeled process, keyed by the
+integer formula id (fid) and carrying the \code{process_map} table as an
+attribute — the same identity table the estimation container reports.
+Read labels from that table (\code{layer}, \code{flavor}, \code{family}), never by
+parsing the keys. A db export writes one table per process under the same
+keying.
+}
+
+\section{DyNAM-i}{
+
+\code{model = "DyNAMi"} is supported at every output form. Its preprocessing
+runs through the interaction front-end and is converted with the same
+bridge estimation uses, so the exported rows are the risk set the fit
+has — the joining choice set (the groups occupied at the decision point)
+included. An interaction choice row is an actor x group dyad, with the
+group as its \code{receiver}; the interaction rate model is sender-indexed and
+carries no receiver. DyNAM-i reaches its front-end through the legacy
+environment, which has no node lookup, so a db export of one writes no
+\verb{<db_table>_nodes} table.
+}
+
 \section{Indexing statistic columns}{
 
 Index statistic columns \strong{by name}, never by position. The exact-time
@@ -131,6 +156,79 @@ prep <- compute_statistics(
   data = social_evolution
 )
 prep
+
+# The ready-to-estimate frame. The identity columns are fixed and
+# documented, so the statistics are whatever is left.
+frame <- compute_statistics(
+  calls ~ inertia + recip,
+  model = "DyNAM", sub_model = "choice",
+  data = social_evolution, output = "data.frame"
+)
+identity_cols <- c(
+  "event", "chosen", "sender", "receiver",
+  "index_i", "index_j", "timespan", "is_dependent"
+)
+stats <- setdiff(names(frame), identity_cols)
+head(frame[, c("event", "chosen", "sender", "receiver", stats)])
+
+# Exact-time rate models are a piecewise-exponential likelihood, which is
+# the Poisson one with the exposure as offset, over the dependent AND the
+# right-censored rows. goldfish's own `Intercept` column is the constant
+# the glm fits as `(Intercept)`, so it is dropped from the right-hand side.
+\donttest{
+rate_frame <- compute_statistics(
+  calls ~ 1 + indeg + outdeg,
+  model = "DyNAM", sub_model = "rate",
+  data = social_evolution, output = "data.frame"
+)
+rate_stats <- setdiff(names(rate_frame), c(identity_cols, "Intercept"))
+# Tied event times leave an event with zero exposure. Such an event still
+# contributes its chosen term to the goldfish likelihood, but `log(0)` is
+# not an offset a glm can take, so those rows come out and the two fits
+# differ by exactly those events' contributions.
+positive_exposure <- rate_frame[rate_frame$timespan > 0, ]
+glm(
+  stats::reformulate(
+    c(rate_stats, "offset(log(timespan))"), response = "chosen"
+  ),
+  family = poisson, data = positive_exposure
+)
+}
+
+\dontshow{if (requireNamespace("survival", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+# Conditional logit on the choice frame: one case per stratum, so the tie
+# methods coincide and this is the exact conditional likelihood goldfish
+# maximizes. `strata(event)` is the risk set of one decision.
+\donttest{
+library(survival)
+rhs <- paste(c(stats, "strata(event)"), collapse = " + ")
+clogit(stats::as.formula(paste("chosen ~", rhs)), data = frame)
+
+# The same fit as a Cox model with every case at the same "time": the
+# partial likelihood over a stratum's risk set IS the multinomial one.
+coxph(
+  stats::as.formula(
+    paste("Surv(rep(1, nrow(frame)), chosen) ~", rhs)
+  ),
+  data = frame
+)
+}
+\dontshow{\}) # examplesIf}
+\dontshow{if (requireNamespace("mlogit", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+# McFadden conditional logit. The alternative id is `index_j` -- the real
+# receiver identity, so an alternative-specific term means what it says.
+\donttest{
+frame$option <- frame$index_j
+indexed <- mlogit::dfidx(
+  frame, idx = c("event", "option"), choice = "chosen"
+)
+choice_rhs <- paste(paste(stats, collapse = " + "), "| 0")
+mlogit::mlogit(
+  stats::as.formula(paste("chosen ~", choice_rhs)),
+  data = indexed
+)
+}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=estimate_dynam]{estimate_dynam()}}, \code{\link[=estimate_rem]{estimate_rem()}}, \code{\link[=estimate_dynami]{estimate_dynami()}},

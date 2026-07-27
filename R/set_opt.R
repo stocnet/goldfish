@@ -673,7 +673,7 @@ reconcile_legacy_diagnostics <- function(
 #' Specifies control parameters for the data preprocessing stage,
 #' used by `estimate_dynam()`, `estimate_rem()` and `estimate_dynami()`
 #' (when `preprocessed` is not a
-#' `preprocessed.goldfish` object) and `gather_model_data()`.
+#' `preprocessed.goldfish` object) and [compute_statistics()].
 #'
 #' @param start_time A numerical value or a date-time character string
 #'   (parsable by `as.POSIXct`) indicating the starting time when the events

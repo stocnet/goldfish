@@ -195,7 +195,7 @@ per-event diagnostic component refers to: \code{"sender"},
 \code{\link[=risk_set_axis]{risk_set_axis()}}, which documents the four values and how each joins to
 \code{node_lookup}. Absent on objects fitted before goldfish 2.0.0.}
 \item{node_lookup}{the \verb{(side, local, global, label)} table documented
-under \code{\link[=gather_model_data]{gather_model_data()}}, carried on the fit so a per-event diagnostic
+under \code{\link[=compute_statistics]{compute_statistics()}}, carried on the fit so a per-event diagnostic
 index resolves to the original node row and its label. It is \emph{the} index
 resolver: join a position to the side \code{\link[=risk_set_axis]{risk_set_axis()}} names — side 1 for
 \code{"sender"}, side 2 for \code{"receiver_given_sender"} on a two-mode model, and

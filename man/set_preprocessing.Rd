@@ -80,7 +80,7 @@ to the function. The list object has the following components:
 Specifies control parameters for the data preprocessing stage,
 used by \code{estimate_dynam()}, \code{estimate_rem()} and \code{estimate_dynami()}
 (when \code{preprocessed} is not a
-\code{preprocessed.goldfish} object) and \code{gather_model_data()}.
+\code{preprocessed.goldfish} object) and \code{\link[=compute_statistics]{compute_statistics()}}.
 }
 \examples{
 prep_ctrl <- set_preprocessing(
