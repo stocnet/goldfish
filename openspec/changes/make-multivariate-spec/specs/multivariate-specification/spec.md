@@ -1,8 +1,8 @@
 ## ADDED Requirements
 
-### Requirement: make_multivariate_spec composes process specifications
+### Requirement: make_joint_specification composes process specifications
 
-The package SHALL export `make_multivariate_spec(...)` accepting two or more
+The package SHALL export `make_joint_specification(...)` accepting two or more
 `make_specification()` objects over one shared data object and returning a
 multivariate specification that portrays their co-evolution. At least one
 **panel-observed layer MUST be referenced** in the composed formulas — as a
@@ -16,7 +16,7 @@ choice_coordination) and REM processes, timed or ordered, MAY be freely mixed,
 flavored or plain.
 
 #### Scenario: panel plus relational processes compose
-- **WHEN** `make_multivariate_spec(friendship_spec, calls_spec, data = x)` runs
+- **WHEN** `make_joint_specification(friendship_spec, calls_spec, data = x)` runs
   with friendship panel-observed (flavored creation/dissolution) and calls a
   fully observed relational-event process
 - **THEN** a multivariate specification is returned covering both processes'

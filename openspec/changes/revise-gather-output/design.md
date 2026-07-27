@@ -138,7 +138,7 @@ The long base data frame: `event` (integer), `chosen` (0/1), `sender`,
 `receiver` (labels; NA where not applicable), `index_i`, `index_j`
 (1-based), `timespan` (exposure; NA for multinomial rows), `is_dependent`
 (FALSE = right-censored row), then statistic columns named by
-`namesEffects`; `effect_description` as attribute; per-fid list under
+`names_effects`; `effect_description` as attribute; per-fid list under
 flavoring (D4). Help-page recipes (verified in
 `.plan/residuals_comparison.qmd`): ordinal ↔ `coxph(Surv(rep(1, n),
 chosen) ~ stats + strata(event))` and `clogit` (one case per stratum ⇒
@@ -308,7 +308,7 @@ stats_nodes           side, local, global, label -- shared by every fid
 - **Statistic columns are named by effect, not `stat_<i>`.** The positional
   naming is a trap this change exists to close (the proposal's *Why* cites it
   as hit in practice), and it is worse per fid, where `stat_2` means different
-  effects in different tables. `namesEffects` is already valid, unique and
+  effects in different tables. `names_effects` is already valid, unique and
   bounded by `max_length = 63L`, documented as "a database-safe value" -- the
   identifier limit this default was chosen for. The reserved identity columns
   (`event_id`, `is_selected`, `index_i`, `index_j`) participate in the

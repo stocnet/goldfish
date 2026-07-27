@@ -1,3 +1,11 @@
+> **Naming (user, 2026-07-27):** the constructor is
+> **`make_joint_specification()`**, per the 2026-07-21 decision recorded in
+> `.plan/release-2.0.0-plan.md`. The change directory
+> (`make-multivariate-spec`) and the `multivariate-specification`
+> capability keep their names; only the exported function name follows the
+> decision. All active artifacts (this change, `dynes-augmentation`,
+> `abmcem`, `.plan/mv_branch.md`) were swept 2026-07-27.
+
 ## Why
 
 DyNES estimates the co-evolution of panel-observed relational states and
@@ -20,7 +28,7 @@ are `dynes-augmentation`'s.
 
 ## What Changes
 
-- **`make_multivariate_spec(...)`**: combines `make_specification()` objects
+- **`make_joint_specification(...)`**: combines `make_specification()` objects
   into a multivariate specification. At least one **panel-observed layer MUST be
   referenced** in the composed formulas — as a process's focal/dependent layer
   *or* as an exogenous covariate read by another process (either makes its latent
@@ -66,7 +74,7 @@ are `dynes-augmentation`'s.
 
 ### New Capabilities
 
-- `multivariate-specification`: the `make_multivariate_spec()` surface —
+- `multivariate-specification`: the `make_joint_specification()` surface —
   composition and validation of process specifications, the referenced-panel-layer
   requirement, the extended fid/process_map vocabulary, coupling detection and
   separability marking, and the multivariate specification print.
@@ -81,7 +89,7 @@ are `dynes-augmentation`'s.
 - **Sequencing**: post-2.0.0, on the DyNES track. Consumes `flavored-processes`
   (fid/process_map vocabulary D9, walk-count-agnostic consumers D10, derived
   flavor constraints) and precedes `abmcem` (whose `estimate_dynes()` takes a
-  `make_multivariate_spec()` object), `dynes-augmentation` (whose augmenters and
+  `make_joint_specification()` object), `dynes-augmentation` (whose augmenters and
   batched `evaluate_model()` bind to this change's walk handle), and
   `process-simulation` (whose `simulate()` drives it). These proposals are
   re-grounded against this change's walk handle (2026-07-21).
@@ -99,7 +107,7 @@ are `dynes-augmentation`'s.
   this change's riskiest step rewrites. This change needs nothing from
   `residuals-gof`; the `evaluate_model()` dependency is
   `dynes-augmentation`'s (E-step evaluation), not this change's.
-- **R**: `R/make_multivariate_spec.R` (surface, validation, coupling, print);
+- **R**: `R/make_joint_specification.R` (surface, validation, coupling, print);
   generalization of `R/preprocess_flavored.R` (routing lookup, cross-process
   union planning); the merged walk refactor of `run_sender_recipe_loop()` /
   `run_dyad_recipe_loop()` (the frozen-baseline gate applies: the

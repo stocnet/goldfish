@@ -12,7 +12,7 @@ edits are expected; if any C++ is touched, `cpp-recompile` applies.
 `backend-parity` archived on 2026-07-26. It did not change this change's scope,
 but it changed the ground two of its tasks stand on. Read before section 1.
 
-- [ ] 0.1 **The gather backend now has a frozen 1e-6 coefficient floor, and
+- [x] 0.1 **The gather backend now has a frozen 1e-6 coefficient floor, and
       this change's rewrite is gated by it.** Until 2026-07-26 no gather
       coefficient was frozen (`baselines_backends` was `c("r", "cpp")` — the
       absence `backend-parity` D4 deliberately exploited). Its D15 closed that:
@@ -24,7 +24,7 @@ but it changed the ground two of its tasks stand on. Read before section 1.
       unchanged, its teeth are new. v2's r/cpp columns are v1's numbers carried
       forward bit-identically — do not regenerate them to make a gather change
       pass; use the `regen-baselines` skill and its recorded justification.
-- [ ] 0.2 **`index_i` / `index_j` are now load-bearing for a primitive, not
+- [x] 0.2 **`index_i` / `index_j` are now load-bearing for a primitive, not
       only for margins.** `backend-parity` threaded them into the gather kernel
       dispatch (its task 3.1) and then built per-event `probabilities` on them:
       the gather rows are the realized risk set and carry no actor identity, so
@@ -35,7 +35,7 @@ but it changed the ground two of its tasks stand on. Read before section 1.
       Treat them as part of the format contract, and re-run
       `test-backend_parity.R` — not just the writer tests — after any change to
       how the gather stack is produced or read back.
-- [ ] 0.3 **Vocabulary: apply this change's own classification rule, do not
+- [x] 0.3 **Vocabulary: apply this change's own classification rule, do not
       sweep.** Task 4.3's rule stands — in scope when a reference names what a
       *user passes* (`engine = "default_c"`, "on the `gather_compute` engine");
       out of scope when it names the *implementation* (the `*_default.cpp`
@@ -109,8 +109,8 @@ but it changed the ground two of its tasks stand on. Read before section 1.
       container's mapping for the same specification; per-fid gather
       stacks match single-flavor runs with the derived constraint (every
       flavored gather is a constrained gather, so this rests on 2.1).
-- [ ] 2.3 Self-describing db export (D10). (a) Statistic columns named by
-      effect (`namesEffects`) instead of `stat_<i>`, at single and flavored
+- [x] 2.3 Self-describing db export (D10). (a) Statistic columns named by
+      effect (`names_effects`) instead of `stat_<i>`, at single and flavored
       output alike, with the reserved identity names (`event_id`,
       `is_selected`, `index_i`, `index_j`) in the uniqueness pass. (b) Write
       `<db_table>_nodes` (side, local, global, label), once per export.
@@ -125,14 +125,14 @@ but it changed the ground two of its tasks stand on. Read before section 1.
       (d) A mid-export failure names the fid alongside the last written event
       index; orphan tables from a previous larger run are left alone, the map
       being the authority. Tests (RSQLite, `skip_on_cran()`): column names
-      equal the gather `namesEffects`; a constrained export writes only allowed
+      equal the gather `names_effects`; a constrained export writes only allowed
       candidates (rests on 2.1); flavored writes
       `stats_1`/`stats_2`/`stats_map`/`stats_nodes` with the map's fid keying
       matching the estimation container's; a single-process export writes the
       same four-table shape with a one-row map; index columns join through
       `_nodes` to the original labels on a two-mode fixture. Update the
       existing db tests, which read the unsuffixed table.
-- [ ] 2.4 DyNAMi verification-then-routing: determine whether the isolated
+- [x] 2.4 DyNAMi verification-then-routing: determine whether the isolated
       DyNAMi front-end can route the gather writer (or post-convert its
       legacy output); implement the supported forms; unavailable forms
       abort with a cli error naming the supported ones. Tests: DyNAMi
@@ -142,14 +142,14 @@ but it changed the ground two of its tasks stand on. Read before section 1.
 
 ## 3. Frame output and recipes (D6)
 
-- [ ] 3.1 `output = "data.frame"`: frame assembly from the gather stack
+- [x] 3.1 `output = "data.frame"`: frame assembly from the gather stack
       with the spec'd column contract (`event`, `chosen`, `sender`,
       `receiver`, `index_i`, `index_j`, `timespan`, `is_dependent`, then
-      `namesEffects` columns; `effect_description` attribute); per-fid
+      `names_effects` columns; `effect_description` attribute); per-fid
       list under flavoring. Tests: frame equals the stack row-for-row for
       both flavors; one `chosen` per dependent event; right-censored rows
       `is_dependent = FALSE`, `chosen = 0`.
-- [ ] 3.2 Estimator-frame parity test: `estimate_dynam(sub_model =
+- [x] 3.2 Estimator-frame parity test: `estimate_dynam(sub_model =
       "choice")` vs `survival::clogit(chosen ~ <stats> + strata(event))`
       on the frame, small fixture, ≤1e-4 (document the observed
       tolerance); `skip_if_not_installed("survival")`.
@@ -161,7 +161,7 @@ but it changed the ground two of its tasks stand on. Read before section 1.
 ships, and that change renames `engine` to `backend` on
 `set_algorithm_newton()` — an argument this change's examples and docs use.
 
-- [ ] 4.1 Roxygen: `compute_statistics()` canonical page (output
+- [x] 4.1 Roxygen: `compute_statistics()` canonical page (output
       vocabulary, frame contract, row-count formula, db pointer,
       flavored keying, DyNAMi coverage note) with the verified recipes
       under `@examplesIf requireNamespace(...)` and fits in `\donttest`
@@ -169,11 +169,11 @@ ships, and that change renames `engine` to `backend` on
       `offset(log(timespan))`; mlogit via `dfidx` with
       `option = index_j`); deprecated pages point forward;
       `devtools::document()`; man render check.
-- [ ] 4.2 Message-pointer sweep: `R/preprocess_writers.R` (and any other
+- [x] 4.2 Message-pointer sweep: `R/preprocess_writers.R` (and any other
       user-facing text) points to `compute_statistics(output = "db")` /
       `compute_statistics()`; grep for remaining `compute_stats(` /
       `gather_model_data(` references in messages and docs.
-- [ ] 4.3 Cross-change coherence (D8): residuals-gof diagnostic-primitives
+- [x] 4.3 Cross-change coherence (D8): residuals-gof diagnostic-primitives
       guiding-error wording names `compute_statistics(output =
       "preprocessed")` as the replay-supply route (edit its delta before
       residuals-gof task 1.8 implements the message); sweep the other
@@ -184,13 +184,13 @@ ships, and that change renames `engine` to `backend` on
       legacy engine-value sweep is NOT here — `backend-vocabulary` task 3.3
       owns it, including the user-facing-vs-implementation rule.
       `openspec validate` green for the touched changes.
-- [ ] 4.4 R CMD check pass deciding Suggests (survival/mlogit only if the
+- [x] 4.4 R CMD check pass deciding Suggests (survival/mlogit only if the
       guarded examples require it); NEWS (consolidation;
       `gather_model_data()` soft-deprecated; `compute_stats()` deleted —
       dev-line-only name, rename recorded so old scripts can grep; new
       outputs; reported fields); DESCRIPTION bump; full `NOT_CRAN=true`
       suite green.
-- [ ] 4.5 Consumer simplification: `.plan/residuals_comparison.qmd`
+- [x] 4.5 Consumer simplification: `.plan/residuals_comparison.qmd`
       identity route switches to `compute_statistics(output =
       "data.frame")`; re-render confirms the ≤1e-4 parity table is
       unchanged.

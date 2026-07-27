@@ -17,7 +17,7 @@ consumed by) `dynes-augmentation`. Same-node-set restriction until
 ## Goals / Non-Goals
 
 **Goals:**
-- `make_multivariate_spec()` composing process specifications for panel +
+- `make_joint_specification()` composing process specifications for panel +
   relational-event co-evolution, with coupling detection.
 - The extended fid/process_map vocabulary across processes.
 - The merged single-clock walk with `(layer, flavor) → fid` routing and
@@ -43,13 +43,13 @@ multivariate specification exists to portray the co-evolving panel +
 relational-event system that augmentation couples; `estimate_dynes()` is its only
 estimator — its surface and ABEM loop live in `abmcem` and its panel data path in
 `dynes-augmentation` (the two share the `dynes-estimation` capability), and it
-takes a `make_multivariate_spec()` object as its `spec`. *Rejected:* a generic
+takes a `make_joint_specification()` object as its `spec`. *Rejected:* a generic
 multivariate estimator over fully observed processes — the factorization makes it
 identical to separate per-process estimation, so it would be surface without
 substance.
 
 ### D2 — A referenced panel-observed layer is required at construction
-`make_multivariate_spec()` aborts unless at least one **panel-observed layer is
+`make_joint_specification()` aborts unless at least one **panel-observed layer is
 referenced in the composed formulas** — either as a process's focal/dependent
 layer *or* as an exogenous covariate read by another process's effects or
 support-constraint atoms (the layer-info observation metadata decides; no model
@@ -175,7 +175,7 @@ a mixed specification proceeds with a cli message naming the separable fids
 (their likelihood terms touch no latent path, so joint estimation equals
 separate estimation for them); a specification whose fids are all separable
 aborts — nothing in it needs DyNES. (The all-separable case is unreachable
-through `make_multivariate_spec()` itself given D2 — the panel process's own
+through `make_joint_specification()` itself given D2 — the panel process's own
 fids are coupled by construction — but the contract guards recomposed or
 edited specifications.)
 

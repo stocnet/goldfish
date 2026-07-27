@@ -12,7 +12,7 @@
 
 ## 1. Multivariate specification surface
 
-- [ ] 1.1 `make_multivariate_spec(...)`: accept ≥2 specification objects over
+- [ ] 1.1 `make_joint_specification(...)`: accept ≥2 specification objects over
       one data object; validate the shared node set, reject DyNAM-i processes,
       require ≥1 panel-observed focal layer (abort for fully observed
       combinations with per-process-estimation guidance); assemble the extended

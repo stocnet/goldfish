@@ -6,7 +6,7 @@
 panel-observed data: any number of relational-event and panel-observed layers,
 each modeled layer × flavor carrying rate and choice formulas (per the
 `flavored-processes` capability), the parameter vector concatenating all
-modeled sub-models. `estimate_dynes()` SHALL take a `make_multivariate_spec()`
+modeled sub-models. `estimate_dynes()` SHALL take a `make_joint_specification()`
 object (`make-multivariate-spec`) as its specification. A panel-observed layer
 modeled as a process MAY be focal under `estimate_dynes()`; event-stream
 estimators SHALL continue to abort on panel focal layers, pointing to

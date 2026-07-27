@@ -4,7 +4,7 @@ Stage A (`flavored-processes`) makes fully observed competing creation/dissoluti
 processes estimable; DyNES handles the panel-observed case: states seen at waves, the
 event sequence between waves latent. The living `single-data-object` spec carries the
 `observation = "panel"` metadata and change-list semantics for exogenous panel
-covariates; `make-multivariate-spec` landed the `make_multivariate_spec()` composition
+covariates; `make-multivariate-spec` landed the `make_joint_specification()` composition
 surface and the `multi-process-walk` handle (`walk_open`/`walk_advance`/
 `walk_evaluate`/`walk_inject`) — the family-agnostic stepping + injection substrate a
 model-driven sequence draw drives. Panel augmentation is triggered by a panel layer
@@ -51,7 +51,7 @@ process simulation, specification validation, and the recovery study.
 **Non-Goals:**
 - Incremental re-preprocessing of mutated sequences (suffix patching) — full
   re-preprocess is the baseline (OQ B4); revisit only with profiling evidence.
-- The `make_multivariate_spec()` constructor and the `multi-process-walk` handle
+- The `make_joint_specification()` constructor and the `multi-process-walk` handle
   (`make-multivariate-spec`) — consumed here, not built here. `estimate_dynes()`
   takes a multivariate spec (D1); the batched evaluator reads the merged walk's
   per-fid preprocessed outputs.
@@ -113,7 +113,7 @@ ones abort.
 The estimand is the joint multi-layer model of D19 (multiple modeled RE and PE
 layers, per layer × flavor rate and choice formulas, θ the concatenation across all
 modeled sub-models); event-stream estimators continue to abort on panel focal layers,
-naming `estimate_dynes()`. **`estimate_dynes()` takes a `make_multivariate_spec()`
+naming `estimate_dynes()`. **`estimate_dynes()` takes a `make_joint_specification()`
 object** (`make-multivariate-spec`) — the earlier open question of how the multi-layer
 specification is passed is resolved to consuming that constructor; the interim
 named-list surface is dropped. *Rejected:* overloading `estimate_dynam()` with an
@@ -514,7 +514,7 @@ state (direct reference; not transitive). `estimate_dynes()` reads that `coupled
 column rather than recomputing PE-independence at sub-model granularity. Behavior on
 the resulting cases, aligned with `make-multivariate-spec` D4 (the newer decision):
 - **All fids separable** → abort: nothing is latent, `estimate_dynam()` covers it.
-  (Unreachable through `make_multivariate_spec()` when a panel process is modeled —
+  (Unreachable through `make_joint_specification()` when a panel process is modeled —
   its own fids are coupled by construction — but guards recomposed/edited specs.)
 - **Mixed** (some coupled, some separable) → **proceed** with a cli message naming
   the separable fids (their likelihood terms touch no latent path, so joint
@@ -658,7 +658,7 @@ package.
   proposals, q_fwd/q_rev with the pick-factor cancellation); the RSiena study note
   remains a cross-check and the source for future excursion moves.
 - **[resolved]** How `estimate_dynes()` receives the multi-layer specification
-  (D19): it consumes a `make_multivariate_spec()` object (`make-multivariate-spec`);
+  (D19): it consumes a `make_joint_specification()` object (`make-multivariate-spec`);
   the interim named-list surface is dropped. This change hard-depends on that one.
 - **[to discuss]** Whether MCMC retained draws enter the pool through the proposal
   evaluator's cache (preprocessed object + loglik reuse, D20 note) — deliberately

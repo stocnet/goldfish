@@ -108,7 +108,7 @@ evaluator.
   validation and parameter recovery; its design gains carve-out pointers.
 - **Sequencing**: this change is implementable now against the current engine
   (loop + contracts tested behind a minimal spec fixture and stub steps).
-  `estimate_dynes()`'s public signature takes a `make_multivariate_spec()` object
+  `estimate_dynes()`'s public signature takes a `make_joint_specification()` object
   (`make-multivariate-spec`), so that change lands before the surface ships;
   `dynes-augmentation`'s augmenters and batched evaluator plug into the contracts
   this change ships. Full panel-data estimation end to end still requires

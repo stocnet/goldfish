@@ -457,6 +457,35 @@ by side, never pooled. Formal non-nested inference (the Vuong statistic,
 derivation recorded in backend-parity's appendix item 11) is deliberately
 NOT implemented here — the vignette names it as the future formal route.
 
+### D15 — Rank ties: strict-greater with a 1e-12 tolerance, phase 1 (user, 2026-07-27)
+
+The rank tie rule is `observed_rank = 1 + count(rate > observed_rate + tol)`
+with `tol = 1e-12`, applied identically on all three backends and to every
+rank-sensitive primitive (`observed_rank`, top-k recall). The record R.2
+requires: the tolerance is the load-bearing part — it collapses
+float-split blocks identically across backends (0 cross-backend
+disagreements at ≥1e-12 on the coordination fixture, versus 106/439 for
+tolerance-free strict `>`); the backends agree on probabilities to
+~5.6e-13 and genuinely distinct levels are ~17× apart, so 1e-12 sits well
+above the noise and below any real structure. Strict-greater over midrank:
+it is the simpler contract to state and test, needs no fractional term
+(whose block-membership sensitivity made midrank *worse* at tolerance 0,
+159/439), and the diagnostics consuming ranks (recall, rank histograms)
+read "how many alternatives beat the observed one", for which the count
+form is the direct answer. R.1's survey still runs as due diligence and
+documents this choice against `remstimate`/`relevent`/base `rank()`
+practice.
+
+Sequencing (user, 2026-07-27): R.1–R.5 are **phase 1, completed before
+section 2**, because the tie rule is part of the primitive contract that
+`evaluate_model()`/`augment()` consume — they are release-critical and not
+subject to the phase-2 cut line. `coordination-tie-consistency` (fixing
+*why* equal dyads get unequal floats) is deferred **post-release**; when
+it lands, it may tighten `tol` toward ~1e-15 as its own change. Landing
+the tolerance rule first is accepted knowingly — the coordination
+float-split stays masked at the rank layer until then, and the defect
+remains documented in that change.
+
 ## Risks / Trade-offs
 
 - [BREAKING class rename of `diagnose_*` returns] → goldfish and autograph

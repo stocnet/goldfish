@@ -346,3 +346,60 @@ so nothing is built twice or against a retired assumption.
       resolved inheritance; full `NOT_CRAN=true` suite green.
 - [ ] 6.4 Update `.plan/residuals-gof.md` status header (phases 1-2
       implemented; phase 3 pending DyNES); final DESCRIPTION/NEWS pass.
+
+## Rank ties (folded from the parity-followups investigation, 2026-07-26)
+
+**Phasing (user, 2026-07-27, design D15):** R.1–R.5 belong to phase 1 and
+run **before section 2** — the tie rule is part of the primitive contract
+`evaluate_model()`/`augment()` consume, so it is release-critical and not
+subject to the phase-2 cut line. The rule and tolerance are decided
+(strict-greater, `tol = 1e-12`; design D15); R.1's survey documents the
+choice, R.2 is the design record (done in D15).
+
+Evidence, measured on `Social_Evolution` coordination
+(`calls_dependent ~ inertia + trans`) comparing `backend = "r"` against
+`backend = "cpp"` at the MLE:
+
+```
+  strict `>` (today)          106 of 439 events disagree
+  midrank, tolerance 0        159  <- WORSE than the status quo
+  midrank, tolerance 1e-15    135
+  midrank, tolerance 1e-12      0
+  midrank, tolerance 1e-9       0
+  midrank, tolerance 1e-6       0
+```
+
+The tolerance is what makes the rule reproducible, not the midrank. At zero
+tolerance the fractional term amplifies block-membership differences and the
+disagreement count goes up. The safe window is wide: the backends agree on
+probabilities to ~5.6e-13, and genuinely distinct levels are separated by
+factors of ~17 on this fixture, so ~1e-9 sits three orders above the noise and
+several below any real structure.
+
+- [ ] R.1 Survey how other packages resolve ties in rank-type diagnostics before
+      choosing — `survival` (Efron / Breslow are likelihood corrections, a
+      *different* problem from breaking ties in a reported rank; do not conflate
+      them), `remstimate`, `relevent`, and base `rank()`'s `ties.method` options.
+      Record what each does and why, so the choice is defended rather than
+      asserted
+- [ ] R.2 Choose the rule and the tolerance, and record both in design.md with
+      the numbers above. Midrank is the statistician's default and is
+      backend-independent *once a tolerance collapses the blocks identically* —
+      state that dependency explicitly, since it is the part that is easy to get
+      wrong
+- [ ] R.3 Apply the rule on all three backends, and to every rank-sensitive
+      primitive (`observed_rank` and any top-k recall), so they cannot disagree
+      about which alternatives are tied
+- [ ] R.4 Tests: the three scenarios of the "Ranks resolve tied alternatives"
+      requirement, including the cross-backend identity that currently fails at
+      107 of 439 events on the coordination fixture
+- [ ] R.5 Document the rule and tolerance where a user reading `observed_rank`
+      will meet them
+
+**Related but not this change:** `coordination-tie-consistency` addresses *why*
+the coordination path produces different floating-point values for
+mathematically equal dyads in the first place (28 distinct values on `r` versus
+19 on `cpp` at one event). A tie rule mitigates the symptom and should be
+adopted regardless; it does not remove the need to fix the values, and fixing
+the values lets this rule use a tolerance sized for ordinary rounding (~1e-15)
+rather than one large enough to absorb an inconsistency (>1e-12).

@@ -116,7 +116,7 @@ package's estimation core.
   scripts against goldfish 1.6.10) are the reference implementations; their workarounds
   (opportunity-list support constraints, manual state bookkeeping, label sanitization)
   are all superseded by the current pipeline.
-- **Sequencing**: hard-consumes `make-multivariate-spec` (the `make_multivariate_spec()`
+- **Sequencing**: hard-consumes `make-multivariate-spec` (the `make_joint_specification()`
   surface `estimate_dynes()` takes, and the `multi-process-walk` handle the augmenters
   drive), `flavored-processes` (per-flavor preprocessing, derived constraints), the
   living `single-data-object` (panel `observation` metadata, stocnet input), and
