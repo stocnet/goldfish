@@ -838,11 +838,13 @@ resModObject <- structure(
     convergence = list(is_converged = TRUE, max_abs_score = 0.000200291),
     n_iterations = 7L,
     n_events = 439L,
-    names = matrix(
-      c(rep("call_network", 3), c("FALSE", "TRUE", "FALSE")),
-      ncol = 2,
-      nrow = 3,
-      dimnames = list(c("inertia", "recip", "trans"), c("Object", "fixed"))
+    # The effect description is a typed table: `fixed` holds a logical, which
+    # is what the fit records and what the methods read.
+    names = data.frame(
+      Object = rep("call_network", 3),
+      fixed = c(FALSE, TRUE, FALSE),
+      row.names = c("inertia", "recip", "trans"),
+      stringsAsFactors = FALSE
     ),
     formula = as.formula(
       "calls_dependent ~ inertia + recip + trans",

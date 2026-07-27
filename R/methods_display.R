@@ -160,18 +160,17 @@ print.summary.result.goldfish <- function(
 
   isFixed <- GetFixed(x)
 
-  displayCols <- !startsWith(colnames(x$names), ".")
   if (!complete && any(isFixed)) {
-    names <- x$names[!isFixed, displayCols, drop = FALSE]
+    names <- detail_display_table(x$names[!isFixed, , drop = FALSE])
     coefMat <- x$coef_mat[!isFixed, ]
-    isDetPrint <- !((ncol(names) == 2) &&
-      (length(unique(names[, "Object"])) == 1))
   } else {
-    names <- x$names[, displayCols, drop = FALSE]
+    names <- detail_display_table(x$names)
     coefMat <- x$coef_mat
-    isDetPrint <- !((ncol(names) == 1) &&
-      (length(unique(names[, "Object"])) == 1))
   }
+  # Nothing to detail when every term names the same one object and no flag
+  # applies to any of them.
+  isDetPrint <- !((ncol(names) == 1) &&
+    (length(unique(names[, "Object"])) == 1))
 
   legendLines <- character(0)
   if (compact) {
@@ -192,7 +191,9 @@ print.summary.result.goldfish <- function(
     legendLines <- .compactLegend(terms, termsFull)
   } else if (isDetPrint) {
     cat("\nEffects details:\n")
-    print.default(names, quote = FALSE, width = width, ...)
+    # As a matrix: the table is a data.frame, and print.default() would render
+    # one as its underlying list of columns.
+    print.default(as.matrix(names), quote = FALSE, width = width, ...)
   }
 
   cat("\nCoefficients:\n")
@@ -1013,7 +1014,7 @@ tidy.result.goldfish <- function(
     colnames(confInterval) <- c("conf.low", "conf.high")
   }
 
-  dispNames <- x$names[, !startsWith(colnames(x$names), "."), drop = FALSE]
+  dispNames <- detail_display_table(x$names)
 
   if (compact) {
     terms <- term_label(x$names, ".term_export", "export")
@@ -1024,7 +1025,16 @@ tidy.result.goldfish <- function(
 
     terms <- cbind(term = terms)
   } else {
-    terms <- cbind(term = rownames(dispNames), dispNames)
+    # The term names become a column, so the row names are dropped rather than
+    # carried: two rows may legitimately share a name (one effect used twice),
+    # which a data.frame will not hold.
+    terms <- data.frame(
+      term = rownames(dispNames),
+      dispNames,
+      row.names = NULL,
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    )
     terms[, "Object"] <- gsub("\\$", " ", terms[, "Object"])
 
     if (!complete) terms <- terms[!isFixed, ]

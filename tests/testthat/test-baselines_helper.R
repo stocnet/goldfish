@@ -44,10 +44,11 @@ fake_fit <- function(log_lik) {
       # `logLik()` refuses an object that records no layout, and this fixture is
       # classed precisely so that call routes through the real method.
       fit_version = FIT_VERSION,
-      names = matrix(
-        c("net", "net", "FALSE", "FALSE"),
-        ncol = 2,
-        dimnames = list(c("a", "b"), c("Object", "fixed"))
+      names = data.frame(
+        Object = c("net", "net"),
+        fixed = c(FALSE, FALSE),
+        row.names = c("a", "b"),
+        stringsAsFactors = FALSE
       )
     ),
     class = "result.goldfish"

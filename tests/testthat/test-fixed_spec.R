@@ -421,3 +421,138 @@ test_that("a contract flattens to the positional encoding", {
   expect_identical(fixed_spec_to_vector(spec, 4L), c(0.5, NA, -1, NA))
   expect_null(fixed_spec_to_vector(NULL, 4L))
 })
+
+# The fit's record of which coefficients were held. A typed table with a stable
+# schema: every flag column exists on every fit, and `fixed` is a plain logical
+# rather than the strings a character matrix forced it to be.
+
+fixed_record_fit <- function(formula, ...) {
+  d <- suppressWarnings({
+    data("Social_Evolution", package = "goldfish", envir = environment())
+    actors <- get("actors", environment())
+    calls <- get("calls", environment())
+    call_network <- make_network(nodes = actors, directed = TRUE)
+    call_network <- link_events(
+      x = call_network,
+      change_event = calls,
+      nodes = actors
+    )
+    calls_dependent <- make_dependent_events(
+      events = calls,
+      nodes = actors,
+      default_network = call_network
+    )
+    calls_dependent <- calls_dependent[1:120, ]
+    make_data(calls_dependent, call_network, calls, actors)
+  })
+  suppressWarnings(estimate_dynam(
+    formula,
+    sub_model = "choice",
+    data = d,
+    ...
+  ))
+}
+
+test_that("the effect description is a typed table with a stable schema", {
+  fit <- fixed_record_fit(calls_dependent ~ inertia + recip)
+  expect_s3_class(fit$names, "data.frame")
+  expect_true(all(
+    c(
+      "ignore_repetitions",
+      "weighted",
+      "type",
+      "window",
+      "fixed"
+    ) %in%
+      colnames(fit$names)
+  ))
+  # present on a fit that fixes nothing, and a logical there too
+  expect_type(fit$names[, "fixed"], "logical")
+  expect_false(any(fit$names[, "fixed"]))
+  expect_identical(rownames(fit$names), c("inertia", "recip"))
+})
+
+test_that("fixedness is read from the logical, not parsed from a string", {
+  fit <- fixed_record_fit(
+    calls_dependent ~ inertia + offset(recip, coef = 2) + trans
+  )
+  expect_identical(fit$names[, "fixed"], c(FALSE, TRUE, FALSE))
+  expect_equal(unname(GetFixed(fit)), c(FALSE, TRUE, FALSE))
+  expect_named(GetFixed(fit), c("inertia", "recip", "trans"))
+  # the fixed coefficient is omitted by default and kept with complete = TRUE
+  expect_length(coef(fit), 2L)
+  expect_equal(coef(fit, complete = TRUE)[["rec"]], 2)
+})
+
+# A fit old enough to store fixedness as strings also predates the snake_case
+# component names, so it is the format guard it meets first.
+old_string_column_fit <- function() {
+  structure(
+    list(
+      parameters = c(1, 2),
+      logLikelihood = -10,
+      nParams = 2L,
+      names = matrix(
+        c("net", "net", "FALSE", "TRUE"),
+        ncol = 2,
+        dimnames = list(c("inertia", "recip"), c("Object", "fixed"))
+      )
+    ),
+    class = "result.goldfish"
+  )
+}
+
+test_that("a string-encoded fixed column is never evaluated", {
+  fit <- fixed_record_fit(calls_dependent ~ inertia + offset(recip, coef = 2))
+  fit$names[, "fixed"] <- as.character(fit$names[, "fixed"])
+  # Not parsed back into logicals: an object recording fixedness this way
+  # predates the layout, and the result-format guard is what diagnoses it --
+  # refusing on the computing surfaces, saying so on the ones that only print.
+  expect_false(any(GetFixed(fit)))
+  expect_error(summary(old_string_column_fit()), "not fitted by this version")
+})
+
+
+test_that("an empty flag column is stored but not displayed", {
+  fit <- fixed_record_fit(calls_dependent ~ inertia + recip)
+  shown <- detail_display_table(fit$names)
+  expect_identical(colnames(shown), "Object")
+  # ... while a flag that applies is shown
+  windowed <- fixed_record_fit(
+    calls_dependent ~ inertia + recip(call_network, window = "1 hour")
+  )
+  expect_true("window" %in% colnames(detail_display_table(windowed$names)))
+  expect_false("weighted" %in% colnames(detail_display_table(windowed$names)))
+})
+
+test_that("tidy() reports fixedness as a logical", {
+  fit <- fixed_record_fit(
+    calls_dependent ~ inertia + offset(recip, coef = 2) + trans
+  )
+  tidied <- generics::tidy(fit, complete = TRUE, compact = FALSE)
+  expect_type(tidied$fixed, "logical")
+  expect_identical(tidied$fixed, c(FALSE, TRUE, FALSE))
+})
+
+test_that("an effect used twice keeps both rows under its own name", {
+  # The disambiguation belongs to the coefficient labels, which derive from the
+  # row names; the row names themselves stay as the terms were written.
+  fit <- fixed_record_fit(
+    calls_dependent ~
+      inertia + recip + recip(call_network, window = "1 hour")
+  )
+  expect_identical(rownames(fit$names), c("inertia", "recip", "recip"))
+  expect_false(anyDuplicated(names(coef(fit))) > 0)
+})
+
+test_that("repeated effect names travel through the tables without warning", {
+  fit <- fixed_record_fit(
+    calls_dependent ~
+      inertia + recip + recip(call_network, window = "1 hour")
+  )
+  expect_no_warning(tidied <- generics::tidy(fit, compact = FALSE))
+  expect_identical(tidied$term, c("inertia", "recip", "recip"))
+  expect_no_warning(
+    utils::capture.output(print(summary(fit), compact = FALSE))
+  )
+})
