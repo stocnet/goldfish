@@ -416,10 +416,10 @@ test_that("a position outside the coefficient vector aborts naming the term", {
   )
 })
 
-test_that("a contract flattens to the positional encoding", {
+test_that("a contract renders as one logical per coefficient", {
   spec <- new_fixed_spec(c(1L, 3L), c(0.5, -1), c("Intercept", "trans"))
-  expect_identical(fixed_spec_to_vector(spec, 4L), c(0.5, NA, -1, NA))
-  expect_null(fixed_spec_to_vector(NULL, 4L))
+  expect_identical(fixed_spec_mask(spec, 4L), c(TRUE, FALSE, TRUE, FALSE))
+  expect_null(fixed_spec_mask(NULL, 4L))
 })
 
 # The fit's record of which coefficients were held. A typed table with a stable

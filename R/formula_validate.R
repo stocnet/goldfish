@@ -424,15 +424,14 @@ deparse_rhs_term <- function(term) {
   sprintf("%s(%s)", parts[[1]], paste(args, collapse = ", "))
 }
 
-# Flatten a contract into the positional NA-vector encoding (NA = estimate, a
-# value = fix) for the consumers that still read it.
-fixed_spec_to_vector <- function(fixed_spec, n_params) {
+# Which of the `n_params` coefficients the contract holds, as one logical per
+# coefficient -- the form a per-term table wants, as against the positions the
+# estimation loops want.
+fixed_spec_mask <- function(fixed_spec, n_params) {
   if (is.null(fixed_spec)) {
     return(NULL)
   }
-  out <- rep(NA_real_, n_params)
-  out[fixed_spec$idx] <- fixed_spec$values
-  out
+  seq_len(n_params) %in% fixed_spec$idx
 }
 
 

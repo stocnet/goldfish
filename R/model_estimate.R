@@ -2252,12 +2252,8 @@ estimate_wrapper <- function(
     length(coef_labels),
     broadcast = isTRUE(control_algo$initial_broadcast)
   )
-  # The effect description marks fixed coefficients from the positional
-  # encoding, so the contract is flattened for it here.
-  effective_fixed_parameters <- fixed_spec_to_vector(
-    fixed_spec,
-    length(coef_labels)
-  )
+  # The description marks which coefficients are held, one logical per row.
+  effective_fixed_parameters <- fixed_spec_mask(fixed_spec, length(coef_labels))
 
   ### 4. PREPARE PRINTING----
   # functions_utility.R

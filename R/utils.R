@@ -625,7 +625,7 @@ merge_flat_updates <- function(old_prep, new_prep, effects_indexes) {
 GetDetailPrint <- function(
   objects_effects_link,
   parsedformula,
-  fixedParameters = NULL
+  is_fixed = NULL
 ) {
   # matrix with the effects in rows and objects in columns,
   # which net or actor att
@@ -792,10 +792,10 @@ GetDetailPrint <- function(
   # Which coefficients are held at supplied values. A logical column, on every
   # fit: what a consumer needs is the answer, not the question of whether the
   # column was created.
-  effect_description$fixed <- if (is.null(fixedParameters)) {
+  effect_description$fixed <- if (is.null(is_fixed)) {
     rep(FALSE, nrow(effect_description))
   } else {
-    !is.na(fixedParameters)
+    is_fixed
   }
 
   decoder <- .decoderColumns(effect_description)
