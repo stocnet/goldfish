@@ -201,10 +201,12 @@ report its approximate size. Diagnostic consumers requiring a statistics
 replay SHALL accept a `preprocessed =` argument and SHALL use, in order of
 precedence: the supplied `preprocessed`, then the object attached to the
 fit. When neither is available, they SHALL abort with a cli error naming
-both routes (`return_preprocessed = TRUE` at estimation, or
-`preprocessed = compute_statistics(...)` — the consolidated producer from
-the revise-gather-output change; `estimate_*(..., preprocessing_only =
-TRUE)` remains its equivalent until superseded).
+both routes: `return_preprocessed = TRUE` at estimation, or
+`preprocessed = compute_statistics(..., output = "preprocessed")` — the
+consolidated producer from the revise-gather-output change, whose
+`"preprocessed"` output IS the replay object this argument takes. The
+error SHALL NOT name `estimate_*(..., preprocessing_only = TRUE)`, which
+that change soft-deprecated onto exactly this route.
 
 #### Scenario: replay unavailable produces guiding error
 - **WHEN** a diagnostic requiring a replay is called on a fit estimated
@@ -216,3 +218,32 @@ TRUE)` remains its equivalent until superseded).
   replay-requiring diagnostic is called without `preprocessed`
 - **THEN** the diagnostic runs using the attached object without
   re-preprocessing.
+
+### Requirement: Ranks resolve tied alternatives by a documented, reproducible rule
+
+The stored `observed_rank` SHALL resolve alternatives of equal probability by a
+documented rule that treats values within a stated relative tolerance as tied,
+so that the rank a user reads does not depend on which backend produced the fit.
+Exact ties are not an edge case in these models: on a nearly empty network most
+alternatives have identical statistics, so a strict comparison resolves large
+blocks by whichever way the last bit happens to fall. The rule and its tolerance
+SHALL be documented where a user reading a rank will find them, and the same
+rule SHALL govern every rank-sensitive primitive, so that a rank and a recall
+statistic over the same event agree about which alternatives are tied.
+
+#### Scenario: tied alternatives get the same rank on every backend
+- **WHEN** a model whose risk set contains blocks of equal-probability
+  alternatives is estimated on each supported backend with ranks requested
+- **THEN** the stored `observed_rank` vectors are identical
+
+#### Scenario: the tie rule is applied consistently across rank-sensitive primitives
+- **WHEN** a rank and a top-k recall statistic are computed for the same event
+  over a risk set containing a tied block spanning the k-th position
+- **THEN** both treat the same alternatives as tied, so the two do not disagree
+  about whether the observed alternative is within the top k
+
+#### Scenario: genuinely distinct alternatives are not merged
+- **WHEN** two alternatives differ in probability by more than the documented
+  tolerance
+- **THEN** they receive distinct ranks, so the tolerance does not flatten real
+  differences

@@ -653,16 +653,16 @@ faithful lookup rather than a re-derivation:
 
 - **Two validity tiers, not one boolean.** The local table
   (`R/formula_validate.R`) distinguishes **unavailable** (no bare effect
-  implementation → abort in *every* phase, incl. preprocessing/`compute_stats`)
+  implementation → abort in *every* phase, incl. preprocessing/`compute_statistics`)
   from **unidentified** (computable as a design column but not identified as a
   bare main effect → rejected *only when estimating*). After task 1.5 made
   `global` computable in DyNAM choice, the *unavailable* tier is empty and
-  `global`/`ego` in choice are *unidentified* (produced by `compute_stats`,
+  `global`/`ego` in choice are *unidentified* (produced by `compute_statistics`,
   usable as interaction operands / random-effect design columns, rejected as
   estimated main effects). So `global_rule` / `valid_types` should encode a
   **tri-state** per `(model, sub_model)`: `main` (estimable), `computable`
   (produced but not an identified main effect), `unavailable` (not computable) —
-  a single boolean loses the `compute_stats`-vs-`estimate` distinction the parser
+  a single boolean loses the `compute_statistics`-vs-`estimate` distinction the parser
   relies on.
 - **Interaction operand validity is an axis-union rule, not a per-term flag.** An
   interaction's broadcast kind is the **union of its operands' variation axes**

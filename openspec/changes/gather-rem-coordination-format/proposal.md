@@ -49,7 +49,7 @@ out-of-scope opportunity in `refactor-likelihood-compute`.
 - **Estimation consumers updated** (`compute_multinomial_selection`,
   `compute_coordination_selection`) to read the new representation; the
   `cpp` and `r` backends are untouched.
-- **`gather_model_data()` (exported API) keeps its documented output shape** —
+- **The exported gather stack keeps its documented output shape** —
   expanded/materialized from the internal representation on demand, so user
   code is unaffected. **BREAKING** (internal only): the gather intermediate
   structures change.
@@ -61,7 +61,7 @@ out-of-scope opportunity in `refactor-likelihood-compute`.
   models (REM, DyNAM-coordination): compressed storage contract (no per-event
   dense duplication of unchanged rows, no diagonal rows for one-mode
   coordination), numerical-equivalence floor against the pre-change engine,
-  and the compatibility contract for the exported `gather_model_data()`.
+  and the compatibility contract for the exported gather stack.
 
 ### Modified Capabilities
 <!-- none yet: no existing spec covers the gather internals; if the
@@ -73,7 +73,7 @@ out-of-scope opportunity in `refactor-likelihood-compute`.
 - **Code**: `R/cpp_interface.R` (`gather_sender_receiver_model_r`, `gather_`),
   `src/compute_multinomial_selection.cpp`,
   `src/compute_coordination_selection.cpp`, `R/preprocess_export.R`
-  (`gather_model_data()` expansion path). cpp-reviewer on every `src/` diff.
+  (gather-stack expansion path). cpp-reviewer on every `src/` diff.
 - **Memory/time**: gather preprocessing and gather estimation for REM/
   coordination; unchanged for choice/rate (already n-sized per event).
 - **Tests**: equivalence vs the current gather backend at tight tolerance;

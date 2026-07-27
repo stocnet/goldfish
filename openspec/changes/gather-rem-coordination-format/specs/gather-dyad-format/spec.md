@@ -60,9 +60,10 @@ models; (c) the existing cross-engine coefficient tests pass unchanged.
 - **THEN** per-event contributions agree within 1e-10 and converged
   coefficients within the existing cross-engine tolerance.
 
-### Requirement: gather_model_data() keeps its documented information content
-The exported `gather_model_data()` SHALL keep its documented output,
-materialized on demand from the internal representation, and SHALL reproduce
+### Requirement: The gather stack keeps its documented information content
+The exported gather stack SHALL keep its documented output — the stack
+`compute_statistics(..., output = "gather")` returns, materialized on demand
+from the internal representation — and SHALL reproduce
 the pre-compression output as SAME INFORMATION: an identical index-keyed row
 multiset per event — the same (`index_i`, `index_j`, statistics) tuples —
 with identical `selected` and `n_candidates` (deterministic re-indexing, no
@@ -70,7 +71,7 @@ floating-point arithmetic in the expansion; row order within an event is not
 part of the contract, the index columns are).
 
 #### Scenario: expansion reproduces the index-keyed multiset
-- **WHEN** `gather_model_data()` is called on a fixture model before and after
+- **WHEN** `compute_statistics(..., output = "gather")` is called on a fixture model before and after
   the format change
 - **THEN** for every event the returned (`index_i`, `index_j`, statistics)
   row multisets are identical, and `selected`/`n_candidates`/`timespan`
