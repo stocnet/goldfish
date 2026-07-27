@@ -239,11 +239,11 @@ test_that("preprocessed objects carry the format version", {
   )
   # Pinned to the constant, not a literal: the contract under test is "a fresh
   # object carries the current version and a stale one is refused", which a
-  # hardcoded number restates as "the version is 4" and breaks on every bump.
-  expect_identical(prep$version, PREPROCESSED_GOLDFISH_VERSION)
+  # hardcoded number restates as a claim about the number and breaks on a bump.
+  expect_identical(prep$prep_version, PREP_VERSION)
   expect_identical(prep$active_dyad_encoding, "alter")
   oldFormat <- prep
-  oldFormat$version <- PREPROCESSED_GOLDFISH_VERSION - 1L
+  oldFormat$prep_version <- PREP_VERSION - 1L
   expect_error(
     estimate_dynam(
       depNetwork ~ inertia,

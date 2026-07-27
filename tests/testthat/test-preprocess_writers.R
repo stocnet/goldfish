@@ -188,7 +188,7 @@ test_that("preprocessed object carries a well-formed broadcast buffer", {
       ncol(prep$stat_mat_broadcast),
       info = nm
     )
-    expect_equal(prep$version, PREPROCESSED_GOLDFISH_VERSION, info = nm)
+    expect_equal(prep$prep_version, PREP_VERSION, info = nm)
     if (isTRUE(has_broadcast[nm])) {
       expect_gt(ncol(prep$stat_mat_broadcast), 0L)
     }

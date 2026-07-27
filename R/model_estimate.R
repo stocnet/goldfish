@@ -159,11 +159,14 @@
 #'    a matrix with a description of the effects used for model fitting.
 #'    It includes the name of the object used to calculate the effects and
 #'    additional parameter description.}
-#'   \item{format_version}{an integer identifying the layout of this object —
+#'   \item{fit_version}{an integer identifying the layout of this object —
 #'   which components it carries and how they are spelled. It moves only when
 #'   that layout changes, not on every release, so a fit stays current across
 #'   ordinary upgrades. Absent on objects fitted before goldfish 2.0.0, which
-#'   the post-estimation methods recognize and refuse rather than compute from.}
+#'   the post-estimation methods recognize and refuse rather than compute from.
+#'   A preprocessed object records its own layout under `prep_version`; the two
+#'   are named separately so that both stay readable when a fit carries the
+#'   preprocessed object it was estimated from.}
 #'   \item{formula}{a formula with the information of the model fitted.}
 #'   \item{model}{a character value of the model type.}
 #'   \item{sub_model}{a character value of the sub_model type.}
@@ -1231,17 +1234,29 @@ estimate_wrapper <- function(
     )
   }
 
-  if (
-    !is.null(preprocessed) &&
-      !identical(preprocessed$version, PREPROCESSED_GOLDFISH_VERSION)
-  ) {
-    cli::cli_abort(c(
-      "The {.arg preprocessed} object uses an outdated preprocessing
-       format.",
-      "x" = "Objects preprocessed with a previous goldfish version cannot be
-             reused for estimation.",
-      "i" = "Recompute the preprocessing object with {.fn compute_statistics}."
-    ))
+  # The preprocessed object's stamp is a gate, checked once here, where a stored
+  # object re-enters goldfish. The fit's stamp is a label, re-checked by every
+  # post-estimation method. Same epoch convention, different enforcement point.
+  if (!is.null(preprocessed)) {
+    prep_status <- preprocessed_format_status(preprocessed)
+    if (identical(prep_status, "newer")) {
+      cli::cli_abort(c(
+        "The {.arg preprocessed} object was built by a newer version of
+         {.pkg goldfish} than the one loaded.",
+        "x" = "This version does not know its layout.",
+        "i" = "Update {.pkg goldfish}, or recompute the object with
+               {.fn compute_statistics}."
+      ))
+    }
+    if (!identical(prep_status, "current")) {
+      cli::cli_abort(c(
+        "The {.arg preprocessed} object uses an outdated preprocessing
+         format.",
+        "x" = "Objects preprocessed with a previous goldfish version cannot be
+               reused for estimation.",
+        "i" = "Recompute the preprocessing object with {.fn compute_statistics}."
+      ))
+    }
   }
 
   # Every backend produces per-event probabilities natively, so the request no
@@ -2260,7 +2275,7 @@ estimate_wrapper <- function(
   # than the package version: it moves only when the component set or its
   # spelling changes, so a fit stays current across ordinary releases. Epoch 2
   # is the snake_case component set.
-  result$format_version <- goldfish_result_format
+  result$fit_version <- FIT_VERSION
   result$right_censored <- has_intercept
   result$n_params <- sum(!GetFixed(result))
   # Reconstruct the call for printing. On the direct path `sys.call(-1L)` is the

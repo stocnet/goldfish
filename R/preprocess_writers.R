@@ -773,7 +773,7 @@ assemble_default_output <- function(
       active_dyad_update_pointer = active_dyad_update_pointer,
       has_intercept = has_intercept,
       right_censored = has_intercept,
-      version = PREPROCESSED_GOLDFISH_VERSION
+      prep_version = PREP_VERSION
     ),
     class = "preprocessed.goldfish"
   )

@@ -15,18 +15,18 @@ test_that("a newly fitted object records the layout epoch it was built with", {
 
   # Present and non-empty before asserting the value: a missing component reads
   # as NULL, and every comparison against NULL below would hold vacuously.
-  expect_contains(names(choice), "format_version")
-  expect_length(choice$format_version, 1L)
-  expect_identical(choice$format_version, goldfish_result_format)
-  expect_type(choice$format_version, "integer")
+  expect_contains(names(choice), "fit_version")
+  expect_length(choice$fit_version, 1L)
+  expect_identical(choice$fit_version, FIT_VERSION)
+  expect_type(choice$fit_version, "integer")
 })
 
 test_that("the epoch is stamped on every estimator, not one code path", {
   data("social_evolution", envir = environment())
   # Each public estimator reaches the same finalization through
   # `estimate_wrapper()`. These cover the two sub-model geometries (timed rate
-  # with an intercept, ordinal choice without one) and the tie-oriented model, so
-  # a stamp attached to one assembly rather than the funnel fails here.
+  # with an intercept, ordinal choice without one) and the tie-oriented model,
+  # so a stamp attached to one assembly rather than the funnel fails here.
   rate <- estimate_dynam(
     calls ~ 1 + indeg + outdeg,
     sub_model = "rate",
@@ -42,7 +42,7 @@ test_that("the epoch is stamped on every estimator, not one code path", {
   )
 
   for (fit in list(rate = rate, rem = rem)) {
-    expect_length(fit$format_version, 1L)
-    expect_identical(fit$format_version, goldfish_result_format)
+    expect_length(fit$fit_version, 1L)
+    expect_identical(fit$fit_version, FIT_VERSION)
   }
 })

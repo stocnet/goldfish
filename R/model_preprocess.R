@@ -1,8 +1,3 @@
-# Bumped to 5 by the snake_case component rename: a stored object still spelling
-# `initialStats` would otherwise reach the estimator and fail on a NULL where an
-# array is expected, rather than being told it is stale.
-PREPROCESSED_GOLDFISH_VERSION <- 5L
-
 #' Preprocess a model given its specification
 #'
 #' S3 generic dispatched on the model specification class.
@@ -130,7 +125,7 @@ run_dynami_monolith <- function(
     groups_network = groups_network,
     prep_envir = prep_envir
   )
-  prep$version <- PREPROCESSED_GOLDFISH_VERSION
+  prep$prep_version <- PREP_VERSION
   prep
 }
 

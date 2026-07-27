@@ -123,7 +123,7 @@ test_that("a stale preprocessed object is rejected through preprocessed =", {
     data = dataTest,
     preprocessing_only = TRUE
   )
-  stale$version <- 0L
+  stale$prep_version <- 0L
   expect_snapshot(
     error = TRUE,
     estimate_dynam(
