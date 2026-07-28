@@ -44,7 +44,8 @@ inline arma::mat reduce_mat_to_vector(
      const bool return_margins = false,
      const bool return_total_rate = false,
      const bool return_probabilities = false,
-     const bool return_availability = false
+     const bool return_availability = false,
+     const bool return_conditional_scores = false
  ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -105,6 +106,16 @@ inline arma::mat reduce_mat_to_vector(
    // Opt-in per-event probability vector over the WHOLE sender set, zero off
    // the risk set. Allocated only when requested.
    List event_probabilities(return_probabilities ? n_events : 0);
+   // Opt-in conditional (partial-likelihood) score rows: the same shared
+   // reduction the stored score rows use, at UNIT scale instead of the
+   // compensator's, so the exposure term drops and what is left is the
+   // observed-minus-risk-set-mean row -- the Schoenfeld residual. NA on a
+   // right-censored interval, which realizes no mover and so has no observed
+   // alternative to condition on. Allocated only when requested.
+   arma::mat conditional_scores;
+   if (return_conditional_scores) {
+     conditional_scores.set_size(n_events, n_parameters);
+   }
    // Opt-in per-actor availability: the denominators the per-actor margins are
    // read against. On this sender-axis family a risk-set position IS a sender,
    // so the membership indicator is the presence mask itself. Allocated only
@@ -293,7 +304,10 @@ inline arma::mat reduce_mat_to_vector(
      // every frozen coefficient exactly where it was. These three are
      // shift-invariant, and are exact where the raw ratio silently returns 1
      // (subnormal underflow) or NaN (overflow).
-     if (return_probabilities || return_margins || return_total_rate) {
+     if (
+       return_probabilities || return_margins || return_total_rate ||
+       return_conditional_scores
+     ) {
        arma::vec lin_pred = reduce_stat_mat * parameters;
        arma::vec weights;
        double log_normalizer =
@@ -314,6 +328,15 @@ inline arma::mat reduce_mat_to_vector(
        if (return_probabilities) {
          event_probabilities[id_event] =
            NumericVector(probabilities.begin(), probabilities.end());
+       }
+       if (return_conditional_scores) {
+         if (is_dependent(id_event)) {
+           conditional_scores.row(id_event) = event_score_row(
+             reduce_stat_mat, probabilities, 1.0, id_sender, true
+           );
+         } else {
+           conditional_scores.row(id_event).fill(NA_REAL);
+         }
        }
      }
      // The stored per-event score comes from the shared reduction over the same
@@ -344,6 +367,7 @@ inline arma::mat reduce_mat_to_vector(
      Named("margin_probability") = margin_probability,
      Named("total_rate") = total_rate,
      Named("conditional_logl") = conditional_logl,
+     Named("conditional_scores") = conditional_scores,
      Named("availability_exposure") = availability_exposure,
      Named("availability_n_opportunities") = availability_opportunities,
      Named("event_probabilities") = event_probabilities

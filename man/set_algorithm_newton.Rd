@@ -109,20 +109,31 @@ the time of the event.
 \item{diagnostics}{Names the per-event diagnostic \emph{primitives} estimation
 stores on the fitted result, superseding the \verb{return_*} flags above.
 Accepts a character vector drawn from
-\code{c("loglik", "scores", "ranks", "margins", "probabilities")}, or the
-shorthands \code{TRUE} (equivalent to \code{c("loglik", "scores")}), \code{"all"} (all
-five), and \code{FALSE} / \code{character(0)} (none). Each primitive maps to a stored
+\code{c("loglik", "scores", "ranks", "margins", "availability", "conditional_scores", "probabilities")}, or the shorthands \code{TRUE}
+(equivalent to \code{c("loglik", "scores")}), \code{"all"} (all seven), and
+\code{FALSE} / \code{character(0)} (none). Each primitive maps to a stored
 component of the result: \code{"loglik"} to \code{interval_log_lik} (and \code{total_rate}
-on exact-time submodels), \code{"scores"} to \code{event_scores}, \code{"ranks"} to
-\code{observed_rank}, \code{"margins"} to per-actor observed and expected counts, and
+and \code{conditional_logl} on exact-time submodels), \code{"scores"} to
+\code{event_scores}, \code{"ranks"} to \code{observed_rank}, \code{"margins"} to per-actor
+observed and expected counts, \code{"availability"} to the per-actor
+denominators those counts are read against, \code{"conditional_scores"} to the
+partial-likelihood score rows of an exact-time submodel, and
 \code{"probabilities"} to per-event probability vectors; each is documented
 under the fitted object in \code{\link[=estimate_dynam]{estimate_dynam()}}, including the tie rule
-\code{observed_rank} resolves equally likely alternatives by. Unknown names
-abort with an error listing the valid primitives.
+\code{observed_rank} resolves equally likely alternatives by. Two of them are
+defined only where the model defines them, and are absent — silently —
+elsewhere: \code{"conditional_scores"} off the exact-time submodels, whose
+\code{event_scores} already \emph{are} the conditional rows, and the exposure half
+of \code{"availability"}, which measures a compensator scale the multinomial
+submodels do not have. Unknown names abort with an error listing the valid
+primitives.
 Default is \code{c("loglik", "scores")},
 preserving today's stored log-likelihood and adding the (free) scores. For
 fits with more than 100,000 events a one-time message reports the
-approximate footprint of the per-event vectors and names \code{diagnostics = FALSE} as the opt-out.}
+approximate footprint of the per-event vectors and names \code{diagnostics = FALSE} as the opt-out; \code{"conditional_scores"} is sized there exactly as
+\code{"scores"} is, being the same shape again. \code{"availability"} is exempt: its
+vectors are one value per actor rather than one per event, and they do not
+depend on the parameter vector.}
 
 \item{optimizer}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A character string
 naming the optimization algorithm. Options are:

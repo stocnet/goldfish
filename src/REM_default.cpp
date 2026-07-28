@@ -131,7 +131,8 @@ List estimate_REM(
     const bool return_margins = false,
     const bool return_total_rate = false,
     const bool return_probabilities = false,
-    const bool return_availability = false
+    const bool return_availability = false,
+    const bool return_conditional_scores = false
 ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -213,6 +214,16 @@ List estimate_REM(
    // i * n_actors_2 + j) while an arma::mat fills column-major, so the n1 x n2
    // grid is recovered by reshaping to n2 x n1 and transposing.
    List event_probabilities(return_probabilities ? n_events : 0);
+   // Opt-in conditional (partial-likelihood) score rows: the same shared
+   // reduction the stored score rows use, at UNIT scale instead of the
+   // compensator's, so the exposure term drops and what is left is the
+   // observed-minus-risk-set-mean row -- the Schoenfeld residual. NA on a
+   // right-censored interval, which realizes no mover and so has no observed
+   // alternative to condition on. Allocated only when requested.
+   arma::mat conditional_scores;
+   if (return_conditional_scores) {
+     conditional_scores.set_size(n_events, n_parameters);
+   }
    // Opt-in per-actor availability, per SIDE as the margins are: a dyad at risk
    // makes its sender available on one side and its receiver on the other, and
    // an actor whose outgoing dyads are all masked while its incoming ones are
@@ -410,7 +421,10 @@ List estimate_REM(
      // every frozen coefficient exactly where it was. These three are
      // shift-invariant, and are exact where the raw ratio silently returns 1
      // (subnormal underflow) or NaN (overflow).
-     if (return_probabilities || return_margins || return_total_rate) {
+     if (
+       return_probabilities || return_margins || return_total_rate ||
+       return_conditional_scores
+     ) {
        arma::vec weights;
        double log_normalizer = log_sum_exp_masked(lin_pred, allowed, weights);
        double shifted_total = arma::sum(weights);
@@ -418,10 +432,19 @@ List estimate_REM(
        if (return_total_rate) {
          conditional_logl(id_event) = NA_REAL;
        }
+       if (return_conditional_scores) {
+         conditional_scores.row(id_event).fill(NA_REAL);
+       }
        if (is_dependent(id_event)) {
          const int id_obs = id_sender * n_actors_2 + id_receiver;
          if (return_total_rate) {
            conditional_logl(id_event) = lin_pred(id_obs) - log_normalizer;
+         }
+         if (return_conditional_scores) {
+           conditional_scores.row(id_event) = event_score_row(
+             stat_mat, probabilities, 1.0,
+             static_cast<arma::uword>(id_obs), true
+           );
          }
          if (return_margins) {
            // Probability scale, over dependent events only: this is the
@@ -478,6 +501,7 @@ List estimate_REM(
      Named("margin_probability_receiver") = margin_probability_receiver,
      Named("total_rate") = total_rate,
      Named("conditional_logl") = conditional_logl,
+     Named("conditional_scores") = conditional_scores,
      Named("availability_exposure_sender") = availability_exposure_sender,
      Named("availability_n_opportunities_sender") =
        availability_opportunities_sender,

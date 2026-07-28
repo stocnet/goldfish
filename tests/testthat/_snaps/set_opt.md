@@ -77,7 +77,7 @@
     Condition
       Error in `set_algorithm_newton()`:
       ! Unknown `diagnostics` primitive "devianc".
-      i Valid primitives are "loglik", "scores", "ranks", "margins", "availability", and "probabilities", or one of `TRUE` / `FALSE` / "all".
+      i Valid primitives are "loglik", "scores", "ranks", "margins", "availability", "conditional_scores", and "probabilities", or one of `TRUE` / `FALSE` / "all".
 
 ---
 

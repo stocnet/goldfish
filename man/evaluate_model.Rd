@@ -30,10 +30,12 @@ keep their fitted value. Defaults to the fitted coefficients.}
 
 \item{return}{a character vector naming the quantities to compute, any
 subset of \code{"loglik"}, \code{"score"}, \code{"information"}, \code{"interval_loglik"},
-\code{"total_rate"}, \code{"conditional_logl"}, \code{"event_scores"}, \code{"ranks"},
-\code{"recall"}, \code{"margins"} and \code{"probabilities"}. The returned list carries
-exactly these, in that order. The components mean what the same-named
-components of a fitted object mean; see \code{\link[=estimate_dynam]{estimate_dynam()}}.}
+\code{"total_rate"}, \code{"conditional_logl"}, \code{"event_scores"},
+\code{"conditional_scores"}, \code{"ranks"}, \code{"recall"}, \code{"margins"},
+\code{"exposure"}, \code{"n_opportunities"} and \code{"probabilities"}. The returned
+list carries exactly these, in that order.
+The components mean what the same-named components of a fitted object
+mean; see \code{\link[=estimate_dynam]{estimate_dynam()}}.}
 
 \item{preprocessed}{a \code{preprocessed.goldfish} object to evaluate over, as
 returned by \code{\link[=compute_statistics]{compute_statistics()}}. Defaults to the one attached to the
@@ -53,6 +55,15 @@ implementation that produced them, and \code{at}, the vector they were
 evaluated at. \code{"recall"} is a named numeric vector, one proportion per
 threshold; \code{"margins"} is the per-actor list documented under
 \code{\link[=estimate_dynam]{estimate_dynam()}}, labeled and scale-marked as a fit's own margins are.
+\code{"exposure"} (the per-actor time at risk, summed over every interval
+including the right-censored ones) and \code{"n_opportunities"} (the number of
+dependent events whose realized risk set contained the actor) are labeled
+by actor: one numeric vector on the sender, receiver and endpoint
+families, and a two-element \verb{_sender} / \verb{_receiver} list on the two-sided
+REM families, which is the shape their margins take. Both count per actor
+membership, so an actor at risk in many dyads of one interval contributes
+that interval once. \code{"exposure"} is defined only for the exact-time
+sub-models; requesting it elsewhere aborts naming \code{"n_opportunities"}.
 }
 \description{
 Runs the fitted model's likelihood machinery \strong{once} at the parameter

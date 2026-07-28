@@ -33,7 +33,8 @@ List compute_poisson_selection(
     const bool return_ranks,
     const bool return_margins,
     const bool return_probabilities = false,
-    const bool return_availability = false
+    const bool return_availability = false,
+    const bool return_conditional_scores = false
 ) {
     // `index_i` / `index_j` are the 0-based per-row actor slots the shared
     // margin reduction scatters into; an empty vector means this shape has no
@@ -74,6 +75,15 @@ List compute_poisson_selection(
     // scale-free, so one vector serves both.
     arma::mat event_scores;
     if (return_event_scores) event_scores.set_size(n_events, n_parameters);
+    // The conditional (partial-likelihood) score rows: the same shared
+    // reduction as `event_scores`, at UNIT scale instead of the compensator's,
+    // so the exposure term drops and what is left is the
+    // observed-minus-risk-set-mean row -- the Schoenfeld residual. NA on a
+    // right-censored interval, which realizes no mover.
+    arma::mat conditional_scores;
+    if (return_conditional_scores) {
+        conditional_scores.set_size(n_events, n_parameters);
+    }
     IntegerVector observed_rank;
     if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
     arma::vec margin_observed_i, margin_expected_i, margin_prob_i;
@@ -191,9 +201,18 @@ List compute_poisson_selection(
         // has no observed alternative.
         if (
           return_event_scores || return_ranks || return_margins ||
-          return_probabilities
+          return_probabilities || return_conditional_scores
         ) {
             probabilities = weights / shifted_total;
+        }
+        if (return_conditional_scores) {
+            if (is_dependent_current_event) {
+                conditional_scores.row(id_event) = event_score_row(
+                  stat_mat_current_event, probabilities, 1.0, id_selected, true
+                );
+            } else {
+                conditional_scores.row(id_event).fill(NA_REAL);
+            }
         }
         if (avail_side_i) {
             const arma::uvec slots_i = index_i.subvec(id_start, id_end - 1);
@@ -327,6 +346,7 @@ List compute_poisson_selection(
       Named("margin_observed_receiver") = two_sided ? margin_observed_j : empty,
       Named("margin_expected_receiver") = two_sided ? margin_expected_j : empty,
       Named("margin_probability_receiver") = two_sided ? margin_prob_j : empty,
+      Named("conditional_scores") = conditional_scores,
       Named("availability_exposure") =
         avail_two_sided ? empty
                         : (avail_side_i ? availability_exposure_i

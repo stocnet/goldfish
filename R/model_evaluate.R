@@ -16,6 +16,7 @@ EVALUATE_QUANTITIES <- c(
   "total_rate",
   "conditional_logl",
   "event_scores",
+  "conditional_scores",
   "ranks",
   "recall",
   "margins",
@@ -32,6 +33,7 @@ EVALUATE_PRIMITIVE_OF <- c(
   total_rate = "loglik",
   conditional_logl = "loglik",
   event_scores = "scores",
+  conditional_scores = "conditional_scores",
   ranks = "ranks",
   recall = "ranks",
   margins = "margins",
@@ -69,9 +71,10 @@ EVALUATE_PRIMITIVE_OF <- c(
 #'   keep their fitted value. Defaults to the fitted coefficients.
 #' @param return a character vector naming the quantities to compute, any
 #'   subset of `"loglik"`, `"score"`, `"information"`, `"interval_loglik"`,
-#'   `"total_rate"`, `"conditional_logl"`, `"event_scores"`, `"ranks"`,
-#'   `"recall"`, `"margins"`, `"exposure"`, `"n_opportunities"` and
-#'   `"probabilities"`. The returned list carries exactly these, in that order.
+#'   `"total_rate"`, `"conditional_logl"`, `"event_scores"`,
+#'   `"conditional_scores"`, `"ranks"`, `"recall"`, `"margins"`,
+#'   `"exposure"`, `"n_opportunities"` and `"probabilities"`. The returned
+#'   list carries exactly these, in that order.
 #'   The components mean what the same-named components of a fitted object
 #'   mean; see [estimate_dynam()].
 #' @param preprocessed a `preprocessed.goldfish` object to evaluate over, as
@@ -284,7 +287,8 @@ evaluate_needs <- function(quantities) {
     margins = "margins" %in% quantities,
     total_rate = any(c("total_rate", "conditional_logl") %in% quantities),
     probabilities = "probabilities" %in% quantities,
-    availability = any(c("exposure", "n_opportunities") %in% quantities)
+    availability = any(c("exposure", "n_opportunities") %in% quantities),
+    conditional_scores = "conditional_scores" %in% quantities
   )
 }
 
@@ -327,7 +331,8 @@ evaluate_engine_once <- function(spec, prep, pars, backend, needs) {
     needs$margins,
     needs$total_rate,
     needs$probabilities,
-    needs$availability
+    needs$availability,
+    needs$conditional_scores
   )
 }
 
@@ -401,6 +406,7 @@ assemble_evaluation <- function(
       total_rate = evaluate_optional_numeric(res$total_rate),
       conditional_logl = evaluate_optional_numeric(res$conditional_logl),
       event_scores = evaluate_event_scores(res$event_scores, x),
+      conditional_scores = evaluate_event_scores(res$conditional_scores, x),
       ranks = res$observed_rank,
       recall = evaluate_recall(res$observed_rank, recall_at),
       margins = evaluate_margins(res, spec, prep, backend),

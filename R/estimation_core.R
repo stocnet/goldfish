@@ -108,6 +108,7 @@ estimate_int_impl <- function(
   return_margins = FALSE,
   return_total_rate = FALSE,
   return_availability = FALSE,
+  return_conditional_scores = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -208,6 +209,7 @@ estimate_int_impl <- function(
     return_margins = return_margins,
     return_total_rate = return_total_rate,
     return_availability = return_availability,
+    return_conditional_scores = return_conditional_scores,
     verbose = verbose,
     progress = progress,
     step_args = c(
@@ -219,7 +221,8 @@ estimate_int_impl <- function(
         return_ranks = return_ranks,
         return_margins = return_margins,
         return_total_rate = return_total_rate,
-        return_availability = return_availability
+        return_availability = return_availability,
+        return_conditional_scores = return_conditional_scores
       )
     )
   )
@@ -302,6 +305,9 @@ estimate_int_impl <- function(
       nodes2 = nodes2
     )
   }
+  if (return_conditional_scores && !is.null(nr$conditional_scores)) {
+    estimationResult$conditional_scores <- nr$conditional_scores
+  }
   # total_rate / conditional_logl exist only on the exact-time (Poisson)
   # contribution; the multinomial families leave them NULL, so they stay off
   # those fits exactly as on the cpp backend.
@@ -351,6 +357,7 @@ run_nr_loop <- function(
   return_margins = FALSE,
   return_total_rate = FALSE,
   return_availability = FALSE,
+  return_conditional_scores = FALSE,
   verbose,
   progress,
   step_args
@@ -374,6 +381,7 @@ run_nr_loop <- function(
   observed_rank <- NULL
   margins <- NULL
   availability <- NULL
+  conditional_scores <- NULL
   total_rate <- NULL
   conditional_logl <- NULL
 
@@ -412,6 +420,9 @@ run_nr_loop <- function(
     }
     if (return_availability) {
       availability <- res$availability
+    }
+    if (return_conditional_scores) {
+      conditional_scores <- res$conditional_scores
     }
     if (return_total_rate) {
       total_rate <- res$total_rate
@@ -593,6 +604,7 @@ run_nr_loop <- function(
     observed_rank = observed_rank,
     margins = margins,
     availability = availability,
+    conditional_scores = conditional_scores,
     total_rate = total_rate,
     conditional_logl = conditional_logl
   )
@@ -816,6 +828,15 @@ event_contribution_rate <- function(
   } else {
     objectiveFunctionOfSender - logNormalizer
   }
+  # The conditional score row is the same reduction as `score` above at UNIT
+  # scale: `weightedStatsSum` is already the probability-weighted mean, so
+  # dropping the compensator leaves X_obs - sum_j p_j X_j, the Schoenfeld row.
+  # NA where there is no observed alternative to condition on.
+  conditionalScore <- if (isRightCensored) {
+    rep(NA_real_, length(parameters))
+  } else {
+    statsOfSender - weightedStatsSum
+  }
   pVector <- probabilities
   if (isREM) {
     dim(pVector) <- c(dimMatrix[1], dimMatrix[2])
@@ -832,7 +853,8 @@ event_contribution_rate <- function(
     # mask the likelihood applied rather than the weights it produced.
     in_risk_set = inRiskSet,
     total_rate = totalRate,
-    conditional_logl = conditionalLogL
+    conditional_logl = conditionalLogL,
+    conditional_score = conditionalScore
   )
 }
 
@@ -1485,7 +1507,8 @@ compute_step.default <- function(spec, state, i, ctx) {
     ctx$return_ranks ||
       ctx$return_margins ||
       ctx$return_total_rate ||
-      ctx$return_availability
+      ctx$return_availability ||
+      ctx$return_conditional_scores
   ) {
     state <- r_reduce_event(
       state,
@@ -1642,6 +1665,10 @@ r_reduce_event <- function(
   if (ctx$return_total_rate && ctx$is_exact_time) {
     state$total_rate[i] <- eventValues$total_rate
     state$conditional_logl[i] <- eventValues$conditional_logl
+  }
+
+  if (ctx$return_conditional_scores && ctx$is_exact_time) {
+    state$conditional_scores[i, ] <- eventValues$conditional_score
   }
 
   if (ctx$return_margins) {
@@ -1979,7 +2006,8 @@ make_r_engine_evaluator <- function(
     need_margins = FALSE,
     need_total_rate = FALSE,
     need_probabilities = FALSE,
-    need_availability = FALSE
+    need_availability = FALSE,
+    need_conditional_scores = FALSE
   ) {
     do.call(
       compute_iteration_step,
@@ -1993,7 +2021,8 @@ make_r_engine_evaluator <- function(
           return_ranks = need_ranks,
           return_margins = need_margins,
           return_total_rate = need_total_rate,
-          return_availability = need_availability
+          return_availability = need_availability,
+          return_conditional_scores = need_conditional_scores
         )
       )
     )
@@ -2029,6 +2058,7 @@ compute_iteration_step <- function(
   return_margins = FALSE,
   return_total_rate = FALSE,
   return_availability = FALSE,
+  return_conditional_scores = FALSE,
   allowReflexive = TRUE,
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
@@ -2125,6 +2155,7 @@ compute_iteration_step <- function(
     return_margins = return_margins,
     return_total_rate = return_total_rate,
     return_availability = return_availability,
+    return_conditional_scores = return_conditional_scores,
     margin_axis = margin_axis,
     is_exact_time = is_exact_time,
     # Whole-node-set sizes, used to scatter the reduced per-event risk set back
@@ -2174,6 +2205,11 @@ compute_iteration_step <- function(
     },
     conditional_logl = if (return_total_rate && is_exact_time) {
       numeric(nEvents)
+    } else {
+      NULL
+    },
+    conditional_scores = if (return_conditional_scores && is_exact_time) {
+      matrix(NA_real_, nEvents, nParams)
     } else {
       NULL
     },
@@ -2235,6 +2271,9 @@ compute_iteration_step <- function(
   }
   if (return_availability) {
     returnList$availability <- assemble_r_availability(state, margin_axis)
+  }
+  if (return_conditional_scores && is_exact_time) {
+    returnList$conditional_scores <- state$conditional_scores
   }
 
   return(returnList)

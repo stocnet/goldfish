@@ -93,21 +93,33 @@
 #' @param diagnostics Names the per-event diagnostic *primitives* estimation
 #'   stores on the fitted result, superseding the `return_*` flags above.
 #'   Accepts a character vector drawn from
-#'   `c("loglik", "scores", "ranks", "margins", "probabilities")`, or the
-#'   shorthands `TRUE` (equivalent to `c("loglik", "scores")`), `"all"` (all
-#'   five), and `FALSE` / `character(0)` (none). Each primitive maps to a stored
+#'   `c("loglik", "scores", "ranks", "margins", "availability",
+#'   "conditional_scores", "probabilities")`, or the shorthands `TRUE`
+#'   (equivalent to `c("loglik", "scores")`), `"all"` (all seven), and
+#'   `FALSE` / `character(0)` (none). Each primitive maps to a stored
 #'   component of the result: `"loglik"` to `interval_log_lik` (and `total_rate`
-#'   on exact-time submodels), `"scores"` to `event_scores`, `"ranks"` to
-#'   `observed_rank`, `"margins"` to per-actor observed and expected counts, and
+#'   and `conditional_logl` on exact-time submodels), `"scores"` to
+#'   `event_scores`, `"ranks"` to `observed_rank`, `"margins"` to per-actor
+#'   observed and expected counts, `"availability"` to the per-actor
+#'   denominators those counts are read against, `"conditional_scores"` to the
+#'   partial-likelihood score rows of an exact-time submodel, and
 #'   `"probabilities"` to per-event probability vectors; each is documented
 #'   under the fitted object in [estimate_dynam()], including the tie rule
-#'   `observed_rank` resolves equally likely alternatives by. Unknown names
-#'   abort with an error listing the valid primitives.
+#'   `observed_rank` resolves equally likely alternatives by. Two of them are
+#'   defined only where the model defines them, and are absent — silently —
+#'   elsewhere: `"conditional_scores"` off the exact-time submodels, whose
+#'   `event_scores` already *are* the conditional rows, and the exposure half
+#'   of `"availability"`, which measures a compensator scale the multinomial
+#'   submodels do not have. Unknown names abort with an error listing the valid
+#'   primitives.
 #'   Default is `c("loglik", "scores")`,
 #'   preserving today's stored log-likelihood and adding the (free) scores. For
 #'   fits with more than 100,000 events a one-time message reports the
 #'   approximate footprint of the per-event vectors and names `diagnostics =
-#'   FALSE` as the opt-out.
+#'   FALSE` as the opt-out; `"conditional_scores"` is sized there exactly as
+#'   `"scores"` is, being the same shape again. `"availability"` is exempt: its
+#'   vectors are one value per actor rather than one per event, and they do not
+#'   depend on the parameter vector.
 #' @param optimizer `r lifecycle::badge("experimental")` A character string
 #'   naming the optimization algorithm. Options are:
 #'   \describe{
@@ -478,6 +490,7 @@ DIAGNOSTIC_PRIMITIVES <- c(
   "ranks",
   "margins",
   "availability",
+  "conditional_scores",
   "probabilities"
 )
 
@@ -498,6 +511,7 @@ DIAGNOSTIC_BACKEND_SUPPORT <- list(
   ranks = BACKEND_VALUES,
   margins = BACKEND_VALUES,
   availability = BACKEND_VALUES,
+  conditional_scores = BACKEND_VALUES,
   probabilities = BACKEND_VALUES
 )
 

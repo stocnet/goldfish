@@ -237,6 +237,33 @@ sums exact-time fits additionally store. A tie-oriented (REM) fit carries
 both a sender and a receiver side, spelled with those suffixes; the
 actor-oriented families carry one unsuffixed pair. Read them through
 \code{\link[=margin_table]{margin_table()}}, which presents one schema for every family.}
+\item{availability}{a list of per-actor availability vectors, stored when
+\code{"availability"} is among the \code{diagnostics} primitives: \code{n_opportunities},
+the number of dependent events whose realized risk set contained the
+actor, and — on exact-time sub-models only — \code{exposure}, the interval
+length summed over every interval during which it was at risk,
+right-censored ones included. These are the denominators the \code{margins}
+above are read against, and they take exactly the margins' shape: the same
+actor labels, and the same \verb{_sender} / \verb{_receiver} suffixes on a
+tie-oriented (REM) fit, since a dyad at risk makes its sender available on
+one side and its receiver on the other. Both count per actor
+\strong{membership}: an actor at risk in many dyads of the same interval
+contributes that interval once, so \code{observed / exposure} is an event rate
+per unit time at risk. \code{exposure} is absent from the multinomial families,
+which have no compensator scale for it to measure, exactly as \code{total_rate}
+is.}
+\item{conditional_scores}{a matrix with one row per interval and one
+column per coefficient, the score rows of the model's \emph{conditional}
+(partial) likelihood — the observed alternative's statistic minus the
+risk-set probability-weighted mean, with no exposure term. These are the
+Schoenfeld residuals. Stored when \code{"conditional_scores"} is among the
+\code{diagnostics} primitives, and \code{NA} on a right-censored interval, which
+realizes no observed alternative. Exact-time sub-models only: a
+multinomial likelihood is already conditional, so there the stored
+\code{event_scores} \emph{are} these rows and the component is absent rather than
+duplicated. They cannot be recovered from \code{event_scores} afterwards — the
+exposure term cannot be removed without the observed alternative's own
+statistic row — which is why they are computed in the estimation pass.}
 \item{event_probabilities}{a list with one per-event vector of fitted
 probabilities over the whole node set (zero off the risk set), stored when
 \code{"probabilities"} is among the \code{diagnostics} primitives.}

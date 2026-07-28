@@ -19,8 +19,8 @@ estimate_DyNAM_choice <- function(parameters, dep_event_mat, stat_mat_init, stat
 
 #' Calculation for estimating an DyNAM-rate model
 #' @noRd
-estimate_DyNAM_rate <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_total_rate = FALSE, return_probabilities = FALSE, return_availability = FALSE) {
-    .Call('_goldfish_estimate_DyNAM_rate', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, return_event_scores, return_ranks, return_margins, return_total_rate, return_probabilities, return_availability)
+estimate_DyNAM_rate <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute = TRUE, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_total_rate = FALSE, return_probabilities = FALSE, return_availability = FALSE, return_conditional_scores = FALSE) {
+    .Call('_goldfish_estimate_DyNAM_rate', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, return_event_scores, return_ranks, return_margins, return_total_rate, return_probabilities, return_availability, return_conditional_scores)
 }
 
 #' Calculation for estimating an DyNAM-rate-ordered model
@@ -126,8 +126,8 @@ estimate_DyNAM_rate_ordered <- function(parameters, dep_event_mat, stat_mat_init
 #'         given the input parameter and data.}
 #' }
 #' @noRd
-estimate_REM <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_total_rate = FALSE, return_probabilities = FALSE, return_availability = FALSE) {
-    .Call('_goldfish_estimate_REM', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_total_rate, return_probabilities, return_availability)
+estimate_REM <- function(parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores = FALSE, return_ranks = FALSE, return_margins = FALSE, return_total_rate = FALSE, return_probabilities = FALSE, return_availability = FALSE, return_conditional_scores = FALSE) {
+    .Call('_goldfish_estimate_REM', PACKAGE = 'goldfish', parameters, dep_event_mat, timespan, is_dependent, stat_mat_init, stat_mat_update, stat_mat_update_pointer, stat_mat_broadcast, stat_mat_broadcast_pointer, active_sender_init, active_sender_update, active_sender_update_pointer, active_dyad_init, active_dyad_update, active_dyad_update_pointer, n_actors_1, n_actors_2, twomode_or_reflexive, impute, active_dyad_is_point, return_event_scores, return_ranks, return_margins, return_total_rate, return_probabilities, return_availability, return_conditional_scores)
 }
 
 #' Calculation for estimating an REM-choice-ordered model
@@ -234,8 +234,8 @@ compute_multinomial_selection <- function(parameters, stat_all_events, n_candida
 #' for models with poisson selection processes,
 #' e.g., DyNAM-rate and REM-choice models.
 #' @noRd
-compute_poisson_selection <- function(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins, return_probabilities = FALSE, return_availability = FALSE) {
-    .Call('_goldfish_compute_poisson_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability)
+compute_poisson_selection <- function(parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins, return_probabilities = FALSE, return_availability = FALSE, return_conditional_scores = FALSE) {
+    .Call('_goldfish_compute_poisson_selection', PACKAGE = 'goldfish', parameters, stat_all_events, n_candidates, selected, timespan, is_dependent, index_i, index_j, n_actors_1, n_actors_2, return_event_scores, return_ranks, return_margins, return_probabilities, return_availability, return_conditional_scores)
 }
 
 #' a function to extract the update of composition change

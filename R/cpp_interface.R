@@ -16,7 +16,11 @@
 # censored interval realizes no mover, so log p_obs is undefined there. This is
 # the ONLY place the by-design-NA exclusion list lives -- any future per-event
 # NA scan MUST route through this guard, never an ad-hoc is.na() sweep.
-diagnostic_components_with_na <- c("observed_rank", "conditional_logl")
+diagnostic_components_with_na <- c(
+  "observed_rank",
+  "conditional_logl",
+  "conditional_scores"
+)
 
 has_unexpected_na <- function(res) {
   scanned <- res[setdiff(names(res), diagnostic_components_with_na)]
@@ -216,7 +220,8 @@ make_engine_evaluator <- function(
     need_margins = FALSE,
     need_total_rate = FALSE,
     need_probabilities = FALSE,
-    need_availability = FALSE
+    need_availability = FALSE,
+    need_conditional_scores = FALSE
   ) {
     if (backend == "gather") {
       # The gathered stack computes the exact-time components whenever the
@@ -239,6 +244,7 @@ make_engine_evaluator <- function(
         return_margins = need_margins,
         return_probabilities = need_probabilities,
         return_availability = need_availability,
+        return_conditional_scores = need_conditional_scores,
         sender_of_row = gathered_data$sender_of_row,
         dyad_partner = gathered_data$dyad_partner
       ))
@@ -270,7 +276,8 @@ make_engine_evaluator <- function(
       return_margins = need_margins,
       return_total_rate = need_total_rate,
       return_probabilities = need_probabilities,
-      return_availability = need_availability
+      return_availability = need_availability,
+      return_conditional_scores = need_conditional_scores
     )
   }
 
@@ -312,6 +319,7 @@ estimate_c_int <- function(
   return_margins = FALSE,
   return_total_rate = FALSE,
   return_availability = FALSE,
+  return_conditional_scores = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -453,7 +461,8 @@ estimate_c_int <- function(
       return_margins,
       return_total_rate,
       returnEventProbabilities,
-      return_availability
+      return_availability,
+      return_conditional_scores
     )
 
     logLikelihood <- res$logLikelihood
@@ -714,6 +723,16 @@ estimate_c_int <- function(
     # cancels a term against itself and loses digits away from the MLE.
     estimationResult$conditional_logl <- as.numeric(res$conditional_logl)
   }
+  if (
+    return_conditional_scores &&
+      !is.null(res$conditional_scores) &&
+      length(res$conditional_scores) > 0
+  ) {
+    # Only the exact-time kernels return conditional score rows; on a
+    # multinomial family the stored `event_scores` ARE the conditional rows, so
+    # the component is absent rather than duplicated.
+    estimationResult$conditional_scores <- res$conditional_scores
+  }
   if (returnEventProbabilities) {
     estimationResult$event_probabilities <- eventProbabilities
   }
@@ -896,7 +915,8 @@ estimate_ <- function(
   return_margins = FALSE,
   return_total_rate = FALSE,
   return_probabilities = FALSE,
-  return_availability = FALSE
+  return_availability = FALSE,
+  return_conditional_scores = FALSE
 ) {
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
@@ -1009,7 +1029,8 @@ estimate_ <- function(
       return_margins = return_margins,
       return_total_rate = return_total_rate,
       return_probabilities = return_probabilities,
-      return_availability = return_availability
+      return_availability = return_availability,
+      return_conditional_scores = return_conditional_scores
     )
   }
 
@@ -1039,7 +1060,8 @@ estimate_ <- function(
       return_margins = return_margins,
       return_total_rate = return_total_rate,
       return_probabilities = return_probabilities,
-      return_availability = return_availability
+      return_availability = return_availability,
+      return_conditional_scores = return_conditional_scores
     )
   }
 
@@ -1702,6 +1724,7 @@ compute_ <- function(
   return_margins = FALSE,
   return_probabilities = FALSE,
   return_availability = FALSE,
+  return_conditional_scores = FALSE,
   sender_of_row = NULL,
   dyad_partner = NULL
 ) {
@@ -1761,7 +1784,8 @@ compute_ <- function(
       return_ranks,
       return_margins,
       return_probabilities,
-      return_availability
+      return_availability,
+      return_conditional_scores
     )
   }
 
