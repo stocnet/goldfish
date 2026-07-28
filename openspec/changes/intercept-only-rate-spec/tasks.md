@@ -51,7 +51,7 @@
       (`findInterval(t, wave_times, rightmost.closed = TRUE)`), so a terminal-time event
       is never dropped; the final-period duration past the last wave is the
       consumer-supplied `simulate()` window (D5). Document the chosen convention in roxygen
-- [ ] 2.4 Tests: `intercept_w` matches hand-computed per-period
+- [x] 2.4 Tests: `intercept_w` matches hand-computed per-period
       counts / durations / average risk-set sizes on a multi-wave fixture, exercising both
       a relational `|R_w|` (time-weighted `avg_active_entity`) and a panel `|R_w|`
       (wave-endpoint average of the two observed states, D9); distinct plateaus per period

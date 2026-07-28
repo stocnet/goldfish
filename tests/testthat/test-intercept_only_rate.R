@@ -222,6 +222,86 @@ test_that("an event outside the supplied partition is flagged", {
   expect_snapshot(error = TRUE, intercept_only_rate_period(rate, 11))
 })
 
+# A multi-wave fixture (Session 2.4): waves at t = 0, 4, 10, 12 -> three
+# inter-wave periods of durations 4, 6, 2. The pin is regime-agnostic -- only the
+# *source* of |R_w| differs (relational time-weighted avg_active_entity vs panel
+# wave-endpoint average), both consumer-supplied.
+
+test_that("per-period pin matches hand computation for a relational |R_w|", {
+  wave_times <- c(0, 4, 10, 12)
+  duration <- diff(wave_times) # c(4, 6, 2)
+  count <- c(8, 3, 5)
+  # relational |R_w|: the time-weighted average active entity per period
+  # (avg_active_entity restricted to w), supplied by the consumer.
+  risk_set_size <- c(5, 4.5, 6)
+
+  intercept <- pin_intercept_only_rate(count, duration, risk_set_size)
+
+  expect_equal(intercept, log(count / (duration * risk_set_size)))
+  expect_equal(intercept[1], log(8 / (4 * 5)))
+  expect_equal(intercept[2], log(3 / (6 * 4.5)))
+  expect_equal(intercept[3], log(5 / (2 * 6)))
+})
+
+test_that("per-period pin matches hand computation for a panel wave-endpoint |R_w|", {
+  wave_times <- c(0, 4, 10, 12)
+  duration <- diff(wave_times)
+  # panel count: the net Hamming diff between consecutive observed wave states.
+  count <- c(8, 3, 5)
+  # panel |R_w|: the wave-endpoint average (|R(w_{k-1})| + |R(w_k)|) / 2 of the
+  # flavor's post-constraint entity count at the two observed wave states.
+  entity_at_wave <- c(6, 4, 5, 7)
+  risk_set_size <-
+    (utils::head(entity_at_wave, -1) + utils::tail(entity_at_wave, -1)) / 2
+
+  intercept <- pin_intercept_only_rate(count, duration, risk_set_size)
+
+  expect_equal(risk_set_size, c(5, 4.5, 6))
+  expect_equal(intercept, log(count / (duration * risk_set_size)))
+  # regime-agnostic: the same wave-endpoint |R_w| feeds the same pin as the
+  # relational form above.
+  expect_equal(intercept[2], log(3 / (6 * 4.5)))
+})
+
+test_that("distinct plateaus per period differ from a single global pin", {
+  wave_times <- c(0, 4, 10, 12)
+  duration <- diff(wave_times)
+  count <- c(8, 3, 5)
+  risk_set_size <- c(5, 4, 10) # per-period rates genuinely differ
+
+  per_period <- pin_intercept_only_rate(count, duration, risk_set_size)
+  # the rejected aggregate: one global count / T_total / mean|R| plateau, which
+  # misplaces events when the per-period rates differ.
+  global <- pin_intercept_only_rate(
+    sum(count),
+    sum(duration),
+    mean(risk_set_size)
+  )
+
+  expect_length(unique(per_period), 3)
+  expect_false(isTRUE(all.equal(per_period, rep(global, 3))))
+})
+
+test_that("the frozen pin is unchanged after a round of generated events", {
+  wave_times <- c(0, 4, 10, 12)
+  rate <- make_intercept_only_rate(
+    pin_intercept_only_rate(c(8, 3, 5), diff(wave_times), c(5, 4.5, 6)),
+    wave_times = wave_times
+  )
+  before <- rate$intercept
+
+  # a consumer placing generated events across the three periods must never
+  # re-derive the pin -- it is a function of the *supplied* counts, not the
+  # generated events, so it stays byte-identical.
+  for (t in c(1, 5, 7, 11)) {
+    invisible(
+      evaluate_intercept_only_rate(rate, active_sender = c(1, 1, 1), time = t)
+    )
+  }
+
+  expect_identical(rate$intercept, before)
+})
+
 test_that("the intercept-only rate primitive is not exported", {
   exported <- getNamespaceExports("goldfish")
   internal <- c(
