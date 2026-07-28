@@ -71,7 +71,7 @@
       semantics so `estimate_dynes()`, `simulate()`, and the augmenters draw
       consistently; **do NOT** implement the draw or the empty/saturated-support guard
       here (the consuming routine owns them, D5)
-- [ ] 3.2 Tests: the semantics specify a uniform support-legal sender with self-loops
+- [x] 3.2 Tests: the semantics specify a uniform support-legal sender with self-loops
       excluded and a defined support constraint inherited (a sibling flavor's NOT
       borrowed); the per-actor hazard is commensurable with a competing effect-driven
       per-actor rate on the shared clock; a routine driving the semantics reproduces

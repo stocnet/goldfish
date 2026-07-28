@@ -302,6 +302,186 @@ test_that("the frozen pin is unchanged after a round of generated events", {
   expect_identical(rate$intercept, before)
 })
 
+# Uniform support-legal sender semantics (Session 3): `exp(intercept_w)` is a
+# per-actor constant hazard, so on the shared clock it enters Sum_i exp(.)
+# commensurably with a competing per-actor rate, and the sender selection is
+# uniform over the support-legal set *as a consequence* of the equal hazards.
+# The primitive exposes the semantics -- it performs no draw and no
+# empty-support guard (the consuming routine owns both).
+
+test_that("semantics give a uniform sender over the inherited support-legal set", {
+  rate <- make_intercept_only_rate(log(0.5))
+  # inherited support: the flavor's post-constraint mask (actor 3 illegal).
+  sem <- intercept_only_rate_sender_semantics(
+    rate,
+    support_legal = c(1, 1, 0, 1)
+  )
+
+  # uniform over the legal set {1, 2, 4}, exact-zero for the illegal actor --
+  # the uniformity following from the equal per-actor hazards.
+  expect_equal(sem$probability, c(1 / 3, 1 / 3, 0, 1 / 3))
+  expect_equal(sem$hazard, c(0.5, 0.5, 0, 0.5))
+  expect_true(sem$uniform)
+  expect_identical(sem$support, "inherited")
+  expect_identical(sem$self_loops, "disallowed")
+})
+
+test_that("self-loops are the only automatic restriction, support is inherited", {
+  rate <- make_intercept_only_rate(log(0.5))
+  support <- c(1, 1, 1, 1)
+
+  # self-loop mask removes actor 1 even though support marked it legal -- the
+  # sole restriction the primitive applies on its own.
+  sem <- intercept_only_rate_sender_semantics(
+    rate,
+    support_legal = support,
+    self_loop = c(1, 0, 0, 0)
+  )
+  expect_equal(sem$probability, c(0, 1 / 3, 1 / 3, 1 / 3))
+
+  # a sibling flavor's different support mask is NEVER borrowed: the distribution
+  # depends only on the mask passed for THIS flavor.
+  sem_sibling <- intercept_only_rate_sender_semantics(
+    rate,
+    support_legal = c(0, 1, 1, 1)
+  )
+  expect_equal(sem_sibling$probability, c(0, 1 / 3, 1 / 3, 1 / 3))
+  expect_false(identical(
+    intercept_only_rate_sender_semantics(rate, c(1, 1, 0, 1))$probability,
+    sem_sibling$probability
+  ))
+})
+
+test_that("the pinned hazard is commensurable with a competing per-actor rate", {
+  n <- 4L
+  active <- c(1, 1, 1, 1)
+
+  # the pinned flavor's per-actor hazard: a constant exp(intercept_w) over actors.
+  rate <- make_intercept_only_rate(log(0.4))
+  pinned <- intercept_only_rate_sender_semantics(
+    rate,
+    support_legal = active
+  )$hazard
+
+  # a competing effect-driven rate scored through the SAME shared evaluator:
+  # a per-actor hazard exp(intercept + beta * x_i) -- a genuine spread.
+  comp_state <- list(
+    model_type = "DyNAM-M-Rate",
+    stat_mat = cbind(1, c(0.5, -0.2, 1.0, 0.3)),
+    active_sender = active,
+    n_actors1 = n,
+    n_actors2 = 1L,
+    is_rate = TRUE,
+    event_sender = NA_integer_,
+    is_dependent = FALSE,
+    timespan = NA_real_
+  )
+  comp <- .pse_eval_rate(comp_state, parameters = c(log(0.4), 0.8))
+
+  # both are per-actor vectors in the same hazard space (like compares with
+  # like -- no aggregate scalar summed against a per-actor vector).
+  expect_length(pinned, n)
+  expect_length(comp$value, n)
+  expect_equal(pinned, rep(0.4, n)) # pinned: constant across actors
+  expect_gt(stats::var(comp$value), 0) # competing: a spread
+
+  # the shared-clock superposition Sum_i exp(.) combines them elementwise per
+  # actor, then sums -- the commensurability the per-actor framing buys.
+  joint <- pinned + comp$value
+  expect_equal(sum(joint), sum(pinned) + sum(comp$value))
+})
+
+test_that("a routine driving the semantics reproduces count_w in expectation", {
+  # a period of duration T_w = 10 with a risk set that CHANGES but stays
+  # non-empty: 3 support-legal actors for the first 4 time units, then 8 for the
+  # remaining 6. The time-weighted average risk-set size is
+  # (4 * 3 + 6 * 8) / 10 = 6 = |R_w|; the consumer supplies that to the pin.
+  count_w <- 5
+  t_w <- 10
+  risk_set_w <- 6
+  rate <- make_intercept_only_rate(pin_intercept_only_rate(
+    count_w,
+    t_w,
+    risk_set_w
+  ))
+
+  # the aggregate intensity at an instant is sum(hazard) = |R(t)| * exp(intercept_w),
+  # driven straight off the exposed semantics under the live support set.
+  segments <- list(
+    list(dur = 4, support = c(rep(1, 3), rep(0, 5))),
+    list(dur = 6, support = rep(1, 8))
+  )
+  expected_count <- sum(vapply(
+    segments,
+    function(seg) {
+      sem <- intercept_only_rate_sender_semantics(
+        rate,
+        support_legal = seg$support
+      )
+      seg$dur * sum(sem$hazard)
+    },
+    numeric(1)
+  ))
+
+  # integral_w |R(t)| * exp(intercept_w) dt = count_w exactly, because |R_w| is
+  # the period's time-weighted average risk-set size.
+  expect_equal(expected_count, count_w)
+})
+
+test_that("the semantics perform no draw and hold no empty-support guard", {
+  rate <- make_intercept_only_rate(log(0.5))
+
+  # no draw: the result is a distribution, deterministic and RNG-independent
+  # (a draw would consume the stream and differ across seeds).
+  set.seed(1)
+  a <- intercept_only_rate_sender_semantics(rate, c(1, 1, 1))$probability
+  set.seed(99)
+  b <- intercept_only_rate_sender_semantics(rate, c(1, 1, 1))$probability
+  expect_identical(a, b)
+
+  # no empty-support guard: an empty support set does not error and is not
+  # silently filled with a uniform default -- it surfaces as NaN for the
+  # consuming routine to detect and control.
+  sem_empty <- intercept_only_rate_sender_semantics(rate, c(0, 0, 0))
+  expect_true(all(sem_empty$hazard == 0))
+  expect_true(all(is.nan(sem_empty$probability)))
+
+  # the primitive ships no sender-draw function of its own.
+  expect_false(exists("intercept_only_rate_draw_sender", mode = "function"))
+  expect_false(exists("intercept_only_rate_sample_sender", mode = "function"))
+})
+
+test_that("multi-period semantics select the plateau by time (uniform either way)", {
+  rate <- make_intercept_only_rate(c(log(2), log(8)), wave_times = c(0, 4, 9))
+  support <- c(1, 1, 0, 1)
+
+  # a multi-period rate needs the firing instant to pick the plateau.
+  expect_snapshot(
+    error = TRUE,
+    intercept_only_rate_sender_semantics(rate, support)
+  )
+
+  early <- intercept_only_rate_sender_semantics(rate, support, time = 1)
+  late <- intercept_only_rate_sender_semantics(rate, support, time = 6)
+  expect_equal(early$hazard[c(1, 2, 4)], rep(2, 3))
+  expect_equal(late$hazard[c(1, 2, 4)], rep(8, 3))
+  # the sender selection is uniform on either plateau -- the plateau magnitude
+  # scales every legal actor's hazard equally, leaving the distribution uniform.
+  expect_equal(early$probability, late$probability)
+})
+
+test_that("a mismatched self_loop mask is rejected", {
+  rate <- make_intercept_only_rate(log(0.5))
+  expect_snapshot(
+    error = TRUE,
+    intercept_only_rate_sender_semantics(
+      rate,
+      support_legal = c(1, 1, 1),
+      self_loop = c(1, 0)
+    )
+  )
+})
+
 test_that("the intercept-only rate primitive is not exported", {
   exported <- getNamespaceExports("goldfish")
   internal <- c(
@@ -311,7 +491,8 @@ test_that("the intercept-only rate primitive is not exported", {
     "intercept_only_rate_period",
     "intercept_only_rate_intensity",
     "intercept_only_rate_state",
-    "evaluate_intercept_only_rate"
+    "evaluate_intercept_only_rate",
+    "intercept_only_rate_sender_semantics"
   )
   expect_length(intersect(internal, exported), 0)
 })

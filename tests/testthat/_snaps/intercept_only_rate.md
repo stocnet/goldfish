@@ -122,3 +122,22 @@
       ! `time` falls outside the pinned period partition [0, 10].
       i The consuming routine must supply `wave_times` covering every event time.
 
+# multi-period semantics select the plateau by time (uniform either way)
+
+    Code
+      intercept_only_rate_sender_semantics(rate, support)
+    Condition
+      Error:
+      ! `time` is required to select the plateau of a multi-period pinned rate.
+      i Supply the firing instant so the applicable per-period hazard is used.
+
+# a mismatched self_loop mask is rejected
+
+    Code
+      intercept_only_rate_sender_semantics(rate, support_legal = c(1, 1, 1),
+      self_loop = c(1, 0))
+    Condition
+      Error:
+      ! `self_loop` must be the same length as `support_legal`.
+      x Got 2 and 3.
+
