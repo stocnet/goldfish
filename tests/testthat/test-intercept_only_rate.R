@@ -69,9 +69,50 @@ test_that("make_intercept_only_rate rejects invalid pins", {
   expect_snapshot(error = TRUE, make_intercept_only_rate(Inf))
 })
 
+# The per-period pin (Session 2): the pure function
+# (count_w, T_w, |R_w|) -> intercept_w = log(count_w / (T_w * |R_w|)), one
+# plateau per inter-wave period. It diffs nothing and infers nothing -- counts,
+# durations, and |R_w| are all consumer-supplied.
+
+test_that("pin_intercept_only_rate is log(count / (duration * |R_w|)) per period", {
+  count <- c(10, 4, 6)
+  duration <- c(2, 1, 3)
+  risk_set_size <- c(5, 4, 2)
+
+  expect_equal(
+    pin_intercept_only_rate(count, duration, risk_set_size),
+    log(count / (duration * risk_set_size))
+  )
+})
+
+test_that("pin_intercept_only_rate handles a single-period (single-window) pin", {
+  expect_equal(pin_intercept_only_rate(12, 4, 3), log(12 / (4 * 3)))
+})
+
+test_that("a zero-count period pins to -Inf (the flavor cannot fire)", {
+  expect_equal(
+    pin_intercept_only_rate(c(0, 3), c(1, 1), c(4, 4)),
+    c(-Inf, log(3 / 4))
+  )
+})
+
+test_that("pin_intercept_only_rate rejects malformed inputs", {
+  # length mismatch across the per-period vectors
+  expect_snapshot(error = TRUE, pin_intercept_only_rate(c(1, 2), 1, c(3, 4)))
+  # a negative count is not a count
+  expect_snapshot(error = TRUE, pin_intercept_only_rate(-1, 1, 1))
+  # a non-positive exposure denominator
+  expect_snapshot(error = TRUE, pin_intercept_only_rate(1, 0, 1))
+  # an empty risk set is the consumer's guard, not a pin
+  expect_snapshot(error = TRUE, pin_intercept_only_rate(1, 1, 0))
+  # missing values
+  expect_snapshot(error = TRUE, pin_intercept_only_rate(1, 1, NA_real_))
+})
+
 test_that("the intercept-only rate primitive is not exported", {
   exported <- getNamespaceExports("goldfish")
   internal <- c(
+    "pin_intercept_only_rate",
     "make_intercept_only_rate",
     "is_intercept_only_rate",
     "intercept_only_rate_intensity",

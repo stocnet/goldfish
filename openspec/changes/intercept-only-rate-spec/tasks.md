@@ -31,7 +31,7 @@
 
 ## 2. Per-period pin from supplied counts over exposure
 
-- [ ] 2.1 Per-period pin `(count_w, T_w, |R_w|) → intercept_w = log(count_w / (T_w · |R_w|))`
+- [x] 2.1 Per-period pin `(count_w, T_w, |R_w|) → intercept_w = log(count_w / (T_w · |R_w|))`
       as a **pure function** (D2/D5/D8/D9): consume per-period counts, period durations, and
       the average size of the flavor's rate entity `|R_w|` the caller supplies and produce a
       **piecewise-constant per-actor** hazard, **one plateau per inter-wave period**.

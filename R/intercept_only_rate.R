@@ -18,9 +18,106 @@
 # The object records that its intercept is *fixed* (`fixed_intercept`) and that
 # it carries zero free parameters (`n_free_parameters`), so the downstream
 # θ-layout / optimizer code can exclude it from the score and Hessian. The
-# per-period pin `intercept_w = log(count_w / (T_w * |R_w|))` and the
-# uniform-support-legal-sender semantics live in later sessions; this file is
-# only the representation.
+# per-period pin `intercept_w = log(count_w / (T_w * |R_w|))` (one plateau per
+# inter-wave period), its compute-once-and-freeze contract, and the half-open
+# period membership used to select the applicable plateau also live here; the
+# uniform-support-legal-sender semantics arrive in a later session.
+
+# The per-period pin -- the pure function every consumer calls at setup. Given a
+# per-period event count `count`, the period duration `duration` (the exposure
+# denominator T_w), and the period's average risk-set size `risk_set_size`
+# (|R_w|), the pinned *per-actor* hazard is
+#
+#   lambda_w = count_w / (T_w * |R_w|),
+#
+# recorded as intercept_w = log(count_w / (T_w * |R_w|)). Each argument is a
+# numeric vector with one entry per inter-wave period, so the result is a
+# piecewise-constant per-actor baseline log-hazard: one plateau per period.
+#
+# Dividing by |R_w| places the pin at the *per-actor* layer (the analogue of
+# RSiena's division by n_actors), so exp(intercept_w) is a per-actor constant
+# hazard -- commensurable on the shared clock with a competing flavor's
+# per-actor rate in the superposition Sum_i exp(.). The aggregate flavor rate is
+# then |R(t)| * exp(intercept_w), reproducing count_w over the period. The pin
+# is exactly the per-period frozen form of goldfish's estimated intercept-only
+# MLE `log(n_dep_events / total_time / avg_active_entity)`.
+#
+# The function is deliberately thin (a pure map). It does NOT diff waves, infer
+# windows, or compute |R_w| -- those are the consumer's: the augmenter's wave
+# Hamming diff or simulate()'s observed count for `count`, and the relational
+# time-weighted `avg_active_entity` vs the panel wave-endpoint average
+# (|R(w_{k-1})| + |R(w_k)|)/2 for `risk_set_size`. It is a deterministic
+# function of the *supplied* counts/durations/risk-set sizes and is never
+# recomputed from generated, sampled, or augmented events.
+#
+# A zero-count period pins to intercept_w = log(0) = -Inf: the per-actor hazard
+# exp(-Inf) = 0, so the flavor cannot fire in that period -- correct under the
+# net-change (Hamming-diff) count.
+pin_intercept_only_rate <- function(
+  count,
+  duration,
+  risk_set_size,
+  call = rlang::caller_env()
+) {
+  if (
+    !is.numeric(count) ||
+      !is.numeric(duration) ||
+      !is.numeric(risk_set_size)
+  ) {
+    cli::cli_abort(
+      "{.arg count}, {.arg duration}, and {.arg risk_set_size} must be numeric.",
+      call = call
+    )
+  }
+  n <- length(count)
+  if (n < 1L || length(duration) != n || length(risk_set_size) != n) {
+    cli::cli_abort(
+      c(
+        "{.arg count}, {.arg duration}, and {.arg risk_set_size} must be
+         non-empty vectors of the same length (one entry per period).",
+        "x" = "Got lengths {length(count)}, {length(duration)}, and
+               {length(risk_set_size)}."
+      ),
+      call = call
+    )
+  }
+  if (anyNA(count) || anyNA(duration) || anyNA(risk_set_size)) {
+    cli::cli_abort(
+      "{.arg count}, {.arg duration}, and {.arg risk_set_size} must not
+       contain missing values.",
+      call = call
+    )
+  }
+  if (any(count < 0)) {
+    cli::cli_abort(
+      c(
+        "{.arg count} must be a non-negative per-period count.",
+        "x" = "Got {.val {count}}."
+      ),
+      call = call
+    )
+  }
+  if (any(duration <= 0)) {
+    cli::cli_abort(
+      c(
+        "{.arg duration} (the exposure denominator T_w) must be positive.",
+        "x" = "Got {.val {duration}}."
+      ),
+      call = call
+    )
+  }
+  if (any(risk_set_size <= 0)) {
+    cli::cli_abort(
+      c(
+        "{.arg risk_set_size} (|R_w|) must be a positive average risk-set size.",
+        "i" = "An empty support set is the consuming routine's guard, not a pin.",
+        "x" = "Got {.val {risk_set_size}}."
+      ),
+      call = call
+    )
+  }
+  log(count / (duration * risk_set_size))
+}
 
 # Construct an intercept-only rate from an already-pinned intercept (the
 # constant log-hazard the consumer / pin function supplies). `model_type`
