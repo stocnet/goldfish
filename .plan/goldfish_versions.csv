@@ -29,3 +29,4 @@ develop,github,stocnet/goldfish,dfd1d19,dfd1d19,new,TRUE,Development branch HEAD
 1.9.15,local,stocnet/goldfish,96c9c4d,96c9c4d,archive,FALSE,Archived OpenSpec change 'parity-followups' on 2026-07-26 (version 1.9.15); see openspec/changes/archive/.
 1.9.16,local,stocnet/goldfish,9d747ff,9d747ff,archive,FALSE,Archived OpenSpec change 'snake-case-result-components' on 2026-07-27 (version 1.9.16); see openspec/changes/archive/.
 1.9.17,local,stocnet/goldfish,2109e88,2109e88,archive,FALSE,Archived OpenSpec change 'revise-gather-output' on 2026-07-27 (version 1.9.17); see openspec/changes/archive/.
+1.9.18,local,stocnet/goldfish,a0ec963,a0ec963,archive,FALSE,Archived OpenSpec change 'fixed-parameter-contract' on 2026-07-28 (version 1.9.18); see openspec/changes/archive/.

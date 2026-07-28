@@ -166,7 +166,15 @@ so nothing is built twice or against a retired assumption.
       `spec-driven-dispatch`; see task 0.1); single pass at `at`, `return`
       subsetting, engine defaulting to the fit's engine; tests: loglik/
       score at MLE reproduce the fit (1e-10), evaluation at a constrained
-      vector returns full-model score/information.
+      vector returns full-model score/information. **Consume the
+      fixed-coefficient contract, do not re-derive it**
+      (`fixed-parameter-contract`, landed 1.9.18): fixedness and seeding
+      travel as `fixed_spec` / `initial_spec` (`idx` / `values` / `names`)
+      and every estimation path decodes them through
+      `resolve_coefficient_mask(fixed_spec, initial_spec, n_params)`, which
+      yields the seeded parameter vector, the fixed/unfixed index sets and
+      the `likelihood_only` / `intercept_fixed` / `intercept_seeded`
+      predicates. The positional NA-vector encoding no longer exists.
 - [ ] 2.2 `residuals.result.goldfish()`: stored-primitive types
       (deviance, schoenfeld, score, dfbeta/dfbetas/cooks — the last three
       from stored scores + information matrix) with zero recompute;
