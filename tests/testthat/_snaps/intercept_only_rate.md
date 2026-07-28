@@ -141,3 +141,46 @@
       ! `self_loop` must be the same length as `support_legal`.
       x Got 2 and 3.
 
+# theta_block defends the zero-free-parameters contract
+
+    Code
+      intercept_only_rate_theta_block(corrupt)
+    Condition
+      Error:
+      ! A pinned intercept-only rate must carry zero free parameters.
+      x Got fixed_intercept = TRUE, n_free_parameters = 1.
+
+---
+
+    Code
+      intercept_only_rate_theta_block(list())
+    Condition
+      Error:
+      ! `rate` must be an <intercept_only_rate>.
+
+# joint_theta_layout rejects an unknown block
+
+    Code
+      joint_theta_layout(list(c(0.1, 0.2), "not-a-block"))
+    Condition
+      Error:
+      ! Each element of `blocks` must be a numeric free-parameter block or an <intercept_only_rate>.
+      x Got a block of class <character>.
+
+# the loglik offset validates its per-period count
+
+    Code
+      intercept_only_rate_loglik_offset(rate, 6)
+    Condition
+      Error:
+      ! `count` must be a numeric vector with one entry per period.
+      x Got 1 value for 2 periods.
+
+---
+
+    Code
+      intercept_only_rate_loglik_offset(rate, c(-1, 2))
+    Condition
+      Error:
+      ! `count` must be non-negative and free of missing values.
+

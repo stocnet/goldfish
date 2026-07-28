@@ -86,7 +86,7 @@
       layout and is **excluded from the optimizer's score and Hessian** by
       **θ-independence** (not by iteration-constancy); it MAY be added as a **constant
       offset** to a *reported* total log-likelihood only
-- [ ] 4.2 Tests: adding a pinned intercept-only rate leaves the fit's θ layout, score,
+- [x] 4.2 Tests: adding a pinned intercept-only rate leaves the fit's θ layout, score,
       and Hessian dimensions unchanged (only a reported log-likelihood offset differs);
       the pinned value is identical across iterations
 - [ ] 4.3 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP); commit

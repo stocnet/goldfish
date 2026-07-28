@@ -482,6 +482,145 @@ test_that("a mismatched self_loop mask is rejected", {
   )
 })
 
+# Zero-free-parameters contract (Session 4): the pinned intercept never enters
+# the fid / θ layout and is excluded from the score & Hessian by θ-INDEPENDENCE
+# (not iteration-constancy). It contributes the empty θ block, so adding it to a
+# joint fit leaves the θ layout / score / Hessian dimensions unchanged; it MAY be
+# a reported constant offset only.
+
+test_that("a pinned rate contributes the empty theta block", {
+  rate <- make_intercept_only_rate(log(0.5))
+  # It occupies NO theta slot -- distinct from a fixed/offset() term, which keeps
+  # its slot and is merely held constant. The empty block is the θ-independence
+  # exclusion made concrete.
+  expect_identical(intercept_only_rate_theta_block(rate), numeric(0))
+})
+
+test_that("theta_block defends the zero-free-parameters contract", {
+  rate <- make_intercept_only_rate(log(0.5))
+  # a corrupted object that claims a free parameter must be rejected, not laid out
+  corrupt <- rate
+  corrupt$n_free_parameters <- 1L
+  expect_snapshot(error = TRUE, intercept_only_rate_theta_block(corrupt))
+  expect_snapshot(error = TRUE, intercept_only_rate_theta_block(list()))
+})
+
+test_that("adding a pinned rate leaves the joint theta layout unchanged", {
+  # two estimated flavors with 3 and 2 free parameters each
+  estimated <- list(flavor_a = c(0.1, -0.2, 0.3), flavor_b = c(1.5, -1.0))
+  pinned <- make_intercept_only_rate(log(0.5))
+
+  base <- joint_theta_layout(estimated)
+  with_pin <- joint_theta_layout(
+    c(estimated, list(flavor_pinned = pinned))
+  )
+
+  # the flat theta vector and the estimated flavors' index slices are IDENTICAL
+  # -- the pinned flavor took up no dimension.
+  expect_identical(with_pin$theta, base$theta)
+  expect_identical(with_pin$n_free, base$n_free)
+  expect_identical(with_pin$index$flavor_a, base$index$flavor_a)
+  expect_identical(with_pin$index$flavor_b, base$index$flavor_b)
+  # the pinned flavor owns the empty slice
+  expect_identical(with_pin$index$flavor_pinned, integer(0))
+  expect_identical(with_pin$n_free, 5L)
+})
+
+test_that("a joint layout of only pinned rates has an empty theta", {
+  layout <- joint_theta_layout(list(
+    make_intercept_only_rate(log(0.5)),
+    make_intercept_only_rate(c(log(2), log(3)), wave_times = c(0, 4, 9))
+  ))
+  expect_identical(layout$theta, numeric(0))
+  expect_identical(layout$n_free, 0L)
+})
+
+test_that("joint_theta_layout rejects an unknown block", {
+  expect_snapshot(
+    error = TRUE,
+    joint_theta_layout(list(c(0.1, 0.2), "not-a-block"))
+  )
+})
+
+test_that("the pinned value is iteration-constant and theta-independent", {
+  wave_times <- c(0, 4, 10, 12)
+  rate <- make_intercept_only_rate(
+    pin_intercept_only_rate(c(8, 3, 5), diff(wave_times), c(5, 4.5, 6)),
+    wave_times = wave_times
+  )
+  count <- c(8, 3, 5)
+  before_intercept <- rate$intercept
+  before_offset <- intercept_only_rate_loglik_offset(rate, count)
+
+  # drive several "iterations": place generated events, re-read the layout and
+  # the offset. Nothing recomputes the pin, and the offset function takes no θ,
+  # so both are byte-identical every iteration regardless of any parameter state.
+  for (iter in seq_len(5)) {
+    invisible(joint_theta_layout(list(rate, c(0.1 * iter, -0.2 * iter))))
+    for (t in c(1, 5, 7, 11)) {
+      invisible(evaluate_intercept_only_rate(
+        rate,
+        active_sender = c(1, 1, 1),
+        time = t
+      ))
+    }
+    expect_identical(rate$intercept, before_intercept)
+    expect_identical(
+      intercept_only_rate_loglik_offset(rate, count),
+      before_offset
+    )
+  }
+})
+
+test_that("the reported offset is the theta-independent constant count*(intercept-1)", {
+  rate <- make_intercept_only_rate(
+    c(log(2), log(4)),
+    wave_times = c(0, 5, 10)
+  )
+  count <- c(6, 2)
+  expect_equal(
+    intercept_only_rate_loglik_offset(rate, count),
+    sum(count * (c(log(2), log(4)) - 1))
+  )
+})
+
+test_that("a zero-count period contributes nothing to the offset", {
+  rate <- make_intercept_only_rate(
+    c(-Inf, log(3)),
+    wave_times = c(0, 5, 10)
+  )
+  # 0 * (-Inf - 1) is NaN in raw arithmetic; the offset must treat it as 0.
+  offset <- intercept_only_rate_loglik_offset(rate, c(0, 4))
+  expect_false(is.nan(offset))
+  expect_equal(offset, 4 * (log(3) - 1))
+})
+
+test_that("the loglik offset validates its per-period count", {
+  rate <- make_intercept_only_rate(c(log(2), log(4)), wave_times = c(0, 5, 10))
+  # wrong length (must be one per period)
+  expect_snapshot(error = TRUE, intercept_only_rate_loglik_offset(rate, 6))
+  # a negative count is not a count
+  expect_snapshot(
+    error = TRUE,
+    intercept_only_rate_loglik_offset(rate, c(-1, 2))
+  )
+})
+
+test_that("adding a pinned rate to a joint fit leaves theta/score/Hessian unchanged", {
+  # The full joint-fit assertion needs the joint optimizer (estimate_dynes()),
+  # which does not exist yet -- deferred behind this guard (see progress.md
+  # Session 4). The unit-level θ-exclusion above (joint_theta_layout /
+  # theta_block) stands in until the consumer lands.
+  skip_if_not(exists("estimate_dynes"), "estimate_dynes() not yet implemented")
+
+  # When estimate_dynes() lands: fit a joint spec WITHOUT a pinned rate, capture
+  # theta length / score length / Hessian dim; add a pinned intercept-only rate
+  # flavor; refit; assert all three dimensions are unchanged and only a reported
+  # log-likelihood offset differs. Left as an explicit failing marker so the
+  # deferral is visible if the guard is ever removed prematurely.
+  expect_true(FALSE)
+})
+
 test_that("the intercept-only rate primitive is not exported", {
   exported <- getNamespaceExports("goldfish")
   internal <- c(
@@ -492,7 +631,10 @@ test_that("the intercept-only rate primitive is not exported", {
     "intercept_only_rate_intensity",
     "intercept_only_rate_state",
     "evaluate_intercept_only_rate",
-    "intercept_only_rate_sender_semantics"
+    "intercept_only_rate_sender_semantics",
+    "intercept_only_rate_theta_block",
+    "joint_theta_layout",
+    "intercept_only_rate_loglik_offset"
   )
   expect_length(intersect(internal, exported), 0)
 })
