@@ -5,7 +5,7 @@
     Condition
       Error in `evaluate_model()`:
       ! Unknown `return` quantity "residuals".
-      i Valid quantities are "loglik", "score", "information", "interval_loglik", "total_rate", "conditional_logl", "event_scores", "ranks", "recall", "margins", and "probabilities".
+      i Valid quantities are "loglik", "score", "information", "interval_loglik", "total_rate", "conditional_logl", "event_scores", "ranks", "recall", "margins", "exposure", "n_opportunities", and "probabilities".
 
 ---
 

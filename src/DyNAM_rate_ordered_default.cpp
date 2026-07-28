@@ -41,7 +41,8 @@ List estimate_DyNAM_rate_ordered(
     const bool return_event_scores = false,
     const bool return_ranks = false,
     const bool return_margins = false,
-    const bool return_probabilities = false
+    const bool return_probabilities = false,
+    const bool return_availability = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -81,7 +82,16 @@ List estimate_DyNAM_rate_ordered(
     // entries at 0, so `weights / normalizer` is the actor-indexed vector the
     // contract asks for with no scatter step. Allocated only when requested.
     List event_probabilities(return_probabilities ? n_events : 0);
-
+    // Opt-in per-actor availability. A multinomial family defines no exposure
+    // time, so only the opportunity counts are accumulated -- here over the
+    // sender set, where a risk-set position IS a sender. Allocated only when
+    // requested.
+    arma::vec availability_opportunities;
+    arma::vec availability_seen;
+    if (return_availability) {
+        availability_opportunities = arma::vec(n_actors_1, fill::zeros);
+        availability_seen = arma::vec(n_actors_1, fill::zeros);
+    }
 
     // Check whether there are composition change and initialize
     // the presence of actor1 and actor2
@@ -170,6 +180,16 @@ List estimate_DyNAM_rate_ordered(
         if (return_margins || return_probabilities || return_event_scores) {
             probabilities = weights / normalizer;
         }
+        if (return_availability) {
+            availability_seen.zeros();
+            mark_availability(
+              n_actors_1, allowed, nullptr, availability_seen
+            );
+            accumulate_availability(
+              availability_seen, 0.0, true, nullptr,
+              &availability_opportunities
+            );
+        }
         if (return_ranks) {
             observed_rank[id_event] =
               rank_of_observed(weights, allowed, id_sender);
@@ -219,6 +239,7 @@ List estimate_DyNAM_rate_ordered(
       Named("observed_rank") = observed_rank,
       Named("margin_observed") = margin_observed,
       Named("margin_expected") = margin_expected,
+      Named("availability_n_opportunities") = availability_opportunities,
       Named("event_probabilities") = event_probabilities
     );
 }

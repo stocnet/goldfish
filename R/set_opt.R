@@ -477,6 +477,7 @@ DIAGNOSTIC_PRIMITIVES <- c(
   "scores",
   "ranks",
   "margins",
+  "availability",
   "probabilities"
 )
 
@@ -496,6 +497,7 @@ DIAGNOSTIC_BACKEND_SUPPORT <- list(
   scores = BACKEND_VALUES,
   ranks = BACKEND_VALUES,
   margins = BACKEND_VALUES,
+  availability = BACKEND_VALUES,
   probabilities = BACKEND_VALUES
 )
 

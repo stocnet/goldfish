@@ -19,6 +19,8 @@ EVALUATE_QUANTITIES <- c(
   "ranks",
   "recall",
   "margins",
+  "exposure",
+  "n_opportunities",
   "probabilities"
 )
 
@@ -33,6 +35,8 @@ EVALUATE_PRIMITIVE_OF <- c(
   ranks = "ranks",
   recall = "ranks",
   margins = "margins",
+  exposure = "availability",
+  n_opportunities = "availability",
   probabilities = "probabilities"
 )
 
@@ -66,9 +70,10 @@ EVALUATE_PRIMITIVE_OF <- c(
 #' @param return a character vector naming the quantities to compute, any
 #'   subset of `"loglik"`, `"score"`, `"information"`, `"interval_loglik"`,
 #'   `"total_rate"`, `"conditional_logl"`, `"event_scores"`, `"ranks"`,
-#'   `"recall"`, `"margins"` and `"probabilities"`. The returned list carries
-#'   exactly these, in that order. The components mean what the same-named
-#'   components of a fitted object mean; see [estimate_dynam()].
+#'   `"recall"`, `"margins"`, `"exposure"`, `"n_opportunities"` and
+#'   `"probabilities"`. The returned list carries exactly these, in that order.
+#'   The components mean what the same-named components of a fitted object
+#'   mean; see [estimate_dynam()].
 #' @param preprocessed a `preprocessed.goldfish` object to evaluate over, as
 #'   returned by [compute_statistics()]. Defaults to the one attached to the
 #'   fit.
@@ -86,6 +91,15 @@ EVALUATE_PRIMITIVE_OF <- c(
 #'   evaluated at. `"recall"` is a named numeric vector, one proportion per
 #'   threshold; `"margins"` is the per-actor list documented under
 #'   [estimate_dynam()], labeled and scale-marked as a fit's own margins are.
+#'   `"exposure"` (the per-actor time at risk, summed over every interval
+#'   including the right-censored ones) and `"n_opportunities"` (the number of
+#'   dependent events whose realized risk set contained the actor) are labeled
+#'   by actor: one numeric vector on the sender, receiver and endpoint
+#'   families, and a two-element `_sender` / `_receiver` list on the two-sided
+#'   REM families, which is the shape their margins take. Both count per actor
+#'   membership, so an actor at risk in many dyads of one interval contributes
+#'   that interval once. `"exposure"` is defined only for the exact-time
+#'   sub-models; requesting it elsewhere aborts naming `"n_opportunities"`.
 #'
 #' @examples
 #' data("social_evolution")
@@ -138,6 +152,7 @@ evaluate_model.result.goldfish <- function(
   pars <- resolve_evaluate_at(at, x)
 
   spec <- prep$model_spec %||% x$model_spec
+  abort_if_exposure_undefined(quantities, spec)
   needs <- evaluate_needs(quantities)
   res <- evaluate_engine_once(
     spec = spec,
@@ -196,6 +211,34 @@ resolve_evaluate_backend <- function(
   backend
 }
 
+# Exposure time is the compensator-scale denominator, so it exists only where a
+# compensator does. A multinomial sub-model is simply absent it when the
+# primitive is STORED, the way `total_rate` is; but the caller here named a
+# return value, and handing back nothing under a name that was asked for would
+# be a lie -- so the evaluator aborts, naming the quantity that is defined.
+abort_if_exposure_undefined <- function(
+  quantities,
+  spec,
+  call = rlang::caller_env()
+) {
+  if (!"exposure" %in% quantities) {
+    return(invisible(NULL))
+  }
+  if (identical(risk_set_normalizer(spec), "poisson")) {
+    return(invisible(NULL))
+  }
+  cli::cli_abort(
+    c(
+      "{.val exposure} is not defined for this sub-model.",
+      "x" = "Exposure time is the compensator-scale denominator, which only
+             the exact-time sub-models have.",
+      "i" = "Use {.code return = \"n_opportunities\"}, the per-actor
+             availability quantity every family defines."
+    ),
+    call = call
+  )
+}
+
 # The vector to evaluate at. A named vector seeds the coefficients it names on
 # top of the fitted ones -- the same convention `initial_parameters` uses --
 # so evaluating one constrained coefficient does not mean respelling the rest.
@@ -240,7 +283,8 @@ evaluate_needs <- function(quantities) {
     ranks = any(c("ranks", "recall") %in% quantities),
     margins = "margins" %in% quantities,
     total_rate = any(c("total_rate", "conditional_logl") %in% quantities),
-    probabilities = "probabilities" %in% quantities
+    probabilities = "probabilities" %in% quantities,
+    availability = any(c("exposure", "n_opportunities") %in% quantities)
   )
 }
 
@@ -282,7 +326,8 @@ evaluate_engine_once <- function(spec, prep, pars, backend, needs) {
     needs$ranks,
     needs$margins,
     needs$total_rate,
-    needs$probabilities
+    needs$probabilities,
+    needs$availability
   )
 }
 
@@ -343,6 +388,7 @@ assemble_evaluation <- function(
   recall_at
 ) {
   common <- normalize_engine_pass(res, backend)
+  availability <- evaluate_availability(res, spec, prep, backend)
   coefficient_names <- names(stats::coef(x, complete = TRUE))
   out <- list()
   for (quantity in quantities) {
@@ -358,6 +404,8 @@ assemble_evaluation <- function(
       ranks = res$observed_rank,
       recall = evaluate_recall(res$observed_rank, recall_at),
       margins = evaluate_margins(res, spec, prep, backend),
+      exposure = availability_half(availability, "exposure"),
+      n_opportunities = availability_half(availability, "n_opportunities"),
       probabilities = common$probabilities
     )
   }
@@ -399,6 +447,35 @@ evaluate_recall <- function(ranks, recall_at) {
 # through, so an evaluated margin and a stored one differ only in provenance.
 # The r backend's step already returns them shaped; the compiled kernels return
 # the raw accumulators, which the shared assembly shapes.
+# The availability of this pass, through the labeling every stored availability
+# goes through -- the margins' side rule and the margins' actor labels, so a
+# per-actor table can join the two without reconciling two conventions.
+evaluate_availability <- function(res, spec, prep, backend) {
+  availability <- if (identical(backend, "r")) {
+    res$availability
+  } else {
+    assemble_engine_availability(res)
+  }
+  label_availability(
+    availability,
+    axis = risk_set_axis(spec),
+    nodes = evaluate_nodes_frame(prep, side = 1L),
+    nodes2 = evaluate_nodes_frame(prep, side = 2L)
+  )
+}
+
+# One half of the availability container: the exposure vectors or the
+# opportunity vectors. A single-sided family has exactly one of each, which is
+# handed back as the labeled numeric it is; the two-sided REM families keep
+# their `_sender` / `_receiver` pair as a list, exactly as their margins do.
+availability_half <- function(availability, quantity) {
+  components <- availability[startsWith(names(availability), quantity)]
+  if (length(components) == 0) {
+    return(NULL)
+  }
+  if (length(components) == 1) components[[1]] else components
+}
+
 evaluate_margins <- function(res, spec, prep, backend) {
   margins <- if (identical(backend, "r")) {
     res$margins

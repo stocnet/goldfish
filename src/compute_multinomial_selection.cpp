@@ -29,7 +29,8 @@ List compute_multinomial_selection(
     const bool return_event_scores,
     const bool return_ranks,
     const bool return_margins,
-    const bool return_probabilities = false
+    const bool return_probabilities = false,
+    const bool return_availability = false
 ) {
     // `index_i` / `index_j` are the 0-based per-row actor slots the shared
     // margin reduction scatters into; an empty vector means this shape has no
@@ -88,6 +89,24 @@ List compute_multinomial_selection(
     const bool axis_i = index_i.n_elem > 0;
     const bool axis_j = index_j.n_elem > 0;
     List event_probabilities(return_probabilities ? n_events : 0);
+    // Opt-in per-actor availability, on the same sides the margins take. A
+    // multinomial family defines no exposure time, so only the opportunity
+    // counts are accumulated. Gather rows ARE the realized risk set, so
+    // membership needs no mask -- but a dyadic family repeats an actor across
+    // its dyads within one event, so the shared indicator is what makes the
+    // count per actor rather than per row.
+    arma::vec availability_opportunities_i, availability_seen_i;
+    arma::vec availability_opportunities_j, availability_seen_j;
+    const bool avail_side_i = return_availability && axis_i;
+    const bool avail_side_j = return_availability && axis_j;
+    if (avail_side_i) {
+        availability_opportunities_i = arma::vec(n_actors_1, fill::zeros);
+        availability_seen_i = arma::vec(n_actors_1, fill::zeros);
+    }
+    if (avail_side_j) {
+        availability_opportunities_j = arma::vec(n_actors_2, fill::zeros);
+        availability_seen_j = arma::vec(n_actors_2, fill::zeros);
+    }
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -134,6 +153,28 @@ List compute_multinomial_selection(
         ) {
             probabilities = weights / normalizer;
         }
+        if (avail_side_i) {
+            const arma::uvec slots_i = index_i.subvec(id_start, id_end - 1);
+            availability_seen_i.zeros();
+            mark_availability(
+              slots_i.n_elem, no_mask, &slots_i, availability_seen_i
+            );
+            accumulate_availability(
+              availability_seen_i, 0.0, true, nullptr,
+              &availability_opportunities_i
+            );
+        }
+        if (avail_side_j) {
+            const arma::uvec slots_j = index_j.subvec(id_start, id_end - 1);
+            availability_seen_j.zeros();
+            mark_availability(
+              slots_j.n_elem, no_mask, &slots_j, availability_seen_j
+            );
+            accumulate_availability(
+              availability_seen_j, 0.0, true, nullptr,
+              &availability_opportunities_j
+            );
+        }
         if (return_ranks) {
             observed_rank[id_event] =
               rank_of_observed(probabilities, no_mask, id_receiver);
@@ -178,6 +219,9 @@ List compute_multinomial_selection(
     }
 
     const bool two_sided = has_side_i && has_side_j;
+    // Availability keeps its own two-sidedness: it can be requested without
+    // margins, so it cannot read `two_sided` above.
+    const bool avail_two_sided = avail_side_i && avail_side_j;
     const arma::vec empty;
     const arma::vec& one_sided_observed =
       has_side_j ? margin_observed_j : margin_observed_i;
@@ -200,6 +244,14 @@ List compute_multinomial_selection(
       Named("margin_expected_sender") = two_sided ? margin_expected_i : empty,
       Named("margin_observed_receiver") = two_sided ? margin_observed_j : empty,
       Named("margin_expected_receiver") = two_sided ? margin_expected_j : empty,
+      Named("availability_n_opportunities") =
+        avail_two_sided ? empty
+                        : (avail_side_j ? availability_opportunities_j
+                                        : availability_opportunities_i),
+      Named("availability_n_opportunities_sender") =
+        avail_two_sided ? availability_opportunities_i : empty,
+      Named("availability_n_opportunities_receiver") =
+        avail_two_sided ? availability_opportunities_j : empty,
       Named("event_probabilities") = event_probabilities
     );
 }

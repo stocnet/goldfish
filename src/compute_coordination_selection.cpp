@@ -94,7 +94,8 @@ List compute_coordination_selection(
     const bool return_event_scores,
     const bool return_ranks,
     const bool return_margins,
-    const bool return_probabilities = false
+    const bool return_probabilities = false,
+    const bool return_availability = false
 ) {
     int n_events = selected.size();
     int n_parameters = parameters.size();
@@ -136,10 +137,12 @@ List compute_coordination_selection(
     if (return_ranks) observed_rank = IntegerVector(n_events, NA_INTEGER);
     arma::vec margin_observed, margin_expected;
     const bool do_margins = return_margins && index_i.n_elem > 0;
+    const bool do_availability = return_availability && index_i.n_elem > 0;
     // The dyad endpoints are also what an actor-indexed probability grid needs,
-    // so they are built whenever EITHER primitive is requested.
+    // so they are built whenever ANY of these primitives is requested.
     const bool need_endpoints =
-      do_margins || (return_probabilities && index_i.n_elem > 0);
+      do_margins || do_availability ||
+      (return_probabilities && index_i.n_elem > 0);
     if (do_margins) {
         margin_observed = arma::vec(n_actors_1, fill::zeros);
         margin_expected = arma::vec(n_actors_1, fill::zeros);
@@ -153,6 +156,15 @@ List compute_coordination_selection(
     // Opt-in per-event probability grid, actor-indexed over the whole node set
     // and zero off the risk set. Allocated only when requested.
     List event_probabilities(return_probabilities ? n_events : 0);
+    // Opt-in per-actor availability over the endpoint set: both endpoint maps
+    // mark into ONE indicator, so an actor available in several pairs of the
+    // same event counts one opportunity. Coordination stays single-sided,
+    // exactly as its margins do, and defines no exposure time.
+    arma::vec availability_opportunities, availability_seen;
+    if (do_availability) {
+        availability_opportunities = arma::vec(n_actors_1, fill::zeros);
+        availability_seen = arma::vec(n_actors_1, fill::zeros);
+    }
     // start address in stat_all_events of current events
     int id_start = 0;
 
@@ -234,6 +246,21 @@ List compute_coordination_selection(
         ) {
             dyad_probabilities = dyad_weights / normalizer;
         }
+        if (do_availability) {
+            arma::uvec endpoint_a(dyad_endpoint_a.memptr(), n_dyads, false);
+            arma::uvec endpoint_b(dyad_endpoint_b.memptr(), n_dyads, false);
+            availability_seen.zeros();
+            mark_availability(
+              n_dyads, allowed_event, &endpoint_a, availability_seen
+            );
+            mark_availability(
+              n_dyads, allowed_event, &endpoint_b, availability_seen
+            );
+            accumulate_availability(
+              availability_seen, 0.0, true, nullptr,
+              &availability_opportunities
+            );
+        }
         if (return_ranks) {
             observed_rank[id_event] =
               rank_of_observed(dyad_probabilities, allowed_event, idx_obs);
@@ -288,6 +315,7 @@ List compute_coordination_selection(
       Named("observed_rank") = observed_rank,
       Named("margin_observed") = margin_observed,
       Named("margin_expected") = margin_expected,
+      Named("availability_n_opportunities") = availability_opportunities,
       Named("event_probabilities") = event_probabilities
     );
 }

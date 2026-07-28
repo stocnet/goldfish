@@ -130,7 +130,8 @@ List estimate_REM(
     const bool return_ranks = false,
     const bool return_margins = false,
     const bool return_total_rate = false,
-    const bool return_probabilities = false
+    const bool return_probabilities = false,
+    const bool return_availability = false
 ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -212,6 +213,26 @@ List estimate_REM(
    // i * n_actors_2 + j) while an arma::mat fills column-major, so the n1 x n2
    // grid is recovered by reshaping to n2 x n1 and transposing.
    List event_probabilities(return_probabilities ? n_events : 0);
+   // Opt-in per-actor availability, per SIDE as the margins are: a dyad at risk
+   // makes its sender available on one side and its receiver on the other, and
+   // an actor whose outgoing dyads are all masked while its incoming ones are
+   // open is available as a receiver only. Marked once per actor per interval
+   // through the shared indicator, so an actor at risk in many dyads collects
+   // that interval's length once, not once per dyad. Allocated when requested.
+   arma::vec availability_exposure_sender;
+   arma::vec availability_opportunities_sender;
+   arma::vec availability_seen_sender;
+   arma::vec availability_exposure_receiver;
+   arma::vec availability_opportunities_receiver;
+   arma::vec availability_seen_receiver;
+   if (return_availability) {
+     availability_exposure_sender = arma::vec(n_actors_1, fill::zeros);
+     availability_opportunities_sender = arma::vec(n_actors_1, fill::zeros);
+     availability_seen_sender = arma::vec(n_actors_1, fill::zeros);
+     availability_exposure_receiver = arma::vec(n_actors_2, fill::zeros);
+     availability_opportunities_receiver = arma::vec(n_actors_2, fill::zeros);
+     availability_seen_receiver = arma::vec(n_actors_2, fill::zeros);
+   }
 
 
    // Check whether there are composition change and initialize
@@ -314,6 +335,27 @@ List estimate_REM(
            }
          }
        }
+     }
+     if (return_availability) {
+       const bool dependent_interval = is_dependent(id_event) == 1;
+       availability_seen_sender.zeros();
+       mark_availability(
+         n_actors_1 * n_actors_2, allowed, &dyad_sender,
+         availability_seen_sender
+       );
+       accumulate_availability(
+         availability_seen_sender, timespan_current_event, dependent_interval,
+         &availability_exposure_sender, &availability_opportunities_sender
+       );
+       availability_seen_receiver.zeros();
+       mark_availability(
+         n_actors_1 * n_actors_2, allowed, &dyad_receiver,
+         availability_seen_receiver
+       );
+       accumulate_availability(
+         availability_seen_receiver, timespan_current_event, dependent_interval,
+         &availability_exposure_receiver, &availability_opportunities_receiver
+       );
      }
      arma::vec lin_pred = stat_mat * parameters;
      // exp() first, then zero the masked dyads (avoids Inf * 0 = NaN when a
@@ -436,6 +478,12 @@ List estimate_REM(
      Named("margin_probability_receiver") = margin_probability_receiver,
      Named("total_rate") = total_rate,
      Named("conditional_logl") = conditional_logl,
+     Named("availability_exposure_sender") = availability_exposure_sender,
+     Named("availability_n_opportunities_sender") =
+       availability_opportunities_sender,
+     Named("availability_exposure_receiver") = availability_exposure_receiver,
+     Named("availability_n_opportunities_receiver") =
+       availability_opportunities_receiver,
      Named("event_probabilities") = event_probabilities
    );
  }

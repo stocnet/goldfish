@@ -107,6 +107,48 @@ void accumulate_margins(
     const std::vector<margin_side>& sides
 );
 
+// Per-actor availability over ONE interval's realized risk set, in two steps
+// because the family shapes group differently: REM feeds two accumulator pairs
+// from one dyad walk, coordination feeds ONE accumulator pair from two
+// endpoint maps of the same dyad walk, and the actor-oriented families feed
+// one pair from one walk in which position already IS actor.
+//
+// `mark_availability()` sets seen(slot) = 1 for every position in the risk set,
+// so an actor at risk in many dyads of the same interval is marked once —
+// membership, not position count. That distinction is the whole point: a REM
+// risk set over 84 actors holds 6 972 dyads of which 166 contain any given
+// actor, so counting positions would report an exposure 166 times the
+// observation window, and `observed[j] / exposure[j]` would stop being an event
+// rate per unit time at risk. The CALLER zeroes `seen` before the first mark,
+// which is what lets coordination mark both endpoint maps into one indicator.
+//
+// Membership is read from `allowed` when there is one; an empty mask means
+// every position is at risk, which is the gather backend's pre-masked slice.
+// Unlike the weight-driven reductions above this cannot fall back on "w is
+// zero off the risk set": an at-risk actor whose fitted weight underflows is
+// still at risk.
+void mark_availability(
+    arma::uword n_positions,
+    const arma::vec& allowed,
+    const arma::uvec* index,
+    arma::vec& seen
+);
+
+// Fold a marked membership indicator into the two availability quantities:
+// `dt` into the exposure of every at-risk actor (EVERY interval,
+// right-censored included — the compensator integrates over all exposure time)
+// and 1 into its opportunity count (dependent events only — an interval that
+// realizes no mover offered nobody an opportunity). The two mirror the two
+// margins scales, and either accumulator may be null: a multinomial family
+// defines no exposure time.
+void accumulate_availability(
+    const arma::vec& seen,
+    double dt,
+    bool dependent,
+    arma::vec* exposure,
+    arma::vec* n_opportunities
+);
+
 // The event's score contribution: X_obs (for a dependent event) minus the
 // contribution-weighted mean statistic c * w' X. This is the increment the
 // estimators already accumulate into the running derivative; storing it per

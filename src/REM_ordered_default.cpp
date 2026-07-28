@@ -34,7 +34,8 @@ List estimate_REM_ordered(
     const bool return_event_scores = false,
     const bool return_ranks = false,
     const bool return_margins = false,
-    const bool return_probabilities = false
+    const bool return_probabilities = false,
+    const bool return_availability = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -91,6 +92,22 @@ List estimate_REM_ordered(
     // arma::mat fills column-major, so the n1 x n2 grid is recovered by
     // reshaping to n2 x n1 and transposing. Allocated only when requested.
     List event_probabilities(return_probabilities ? n_events : 0);
+    // Opt-in per-actor availability, per SIDE as the margins are: a dyad at
+    // risk makes its sender available on one side and its receiver on the
+    // other. Marked once per actor per event through the shared indicator, so
+    // an actor at risk in many dyads counts one opportunity, not one per dyad.
+    // A multinomial family defines no exposure time. Allocated when requested.
+    arma::vec availability_opportunities_sender;
+    arma::vec availability_seen_sender;
+    arma::vec availability_opportunities_receiver;
+    arma::vec availability_seen_receiver;
+    if (return_availability) {
+        availability_opportunities_sender = arma::vec(n_actors_1, fill::zeros);
+        availability_seen_sender = arma::vec(n_actors_1, fill::zeros);
+        availability_opportunities_receiver =
+          arma::vec(n_actors_2, fill::zeros);
+        availability_seen_receiver = arma::vec(n_actors_2, fill::zeros);
+    }
 
     // Check whether there are composition change and initialize
     // the presence of actor1 and actor2
@@ -205,6 +222,26 @@ List estimate_REM_ordered(
         if (return_margins || return_probabilities || return_event_scores) {
             probabilities = weights / normalizer;
         }
+        if (return_availability) {
+            availability_seen_sender.zeros();
+            mark_availability(
+              n_actors_1 * n_actors_2, allowed, &dyad_sender,
+              availability_seen_sender
+            );
+            accumulate_availability(
+              availability_seen_sender, 0.0, true, nullptr,
+              &availability_opportunities_sender
+            );
+            availability_seen_receiver.zeros();
+            mark_availability(
+              n_actors_1 * n_actors_2, allowed, &dyad_receiver,
+              availability_seen_receiver
+            );
+            accumulate_availability(
+              availability_seen_receiver, 0.0, true, nullptr,
+              &availability_opportunities_receiver
+            );
+        }
         if (return_ranks) {
             observed_rank[id_event] =
               rank_of_observed(weights, allowed, id_obs);
@@ -259,6 +296,10 @@ List estimate_REM_ordered(
       Named("margin_expected_sender") = margin_expected_sender,
       Named("margin_observed_receiver") = margin_observed_receiver,
       Named("margin_expected_receiver") = margin_expected_receiver,
+      Named("availability_n_opportunities_sender") =
+        availability_opportunities_sender,
+      Named("availability_n_opportunities_receiver") =
+        availability_opportunities_receiver,
       Named("event_probabilities") = event_probabilities
     );
 }

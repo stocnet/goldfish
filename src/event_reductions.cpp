@@ -54,6 +54,30 @@ void accumulate_margins(
   }
 }
 
+void mark_availability(
+    arma::uword n_positions,
+    const arma::vec& allowed,
+    const arma::uvec* index,
+    arma::vec& seen
+) {
+  const bool masked = allowed.n_elem > 0;
+  for (arma::uword j = 0; j < n_positions; ++j) {
+    if (masked && allowed(j) != 1) continue;
+    seen(index == nullptr ? j : (*index)(j)) = 1;
+  }
+}
+
+void accumulate_availability(
+    const arma::vec& seen,
+    double dt,
+    bool dependent,
+    arma::vec* exposure,
+    arma::vec* n_opportunities
+) {
+  if (exposure != nullptr) *exposure += dt * seen;
+  if (dependent && n_opportunities != nullptr) *n_opportunities += seen;
+}
+
 arma::rowvec event_score_row(
     const arma::mat& X,
     const arma::vec& w,

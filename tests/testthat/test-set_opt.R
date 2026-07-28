@@ -174,7 +174,7 @@ test_that("set_algorithm_newton resolves the diagnostics vocabulary", {
   )
   expect_equal(
     set_algorithm_newton(diagnostics = "all")$diagnostics,
-    c("loglik", "scores", "ranks", "margins", "probabilities")
+    c("loglik", "scores", "ranks", "margins", "availability", "probabilities")
   )
   expect_equal(
     set_algorithm_newton(

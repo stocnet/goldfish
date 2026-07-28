@@ -43,7 +43,8 @@ inline arma::mat reduce_mat_to_vector(
      const bool return_ranks = false,
      const bool return_margins = false,
      const bool return_total_rate = false,
-     const bool return_probabilities = false
+     const bool return_probabilities = false,
+     const bool return_availability = false
  ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -104,6 +105,18 @@ inline arma::mat reduce_mat_to_vector(
    // Opt-in per-event probability vector over the WHOLE sender set, zero off
    // the risk set. Allocated only when requested.
    List event_probabilities(return_probabilities ? n_events : 0);
+   // Opt-in per-actor availability: the denominators the per-actor margins are
+   // read against. On this sender-axis family a risk-set position IS a sender,
+   // so the membership indicator is the presence mask itself. Allocated only
+   // when requested.
+   arma::vec availability_exposure;
+   arma::vec availability_opportunities;
+   arma::vec availability_seen;
+   if (return_availability) {
+     availability_exposure = arma::vec(n_actors_1, fill::zeros);
+     availability_opportunities = arma::vec(n_actors_1, fill::zeros);
+     availability_seen = arma::vec(n_actors_1, fill::zeros);
+   }
 
    // Check whether there are composition change and initialize
    // the presence of actor1 and actor2
@@ -261,6 +274,17 @@ inline arma::mat reduce_mat_to_vector(
        observed_rank[id_event] =
          rank_of_observed(rates, active_sender, id_sender);
      }
+     if (return_availability) {
+       availability_seen.zeros();
+       mark_availability(
+         n_actors_1, active_sender, nullptr, availability_seen
+       );
+       accumulate_availability(
+         availability_seen, timespan_current_event,
+         is_dependent(id_event) == 1,
+         &availability_exposure, &availability_opportunities
+       );
+     }
      // Quantities that enter as a ratio or as a log of the normalizer, from a
      // max-shifted pass computed BESIDE the raw one above rather than replacing
      // it. The likelihood's total rate must stay on the absolute scale — it
@@ -320,6 +344,8 @@ inline arma::mat reduce_mat_to_vector(
      Named("margin_probability") = margin_probability,
      Named("total_rate") = total_rate,
      Named("conditional_logl") = conditional_logl,
+     Named("availability_exposure") = availability_exposure,
+     Named("availability_n_opportunities") = availability_opportunities,
      Named("event_probabilities") = event_probabilities
    );
  }

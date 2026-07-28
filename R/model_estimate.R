@@ -2512,7 +2512,8 @@ estimate_wrapper <- function(
             optimizer = optimizer,
             return_ranks = "ranks" %in% control_algo$diagnostics,
             return_margins = "margins" %in% control_algo$diagnostics,
-            return_total_rate = "loglik" %in% control_algo$diagnostics
+            return_total_rate = "loglik" %in% control_algo$diagnostics,
+            return_availability = "availability" %in% control_algo$diagnostics
           )
         )
       ),
@@ -2538,7 +2539,8 @@ estimate_wrapper <- function(
           list(
             return_ranks = "ranks" %in% control_algo$diagnostics,
             return_margins = "margins" %in% control_algo$diagnostics,
-            return_total_rate = "loglik" %in% control_algo$diagnostics
+            return_total_rate = "loglik" %in% control_algo$diagnostics,
+            return_availability = "availability" %in% control_algo$diagnostics
           )
         )
       ),

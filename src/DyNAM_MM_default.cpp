@@ -38,7 +38,8 @@ List estimate_DyNAM_MM(
     const bool return_event_scores = false,
     const bool return_ranks = false,
     const bool return_margins = false,
-    const bool return_probabilities = false
+    const bool return_probabilities = false,
+    const bool return_availability = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -92,6 +93,30 @@ List estimate_DyNAM_MM(
     // the r backend's symmetric likelihood matrix, kept rather than
     // renormalized. Allocated only when requested.
     List event_probabilities(return_probabilities ? n_events : 0);
+    // Unordered-dyad position -> endpoint actor, one map per member. The
+    // triangle walk is the same at every event, so both the margin and the
+    // availability reductions scatter through these rather than rebuilding
+    // them per event.
+    arma::uvec dyad_endpoint_a(n_dyads);
+    arma::uvec dyad_endpoint_b(n_dyads);
+    {
+        int idx_m = 0;
+        for (int a = 1; a < n_actors_1; ++a) {
+            for (int b = 0; b < a; ++b) {
+                dyad_endpoint_a(idx_m) = a;
+                dyad_endpoint_b(idx_m) = b;
+                ++idx_m;
+            }
+        }
+    }
+    // Opt-in per-actor availability over the endpoint set. Allocated only when
+    // requested.
+    arma::vec availability_opportunities;
+    arma::vec availability_seen;
+    if (return_availability) {
+        availability_opportunities = arma::vec(n_actors_1, fill::zeros);
+        availability_seen = arma::vec(n_actors_1, fill::zeros);
+    }
 
 
     // Check whether there are composition change and initialize
@@ -262,25 +287,32 @@ List estimate_DyNAM_MM(
             observed_rank[id_event] =
               rank_of_observed(dyad_weights, allowed_dyad, idx_obs);
         }
+        if (return_availability) {
+            // Both endpoint maps mark into ONE indicator: an actor is available
+            // if it belongs to any allowed pair, in either role. Coordination
+            // stays single-sided over its endpoint set, exactly as its margins
+            // do. A multinomial family defines no exposure time.
+            availability_seen.zeros();
+            mark_availability(
+              n_dyads, allowed_dyad, &dyad_endpoint_a, availability_seen
+            );
+            mark_availability(
+              n_dyads, allowed_dyad, &dyad_endpoint_b, availability_seen
+            );
+            accumulate_availability(
+              availability_seen, 0.0, true, nullptr,
+              &availability_opportunities
+            );
+        }
         if (return_margins) {
             // A dyad credits BOTH its members, into the same accumulator pair:
             // two reduction sides over one pair of vectors, so each totals 2n.
-            arma::uvec endpoint_a(n_dyads);
-            arma::uvec endpoint_b(n_dyads);
-            int idx_m = 0;
-            for (int a = 1; a < n_actors_1; ++a) {
-                for (int b = 0; b < a; ++b) {
-                    endpoint_a(idx_m) = a;
-                    endpoint_b(idx_m) = b;
-                    ++idx_m;
-                }
-            }
             std::vector<margin_side> sides;
             sides.push_back(
-              margin_side(&margin_observed, &margin_expected, &endpoint_a)
+              margin_side(&margin_observed, &margin_expected, &dyad_endpoint_a)
             );
             sides.push_back(
-              margin_side(&margin_observed, &margin_expected, &endpoint_b)
+              margin_side(&margin_observed, &margin_expected, &dyad_endpoint_b)
             );
             accumulate_margins(
               dyad_probabilities, 1.0, allowed_dyad, idx_obs, true, sides
@@ -332,6 +364,7 @@ List estimate_DyNAM_MM(
       Named("observed_rank") = observed_rank,
       Named("margin_observed") = margin_observed,
       Named("margin_expected") = margin_expected,
+      Named("availability_n_opportunities") = availability_opportunities,
       Named("event_probabilities") = event_probabilities
     );
 }

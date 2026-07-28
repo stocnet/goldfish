@@ -215,7 +215,8 @@ make_engine_evaluator <- function(
     need_ranks = FALSE,
     need_margins = FALSE,
     need_total_rate = FALSE,
-    need_probabilities = FALSE
+    need_probabilities = FALSE,
+    need_availability = FALSE
   ) {
     if (backend == "gather") {
       # The gathered stack computes the exact-time components whenever the
@@ -237,6 +238,7 @@ make_engine_evaluator <- function(
         return_ranks = need_ranks,
         return_margins = need_margins,
         return_probabilities = need_probabilities,
+        return_availability = need_availability,
         sender_of_row = gathered_data$sender_of_row,
         dyad_partner = gathered_data$dyad_partner
       ))
@@ -267,7 +269,8 @@ make_engine_evaluator <- function(
       return_ranks = need_ranks,
       return_margins = need_margins,
       return_total_rate = need_total_rate,
-      return_probabilities = need_probabilities
+      return_probabilities = need_probabilities,
+      return_availability = need_availability
     )
   }
 
@@ -308,6 +311,7 @@ estimate_c_int <- function(
   return_ranks = FALSE,
   return_margins = FALSE,
   return_total_rate = FALSE,
+  return_availability = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -448,7 +452,8 @@ estimate_c_int <- function(
       return_ranks,
       return_margins,
       return_total_rate,
-      returnEventProbabilities
+      returnEventProbabilities,
+      return_availability
     )
 
     logLikelihood <- res$logLikelihood
@@ -675,6 +680,18 @@ estimate_c_int <- function(
     )
     if (!is.null(margins)) estimationResult$margins <- margins
   }
+  if (return_availability) {
+    # Availability rides the same labeling the margins do -- one side rule, one
+    # actor-label convention -- so a per-actor table can join the two without
+    # reconciling two spellings of the same actor set.
+    availability <- label_availability(
+      assemble_engine_availability(res),
+      axis = risk_set_axis(spec),
+      nodes = nodes,
+      nodes2 = nodes2
+    )
+    if (!is.null(availability)) estimationResult$availability <- availability
+  }
   if (
     return_total_rate &&
       !is.null(res$total_rate) &&
@@ -878,7 +895,8 @@ estimate_ <- function(
   return_ranks = FALSE,
   return_margins = FALSE,
   return_total_rate = FALSE,
-  return_probabilities = FALSE
+  return_probabilities = FALSE,
+  return_availability = FALSE
 ) {
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
@@ -906,7 +924,8 @@ estimate_ <- function(
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
-      return_probabilities = return_probabilities
+      return_probabilities = return_probabilities,
+      return_availability = return_availability
     )
   }
 
@@ -930,7 +949,8 @@ estimate_ <- function(
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
-      return_probabilities = return_probabilities
+      return_probabilities = return_probabilities,
+      return_availability = return_availability
     )
   }
 
@@ -957,7 +977,8 @@ estimate_ <- function(
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
-      return_probabilities = return_probabilities
+      return_probabilities = return_probabilities,
+      return_availability = return_availability
     )
   }
 
@@ -987,7 +1008,8 @@ estimate_ <- function(
       return_ranks = return_ranks,
       return_margins = return_margins,
       return_total_rate = return_total_rate,
-      return_probabilities = return_probabilities
+      return_probabilities = return_probabilities,
+      return_availability = return_availability
     )
   }
 
@@ -1016,7 +1038,8 @@ estimate_ <- function(
       return_ranks = return_ranks,
       return_margins = return_margins,
       return_total_rate = return_total_rate,
-      return_probabilities = return_probabilities
+      return_probabilities = return_probabilities,
+      return_availability = return_availability
     )
   }
 
@@ -1042,7 +1065,8 @@ estimate_ <- function(
       return_event_scores = return_event_scores,
       return_ranks = return_ranks,
       return_margins = return_margins,
-      return_probabilities = return_probabilities
+      return_probabilities = return_probabilities,
+      return_availability = return_availability
     )
   }
   return(res)
@@ -1677,6 +1701,7 @@ compute_ <- function(
   return_ranks = FALSE,
   return_margins = FALSE,
   return_probabilities = FALSE,
+  return_availability = FALSE,
   sender_of_row = NULL,
   dyad_partner = NULL
 ) {
@@ -1715,7 +1740,8 @@ compute_ <- function(
       return_event_scores,
       return_ranks,
       return_margins,
-      return_probabilities
+      return_probabilities,
+      return_availability
     )
   }
 
@@ -1734,7 +1760,8 @@ compute_ <- function(
       return_event_scores,
       return_ranks,
       return_margins,
-      return_probabilities
+      return_probabilities,
+      return_availability
     )
   }
 
@@ -1752,7 +1779,8 @@ compute_ <- function(
       return_event_scores,
       return_ranks,
       return_margins,
-      return_probabilities
+      return_probabilities,
+      return_availability
     )
   }
 

@@ -32,7 +32,8 @@ List compute_poisson_selection(
     const bool return_event_scores,
     const bool return_ranks,
     const bool return_margins,
-    const bool return_probabilities = false
+    const bool return_probabilities = false,
+    const bool return_availability = false
 ) {
     // `index_i` / `index_j` are the 0-based per-row actor slots the shared
     // margin reduction scatters into; an empty vector means this shape has no
@@ -100,6 +101,26 @@ List compute_poisson_selection(
     const bool axis_i = index_i.n_elem > 0;
     const bool axis_j = index_j.n_elem > 0;
     List event_probabilities(return_probabilities ? n_events : 0);
+    // Opt-in per-actor availability, on the same sides the margins take. Gather
+    // rows ARE the realized risk set, so membership needs no mask -- but a
+    // dyadic family repeats an actor across its dyads within one event, so the
+    // shared indicator is what makes the count per actor rather than per row.
+    arma::vec availability_exposure_i, availability_opportunities_i;
+    arma::vec availability_seen_i;
+    arma::vec availability_exposure_j, availability_opportunities_j;
+    arma::vec availability_seen_j;
+    const bool avail_side_i = return_availability && axis_i;
+    const bool avail_side_j = return_availability && axis_j;
+    if (avail_side_i) {
+        availability_exposure_i = arma::vec(n_actors_1, fill::zeros);
+        availability_opportunities_i = arma::vec(n_actors_1, fill::zeros);
+        availability_seen_i = arma::vec(n_actors_1, fill::zeros);
+    }
+    if (avail_side_j) {
+        availability_exposure_j = arma::vec(n_actors_2, fill::zeros);
+        availability_opportunities_j = arma::vec(n_actors_2, fill::zeros);
+        availability_seen_j = arma::vec(n_actors_2, fill::zeros);
+    }
 
     // Go through all events
     for (int id_event = 0; id_event < n_events; id_event++) {
@@ -173,6 +194,30 @@ List compute_poisson_selection(
           return_probabilities
         ) {
             probabilities = weights / shifted_total;
+        }
+        if (avail_side_i) {
+            const arma::uvec slots_i = index_i.subvec(id_start, id_end - 1);
+            availability_seen_i.zeros();
+            mark_availability(
+              slots_i.n_elem, no_mask, &slots_i, availability_seen_i
+            );
+            accumulate_availability(
+              availability_seen_i, timespan_current_event,
+              is_dependent_current_event,
+              &availability_exposure_i, &availability_opportunities_i
+            );
+        }
+        if (avail_side_j) {
+            const arma::uvec slots_j = index_j.subvec(id_start, id_end - 1);
+            availability_seen_j.zeros();
+            mark_availability(
+              slots_j.n_elem, no_mask, &slots_j, availability_seen_j
+            );
+            accumulate_availability(
+              availability_seen_j, timespan_current_event,
+              is_dependent_current_event,
+              &availability_exposure_j, &availability_opportunities_j
+            );
         }
         if (return_ranks && is_dependent_current_event) {
             observed_rank[id_event] =
@@ -249,6 +294,9 @@ List compute_poisson_selection(
     }
 
     const bool two_sided = has_side_i && has_side_j;
+    // Availability keeps its own two-sidedness: it can be requested without
+    // margins, so it cannot read `two_sided` above.
+    const bool avail_two_sided = avail_side_i && avail_side_j;
     const arma::vec empty;
     const arma::vec& one_sided_observed =
       has_side_i ? margin_observed_i : margin_observed_j;
@@ -279,6 +327,22 @@ List compute_poisson_selection(
       Named("margin_observed_receiver") = two_sided ? margin_observed_j : empty,
       Named("margin_expected_receiver") = two_sided ? margin_expected_j : empty,
       Named("margin_probability_receiver") = two_sided ? margin_prob_j : empty,
+      Named("availability_exposure") =
+        avail_two_sided ? empty
+                        : (avail_side_i ? availability_exposure_i
+                                        : availability_exposure_j),
+      Named("availability_n_opportunities") =
+        avail_two_sided ? empty
+                        : (avail_side_i ? availability_opportunities_i
+                                        : availability_opportunities_j),
+      Named("availability_exposure_sender") =
+        avail_two_sided ? availability_exposure_i : empty,
+      Named("availability_n_opportunities_sender") =
+        avail_two_sided ? availability_opportunities_i : empty,
+      Named("availability_exposure_receiver") =
+        avail_two_sided ? availability_exposure_j : empty,
+      Named("availability_n_opportunities_receiver") =
+        avail_two_sided ? availability_opportunities_j : empty,
       Named("event_probabilities") = event_probabilities
     );
 }

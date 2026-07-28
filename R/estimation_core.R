@@ -107,6 +107,7 @@ estimate_int_impl <- function(
   return_ranks = FALSE,
   return_margins = FALSE,
   return_total_rate = FALSE,
+  return_availability = FALSE,
   parallelize = FALSE,
   cpus = 6,
   verbose = FALSE,
@@ -206,6 +207,7 @@ estimate_int_impl <- function(
     return_ranks = return_ranks,
     return_margins = return_margins,
     return_total_rate = return_total_rate,
+    return_availability = return_availability,
     verbose = verbose,
     progress = progress,
     step_args = c(
@@ -216,7 +218,8 @@ estimate_int_impl <- function(
         return_event_scores = return_event_scores,
         return_ranks = return_ranks,
         return_margins = return_margins,
-        return_total_rate = return_total_rate
+        return_total_rate = return_total_rate,
+        return_availability = return_availability
       )
     )
   )
@@ -291,6 +294,14 @@ estimate_int_impl <- function(
       is_exact_time = identical(risk_set_normalizer(spec), "poisson")
     )
   }
+  if (return_availability && !is.null(nr$availability)) {
+    estimationResult$availability <- label_availability(
+      nr$availability,
+      axis = risk_set_axis(spec),
+      nodes = nodes,
+      nodes2 = nodes2
+    )
+  }
   # total_rate / conditional_logl exist only on the exact-time (Poisson)
   # contribution; the multinomial families leave them NULL, so they stay off
   # those fits exactly as on the cpp backend.
@@ -339,6 +350,7 @@ run_nr_loop <- function(
   return_ranks = FALSE,
   return_margins = FALSE,
   return_total_rate = FALSE,
+  return_availability = FALSE,
   verbose,
   progress,
   step_args
@@ -361,6 +373,7 @@ run_nr_loop <- function(
   eventProbabilities <- NULL
   observed_rank <- NULL
   margins <- NULL
+  availability <- NULL
   total_rate <- NULL
   conditional_logl <- NULL
 
@@ -396,6 +409,9 @@ run_nr_loop <- function(
     }
     if (return_margins) {
       margins <- res$margins
+    }
+    if (return_availability) {
+      availability <- res$availability
     }
     if (return_total_rate) {
       total_rate <- res$total_rate
@@ -576,6 +592,7 @@ run_nr_loop <- function(
     eventProbabilities = eventProbabilities,
     observed_rank = observed_rank,
     margins = margins,
+    availability = availability,
     total_rate = total_rate,
     conditional_logl = conditional_logl
   )
@@ -810,6 +827,10 @@ event_contribution_rate <- function(
     informationMatrix = -hessian,
     pMatrix = pVector,
     probabilities = probabilities,
+    # Risk-set MEMBERSHIP, not "the weight is nonzero": an at-risk alternative
+    # whose fitted rate underflows is still at risk, so availability reads the
+    # mask the likelihood applied rather than the weights it produced.
+    in_risk_set = inRiskSet,
     total_rate = totalRate,
     conditional_logl = conditionalLogL
   )
@@ -896,7 +917,8 @@ compute_event_contribution.dynam_rate_ordered_spec <- function(
     logLikelihood = logLikelihood,
     score = score,
     informationMatrix = informationMatrix,
-    pMatrix = eventProbabilities
+    pMatrix = eventProbabilities,
+    in_risk_set = is.finite(softmax$logProbabilities)
   )
 }
 
@@ -938,7 +960,11 @@ compute_event_contribution.dynam_choice_spec <- function(
     logLikelihood = logLikelihood,
     score = score,
     informationMatrix = informationMatrix,
-    pMatrix = eventProbabilities
+    pMatrix = eventProbabilities,
+    # An excluded alternative enters the softmax as a -Inf linear predictor, so
+    # a finite log-probability is exactly risk-set membership -- and unlike the
+    # probability it stays finite where the probability underflows to zero.
+    in_risk_set = is.finite(multinomial$logProbabilities)
   )
 }
 
@@ -1037,7 +1063,8 @@ compute_event_contribution.rem_rate_ordered_spec <- function(
     logLikelihood = logLikelihood,
     score = score,
     informationMatrix = informationMatrix,
-    pMatrix = eventProbabilities
+    pMatrix = eventProbabilities,
+    in_risk_set = is.finite(multinomial$logProbabilities)
   )
 }
 
@@ -1454,7 +1481,12 @@ compute_step.default <- function(spec, state, i, ctx) {
     )
   }
 
-  if (ctx$return_ranks || ctx$return_margins || ctx$return_total_rate) {
+  if (
+    ctx$return_ranks ||
+      ctx$return_margins ||
+      ctx$return_total_rate ||
+      ctx$return_availability
+  ) {
     state <- r_reduce_event(
       state,
       ctx,
@@ -1568,6 +1600,39 @@ r_reduce_event <- function(
     )
   } else {
     NA_integer_
+  }
+
+  if (ctx$return_availability) {
+    # Membership, per actor and per side. `in_risk_set` is the contribution's
+    # own mask over the reduced risk set, so the reduced -> global slot maps
+    # scatter it onto actor ids exactly as they scatter the margins. On the
+    # two-sided families a sender is available if ANY of its dyads is at risk,
+    # which is what makes one interval contribute one exposure rather than one
+    # per dyad.
+    in_risk_set <- eventValues$in_risk_set
+    if (identical(axis, "sender")) {
+      available_i <- sender_slots[as.logical(in_risk_set)]
+      available_j <- NULL
+    } else if (identical(axis, "receiver_given_sender")) {
+      available_i <- NULL
+      available_j <- receiver_slots[as.logical(in_risk_set)]
+    } else {
+      grid <- matrix(
+        as.logical(in_risk_set),
+        length(sender_slots),
+        length(receiver_slots)
+      )
+      available_i <- sender_slots[rowSums(grid) > 0]
+      available_j <- receiver_slots[colSums(grid) > 0]
+    }
+    state <- accumulate_r_availability(
+      state,
+      available_i,
+      available_j,
+      timespan,
+      isDependent,
+      ctx$is_exact_time
+    )
   }
 
   if (ctx$return_ranks && isDependent) {
@@ -1738,6 +1803,24 @@ r_reduce_event_coordination <- function(
     )
   }
 
+  if (ctx$return_availability) {
+    # One actor set, as the margins have: an actor is available if it belongs
+    # to any pair of the realized triangle, in either role. A masked dyad
+    # enters the log-weights as -Inf, so a finite entry IS membership.
+    finite_dyad <- is.finite(eventValues$logSymmetric[lower])
+    available <- unique(sender_slots[
+      c(member_a[finite_dyad], member_b[finite_dyad])
+    ])
+    state <- accumulate_r_availability(
+      state,
+      available,
+      NULL,
+      timespan = NA_real_,
+      isDependent = isDependent,
+      is_exact_time = FALSE
+    )
+  }
+
   if (ctx$return_margins) {
     # One actor-set accumulator; each dyad's probability credits both members,
     # so scatter the doubled (member, weight) list through the shared reduction.
@@ -1895,7 +1978,8 @@ make_r_engine_evaluator <- function(
     need_ranks = FALSE,
     need_margins = FALSE,
     need_total_rate = FALSE,
-    need_probabilities = FALSE
+    need_probabilities = FALSE,
+    need_availability = FALSE
   ) {
     do.call(
       compute_iteration_step,
@@ -1908,7 +1992,8 @@ make_r_engine_evaluator <- function(
           return_event_scores = need_scores,
           return_ranks = need_ranks,
           return_margins = need_margins,
-          return_total_rate = need_total_rate
+          return_total_rate = need_total_rate,
+          return_availability = need_availability
         )
       )
     )
@@ -1943,6 +2028,7 @@ compute_iteration_step <- function(
   return_ranks = FALSE,
   return_margins = FALSE,
   return_total_rate = FALSE,
+  return_availability = FALSE,
   allowReflexive = TRUE,
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
@@ -2038,6 +2124,7 @@ compute_iteration_step <- function(
     return_ranks = return_ranks,
     return_margins = return_margins,
     return_total_rate = return_total_rate,
+    return_availability = return_availability,
     margin_axis = margin_axis,
     is_exact_time = is_exact_time,
     # Whole-node-set sizes, used to scatter the reduced per-event risk set back
@@ -2100,7 +2187,22 @@ compute_iteration_step <- function(
     m_prob_i = if (return_margins) numeric(n_actors1) else NULL,
     m_obs_j = if (return_margins) numeric(n_actors2) else NULL,
     m_exp_j = if (return_margins) numeric(n_actors2) else NULL,
-    m_prob_j = if (return_margins) numeric(n_actors2) else NULL
+    m_prob_j = if (return_margins) numeric(n_actors2) else NULL,
+    # Per-actor availability accumulators, on the same two sides and over the
+    # same whole node set the margins use. `exposure` is exact-time only: a
+    # multinomial family has no compensator scale to be a denominator on.
+    a_exp_i = if (return_availability && is_exact_time) {
+      numeric(n_actors1)
+    } else {
+      NULL
+    },
+    a_opp_i = if (return_availability) numeric(n_actors1) else NULL,
+    a_exp_j = if (return_availability && is_exact_time) {
+      numeric(n_actors2)
+    } else {
+      NULL
+    },
+    a_opp_j = if (return_availability) numeric(n_actors2) else NULL
   )
 
   for (i in seq_len(nEvents)) {
@@ -2131,6 +2233,9 @@ compute_iteration_step <- function(
   if (return_margins) {
     returnList$margins <- assemble_r_margins(state, margin_axis, is_exact_time)
   }
+  if (return_availability) {
+    returnList$availability <- assemble_r_availability(state, margin_axis)
+  }
 
   return(returnList)
 }
@@ -2141,6 +2246,67 @@ compute_iteration_step <- function(
 # sided ones. The primary `expected` is the compensator scale on exact-time
 # fits and the probability scale on multinomial ones; exact-time fits carry the
 # probability-scale variant additionally under `expected_probability*`.
+# Fold one interval's per-side membership into the availability accumulators,
+# mirroring the shared C++ reduction (event_reductions.h). `available_i` /
+# `available_j` are global actor slots, already deduplicated by construction:
+# exposure gains the interval length on EVERY interval (right-censored
+# included -- the compensator integrates over all exposure time), opportunities
+# gain one on dependent events only.
+accumulate_r_availability <- function(
+  state,
+  available_i,
+  available_j,
+  timespan,
+  isDependent,
+  is_exact_time
+) {
+  dt <- if (is_exact_time && !is.na(timespan)) timespan else 0
+  if (length(available_i) > 0) {
+    if (is_exact_time) {
+      state$a_exp_i[available_i] <- state$a_exp_i[available_i] + dt
+    }
+    if (isDependent) {
+      state$a_opp_i[available_i] <- state$a_opp_i[available_i] + 1
+    }
+  }
+  if (length(available_j) > 0) {
+    if (is_exact_time) {
+      state$a_exp_j[available_j] <- state$a_exp_j[available_j] + dt
+    }
+    if (isDependent) {
+      state$a_opp_j[available_j] <- state$a_opp_j[available_j] + 1
+    }
+  }
+  state
+}
+
+# Shape the raw per-side availability accumulators into the list the cpp
+# backend also produces, using the margins' own side rule: the two-sided dyad
+# families report each side separately, the sender / receiver / endpoint
+# families report one vector per quantity. `exposure` is absent off exact-time.
+assemble_r_availability <- function(state, margin_axis) {
+  # Exposure first, as the compiled assembly orders it, so the two backends
+  # produce identical lists rather than the same set in a different order.
+  if (identical(margin_axis, "dyad")) {
+    availability <- list()
+    if (!is.null(state$a_exp_i)) {
+      availability$exposure_sender <- state$a_exp_i
+      availability$exposure_receiver <- state$a_exp_j
+    }
+    availability$n_opportunities_sender <- state$a_opp_i
+    availability$n_opportunities_receiver <- state$a_opp_j
+    return(availability)
+  }
+  side <- if (identical(margin_axis, "receiver_given_sender")) "j" else "i"
+  availability <- list()
+  exposure <- state[[paste0("a_exp_", side)]]
+  if (!is.null(exposure)) {
+    availability$exposure <- exposure
+  }
+  availability$n_opportunities <- state[[paste0("a_opp_", side)]]
+  availability
+}
+
 assemble_r_margins <- function(state, margin_axis, is_exact_time) {
   # Only standard REM / REM_ordered (axis "dyad") are two-sided (distinct sender
   # and receiver accumulators). Coordination ("dyad_symmetric") credits both

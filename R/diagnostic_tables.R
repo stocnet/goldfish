@@ -46,6 +46,33 @@ assemble_engine_margins <- function(res) {
   margins
 }
 
+# The raw availability accumulators of one compiled pass, shaped into the list
+# both backends store. The shape is the margins' shape by construction, so the
+# same side rule and the same labeling helper serve both: two-sided sub-models
+# return a sender and a receiver vector per quantity, the single-sided ones one
+# vector each. Tested on LENGTH for the same reason the margins are: the gather
+# kernels return every slot unconditionally and leave the absent side empty.
+#
+# `exposure` is exact-time only. Its absence on a multinomial family is not a
+# gap but the fact that a compensator scale is not defined there, exactly as
+# `total_rate` is absent from the same fits.
+assemble_engine_availability <- function(res) {
+  has_length <- function(x) !is.null(x) && length(x) > 0
+  components <- list(
+    exposure = res$availability_exposure,
+    n_opportunities = res$availability_n_opportunities,
+    exposure_sender = res$availability_exposure_sender,
+    exposure_receiver = res$availability_exposure_receiver,
+    n_opportunities_sender = res$availability_n_opportunities_sender,
+    n_opportunities_receiver = res$availability_n_opportunities_receiver
+  )
+  components <- components[vapply(components, has_length, logical(1))]
+  if (length(components) == 0) {
+    return(NULL)
+  }
+  lapply(components, as.numeric)
+}
+
 # Labeling the stored margins -------------------------------------------------
 
 # The margin accumulators leave every kernel as bare numerics: the actor a
@@ -63,32 +90,60 @@ label_margins <- function(margins, axis, nodes, nodes2, is_exact_time) {
   if (is.null(margins)) {
     return(NULL)
   }
+  labels <- actor_side_labels(names(margins), axis, nodes, nodes2)
+  for (component in names(margins)) {
+    margins[[component]] <- label_margin_vector(
+      margins[[component]],
+      labels[[component]],
+      margin_component_scale(component, is_exact_time)
+    )
+  }
+  margins
+}
+
+# The availability vectors through the same side rule and the same labeling the
+# margins go through -- one convention, so a per-actor join never has to
+# reconcile two spellings of the same actor set. No scale marker: neither
+# quantity is a fitted mass, so there is nothing for one to disambiguate.
+label_availability <- function(availability, axis, nodes, nodes2) {
+  if (is.null(availability)) {
+    return(NULL)
+  }
+  labels <- actor_side_labels(names(availability), axis, nodes, nodes2)
+  for (component in names(availability)) {
+    availability[[component]] <- label_margin_vector(
+      availability[[component]],
+      labels[[component]],
+      NA_character_
+    )
+  }
+  availability
+}
+
+# Which node set each per-actor component indexes: a `_sender` accumulator is
+# always side 1 and a `_receiver` one always side 2, while a single-sided family
+# follows its axis -- choice accumulates over receivers, rate over senders, and
+# coordination over the one actor set into which it credits both endpoints.
+actor_side_labels <- function(components, axis, nodes, nodes2) {
   labels_sender <- node_labels(nodes)
   labels_receiver <- node_labels(nodes2)
-  # Which node set a component indexes: a `_sender` accumulator is always side
-  # 1 and a `_receiver` one always side 2, while a single-sided family follows
-  # its axis -- choice accumulates over receivers, rate over senders, and
-  # coordination over the one actor set into which it credits both endpoints.
   labels_single <- if (identical(axis, "receiver_given_sender")) {
     labels_receiver
   } else {
     labels_sender
   }
-  for (component in names(margins)) {
-    labels <- if (endsWith(component, "_sender")) {
-      labels_sender
-    } else if (endsWith(component, "_receiver")) {
-      labels_receiver
-    } else {
-      labels_single
-    }
-    margins[[component]] <- label_margin_vector(
-      margins[[component]],
-      labels,
-      margin_component_scale(component, is_exact_time)
-    )
-  }
-  margins
+  stats::setNames(
+    lapply(components, function(component) {
+      if (endsWith(component, "_sender")) {
+        labels_sender
+      } else if (endsWith(component, "_receiver")) {
+        labels_receiver
+      } else {
+        labels_single
+      }
+    }),
+    components
+  )
 }
 
 # The scale marker a component carries, or NA for the observed counts, which do
