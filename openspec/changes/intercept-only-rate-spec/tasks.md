@@ -78,7 +78,7 @@
       `count_w` in expectation (aggregate `|R(t)| · exp(intercept_w)`) under a changing
       but non-empty risk set; confirm the primitive itself performs no draw and holds no
       empty-support handling
-- [ ] 3.3 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP); commit
+- [x] 3.3 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP); commit
 
 ## 4. Zero-free-parameters contract into a joint fit
 
