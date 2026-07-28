@@ -239,10 +239,54 @@ is_intercept_only_rate <- function(x) {
   inherits(x, "intercept_only_rate")
 }
 
-# The constant per-actor intensity λ = exp(intercept) the rate exposes. Constant
+# The half-open period membership convention (design-resolved): interior wave
+# boundaries are left-closed / right-open and the *final* period is
+# right-closed, so an event landing exactly on an interior boundary belongs to
+# the *next* period and a terminal-time event (the common last-wave observation
+# in panel data) is never dropped into a nonexistent period. The partition is
+#
+#   [w_0, w_1)  [w_1, w_2)  ...  [w_{K-1}, w_K]
+#
+# which is exactly findInterval(time, wave_times, rightmost.closed = TRUE). It
+# returns the 1-based period index for each event time -- the index into the
+# frozen per-period `intercept`. A single-plateau rate (no wave grid) places
+# every event in period 1. (The final period's *duration* past the last wave, if
+# a simulate() window extends beyond w_K, is the consumer-supplied T_w used in
+# the pin -- membership here still buckets on the observed wave_times.)
+intercept_only_rate_period <- function(rate, time, call = rlang::caller_env()) {
+  if (is.null(rate$wave_times)) {
+    return(rep(1L, length(time)))
+  }
+  period <- findInterval(time, rate$wave_times, rightmost.closed = TRUE)
+  # findInterval returns 0 below w_0 and K+1 above w_K: an event outside the
+  # supplied partition has no pinned plateau. The consumer supplies wave_times
+  # covering the observation window, so flag the gap rather than silently
+  # returning an out-of-range index.
+  if (any(period < 1L | period > rate$n_periods)) {
+    last <- rate$wave_times[[rate$n_periods + 1L]]
+    cli::cli_abort(
+      c(
+        "{.arg time} falls outside the pinned period partition
+         {.field [{rate$wave_times[[1]]}, {last}]}.",
+        "i" = "The consuming routine must supply {.arg wave_times} covering
+               every event time."
+      ),
+      call = call
+    )
+  }
+  period
+}
+
+# The constant per-actor intensity exp(intercept) the rate exposes, constant
 # across every support-legal actor by construction (equal per-actor hazards).
-intercept_only_rate_intensity <- function(rate) {
-  exp(rate$intercept)
+# With no `time`, returns every period's plateau intensity (length K; a
+# single-plateau rate returns one value). With a `time`, returns the intensity
+# of the period containing each event time (via the half-open membership above).
+intercept_only_rate_intensity <- function(rate, time = NULL) {
+  if (is.null(time)) {
+    return(exp(rate$intercept))
+  }
+  exp(rate$intercept[intercept_only_rate_period(rate, time)])
 }
 
 # Materialize the degenerate process state for an intercept-only rate over the
@@ -273,20 +317,39 @@ intercept_only_rate_state <- function(
   )
 }
 
-# Evaluate the intercept-only rate through the existing timed-rate path: build
-# the degenerate intercept-only state and dispatch it through
-# `evaluate_process_state()` (which routes a "DyNAM-M-Rate" state to
+# Evaluate the intercept-only rate through the existing timed-rate path at one
+# instant: select the applicable per-period plateau for `time` (via the
+# half-open membership), build the degenerate intercept-only state, and dispatch
+# it through `evaluate_process_state()` (which routes a "DyNAM-M-Rate" state to
 # `.pse_eval_rate`). Returns that evaluator's per-actor hazard vector unchanged
-# -- exp(intercept) for every active sender, exact-zero for excluded ones -- so
-# the pinned flavor slots into the shared-clock superposition Σ_i exp(·)
+# -- exp(intercept_w) for every active sender, exact-zero for excluded ones --
+# so the pinned flavor slots into the shared-clock superposition Σ_i exp(·)
 # alongside a competing flavor's per-actor rates. No new evaluator is introduced.
+# `time` may be omitted only for a single-plateau rate; a multi-period rate needs
+# the event time to pick the plateau.
 evaluate_intercept_only_rate <- function(
   rate,
   active_sender,
+  time = NULL,
   timespan = NA_real_,
   event_sender = NA_integer_,
-  is_dependent = FALSE
+  is_dependent = FALSE,
+  call = rlang::caller_env()
 ) {
+  this_intercept <- if (is.null(time)) {
+    if (rate$n_periods > 1L) {
+      cli::cli_abort(
+        c(
+          "{.arg time} is required to evaluate a multi-period pinned rate.",
+          "i" = "Supply the event time so the applicable plateau is selected."
+        ),
+        call = call
+      )
+    }
+    rate$intercept
+  } else {
+    rate$intercept[intercept_only_rate_period(rate, time)]
+  }
   state <- intercept_only_rate_state(
     rate,
     active_sender = active_sender,
@@ -294,5 +357,5 @@ evaluate_intercept_only_rate <- function(
     event_sender = event_sender,
     is_dependent = is_dependent
   )
-  evaluate_process_state(state, parameters = rate$intercept)
+  evaluate_process_state(state, parameters = this_intercept)
 }

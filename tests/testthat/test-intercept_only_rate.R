@@ -157,12 +157,78 @@ test_that("a multi-period pin requires a matching, increasing wave grid", {
   )
 })
 
+# Half-open period membership (Session 2.3): interior boundaries left-closed /
+# right-open, the final period right-closed --
+# findInterval(t, wave_times, rightmost.closed = TRUE) -- so an interior-boundary
+# event lands in the next period and a terminal-time event is never dropped.
+
+test_that("membership is left-closed / right-open with a right-closed final period", {
+  rate <- make_intercept_only_rate(
+    c(log(1), log(2), log(3)),
+    wave_times = c(0, 5, 10, 15)
+  )
+
+  expect_identical(intercept_only_rate_period(rate, 0), 1L) # left edge -> P1
+  expect_identical(intercept_only_rate_period(rate, 4.9), 1L)
+  expect_identical(intercept_only_rate_period(rate, 5), 2L) # on w_1 -> P2
+  expect_identical(intercept_only_rate_period(rate, 10), 3L) # on w_2 -> P3
+  # terminal-time event kept: the final period is right-closed
+  expect_identical(intercept_only_rate_period(rate, 15), 3L)
+  expect_identical(
+    intercept_only_rate_period(rate, c(0, 5, 10, 15)),
+    c(1L, 2L, 3L, 3L)
+  )
+})
+
+test_that("a single-plateau rate places every event in period 1", {
+  rate <- make_intercept_only_rate(log(0.5))
+  expect_identical(
+    intercept_only_rate_period(rate, c(-3, 0, 100)),
+    c(1L, 1L, 1L)
+  )
+})
+
+test_that("intensity by time reads the applicable plateau", {
+  rate <- make_intercept_only_rate(c(log(2), log(8)), wave_times = c(0, 4, 9))
+
+  expect_equal(intercept_only_rate_intensity(rate, time = 1), 2)
+  expect_equal(intercept_only_rate_intensity(rate, time = 4), 8) # boundary -> P2
+  expect_equal(intercept_only_rate_intensity(rate, time = 9), 8) # terminal -> P2
+  expect_equal(intercept_only_rate_intensity(rate), c(2, 8)) # all plateaus
+})
+
+test_that("evaluation selects the applicable plateau by time", {
+  rate <- make_intercept_only_rate(c(log(2), log(8)), wave_times = c(0, 4, 9))
+  active <- c(1, 1, 0, 1)
+
+  early <- evaluate_intercept_only_rate(rate, active, time = 1)
+  late <- evaluate_intercept_only_rate(rate, active, time = 6)
+
+  expect_equal(early$value[active == 1], rep(2, sum(active)))
+  expect_equal(late$value[active == 1], rep(8, sum(active)))
+})
+
+test_that("evaluating a multi-period rate without a time is an error", {
+  rate <- make_intercept_only_rate(c(log(2), log(8)), wave_times = c(0, 4, 9))
+  expect_snapshot(
+    error = TRUE,
+    evaluate_intercept_only_rate(rate, active_sender = c(1, 1))
+  )
+})
+
+test_that("an event outside the supplied partition is flagged", {
+  rate <- make_intercept_only_rate(c(log(1), log(2)), wave_times = c(0, 5, 10))
+  expect_snapshot(error = TRUE, intercept_only_rate_period(rate, -1))
+  expect_snapshot(error = TRUE, intercept_only_rate_period(rate, 11))
+})
+
 test_that("the intercept-only rate primitive is not exported", {
   exported <- getNamespaceExports("goldfish")
   internal <- c(
     "pin_intercept_only_rate",
     "make_intercept_only_rate",
     "is_intercept_only_rate",
+    "intercept_only_rate_period",
     "intercept_only_rate_intensity",
     "intercept_only_rate_state",
     "evaluate_intercept_only_rate"

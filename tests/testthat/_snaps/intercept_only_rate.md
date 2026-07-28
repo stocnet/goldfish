@@ -95,3 +95,30 @@
       Error:
       ! `wave_times` must be strictly increasing (w_0 < w_1 < ... < w_K).
 
+# evaluating a multi-period rate without a time is an error
+
+    Code
+      evaluate_intercept_only_rate(rate, active_sender = c(1, 1))
+    Condition
+      Error:
+      ! `time` is required to evaluate a multi-period pinned rate.
+      i Supply the event time so the applicable plateau is selected.
+
+# an event outside the supplied partition is flagged
+
+    Code
+      intercept_only_rate_period(rate, -1)
+    Condition
+      Error:
+      ! `time` falls outside the pinned period partition [0, 10].
+      i The consuming routine must supply `wave_times` covering every event time.
+
+---
+
+    Code
+      intercept_only_rate_period(rate, 11)
+    Condition
+      Error:
+      ! `time` falls outside the pinned period partition [0, 10].
+      i The consuming routine must supply `wave_times` covering every event time.
+

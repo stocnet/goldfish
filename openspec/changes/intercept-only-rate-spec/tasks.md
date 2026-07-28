@@ -46,7 +46,7 @@
       fid (D7): read unchanged across every EM / MCMC / simulation iteration; leave no
       per-iteration recompute hook (the latent-count recompute is future development,
       design Open Questions)
-- [ ] 2.3 Apply the resolved half-open period convention: interior boundaries
+- [x] 2.3 Apply the resolved half-open period convention: interior boundaries
       left-closed / right-open, the **final** period right-closed
       (`findInterval(t, wave_times, rightmost.closed = TRUE)`), so a terminal-time event
       is never dropped; the final-period duration past the last wave is the
