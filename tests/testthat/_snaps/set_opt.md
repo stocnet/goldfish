@@ -102,7 +102,7 @@
       invisible(set_algorithm_newton(return_interval_loglik = TRUE))
     Condition
       Warning:
-      The `return_interval_loglik` argument of `set_algorithm_newton()` is deprecated as of goldfish 1.9.11.
+      The `return_interval_loglik` argument of `set_algorithm_newton()` is deprecated as of goldfish 2.0.0.
       i Please use the `diagnostics` argument instead.
       i Request the "loglik" primitive via diagnostics = "loglik".
 
@@ -112,7 +112,7 @@
       invisible(set_algorithm_newton(return_probabilities = TRUE))
     Condition
       Warning:
-      The `return_probabilities` argument of `set_algorithm_newton()` is deprecated as of goldfish 1.9.11.
+      The `return_probabilities` argument of `set_algorithm_newton()` is deprecated as of goldfish 2.0.0.
       i Please use the `diagnostics` argument instead.
       i Request the "probabilities" primitive via diagnostics = "probabilities".
 

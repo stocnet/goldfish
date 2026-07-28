@@ -235,7 +235,7 @@ set_algorithm_newton <- function(
   for (flag_name in resolved$deprecated) {
     primitive <- LEGACY_DIAGNOSTIC_FLAGS[[flag_name]]
     lifecycle::deprecate_soft(
-      when = "1.9.11",
+      when = "2.0.0",
       what = paste0("set_algorithm_newton(", flag_name, ")"),
       with = "set_algorithm_newton(diagnostics)",
       details = c(

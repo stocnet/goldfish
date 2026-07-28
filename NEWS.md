@@ -1,3 +1,40 @@
+# goldfish 1.9.19
+
+* **One argument names what estimation stores per event.**
+  `set_algorithm_newton(diagnostics = )` takes the primitives you want kept
+  on the fit -- `"loglik"`, `"scores"`, `"ranks"`, `"margins"`,
+  `"probabilities"` -- with `TRUE` (the default pair `c("loglik", "scores")`),
+  `"all"` and `FALSE` as shorthands. `return_interval_loglik` and
+  `return_probabilities` keep working and now warn once, naming the primitive
+  they map to; supplying a flag and a conflicting `diagnostics` value aborts.
+  `return_event_scores` is removed outright rather than deprecated: it never
+  shipped in a public release, so no released script can break. Asking for
+  `"probabilities"` on a long sequence now says up front how large the stored
+  vectors will be.
+
+* **`margin_table()` reads a fit's per-actor margins as one table.**
+  Five columns -- `actor`, `role`, `observed`, `expected_probability`,
+  `expected_count` -- identically shaped on every family, so comparing
+  observed against expected actor activity does not branch on the model: rate
+  fits contribute `sender` rows, choice fits `receiver` rows, coordination
+  fits `endpoint` rows (whose observed column totals twice the event count,
+  each event crediting both members), and a REM fit both sides per actor from
+  the same fit. `expected_count` is `NA` on the multinomial families, which
+  means the compensator scale is not defined for the model class -- not that
+  it was not computed. Those families therefore have a calibration ratio but
+  no martingale residual. A multi-process fit row-binds its processes with
+  `flavor` and `family` columns.
+
+* **The stored margins say which actor and which scale.** Each vector is named
+  by actor label, and each expected vector records its scale: `"probability"`
+  for the next-event probability sums every family accumulates over dependent
+  events, `"expected_count"` for the compensator sums exact-time fits
+  additionally accumulate over all intervals, right-censored ones included.
+  The two answer different questions -- the probability scale totals the event
+  count at any parameter vector, the compensator scale only at the maximum --
+  and both are attached by the same helper on every backend, so a fit's
+  margins carry the same labels whichever implementation produced them.
+
 # goldfish 1.9.18
 
 * **A fixed coefficient can be written where it belongs: in the formula.**
