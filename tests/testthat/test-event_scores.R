@@ -1,4 +1,4 @@
-# Per-event score matrix: set_algorithm_newton(return_event_scores) and the
+# Per-event score matrix: set_algorithm_newton(diagnostics = "scores") and the
 # `event_scores` result component. The per-event score is the same
 # observed-minus-expected statistic the estimators accumulate into the aggregate
 # derivative each event; here we assert the two engines expose it consistently.
@@ -13,7 +13,7 @@ event_scores_eval <- function(spec, backend, data_list, params) {
     backend = backend,
     initial_parameters = params,
     max_iterations = 0,
-    return_event_scores = TRUE
+    diagnostics = c("loglik", "scores")
   )
   args <- list(
     x = spec$formula,
@@ -151,9 +151,8 @@ test_that("the gather backend stores scores, however they were requested", {
   # An explicit request used to abort and a default-sourced one used to be
   # dropped without a word, so the same backend both refused and quietly
   # ignored the same primitive depending only on how it was asked for. The
-  # gather kernels compute per-event scores, so all three routes store them.
+  # gather kernels compute per-event scores, so both routes store them.
   for (fit in list(
-    fit_scores(return_event_scores = TRUE),
     fit_scores(diagnostics = c("loglik", "scores")),
     fit_scores()
   )) {

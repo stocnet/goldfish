@@ -198,15 +198,26 @@ test_that("legacy return_* flags soft-deprecate onto diagnostics", {
     return_interval_loglik = TRUE
   )))
   expect_snapshot(invisible(set_algorithm_newton(return_probabilities = TRUE)))
-  expect_snapshot(invisible(set_algorithm_newton(return_event_scores = TRUE)))
+})
+
+test_that("the never-public score flag is gone", {
+  # `return_event_scores` was introduced on the development branch after the
+  # v1.7.0 tag and never reached a public release, so 2.0.0 removes it outright
+  # rather than spending a deprecation cycle on it.
+  expect_snapshot(
+    set_algorithm_newton(return_event_scores = TRUE),
+    error = TRUE
+  )
 })
 
 test_that("legacy flags map onto diagnostics and the derived flags", {
   withr::local_options(lifecycle_verbosity = "quiet")
-  opt <- set_algorithm_newton(return_event_scores = TRUE)
-  expect_equal(opt$diagnostics, c("loglik", "scores"))
-  expect_true(opt$return_event_scores)
-  expect_false(opt$return_probabilities)
+  # A legacy flag rebuilds the whole vector from the flag view, so the scores
+  # the default would have stored drop out with it.
+  opt <- set_algorithm_newton(return_probabilities = TRUE)
+  expect_equal(opt$diagnostics, c("loglik", "probabilities"))
+  expect_false(opt$return_event_scores)
+  expect_true(opt$return_probabilities)
 
   opt2 <- set_algorithm_newton(return_interval_loglik = FALSE)
   expect_equal(opt2$diagnostics, character(0))
@@ -238,12 +249,14 @@ test_that("the control object does not track how scores were requested", {
   expect_null(
     set_algorithm_newton(diagnostics = c("loglik", "scores"))$scores_explicit
   )
-  expect_null(set_algorithm_newton(return_event_scores = TRUE)$scores_explicit)
+  expect_null(
+    set_algorithm_newton(return_probabilities = TRUE)$scores_explicit
+  )
 })
 
 test_that("mixing diagnostics with a legacy flag aborts", {
   expect_snapshot(
-    set_algorithm_newton(diagnostics = "loglik", return_event_scores = TRUE),
+    set_algorithm_newton(diagnostics = "loglik", return_probabilities = TRUE),
     error = TRUE
   )
 })

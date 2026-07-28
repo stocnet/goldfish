@@ -116,23 +116,21 @@
       i Please use the `diagnostics` argument instead.
       i Request the "probabilities" primitive via diagnostics = "probabilities".
 
----
+# the never-public score flag is gone
 
     Code
-      invisible(set_algorithm_newton(return_event_scores = TRUE))
+      set_algorithm_newton(return_event_scores = TRUE)
     Condition
-      Warning:
-      The `return_event_scores` argument of `set_algorithm_newton()` is deprecated as of goldfish 1.9.11.
-      i Please use the `diagnostics` argument instead.
-      i Request the "scores" primitive via diagnostics = "scores".
+      Error in `set_algorithm_newton()`:
+      ! unused argument (return_event_scores = TRUE)
 
 # mixing diagnostics with a legacy flag aborts
 
     Code
-      set_algorithm_newton(diagnostics = "loglik", return_event_scores = TRUE)
+      set_algorithm_newton(diagnostics = "loglik", return_probabilities = TRUE)
     Condition
       Error in `set_algorithm_newton()`:
-      ! Cannot supply `diagnostics` together with the deprecated `return_event_scores` flag.
+      ! Cannot supply `diagnostics` together with the deprecated `return_probabilities` flag.
       i Use `diagnostics` alone; it supersedes the `return_*` flags.
 
 # opportunities_list is deprecated in favour of support_constraint

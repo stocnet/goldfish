@@ -17,7 +17,6 @@ set_algorithm_newton(
   damping_decrease_factor = 3,
   return_interval_loglik = deprecated(),
   return_probabilities = deprecated(),
-  return_event_scores = deprecated(),
   diagnostics = c("loglik", "scores"),
   optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
   backend = c("cpp", "r", "gather"),
@@ -107,21 +106,8 @@ the choice set present at the time of the event.
 the time of the event.
 }}
 
-\item{return_event_scores}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Superseded by
-\code{diagnostics = "scores"}. Whether to keep and return the per-event score
-matrix (one row per
-dependent event, one column per effect) evaluated at the returned
-parameter estimates, stored as the \code{event_scores} component of the result.
-Each row is the observation-level gradient contribution whose column sums
-equal the aggregate score. The matrix supports downstream diagnostics
-(implemented by other tools, not here): robust sandwich and clustered
-standard errors from the outer product of gradients \code{crossprod(event_scores)},
-per-effect score-process diagnostics that localize where individual effects
-drift over the event sequence, and event-influence measures. Only the
-\code{"cpp"} and \code{"r"} backends support it; \code{"gather"} aborts.}
-
 \item{diagnostics}{Names the per-event diagnostic \emph{primitives} estimation
-stores on the fitted result, superseding the three \verb{return_*} flags above.
+stores on the fitted result, superseding the \verb{return_*} flags above.
 Accepts a character vector drawn from
 \code{c("loglik", "scores", "ranks", "margins", "probabilities")}, or the
 shorthands \code{TRUE} (equivalent to \code{c("loglik", "scores")}), \code{"all"} (all

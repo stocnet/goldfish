@@ -90,20 +90,8 @@
 #'     the choice set present at the time of the event.
 #'   * When `model = "REM"` the probabilities correspond to all dyads present at
 #'     the time of the event.
-#' @param return_event_scores `r lifecycle::badge("deprecated")` Superseded by
-#'   `diagnostics = "scores"`. Whether to keep and return the per-event score
-#'   matrix (one row per
-#'   dependent event, one column per effect) evaluated at the returned
-#'   parameter estimates, stored as the `event_scores` component of the result.
-#'   Each row is the observation-level gradient contribution whose column sums
-#'   equal the aggregate score. The matrix supports downstream diagnostics
-#'   (implemented by other tools, not here): robust sandwich and clustered
-#'   standard errors from the outer product of gradients `crossprod(event_scores)`,
-#'   per-effect score-process diagnostics that localize where individual effects
-#'   drift over the event sequence, and event-influence measures. Only the
-#'   `"cpp"` and `"r"` backends support it; `"gather"` aborts.
 #' @param diagnostics Names the per-event diagnostic *primitives* estimation
-#'   stores on the fitted result, superseding the three `return_*` flags above.
+#'   stores on the fitted result, superseding the `return_*` flags above.
 #'   Accepts a character vector drawn from
 #'   `c("loglik", "scores", "ranks", "margins", "probabilities")`, or the
 #'   shorthands `TRUE` (equivalent to `c("loglik", "scores")`), `"all"` (all
@@ -197,7 +185,6 @@ set_algorithm_newton <- function(
   damping_decrease_factor = 3,
   return_interval_loglik = deprecated(),
   return_probabilities = deprecated(),
-  return_event_scores = deprecated(),
   diagnostics = c("loglik", "scores"),
   optimizer = c("newton_raphson", "bfgs", "bhhh", "nelder_mead"),
   backend = c("cpp", "r", "gather"),
@@ -229,14 +216,16 @@ set_algorithm_newton <- function(
     diagnostics,
     diagnostics_supplied,
     return_interval_loglik,
-    return_probabilities,
-    return_event_scores
+    return_probabilities
   )
   diagnostics <- resolved$diagnostics
   # `diagnostics` is the single source of truth for per-event storage. The three
-  # legacy booleans are derived from it (reconcile has already folded any supplied
-  # return_* flag into `diagnostics`), so the default `c("loglik", "scores")`
-  # stores the per-event scores.
+  # storage booleans below are derived from it (reconcile has already folded any
+  # supplied return_* flag into `diagnostics`), so the default
+  # `c("loglik", "scores")` stores the per-event scores. Only two of the three
+  # are also arguments: `return_event_scores` never shipped in a public release,
+  # so it was removed rather than deprecated, and the name survives here as the
+  # control-list component the estimators read.
   return_interval_loglik <- "loglik" %in% diagnostics
   return_probabilities <- "probabilities" %in% diagnostics
   return_event_scores <- "scores" %in% diagnostics
@@ -594,16 +583,16 @@ resolve_diagnostics <- function(diagnostics, call = rlang::caller_env()) {
 }
 
 # The one-to-one mapping from each deprecated return_* flag to the diagnostics
-# primitive it stores; the third element is the flag's historical default.
+# primitive it stores, paired with the flag's historical default. Both flags
+# shipped publicly (CRAN 1.6.x as camelCase `estimationInit` entries, v1.7.0 as
+# arguments), which is what earns them a deprecation cycle rather than removal.
 LEGACY_DIAGNOSTIC_FLAGS <- c(
   return_interval_loglik = "loglik",
-  return_probabilities = "probabilities",
-  return_event_scores = "scores"
+  return_probabilities = "probabilities"
 )
 LEGACY_DIAGNOSTIC_DEFAULTS <- c(
   return_interval_loglik = TRUE,
-  return_probabilities = FALSE,
-  return_event_scores = FALSE
+  return_probabilities = FALSE
 )
 
 # Reconcile the deprecated return_* flags with the `diagnostics` vector.
@@ -619,13 +608,11 @@ reconcile_legacy_diagnostics <- function(
   diagnostics_supplied,
   return_interval_loglik,
   return_probabilities,
-  return_event_scores,
   call = rlang::caller_env()
 ) {
   values <- list(
     return_interval_loglik = return_interval_loglik,
-    return_probabilities = return_probabilities,
-    return_event_scores = return_event_scores
+    return_probabilities = return_probabilities
   )
   present <- vapply(values, lifecycle::is_present, logical(1))
 
@@ -670,8 +657,7 @@ reconcile_legacy_diagnostics <- function(
     diagnostics = diagnostics,
     deprecated = names(present)[present],
     return_interval_loglik = flags[["return_interval_loglik"]],
-    return_probabilities = flags[["return_probabilities"]],
-    return_event_scores = flags[["return_event_scores"]]
+    return_probabilities = flags[["return_probabilities"]]
   )
 }
 
