@@ -867,6 +867,164 @@ test_that("simulate wording: observed-count pin, no SE language", {
   expect_snapshot(warn_pinned_rate("3", consumer = "simulate"))
 })
 
+# Session 5.4: the remaining test coverage the design calls for -- the
+# user-`~ 1`-pins-identically-to-completion and `~ 1 + effects`-keeps-its-
+# baseline scenarios are already covered above (Session 5.1: "a user `~ 1` and
+# a completion-supplied rate pin to the same object", "a rate carrying any
+# effect is never pinned"). What remains here: warn_pinned_rates()'s
+# once-per-pinned-fid / non-joint-input behavior, that re-entry is never
+# suppressed (including across a DIFFERENT consumer), and the deferred
+# consumer-entry / cross-consumer-re-fire markers guarded until estimate_dynes()
+# / a simulate() method for joint_specification.goldfish exist.
+
+test_that("warn_pinned_rate rejects an unknown consumer", {
+  expect_snapshot(error = TRUE, warn_pinned_rate("3", consumer = "augmenter"))
+})
+
+test_that("warn_pinned_rates warns once per pinned fid, none for an estimated one", {
+  local_cli_context()
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  # emails' rate is completion-supplied intercept-only; calls' rate is
+  # estimated and must warn about nothing.
+  emails$submodels$rate <- completion_rate_bundle()
+  joint <- make_joint_specification(calls, emails, data = data)
+  marked <- mark_pinned_rates(joint)
+  expect_length(marked$pinned_rates, 1L)
+
+  expect_snapshot(warn_pinned_rates(marked, consumer = "estimate_dynes"))
+})
+
+test_that("warn_pinned_rates emits nothing when no rate is pinned", {
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  # both rates carry an effect, so mark_pinned_rates() pins neither.
+  marked <- mark_pinned_rates(make_joint_specification(
+    calls,
+    emails,
+    data = data
+  ))
+  expect_length(marked$pinned_rates, 0L)
+  expect_no_warning(warn_pinned_rates(marked, consumer = "estimate_dynes"))
+})
+
+test_that("warn_pinned_rates rejects a non-joint specification", {
+  data <- pinned_joint_data()
+  single <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  expect_snapshot(
+    error = TRUE,
+    warn_pinned_rates(single, consumer = "estimate_dynes")
+  )
+})
+
+test_that("the warning is not suppressed across repeated calls", {
+  local_cli_context()
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  emails$submodels$rate <- completion_rate_bundle()
+  marked <- mark_pinned_rates(make_joint_specification(
+    calls,
+    emails,
+    data = data
+  ))
+
+  # cli::cli_warn() carries no .frequency = "once"/"regularly" here (matching
+  # every other cli_warn() in this package), so back-to-back calls each warn --
+  # not deduped across "re-entry" into the same consumer, let alone a second one.
+  expect_warning(warn_pinned_rates(marked, consumer = "estimate_dynes"))
+  expect_warning(warn_pinned_rates(marked, consumer = "estimate_dynes"))
+  # a different consumer against the SAME marked spec warns with ITS OWN
+  # wording -- the object is source-agnostic (D6), only the warning differs.
+  expect_warning(warn_pinned_rates(marked, consumer = "simulate"))
+})
+
+# DEFERRED (soft-blocked, per progress.md): neither estimate_dynes() nor a
+# simulate.joint_specification.goldfish method exists yet, so the actual
+# consumer-entry snapshots and the cross-consumer re-fire test cannot exercise
+# the real entry points. warn_pinned_rate(s)() above is the wording/logic those
+# entries will call; these three tests are left in place, guarded, so they
+# activate the moment each consumer lands -- no fake consumer is stubbed here.
+
+test_that("estimate_dynes() warns at entry with its own wording", {
+  skip_if_not(exists("estimate_dynes"), "estimate_dynes() not yet implemented")
+
+  # When estimate_dynes() lands: fit a joint spec carrying a pinned rate and
+  # assert the Hamming-diff/no-SE/excluded warning fires at entry, matching
+  # warn_pinned_rate(fid, "estimate_dynes")'s snapshot above.
+  expect_true(FALSE)
+})
+
+test_that("simulate() warns at entry with its own wording", {
+  skip_if_not(
+    exists("simulate.joint_specification.goldfish", mode = "function"),
+    "simulate() method for joint_specification.goldfish not yet implemented"
+  )
+
+  # When the simulate() method lands: simulate from a joint spec carrying a
+  # pinned rate and assert the observed-count/no-SE-language warning fires at
+  # entry, matching warn_pinned_rate(fid, "simulate")'s snapshot above.
+  expect_true(FALSE)
+})
+
+test_that("the same spec re-fires when routed through a second consumer", {
+  skip_if_not(exists("estimate_dynes"), "estimate_dynes() not yet implemented")
+  skip_if_not(
+    exists("simulate.joint_specification.goldfish", mode = "function"),
+    "simulate() method for joint_specification.goldfish not yet implemented"
+  )
+
+  # When both consumers land: route the SAME pinned joint spec through
+  # estimate_dynes() then simulate() and assert BOTH warn -- the second
+  # consumer's warning must not be suppressed by the first having already
+  # fired, and each must carry its own consumer-specific wording.
+  expect_true(FALSE)
+})
+
 test_that("the intercept-only rate primitive is not exported", {
   exported <- getNamespaceExports("goldfish")
   internal <- c(

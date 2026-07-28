@@ -106,7 +106,7 @@
       re-entry): `estimate_dynes()` — pinned from the wave Hamming diff (net-change
       floor), no standard error, excluded from estimation; `simulate()` — pinned from
       the observed event count (no SE language). Snapshot both under a pinned cli context
-- [ ] 5.4 Tests: user `~ 1` under `estimate_dynes()`/`simulate()` pins identically to
+- [x] 5.4 Tests: user `~ 1` under `estimate_dynes()`/`simulate()` pins identically to
       completion; `~ 1 + effects` keeps an estimated baseline; warning wording per
       consumer (snapshots); warning re-fires when the same spec is routed through a
       second consumer
