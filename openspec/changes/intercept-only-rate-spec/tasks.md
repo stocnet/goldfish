@@ -57,7 +57,7 @@
       (wave-endpoint average of the two observed states, D9); distinct plateaus per period
       (a global `count / T_total` would differ when per-period rates differ); `intercept_w`
       is unchanged after a round of generated events is added (frozen, not recomputed)
-- [ ] 2.5 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP); commit
+- [x] 2.5 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP); commit
 
 ## 3. Per-actor hazard semantics (draw owned by the routine)
 
