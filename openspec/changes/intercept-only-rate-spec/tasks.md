@@ -89,7 +89,7 @@
 - [x] 4.2 Tests: adding a pinned intercept-only rate leaves the fit's θ layout, score,
       and Hessian dimensions unchanged (only a reported log-likelihood offset differs);
       the pinned value is identical across iterations
-- [ ] 4.3 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP); commit
+- [x] 4.3 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP); commit
 
 ## 5. User surface: intercept-only ⟺ pinned, and the context-aware warning
 
