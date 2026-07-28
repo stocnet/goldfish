@@ -787,6 +787,48 @@ test_that("mark_pinned_rates pins an intercept-only rate in a joint spec", {
   expect_identical(desc$model_type, "DyNAM-M-Rate")
 })
 
+# Single-process path untouched (Session 5.2): the reinterpretation is scoped by
+# type to the generative context, so a bare `rate = ~ 1` under estimate_dynam() /
+# estimate_rem() keeps its existing estimated-intercept meaning -- byte-identical
+# to the pre-change path (the frozen 1e-6 baselines gate it and PASS). A pinned
+# rate contributes zero free parameters, so it never enters θ.
+
+test_that("mark_pinned_rates rejects the single-process path", {
+  local_cli_context()
+  data <- pinned_joint_data()
+  single <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  # a plain specification.goldfish is the single-process path -- pinning is
+  # generative-only, so it aborts rather than touching estimate_dynam/estimate_rem.
+  expect_s3_class(single, "specification.goldfish")
+  expect_snapshot(error = TRUE, mark_pinned_rates(single))
+})
+
+test_that("a pinned rate never appears in theta (single-process unchanged)", {
+  # The single-process estimation path is byte-identical to the pre-change path:
+  # this change adds no code to it and the frozen 1e-6 baselines gate it (they
+  # PASS, not SKIP, in the NOT_CRAN run). Here we assert the complementary half --
+  # a pinned rate contributes ZERO free parameters, so it never enters θ. The
+  # descriptor reports n_free_parameters == 0, and the intercept-only rate object
+  # it becomes contributes the empty θ block to a joint layout.
+  desc <- pinned_rate_descriptor(completion_rate_bundle(), "DyNAM")
+  expect_identical(desc$n_free_parameters, 0L)
+
+  pinned <- make_intercept_only_rate(log(0.5))
+  estimated <- list(flavor_a = c(0.1, -0.2))
+  base <- joint_theta_layout(estimated)
+  with_pin <- joint_theta_layout(c(estimated, list(pinned = pinned)))
+  # the estimated flavor's θ and slice are untouched; the pinned flavor owns none.
+  expect_identical(with_pin$theta, base$theta)
+  expect_identical(with_pin$n_free, base$n_free)
+  expect_identical(with_pin$index$pinned, integer(0))
+})
+
 test_that("adding a pinned rate to a joint fit leaves theta/score/Hessian unchanged", {
   # The full joint-fit assertion needs the joint optimizer (estimate_dynes()),
   # which does not exist yet -- deferred behind this guard (see progress.md

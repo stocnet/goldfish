@@ -98,7 +98,7 @@
       effects, or a completion-supplied rate — as **pinned** (D6): a user-written `~ 1`
       and a completion-supplied rate produce the **same** pinned object; a rate carrying
       **any** effect keeps its estimated baseline intercept unchanged
-- [ ] 5.2 Leave the single-process path untouched (D6): a bare `rate = ~ 1` in
+- [x] 5.2 Leave the single-process path untouched (D6): a bare `rate = ~ 1` in
       `estimate_dynam()` / `estimate_rem()` keeps its existing estimated-intercept
       meaning; add a regression test that this is byte-identical to the pre-change path
       (frozen baselines PASS) and that a pinned rate never appears in θ

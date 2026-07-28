@@ -193,3 +193,12 @@
       ! `bundle` must be an intercept-only rate (`rate = ~ 1`).
       i A rate carrying any effect keeps its estimated baseline intercept; only the effect-free rate is pinned.
 
+# mark_pinned_rates rejects the single-process path
+
+    Code
+      mark_pinned_rates(single)
+    Condition
+      Error:
+      ! `joint_spec` must be a <joint_specification.goldfish>.
+      i Pinning an intercept-only rate is scoped to the generative context; the single-process path (`estimate_dynam()` / `estimate_rem()`) keeps its estimated-intercept meaning.
+
