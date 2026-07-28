@@ -12,12 +12,18 @@ int rank_of_observed(
 ) {
   const bool masked = allowed.n_elem > 0;
   const double obs_weight = w(obs);
+  // Strict `>` against a relatively-widened observed weight: it excludes the
+  // observed alternative itself, makes exact ties share the better rank, and
+  // collapses blocks that only floating-point noise has split -- the same rule
+  // in every kernel and in the R mirror. Without the tolerance a nearly empty
+  // network, where large blocks of alternatives carry identical statistics,
+  // has its top ranks decided by whichever way the last bit of each
+  // log-normalizer happened to fall, differently per backend.
+  const double threshold = obs_weight * (1.0 + RANK_TIE_TOL);
   int rank = 1;
   for (arma::uword j = 0; j < w.n_elem; ++j) {
     if (masked && allowed(j) != 1) continue;
-    // Strict `>` excludes the observed alternative itself and makes ties share
-    // the better rank, the same rule in every kernel and in the R mirror.
-    if (w(j) > obs_weight) rank++;
+    if (w(j) > threshold) rank++;
   }
   return rank;
 }

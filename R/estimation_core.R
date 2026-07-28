@@ -1798,7 +1798,8 @@ r_reduce_event_coordination <- function(
     # distinct.
     state$observed_rank[i] <- rank_of_observed(
       eventValues$logSymmetric[lower],
-      obs_dyad
+      obs_dyad,
+      log_scale = TRUE
     )
   }
 
@@ -2182,10 +2183,24 @@ stable_softmax <- function(x, rowwise = FALSE) {
 # for the exact-time compensator. `observed` indexes `w`, 1-based here as R code
 # reads.
 
-# 1 + the number of alternatives with a strictly greater weight; ties share the
-# better rank. Scale-free, so `c` never enters.
-rank_of_observed <- function(w, observed) {
-  1L + sum(w > w[observed])
+# Relative tolerance of the rank tie rule. MUST hold the same number as
+# `RANK_TIE_TOL` in `src/event_reductions.h`, which documents why the tolerance
+# is relative rather than absolute (the kernels rank proportional but
+# differently scaled vectors) and how it was sized.
+RANK_TIE_TOL <- 1e-12
+
+# 1 + the number of alternatives whose weight exceeds the observed one by more
+# than `RANK_TIE_TOL` relatively; ties -- exact ones and near-ties within the
+# tolerance -- share the better rank. Scale-free, so `c` never enters. On the
+# log scale (`log_scale = TRUE`, which the coordination path ranks on) the same
+# rule is additive, since log(1 + tol) = tol to first order.
+rank_of_observed <- function(w, observed, log_scale = FALSE) {
+  threshold <- if (log_scale) {
+    w[observed] + RANK_TIE_TOL
+  } else {
+    w[observed] * (1 + RANK_TIE_TOL)
+  }
+  1L + sum(w > threshold)
 }
 
 # Accumulate `expected[actor(j)] += c * w[j]` over the risk set, and

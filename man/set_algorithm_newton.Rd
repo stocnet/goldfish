@@ -115,8 +115,11 @@ five), and \code{FALSE} / \code{character(0)} (none). Each primitive maps to a s
 component of the result: \code{"loglik"} to \code{interval_log_lik} (and \code{total_rate}
 on exact-time submodels), \code{"scores"} to \code{event_scores}, \code{"ranks"} to
 \code{observed_rank}, \code{"margins"} to per-actor observed and expected counts, and
-\code{"probabilities"} to per-event probability vectors. Unknown names abort with
-an error listing the valid primitives. Default is \code{c("loglik", "scores")},
+\code{"probabilities"} to per-event probability vectors; each is documented
+under the fitted object in \code{\link[=estimate_dynam]{estimate_dynam()}}, including the tie rule
+\code{observed_rank} resolves equally likely alternatives by. Unknown names
+abort with an error listing the valid primitives.
+Default is \code{c("loglik", "scores")},
 preserving today's stored log-likelihood and adding the (free) scores. For
 fits with more than 100,000 events a one-time message reports the
 approximate footprint of the per-event vectors and names \code{diagnostics = FALSE} as the opt-out.}

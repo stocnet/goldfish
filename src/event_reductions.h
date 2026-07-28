@@ -46,12 +46,30 @@
 // vectors. `dependent` is false for a right-censored interval, which contributes
 // its timing term but no observed alternative.
 
-// Rank of the observed alternative: 1 + the number of alternatives with a
-// strictly greater weight (rank 1 = most likely). Ties share the better rank.
-// Scale-free, so `c` never enters and the rule is identical in both families —
-// and identical on the probability scale, since w -> p is a strictly monotone
-// per-event rescaling. Masked positions hold w = 0 and so can only outrank an
-// observed alternative whose own weight underflowed, which no scale reaches.
+// Relative tolerance of the rank tie rule below. Two alternatives whose
+// weights agree to this precision are treated as tied. Relative, not absolute,
+// because the kernels rank different but proportional vectors — some the raw
+// exp(linear predictor), some the normalized probabilities — and only a
+// relative comparison is invariant to that per-event constant, which is what
+// makes the rule reproducible across backends. The R mirror in
+// `estimation_core.R` (`RANK_TIE_TOL`) MUST hold the same number; on the log
+// scale that mirror ranks the coordination family on, the equivalent form is
+// additive (log(1 + tol) = tol to first order).
+//
+// Sized from the measured floating-point spread: the backends agree on
+// per-event probabilities to a few parts in 1e13, while genuinely distinct
+// levels on the fixtures are separated by factors of order 10, so 1e-12 sits
+// above the noise and far below any real structure.
+static const double RANK_TIE_TOL = 1e-12;
+
+// Rank of the observed alternative: 1 + the number of alternatives whose
+// weight exceeds the observed one by more than `RANK_TIE_TOL` relatively
+// (rank 1 = most likely). Ties — exact ones, and near-ties within the
+// tolerance — share the better rank. Scale-free, so `c` never enters and the
+// rule is identical in both families and on either of the two proportional
+// scales a kernel may hold. Masked positions hold w = 0 and so can only
+// outrank an observed alternative whose own weight underflowed, which no scale
+// reaches.
 int rank_of_observed(
     const arma::vec& w,
     const arma::vec& allowed,

@@ -8,12 +8,17 @@
 # Rank of the observed alternative among the risk set, enumerated from a fit
 # that stored per-event probabilities. For a multinomial submodel
 # exp(interval_log_lik) is the observed alternative's probability, so its rank is
-# 1 + (# alternatives strictly more likely).
-ranks_from_probabilities <- function(fit) {
+# 1 + (# alternatives more likely by more than the documented tie tolerance).
+# The tolerance is applied here exactly as the kernels apply it -- relative to
+# the observed probability -- so this reconstruction tests the same rule rather
+# than a second one.
+ranks_from_probabilities <- function(fit, tolerance = 1e-12) {
   p_obs <- exp(fit$interval_log_lik)
   vapply(
     seq_along(fit$event_probabilities),
-    function(i) 1L + sum(fit$event_probabilities[[i]] > p_obs[i] + 1e-9),
+    function(i) {
+      1L + sum(fit$event_probabilities[[i]] > p_obs[i] * (1 + tolerance))
+    },
     integer(1)
   )
 }
@@ -92,6 +97,44 @@ test_that("observed_rank is a valid rank vector on exact-time REM", {
   dependent <- !is.na(ranks)
   expect_true(all(ranks[dependent] >= 1L))
 })
+
+# Rank ties. Exact ties are the rule, not the edge case: on a nearly empty
+# network most alternatives carry identical statistics, so a tolerance-free
+# strict comparison resolves whole blocks by whichever way the last bit of each
+# backend's log-normalizer happens to fall. The tie rule -- strictly greater
+# than the observed weight widened by a 1e-12 RELATIVE tolerance -- collapses
+# those blocks identically everywhere. Relative rather than absolute because
+# the kernels rank proportional but differently scaled vectors (raw weights,
+# normalized probabilities, log-symmetric values), which an absolute tolerance
+# would treat differently.
+
+test_that("the tie rule ties near-ties and keeps distinct levels apart", {
+  # Within the tolerance: tied, so every member of the block shares rank 1.
+  block <- c(1, 1 + 1e-13, 1 - 1e-13, 1 + 5e-13)
+  for (i in seq_along(block)) {
+    expect_equal(rank_of_observed(block, i), 1L)
+  }
+  # Beyond it: distinct ranks, so the tolerance does not flatten real
+  # differences. 1e-10 relative is two orders above the rule and still far
+  # below any structure a model produces.
+  expect_equal(rank_of_observed(c(1, 1 + 1e-10), 1L), 2L)
+  expect_equal(rank_of_observed(c(1, 1 + 1e-10), 2L), 1L)
+  expect_equal(rank_of_observed(c(0.5, 0.3, 0.2), 3L), 3L)
+
+  # The log-scale form (the coordination path ranks there) is the same rule:
+  # an additive tolerance, since log(1 + tol) = tol to first order.
+  logs <- log(block)
+  for (i in seq_along(logs)) {
+    expect_equal(rank_of_observed(logs, i, log_scale = TRUE), 1L)
+  }
+  expect_equal(
+    rank_of_observed(log(c(1, 1 + 1e-10)), 1L, log_scale = TRUE),
+    2L
+  )
+})
+
+# The two fixture-based tie scenarios live at the end of this file, where the
+# shared `parity_fit()` helper is defined.
 
 # In-pass actor margins (per-actor observed vs expected event counts). The
 # calibration identity splits by flavor: multinomial expected counts sum
@@ -1060,4 +1103,60 @@ test_that("a missing replay object names both supply routes", {
   )
   expect_snapshot(resolve_preprocessed(fit = fit), error = TRUE)
   expect_snapshot(resolve_preprocessed(fit$names, fit), error = TRUE)
+})
+
+# The tie rule's two fixture scenarios (the unit-level one is with the other
+# rank tests above): the cross-backend identity it exists to guarantee, and the
+# agreement between a rank and a top-k recall over the same event.
+
+test_that("tied alternatives get the same rank on every backend", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  grid <- baselines_model_grid()
+  # Coordination is the fixture the rule was sized on: its events sit inside
+  # exactly tied blocks early in the sequence, and one event's rank differed by
+  # 57 places between the r and cpp backends under the tolerance-free rule.
+  for (nm in c("se_dynam_choice_coord", "se_dynam_choice", "se_rem")) {
+    spec <- grid[[nm]]
+    fc <- parity_fit(spec, data_list, diagnostics = c("loglik", "ranks"))
+    for (backend in c("r", "gather")) {
+      other <- parity_fit(
+        spec,
+        data_list,
+        backend = backend,
+        diagnostics = c("loglik", "ranks"),
+        initial_parameters = fc$parameters,
+        max_iterations = 0
+      )
+      expect_identical(
+        other$observed_rank,
+        fc$observed_rank,
+        info = paste(nm, backend)
+      )
+    }
+  }
+})
+
+test_that("top-k recall and the stored rank agree about ties", {
+  skip_on_cran()
+  withr::local_options(lifecycle_verbosity = "quiet")
+  data_list <- list(social_evolution = baselines_social_evolution_data())
+  spec <- baselines_model_grid()[["se_dynam_choice"]]
+  fit <- parity_fit(spec, data_list, diagnostics = c("loglik", "ranks"))
+  probs <- parity_fit(
+    spec,
+    data_list,
+    backend = "r",
+    return_probabilities = TRUE,
+    initial_parameters = fit$parameters,
+    max_iterations = 0
+  )
+  # A recall statistic enumerated from the probabilities under the same rule
+  # cannot disagree with the stored rank about whether the observed alternative
+  # is within the top k, including where a tied block spans k.
+  enumerated <- ranks_from_probabilities(probs)
+  for (k in c(1L, 3L, 10L)) {
+    expect_identical(fit$observed_rank <= k, enumerated <= k, info = k)
+  }
 })

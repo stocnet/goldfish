@@ -214,6 +214,20 @@ riding along with the \code{"loglik"} primitive.}
 \item{event_scores}{a matrix with one row per interval and one column per
 coefficient, the per-event contributions to the score. Stored when
 \code{"scores"} is among the \code{diagnostics} primitives (the default).}
+\item{observed_rank}{an integer vector with the rank of the alternative
+that was realized among the interval's risk set, \code{1} being the most likely
+one, stored when \code{"ranks"} is among the \code{diagnostics} primitives. It is
+\code{NA} on a right-censored interval, which realizes no alternative. Ties are
+resolved by counting only the alternatives that are \strong{more likely by more
+than a relative tolerance of 1e-12}, so tied alternatives share the
+better rank and a rank is reproducible: exact ties are common in these
+models — on a nearly empty network most alternatives carry identical
+statistics — and without a tolerance whole blocks of them would be
+ordered by whichever way the last bit of a normalizer happened to fall,
+differently on each backend. The tolerance is relative, so the rank does
+not depend on whether a kernel holds rates or probabilities, and the same
+rule governs every rank-sensitive quantity: a top-k recall computed from
+these ranks cannot disagree with them about which alternatives are tied.}
 \item{margins}{a list of per-actor observed and expected event-count
 vectors, stored when \code{"margins"} is among the \code{diagnostics} primitives.
 Each vector is named by actor label, and each expected vector carries a

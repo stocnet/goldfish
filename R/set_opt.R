@@ -99,8 +99,11 @@
 #'   component of the result: `"loglik"` to `interval_log_lik` (and `total_rate`
 #'   on exact-time submodels), `"scores"` to `event_scores`, `"ranks"` to
 #'   `observed_rank`, `"margins"` to per-actor observed and expected counts, and
-#'   `"probabilities"` to per-event probability vectors. Unknown names abort with
-#'   an error listing the valid primitives. Default is `c("loglik", "scores")`,
+#'   `"probabilities"` to per-event probability vectors; each is documented
+#'   under the fitted object in [estimate_dynam()], including the tie rule
+#'   `observed_rank` resolves equally likely alternatives by. Unknown names
+#'   abort with an error listing the valid primitives.
+#'   Default is `c("loglik", "scores")`,
 #'   preserving today's stored log-likelihood and adding the (free) scores. For
 #'   fits with more than 100,000 events a one-time message reports the
 #'   approximate footprint of the per-event vectors and names `diagnostics =
