@@ -15,6 +15,7 @@ estimate_dynam(
   control_prep = set_preprocessing(),
   preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
@@ -31,6 +32,7 @@ estimate_dynami(
   control_prep = set_preprocessing(),
   preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
@@ -47,6 +49,7 @@ estimate_rem(
   control_prep = set_preprocessing(),
   preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
@@ -119,6 +122,14 @@ object of class \code{preprocessed.goldfish}. Default to \code{FALSE}. Supersede
 goldfish 2.0.0 by \code{\link[=compute_statistics]{compute_statistics()}} with \code{output = "preprocessed"},
 which returns the same object from a function that says what it does; it
 keeps working through 2.x.}
+
+\item{return_preprocessed}{logical. If \code{TRUE}, the returned fit carries the
+\code{preprocessed.goldfish} object it was estimated from, under \code{preprocessed},
+and a message reports its approximate size. Diagnostics that replay the
+change statistics read it from there instead of asking for one. It is much
+larger than the fit itself, so it is opt-in; the alternative is to supply
+such a diagnostic its own object through \verb{preprocessed =}. Default to
+\code{FALSE}.}
 
 \item{support_constraint}{a one-sided formula restricting the per-event risk
 set, written in the restricted boolean-tree grammar: effect atoms
@@ -212,6 +223,11 @@ sets are the same nodes. The per-event components deliberately carry no
 \code{names()} or \code{dimnames()} of their own: this one table per fit would
 otherwise be repeated once per event, which on a long sequence is exactly
 the size blow-up the per-event primitives are guarded against.}
+\item{preprocessed}{the \code{preprocessed.goldfish} object the model was
+estimated from, present only when \code{return_preprocessed = TRUE}. It is the
+same object \code{\link[=compute_statistics]{compute_statistics()}} returns under
+\code{output = "preprocessed"}, so a diagnostic reads it from the fit or takes
+an equivalent one through its own \code{preprocessed} argument.}
 \item{right_censored}{
 a logical value indicating if the estimation process considered
 right-censored events.

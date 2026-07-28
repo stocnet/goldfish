@@ -96,6 +96,13 @@
 #'  goldfish 2.0.0 by [compute_statistics()] with `output = "preprocessed"`,
 #'  which returns the same object from a function that says what it does; it
 #'  keeps working through 2.x.
+#' @param return_preprocessed logical. If `TRUE`, the returned fit carries the
+#'  `preprocessed.goldfish` object it was estimated from, under `preprocessed`,
+#'  and a message reports its approximate size. Diagnostics that replay the
+#'  change statistics read it from there instead of asking for one. It is much
+#'  larger than the fit itself, so it is opt-in; the alternative is to supply
+#'  such a diagnostic its own object through `preprocessed =`. Default to
+#'  `FALSE`.
 #' @param control_estimation `r lifecycle::badge("deprecated")` Renamed to
 #'  `control_algo` in goldfish 2.0.0.
 #' @param control_preprocessing `r lifecycle::badge("deprecated")` Renamed to
@@ -197,6 +204,11 @@
 #'   `names()` or `dimnames()` of their own: this one table per fit would
 #'   otherwise be repeated once per event, which on a long sequence is exactly
 #'   the size blow-up the per-event primitives are guarded against.}
+#'   \item{preprocessed}{the `preprocessed.goldfish` object the model was
+#'   estimated from, present only when `return_preprocessed = TRUE`. It is the
+#'   same object [compute_statistics()] returns under
+#'   `output = "preprocessed"`, so a diagnostic reads it from the fit or takes
+#'   an equivalent one through its own `preprocessed` argument.}
 #'   \item{right_censored}{
 #'   a logical value indicating if the estimation process considered
 #'   right-censored events.
@@ -331,6 +343,7 @@ estimate_dynam <- function(
   control_prep = set_preprocessing(),
   preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
@@ -377,6 +390,7 @@ estimate_dynam <- function(
       control_prep = control_prep,
       preprocessed = preprocessed,
       preprocessing_only = preprocessing_only,
+      return_preprocessed = return_preprocessed,
       progress = progress,
       verbose = verbose
     ))
@@ -390,6 +404,7 @@ estimate_dynam <- function(
     control_prep = control_prep,
     preprocessed = preprocessed,
     preprocessing_only = preprocessing_only,
+    return_preprocessed = return_preprocessed,
     progress = progress,
     verbose = verbose,
     support_constraint = support_constraint
@@ -406,6 +421,7 @@ estimate_dynami <- function(
   control_prep = set_preprocessing(),
   preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
@@ -452,6 +468,7 @@ estimate_dynami <- function(
       control_prep = control_prep,
       preprocessed = preprocessed,
       preprocessing_only = preprocessing_only,
+      return_preprocessed = return_preprocessed,
       progress = progress,
       verbose = verbose
     ))
@@ -465,6 +482,7 @@ estimate_dynami <- function(
     control_prep = control_prep,
     preprocessed = preprocessed,
     preprocessing_only = preprocessing_only,
+    return_preprocessed = return_preprocessed,
     support_constraint = support_constraint,
     progress = progress,
     verbose = verbose
@@ -481,6 +499,7 @@ estimate_rem <- function(
   control_prep = set_preprocessing(),
   preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   support_constraint = NULL,
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
@@ -527,6 +546,7 @@ estimate_rem <- function(
       control_prep = control_prep,
       preprocessed = preprocessed,
       preprocessing_only = preprocessing_only,
+      return_preprocessed = return_preprocessed,
       progress = progress,
       verbose = verbose
     ))
@@ -540,6 +560,7 @@ estimate_rem <- function(
     control_prep = control_prep,
     preprocessed = preprocessed,
     preprocessing_only = preprocessing_only,
+    return_preprocessed = return_preprocessed,
     progress = progress,
     verbose = verbose,
     support_constraint = support_constraint
@@ -560,6 +581,7 @@ estimate_from_specification <- function(
   control_prep,
   preprocessed,
   preprocessing_only,
+  return_preprocessed = FALSE,
   progress,
   verbose,
   output = "default",
@@ -584,6 +606,7 @@ estimate_from_specification <- function(
       control_prep = control_prep,
       preprocessed = preprocessed,
       preprocessing_only = preprocessing_only,
+      return_preprocessed = return_preprocessed,
       progress = progress,
       verbose = verbose,
       output = output,
@@ -615,6 +638,7 @@ estimate_from_specification <- function(
     control_prep = control_prep,
     preprocessed = preprocessed,
     preprocessing_only = preprocessing_only,
+    return_preprocessed = return_preprocessed,
     progress = progress,
     verbose = verbose,
     parsed_formula = if (reuse_parsed) bundle$parsed else NULL,
@@ -1246,6 +1270,63 @@ note_diagnostic_storage_footprint <- function(
   invisible()
 }
 
+# Report the footprint of the replay object `return_preprocessed = TRUE` attaches
+# to a fit. It is the largest thing a fit can carry -- the change statistics of
+# every effect over the whole event sequence -- so the cost is stated when it is
+# taken on rather than discovered when the fit is saved.
+note_preprocessed_attached <- function(prep, call = rlang::caller_env()) {
+  size <- format(utils::object.size(prep), units = "auto")
+  cli::cli_inform(
+    c(
+      "i" = "The fit carries the preprocessed statistics it was estimated from
+             (about {size})."
+    ),
+    call = call
+  )
+  invisible()
+}
+
+# Precedence for a diagnostic that needs to replay the statistics: an explicitly
+# supplied object wins over the one attached to the fit, because a caller who
+# passes one is answering the question the attached copy would answer silently.
+# The abort names both supply routes and deliberately not
+# `estimate_*(preprocessing_only = TRUE)`, which is soft-deprecated onto exactly
+# the `compute_statistics()` route named here.
+resolve_preprocessed <- function(
+  preprocessed = NULL,
+  fit = NULL,
+  call = rlang::caller_env()
+) {
+  if (!is.null(preprocessed)) {
+    if (!inherits(preprocessed, "preprocessed.goldfish")) {
+      cli::cli_abort(
+        c(
+          "{.arg preprocessed} must be a {.cls preprocessed.goldfish} object.",
+          "x" = "You supplied a {.cls {class(preprocessed)[[1]]}} object.",
+          "i" = "Build one with {.code compute_statistics(..., output =
+                 \"preprocessed\")}."
+        ),
+        call = call
+      )
+    }
+    return(preprocessed)
+  }
+  attached <- fit[["preprocessed"]]
+  if (!is.null(attached)) {
+    return(attached)
+  }
+  cli::cli_abort(
+    c(
+      "This diagnostic needs the preprocessed statistics of the model, which
+       this fit does not carry.",
+      "i" = "Re-estimate with {.code return_preprocessed = TRUE}, or",
+      "i" = "supply {.code preprocessed = compute_statistics(..., output =
+             \"preprocessed\")}."
+    ),
+    call = call
+  )
+}
+
 # First estimation from a formula: can return either a preprocessed object or a
 # result object
 #' @importFrom stats as.formula
@@ -1259,6 +1340,7 @@ estimate_wrapper <- function(
   control_prep = set_preprocessing(),
   preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   output = c("default", "gather", "data.frame", "db"),
   progress = getOption("progress", default = FALSE),
   verbose = getOption("verbose", default = FALSE),
@@ -1345,6 +1427,7 @@ estimate_wrapper <- function(
 
   stopifnot(
     rlang::is_scalar_logical(preprocessing_only),
+    rlang::is_scalar_logical(return_preprocessed),
     rlang::is_scalar_logical(verbose),
     is.null(progress) || rlang::is_scalar_logical(progress),
     is.null(preprocessed) ||
@@ -2193,6 +2276,12 @@ estimate_wrapper <- function(
     return(prep)
   }
 
+  # What `return_preprocessed = TRUE` puts on the fit is exactly the object the
+  # return above hands back, captured here rather than at assembly: the DyNAM-i
+  # remap below rewrites `prep` into the shape the shared kernel reads, and a fit
+  # carrying that shape would not be replayable through `preprocessed =`.
+  preprocessed_for_fit <- if (return_preprocessed) prep else NULL
+
   # The interaction monolith emits the pre-recipe preprocessing shape; map it to
   # the recipe statsList the shared estimation kernel reads. Done after the
   # preprocessing_only return so the raw monolith object (which the DyNAM-i
@@ -2499,6 +2588,15 @@ estimate_wrapper <- function(
   ## added to allow printing/plotting of rate models with rightCnesoredEvents
   result$event_time <- prep$event_time
   result$right_censored_events <- prep$is_dependent == 0L
+
+  # The replay object rides along only when asked for: it is the change
+  # statistics of every effect over the whole sequence, so it dwarfs the fit it
+  # travels with, and a diagnostic that needs it can equally be handed one
+  # through `preprocessed =`.
+  if (!is.null(preprocessed_for_fit)) {
+    result$preprocessed <- preprocessed_for_fit
+    note_preprocessed_attached(preprocessed_for_fit)
+  }
 
   return(result)
 }

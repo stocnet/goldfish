@@ -30,6 +30,7 @@ estimate_flavored <- function(
   control_prep = set_preprocessing(),
   preprocessed = NULL,
   preprocessing_only = FALSE,
+  return_preprocessed = FALSE,
   progress = FALSE,
   verbose = FALSE,
   call = NULL,
@@ -127,6 +128,7 @@ estimate_flavored <- function(
       control_algo = process_control,
       control_prep = control_prep,
       preprocessed = prep,
+      return_preprocessed = return_preprocessed,
       support_constraint = spec$processes[[flavor]]$constraint,
       progress = progress,
       verbose = verbose

@@ -978,3 +978,74 @@ test_that("requesting ranks does not perturb a free fit with censored events", {
     )
   }
 })
+
+# The replay object on the fit (`return_preprocessed`) and the precedence rule
+# every diagnostic that needs a statistics replay reads it through.
+
+test_that("return_preprocessed attaches the replay object and reports its size", {
+  # The size is asserted as a message, not a snapshot: `object.size()` depends
+  # on the platform's pointer width, so the rendered figure is not reproducible
+  # across the machines that run this suite.
+  expect_message(
+    fit <- estimate_dynam(
+      depNetwork ~ inertia + recip,
+      sub_model = "choice",
+      data = dataTest,
+      return_preprocessed = TRUE
+    ),
+    "preprocessed statistics"
+  )
+  expect_s3_class(fit$preprocessed, "preprocessed.goldfish")
+})
+
+test_that("a fit does not carry the replay object unless it is asked for", {
+  fit <- estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest
+  )
+  expect_null(fit$preprocessed)
+})
+
+test_that("the attached object re-estimates through preprocessed =", {
+  fit <- suppressMessages(estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest,
+    return_preprocessed = TRUE
+  ))
+  replayed <- estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest,
+    preprocessed = fit$preprocessed
+  )
+  expect_equal(coef(replayed), coef(fit))
+})
+
+test_that("resolve_preprocessed prefers a supplied object over the attached one", {
+  fit <- suppressMessages(estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest,
+    return_preprocessed = TRUE
+  ))
+  supplied <- compute_statistics(
+    depNetwork ~ inertia,
+    model = "DyNAM",
+    sub_model = "choice",
+    data = dataTest
+  )
+  expect_identical(resolve_preprocessed(supplied, fit), supplied)
+  expect_identical(resolve_preprocessed(NULL, fit), fit$preprocessed)
+})
+
+test_that("a missing replay object names both supply routes", {
+  fit <- estimate_dynam(
+    depNetwork ~ inertia + recip,
+    sub_model = "choice",
+    data = dataTest
+  )
+  expect_snapshot(resolve_preprocessed(fit = fit), error = TRUE)
+  expect_snapshot(resolve_preprocessed(fit$names, fit), error = TRUE)
+})
