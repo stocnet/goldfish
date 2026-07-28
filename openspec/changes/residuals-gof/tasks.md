@@ -44,7 +44,7 @@ happens in `/Users/ualvaro/Documents/repos/autograph` on branch
 before, and settled two questions that belong here. Read this before section 1
 so nothing is built twice or against a retired assumption.
 
-- [ ] 0.2 **This change owns the `margins` shape decision — and it is now
+- [x] 0.2 **This change owns the `margins` shape decision — and it is now
       "accessor, not reshape".** Explored and decided 2026-07-26: `margins`
       storage stays as it is (`observed`/`expected` single-sided,
       `*_sender`/`*_receiver` two-sided, coordination single-sided over one
@@ -57,7 +57,7 @@ so nothing is built twice or against a retired assumption.
       capability and **dropped it** for this reason (its task 0.3); it
       contributes only the exported risk-set axis, which the accessor consumes.
       Fold this into 1.10's scope rather than adding a task.
-- [ ] 0.3 **Do not re-implement primitives that now exist on every backend.**
+- [x] 0.3 **Do not re-implement primitives that now exist on every backend.**
       `backend-parity` extended the in-pass accumulation this change's tasks
       1.4–1.6 started (all marked done) to all three backends, and added what
       they did not cover: per-event `probabilities` on `cpp` and `gather`
@@ -68,7 +68,7 @@ so nothing is built twice or against a retired assumption.
       on those kernels. Verify against the code before writing anything in
       sections 1–2 — several design paragraphs here are written in the future
       tense about work that has landed.
-- [ ] 0.4 **Assumptions this change was written under that are now false.**
+- [x] 0.4 **Assumptions this change was written under that are now false.**
       Corrected in place already, listed so the corrections are not undone:
       the design's key-code-fact "No `default_c` engine returns a probability
       matrix" (they all do now — the conclusion that ranks/margins stay in-pass
@@ -79,7 +79,7 @@ so nothing is built twice or against a retired assumption.
       silent default-sourced drop it existed to choose between). **Task 1.9 is
       otherwise still real work**: the `return_event_scores` *argument* still
       exists in `set_opt.R` and this change still owns removing it.
-- [ ] 0.5 **The evaluator substrate is further along than the design says.**
+- [x] 0.5 **The evaluator substrate is further along than the design says.**
       D3 names `evaluate_default_c(pars, need_scores)` as the closure to
       generalize into `evaluate_model()`. It now takes six flags
       (`need_scores`, `need_ranks`, `need_margins`, `need_total_rate`,
@@ -141,10 +141,17 @@ so nothing is built twice or against a retired assumption.
       public flags (`return_interval_loglik`, `return_probabilities`) keep
       their 1.2 soft-deprecation unchanged. r-lib:lifecycle before the work;
       snapshot updates; `devtools::document()`.
-- [ ] 1.10 Exact-time scale variants — labels and docs (decisions in
-      backend-parity design D12/D16/D17 as revised, spec here): margins ship
-      labeled — `"probability"` on every family, plus `"expected_count"` on
-      exact-time fits. The conditional loglik component is produced **in the
+- [ ] 1.10 Exact-time scale variants — labels, actor labels, accessor, docs
+      (decisions in backend-parity design D12/D16/D17 as revised, spec here):
+      margins ship labeled — `"probability"` on every family, plus
+      `"expected_count"` on exact-time fits. Folded in from task 0.2: the
+      stored shape stays as it is (single-sided `observed`/`expected`,
+      two-sided `*_sender`/`*_receiver`), and this task additionally delivers
+      (a) actor labels on every stored vector (the margins requirement already
+      mandates them; the assembly in `cpp_interface.R` currently returns
+      unnamed numerics), and (b) a **uniform accessor** presenting one shape
+      to every consumer — keyed off the exported `risk_set_axis()` — so
+      `residuals()` / `diagnose_*()` / `predict()` never branch on family. The conditional loglik component is produced **in the
       estimation pass** by backend-parity (its D17 revision: the assembly
       identity is catastrophic cancellation; the kernel computes
       `x_obs − lse` directly, `NA` on right-censored intervals per its D21) —
