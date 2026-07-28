@@ -110,7 +110,7 @@
       completion; `~ 1 + effects` keeps an estimated baseline; warning wording per
       consumer (snapshots); warning re-fires when the same spec is routed through a
       second consumer
-- [ ] 5.5 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
+- [x] 5.5 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
       `devtools::document()`; commit
 
 ## 6. Timed-regime scope guard and documentation
