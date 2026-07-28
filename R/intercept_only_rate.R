@@ -706,3 +706,81 @@ mark_pinned_rates <- function(joint_spec, call = rlang::caller_env()) {
   joint_spec$pinned_rates <- descriptors
   joint_spec
 }
+
+# ---- Context-aware pinned-rate warning (D6) ----------------------------------
+#
+# Each generative consumer -- estimate_dynes() and the future simulate() method
+# -- warns at its OWN entry that a rate is pinned, worded for its count source
+# (D6/D2): estimate_dynes() reads the wave Hamming diff (a net-change floor),
+# has no standard error, and excludes the rate from estimation; simulate()
+# reads the observed event count and has no standard-error language (SE is not
+# a simulation concept). Neither consumer exists yet (grep confirms no
+# `estimate_dynes()` in R/model_estimate.R and no `simulate.joint_specification.
+# goldfish` method) -- this defines the wording/logic every consumer will call
+# at its entry point, ahead of the wiring.
+#
+# The warning is NOT suppressed on re-entry: `cli::cli_warn()` fires every call
+# by default (no `.frequency = "once"`/"regularly" is set here, matching every
+# other `cli_warn()` call in this package), so the SAME specification routed
+# through a second consumer warns again -- deliberately, since the two
+# consumers' wording differs and a user landing in the second consumer needs
+# its own no-SE/exclusion notice.
+warn_pinned_rate <- function(
+  fid,
+  consumer = c("estimate_dynes", "simulate"),
+  call = rlang::caller_env()
+) {
+  consumer <- match.arg(consumer)
+  switch(
+    consumer,
+    estimate_dynes = cli::cli_warn(
+      c(
+        "!" = "Rate {.field {fid}} is an intercept-only rate ({.code ~ 1}):
+               it is {.strong pinned}, not estimated.",
+        "i" = "The pin comes from the wave {.strong Hamming diff} between
+               observed states -- a net-change floor.",
+        "i" = "It carries no standard error and is excluded from estimation."
+      ),
+      class = "goldfish_pinned_rate_warning",
+      call = call
+    ),
+    simulate = cli::cli_warn(
+      c(
+        "!" = "Rate {.field {fid}} is an intercept-only rate ({.code ~ 1}):
+               it is {.strong pinned}, not estimated.",
+        "i" = "The pin comes from the {.strong observed event count} over the
+               relevant period."
+      ),
+      class = "goldfish_pinned_rate_warning",
+      call = call
+    )
+  )
+  invisible(NULL)
+}
+
+# Warn once per pinned fid, in `process_map` fid order, for a joint
+# specification already passed through `mark_pinned_rates()`. This is the
+# entry-point call each consumer makes: `estimate_dynes()` calls it with
+# `consumer = "estimate_dynes"`, the future `simulate()` method with
+# `consumer = "simulate"` -- against the SAME `pinned_rates` attached by
+# `mark_pinned_rates()`, so a joint specification routed through both consumers
+# warns independently at each entry (never suppressed, D6). A specification
+# with no pinned rate warns about nothing.
+warn_pinned_rates <- function(
+  joint_spec,
+  consumer = c("estimate_dynes", "simulate"),
+  call = rlang::caller_env()
+) {
+  consumer <- match.arg(consumer)
+  if (!inherits(joint_spec, "joint_specification.goldfish")) {
+    cli::cli_abort(
+      "{.arg joint_spec} must be a {.cls joint_specification.goldfish}.",
+      call = call
+    )
+  }
+  pinned_fid <- names(joint_spec$pinned_rates)
+  for (fid in pinned_fid) {
+    warn_pinned_rate(fid, consumer = consumer, call = call)
+  }
+  invisible(joint_spec)
+}

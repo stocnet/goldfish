@@ -844,6 +844,29 @@ test_that("adding a pinned rate to a joint fit leaves theta/score/Hessian unchan
   expect_true(FALSE)
 })
 
+# Context-aware pinned-rate warning (Session 5.3): each consumer warns at its
+# OWN entry, worded for its count source (D6) -- estimate_dynes() names the
+# wave Hamming diff, no SE, excluded from estimation; simulate() names the
+# observed event count, no SE language. The warning is NOT suppressed on
+# re-entry: cli::cli_warn() fires every call by default, so the same joint
+# spec routed through a second consumer warns again.
+#
+# Neither estimate_dynes() nor a simulate() method for
+# joint_specification.goldfish exists yet (grep confirms), so the wording/
+# logic is built and unit-tested directly against warn_pinned_rate(s)() here;
+# the actual consumer-entry snapshots and the "routed through a second
+# consumer" test are deferred behind skip_if_not (see progress.md Session 5).
+
+test_that("estimate_dynes wording: Hamming-diff pin, no SE, excluded", {
+  local_cli_context()
+  expect_snapshot(warn_pinned_rate("3", consumer = "estimate_dynes"))
+})
+
+test_that("simulate wording: observed-count pin, no SE language", {
+  local_cli_context()
+  expect_snapshot(warn_pinned_rate("3", consumer = "simulate"))
+})
+
 test_that("the intercept-only rate primitive is not exported", {
   exported <- getNamespaceExports("goldfish")
   internal <- c(
@@ -861,7 +884,9 @@ test_that("the intercept-only rate primitive is not exported", {
     "is_intercept_only_rate_bundle",
     "pinned_rate_model_type",
     "pinned_rate_descriptor",
-    "mark_pinned_rates"
+    "mark_pinned_rates",
+    "warn_pinned_rate",
+    "warn_pinned_rates"
   )
   expect_length(intersect(internal, exported), 0)
 })

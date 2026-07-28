@@ -102,7 +102,7 @@
       `estimate_dynam()` / `estimate_rem()` keeps its existing estimated-intercept
       meaning; add a regression test that this is byte-identical to the pre-change path
       (frozen baselines PASS) and that a pinned rate never appears in θ
-- [ ] 5.3 Context-aware warning at each consumer entry (D6, `cli`, not suppressed on
+- [x] 5.3 Context-aware warning at each consumer entry (D6, `cli`, not suppressed on
       re-entry): `estimate_dynes()` — pinned from the wave Hamming diff (net-change
       floor), no standard error, excluded from estimation; `simulate()` — pinned from
       the observed event count (no SE language). Snapshot both under a pinned cli context

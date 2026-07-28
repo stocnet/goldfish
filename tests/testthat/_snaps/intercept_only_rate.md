@@ -202,3 +202,22 @@
       ! `joint_spec` must be a <joint_specification.goldfish>.
       i Pinning an intercept-only rate is scoped to the generative context; the single-process path (`estimate_dynam()` / `estimate_rem()`) keeps its estimated-intercept meaning.
 
+# estimate_dynes wording: Hamming-diff pin, no SE, excluded
+
+    Code
+      warn_pinned_rate("3", consumer = "estimate_dynes")
+    Condition
+      Warning:
+      ! Rate 3 is an intercept-only rate (`~ 1`): it is pinned, not estimated.
+      i The pin comes from the wave Hamming diff between observed states -- a net-change floor.
+      i It carries no standard error and is excluded from estimation.
+
+# simulate wording: observed-count pin, no SE language
+
+    Code
+      warn_pinned_rate("3", consumer = "simulate")
+    Condition
+      Warning:
+      ! Rate 3 is an intercept-only rate (`~ 1`): it is pinned, not estimated.
+      i The pin comes from the observed event count over the relevant period.
+
