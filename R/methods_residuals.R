@@ -170,6 +170,33 @@ residual_stored <- function(
   stored
 }
 
+# A component of the fitted object that a diagnostic needs and an older fit may
+# lack. The format epoch deliberately does not move when a component is added
+# during a development line (see format_version.R), so within that line an
+# object can be current in stamp and still predate a component -- and this is
+# the guard that covers it. Same shape as `residual_stored()`: name the
+# component, and name the remedy.
+fit_component <- function(
+  object,
+  component,
+  what,
+  call = rlang::caller_env()
+) {
+  stored <- object[[component]]
+  if (is.null(stored)) {
+    cli::cli_abort(
+      c(
+        "{what} needs the {.field {component}} component, which this fit does
+         not carry.",
+        "i" = "It was added after this model was fitted; re-estimate to obtain
+               it."
+      ),
+      call = call
+    )
+  }
+  stored
+}
+
 # Schoenfeld rows are the score rows without the exposure term. On a
 # multinomial sub-model there is no exposure term to remove -- the scale is 1 --
 # so the score rows ARE the Schoenfeld rows. On an exact-time sub-model they

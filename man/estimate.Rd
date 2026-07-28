@@ -308,10 +308,22 @@ right-censored events.
 Only it is considered for \code{estimate_dynam(x, sub_model = "rate")} or
 REM (\code{estimate_rem()}), when the model includes the intercept.}
 \item{right_censored_events}{a logical vector indicating whether or not an
-event is a right censored event}
+event is a right censored event. It is the fit's \strong{only} spelling of that
+fact: the preprocessed object carries the same information as
+\code{is_dependent}, its negation, and no second indicator is stored here.}
 \item{event_times}{
 a numerical vector of times of events (including right censored events)
 }
+\item{intervals}{a numeric vector with the elapsed time of each interval
+the likelihood was computed over, one value per interval, in the same
+order as \code{interval_log_lik}. Present on every fit regardless of the
+\code{diagnostics} request — it is the clock the likelihood already used, not a
+diagnostic. With the \code{"loglik"} primitive it makes the Cox-Snell residual
+of an exact-time fit the exact product \code{intervals * total_rate}, so that
+residual needs neither an evaluation pass nor the preprocessed statistics.}
+\item{start_time, end_time}{the bounds of the observation window the
+intervals span, so a per-event quantity can be placed on the observed time
+axis without reconstructing the window from the event times.}
 }
 \description{
 Estimates parameters for a dynamic network model via maximum likelihood

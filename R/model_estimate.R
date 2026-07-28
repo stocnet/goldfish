@@ -289,10 +289,22 @@
 #'   Only it is considered for `estimate_dynam(x, sub_model = "rate")` or
 #'   REM (`estimate_rem()`), when the model includes the intercept.}
 #'   \item{right_censored_events}{a logical vector indicating whether or not an
-#'   event is a right censored event}
+#'   event is a right censored event. It is the fit's **only** spelling of that
+#'   fact: the preprocessed object carries the same information as
+#'   `is_dependent`, its negation, and no second indicator is stored here.}
 #'   \item{event_times}{
 #'   a numerical vector of times of events (including right censored events)
 #'   }
+#'   \item{intervals}{a numeric vector with the elapsed time of each interval
+#'   the likelihood was computed over, one value per interval, in the same
+#'   order as `interval_log_lik`. Present on every fit regardless of the
+#'   `diagnostics` request — it is the clock the likelihood already used, not a
+#'   diagnostic. With the `"loglik"` primitive it makes the Cox-Snell residual
+#'   of an exact-time fit the exact product `intervals * total_rate`, so that
+#'   residual needs neither an evaluation pass nor the preprocessed statistics.}
+#'   \item{start_time, end_time}{the bounds of the observation window the
+#'   intervals span, so a per-event quantity can be placed on the observed time
+#'   axis without reconstructing the window from the event times.}
 #'
 #' @importFrom stats formula na.omit
 #' @name estimate
@@ -2675,6 +2687,16 @@ estimate_wrapper <- function(
   ## added to allow printing/plotting of rate models with rightCnesoredEvents
   result$event_time <- prep$event_time
   result$right_censored_events <- prep$is_dependent == 0L
+  # The interval clock of the likelihood: what a diagnostic needs to place a
+  # per-event quantity on real time rather than on event index, and what makes
+  # the Cox-Snell residual `intervals * total_rate` -- an exact product of two
+  # stored vectors -- rather than a difference of logs or a replay pass.
+  # Carried unconditionally: one vector of the length the other per-event
+  # components already have, plus two numbers, so gating a clock that costs
+  # nothing behind `diagnostics` would only make it absent when it is wanted.
+  result$intervals <- prep$intervals
+  result$start_time <- prep$start_time
+  result$end_time <- prep$end_time
 
   # The replay object rides along only when asked for: it is the change
   # statistics of every effect over the whole sequence, so it dwarfs the fit it

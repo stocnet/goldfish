@@ -17,6 +17,25 @@
 # Two counters rather than one shared value, because the two objects can change
 # shape independently -- a preprocessing-only change must not invalidate every
 # stored fit.
+#
+# **An epoch moves once per RELEASE whose layout differs from the previous
+# release's, never once per component added during a development line.** The
+# last release is v1.7.0 (2025-06-23) and the epoch was introduced thirteen
+# months later, so no released goldfish has ever written one: every object in
+# the wild is epoch 1 ("no record"), epoch 2 exists only inside this dev line,
+# and 2.0.0 will be the first release to ship an epoch at all. Bumping for a
+# dev-line addition would burn a number no user could ever hold an object
+# stamped with, and would refuse every dev-line fit for a change that only
+# *adds* components.
+#
+# The cost of that rule, stated so it is chosen rather than discovered: within a
+# development line an object can be **current in stamp but stale in content** --
+# stamped 2, yet fitted before a component existed. The epoch cannot catch that,
+# so the CONSUMER must: a diagnostic needing a component a fit may lack checks
+# for it and aborts naming what it needs, exactly as `residual_stored()` names a
+# missing stored primitive. That guard is per-consumer and legible; a global
+# stamp for a dev-line addition is neither. The same rule governs
+# `prep_version`.
 
 # Recorded on a fitted result as `fit_version`.
 FIT_VERSION <- 2L
