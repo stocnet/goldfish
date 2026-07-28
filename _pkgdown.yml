@@ -54,6 +54,7 @@ reference:
     contents:
       - logLik.result.goldfish
       - starts_with("diagnose")
+      - residuals.result.goldfish
       - evaluate_model
       - margin_table
       - diagnostic-tables
