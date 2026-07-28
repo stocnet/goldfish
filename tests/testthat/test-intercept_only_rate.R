@@ -606,6 +606,187 @@ test_that("the loglik offset validates its per-period count", {
   )
 })
 
+# User surface (Session 5): in the generative context an intercept-only rate
+# (`rate = ~ 1`, no other effects, or a completion-supplied rate) is *pinned* --
+# a user-written `~ 1` and a completion-supplied rate reduce to the SAME pinned
+# object -- while a rate carrying any effect keeps its estimated baseline. The
+# reinterpretation is scoped by type to a `joint_specification.goldfish`, so the
+# single-process estimation path is untouched.
+
+# cli snapshots are pinned to a reproducible width / no-color context.
+local_cli_context <- function(env = parent.frame()) {
+  withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
+}
+
+# Two DyNAM processes over one shared data object with a panel-observed
+# friendship layer (read by the calls choice, so the join's panel-reference
+# requirement is met). Both processes carry an estimated-baseline `~ 1 + inertia`
+# rate; the caller may inject an intercept-only rate into a chosen layer to stand
+# in for a completion-supplied rate (make_specification() cannot yet parse a bare
+# `~ 1`, so a synthesized bundle models the completion route).
+pinned_joint_data <- function() {
+  nodes <- data.frame(
+    label = paste0("N", 1:6),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L),
+      to = c(2L, 3L, 4L, 5L),
+      time = c(1, 2, 3, 4),
+      layer = "friendship"
+    ),
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls"
+    ),
+    data.frame(
+      from = c(2L, 3L, 4L),
+      to = c(1L, 2L, 3L),
+      time = c(1, 2, 3),
+      layer = "emails"
+    )
+  )
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(
+      friendship = "increment",
+      calls = "increment",
+      emails = "increment"
+    ),
+    directed = c(friendship = TRUE, calls = TRUE, emails = TRUE),
+    observation = c(friendship = "panel", calls = "event", emails = "event")
+  )
+  list(info = info, nodes = nodes, ties = ties)
+}
+
+# The synthesized intercept-only rate bundle a completion transform would attach
+# to a choice-only flavor: a rate sub_model carrying an intercept and no effects.
+# It is the SAME shape a user-written `~ 1` parses to, so the classifier and the
+# pinned descriptor cannot tell the two sources apart.
+completion_rate_bundle <- function() {
+  list(
+    input_formula = ~1,
+    sub_model = "rate",
+    parsed = list(rhs_names = list(), has_intercept = TRUE),
+    has_intercept = TRUE
+  )
+}
+
+test_that("an intercept-only rate bundle is classified by shape, source-agnostic", {
+  data <- pinned_joint_data()
+  estimated_rate <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )$submodels$rate
+
+  # a rate carrying any effect is NOT intercept-only (keeps its estimated
+  # baseline); a completion-supplied bare-intercept rate IS.
+  expect_false(is_intercept_only_rate_bundle(estimated_rate))
+  expect_true(is_intercept_only_rate_bundle(completion_rate_bundle()))
+
+  # the classifier reads only the shape, never provenance: a user `~ 1` bundle
+  # and a completion bundle carrying different metadata classify identically.
+  user_bundle <- c(completion_rate_bundle(), list(source = "user"))
+  completion_bundle <- c(
+    completion_rate_bundle(),
+    list(source = "completion", synthesized = TRUE)
+  )
+  expect_true(is_intercept_only_rate_bundle(user_bundle))
+  expect_true(is_intercept_only_rate_bundle(completion_bundle))
+
+  # a choice family is never intercept-only (has_intercept is FALSE upstream).
+  choice_bundle <- make_specification(
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )$submodels$choice
+  expect_false(is_intercept_only_rate_bundle(choice_bundle))
+})
+
+test_that("a user `~ 1` and a completion-supplied rate pin to the same object", {
+  user_bundle <- c(completion_rate_bundle(), list(source = "user"))
+  completion_bundle <- c(
+    completion_rate_bundle(),
+    list(source = "completion", synthesized = TRUE)
+  )
+  # identical zero-parameter descriptor regardless of source -- one concept.
+  expect_identical(
+    pinned_rate_descriptor(user_bundle, "DyNAM"),
+    pinned_rate_descriptor(completion_bundle, "DyNAM")
+  )
+  desc <- pinned_rate_descriptor(completion_rate_bundle(), "DyNAM")
+  expect_true(desc$fixed_intercept)
+  expect_identical(desc$n_free_parameters, 0L)
+  expect_true(desc$pinned)
+  expect_identical(desc$effects, character(0))
+  expect_identical(desc$model_type, "DyNAM-M-Rate")
+  # a tie-oriented (REM) flavor routes through the per-dyad evaluator.
+  expect_identical(
+    pinned_rate_descriptor(completion_rate_bundle(), "REM")$model_type,
+    "REM"
+  )
+})
+
+test_that("a rate carrying any effect is never pinned", {
+  data <- pinned_joint_data()
+  effect_rate <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )$submodels$rate
+  # the descriptor refuses to pin an estimated-baseline rate.
+  expect_snapshot(error = TRUE, pinned_rate_descriptor(effect_rate, "DyNAM"))
+})
+
+test_that("mark_pinned_rates pins an intercept-only rate in a joint spec", {
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  # emails' rate is completion-supplied intercept-only; calls' rate is estimated.
+  emails$submodels$rate <- completion_rate_bundle()
+  joint <- make_joint_specification(calls, emails, data = data)
+
+  marked <- mark_pinned_rates(joint)
+  map <- marked$process_map
+
+  # only the emails rate fid is pinned; the estimated calls rate and both choice
+  # fids keep their estimated baseline.
+  expect_identical(
+    map$pinned,
+    map$layer == "emails" & map$family == "rate"
+  )
+  pinned_fid <- map$fid[map$pinned]
+  expect_length(pinned_fid, 1L)
+  # the pinned fid carries the zero-parameter descriptor, attached by fid.
+  desc <- marked$pinned_rates[[as.character(pinned_fid)]]
+  expect_identical(desc$n_free_parameters, 0L)
+  expect_true(desc$pinned)
+  expect_identical(desc$model_type, "DyNAM-M-Rate")
+})
+
 test_that("adding a pinned rate to a joint fit leaves theta/score/Hessian unchanged", {
   # The full joint-fit assertion needs the joint optimizer (estimate_dynes()),
   # which does not exist yet -- deferred behind this guard (see progress.md
@@ -634,7 +815,11 @@ test_that("the intercept-only rate primitive is not exported", {
     "intercept_only_rate_sender_semantics",
     "intercept_only_rate_theta_block",
     "joint_theta_layout",
-    "intercept_only_rate_loglik_offset"
+    "intercept_only_rate_loglik_offset",
+    "is_intercept_only_rate_bundle",
+    "pinned_rate_model_type",
+    "pinned_rate_descriptor",
+    "mark_pinned_rates"
   )
   expect_length(intersect(internal, exported), 0)
 })

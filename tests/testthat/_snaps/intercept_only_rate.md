@@ -184,3 +184,12 @@
       Error:
       ! `count` must be non-negative and free of missing values.
 
+# a rate carrying any effect is never pinned
+
+    Code
+      pinned_rate_descriptor(effect_rate, "DyNAM")
+    Condition
+      Error:
+      ! `bundle` must be an intercept-only rate (`rate = ~ 1`).
+      i A rate carrying any effect keeps its estimated baseline intercept; only the effect-free rate is pinned.
+

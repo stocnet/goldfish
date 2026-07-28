@@ -578,3 +578,131 @@ intercept_only_rate_loglik_offset <- function(
   terms <- ifelse(count == 0, 0, count * (rate$intercept - 1))
   sum(terms)
 }
+
+# ---- User surface: intercept-only <=> pinned in the generative context -------
+#
+# In the generative/joint context an intercept-only rate -- `rate = ~ 1` with no
+# other rate effects, or a rate a completion transform supplies for a
+# choice-only flavor -- is understood as *pinned* (zero free parameters), not
+# estimated. The re-interpretation is safe because goldfish's leading `1` is
+# otherwise an *estimated* baseline log-hazard used pervasively as
+# `~ 1 + effects`; a *bare* intercept-only rate is the one case with nothing
+# worth estimating (its MLE is the degenerate log(N / T / |R|), exactly the
+# per-period frozen pin this primitive computes). A rate carrying ANY effect
+# keeps its estimated baseline intercept unchanged -- only the effect-free rate
+# is pinned. This treatment is scoped to the generative context and lives here;
+# the single-process estimation path is untouched.
+
+# Classify a *rate* submodel bundle as intercept-only. This is the single,
+# source-agnostic test both a user-written `~ 1` and a completion-supplied rate
+# route through: it reads only the bundle's shape -- a rate sub_model carrying an
+# intercept and NO other effects -- never how the bundle was produced, so the two
+# sources are indistinguishable here and reinterpret to the same pinned object. A
+# rate carrying any effect (`~ 1 + inertia`) has a non-empty effect list and is
+# NOT intercept-only, so it keeps its estimated baseline. A non-rate family
+# (choice / rate_ordered -- whose `has_intercept` is forced FALSE upstream) is
+# never intercept-only.
+is_intercept_only_rate_bundle <- function(bundle) {
+  is.list(bundle) &&
+    identical(bundle$sub_model, "rate") &&
+    isTRUE(bundle$has_intercept) &&
+    length(bundle$parsed$rhs_names) == 0L
+}
+
+# Map a specification's `model` ("DyNAM" / "REM") to the timed-rate evaluator's
+# `model_type`, so a pinned actor-oriented flavor routes through the per-actor
+# hazard and a tie-oriented (REM) flavor through the per-dyad hazard.
+pinned_rate_model_type <- function(model, call = rlang::caller_env()) {
+  switch(
+    model,
+    "DyNAM" = "DyNAM-M-Rate",
+    "REM" = "REM",
+    cli::cli_abort(
+      "A pinned intercept-only rate supports only {.val DyNAM} and {.val REM}
+       models, not {.val {model}}.",
+      call = call
+    )
+  )
+}
+
+# The canonical zero-parameter pinned descriptor an intercept-only rate becomes
+# in the generative context -- the SAME object for a user-written `~ 1` and a
+# completion-supplied rate, because it depends on nothing that distinguishes the
+# two (only the intercept-only shape and the flavor's `model`). It carries the
+# θ-exclusion markers (`fixed_intercept`, `n_free_parameters = 0`) so a joint
+# fit's θ layout excludes it, and the timed evaluator's `model_type` -- but NOT
+# yet the per-period `intercept` vector: that is pinned by the consumer at setup
+# from the counts / exposures it supplies (`pin_intercept_only_rate()` ->
+# `make_intercept_only_rate()`), never from the bundle.
+pinned_rate_descriptor <- function(bundle, model, call = rlang::caller_env()) {
+  if (!is_intercept_only_rate_bundle(bundle)) {
+    cli::cli_abort(
+      c(
+        "{.arg bundle} must be an intercept-only rate ({.code rate = ~ 1}).",
+        "i" = "A rate carrying any effect keeps its estimated baseline
+               intercept; only the effect-free rate is pinned."
+      ),
+      call = call
+    )
+  }
+  list(
+    sub_model = "rate",
+    model_type = pinned_rate_model_type(model, call = call),
+    has_intercept = TRUE,
+    effects = character(0),
+    fixed_intercept = TRUE,
+    n_free_parameters = 0L,
+    pinned = TRUE
+  )
+}
+
+# Reinterpret every intercept-only rate in a joint specification as PINNED -- the
+# generative-context rule, and ONLY there. Walks the composed specifications'
+# submodel bundles in `process_map` (fid) order, sets a `pinned` logical column
+# on the map (TRUE for a rate fid whose bundle is intercept-only, FALSE for every
+# estimated rate, every rate carrying effects, and every non-rate family), and
+# attaches the per-fid pinned descriptors under `pinned_rates`. A user-written
+# `~ 1` and a completion-supplied rate for a choice-only flavor produce the
+# identical bundle shape, so both are marked pinned identically -- one concept,
+# one treatment.
+#
+# The reinterpretation is scoped to the generative context by TYPE: it accepts
+# ONLY a `joint_specification.goldfish`. The single-process estimation path
+# operates on a plain `specification.goldfish` and never reaches this function,
+# so a bare `rate = ~ 1` under `estimate_dynam()` / `estimate_rem()` keeps its
+# existing estimated-intercept meaning untouched.
+mark_pinned_rates <- function(joint_spec, call = rlang::caller_env()) {
+  if (!inherits(joint_spec, "joint_specification.goldfish")) {
+    cli::cli_abort(
+      c(
+        "{.arg joint_spec} must be a {.cls joint_specification.goldfish}.",
+        "i" = "Pinning an intercept-only rate is scoped to the generative
+               context; the single-process path ({.fn estimate_dynam} /
+               {.fn estimate_rem}) keeps its estimated-intercept meaning."
+      ),
+      call = call
+    )
+  }
+  # Keyed by the character fid, in the same order `build_joint_process_map()`
+  # assigns fids, so `fid_bundles[[as.character(fid)]]` is that row's bundle.
+  fid_bundles <- joint_fid_bundles(joint_spec)
+  map <- joint_spec$process_map
+  pinned <- vapply(
+    map$fid,
+    function(fid) {
+      entry <- fid_bundles[[as.character(fid)]]
+      identical(entry$family, "rate") &&
+        is_intercept_only_rate_bundle(entry$bundle)
+    },
+    logical(1)
+  )
+  map$pinned <- pinned
+  descriptors <- lapply(map$fid[pinned], function(fid) {
+    entry <- fid_bundles[[as.character(fid)]]
+    pinned_rate_descriptor(entry$bundle, entry$model, call = call)
+  })
+  names(descriptors) <- as.character(map$fid[pinned])
+  joint_spec$process_map <- map
+  joint_spec$pinned_rates <- descriptors
+  joint_spec
+}

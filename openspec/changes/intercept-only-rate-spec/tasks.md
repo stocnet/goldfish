@@ -93,7 +93,7 @@
 
 ## 5. User surface: intercept-only ⟺ pinned, and the context-aware warning
 
-- [ ] 5.1 In the generative/joint context (`estimate_dynes()` / `simulate()` / D9
+- [x] 5.1 In the generative/joint context (`estimate_dynes()` / `simulate()` / D9
       completion) treat an **intercept-only rate** — `rate = ~ 1` with no other rate
       effects, or a completion-supplied rate — as **pinned** (D6): a user-written `~ 1`
       and a completion-supplied rate produce the **same** pinned object; a rate carrying
