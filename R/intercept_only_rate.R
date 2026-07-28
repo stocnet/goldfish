@@ -19,9 +19,10 @@
 # it carries zero free parameters (`n_free_parameters`), so the downstream
 # θ-layout / optimizer code can exclude it from the score and Hessian. The
 # per-period pin `intercept_w = log(count_w / (T_w * |R_w|))` (one plateau per
-# inter-wave period), its compute-once-and-freeze contract, and the half-open
-# period membership used to select the applicable plateau also live here; the
-# uniform-support-legal-sender semantics arrive in a later session.
+# inter-wave period), its compute-once-and-freeze contract, the half-open
+# period membership used to select the applicable plateau, and the
+# uniform-support-legal-sender *semantics* every consumer draws against also
+# live here.
 
 # The per-period pin -- the pure function every consumer calls at setup. Given a
 # per-period event count `count`, the period duration `duration` (the exposure
@@ -358,4 +359,89 @@ evaluate_intercept_only_rate <- function(
     is_dependent = is_dependent
   )
   evaluate_process_state(state, parameters = this_intercept)
+}
+
+# The sender-selection *semantics* the pinned rate exposes -- a description the
+# consuming routine draws against, NOT a draw. Two properties, both consequences
+# of the per-actor framing (D4/D8):
+#
+#   1. Commensurability. `exp(intercept_w)` is a per-actor *constant* hazard --
+#      the same value for every support-legal actor -- so on the shared clock the
+#      pinned flavor enters the competing-risks superposition Sum_i exp(.)
+#      alongside any competing flavor's per-actor rates. `hazard` below is that
+#      per-actor vector (exp(intercept_w) for every legal actor, exact-zero for
+#      the rest), living in the same hazard space `.pse_eval_rate` returns.
+#
+#   2. Uniform support-legal sender, as a *consequence*. Because the per-actor
+#      hazards are equal, the competing-risks attribution of a firing to an actor
+#      is proportional to those equal hazards -- i.e. uniform over the
+#      support-legal set. `probability` below is that selection distribution
+#      (uniform over the legal set, exact-zero elsewhere). It is not a separately
+#      imposed uniform draw; it falls out of the equal hazards.
+#
+# The support-legal set is `support_legal`, the flavor's post-constraint mask
+# **supplied by the consumer** -- support is *inherited* from the flavor, never
+# fabricated here and never borrowed from a sibling flavor (the function reads
+# only the mask it is given). The *only* restriction the primitive applies on its
+# own is that self-loops are disallowed: pass `self_loop` (a logical mask marking
+# entities that would be self-loops, e.g. the diagonal of a tie-oriented flavor's
+# entity enumeration) and those are removed even if `support_legal` marked them
+# legal. Actor-oriented flavors have no self-loop at the sender layer and pass
+# none.
+#
+# This function performs **no draw** and holds **no empty/saturated-support
+# guard** -- both belong to the consuming simulation/augmentation routine (D5).
+# An empty support-legal set yields an all-zero `hazard` and therefore an all-NaN
+# `probability` (0 / 0), surfacing rather than silently absorbing the condition
+# the consumer must detect. A zero-count period (intercept_w = -Inf) likewise
+# yields a zero hazard: the flavor cannot fire, again the consumer's to handle.
+intercept_only_rate_sender_semantics <- function(
+  rate,
+  support_legal,
+  self_loop = NULL,
+  time = NULL,
+  call = rlang::caller_env()
+) {
+  legal <- as.logical(support_legal)
+  n <- length(legal)
+  if (!is.null(self_loop)) {
+    self_loop <- as.logical(self_loop)
+    if (length(self_loop) != n) {
+      cli::cli_abort(
+        c(
+          "{.arg self_loop} must be the same length as {.arg support_legal}.",
+          "x" = "Got {length(self_loop)} and {n}."
+        ),
+        call = call
+      )
+    }
+    # The only automatic restriction: a self-loop is never selectable, even if
+    # the inherited support mask marked it legal.
+    legal <- legal & !self_loop
+  }
+  if (is.null(time) && rate$n_periods > 1L) {
+    cli::cli_abort(
+      c(
+        "{.arg time} is required to select the plateau of a multi-period pinned
+         rate.",
+        "i" = "Supply the firing instant so the applicable per-period hazard is
+               used."
+      ),
+      call = call
+    )
+  }
+  # The equal per-actor hazard exp(intercept_w) for the applicable plateau. The
+  # magnitude does not change the uniform selection (any positive constant gives
+  # the same distribution); it is carried so `hazard` is the genuine per-actor
+  # rate that slots into the shared-clock superposition, and so a zero-count
+  # period's zero hazard is faithful.
+  intensity <- intercept_only_rate_intensity(rate, time = time)
+  hazard <- ifelse(legal, intensity, 0)
+  list(
+    hazard = hazard,
+    probability = hazard / sum(hazard),
+    uniform = TRUE,
+    support = "inherited",
+    self_loops = "disallowed"
+  )
 }

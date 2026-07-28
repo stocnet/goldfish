@@ -61,7 +61,7 @@
 
 ## 3. Per-actor hazard semantics (draw owned by the routine)
 
-- [ ] 3.1 Define the per-actor-hazard + uniform-support-legal-sender **semantics**
+- [x] 3.1 Define the per-actor-hazard + uniform-support-legal-sender **semantics**
       (D4/D5/D8): `exp(intercept_w)` is a per-actor constant hazard — identical for every
       support-legal actor, so it enters the shared-clock superposition `Σ_i exp(·)`
       commensurably with a competing per-actor rate. The sender is uniform over the
