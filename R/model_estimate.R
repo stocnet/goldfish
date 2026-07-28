@@ -174,6 +174,39 @@
 #'    a matrix with a description of the effects used for model fitting.
 #'    It includes the name of the object used to calculate the effects and
 #'    additional parameter description.}
+#'   \item{interval_log_lik}{a numeric vector with each interval's contribution
+#'   to the log-likelihood, stored when `"loglik"` is among the
+#'   [set_algorithm_newton()] `diagnostics` primitives (the default).}
+#'   \item{total_rate}{a numeric vector with the fitted intensity summed over
+#'   the realized risk set of each interval. Exact-time sub-models only, where
+#'   it rides along with the `"loglik"` primitive; multiplied by the interevent
+#'   time it is the Cox-Snell residual.}
+#'   \item{conditional_logl}{a numeric vector with the *which* half of the
+#'   exact-time log-likelihood: the log probability that the observed
+#'   alternative is the one to move next, the Cox partial-likelihood
+#'   contribution, leaving `interval_log_lik` minus it as the *when* half. It is
+#'   computed in the estimation pass as the observed alternative's linear
+#'   predictor minus the log normalizer, not reassembled afterwards from
+#'   `interval_log_lik` and `total_rate` — that identity cancels a large term
+#'   against itself and loses digits away from the maximum. It is `NA` on a
+#'   right-censored interval, which realizes no mover, so the log probability of
+#'   an observed alternative is undefined there. Exact-time sub-models only,
+#'   riding along with the `"loglik"` primitive.}
+#'   \item{event_scores}{a matrix with one row per interval and one column per
+#'   coefficient, the per-event contributions to the score. Stored when
+#'   `"scores"` is among the `diagnostics` primitives (the default).}
+#'   \item{margins}{a list of per-actor observed and expected event-count
+#'   vectors, stored when `"margins"` is among the `diagnostics` primitives.
+#'   Each vector is named by actor label, and each expected vector carries a
+#'   `scale` attribute — `"probability"` for the sums of next-event
+#'   probabilities every family stores, `"expected_count"` for the compensator
+#'   sums exact-time fits additionally store. A tie-oriented (REM) fit carries
+#'   both a sender and a receiver side, spelled with those suffixes; the
+#'   actor-oriented families carry one unsuffixed pair. Read them through
+#'   [margin_table()], which presents one schema for every family.}
+#'   \item{event_probabilities}{a list with one per-event vector of fitted
+#'   probabilities over the whole node set (zero off the risk set), stored when
+#'   `"probabilities"` is among the `diagnostics` primitives.}
 #'   \item{fit_version}{an integer identifying the layout of this object —
 #'   which components it carries and how they are spelled. It moves only when
 #'   that layout changes, not on every release, so a fit stays current across

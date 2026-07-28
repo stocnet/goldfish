@@ -598,11 +598,13 @@ estimate_c_int <- function(
   }
   if (return_margins) {
     # `res` holds the final evaluation pass. Two-sided sub-models (REM,
-    # REM_ordered, coordination) return sender and receiver margins; the
-    # single-sided ones return one pair. Tested on LENGTH, not on NULL: the
-    # gather kernels return every slot unconditionally and leave the absent side
-    # empty, so a NULL test would give a gather fit the two-sided shape where
-    # its cpp counterpart has the one-sided one.
+    # REM_ordered) return sender and receiver margins; the single-sided ones
+    # return one pair — rate, choice, and also coordination, whose kernel
+    # credits both endpoints into ONE actor set over `n_actors_1`. Tested on
+    # LENGTH, not on NULL: the gather kernels return every slot
+    # unconditionally and leave the absent side empty, so a NULL test would
+    # give a gather fit the two-sided shape where its cpp counterpart has the
+    # one-sided one.
     has_length <- function(x) !is.null(x) && length(x) > 0
     margins <- if (has_length(res$margin_expected_sender)) {
       list(
@@ -619,11 +621,9 @@ estimate_c_int <- function(
     } else {
       NULL
     }
-    # Exact-time sub-models additionally carry the probability-scale variant
-    # (D12): the compensator margins above total the event count only at the
-    # MLE, while these total it at any parameter vector. The final labelled
-    # shape is `residuals-gof`'s to define; this carries the vectors so parity
-    # can be asserted across backends.
+    # Exact-time sub-models additionally carry the probability-scale variant:
+    # the compensator margins above total the event count only at the MLE,
+    # while these total it at any parameter vector.
     if (!is.null(margins) && has_length(res$margin_probability)) {
       margins$expected_probability <- as.numeric(res$margin_probability)
     } else if (!is.null(margins) && has_length(res$margin_probability_sender)) {
@@ -632,6 +632,16 @@ estimate_c_int <- function(
       margins$expected_probability_receiver <-
         as.numeric(res$margin_probability_receiver)
     }
+    # Actor labels and the scale marker are attached by the shared helper both
+    # backends call, so a fit's margins carry the same names and scales
+    # whichever implementation produced them.
+    margins <- label_margins(
+      margins,
+      axis = risk_set_axis(spec),
+      nodes = nodes,
+      nodes2 = nodes2,
+      is_exact_time = identical(risk_set_normalizer(spec), "poisson")
+    )
     if (!is.null(margins)) estimationResult$margins <- margins
   }
   if (

@@ -346,7 +346,15 @@ estimate_int_impl <- function(
     estimationResult$observed_rank <- nr$observed_rank
   }
   if (return_margins && !is.null(nr$margins)) {
-    estimationResult$margins <- nr$margins
+    # Same helper the compiled path calls: actor labels and the scale marker
+    # are attached once, so the two backends cannot drift on either.
+    estimationResult$margins <- label_margins(
+      nr$margins,
+      axis = risk_set_axis(spec),
+      nodes = nodes,
+      nodes2 = nodes2,
+      is_exact_time = identical(risk_set_normalizer(spec), "poisson")
+    )
   }
   # total_rate / conditional_logl exist only on the exact-time (Poisson)
   # contribution; the multinomial families leave them NULL, so they stay off

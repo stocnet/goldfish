@@ -559,10 +559,22 @@ test_that("probability-matrix reconstruction confirms both backends (choice)", {
   expect_equal(fr$observed_rank, reconstructed_ranks)
 
   # Single-sided multinomial expected margins are the column sums of the
-  # per-event probability vectors (receiver for choice).
+  # per-event probability vectors (receiver for choice). Compared unnamed: the
+  # stored margins carry actor labels and a scale marker, which the raw
+  # reconstruction from the probability matrix has no counterpart for.
   reconstructed_margins <- Reduce(`+`, fp$event_probabilities)
-  expect_equal(fc$margins$expected, reconstructed_margins, tolerance = 1e-9)
-  expect_equal(fr$margins$expected, reconstructed_margins, tolerance = 1e-9)
+  expect_equal(
+    unname(fc$margins$expected),
+    reconstructed_margins,
+    ignore_attr = TRUE,
+    tolerance = 1e-9
+  )
+  expect_equal(
+    unname(fr$margins$expected),
+    reconstructed_margins,
+    ignore_attr = TRUE,
+    tolerance = 1e-9
+  )
 })
 
 # The r backend accumulates ranks and margins in its contribution loop from the

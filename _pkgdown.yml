@@ -54,6 +54,8 @@ reference:
     contents:
       - logLik.result.goldfish
       - starts_with("diagnose")
+      - margin_table
+      - diagnostic-tables
       - risk_set_axis
   - title: "Data"
     desc: |
