@@ -445,3 +445,136 @@ intercept_only_rate_sender_semantics <- function(
     self_loops = "disallowed"
   )
 }
+
+# The free-parameter block a pinned rate contributes to a joint fit's θ layout:
+# the *empty* block. This is the enforcement of the zero-free-parameters
+# contract at the layout layer -- a pinned intercept-only rate occupies NO θ
+# slot at all.
+#
+# This is stronger than, and distinct from, an offset() / `fixedParameters`
+# term: a fixed parameter in the Newton-Raphson sense still *occupies* a θ slot
+# (it is counted in `nParams` and merely held constant across iterations --
+# iteration-constancy). The pinned intercept instead never enters the fid / θ
+# layout, because it is **θ-independent**: `intercept_w` is a deterministic
+# function of the supplied counts/exposures, so its timing likelihood is an
+# additive constant w.r.t. θ and is excluded from the score and Hessian by
+# dimension, not merely pinned within them. The contract is asserted defensively
+# (a pinned rate that reported a free parameter would be a construction bug).
+intercept_only_rate_theta_block <- function(rate, call = rlang::caller_env()) {
+  if (!is_intercept_only_rate(rate)) {
+    cli::cli_abort(
+      "{.arg rate} must be an {.cls intercept_only_rate}.",
+      call = call
+    )
+  }
+  if (!isTRUE(rate$fixed_intercept) || !identical(rate$n_free_parameters, 0L)) {
+    cli::cli_abort(
+      c(
+        "A pinned intercept-only rate must carry zero free parameters.",
+        "x" = "Got {.field fixed_intercept} = {rate$fixed_intercept},
+               {.field n_free_parameters} = {rate$n_free_parameters}."
+      ),
+      call = call
+    )
+  }
+  numeric(0)
+}
+
+# Assemble a joint fit's θ layout from an ordered list of per-flavor blocks,
+# concatenating each flavor's free-parameter block into one flat θ vector and
+# recording the slice of θ each flavor owns. A block is either a numeric vector
+# (an estimated flavor's free parameters) or an `intercept_only_rate` object (a
+# pinned flavor, contributing the empty block via
+# `intercept_only_rate_theta_block()`). This is the shared layout primitive the
+# generative consumers build θ with -- not an estimator: it computes no score or
+# Hessian and fits nothing.
+#
+# Because a pinned flavor contributes `numeric(0)`, adding one to a set of
+# estimated flavors leaves the flat θ vector and every estimated flavor's index
+# slice **unchanged** -- it takes up no dimension, so the optimizer's
+# `nParams`-sized score (`rep(0, nParams)`) and Hessian
+# (`matrix(0, nParams, nParams)`) are unchanged too. The pinned flavor's slice
+# is the empty range `integer(0)`.
+joint_theta_layout <- function(blocks, call = rlang::caller_env()) {
+  if (!is.list(blocks)) {
+    cli::cli_abort("{.arg blocks} must be a list.", call = call)
+  }
+  values <- lapply(blocks, function(block) {
+    if (is_intercept_only_rate(block)) {
+      intercept_only_rate_theta_block(block, call = call)
+    } else if (is.numeric(block)) {
+      block
+    } else {
+      cli::cli_abort(
+        c(
+          "Each element of {.arg blocks} must be a numeric free-parameter block
+           or an {.cls intercept_only_rate}.",
+          "x" = "Got a block of class {.cls {class(block)}}."
+        ),
+        call = call
+      )
+    }
+  })
+  lengths <- vapply(values, length, integer(1))
+  ends <- cumsum(lengths)
+  starts <- ends - lengths + 1L
+  index <- Map(
+    function(start, len) {
+      if (len == 0L) integer(0) else seq.int(start, len = len)
+    },
+    starts,
+    lengths
+  )
+  names(index) <- names(blocks)
+  list(
+    theta = unlist(values, use.names = FALSE) %||% numeric(0),
+    index = index,
+    n_free = sum(lengths)
+  )
+}
+
+# The pinned rate's constant contribution to a *reported* total log-likelihood
+# (spec: it MAY appear as a constant offset, never in the optimization
+# objective). For a constant-hazard flavor over period `w` the timing
+# log-likelihood is
+#
+#   count_w * intercept_w - lambda_w * (T_w * |R_w|) = count_w * (intercept_w - 1)
+#
+# since lambda_w = exp(intercept_w) = count_w / (T_w * |R_w|). It depends only on
+# the frozen `intercept_w` and the consumer-supplied per-period `count` -- and
+# crucially on **no θ**: the function takes no parameter vector, so it is
+# θ-independent by construction and can never enter the score or Hessian. A
+# zero-count period contributes 0 (its `intercept_w = -Inf` never multiplies a
+# nonzero count).
+intercept_only_rate_loglik_offset <- function(
+  rate,
+  count,
+  call = rlang::caller_env()
+) {
+  if (!is_intercept_only_rate(rate)) {
+    cli::cli_abort(
+      "{.arg rate} must be an {.cls intercept_only_rate}.",
+      call = call
+    )
+  }
+  if (!is.numeric(count) || length(count) != rate$n_periods) {
+    cli::cli_abort(
+      c(
+        "{.arg count} must be a numeric vector with one entry per period.",
+        "x" = "Got {length(count)} value{?s} for {rate$n_periods}
+               period{?s}."
+      ),
+      call = call
+    )
+  }
+  if (anyNA(count) || any(count < 0)) {
+    cli::cli_abort(
+      "{.arg count} must be non-negative and free of missing values.",
+      call = call
+    )
+  }
+  # A zero-count period pins to intercept_w = -Inf; 0 * (-Inf - 1) is NaN, but
+  # its likelihood contribution is 0 (no event, zero hazard integrated).
+  terms <- ifelse(count == 0, 0, count * (rate$intercept - 1))
+  sum(terms)
+}

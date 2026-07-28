@@ -82,7 +82,7 @@
 
 ## 4. Zero-free-parameters contract into a joint fit
 
-- [ ] 4.1 Enforce the contract (D4): the pinned intercept never enters the fid / θ
+- [x] 4.1 Enforce the contract (D4): the pinned intercept never enters the fid / θ
       layout and is **excluded from the optimizer's score and Hessian** by
       **θ-independence** (not by iteration-constancy); it MAY be added as a **constant
       offset** to a *reported* total log-likelihood only
