@@ -5,6 +5,47 @@
 #
 ##################### ###
 
+# Shaping and labeling the margins --------------------------------------------
+
+# The raw margin accumulators of one compiled pass, shaped into the list both
+# backends store. Two-sided sub-models (REM, REM_ordered) return sender and
+# receiver margins; the single-sided ones return one pair -- rate, choice, and
+# also coordination, whose kernel credits both endpoints into ONE actor set
+# over `n_actors_1`. Tested on LENGTH, not on NULL: the gather kernels return
+# every slot unconditionally and leave the absent side empty, so a NULL test
+# would give a gather fit the two-sided shape where its cpp counterpart has the
+# one-sided one.
+assemble_engine_margins <- function(res) {
+  has_length <- function(x) !is.null(x) && length(x) > 0
+  margins <- if (has_length(res$margin_expected_sender)) {
+    list(
+      observed_sender = as.numeric(res$margin_observed_sender),
+      expected_sender = as.numeric(res$margin_expected_sender),
+      observed_receiver = as.numeric(res$margin_observed_receiver),
+      expected_receiver = as.numeric(res$margin_expected_receiver)
+    )
+  } else if (has_length(res$margin_expected)) {
+    list(
+      observed = as.numeric(res$margin_observed),
+      expected = as.numeric(res$margin_expected)
+    )
+  } else {
+    NULL
+  }
+  # Exact-time sub-models additionally carry the probability-scale variant:
+  # the compensator margins above total the event count only at the MLE, while
+  # these total it at any parameter vector.
+  if (!is.null(margins) && has_length(res$margin_probability)) {
+    margins$expected_probability <- as.numeric(res$margin_probability)
+  } else if (!is.null(margins) && has_length(res$margin_probability_sender)) {
+    margins$expected_probability_sender <-
+      as.numeric(res$margin_probability_sender)
+    margins$expected_probability_receiver <-
+      as.numeric(res$margin_probability_receiver)
+  }
+  margins
+}
+
 # Labeling the stored margins -------------------------------------------------
 
 # The margin accumulators leave every kernel as bare numerics: the actor a

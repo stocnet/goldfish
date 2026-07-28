@@ -161,75 +161,25 @@ estimate_int_impl <- function(
     )
   }
 
-  ## REDUCE STATISTICS LIST
-
-  if (verbose) {
-    cat("Reducing data\n")
-  }
-
-  statsList <- prepare_statslist(
-    statsList = statsList,
-    addInterceptEffect = hasIntercept,
-    is_sender = is_rate_model
+  engine <- make_r_engine_evaluator(
+    spec = spec,
+    stats_list = statsList,
+    parameters = parameters,
+    nodes = nodes,
+    nodes2 = nodes2,
+    has_intercept = hasIntercept,
+    is_rate_model = is_rate_model,
+    is_two_mode = is_two_mode,
+    allow_reflexive = allowReflexive,
+    reduce_array_to_matrix = reduceArrayToMatrix,
+    seed_intercept = !mask$intercept_fixed && !mask$intercept_seeded,
+    opportunities_list = opportunitiesList,
+    parallelize = parallelize,
+    cpus = cpus,
+    verbose = verbose
   )
-
-  ## GET COMPOSITION CHANGES
-  hasCompChange1 <- length(statsList$active_sender_changes) > 0
-  hasCompChange2 <- length(statsList$active_dyad_changes) > 0 &&
-    !is_rate_model
-
-  compChange1 <- if (hasCompChange1) {
-    data.frame(
-      time = vapply(statsList$active_sender_changes, `[[`, double(1), "time"),
-      node = vapply(statsList$active_sender_changes, `[[`, integer(1), "node"),
-      replace = vapply(
-        statsList$active_sender_changes,
-        `[[`,
-        logical(1),
-        "replace"
-      )
-    )
-  } else {
-    NULL
-  }
-  compChange2 <- if (hasCompChange2) {
-    data.frame(
-      time = vapply(statsList$active_dyad_changes, `[[`, double(1), "time"),
-      node = vapply(statsList$active_dyad_changes, `[[`, integer(1), "node"),
-      replace = vapply(
-        statsList$active_dyad_changes,
-        `[[`,
-        logical(1),
-        "replace"
-      )
-    )
-  } else {
-    NULL
-  }
-
-  presence <- statsList$active_sender_init
-  presence2 <- statsList$active_dyad_init
-
-  nEvents <- length(statsList$is_dependent)
-
-  ## ADD INTERCEPT
-  # CHANGED MARION
-  # replace first parameter with an initial estimate of the intercept
-  # Applied unless the intercept itself carries a value: fixed, so there is
-  # nothing to start, or seeded, so the user chose the start.
-  if (
-    inherits(spec, c("dynam_rate_spec", "dynami_rate_spec", "rem_rate_spec")) &&
-      hasIntercept &&
-      !mask$intercept_fixed &&
-      !mask$intercept_seeded
-  ) {
-    parameters[1] <- log(
-      statsList$n_dep_events /
-        statsList$total_time /
-        statsList$avg_active_entity
-    )
-  }
-  ## SET VARIABLES BASED ON STATSLIST
+  parameters <- engine$parameters
+  nEvents <- engine$n_events
 
   ## ESTIMATION: INITIALIZATION
 
@@ -258,31 +208,16 @@ estimate_int_impl <- function(
     return_total_rate = return_total_rate,
     verbose = verbose,
     progress = progress,
-    step_args = list(
-      statsList = statsList,
-      nodes = nodes,
-      nodes2 = nodes2,
-      updatepresence = hasCompChange1,
-      presence = presence,
-      compChange1 = compChange1,
-      updatepresence2 = hasCompChange2,
-      presence2 = presence2,
-      compChange2 = compChange2,
-      hasIntercept = hasIntercept,
-      spec = spec,
-      parallelize = parallelize,
-      cpus = cpus,
-      returnIntervalLogL = returnIntervalLogL,
-      returnEventProbabilities = returnEventProbabilities,
-      return_event_scores = return_event_scores,
-      return_ranks = return_ranks,
-      return_margins = return_margins,
-      return_total_rate = return_total_rate,
-      allowReflexive = allowReflexive,
-      is_two_mode = is_two_mode,
-      reduceArrayToMatrix = reduceArrayToMatrix,
-      verbose = verbose,
-      opportunitiesList = opportunitiesList
+    step_args = c(
+      engine$step_args,
+      list(
+        returnIntervalLogL = returnIntervalLogL,
+        returnEventProbabilities = returnEventProbabilities,
+        return_event_scores = return_event_scores,
+        return_ranks = return_ranks,
+        return_margins = return_margins,
+        return_total_rate = return_total_rate
+      )
     )
   )
 
@@ -1834,6 +1769,159 @@ r_reduce_event_coordination <- function(
 # for the MM, M, REM, and M-Rate function, and REM-ordered.
 # Builds the loop-invariant context and the mutable running state once,
 # resolves the compute_step() method once, and iterates events.
+# One r-backend pass, as a closure over the arguments it does not vary
+#
+# The counterpart of `make_engine_evaluator()` on the compiled side: everything
+# `compute_iteration_step()` takes that does not depend on the parameter vector
+# or on which components are wanted is prepared once -- the reduced statistics
+# list, the composition-change frames, the initial presence vectors -- and
+# `evaluate()` runs one pass. Estimation iterates it through `run_nr_loop()`;
+# `evaluate_model()` calls it once. `step_args` is the same list in both cases,
+# which is what keeps a single-pass evaluation on the estimation code path.
+#
+# `seed_intercept` is the caller's decision (see the compiled counterpart): an
+# evaluation at a supplied vector must use that vector verbatim.
+make_r_engine_evaluator <- function(
+  spec,
+  stats_list,
+  parameters,
+  nodes,
+  nodes2,
+  has_intercept = FALSE,
+  is_rate_model = identical(risk_set_axis(spec), "sender"),
+  is_two_mode = FALSE,
+  allow_reflexive = TRUE,
+  reduce_array_to_matrix = FALSE,
+  seed_intercept = TRUE,
+  opportunities_list = NULL,
+  parallelize = FALSE,
+  cpus = 4,
+  verbose = FALSE
+) {
+  ## REDUCE STATISTICS LIST
+
+  if (verbose) {
+    cat("Reducing data\n")
+  }
+
+  stats_list <- prepare_statslist(
+    statsList = stats_list,
+    addInterceptEffect = has_intercept,
+    is_sender = is_rate_model
+  )
+
+  ## GET COMPOSITION CHANGES
+  has_comp_change1 <- length(stats_list$active_sender_changes) > 0
+  has_comp_change2 <- length(stats_list$active_dyad_changes) > 0 &&
+    !is_rate_model
+
+  compChange1 <- if (has_comp_change1) {
+    data.frame(
+      time = vapply(stats_list$active_sender_changes, `[[`, double(1), "time"),
+      node = vapply(stats_list$active_sender_changes, `[[`, integer(1), "node"),
+      replace = vapply(
+        stats_list$active_sender_changes,
+        `[[`,
+        logical(1),
+        "replace"
+      )
+    )
+  } else {
+    NULL
+  }
+  compChange2 <- if (has_comp_change2) {
+    data.frame(
+      time = vapply(stats_list$active_dyad_changes, `[[`, double(1), "time"),
+      node = vapply(stats_list$active_dyad_changes, `[[`, integer(1), "node"),
+      replace = vapply(
+        stats_list$active_dyad_changes,
+        `[[`,
+        logical(1),
+        "replace"
+      )
+    )
+  } else {
+    NULL
+  }
+
+  presence <- stats_list$active_sender_init
+  presence2 <- stats_list$active_dyad_init
+
+  n_events <- length(stats_list$is_dependent)
+
+  ## ADD INTERCEPT
+  # CHANGED MARION
+  # replace first parameter with an initial estimate of the intercept
+  # Applied unless the intercept itself carries a value: fixed, so there is
+  # nothing to start, or seeded, so the user chose the start.
+  if (
+    inherits(spec, c("dynam_rate_spec", "dynami_rate_spec", "rem_rate_spec")) &&
+      has_intercept &&
+      seed_intercept
+  ) {
+    parameters[1] <- log(
+      stats_list$n_dep_events /
+        stats_list$total_time /
+        stats_list$avg_active_entity
+    )
+  }
+
+  # Names are `compute_iteration_step()`'s own argument names, which are still
+  # the camelCase spelling that function carries.
+  step_args <- list(
+    statsList = stats_list,
+    nodes = nodes,
+    nodes2 = nodes2,
+    updatepresence = has_comp_change1,
+    presence = presence,
+    compChange1 = compChange1,
+    updatepresence2 = has_comp_change2,
+    presence2 = presence2,
+    compChange2 = compChange2,
+    hasIntercept = has_intercept,
+    spec = spec,
+    parallelize = parallelize,
+    cpus = cpus,
+    allowReflexive = allow_reflexive,
+    is_two_mode = is_two_mode,
+    reduceArrayToMatrix = reduce_array_to_matrix,
+    verbose = verbose,
+    opportunitiesList = opportunities_list
+  )
+
+  evaluate <- function(
+    pars,
+    need_scores,
+    need_ranks = FALSE,
+    need_margins = FALSE,
+    need_total_rate = FALSE,
+    need_probabilities = FALSE
+  ) {
+    do.call(
+      compute_iteration_step,
+      c(
+        step_args,
+        list(
+          parameters = pars,
+          returnIntervalLogL = TRUE,
+          returnEventProbabilities = need_probabilities,
+          return_event_scores = need_scores,
+          return_ranks = need_ranks,
+          return_margins = need_margins,
+          return_total_rate = need_total_rate
+        )
+      )
+    )
+  }
+
+  list(
+    evaluate = evaluate,
+    step_args = step_args,
+    parameters = parameters,
+    n_events = n_events
+  )
+}
+
 compute_iteration_step <- function(
   statsList,
   nodes,
