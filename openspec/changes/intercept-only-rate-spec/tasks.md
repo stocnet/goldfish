@@ -42,7 +42,7 @@
       and the **wave-endpoint average** `(|R_g(w_{k-1})| + |R_g(w_k)|)/2` in the panel
       case. The pin depends **only** on the supplied counts/durations/risk-set sizes and is
       **never** recomputed from generated/sampled/augmented events
-- [ ] 2.2 Compute `intercept_w` **once and freeze it** on the completed spec / `process_map`
+- [x] 2.2 Compute `intercept_w` **once and freeze it** on the completed spec / `process_map`
       fid (D7): read unchanged across every EM / MCMC / simulation iteration; leave no
       per-iteration recompute hook (the latent-count recompute is future development,
       design Open Questions)

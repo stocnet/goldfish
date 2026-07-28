@@ -119,37 +119,53 @@ pin_intercept_only_rate <- function(
   log(count / (duration * risk_set_size))
 }
 
-# Construct an intercept-only rate from an already-pinned intercept (the
-# constant log-hazard the consumer / pin function supplies). `model_type`
-# selects the timed evaluator the flavor routes through: "DyNAM-M-Rate" for an
-# actor-oriented flavor (per-actor hazard, `.pse_eval_rate`), "REM" for a
-# tie-oriented one (per-dyad hazard, `.pse_eval_rem`). The intercept is a single
-# plateau here; the per-period (piecewise-constant) pin arrives with the pin
-# function in a later session.
+# Construct the *frozen* intercept-only rate object from an already-pinned,
+# per-period intercept vector (typically `pin_intercept_only_rate()`'s output)
+# and the period partition. `intercept` carries one pinned log-hazard per
+# inter-wave period (length K >= 1; a length-1 vector is the single-window /
+# no-wave-grid case). `wave_times` is the K+1 period boundaries used for the
+# half-open membership lookup (`intercept_only_rate_period()`): required when
+# there is more than one period, optional for a single plateau (every event then
+# falls in the sole period). `model_type` selects the timed evaluator the flavor
+# routes through: "DyNAM-M-Rate" for an actor-oriented flavor (per-actor hazard,
+# `.pse_eval_rate`), "REM" for a tie-oriented one (per-dyad hazard,
+# `.pse_eval_rem`).
+#
+# "Compute once and freeze" (D7): the intercept is computed at consumer setup
+# (the pin is a deterministic function of supplied counts/exposures) and stored
+# here as a fixed vector under `frozen = TRUE`. There is deliberately NO
+# recompute hook -- the object is read unchanged across every EM / MCMC /
+# simulation iteration and never re-derived from generated events. (A future
+# latent-count development would replace the frozen value; out of scope here.)
 make_intercept_only_rate <- function(
   intercept,
   model_type = c("DyNAM-M-Rate", "REM"),
+  wave_times = NULL,
   call = rlang::caller_env()
 ) {
   model_type <- match.arg(model_type)
-  if (!is.numeric(intercept) || length(intercept) != 1L) {
+  if (!is.numeric(intercept) || length(intercept) < 1L) {
     cli::cli_abort(
-      "{.arg intercept} must be a single numeric value (a pinned log-hazard).",
+      "{.arg intercept} must be a non-empty numeric vector of pinned
+       log-hazards (one plateau per period).",
       call = call
     )
   }
-  # A pinned intercept is a finite log-hazard, or -Inf for a zero-count period
+  # Each pinned intercept is a finite log-hazard, or -Inf for a zero-count period
   # (per-actor hazard exp(-Inf) = 0: the flavor cannot fire). +Inf and NA are
   # not valid pins.
-  if (is.na(intercept) || intercept == Inf) {
+  if (anyNA(intercept) || any(intercept == Inf)) {
     cli::cli_abort(
       c(
-        "{.arg intercept} must be a finite log-hazard or {.val -Inf}.",
+        "Each {.arg intercept} entry must be a finite log-hazard or
+         {.val -Inf}.",
         "x" = "Got {.val {intercept}}."
       ),
       call = call
     )
   }
+  n_periods <- length(intercept)
+  wave_times <- validate_wave_times(wave_times, n_periods, call = call)
 
   structure(
     list(
@@ -163,10 +179,58 @@ make_intercept_only_rate <- function(
       # rate contributes no free parameter to any joint fit's θ layout.
       fixed_intercept = TRUE,
       n_free_parameters = 0L,
-      intercept = intercept
+      # The frozen per-period pin: one plateau per inter-wave period, computed
+      # once at setup and never recomputed from generated events.
+      intercept = intercept,
+      wave_times = wave_times,
+      n_periods = n_periods,
+      frozen = TRUE
     ),
     class = "intercept_only_rate"
   )
+}
+
+# Validate the K+1 period boundaries for a K-period pin. Required when K > 1
+# (there is no way to place an event in one of several plateaus without the
+# grid); optional for a single plateau (K == 1), where every event falls in the
+# sole period. When supplied, `wave_times` must be a strictly increasing numeric
+# vector of length K+1 (w_0 < w_1 < ... < w_K).
+validate_wave_times <- function(
+  wave_times,
+  n_periods,
+  call = rlang::caller_env()
+) {
+  if (is.null(wave_times)) {
+    if (n_periods > 1L) {
+      cli::cli_abort(
+        c(
+          "{.arg wave_times} is required for a multi-period pin.",
+          "i" = "Supply the {n_periods + 1L} period boundaries for the
+                 {n_periods} plateau{?s}."
+        ),
+        call = call
+      )
+    }
+    return(NULL)
+  }
+  if (!is.numeric(wave_times) || length(wave_times) != n_periods + 1L) {
+    cli::cli_abort(
+      c(
+        "{.arg wave_times} must be a numeric vector of {n_periods + 1L} period
+         boundaries for a {n_periods}-period pin.",
+        "x" = "Got {length(wave_times)} value{?s}."
+      ),
+      call = call
+    )
+  }
+  if (anyNA(wave_times) || is.unsorted(wave_times, strictly = TRUE)) {
+    cli::cli_abort(
+      "{.arg wave_times} must be strictly increasing
+       ({.field w_0 < w_1 < ... < w_K}).",
+      call = call
+    )
+  }
+  wave_times
 }
 
 # TRUE for an intercept-only rate object -- the flag θ-layout / optimizer code

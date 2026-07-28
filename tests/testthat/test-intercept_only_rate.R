@@ -64,9 +64,9 @@ test_that("a zero-count period pins to a zero per-actor hazard", {
 })
 
 test_that("make_intercept_only_rate rejects invalid pins", {
-  expect_snapshot(error = TRUE, make_intercept_only_rate(c(1, 2)))
   expect_snapshot(error = TRUE, make_intercept_only_rate(NA_real_))
   expect_snapshot(error = TRUE, make_intercept_only_rate(Inf))
+  expect_snapshot(error = TRUE, make_intercept_only_rate(numeric(0)))
 })
 
 # The per-period pin (Session 2): the pure function
@@ -107,6 +107,54 @@ test_that("pin_intercept_only_rate rejects malformed inputs", {
   expect_snapshot(error = TRUE, pin_intercept_only_rate(1, 1, 0))
   # missing values
   expect_snapshot(error = TRUE, pin_intercept_only_rate(1, 1, NA_real_))
+})
+
+# Compute-once-and-freeze (Session 2.2): the constructor stores the per-period
+# pin vector plus its partition as a fixed object, with no recompute hook.
+
+test_that("make_intercept_only_rate freezes the per-period pin with its partition", {
+  count <- c(8, 6)
+  duration <- c(2, 1)
+  risk_set_size <- c(2, 4)
+  pinned <- pin_intercept_only_rate(count, duration, risk_set_size)
+
+  rate <- make_intercept_only_rate(pinned, wave_times = c(0, 2, 3))
+
+  expect_equal(rate$intercept, pinned)
+  expect_identical(rate$n_periods, 2L)
+  expect_identical(rate$wave_times, c(0, 2, 3))
+  expect_true(rate$frozen)
+  expect_identical(rate$n_free_parameters, 0L)
+})
+
+test_that("a single-plateau pin needs no wave grid", {
+  rate <- make_intercept_only_rate(log(0.5))
+  expect_identical(rate$n_periods, 1L)
+  expect_null(rate$wave_times)
+  expect_true(rate$frozen)
+})
+
+test_that("the frozen pin has no recompute hook", {
+  # The freeze is structural: the object stores a fixed vector and there is no
+  # function to re-derive it from generated / augmented counts (the latent-count
+  # recompute is future development).
+  expect_false(exists("intercept_only_rate_recompute", mode = "function"))
+  expect_false(exists("update_intercept_only_rate", mode = "function"))
+})
+
+test_that("a multi-period pin requires a matching, increasing wave grid", {
+  # more than one plateau but no partition to place events in
+  expect_snapshot(error = TRUE, make_intercept_only_rate(c(-1, -2)))
+  # wrong number of boundaries (K + 1 required)
+  expect_snapshot(
+    error = TRUE,
+    make_intercept_only_rate(c(-1, -2), wave_times = c(0, 5))
+  )
+  # boundaries not strictly increasing
+  expect_snapshot(
+    error = TRUE,
+    make_intercept_only_rate(c(-1, -2), wave_times = c(0, 5, 3))
+  )
 })
 
 test_that("the intercept-only rate primitive is not exported", {

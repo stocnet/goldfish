@@ -1,18 +1,10 @@
 # make_intercept_only_rate rejects invalid pins
 
     Code
-      make_intercept_only_rate(c(1, 2))
-    Condition
-      Error:
-      ! `intercept` must be a single numeric value (a pinned log-hazard).
-
----
-
-    Code
       make_intercept_only_rate(NA_real_)
     Condition
       Error:
-      ! `intercept` must be a finite log-hazard or "-Inf".
+      ! Each `intercept` entry must be a finite log-hazard or "-Inf".
       x Got NA.
 
 ---
@@ -21,8 +13,16 @@
       make_intercept_only_rate(Inf)
     Condition
       Error:
-      ! `intercept` must be a finite log-hazard or "-Inf".
+      ! Each `intercept` entry must be a finite log-hazard or "-Inf".
       x Got Inf.
+
+---
+
+    Code
+      make_intercept_only_rate(numeric(0))
+    Condition
+      Error:
+      ! `intercept` must be a non-empty numeric vector of pinned log-hazards (one plateau per period).
 
 # pin_intercept_only_rate rejects malformed inputs
 
@@ -68,4 +68,30 @@
     Condition
       Error:
       ! `count`, `duration`, and `risk_set_size` must not contain missing values.
+
+# a multi-period pin requires a matching, increasing wave grid
+
+    Code
+      make_intercept_only_rate(c(-1, -2))
+    Condition
+      Error:
+      ! `wave_times` is required for a multi-period pin.
+      i Supply the 3 period boundaries for the 2 plateaus.
+
+---
+
+    Code
+      make_intercept_only_rate(c(-1, -2), wave_times = c(0, 5))
+    Condition
+      Error:
+      ! `wave_times` must be a numeric vector of 3 period boundaries for a 2-period pin.
+      x Got 2 values.
+
+---
+
+    Code
+      make_intercept_only_rate(c(-1, -2), wave_times = c(0, 5, 3))
+    Condition
+      Error:
+      ! `wave_times` must be strictly increasing (w_0 < w_1 < ... < w_K).
 
