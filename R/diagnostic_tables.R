@@ -181,10 +181,15 @@ node_labels <- function(nodes) {
 #' The diagnostic table contract
 #'
 #' @description
-#' Every diagnostic data object goldfish returns is a [tibble::tibble()] with
-#' the producing function's name prepended to its classes, carrying enough
-#' metadata for a print or plot method to describe the object without reaching
-#' back into the fit it came from. `margin_table()` is the first such producer.
+#' Every diagnostic data object goldfish returns carries the producing
+#' function's name at the head of its classes, and enough metadata for a print
+#' or plot method to describe the object without reaching back into the fit it
+#' came from. Where one table says everything the object *is* a
+#' [tibble::tibble()] — `margin_table()`, `diagnose_outliers()`,
+#' `diagnose_changepoints()`. Where it does not, the object is a classed list
+#' whose components are each a tibble: `diagnose_onset()` carries a parameter
+#' path, an accrual curve and a per-coefficient summary, which one rectangle
+#' cannot hold. The metadata is the same either way.
 #'
 #' @details
 #' The metadata travels as attributes:
@@ -201,7 +206,7 @@ node_labels <- function(nodes) {
 #'   \item{`version`}{the goldfish version that produced the object.}
 #' }
 #'
-#' The tibble base keeps a diagnostic table usable with the ordinary data
+#' A tibble base keeps a diagnostic table usable with the ordinary data
 #' verbs: subsetting with `[`, and dplyr's `filter()`, `mutate()` and
 #' `arrange()`, preserve the class and the metadata. A `group_by()` plus
 #' `summarise()` drops them, which is correct -- the summary is no longer the
@@ -213,11 +218,30 @@ NULL
 
 new_diagnostic_table <- function(df, class, context = list(), params = list()) {
   out <- tibble::as_tibble(df)
+  class(out) <- c(class, class(out))
+  stamp_diagnostic_metadata(out, class, context, params)
+}
+
+# The same contract where one rectangle does not hold the object: a classed
+# list whose components are each a tibble. The metadata is identical, so a
+# consumer reads `diagnostic` / `context` / `params` off either shape without
+# first asking which one it received.
+new_diagnostic_list <- function(
+  components,
+  class,
+  context = list(),
+  params = list()
+) {
+  out <- components
+  class(out) <- c(class, "list")
+  stamp_diagnostic_metadata(out, class, context, params)
+}
+
+stamp_diagnostic_metadata <- function(out, class, context, params) {
   attr(out, "diagnostic") <- class
   attr(out, "context") <- context
   attr(out, "params") <- params
   attr(out, "version") <- as.character(utils::packageVersion("goldfish"))
-  class(out) <- c(class, class(out))
   out
 }
 

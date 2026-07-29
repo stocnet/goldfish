@@ -4,10 +4,15 @@
 \alias{diagnostic-tables}
 \title{The diagnostic table contract}
 \description{
-Every diagnostic data object goldfish returns is a \code{\link[tibble:tibble]{tibble::tibble()}} with
-the producing function's name prepended to its classes, carrying enough
-metadata for a print or plot method to describe the object without reaching
-back into the fit it came from. \code{margin_table()} is the first such producer.
+Every diagnostic data object goldfish returns carries the producing
+function's name at the head of its classes, and enough metadata for a print
+or plot method to describe the object without reaching back into the fit it
+came from. Where one table says everything the object \emph{is} a
+\code{\link[tibble:tibble]{tibble::tibble()}} — \code{margin_table()}, \code{diagnose_outliers()},
+\code{diagnose_changepoints()}. Where it does not, the object is a classed list
+whose components are each a tibble: \code{diagnose_onset()} carries a parameter
+path, an accrual curve and a per-coefficient summary, which one rectangle
+cannot hold. The metadata is the same either way.
 }
 \details{
 The metadata travels as attributes:
@@ -24,7 +29,7 @@ table is read.}
 \item{\code{version}}{the goldfish version that produced the object.}
 }
 
-The tibble base keeps a diagnostic table usable with the ordinary data
+A tibble base keeps a diagnostic table usable with the ordinary data
 verbs: subsetting with \code{[}, and dplyr's \code{filter()}, \code{mutate()} and
 \code{arrange()}, preserve the class and the metadata. A \code{group_by()} plus
 \code{summarise()} drops them, which is correct -- the summary is no longer the

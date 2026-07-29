@@ -371,10 +371,18 @@ selected_term <- function(x, effect, arg, call = rlang::caller_env()) {
   )
 }
 
-# The shared guard: both functions need a fitted model that stored the
-# per-interval log-likelihood, and say which primitive is missing rather than
-# failing later on a NULL.
-abort_if_not_diagnosable <- function(x, what, call = rlang::caller_env()) {
+# The shared guard of the diagnose family: a fitted model that stored the
+# primitive the function reads, saying which one is missing rather than failing
+# later on a NULL. The default pair is the per-interval log-likelihood, which
+# is what the two interval diagnostics read; `diagnose_onset()` names the score
+# rows instead.
+abort_if_not_diagnosable <- function(
+  x,
+  what,
+  component = "interval_log_lik",
+  primitive = "loglik",
+  call = rlang::caller_env()
+) {
   if (!inherits(x, "result.goldfish")) {
     cli::cli_abort(
       c(
@@ -384,13 +392,13 @@ abort_if_not_diagnosable <- function(x, what, call = rlang::caller_env()) {
       call = call
     )
   }
-  if (is.null(x$interval_log_lik)) {
+  if (is.null(x[[component]])) {
     cli::cli_abort(
       c(
-        "{what} needs the {.val loglik} primitive, which this fit did not
+        "{what} needs the {.val {primitive}} primitive, which this fit did not
          store.",
-        "i" = "Re-estimate with {.arg diagnostics} including {.val loglik} in
-               {.fn set_algorithm_newton}."
+        "i" = "Re-estimate with {.arg diagnostics} including
+               {.val {primitive}} in {.fn set_algorithm_newton}."
       ),
       call = call
     )

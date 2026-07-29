@@ -46,6 +46,23 @@
   narrow console), so a string copied from there may select the wrong term. An
   unrecognized or ambiguous name now says which spelling resolves it.
 
+* **`diagnose_onset()` measures what the start of the sequence did to the
+  estimate.** Early events carry a left-censored history: the endogenous
+  statistics are still at their initial values, so every alternative looks
+  alike and the endogenous score contributions are exactly zero. The function
+  reports the leave-initial-segment-out parameter path and the cumulative
+  share of the information the sequence has delivered, both from the stored
+  score rows and the fit's information matrix -- no evaluation pass, no
+  preprocessed statistics -- and both indexed by dependent-event count rather
+  than by interval, so the axis counts history rather than window closures.
+  The result is descriptive: it reports which events carry the estimate, and
+  no p-value is computed. `information = "expected"`, the exact per-event
+  Fisher form, is not available yet and says so rather than quietly returning
+  the outer-product one. Its object is the first goldfish diagnostic that is a
+  classed *list* of tibbles rather than a single classed tibble -- a parameter
+  path, an accrual curve and a per-coefficient summary -- carrying the same
+  metadata contract either way.
+
 * `augment()` places its rows in interval order. Previously the right-censored
   rows were appended after the dependent events while every per-interval
   column was in interval order, so from the first censored interval onwards
