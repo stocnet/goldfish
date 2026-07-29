@@ -12,7 +12,39 @@
 #'   pooled series misleads. Either way the returned table keeps one row per
 #'   interval; the setting decides which rows can be flagged, not which rows
 #'   exist.
+#' @param effect an optional single model term, naming the series to diagnose
+#'   instead of the per-interval log-likelihood — see the \emph{Diagnosing one
+#'   term} section. Accepts any name the term answers to (the compact string
+#'   the summary prints, the export form, the `coef()` label) or its position;
+#'   [model_terms()] lists them.
+#' @param preprocessed a `preprocessed.goldfish` object, needed only when
+#'   `effect` is given on an exact-time fit that did not store the
+#'   `"conditional_scores"` primitive. See [residuals.result.goldfish()].
 #'
+#' @section Diagnosing one term:
+#' Without `effect` both functions read the per-interval log-likelihood, and
+#' answer a question about the *model*: which intervals it fit badly, and where
+#' its fit shifted. With `effect` they read that term's own series instead, and
+#' answer a question about the *coefficient*:
+#' \describe{
+#'   \item{`diagnose_changepoints(effect =)`}{segments the term's scaled
+#'     Schoenfeld residuals, whose level is the coefficient an interval
+#'     "votes" for — so a changepoint there is a regime shift in the effect
+#'     itself rather than in overall fit.}
+#'   \item{`diagnose_outliers(effect =)`}{ranks intervals by the absolute
+#'     `dfbeta` for that term — how far each one moved that coefficient. This
+#'     localizes influence rather than surprise: an interval can be perfectly
+#'     ordinary in likelihood and still be the one carrying an estimate.}
+#' }
+#'
+#' **Post-selection caveat.** A changepoint found on a term's score series is
+#' *exploratory*. It was chosen by looking at the data, so re-testing the same
+#' split on the same data with `test_time(method = "periods")` is not
+#' confirmatory evidence — the split was selected to look extreme. Treat it as
+#' a hypothesis to check on other data, or against a pre-specified period
+#' structure.
+#'
+
 #' @section Which intervals are analyzed:
 #' A fitted rate or REM model has two kinds of interval, and they contribute
 #' structurally different quantities to the per-interval log-likelihood these
@@ -95,7 +127,9 @@ diagnose_outliers <- function(
   method = c("Hampel", "IQR", "Top"),
   threshold = 3,
   window = NULL,
+  effect = NULL,
   include_censored = FALSE,
+  preprocessed = NULL,
   parameter = deprecated()
 ) {
   threshold <- fold_renamed_arg(
@@ -113,8 +147,23 @@ diagnose_outliers <- function(
   # an exported name of its own.
   data <- augment(x)
   candidate <- diagnosable_intervals(data, include_censored)
-  series <- data$interval_log_lik[candidate]
   positions <- which(candidate)
+  # Without `effect` the series is the per-interval log-likelihood: how
+  # surprising each interval was. With it, the term's own influence series --
+  # a large value means that interval moved THAT coefficient, which is a
+  # different question and localizes rather than ranks.
+  selected <- selected_term(x, effect, "diagnose_outliers")
+  series <- if (is.null(selected)) {
+    data$interval_log_lik[candidate]
+  } else {
+    # Sign-free: influence is large in either direction, and ordering below
+    # takes the smallest, so the ranking is negated to reuse one code path.
+    -abs(residuals(
+      x,
+      type = "dfbeta",
+      preprocessed = preprocessed
+    )[candidate, selected$index])
+  }
 
   data <- transform(data, label = "")
   data <- transform(data, outlier = FALSE)
@@ -163,6 +212,7 @@ diagnose_outliers <- function(
       method = method,
       threshold = threshold,
       window = window,
+      effect = selected$term,
       include_censored = include_censored
     )
   )
@@ -198,7 +248,9 @@ diagnose_changepoints <- function(
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
   window = NULL,
+  effect = NULL,
   include_censored = FALSE,
+  preprocessed = NULL,
   ...
 ) {
   abort_if_not_diagnosable(x, "Changepoint identification")
@@ -210,11 +262,32 @@ diagnose_changepoints <- function(
   # an exported name of its own.
   data <- augment(x)
   candidate <- diagnosable_intervals(data, include_censored)
-  series <- data$interval_log_lik[candidate]
   positions <- which(candidate)
+  # Without `effect` the series is the per-interval log-likelihood, and a
+  # changepoint is a shift in how well the model fits. With it, the term's
+  # scaled Schoenfeld series, whose level IS the coefficient -- so a
+  # changepoint there is a regime shift in the effect itself.
+  selected <- selected_term(x, effect, "diagnose_changepoints")
+  series <- if (is.null(selected)) {
+    data$interval_log_lik[candidate]
+  } else {
+    residuals(
+      x,
+      type = "scaled_schoenfeld",
+      preprocessed = preprocessed
+    )[candidate, selected$index]
+  }
+  # An exact-time fit has no Schoenfeld row on a right-censored interval, so
+  # the term-wise series is NA there whatever `include_censored` says. Drop
+  # those rather than handing NAs to the detector.
+  if (anyNA(series)) {
+    keep <- !is.na(series)
+    series <- series[keep]
+    positions <- positions[keep]
+  }
 
   if (is.null(window)) {
-    window <- max(table(data$time[candidate]))
+    window <- max(table(data$time[positions]))
   }
 
   if (moment == "mean") {
@@ -254,6 +327,7 @@ diagnose_changepoints <- function(
       moment = moment,
       method = method,
       window = window,
+      effect = selected$term,
       include_censored = include_censored
     )
   )
@@ -268,6 +342,33 @@ diagnosable_intervals <- function(data, include_censored) {
     return(rep(TRUE, nrow(data)))
   }
   !is.na(data$.resid)
+}
+
+# Which term `effect =` selected, or NULL for the default log-likelihood
+# series. Resolved through the one matcher every term argument uses, so the
+# string that selects a term here selects it in `initial_parameters` and in the
+# `test_*` family too. A single term only: these series are one column each,
+# and a changepoint or an influence rank over several of them at once would be
+# a statistic nobody asked for.
+selected_term <- function(x, effect, arg, call = rlang::caller_env()) {
+  if (is.null(effect)) {
+    return(NULL)
+  }
+  if (length(effect) != 1L) {
+    cli::cli_abort(
+      c(
+        "{.arg effect} must select a single term.",
+        "x" = "It selects {length(effect)}.",
+        "i" = "Call {.fn {arg}} once per term."
+      ),
+      call = call
+    )
+  }
+  index <- resolve_term_index(effect, x$names, "effect", call = call)
+  list(
+    index = index,
+    term = unname(compact_term_strings(x$names, "console", width = Inf))[index]
+  )
 }
 
 # The shared guard: both functions need a fitted model that stored the

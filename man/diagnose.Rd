@@ -13,7 +13,9 @@ diagnose_outliers(
   method = c("Hampel", "IQR", "Top"),
   threshold = 3,
   window = NULL,
+  effect = NULL,
   include_censored = FALSE,
+  preprocessed = NULL,
   parameter = deprecated()
 )
 
@@ -22,7 +24,9 @@ diagnose_changepoints(
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
   window = NULL,
+  effect = NULL,
   include_censored = FALSE,
+  preprocessed = NULL,
   ...
 )
 
@@ -45,12 +49,22 @@ or the threshold beyond the interquartile range halved, i.e.
 \item{window}{The window half-width for the Hampel filter.
 By default it is half the width of the event sequence.}
 
+\item{effect}{an optional single model term, naming the series to diagnose
+instead of the per-interval log-likelihood — see the \emph{Diagnosing one
+term} section. Accepts any name the term answers to (the compact string
+the summary prints, the export form, the \code{coef()} label) or its position;
+\code{\link[=model_terms]{model_terms()}} lists them.}
+
 \item{include_censored}{logical, whether the right-censored intervals take
 part in the statistic. Defaults to \code{FALSE} — see the
 \emph{Which intervals are analyzed} section, which explains why the
 pooled series misleads. Either way the returned table keeps one row per
 interval; the setting decides which rows can be flagged, not which rows
 exist.}
+
+\item{preprocessed}{a \code{preprocessed.goldfish} object, needed only when
+\code{effect} is given on an exact-time fit that did not store the
+\code{"conditional_scores"} primitive. See \code{\link[=residuals.result.goldfish]{residuals.result.goldfish()}}.}
 
 \item{parameter}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Renamed to \code{threshold}
 in goldfish 2.0.0.}
@@ -70,6 +84,31 @@ Provide diagnostic functions for an object of class \code{result.goldfish}.
 \code{changepoints} helps to identify where a change point
 in the events sequence is presented using the log-likelihood.
 }
+\section{Diagnosing one term}{
+
+Without \code{effect} both functions read the per-interval log-likelihood, and
+answer a question about the \emph{model}: which intervals it fit badly, and where
+its fit shifted. With \code{effect} they read that term's own series instead, and
+answer a question about the \emph{coefficient}:
+\describe{
+\item{\code{diagnose_changepoints(effect =)}}{segments the term's scaled
+Schoenfeld residuals, whose level is the coefficient an interval
+"votes" for — so a changepoint there is a regime shift in the effect
+itself rather than in overall fit.}
+\item{\code{diagnose_outliers(effect =)}}{ranks intervals by the absolute
+\code{dfbeta} for that term — how far each one moved that coefficient. This
+localizes influence rather than surprise: an interval can be perfectly
+ordinary in likelihood and still be the one carrying an estimate.}
+}
+
+\strong{Post-selection caveat.} A changepoint found on a term's score series is
+\emph{exploratory}. It was chosen by looking at the data, so re-testing the same
+split on the same data with \code{test_time(method = "periods")} is not
+confirmatory evidence — the split was selected to look extreme. Treat it as
+a hypothesis to check on other data, or against a pre-specified period
+structure.
+}
+
 \section{Which intervals are analyzed}{
 
 A fitted rate or REM model has two kinds of interval, and they contribute

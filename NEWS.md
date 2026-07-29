@@ -23,6 +23,17 @@
   censored rows are present and simply never flagged. Multinomial sub-models
   have no right-censored intervals, so their results are unchanged.
 
+* **`diagnose_changepoints()` and `diagnose_outliers()` gain `effect =`**,
+  switching from a question about the model to one about a single coefficient:
+  changepoints then segment that term's scaled Schoenfeld residuals, whose
+  level is the coefficient an interval votes for, so a break is a regime shift
+  in the effect rather than in overall fit; outliers rank by the term's
+  absolute `dfbeta`, so they localize which intervals carry the estimate
+  rather than which were surprising. The selected term is recorded on the
+  returned object for plot labelling. A changepoint found this way is
+  exploratory -- the split was chosen by looking at the data, so re-testing it
+  on the same data is not confirmatory, and the documentation says so.
+
 * **`model_terms()` reports every name a term answers to**, and every argument
   that takes a term now accepts any of them. goldfish renders a term three
   ways -- the compact string the summary prints, the export form, and the
