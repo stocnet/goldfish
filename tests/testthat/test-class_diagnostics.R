@@ -8,26 +8,24 @@ test_that("diagnostic methods throw errors when intervalLogLikelihood isn't pres
     progress = FALSE,
     verbose = FALSE
   )
-  expect_error(
-    diagnose_outliers(mod00, method = "Top", threshold = 2),
-    "Outlier identification only available when interval log likelihood
-      returned in results object."
+  expect_snapshot(
+    error = TRUE,
+    diagnose_outliers(mod00, method = "Top", threshold = 2)
   )
-  expect_error(
-    diagnose_changepoints(mod00, moment = "mean", method = "PELT"),
-    "Changepoint identification only available when interval log likelihood
-      returned in results object."
+  expect_snapshot(
+    error = TRUE,
+    diagnose_changepoints(mod00, moment = "mean", method = "PELT")
   )
 })
 
 test_that("diagnostic methods does not accept non-result objects", {
-  expect_error(
-    diagnose_outliers(depNetwork, method = "Top", threshold = 2),
-    "Not a goldfish results object."
+  expect_snapshot(
+    error = TRUE,
+    diagnose_outliers(depNetwork, method = "Top", threshold = 2)
   )
-  expect_error(
-    diagnose_changepoints(depNetwork, moment = "mean", method = "PELT"),
-    "Not a goldfish results object."
+  expect_snapshot(
+    error = TRUE,
+    diagnose_changepoints(depNetwork, moment = "mean", method = "PELT")
   )
 })
 
@@ -44,19 +42,19 @@ test_that("diagnostic methods work on \"choice\" models.", {
   )
 
   p1 <- diagnose_outliers(mod00, method = "Top", threshold = 2)
-  expect_s3_class(p1, "diagnostic.goldfish")
+  expect_s3_class(p1, "diagnose_outliers")
   expect_equal(sum(p1$outlier), 2)
   p11 <- diagnose_outliers(mod00, method = "IQR")
-  expect_s3_class(p11, "diagnostic.goldfish")
+  expect_s3_class(p11, "diagnose_outliers")
   p2 <- diagnose_changepoints(mod00, moment = "mean", method = "PELT")
-  expect_s3_class(p2, "diagnostic.goldfish")
+  expect_s3_class(p2, "diagnose_changepoints")
   p21 <- diagnose_changepoints(
     mod00,
     moment = "variance",
     method = "PELT",
     window = 2
   )
-  expect_s3_class(p2, "diagnostic.goldfish")
+  expect_s3_class(p21, "diagnose_changepoints")
 })
 
 test_that("diagnostic methods work on \"rate\" models.", {
@@ -101,9 +99,9 @@ test_that("diagnostic methods work on \"rate\" models.", {
   )
 
   p1 <- diagnose_outliers(mod00, method = "Top", threshold = 2)
-  expect_s3_class(p1, "diagnostic.goldfish")
+  expect_s3_class(p1, "diagnose_outliers")
   p2 <- diagnose_changepoints(mod00, moment = "mean", method = "PELT")
-  expect_s3_class(p2, "diagnostic.goldfish")
+  expect_s3_class(p2, "diagnose_changepoints")
 })
 
 test_that("diagnostic methods work on \"rem\" models.", {
@@ -147,7 +145,7 @@ test_that("diagnostic methods work on \"rem\" models.", {
   )
 
   p1 <- diagnose_outliers(mod00, method = "Top", threshold = 2)
-  expect_s3_class(p1, "diagnostic.goldfish")
+  expect_s3_class(p1, "diagnose_outliers")
   p2 <- diagnose_changepoints(mod00, moment = "mean", method = "PELT")
-  expect_s3_class(p2, "diagnostic.goldfish")
+  expect_s3_class(p2, "diagnose_changepoints")
 })

@@ -1172,28 +1172,51 @@ augment.result.goldfish <- function(x, ...) {
   tib
 }
 
-#' @title Print method for goldfish.diagnostic objects
-#' @description Prints a summary of the identified diagnostics.
-#' @param x An object of class \code{goldfish.diagnostic}.
+#' @param x a `diagnose_outliers` or `diagnose_changepoints` table.
 #' @param ... Additional arguments passed to or from other methods
 #'   (currently unused).
-#' @return Print diagnostic summary
+#' @return The object, invisibly.
+#' @rdname diagnose
+#' @method print diagnose_outliers
 #' @export
-print.diagnostic.goldfish <- function(x, ...) {
-  if ("cpt" %in% names(x)) {
-    column_text <- "Change Point(s):\n"
-    points <- sum(x$cpt == TRUE)
-  } else {
-    column_text <- "Outliers(s):\n"
-    points <- sum(x$outlier == TRUE)
+print.diagnose_outliers <- function(x, ...) {
+  print_diagnose_table(x, x$outlier, "outlier")
+}
+
+#' @rdname diagnose
+#' @method print diagnose_changepoints
+#' @export
+print.diagnose_changepoints <- function(x, ...) {
+  print_diagnose_table(x, x$cpt, "changepoint")
+}
+
+# The header both diagnostic tables share. It reads its counts from the D18
+# metadata rather than sniffing which columns are present, which is what let
+# one print method serve two different objects by guessing.
+print_diagnose_table <- function(x, flagged, noun) {
+  context <- attr(x, "context")
+  params <- attr(x, "params")
+  n_flagged <- sum(flagged, na.rm = TRUE)
+  # `qty()` sits between the noun and the plural marker: cli takes the
+  # quantity from the interpolation immediately before the marker, and the
+  # noun is a length-1 string, so without it every count reads as singular.
+  cli::cli_text(
+    "{.strong {n_flagged}} {noun}{cli::qty(n_flagged)}{?s} identified by the
+     {.val {params$method}} method."
+  )
+  # Which intervals took part is the one thing a reader cannot recover from
+  # the table, since the censored rows are present either way.
+  if (!is.null(context$n_analyzed) && !is.null(context$n_intervals)) {
+    scope <- if (isTRUE(params$include_censored)) {
+      "all intervals, right-censored included"
+    } else {
+      "the dependent intervals"
+    }
+    cli::cli_text(
+      "Computed over {scope}: {context$n_analyzed} of
+       {context$n_intervals} interval{?s}."
+    )
   }
-
-  cat("Identified", points, column_text)
-
-  # print data frame to display the table
-  obj <- x
-  class(obj) <- c("tbl_df", "tbl", "data.frame")
-  print(obj)
-
-  return(invisible(x))
+  print(tibble::as_tibble(x))
+  invisible(x)
 }

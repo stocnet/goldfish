@@ -1,3 +1,37 @@
+# goldfish 1.9.21
+
+* **BREAKING: `diagnose_outliers()` and `diagnose_changepoints()` return
+  different objects, and different numbers.** The returns are now classed
+  tibbles -- `diagnose_outliers` and `diagnose_changepoints` rather than the
+  shared `diagnostic.goldfish` -- carrying the diagnostic metadata contract
+  (which method, which threshold, which intervals were analyzed) so a saved
+  object explains itself and a plot method reads what it is looking at instead
+  of guessing from the columns present. The `outlier` and `cpt` columns are
+  logical.
+
+* **BREAKING: the two functions now analyze the dependent intervals by
+  default, so the flagged events and detected changepoints move on rate and
+  REM fits.** A dependent interval contributes a log density including the
+  observed alternative's term; a right-censored one contributes only the
+  timing term. Pooling them let the median, the interquartile range, the
+  Hampel window and the changepoint segmentation describe the censoring
+  pattern rather than the fit -- most visibly with windowed effects, where a
+  window opens at each event and closes a fixed time later, so the two kinds
+  of interval alternate almost one for one and a changepoint is reported at
+  nearly every closure. Pass `include_censored = TRUE` for the old pooled
+  behavior. The returned table keeps one row per interval either way: the
+  censored rows are present and simply never flagged. Multinomial sub-models
+  have no right-censored intervals, so their results are unchanged.
+
+* `augment()` places its rows in interval order. Previously the right-censored
+  rows were appended after the dependent events while every per-interval
+  column was in interval order, so from the first censored interval onwards
+  each column was paired with the wrong event -- and `diagnose_outliers()` /
+  `diagnose_changepoints()` read that table. It also gains the broom-convention
+  `.fitted` and `.resid` columns (`NA` on right-censored intervals, which
+  realize no outcome), and is now registered as an S3 method on a re-exported
+  `generics::augment` like `tidy()` and `glance()`.
+
 # goldfish 1.9.20
 
 * **A fit can say how much each actor was at risk, not just how often it
