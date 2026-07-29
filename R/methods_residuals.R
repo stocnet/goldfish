@@ -217,13 +217,14 @@ residual_stored <- function(
   component,
   primitive,
   type,
+  noun = "Residuals",
   call = rlang::caller_env()
 ) {
   stored <- object[[component]]
   if (is.null(stored)) {
     cli::cli_abort(
       c(
-        "Residuals of type {.val {type}} need the {.val {primitive}}
+        "{noun} of type {.val {type}} need the {.val {primitive}}
          primitive, which this fit did not store.",
         "i" = "Re-estimate with {.arg diagnostics} including
                {.val {primitive}} in {.fn set_algorithm_newton}."
