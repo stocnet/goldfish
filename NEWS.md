@@ -1,3 +1,26 @@
+# goldfish 1.9.11
+
+## Internal
+
+* Added the intercept-only rate primitive (`R/intercept_only_rate.R`), an
+  internal, unexported building block for the timed generative consumers
+  (the multivariate-specification completion transform, a future
+  `simulate()` method, and DyNES augmentation). It represents a rate with no
+  covariate columns and a single intercept that is *pinned* -- a deterministic
+  function of consumer-supplied per-period counts, durations, and average
+  risk-set sizes, `log(count_w / (T_w * |R_w|))` -- never estimated. The
+  pinned intercept is theta-independent (occupies no slot in the joint theta
+  layout, so a joint fit's dimensions and score/Hessian are unchanged by
+  adding one) and reproduces the supplied counts in expectation through a
+  uniform support-legal-sender hazard. In the generative context, a bare
+  `rate = ~ 1` and a completion-supplied rate are treated as the same pinned
+  object, source-agnostically; a rate with any effect keeps its estimated
+  baseline, and the single-process `estimate_dynam()` / `estimate_rem()` path
+  is untouched (byte-identical to the frozen 1e-6 baselines). Each consumer
+  warns at its own entry point, worded for its count source, and the
+  primitive aborts if invoked outside the timed regime. Purely additive: no
+  change to fitted coefficients on any existing path.
+
 # goldfish 1.9.10
 
 ## Breaking changes

@@ -135,6 +135,6 @@
       `process-simulation`, `dynes-augmentation`) stating what they supply (counts,
       periods, `|R_w|` — relational `avg_active_entity` vs panel wave-endpoint average
       (D9) — the draw, the empty-support guard)
-- [ ] 6.4 Verification: full `NOT_CRAN=true` run (baselines PASS not SKIP); version
+- [x] 6.4 Verification: full `NOT_CRAN=true` run (baselines PASS not SKIP); version
       bump in DESCRIPTION + NEWS.md entry (intercept-only-rate primitive milestone);
       `devtools::document()`; commit
