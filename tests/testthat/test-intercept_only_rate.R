@@ -1025,6 +1025,125 @@ test_that("the same spec re-fires when routed through a second consumer", {
   expect_true(FALSE)
 })
 
+# Timed-regime scope guard (Session 6.1/6.2, D3): the primitive is meaningful
+# only in the TIMED regime -- a composition where at least one process carries a
+# genuine waiting-time rate (`sub_model == "rate"`). An ordered-only (choice-only)
+# composition is rejected at the primitive's own joint-specification-level entry
+# point (`mark_pinned_rates()`), asserted directly against the primitive -- NOT
+# through `make-multivariate-spec`'s D9 completion transform (task 1c.2), which
+# does not exist yet (this change lands before it; confirming that 1c.2 itself
+# only calls in on the timed branch is deferred to mv-spec's own tasks 1c.5/1c.6).
+
+# Two choice-only DyNAM processes over the same shared data (a panel-observed
+# friendship layer read by calls' choice, meeting the join's panel-reference
+# requirement) -- no process anywhere carries a rate, so the composition is
+# ORDERED: exactly the case D3 places out of scope (a missing rate's timing
+# there is `process-simulation`'s pseudo-time / fixed-template modes).
+ordered_joint_spec <- function() {
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  make_joint_specification(calls, emails, data = data)
+}
+
+test_that("is_timed_joint_specification distinguishes timed from ordered", {
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  # calls carries a genuine waiting-time rate, emails is choice-only -- the
+  # composition as a whole is TIMED because at least one process is (D9).
+  mixed <- make_joint_specification(calls, emails, data = data)
+  expect_true(is_timed_joint_specification(mixed))
+
+  # neither process carries a rate anywhere -- ORDERED.
+  expect_false(is_timed_joint_specification(ordered_joint_spec()))
+})
+
+test_that("mark_pinned_rates rejects an ordered-regime joint specification", {
+  local_cli_context()
+  expect_snapshot(error = TRUE, mark_pinned_rates(ordered_joint_spec()))
+})
+
+test_that("assert_timed_joint_specification passes through a timed spec unchanged", {
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  joint <- make_joint_specification(calls, emails, data = data)
+  expect_identical(assert_timed_joint_specification(joint), joint)
+})
+
+test_that("a completion-supplied rate pinned from counts places events on the shared clock", {
+  # The end-to-end shape of D9's timed-gap fill: a choice-only flavor (emails)
+  # is completed with an intercept-only rate, marked pinned in the TIMED joint
+  # spec, then pinned from consumer-supplied counts/exposure/risk-set and
+  # evaluated -- producing a nonzero per-actor hazard for every support-legal
+  # (active) sender, so the flavor's events land on the shared continuous clock.
+  data <- pinned_joint_data()
+  calls <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    rate = ~ 1 + inertia,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  emails$submodels$rate <- completion_rate_bundle()
+  joint <- make_joint_specification(calls, emails, data = data)
+  expect_true(is_timed_joint_specification(joint))
+
+  marked <- mark_pinned_rates(joint)
+  desc <- marked$pinned_rates[[names(marked$pinned_rates)]]
+
+  # the consumer (here, the test standing in for process-simulation /
+  # dynes-augmentation) supplies counts/exposure/risk-set and pins.
+  pinned <- make_intercept_only_rate(
+    pin_intercept_only_rate(count = 4, duration = 5, risk_set_size = 4),
+    model_type = desc$model_type
+  )
+  out <- evaluate_intercept_only_rate(pinned, active_sender = c(1, 1, 0, 1))
+  expect_true(all(out$value[c(1, 2, 4)] > 0))
+  expect_equal(out$value[3], 0)
+})
+
 test_that("the intercept-only rate primitive is not exported", {
   exported <- getNamespaceExports("goldfish")
   internal <- c(
@@ -1044,7 +1163,9 @@ test_that("the intercept-only rate primitive is not exported", {
     "pinned_rate_descriptor",
     "mark_pinned_rates",
     "warn_pinned_rate",
-    "warn_pinned_rates"
+    "warn_pinned_rates",
+    "is_timed_joint_specification",
+    "assert_timed_joint_specification"
   )
   expect_length(intersect(internal, exported), 0)
 })

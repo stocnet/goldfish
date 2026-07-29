@@ -247,3 +247,13 @@
       Error:
       ! `joint_spec` must be a <joint_specification.goldfish>.
 
+# mark_pinned_rates rejects an ordered-regime joint specification
+
+    Code
+      mark_pinned_rates(ordered_joint_spec())
+    Condition
+      Error:
+      ! The intercept-only rate primitive applies only in the timed regime.
+      x This joint specification carries no waiting-time/intensity rate (sub_model = "rate") anywhere in its process map -- it is ordered.
+      i A missing rate's timing in the ordered regime is handled by process-simulation's pseudo-time / fixed-template modes, not by this primitive.
+

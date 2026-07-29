@@ -683,6 +683,10 @@ mark_pinned_rates <- function(joint_spec, call = rlang::caller_env()) {
       call = call
     )
   }
+  # Timed-regime scope guard (D3): the primitive is meaningful only where a
+  # shared continuous clock exists. An ordered-only composition is rejected
+  # here rather than silently marking (and finding) nothing to pin.
+  assert_timed_joint_specification(joint_spec, call = call)
   # Keyed by the character fid, in the same order `build_joint_process_map()`
   # assigns fids, so `fid_bundles[[as.character(fid)]]` is that row's bundle.
   fid_bundles <- joint_fid_bundles(joint_spec)
@@ -705,6 +709,76 @@ mark_pinned_rates <- function(joint_spec, call = rlang::caller_env()) {
   joint_spec$process_map <- map
   joint_spec$pinned_rates <- descriptors
   joint_spec
+}
+
+# ---- Timed-regime scope guard (D3) -------------------------------------------
+#
+# The intercept-only rate primitive is meaningful only where a shared continuous
+# clock exists to place events on: the TIMED regime, i.e. a joint composition in
+# which at least one process carries a genuine waiting-time/intensity rate
+# (`sub_model == "rate"`, as opposed to the ordered regime's `"rate_ordered"`
+# stand-in, which has no continuous intensity to pin against). This is D9's
+# regime rule ("timed iff any process carries a waiting-time/intensity rate"),
+# read directly off the joint specification's own submodel bundles
+# (`joint_fid_bundles()`) rather than duplicated as a second classifier.
+#
+# In the ORDERED regime a missing rate has no clock to pin against; its timing
+# is `process-simulation`'s pseudo-time / fixed-template modes (D3), out of
+# scope here. This guard only rejects that case at the primitive's own
+# joint-specification-level entry points (`mark_pinned_rates()`,
+# `warn_pinned_rates()`) -- it does NOT confirm that any particular *caller*
+# (e.g. `make-multivariate-spec`'s D9 completion transform, task 1c.2) reaches
+# this primitive only on the timed branch. That confirmation needs 1c.2 itself,
+# which does not exist yet (this change lands before it, per the land order);
+# it is deferred to mv-spec's own tasks 1c.5/1c.6 to assert against the real
+# caller once it lands, not stubbed here.
+
+# TRUE iff `joint_spec` carries at least one genuine waiting-time rate
+# (`sub_model == "rate"`) anywhere in its process map -- the composition is
+# TIMED. A composition built only from `"rate_ordered"` / `"choice"` /
+# `"choice_coordination"` submodels (no continuous intensity anywhere) is
+# ORDERED. Not exported; used only by this file's own guard.
+is_timed_joint_specification <- function(joint_spec) {
+  fid_bundles <- joint_fid_bundles(joint_spec)
+  any(vapply(
+    fid_bundles,
+    function(entry) identical(entry$sub_model, "rate"),
+    logical(1)
+  ))
+}
+
+# Abort with a clear cli error unless `joint_spec` is in the TIMED regime. The
+# defensive check the intercept-only rate primitive applies at its own
+# joint-specification-level entry points -- it needs no consumer to exist, since
+# it reads the regime straight off the supplied `joint_spec`'s own submodel
+# bundles.
+assert_timed_joint_specification <- function(
+  joint_spec,
+  call = rlang::caller_env()
+) {
+  if (!inherits(joint_spec, "joint_specification.goldfish")) {
+    cli::cli_abort(
+      "{.arg joint_spec} must be a {.cls joint_specification.goldfish}.",
+      call = call
+    )
+  }
+  if (!is_timed_joint_specification(joint_spec)) {
+    cli::cli_abort(
+      c(
+        "The intercept-only rate primitive applies only in the {.strong timed}
+         regime.",
+        "x" = "This joint specification carries no waiting-time/intensity rate
+               ({.field sub_model} = {.val rate}) anywhere in its process map
+               -- it is {.strong ordered}.",
+        "i" = "A missing rate's timing in the ordered regime is handled by
+               {.pkg process-simulation}'s pseudo-time / fixed-template modes,
+               not by this primitive."
+      ),
+      class = "goldfish_intercept_only_rate_ordered_regime_error",
+      call = call
+    )
+  }
+  invisible(joint_spec)
 }
 
 # ---- Context-aware pinned-rate warning (D6) ----------------------------------
