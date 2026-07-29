@@ -160,7 +160,7 @@ test_that("the computing surfaces refuse rather than return a wrong number", {
   expect_error(logLik(old), class = "rlang_error")
   expect_error(vcov(old), class = "rlang_error")
   expect_error(summary(old), class = "rlang_error")
-  expect_error(augment.result.goldfish(old), class = "rlang_error")
+  expect_error(augment(old), class = "rlang_error")
   expect_error(stats::AIC(old), class = "rlang_error")
   expect_error(stats::BIC(old), class = "rlang_error")
 })

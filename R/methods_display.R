@@ -1097,12 +1097,46 @@ glance.result.goldfish <- function(x, ...) {
   )
 }
 
-#' @title Augment method for goldfish.diagnostic objects
-#' @description Augments results for plotting
-#' @param x an object of class \code{result.goldfish}
+#' @importFrom generics augment
+#' @export
+generics::augment
+
+#' Augment the modeled events with per-interval model quantities
+#'
+#' @description
+#' One row per interval of the likelihood — the dependent events and, on a
+#' sub-model that has them, the right-censored intervals — with the model's
+#' own per-interval quantities beside the event columns.
+#'
+#' @details
+#' Rows are in **interval order**, the order the likelihood ran in, which is
+#' what makes the per-interval columns line up with the event they belong to.
+#' A right-censored interval carries its time and its log-likelihood
+#' contribution, but no sender, receiver or increment, and no `.fitted` or
+#' `.resid`: it realizes no outcome, so a fitted outcome probability and its
+#' deviance are not defined there.
+#'
+#' @param x a fitted model of class `"result.goldfish"`.
 #' @param ... Additional arguments passed to or from other methods
 #'   (currently unused).
-#' @return tibble
+#'
+#' @return A [tibble::tibble()] with the modeled event columns plus
+#'   `right_censored_event`, `interval_log_lik`, and the broom-convention
+#'   `.fitted` (the fitted outcome probability, `exp(interval_log_lik)`) and
+#'   `.resid` (its deviance residual, `-2 * interval_log_lik`).
+#'
+#' @examples
+#' data("social_evolution")
+#' fit <- estimate_dynam(
+#'   calls ~ inertia + recip,
+#'   sub_model = "choice",
+#'   data = social_evolution
+#' )
+#' augment(fit)
+#'
+#' @seealso [residuals.result.goldfish()] and [fitted.result.goldfish()] for
+#'   the same quantities on their own, and the other types they come in.
+#' @method augment result.goldfish
 #' @export
 augment.result.goldfish <- function(x, ...) {
   # Aborts: the per-event column it appends comes from `interval_log_lik`, so on
@@ -1114,24 +1148,28 @@ augment.result.goldfish <- function(x, ...) {
   data <- x$dependent_events %||% get(as.character(x$formula[2]))
   class(data) <- "data.frame"
   tib <- tibble::as_tibble(data)
-  N <- nrow(tib)
-  tib$right_censored_event <- rep(FALSE, N)
-  if (x$right_censored) {
-    censoredTime <- x$event_time[x$right_censored_events]
-    tibCen <- tibble::as_tibble(censoredTime)
-    names(tibCen) <- c("time")
-    N_censored <- nrow(tibCen)
-    tibCen$right_censored_event <- TRUE
-    tibCen$sender <- rep(NA_character_, N_censored)
-    tibCen$receiver <- rep(NA_character_, N_censored)
-    tibCen$increment <- rep(NA_integer_, N_censored)
-    tib <- rbind(tib, tibCen)
+  censored <- x$right_censored_events
+  if (isTRUE(x$right_censored) && any(censored)) {
+    # Interleave rather than append. The censored intervals are interleaved
+    # among the dependent events in time, and every per-interval column below
+    # is in that order -- appending them at the end would pair each column
+    # with the wrong row from the first censored interval onwards.
+    censored_rows <- tib[rep(NA_integer_, sum(censored)), , drop = FALSE]
+    censored_rows$time <- x$event_time[censored]
+    tib <- rbind(tib, censored_rows)
+    tib[c(which(!censored), which(censored)), ] <- tib
   }
+  tib$right_censored_event <- censored
   if (!is.numeric(tib$time)) {
     tib$time <- as.POSIXct(tib$time)
   }
   tib$interval_log_lik <- x$interval_log_lik
-  return(tib)
+  # broom's conventions, on the intervals where the model made a call: a
+  # right-censored interval realizes no outcome, so it has no fitted
+  # probability and no deviance for one.
+  tib$.fitted <- ifelse(censored, NA_real_, exp(x$interval_log_lik))
+  tib$.resid <- ifelse(censored, NA_real_, -2 * x$interval_log_lik)
+  tib
 }
 
 #' @title Print method for goldfish.diagnostic objects

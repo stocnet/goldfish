@@ -2,19 +2,46 @@
 % Please edit documentation in R/methods_display.R
 \name{augment.result.goldfish}
 \alias{augment.result.goldfish}
-\title{Augment method for goldfish.diagnostic objects}
+\title{Augment the modeled events with per-interval model quantities}
 \usage{
-augment.result.goldfish(x, ...)
+\method{augment}{result.goldfish}(x, ...)
 }
 \arguments{
-\item{x}{an object of class \code{result.goldfish}}
+\item{x}{a fitted model of class \code{"result.goldfish"}.}
 
 \item{...}{Additional arguments passed to or from other methods
 (currently unused).}
 }
 \value{
-tibble
+A \code{\link[tibble:tibble]{tibble::tibble()}} with the modeled event columns plus
+\code{right_censored_event}, \code{interval_log_lik}, and the broom-convention
+\code{.fitted} (the fitted outcome probability, \code{exp(interval_log_lik)}) and
+\code{.resid} (its deviance residual, \code{-2 * interval_log_lik}).
 }
 \description{
-Augments results for plotting
+One row per interval of the likelihood — the dependent events and, on a
+sub-model that has them, the right-censored intervals — with the model's
+own per-interval quantities beside the event columns.
+}
+\details{
+Rows are in \strong{interval order}, the order the likelihood ran in, which is
+what makes the per-interval columns line up with the event they belong to.
+A right-censored interval carries its time and its log-likelihood
+contribution, but no sender, receiver or increment, and no \code{.fitted} or
+\code{.resid}: it realizes no outcome, so a fitted outcome probability and its
+deviance are not defined there.
+}
+\examples{
+data("social_evolution")
+fit <- estimate_dynam(
+  calls ~ inertia + recip,
+  sub_model = "choice",
+  data = social_evolution
+)
+augment(fit)
+
+}
+\seealso{
+\code{\link[=residuals.result.goldfish]{residuals.result.goldfish()}} and \code{\link[=fitted.result.goldfish]{fitted.result.goldfish()}} for
+the same quantities on their own, and the other types they come in.
 }

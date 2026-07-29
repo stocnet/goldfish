@@ -43,7 +43,7 @@ test_that("a fitted object and its derived objects are snake_case throughout", {
 
   expect_snake_case_names(fit, "result.goldfish")
   expect_snake_case_names(summary(fit), "summary.result.goldfish")
-  expect_snake_case_names(augment.result.goldfish(fit), "augment() tibble")
+  expect_snake_case_names(augment(fit), "augment() tibble")
 
   # The nested convergence report is where the mixed convention was clearest:
   # four camelCase components beside one snake_case one.

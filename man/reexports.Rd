@@ -5,6 +5,7 @@
 \alias{reexports}
 \alias{tidy}
 \alias{glance}
+\alias{augment}
 \title{Objects exported from other packages}
 \keyword{internal}
 \description{
@@ -12,6 +13,6 @@ These objects are imported from other packages. Follow the links
 below to see their documentation.
 
 \describe{
-  \item{generics}{\code{\link[generics:glance]{glance()}}, \code{\link[generics:tidy]{tidy()}}}
+  \item{generics}{\code{\link[generics:augment]{augment()}}, \code{\link[generics:glance]{glance()}}, \code{\link[generics:tidy]{tidy()}}}
 }}
 

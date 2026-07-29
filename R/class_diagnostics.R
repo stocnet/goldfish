@@ -78,7 +78,9 @@ diagnose_outliers <- function(
   }
   method <- match.arg(method)
 
-  data <- augment.result.goldfish(x)
+  # Through the generic, like the other broom surfaces: the method is no longer
+  # an exported name of its own.
+  data <- augment(x)
 
   data <- transform(data, label = "")
   data <- transform(data, outlier = FALSE)
@@ -174,7 +176,9 @@ diagnose_changepoints <- function(
   moment <- match.arg(moment)
   method <- match.arg(method)
 
-  data <- augment.result.goldfish(x)
+  # Through the generic, like the other broom surfaces: the method is no longer
+  # an exported name of its own.
+  data <- augment(x)
 
   if (is.null(window)) {
     window <- max(table(data$time))
