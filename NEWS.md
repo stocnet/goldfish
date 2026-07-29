@@ -1,3 +1,39 @@
+# goldfish 1.9.20
+
+* **A fit can say how much each actor was at risk, not just how often it
+  acted.** `set_algorithm_newton(diagnostics = "availability")` stores two
+  per-actor vectors: `n_opportunities`, the number of dependent events whose
+  realized risk set contained the actor, and -- on the exact-time sub-models --
+  `exposure`, the time it spent at risk, summed over every interval including
+  the right-censored ones. They are the denominators the stored margins are
+  read against, in exactly the margins' shape: the same actor labels, and the
+  same `_sender` / `_receiver` split on a REM fit, since a dyad at risk makes
+  its sender available on one side and its receiver on the other. Both count
+  per actor **membership** -- an actor at risk in many dyads of one interval
+  contributes that interval once -- so `observed / exposure` is an event rate
+  per unit time at risk rather than a count of dyads. `evaluate_model(return =
+  c("exposure", "n_opportunities"))` computes the same vectors on demand for a
+  fit that did not store them.
+
+* **`residuals(type = "schoenfeld")` becomes available on the exact-time
+  sub-models**, through the new `"conditional_scores"` primitive: the score
+  rows of the model's conditional (partial) likelihood, which is what a
+  Schoenfeld residual is. They are computed during estimation because they
+  cannot be recovered afterwards -- a stored score row carries an exposure term
+  that cannot be removed without the observed alternative's own statistic row.
+  Requesting them on a multinomial family stores nothing and warns nothing:
+  those likelihoods are already conditional, so their `event_scores` *are* the
+  conditional rows.
+
+* **Every fit now carries the interval clock of its likelihood** -- `intervals`,
+  `start_time` and `end_time` -- regardless of what `diagnostics` asked for. A
+  diagnostic can put a per-event quantity on observed time rather than event
+  index, and the Cox-Snell residual of an exact-time fit is the exact product
+  `intervals * total_rate`, needing neither an evaluation pass nor the
+  preprocessed statistics. The fitted object's format version is deliberately
+  unchanged: it names a released layout and moves once per release, so a purely
+  additive component does not invalidate any stored object.
+
 # goldfish 1.9.19
 
 * **One argument names what estimation stores per event.**
