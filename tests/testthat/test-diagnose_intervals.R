@@ -194,3 +194,22 @@ test_that("the print methods report scope, not just counts", {
     ))
   )
 })
+
+test_that("the series is NA on the intervals that took no part", {
+  fit <- fit_censored()
+  outliers <- diagnose_outliers(fit, method = "Top", threshold = 3)
+  dependent <- !fit$right_censored_events
+
+  expect_true(all(is.na(outliers$.series[!dependent])))
+  expect_equal(outliers$.series[dependent], fit$interval_log_lik[dependent])
+  # Admitting the censored intervals is exactly what makes their rows part of
+  # the series, so the NA pattern moves with the setting.
+  pooled <- diagnose_outliers(
+    fit,
+    method = "Top",
+    threshold = 3,
+    include_censored = TRUE
+  )
+  expect_false(anyNA(pooled$.series))
+  expect_equal(pooled$.series, fit$interval_log_lik)
+})

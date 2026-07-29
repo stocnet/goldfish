@@ -6,7 +6,7 @@
       2 outliers identified by the "Top" method.
       Computed over the dependent intervals: 12 of 16 intervals.
     Output
-      # A tibble: 16 x 10
+      # A tibble: 16 x 11
           time sender receiver increment right_censored_event interval_log_lik .fitted
 
 ---
@@ -17,7 +17,7 @@
       1 changepoint identified by the "PELT" method.
       Computed over the dependent intervals: 12 of 16 intervals.
     Output
-      # A tibble: 16 x 9
+      # A tibble: 16 x 10
           time sender receiver increment right_censored_event interval_log_lik .fitted
 
 ---
@@ -28,6 +28,6 @@
       1 outlier identified by the "Top" method.
       Computed over all intervals, right-censored included: 16 of 16 intervals.
     Output
-      # A tibble: 16 x 10
+      # A tibble: 16 x 11
           time sender receiver increment right_censored_event interval_log_lik .fitted
 

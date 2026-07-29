@@ -46,6 +46,13 @@
   narrow console), so a string copied from there may select the wrong term. An
   unrecognized or ambiguous name now says which spelling resolves it.
 
+* The `diagnose_*` tables carry the series they analyzed, in a `.series`
+  column named by the object's `params`. Previously the table held only the
+  per-interval log-likelihood, so with `effect =` a plot method had nothing to
+  draw but a series the flags had not been computed from -- changepoints found
+  in a term's scaled Schoenfeld residuals marked over an unrelated
+  log-likelihood trace. The column is `NA` on the intervals that took no part.
+
 * **`diagnose_onset()` measures what the start of the sequence did to the
   estimate.** Early events carry a left-censored history: the endogenous
   statistics are still at their initial values, so every alternative looks

@@ -37,6 +37,11 @@
 #'     ordinary in likelihood and still be the one carrying an estimate.}
 #' }
 #'
+#' Whichever series was analyzed comes back in the `.series` column of the
+#' returned table, `NA` on the intervals that took no part, and `params` names
+#' it. A plot method therefore draws the series the flags were computed from,
+#' rather than the log-likelihood beside flags that came from something else.
+#'
 #' **Post-selection caveat.** A changepoint found on a term's score series is
 #' *exploratory*. It was chosen by looking at the data, so re-testing the same
 #' split on the same data with `test_time(method = "periods")` is not
@@ -153,17 +158,21 @@ diagnose_outliers <- function(
   # a large value means that interval moved THAT coefficient, which is a
   # different question and localizes rather than ranks.
   selected <- selected_term(x, effect, "diagnose_outliers")
-  series <- if (is.null(selected)) {
+  reported <- if (is.null(selected)) {
     data$interval_log_lik[candidate]
   } else {
-    # Sign-free: influence is large in either direction, and ordering below
-    # takes the smallest, so the ranking is negated to reuse one code path.
-    -abs(residuals(
+    abs(residuals(
       x,
       type = "dfbeta",
       preprocessed = preprocessed
     )[candidate, selected$index])
   }
+  # Every branch below takes the SMALLEST values as the flagged ones, while
+  # influence is extreme in either direction and large rather than small, so
+  # the term-wise ranking is negated to reuse one code path.
+  series <- if (is.null(selected)) reported else -reported
+  data$.series <- NA_real_
+  data$.series[positions] <- reported
 
   data <- transform(data, label = "")
   data <- transform(data, outlier = FALSE)
@@ -213,6 +222,11 @@ diagnose_outliers <- function(
       threshold = threshold,
       window = window,
       effect = selected$term,
+      series = if (is.null(selected)) {
+        "Interval log likelihood"
+      } else {
+        "Absolute dfbeta"
+      },
       include_censored = include_censored
     )
   )
@@ -285,6 +299,8 @@ diagnose_changepoints <- function(
     series <- series[keep]
     positions <- positions[keep]
   }
+  data$.series <- NA_real_
+  data$.series[positions] <- series
 
   if (is.null(window)) {
     window <- max(table(data$time[positions]))
@@ -328,6 +344,11 @@ diagnose_changepoints <- function(
       method = method,
       window = window,
       effect = selected$term,
+      series = if (is.null(selected)) {
+        "Interval log likelihood"
+      } else {
+        "Scaled Schoenfeld residual"
+      },
       include_censored = include_censored
     )
   )

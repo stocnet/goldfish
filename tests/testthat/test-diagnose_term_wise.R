@@ -117,3 +117,30 @@ test_that("an exact-time term-wise series drops its censored rows", {
     )
   )
 })
+
+test_that("the analyzed series rides on the table, named by the params", {
+  fit <- term_fixture()
+  terms <- model_terms(fit)
+
+  # Without `effect` the series is the per-interval log-likelihood, which the
+  # table already carried; the point of the column is that it holds whichever
+  # series was analyzed, so a plot never draws one series beside flags that
+  # came from another.
+  default <- diagnose_outliers(fit)
+  expect_equal(default$.series, fit$interval_log_lik)
+  expect_identical(attr(default, "params")$series, "Interval log likelihood")
+
+  ranked <- diagnose_outliers(fit, effect = terms$term[[1]])
+  expect_equal(ranked$.series, abs(residuals(fit, type = "dfbeta")[, 1]))
+  expect_identical(attr(ranked, "params")$series, "Absolute dfbeta")
+
+  segmented <- diagnose_changepoints(fit, effect = terms$term[[2]])
+  expect_equal(
+    segmented$.series,
+    residuals(fit, type = "scaled_schoenfeld")[, 2]
+  )
+  expect_identical(
+    attr(segmented, "params")$series,
+    "Scaled Schoenfeld residual"
+  )
+})

@@ -101,6 +101,11 @@ localizes influence rather than surprise: an interval can be perfectly
 ordinary in likelihood and still be the one carrying an estimate.}
 }
 
+Whichever series was analyzed comes back in the \code{.series} column of the
+returned table, \code{NA} on the intervals that took no part, and \code{params} names
+it. A plot method therefore draws the series the flags were computed from,
+rather than the log-likelihood beside flags that came from something else.
+
 \strong{Post-selection caveat.} A changepoint found on a term's score series is
 \emph{exploratory}. It was chosen by looking at the data, so re-testing the same
 split on the same data with \code{test_time(method = "periods")} is not
