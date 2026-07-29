@@ -115,14 +115,20 @@
 
 ## 6. Timed-regime scope guard and documentation
 
-- [ ] 6.1 Guard/contract that the primitive is invoked only in the **timed** regime
+- [x] 6.1 Guard/contract that the primitive is invoked only in the **timed** regime
       (D3): the ordered-regime missing-rate path is `process-simulation`'s and is out
-      of scope here. Confirm the consuming completion transform (D9) reaches this
-      primitive only on the timed branch; add a defensive check if a non-timed context
-      is passed
-- [ ] 6.2 Tests: the primitive pins a missing timed rate so events land on the shared
-      clock; it is not applied (and, if invoked, guards) in an ordered context
-- [ ] 6.3 Documentation: roxygen for the exported surface (constant per-actor hazard,
+      of scope here. Add the defensive check itself — the primitive aborts (`cli`) if
+      handed a non-timed context — buildable now, no consumer needed. **Do NOT**
+      attempt to "confirm the consuming completion transform (D9) reaches this
+      primitive only on the timed branch": that transform is `make-multivariate-spec`
+      1c.2, which per the land order (this change → 1c.2) does not exist yet and
+      cannot be confirmed against. Track that half as **deferred** the same way §4/§5
+      deferred consumer-entry assertions — a note here, not a stub caller — for 1c.2's
+      own tasks (1c.5/1c.6) to close when it lands
+- [x] 6.2 Tests: the primitive pins a missing timed rate so events land on the shared
+      clock; calling it with a non-timed context triggers the 6.1 guard (asserted
+      directly against the primitive, not through 1c.2, which doesn't exist yet)
+- [x] 6.3 Documentation: roxygen for the exported surface (constant per-actor hazard,
       pinned per-period intercept `log(count_w / (T_w · |R_w|))`, uniform-sender
       semantics, zero-free-parameter contract, intercept-only ⟺ pinned rule); brief
       developer note for the three consumers (`make-multivariate-spec` D9 completion,

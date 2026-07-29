@@ -4,25 +4,110 @@
 # consumers -- the D9 completion transform, a future `simulate()` method, and
 # DyNES augmentation -- deliberately NOT exported and committing to no
 # user-facing signature (the user surface is `rate = ~ 1` in the generative
-# context, wired in a later session). Lifecycle: experimental.
+# context, wired in a later session; confirmed still true by the
+# "not exported" test at the bottom of this file's test suite). Lifecycle:
+# experimental.
 #
-# The representation is the degenerate DyNAM-rate case: a rate carrying NO
-# covariate columns and a single fixed intercept, so the timed hazard
-# exp(beta^T s_i) collapses to the constant per-actor hazard exp(intercept) = λ.
-# Evaluation reuses the existing constant-hazard/timed-rate evaluator
-# (`.pse_eval_rate` via `evaluate_process_state`) rather than adding a second
-# evaluator: an intercept-only state is materialized as a single intercept
-# column of ones over the active senders, exactly the `has_intercept = TRUE`,
-# zero-effect state.
+# ---- The public contract this file provides (design.md D1-D9) --------------
 #
-# The object records that its intercept is *fixed* (`fixed_intercept`) and that
-# it carries zero free parameters (`n_free_parameters`), so the downstream
-# θ-layout / optimizer code can exclude it from the score and Hessian. The
-# per-period pin `intercept_w = log(count_w / (T_w * |R_w|))` (one plateau per
-# inter-wave period), its compute-once-and-freeze contract, the half-open
-# period membership used to select the applicable plateau, and the
-# uniform-support-legal-sender *semantics* every consumer draws against also
-# live here.
+# 1. Constant per-actor hazard (D1). The representation is the degenerate
+#    DyNAM-rate case: a rate carrying NO covariate columns and a single fixed
+#    intercept, so the timed hazard exp(beta^T s_i) collapses to the constant
+#    per-actor hazard exp(intercept) = lambda. Evaluation reuses the existing
+#    constant-hazard/timed-rate evaluator (`.pse_eval_rate` via
+#    `evaluate_process_state`) rather than adding a second evaluator: an
+#    intercept-only state is materialized as a single intercept column of ones
+#    over the active senders, exactly the `has_intercept = TRUE`, zero-effect
+#    state. `make_intercept_only_rate()` / `evaluate_intercept_only_rate()`.
+#
+# 2. Pinned per-period intercept (D2/D8/D9). Given a per-period count
+#    `count_w`, duration `T_w`, and average risk-set size `|R_w|` -- all
+#    consumer-supplied, never derived here -- the pin is the PURE function
+#    `intercept_w = log(count_w / (T_w * |R_w|))`, one piecewise-constant
+#    plateau per inter-wave period, selected by the half-open membership
+#    convention `[w_0,w_1) ... [w_{K-1},w_K]`
+#    (`findInterval(t, wave_times, rightmost.closed = TRUE)`) so a
+#    terminal-time event is never dropped. `|R_w|`'s SOURCE tracks the regime
+#    (D9): the RELATIONAL case supplies goldfish's time-weighted
+#    `avg_active_entity` restricted to period w (exact, unchanged); the PANEL
+#    / DyNES case supplies the wave-endpoint average
+#    `(|R_g(w_{k-1})| + |R_g(w_k)|)/2` of the flavor's post-constraint entity
+#    count at the two observed wave states (the between-wave risk-set
+#    trajectory is latent). Computed once and FROZEN -- read unchanged across
+#    every EM/MCMC/simulation iteration, never recomputed from generated
+#    events (D7). `pin_intercept_only_rate()`, `make_intercept_only_rate()`.
+#
+# 3. Uniform support-legal-sender semantics, draw owned by the consumer
+#    (D4/D5/D8). `exp(intercept_w)` is a per-actor CONSTANT hazard -- identical
+#    for every support-legal actor, not an aggregate flavor scalar -- so it
+#    slots into the shared-clock superposition Sum_i exp(.) commensurably with
+#    a competing flavor's per-actor rate. The equal hazards make the sender
+#    uniform over the support-legal set AS A CONSEQUENCE (self-loops the only
+#    automatic restriction; support inherited from the flavor, never
+#    fabricated, never borrowed from a sibling). This file exposes the
+#    semantics only -- the actual draw and the empty/saturated-support guard
+#    are the CONSUMING ROUTINE's, not built here.
+#    `intercept_only_rate_sender_semantics()`.
+#
+# 4. Zero-free-parameters contract (D4/D7). The pinned intercept is
+#    THETA-INDEPENDENT (not merely iteration-constant): it never enters the
+#    fid / theta layout and is excluded from the optimizer's score and Hessian
+#    by dimension. It MAY be added as a constant offset to a *reported* total
+#    log-likelihood, never to the optimization objective.
+#    `intercept_only_rate_theta_block()`, `joint_theta_layout()`,
+#    `intercept_only_rate_loglik_offset()`.
+#
+# 5. Intercept-only <=> pinned in the generative context (D6). `rate = ~ 1`
+#    (no other rate effects) and a completion-supplied rate for a choice-only
+#    flavor produce the SAME pinned object -- source-agnostic, read only from
+#    bundle shape. A rate carrying any effect keeps its estimated baseline. The
+#    single-process path (`estimate_dynam()` / `estimate_rem()`) is untouched:
+#    scoped by TYPE to `joint_specification.goldfish`.
+#    `is_intercept_only_rate_bundle()`, `pinned_rate_descriptor()`,
+#    `mark_pinned_rates()`. Each consumer warns at its own entry, worded for
+#    its count source, never suppressed on re-entry: `warn_pinned_rate()`,
+#    `warn_pinned_rates()`.
+#
+# 6. Timed-regime scope only (D3). The primitive applies only where a shared
+#    continuous clock exists. `mark_pinned_rates()` aborts (cli) if handed an
+#    ORDERED-only (choice-only) joint specification -- a missing rate's timing
+#    there is `process-simulation`'s pseudo-time / fixed-template modes, out of
+#    scope here. `is_timed_joint_specification()`,
+#    `assert_timed_joint_specification()`.
+#
+# ---- Developer note: what each of the three consumers supplies --------------
+#
+# Written from this design's contract (D2/D5/D8/D9), NOT from reading consumer
+# code -- none of the three exists yet as of this note (2026-07-29). Revisit
+# and correct against the real call sites once each lands.
+#
+#   * `make-multivariate-spec` D9 completion transform (`complete_generative_
+#     spec()`, task 1c.2): for each choice-only flavor on the timed branch,
+#     supplies the completion bundle `mark_pinned_rates()` classifies as
+#     intercept-only (an intercept, no effects), then pins from the flavor's
+#     wave Hamming diff (`count_w`, a net-change floor) over each inter-wave
+#     `T_w`, with `|R_w|` as the PANEL wave-endpoint average
+#     (D9). It does NOT diff waves, infer windows, draw a sender, or guard an
+#     empty support set here -- see D5.
+#   * `process-simulation`'s `simulate()`: for a mixed rate-modeled/missing
+#     timed composition, supplies the observed event count over the wave grid
+#     (or a single user-provided/min-max-inferred window absent waves) as
+#     `count_w`, the window as `T_w`, and `|R_w|` as either source depending on
+#     whether the flavor's timeline is fully observed (RELATIONAL,
+#     `avg_active_entity`) or wave-only (PANEL, wave-endpoint average). It
+#     performs the sender draw against `intercept_only_rate_sender_semantics()`
+#     and guards the empty/saturated-support case.
+#   * `dynes-augmentation`'s augmenters / pool evaluator: supplies the wave
+#     Hamming diff as `count_w` (same net-change-floor count `estimate_dynes()`
+#     warns about), the inter-wave `T_w`, and the PANEL wave-endpoint-average
+#     `|R_w|` -- placing a pinned-rate flavor's events on the shared clock by
+#     drawing against the exposed semantics and guarding empty support, exactly
+#     as `simulate()` does for its own timed composition.
+#
+# All three read `|R_w|` as the flavor's RATE ENTITY (active senders for an
+# actor-oriented flavor, active dyads for a tie-oriented one, D9) -- never a
+# flat actor/dyad count, which would badly over-state a sparse tie flavor's
+# risk set (D9).
 
 # The per-period pin -- the pure function every consumer calls at setup. Given a
 # per-period event count `count`, the period duration `duration` (the exposure
