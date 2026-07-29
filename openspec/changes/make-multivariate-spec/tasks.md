@@ -13,7 +13,10 @@
 > keying (D8, section 1b/3); §1b's `formula-drives-focal` dependency (D8 Option A:
 > per-process focal resolution, not stamped locally) is satisfied. Task 3.0 is a
 > measurement spike that edits no source and can run early — its number is an
-> input to D3b, not a consequence of the merge.
+> input to D3b, not a consequence of the merge. §1c's timed-regime rate completion
+> (D9) consumes the standalone `intercept-only-rate-spec` primitive (a hard
+> dependency, like §1b's on `formula-drives-focal`): that change must land before
+> 1c.2's timed branch.
 
 ## 1. Multivariate specification surface
 
@@ -102,27 +105,53 @@
       fabricating defaults. Keep the existing same-flavor-set message; the
       single-process estimators (`estimate_dynam()` / `estimate_rem()`) re-impose
       it at estimation time on an unfilled gap (the abort **relocates** from
-      construction to estimation for the excluded path)
+      construction to estimation for the excluded path). Also **infer the timing
+      regime** (timed iff any process carries a waiting-time/intensity rate,
+      ordered otherwise) and **abort a mixed composition** (ordered + timed) at
+      construction, naming the incompatible regimes — before any completion runs
 - [ ] 1c.2 Completion transform (one shared function, e.g.
       `complete_generative_spec()`): fill each recorded gap with its
-      zero-information default — uniform choice / uniform `rate_ordered`
-      (0 params), intercept-only baseline hazard for a missing **timed** rate
-      (1 param) — building the default bundle via the existing
-      `build_specification_bundle()`; emit **one** `cli::cli_warn` naming
-      layer/flavor/sub-model/default; abort (no default) when a **modeled panel**
-      layer omits a flavor from both lists (Case A, panel-gated — RE subset
-      modeling stays legal); idempotent on an already-complete spec
+      **zero-free-parameter** default via the existing
+      `build_specification_bundle()` — uniform choice over the layer's
+      **support-legal** alternatives (inherit defined support constraints, disallow
+      self-loops, never fabricate or borrow a sibling flavor's constraints);
+      uniform `choice_coordination` on **both sides**; uniform `rate_ordered` for a
+      missing rate in the **ordered** regime; and, in the **timed** regime, the
+      pinned **intercept-only rate** (`intercept-only-rate-spec` primitive:
+      `λ_w = count_w / T_w` per wave-period from the per-period count `count_w`
+      (net wave Hamming diff for a panel flavor), aggregate flavor intensity, sender
+      drawn uniformly among support-legal actors, θ-independent → excluded from the
+      optimizer's score/Hessian) — this branch also covers a flavor that would
+      otherwise be choice-only in a timed system. Emit a `cli::cli_warn` naming
+      layer/flavor/sub-model/default at **each consumer entry** (NOT suppressed on
+      re-entry); abort (no default) when a **modeled panel** layer omits a flavor
+      from both lists (Case A, panel-gated — RE subset modeling stays legal);
+      idempotent on an already-complete spec
 - [ ] 1c.3 `process_map` gains a `completed` logical column (beside `coupled`,
-      D3); completion sets it TRUE for added fids, and a completed timed-rate fid
-      contributes its baseline-hazard parameter to the fid / θ layout
+      D3); completion sets it TRUE for added fids. A completed timed-rate fid adds
+      **no free parameter** to the fid / θ layout (its intercept is pinned from the
+      per-period count `count_w`, θ-independent); its fixed contribution MAY appear as
+      a constant offset in a
+      reported log-likelihood but never in the optimizer's score/Hessian
 - [ ] 1c.4 Print marking (extends 1.3): completed fids rendered as auto-supplied
       defaults (cli semantic elements) alongside the coupled/separable marking
-- [ ] 1c.5 Tests: half-specified rate-only flavor → uniform choice + warning
-      snapshot; missing timed rate → baseline parameter added; modeled-panel
-      missing-whole-flavor → abort; RE subset stays legal; single `estimate_dynam`
-      on a rate-only spec NOT completed (byte-identical, baselines PASS);
-      idempotence on a complete spec; `process_map$completed` correctness; print
-      snapshot under a pinned cli context
+- [ ] 1c.5 Tests: half-specified rate-only flavor → uniform choice (over
+      support-legal alternatives, self-loops excluded) + warning snapshot; uniform
+      choice inherits a defined support constraint and does NOT borrow a sibling
+      flavor's; missing `choice_coordination` → uniform both sides; missing timed
+      rate → pinned intercept-only rate, **no** parameter added to θ, per-period
+      pin reproduces `count_w`; timed choice-only flavor → intercept-only rate;
+      ordered–timed composition → abort at `make_specification()`; warning
+      re-fires when the same spec is routed through a second consumer;
+      modeled-panel missing-whole-flavor → abort; RE subset stays legal; single
+      `estimate_dynam` on a rate-only spec NOT completed (byte-identical, baselines
+      PASS); idempotence on a complete spec; `process_map$completed` correctness;
+      print snapshot under a pinned cli context; **closes `intercept-only-rate-spec`
+      6.1's deferral** — the completion transform built here (1c.2) is the first real
+      caller of the intercept-only-rate primitive's timed-only guard, so assert this
+      transform reaches that primitive **only** on the timed branch (the
+      ordered–timed-composition-aborts case above is the negative side of the same
+      assertion)
 - [ ] 1c.6 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
       `devtools::document()`; commit
 
@@ -191,14 +220,24 @@
       dyad block per distinct mode-pair; consumers attached per fid;
       cross-mode-pair events right-censor other processes' timed rate fids;
       single-process and flavored specifications route through the merged walk
-      byte-identically (frozen-baseline gate at every commit)
+      byte-identically (frozen-baseline gate at every commit). Focal is resolved
+      **per fid over the one shared state** (D8a): each fid carries a lightweight
+      data-source view whose `focal` is its own `proc$layer` (= `spec$focal`),
+      all views sharing the underlying state/cache. Follow the explicit-focal
+      Pattern A (`new_data_source(focal = proc$layer)`, threaded `src = src`); the
+      merged driver MUST NOT use the single-process `work_data$info$focal <-
+      dep_name` stamp — a single shared focal would collapse N processes' side/
+      mode/dependent resolution onto one layer
 - [ ] 3.2 Per-fid preprocessing driver over the merged walk: fid-indexed list
       with the process_map attached, each element passing engine-readiness
       checks; empty-risk-set aborts name the fid label rendered from the
       process_map; compile each `(layer, flavor)` constraint ONCE into the
       merged plan's `plan$support_constraints` indexed directly by
       `constraint_id` (the compile is family-invariant, see design D3b),
-      and snapshot the mask PER FID against that fid's own stored `event_time`
+      and snapshot the mask PER FID against that fid's own stored `event_time`.
+      Each fid's engine-readiness check and side/mode/dependent-row resolution run
+      against that fid's per-fid data-source view (focal = `proc$layer`, D8a), never
+      a shared stamped `info$focal`
 - [ ] 3.3 Tests: merged-walk equivalence against the two-walk outputs on
       flavored fixtures; multivariate fixtures per fid; two fids sharing one
       `constraint_id` but with different stored-event timelines (a timed rate
@@ -206,7 +245,17 @@
       DIFFERENT snapshot sequences from the SAME compiled sub-plan — the
       compile-once/snapshot-per-fid contract, whose violation is a silent
       wrong-mask bug rather than a crash; timing comparison recorded (merge
-      must not regress the single-process hot path)
+      must not regress the single-process hot path); **per-fid focal survives the
+      walk** (D8a, the walk-boundary analogue of the 1b.3 construction-time test):
+      on the multilevel fixture whose object-level `info$focal` names only one
+      modeled layer (nominations), the non-focal two-mode advice fid's snapshotted
+      mask and two-mode side-validity resolve against advice's own pair
+      (staff→director), not `info$focal`'s (director→project); poison-check that
+      flipping `info$focal` to a third non-modeled layer leaves every fid's
+      per-fid preprocessed quantities byte-identical (a shared-focal fallback
+      would differ — the assertion that distinguishes Pattern A from B); the
+      advice fid's per-fid outputs match the standalone single-process
+      `preprocess()` of the advice spec
 - [ ] 3.4 Verification: full `NOT_CRAN=true` run (baselines PASS not SKIP);
       version bump in DESCRIPTION + NEWS.md entry (merged-walk milestone);
       commit
@@ -216,7 +265,9 @@
 - [ ] 4.1 `walk_open()` / `walk_advance()` / `walk_evaluate()` /
       `walk_inject()` over the merged walk's stepper; evaluation applies the
       fid's compiled mask; injection updates shared state for all consumers;
-      roxygen with lifecycle experimental badges; `devtools::document()`
+      `walk_evaluate()` resolves the evaluated fid against its per-fid data-source
+      view (focal = `proc$layer`, D8a), not a shared focal; roxygen with lifecycle
+      experimental badges; `devtools::document()`
 - [ ] 4.1b `walk_open()` **asserts** generative completeness (D9): abort with a
       `cli` error pointing to `simulate()` / `estimate_dynes()` when handed a spec
       with unfilled completion gaps; it NEVER performs completion (that transform

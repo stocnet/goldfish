@@ -360,6 +360,32 @@ B):* stamping per-process focal resolution locally to decouple sequencing — it
 duplicates `formula-drives-focal`'s fix, and the two-mode side-validity check is
 exactly where a drifted copy would silently bias results.
 
+**D8a — In the merged walk, focal is per fid over one shared state (a per-fid
+data-source view, never a stamped shared focal).** `formula-drives-focal` is
+consumed two ways in the landed code: the single-process preprocess path threads
+the resolved dependent *explicitly* — `new_data_source(focal = spec$focal)`, and
+that one `src` is passed down (`src = src`) into every builder (Pattern A); the
+single-process *estimation* path additionally stamps `work_data$info$focal <-
+dep_name` on a local copy so any source built without a threaded focal still
+resolves the modeled layer through `new_data_source()`'s `focal %||% info$focal`
+fallback (Pattern B). Pattern B is correct only because one estimation models one
+layer, so one focal on one data object is complete. The merged walk (D5) breaks
+that invariant deliberately: it hosts **N** processes over **one shared state**
+(the shared state is what makes coupling possible), so no single focal value —
+`src$focal` or a stamped `info$focal` — can serve it. A single stamped focal would
+reintroduce, *inside one join*, the exact wrong-dyad side-validity bug
+`formula-drives-focal` removed. Therefore the merged walk resolves focal **per
+fid**: each fid carries a lightweight data-source **view** whose `focal` is its own
+`proc$layer` (= that spec's resolved `spec$focal`), all views sharing the one
+underlying state/cache. The merged driver (§3.1/3.2) and the walk handle
+(§4.1/4.2) follow Pattern A exclusively and MUST NOT use the single-process
+`work_data$info$focal <- dep_name` stamp; a fid's two-mode side-validity,
+dependent-row selection, and mode-pair lookup all resolve against its view's
+focal. *Rejected:* one shared `src` with focal passed at each call site — every
+focal-sensitive call would have to remember to pass it, and a single omission
+silently falls back to the shared `info$focal` (the same failure mode by another
+route); the per-fid view makes the correct focal the default at every call.
+
 ### D9 — Generative-readiness completion: one transform at the consumer entry; the walk handle asserts
 
 **The requirement.** A specification that will *generate* events (drive the walk
@@ -383,28 +409,71 @@ through the merged walk (D5) under the frozen 1e-6 baseline gate, so silently
 adding a choice block would change its preprocessed output and break byte-identity.
 Completion must never touch it.
 
+**Regime governs the rate side.** A composed specification is either **ordered**
+or **timed**, and the two MUST NOT mix — a composition pairing an ordered process
+with a timed one is rejected at `make_specification()` time. Regime is
+**inferred**, not declared: the system is timed iff any process's rate is a
+waiting-time (intensity) rate, ordered otherwise. Regime decides how a missing
+rate is handled, because coupling runs on **one shared clock**: a timed system
+requires every process to place its events on that continuous clock, an ordered
+system only needs a sequence.
+
 **Defaults (per missing sub-model).** The missing half is filled with its
-zero-information default:
+zero-information default; **every default is zero-free-parameter** — completion
+never adds an estimated coefficient to θ:
 
-| missing half | default | parameters |
+| missing half | default | free params |
 |---|---|---|
-| choice / choice_coordination | uniform (no effects; every alternative equiprobable) | 0 |
-| rate_ordered | uniform (no effects) | 0 |
-| timed rate | intercept-only baseline hazard | 1 (estimated in the joint fit; supplied via `coef` for `simulate()`) |
+| choice | uniform over the **support-legal** alternatives (no effects) | 0 |
+| choice_coordination | uniform on **both sides** (no effects) | 0 |
+| rate (ordered regime) | uniform `rate_ordered` (no effects) | 0 |
+| rate (timed regime) | intercept-only rate, intercept **pinned** per wave-period from the per-period count `count_w` (`intercept-only-rate-spec`) | 0 |
 
-A **rate-only DyNAM** (choice absent) completes to a **uniform choice** — zero
-parameters, so `simulate()` needs no extra coefficient and the joint fit gains no
-free parameter. A flavor keyed in `choice` but absent from a **timed** `rate` list
-is the only non-free case: its completion adds one estimated/supplied
-baseline-hazard parameter (reported in θ). A **choice-only DyNAM** is *not*
-rate-completed — its timing rides `process-simulation` D2's pseudo-time /
-fixed-template modes.
+The uniform choice **inherits the layer's support constraints** where any were
+defined (uniform over the support-legal alternatives, never over all actors); it
+does **not** fabricate support constraints and does **not** borrow them from a
+sibling flavor on the same layer — the sole automatic restriction is disallowing
+self-loops. A missing `choice_coordination` completes to a uniform draw on **both**
+coordination sides.
+
+**Timed rate completion is pinned, not estimated.** In a timed system a modeled
+flavor missing its rate — including a flavor that would otherwise be *choice-only*
+— is completed with an **intercept-only rate** so its events land on the shared
+clock. The intercept is **not** a free parameter: it is pinned per wave-period to
+`λ_w = count_w / T_w`, where `count_w` is that flavor's per-period count (for a
+modeled panel flavor, the **net wave Hamming diff** between the two observed wave
+states bounding period *w* — a net-change *floor*, not a directly observed
+micro-count) and `T_w` the period's duration. The pinned rate is a **single
+aggregate flavor intensity**: when an event of that flavor fires, its sender is
+drawn **uniformly among the support-legal actors** and the per-period aggregate
+calibration reproduces `count_w` regardless of how the risk set changes — that draw
+and calibration property are the **`intercept-only-rate-spec`** primitive's
+semantics, not re-specified here. What grants the exclusion from the optimizer is
+**θ-independence**, not iteration-constancy: `λ_w` does not depend on the estimated
+parameters, so its timing likelihood is **additive-constant w.r.t. θ** and is
+**excluded from the score and Hessian**, used **generatively** to place events but
+never in the optimization objective (a constant offset that MAY be included in a
+*reported* log-likelihood). The likelihood value is also iteration-constant *today*
+because `count_w` is the fixed net Hamming diff; a future latent count would vary
+per iteration yet stay θ-independent, so the exclusion would still hold. This
+primitive is owned by the standalone **`intercept-only-rate-spec`** change; D9's
+timed-regime completion supplies the count and periods and **consumes** it (a hard
+dependency, analogous to §1b's on `formula-drives-focal`). For
+`simulate()`, a mixed process (one flavor rate-modeled, another missing) pins the
+missing flavor's constant from observed counts the same way; a **fully** rate-less
+process instead draws its event budget from the user's requested event count / time
+window (`process-simulation`).
+
+**Ordered regime: no rate completion.** In an ordered system a **choice-only
+DyNAM** flavor is *not* rate-completed — its timing rides `process-simulation`'s
+pseudo-time / fixed-template modes (there is no clock to place it on).
 
 **Two missing cases, opposite treatment** (the "modeled for all flavors or not at
 all" rule, `dynes-augmentation` D8/D19):
 - **Half-specified flavor** (keyed in one sub-model list, omitted from the other):
-  *complete* with the default above, and **warn once** (naming layer, flavor,
-  sub-model, and the default applied).
+  *complete* with the default above, and **warn** (naming layer, flavor,
+  sub-model, and the default applied) — the warning fires at **each consumer
+  entry**, see below.
 - **Flavor absent from both** on a **modeled panel** layer: *error* — no default. A
   modeled panel layer must model every flavor its wave-diff produces (the augmenter
   must place events of each). This is **panel-gated**: on an **RE** focal layer,
@@ -420,10 +489,14 @@ batched C++ pass — **three of four consumers never call `walk_open`**. Complet
 inside `walk_open` would leave the MCMC / random / pool paths on an *uncompleted*
 spec, so a run mixing a sim draw with an MCMC or pool evaluation would disagree
 fid-for-fid and silently bias estimates. Completion is therefore a **single spec
-transform run once at each consumer's entry** (`estimate_dynes()`, `simulate()`,
-the shared augmenter `init()`), warned once, producing one completed spec that
-*every* downstream path shares — `walk_open`, `make_proposal_evaluator`, the random
-augmenter, and the pool evaluator alike. Because `make_specification()` must be able
+transform run at each consumer's entry** (`estimate_dynes()`, `simulate()`,
+the shared augmenter `init()`), producing one completed spec that *every*
+downstream path within that invocation shares — `walk_open`,
+`make_proposal_evaluator`, the random augmenter, and the pool evaluator alike. The
+completion **warning is emitted at each consumer entry** (not suppressed on
+re-entry): routing the same half-specified spec through `simulate()` and then
+`estimate_dynes()` warns each time, so the auto-supplied default is never silent on
+any surface. Because `make_specification()` must be able
 to *build* a half-specified spec for it to reach these consumers, the constructor
 **relaxes** its current same-flavor-set abort (it records the gaps without
 fabricating defaults); the single-process estimators re-impose the error at
@@ -439,7 +512,7 @@ assert contract, so a direct caller must pre-complete.
 **Durable marking.** Completed fids are marked in the `process_map` (a `completed`
 logical column beside `coupled`, D3) and rendered in the specification / result
 print, so a user inspecting a fitted DyNES or simulated object sees which
-sub-models were auto-supplied — the one-time construction warning is not the only
+sub-models were auto-supplied — the per-consumer-entry warning is not the only
 record.
 
 *Rejected:* completion inside `walk_open` (misses the three non-`walk_open`

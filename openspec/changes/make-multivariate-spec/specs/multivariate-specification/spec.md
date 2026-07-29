@@ -180,18 +180,44 @@ A specification used to **generate** events (drive the walk handle via
 `simulate()` or an augmenter) or to be estimated **jointly** (`estimate_dynes()`)
 SHALL be made *generatively complete* — every modeled DyNAM flavor (the choice /
 choice_coordination sub-model family) carrying both a rate and a choice — by a
-completion transform run **once** at the consumer's entry. A flavor **keyed in one
+completion transform run at the consumer's entry. A flavor **keyed in one
 sub-model list and omitted from the other** SHALL have the missing sub-model filled
-with its zero-information default and SHALL emit a single `cli` **warning** naming
-the layer, flavor, sub-model, and the default applied. The defaults SHALL be: a
-**uniform choice** (no effects, zero parameters) for a missing choice or
-choice_coordination; a **uniform ordered rate** (no effects, zero parameters) for a
-missing `rate_ordered`; an **intercept-only baseline hazard** (one parameter,
-estimated in the joint fit or supplied via `coef` for `simulate()`) for a missing
-**timed** rate. A **rate-only DyNAM** flavor (choice absent) SHALL therefore
-complete to a uniform choice. A **choice-only DyNAM** flavor SHALL NOT be
-rate-completed (its timing is supplied by the `process-simulation` ordered modes).
-REM requires only a rate and is already complete.
+with its zero-information default and SHALL emit a `cli` **warning** naming
+the layer, flavor, sub-model, and the default applied; the warning SHALL fire at
+**each consumer entry** (it is NOT suppressed when the same half-specified spec is
+routed through a second consumer). **Every completion default is
+zero-free-parameter** — completion SHALL NOT add an estimated coefficient to θ. The
+defaults SHALL be: a **uniform choice over the support-legal alternatives** (no
+effects) for a missing choice; a **uniform draw on both sides** for a missing
+`choice_coordination`; a **uniform ordered rate** (no effects) for a missing rate in
+the **ordered** regime; and, in the **timed** regime, an **intercept-only rate whose
+intercept is pinned** per wave-period from the per-period count `count_w` (the
+`intercept-only-rate-spec` primitive). A **rate-only DyNAM** flavor (choice absent)
+SHALL therefore complete to a uniform choice.
+
+The completed uniform choice SHALL **inherit the layer's support constraints** where
+any were defined (uniform over the support-legal alternatives, never over all
+actors); it SHALL NOT fabricate support constraints, SHALL NOT borrow a sibling
+flavor's constraints on the same layer, and SHALL disallow self-loops as its only
+automatic restriction.
+
+A composed specification's timing **regime** (ordered vs timed) SHALL be
+**inferred** — timed iff any process carries a waiting-time (intensity) rate — and a
+composition mixing an ordered process with a timed one SHALL be **rejected at
+`make_specification()`**. In the **timed** regime a modeled flavor missing its rate
+(including a flavor that would otherwise be **choice-only**) SHALL be completed with
+the pinned intercept-only rate so its events land on the shared clock; in the
+**ordered** regime a **choice-only DyNAM** flavor SHALL NOT be rate-completed (its
+timing is supplied by the `process-simulation` pseudo-time modes). The pinned
+intercept `λ_w = count_w / T_w` (for a modeled panel flavor `count_w` is the net
+wave Hamming diff — a net-change floor, not a directly observed micro-count) is a
+**single aggregate flavor intensity** per wave-period, from which a sender is drawn
+**uniformly among the support-legal actors**. Its exclusion from the optimizer rests
+on **θ-independence**: `λ_w` does not depend on the estimated parameters, so its
+timing likelihood is **additive-constant w.r.t. θ** and is **excluded from the score
+and Hessian** (a constant offset that MAY appear in a *reported* log-likelihood). It
+is also iteration-constant today because `count_w` is the fixed net Hamming diff. REM
+requires only a rate and is already complete.
 
 Completion is a **single transform** shared by every consumer (`simulate()`,
 `estimate_dynes()`, and each augmenter's setup) so that the walk-driven and
@@ -209,15 +235,24 @@ time on an unfilled gap.
   `estimate_dynes()` join keys a flavor in `rate` but omits it from `choice`
   (e.g. `rate = list(creation ~ x, dissolution ~ y)`, `choice = list(creation ~ z)`)
 - **THEN** the missing `dissolution` choice is completed to a uniform (zero-effect)
-  choice, a single warning names the layer, flavor `dissolution`, the `choice`
-  sub-model, and the uniform default, and no extra parameter enters θ.
+  choice over the layer's support-legal alternatives (self-loops disallowed), a
+  warning names the layer, flavor `dissolution`, the `choice` sub-model, and the
+  uniform default, and no extra parameter enters θ.
 
-#### Scenario: missing timed rate adds a baseline-hazard parameter
-- **WHEN** a flavor is keyed in a **timed** `rate`-model specification's `choice`
-  list but omitted from its `rate` list
-- **THEN** the missing rate is completed to an intercept-only baseline hazard, the
-  warning names the added constant rate, and one baseline-hazard parameter is added
-  to θ (estimated in the joint fit, or required in `coef` for `simulate()`).
+#### Scenario: missing timed rate is completed with a pinned intercept-only rate
+- **WHEN** a flavor is keyed in a **timed** specification's `choice` list but
+  omitted from its `rate` list
+- **THEN** the missing rate is completed to an intercept-only rate whose intercept is
+  pinned per wave-period to `λ_w = count_w / T_w` (the `intercept-only-rate-spec`
+  primitive; for a panel flavor `count_w` is the net wave Hamming diff), the warning
+  names the added pinned rate, and **no** free parameter enters θ (the pin is
+  θ-independent, so it is excluded from the optimizer's score and Hessian).
+
+#### Scenario: ordered–timed composition is rejected
+- **WHEN** a specification composed via `make_specification()` pairs a process with
+  a waiting-time (timed) rate and another process with an ordered rate
+- **THEN** `make_specification()` aborts naming the incompatible regimes, before any
+  completion runs.
 
 #### Scenario: single-process estimation is not completed
 - **WHEN** a rate-only DyNAM `specification.goldfish` (choice `NULL`) is passed to

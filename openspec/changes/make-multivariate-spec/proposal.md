@@ -112,7 +112,9 @@ are `dynes-augmentation`'s.
   `multimode-network-support` (landed) supplies the mode map this change's
   per-mode-pair walk blocks build on (D8); `formula-drives-focal` supplies the
   per-process focal/side/mode resolution a join of several dependent processes
-  requires.
+  requires. D9's timed-regime rate completion consumes the standalone
+  `intercept-only-rate-spec` primitive (pinned per-period constant rate), which
+  must land before §1c's timed branch.
 - **Parallel development vs the 2.0.0 release changes** (the `.plan/mv_branch.md`
   branch plan and the 2.0.0 release plan were deleted 2026-07-24 as obsolete once
   every upstream gate landed — see `.plan/goldfish_versions.csv` for the landing
