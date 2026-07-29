@@ -60,6 +60,7 @@ reference:
       - augment.result.goldfish
       - evaluate_model
       - margin_table
+      - model_terms
       - diagnostic-tables
       - risk_set_axis
   - title: "Data"

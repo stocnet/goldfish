@@ -2430,7 +2430,8 @@ estimate_wrapper <- function(
     control_algo$initial_parameters,
     coef_labels,
     length(coef_labels),
-    broadcast = isTRUE(control_algo$initial_broadcast)
+    broadcast = isTRUE(control_algo$initial_broadcast),
+    names = base_description
   )
   # The description marks which coefficients are held, one logical per row.
   effective_fixed_parameters <- fixed_spec_mask(fixed_spec, length(coef_labels))

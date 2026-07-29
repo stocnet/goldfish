@@ -312,8 +312,38 @@ is_initial_spec <- function(x) inherits(x, "initial_spec")
 # seeded or fixed nothing is precisely the failure the by-name surface exists to
 # prevent. `candidates` restricts the match to a subset of positions, so
 # `offset_coef` can be matched against the offset terms alone.
-match_coef_labels <- function(wanted, coef_labels, arg, candidates = NULL) {
+match_coef_labels <- function(
+  wanted,
+  coef_labels,
+  arg,
+  candidates = NULL,
+  names = NULL
+) {
   pool <- if (is.null(candidates)) seq_along(coef_labels) else candidates
+  # With the effect description in hand, resolve through the one matcher every
+  # user-facing term argument uses, so a name that selects a term in the
+  # diagnostics selects the same term here. Without it -- callers that hold
+  # only the labels -- the `coef()` labels remain the vocabulary, which is what
+  # they were before the matcher existed.
+  if (!is.null(names)) {
+    idx <- resolve_term_index(wanted, names, arg)
+    outside <- setdiff(idx, pool)
+    if (length(outside) > 0) {
+      cli::cli_abort(c(
+        "{cli::qty(length(outside))}{.arg {arg}} names {?a term/terms} outside
+         the set it may name.",
+        "x" = "Not available here: {.val {coef_labels[outside]}}.",
+        "i" = "Available: {.val {coef_labels[pool]}}."
+      ))
+    }
+    if (anyDuplicated(wanted)) {
+      cli::cli_abort(c(
+        "{.arg {arg}} names the same coefficient more than once.",
+        "x" = "Repeated: {.code {unique(wanted[duplicated(wanted)])}}."
+      ))
+    }
+    return(idx)
+  }
   idx <- pool[match(wanted, coef_labels[pool])]
   if (anyNA(idx)) {
     unknown <- wanted[is.na(idx)]
@@ -344,7 +374,8 @@ resolve_initial_parameters <- function(
   initial_parameters,
   coef_labels,
   n_params,
-  broadcast = FALSE
+  broadcast = FALSE,
+  names = NULL
 ) {
   if (is.null(initial_parameters)) {
     return(NULL)
@@ -354,8 +385,17 @@ resolve_initial_parameters <- function(
   # nothing rather than rejecting the name. Whether a name reached *some*
   # process is checked once, across all of them.
   if (broadcast && !is.null(names(initial_parameters))) {
+    # A broadcast name is meant for whichever processes carry that term, so a
+    # process without it drops the name rather than aborting. Recognized under
+    # any spelling the process answers to, or a name a user read off one
+    # process's summary would silently reach none of them.
+    known <- if (is.null(names)) {
+      coef_labels
+    } else {
+      unlist(term_spellings(names), use.names = FALSE)
+    }
     initial_parameters <- initial_parameters[
-      names(initial_parameters) %in% coef_labels
+      names(initial_parameters) %in% known
     ]
     if (length(initial_parameters) == 0) {
       return(NULL)
@@ -390,7 +430,8 @@ resolve_initial_parameters <- function(
   idx <- match_coef_labels(
     supplied_names,
     coef_labels,
-    "initial_parameters"
+    "initial_parameters",
+    names = names
   )
   new_initial_spec(idx, unname(initial_parameters), coef_labels[idx])
 }

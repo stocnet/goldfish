@@ -23,6 +23,18 @@
   censored rows are present and simply never flagged. Multinomial sub-models
   have no right-censored intervals, so their results are unchanged.
 
+* **`model_terms()` reports every name a term answers to**, and every argument
+  that takes a term now accepts any of them. goldfish renders a term three
+  ways -- the compact string the summary prints, the export form, and the
+  `coef()` abbreviation -- and until now `initial_parameters` accepted only the
+  last, which is the one nobody can guess from reading a summary. It also
+  accepts the coefficient's position. `model_terms(fit, pattern = )` lists and
+  searches them, and returns the **full** compact strings: the printed summary
+  abbreviates to the console width, and the abbreviation can silently collide
+  (two `indeg` terms on different networks both render `ideg/networ` on a
+  narrow console), so a string copied from there may select the wrong term. An
+  unrecognized or ambiguous name now says which spelling resolves it.
+
 * `augment()` places its rows in interval order. Previously the right-censored
   rows were appended after the dependent events while every per-interval
   column was in interval order, so from the first censored interval onwards
