@@ -39,10 +39,16 @@ test_that("schoenfeld residuals are the score rows on a multinomial fit", {
   )
 })
 
-test_that("exact-time schoenfeld residuals say why they are unavailable", {
+test_that("exact-time schoenfeld residuals name both routes to them", {
+  # This fit stored neither the conditional score rows nor the statistics, so
+  # neither tier can serve the type -- and the error names both, since a
+  # message pointing at only one sends half the readers the wrong way. The
+  # tiers themselves are exercised in test-residuals_recompute.R.
   fit <- residual_fixture("rate")
+  expect_null(fit$conditional_scores)
+  expect_null(fit$preprocessed)
   expect_snapshot(residuals(fit, type = "schoenfeld"), error = TRUE)
-  # The score rows the fit does store are offered instead, and exist.
+  # The score rows the fit does store are a different object, and exist.
   expect_equal(dim(residuals(fit, type = "score")), dim(fit$event_scores))
 })
 

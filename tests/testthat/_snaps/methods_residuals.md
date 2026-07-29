@@ -1,12 +1,12 @@
-# exact-time schoenfeld residuals say why they are unavailable
+# exact-time schoenfeld residuals name both routes to them
 
     Code
       residuals(fit, type = "schoenfeld")
     Condition
       Error in `residuals()`:
-      ! Schoenfeld residuals of an exact-time sub-model are not available from stored primitives.
-      i Their rows drop the exposure term the stored score rows carry, which needs the observed alternative's statistic row.
-      i Use `type = "score"` for the score rows this fit stores.
+      ! Schoenfeld residuals of an exact-time sub-model need the "conditional_scores" primitive, which this fit did not store, or the statistics to recompute it from, which it does not carry either.
+      i Re-estimate with `diagnostics` including "conditional_scores" in `set_algorithm_newton()`, or
+      i re-estimate with `return_preprocessed = TRUE`, or pass `preprocessed = compute_statistics(..., output = "preprocessed")`.
 
 # a type names the primitive it needs when the fit lacks it
 

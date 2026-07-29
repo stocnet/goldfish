@@ -21,11 +21,15 @@ RESIDUAL_TYPES_SCORES <- c(
 #'
 #' @description
 #' Per-event residuals and influence measures, following the
-#' [survival::coxph()] type vocabulary. Every type on this page is read
-#' straight off the primitives estimation stored — none of them re-evaluates
-#' the model — so they cost nothing beyond the arithmetic, and a fit that did
-#' not store the primitive a type needs says so rather than recomputing it
-#' silently.
+#' [survival::coxph()] type vocabulary. Most types are read straight off the
+#' primitives estimation stored — `deviance`, `score`, `cox_snell`, the
+#' influence measures, and `schoenfeld` and `martingale` where the fit carries
+#' what they need — so they cost nothing beyond the arithmetic. The rest run
+#' **one** evaluation pass over the statistics: `response`, `martingale` at
+#' the dyad level, and `schoenfeld` on an exact-time fit that did not store the
+#' conditional score rows. A type that can be neither read nor recomputed says
+#' which primitive to store and how to supply the statistics, rather than
+#' returning a near-enough number under the name that was asked for.
 #'
 #' @details
 #' The types, and what each one is:
@@ -43,7 +47,35 @@ RESIDUAL_TYPES_SCORES <- c(
 #'     multinomial sub-models (choice, the ordinal rate and REM sub-models,
 #'     coordination) this **is** the score row — the expected statistic is the
 #'     risk-set probability-weighted mean — so the two types coincide and the
-#'     free-parameter columns sum to zero at the maximum.}
+#'     free-parameter columns sum to zero at the maximum. On the exact-time
+#'     sub-models they are a *different* object: the score row carries an
+#'     exposure term on its weighted mean, and these rows drop it, which is why
+#'     they do **not** sum to zero at the maximum even for free parameters.
+#'     They come from the `"conditional_scores"` primitive if the fit stored
+#'     it, and otherwise from one evaluation pass over the statistics; the row
+#'     of a right-censored interval is `NA`, there being no realized
+#'     alternative to compare against.}
+#'   \item{`scaled_schoenfeld`}{the Grambsch-Therneau scaling
+#'     `coef(object) + n * I^-1 s_k` of those rows, on the coefficient scale:
+#'     each row reads as the estimate a single interval "votes" for, so a trend
+#'     against time is evidence of a time-varying effect. `n` is the
+#'     **dependent-event** count of the sub-model being diagnosed, never shared
+#'     with another sub-model.}
+#'   \item{`cox_snell`}{each interval's compensator, elapsed time times the
+#'     total fitted rate. Under a correct exact-time model these are unit
+#'     exponential, so their Q-Q plot is a goodness-of-fit check. Exact-time
+#'     sub-models only; requesting them elsewhere aborts, a multinomial
+#'     likelihood having no compensator.}
+#'   \item{`response`}{observed indicator minus fitted probability, per
+#'     alternative and per event: one vector (or dyad grid) per interval over
+#'     the whole node set, zero off the risk set. Always recomputed — the
+#'     per-event probabilities are the one primitive whose storage the size
+#'     guardrail warns about.}
+#'   \item{`martingale`}{per-actor observed minus expected counts, the
+#'     difference the stored `margins` are the two halves of, with both sides
+#'     reported on a tie-oriented (REM) fit. At `level = "dyad"` the per-dyad
+#'     map those margins are the row and column sums of, which is never stored
+#'     and always costs one pass.}
 #'   \item{`dfbeta`}{the one-step approximate change in the coefficient vector
 #'     from deleting an interval's likelihood term, `I^-1 s_k`: one row per
 #'     interval, on the coefficient scale.}
@@ -97,15 +129,29 @@ RESIDUAL_TYPES_SCORES <- c(
 #'
 #' @param object a fitted model of class `"result.goldfish"`.
 #' @param type the residual type, one of `"deviance"` (default), `"score"`,
-#'   `"schoenfeld"`, `"dfbeta"`, `"dfbetas"` and `"cooks"`.
+#'   `"schoenfeld"`, `"scaled_schoenfeld"`, `"cox_snell"`, `"response"`,
+#'   `"martingale"`, `"dfbeta"`, `"dfbetas"` and `"cooks"`.
+#' @param level for `"martingale"`, whether to aggregate per `"actor"`
+#'   (default, the margins' own difference) or per `"dyad"`. The dyad level is
+#'   never stored and always costs one evaluation pass.
+#' @param preprocessed a `preprocessed.goldfish` object to recompute from, as
+#'   returned by [compute_statistics()]. Only the recomputing types read it, and
+#'   only when the fit did not store what they need; it defaults to the object
+#'   attached by `estimate_*(return_preprocessed = TRUE)`.
 #' @param ... additional arguments passed to or from other methods (currently
 #'   unused).
 #'
-#' @return For `"deviance"` and `"cooks"`, a numeric vector with one value per
-#'   interval. For the others, a numeric matrix with one row per interval and
-#'   one column per coefficient, carrying the column names of the stored
-#'   per-event score matrix (the effect names). Right-censored intervals are
-#'   included: they contribute a likelihood term and a score.
+#' @return For `"deviance"`, `"cooks"` and `"cox_snell"`, a numeric vector with
+#'   one value per interval. For `"score"`, `"schoenfeld"`,
+#'   `"scaled_schoenfeld"`, `"dfbeta"` and `"dfbetas"`, a numeric matrix with
+#'   one row per interval and one column per coefficient, carrying the column
+#'   names of the stored per-event score matrix (the effect names). Right-
+#'   censored intervals are included: they contribute a likelihood term and a
+#'   score — but they realize no alternative, so the Schoenfeld rows (and the
+#'   scaled ones) are `NA` there. For `"response"`, a list with one per-event
+#'   vector or grid over the node set. For `"martingale"`, per-actor
+#'   differences shaped like the fit's `margins`, or — at `level = "dyad"` —
+#'   one observed-minus-expected value per dyad.
 #'
 #' @examples
 #' data("social_evolution")
@@ -127,22 +173,40 @@ RESIDUAL_TYPES_SCORES <- c(
 #' @export
 residuals.result.goldfish <- function(
   object,
-  type = c("deviance", "score", "schoenfeld", "dfbeta", "dfbetas", "cooks"),
+  type = c(
+    "deviance",
+    "score",
+    "schoenfeld",
+    "scaled_schoenfeld",
+    "cox_snell",
+    "response",
+    "martingale",
+    "dfbeta",
+    "dfbetas",
+    "cooks"
+  ),
+  level = c("actor", "dyad"),
+  preprocessed = NULL,
   ...
 ) {
   abort_if_stale_result(object, "residuals")
   type <- match.arg(type)
-  if (type %in% RESIDUAL_TYPES_LOGLIK) {
-    return(-2 * residual_stored(object, "interval_log_lik", "loglik", type))
-  }
-  scores <- residual_stored(object, "event_scores", "scores", type)
-  if (identical(type, "schoenfeld")) {
-    return(schoenfeld_rows(object, scores))
-  }
-  if (identical(type, "score")) {
-    return(scores)
-  }
-  influence_rows(object, scores, type)
+  level <- match.arg(level)
+  switch(
+    type,
+    deviance = -2 * residual_stored(object, "interval_log_lik", "loglik", type),
+    cox_snell = cox_snell_residuals(object),
+    schoenfeld = schoenfeld_rows(object, preprocessed),
+    scaled_schoenfeld = scaled_schoenfeld_rows(object, preprocessed),
+    response = response_residuals(object, preprocessed),
+    martingale = martingale_residuals(object, level, preprocessed),
+    score = residual_stored(object, "event_scores", "scores", type),
+    influence_rows(
+      object,
+      residual_stored(object, "event_scores", "scores", type),
+      type
+    )
+  )
 }
 
 # The stored primitive a type reads, or the error that names how to store it.
@@ -197,27 +261,299 @@ fit_component <- function(
   stored
 }
 
+# Is this an exact-time (Poisson) sub-model? The one predicate the type-level
+# branches read, so "which families have a compensator" is stated once.
+is_exact_time_fit <- function(object) {
+  identical(risk_set_normalizer(object$model_spec), "poisson")
+}
+
 # Schoenfeld rows are the score rows without the exposure term. On a
 # multinomial sub-model there is no exposure term to remove -- the scale is 1 --
-# so the score rows ARE the Schoenfeld rows. On an exact-time sub-model they
-# are not: the score carries `Dt * total_rate` on the weighted mean, and
-# removing it needs the observed alternative's own statistic row, which no
-# stored primitive carries.
-schoenfeld_rows <- function(object, scores, call = rlang::caller_env()) {
-  if (identical(risk_set_normalizer(object$model_spec), "poisson")) {
+# so the score rows ARE the Schoenfeld rows, and this type coincides with
+# `"score"`. On an exact-time sub-model they are a different object: the score
+# carries `Dt * total_rate` on the weighted mean, and removing it would need the
+# observed alternative's own statistic row. That is one vector equation in two
+# unknown vectors, so these rows are NOT derivable from a stored score row --
+# they are the `"conditional_scores"` primitive, read here if the fit stored it
+# and recomputed through one evaluation pass if it did not.
+schoenfeld_rows <- function(object, preprocessed, call = rlang::caller_env()) {
+  if (!is_exact_time_fit(object)) {
+    return(residual_stored(object, "event_scores", "scores", "schoenfeld"))
+  }
+  stored <- object$conditional_scores
+  if (!is.null(stored)) {
+    return(stored)
+  }
+  prep <- tryCatch(
+    resolve_preprocessed(preprocessed, object, call = call),
+    error = function(e) NULL
+  )
+  if (is.null(prep)) {
+    # Neither route available, so the error names BOTH: this is the first
+    # residual type that spans the stored and the recomputed tier, and a
+    # message naming only one of them sends half the readers the wrong way.
     cli::cli_abort(
       c(
-        "Schoenfeld residuals of an exact-time sub-model are not available
-         from stored primitives.",
-        "i" = "Their rows drop the exposure term the stored score rows carry,
-               which needs the observed alternative's statistic row.",
-        "i" = "Use {.code type = \"score\"} for the score rows this fit
-               stores."
+        "Schoenfeld residuals of an exact-time sub-model need the
+         {.val conditional_scores} primitive, which this fit did not store,
+         or the statistics to recompute it from, which it does not carry
+         either.",
+        "i" = "Re-estimate with {.arg diagnostics} including
+               {.val conditional_scores} in {.fn set_algorithm_newton}, or",
+        "i" = "re-estimate with {.code return_preprocessed = TRUE}, or pass
+               {.code preprocessed = compute_statistics(..., output =
+               \"preprocessed\")}."
       ),
       call = call
     )
   }
-  scores
+  evaluate_model(
+    object,
+    return = "conditional_scores",
+    preprocessed = prep
+  )$conditional_scores
+}
+
+# Grambsch-Therneau scaling: `theta_hat + Vbar^-1 s_k` with `Vbar = I / n` the
+# AVERAGE per-event observed information, equivalently `theta_hat + n I^-1 s_k`.
+# `n` is the event count of the sub-model being diagnosed -- the dependent
+# events, not the intervals, since a right-censored interval realizes no
+# alternative and contributes no Schoenfeld row. The constant is never shared
+# across sub-models: a DyNAM rate and its choice counterpart have different n.
+#
+# A coefficient held fixed does not move, so its column is the estimate itself
+# and it is excluded from the inverse -- the same rule the influence measures
+# apply, and what keeps the information invertible on a fit with offsets.
+scaled_schoenfeld_rows <- function(
+  object,
+  preprocessed,
+  call = rlang::caller_env()
+) {
+  rows <- schoenfeld_rows(object, preprocessed, call = call)
+  is_fixed <- GetFixed(object)
+  n_events <- sum(!object$right_censored_events)
+  inverse <- invert_free_information(object)
+  estimate <- stats::coef(object, complete = TRUE)
+  scaled <- matrix(
+    estimate,
+    nrow = nrow(rows),
+    ncol = length(estimate),
+    byrow = TRUE,
+    dimnames = dimnames(rows)
+  )
+  scaled[, !is_fixed] <- scaled[, !is_fixed] +
+    n_events * (rows[, !is_fixed, drop = FALSE] %*% inverse)
+  scaled
+}
+
+# The compensator of each interval: elapsed time times the total fitted rate.
+# Under the model these are unit-exponential, which is what makes their Q-Q
+# plot a goodness-of-fit check. Both factors are stored -- the interval clock
+# rides on every fit and `total_rate` on the `"loglik"` primitive -- so at the
+# fitted estimate this costs no pass; only an evaluation at another parameter
+# vector goes through `evaluate_model()`.
+cox_snell_residuals <- function(object, call = rlang::caller_env()) {
+  if (!is_exact_time_fit(object)) {
+    cli::cli_abort(
+      c(
+        "Cox-Snell residuals are defined for the exact-time sub-models only.",
+        "x" = "They are the compensator of an interval, and a multinomial
+               likelihood has none: it models which alternative was realized,
+               not when.",
+        "i" = "Use {.code type = \"deviance\"} for a per-interval
+               goodness-of-fit measure on this sub-model."
+      ),
+      call = call
+    )
+  }
+  total_rate <- residual_stored(object, "total_rate", "loglik", "cox_snell")
+  if (!is.null(object$intervals)) {
+    return(object$intervals * total_rate)
+  }
+  # A fit predating the interval clock: recover the elapsed time from the
+  # stored components rather than demanding a replay object. On a censored
+  # interval the whole log-likelihood contribution IS the compensator; on a
+  # dependent one the observed alternative's term has to be added back, which
+  # `conditional_logl` supplies as `x_obs - log T`.
+  interval_log_lik <- residual_stored(
+    object,
+    "interval_log_lik",
+    "loglik",
+    "cox_snell"
+  )
+  conditional <- fit_component(
+    object,
+    "conditional_logl",
+    "Cox-Snell residuals of a fit made before the interval clock"
+  )
+  compensator <- -interval_log_lik
+  dependent <- !object$right_censored_events
+  compensator[dependent] <- conditional[dependent] +
+    log(total_rate[dependent]) -
+    interval_log_lik[dependent]
+  compensator
+}
+
+# Observed indicator minus fitted probability, per alternative and per event.
+# Always a recompute: the per-event probability vectors are the one primitive
+# whose storage the guardrail warns about, so this type reads them from a pass
+# rather than expecting them on the fit. On an exact-time sub-model the
+# probabilities are the conditional (next-event) ones, `lambda / sum lambda`,
+# which is what makes the residual comparable with a multinomial fit's.
+response_residuals <- function(
+  object,
+  preprocessed,
+  call = rlang::caller_env()
+) {
+  prep <- resolve_preprocessed(preprocessed, object, call = call)
+  probabilities <- evaluate_model(
+    object,
+    return = "probabilities",
+    preprocessed = prep
+  )$probabilities
+  axis <- risk_set_axis(object)
+  dependent <- !object$right_censored_events
+  lapply(seq_along(probabilities), function(i) {
+    fitted <- probabilities[[i]]
+    if (!dependent[i]) {
+      # A right-censored interval realizes no alternative, so the observed
+      # indicator is zero everywhere and the residual is minus the fitted mass.
+      return(-fitted)
+    }
+    sender <- prep$event_sender[i]
+    receiver <- prep$event_receiver[i]
+    if (identical(axis, "sender")) {
+      fitted[sender] <- fitted[sender] - 1
+    } else if (identical(axis, "receiver_given_sender")) {
+      fitted[receiver] <- fitted[receiver] - 1
+    } else {
+      fitted[sender, receiver] <- fitted[sender, receiver] - 1
+    }
+    -fitted
+  })
+}
+
+# Per-actor observed minus expected: the margins' own difference, which is why
+# it is not recomputed when the fit stored them. On an exact-time fit `expected`
+# is the compensator, so the difference is the aggregated counting-process
+# martingale residual; on a multinomial one it is a calibration difference on
+# the probability scale, and the margins' `scale` attribute says which.
+#
+# `level = "dyad"` is never a stored primitive -- the margins ARE its row and
+# column sums -- so it always costs one pass.
+martingale_residuals <- function(
+  object,
+  level,
+  preprocessed,
+  call = rlang::caller_env()
+) {
+  if (identical(level, "dyad")) {
+    return(dyad_martingale_map(object, preprocessed, call = call))
+  }
+  margins <- residual_stored(object, "margins", "margins", "martingale")
+  sides <- sub("^observed", "", grep("^observed", names(margins), value = TRUE))
+  out <- lapply(sides, function(side) {
+    difference <- margins[[paste0("observed", side)]] -
+      margins[[paste0("expected", side)]]
+    # The expected vector's `scale` marker would ride along through the
+    # subtraction, and a difference is on neither scale: it is a residual, not
+    # a fitted mass. Dropping it keeps the marker meaning what it says.
+    attr(difference, "scale") <- NULL
+    difference
+  })
+  if (length(out) == 1L) {
+    return(out[[1]])
+  }
+  stats::setNames(out, sub("^_", "", sides))
+}
+
+# The dyad-level map the margins are the marginals of: expected mass summed per
+# dyad over the sequence, subtracted from the observed dyad counts.
+#
+# The dyad families carry a grid per event already. A choice sub-model does not
+# -- its alternatives are receivers given the observed sender -- but a dyad map
+# is still what it means: that event's probability vector belongs to the
+# observed sender's ROW, which is exactly what makes the map readable as
+# "which sender-receiver pairs is the model over-predicting". A rate sub-model
+# has no such reading: its alternatives ARE actors, and there is no second axis
+# to scatter onto, so it says so rather than returning the actor-level answer
+# under the dyad name.
+dyad_martingale_map <- function(
+  object,
+  preprocessed,
+  call = rlang::caller_env()
+) {
+  axis <- risk_set_axis(object)
+  if (identical(axis, "sender")) {
+    cli::cli_abort(
+      c(
+        "{.code level = \"dyad\"} is not defined for a sender-axis sub-model.",
+        "x" = "Its alternatives are actors, not dyads: there is no second axis
+               for a per-dyad map to range over.",
+        "i" = "Use {.code level = \"actor\"}, which is the per-alternative
+               answer for this sub-model."
+      ),
+      call = call
+    )
+  }
+  prep <- resolve_preprocessed(preprocessed, object, call = call)
+  probabilities <- evaluate_model(
+    object,
+    return = "probabilities",
+    preprocessed = prep
+  )$probabilities
+  dependent <- which(!object$right_censored_events)
+  n_actors_1 <- nrow(prep$initial_stats)
+  n_actors_2 <- ncol(prep$initial_stats)
+  # The probability scale, over dependent events only, for the reason the
+  # probability-scale margins use it: the map is a calibration comparison, so
+  # it must total the same set the observed counts do -- events, not intervals.
+  expected <- matrix(0, n_actors_1, n_actors_2)
+  observed <- matrix(0, n_actors_1, n_actors_2)
+  for (i in dependent) {
+    sender <- prep$event_sender[i]
+    fitted <- probabilities[[i]]
+    if (is.matrix(fitted)) {
+      expected <- expected + fitted
+    } else {
+      expected[sender, ] <- expected[sender, ] + fitted
+    }
+    observed[sender, prep$event_receiver[i]] <-
+      observed[sender, prep$event_receiver[i]] + 1
+  }
+  labels <- prep$node_lookup
+  if (!is.null(labels)) {
+    dimnames(observed) <- list(
+      labels$label[labels$side == 1L],
+      labels$label[labels$side == max(labels$side)]
+    )
+  }
+  dimnames(expected) <- dimnames(observed)
+  observed - expected
+}
+
+# The inverse of the information over the ESTIMATED coefficients. Fixed ones
+# are excluded rather than zeroed: they do not move, and including them is what
+# makes the matrix singular on a fit with offsets. Shared by the influence
+# measures and by the Grambsch-Therneau scaling, so both fail the same way and
+# with the same diagnosis.
+invert_free_information <- function(object, call = rlang::caller_env()) {
+  is_fixed <- GetFixed(object)
+  information <- object$final_information_matrix[!is_fixed, !is_fixed]
+  tryCatch(
+    solve(information),
+    error = function(e) {
+      cli::cli_abort(
+        c(
+          "The information matrix of this fit cannot be inverted.",
+          "x" = "Influence measures and scaled residuals need it, and collinear
+                 effects make it singular.",
+          "i" = "Check the model for redundant effects."
+        ),
+        call = call
+      )
+    }
+  )
 }
 
 # One-step influence: dfbeta = I^-1 s_k per event, dfbetas the same scaled by
@@ -227,15 +563,7 @@ schoenfeld_rows <- function(object, scores, call = rlang::caller_env()) {
 # information matrix invertible on a fit with offsets.
 influence_rows <- function(object, scores, type) {
   is_fixed <- GetFixed(object)
-  information <- object$final_information_matrix[!is_fixed, !is_fixed]
-  inverse <- tryCatch(solve(information), error = function(e) {
-    cli::cli_abort(c(
-      "The information matrix of this fit cannot be inverted.",
-      "x" = "Influence measures need it, and collinear effects make it
-             singular.",
-      "i" = "Check the model for redundant effects."
-    ))
-  })
+  inverse <- invert_free_information(object)
   free_scores <- scores[, !is_fixed, drop = FALSE]
   if (identical(type, "cooks")) {
     return(rowSums((free_scores %*% inverse) * free_scores))

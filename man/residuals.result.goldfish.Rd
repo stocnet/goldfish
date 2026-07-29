@@ -6,7 +6,10 @@
 \usage{
 \method{residuals}{result.goldfish}(
   object,
-  type = c("deviance", "score", "schoenfeld", "dfbeta", "dfbetas", "cooks"),
+  type = c("deviance", "score", "schoenfeld", "scaled_schoenfeld", "cox_snell",
+    "response", "martingale", "dfbeta", "dfbetas", "cooks"),
+  level = c("actor", "dyad"),
+  preprocessed = NULL,
   ...
 )
 }
@@ -14,25 +17,45 @@
 \item{object}{a fitted model of class \code{"result.goldfish"}.}
 
 \item{type}{the residual type, one of \code{"deviance"} (default), \code{"score"},
-\code{"schoenfeld"}, \code{"dfbeta"}, \code{"dfbetas"} and \code{"cooks"}.}
+\code{"schoenfeld"}, \code{"scaled_schoenfeld"}, \code{"cox_snell"}, \code{"response"},
+\code{"martingale"}, \code{"dfbeta"}, \code{"dfbetas"} and \code{"cooks"}.}
+
+\item{level}{for \code{"martingale"}, whether to aggregate per \code{"actor"}
+(default, the margins' own difference) or per \code{"dyad"}. The dyad level is
+never stored and always costs one evaluation pass.}
+
+\item{preprocessed}{a \code{preprocessed.goldfish} object to recompute from, as
+returned by \code{\link[=compute_statistics]{compute_statistics()}}. Only the recomputing types read it, and
+only when the fit did not store what they need; it defaults to the object
+attached by \code{estimate_*(return_preprocessed = TRUE)}.}
 
 \item{...}{additional arguments passed to or from other methods (currently
 unused).}
 }
 \value{
-For \code{"deviance"} and \code{"cooks"}, a numeric vector with one value per
-interval. For the others, a numeric matrix with one row per interval and
-one column per coefficient, carrying the column names of the stored
-per-event score matrix (the effect names). Right-censored intervals are
-included: they contribute a likelihood term and a score.
+For \code{"deviance"}, \code{"cooks"} and \code{"cox_snell"}, a numeric vector with
+one value per interval. For \code{"score"}, \code{"schoenfeld"},
+\code{"scaled_schoenfeld"}, \code{"dfbeta"} and \code{"dfbetas"}, a numeric matrix with
+one row per interval and one column per coefficient, carrying the column
+names of the stored per-event score matrix (the effect names). Right-
+censored intervals are included: they contribute a likelihood term and a
+score — but they realize no alternative, so the Schoenfeld rows (and the
+scaled ones) are \code{NA} there. For \code{"response"}, a list with one per-event
+vector or grid over the node set. For \code{"martingale"}, per-actor
+differences shaped like the fit's \code{margins}, or — at \code{level = "dyad"} —
+one observed-minus-expected value per dyad.
 }
 \description{
 Per-event residuals and influence measures, following the
-\code{\link[survival:coxph]{survival::coxph()}} type vocabulary. Every type on this page is read
-straight off the primitives estimation stored — none of them re-evaluates
-the model — so they cost nothing beyond the arithmetic, and a fit that did
-not store the primitive a type needs says so rather than recomputing it
-silently.
+\code{\link[survival:coxph]{survival::coxph()}} type vocabulary. Most types are read straight off the
+primitives estimation stored — \code{deviance}, \code{score}, \code{cox_snell}, the
+influence measures, and \code{schoenfeld} and \code{martingale} where the fit carries
+what they need — so they cost nothing beyond the arithmetic. The rest run
+\strong{one} evaluation pass over the statistics: \code{response}, \code{martingale} at
+the dyad level, and \code{schoenfeld} on an exact-time fit that did not store the
+conditional score rows. A type that can be neither read nor recomputed says
+which primitive to store and how to supply the statistics, rather than
+returning a near-enough number under the name that was asked for.
 }
 \details{
 The types, and what each one is:
@@ -50,7 +73,35 @@ of a converged fit sum to (numerically) zero.}
 multinomial sub-models (choice, the ordinal rate and REM sub-models,
 coordination) this \strong{is} the score row — the expected statistic is the
 risk-set probability-weighted mean — so the two types coincide and the
-free-parameter columns sum to zero at the maximum.}
+free-parameter columns sum to zero at the maximum. On the exact-time
+sub-models they are a \emph{different} object: the score row carries an
+exposure term on its weighted mean, and these rows drop it, which is why
+they do \strong{not} sum to zero at the maximum even for free parameters.
+They come from the \code{"conditional_scores"} primitive if the fit stored
+it, and otherwise from one evaluation pass over the statistics; the row
+of a right-censored interval is \code{NA}, there being no realized
+alternative to compare against.}
+\item{\code{scaled_schoenfeld}}{the Grambsch-Therneau scaling
+\verb{coef(object) + n * I^-1 s_k} of those rows, on the coefficient scale:
+each row reads as the estimate a single interval "votes" for, so a trend
+against time is evidence of a time-varying effect. \code{n} is the
+\strong{dependent-event} count of the sub-model being diagnosed, never shared
+with another sub-model.}
+\item{\code{cox_snell}}{each interval's compensator, elapsed time times the
+total fitted rate. Under a correct exact-time model these are unit
+exponential, so their Q-Q plot is a goodness-of-fit check. Exact-time
+sub-models only; requesting them elsewhere aborts, a multinomial
+likelihood having no compensator.}
+\item{\code{response}}{observed indicator minus fitted probability, per
+alternative and per event: one vector (or dyad grid) per interval over
+the whole node set, zero off the risk set. Always recomputed — the
+per-event probabilities are the one primitive whose storage the size
+guardrail warns about.}
+\item{\code{martingale}}{per-actor observed minus expected counts, the
+difference the stored \code{margins} are the two halves of, with both sides
+reported on a tie-oriented (REM) fit. At \code{level = "dyad"} the per-dyad
+map those margins are the row and column sums of, which is never stored
+and always costs one pass.}
 \item{\code{dfbeta}}{the one-step approximate change in the coefficient vector
 from deleting an interval's likelihood term, \verb{I^-1 s_k}: one row per
 interval, on the coefficient scale.}

@@ -2618,6 +2618,15 @@ estimate_wrapper <- function(
   ) {
     colnames(result$event_scores) <- rownames(effect_description)
   }
+  # The conditional rows are the same shape, so they carry the same labels: a
+  # residual matrix a user subsets by effect name must not depend on which of
+  # the two score primitives produced it.
+  if (
+    !is.null(result$conditional_scores) &&
+      ncol(result$conditional_scores) == nrow(effect_description)
+  ) {
+    colnames(result$conditional_scores) <- rownames(effect_description)
+  }
   result$model_spec <- model_spec
   formula_keep <- as.formula(
     Reduce(paste, deparse(formula)),
