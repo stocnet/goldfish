@@ -1,3 +1,33 @@
+# goldfish 1.9.22
+
+* **The residual, fitted, predict and augment methods are checked against
+  classical fits of the same likelihood.** goldfish's likelihoods are
+  classical likelihoods with a network design matrix, so each sub-model has a
+  twin that is the *same* model rather than a similar one: the ordinal REM is
+  a Cox partial likelihood (`survival::coxph`), the choice and ordinal-rate
+  sub-models are conditional logits (a conditional logit *is* a stratified
+  Cox), and an exact-time rate or REM fit is a piecewise-exponential Poisson
+  regression (`stats::glm` with `offset(log(dt))`). Coefficients agree to
+  between 3e-12 and 3e-08 across the five routes. The design matrix the
+  references are built on is walked by hand from the event list, so what the
+  comparison tests is the statistic together with the likelihood, rather than
+  goldfish against itself.
+
+  The load-bearing check is the residual matrix at a **shared** parameter
+  vector, where no optimizer runs on either side: raw Schoenfeld residuals
+  agree with survival's to 2.7e-11 and scaled ones to 3.0e-14. That pins the
+  Grambsch–Therneau convention `theta + n I^-1 s_k`, the `n` included — an
+  n-fold error in that scaling leaves every rank and every plot shape intact,
+  so only a second implementation can find it.
+
+  No REM package enters `Suggests`: the survival-derived numbers are frozen
+  reference files carrying their own provenance, and the `stats::glm`
+  equivalences run live. Coordination has no twin, and that is a property of
+  the model rather than a gap — its unordered-dyad log-weight carries
+  actor-specific log-sum-exp corrections that are nonlinear in the parameters
+  and do not cancel within an event, which the reference notes record with the
+  measurement behind them.
+
 # goldfish 1.9.21
 
 * **BREAKING: `diagnose_outliers()` and `diagnose_changepoints()` return
