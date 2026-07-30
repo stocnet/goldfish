@@ -16,7 +16,7 @@ test_time(x, ...)
 \arguments{
 \item{object}{a fitted model of class \code{"result.goldfish"}, or a
 specification (multi-process) fit. Named \code{object} rather than \code{x} on
-\code{\link[migraph:test_gof]{test_gof()}} alone, matching the signature the sibling generic already
+\code{\link[=test_gof]{test_gof()}} alone, matching the signature the sibling generic already
 publishes.}
 
 \item{...}{additional arguments passed to or from other methods.}
@@ -32,7 +32,7 @@ in \link{diagnostic-tables}.
 Three questions a fitted relational event model can be asked, each an S3
 generic dispatching on the fit:
 \describe{
-\item{\code{\link[migraph:test_gof]{test_gof()}}}{does the model fit the sequence it was estimated on?
+\item{\code{\link[=test_gof]{test_gof()}}}{does the model fit the sequence it was estimated on?
 Read from the cumulative score processes, which are bridges at the
 maximum: a process that wanders is an effect whose contribution is not
 spread over the sequence the way the model assumes.}

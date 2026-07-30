@@ -1,0 +1,310 @@
+# `test_gof()`: the cumulative score processes, their supremum, and the two
+# references a p-value can come from. Everything here reads stored score rows,
+# so the first thing to hold is that nothing else is touched.
+
+gof_fixture <- function(
+  formula = depNetwork ~ 1 + indeg + outdeg + indeg(networkExog),
+  control_algo = set_algorithm_newton(diagnostics = "scores"),
+  ...
+) {
+  estimate_wrapper(
+    formula,
+    model = "DyNAM",
+    sub_model = "rate",
+    data = dataTest,
+    control_algo = control_algo,
+    ...
+  )
+}
+
+# A cold-start DyNAM choice sequence, simulated from the model goldfish then
+# fits: the receiver of each event is drawn from the multinomial the choice
+# sub-model specifies, over an initially EMPTY network. That start is the
+# point of the fixture -- while the history is empty every alternative looks
+# alike, the score contributions are exactly zero, and the information arrives
+# late in the sequence rather than proportionally.
+#
+# `inertia` and `recip` are unweighted by default, so a repeated dyad raises the
+# stored tie weight without changing either statistic, and the binary network
+# carried here is exactly the one the fitted statistics see.
+simulate_cold_choice <- function(n_actors, n_events, theta) {
+  labels <- sprintf("A%d", seq_len(n_actors))
+  network <- matrix(0, n_actors, n_actors, dimnames = list(labels, labels))
+  sender <- integer(n_events)
+  receiver <- integer(n_events)
+  for (k in seq_len(n_events)) {
+    from <- sample.int(n_actors, 1L)
+    alternatives <- setdiff(seq_len(n_actors), from)
+    eta <- theta[1] *
+      network[from, alternatives] +
+      theta[2] * network[alternatives, from]
+    to <- alternatives[sample.int(length(alternatives), 1L, prob = exp(eta))]
+    sender[k] <- from
+    receiver[k] <- to
+    network[from, to] <- 1
+  }
+  list(
+    actors = data.frame(label = labels, present = TRUE),
+    events = data.frame(
+      time = seq_len(n_events),
+      sender = labels[sender],
+      receiver = labels[receiver],
+      increment = 1
+    )
+  )
+}
+
+# The pre-stocnet constructors are what make a plain data frame of events both
+# the network's history and the dependent sequence; their deprecation warnings
+# are silenced because this fixture is about the cold start, not the builders.
+fit_cold_choice <- function(sim) {
+  withr::local_options(lifecycle_verbosity = "quiet")
+  actors <- make_nodes(sim$actors)
+  events <- sim$events
+  network <- make_network(nodes = actors, directed = TRUE)
+  network <- link_events(network, events, nodes = actors)
+  dependent <- make_dependent_events(
+    events = events,
+    nodes = actors,
+    default_network = network
+  )
+  estimate_dynam(
+    dependent ~ inertia + recip,
+    sub_model = "choice",
+    data = make_data(dependent, network, actors),
+    control_algo = set_algorithm_newton(diagnostics = "scores")
+  )
+}
+
+test_that("the test reads stored scores only, on either clock", {
+  fit <- gof_fixture()
+  expect_null(fit$preprocessed)
+  # If either clock reached for an evaluation pass this would abort, which is
+  # the whole claim: both are arithmetic on the stored rows, the simulated
+  # reference included.
+  local_mocked_bindings(
+    evaluate_model = function(...) stop("an evaluation pass was triggered")
+  )
+  gof <- test_gof(fit)
+  simulated <- test_gof(fit, clock = "information", n_sim = 50)
+
+  expect_s3_class(gof, "test_gof")
+  expect_named(gof, c("effects", "process", "omnibus"))
+  for (component in gof) {
+    expect_s3_class(component, "tbl_df")
+  }
+  expect_identical(attr(gof, "diagnostic"), "test_gof")
+  expect_identical(attr(gof, "params")$clock, "event")
+  expect_identical(attr(simulated, "params")$clock, "information")
+  expect_identical(attr(simulated, "params")$n_sim, 50L)
+  expect_identical(
+    attr(gof, "context")$n_intervals,
+    nrow(fit$event_scores)
+  )
+  expect_identical(
+    attr(gof, "context")$n_events,
+    sum(!fit$right_censored_events)
+  )
+  expect_identical(
+    attr(gof, "version"),
+    as.character(utils::packageVersion("goldfish"))
+  )
+})
+
+test_that("each process is a bridge, and every effect is free", {
+  fit <- gof_fixture()
+  gof <- test_gof(fit)
+
+  # Starts at zero by construction, ends at zero because the score sums to
+  # zero at the maximum -- which is what makes the excursion between them
+  # readable against a bridge.
+  origin <- gof$process$process[gof$process$step == 0]
+  endpoint <- gof$process$process[
+    gof$process$step == max(gof$process$step)
+  ]
+  expect_equal(origin, rep(0, nrow(gof$effects)))
+  expect_equal(endpoint, rep(0, nrow(gof$effects)), tolerance = 1e-5)
+  expect_identical(gof$effects$index, seq_len(nrow(fit$names)))
+  expect_identical(
+    nrow(gof$process),
+    (nrow(fit$event_scores) + 1L) * nrow(gof$effects)
+  )
+  expect_true(all(gof$effects$p_value >= 0 & gof$effects$p_value <= 1))
+  expect_identical(gof$omnibus$n_effects, nrow(gof$effects))
+})
+
+test_that("the statistic is the same under both clocks; the axis is not", {
+  fit <- gof_fixture()
+  event <- test_gof(fit)
+  set.seed(42)
+  information <- test_gof(fit, clock = "information", n_sim = 200)
+
+  # A supremum reads the values a path takes, never where they are plotted, so
+  # this is an identity rather than an approximation.
+  expect_identical(event$effects$statistic, information$effects$statistic)
+  expect_identical(event$effects$scale, information$effects$scale)
+  expect_false(isTRUE(all.equal(
+    event$effects$p_value,
+    information$effects$p_value
+  )))
+
+  n <- nrow(fit$event_scores)
+  expect_identical(unique(event$process$clock), "event")
+  expect_equal(
+    event$process$u[event$process$index == 1],
+    seq.int(0, n) / n
+  )
+  # The information clock places increment k at the share of that effect's
+  # outer-product information delivered by it -- its own axis per effect.
+  expect_identical(unique(information$process$clock), "information")
+  for (d in seq_len(nrow(event$effects))) {
+    squares <- fit$event_scores[, d]^2
+    expect_equal(
+      information$process$u[information$process$index == d],
+      c(0, cumsum(squares) / sum(squares))
+    )
+  }
+  expect_equal(
+    information$process$process,
+    event$process$process
+  )
+})
+
+test_that("the simulated reference draws through the session RNG", {
+  fit <- gof_fixture()
+  set.seed(11)
+  first <- test_gof(fit, clock = "information", n_sim = 200)
+  set.seed(11)
+  again <- test_gof(fit, clock = "information", n_sim = 200)
+  set.seed(12)
+  other <- test_gof(fit, clock = "information", n_sim = 200)
+
+  expect_identical(first$effects$p_value, again$effects$p_value)
+  expect_false(identical(first$effects$p_value, other$effects$p_value))
+  # A Monte Carlo p-value is never exactly zero: it would claim more than the
+  # replications support.
+  expect_true(all(first$effects$p_value >= 1 / 201))
+})
+
+test_that("offset terms are excluded, and naming one has a destination", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  fit <- gof_fixture(depNetwork ~ 1 + indeg + offset(outdeg, coef = 0.5))
+  gof <- test_gof(fit)
+
+  expect_identical(gof$effects$index, 1:2)
+  expect_identical(nrow(fit$names), 3L)
+  expect_snapshot(
+    test_gof(fit, effects = "outdeg/networkState [Fx]"),
+    error = TRUE
+  )
+  expect_snapshot(test_gof(fit, effects = 3), error = TRUE)
+})
+
+test_that("a selection names the terms it tests", {
+  fit <- gof_fixture()
+  selected <- test_gof(fit, effects = c("indeg/networkState", "Intercept"))
+
+  expect_identical(selected$effects$index, c(2L, 1L))
+  expect_identical(selected$omnibus$n_effects, 2L)
+  expect_identical(
+    selected$effects$statistic,
+    test_gof(fit)$effects$statistic[c(2L, 1L)]
+  )
+})
+
+test_that("a fit without the score rows says which primitive to store", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  fit <- gof_fixture(
+    control_algo = set_algorithm_newton(diagnostics = "loglik")
+  )
+  expect_null(fit$event_scores)
+  expect_snapshot(test_gof(fit), error = TRUE)
+})
+
+test_that("the replication count is checked before anything is computed", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  expect_snapshot(test_gof(gof_fixture(), n_sim = 0), error = TRUE)
+})
+
+test_that("an effect contributing no score at all is named, not divided by", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  scores <- cbind(a = c(1, -2, 1), b = c(0, 0, 0))
+  expect_snapshot(
+    gof_processes(scores, "event", tested = 1:2),
+    error = TRUE
+  )
+})
+
+test_that("the Kolmogorov series is the bridge distribution", {
+  # The 5% and 1% points of the supremum of a standard Brownian bridge, which
+  # are also the Kolmogorov-Smirnov critical values, to the three digits they
+  # are tabulated at.
+  expect_equal(kolmogorov_p(1.358), 0.05, tolerance = 1e-2)
+  expect_equal(kolmogorov_p(1.628), 0.01, tolerance = 1e-2)
+  expect_identical(kolmogorov_p(0), 1)
+  expect_true(all(diff(kolmogorov_p(c(0.5, 1, 2))) < 0))
+  # Under arbitrary dependence: the Cauchy combination of p-values that are
+  # all one half is one half.
+  expect_equal(cauchy_omnibus(c(0.5, 0.5, 0.5))$p_value, 0.5)
+  expect_lt(cauchy_omnibus(c(0.001, 0.5, 0.5))$p_value, 0.01)
+})
+
+test_that("print names the reference the p-values came from", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  fit <- gof_fixture()
+  # Only the header is goldfish's: the table below it is tibble's print, and
+  # pinning that would make this a regression test on pillar.
+  header <- function(x) {
+    out <- capture.output(print(x))
+    cat(out[seq_len(which(startsWith(out, "# A tibble"))[1] - 1L)], sep = "\n")
+  }
+  expect_snapshot(header(test_gof(fit)))
+  set.seed(3)
+  expect_snapshot(header(test_gof(fit, clock = "information", n_sim = 100)))
+})
+
+test_that("on a cold start the clocks separate as documented", {
+  skip_on_cran()
+  # 300 replications of a correctly specified fit, roughly 25 seconds: each
+  # replication simulates the sequence, fits it, and tests it under both
+  # clocks. The claim being checked has three parts -- the statistics are
+  # identical, the information-clock p-values are uniform, and the event-clock
+  # ones deviate toward 1 -- and the third only means anything once the
+  # fixture's accrual is SHOWN to be concentrated: under near-uniform accrual
+  # the two references coincide and there would be nothing to separate.
+  n_rep <- 300L
+  set.seed(4711)
+  event_p <- matrix(NA_real_, n_rep, 2L)
+  information_p <- matrix(NA_real_, n_rep, 2L)
+  gap <- numeric(n_rep)
+  early_share <- numeric(n_rep)
+  for (i in seq_len(n_rep)) {
+    fit <- fit_cold_choice(simulate_cold_choice(30, 400, c(1.5, 1)))
+    event <- test_gof(fit)
+    information <- test_gof(fit, clock = "information", n_sim = 500)
+    event_p[i, ] <- event$effects$p_value
+    information_p[i, ] <- information$effects$p_value
+    gap[i] <- max(abs(event$effects$statistic - information$effects$statistic))
+    accrual <- diagnose_onset(fit)$accrual$share
+    early_share[i] <- accrual[round(0.1 * length(accrual))]
+  }
+
+  expect_identical(max(gap), 0)
+  # Concentrated accrual: a tenth of the sequence carries well under a tenth
+  # of the information. This is the precondition for everything below.
+  expect_lt(stats::median(early_share), 0.05)
+
+  for (d in 1:2) {
+    # Uniform enough: the rejection proportion sits at the nominal level
+    # within simulation error, and the mean of a uniform is a half.
+    expect_gt(mean(information_p[, d] < 0.05), 0.02)
+    expect_lt(mean(information_p[, d] < 0.05), 0.09)
+    expect_gt(mean(information_p[, d]), 0.46)
+    expect_lt(mean(information_p[, d]), 0.56)
+    # And the event clock is conservative on the same replications: the
+    # continuous supremum it compares against is stochastically larger than
+    # the one this grid delivers, so its p-values sit higher.
+    expect_gt(mean(event_p[, d] - information_p[, d]), 0.02)
+    expect_gt(mean(event_p[, d]), 0.53)
+  }
+})
