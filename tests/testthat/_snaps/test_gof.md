@@ -73,3 +73,62 @@
     Output
       
 
+# a term absent from one process names that process
+
+    Code
+      test_gof(container, effects = "trans/calls")
+    Condition
+      Error in `FUN()`:
+      ! `test_gof()` could not test process "calls › creation › rate".
+      Caused by error in `test_gof()`:
+      ! `effects` names a term this model does not have.
+      x Unknown: "trans/calls".
+      i Available: "Intercept" and "indeg/calls".
+      i Search them with `model_terms(fit, pattern = )`.
+
+# the blocked print groups by process and ends on the joint
+
+    Code
+      print(test_gof(container))
+    Message
+      -- <test_gof> ------------------------------------------------------------------
+      Model "DyNAM" · layer "calls" · 2 flavors over 4 processes
+      Supremum of the standardized cumulative score process, against the Kolmogorov
+      distribution on the event clock.
+      
+      creation · rate — omnibus p = 1
+    Output
+      # A tibble: 2 x 3
+        term        statistic p_value
+        <chr>           <dbl>   <dbl>
+      1 Intercept       0.248   1.000
+      2 indeg/calls     0.647   0.797
+    Message
+      
+      creation · choice — omnibus p = 0.951
+    Output
+      # A tibble: 1 x 3
+        term        statistic p_value
+        <chr>           <dbl>   <dbl>
+      1 trans/calls     0.519   0.951
+    Message
+      
+      dissolution · rate — omnibus p = 0.926
+    Output
+      # A tibble: 2 x 3
+        term        statistic p_value
+        <chr>           <dbl>   <dbl>
+      1 Intercept       0.503   0.962
+      2 indeg/calls     0.805   0.536
+    Message
+      
+      dissolution · choice — omnibus p = 0.387
+    Output
+      # A tibble: 1 x 3
+        term        statistic p_value
+        <chr>           <dbl>   <dbl>
+      1 trans/calls     0.904   0.387
+    Message
+      
+      Joint Cauchy omnibus over 6 effects in 4 blocks: p = 1
+

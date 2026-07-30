@@ -355,8 +355,20 @@ kolmogorov_p <- function(t, terms = 100L) {
 # The Cauchy combination test: the p-values enter as Cauchy quantiles, whose
 # mean is Cauchy again whatever their dependence -- which is what makes it the
 # right omnibus here, the processes being cumulative sums of the same rows.
-cauchy_omnibus <- function(p_value) {
-  statistic <- mean(tan(pi * (0.5 - p_value)))
+cauchy_omnibus <- function(p_value, n_blocks = NULL) {
+  # The transform has poles at 0 and 1, and both are reachable: the Kolmogorov
+  # series is clamped into the unit interval, and the simulated p-value is
+  # `(1 + exceed) / (1 + n_sim)`, which is exactly 1 when every replication
+  # exceeds. Nudging off the pole keeps the value finite and deterministic
+  # rather than whatever `tan()` returns a machine epsilon from pi/2.
+  #
+  # It does not stop a single near-degenerate p-value from dominating -- that
+  # is the combination working as defined, in both directions: one effect
+  # whose process is unusually flat drags the omnibus toward 1 exactly as one
+  # significant effect drags it toward 0. Read the per-effect rows, not only
+  # the combination.
+  eps <- .Machine$double.eps
+  statistic <- mean(tan(pi * (0.5 - pmin(pmax(p_value, eps), 1 - eps))))
   # Counted before the call: tibble() evaluates its columns in order and lets a
   # later one see an earlier one, so `length(p_value)` inside it would count
   # the omnibus p-value column rather than the effects that went into it.
@@ -364,7 +376,10 @@ cauchy_omnibus <- function(p_value) {
   tibble::tibble(
     statistic = statistic,
     p_value = 0.5 - atan(statistic) / pi,
-    n_effects = n_effects
+    n_effects = n_effects,
+    # Present only where the combination spans blocks, so the single-fit
+    # omnibus keeps the three columns it has always had.
+    n_blocks = n_blocks
   )
 }
 
@@ -406,6 +421,149 @@ check_replication_count <- function(n_sim, call = rlang::caller_env()) {
   as.integer(n_sim)
 }
 
+# The specification (multi-process) fit ---------------------------------------
+
+#' Goodness of fit of a multi-process specification
+#'
+#' @description
+#' Tests each process of a specification fit exactly as [test_gof()] tests a
+#' single fit, and combines the results.
+#'
+#' A flavored specification is K *independent* fits — the competing-flavor
+#' likelihood factorizes, which is why nothing here is pooled. Each block is a
+#' process: one flavor's one sub-model, with its own effect set, its own event
+#' count and its own standardizing constants. A shared constant across blocks
+#' would assert a joint model that was never estimated.
+#'
+#' @details
+#' The components are the same three tibbles a single-fit result carries, each
+#' row-bound over processes with `flavor` and `family` **appended**, so a plot
+#' method facets on those columns instead of needing a separate flavored
+#' method, and so a consumer never has to ask whether a flavored result nested
+#' one level deeper.
+#'
+#' `omnibus` gains one row per block — that block's Cauchy combination over
+#' its own effects. The **joint** omnibus is a property of the whole object
+#' rather than of any row, so it lives in the metadata, reachable as
+#' `attr(x, "context")$joint`, and the print method reports it.
+#'
+#' The joint combination is taken over the **effect-level** p-values of every
+#' block, not over the per-block omnibus values. A block carrying more effects
+#' therefore contributes more of the combination, which is the reading that
+#' treats an effect rather than a process as the unit being combined. The
+#' Cauchy combination is valid under arbitrary dependence either way.
+#'
+#' It is also dominated by its most extreme input, in **both** directions: one
+#' effect with a very small p-value drags the combination toward 0, and one
+#' whose process is unusually flat — a p-value near 1 — drags it toward 1,
+#' far enough to mask a significant effect elsewhere. That is the combination
+#' behaving as defined rather than a defect, but it means the per-block and
+#' per-effect rows are what to read when the joint value is uninformative.
+#'
+#' `effects` is matched against each process separately, since the processes
+#' have different formulas. Naming a term some process does not carry is an
+#' error that says which process, rather than a silent omission.
+#'
+#' @inheritParams test_gof.result.goldfish
+#' @param object a multi-process fit of class `"flavored_result.goldfish"`, as
+#'   returned by estimating a [make_specification()] with more than one process.
+#'
+#' @return An object of class `test_gof`, shaped exactly as the single-fit
+#'   result and documented at [test_gof.result.goldfish()], with `flavor` and
+#'   `family` columns appended to each component and the joint omnibus in the
+#'   metadata.
+#'
+#' @seealso [test_gof.result.goldfish()] for what each block's test is.
+#' @method test_gof flavored_result.goldfish
+#' @export
+test_gof.flavored_result.goldfish <- function(
+  object,
+  effects = NULL,
+  clock = c("event", "information"),
+  n_sim = 1000,
+  ...
+) {
+  clock <- match.arg(clock)
+  n_sim <- check_replication_count(n_sim)
+  map <- object$process_map
+  # Flavor-major, the order the container itself prints in, so a reader
+  # comparing the two tables never has to reorder one of them.
+  rows <- flavored_row_order(object)
+
+  per_block <- lapply(rows, function(i) {
+    fit <- object$results[[as.character(map$fid[i])]]
+    label <- render_process_label(map, map$fid[i])
+    block <- gof_block(fit, label, effects, clock, n_sim)
+    lapply(block, function(component) {
+      component$flavor <- map$flavor[i]
+      component$family <- map$family[i]
+      component
+    })
+  })
+
+  components <- stats::setNames(
+    lapply(
+      c("effects", "process", "omnibus"),
+      function(name) do.call(rbind, lapply(per_block, `[[`, name))
+    ),
+    c("effects", "process", "omnibus")
+  )
+  new_diagnostic_list(
+    components,
+    "test_gof",
+    context = gof_flavored_context(object, map, rows, components$effects),
+    params = list(clock = clock, n_sim = n_sim)
+  )
+}
+
+# One block's test, with the process named if it fails. Each process has its
+# own formula, so an `effects` selection valid for one can be absent from
+# another, and "unknown term" without saying where is not actionable on a fit
+# with four processes.
+gof_block <- function(
+  fit,
+  label,
+  effects,
+  clock,
+  n_sim,
+  call = rlang::caller_env()
+) {
+  tryCatch(
+    test_gof(fit, effects = effects, clock = clock, n_sim = n_sim),
+    error = function(e) {
+      cli::cli_abort(
+        "{.fn test_gof} could not test process {.val {label}}.",
+        parent = e,
+        call = call
+      )
+    }
+  )
+}
+
+# What the multi-process table describes. The per-process identity is what
+# varies, so the context keeps the map columns rather than one process's own
+# flavor, and the per-block counts are vectors in the table's row order --
+# a rate process counts intervals where its choice counterpart counts events,
+# and a total would sum unlike things.
+gof_flavored_context <- function(object, map, rows, effects) {
+  fits <- lapply(rows, function(i) object$results[[as.character(map$fid[i])]])
+  list(
+    model = object$model,
+    layer = object$layer,
+    sub_model = unique(map$family[rows]),
+    flavor = unique(map$flavor[rows]),
+    fid = map$fid[rows],
+    backend = fits[[1]]$backend,
+    n_intervals = vapply(fits, function(f) nrow(f$event_scores), integer(1)),
+    n_events = vapply(
+      fits,
+      function(f) sum(!f$right_censored_events),
+      integer(1)
+    ),
+    joint = cauchy_omnibus(effects$p_value, n_blocks = length(rows))
+  )
+}
+
 #' @return The object, invisibly.
 #' @rdname test_gof.result.goldfish
 #' @method print test_gof
@@ -413,27 +571,69 @@ check_replication_count <- function(n_sim, call = rlang::caller_env()) {
 print.test_gof <- function(x, ...) {
   context <- attr(x, "context")
   params <- attr(x, "params")
+  # One print for both shapes, told apart by the column the flavored form
+  # appends -- the same branch `print.margin_table` makes.
+  blocked <- "flavor" %in% names(x$effects)
   cli::cli_rule(left = "{.cls test_gof}")
-  cli::cli_text(
-    "Model {.val {context$model}} ·
-     sub-model {.val {context$sub_model}} ·
-     backend {.val {context$backend}}"
-  )
-  cli::cli_text(
-    "{context$n_intervals} interval{?s}, {context$n_events} dependent
-     event{?s}; {nrow(x$effects)} effect{?s} tested."
-  )
+  if (blocked) {
+    cli::cli_text(
+      "Model {.val {context$model}} · layer {.val {context$layer}} ·
+       {length(context$flavor)} flavor{?s} over {length(context$fid)}
+       process{?es}"
+    )
+  } else {
+    cli::cli_text(
+      "Model {.val {context$model}} ·
+       sub-model {.val {context$sub_model}} ·
+       backend {.val {context$backend}}"
+    )
+    cli::cli_text(
+      "{context$n_intervals} interval{?s}, {context$n_events} dependent
+       event{?s}; {nrow(x$effects)} effect{?s} tested."
+    )
+  }
   cli::cli_text(
     "Supremum of the standardized cumulative score process, against
      {gof_reference_label(params)}."
   )
-  omnibus <- x$omnibus
-  cli::cli_text(
-    "Cauchy omnibus over {omnibus$n_effects} effect{?s}:
-     {.field p} = {format.pval(omnibus$p_value, digits = 3)}"
-  )
-  print(x$effects)
+  if (blocked) {
+    gof_print_blocks(x)
+    joint <- context$joint
+    cli::cli_text("")
+    cli::cli_text(
+      "Joint Cauchy omnibus over {joint$n_effects} effect{?s} in
+       {joint$n_blocks} block{?s}:
+       {.field p} = {format.pval(joint$p_value, digits = 3)}"
+    )
+  } else {
+    omnibus <- x$omnibus
+    cli::cli_text(
+      "Cauchy omnibus over {omnibus$n_effects} effect{?s}:
+       {.field p} = {format.pval(omnibus$p_value, digits = 3)}"
+    )
+    print(x$effects)
+  }
   invisible(x)
+}
+
+# The per-block listing: one section per process, in the container's own
+# flavor-major order, headed by that block's omnibus. The identity columns are
+# dropped from each section's table because the header just said them, and
+# repeating a constant down every row is what makes a blocked print unreadable.
+gof_print_blocks <- function(x) {
+  omnibus <- x$omnibus
+  for (i in seq_len(nrow(omnibus))) {
+    flavor <- omnibus$flavor[i]
+    family <- omnibus$family[i]
+    cli::cli_text("")
+    cli::cli_text(
+      "{.strong {flavor}} · {.field {family}} —
+       omnibus {.field p} = {format.pval(omnibus$p_value[i], digits = 3)}"
+    )
+    rows <- x$effects$flavor == flavor & x$effects$family == family
+    block <- x$effects[rows, c("term", "statistic", "p_value")]
+    print(block)
+  }
 }
 
 # Which reference produced the p-values, in words: the two are not variants of

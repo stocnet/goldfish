@@ -308,3 +308,136 @@ test_that("on a cold start the clocks separate as documented", {
     expect_gt(mean(event_p[, d]), 0.53)
   }
 })
+
+# The specification (multi-process) fit. Blocks are `process_map` rows -- one
+# flavor's one sub-model -- so a two-flavor rate + choice specification has
+# four of them, each an independent fit with its own effect set.
+
+gof_container <- function(...) {
+  suppressWarnings(estimate_dynam(
+    make_specification(
+      rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg),
+      choice = list(creation ~ trans, dissolution ~ trans),
+      model = "DyNAM",
+      data = flavored_fixture_data()
+    ),
+    control_algo = set_algorithm_newton(diagnostics = "scores"),
+    ...
+  ))
+}
+
+test_that("each block is tested as the standalone fit it is", {
+  container <- gof_container()
+  blocked <- test_gof(container)
+
+  # The container's method must not compute anything of its own: each block's
+  # rows have to equal what testing that process alone produces, since the
+  # competing-flavor likelihood factorizes and nothing may be pooled.
+  map <- container$process_map
+  for (i in seq_len(nrow(map))) {
+    single <- test_gof(fit_of(container, map$flavor[i], map$family[i]))
+    rows <- blocked$effects$flavor == map$flavor[i] &
+      blocked$effects$family == map$family[i]
+    expect_equal(blocked$effects$statistic[rows], single$effects$statistic)
+    expect_equal(blocked$effects$p_value[rows], single$effects$p_value)
+    expect_equal(blocked$effects$scale[rows], single$effects$scale)
+  }
+})
+
+test_that("the container shape is the single shape, row-bound and labeled", {
+  container <- gof_container()
+  blocked <- test_gof(container)
+  single <- test_gof(fit_of(container, "creation", "rate"))
+
+  expect_s3_class(blocked, "test_gof")
+  # Same three components under the same names: a consumer never has to ask
+  # whether a flavored result nested one level deeper.
+  expect_named(blocked, c("effects", "process", "omnibus"))
+  for (component in blocked) {
+    expect_s3_class(component, "tbl_df")
+  }
+  # `flavor` and `family` are APPENDED, so the single-fit columns keep their
+  # positions and a plot method facets on the two new ones.
+  expect_identical(
+    names(blocked$effects),
+    c(names(single$effects), "flavor", "family")
+  )
+  expect_identical(
+    names(blocked$process),
+    c(names(single$process), "flavor", "family")
+  )
+  expect_identical(nrow(blocked$omnibus), nrow(container$process_map))
+  expect_setequal(unique(blocked$effects$flavor), c("creation", "dissolution"))
+  expect_setequal(unique(blocked$effects$family), c("rate", "choice"))
+})
+
+test_that("the joint omnibus is metadata, not a repeated column", {
+  container <- gof_container()
+  blocked <- test_gof(container)
+  joint <- attr(blocked, "context")$joint
+
+  # A scalar summarizing the whole object stays out of the rows.
+  expect_false("joint" %in% names(blocked$effects))
+  expect_s3_class(joint, "tbl_df")
+  expect_identical(nrow(joint), 1L)
+  expect_identical(joint$n_blocks, nrow(container$process_map))
+  expect_identical(joint$n_effects, nrow(blocked$effects))
+  # Taken over every block's effect-level p-values, not over the block
+  # omnibuses: the effect is the unit being combined.
+  expect_equal(joint$p_value, cauchy_omnibus(blocked$effects$p_value)$p_value)
+  # And the per-block rows are each that block's own combination.
+  for (i in seq_len(nrow(blocked$omnibus))) {
+    rows <- blocked$effects$flavor == blocked$omnibus$flavor[i] &
+      blocked$effects$family == blocked$omnibus$family[i]
+    expect_equal(
+      blocked$omnibus$p_value[i],
+      cauchy_omnibus(blocked$effects$p_value[rows])$p_value
+    )
+  }
+  # `n_blocks` belongs to the joint combination alone; a single fit's omnibus
+  # keeps the three columns it has always had.
+  expect_false("n_blocks" %in% names(blocked$omnibus))
+})
+
+test_that("the context describes the container, not one of its processes", {
+  container <- gof_container()
+  context <- attr(test_gof(container), "context")
+
+  expect_identical(context$model, container$model)
+  expect_identical(context$layer, container$layer)
+  expect_setequal(context$flavor, container$flavors)
+  expect_setequal(context$sub_model, unique(container$process_map$family))
+  # Per-block counts stay vectors: a rate process counts intervals where its
+  # choice counterpart counts events, and a total would sum unlike things.
+  expect_length(context$n_intervals, nrow(container$process_map))
+  expect_length(context$n_events, nrow(container$process_map))
+  expect_false(anyNA(context$n_intervals))
+})
+
+test_that("a term absent from one process names that process", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  container <- gof_container()
+  # `trans` is a choice-block term; the rate blocks do not carry it.
+  expect_snapshot(test_gof(container, effects = "trans/calls"), error = TRUE)
+})
+
+test_that("the blocked print groups by process and ends on the joint", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  container <- gof_container()
+  expect_snapshot(print(test_gof(container)))
+})
+
+test_that("the Cauchy combination survives a p-value at the pole", {
+  # Both poles are reachable: the Kolmogorov series is clamped into the unit
+  # interval and the simulated p-value is `(1 + exceed) / (1 + n_sim)`, which
+  # is exactly 1 when every replication exceeds. Neither may produce a
+  # non-finite statistic.
+  expect_true(is.finite(cauchy_omnibus(c(1, 0.5))$statistic))
+  expect_true(is.finite(cauchy_omnibus(c(0, 0.5))$statistic))
+  expect_true(is.finite(cauchy_omnibus(c(0, 1))$statistic))
+  for (p in list(c(1, 0.5), c(0, 0.5), c(0, 1))) {
+    combined <- cauchy_omnibus(p)$p_value
+    expect_gte(combined, 0)
+    expect_lte(combined, 1)
+  }
+})
