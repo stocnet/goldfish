@@ -420,14 +420,21 @@ selected_term <- function(x, effect, arg, call = rlang::caller_env()) {
   )
 }
 
-# What a `diagnose_*` default method says about what it received. The family
-# dispatches on the fitted object, so the class is settled before any body
-# runs and this is the only place that reports a wrong one.
-abort_not_diagnosable_class <- function(fn, x, call = rlang::caller_env()) {
+# What a `diagnose_*` or `test_*` default method says about what it received.
+# Both families dispatch on the fitted object, so the class is settled before
+# any body runs and this is the only place that reports a wrong one. `arg`
+# names the first argument, which is `object` on the one generic whose
+# signature is set by a sibling package rather than by goldfish.
+abort_not_diagnosable_class <- function(
+  fn,
+  x,
+  arg = "x",
+  call = rlang::caller_env()
+) {
   cli::cli_abort(
     c(
       "{.fn {fn}} needs a fitted goldfish model.",
-      "x" = "{.arg x} is {.obj_type_friendly {x}}.",
+      "x" = "{.arg {arg}} is {.obj_type_friendly {x}}.",
       "i" = "Fit one with {.fn estimate_dynam} or {.fn estimate_rem}."
     ),
     call = call
