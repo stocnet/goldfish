@@ -173,7 +173,7 @@ make_joint_specification <- function(..., data = NULL) {
 
   process_map <- build_joint_process_map(specs, modeled_panel)
 
-  structure(
+  joint_spec <- structure(
     list(
       specifications = specs,
       process_map = process_map,
@@ -182,6 +182,45 @@ make_joint_specification <- function(..., data = NULL) {
     ),
     class = "joint_specification.goldfish"
   )
+
+  # Regime compatibility (D9): a composition is TIMED iff any process carries a
+  # waiting-time rate (`sub_model == "rate"`), ORDERED otherwise. The two must
+  # not mix -- a mix is only visible across the >=2 composed processes, never at
+  # a single-process `make_specification()`, so it is rejected here at join time,
+  # before any generative-completion runs. The timed side reuses the primitive's
+  # shared classifier so the regime inference cannot drift.
+  assert_compatible_regime(joint_spec)
+
+  joint_spec
+}
+
+# Abort a composition that mixes timed and ordered processes. Timed reuses the
+# `intercept-only-rate-spec` primitive's `is_timed_joint_specification()` (one
+# shared `sub_model == "rate"` classifier); the ordered side mirrors it on
+# `"rate_ordered"`. A choice-only composition (no rate anywhere) is neither and
+# passes.
+assert_compatible_regime <- function(joint_spec, call = rlang::caller_env()) {
+  bundles <- joint_fid_bundles(joint_spec)
+  timed <- is_timed_joint_specification(joint_spec)
+  ordered <- any(vapply(
+    bundles,
+    function(entry) identical(entry$sub_model, "rate_ordered"),
+    logical(1)
+  ))
+  if (timed && ordered) {
+    cli::cli_abort(
+      c(
+        "A joint specification cannot mix timed and ordered processes.",
+        "x" = "It carries both a waiting-time rate ({.field sub_model} =
+               {.val rate}) and an ordered rate ({.field sub_model} =
+               {.val rate_ordered}).",
+        "i" = "Compose processes of one regime -- all timed (waiting-time rates)
+               or all ordered."
+      ),
+      call = call
+    )
+  }
+  invisible(joint_spec)
 }
 
 # Normalize a specification into a flat list of its dependent processes, each a

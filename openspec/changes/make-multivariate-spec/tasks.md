@@ -58,6 +58,19 @@
       event-stream estimator aborts (cli snapshots under a pinned context)
 - [x] 1.7 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
       `devtools::document()`; commit
+- [ ] 1.8 (re-open of 1.1/1.4 — D2 relaxed to consumer-owned viability now that
+      `simulate()` consumes the joint specification directly) Remove the no-panel
+      abort in `make_joint_specification()` (`R/make_joint_specification.R`, the
+      panel-reference guard ~L148–166): a combination referencing no panel-observed
+      layer now **composes** (estimation-separable but generatively coupled → a valid
+      `simulate()` input with no other constructor). Keep the exogenous-only-panel
+      composition and the DyNAM-i / duplicate-focal / mode-conformance aborts. Optionally
+      emit a separability **note** (not an abort). Update the constructor roxygen
+      (`@details` no longer states a panel layer "must be referenced"). Tests: the former
+      "no panel reference rejected" case now asserts **composition** (and a
+      `simulate()`-viability expectation), with `estimate_dynes()` — not construction —
+      owning the all-separable abort toward `estimate_dynam()`. Verification:
+      `NOT_CRAN=true` (baselines PASS not SKIP); `devtools::document()`; commit
 
 ## 1b. Node-space generality (D8 — mode-pair-keyed composition)
 
@@ -99,16 +112,22 @@
 > transform once at entry. The single-process / flavored **estimation** path is
 > excluded — rate-only estimation stays valid and the frozen baselines gate it.
 
-- [ ] 1c.1 Relax `make_specification()` to **build** a half-specified flavored
+- [x] 1c.1 Relax `make_specification()` to **build** a half-specified flavored
       spec (a flavor keyed in one sub-model list, omitted from the other) instead
       of aborting: record the per-`(flavor, sub-model)` gaps on the spec without
       fabricating defaults. Keep the existing same-flavor-set message; the
       single-process estimators (`estimate_dynam()` / `estimate_rem()`) re-impose
       it at estimation time on an unfilled gap (the abort **relocates** from
       construction to estimation for the excluded path). Also **infer the timing
-      regime** (timed iff any process carries a waiting-time/intensity rate,
-      ordered otherwise) and **abort a mixed composition** (ordered + timed) at
-      construction, naming the incompatible regimes — before any completion runs
+      regime** via the **shared** `sub_model == "rate"` classifier the primitive
+      already owns (`is_timed_joint_specification()` — one predicate, not a second
+      inference that could drift), and **abort a mixed composition** (ordered +
+      timed) at **join time** (`make_joint_specification()`, where the composed
+      `joint_specification.goldfish` exists — a mix is only visible across ≥2
+      processes, not at single-process `make_specification()`), naming the
+      incompatible regimes, before any completion runs. The primitive's
+      `assert_timed_joint_specification()` then acts as an exact downstream backstop
+      (every joint spec it sees is already pure-timed or pure-ordered)
 - [ ] 1c.2 Completion transform (one shared function, e.g.
       `complete_generative_spec()`): fill each recorded gap with its
       **zero-free-parameter** default via the existing
@@ -118,20 +137,37 @@
       uniform `choice_coordination` on **both sides**; uniform `rate_ordered` for a
       missing rate in the **ordered** regime; and, in the **timed** regime, the
       pinned **intercept-only rate** (`intercept-only-rate-spec` primitive:
-      `λ_w = count_w / T_w` per wave-period from the per-period count `count_w`
-      (net wave Hamming diff for a panel flavor), aggregate flavor intensity, sender
-      drawn uniformly among support-legal actors, θ-independent → excluded from the
-      optimizer's score/Hessian) — this branch also covers a flavor that would
-      otherwise be choice-only in a timed system. Emit a `cli::cli_warn` naming
-      layer/flavor/sub-model/default at **each consumer entry** (NOT suppressed on
-      re-entry); abort (no default) when a **modeled panel** layer omits a flavor
-      from both lists (Case A, panel-gated — RE subset modeling stays legal);
-      idempotent on an already-complete spec
+      per-actor `intercept_w = log(count_w / (T_w · |R_w|))` per wave-period, sender
+      drawn uniformly among support-legal actors as a consequence of the equal
+      per-actor hazards, θ-independent → excluded from the optimizer's score/Hessian)
+      — this branch also covers a flavor that would otherwise be choice-only in a
+      timed system. The shared transform installs the pinned-rate **structure** only;
+      each **consumer supplies** `(count_w, T_w, |R_w|)` (D9a — the transform does NOT
+      read wave/event streams). `|R_w|` is the period's average size of the flavor's
+      **rate entity** — active **senders** for an actor-oriented flavor, active
+      **dyads** for a tie-oriented (REM) flavor — which selects the reuse helper.
+      Provide the panel/snapshot `|R_w|` + `count_w` as **one shared helper** (wrapping
+      the existing machinery) that every consumer calls, so the three consumers cannot
+      diverge on the derivation: wave-endpoint average via `materialize_network_state()`
+      at each endpoint + the flavor's `assemble_model_mask` → post-constraint count
+      (`active_dyad_count()` for a tie flavor, the active-sender count for an actor
+      flavor), with panel `count_w` = net Hamming diff between the two materialized wave
+      states. The relational `|R_w|` = `time_weighted_risk_set()` / `avg_active_entity`;
+      a **single window (K=1) reuses the preprocessed `avg_active_entity` as-is**, while
+      **multi-period relational `|R_w|` slicing is the one genuinely new piece and is
+      deferred to `process-simulation`** (it arises only for a relationally-observed
+      flavor completed inside a wave-gridded join — the DyNES/panel path is fully served
+      here). Period boundaries follow the half-open
+      `findInterval(t, wave_times, rightmost.closed = TRUE)` convention.
+      Emit a `cli::cli_warn` naming layer/flavor/sub-model/default at **each consumer
+      entry** (NOT suppressed on re-entry); abort (no default) when a **modeled panel**
+      layer omits a flavor from both lists (Case A, panel-gated — RE subset modeling
+      stays legal); idempotent on an already-complete spec
 - [ ] 1c.3 `process_map` gains a `completed` logical column (beside `coupled`,
       D3); completion sets it TRUE for added fids. A completed timed-rate fid adds
-      **no free parameter** to the fid / θ layout (its intercept is pinned from the
-      per-period count `count_w`, θ-independent); its fixed contribution MAY appear as
-      a constant offset in a
+      **no free parameter** to the fid / θ layout (its per-actor intercept is pinned to
+      `log(count_w / (T_w · |R_w|))`, θ-independent); its fixed contribution MAY appear
+      as a constant offset in a
       reported log-likelihood but never in the optimizer's score/Hessian
 - [ ] 1c.4 Print marking (extends 1.3): completed fids rendered as auto-supplied
       defaults (cli semantic elements) alongside the coupled/separable marking
@@ -139,11 +175,23 @@
       support-legal alternatives, self-loops excluded) + warning snapshot; uniform
       choice inherits a defined support constraint and does NOT borrow a sibling
       flavor's; missing `choice_coordination` → uniform both sides; missing timed
-      rate → pinned intercept-only rate, **no** parameter added to θ, per-period
-      pin reproduces `count_w`; timed choice-only flavor → intercept-only rate;
-      ordered–timed composition → abort at `make_specification()`; warning
-      re-fires when the same spec is routed through a second consumer;
-      modeled-panel missing-whole-flavor → abort; RE subset stays legal; single
+      rate → pinned per-actor intercept-only rate, **no** parameter added to θ,
+      per-period pin `log(count_w / (T_w · |R_w|))` reproduces `count_w`; the
+      consumer-supplied panel `|R_w|` equals the wave-endpoint average computed via
+      the shared reuse helper on a multi-wave fixture, for **both** rate entities (an
+      actor-oriented flavor's active-sender count and a tie-oriented flavor's
+      `active_dyad_count`); **cross-check anchor** — a single-period relational pin
+      satisfies `exp(intercept_1) == n_dep_events / total_time / avg_active_entity`
+      (goldfish's own intercept-only starting value, `R/estimation_core.R`); timed
+      choice-only flavor → intercept-only rate; ordered–timed composition → abort at
+      `make_joint_specification()` (join time); warning re-fires when the same spec
+      is routed through a second consumer;
+      **separability rule (D4, resolved):** a modeled-panel flavor completed with a
+      reads-nothing default has `coupled = FALSE` but is **NOT** marked separable
+      (separable := `NOT coupled AND layer NOT a modeled panel process`), so a lone
+      modeled-panel process never reports "all fids separable" — assert both the
+      per-fid separable marking and that `estimate_dynes()` does not spuriously abort
+      it; modeled-panel missing-whole-flavor → abort; RE subset stays legal; single
       `estimate_dynam` on a rate-only spec NOT completed (byte-identical, baselines
       PASS); idempotence on a complete spec; `process_map$completed` correctness;
       print snapshot under a pinned cli context; **closes `intercept-only-rate-spec`

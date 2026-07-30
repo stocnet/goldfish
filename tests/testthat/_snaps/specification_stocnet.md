@@ -174,16 +174,15 @@
       
       v Specification is valid.
 
-# rate and choice must key the same flavor
+# estimating a half-specified flavor set re-imposes the abort
 
     Code
-      make_specification(rate = list(creation ~ 1 + indeg), choice = list(
-        dissolution ~ inertia), model = "DyNAM", data = flavored_fixture())
+      estimate_dynam(spec)
     Condition
-      Error in `make_specification()`:
+      Error in `estimate_from_specification()`:
       ! `rate` and `choice` must key the same flavor set.
-      x `rate` keys "creation" but `choice` keys "dissolution".
-      i Each flavor is a parallel process modeled by both sub-models.
+      x Flavors "creation" and "dissolution" are keyed in only one sub-model list.
+      i Supply the missing sub-models, or use this specification with a generative consumer (`simulate()` / `estimate_dynes()`) that completes the gap with a zero-parameter default.
 
 # a flavor no focal row carries aborts
 

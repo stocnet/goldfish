@@ -437,6 +437,31 @@ estimate_rem <- function(
   )
 }
 
+# Re-impose the same-flavor-set requirement at estimation time. A half-specified
+# flavored specification records its per-(flavor, sub-model) gaps; the
+# single-process estimators cannot fill them (only the generative-completion
+# transform does, at a consumer entry), so estimating one aborts with the
+# historical same-flavor-set message, naming the flavors whose sub-models differ.
+abort_on_completion_gaps <- function(spec, call = rlang::caller_env()) {
+  gaps <- spec$completion_gaps
+  if (is.null(gaps) || nrow(gaps) == 0L) {
+    return(invisible(spec))
+  }
+  flavors <- unique(gaps$flavor)
+  cli::cli_abort(
+    c(
+      "{.arg rate} and {.arg choice} must key the same flavor set.",
+      "x" = "{cli::qty(flavors)}Flavor{?s} {.val {flavors}} {?is/are} keyed in
+             only one sub-model list.",
+      "i" = "{cli::qty(nrow(gaps))}Supply the missing sub-model{?s}, or use this
+             specification with a generative consumer ({.fn simulate} /
+             {.fn estimate_dynes}) that completes the gap with a zero-parameter
+             default."
+    ),
+    call = call
+  )
+}
+
 # Estimate from a specification.goldfish object. Selects the submodel
 # bundle matching the requested sub_model's family (rate vs choice), reuses its
 # parsed formula bundle so estimation does not re-parse, and forwards to the
@@ -463,7 +488,12 @@ estimate_from_specification <- function(
   }
   # A multi-flavor specification is K parallel processes over one layer: it
   # preprocesses in one pass and estimates per process, returning a container
-  # rather than a single fit.
+  # rather than a single fit. A half-specified flavored spec (a flavor keyed in
+  # one sub-model list, omitted from the other) is a valid *generative* object,
+  # but the single-process estimators cannot estimate an unfilled gap, so the
+  # same-flavor-set requirement is re-imposed here -- the abort relocated from
+  # construction to estimation for this excluded path.
+  abort_on_completion_gaps(spec)
   if (!is.null(spec$processes)) {
     return(estimate_flavored(
       spec = spec,
