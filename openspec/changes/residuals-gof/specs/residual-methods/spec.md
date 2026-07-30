@@ -14,10 +14,18 @@ support `type = c("deviance", "schoenfeld", "scaled_schoenfeld", "score",
 (documented note: for exact-time submodels `intervalLogL` is a
 log-density, so deviance values can be negative); schoenfeld = per-event
 observed-minus-expected statistic rows — the stored `event_scores` for
-multinomial submodels; for exact-time submodels the
-observed-minus-risk-set-weighted-mean rows with weights `lambda / sum
-lambda` (no exposure term — these do NOT sum to zero at the MLE, only the
-score rows do, and the documentation SHALL say so); scaled_schoenfeld =
+multinomial submodels, whose likelihood is already conditional; for
+exact-time submodels the stored `conditional_scores` primitive, which is
+the observed-minus-risk-set-weighted-mean rows with weights
+`lambda / sum lambda` (no exposure term — these do NOT sum to zero at the
+MLE, only the score rows do, and the documentation SHALL say so). On an
+exact-time fit that did not store that primitive, schoenfeld SHALL be
+recomputed through `evaluate_model()` under the replay rules, and SHALL
+abort — naming both the primitive and the replay routes — only when no
+preprocessed statistics are available either. It SHALL NOT fall back to
+returning the exposure-carrying score rows under the Schoenfeld name: the
+exposure term cannot be removed from a stored score row, which is one
+vector equation in two unknown vectors; scaled_schoenfeld =
 `coef(object) + solve(Vbar) %*% s_k` with `Vbar = I / n` the average
 per-event observed information at the estimate (equivalently
 `coef(object) + n * solve(I) %*% s_k`, Grambsch-Therneau; `n` is the
@@ -26,7 +34,13 @@ shared across submodels); score = the per-event score increments (equal
 to schoenfeld for ordinal/choice submodels, including the exposure term
 for exact-time submodels); cox_snell = interevent time times the total
 fitted rate (exact-time rate/REM submodels only; requesting it elsewhere
-aborts with a cli error); response = observed indicator minus fitted
+aborts with a cli error) — a **stored-primitive** type, since the fit
+carries the interval clock and the `"loglik"` primitive carries
+`total_rate`, so at the fitted estimate it SHALL NOT trigger an evaluation
+pass and only an evaluation at another parameter vector SHALL; on a fit
+predating the interval clock the elapsed time SHALL be recovered from the
+stored components through the compensator identity rather than by requiring
+a replay object; response = observed indicator minus fitted
 probability per alternative, using the conditional multinomial
 probabilities `lambda / sum lambda` for exact-time submodels; martingale
 = per-actor observed minus expected counts exactly as defined by the
@@ -38,8 +52,9 @@ dfbetas); cooks = `t(s_k) %*% solve(I) %*% s_k`, the scalar one-step
 self-influence (Cook's-distance analog; the frequentist counterpart of a
 per-event influence flag such as PSIS-LOO's Pareto k). dfbeta, dfbetas,
 and cooks are stored-primitive types (scores plus the stored information
-matrix). Types computable from stored primitives SHALL NOT trigger an
-evaluation pass; the remaining types SHALL recompute via
+matrix), as are deviance, score, schoenfeld (given the primitive its
+family needs) and cox_snell. Types computable from stored primitives SHALL
+NOT trigger an evaluation pass; the remaining types SHALL recompute via
 `evaluate_model()` under the diagnostic-primitives replay rules. For DyNAM
 fits all residuals SHALL be conditional per submodel (rate residuals over
 the sender risk set, choice residuals over the receiver risk set given the
@@ -158,14 +173,52 @@ remedies.
   deletion, the onset/null-benchmark reading, and the cold-start
   zero-score property, with a cross-reference to `diagnose_onset()`.
 
-### Requirement: cross-package validation of residual definitions
-The scaled Schoenfeld residuals SHALL be validated against
-`survival::cox.zph`-consistent computations on a REM fixture expressible as
-a Cox model, and residual outputs SHALL be compared against
-`remstimate::diagnostics()` on a shared small dataset, within documented
-tolerances, as NOT_CRAN tests.
+### Requirement: validation against classical equivalent fits
+The residual definitions SHALL be validated against classical fits of the
+same likelihoods, not against other relational-event packages: the ordinal
+REM against `survival::coxph` (its likelihood is the Cox partial
+likelihood), the choice and ordinal rate sub-models against
+`survival::clogit` (a conditional logit is a stratified Cox model), and
+the exact-time sub-models against a `stats::glm` Poisson fit with a
+log-elapsed-time offset (the piecewise-exponential equivalence, on a
+fixture whose inter-event times are all positive). Comparisons SHALL be
+made at a shared parameter vector — the evaluation pass on the goldfish
+side, a zero-iteration fit on the reference side — so optimizer noise is
+excluded and the comparison pins conventions rather than convergence.
+Exact-time Schoenfeld rows need no separate reference: they are the
+conditional score rows, so the partial-likelihood validation carries over.
 
-#### Scenario: agreement with survival on a Cox-expressible fixture
-- **WHEN** the scaled Schoenfeld computation runs on the shared fixture
-- **THEN** it matches the survival-package reference within the documented
-  tolerance.
+survival-derived reference values SHALL enter the repository only as
+frozen reference files minted by the one-time comparison harness, with
+provenance (package versions, date, fixture) recorded beside them; the
+NOT_CRAN tests compare goldfish output against the frozen values. The
+`stats::glm` equivalences MAY run live, `stats` shipping with R. Two
+tolerances SHALL be documented: the shared-parameter agreement (set one
+order of magnitude above the measured value) and the
+independently-optimized coefficient parity, which is a harness claim and
+never a test gate. Comparisons against other relational-event packages
+(`remstimate` and its stack) SHALL live only in the harness as one-time
+recorded evidence with an output-mapping note, SHALL NOT be tests, and
+SHALL NOT add packages to Suggests.
+
+#### Scenario: frozen agreement with survival at a shared parameter vector
+- **WHEN** the scaled Schoenfeld matrix and the per-transform time-trend
+  statistics are computed on the Cox-expressible fixtures at the frozen
+  reference fit's coefficients
+- **THEN** they match the frozen `coxph`/`cox.zph`-derived reference values
+  within the documented shared-parameter tolerance, without any
+  relational-event package installed.
+
+#### Scenario: exact-time fits match the Poisson-offset equivalence
+- **WHEN** an exact-time fixture with strictly positive inter-event times
+  is fitted and the equivalent Poisson GLM with a log-elapsed-time offset
+  is fitted live
+- **THEN** the coefficients agree within the documented tolerance and the
+  log-likelihoods agree up to the documented offset constant.
+
+#### Scenario: the scale convention is pinned without external packages
+- **WHEN** the scaled Schoenfeld residuals are computed on a two-regime
+  fixture whose true coefficient changes mid-sequence
+- **THEN** the within-regime means of the scaled residuals track each
+  regime's separately-estimated coefficient, so a scale-convention error
+  is detected by the invariant itself.

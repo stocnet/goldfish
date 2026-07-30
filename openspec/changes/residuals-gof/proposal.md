@@ -5,7 +5,7 @@
 goldfish estimates DyNAM/REM models but offers almost no model criticism: no
 `residuals()`/`fitted()` methods, no goodness-of-fit test, no score test, and
 `diagnose_outliers()`/`diagnose_changepoints()` are the only diagnostics.
-The statistical design is settled in `.plan/residuals-gof.md` (survey of
+The statistical design is settled in `.plan/sp/residuals-gof.md` (survey of
 relevent/remstimate/mlogit + Boschi & Wit 2024): all residual primitives are
 already computed by the C++ engines (`event_scores`, `intervalLogL`), the
 conditional (per-submodel) residuals are the exact score residuals of the

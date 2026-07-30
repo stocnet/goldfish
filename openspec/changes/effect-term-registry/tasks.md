@@ -108,6 +108,22 @@
 - [ ] 5.1 Point `GetDetailPrint()`/`.decoderColumns()` and the compact-term
       builder (`compact_term_strings`, `.shortEffect`) at `term_def`
       `short`/`abbrev`/`family`; seed identical strings for existing effects.
+      **Downstream consumer added 2026-07-29 (`residuals-gof` D25):**
+      `residuals-gof` exports `model_terms(fit, pattern = NULL)`, a
+      **fit-scoped** helper returning a fit's terms as a tibble (effect-detail
+      columns + compact string + `coef()` label + export form + coefficient
+      index; `flavor`/`family` appended on a flavored fit), and routes every
+      user-facing term argument — `initial_parameters`,
+      `diagnose_*(effect =)`, `test_*(effects =)` — through one matcher that
+      renders candidates as compact strings. Repointing the builder here MUST
+      keep those strings byte-identical, since they are now a selection key and
+      not only display: `compact-term-summary`'s tests are the regression gate
+      for the display side, and `residuals-gof`'s term-vocabulary scenarios for
+      the selection side. Do NOT confuse the two lookups —
+      `search_effects()` / `register_term()` (task 2.3) are **package-scoped**,
+      answering which effects goldfish provides; `model_terms()` answers which
+      terms a given fit has. They meet only at this builder, so no consolidation
+      is owed in either direction.
 - [ ] 5.2 Remove `.goldfishEffectShort` once unused; confirm no references
       remain.
 - [ ] 5.3 Add/adjust tests: short/abbrev/family come from the registry; reuse the

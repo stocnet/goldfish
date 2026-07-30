@@ -9,12 +9,15 @@ Goodness-of-fit and specification tests: `test_gof()`, `test_parameter()`,
 `test_gof()` SHALL implement the Boschi-Wit martingale-residual test for
 fixed-linear-effect models from stored `event_scores`: per effect, the
 standardized cumulative score process
-`W_d(u) = J_d^{-1/2} n^{-1/2} cumsum(s_kd)` with `J_d = I_dd / n` — the
-**average per-event** observed information at the estimate, not the total
-(the `n^{-1/2}` normalization requires the per-event scale; the empirical
-variance of centered contributions is the fallback estimate of the same
-per-event quantity), the statistic `T_d = sup_u |W_d(u)|`, and the
-analytic Kolmogorov p-value
+`W_d(u) = J_d^{-1/2} n^{-1/2} cumsum(s_kd)` with `J_d` the **empirical
+per-event variance of the centered score contributions** (the per-effect
+OPG scale both reference implementations use — Boschi's own code and
+amorem 1.0.0; the observed-information diagonal `I_dd / n` estimates the
+same per-event quantity and SHALL be documented as the asymptotically
+equivalent alternative, not used: the two diverge by up to 37% on the
+measured fixture and the choice moves p-values across conventional
+levels — D32), the statistic `T_d = sup_u |W_d(u)|`, and — on the
+default clock — the analytic Kolmogorov p-value
 `p(t) = 2 * sum_{j>=1} (-1)^{j-1} exp(-2 j^2 t^2)`.
 Effect-level p-values SHALL be combined per submodel block and jointly via
 the Cauchy combination `T_o = mean(tan(pi * (0.5 - P_l)))` with
@@ -29,17 +32,30 @@ not zero at the optimum); testing an offset term SHALL abort with a cli
 error pointing to `test_parameter()`. No `gof()` S3 generic SHALL be
 defined.
 
-`test_gof()` SHALL accept `clock = c("event", "information")`. The default
-`"event"` places increment `k` at `u_k = k/n` (the Boschi-Wit
-normalization), whose Brownian-bridge null requires approximately
-proportional information accrual over the event sequence — an assumption
-the documentation SHALL state, with cold-start endogenous statistics named
-as the typical violation. `"information"` places increment `k` at
-`u_k = I_d(k) / I_d(n)` computed from cumulative outer-product (OPG) sums
-of the stored score rows — the martingale time change that restores the
-bridge limit under non-uniform accrual — with zero evaluation passes. The
+`test_gof()` SHALL accept `clock = c("event", "information")`. The
+statistic `T_d` SHALL be identical under both clocks — a supremum does
+not read the axis — and the documentation SHALL say so; the clock SHALL
+select (a) the `u`-axis stored with the process path and (b) the
+**reference distribution** from which the p-value is computed. The
+default `"event"` places increment `k` at `u_k = k/n` and uses the
+analytic Kolmogorov p-value (the Boschi-Wit normalization), whose
+accuracy requires approximately proportional information accrual over
+the event sequence — an assumption the documentation SHALL state, with
+cold-start endogenous statistics named as the typical violation.
+`"information"` places increment `k` at `u_k = OPG_d(k) / OPG_d(n)`
+computed from cumulative outer-product (OPG) sums of the stored score
+rows, and computes the p-value from a simulated reference on that
+observed grid: replicated Gaussian increments with variances
+`Delta u_k = s_kd^2 / OPG_d(n)`, centered to end at zero, supremum
+recorded per replication — the Lin-Wei-Ying multiplier reference whose
+proportional-accrual special case is the analytic Kolmogorov formula.
+The simulation SHALL run from the stored scores with zero evaluation
+passes, SHALL expose its replication count as an argument, and SHALL
+draw through the session RNG so `set.seed()` reproduces it. The
 documentation SHALL cross-reference `diagnose_onset()`'s
-information-accrual curve as the diagnostic for choosing the clock.
+information-accrual curve as the diagnostic for choosing the clock — the
+curve predicts in advance whether the two clocks' p-values will
+separate.
 
 #### Scenario: bridge property holds at the MLE
 - **WHEN** `test_gof(fit)` runs on a converged fixture with no offset
@@ -52,15 +68,20 @@ information-accrual curve as the diagnostic for choosing the clock.
 - **WHEN** `test_gof(fit, clock = "information")` runs on a fit with
   stored `event_scores`
 - **THEN** it completes without an evaluation pass, the process increments
-  are placed at the normalized cumulative per-effect OPG information, and
-  the bridge property at `u = 1` still holds.
+  are placed at the normalized cumulative per-effect OPG information, the
+  statistic equals the event-clock statistic exactly while the p-value
+  comes from the simulated on-grid reference, and the bridge property at
+  `u = 1` still holds.
 
 #### Scenario: cold-start coverage on the information clock
 - **WHEN** null-coverage replications run on a cold-start fixture (all
-  endogenous statistics empty at onset) under both clocks
-- **THEN** the information-clock p-values are approximately uniform, and
-  any event-clock deviation from uniformity is documented with the
-  fixture, as a NOT_CRAN test.
+  endogenous statistics empty at onset, with the fixture's own accrual
+  curve verified concentrated — near-uniform accrual would make the two
+  references coincide) under both clocks
+- **THEN** each replication's statistic is identical under the two
+  clocks, the information-clock p-values are approximately uniform, and
+  the event-clock p-values deviate conservatively (toward 1), documented
+  with the fixture, as a NOT_CRAN test.
 
 #### Scenario: null coverage
 - **WHEN** the test is applied across replicated fits of correctly
@@ -83,17 +104,55 @@ information-accrual curve as the diagnostic for choosing the clock.
   per-block Cauchy omnibus, and a joint omnibus over all blocks.
 
 ### Requirement: test_parameter score test
-`test_parameter()` SHALL implement the score (LM) test of candidate effect
-blocks: given a constrained fit and the candidate effects, it SHALL
-evaluate the full model's score `U` and information `I` at the constrained
-estimate via `evaluate_model()` (statistics via the diagnostic-primitives
-replay rules) and report `LM = t(U) %*% solve(I) %*% U` with its chi-square
-p-value on the tested block's degrees of freedom (efficient-score form).
+`test_parameter()` SHALL implement the score (LM) test of the fit's
+**offset (fixed-coefficient) terms** at the values their formula imposed:
+it SHALL evaluate the full model's score `U` and information `I` at the
+fitted estimate via `evaluate_model()` and report
+`LM = t(U) %*% solve(I) %*% U` with its chi-square p-value on the tested
+block's degrees of freedom (efficient-score form). The evaluation SHALL be
+unconditional on fixedness, since the fitted object's own `final_score` has
+the fixed components zeroed before the Newton step and therefore does not
+carry the score at the offset coefficients. The evaluation SHALL therefore
+require the preprocessed statistics — attached by
+`estimate_*(return_preprocessed = TRUE)` or supplied through `preprocessed =`
+— and SHALL abort naming both routes when it has neither, through the same
+guiding error the other replay-needing diagnostics raise. The score at a fixed
+coefficient SHALL NOT be stored on the fitted object to avoid that pass: one
+rule for which diagnostics need the statistics is worth more than saving a
+pass on one of them, and the masked score is produced inside the estimation
+loop's accept/reject reset, which is not edited for a diagnostic's
+convenience. Testing a candidate effect
+**absent** from the formula is deferred: it requires preprocessing an
+augmented model over the whole event sequence, and the documentation SHALL
+name `offset(term, coef = 0)` as the way to test a candidate today — the
+term enters the model held at zero, its statistics are preprocessed in the
+same pass, and the resulting fit is the constrained one the test needs.
+The cost difference SHALL be stated where the restriction is documented, so
+the deferral reads as a route rather than a gap.
 The Wald form for linear parameter combinations (restriction matrix on an
 unconstrained fit) is deferred to a post-release change (2026-07-19
 decision). The documentation SHALL point users to `lmtest::lrtest()` and
 `lmtest::waldtest()` for nested fitted-model comparisons rather than
 reimplementing them.
+
+#### Scenario: an offset term is tested at its imposed value
+- **WHEN** a model is fitted with `offset(term, coef = 0)` and
+  `return_preprocessed = TRUE`, and `test_parameter()` is called on it
+- **THEN** the test reports the score statistic and p-value for that term,
+  computed from one evaluation pass, with no preprocessing pass run
+
+#### Scenario: without the statistics the test says how to supply them
+- **WHEN** `test_parameter()` is called on a fit carrying no preprocessed
+  statistics and none is supplied
+- **THEN** it aborts naming both routes — re-estimating with
+  `return_preprocessed = TRUE`, or passing `preprocessed =` — rather than
+  reporting a statistic from the masked score the fit does carry
+
+#### Scenario: a candidate absent from the formula is refused with the idiom
+- **WHEN** `test_parameter()` is asked to test an effect the formula does not
+  contain
+- **THEN** it aborts naming the `offset(term, coef = 0)` idiom and the reason
+  the absent-effect form is not available
 
 #### Scenario: score test detects an omitted effect
 - **WHEN** data simulated with a nonzero reciprocity effect are fitted
@@ -199,3 +258,35 @@ reproducible cli context.
 - **WHEN** a `test_gof()` result for a specification fit is printed
 - **THEN** the output shows per-effect statistics and p-values grouped by
   block, and the joint Cauchy omnibus p-value, rendered through cli.
+
+### Requirement: diagnostics of a flavored fit map over its processes
+Every `test_*` and `diagnose_*` function SHALL apply to each process of a
+flavored (multi-process) specification exactly as to a single-model fit, since
+the competing-flavor likelihood factorizes into independent fits. A function
+returning a table SHALL provide a flavored method that row-binds the per-process
+results and **appends** `flavor` and `family` columns, in the shape
+`margin_table()` established, so a plot method facets on those columns rather
+than needing a separate flavored plot method. A function returning a test SHALL
+report per process, and SHALL combine across processes only through a declared
+omnibus, never by pooling residuals, scores or scaling constants: the processes
+have different effect sets and different event counts, so a shared constant
+would assert a joint model that was never estimated. `test_parameter()` on a
+flavored fit SHALL require no per-process candidate argument, its candidates
+being the `offset()` terms each process formula already declares.
+
+#### Scenario: a flavored diagnostic labels its rows by process
+- **WHEN** `diagnose_outliers()` runs on a flavored fit
+- **THEN** the result row-binds the per-process tables with `flavor` and
+  `family` columns appended, and each process's statistics are computed from
+  that process alone
+
+#### Scenario: a flavored test reports per process
+- **WHEN** `test_time()` runs on a flavored fit
+- **THEN** it reports one result per process, and any omnibus across them is
+  the declared combination rather than a pooled series
+
+#### Scenario: flavored score test reads each process's own offsets
+- **WHEN** `test_parameter()` runs on a flavored fit whose processes declare
+  different `offset()` terms
+- **THEN** each process is tested against its own offsets, with no candidate
+  argument supplied

@@ -73,6 +73,13 @@ arguments at runtime.
   builder + `.goldfishEffectShort` migrate to read registry metadata).
 - Surfaces already added by `compact-term-summary` (short names, abbreviations,
   `.coef_name`/`.term_export`) become registry-driven instead of hard-coded.
+  Note (2026-07-29): those strings gained a second role in `residuals-gof`,
+  which exports the fit-scoped `model_terms()` and makes the compact string the
+  key that selects a term in `initial_parameters` and in every `diagnose_*` /
+  `test_*` effect argument. Registry-driving them must therefore preserve them
+  exactly; they are no longer display-only. The registry's own
+  `search_effects()` stays package-scoped (which effects exist) and does not
+  subsume `model_terms()` (which terms this fit has).
 - No user-facing change to formula syntax, estimation results, or coefficient
   baselines (the 1e-6 regression floor must still pass).
 - Related changes: complements `refactor-preprocess-estimate` and
