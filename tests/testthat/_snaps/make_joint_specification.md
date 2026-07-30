@@ -55,6 +55,7 @@
     Message
       -- <joint_specification.goldfish> ----------------------------------------------
       2 processes over one shared data object · 6 formulas · 0 coupled · 6 separable
+      · 0 auto-supplied
       
       Layer "calls" — Model "DyNAM"
       Flavor "creation"
@@ -80,6 +81,7 @@
     Message
       -- <joint_specification.goldfish> ----------------------------------------------
       2 processes over one shared data object · 2 formulas · 2 coupled · 0 separable
+      · 0 auto-supplied
       
       Layer "friendship" — Model "DyNAM"
       * Choice [fid 1, coupled]: `~inertia`

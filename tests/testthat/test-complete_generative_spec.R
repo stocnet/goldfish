@@ -1,0 +1,523 @@
+# Generative-readiness completion (D9 / D9a): complete_generative_spec() fills a
+# half-specified / rate-only / choice-only DyNAM flavor with a zero-free-parameter
+# default at a consumer entry, pins a missing timed rate from the shared panel
+# risk-set helper, marks completed fids, and applies the D4 separability rule.
+# The single-process estimation path is deliberately untouched.
+
+local_cli_context <- function(env = parent.frame()) {
+  withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
+}
+
+# --- Fixtures ----------------------------------------------------------------
+
+# A directed one-mode object: friendship (observation configurable, no flavor)
+# and calls (event). Built with friendship = "event" so a friendship-focal spec
+# clears make_specification()'s panel-focal guard, then composed under
+# friendship = "panel".
+plain_data <- function(friendship = "panel") {
+  nodes <- data.frame(
+    label = paste0("N", 1:6),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L),
+      to = c(2L, 3L, 4L, 5L),
+      time = c(1, 2, 3, 4),
+      layer = "friendship"
+    ),
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls"
+    )
+  )
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(friendship = "increment", calls = "increment"),
+    directed = c(friendship = TRUE, calls = TRUE),
+    observation = c(friendship = friendship, calls = "event")
+  )
+  list(info = info, nodes = nodes, ties = ties)
+}
+
+# A timed join: friendship (modeled panel, choice-only -> completes to a pinned
+# rate) + calls (rate-only reading friendship -> completes to a uniform choice).
+timed_panel_join <- function() {
+  ev <- plain_data("event")
+  fr <- make_specification(
+    choice = ~inertia,
+    layer = "friendship",
+    model = "DyNAM",
+    data = ev
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = ev
+  )
+  make_joint_specification(fr, calls, data = plain_data("panel"))
+}
+
+# A join with a rate-only calls process (needs a uniform choice) and an
+# emails choice-only process (event, so the join is timed via calls' rate); both
+# read friendship, a panel covariate modeled by neither.
+rate_only_choice_join <- function() {
+  data <- plain_data("panel")
+  data$ties <- rbind(
+    data$ties,
+    data.frame(
+      from = c(2L, 3L, 4L),
+      to = c(1L, 2L, 3L),
+      time = c(1, 2, 3),
+      layer = "emails"
+    )
+  )
+  data$info$update <- c(data$info$update, emails = "increment")
+  data$info$directed <- c(data$info$directed, emails = TRUE)
+  data$info$observation <- c(data$info$observation, emails = "event")
+  calls <- make_specification(
+    rate = ~ 1 + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails <- make_specification(
+    choice = ~ inertia + tie(friendship),
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  make_joint_specification(calls, emails, data = data)
+}
+
+# --- Uniform choice ----------------------------------------------------------
+
+test_that("a rate-only flavor completes to a uniform choice with a warning", {
+  local_cli_context()
+  js <- rate_only_choice_join()
+  expect_warning(
+    complete_generative_spec(js, consumer = "estimate_dynes"),
+    class = "goldfish_completed_default_warning"
+  )
+  cc <- suppressWarnings(complete_generative_spec(
+    js,
+    consumer = "estimate_dynes"
+  ))
+  map <- cc$process_map
+  # The calls process gains a choice fid, auto-supplied and zero-effect.
+  calls_choice <- map$fid[map$layer == "calls" & map$family == "choice"]
+  expect_length(calls_choice, 1L)
+  expect_true(map$completed[map$fid == calls_choice])
+  bundle <- goldfish:::joint_fid_bundles(cc)[[as.character(
+    calls_choice
+  )]]$bundle
+  expect_identical(bundle$sub_model, "choice")
+  expect_length(bundle$parsed$rhs_names, 0L)
+  expect_false(bundle$has_intercept)
+})
+
+test_that("the completion warning snapshot names layer/family/default", {
+  local_cli_context()
+  js <- rate_only_choice_join()
+  expect_snapshot(
+    invisible(complete_generative_spec(js, consumer = "estimate_dynes"))
+  )
+})
+
+test_that("a completed uniform choice inherits the layer's support constraint", {
+  # calls carries a user support constraint; its auto-supplied choice must
+  # inherit that same constraint (one constraint_id shared with the rate fid),
+  # never fabricate or borrow another process's.
+  data <- plain_data("panel")
+  calls <- make_specification(
+    rate = ~ 1 + tie(friendship),
+    support_constraint = ~ !tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_data <- data
+  fr <- make_specification(
+    choice = ~inertia,
+    layer = "friendship",
+    model = "DyNAM",
+    data = plain_data("event")
+  )
+  js <- make_joint_specification(calls, fr, data = data)
+  cc <- suppressWarnings(complete_generative_spec(js))
+  map <- cc$process_map
+  calls_rows <- map[map$layer == "calls", , drop = FALSE]
+  # The completed choice shares the rate's constraint_id (the process constraint),
+  # so it inherits, not fabricates.
+  expect_identical(
+    calls_rows$constraint_id[calls_rows$family == "choice"],
+    calls_rows$constraint_id[calls_rows$family == "rate"]
+  )
+})
+
+# --- Timed pinned rate -------------------------------------------------------
+
+test_that("a missing timed rate completes to a pinned intercept-only rate", {
+  js <- timed_panel_join()
+  cc <- suppressWarnings(
+    complete_generative_spec(
+      js,
+      consumer = "estimate_dynes",
+      wave_times = c(0, 2, 5)
+    )
+  )
+  map <- cc$process_map
+  fr_rate <- map$fid[map$layer == "friendship" & map$family == "rate"]
+  expect_length(fr_rate, 1L)
+  expect_true(map$completed[map$fid == fr_rate])
+  expect_true(map$pinned[map$fid == fr_rate])
+  rate <- cc$completed_rates[[as.character(fr_rate)]]
+  expect_s3_class(rate, "intercept_only_rate")
+  # Zero free parameters: the pin contributes the empty theta block.
+  expect_length(intercept_only_rate_theta_block(rate), 0L)
+  # The per-period pin reproduces its count: exp(intercept_w) * T_w * |R_w| = count_w.
+  rs <- goldfish:::panel_wave_risk_set(
+    cc,
+    layer = "friendship",
+    flavor = NA,
+    entity = "sender",
+    wave_times = c(0, 2, 5)
+  )
+  expect_equal(
+    exp(rate$intercept) * rs$duration * rs$risk_set_size,
+    rs$count
+  )
+})
+
+test_that("a timed choice-only flavor reaches the pinned primitive; ordered does not", {
+  # Timed branch: friendship's missing rate is pinned (mark_pinned_rates ran).
+  js <- timed_panel_join()
+  cc <- suppressWarnings(complete_generative_spec(js, wave_times = c(0, 2, 5)))
+  expect_true(any(cc$process_map$pinned))
+  expect_length(cc$completed_rates, 1L)
+
+  # Ordered branch: an all-ordered composition never reaches the pinned
+  # primitive -- no pinned column, no completed rates.
+  data <- plain_data("panel")
+  a <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    rate_sub_model = "rate_ordered",
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  b <- make_specification(
+    rate = ~ 1 + inertia,
+    rate_sub_model = "rate_ordered",
+    layer = "friendship",
+    model = "DyNAM",
+    data = plain_data("event")
+  )
+  js_ord <- make_joint_specification(a, b, data = data)
+  expect_false(goldfish:::is_timed_joint_specification(js_ord))
+  cc_ord <- complete_generative_spec(js_ord)
+  expect_null(cc_ord$process_map$pinned)
+  expect_null(cc_ord$completed_rates)
+})
+
+# --- D9a shared risk-set helper ----------------------------------------------
+
+test_that("panel |R_w| equals the wave-endpoint average for both rate entities", {
+  # A mutually-exclusive creation flavor on a panel layer: its post-constraint
+  # entity count is state-dependent, so the wave-endpoint average is non-trivial.
+  js <- timed_panel_join()
+  wave_times <- c(0, 2, 4, 6)
+  # Hand-compute the endpoint counts from the materialized friendship states
+  # (unconstrained "none" support here: the completed rate reads nothing).
+  states <- lapply(wave_times, function(w) {
+    unname(network_state_at(plain_data("panel"), "friendship", time = w))
+  })
+  n <- nrow(states[[1L]])
+  sender_counts <- vapply(
+    states,
+    function(st) {
+      grid <- matrix(TRUE, n, n)
+      diag(grid) <- FALSE
+      sum(rowSums(grid) > 0)
+    },
+    numeric(1)
+  )
+  dyad_counts <- vapply(
+    states,
+    function(st) {
+      grid <- matrix(TRUE, n, n)
+      diag(grid) <- FALSE
+      sum(grid)
+    },
+    numeric(1)
+  )
+  avg <- function(x) (x[-length(x)] + x[-1L]) / 2
+
+  rs_sender <- goldfish:::panel_wave_risk_set(
+    js,
+    layer = "friendship",
+    flavor = NA,
+    entity = "sender",
+    wave_times = wave_times
+  )
+  rs_dyad <- goldfish:::panel_wave_risk_set(
+    js,
+    layer = "friendship",
+    flavor = NA,
+    entity = "dyad",
+    wave_times = wave_times
+  )
+  expect_equal(rs_sender$risk_set_size, avg(sender_counts))
+  expect_equal(rs_dyad$risk_set_size, avg(dyad_counts))
+})
+
+test_that("a single-period relational pin matches goldfish's starting value", {
+  # The cross-check anchor: exp(intercept_1) == n_dep_events / total_time /
+  # avg_active_entity, goldfish's own intercept-only baseline-rate starting value.
+  data <- plain_data("event")
+  rs <- goldfish:::relational_window_risk_set(data, "calls", model = "DyNAM")
+  intercept <- pin_intercept_only_rate(
+    rs$count,
+    rs$duration,
+    rs$risk_set_size
+  )
+  expect_equal(
+    exp(intercept),
+    rs$count / rs$duration / rs$risk_set_size
+  )
+})
+
+# --- Regime and completion scope --------------------------------------------
+
+test_that("a mixed ordered+timed composition aborts at join time", {
+  local_cli_context()
+  data <- plain_data("panel")
+  timed <- make_specification(
+    rate = ~ 1 + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  ordered <- make_specification(
+    rate = ~ 1 + inertia,
+    rate_sub_model = "rate_ordered",
+    layer = "friendship",
+    model = "DyNAM",
+    data = plain_data("event")
+  )
+  expect_snapshot(
+    make_joint_specification(timed, ordered, data = data),
+    error = TRUE
+  )
+})
+
+test_that("the completion warning re-fires through a second consumer", {
+  js <- rate_only_choice_join()
+  expect_warning(
+    complete_generative_spec(js, consumer = "estimate_dynes"),
+    class = "goldfish_completed_default_warning"
+  )
+  # The SAME half-specified spec through a second consumer warns again.
+  expect_warning(
+    complete_generative_spec(js, consumer = "simulate"),
+    class = "goldfish_completed_default_warning"
+  )
+})
+
+test_that("completion is scoped by type to a joint specification", {
+  local_cli_context()
+  spec <- make_specification(
+    rate = ~ 1 + inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = plain_data("event")
+  )
+  expect_snapshot(complete_generative_spec(spec), error = TRUE)
+})
+
+# --- D4 separability ---------------------------------------------------------
+
+test_that("a completed modeled-panel fid is not separable though it reads nothing", {
+  js <- timed_panel_join()
+  cc <- suppressWarnings(complete_generative_spec(js, wave_times = c(0, 2, 5)))
+  map <- cc$process_map
+  fr_rate <- map$fid[map$layer == "friendship" & map$family == "rate"]
+  # The pinned rate reads nothing -> coupled FALSE, yet friendship is a modeled
+  # panel layer, so it is NOT separable (D4).
+  expect_false(map$coupled[map$fid == fr_rate])
+  sep <- goldfish:::joint_separable(cc)
+  expect_false(sep[map$fid == fr_rate])
+  # No process is "all separable": a lone modeled-panel process never reports it.
+  expect_false(all(sep[map$layer == "friendship"]))
+})
+
+# --- Case A: modeled panel must model all flavors ----------------------------
+
+test_that("a modeled panel layer missing a whole flavor aborts", {
+  local_cli_context()
+  # friendship is a mutually-exclusive flavored PANEL layer carrying creation and
+  # dissolution, but only creation is modeled -> Case A.
+  make_flavored_panel <- function(friendship = "panel") {
+    nodes <- data.frame(
+      label = paste0("N", 1:6),
+      mode = "p",
+      stringsAsFactors = FALSE
+    )
+    fr <- data.frame(
+      from = c(1L, 2L, 3L, 1L),
+      to = c(2L, 3L, 4L, 2L),
+      time = c(1, 2, 3, 4),
+      layer = "friendship",
+      weight = c(1, 1, 1, -1)
+    )
+    calls <- data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls",
+      weight = 1
+    )
+    info <- list(
+      name = "toy",
+      focal = "calls",
+      update = c(friendship = "increment", calls = "increment"),
+      directed = c(friendship = TRUE, calls = TRUE),
+      observation = c(friendship = friendship, calls = "event")
+    )
+    add_flavor(
+      list(info = info, nodes = nodes, ties = rbind(fr, calls)),
+      layer = "friendship",
+      values_equivalence = c(creation = 1, dissolution = -1),
+      flavor_style = "mutually_exclusive"
+    )
+  }
+  ev <- make_flavored_panel("event")
+  fr <- make_specification(
+    rate = list(creation ~ 1 + indeg),
+    choice = list(creation ~ inertia),
+    layer = "friendship",
+    model = "DyNAM",
+    data = ev
+  )
+  calls <- make_specification(
+    rate = ~ 1 + indeg(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = ev
+  )
+  js <- make_joint_specification(fr, calls, data = make_flavored_panel("panel"))
+  expect_snapshot(
+    complete_generative_spec(js, wave_times = c(0, 2, 5)),
+    error = TRUE
+  )
+})
+
+test_that("an RE (event) focal layer modeling a subset of flavors is not aborted", {
+  # calls is a mutually-exclusive flavored EVENT layer; modeling only creation is
+  # legal (the dissolution rows update state). Completion adds creation's choice,
+  # never aborts.
+  nodes <- data.frame(
+    label = paste0("N", 1:8),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  calls <- data.frame(
+    from = c(1L, 2L, 3L, 1L, 4L),
+    to = c(2L, 3L, 4L, 2L, 5L),
+    time = c(1, 2, 3, 4, 5),
+    layer = "calls",
+    weight = c(1, 1, 1, -1, 1)
+  )
+  friendship <- data.frame(
+    from = c(1L, 2L),
+    to = c(2L, 3L),
+    time = c(1, 2),
+    layer = "friendship",
+    weight = 1
+  )
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(calls = "increment", friendship = "replace"),
+    directed = c(calls = TRUE, friendship = TRUE),
+    observation = c(calls = "event", friendship = "panel")
+  )
+  data <- add_flavor(
+    list(info = info, nodes = nodes, ties = rbind(calls, friendship)),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1),
+    flavor_style = "mutually_exclusive"
+  )
+  calls_spec <- make_specification(
+    rate = list(creation ~ 1 + tie(friendship)),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_spec <- make_specification(
+    choice = ~ inertia + tie(friendship),
+    layer = "friendship",
+    model = "DyNAM",
+    data = local({
+      d <- data
+      d$info$observation["friendship"] <- "event"
+      d
+    })
+  )
+  # friendship is exogenous panel here (not modeled): compose and complete.
+  js <- make_joint_specification(calls_spec, emails_spec, data = data)
+  expect_no_error(
+    suppressWarnings(complete_generative_spec(js, wave_times = c(0, 3, 6)))
+  )
+})
+
+# --- Idempotence, single-process untouched, process_map$completed ------------
+
+test_that("completion is idempotent on an already-complete spec", {
+  js <- timed_panel_join()
+  cc <- suppressWarnings(complete_generative_spec(js, wave_times = c(0, 2, 5)))
+  # Re-entering finds no gap: no warning, identical map and completed marks.
+  cc2 <- expect_no_warning(
+    complete_generative_spec(cc, wave_times = c(0, 2, 5))
+  )
+  expect_identical(cc2$process_map$completed, cc$process_map$completed)
+  expect_identical(nrow(cc2$process_map), nrow(cc$process_map))
+  expect_equal(
+    cc2$completed_rates[[1L]]$intercept,
+    cc$completed_rates[[1L]]$intercept
+  )
+})
+
+test_that("process_map$completed marks exactly the auto-supplied fids", {
+  js <- timed_panel_join()
+  cc <- suppressWarnings(complete_generative_spec(js, wave_times = c(0, 2, 5)))
+  map <- cc$process_map
+  # Authored: friendship choice, calls rate. Completed: friendship rate, calls
+  # choice.
+  authored <- with(
+    map,
+    (layer == "friendship" & family == "choice") |
+      (layer == "calls" & family == "rate")
+  )
+  expect_identical(map$completed, !authored)
+})
+
+test_that("a single-process rate-only spec is not completed by estimation", {
+  # The excluded path: estimate_dynam() over a rate-only specification.goldfish
+  # keeps it rate-only (no choice added), so its preprocessed output is unchanged.
+  spec <- make_specification(
+    rate = ~ 1 + indeg,
+    layer = "calls",
+    model = "DyNAM",
+    data = plain_data("event")
+  )
+  prep <- estimate_dynam(spec, sub_model = "rate", preprocessing_only = TRUE)
+  # A rate-only preprocessed object, no choice sub-model was synthesized.
+  expect_null(spec$submodels$choice)
+  expect_true(!is.null(prep))
+})

@@ -178,6 +178,11 @@ make_joint_specification <- function(..., data = NULL) {
       specifications = specs,
       process_map = process_map,
       data = shared_data,
+      # The panel-observed layers that are themselves a focal process of the
+      # join: reading one couples a fid, and a fid whose OWN layer is one is
+      # never separable (D4). Carried so the print and the completion transform
+      # can apply the separability rule without re-deriving it.
+      modeled_panel = modeled_panel,
       call = match.call()
     ),
     class = "joint_specification.goldfish"
@@ -452,6 +457,20 @@ build_joint_process_map <- function(specs, modeled_panel = character(0)) {
     }
   }
   do.call(rbind, rows)
+}
+
+# Per-fid separability under the D4 rule: a fid is separable iff it does NOT
+# read another modeled panel layer's latent state (`coupled`) AND its own focal
+# layer is NOT itself a modeled panel process. The second clause is why
+# `separable` is not the negation of `coupled`: a modeled-panel fid completed by
+# the generative transform with a reads-nothing default has `coupled = FALSE`
+# yet stays non-separable, so a lone modeled-panel process never reports "all
+# fids separable" (preserving the "all separable <=> no modeled panel process"
+# equivalence the DyNES-viability guard relies on).
+joint_separable <- function(joint_spec) {
+  map <- joint_spec$process_map
+  modeled_panel <- joint_spec$modeled_panel %||% character(0)
+  !map$coupled & !(map$layer %in% modeled_panel)
 }
 
 # Assign a shared integer id to each distinct constraint plan (by value

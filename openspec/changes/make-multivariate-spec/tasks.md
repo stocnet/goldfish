@@ -128,7 +128,7 @@
       incompatible regimes, before any completion runs. The primitive's
       `assert_timed_joint_specification()` then acts as an exact downstream backstop
       (every joint spec it sees is already pure-timed or pure-ordered)
-- [ ] 1c.2 Completion transform (one shared function, e.g.
+- [x] 1c.2 Completion transform (one shared function, e.g.
       `complete_generative_spec()`): fill each recorded gap with its
       **zero-free-parameter** default via the existing
       `build_specification_bundle()` — uniform choice over the layer's
@@ -163,15 +163,15 @@
       entry** (NOT suppressed on re-entry); abort (no default) when a **modeled panel**
       layer omits a flavor from both lists (Case A, panel-gated — RE subset modeling
       stays legal); idempotent on an already-complete spec
-- [ ] 1c.3 `process_map` gains a `completed` logical column (beside `coupled`,
+- [x] 1c.3 `process_map` gains a `completed` logical column (beside `coupled`,
       D3); completion sets it TRUE for added fids. A completed timed-rate fid adds
       **no free parameter** to the fid / θ layout (its per-actor intercept is pinned to
       `log(count_w / (T_w · |R_w|))`, θ-independent); its fixed contribution MAY appear
       as a constant offset in a
       reported log-likelihood but never in the optimizer's score/Hessian
-- [ ] 1c.4 Print marking (extends 1.3): completed fids rendered as auto-supplied
+- [x] 1c.4 Print marking (extends 1.3): completed fids rendered as auto-supplied
       defaults (cli semantic elements) alongside the coupled/separable marking
-- [ ] 1c.5 Tests: half-specified rate-only flavor → uniform choice (over
+- [x] 1c.5 Tests: half-specified rate-only flavor → uniform choice (over
       support-legal alternatives, self-loops excluded) + warning snapshot; uniform
       choice inherits a defined support constraint and does NOT borrow a sibling
       flavor's; missing `choice_coordination` → uniform both sides; missing timed
@@ -200,7 +200,7 @@
       transform reaches that primitive **only** on the timed branch (the
       ordered–timed-composition-aborts case above is the negative side of the same
       assertion)
-- [ ] 1c.6 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
+- [x] 1c.6 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
       `devtools::document()`; commit
 
 ## 2. Cross-process union planning

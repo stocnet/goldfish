@@ -517,15 +517,27 @@ print.specification.goldfish <- function(x, ...) {
 #'   status, and the derived and combined support constraints.
 print.joint_specification.goldfish <- function(x, ...) {
   map <- x$process_map
+  # A base (uncompleted) joint spec has no `completed` column; treat every fid as
+  # authored so the print works before and after the completion transform runs.
+  if (is.null(map$completed)) {
+    map$completed <- rep(FALSE, nrow(map))
+  }
+  modeled_panel <- x$modeled_panel %||% character(0)
   cli::cli_rule(left = "{.cls joint_specification.goldfish}")
 
   n_proc <- length(x$specifications)
   n_fid <- nrow(map)
+  # Separability is the D4 rule (NOT coupled AND layer NOT a modeled panel
+  # process), not the negation of `coupled`: a modeled-panel fid completed with a
+  # reads-nothing default has `coupled = FALSE` yet stays non-separable, so the
+  # two counts are independent facts rather than complements.
   n_coupled <- sum(map$coupled)
-  n_sep <- n_fid - n_coupled
+  n_sep <- sum(joint_separable(x))
+  n_completed <- sum(map$completed)
   cli::cli_text(
     "{n_proc} process{?es} over one shared data object ·
-     {n_fid} formula{?s} · {n_coupled} coupled · {n_sep} separable"
+     {n_fid} formula{?s} · {n_coupled} coupled · {n_sep} separable ·
+     {n_completed} auto-supplied"
   )
 
   # Sections are driven by the process_map (labels rendered from it, never
@@ -546,7 +558,12 @@ print.joint_specification.goldfish <- function(x, ...) {
       if (!is.na(fl)) {
         cli::cli_text("{.strong Flavor} {.val {fl}}")
       }
-      print_joint_flavor(spec, fl, lyr_rows[keep, , drop = FALSE])
+      print_joint_flavor(
+        spec,
+        fl,
+        lyr_rows[keep, , drop = FALSE],
+        modeled_panel = modeled_panel
+      )
     }
   }
 
@@ -562,18 +579,35 @@ print.joint_specification.goldfish <- function(x, ...) {
 # whether the fid is separable (reads no modeled panel layer) or coupled; the
 # derived flavor constraint and its AND-composition with any user support
 # constraint are shown so a reader sees the mask each fid estimates under.
-print_joint_flavor <- function(spec, flavor, rows) {
+print_joint_flavor <- function(
+  spec,
+  flavor,
+  rows,
+  modeled_panel = character(0)
+) {
   flavored <- !is.null(spec$processes) && !is.na(flavor)
   submodels <- if (flavored) {
     spec$processes[[flavor]]$submodels
   } else {
     spec$submodels
   }
+  completed <- rows$completed %||% rep(FALSE, nrow(rows))
   for (i in seq_len(nrow(rows))) {
     bundle <- submodels[[rows$family[i]]]
     formula_str <- deparse1(bundle$input_formula)
     family_label <- sub("^(.)", "\\U\\1", rows$family[i], perl = TRUE)
-    status <- if (rows$coupled[i]) "coupled" else "separable"
+    # D4: a fid on a modeled panel layer is never separable, even reading
+    # nothing; `coupled` (reads ANOTHER modeled panel layer) is a strict subset.
+    status <- if (rows$coupled[i]) {
+      "coupled"
+    } else if (rows$layer[i] %in% modeled_panel) {
+      "non-separable"
+    } else {
+      "separable"
+    }
+    if (isTRUE(completed[i])) {
+      status <- paste0(status, ", auto-supplied")
+    }
     cli::cli_bullets(c(
       "*" = "{.field {family_label}} [fid {rows$fid[i]}, {status}]:
              {.code {formula_str}}"
