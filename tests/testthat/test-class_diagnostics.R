@@ -27,6 +27,34 @@ test_that("diagnostic methods does not accept non-result objects", {
     error = TRUE,
     diagnose_changepoints(depNetwork, moment = "mean", method = "PELT")
   )
+  expect_snapshot(error = TRUE, diagnose_onset(depNetwork))
+})
+
+test_that("the diagnose_* family dispatches on the fitted object", {
+  # The entry points are generics, so a class carries the choice of method
+  # rather than a branch inside one body.
+  for (fn in c(
+    "diagnose_outliers",
+    "diagnose_changepoints",
+    "diagnose_onset"
+  )) {
+    expect_true("UseMethod" %in% all.names(body(get(fn))))
+    expect_false(is.null(getS3method(fn, "result.goldfish", optional = TRUE)))
+    expect_false(is.null(getS3method(fn, "default", optional = TRUE)))
+  }
+
+  mod00 <- estimate_dynam(
+    depNetwork ~ inertia + trans,
+    sub_model = "choice",
+    data = dataTest,
+    control_prep = set_preprocessing(start_time = 0L),
+    control_algo = set_algorithm_newton(diagnostics = c("loglik", "scores")),
+    progress = FALSE,
+    verbose = FALSE
+  )
+  expect_s3_class(diagnose_outliers(mod00), "diagnose_outliers")
+  expect_s3_class(diagnose_changepoints(mod00), "diagnose_changepoints")
+  expect_s3_class(diagnose_onset(mod00), "diagnose_onset")
 })
 
 

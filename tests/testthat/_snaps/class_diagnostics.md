@@ -22,8 +22,9 @@
       diagnose_outliers(depNetwork, method = "Top", threshold = 2)
     Condition
       Error in `diagnose_outliers()`:
-      ! Outlier identification needs a fitted goldfish model.
+      ! `diagnose_outliers()` needs a fitted goldfish model.
       x `x` is a <dependent.goldfish> object.
+      i Fit one with `estimate_dynam()` or `estimate_rem()`.
 
 ---
 
@@ -31,6 +32,17 @@
       diagnose_changepoints(depNetwork, moment = "mean", method = "PELT")
     Condition
       Error in `diagnose_changepoints()`:
-      ! Changepoint identification needs a fitted goldfish model.
+      ! `diagnose_changepoints()` needs a fitted goldfish model.
       x `x` is a <dependent.goldfish> object.
+      i Fit one with `estimate_dynam()` or `estimate_rem()`.
+
+---
+
+    Code
+      diagnose_onset(depNetwork)
+    Condition
+      Error in `diagnose_onset()`:
+      ! `diagnose_onset()` needs a fitted goldfish model.
+      x `x` is a <dependent.goldfish> object.
+      i Fit one with `estimate_dynam()` or `estimate_rem()`.
 

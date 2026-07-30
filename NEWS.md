@@ -70,6 +70,15 @@
   path, an accrual curve and a per-coefficient summary -- carrying the same
   metadata contract either way.
 
+* **`diagnose_outliers()`, `diagnose_changepoints()` and `diagnose_onset()` are
+  S3 generics**, dispatching on the fitted object like `margin_table()`,
+  `model_terms()` and `evaluate_model()` already did, with a `default` method
+  that names what it received. No call changes, but the entry points are now
+  extensible -- which is what lets a multi-process fit map a diagnostic over
+  its processes -- and whether an entry point is a generic is part of the
+  released API, so the shape is settled before 2.0.0 rather than retrofitted
+  after it.
+
 * `augment()` places its rows in interval order. Previously the right-censored
   rows were appended after the dependent events while every per-interval
   column was in interval order, so from the first censored interval onwards

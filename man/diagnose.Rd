@@ -3,12 +3,16 @@
 \name{diagnose}
 \alias{diagnose}
 \alias{diagnose_outliers}
+\alias{diagnose_outliers.result.goldfish}
 \alias{diagnose_changepoints}
+\alias{diagnose_changepoints.result.goldfish}
 \alias{print.diagnose_outliers}
 \alias{print.diagnose_changepoints}
 \title{Diagnostic functions}
 \usage{
-diagnose_outliers(
+diagnose_outliers(x, ...)
+
+\method{diagnose_outliers}{result.goldfish}(
   x,
   method = c("Hampel", "IQR", "Top"),
   threshold = 3,
@@ -16,10 +20,13 @@ diagnose_outliers(
   effect = NULL,
   include_censored = FALSE,
   preprocessed = NULL,
-  parameter = deprecated()
+  parameter = deprecated(),
+  ...
 )
 
-diagnose_changepoints(
+diagnose_changepoints(x, ...)
+
+\method{diagnose_changepoints}{result.goldfish}(
   x,
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
@@ -35,7 +42,14 @@ diagnose_changepoints(
 \method{print}{diagnose_changepoints}(x, ...)
 }
 \arguments{
-\item{x}{a \code{diagnose_outliers} or \code{diagnose_changepoints} table.}
+\item{x}{an object of class \code{result.goldfish} output from an
+\code{\link{estimate}} call; for the print methods, the
+\code{diagnose_outliers} or \code{diagnose_changepoints} table they render.}
+
+\item{...}{additional arguments passed to or from other methods.
+\code{diagnose_changepoints} passes them on to the \pkg{changepoint}
+function its \code{moment} selects; the other methods have none of their
+own.}
 
 \item{method}{Choice of \code{"AMOC"}, \code{"PELT"} or \code{"BinSeg"}.
 For a detail description see \code{\link[changepoint]{cpt.mean}} or
@@ -71,9 +85,6 @@ in goldfish 2.0.0.}
 
 \item{moment}{character argument to choose between "mean" or "variance".
 See section \emph{Change point} for details.}
-
-\item{...}{Additional arguments passed to or from other methods
-(currently unused).}
 }
 \value{
 The object, invisibly.

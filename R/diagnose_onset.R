@@ -89,7 +89,8 @@
 #'
 #' @param x a fitted model of class `"result.goldfish"`, estimated with
 #'   `"scores"` among the [set_algorithm_newton()] `diagnostics`
-#'   primitives.
+#'   primitives; for the print method, the `diagnose_onset` object it
+#'   renders.
 #' @param information how the accrual curve measures per-event
 #'   information. `"opg"` (default) is the outer-product form
 #'   \eqn{\sum_k s_k' s_k}, available from the stored score rows alone.
@@ -102,6 +103,8 @@
 #' @param tolerance the half-width, in standard errors, of the band a
 #'   coefficient's path must stay inside for the remainder of the sequence
 #'   to count as stabilized.
+#' @param ... additional arguments passed to or from other methods (currently
+#'   unused).
 #'
 #' @return An object of class `diagnose_onset`: a list of three
 #'   [tibble::tibble()]s, carrying the metadata described in
@@ -140,10 +143,22 @@
 #'   path is the cumulative form of, and [diagnostic-tables] for the
 #'   metadata a diagnostic object carries.
 #' @export
-diagnose_onset <- function(
+diagnose_onset <- function(x, ...) {
+  UseMethod("diagnose_onset")
+}
+
+#' @export
+diagnose_onset.default <- function(x, ...) {
+  abort_not_diagnosable_class("diagnose_onset", x)
+}
+
+#' @rdname diagnose_onset
+#' @export
+diagnose_onset.result.goldfish <- function(
   x,
   information = c("opg", "expected"),
-  tolerance = 0.1
+  tolerance = 0.1,
+  ...
 ) {
   abort_if_not_diagnosable(
     x,
@@ -313,9 +328,6 @@ onset_term_labels <- function(x) {
   unname(compact_term_strings(x$names, "console", width = Inf))
 }
 
-#' @param x a `diagnose_onset` object.
-#' @param ... Additional arguments passed to or from other methods
-#'   (currently unused).
 #' @return The object, invisibly.
 #' @rdname diagnose_onset
 #' @method print diagnose_onset

@@ -5,7 +5,12 @@
 #' \code{changepoints} helps to identify where a change point
 #' in the events sequence is presented using the log-likelihood.
 #' @param x an object of class \code{result.goldfish} output from an
-#' \code{\link{estimate}} call.
+#' \code{\link{estimate}} call; for the print methods, the
+#' \code{diagnose_outliers} or \code{diagnose_changepoints} table they render.
+#' @param ... additional arguments passed to or from other methods.
+#' \code{diagnose_changepoints} passes them on to the \pkg{changepoint}
+#' function its \code{moment} selects; the other methods have none of their
+#' own.
 #' @param include_censored logical, whether the right-censored intervals take
 #'   part in the statistic. Defaults to `FALSE` — see the
 #'   \emph{Which intervals are analyzed} section, which explains why the
@@ -127,7 +132,18 @@ NULL
 #' @importFrom stats IQR median na.exclude
 #' @export
 #' @rdname diagnose
-diagnose_outliers <- function(
+diagnose_outliers <- function(x, ...) {
+  UseMethod("diagnose_outliers")
+}
+
+#' @export
+diagnose_outliers.default <- function(x, ...) {
+  abort_not_diagnosable_class("diagnose_outliers", x)
+}
+
+#' @export
+#' @rdname diagnose
+diagnose_outliers.result.goldfish <- function(
   x,
   method = c("Hampel", "IQR", "Top"),
   threshold = 3,
@@ -135,7 +151,8 @@ diagnose_outliers <- function(
   effect = NULL,
   include_censored = FALSE,
   preprocessed = NULL,
-  parameter = deprecated()
+  parameter = deprecated(),
+  ...
 ) {
   threshold <- fold_renamed_arg(
     threshold,
@@ -239,8 +256,6 @@ diagnose_outliers <- function(
 #' @param method Choice of \code{"AMOC"}, \code{"PELT"} or \code{"BinSeg"}.
 #' For a detail description see \code{\link[changepoint]{cpt.mean}} or
 #' \code{\link[changepoint]{cpt.var}}. The default value is \code{"PELT"}.
-#' @param ... additional arguments to be passed to the functions in the
-#' \pkg{changepoint} package.
 #' @section Change point:
 #' The parameter \code{moment} controls which method from the package
 #' \pkg{changepoint} is used:
@@ -257,7 +272,18 @@ diagnose_outliers <- function(
 #' point sections identified by the method.
 #' @export
 #' @rdname diagnose
-diagnose_changepoints <- function(
+diagnose_changepoints <- function(x, ...) {
+  UseMethod("diagnose_changepoints")
+}
+
+#' @export
+diagnose_changepoints.default <- function(x, ...) {
+  abort_not_diagnosable_class("diagnose_changepoints", x)
+}
+
+#' @export
+#' @rdname diagnose
+diagnose_changepoints.result.goldfish <- function(
   x,
   moment = c("mean", "variance"),
   method = c("PELT", "AMOC", "BinSeg"),
@@ -392,6 +418,20 @@ selected_term <- function(x, effect, arg, call = rlang::caller_env()) {
   )
 }
 
+# What a `diagnose_*` default method says about what it received. The family
+# dispatches on the fitted object, so the class is settled before any body
+# runs and this is the only place that reports a wrong one.
+abort_not_diagnosable_class <- function(fn, x, call = rlang::caller_env()) {
+  cli::cli_abort(
+    c(
+      "{.fn {fn}} needs a fitted goldfish model.",
+      "x" = "{.arg x} is {.obj_type_friendly {x}}.",
+      "i" = "Fit one with {.fn estimate_dynam} or {.fn estimate_rem}."
+    ),
+    call = call
+  )
+}
+
 # The shared guard of the diagnose family: a fitted model that stored the
 # primitive the function reads, saying which one is missing rather than failing
 # later on a NULL. The default pair is the per-interval log-likelihood, which
@@ -404,15 +444,6 @@ abort_if_not_diagnosable <- function(
   primitive = "loglik",
   call = rlang::caller_env()
 ) {
-  if (!inherits(x, "result.goldfish")) {
-    cli::cli_abort(
-      c(
-        "{what} needs a fitted goldfish model.",
-        "x" = "{.arg x} is {.obj_type_friendly {x}}."
-      ),
-      call = call
-    )
-  }
   if (is.null(x[[component]])) {
     cli::cli_abort(
       c(

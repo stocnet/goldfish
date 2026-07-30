@@ -2,15 +2,24 @@
 % Please edit documentation in R/diagnose_onset.R
 \name{diagnose_onset}
 \alias{diagnose_onset}
+\alias{diagnose_onset.result.goldfish}
 \alias{print.diagnose_onset}
 \title{Diagnose the onset of the observed sequence}
 \usage{
-diagnose_onset(x, information = c("opg", "expected"), tolerance = 0.1)
+diagnose_onset(x, ...)
+
+\method{diagnose_onset}{result.goldfish}(x, information = c("opg", "expected"), tolerance = 0.1, ...)
 
 \method{print}{diagnose_onset}(x, ...)
 }
 \arguments{
-\item{x}{a \code{diagnose_onset} object.}
+\item{x}{a fitted model of class \code{"result.goldfish"}, estimated with
+\code{"scores"} among the \code{\link[=set_algorithm_newton]{set_algorithm_newton()}} \code{diagnostics}
+primitives; for the print method, the \code{diagnose_onset} object it
+renders.}
+
+\item{...}{additional arguments passed to or from other methods (currently
+unused).}
 
 \item{information}{how the accrual curve measures per-event
 information. \code{"opg"} (default) is the outer-product form
@@ -25,9 +34,6 @@ of tests, and a cumulative share is not one.}
 \item{tolerance}{the half-width, in standard errors, of the band a
 coefficient's path must stay inside for the remainder of the sequence
 to count as stabilized.}
-
-\item{...}{Additional arguments passed to or from other methods
-(currently unused).}
 }
 \value{
 An object of class \code{diagnose_onset}: a list of three

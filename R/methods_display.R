@@ -1172,9 +1172,6 @@ augment.result.goldfish <- function(x, ...) {
   tib
 }
 
-#' @param x a `diagnose_outliers` or `diagnose_changepoints` table.
-#' @param ... Additional arguments passed to or from other methods
-#'   (currently unused).
 #' @return The object, invisibly.
 #' @rdname diagnose
 #' @method print diagnose_outliers
