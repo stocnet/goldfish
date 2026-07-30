@@ -27,13 +27,27 @@ the expected columns that are defined for the family.}
 \item{\code{params}}{a list of the producer's own arguments that shape how the
 table is read.}
 \item{\code{version}}{the goldfish version that produced the object.}
+\item{\code{defining}}{the columns without which the table is no longer the
+diagnostic object — the flag column a print counts and the series a
+plot draws.}
 }
+
+The schema does not vary with the result. A \code{diagnose_outliers()} table
+that flags nothing has the same columns and the same one row per interval
+as one that flags ten, with \code{outlier} all \code{FALSE}; an expected column that
+the model family does not define is \code{NA} rather than absent. Emptiness
+lives in the content, never in the shape, so a consumer reads one schema in
+every case.
 
 A tibble base keeps a diagnostic table usable with the ordinary data
 verbs: subsetting with \code{[}, and dplyr's \code{filter()}, \code{mutate()} and
 \code{arrange()}, preserve the class and the metadata. A \code{group_by()} plus
 \code{summarise()} drops them, which is correct -- the summary is no longer the
-diagnostic object.
+diagnostic object. \strong{An operation that removes a defining column drops
+them for the same reason}: the object returns as a plain tibble, the way
+a \code{grouped_df} demotes when its groups are gone. Without that, a column
+subset would keep the class while the print method counted a flag column
+that is no longer there, reporting no findings on a table that has them.
 }
 \seealso{
 \code{\link[=margin_table]{margin_table()}}, the producer of the first diagnostic table.

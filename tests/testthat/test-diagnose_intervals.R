@@ -170,8 +170,37 @@ test_that("class and metadata survive subsetting", {
   expect_s3_class(subset, "diagnose_outliers")
   expect_identical(attr(subset, "context"), attr(outliers, "context"))
   expect_identical(attr(subset, "params"), attr(outliers, "params"))
-  columns <- outliers[, c("time", "outlier")]
+  columns <- outliers[, c("time", "outlier", ".series")]
   expect_s3_class(columns, "diagnose_outliers")
+})
+
+test_that("removing a defining column demotes the table", {
+  fit <- fit_censored()
+  outliers <- diagnose_outliers(fit, method = "Top", threshold = 2)
+  changepoints <- diagnose_changepoints(fit, moment = "mean")
+
+  # The flag column a print counts and the series a plot draws. Without them
+  # the table cannot answer what it exists to answer, so it comes back as an
+  # ordinary tibble rather than as an object whose methods read a column that
+  # is gone.
+  expect_identical(attr(outliers, "defining"), c("outlier", ".series"))
+  dropped <- outliers[, c("time", "sender", ".series")]
+  expect_false(inherits(dropped, "diagnose_outliers"))
+  expect_s3_class(dropped, "tbl_df")
+  expect_null(attr(dropped, "context"))
+  expect_null(attr(dropped, "params"))
+  expect_null(attr(dropped, "diagnostic"))
+  expect_false(inherits(
+    changepoints[, c("time", "cpt")],
+    "diagnose_changepoints"
+  ))
+
+  # A row operation leaves every defining column in place, so it keeps both
+  # the class and the count the header reports.
+  flagged <- outliers[outliers$outlier, ]
+  expect_s3_class(flagged, "diagnose_outliers")
+  expect_equal(sum(flagged$outlier), sum(outliers$outlier))
+  expect_identical(attr(flagged, "params"), attr(outliers, "params"))
 })
 
 test_that("the print methods report scope, not just counts", {
@@ -193,6 +222,25 @@ test_that("the print methods report scope, not just counts", {
       include_censored = TRUE
     ))
   )
+})
+
+test_that("the print lists the flagged rows, and only those", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  fit <- fit_censored()
+  outliers <- diagnose_outliers(fit, method = "Top", threshold = 2)
+
+  # Header, scope, and the dimension line of what was listed: the count and
+  # the rows come from one column, so the snapshot would catch a header
+  # disagreeing with the listing. The columns below are tibble's print, and
+  # pinning those would make this a regression test on pillar.
+  expect_snapshot(cat(head(capture.output(print(outliers)), 3), sep = "\n"))
+
+  # Nothing flagged prints the header alone. The schema does not move with the
+  # result: the full series is still in the object, one row per interval.
+  clean <- diagnose_outliers(fit, method = "IQR", threshold = 1000)
+  expect_snapshot(print(clean))
+  expect_false(any(clean$outlier))
+  expect_equal(dim(clean), dim(outliers))
 })
 
 test_that("the series is NA on the intervals that took no part", {

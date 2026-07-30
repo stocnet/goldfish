@@ -245,7 +245,8 @@ diagnose_outliers.result.goldfish <- function(
         "Absolute dfbeta"
       },
       include_censored = include_censored
-    )
+    ),
+    defining = c("outlier", ".series")
   )
 }
 
@@ -376,7 +377,8 @@ diagnose_changepoints.result.goldfish <- function(
         "Scaled Schoenfeld residual"
       },
       include_censored = include_censored
-    )
+    ),
+    defining = c("cpt", ".series")
   )
 }
 

@@ -1214,6 +1214,13 @@ print_diagnose_table <- function(x, flagged, noun) {
        {context$n_intervals} interval{?s}."
     )
   }
-  print(tibble::as_tibble(x))
+  # The flagged rows, not the head of the series: the first ten intervals are
+  # almost never the interesting ones, and taking both the count and the
+  # listing from one column is what keeps the header from disagreeing with
+  # what is shown. Nothing flagged prints the header alone -- the full series
+  # is in the object either way.
+  if (n_flagged > 0) {
+    print(tibble::as_tibble(x)[which(flagged), ])
+  }
   invisible(x)
 }

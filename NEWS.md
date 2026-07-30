@@ -70,6 +70,23 @@
   path, an accrual curve and a per-coefficient summary -- carrying the same
   metadata contract either way.
 
+* **A diagnostic table that loses a defining column comes back as a plain
+  tibble**, and the flag-column prints list the flagged rows. Class
+  preservation through `[` is the feature -- a filtered or reordered table is
+  still the diagnostic object -- and it was also a silent wrong answer: a
+  column subset that dropped `outlier` kept the class, so the print method
+  read a column that was gone and reported "0 outliers identified" with two
+  present. Each class now declares the columns without which it is no longer
+  itself (`outlier` / `cpt` / `observed`, and the `.series` a plot draws), and
+  an operation that removes one demotes the object, the way a `grouped_df`
+  demotes when its groups are gone -- through `[` and, when dplyr is attached,
+  through its verbs. The print takes its count and its rows from the same
+  column and lists only the flagged ones, rather than the first ten intervals
+  of the series, which are almost never the flagged ones; nothing flagged
+  prints the header alone. The schema itself never varies: a table that flags
+  nothing has the same columns and the same one row per interval as one that
+  flags ten.
+
 * **`diagnose_outliers()`, `diagnose_changepoints()` and `diagnose_onset()` are
   S3 generics**, dispatching on the fitted object like `margin_table()`,
   `model_terms()` and `evaluate_model()` already did, with a `default` method

@@ -182,6 +182,16 @@ test_that("the class and its metadata survive subsetting", {
   active <- mt[mt$observed > 0, ]
   expect_s3_class(active, "margin_table")
   expect_equal(attr(active, "version"), attr(mt, "version"))
+
+  # The observed counts are what every reading of this table compares against,
+  # so a subset without them is no longer a margin table -- the same rule the
+  # flag-column diagnostics demote on.
+  expect_identical(attr(mt, "defining"), "observed")
+  dropped <- mt[, c("actor", "role")]
+  expect_false(inherits(dropped, "margin_table"))
+  expect_s3_class(dropped, "tbl_df")
+  expect_null(attr(dropped, "context"))
+  expect_s3_class(mt[, c("actor", "observed")], "margin_table")
 })
 
 test_that("the conditional component decomposes the exact-time loglik", {

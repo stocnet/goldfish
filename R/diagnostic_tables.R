@@ -204,22 +204,42 @@ node_labels <- function(nodes) {
 #'   \item{`params`}{a list of the producer's own arguments that shape how the
 #'     table is read.}
 #'   \item{`version`}{the goldfish version that produced the object.}
+#'   \item{`defining`}{the columns without which the table is no longer the
+#'     diagnostic object — the flag column a print counts and the series a
+#'     plot draws.}
 #' }
+#'
+#' The schema does not vary with the result. A `diagnose_outliers()` table
+#' that flags nothing has the same columns and the same one row per interval
+#' as one that flags ten, with `outlier` all `FALSE`; an expected column that
+#' the model family does not define is `NA` rather than absent. Emptiness
+#' lives in the content, never in the shape, so a consumer reads one schema in
+#' every case.
 #'
 #' A tibble base keeps a diagnostic table usable with the ordinary data
 #' verbs: subsetting with `[`, and dplyr's `filter()`, `mutate()` and
 #' `arrange()`, preserve the class and the metadata. A `group_by()` plus
 #' `summarise()` drops them, which is correct -- the summary is no longer the
-#' diagnostic object.
+#' diagnostic object. **An operation that removes a defining column drops
+#' them for the same reason**: the object returns as a plain tibble, the way
+#' a `grouped_df` demotes when its groups are gone. Without that, a column
+#' subset would keep the class while the print method counted a flag column
+#' that is no longer there, reporting no findings on a table that has them.
 #'
 #' @name diagnostic-tables
 #' @seealso [margin_table()], the producer of the first diagnostic table.
 NULL
 
-new_diagnostic_table <- function(df, class, context = list(), params = list()) {
+new_diagnostic_table <- function(
+  df,
+  class,
+  context = list(),
+  params = list(),
+  defining = character()
+) {
   out <- tibble::as_tibble(df)
   class(out) <- c(class, class(out))
-  stamp_diagnostic_metadata(out, class, context, params)
+  stamp_diagnostic_metadata(out, class, context, params, defining)
 }
 
 # The same contract where one rectangle does not hold the object: a classed
@@ -237,12 +257,68 @@ new_diagnostic_list <- function(
   stamp_diagnostic_metadata(out, class, context, params)
 }
 
-stamp_diagnostic_metadata <- function(out, class, context, params) {
+stamp_diagnostic_metadata <- function(
+  out,
+  class,
+  context,
+  params,
+  defining = character()
+) {
   attr(out, "diagnostic") <- class
   attr(out, "context") <- context
   attr(out, "params") <- params
   attr(out, "version") <- as.character(utils::packageVersion("goldfish"))
+  if (length(defining) > 0) {
+    attr(out, "defining") <- defining
+  }
   out
+}
+
+# Demotion: what happens when an operation returns a table missing a column
+# that defines it. Class preservation through `[` is the feature -- a filtered
+# or reordered table is still the diagnostic object -- and it is also the
+# hazard, because a print or plot method then reads a column that is gone and
+# reports a wrong number instead of failing. Losing the defining column is
+# losing the object, which is how a `grouped_df` treats losing its groups.
+demote_if_incomplete <- function(out) {
+  defining <- attr(out, "defining")
+  if (is.null(defining) || all(defining %in% names(out))) {
+    return(out)
+  }
+  for (name in c("diagnostic", "context", "params", "version", "defining")) {
+    attr(out, name) <- NULL
+  }
+  class(out) <- c("tbl_df", "tbl", "data.frame")
+  out
+}
+
+# One rule for every diagnostic table, reached by two routes: base subsetting
+# and, when dplyr is attached, the reconstruction step its verbs restore
+# attributes through.
+#' @export
+`[.diagnose_outliers` <- function(x, ...) {
+  out <- NextMethod()
+  demote_if_incomplete(out)
+}
+
+#' @export
+`[.diagnose_changepoints` <- function(x, ...) {
+  out <- NextMethod()
+  demote_if_incomplete(out)
+}
+
+#' @export
+`[.margin_table` <- function(x, ...) {
+  out <- NextMethod()
+  demote_if_incomplete(out)
+}
+
+# dplyr is not a goldfish dependency, so the reconstruction method is
+# registered only if dplyr is loaded -- and then the same rule applies to
+# `select()`, `filter()` and the rest of the verbs that route through it.
+dplyr_reconstruct_diagnostic <- function(data, template) {
+  out <- NextMethod()
+  demote_if_incomplete(out)
 }
 
 # The margins accessor --------------------------------------------------------
@@ -351,7 +427,8 @@ margin_table.result.goldfish <- function(x, ...) {
     rows$table,
     class = "margin_table",
     context = margin_context(x, rows),
-    params = list(scales = rows$defined_scales)
+    params = list(scales = rows$defined_scales),
+    defining = "observed"
   )
 }
 
@@ -387,7 +464,8 @@ margin_table.flavored_result.goldfish <- function(x, ...) {
     do.call(rbind, tables),
     class = "margin_table",
     context = context,
-    params = list(scales = defined)
+    params = list(scales = defined),
+    defining = "observed"
   )
 }
 
