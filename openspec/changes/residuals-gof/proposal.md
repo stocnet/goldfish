@@ -47,9 +47,12 @@ auxiliary statistics) waits for DyNES to land.
   in-sample `predict(type = c("probabilities", "ranks"))`, and
   `augment()` gaining `.fitted`/`.resid` columns (broom alignment).
 - New test functions (test_* surface only; no `gof()` generic, avoiding the
-  `ergm::gof` mask): `test_gof()` (Boschi–Wit bridge: per-effect Kolmogorov
-  + per-block and joint Cauchy omnibus, dispatching on the
-  `make_specification()`-based fit), `test_parameter()` (score/LM test at a
+  `ergm::gof` mask): `test_gof()` (Boschi–Wit bridge: per-effect Kolmogorov,
+  dispatching on the `make_specification()`-based fit, which reports its
+  **individual per-block tests**; the per-block and joint Cauchy omnibus are
+  computed and carried on the object but **not printed** until a
+  null-calibration study has been run for them, and `test_gof()` ships
+  `lifecycle::badge("experimental")` to say so — D33), `test_parameter()` (score/LM test at a
   constrained fit; the Wald form for multi-parameter combinations is
   deferred post-release, 2026-07-19 decision),
   `test_time()` (`method = c("trend", "periods")`: zph-style scaled-
@@ -63,7 +66,13 @@ auxiliary statistics) waits for DyNES to land.
   accrual curve from stored primitives — the frequentist counterpart of
   the PSIS-LOO Pareto-k flag on history-less first events); `"cooks"`
   residual type; the canonical residuals page carries an explicit caveats
-  section (likelihood- vs history-deletion, onset reading).
+  section (likelihood- vs history-deletion, onset reading). On the exact-time
+  families the time intercept is tested like any other free coefficient, and
+  documented for what its row is: its cumulative score is the
+  counting-process martingale `N(t) - Lambda(t)`, so it tests **baseline
+  constancy** rather than an effect's functional form — an extension beyond
+  the cited implementation, whose case-control differenced design has no
+  intercept to test (D34).
 - Diagnostic result objects carry all plot-ready data with cli print
   methods; **all plotting lives in autograph** (branch
   `feature/goldfish-diag` off `develop`): new plot methods for the test and

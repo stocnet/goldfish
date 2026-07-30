@@ -2008,6 +2008,105 @@ separate. Named but not shipped: a CvM/AD functional, where the clock
 enters even asymptotically through `du` — the future lever if the grid
 correction proves too weak at realistic n.
 
+### D33 — `test_gof()` ships experimental, and the omnibus is computed but not printed (user, 2026-07-30)
+
+Two consequences of one gap. The per-effect test earned its place with a
+measured null-coverage study (300 replications, two clocks, the accrual
+concentration verified first). The **omnibus** was implemented beside it and
+never simulated at all, and the only worked example — the four-block flavored
+fixture — returns a joint p of 0.99999989 that one term of six supplies
+entirely, because `tan(pi(0.5 - p))` diverges at *both* ends and a p-value near
+1 dominates exactly as a tiny one does. Written up with the measurements in
+ADR-0002/ADR-0003 of the decision record and in
+`.plan/sp/gof_boschi_implement.md` §5.
+
+**The decision, two parts:**
+
+1. **The combination is computed and carried, but not printed.** `x$omnibus`
+   and `attr(x, "context")$joint` stay exactly as they are — the autograph data
+   contract is untouched, and the validation study ADR-0003 calls for can run
+   against shipped objects rather than reimplementing the combination. The
+   print methods report per-effect rows grouped by block and stop there. A
+   flavored fit therefore reports its **individual** tests and no combination.
+   Un-suppressing later is a print-only change, which is the reason this beats
+   removing the component: the alternative breaks the object shape twice, once
+   now and once when the evidence arrives.
+2. **`test_gof()` carries `lifecycle::badge("experimental")`**, the badge six
+   surfaces in the package already use (`as_goldfish()`, `add_flavor()`,
+   `make_specification()`, `state_at()`, the `optimizer` argument). It is the
+   honest signal for a function whose per-effect surface is validated, whose
+   combination surface is not, and whose intercept row (D34) is an extension
+   beyond the reference implementation.
+
+Not chosen: dropping the omnibus component outright — it breaks the shape
+twice and forces the study to recompute what the package already knows how to
+compute. Not chosen either: suppressing only the cross-block joint while
+keeping the per-block rows — the measured domination is identical at both
+levels, so that line falls where the evidence does not.
+
+**How long the suppression stands.** The validation study is scheduled
+**post-2.0.0** (user, 2026-07-30), so this is the shipped state for the whole
+2.0.0 line, not a few weeks' caution. That is what the pairing buys: the
+release presents no unvalidated model-level verdict, while the quantity stays
+on the object so the post-release study runs against shipped fits rather than
+a reimplementation. Task 4.8 is **not** the study's home — it is inside the
+release and would have to ship before the study exists.
+
+### D34 — The intercept is a tested effect, and its row is the counting-process martingale (user, 2026-07-30)
+
+The time intercept reaches the kernels as a literal column of ones
+(`prepare_statslist()` prepends `cbind(1, ...)` for the sender families, a
+ones-slice for REM), so no kernel special-cases it and neither does
+`test_gof()`: it is column 1 of `event_scores` and enters the default tested
+set as any other free coefficient. What that produces is worth stating,
+because it is not what the reference implementation tests.
+
+On the exact-time families the score row is `x_obs - Dt * sum_i lambda_i x_i`
+on a dependent interval and `-Dt * sum_i lambda_i x_i` on a right-censored one.
+With `x = 1` the two branches collapse to
+
+```
+  s_k(Intercept) = dN_k - Dt_k * total_rate_k
+                 = dN_k - Lambda_k        (the Cox-Snell compensator)
+```
+
+verified bit-for-bit against `residuals(fit, type = "cox_snell")`. Its
+cumulative sum is therefore `N(t) - Lambda(t)`, the counting-process
+martingale, and the score equation `sum_k s_k = 0` is `N(T) = Lambda(T)`. Every
+other effect's cumulative score is the same object weighted by that effect's
+statistic, so the intercept is the **unweighted member of the family** — the
+plain martingale residual rather than a covariate-weighted one.
+
+**The consequences that shape the documentation:**
+
+- **Composition versus volume.** A covariate row asks whether the model is
+  right about *who* acts; the intercept row asks whether it is right about *how
+  many* events and *when*. They route a user to different remedies — a
+  wandering intercept calls for a time-varying baseline, a period split, or a
+  corrected presence schedule, not for another choice effect.
+- **`rate_ordered` has no such row and cannot.** The ordinal families model
+  who, conditional on when; the intercept cancels in the softmax and a constant
+  column would give `s_k = 1 - sum_i p_i = 0` identically — the degeneracy
+  `test_gof()` already aborts on. goldfish drops it upstream with a warning, so
+  the abort is unreachable by that route. On those families the martingale is
+  the discrete event-index one, `sum (observed - expected)`, with no
+  compensator and no censored intervals.
+- **This is outside the reference implementation's scope.** `amorem` 1.0.0 fits
+  `one ~ d_stat1 + ... - 1` on case-control *differenced* covariates, so an
+  intercept differences to zero and is excluded by the formula as well — the
+  same reason a Cox partial likelihood has no baseline. goldfish's parametric
+  baseline is an extra assumption relative to Cox, and this row is the test of
+  it: a cost that buys a diagnostic.
+- **It is the row most likely to need `clock = "information"`.** Its increment
+  variance is approximately `Lambda_k`, which swings with interval length, so
+  on irregular event times it has the coarsest effective grid of any effect.
+
+Also noted while reading `amorem`: it *forces* the bridge
+(`cum_centered <- cum - outer(u, cum[n, ])`), where goldfish uses the raw
+cumulative sum and lets the maximum deliver the endpoint. goldfish's
+"process ends at zero" scenario is a real check for that reason and would be
+vacuous under the other convention; the difference is deliberate and stays.
+
 ## Risks / Trade-offs
 
 - [BREAKING class rename of `diagnose_*` returns] → goldfish and autograph

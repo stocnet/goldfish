@@ -21,11 +21,20 @@ default clock — the analytic Kolmogorov p-value
 `p(t) = 2 * sum_{j>=1} (-1)^{j-1} exp(-2 j^2 t^2)`.
 Effect-level p-values SHALL be combined per submodel block and jointly via
 the Cauchy combination `T_o = mean(tan(pi * (0.5 - P_l)))` with
-`p = 1/2 - atan(T_o)/pi`. Methods SHALL exist for `result.goldfish`
-(single submodel) and for the specification-based fit (per-block tests
-plus joint omnibus). On a flavored specification fit the blocks are per
-process (fid) × submodel: each process is tested exactly as a single-model
-fit and the joint omnibus combines across processes. Offset
+`p = 1/2 - atan(T_o)/pi`. The combination SHALL be **computed and carried on
+the returned object** — per block, and jointly in the metadata — and SHALL
+NOT be rendered by the print methods until a null-calibration and power study
+has been run for it: the per-effect test is validated by simulation and the
+combination is not, and `tan(pi * (0.5 - P))` diverges at both ends, so a
+p-value near 1 dominates the combination exactly as a tiny one does and can
+mask a significant effect elsewhere. Suppression at the print rather than
+removal from the object is deliberate — the plot-data contract does not move,
+and the study can run against shipped objects. Methods SHALL exist for
+`result.goldfish` (single submodel) and for the specification-based fit
+(per-block tests plus joint omnibus). On a flavored specification fit the
+blocks are per process (fid) × submodel: each process is tested exactly as a
+single-model fit, the printed report is the **per-block individual tests**,
+and the joint omnibus combines across processes on the object. Offset
 (fixed-coefficient) terms SHALL be excluded from the tested effects (their
 score processes are not bridges — a fixed coefficient's score component is
 not zero at the optimum); testing an offset term SHALL abort with a cli
@@ -100,8 +109,56 @@ separate.
 #### Scenario: specification fit combines blocks
 - **WHEN** `test_gof()` runs on a specification-based fit with rate and
   choice blocks
-- **THEN** the result reports per-effect tests within each block, a
+- **THEN** the returned object carries per-effect tests within each block, a
   per-block Cauchy omnibus, and a joint omnibus over all blocks.
+
+#### Scenario: the printed report shows the individual tests only
+- **WHEN** a `test_gof()` result is printed, on a single fit or on a
+  specification fit
+- **THEN** the output shows the per-effect statistics and p-values, grouped by
+  block where there is more than one, and shows no omnibus value at any level,
+  while `x$omnibus` and `attr(x, "context")$joint` still carry them
+
+### Requirement: test_gof is experimental
+`test_gof()` SHALL carry the `lifecycle::badge("experimental")` marker on its
+documentation, in the form the package already uses on `as_goldfish()`,
+`add_flavor()`, `make_specification()` and `state_at()`. The badge SHALL be
+accompanied by prose naming what is provisional: the combination surface,
+which is computed but unvalidated and unprinted, and the intercept row, which
+extends the cited test rather than reproducing it.
+
+#### Scenario: the badge names what is provisional
+- **WHEN** the `test_gof()` documentation is read
+- **THEN** it shows the experimental badge and states that the per-effect test
+  is validated by simulation while the omnibus combination is not
+
+### Requirement: the intercept is tested and documented as the baseline check
+On the exact-time (Poisson) families the time intercept SHALL be tested as any
+other free coefficient, and the documentation SHALL state what its row means:
+its per-interval score is `dN_k - Dt_k * total_rate_k`, so its cumulative
+process is the counting-process martingale `N(t) - Lambda(t)` and its test is a
+test of **baseline constancy** — whether the fitted intensity reproduces the
+observed event flow over time — rather than a test of an effect's functional
+form. The documentation SHALL name the misspecifications it signals
+(non-constant baseline, a missing global time-varying covariate, an incorrect
+presence/exposure schedule, temporal clustering beyond the fitted intensity,
+degenerate or tied timestamps), SHALL state that the remedies differ from those
+of a covariate row, and SHALL record that the ordinal (`rate_ordered`) families
+carry no intercept — it cancels in the softmax, a constant column there having
+identically zero score — so no such row exists on them.
+
+#### Scenario: the intercept row reads as the martingale residual
+- **WHEN** `test_gof()` runs on an exact-time rate or REM fit with a time
+  intercept
+- **THEN** the intercept's stored score column equals `dN_k` minus the
+  Cox-Snell compensator of the same interval, and its cumulative process is the
+  counting-process martingale, zero at the maximum by the intercept score
+  equation
+
+#### Scenario: an ordinal fit has no intercept row
+- **WHEN** `test_gof()` runs on a `rate_ordered` fit
+- **THEN** no intercept appears among the tested effects, that family carrying
+  none
 
 ### Requirement: test_parameter score test
 `test_parameter()` SHALL implement the score (LM) test of the fit's
@@ -250,14 +307,16 @@ strings.
 Each test function SHALL return a classed object whose `print()` method
 renders via cli semantic elements (headers, bullet lists, pluralization,
 data interpolation — no literal markup), reporting statistics, degrees of
-freedom or process dimension, p-values, and the omnibus combination where
-applicable. Print output SHALL be covered by snapshot tests with a pinned
+freedom or process dimension, and p-values. The `test_gof()` print SHALL NOT
+render the omnibus combination at any level while it is unvalidated (see the
+bridge-test requirement); the other test functions render whatever
+combination they define. Print output SHALL be covered by snapshot tests with a pinned
 reproducible cli context.
 
-#### Scenario: printed omnibus summary
+#### Scenario: printed block summary
 - **WHEN** a `test_gof()` result for a specification fit is printed
 - **THEN** the output shows per-effect statistics and p-values grouped by
-  block, and the joint Cauchy omnibus p-value, rendered through cli.
+  block, rendered through cli, and no omnibus value.
 
 ### Requirement: diagnostics of a flavored fit map over its processes
 Every `test_*` and `diagnose_*` function SHALL apply to each process of a
