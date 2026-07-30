@@ -8,6 +8,8 @@
 #' Goodness of fit from the cumulative score processes
 #'
 #' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Tests whether each effect's contribution is spread over the event sequence
 #' the way the model assumes. At the maximum the per-event scores sum to zero,
 #' so each effect's cumulative score process starts and ends at zero: under a
@@ -18,6 +20,29 @@
 #'
 #' It reads the stored per-event scores, so it costs no evaluation pass and
 #' needs no preprocessed statistics.
+#'
+#' @section What is experimental here:
+#' The per-effect test is validated: its null coverage is measured by
+#' simulation, under both clocks, on a fixture whose information accrual is
+#' verified concentrated first. Two things beside it are not, and the badge is
+#' for them.
+#'
+#' **The omnibus combination is computed but not reported.** The object carries
+#' the per-block Cauchy combination in `omnibus` and the joint one in
+#' `attr(x, "context")$joint`, and the print methods show neither. It has had
+#' no null-calibration or power study, and it is dominated by its most extreme
+#' input in *both* directions — one effect with a very small p-value drags it
+#' toward 0, and one whose process is unusually flat drags it toward 1, far
+#' enough to mask a significant effect elsewhere. Read the per-effect rows.
+#' The quantity is kept on the object rather than removed so that the study,
+#' when it runs, can use saved fits.
+#'
+#' **The intercept row extends the cited test rather than reproducing it.** The
+#' reference implementations fit a case-control differenced (conditional
+#' logistic) design, in which a constant differences to zero, so they have no
+#' intercept to test — the same reason a Cox partial likelihood has no
+#' baseline. goldfish's parametric baseline makes the row available, and its
+#' reading is given below.
 #'
 #' @details
 #' For effect \eqn{d} with per-event score contributions \eqn{s_{kd}}, the
@@ -92,6 +117,53 @@
 #' and naming one in `effects` is an error pointing at [test_parameter()],
 #' which is the test of an imposed value.
 #'
+#' @section The intercept row is a different question:
+#' On the exact-time sub-models the time intercept is tested like any other
+#' free coefficient, but what its row means is not the same thing.
+#'
+#' The intercept reaches the engine as a column of ones, so its per-interval
+#' score is `dN_k - Dt_k * total_rate_k` — the interval's event indicator
+#' minus its compensator, which is exactly the `cox_snell` residual of the
+#' same interval. Its cumulative process is therefore
+#' \eqn{N(t) - \Lambda(t)}, the counting-process martingale, and the score
+#' equation that pins it to zero at the end is \eqn{N(T) = \Lambda(T)}: the
+#' fitted model reproduces the observed number of events.
+#' Every other effect's cumulative score is that same object
+#' weighted by the effect's own statistic, so the intercept is the
+#' **unweighted** member of the family.
+#'
+#' The practical consequence is that it asks about a different part of the
+#' model:
+#' \describe{
+#'   \item{a covariate row}{asks whether the model is right about *who* acts —
+#'     whether that statistic's contribution is spread over the sequence the
+#'     way a fixed coefficient implies.}
+#'   \item{the intercept row}{asks whether it is right about *how many* events
+#'     occur and *when* — whether the fitted intensity reproduces the observed
+#'     event flow. It is the classical counting-process goodness-of-fit check.}
+#' }
+#'
+#' A wandering intercept process points at a non-constant baseline (a trend,
+#' burn-in or saturation), a periodic rhythm the model does not carry, a
+#' missing global time-varying covariate, an incorrect presence or exposure
+#' schedule — the normalizer sums over the *active* actors, so a wrong
+#' composition schedule lands here — or temporal clustering beyond the fitted
+#' intensity. A conspicuously *flat* one points at degenerate timing: ties,
+#' rounded timestamps, or a deterministic grid. The remedies differ from a
+#' covariate row's accordingly: a time-varying baseline, a period comparison
+#' through [test_time()], or a corrected presence schedule, rather than another
+#' effect in the choice model.
+#'
+#' It is also the row most likely to want `clock = "information"`. Its
+#' increment variance is approximately the interval's compensator, which swings
+#' with interval length, so on irregular event times it is observed on the
+#' coarsest grid of any effect.
+#'
+#' The ordinal sub-models (`rate_ordered`, and the choice families) carry no
+#' intercept at all: they condition on the event times, an intercept cancels in
+#' the softmax, and a constant column there would have identically zero score.
+#' No such row exists on those fits, and none is missing.
+#'
 #' @param object a fitted model of class `"result.goldfish"`, estimated with
 #'   `"scores"` among the [set_algorithm_newton()] `diagnostics` primitives;
 #'   for the print method, the `test_gof` object it renders.
@@ -119,7 +191,8 @@
 #'       which clock produced it, and `process` the value of \eqn{W_d(u)}.
 #'       Step `0` is the origin, so every path starts at `u = 0`, `W = 0`.}
 #'     \item{`omnibus`}{one row: the Cauchy combination of the effect-level
-#'       p-values, with the number of effects combined.}
+#'       p-values, with the number of effects combined. Present on the object
+#'       and **deliberately not printed** — see the experimental section.}
 #'   }
 #'
 #' @references
@@ -426,8 +499,10 @@ check_replication_count <- function(n_sim, call = rlang::caller_env()) {
 #' Goodness of fit of a multi-process specification
 #'
 #' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Tests each process of a specification fit exactly as [test_gof()] tests a
-#' single fit, and combines the results.
+#' single fit, and reports the individual per-block results.
 #'
 #' A flavored specification is K *independent* fits — the competing-flavor
 #' likelihood factorizes, which is why nothing here is pooled. Each block is a
@@ -445,7 +520,9 @@ check_replication_count <- function(n_sim, call = rlang::caller_env()) {
 #' `omnibus` gains one row per block — that block's Cauchy combination over
 #' its own effects. The **joint** omnibus is a property of the whole object
 #' rather than of any row, so it lives in the metadata, reachable as
-#' `attr(x, "context")$joint`, and the print method reports it.
+#' `attr(x, "context")$joint`. Neither is printed: the printed report is the
+#' per-block individual tests, for the reason given under
+#' [test_gof.result.goldfish()]'s experimental section.
 #'
 #' The joint combination is taken over the **effect-level** p-values of every
 #' block, not over the per-block omnibus values. A block carrying more effects
@@ -471,7 +548,8 @@ check_replication_count <- function(n_sim, call = rlang::caller_env()) {
 #' @return An object of class `test_gof`, shaped exactly as the single-fit
 #'   result and documented at [test_gof.result.goldfish()], with `flavor` and
 #'   `family` columns appended to each component and the joint omnibus in the
-#'   metadata.
+#'   metadata. The printed report shows the per-block individual tests; no
+#'   combination is rendered at either level.
 #'
 #' @seealso [test_gof.result.goldfish()] for what each block's test is.
 #' @method test_gof flavored_result.goldfish
@@ -596,40 +674,34 @@ print.test_gof <- function(x, ...) {
     "Supremum of the standardized cumulative score process, against
      {gof_reference_label(params)}."
   )
+  # The Cauchy combination is computed and carried on the object, and
+  # deliberately not shown: the per-effect test is validated by simulation and
+  # the combination is not, and it is dominated by its most extreme input in
+  # BOTH directions -- one effect whose process is unusually flat drags it
+  # toward 1 far enough to mask a significant effect elsewhere. Suppressing at
+  # the print rather than dropping the component keeps the plot-data contract
+  # stable and lets the validation study run against saved objects.
   if (blocked) {
     gof_print_blocks(x)
-    joint <- context$joint
-    cli::cli_text("")
-    cli::cli_text(
-      "Joint Cauchy omnibus over {joint$n_effects} effect{?s} in
-       {joint$n_blocks} block{?s}:
-       {.field p} = {format.pval(joint$p_value, digits = 3)}"
-    )
   } else {
-    omnibus <- x$omnibus
-    cli::cli_text(
-      "Cauchy omnibus over {omnibus$n_effects} effect{?s}:
-       {.field p} = {format.pval(omnibus$p_value, digits = 3)}"
-    )
     print(x$effects)
   }
   invisible(x)
 }
 
 # The per-block listing: one section per process, in the container's own
-# flavor-major order, headed by that block's omnibus. The identity columns are
-# dropped from each section's table because the header just said them, and
-# repeating a constant down every row is what makes a blocked print unreadable.
+# flavor-major order. The identity columns are dropped from each section's
+# table because the header just said them, and repeating a constant down every
+# row is what makes a blocked print unreadable. The block ordering comes from
+# `omnibus`, which carries exactly one row per block in that order -- the
+# combination it also carries is not shown, for the reason stated at the print.
 gof_print_blocks <- function(x) {
   omnibus <- x$omnibus
   for (i in seq_len(nrow(omnibus))) {
     flavor <- omnibus$flavor[i]
     family <- omnibus$family[i]
     cli::cli_text("")
-    cli::cli_text(
-      "{.strong {flavor}} · {.field {family}} —
-       omnibus {.field p} = {format.pval(omnibus$p_value[i], digits = 3)}"
-    )
+    cli::cli_text("{.strong {flavor}} · {.field {family}}")
     rows <- x$effects$flavor == flavor & x$effects$family == family
     block <- x$effects[rows, c("term", "statistic", "p_value")]
     print(block)

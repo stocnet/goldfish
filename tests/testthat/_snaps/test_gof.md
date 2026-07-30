@@ -55,7 +55,6 @@
       16 intervals, 12 dependent events; 4 effects tested.
       Supremum of the standardized cumulative score process, against the Kolmogorov
       distribution on the event clock.
-      Cauchy omnibus over 4 effects: p = 0.922
     Output
       
 
@@ -69,7 +68,6 @@
       16 intervals, 12 dependent events; 4 effects tested.
       Supremum of the standardized cumulative score process, against 100 simulated
       bridges on the information clock.
-      Cauchy omnibus over 4 effects: p = 0.68
     Output
       
 
@@ -86,7 +84,7 @@
       i Available: "Intercept" and "indeg/calls".
       i Search them with `model_terms(fit, pattern = )`.
 
-# the blocked print groups by process and ends on the joint
+# the blocked print groups by process, with no combination
 
     Code
       print(test_gof(container))
@@ -96,7 +94,7 @@
       Supremum of the standardized cumulative score process, against the Kolmogorov
       distribution on the event clock.
       
-      creation · rate — omnibus p = 1
+      creation · rate
     Output
       # A tibble: 2 x 3
         term        statistic p_value
@@ -105,7 +103,7 @@
       2 indeg/calls     0.647   0.797
     Message
       
-      creation · choice — omnibus p = 0.951
+      creation · choice
     Output
       # A tibble: 1 x 3
         term        statistic p_value
@@ -113,7 +111,7 @@
       1 trans/calls     0.519   0.951
     Message
       
-      dissolution · rate — omnibus p = 0.926
+      dissolution · rate
     Output
       # A tibble: 2 x 3
         term        statistic p_value
@@ -122,13 +120,10 @@
       2 indeg/calls     0.805   0.536
     Message
       
-      dissolution · choice — omnibus p = 0.387
+      dissolution · choice
     Output
       # A tibble: 1 x 3
         term        statistic p_value
         <chr>           <dbl>   <dbl>
       1 trans/calls     0.904   0.387
-    Message
-      
-      Joint Cauchy omnibus over 6 effects in 4 blocks: p = 1
 

@@ -421,7 +421,7 @@ test_that("a term absent from one process names that process", {
   expect_snapshot(test_gof(container, effects = "trans/calls"), error = TRUE)
 })
 
-test_that("the blocked print groups by process and ends on the joint", {
+test_that("the blocked print groups by process, with no combination", {
   withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
   container <- gof_container()
   expect_snapshot(print(test_gof(container)))
@@ -440,4 +440,73 @@ test_that("the Cauchy combination survives a p-value at the pole", {
     expect_gte(combined, 0)
     expect_lte(combined, 1)
   }
+})
+
+# The intercept row. On the exact-time families it is a column of ones, so its
+# score is the counting-process martingale increment itself, and its test is a
+# test of baseline constancy rather than of an effect's functional form.
+
+test_that("the intercept's score is the event indicator minus the compensator", {
+  fit <- gof_fixture(
+    control_algo = set_algorithm_newton(diagnostics = c("loglik", "scores"))
+  )
+  intercept <- which(colnames(fit$event_scores) == "Intercept")
+  expect_length(intercept, 1L)
+
+  # dN_k - Dt_k * total_rate_k, and the second term is exactly the Cox-Snell
+  # residual of the same interval. Identical, not merely close: the intercept
+  # column of the statistics is 1 everywhere, so the two are the same
+  # arithmetic.
+  observed <- as.numeric(!fit$right_censored_events)
+  compensator <- residuals(fit, type = "cox_snell")
+  expect_equal(fit$event_scores[, intercept], observed - compensator)
+
+  # Hence the cumulative process is N(t) - Lambda(t), and its score equation
+  # is N(T) = Lambda(T): the fit reproduces the observed number of events.
+  expect_equal(sum(observed), sum(compensator), tolerance = 1e-5)
+  gof <- test_gof(fit)
+  path <- gof$process$process[gof$process$index == intercept]
+  expect_equal(path[1], 0)
+  expect_equal(path[length(path)], 0, tolerance = 1e-5)
+})
+
+test_that("an ordinal fit has no intercept row to test", {
+  # rate_ordered conditions on the event times, so the intercept cancels in the
+  # softmax and goldfish drops it upstream. A constant column there would have
+  # identically zero score, which is the degeneracy the test aborts on -- so
+  # the absence is what keeps that abort unreachable by this route.
+  fit <- suppressWarnings(estimate_wrapper(
+    depNetwork ~ 1 + indeg + outdeg,
+    model = "DyNAM",
+    sub_model = "rate_ordered",
+    data = dataTest,
+    control_algo = set_algorithm_newton(diagnostics = "scores")
+  ))
+  expect_false("Intercept" %in% colnames(fit$event_scores))
+  expect_false(any(fit$right_censored_events))
+  expect_false("Intercept" %in% test_gof(fit)$effects$term)
+})
+
+test_that("the omnibus is carried on the object but never printed", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  fit <- gof_fixture()
+  gof <- test_gof(fit)
+  blocked <- test_gof(gof_container())
+
+  # Still computed and still reachable -- the suppression is a print decision,
+  # not a contract change, so a saved object stays usable by the validation
+  # study the badge points at.
+  expect_s3_class(gof$omnibus, "tbl_df")
+  expect_s3_class(blocked$omnibus, "tbl_df")
+  expect_s3_class(attr(blocked, "context")$joint, "tbl_df")
+
+  # And absent from every printed line, at both levels.
+  printed <- c(
+    capture.output(print(gof)),
+    capture.output(print(blocked)),
+    capture.output(print(gof), type = "message"),
+    capture.output(print(blocked), type = "message")
+  )
+  expect_false(any(grepl("omnibus", printed, ignore.case = TRUE)))
+  expect_false(any(grepl("Cauchy", printed, ignore.case = TRUE)))
 })

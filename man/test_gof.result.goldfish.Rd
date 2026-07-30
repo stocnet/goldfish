@@ -48,12 +48,15 @@ per effect and step, with \code{u} the process-time axis, \code{clock} naming
 which clock produced it, and \code{process} the value of \eqn{W_d(u)}.
 Step \code{0} is the origin, so every path starts at \code{u = 0}, \code{W = 0}.}
 \item{\code{omnibus}}{one row: the Cauchy combination of the effect-level
-p-values, with the number of effects combined.}
+p-values, with the number of effects combined. Present on the object
+and \strong{deliberately not printed} — see the experimental section.}
 }
 
 The object, invisibly.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Tests whether each effect's contribution is spread over the event sequence
 the way the model assumes. At the maximum the per-event scores sum to zero,
 so each effect's cumulative score process starts and ends at zero: under a
@@ -89,6 +92,31 @@ rows are genuine contributions to the gradient, and it is over \emph{all}
 intervals that the gradient is zero. A process restricted to the dependent
 events would have no bridge property to be read against.
 }
+\section{What is experimental here}{
+
+The per-effect test is validated: its null coverage is measured by
+simulation, under both clocks, on a fixture whose information accrual is
+verified concentrated first. Two things beside it are not, and the badge is
+for them.
+
+\strong{The omnibus combination is computed but not reported.} The object carries
+the per-block Cauchy combination in \code{omnibus} and the joint one in
+\code{attr(x, "context")$joint}, and the print methods show neither. It has had
+no null-calibration or power study, and it is dominated by its most extreme
+input in \emph{both} directions — one effect with a very small p-value drags it
+toward 0, and one whose process is unusually flat drags it toward 1, far
+enough to mask a significant effect elsewhere. Read the per-effect rows.
+The quantity is kept on the object rather than removed so that the study,
+when it runs, can use saved fits.
+
+\strong{The intercept row extends the cited test rather than reproducing it.} The
+reference implementations fit a case-control differenced (conditional
+logistic) design, in which a constant differences to zero, so they have no
+intercept to test — the same reason a Cox partial likelihood has no
+baseline. goldfish's parametric baseline makes the row available, and its
+reading is given below.
+}
+
 \section{What the clock changes, and what it does not}{
 
 A supremum reads the values a path takes, never the positions they are
@@ -140,6 +168,55 @@ bridge to test — its score component is not zero at the optimum, precisely
 because it was not optimized — so offsets are excluded from the default set
 and naming one in \code{effects} is an error pointing at \code{\link[=test_parameter]{test_parameter()}},
 which is the test of an imposed value.
+}
+
+\section{The intercept row is a different question}{
+
+On the exact-time sub-models the time intercept is tested like any other
+free coefficient, but what its row means is not the same thing.
+
+The intercept reaches the engine as a column of ones, so its per-interval
+score is \code{dN_k - Dt_k * total_rate_k} — the interval's event indicator
+minus its compensator, which is exactly the \code{cox_snell} residual of the
+same interval. Its cumulative process is therefore
+\eqn{N(t) - \Lambda(t)}, the counting-process martingale, and the score
+equation that pins it to zero at the end is \eqn{N(T) = \Lambda(T)}: the
+fitted model reproduces the observed number of events.
+Every other effect's cumulative score is that same object
+weighted by the effect's own statistic, so the intercept is the
+\strong{unweighted} member of the family.
+
+The practical consequence is that it asks about a different part of the
+model:
+\describe{
+\item{a covariate row}{asks whether the model is right about \emph{who} acts —
+whether that statistic's contribution is spread over the sequence the
+way a fixed coefficient implies.}
+\item{the intercept row}{asks whether it is right about \emph{how many} events
+occur and \emph{when} — whether the fitted intensity reproduces the observed
+event flow. It is the classical counting-process goodness-of-fit check.}
+}
+
+A wandering intercept process points at a non-constant baseline (a trend,
+burn-in or saturation), a periodic rhythm the model does not carry, a
+missing global time-varying covariate, an incorrect presence or exposure
+schedule — the normalizer sums over the \emph{active} actors, so a wrong
+composition schedule lands here — or temporal clustering beyond the fitted
+intensity. A conspicuously \emph{flat} one points at degenerate timing: ties,
+rounded timestamps, or a deterministic grid. The remedies differ from a
+covariate row's accordingly: a time-varying baseline, a period comparison
+through \code{\link[=test_time]{test_time()}}, or a corrected presence schedule, rather than another
+effect in the choice model.
+
+It is also the row most likely to want \code{clock = "information"}. Its
+increment variance is approximately the interval's compensator, which swings
+with interval length, so on irregular event times it is observed on the
+coarsest grid of any effect.
+
+The ordinal sub-models (\code{rate_ordered}, and the choice families) carry no
+intercept at all: they condition on the event times, an intercept cancels in
+the softmax, and a constant column there would have identically zero score.
+No such row exists on those fits, and none is missing.
 }
 
 \examples{

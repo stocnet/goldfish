@@ -35,11 +35,14 @@ unused).}
 An object of class \code{test_gof}, shaped exactly as the single-fit
 result and documented at \code{\link[=test_gof.result.goldfish]{test_gof.result.goldfish()}}, with \code{flavor} and
 \code{family} columns appended to each component and the joint omnibus in the
-metadata.
+metadata. The printed report shows the per-block individual tests; no
+combination is rendered at either level.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Tests each process of a specification fit exactly as \code{\link[=test_gof]{test_gof()}} tests a
-single fit, and combines the results.
+single fit, and reports the individual per-block results.
 
 A flavored specification is K \emph{independent} fits — the competing-flavor
 likelihood factorizes, which is why nothing here is pooled. Each block is a
@@ -57,7 +60,9 @@ one level deeper.
 \code{omnibus} gains one row per block — that block's Cauchy combination over
 its own effects. The \strong{joint} omnibus is a property of the whole object
 rather than of any row, so it lives in the metadata, reachable as
-\code{attr(x, "context")$joint}, and the print method reports it.
+\code{attr(x, "context")$joint}. Neither is printed: the printed report is the
+per-block individual tests, for the reason given under
+\code{\link[=test_gof.result.goldfish]{test_gof.result.goldfish()}}'s experimental section.
 
 The joint combination is taken over the \strong{effect-level} p-values of every
 block, not over the per-block omnibus values. A block carrying more effects
