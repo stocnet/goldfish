@@ -49,11 +49,16 @@ joint_fid_bundles <- function(joint_spec) {
 
 # Plan one effect union per statistic block of a joint specification. Fids are
 # grouped by their `stat_block` (model + sub-model, the dispatch family), and
-# within each block every fid's effects are deduplicated into one set of union
-# columns; a fid's `effect_map` records which union column each of its own
-# effects occupies. Deduplication never crosses a block boundary: the same effect
-# label in DyNAM-choice and in REM resolves to different update functions, so
-# each block computes its own column (design D5).
+# within each block every fid's effects are deduplicated on their RESOLVED
+# identity into one set of union columns; a fid's `effect_map` records which
+# union column each of its own effects occupies. Because `build_effect_union()`
+# keys on the focal-substituted effect (not the raw label), a bare focal-relative
+# effect splits across the join's distinct focal layers -- `inertia` in the calls
+# process and in the emails process are separate columns -- while an
+# absolute-layer effect (`tie(friendship)`) pools to one column shared by both.
+# Deduplication never crosses a block boundary either: the same effect label in
+# DyNAM-choice and in REM resolves to different update functions, so each block
+# computes its own column (design D5).
 #
 # Fids are processed in ascending fid order within a block (the canonical order
 # the `process_map` is built in), so union first-appearance order is

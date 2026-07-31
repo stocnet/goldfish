@@ -149,21 +149,61 @@ test_that("build_route_index carries one routing row per fid of a joint spec", {
 
 # ---- Cross-process effect union ---------------------------------------------
 
-test_that("a cross-process shared effect occupies one union column", {
+test_that("a focal-relative effect splits per focal, an absolute effect pools", {
   js <- mv_join()
   blocks <- plan_block_unions(js)
   choice <- blocks[["DyNAM:choice"]]
 
-  # tie(friendship) and inertia are shared by both processes' choice formulas, so
-  # the union has exactly those two columns -- one computation feeding both fids.
-  expect_setequal(choice$union_labels, c("inertia", "tie(friendship)"))
-  fids <- as.character(js$process_map$fid[js$process_map$family == "choice"])
-  expect_length(fids, 2L)
-  # Each choice fid's effect_map indexes the SAME shared union columns.
-  expect_equal(choice$effect_maps[[fids[[1]]]], choice$effect_maps[[fids[[2]]]])
+  # Bare `inertia` is focal-relative: it resolves to each process's OWN focal, so
+  # calls' inertia and emails' inertia are DIFFERENT update columns. Pooling them
+  # on the shared raw label would be a silent cross-focal wrong-answer bug. The
+  # absolute `tie(friendship)` resolves identically under any focal and pools to
+  # one shared column.
   expect_setequal(
-    choice$effect_maps[[fids[[1]]]],
-    seq_along(choice$union_labels)
+    choice$union_labels,
+    c("inertia(calls)", "inertia(emails)", "tie(friendship)")
+  )
+
+  map <- js$process_map
+  calls_choice <- as.character(
+    map$fid[map$layer == "calls" & map$family == "choice"]
+  )
+  emails_choice <- as.character(
+    map$fid[map$layer == "emails" & map$family == "choice"]
+  )
+  inertia_calls <- match("inertia(calls)", choice$union_labels)
+  inertia_emails <- match("inertia(emails)", choice$union_labels)
+  tie_col <- match("tie(friendship)", choice$union_labels)
+
+  # Each process maps its own inertia column and the ONE shared tie column, in
+  # its formula order (`~ inertia + tie(friendship)`).
+  expect_equal(choice$effect_maps[[calls_choice]], c(inertia_calls, tie_col))
+  expect_equal(choice$effect_maps[[emails_choice]], c(inertia_emails, tie_col))
+})
+
+test_that("a bare rate effect splits per focal too", {
+  js <- mv_join()
+  blocks <- plan_block_unions(js)
+  rate <- blocks[["DyNAM:rate"]]
+
+  # `indeg` is bare in both rate formulas (`~ 1 + indeg`), so it resolves to each
+  # process's own focal -- the same per-focal split the choice block shows.
+  expect_setequal(rate$union_labels, c("indeg(calls)", "indeg(emails)"))
+
+  map <- js$process_map
+  calls_rate <- as.character(
+    map$fid[map$layer == "calls" & map$family == "rate"]
+  )
+  emails_rate <- as.character(
+    map$fid[map$layer == "emails" & map$family == "rate"]
+  )
+  expect_equal(
+    rate$effect_maps[[calls_rate]],
+    match("indeg(calls)", rate$union_labels)
+  )
+  expect_equal(
+    rate$effect_maps[[emails_rate]],
+    match("indeg(emails)", rate$union_labels)
   )
 })
 

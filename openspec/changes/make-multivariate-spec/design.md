@@ -358,11 +358,20 @@ lookup: an event is dependent for its own `(layer, flavor)` fids, a
 right-censoring boundary for every other timed rate fid (cross-process exactly
 as cross-flavor — the factorization note's argument is layer-agnostic), and
 state-only for choice/ordered fids. Effect deduplication extends across
-processes *within* a block (`tie(friendship)` in two processes' choice
-formulas is one column) and never across effect-dispatch families —
-`inertia(net)` in DyNAM-choice, choice_coordination, and REM resolve to
-different update functions even when mathematically kin; proving equivalences
-is the effect registry's business, not this change's. *Rejected:* per-process
+processes *within* a block but keys on the **resolved** effect identity — the
+canonical term label widened by each effect's focal-substituted object — not the
+raw formula label. So an absolute-layer effect (`tie(friendship)` in two
+processes' choice formulas) is one shared column, while a bare **focal-relative**
+effect (`inertia`, `indeg`) resolves to each process's own focal and therefore
+**splits per focal** (`inertia` under `calls` and under `emails` are distinct
+columns). Keying the dedup on the raw label alone would silently pool
+`inertia(calls)` with `inertia(emails)` — a cross-focal wrong-answer bug that a
+flavored/single-focal spec never exhibits (one focal, so raw and resolved keys
+coincide, and that path stays byte-identical). Deduplication likewise never
+crosses effect-dispatch families — `inertia(net)` in DyNAM-choice,
+choice_coordination, and REM resolve to different update functions even when
+mathematically kin; proving equivalences is the effect registry's business, not
+this change's. *Rejected:* per-process
 walks (recompute shared cross-process effects, walk the stream N times);
 a global effects table across blocks (parsing_link.md sketch — unsound, shapes
 and dispatch differ).

@@ -19,17 +19,75 @@
 # columns.
 # =========================================================================== #
 
+# The resolved object each of `raw_labels`' effects binds to, aligned to the
+# formula's canonical term labels. The parser substitutes the focal layer as the
+# object of an object-less effect (bare `inertia` becomes inertia on the focal),
+# so a parsed bundle's `rhs_names[[j]][[2]]` is effect j's resolved object -- the
+# focal for a focal-relative effect, the explicit network for an absolute one.
+# Returns `NA` per effect when the bundle is unparsed (a minimal caller-supplied
+# bundle) or the parse does not align one-to-one with the labels (interactions /
+# window derivations restructure `rhs_names`), collapsing dedup to the raw label
+# there.
+effect_resolved_objects <- function(bundle, raw_labels) {
+  rhs <- bundle$parsed$rhs_names
+  if (is.null(rhs) || length(rhs) != length(raw_labels)) {
+    return(rep(NA_character_, length(raw_labels)))
+  }
+  vapply(
+    rhs,
+    function(el) {
+      if (length(el) >= 2L && is.character(el[[2L]])) {
+        el[[2L]]
+      } else {
+        NA_character_
+      }
+    },
+    character(1)
+  )
+}
+
+# The dedup identity of each effect within a statistic block: the raw term label
+# widened by its resolved object. A bare focal-relative effect therefore splits
+# across focals (its object differs per process) while an absolute-layer effect
+# pools (same object under any focal). `\u0001` cannot occur in a term label or a
+# layer name, so the pasted key is unambiguous; an unresolved object (NA) keys on
+# the raw label alone.
+effect_dedup_keys <- function(raw_labels, objects) {
+  ifelse(is.na(objects), raw_labels, paste0(raw_labels, "\u0001", objects))
+}
+
+# Render an effect's explicit-object label by injecting its resolved object as
+# the leading positional argument: `inertia` -> `inertia(calls)`,
+# `indeg(weighted = TRUE)` -> `indeg(calls, weighted = TRUE)`. Used to
+# disambiguate a bare label a joint specification splits across focals; a label
+# that already carries an explicit object never splits, so never reaches here.
+explicit_effect_label <- function(raw_label, object) {
+  if (!grepl("(", raw_label, fixed = TRUE)) {
+    return(paste0(raw_label, "(", object, ")"))
+  }
+  sub("(", paste0("(", object, ", "), raw_label, fixed = TRUE)
+}
+
 # Build the effect union over an arbitrary set of formulas sharing one statistic
 # block. `bundles` is a named list key -> specification bundle (as built by
-# build_specification_bundle(): `input_formula`, `has_intercept`, `sub_model`);
-# the keys are opaque to this function -- flavor names for a single flavored
-# specification, canonical integer fids across a joint specification's processes.
-# The union deduplicates effect terms by their canonical `term.labels` (which
-# align with `rhs_names` order and capture every argument), preserving
-# first-appearance order in key order. The union formula carries an explicit `1`
-# iff some member has a time intercept, so the union walk stores right-censored
-# events whenever any member needs them; each member's own right-censoring is
-# governed by its `has_intercept`.
+# build_specification_bundle(): `input_formula`, `parsed`, `has_intercept`,
+# `sub_model`); the keys are opaque to this function -- flavor names for a single
+# flavored specification, canonical integer fids across a joint specification's
+# processes. The union deduplicates on RESOLVED effect identity -- the canonical
+# `term.labels` (which align with `rhs_names` order and capture every explicit
+# argument) widened by each effect's resolved object (the parser's focal
+# substitution). A bare focal-relative effect (`inertia`, `indeg`) thus splits
+# across a joint specification's distinct focal layers -- `inertia` under `calls`
+# and under `emails` are DIFFERENT update columns, not one -- while an
+# absolute-layer effect (`tie(friendship)`) resolves identically under any focal
+# and still pools to one column. Merging on the raw label alone would be a silent
+# cross-focal wrong-answer bug. A single-focal specification (flavored /
+# single-process) has no cross-focal collision, so every column keeps its raw
+# label and the union is byte-identical to raw-label dedup. First-appearance
+# order is preserved in key order. The union formula carries an explicit `1` iff
+# some member has a time intercept, so the union walk stores right-censored events
+# whenever any member needs them; each member's own right-censoring is governed by
+# its `has_intercept`.
 #
 # Returns the `union_formula` to compile, the ordered `union_labels`, the
 # `union_intercept` flag, the `keys`, and per-key `effect_maps` (each a vector of
@@ -40,9 +98,31 @@ build_effect_union <- function(bundles) {
   labels_by_key <- lapply(formulas, function(f) {
     attr(stats::terms(f), "term.labels")
   })
+  objects_by_key <- Map(effect_resolved_objects, bundles, labels_by_key)
   has_intercept <- vapply(bundles, `[[`, logical(1), "has_intercept")
 
-  union_labels <- unique(unlist(labels_by_key, use.names = FALSE))
+  dedup_keys_by_key <- Map(effect_dedup_keys, labels_by_key, objects_by_key)
+
+  # Union columns are the distinct resolved effects in first-appearance order
+  # (member key order, then formula order). A column's label is its raw term
+  # label, disambiguated to the explicit-object form only when a bare label is
+  # split across focals (that raw label backs more than one union column) -- so a
+  # single-focal specification keeps its raw labels.
+  all_keys <- unlist(dedup_keys_by_key, use.names = FALSE)
+  all_labels <- unlist(labels_by_key, use.names = FALSE)
+  all_objects <- unlist(objects_by_key, use.names = FALSE)
+  first <- !duplicated(all_keys)
+  union_keys <- all_keys[first]
+  union_labels <- all_labels[first]
+  union_objects <- all_objects[first]
+
+  split_label <- union_labels %in% union_labels[duplicated(union_labels)]
+  union_labels[split_label] <- vapply(
+    which(split_label),
+    function(i) explicit_effect_label(union_labels[[i]], union_objects[[i]]),
+    character(1)
+  )
+
   union_intercept <- any(has_intercept)
   rhs_terms <- if (union_intercept) c("1", union_labels) else union_labels
 
@@ -57,12 +137,11 @@ build_effect_union <- function(bundles) {
   }
 
   # Per key: the union column index of each of its local effects, in its own
-  # formula order. `match` against `union_labels` (not the intercept-prefixed
-  # `rhs_terms`) because the intercept produces no statistics column, so union
-  # gid k corresponds to `union_labels[k]`.
-  effect_maps <- lapply(labels_by_key, function(lbls) {
-    match(lbls, union_labels)
-  })
+  # formula order. `match` on the resolved dedup key (not the raw label), so a
+  # bare label split across focals maps each member to its own column; the
+  # intercept produces no statistics column, so union gid k corresponds to
+  # `union_labels[k]`.
+  effect_maps <- lapply(dedup_keys_by_key, function(mk) match(mk, union_keys))
   names(effect_maps) <- keys
 
   list(
