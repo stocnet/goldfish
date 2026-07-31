@@ -507,3 +507,88 @@ mod01REM <- estimate_rem(
 
 summary(mod01REM)
 ```
+
+# Step 4: Diagnose the model
+
+Estimation says what the coefficients are. The next question is whether the
+model that produced them is one to believe. This is a short tour; the
+[diagnostics vignette](diagnostics.html) is the full treatment.
+
+```{r diag-gate, include = FALSE}
+#| purl = FALSE
+# The plot methods live in autograph, which goldfish suggests rather than
+# requires. Gate on the METHOD: an older autograph is importable while lacking
+# these methods, so checking the package alone would pass and then fail.
+has_plots <- requireNamespace("autograph", quietly = TRUE) &&
+  !is.null(getS3method("plot", "test_gof", optional = TRUE))
+```
+
+## Which events surprised the model
+
+Deviance residuals are large where the model did badly. Ranked, they name the
+events worth looking at.
+
+```{r diag-residuals}
+mod01ChoiceDiag <- estimate_dynam(
+  complexFormulaChoice,
+  sub_model = "choice",
+  data = social_evolution,
+  return_preprocessed = TRUE
+)
+
+dev <- residuals(mod01ChoiceDiag, type = "deviance")
+worst <- order(abs(dev), decreasing = TRUE)[1:3]
+data.frame(
+  event = worst,
+  deviance = round(dev[worst], 2),
+  fitted = round(fitted(mod01ChoiceDiag, type = "outcome")[worst], 4)
+)
+```
+
+A small fitted probability on a realized event is exactly what a large
+deviance residual reports: the model thought that call unlikely and it
+happened.
+
+## Is each effect's contribution spread over the sequence?
+
+At the maximum the per-event scores sum to zero, so each effect's cumulative
+score process starts and ends at zero. Under a well-specified model it is a
+Brownian bridge; a path that wanders is an effect whose contribution is
+concentrated somewhere in the sequence.
+
+```{r diag-gof}
+# Qualified deliberately. This vignette attaches migraph further up, and
+# migraph exports a (deprecated) `test_gof` of its own, so the bare name
+# resolves to whichever package was attached last. RSiena publishes the same
+# three test names too. `::` is the reliable route whenever more than one
+# stocnet package is loaded.
+goldfish::test_gof(mod01ChoiceDiag)
+```
+
+Read the **per-effect rows**. The omnibus combination across effects is
+computed but deliberately not printed: it has had no calibration study, and it
+is dominated by its most extreme input in both directions.
+
+```{r diag-gof-plot, eval = has_plots, fig.alt = "Cumulative score process per effect against Brownian-bridge reference bands."}
+plot(goldfish::test_gof(mod01ChoiceDiag))
+```
+
+## Did a coefficient drift?
+
+`test_gof()` asks whether a contribution is evenly spread; `test_time()` asks
+the directed version — whether the coefficient itself moved over the sequence.
+
+```{r diag-time}
+goldfish::test_time(mod01ChoiceDiag)
+```
+
+```{r diag-time-plot, eval = has_plots, fig.alt = "Scaled Schoenfeld residuals per effect against model time, with a smooth and the fitted estimate."}
+plot(goldfish::test_time(mod01ChoiceDiag))
+```
+
+One caveat worth carrying away, because it decides whether these tests can see
+anything at all: the default network statistics are **binary**, and a binary
+statistic has no functional form to get wrong. Against a misspecified
+functional form these tests have essentially no power on it — measured at the
+null rate. Use `weighted = TRUE` where tie strength is part of the hypothesis.
+The diagnostics vignette shows the measurement.

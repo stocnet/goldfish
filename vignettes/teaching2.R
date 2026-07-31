@@ -191,3 +191,33 @@ glance(tieModel)
 diagnose_outliers(tieModel)
 diagnose_changepoints(tieModel)
 
+
+
+
+## ----diag-refit---------------------------------------------------------------
+tieModelDiag <- estimate_dynam(
+  tieSpec,
+  sub_model = "choice_coordination",
+  data = fisheries_treaties,
+  control_algo = set_algorithm_newton(
+    diagnostics = c("loglik", "scores"),
+    initial_damping = 40,
+    max_iterations = 30
+  ),
+  return_preprocessed = TRUE
+)
+
+
+## ----diag-gof2----------------------------------------------------------------
+# Qualified: this vignette attaches migraph, which exports a `test_gof` of its
+# own, so the bare name resolves to whichever package was attached last.
+goldfish::test_gof(tieModelDiag)
+
+
+## ----diag-time2---------------------------------------------------------------
+goldfish::test_time(tieModelDiag)
+
+
+## ----diag-time-plot2, eval = has_plots, fig.width=6, fig.height=4, fig.align='center', fig.retina=3, fig.alt = "Scaled Schoenfeld residuals per effect against model time, with a smooth and the fitted estimate as reference."----
+# plot(goldfish::test_time(tieModelDiag))
+

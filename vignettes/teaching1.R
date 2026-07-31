@@ -239,3 +239,43 @@ mod01REM <- estimate_rem(
 
 summary(mod01REM)
 
+
+
+
+## ----diag-residuals-----------------------------------------------------------
+mod01ChoiceDiag <- estimate_dynam(
+  complexFormulaChoice,
+  sub_model = "choice",
+  data = social_evolution,
+  return_preprocessed = TRUE
+)
+
+dev <- residuals(mod01ChoiceDiag, type = "deviance")
+worst <- order(abs(dev), decreasing = TRUE)[1:3]
+data.frame(
+  event = worst,
+  deviance = round(dev[worst], 2),
+  fitted = round(fitted(mod01ChoiceDiag, type = "outcome")[worst], 4)
+)
+
+
+## ----diag-gof-----------------------------------------------------------------
+# Qualified deliberately. This vignette attaches migraph further up, and
+# migraph exports a (deprecated) `test_gof` of its own, so the bare name
+# resolves to whichever package was attached last. RSiena publishes the same
+# three test names too. `::` is the reliable route whenever more than one
+# stocnet package is loaded.
+goldfish::test_gof(mod01ChoiceDiag)
+
+
+## ----diag-gof-plot, eval = has_plots, fig.alt = "Cumulative score process per effect against Brownian-bridge reference bands."----
+# plot(goldfish::test_gof(mod01ChoiceDiag))
+
+
+## ----diag-time----------------------------------------------------------------
+goldfish::test_time(mod01ChoiceDiag)
+
+
+## ----diag-time-plot, eval = has_plots, fig.alt = "Scaled Schoenfeld residuals per effect against model time, with a smooth and the fitted estimate."----
+# plot(goldfish::test_time(mod01ChoiceDiag))
+
