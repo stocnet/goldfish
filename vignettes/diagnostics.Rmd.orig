@@ -1,0 +1,468 @@
+---
+title: "Diagnosing a fitted model"
+author: Alvaro Uzaheta
+output: rmarkdown::html_vignette
+bibliography: references.bib
+vignette: >
+  %\VignetteIndexEntry{Diagnosing a fitted model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r knitr-setup, include = FALSE}
+#| purl = FALSE
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "diagnostics/"
+)
+```
+
+```{r setup}
+library(goldfish)
+```
+
+```{r autograph-gate, include = FALSE}
+#| purl = FALSE
+# The plot methods live in autograph, which goldfish only Suggests. Gating on
+# the METHOD rather than the package matters: an older autograph is installed
+# and importable while lacking these methods, so `requireNamespace()` alone
+# would pass and then fail at the call.
+has_plots <- requireNamespace("autograph", quietly = TRUE) &&
+  !is.null(getS3method("plot", "test_gof", optional = TRUE))
+knitr::opts_chunk$set(purl = TRUE)
+```
+
+Estimation answers *what* the coefficients are. This vignette is about the
+question that comes next: whether the model that produced them is one you
+should believe. goldfish's answer has three parts --- **residuals**, which say
+where the model fits badly; **`diagnose_*()`**, which describe patterns without
+testing them; and **`test_*()`**, which make claims with p-values attached.
+
+The distinction between the last two is deliberate and runs through everything
+below. A description can be read informally and is hard to misuse. A test is a
+claim, and a claim needs its assumptions met.
+
+# What a diagnostic costs
+
+Before anything else: **what you can diagnose is decided at estimation time.**
+
+A fit stores its coefficients, its total information matrix, the interval clock
+and the event times always. Everything else is opt-in, requested through
+`set_algorithm_newton(diagnostics = )`, and a primitive not requested is not
+recoverable --- it was never computed. The default is
+`c("loglik", "scores")`, which covers most of this vignette.
+
+A second tier costs more: the *statistics* the model was estimated from. A fit
+does not carry them by default because they are large. Two routes make them
+available --- `estimate_*(return_preprocessed = TRUE)` attaches them, or
+`preprocessed =` supplies an equivalent object to the diagnostic directly.
+
+`?diagnostic-requirements` carries the full table. The short version:
+
+| | needs a primitive | needs the statistics |
+|---|---|---|
+| `diagnose_outliers()`, `diagnose_changepoints()` | `"loglik"` | no |
+| `diagnose_onset()` | `"scores"` | only for `information = "expected"` |
+| `test_gof()` | `"scores"` | no |
+| `test_parameter()`, `test_time()` | --- | **yes**, one pass |
+| `margin_table()` | `"margins"` | no |
+| `residuals()` | varies by `type` | varies by `type` |
+
+The `test_*` family's entry costs are **uneven**, and that is a consequence of
+what each statistic is rather than an inconsistency. A cumulative score process
+is a reduction of stored score rows. An augmented-model score test needs the
+per-interval expected information, which no fit stores --- a fit keeps the
+total.
+
+```{r fits}
+data("social_evolution")
+
+# The two DyNAM sub-models of the same sequence, and the REM that models it as
+# one dyadic process. `return_preprocessed = TRUE` on the choice fit is what
+# lets the tests that need a pass run below.
+calls_choice <- estimate_dynam(
+  calls ~ inertia + recip + trans,
+  sub_model = "choice",
+  data = social_evolution,
+  return_preprocessed = TRUE
+)
+
+calls_rate <- estimate_dynam(
+  calls ~ 1 + indeg + outdeg,
+  sub_model = "rate",
+  data = social_evolution,
+  control_algo = set_algorithm_newton(
+    diagnostics = c("loglik", "scores", "margins")
+  )
+)
+```
+
+# Residuals
+
+## Which type reads what
+
+goldfish's likelihoods are classical likelihoods with a network design matrix,
+so the residual vocabulary is the classical one. What differs is which
+*primitive* each type reads, and whether the identity it rests on is algebraic
+or holds only at the maximum.
+
+| `type` | reads | identity |
+|---|---|---|
+| `"deviance"` | the statistics, one pass | --- |
+| `"response"` | the statistics, one pass | --- |
+| `"schoenfeld"` | `"scores"` (multinomial) / `"conditional_scores"` (exact-time) | sums to zero **at the MLE** |
+| `"scaled_schoenfeld"` | as above | centred on the estimate at the MLE |
+| `"score"` | `"scores"` | sums to zero **at the MLE** |
+| `"cox_snell"` | `"loglik"` + the interval clock | unit exponential **under the model** |
+| `"martingale"` | the statistics, one pass | sums to zero at the MLE |
+| `"dfbeta"`, `"dfbetas"` | the statistics, one pass | --- |
+
+Two of those distinctions are worth dwelling on.
+
+**Schoenfeld is not the score row on an exact-time sub-model.** On a
+multinomial sub-model the two coincide: the scale is 1 and the score row *is*
+the Schoenfeld residual. On an exact-time sub-model the score carries an
+exposure term --- the compensator `Dt * total_rate` on the weighted mean ---
+which the Schoenfeld residual does not. That is why the exact-time families
+need the `"conditional_scores"` primitive rather than `"scores"`, and why
+asking for a Schoenfeld residual without it aborts naming both routes.
+
+**"Sums to zero at the MLE" is not a property of the residual.** It is the
+score equation. Evaluate the same residual at any other parameter vector and it
+does not hold, which is exactly what makes the score test of the next section
+possible.
+
+```{r cox-snell}
+# Cox-Snell residuals are unit exponential under the model, so at the maximum
+# their mean is 1 by the score equation of the intercept -- the fitted model
+# reproduces the observed number of events.
+cs <- residuals(calls_rate, type = "cox_snell")
+c(mean = mean(cs), n_events = sum(!calls_rate$right_censored_events))
+```
+
+## Deletion is likelihood deletion, not history deletion
+
+`"dfbeta"` reports how much each interval moved the estimate. It is a
+*likelihood* deletion: the interval stops contributing to the score, but the
+events it carried still updated the network, so every later statistic is
+unchanged. That is the right question for influence and the wrong one for "what
+if this had not happened", which would need re-preprocessing from the altered
+history. The distinction is worth stating because the two coincide in a
+cross-sectional model and diverge in a relational-event one.
+
+# Describing, not testing
+
+## Outliers and changepoints read one series
+
+`diagnose_outliers()` and `diagnose_changepoints()` both read a per-interval
+series --- the log-likelihood by default, or a single term's own contribution
+with `effect =`. They flag and segment; they do not test.
+
+```{r outliers}
+outliers <- diagnose_outliers(calls_choice)
+head(outliers[outliers$outlier, c("time", "sender", "receiver", ".series")], 3)
+```
+
+### Why the default excludes right-censored intervals
+
+On a rate or REM fit the sequence alternates dependent events and
+right-censored intervals, and the two have different log-likelihood scales. A
+segmented series that pools them is dominated by the alternation rather than by
+anything about the model.
+
+The measurement behind the default, on a windowed rate fit of the
+`social_evolution` calls: pooling gives a median interval log-likelihood of
+-9.04 against -13.73 on the dependent events alone, an IQR of 13.63 against
+4.83, and **427 changepoints against 50**. The pooled series is not a noisier
+version of the same signal --- it is mostly the alternation, and the detector
+finds it.
+
+Right-censored intervals are still genuine likelihood contributions. The
+default excludes them from the *segmented series*, not from the model.
+
+## Margins are a calibration map
+
+`margin_table()` compares each actor's observed activity with what the model
+expected of them. Where the model class defines a compensator --- the
+exact-time sub-models --- `observed - expected_count` is the per-actor
+martingale residual, read against zero. On the multinomial sub-models, which
+have no exposure-time term and so no compensator,
+`observed / expected_probability` is a calibration ratio read against one.
+
+```{r margins}
+margins <- margin_table(calls_rate)
+head(margins, 3)
+```
+
+These are **descriptives, not per-actor tests.** The differences are plug-in
+quantities --- the parameters were estimated from the same data --- and they
+are negatively correlated across actors by construction, since the expected
+counts sum to the observed total. Reading a large deviation as significant
+would be reading a residual as a test statistic.
+
+What they are *for* is screening for unmodelled actor heterogeneity: the
+"ghost effects" case, where a systematic observed-versus-expected pattern says
+some actor-level covariate is missing from the formula. Having found a
+candidate, the formal route is to put it in the model and test it ---
+`test_parameter()` if you hold it at zero, or a likelihood-ratio test against
+the fit without it.
+
+Framed in marked point process terms, the margins are the **ground-side**
+summary (who acts, how often) as against the mark side (what they do). The
+dyad-level precedent is @perry2013 --- what is new here is not the residual but
+its per-actor aggregation across a model family with several risk-set axes.
+
+### A note on terminology
+
+"Martingale residual" is used in two senses in this literature and they are not
+interchangeable. The **per-unit** sense is the one above: observed minus
+expected for one actor or one interval. The **cumulative process** sense is
+`N(t) - Lambda(t)`, a path in time, which is what `test_gof()` reads. `survival`
+distinguishes them by aggregation level (its `collapse =` argument); goldfish
+distinguishes them by function --- `margin_table()` and `residuals()` give the
+per-unit form, `test_gof()` the process.
+
+# Testing
+
+Three tests, three questions.
+
+| | question |
+|---|---|
+| `test_gof()` | is this effect's contribution spread over the sequence the way a fixed coefficient implies? |
+| `test_time()` | did this coefficient stay constant? |
+| `test_parameter()` | is a coefficient you held at a value contradicted by the data? |
+
+## test_gof(): is the contribution spread evenly?
+
+At the maximum the per-event scores sum to zero, so each effect's cumulative
+score process starts and ends at zero. Under a correctly specified model it is
+a Brownian bridge; a path that wanders far from zero in between is an effect
+whose contribution is concentrated somewhere in the sequence.
+
+```{r gof}
+gof <- test_gof(calls_choice)
+gof
+```
+
+Every diagnostic object here has a `plot()` method in
+[autograph](https://stocnet.github.io/autograph/), which goldfish suggests
+rather than requires --- dispatch is on class, so goldfish never imports it.
+The figures below render when a compatible autograph is installed.
+
+```{r gof-plot, eval = has_plots, fig.alt = "Standardized cumulative score process for each effect, against Brownian-bridge reference bands."}
+plot(gof)
+```
+
+`test_gof()` is marked experimental, and the badge is specific. The per-effect
+test is validated by simulation; the **omnibus combination is computed but not
+printed**, having had no calibration study, and it is dominated by its most
+extreme input in *both* directions --- one unusually flat process drags it
+toward 1 far enough to mask a significant effect elsewhere. Read the per-effect
+rows.
+
+### Choosing the clock
+
+`clock` does not change the statistic --- a supremum reads the values a path
+takes, not the positions they are drawn at. It selects the **reference
+distribution**. The analytic Kolmogorov reference assumes the per-event
+information accrues roughly proportionally over the sequence; where it does
+not, the reference is wrong and the test is conservative.
+
+`diagnose_onset()` is the diagnostic for that choice, because its accrual curve
+*is* the clock map:
+
+```{r onset}
+onset <- diagnose_onset(calls_choice)
+head(onset$accrual, 3)
+tail(onset$accrual, 2)
+```
+
+```{r onset-plot, eval = has_plots, fig.alt = "Per-coefficient parameter path windowed on its excursion, above the information-accrual curve against the proportional diagonal."}
+plot(onset)
+```
+
+If that curve departs from the diagonal --- a cold start is the usual cause,
+where an empty history makes every alternative look alike and the early score
+contributions are exactly zero --- switch to the simulated reference:
+
+```{r gof-information-clock}
+test_gof(calls_choice, clock = "information", n_sim = 200)$effects[, c("term", "p_value")]
+```
+
+With near-uniform accrual the two coincide and the choice does not matter.
+
+## test_time(): did the coefficient stay constant?
+
+Both methods are **exact score tests of an augmented model** --- the fitted
+model plus an interaction between the effect and time --- so both need the
+statistics and one evaluation pass.
+
+```{r time-trend}
+test_time(calls_choice)
+```
+
+```{r time-plot, eval = has_plots, fig.alt = "Scaled Schoenfeld residuals per effect against model time, with a smooth and the fitted estimate as reference."}
+plot(test_time(calls_choice))
+```
+
+`"periods"` asks the undirected version of the question and reports the
+one-step coefficient move in each period, which is the interpretable readout:
+
+```{r time-periods}
+regimes <- test_time(calls_choice, method = "periods", periods = 3L)
+regimes$periods
+```
+
+The time axis is **the clock the sub-model's own likelihood runs on** --- the
+event index for an ordinal sub-model, the event time for an exact-time one.
+That is not presentational: applying a transform to an axis the likelihood
+never saw answers no question the model poses, and on this package's own
+Cox-equivalent fixture using wall-clock times where the likelihood is ordinal
+moves the `"identity"` statistic by 24%. One consequence is that `"identity"`
+and `"rank"` are the same transform on an ordinal fit.
+
+## test_parameter(): is a held value contradicted?
+
+Put the term in the model at the value you want to test, and read the score
+left over there.
+
+```{r parameter}
+held <- estimate_dynam(
+  calls ~ inertia + recip + offset(trans, coef = 0),
+  sub_model = "choice",
+  data = social_evolution,
+  return_preprocessed = TRUE
+)
+test_parameter(held)
+```
+
+This is the score (Lagrange multiplier) test: it fits only the constrained
+model. For nested pairs already fitted, `lmtest::lrtest()` is the
+likelihood-ratio route.
+
+# What the tests cannot see
+
+This section is the one most likely to save you a wrong conclusion.
+
+**The default network statistics are binary.** `inertia()`, `recip()` and
+`tie()` are `1 * (network > 0)` unless `weighted = TRUE`. A binary column has
+**no functional form to get wrong** --- so `test_gof()` and `test_time()` have
+essentially no power against functional-form misspecification on it.
+
+That is measured, not asserted. In the package's own coverage suite, a
+reciprocity effect whose true form is `log1p(count)` and which is fitted
+linearly is detected in **72%** of replications on a weighted statistic and in
+**4%** --- exactly the null rate --- on a binary one.
+
+The reason is the mechanism of the test itself. Both tests read whether an
+effect's contribution is spread evenly over the sequence, so they can only see
+a misspecification whose error **changes** over the sequence. A binary
+statistic saturates early and its error does not. A weighted one accumulates,
+so a linear coefficient's error grows with the counts, and that is what becomes
+visible.
+
+**`transformer_fn` is silently ignored on the unweighted variant**, which is
+the trap this sets. Note that the network is named explicitly below: an effect
+carrying any argument must also name its object, so `inertia(calls, weighted =
+TRUE)` parses where `inertia(weighted = TRUE)` does not.
+
+```{r transformer}
+plain <- estimate_dynam(
+  calls ~ inertia + recip,
+  sub_model = "choice", data = social_evolution
+)
+transformed <- estimate_dynam(
+  calls ~ inertia(calls, transformer_fn = log1p) +
+    recip(calls, transformer_fn = log1p),
+  sub_model = "choice", data = social_evolution
+)
+# Identical -- not merely a rescaling.
+c(plain = as.numeric(logLik(plain)), transformed = as.numeric(logLik(transformed)))
+identical(unname(coef(plain)), unname(coef(transformed)))
+```
+
+Two separate things are true here. The transform is **not wired into** the
+unweighted branch, so the argument is dropped. And it could not have mattered
+if it were: any monotone transform of a 0/1 indicator is an affine rescaling
+that the coefficient absorbs. The coefficient equality above is the tell --- a
+transform that had been *applied* would leave the fit unchanged but scale the
+coefficient by `1 / log(2)`.
+
+So a diminishing-returns hypothesis about tie strength needs the weighted
+variant, where the transform does real work:
+
+```{r weighted-transform}
+weighted <- estimate_dynam(
+  calls ~ inertia(calls, weighted = TRUE) + recip(calls, weighted = TRUE),
+  sub_model = "choice", data = social_evolution
+)
+weighted_log <- estimate_dynam(
+  calls ~ inertia(calls, weighted = TRUE, transformer_fn = log1p) +
+    recip(calls, weighted = TRUE, transformer_fn = log1p),
+  sub_model = "choice", data = social_evolution
+)
+c(
+  weighted = as.numeric(logLik(weighted)),
+  weighted_log = as.numeric(logLik(weighted_log))
+)
+```
+
+The practical order is: fit the weighted variant, run `test_gof()` on it, and
+let that say whether a transform is called for. On the binary variant the test
+has nothing to look at.
+
+# Per-actor aggregation
+
+Everything above is per interval or per effect. A third view aggregates to the
+actor, which is often where a specification problem is legible.
+
+```{r aggregation}
+# Deviance summed per sender: which actors the model reproduces worst.
+dev <- residuals(calls_choice, type = "deviance")
+by_sender <- tapply(dev^2, calls_choice$dependent_events$sender, sum)
+head(sort(by_sender, decreasing = TRUE), 3)
+```
+
+The same aggregation applies to ranks (`predict(type = "ranks")`, the share of
+an actor's events whose realized alternative fell in the top *x*%) and to the
+margins above. goldfish deliberately ships no `aggregate_residuals()` function:
+the aggregation you want depends on the question, and the attribution --- which
+actor a dyadic residual belongs to --- is a modelling choice, not a default.
+
+# Comparing a REM with a DyNAM
+
+A DyNAM factorizes the same sequence into *when-and-who* (rate) and *whom*
+(choice); a REM models the dyad directly. On the same data the comparison is
+informative, and it can be made from stored primitives alone.
+
+```{r comparison}
+calls_rem <- estimate_rem(
+  calls ~ 1 + inertia + recip + trans,
+  data = social_evolution
+)
+c(
+  rem = as.numeric(logLik(calls_rem)),
+  dynam = as.numeric(logLik(calls_rate)) + as.numeric(logLik(calls_choice))
+)
+```
+
+The comparison is **descriptive**. The two are not nested, and the sum of two
+sub-model log-likelihoods is a joint likelihood only because the factorization
+is exact --- it is not a fitted joint model whose degrees of freedom you can
+count against the REM's. Information criteria computed across the pair should
+be read as a rough guide, not a test.
+
+The formal route is a Vuong test for non-nested models. goldfish does not
+implement it; naming it here is a pointer rather than a recommendation.
+
+# Where this comes from
+
+The cumulative-score test is @boschi2026, whose Section 4 design the package's
+coverage suite mirrors. The proportional-hazards test `test_time()` implements
+is the survival-analysis one, and on sub-models whose classical twin is a Cox
+partial likelihood goldfish reproduces `survival::cox.zph()` to 5e-09 --- a
+frozen reference table in the test suite holds it to that. The per-actor
+residual framing follows @perry2013 at the dyad level; @juozaitiene2025 and
+@lakdawala2025 are the closest recent treatments of time-varying effects in
+relational event models.

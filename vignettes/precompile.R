@@ -33,7 +33,7 @@ precompile <- function(vignette_to_run = NULL) {
   # Each vignette's `fig.path` is relative to the knit working directory (the
   # package root), so plots land in a top-level dir named after it; move each
   # into vignettes/ so the shipped .Rmd's relative img src resolves at build.
-  fig_dirs <- c("teaching", "two-mode")
+  fig_dirs <- c("teaching", "two-mode", "diagnostics")
   for (fig_dir in fig_dirs) {
     if (!dir.exists(fig_dir)) {
       next

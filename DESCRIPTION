@@ -50,6 +50,7 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Suggests: 
+    autograph,
     testthat,
     knitr,
     devtools,

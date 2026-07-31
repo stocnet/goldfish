@@ -86,6 +86,10 @@ articles:
     navbar: "How to start"
     contents:
       - teaching1
+  - title: "Diagnosing a fitted model"
+    navbar: "diagnostics"
+    contents:
+      - diagnostics
   - title: "Two-mode DyNAM: political discourse dynamics"
     navbar: "two-mode"
     contents:
