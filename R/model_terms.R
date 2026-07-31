@@ -168,10 +168,20 @@ filter_model_terms <- function(terms, pattern) {
 # one they meant.
 #
 # `wanted` may be character (any spelling) or numeric (positions).
+#
+# `expand_family` turns on one further spelling: the bare effect name, which
+# selects EVERY term of that effect. The diagnostic tests want it because a
+# model may carry an effect several times over different layers or arguments
+# -- `inertia`, `inertia(friendship)`, `inertia(calls, weighted = TRUE)` --
+# and "test inertia" is then a question about the effect, not about one of its
+# variants. It is off elsewhere: an argument that selects a single coefficient
+# has nothing to do with a set, and silently returning three positions where
+# one was expected would be worse than the unknown-term error.
 resolve_term_index <- function(
   wanted,
   names,
   arg,
+  expand_family = FALSE,
   call = rlang::caller_env()
 ) {
   n_terms <- nrow(names)
@@ -185,12 +195,24 @@ resolve_term_index <- function(
     )
   }
   spellings <- term_spellings(names)
-  vapply(
+  matched <- lapply(
     wanted,
-    function(one) match_one_term(one, spellings, names, arg, call = call),
-    integer(1),
-    USE.NAMES = FALSE
+    function(one) {
+      match_one_term(
+        one,
+        spellings,
+        names,
+        arg,
+        expand_family = expand_family,
+        call = call
+      )
+    }
   )
+  # Request order is preserved -- a selection reports in the order it was
+  # asked for -- and an expanded family contributes its terms in model order at
+  # the position where it was named. Deduplicated so that naming an effect and
+  # one of its own variants still selects each position once.
+  as.integer(unique(unlist(matched)))
 }
 
 # The three name columns as a position-indexed lookup, long form: one row per
@@ -203,10 +225,26 @@ term_spellings <- function(names) {
   )
 }
 
-match_one_term <- function(one, spellings, names, arg, call) {
+match_one_term <- function(
+  one,
+  spellings,
+  names,
+  arg,
+  expand_family = FALSE,
+  call
+) {
   hits <- sort(unique(unlist(lapply(spellings, function(s) which(s == one)))))
   if (length(hits) == 1L) {
     return(as.integer(hits))
+  }
+  # The effect family, which the row names of the name matrix carry. Tried only
+  # after the per-term spellings, so a term that happens to spell like an
+  # effect name still resolves to itself rather than to the family.
+  if (expand_family && length(hits) == 0L) {
+    family <- which(rownames(names) == one)
+    if (length(family) > 0L) {
+      return(as.integer(family))
+    }
   }
   if (length(hits) > 1L) {
     # Ambiguity is only reachable through the compact string, so listing the
@@ -225,13 +263,20 @@ match_one_term <- function(one, spellings, names, arg, call) {
       call = call
     )
   }
+  message <- c(
+    "{.arg {arg}} names a term this model does not have.",
+    "x" = "Unknown: {.val {one}}.",
+    "i" = "Available: {.val {spellings$term}}."
+  )
+  if (expand_family) {
+    families <- unique(rownames(names))
+    message <- c(
+      message,
+      "i" = "An effect name selects all of its terms: {.val {families}}."
+    )
+  }
   cli::cli_abort(
-    c(
-      "{.arg {arg}} names a term this model does not have.",
-      "x" = "Unknown: {.val {one}}.",
-      "i" = "Available: {.val {spellings$term}}.",
-      "i" = "Search them with {.code model_terms(fit, pattern = )}."
-    ),
+    c(message, "i" = "Search them with {.code model_terms(fit, pattern = )}."),
     call = call
   )
 }

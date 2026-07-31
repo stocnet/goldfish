@@ -82,6 +82,7 @@
       ! `effects` names a term this model does not have.
       x Unknown: "trans/calls".
       i Available: "Intercept" and "indeg/calls".
+      i An effect name selects all of its terms: "Intercept" and "indeg".
       i Search them with `model_terms(fit, pattern = )`.
 
 # the blocked print groups by process, with no combination

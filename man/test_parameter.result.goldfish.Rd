@@ -15,7 +15,8 @@
 \code{test_parameter} object it renders.}
 
 \item{effects}{an optional selection of the held terms to test, given by any
-name a term answers to or by position; \code{\link[=model_terms]{model_terms()}} lists them.
+name a term answers to or by position; \code{\link[=model_terms]{model_terms()}} lists them. A bare
+\strong{effect} name selects every term of that effect, so \code{effects = "inertia"} tests each held variant of \code{inertia} the formula carries.
 Defaults to every \code{offset()} term the fit carries.}
 
 \item{preprocessed}{a \code{preprocessed.goldfish} object to evaluate from, as
@@ -93,8 +94,7 @@ held at the value you want to test:
 \if{html}{\out{<div class="sourceCode">}}\preformatted{fit <- estimate_dynam(
   calls ~ inertia + offset(recip, coef = 0),
   sub_model = "choice", data = social_evolution,
-  return_preprocessed = TRUE
-)
+  return_preprocessed = TRUE)
 test_parameter(fit)
 }\if{html}{\out{</div>}}
 

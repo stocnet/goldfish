@@ -510,3 +510,23 @@ test_that("the omnibus is carried on the object but never printed", {
   expect_false(any(grepl("omnibus", printed, ignore.case = TRUE)))
   expect_false(any(grepl("Cauchy", printed, ignore.case = TRUE)))
 })
+
+test_that("an effect name tests every one of its terms", {
+  # The fixture carries indeg twice, over the dependent and the exogenous
+  # network. Selecting the effect must give both, and must give the same
+  # statistics as naming the two terms individually -- the expansion decides
+  # which columns are read, nothing else.
+  fit <- gof_fixture()
+  expect_equal(rownames(fit$names), c("Intercept", "indeg", "outdeg", "indeg"))
+
+  family <- test_gof(fit, effects = "indeg")
+  expect_identical(family$effects$index, c(2L, 4L))
+  expect_identical(
+    family$effects$statistic,
+    test_gof(fit)$effects$statistic[c(2L, 4L)]
+  )
+  expect_identical(
+    family,
+    test_gof(fit, effects = c("indeg/networkState", "indeg/networkExog"))
+  )
+})

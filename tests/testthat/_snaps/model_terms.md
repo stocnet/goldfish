@@ -52,3 +52,26 @@
       x `x` is a <dependent.goldfish> object.
       i Fit one with `estimate_dynam()` or `estimate_rem()`.
 
+# family expansion is opt-in, and its absence is the old error
+
+    Code
+      resolve_term_index("indeg", fit$names, "effect")
+    Condition
+      Error:
+      ! `effect` names a term this model does not have.
+      x Unknown: "indeg".
+      i Available: "Intercept", "indeg/networkState", "outdeg/networkState", and "indeg/networkExog".
+      i Search them with `model_terms(fit, pattern = )`.
+
+---
+
+    Code
+      resolve_term_index("nonesuch", fit$names, "effects", expand_family = TRUE)
+    Condition
+      Error:
+      ! `effects` names a term this model does not have.
+      x Unknown: "nonesuch".
+      i Available: "Intercept", "indeg/networkState", "outdeg/networkState", and "indeg/networkExog".
+      i An effect name selects all of its terms: "Intercept", "indeg", and "outdeg".
+      i Search them with `model_terms(fit, pattern = )`.
+

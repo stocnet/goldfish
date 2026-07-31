@@ -170,6 +170,9 @@
 #' @param effects an optional selection of the terms to test, given by any
 #'   name a term answers to (the compact string the summary prints, the export
 #'   form, the `coef()` label) or by position; [model_terms()] lists them.
+#'   A bare **effect** name selects every term of that effect, so
+#'   `effects = "inertia"` tests all of `inertia`, `inertia(friendship)` and
+#'   `inertia(calls, weighted = TRUE)` on a model carrying the three.
 #'   Defaults to every free coefficient.
 #' @param clock which reference the p-values come from, `"event"` (default) or
 #'   `"information"` — see the section above. The statistic is the same under
@@ -298,7 +301,13 @@ gof_tested_effects <- function(object, effects, call = rlang::caller_env()) {
     }
     return(unname(tested))
   }
-  tested <- resolve_term_index(effects, object$names, "effects", call = call)
+  tested <- resolve_term_index(
+    effects,
+    object$names,
+    "effects",
+    expand_family = TRUE,
+    call = call
+  )
   fixed <- tested[is_fixed[tested]]
   if (length(fixed) > 0) {
     labels <- gof_term_labels(object, fixed)$term

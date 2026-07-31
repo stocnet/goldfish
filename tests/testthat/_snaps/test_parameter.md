@@ -23,6 +23,7 @@
       ! `effects` names a term this model does not have.
       x Unknown: "common_receiver".
       i Available: "inertia/calls", "recip/calls [Fx]", and "trans/calls".
+      i An effect name selects all of its terms: "inertia", "recip", and "trans".
       i Search them with `model_terms(fit, pattern = )`.
 
 ---

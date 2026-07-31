@@ -117,3 +117,83 @@ test_that("an ambiguous term is offered a resolution", {
 test_that("model_terms refuses what is not a fit", {
   expect_snapshot(error = TRUE, model_terms(depNetwork))
 })
+
+# Family expansion (task 4.7). A model may carry an effect several times over
+# different layers or arguments, and "test indeg" is then a question about the
+# effect rather than about one of its variants. The bare effect name is
+# therefore a fourth spelling -- but only where selecting a SET makes sense, so
+# it is opt-in and the single-coefficient arguments do not get it.
+
+test_that("a bare effect name selects every term of that effect", {
+  fit <- terms_fixture()
+  # indeg appears twice: over the dependent network and over the exogenous one.
+  expect_equal(rownames(fit$names), c("Intercept", "indeg", "outdeg", "indeg"))
+
+  expect_equal(
+    resolve_term_index("indeg", fit$names, "effects", expand_family = TRUE),
+    c(2L, 4L)
+  )
+  # An effect carried once expands to itself, so the caller need not know
+  # which case they are in.
+  expect_equal(
+    resolve_term_index("outdeg", fit$names, "effects", expand_family = TRUE),
+    3L
+  )
+})
+
+test_that("a term spelling still beats the effect name that contains it", {
+  fit <- terms_fixture()
+  # The per-term spellings are tried first, so naming one variant selects that
+  # variant and not its family.
+  expect_equal(
+    resolve_term_index(
+      "indeg/networkExog",
+      fit$names,
+      "effects",
+      expand_family = TRUE
+    ),
+    4L
+  )
+})
+
+test_that("expansion keeps request order and selects each term once", {
+  fit <- terms_fixture()
+  # The family contributes its terms in model order at the position where it
+  # was named; the rest of the request keeps the order it was written in.
+  expect_equal(
+    resolve_term_index(
+      c("outdeg", "indeg"),
+      fit$names,
+      "effects",
+      expand_family = TRUE
+    ),
+    c(3L, 2L, 4L)
+  )
+  # Naming an effect and one of its own variants is not an error and does not
+  # select that variant twice.
+  expect_equal(
+    resolve_term_index(
+      c("indeg", "indeg/networkExog"),
+      fit$names,
+      "effects",
+      expand_family = TRUE
+    ),
+    c(2L, 4L)
+  )
+})
+
+test_that("family expansion is opt-in, and its absence is the old error", {
+  withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
+  fit <- terms_fixture()
+  # Without the flag a bare effect name is simply not a term of the model,
+  # which is what the single-coefficient arguments must keep saying.
+  expect_snapshot(
+    error = TRUE,
+    resolve_term_index("indeg", fit$names, "effect")
+  )
+  # With it, an unknown name lists the effect names as a further route in.
+  expect_snapshot(
+    error = TRUE,
+    resolve_term_index("nonesuch", fit$names, "effects", expand_family = TRUE)
+  )
+})

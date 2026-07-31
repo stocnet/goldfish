@@ -10,7 +10,8 @@
 \item{x}{a multi-process fit of class \code{"flavored_result.goldfish"}.}
 
 \item{effects}{an optional selection of the held terms to test, given by any
-name a term answers to or by position; \code{\link[=model_terms]{model_terms()}} lists them.
+name a term answers to or by position; \code{\link[=model_terms]{model_terms()}} lists them. A bare
+\strong{effect} name selects every term of that effect, so \code{effects = "inertia"} tests each held variant of \code{inertia} the formula carries.
 Defaults to every \code{offset()} term the fit carries.}
 
 \item{preprocessed}{a \code{preprocessed.goldfish} object to evaluate from, as

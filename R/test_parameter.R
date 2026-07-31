@@ -81,7 +81,9 @@
 #'   `offset()` term, or a multi-process fit; for the print method, the
 #'   `test_parameter` object it renders.
 #' @param effects an optional selection of the held terms to test, given by any
-#'   name a term answers to or by position; [model_terms()] lists them.
+#'   name a term answers to or by position; [model_terms()] lists them. A bare
+#'   **effect** name selects every term of that effect, so `effects =
+#'   "inertia"` tests each held variant of `inertia` the formula carries.
 #'   Defaults to every `offset()` term the fit carries.
 #' @param preprocessed a `preprocessed.goldfish` object to evaluate from, as
 #'   returned by [compute_statistics()]. Defaults to the object attached by
@@ -184,7 +186,13 @@ parameter_tested_effects <- function(
     return(unname(tested))
   }
   tested <- tryCatch(
-    resolve_term_index(effects, x$names, "effects", call = call),
+    resolve_term_index(
+      effects,
+      x$names,
+      "effects",
+      expand_family = TRUE,
+      call = call
+    ),
     error = function(e) {
       abort_needs_offset(
         "{.arg effects} names a term this model does not contain.",

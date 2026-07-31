@@ -19,6 +19,9 @@ returned by estimating a \code{\link[=make_specification]{make_specification()}}
 \item{effects}{an optional selection of the terms to test, given by any
 name a term answers to (the compact string the summary prints, the export
 form, the \code{coef()} label) or by position; \code{\link[=model_terms]{model_terms()}} lists them.
+A bare \strong{effect} name selects every term of that effect, so
+\code{effects = "inertia"} tests all of \code{inertia}, \code{inertia(friendship)} and
+\code{inertia(calls, weighted = TRUE)} on a model carrying the three.
 Defaults to every free coefficient.}
 
 \item{clock}{which reference the p-values come from, \code{"event"} (default) or
