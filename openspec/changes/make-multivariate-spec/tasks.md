@@ -221,7 +221,7 @@
 
 ## 3. Merged single-clock walk
 
-- [ ] 3.0 Spike (runnable NOW, before the merge — `preprocess_support_mask()`
+- [x] 3.0 Spike (runnable NOW, before the merge — `preprocess_support_mask()`
       runs today on any constrained model, so this needs neither flavors nor
       the merged walk): measure what fraction of `t_preprocess_sec` the separate
       constraint-mask pass costs, using `.plan/profile_goldfish.R` (it already

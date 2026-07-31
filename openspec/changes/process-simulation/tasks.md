@@ -22,6 +22,18 @@
 - [ ] 2.5 Flavored/multivariate competing-flavor draws under derived masks;
       evaluator-compatible pool output; optional writer-sink statistics recording;
       `devtools::document()`
+- [ ] 2.6 Multi-period relational `|R_w|` slicing (owned here per
+      `make-multivariate-spec` D9a — the one genuinely new piece the panel/DyNES
+      path did not need): for a **relationally-observed** flavor completed with a
+      pinned intercept-only timed rate inside a **wave-gridded** join, slice the
+      preprocessed presence walk per inter-wave period to a per-period
+      time-weighted `avg_active_entity = (1/T_w)·∫|R_g(t)| dt`, so each plateau's pin
+      `log(count_w / (T_w · |R_w|))` uses its own period's risk-set size (the single
+      window K=1 case reuses the preprocessed `avg_active_entity` unchanged, already
+      served upstream). Period membership follows the half-open
+      `findInterval(t, wave_times, rightmost.closed = TRUE)` convention. Tests: a
+      multi-period relational fixture reproduces each period's `count_w`; single-window
+      reduction matches the upstream value byte-for-byte
 
 ## 3. Tests and documentation
 

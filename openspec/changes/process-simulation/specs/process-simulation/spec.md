@@ -102,7 +102,10 @@ the walk handle. A flavor keyed in one sub-model and omitted from the other SHAL
 be completed with its zero-information default and warned once: a **rate-only
 DyNAM** flavor SHALL gain a **uniform choice** (receivers drawn equiprobably, no
 extra `coef`); a missing **timed** rate SHALL gain an intercept-only baseline hazard
-whose one coefficient SHALL be required in `coef`. A **choice-only** (ordered) DyNAM
+whose per-actor intercept SHALL be **pinned** (zero free parameters, never read from
+`coef`) — from observed counts as `log(count_w / (T_w · |R_w|))` for a mixed
+process, or from the requested event count / time window for a fully rate-less
+process. A **choice-only** (ordered) DyNAM
 SHALL NOT be rate-completed — its timing uses the ordered strategies (fixed-template
 or pseudo-time). REM requires only a rate and is already complete. `walk_open()`
 SHALL assert completeness, so the draw loop never opens an incomplete specification.

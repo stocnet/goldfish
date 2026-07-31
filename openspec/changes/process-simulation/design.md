@@ -96,8 +96,14 @@ completion transform owned by `make-multivariate-spec` **D9** runs **once** at
 `simulate()`'s entry and fills any half-specified flavor's missing sub-model with
 its zero-information default — a **rate-only DyNAM** gains a **uniform choice** (zero
 parameters, so no extra `coef` is needed; receivers are drawn equiprobably); a
-missing **timed rate** gains an intercept-only baseline hazard (its one coefficient
-supplied via `coef`). A **choice-only DyNAM** is *not* rate-completed — its timing
+missing **timed rate** gains an intercept-only baseline hazard whose per-actor
+intercept is **pinned** (`make-multivariate-spec` D9, via the
+`intercept-only-rate-spec` primitive), **not** a free parameter and **never** read
+from `coef`: a mixed process (one flavor rate-modeled, another missing) pins the
+missing flavor's constant from observed counts as
+`intercept_w = log(count_w / (T_w · |R_w|))`, while a **fully** rate-less process
+draws its event budget from the requested event count / time window (D2). A
+**choice-only DyNAM** is *not* rate-completed — its timing
 uses this change's ordered modes (D2, pseudo-time / fixed-template). REM is already
 complete (rate only). Completion warns once and marks the added fids in the
 `process_map` and print. `walk_open()` **asserts** completeness rather than

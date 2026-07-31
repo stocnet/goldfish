@@ -206,6 +206,30 @@ optional because the separate pass is what keeps the unconstrained statistics
 path untouched, and that isolation is a baseline-safety property worth a
 deliberate trade rather than an incidental one.
 
+**Measured (task 3.0, 2026-07-31, spike `.plan/spike_mask_pass.R` over the
+landed code).** The mask pass is a **large** share of preprocessing, not the
+"few percent" that would make the isolation free — measured two ways on the same
+single-process DyNAM-choice model with a `~ tie(net)` constraint (atom updated by
+every dependent event, the maintenance-representative case):
+
+| dataset | wall-clock delta (constrained − unconstrained) | Rprof `preprocess_support_mask` total |
+|---|---|---|
+| Social_Evolution (84 actors, 439 ev) | 47% of constrained preprocess | 46% |
+| synthetic large (300 actors, 6000 ev) | 38% | 55% |
+
+Both methods agree the pass costs **~40–55% of preprocessing**. The wall-clock
+delta is a lower bound (the constrained path also folds into
+`active_sender`/`active_dyad`, which the unconstrained path skips); the Rprof
+subtree total is the direct figure. **Outcome for the fold:** because the share
+is large, isolation is *not* nearly free, so the D3b fold onto the merged hot
+walk is *on the table* — but it is **deferred, not taken**. Per task 3.0's rule,
+D3c (shared atom pool, task 3.0b) is done **first**: it captures the
+atom-sharing win **without** putting constraint code on the hot path, preserving
+the baseline-safety isolation. Re-measure after D3c lands before spending that
+isolation on the fold; D3c is expected to remove roughly half the pass in the
+multi-output case (see D3c measurement), which may drop the fold below the bar
+entirely.
+
 ### D3c — One shared atom pool; masks are per-fid projections of it
 The mask machinery gets the treatment the effect statistics already got: one
 shared computation, many cheap projections.
@@ -246,6 +270,30 @@ substantial share of the mask pass. If task 3.0's within-pass split shows evalua
 dominating, pooling the atoms buys little however large the pass is, and D3c is
 dropped — the table above counts atom walks, which is the right unit only when
 walking is what costs.
+
+**Measured (task 3.0, 2026-07-31, `.plan/spike_mask_pass.R`; Rprof `by.total`
+on the two named closures — `apply_atom_event` = MAINTENANCE, `eval_mask` =
+EVALUATION).** The within-pass split is **output-count dependent**, and the
+dependence *is* the D3c mechanism made visible:
+
+| case | outputs sharing one atom stream | MAINTENANCE share of (maint + eval) |
+|---|---|---|
+| single-process, one `tie()` atom | 1 | ~33% (evaluation dominates) |
+| two-flavor rate + choice, `mutually_exclusive` | 4 | **~68%** (maintenance dominates) |
+
+With a single output, evaluation dominates (~67%): one point atom is a cheap
+per-event cell update, while `eval_mask()` allocates an `n1 × n2` matrix and
+walks the boolean tree at *every* snapshot. But the **kill condition is a
+single-output artifact.** In the two-flavor case the same atom stream is
+re-walked once per output, so maintenance rises to the dominant ~68% — and
+*that* growth is exactly the redundant work D3c removes (4 walks → 1). The
+multivariate case only amplifies this: more processes, more outputs sharing
+overlapping atoms. **Outcome:** D3c is **kept and scheduled (task 3.0b)** — the
+kill condition ("evaluation dominates") holds only for the degenerate single-fid
+case that D3c does not target; in every multi-output case the pooled walk
+removes maintenance that is both the dominant cost and provably redundant
+(pooling ≈ 0.75 × 68% ≈ half the pass for the two-flavor case). Evaluation
+correctly does **not** collapse — each fid keeps its own mask at its own times.
 
 Consequence for D3b: this captures the atom-sharing win **without** putting
 constraint code on the main walk's hot path, so it preserves the isolation that
