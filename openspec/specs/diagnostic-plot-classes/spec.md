@@ -1,10 +1,8 @@
-# diagnostic-plot-classes
+# diagnostic-plot-classes Specification
 
-The data contract between goldfish diagnostic objects and autograph plot
-methods: goldfish emits plot-ready classed data; autograph plots.
-
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change residuals-gof. Update Purpose after archive.
+## Requirements
 ### Requirement: goldfish emits plot-ready data, autograph plots
 Diagnostic objects SHALL be plot-ready: every object returned by
 `test_gof()`, `test_time()`, and the
@@ -300,3 +298,4 @@ header silently reports zero findings while flagged rows exist.
 - **WHEN** `diagnose_outliers()` flags nothing on a fit
 - **THEN** the returned table has the same columns and one row per interval
   exactly as a flagged result would, with `outlier` all `FALSE`.
+

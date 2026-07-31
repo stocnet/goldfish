@@ -1,10 +1,8 @@
-# diagnostic-tests
+# diagnostic-tests Specification
 
-Goodness-of-fit and specification tests: `test_gof()`, `test_parameter()`,
-`test_time()`.
-
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change residuals-gof. Update Purpose after archive.
+## Requirements
 ### Requirement: test_gof cumulative-score bridge test
 `test_gof()` SHALL implement the Boschi-Wit martingale-residual test for
 fixed-linear-effect models from stored `event_scores`: per effect, the
@@ -386,3 +384,4 @@ being the `offset()` terms each process formula already declares.
   different `offset()` terms
 - **THEN** each process is tested against its own offsets, with no candidate
   argument supplied
+

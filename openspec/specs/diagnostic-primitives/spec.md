@@ -1,10 +1,8 @@
-# diagnostic-primitives
+# diagnostic-primitives Specification
 
-Storage of per-event diagnostic quantities at estimation time and the
-preprocessed-object plumbing that on-demand diagnostics consume.
-
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change residuals-gof. Update Purpose after archive.
+## Requirements
 ### Requirement: diagnostics option names stored primitives
 `set_algorithm_newton()` SHALL accept a `diagnostics` argument taking a
 character vector of primitive names from `c("loglik", "scores", "ranks",
@@ -418,3 +416,4 @@ statistic over the same event agree about which alternatives are tied.
   tolerance
 - **THEN** they receive distinct ranks, so the tolerance does not flatten real
   differences
+

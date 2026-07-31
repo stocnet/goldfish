@@ -1,11 +1,8 @@
-# residual-methods
+# residual-methods Specification
 
-`residuals()`, `fitted()`, `predict()`, and `augment()` methods for fitted
-goldfish models, following the survival::coxph type vocabulary and broom
-column conventions.
-
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change residuals-gof. Update Purpose after archive.
+## Requirements
 ### Requirement: residuals method with coxph-style types
 `residuals.result.goldfish(object, type, preprocessed = NULL, ...)` SHALL
 support `type = c("deviance", "schoenfeld", "scaled_schoenfeld", "score",
@@ -222,3 +219,4 @@ SHALL NOT add packages to Suggests.
 - **THEN** the within-regime means of the scaled residuals track each
   regime's separately-estimated coefficient, so a scale-convention error
   is detected by the invariant itself.
+

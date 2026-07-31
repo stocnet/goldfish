@@ -1,10 +1,8 @@
-# model-evaluation-pass
+# model-evaluation-pass Specification
 
-A single no-iteration evaluation of a fitted model's engine at an arbitrary
-parameter vector, returning requested quantities.
-
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change residuals-gof. Update Purpose after archive.
+## Requirements
 ### Requirement: evaluate_model single-pass evaluator
 goldfish SHALL provide `evaluate_model(x, at = coef(x), return, preprocessed
 = NULL, ...)` performing exactly one evaluation pass (no Newton-Raphson
@@ -170,3 +168,4 @@ deliberately mirror the margins scales: exposure pairs with the
 - **WHEN** the same fixture is fitted once with `"availability"` requested
   and once without, and the second is evaluated on demand
 - **THEN** the two carry identical vectors, actor labels included
+
