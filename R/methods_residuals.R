@@ -166,6 +166,17 @@ RESIDUAL_TYPES_SCORES <- c(
 #' # Which events moved the estimate most?
 #' head(order(residuals(fit, type = "cooks"), decreasing = TRUE))
 #'
+#' @inheritSection diagnostic-requirements What a diagnostic needs
+#'
+#' @section What these need:
+#'
+#' It depends on `type`, and the range is the whole family's. `"cox_snell"`
+#' needs the interval clock and the `"loglik"` primitive, and **no pass**.
+#' `"schoenfeld"`, `"scaled_schoenfeld"` and `"score"` read the `"scores"`
+#' primitive when the fit carries it and otherwise take **one pass**.
+#' `"deviance"`, `"response"`, `"martingale"`, `"dfbeta"` and `"dfbetas"` need
+#' the model's **statistics** and **one pass**.
+#'
 #' @seealso [estimate_dynam()] for the primitives these read,
 #'   [set_algorithm_newton()] for requesting them, and [margin_table()] for
 #'   the per-actor calibration counterpart.

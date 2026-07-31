@@ -227,7 +227,88 @@ node_labels <- function(nodes) {
 #' that is no longer there, reporting no findings on a table that has them.
 #'
 #' @name diagnostic-tables
-#' @seealso [margin_table()], the producer of the first diagnostic table.
+#' @seealso [margin_table()], the producer of the first diagnostic table, and
+#'   [diagnostic-requirements] for what each diagnostic needs from a fit.
+NULL
+
+#' What a diagnostic needs from a fit
+#'
+#' @description
+#' The diagnostics divide into three entry costs, and which one a function has
+#' is the first thing to know about it: some read what the fit already carries,
+#' some need a primitive that had to be requested at estimation, and some need
+#' the model's statistics and one evaluation pass over them. This page is the
+#' shared vocabulary; each function's own page states where it falls.
+#'
+#' @details
+#' # What a diagnostic needs
+#'
+#' Three things can be asked of a fit, in increasing order of what they cost to
+#' have available.
+#'
+#' \describe{
+#'   \item{**Always present**}{the coefficients, the total information matrix,
+#'     the interval clock (`intervals`, `start_time`, `end_time`), the event
+#'     times and the right-censoring indicator. These ride on every fit
+#'     regardless of what was requested, so a diagnostic reading only these has
+#'     no requirement to state.}
+#'   \item{**A stored primitive**}{a per-interval quantity accumulated during
+#'     estimation and kept on the result, requested through
+#'     `set_algorithm_newton(diagnostics = )`: `"loglik"`, `"scores"`,
+#'     `"ranks"`, `"margins"`, `"availability"`, `"probabilities"`,
+#'     `"conditional_scores"`. A primitive not requested is not recoverable
+#'     from the fit — it was never computed — so a diagnostic needing one
+#'     aborts naming the primitive, and the remedy is to re-estimate with it in
+#'     the `diagnostics` vector. The default is `c("loglik", "scores")`.}
+#'   \item{**The model's statistics**}{the preprocessed design the model was
+#'     estimated from, which a fit does not carry by default because it is
+#'     large. Two routes make it available: `estimate_*(return_preprocessed =
+#'     TRUE)` attaches it to the result, and `preprocessed = ` supplies an
+#'     equivalent object from [compute_statistics()] to the diagnostic
+#'     directly. A diagnostic needing it aborts naming **both** routes.}
+#' }
+#'
+#' # What a pass costs
+#'
+#' A diagnostic that needs the statistics needs them because it recomputes
+#' something the fit does not store, and that recomputation is **one
+#' evaluation pass** — a single walk of the event sequence through
+#' [evaluate_model()], with no Newton-Raphson iterations. It is the cost of one
+#' likelihood evaluation, not of a re-fit. What forces a pass is a per-interval
+#' quantity no primitive holds: the per-interval expected information is the
+#' clearest case, since a fit keeps only the total.
+#'
+#' # The family side by side
+#'
+#' \tabular{lll}{
+#'   **Function** \tab **Stored primitive** \tab **Statistics / passes** \cr
+#'   [test_gof()] \tab `"scores"` \tab none \cr
+#'   [test_parameter()] \tab none \tab required, 1 pass \cr
+#'   [test_time()] \tab none \tab required, 1 pass \cr
+#'   [diagnose_outliers()] \tab `"loglik"` \tab none \cr
+#'   [diagnose_changepoints()] \tab `"loglik"` or `"scores"` \tab none \cr
+#'   [diagnose_onset()] \tab `"scores"` \tab `information = "expected"` only,
+#'     1 pass \cr
+#'   [residuals()] \tab varies by `type` \tab varies by `type` \cr
+#'   [fitted()] / [predict()] \tab none \tab required, 1 pass \cr
+#'   [margin_table()] \tab `"margins"` \tab none \cr
+#'   [evaluate_model()] \tab none \tab required, 1 pass \cr
+#' }
+#'
+#' Two readings the table is for. The `test_*` family's entry costs are
+#' **uneven** — `test_gof()` needs a primitive and no pass, the other two need
+#' the statistics — which is a consequence of what each statistic is rather
+#' than an inconsistency: a cumulative score process is a reduction of stored
+#' score rows, while an augmented-model score test needs per-interval
+#' information that is stored nowhere. And a `residuals()` `type` spans the
+#' whole range on its own, from `"cox_snell"` (the interval clock and
+#' `"loglik"`, no pass) to `"dfbeta"` (the statistics and a pass).
+#'
+#' @name diagnostic-requirements
+#' @seealso [set_algorithm_newton()] for requesting a primitive,
+#'   [compute_statistics()] for producing the statistics, [evaluate_model()]
+#'   for the pass itself, and [diagnostic-tables] for what the returned object
+#'   carries.
 NULL
 
 new_diagnostic_table <- function(

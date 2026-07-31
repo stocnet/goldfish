@@ -220,6 +220,15 @@
 #' set.seed(1)
 #' test_gof(fit, clock = "information")$effects
 #'
+#' @inheritSection diagnostic-requirements What a diagnostic needs
+#'
+#' @section What this test needs:
+#'
+#' The `"scores"` primitive, and **no evaluation pass**: both the statistic and
+#' the simulated reference are arithmetic on the stored score rows. It is the
+#' cheapest member of the `test_*` family to have available, and the only one
+#' that runs on a fit carrying no statistics.
+#'
 #' @seealso [test_time()] for the directed alternative of a coefficient
 #'   changing over the sequence, [test_parameter()] for an imposed value,
 #'   [diagnose_onset()] for the accrual curve that chooses the clock, and

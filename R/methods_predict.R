@@ -143,6 +143,15 @@ fitted_probabilities <- function(
 #' # How often was the actor who was actually called the model's first guess?
 #' mean(predict(fit, type = "ranks") == 1)
 #'
+#' @inheritSection diagnostic-requirements What a diagnostic needs
+#'
+#' @section What these need:
+#'
+#' The model's **statistics** and **one evaluation pass**: a fitted value is a
+#' per-alternative quantity over the realized risk set, which no fit stores
+#' unless `"probabilities"` was requested, and which is in any case recomputed
+#' at whatever parameter vector is asked for.
+#'
 #' @seealso [fitted.result.goldfish()] for the same quantities under the
 #'   fitted-value vocabulary, [evaluate_model()] for evaluation at any
 #'   parameter vector.

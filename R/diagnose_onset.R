@@ -139,6 +139,15 @@
 #' onset
 #' head(onset$accrual)
 #'
+#' @inheritSection diagnostic-requirements What a diagnostic needs
+#'
+#' @section What this diagnostic needs:
+#'
+#' The `"scores"` primitive. `information = "opg"`, the default, needs **no
+#' evaluation pass** — both the parameter path and the accrual curve are
+#' arithmetic on the stored score rows. `information = "expected"` needs the
+#' model's **statistics** and **one pass**, being the per-interval Fisher trace.
+#'
 #' @seealso [diagnose_outliers()] and [diagnose_changepoints()] for the
 #'   per-interval log-likelihood diagnostics,
 #'   [residuals.result.goldfish()] for the per-event influence measures the

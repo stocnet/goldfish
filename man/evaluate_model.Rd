@@ -102,6 +102,40 @@ of the full model at that vector, with the dimensions of the full effect
 set. Nothing is zeroed out — that is what makes the output usable as the
 constrained-model input of a score test.
 }
+\section{What this function needs}{
+
+
+The model's \strong{statistics} always, being the thing it evaluates over, and
+exactly \strong{one pass} per call. It stores no primitive of its own and reads
+none: every quantity it returns is computed in that pass.
+}
+
+\section{What a diagnostic needs}{
+Three things can be asked of a fit, in increasing order of what they cost to
+have available.
+
+\describe{
+\item{\strong{Always present}}{the coefficients, the total information matrix,
+the interval clock (\code{intervals}, \code{start_time}, \code{end_time}), the event
+times and the right-censoring indicator. These ride on every fit
+regardless of what was requested, so a diagnostic reading only these has
+no requirement to state.}
+\item{\strong{A stored primitive}}{a per-interval quantity accumulated during
+estimation and kept on the result, requested through
+\code{set_algorithm_newton(diagnostics = )}: \code{"loglik"}, \code{"scores"},
+\code{"ranks"}, \code{"margins"}, \code{"availability"}, \code{"probabilities"},
+\code{"conditional_scores"}. A primitive not requested is not recoverable
+from the fit — it was never computed — so a diagnostic needing one
+aborts naming the primitive, and the remedy is to re-estimate with it in
+the \code{diagnostics} vector. The default is \code{c("loglik", "scores")}.}
+\item{\strong{The model's statistics}}{the preprocessed design the model was
+estimated from, which a fit does not carry by default because it is
+large. Two routes make it available: \code{estimate_*(return_preprocessed = TRUE)} attaches it to the result, and \verb{preprocessed = } supplies an
+equivalent object from \code{\link[=compute_statistics]{compute_statistics()}} to the diagnostic
+directly. A diagnostic needing it aborts naming \strong{both} routes.}
+}
+}
+
 \examples{
 data("social_evolution")
 fit <- estimate_dynam(

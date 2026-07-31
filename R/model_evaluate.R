@@ -141,6 +141,14 @@ EVALUATE_PRIMITIVE_OF <- c(
 #' constrained[3] <- 0
 #' evaluate_model(fit, at = constrained, return = c("score", "information"))
 #'
+#' @inheritSection diagnostic-requirements What a diagnostic needs
+#'
+#' @section What this function needs:
+#'
+#' The model's **statistics** always, being the thing it evaluates over, and
+#' exactly **one pass** per call. It stores no primitive of its own and reads
+#' none: every quantity it returns is computed in that pass.
+#'
 #' @seealso [estimate_dynam()] for the stored primitives an evaluation
 #'   complements, [compute_statistics()] for the statistics it reads.
 #' @export

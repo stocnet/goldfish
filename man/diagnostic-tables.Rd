@@ -50,5 +50,6 @@ subset would keep the class while the print method counted a flag column
 that is no longer there, reporting no findings on a table that has them.
 }
 \seealso{
-\code{\link[=margin_table]{margin_table()}}, the producer of the first diagnostic table.
+\code{\link[=margin_table]{margin_table()}}, the producer of the first diagnostic table, and
+\link{diagnostic-requirements} for what each diagnostic needs from a fit.
 }

@@ -108,6 +108,15 @@
 #' )
 #' test_parameter(fit)
 #'
+#' @inheritSection diagnostic-requirements What a diagnostic needs
+#'
+#' @section What this test needs:
+#'
+#' The model's **statistics**, and **one evaluation pass**. No stored primitive:
+#' the score at the constrained vector is recomputed, not read, because the fit
+#' stores its score at its own maximum and this test asks for the score
+#' somewhere else.
+#'
 #' @seealso [test_gof()] for whether an estimated effect's contribution is
 #'   spread over the sequence, [test_time()] for whether it is constant, and
 #'   [diagnostic-tables] for the metadata a diagnostic object carries.

@@ -155,6 +155,43 @@ after enough events have accumulated) or to exclude the opening segment
 from estimation, and to compare the estimate with and without it.
 }
 
+\section{What these need}{
+
+
+It depends on \code{type}, and the range is the whole family's. \code{"cox_snell"}
+needs the interval clock and the \code{"loglik"} primitive, and \strong{no pass}.
+\code{"schoenfeld"}, \code{"scaled_schoenfeld"} and \code{"score"} read the \code{"scores"}
+primitive when the fit carries it and otherwise take \strong{one pass}.
+\code{"deviance"}, \code{"response"}, \code{"martingale"}, \code{"dfbeta"} and \code{"dfbetas"} need
+the model's \strong{statistics} and \strong{one pass}.
+}
+
+\section{What a diagnostic needs}{
+Three things can be asked of a fit, in increasing order of what they cost to
+have available.
+
+\describe{
+\item{\strong{Always present}}{the coefficients, the total information matrix,
+the interval clock (\code{intervals}, \code{start_time}, \code{end_time}), the event
+times and the right-censoring indicator. These ride on every fit
+regardless of what was requested, so a diagnostic reading only these has
+no requirement to state.}
+\item{\strong{A stored primitive}}{a per-interval quantity accumulated during
+estimation and kept on the result, requested through
+\code{set_algorithm_newton(diagnostics = )}: \code{"loglik"}, \code{"scores"},
+\code{"ranks"}, \code{"margins"}, \code{"availability"}, \code{"probabilities"},
+\code{"conditional_scores"}. A primitive not requested is not recoverable
+from the fit — it was never computed — so a diagnostic needing one
+aborts naming the primitive, and the remedy is to re-estimate with it in
+the \code{diagnostics} vector. The default is \code{c("loglik", "scores")}.}
+\item{\strong{The model's statistics}}{the preprocessed design the model was
+estimated from, which a fit does not carry by default because it is
+large. Two routes make it available: \code{estimate_*(return_preprocessed = TRUE)} attaches it to the result, and \verb{preprocessed = } supplies an
+equivalent object from \code{\link[=compute_statistics]{compute_statistics()}} to the diagnostic
+directly. A diagnostic needing it aborts naming \strong{both} routes.}
+}
+}
+
 \examples{
 data("social_evolution")
 fit <- estimate_dynam(
