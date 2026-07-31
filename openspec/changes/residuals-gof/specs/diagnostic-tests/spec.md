@@ -119,6 +119,21 @@ separate.
   block where there is more than one, and shows no omnibus value at any level,
   while `x$omnibus` and `attr(x, "context")$joint` still carry them
 
+### Requirement: outer-product information is descriptive-only
+An outer-product (OPG) information estimate SHALL NOT be offered by any
+`test_*` function. It MAY be offered where nothing is being tested: the
+`diagnose_onset()` accrual curve keeps `information = c("opg", "expected")`
+with `"opg"` the default, because a cumulative share is a description rather
+than a claim and no test is sized against it. The documentation SHALL state
+this line rather than leaving the asymmetry between the two families to be
+inferred.
+
+#### Scenario: the descriptive curve keeps both forms
+- **WHEN** `diagnose_onset(information = "expected")` is called on a fit
+  carrying the statistics
+- **THEN** it returns the accrual curve from exact per-event Fisher traces,
+  and `information = "opg"` remains available and remains the default
+
 ### Requirement: test_gof is experimental
 `test_gof()` SHALL carry the `lifecycle::badge("experimental")` marker on its
 documentation, in the form the package already uses on `as_goldfish()`,
@@ -225,46 +240,56 @@ reimplementing them.
 
 ### Requirement: test_time trend and periods methods
 `test_time()` SHALL test time heterogeneity of effects with
-`method = c("trend", "periods")`. `"trend"` (default) SHALL compute scaled
-Schoenfeld residuals against a time transform
-(`transform = c("identity", "rank", "km")`) and report per-effect
-zero-slope score tests plus a global test, from stored primitives only.
-`"periods"` SHALL implement the RSiena sienaTimeTest analog as a score
-test of period-dummy-by-effect interactions computed by **masking the
-stored `event_scores` rows by period membership** — no preprocessing pass
-and no new statistics (the period indicator is constant across the risk
-set at each event, so the interaction's score contribution is the stored
-row times the indicator). The first period SHALL be the reference
-(interactions tested for periods 2..J). The `periods` argument SHALL
-accept an integer J (split into J periods of approximately equal event
-counts — the default form), a numeric vector of cut times (right-open
-intervals on the event-time axis), or a length-n grouping vector/factor
-(exogenous regimes). The `information` argument SHALL offer
-`c("expected", "opg")`: `"expected"` (default) accumulates exact
-per-event Fisher contributions period-wise inside one evaluator pass
-without storing per-event matrices; `"opg"` uses period-wise
-outer-product sums of the stored score rows with zero evaluation passes,
-documented as a screening mode (OPG-based LM tests over-reject in finite
-samples). The result SHALL include the one-step per-period coefficient
-deltas as the interpretable readout. Both methods SHALL return one object
-class carrying the per-effect table and the plot-ready residual/process
-data. The documentation SHALL distinguish this test from testing a
-windowed statistic (e.g. a `window =` effect variant), which is a memory
-hypothesis routed through `test_parameter()` with preprocessing.
+`method = c("trend", "periods")`. Both methods SHALL be **exact score tests**
+of an augmented model, computed through one [evaluate_model()] pass, and SHALL
+therefore require the model's statistics — attached by
+`estimate_*(return_preprocessed = TRUE)` or supplied through `preprocessed =`
+— aborting with the same guiding error the other replay-needing diagnostics
+raise when it has neither. There SHALL be no `information =` argument and no
+outer-product variant: an OPG-based LM over-rejects in finite samples, and the
+scaled-Schoenfeld regression the trend method would otherwise use is the
+statistic `survival::cox.zph` retired when it was rewritten as an exact test.
+
+`"trend"` (default) SHALL augment the model with `x_d * g(t_k)` for a time
+transform `transform = c("identity", "rank", "km")` and report per-effect
+zero-slope score tests plus a global test over all effects. `"periods"` SHALL
+augment it with `x_d * 1{k in period j}` for `j = 2..J`, the first period being
+the reference. The `periods` argument SHALL accept an integer J (split into J
+periods of approximately equal event counts — the default form), a numeric
+vector of cut times (right-open intervals on the event-time axis), or a
+length-n grouping vector/factor (exogenous regimes).
+
+Both SHALL take their scores from the stored `event_scores` — period-wise
+partial sums for `"periods"`, the `g`-weighted sum for `"trend"` — and their
+augmented information blocks from the evaluator's weighted-information return.
+The result SHALL include the one-step per-period coefficient deltas as the
+interpretable readout for `"periods"`, and the plot-ready scaled Schoenfeld
+residual data for `"trend"`. Both methods SHALL return one object class
+carrying the per-effect table and the plot-ready residual/process data. The
+documentation SHALL distinguish this test from testing a windowed statistic
+(e.g. a `window =` effect variant), which is a memory hypothesis routed through
+`test_parameter()` with preprocessing.
+
+#### Scenario: the trend test reproduces the classical proportionality test
+- **WHEN** `test_time(fit, method = "trend", transform = )` runs on a
+  goldfish ordinal fit whose classical twin is a Cox partial likelihood, for
+  each of the `identity`, `rank` and `km` transforms
+- **THEN** the per-effect statistics, degrees of freedom and the global test
+  agree with the frozen `survival::cox.zph` reference table for the same
+  transform
+
+#### Scenario: both methods need the statistics and say so
+- **WHEN** `test_time()` is called, under either method, on a fit carrying no
+  preprocessed statistics and none is supplied
+- **THEN** it aborts naming both routes — re-estimating with
+  `return_preprocessed = TRUE`, or passing `preprocessed =` — rather than
+  falling back to an approximation
 
 #### Scenario: trend test flat under time-constant effects
 - **WHEN** `test_time(fit)` runs on data simulated with time-constant
   effects
 - **THEN** per-effect p-values are approximately uniform across fixture
   replications (NOT_CRAN).
-
-#### Scenario: periods method needs no preprocessing
-- **WHEN** `test_time(fit, method = "periods", periods = 3,
-  information = "opg")` runs on a fit with stored `event_scores` and no
-  preprocessed object available
-- **THEN** the test completes without an evaluation pass or replay error,
-  and its block scores equal the period-wise partial sums of the stored
-  score rows.
 
 #### Scenario: periods method detects a time-varying effect
 - **WHEN** data are simulated with an effect that changes between two time
@@ -273,12 +298,6 @@ hypothesis routed through `test_parameter()` with preprocessing.
 - **THEN** the score test for that effect's period interaction rejects at
   the 5% level on the fixture seed, and the per-period deltas have the
   simulated signs.
-
-#### Scenario: expected and OPG information agree asymptotically
-- **WHEN** both `information` options run on a large well-specified
-  fixture
-- **THEN** the two LM statistics agree within the documented tolerance,
-  and the expected-information variant is the one reported by default.
 
 ### Requirement: effect selection by compact term strings
 Effect-selecting arguments of the diagnostic functions SHALL match against

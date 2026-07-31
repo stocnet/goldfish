@@ -2107,6 +2107,137 @@ cumulative sum and lets the maximum deliver the endpoint. goldfish's
 "process ends at zero" scenario is a real check for that reason and would be
 vacuous under the other convention; the difference is deliberate and stays.
 
+### D35 — `test_time()` is exact, needs one evaluator pass, and OPG survives only where nothing is tested (user, 2026-07-31)
+
+**What forced this.** Task 4.5 said `test_time(method = "trend")` computes its
+zero-slope tests "from stored primitives only", and the frozen `cox_zph`
+reference was minted for it to match. The two are incompatible. Modern
+`survival::cox.zph` is an **exact score test of the augmented model**
+`[X, X·g(t)]` — `test[ii] <- drop(solve(imat, u) %*% u)` — whose information
+blocks are `I_12 = Σ_k g_k Cov_k` and `I_22 = Σ_k g_k² Cov_k`, i.e. **per-event
+risk-set covariances**. survival makes a dedicated C call (`Czph1`) to get
+them. goldfish stores per-event *scores* (first moments) and the *total*
+information; per-event second moments are stored nowhere, so the reference is
+unreachable from stored primitives.
+
+**Why precomputing is impossible, not merely unattractive.** The weights are
+knowable in advance — `g(t)` for `identity`/`rank`/`km` is a function of the
+event times alone, no parameters — but the thing being weighted is not.
+`Cov_k` is the risk-set covariance under the *fitted* probabilities, and
+preprocessing has no parameter vector. The earliest a θ exists is the final
+Newton iterate, so "in advance" can only mean *during estimation*, never during
+preprocessing. Accumulating at estimation would also serve only `trend`: the
+period grouping is a user choice at diagnostic time, so the on-demand path has
+to exist regardless, and building both means two code paths for one quantity.
+Storing per-event blocks was already refused by the `periods` requirement
+("without storing per-event matrices").
+
+**The decision, four parts:**
+
+1. **One route: an on-demand evaluator pass.** `evaluate_model()` becomes the
+   only place with access to per-event information, which follows from D3
+   naming it the single shared evaluator. `test_time()` therefore **requires
+   the model's statistics** — attached by
+   `estimate_*(return_preprocessed = TRUE)` or supplied through
+   `preprocessed =` — and aborts with the same guiding error the other
+   replay-needing diagnostics raise.
+2. **No `information =` argument on `test_time()`.** Both methods use expected
+   information. An argument with one legal value is vestigial, and the pre-2.0.0
+   cost asymmetry says to ship the narrow surface: **omitting a value now is
+   free to add later, shipping one now is a deprecation cycle to remove.**
+3. **OPG survives only in `diagnose_onset()`**, on a principle worth stating
+   once: *OPG is acceptable where nothing is being tested, and not where
+   something is.* An accrual share is a description and its calibration
+   weakness does not apply — the onset requirement already says so. A p-value is
+   a claim, and the two OPG variants that were on offer are not even equally
+   defensible: the periods one over-rejects in finite samples, and the trend one
+   is the Grambsch–Therneau statistic that survival **retired** in its 2019
+   rewrite.
+4. **The accumulator takes weights, not a grouping.** Task 4.6 said "one flag
+   taking a caller-supplied grouping serves both", which does not work: no
+   grouping expresses `g(t)`. Weights generalize — a grouping is a set of
+   indicator columns — and the same accumulation serves both methods:
+
+   ```
+     periods   augment x_d · 1{k in period j}   weights = J indicator columns
+               I_1,(d,j) = Σ_{k∈j} Cov_k        (indicators are idempotent, so
+               I off-diagonal in j is 0          J columns, not 2J)
+
+     trend     augment x_d · g(t_k)             weights = [g, g²]
+               I_12 = Σ g_k Cov_k
+               I_22 = Σ g_k² Cov_k
+   ```
+
+**Three facts that make this cheap.** Every kernel *already* materializes
+`fisher_current_event`, a p × p per-event block, and discards it after
+`fisher += fisher_current_event`; the accumulation is a scalar multiply-add on
+a matrix already in hand, with no new risk-set walk. A `if (w == 0) continue`
+guard in the inner loop makes the indicator case `O(n·p²)` rather than
+`O(n·J·p²)`, so periods needs no specialized path. And because centering is
+linear with `Σ Cov_k = I` already known,
+`Σ(g_k − ḡ)Cov_k = Σ g_k Cov_k − ḡ·I` — the kernel accumulates uncentered and
+`test_time()` centers in R, so the kernel never learns what a transform or a
+period is.
+
+**Consequence for ordering**: 4.6 (the kernel visit) now gates 4.5. They land
+together.
+
+**Evidence caveat, recorded so it is not over-read.** The Grambsch–Therneau
+statistic was reconstructed from memory twice during this investigation, the
+first attempt off by ~900x and the second giving 3.6x-44x versus `cox.zph` on a
+400-event fixture. Those numbers are weak evidence about GT and strong evidence
+only about the operative fact: the reference could not be reproduced from
+stored primitives. Not shipping the OPG variants has the side benefit that
+nothing depends on getting GT right.
+
+### D36 — `evaluate_model()` gains weighted information, as public API (user, 2026-07-31)
+
+D35 makes `evaluate_model()` the sole door to per-event information, and it is
+exported, so the additions are API from 2.0.0:
+
+```
+evaluate_model(x, at, return, preprocessed, weights = NULL, ...)
+
+  return gains
+    "weighted_information"      requires `weights` (n x m numeric matrix)
+                                -> p x p x m array, third dimension named by
+                                   colnames(weights)
+    "event_information_trace"   no weights
+                                -> length-n vector of tr(I_k)
+```
+
+`weights` is **public** rather than an internal path with `test_time()` as its
+only caller (user, 2026-07-31). The evaluator is already documented as the
+shared low-level pass, and a weighted-information return is what lets a user
+write a diagnostic goldfish does not ship. The cost is that the contract is
+API: the array shape and the meaning of a weight column are fixed at 2.0.0.
+
+Both additions are reversible in the cheap direction — `EVALUATE_QUANTITIES` is
+a widen-only vocabulary and `weights` has a `NULL` default, so a later value or
+argument breaks nothing.
+
+`"event_information_trace"` is a separate return rather than a weights case
+because per-event traces cannot be expressed as a weighted sum of blocks:
+asking for one block per event would be the per-event storage this design
+refused. It is `n` doubles, and it is what
+`diagnose_onset(information = "expected")` reads — the exact counterpart of the
+OPG curve's `rowSums(scores^2)`, which is itself the trace of the outer-product
+contribution.
+
+**The naming question is settled (user, 2026-07-31), and the premise it was
+raised on was wrong.** `event_scores` is not *adjective*-first, it is
+*modifier*-first — the same shape as `information_trace`, whose head noun is
+`trace`. Read that way the whole vocabulary is uniform (`interval_loglik`,
+`conditional_scores`, `total_rate`, `n_opportunities`: modifiers first, head
+noun last) and both proposed names already conformed. The real inconsistency
+was elsewhere: **granularity was invisible.** `event_scores` announces its
+length-`n` indexing and `information_trace` did not, though the two are indexed
+identically. So the rule is stated as *modifiers first, head noun last, and the
+index set is named whenever the return is per-interval*, and the trace becomes
+**`event_information_trace`**. `weighted_information` is unchanged — it is a
+`p x p x m` aggregate, indexed by weight column rather than by interval, so it
+has no granularity to announce.
+
 ## Risks / Trade-offs
 
 - [BREAKING class rename of `diagnose_*` returns] → goldfish and autograph

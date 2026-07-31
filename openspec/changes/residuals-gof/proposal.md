@@ -40,7 +40,10 @@ auxiliary statistics) waits for DyNES to land.
 - New single-pass evaluator `evaluate_model()`: log-likelihood, score,
   information, per-event quantities at an arbitrary parameter vector using
   the estimation engine (shared by residuals-on-demand, the score test, and
-  later DyNES ascent-based Monte Carlo).
+  later DyNES ascent-based Monte Carlo). It is also the **only** surface with
+  access to per-event information, so it gains a public `weights =` argument
+  and the `"weighted_information"` / `"event_information_trace"` returns that
+  `test_time()` and `diagnose_onset(information = "expected")` read (D36).
 - New S3 methods on fitted objects: `residuals()` (deviance default;
   schoenfeld, scaled_schoenfeld, score, cox_snell, response, martingale,
   dfbeta/dfbetas), `fitted(type = c("outcome", "probabilities"))`,
@@ -55,10 +58,11 @@ auxiliary statistics) waits for DyNES to land.
   `lifecycle::badge("experimental")` to say so — D33), `test_parameter()` (score/LM test at a
   constrained fit; the Wald form for multi-parameter combinations is
   deferred post-release, 2026-07-19 decision),
-  `test_time()` (`method = c("trend", "periods")`: zph-style scaled-
-  Schoenfeld slope test default, and a sienaTimeTest-style period-dummy
-  score test computed by masking stored scores — no preprocessing;
-  `information = c("expected", "opg")`). Effect-selecting arguments match
+  `test_time()` (`method = c("trend", "periods")`: a zph-style time-transform
+  test and a sienaTimeTest-style period-dummy test, both **exact score tests**
+  of an augmented model through one `evaluate_model()` pass, so both require
+  the model's statistics; no `information =` argument and no outer-product
+  variant — D35). Effect-selecting arguments match
   the compact term strings shown in the printed summary; `diagnose_*` gain
   a term-wise `effect =` mode (changepoints on the scaled Schoenfeld
   series, outliers by dfbeta influence). New `diagnose_onset()` cold-start

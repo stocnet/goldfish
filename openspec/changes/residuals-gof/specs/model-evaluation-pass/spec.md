@@ -20,9 +20,52 @@ stored one differ only in provenance; `"recall"` SHALL return one
 proportion per requested threshold, the share of dependent events whose
 observed alternative ranked within the top k, derived from the ranks of the
 same pass so that a rank and a recall statistic cannot disagree about which
-alternatives are tied. Dispatch SHALL follow the fitted model's
+alternatives are tied.
+
+The vocabulary SHALL additionally accept `"weighted_information"` and
+`"event_information_trace"`, and the signature SHALL gain a public
+`weights = NULL` argument. `"weighted_information"` requires `weights`, an
+`n x m` numeric matrix over the stored intervals, and SHALL return the
+`p x p x m` array whose `m`-th slice is `sum_k weights[k, m] * I_k` with `I_k`
+the per-interval Fisher contribution **on the scale the total information is
+accumulated at** — the timespan- or compensator-scaled block in the exact-time
+families — so that a column of ones reproduces `"information"` exactly; the
+third dimension SHALL be named by `colnames(weights)`.
+`"event_information_trace"` takes no weights and SHALL return the length-`n`
+vector of `trace(I_k)`. Both index **intervals**, right-censored ones included,
+since those contribute to the information too. Requesting
+`"weighted_information"` without `weights`, or with a matrix whose row count
+does not match the intervals, SHALL abort naming the mismatch.
+
+These SHALL NOT be materialized as per-event matrices: the accumulation
+happens inside the single pass, so a caller asking for `m` weight columns pays
+`m` scalar multiply-accumulates against a block the engine already forms, and
+never `n` stored blocks. An implementation SHALL skip a zero weight, so that a
+grouping expressed as indicator columns costs one accumulation per interval
+rather than `m`.
+
+`weights` is public because `evaluate_model()` is the only surface with access
+to per-event information, and a weighted-information return is what lets a
+caller write a diagnostic the package does not ship. Dispatch SHALL follow the fitted model's
 model/submodel routing. Statistics SHALL come from the attached or supplied
 `preprocessed.goldfish` per the diagnostic-primitives precedence rules.
+
+#### Scenario: weighted information sums the per-event blocks
+- **WHEN** `evaluate_model(fit, return = "weighted_information", weights = w)`
+  is called with `w` a single column of ones
+- **THEN** the returned `p x p x 1` array's only slice equals the model's
+  information matrix, and with an arbitrary weight column the slice equals the
+  same sum weighted by it
+
+#### Scenario: a grouping costs one accumulation per interval
+- **WHEN** `weights` is a set of disjoint indicator columns
+- **THEN** the result is the per-group information blocks, and the run time
+  does not grow with the number of groups
+
+#### Scenario: the trace is per interval
+- **WHEN** `evaluate_model(fit, return = "event_information_trace")` is called
+- **THEN** it returns one value per stored interval, whose sum equals the trace
+  of the model's information matrix
 
 #### Scenario: evaluation at the MLE reproduces the fit
 - **WHEN** `evaluate_model(fit, at = coef(fit), return = c("loglik",
