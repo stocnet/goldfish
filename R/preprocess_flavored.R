@@ -369,9 +369,11 @@ consumer_write_dependent <- function(cs, event_info) {
 # flavor-named list of `preprocessed.goldfish` objects.
 #
 # `project_initial_stats` differs per loop (a sender kernel is indexed on its
-# second margin, a dyad array on its third), and `finish_output` carries each
-# loop's own mask realization and availability fold, applied to whichever
-# constraint the output it is finishing belongs to.
+# second margin, a dyad array on its third). The support masks are realized in
+# one pooled pass (`realize_masks`, over the family's shared atom stream) and
+# `finish_output` carries each loop's availability fold, applied to whichever
+# constraint the output it is finishing belongs to. The single-output path
+# realizes its own mask inside `finish_output` (baseline-gated, unchanged).
 finalize_consumers <- function(
   consumers,
   consumer_specs,
@@ -379,6 +381,7 @@ finalize_consumers <- function(
   default_constraint,
   project_initial_stats,
   finish_output,
+  realize_masks = NULL,
   scalar_entity = "sender"
 ) {
   if (is.null(consumer_specs)) {
@@ -388,16 +391,33 @@ finalize_consumers <- function(
     ))
   }
 
-  outputs <- lapply(names(consumers), function(fl) {
+  # Finalize every consumer's writer first: each output carries its own
+  # stored-event timeline, so the mask snapshots cannot be realized until all
+  # timelines are known. The masks are then realized in ONE pooled pass over the
+  # shared atom stream (`realize_masks`) and each fid's fold consumes its own
+  # sliced mask -- the atom maintenance is walked once, not once per output.
+  finalized <- lapply(names(consumers), function(fl) {
     cspec <- consumer_specs[[fl]]
     flavor_tail <- tail
     flavor_tail$initialStats <- project_initial_stats(
       tail$initialStats,
       cspec$effect_map
     )
+    list(
+      out = consumers[[fl]]$writer$finalize(flavor_tail),
+      constraint = cspec$constraint
+    )
+  })
+
+  masks <- realize_masks(lapply(finalized, function(f) {
+    list(constraint = f$constraint, snapshot_times = f$out$event_time)
+  }))
+
+  outputs <- lapply(seq_along(finalized), function(i) {
     out <- finish_output(
-      consumers[[fl]]$writer$finalize(flavor_tail),
-      cspec$constraint
+      finalized[[i]]$out,
+      finalized[[i]]$constraint,
+      masks[[i]]
     )
     if (!is.null(out$avg_active_entity)) {
       out$avg_active_entity <- time_weighted_risk_set(out, scalar_entity)

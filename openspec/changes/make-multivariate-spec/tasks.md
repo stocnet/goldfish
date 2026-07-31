@@ -250,7 +250,7 @@
       large share, do 3.0b FIRST (it captures the atom-sharing win without
       touching the hot path) and re-measure before considering the fold at all.
       Write both numbers and the outcome into D3b and D3c.
-- [ ] 3.0b Verify and then implement the shared-atom mask pass (design D3c).
+- [x] 3.0b Verify and then implement the shared-atom mask pass (design D3c).
       `preprocess_support_mask()` already separates atom MAINTENANCE
       (`apply_atom_event()`) from mask EVALUATION (`eval_mask()` projecting the
       atoms through the boolean tree), but is instantiated once per output, so

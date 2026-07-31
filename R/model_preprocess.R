@@ -1011,24 +1011,41 @@ run_sender_recipe_loop <- function(
     project_initial_stats = function(stats, effect_map) {
       stats[, effect_map, drop = FALSE]
     },
-    finish_output = function(out, constraint) {
+    finish_output = function(out, constraint, support_mask = NULL) {
       if (is.null(constraint)) {
         return(out)
       }
-      out$support_mask <- preprocess_support_mask(
-        constraint,
-        model = spec$model,
-        nodes = nodes,
-        nodes2 = nodes2,
-        symmetric = FALSE,
-        snapshot_times = out$event_time,
-        src = src,
-        prep_envir = prep_envir
-      )
+      # The single-output path realizes its own mask here (baseline-gated,
+      # unchanged); the flavored path passes a mask pre-realized by the pooled
+      # pass, so the atom stream is walked once across the family's fids.
+      if (is.null(support_mask)) {
+        support_mask <- preprocess_support_mask(
+          constraint,
+          model = spec$model,
+          nodes = nodes,
+          nodes2 = nodes2,
+          symmetric = FALSE,
+          snapshot_times = out$event_time,
+          src = src,
+          prep_envir = prep_envir
+        )
+      }
+      out$support_mask <- support_mask
       # Fold the constraint into `active_sender` during preprocessing: the
       # row-reduction becomes net crossings on the availability
       # object, and the estimation-time recombination is dropped.
       fold_active_sender_support(out, out$support_mask, active_dyad_init)
+    },
+    realize_masks = function(requests) {
+      preprocess_pooled_support_masks(
+        requests,
+        model = spec$model,
+        nodes = nodes,
+        nodes2 = nodes2,
+        symmetric = FALSE,
+        prep_envir = prep_envir,
+        src = src
+      )
     },
     scalar_entity = "sender"
   )
@@ -1855,18 +1872,24 @@ run_dyad_recipe_loop <- function(
     # constraint sub-plan. It is attached additively so the statistics
     # output is untouched; the gather consumer reads it per event. A NULL
     # sub-plan (no constraint) leaves the output unchanged.
-    finish_output = function(out, constraint) {
+    finish_output = function(out, constraint, support_mask = NULL) {
       if (!is.null(constraint)) {
-        out$support_mask <- preprocess_support_mask(
-          constraint,
-          model = spec$model,
-          nodes = nodes,
-          nodes2 = nodes2,
-          symmetric = identical(spec$sub_model, "choice_coordination"),
-          snapshot_times = out$event_time,
-          src = src,
-          prep_envir = prep_envir
-        )
+        # The single-output path realizes its own mask here (baseline-gated,
+        # unchanged); the flavored path passes a mask pre-realized by the pooled
+        # pass, so the atom stream is walked once across the family's fids.
+        if (is.null(support_mask)) {
+          support_mask <- preprocess_support_mask(
+            constraint,
+            model = spec$model,
+            nodes = nodes,
+            nodes2 = nodes2,
+            symmetric = identical(spec$sub_model, "choice_coordination"),
+            snapshot_times = out$event_time,
+            src = src,
+            prep_envir = prep_envir
+          )
+        }
+        out$support_mask <- support_mask
         # Fold the constraint into `active_dyad` at its minimal encoding during
         # preprocessing; estimation consumes it via the
         # encoding accessors.
@@ -1893,6 +1916,17 @@ run_dyad_recipe_loop <- function(
         out <- fold_active_dyad_opportunity(out, opportunitiesList)
       }
       out
+    },
+    realize_masks = function(requests) {
+      preprocess_pooled_support_masks(
+        requests,
+        model = spec$model,
+        nodes = nodes,
+        nodes2 = nodes2,
+        symmetric = identical(spec$sub_model, "choice_coordination"),
+        prep_envir = prep_envir,
+        src = src
+      )
     },
     # A tie-oriented rate integrates over dyads, so its intercept scalar counts
     # active dyads rather than active senders.
