@@ -26,6 +26,13 @@
   statistic by 24% on the package's own fixture. A consequence is that
   `"identity"` and `"rank"` are the same transform on an ordinal fit.
 
+  The transform set is `"identity"` and `"rank"`. `cox.zph()`'s `"km"` is not
+  offered: it maps time through the Kaplan-Meier of the event process, which
+  needs the size of each event's realised risk set, and no fitted object
+  carries that. It is also close to degenerate here --- a relational-event risk
+  set does not deplete, so the transform sits within a couple of percent of
+  `"rank"` on the package's own fixture.
+
   No outer-product variant is offered by any `test_*` function, on a line worth
   stating once: an outer-product information is acceptable where nothing is
   being tested and not where something is. `diagnose_onset()` keeps it as the
