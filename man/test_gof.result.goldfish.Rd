@@ -17,8 +17,7 @@
 }
 \arguments{
 \item{object}{a fitted model of class \code{"result.goldfish"}, estimated with
-\code{"scores"} among the \code{\link[=set_algorithm_newton]{set_algorithm_newton()}} \code{diagnostics} primitives;
-for the print method, the \code{test_gof} object it renders.}
+\code{"scores"} among the \code{\link[=set_algorithm_newton]{set_algorithm_newton()}} \code{diagnostics} primitives.}
 
 \item{effects}{an optional selection of the terms to test, given by any
 name a term answers to (the compact string the summary prints, the export
@@ -37,6 +36,10 @@ information clock. Ignored on the event clock, whose p-value is analytic.}
 
 \item{...}{additional arguments passed to or from other methods (currently
 unused).}
+
+\item{x}{the \code{test_gof} object the print method renders. It is a separate
+argument because \code{print()}'s own first formal is \code{x}, where this test's
+generic takes \code{object}.}
 }
 \value{
 An object of class \code{test_gof}: a list of three

@@ -85,9 +85,7 @@
 #'   **effect** name selects every term of that effect, so `effects =
 #'   "inertia"` tests each held variant of `inertia` the formula carries.
 #'   Defaults to every `offset()` term the fit carries.
-#' @param preprocessed a `preprocessed.goldfish` object to evaluate from, as
-#'   returned by [compute_statistics()]. Defaults to the object attached by
-#'   `estimate_*(return_preprocessed = TRUE)`.
+#' @inheritParams evaluate_model
 #' @param ... additional arguments passed to or from other methods (currently
 #'   unused).
 #'

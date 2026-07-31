@@ -66,7 +66,9 @@ Defaults to every free coefficient.}
 
 \item{preprocessed}{a \code{preprocessed.goldfish} object to evaluate over, as
 returned by \code{\link[=compute_statistics]{compute_statistics()}}. Defaults to the object attached by
-\code{estimate_*(return_preprocessed = TRUE)}.}
+\code{estimate_*(return_preprocessed = TRUE)}; with neither route available the
+evaluation aborts naming both, rather than silently recomputing statistics
+that might not match.}
 
 \item{...}{additional arguments passed to or from other methods (currently
 unused).}

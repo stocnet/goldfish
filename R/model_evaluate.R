@@ -85,8 +85,10 @@ EVALUATE_PRIMITIVE_OF <- c(
 #'   The components mean what the same-named components of a fitted object
 #'   mean; see [estimate_dynam()].
 #' @param preprocessed a `preprocessed.goldfish` object to evaluate over, as
-#'   returned by [compute_statistics()]. Defaults to the one attached to the
-#'   fit.
+#'   returned by [compute_statistics()]. Defaults to the object attached by
+#'   `estimate_*(return_preprocessed = TRUE)`; with neither route available the
+#'   evaluation aborts naming both, rather than silently recomputing statistics
+#'   that might not match.
 #' @param weights a numeric matrix with one row per stored interval, required
 #'   by `"weighted_information"` and ignored otherwise. Each column is a
 #'   separate weighting of the per-interval expected information, and its name

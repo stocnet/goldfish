@@ -102,9 +102,7 @@
 #'   }
 #'   Ignored by `"trend"`.
 #' @inheritParams test_gof.result.goldfish
-#' @param preprocessed a `preprocessed.goldfish` object to evaluate over, as
-#'   returned by [compute_statistics()]. Defaults to the object attached by
-#'   `estimate_*(return_preprocessed = TRUE)`.
+#' @inheritParams evaluate_model
 #' @param ... additional arguments passed to or from other methods (currently
 #'   unused).
 #'

@@ -165,8 +165,10 @@
 #' No such row exists on those fits, and none is missing.
 #'
 #' @param object a fitted model of class `"result.goldfish"`, estimated with
-#'   `"scores"` among the [set_algorithm_newton()] `diagnostics` primitives;
-#'   for the print method, the `test_gof` object it renders.
+#'   `"scores"` among the [set_algorithm_newton()] `diagnostics` primitives.
+#' @param x the `test_gof` object the print method renders. It is a separate
+#'   argument because `print()`'s own first formal is `x`, where this test's
+#'   generic takes `object`.
 #' @param effects an optional selection of the terms to test, given by any
 #'   name a term answers to (the compact string the summary prints, the export
 #'   form, the `coef()` label) or by position; [model_terms()] lists them.
