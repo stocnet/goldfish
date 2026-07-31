@@ -162,6 +162,64 @@
       (factory and/or binarized cache); refactor the affected
       `init_*`/`update_*` bodies to read the encoded transformer instead of
       branching; re-run baselines.
+- [ ] 7.2b **Signal an argument the encoding renders inert** (ADR-0007, user,
+      2026-07-31). Encoding `weighted` is the moment a supplied
+      `transformer_fn` is thrown away: `weighted = FALSE` resolves to the
+      binarising transformer, and the user's function never reaches the recipe.
+      Today that is silent — `inertia(net, transformer_fn = log1p)` fits
+      **identically** to `inertia(net)`, same log-likelihood and same
+      coefficients (verified on `social_evolution`; the coefficient equality is
+      the tell, an applied-then-absorbed transform would have scaled it by
+      `1/log(2)`). Warn at construction, naming the term, the inert argument
+      and the remedy (`weighted = TRUE`).
+      - **Not a numerics fix**: the short-circuit is correct. Any monotone
+        transform of a 0/1 indicator is an affine rescaling the coefficient
+        absorbs, so applying it would change no fit and only muddle the
+        coefficient's units. What is wrong is that the user is not told their
+        request was dropped.
+      - **Why it matters downstream**: `test_gof()` / `test_time()` read
+        whether a contribution is spread evenly over the sequence, so a binary
+        statistic gives them no functional form to detect. Measured in
+        `residuals-gof` 4.8: the same misspecified reciprocity effect is caught
+        at 0.72 on a weighted statistic and at 0.04 — the null — on a binary
+        one. The silent drop and the blind test compound.
+      - **Implement as a schema property, not a per-effect check** (D2f), so it
+        generalises: this is one instance of "an argument accepted by the
+        schema that another argument's value renders inert", and `history`,
+        `subType` and `joining` are the places to look for more. Per ADR-0007's
+        open question, consider deriving it by comparing the encoded recipe
+        against the supplied arguments — anything that did not survive encoding
+        — which needs no new schema vocabulary and catches undeclared cases.
+      - Tests: the warning fires on `weighted = FALSE` with a
+        `transformer_fn`, is silent on `weighted = TRUE`, and is silent when
+        `transformer_fn` is not supplied; snapshot the message.
+      - Pairs with `residuals-gof` task 6.0b, the vignette section explaining
+        the power consequence, which can then point at this warning.
+- [ ] 7.2c **`effect(named_arg = value)` with no object dies in the parser**
+      (found 2026-07-31 while writing the residuals-gof diagnostics vignette).
+      `calls ~ inertia(weighted = TRUE)` aborts with
+      `strsplit(): non-character argument`;
+      `calls ~ inertia(calls, weighted = TRUE)` and `calls ~ inertia` both work.
+      Mechanism: in `get_data_objects()` (`R/utils.R`) the named-parameter
+      filter drops every argument, leaving `objNames` zero-length, so
+      `ifelse(areList, ...)` returns `logical(0)` and `strsplit()` rejects it.
+      - The right fix is **not** the one-line guard. An endogenous effect
+        already defaults its object to the dependent layer when written bare,
+        so `inertia(weighted = TRUE)` should resolve that default and then
+        apply the argument — which is exactly D2(c) `object_default` resolved
+        at construction (D3 step 2), before any argument parsing.
+      - Until then the message is the worst part: it names `strsplit`, points
+        at no term, and suggests nothing. The registry's argument schema (D2f)
+        owns making it one actionable error.
+      - Tests: the bare, object-named and named-argument-only forms all parse
+        to the same term when the object is the dependent layer -- the equality
+        is the point, not merely that the third stops erroring.
+      - **Written up as ADR-0009** (proposed), which records the breadth
+        measurement (five formulas across `inertia`/`recip`/`trans`/`indeg` and
+        both `weighted` and `window`, all failing identically) and rejects the
+        one-line guard explicitly: it would convert a loud type error into a
+        silent divergence between `inertia` and `inertia(weighted = TRUE)`.
+
 - [ ] 7.3 Encode `history` to the selected subroutine; refactor the closure
       effects to invoke it without branching; re-run baselines.
 - [ ] 7.4 Encode the remaining gating arguments (`type`, `subType`, `joining`,

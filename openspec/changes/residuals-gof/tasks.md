@@ -587,7 +587,7 @@ before each commit.
       change instead of a breaking rename. Two of the three already match
       goldfish's own convention; the cost is one local inconsistency on one
       function. See D29 for the measured hazard being carried in the interim.
-- [ ] 4.1 `test_gof()` core on `result.goldfish`: standardized cumulative
+- [x] 4.1 `test_gof()` core on `result.goldfish`: standardized cumulative
       score processes from stored `event_scores`, standardization by the
       empirical per-event variance of the centered contributions (the
       OPG scale of both reference implementations; `I_dd/n` documented
@@ -605,10 +605,49 @@ before each commit.
       cold-start clock-comparison coverage fixture with its accrual
       concentration verified (statistics equal, event-clock p-values
       conservative, information-clock uniform; NOT_CRAN).
-- [ ] 4.2 `test_gof()` on the specification fit: per-block tests,
+- [x] 4.2 `test_gof()` on the specification fit: per-block tests,
       per-block and joint Cauchy omnibus; cli print method (grouped by
       block) + snapshot.
-- [ ] 4.3 `test_parameter()` score test. **Rescoped 2026-07-29 (D26): the
+- [x] 4.2b Suppress the omnibus from the printed report, and mark the
+      family experimental (D33, added 2026-07-30). The combination stays
+      **computed and on the object** — `x$omnibus`, `attr(x, "context")$joint`
+      — so the autograph contract does not move and the validation study
+      ADR-0003 calls for can run against shipped objects; only
+      `print.test_gof()` stops rendering it, at both the per-block and the
+      joint level, on the single fit and on the specification fit alike. A
+      flavored fit therefore prints its individual per-block tests and nothing
+      combined. Add `lifecycle::badge("experimental")` to `test_gof()` in the
+      form the package already uses (`as_goldfish()`, `add_flavor()`,
+      `make_specification()`, `state_at()`), with prose naming what is
+      provisional: the unvalidated combination, and the intercept row as an
+      extension beyond the cited test. Update the two `@return` blocks so a
+      reader knows the omnibus is present but deliberately unreported, and move
+      the existing print snapshots. The three tests that assert omnibus
+      *values* on the object stay — the suppression is a print change, not a
+      contract change. The suppression is the shipped state for the whole
+      2.0.0 line — the validation study behind it is scheduled post-release
+      (ADR-0003) — so write the docs as a standing statement, not as a
+      temporary note.
+- [x] 4.2c Document the intercept row (D34, added 2026-07-30). Its score is
+      `dN_k - Dt_k * total_rate_k`, so its cumulative process is the
+      counting-process martingale `N(t) - Lambda(t)` and its test is a test of
+      **baseline constancy**, not of an effect's functional form — the
+      unweighted member of the family whose other members are covariate-weighted
+      martingale residuals. Say what it signals (non-constant baseline, a
+      missing global time-varying covariate, a wrong presence/exposure
+      schedule, temporal clustering, degenerate or tied timestamps), that its
+      remedies differ from a covariate row's (a time-varying baseline or a
+      period split, not another choice effect), that it is the row most likely
+      to want `clock = "information"` (increment variance ~ `Lambda_k`, so the
+      coarsest effective grid), and that the ordinal families carry no
+      intercept at all. Note in the write-up that this row is **outside the
+      reference implementation's scope**: `amorem` fits
+      `one ~ d_stat - 1` on case-control differenced covariates, so an
+      intercept differences to zero exactly as a Cox baseline cancels. Tests:
+      the stored intercept column equals `dN` minus `residuals(type =
+      "cox_snell")`; a `rate_ordered` fit has no intercept among the tested
+      effects.
+- [x] 4.3 `test_parameter()` score test. **Rescoped 2026-07-29 (D26): the
       fit's `offset()` terms at their imposed values, NOT candidate effects
       absent from the formula.** That is what RSiena's score test actually
       is (`fix = TRUE, test = TRUE` puts the effect *in* the model held at
@@ -648,57 +687,97 @@ before each commit.
       decision): trails post-release; `lmtest::waldtest()` covers nested
       pairs meanwhile. No implementation; the diagnostic-tests spec delta
       records the deferral.
-- [ ] 4.5 `test_time(method = "trend")`: scaled Schoenfeld vs time
-      transform (`identity`/`rank`/`km`), per-effect zero-slope score
-      tests + global test, plot-ready residual data on the object; cli
-      print + snapshot; null-uniformity fixture test.
-- [ ] 4.6 `test_time(method = "periods")`: period-masked partial sums of
-      stored `event_scores` (no preprocessing; first period = reference);
-      `periods =` forms (integer equal-event default, cut times, grouping
-      vector); `information = c("expected", "opg")` — expected via one
-      evaluator pass accumulating period-wise Fisher blocks, OPG from
-      stored scores. **This task owns the in-pass information accumulator
-      for BOTH consumers (added 2026-07-29):** it is the only estimation-kernel
-      visit scheduled before 2.0.0, and `diagnose_onset()` (3.3) needs the
-      same quantity indexed differently — `tr(I_k)` per interval where this
-      needs a p x p block per period. One flag taking a caller-supplied
-      grouping serves both (group = period here, the trace variant there), so
-      the six `*_default.cpp`, the three gather kernels and the R mirror are
-      opened once. Deliver 3.3's `information = "expected"` in the same task:
-      it is the same feature under two names, and gating them together means
-      cutting section 4 leaves both functions on their documented OPG default
-      rather than one of them half-built; one-step per-period deltas in the output;
-      regime-change detection fixture + expected-vs-OPG agreement test +
-      no-replay test.
-- [ ] 4.7 Effect selection by compact term strings (`effects =` /
+- [x] 4.5 **The kernel visit: weighted per-event information** (was the front
+      half of 4.6; reordered 2026-07-31 by D35/D36 — this now gates the
+      `test_time()` methods, which both need it). Every kernel already forms
+      `fisher_current_event`, a p x p block, and discards it after
+      `fisher += fisher_current_event`; add weighted accumulation beside that
+      line. One flag family, two outputs, one pass:
+      `weights` (n x m numeric) -> a p x p x m array of `sum_k w_km I_k`, third
+      dimension named by `colnames(weights)`; and a per-interval
+      `trace(I_k)` vector. **Weights, not a grouping** — no grouping expresses
+      `g(t)`, and a grouping is a set of indicator columns. Skip a zero weight
+      in the inner loop, which makes the indicator case O(n p^2) rather than
+      O(n m p^2) and removes any need for a grouping-specialized path. Six
+      `*_default.cpp`, the three gather kernels, the R mirror; `cpp-recompile`
+      before testing. Surface it through `evaluate_model()`:
+      `EVALUATE_QUANTITIES` gains `"weighted_information"` and
+      `"event_information_trace"`, the signature gains a **public**
+      `weights = NULL`
+      (D36). Tests: a ones column reproduces `final_information_matrix`; an
+      arbitrary column reproduces the hand-computed weighted sum; disjoint
+      indicators give the per-group blocks; the trace vector sums to
+      `sum(diag(I))`; requesting weighted information without `weights`, or
+      with a row-count mismatch, aborts naming it. Deliver 3.3's
+      `diagnose_onset(information = "expected")` here — it is the trace return
+      under another name, and its `opg` default stays (D35: OPG is fine where
+      nothing is tested).
+- [x] 4.6 `test_time()`, both methods, exact (D35). `"trend"` augments with
+      `x_d * g(t_k)` for `transform = c("identity", "rank", "km")`;
+      `"periods"` augments with `x_d * 1{k in period j}`, first period the
+      reference, `periods =` taking an integer J (equal event counts), cut
+      times, or a grouping vector. Scores come from stored `event_scores` —
+      the `g`-weighted sum, or period-wise partial sums; the augmented
+      information blocks come from 4.5's weighted return. **Centering is R-side**:
+      `sum (g_k - gbar) Cov_k = sum g_k Cov_k - gbar * I` and `I` is known, so
+      the kernel accumulates uncentered and never learns what a transform or a
+      period is. The statistic is the efficient score form
+      `u' solve(I_kk) u` already written for `test_parameter()` — share it
+      rather than writing a third copy. **No `information =` argument** and no
+      OPG variant; both methods require the statistics and abort through
+      `resolve_preprocessed()`. One object class for both methods carrying the
+      per-effect table plus plot-ready data; one-step per-period deltas for
+      `"periods"`; cli print + snapshot. Tests: the frozen `cox_zph` table for
+      all three transforms (the reference this was reordered to be able to
+      match); regime-change detection fixture; null-uniformity fixture; the
+      abort on a fit without statistics.
+- [x] 4.7 Effect selection by compact term strings (`effects =` /
       `effect =`): shared matching helper (exact string, family
       expansion in `test_*`, cli ambiguity error with candidates,
       integer fallback) reusing the compact-string builder; tests incl.
       the inertia-variants fixture.
-- [ ] 4.8 Coverage/power simulation suite (NOT_CRAN): test_gof null
+- [x] 4.8 Coverage/power simulation suite (NOT_CRAN): test_gof null
       uniformity at n ∈ {1000, 5000} and power vs non-linear reciprocity
       DGP, per the Boschi-Wit §4 design; seeds fixed; runtime documented.
-- [ ] 4.9 Milestone: DESCRIPTION bump + NEWS entry for the test_* family.
+      **Per-effect arms only** (noted 2026-07-30): the omnibus validation
+      study ADR-0003 calls for — joint null calibration plus power against a
+      block-localized alternative — is **post-2.0.0** and does not belong
+      here, since this task ships in the release and would have to precede the
+      study. Do not widen 4.8 to cover it.
+- [x] 4.8b Explicit requirements sections across the diagnostic family (user,
+      2026-07-31). Every `test_*`, `diagnose_*`, `residuals()`, `predict()` and
+      `margin_table()` page states, in a marked section rather than buried in
+      prose: which stored primitives it reads, whether it needs the model's
+      statistics, and how many evaluation passes it costs. The shared
+      vocabulary — what a stored primitive is, the two routes to the
+      statistics, what a pass costs — is written **once** and pulled in with
+      `@inheritSection` (the pattern `model_estimate.R` already uses for
+      "Missing data"); only the per-function specifics are local. Assembling
+      the family into one table is part of the task, because it is the first
+      place the entry costs are visible side by side and an inconsistency would
+      show up there. May ride with 6.3 (the roxygen inheritance audit) if that
+      lands first.
+- [x] 4.9 Milestone: DESCRIPTION bump + NEWS entry for the test_* family.
 
 ## 5. autograph plot methods (phase 2)
 
-- [ ] 5.1 `plot` method for the test_gof class: per-effect standardized
+- [x] 5.1 `plot` method for the test_gof class: per-effect standardized
       process paths with Brownian-bridge reference bands, faceted by
       block, x-axis from the object's clock-labeled process-time axis
       (bands are valid on whichever clock produced the process — the
       plot must not re-derive an event-index axis); precooked fixture
       object; renders without goldfish attached; autograph tests.
-- [ ] 5.2 `plot` method for the test_time class: scaled Schoenfeld
+- [x] 5.2 `plot` method for the test_time class: scaled Schoenfeld
       scatter + weighted smooth per effect with zero reference; precooked
       fixture; autograph tests.
-- [ ] 5.3 autograph one-call overview: `plot` method on the goldfish fit
+- [x] 5.3 autograph one-call overview: `plot` method on the goldfish fit
       (remstimate-parity) composing via patchwork from **stored
       primitives only** — deviance trace with flagged outliers, scaled
       Schoenfeld smooths (top effects), test_gof bridge processes, and
       the waiting-time Q-Q from `total_rate` (panel drops out when the
       fit lacks the primitive or is ordinal); precooked fixture;
       autograph tests.
-- [ ] 5.4 autograph plot method for the `diagnose_onset` class:
+- [x] 5.4 autograph plot method for the `diagnose_onset` class:
       per-coefficient path panel (with stabilization marker) +
       information-accrual panel; precooked fixture; autograph tests.
       **Geometry settled 2026-07-29 (D28), every clause measured:**
@@ -740,16 +819,22 @@ before each commit.
       as the escape hatch for the many-coefficient case, composed being the
       default; the name is the convention for any autograph method offering
       several renderings of one object.
-- [ ] 5.5 autograph NEWS + pkgdown reference entries for the goldfish
+- [x] 5.5 autograph NEWS + pkgdown reference entries for the goldfish
       diagnostic family; confirm no goldfish dependency added (dispatch
       on class only, stocnet pattern).
       **Scope narrowed 2026-07-29:** 3.4 already added the NEWS section and
       bumped autograph to 1.0.4, so what remains is the phase-2 additions.
-      **Two items are the maintainer's, not ours — raise, do not fix:**
-      (i) `pkgdown/_pkgdown.yml` selects `starts_with("plot.")`, which matches
+      **~~Two items~~ One item is the maintainer's, not ours — raise, do not
+      fix:**
+      ~~(i) `pkgdown/_pkgdown.yml` selects `starts_with("plot.")`, which matches
       no topic whose name uses an underscore, so `plot_adequacy`, `plot_gof`,
       `plot_convergence` and `plot_interp` are all absent from the reference
-      index today — pre-existing and wider than this change;
+      index today~~ — **WRONG, checked 2026-07-31 and withdrawn.** pkgdown's
+      `starts_with()` interpolates into a regex —
+      `any_alias(~grepl(paste0("^", x), .))`, no `fixed = TRUE`, no escaping —
+      so the `.` is a wildcard that matches the underscore. All seven `plot_*`
+      topics are selected, verified against the package's own `man/`. Nothing
+      to raise;
       (ii) **RSiena 1.6.6 already publishes `test_gof`, `test_parameter` and
       `test_time` as S3 generics** with `.sienaFit` methods wrapping
       `sienaGOF`, `score.Test` and `sienaTimeTest` — the same three questions
@@ -757,10 +842,16 @@ before each commit.
       diagnostic generics should live, and how goldfish's methods reach a
       generic it does not own, is a cross-package decision (D29).
       `migraph::test_gof` is a lesser, deprecated collision on the same name.
+      **Verified and written up 2026-07-31 as ADR-0008** (proposed): confirmed
+      against installed packages, and the key finding is that the **first
+      argument names already agree** with RSiena on all three
+      (`test_gof(object, ...)`, `test_parameter(x, ...)`,
+      `test_time(x, ...)`), so moving the generics later is non-breaking and
+      2.0.0 need not wait on the negotiation. Nothing to do here.
 
 ## 6. Documentation and closure
 
-- [ ] 6.0 New long-form vignette `vignettes/diagnostics.Rmd.orig` (D14),
+- [x] 6.0 New long-form vignette `vignettes/diagnostics.Rmd.orig` (D14),
       the canonical prose documentation of the diagnostics layer:
       residual-type map per submodel/flavor (which primitive feeds which
       type; where each identity holds — algebraic vs at-the-MLE);
@@ -793,7 +884,41 @@ before each commit.
       Lakdawala JCSS 8:92; Juozaitienė–Wit JRSS-A 188(4)).
       autograph-gated chunks; precompile
       rebuild; pkgdown reference entry.
-- [ ] 6.1 `vignettes/teaching1.Rmd.orig`: add a **short** model-diagnostics
+- [x] 6.0b **What the tests can and cannot see on a binary statistic** — a
+      section of the diagnostics vignette (6.0), beside the `test_*`
+      walkthrough (user, 2026-07-31; measured in task 4.8). The point is a
+      power limit users will otherwise hit silently, and it decides how an
+      effect should be specified before any diagnostic is run.
+      - **The default statistic is binary.** `inertia()`, `recip()` and
+        `tie()` are `1 * (network > 0)` unless `weighted = TRUE`. A binary
+        column has **no functional form to get wrong**, so `test_gof()` and
+        `test_time()` have essentially no power against functional-form
+        misspecification on it — measured in 4.8 at **0.04 rejection, exactly
+        the null**, against 0.72 for the same alternative on the weighted
+        variant. Show both arms; the null-looking one is the point.
+      - **Why**: these tests read whether an effect's contribution is spread
+        evenly over the sequence, so they can only see a misspecification whose
+        error *changes* over the sequence. A binary statistic saturates and its
+        error does not. A weighted one accumulates, so a linear coefficient's
+        error grows with the counts — which is what makes it visible.
+      - **`transformer_fn` is silently ignored on the unweighted variant**, and
+        this must be stated rather than left to be discovered:
+        `init_DyNAM_choice.tie()` applies it only in the `weighted` branch
+        (`R/functions_effects_DyNAM_choice.R`), so
+        `inertia(net, transformer_fn = log1p)` fits **identically** to
+        `inertia(net)` — same log-likelihood and same coefficients, verified.
+        Even if it were applied it would change nothing: any monotone transform
+        of a 0/1 indicator is an affine rescaling the coefficient absorbs. So
+        `log1p` (and `sqrt`, and any other) is only meaningful with
+        `weighted = TRUE`.
+      - **The remedy to show**: `inertia(net, weighted = TRUE,
+        transformer_fn = log1p)` is the specification a diminishing-returns
+        hypothesis actually needs, and `test_gof()` on the untransformed
+        weighted fit is what says whether it is called for.
+      - Consider whether the silent no-op deserves a warning at effect
+        construction rather than only a vignette paragraph; note the decision
+        either way.
+- [x] 6.1 `vignettes/teaching1.Rmd.orig`: add a **short** model-diagnostics
       section after the estimation walkthrough — deviance residuals and
       surprising events (`residuals()`, `fitted()`), `test_gof()` on the
       fitted DyNAM (per-block + omnibus reading), `test_time()` trend
@@ -801,7 +926,7 @@ before each commit.
       (D14: keep it short and sweet); plots rendered via autograph
       (chunks gated on `requireNamespace("autograph")`; autograph added
       to Suggests); rebuild through the precompile workflow.
-- [ ] 6.2 `vignettes/teaching2.Rmd.orig`: expand the existing
+- [x] 6.2 `vignettes/teaching2.Rmd.orig`: expand the existing
       `plot-examine` section — the `diagnose_*` calls gain their new
       classes/plots, plus REM-specific additions kept **short** (D14):
       Cox–Snell waiting-time Q-Q, scaled Schoenfeld/`test_time()` for the
@@ -810,11 +935,11 @@ before each commit.
       once as a calibration map with the descriptive-not-test caveat and
       a pointer to the diagnostics vignette; same autograph gating and
       precompile rebuild.
-- [ ] 6.3 Roxygen inheritance audit: canonical pages
+- [x] 6.3 Roxygen inheritance audit: canonical pages
       (`residuals.result.goldfish`, `evaluate_model`, `test_gof`)
       inherited elsewhere; `devtools::document()`; man pages checked for
       resolved inheritance; full `NOT_CRAN=true` suite green.
-- [ ] 6.4 Update `.plan/sp/residuals-gof.md` status header (phases 1-2
+- [x] 6.4 Update `.plan/sp/residuals-gof.md` status header (phases 1-2
       implemented; phase 3 pending DyNES); final DESCRIPTION/NEWS pass.
 
 ## Rank ties (folded from the parity-followups investigation, 2026-07-26)

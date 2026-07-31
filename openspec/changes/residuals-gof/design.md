@@ -2238,6 +2238,53 @@ index set is named whenever the return is per-interval*, and the trace becomes
 `p x p x m` aggregate, indexed by weight column rather than by interval, so it
 has no granularity to announce.
 
+### D37 — `km` is declined, not deferred, and the requirement says why (user, 2026-07-31)
+
+`test_time()` ships `transform = c("identity", "rank")`. `cox.zph()`'s `"km"`
+is **not** offered, and the `diagnostic-tests` requirement carries the reason
+rather than leaving a gap a reader has to explain to themselves.
+
+**Two independent reasons, and neither expires.** `km` maps time through the
+Kaplan-Meier estimate of the event process, `S_k = prod(1 - d_j/n_j)`, so it
+needs the size of each event's *realized* risk set — after composition changes,
+support constraints and the reflexive exclusion. No fitted object, stored
+primitive or `evaluate_model()` return carries that, and guessing is not
+available: reproducing the frozen `cox_zph` km column needs `n_r = 6972` (the
+dyad count), where the actor count is off 5x and `84^2` is off 2e-4 — close
+enough to survive a careless tolerance and still wrong. And `km` is a
+*depleting*-risk-set instrument (Grambsch & Therneau 1994, using the estimator
+of Kaplan & Meier 1958): on the risk sets these models typically carry it sits
+within ~1.7% of `"rank"`.
+
+**Why the wording is "declined".** A deferral is a promise — it tells a reader
+the transform is coming and invites planning around it. Only the first reason
+could expire; the second says the transform is a poor fit for the model class
+however much primitive work is done. Recording it as deferred would commit to
+work nobody intends. If a user brings a case where it matters, the decision is
+superseded, which is more honest than a standing promise nobody is working on.
+
+**Scope caveat, recorded so it is not over-read.** The 1.7% figure comes from
+one fixture with **no composition change**. A model whose actors enter and
+leave does have a varying risk set, and there `km` would differ more — and is
+also precisely where it is unreachable, a varying `n_j` being exactly what no
+primitive carries. The decision survives the caveat; the argument is narrower
+than "relational-event risk sets do not deplete".
+
+**Why this reverses the in-flight instruction.** While the change was open, the
+delta deliberately kept naming three transforms so the divergence stayed
+visible rather than being erased. That expires at archive: the delta folds into
+`openspec/specs/diagnostic-tests/` — a capability that does not exist yet, so
+the delta becomes the living spec verbatim — and a living spec is a description
+of what the package does, not a plan. `openspec validate` checks SHALL wording
+and scenario structure, never whether a requirement is true, so nothing would
+have caught it.
+
+The decision record is ADR-0006 (accepted). A caller-supplied transform was
+weighed as a way to make `km` the caller's problem and **rejected on the
+merits**: a caller cannot compute the realized risk-set sizes either, and the
+case where they could is the case where `km` is already near `rank`. It is
+recorded as ADR-0010 and is not planned.
+
 ## Risks / Trade-offs
 
 - [BREAKING class rename of `diagnose_*` returns] → goldfish and autograph

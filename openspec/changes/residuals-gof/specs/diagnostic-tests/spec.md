@@ -251,8 +251,21 @@ scaled-Schoenfeld regression the trend method would otherwise use is the
 statistic `survival::cox.zph` retired when it was rewritten as an exact test.
 
 `"trend"` (default) SHALL augment the model with `x_d * g(t_k)` for a time
-transform `transform = c("identity", "rank", "km")` and report per-effect
-zero-slope score tests plus a global test over all effects. `"periods"` SHALL
+transform `transform = c("identity", "rank")` and report per-effect zero-slope
+score tests plus a global test over all effects. The transform SHALL be applied
+to **the clock the sub-model's own likelihood runs on** — the event index for
+an ordinal sub-model, the event time for an exact-time one — so that
+`"identity"` and `"rank"` coincide on an ordinal fit.
+
+`cox.zph()`'s `"km"` transform SHALL NOT be offered, for two independent
+reasons that the documentation SHALL state rather than leaving the omission to
+be discovered. It maps time through the Kaplan-Meier estimate of the event
+process, `S_k = prod(1 - d_j/n_j)`, which needs the size of each event's
+**realized** risk set — a quantity no fitted object, stored primitive or
+evaluator return carries. And it is a *depleting*-risk-set instrument: on the
+risk sets these models typically carry, where every dyad is at risk at every
+event, it falls within a couple of percent of `"rank"`. Neither reason expires,
+so this is a decision and not a deferral. `"periods"` SHALL
 augment it with `x_d * 1{k in period j}` for `j = 2..J`, the first period being
 the reference. The `periods` argument SHALL accept an integer J (split into J
 periods of approximately equal event counts — the default form), a numeric
@@ -273,10 +286,15 @@ documentation SHALL distinguish this test from testing a windowed statistic
 #### Scenario: the trend test reproduces the classical proportionality test
 - **WHEN** `test_time(fit, method = "trend", transform = )` runs on a
   goldfish ordinal fit whose classical twin is a Cox partial likelihood, for
-  each of the `identity`, `rank` and `km` transforms
+  each of the `identity` and `rank` transforms
 - **THEN** the per-effect statistics, degrees of freedom and the global test
   agree with the frozen `survival::cox.zph` reference table for the same
   transform
+
+#### Scenario: an unoffered transform is refused by name
+- **WHEN** `test_time(fit, transform = "km")` is called
+- **THEN** it aborts naming the transforms that are offered, rather than
+  silently substituting one
 
 #### Scenario: both methods need the statistics and say so
 - **WHEN** `test_time()` is called, under either method, on a fit carrying no
