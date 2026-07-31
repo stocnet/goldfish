@@ -1528,6 +1528,21 @@ compute_step.default <- function(spec, state, i, ctx) {
   state$informationMatrix <- state$informationMatrix +
     eventValues$informationMatrix
 
+  # Weighted accumulation on the same block the total information receives, so
+  # a column of ones reproduces it. A zero weight is skipped, which keeps a set
+  # of J period indicators O(n p^2) rather than O(n J p^2).
+  if (!is.null(ctx$event_weights)) {
+    weights_row <- ctx$event_weights[i, ]
+    for (m in which(weights_row != 0)) {
+      state$weighted_information[,, m] <- state$weighted_information[,, m] +
+        weights_row[m] * eventValues$informationMatrix
+    }
+  }
+  if (ctx$return_event_information_trace) {
+    state$event_information_trace[i] <-
+      sum(diag(eventValues$informationMatrix))
+  }
+
   state
 }
 
@@ -1900,7 +1915,11 @@ make_r_engine_evaluator <- function(
   has_intercept = FALSE,
   is_rate_model = identical(risk_set_axis(spec), "sender"),
   is_two_mode = FALSE,
-  allow_reflexive = TRUE,
+  # FALSE, as the compiled counterpart and `estimate_int_impl()` both default:
+  # a caller that leaves this alone gets the same risk set from either engine.
+  # The two defaults disagreed until 2026-07-31, which silently gave an
+  # evaluation on this engine the reflexive alternative estimation excludes.
+  allow_reflexive = FALSE,
   reduce_array_to_matrix = FALSE,
   seed_intercept = TRUE,
   opportunities_list = NULL,
@@ -2007,7 +2026,9 @@ make_r_engine_evaluator <- function(
     need_total_rate = FALSE,
     need_probabilities = FALSE,
     need_availability = FALSE,
-    need_conditional_scores = FALSE
+    need_conditional_scores = FALSE,
+    event_weights = NULL,
+    need_information_trace = FALSE
   ) {
     do.call(
       compute_iteration_step,
@@ -2022,7 +2043,9 @@ make_r_engine_evaluator <- function(
           return_margins = need_margins,
           return_total_rate = need_total_rate,
           return_availability = need_availability,
-          return_conditional_scores = need_conditional_scores
+          return_conditional_scores = need_conditional_scores,
+          event_weights = event_weights,
+          return_event_information_trace = need_information_trace
         )
       )
     )
@@ -2059,6 +2082,8 @@ compute_iteration_step <- function(
   return_total_rate = FALSE,
   return_availability = FALSE,
   return_conditional_scores = FALSE,
+  event_weights = NULL,
+  return_event_information_trace = FALSE,
   allowReflexive = TRUE,
   is_two_mode = FALSE,
   reduceArrayToMatrix = FALSE,
@@ -2123,6 +2148,20 @@ compute_iteration_step <- function(
   step_fn <- bind_compute_step(spec)
   contribution_fn <- bind_event_contribution(spec)
 
+  # The weight matrix is indexed by interval, not by dependent event: the
+  # exact-time families carry right-censored intervals that contribute to the
+  # information, so a column that skipped them would silently misalign. The
+  # compiled kernels enforce the same row count.
+  if (!is.null(event_weights)) {
+    event_weights <- as.matrix(event_weights)
+    if (nrow(event_weights) != nEvents) {
+      cli::cli_abort(c(
+        "{.arg event_weights} must have one row per interval.",
+        "x" = "It has {nrow(event_weights)}; the pass has {nEvents}."
+      ))
+    }
+  }
+
   ctx <- list(
     statsList = statsList,
     nodes2 = nodes2,
@@ -2156,6 +2195,8 @@ compute_iteration_step <- function(
     return_total_rate = return_total_rate,
     return_availability = return_availability,
     return_conditional_scores = return_conditional_scores,
+    event_weights = event_weights,
+    return_event_information_trace = return_event_information_trace,
     margin_axis = margin_axis,
     is_exact_time = is_exact_time,
     # Whole-node-set sizes, used to scatter the reduced per-event risk set back
@@ -2179,6 +2220,19 @@ compute_iteration_step <- function(
     logLikelihood = 0,
     score = rep(0, nParams),
     informationMatrix = matrix(0, nParams, nParams),
+    # Opt-in weighted per-interval information: one p x p slice per weight
+    # column, and the per-interval trace. Mirrors the compiled accumulator in
+    # event_reductions.h, on the same per-interval block.
+    weighted_information = if (!is.null(event_weights)) {
+      array(0, dim = c(nParams, nParams, ncol(event_weights)))
+    } else {
+      NULL
+    },
+    event_information_trace = if (return_event_information_trace) {
+      numeric(nEvents)
+    } else {
+      NULL
+    },
     eventLogL = if (returnIntervalLogL) numeric(nEvents) else NULL,
     event_scores = if (return_event_scores) {
       matrix(0, nEvents, nParams)
@@ -2274,6 +2328,15 @@ compute_iteration_step <- function(
   }
   if (return_conditional_scores && is_exact_time) {
     returnList$conditional_scores <- state$conditional_scores
+  }
+  # Appended last on purpose: the Newton-Raphson loop reads the first four
+  # components of this list positionally, so an opt-in component may only ever
+  # be added after them.
+  if (!is.null(event_weights)) {
+    returnList$weighted_information <- state$weighted_information
+  }
+  if (return_event_information_trace) {
+    returnList$event_information_trace <- state$event_information_trace
   }
 
   return(returnList)

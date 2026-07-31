@@ -92,6 +92,45 @@ arma::rowvec event_score_row(
   return score;
 }
 
+void accumulate_event_information(
+    const arma::mat& block,
+    double scale,
+    arma::uword id_event,
+    const arma::mat& weights,
+    arma::cube& weighted,
+    arma::vec& trace_out
+) {
+  if (!weighted.is_empty()) {
+    for (arma::uword m = 0; m < weights.n_cols; ++m) {
+      const double w = weights(id_event, m);
+      if (w == 0.0) continue;
+      weighted.slice(m) += (w * scale) * block;
+    }
+  }
+  if (!trace_out.is_empty()) {
+    trace_out(id_event) = scale * arma::trace(block);
+  }
+}
+
+arma::mat as_event_weights(
+    const Rcpp::Nullable<Rcpp::NumericMatrix>& weights,
+    arma::uword n_events
+) {
+  if (weights.isNull()) return arma::mat();
+  arma::mat out = Rcpp::as<arma::mat>(weights.get());
+  // The row count is the interval count, not the dependent-event count: the
+  // exact-time families carry right-censored intervals that contribute to the
+  // information, and a caller whose weights skipped them would silently
+  // misalign every column.
+  if (out.n_rows != n_events) {
+    Rcpp::stop(
+      "event weights have %u rows; the pass has %u intervals",
+      (unsigned) out.n_rows, (unsigned) n_events
+    );
+  }
+  return out;
+}
+
 Rcpp::RObject scatter_event_probabilities(
     const arma::vec& probabilities,
     const arma::uvec& index_i,

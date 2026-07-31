@@ -39,7 +39,9 @@ List estimate_DyNAM_MM(
     const bool return_ranks = false,
     const bool return_margins = false,
     const bool return_probabilities = false,
-    const bool return_availability = false
+    const bool return_availability = false,
+    const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
+    const bool return_event_information_trace = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -63,9 +65,25 @@ List estimate_DyNAM_MM(
     int stat_mat_broadcast_id = 0;
     // declare return variables
     arma::mat fisher(n_parameters, n_parameters, fill::zeros);
+    arma::mat fisher_current_event(n_parameters, n_parameters);
     arma::mat derivative(1, n_parameters, fill::zeros);
     double logLikelihood = 0;
     arma::vec intervalLogL(n_events, fill::zeros);
+    // Opt-in weighted per-interval information: one p x p slice per weight
+    // column, and the per-interval trace. Both stay empty when not requested,
+    // which is how the shared accumulator reads "not asked for".
+    const arma::mat weights_mat =
+      as_event_weights(event_weights, (arma::uword) n_events);
+    arma::cube weighted_information;
+    if (!weights_mat.is_empty()) {
+        weighted_information.zeros(
+          n_parameters, n_parameters, weights_mat.n_cols
+        );
+    }
+    arma::vec event_information_trace;
+    if (return_event_information_trace) {
+        event_information_trace.zeros(n_events);
+    }
     // Opt-in per-event score matrix. Each row is the per-event
     // increment already accumulated into `derivative` (the dyad-triangle
     // observed-minus-expected deviation D.row(idx_obs) - g); allocated only when
@@ -348,8 +366,13 @@ List estimate_DyNAM_MM(
         }
         derivative += D.row(idx_obs) - g;
         // Fisher: sum_d P_d D_d D_d^T - g^T g
-        fisher += (D.each_col() % dyad_weights).t() * D / normalizer -
-          g.t() * g;
+        fisher_current_event =
+          (D.each_col() % dyad_weights).t() * D / normalizer - g.t() * g;
+        fisher += fisher_current_event;
+        accumulate_event_information(
+          fisher_current_event, 1.0, id_event, weights_mat,
+          weighted_information, event_information_trace
+        );
         // logLikelihood from the shifted predictor (finite under underflow)
         intervalLogL(id_event) = logw_dyad(idx_obs) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
@@ -365,7 +388,9 @@ List estimate_DyNAM_MM(
       Named("margin_observed") = margin_observed,
       Named("margin_expected") = margin_expected,
       Named("availability_n_opportunities") = availability_opportunities,
-      Named("event_probabilities") = event_probabilities
+      Named("event_probabilities") = event_probabilities,
+      Named("weighted_information") = weighted_information,
+      Named("event_information_trace") = event_information_trace
     );
 }
 

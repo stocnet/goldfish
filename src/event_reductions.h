@@ -161,6 +161,44 @@ arma::rowvec event_score_row(
     bool dependent
 );
 
+// Fold one interval's expected-information block into the two on-demand
+// returns of a weighted pass.
+//
+// `block` is the per-event Fisher every kernel already forms and discards, and
+// `scale` is the family's per-interval factor -- 1 for the multinomial
+// families, the timespan or the compensator for the exact-time ones -- so
+// `scale * block` is exactly the I_k the running `fisher` receives. The two
+// MUST be formed from the same product: a weight column of ones is what
+// reproduces the total information, and that identity is the contract.
+//
+// `weights` is n_intervals x m and empty when no weighted return was asked
+// for; `weighted` carries one p x p slice per column. A zero weight is
+// skipped, which is what keeps a set of J period indicators O(n p^2) instead
+// of O(n J p^2) and removes any need for a grouping-specialized path.
+//
+// `trace_out` is empty when the per-interval trace was not asked for. The
+// trace cannot be expressed as a weighted sum of blocks -- asking for one
+// block per interval would be the per-event storage this design refuses -- so
+// it is accumulated beside the weights rather than through them.
+void accumulate_event_information(
+    const arma::mat& block,
+    double scale,
+    arma::uword id_event,
+    const arma::mat& weights,
+    arma::cube& weighted,
+    arma::vec& trace_out
+);
+
+// Whether a weighted pass is running, and the accumulators sized for it. The
+// nine kernels each need the same three lines of setup, so they live here: an
+// m-slice cube when weights were supplied, and a length-n vector when the
+// trace was asked for. Both stay empty otherwise, and the accumulator above
+// reads emptiness as "not requested".
+arma::mat as_event_weights(
+    const Rcpp::Nullable<Rcpp::NumericMatrix>& weights,
+    arma::uword n_events
+);
+
 // Scatter a per-event probability vector onto the whole node set, so a position
 // is an actor id at every event rather than a position in that event's risk
 // set. Positions off the risk set stay 0.

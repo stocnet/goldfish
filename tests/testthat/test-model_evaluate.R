@@ -165,3 +165,178 @@ test_that("evaluation needs statistics from the fit or from the caller", {
   out <- evaluate_model(fit, return = "loglik", preprocessed = supplied)
   expect_equal(out$loglik, as.numeric(stats::logLik(fit)), tolerance = 1e-10)
 })
+
+# Weighted per-interval information (task 4.5). The accumulation happens beside
+# the running Fisher inside the one pass, so the acceptance criterion is that a
+# column of ones reproduces the total: the weighted sum and the total must be
+# formed from the same per-interval block, or every downstream statistic is
+# weighting something other than what it reports.
+
+test_that("a ones column reproduces the information matrix", {
+  fit <- evaluate_fixture()
+  n <- length(fit$preprocessed$is_dependent)
+  out <- evaluate_model(
+    fit,
+    return = c("information", "weighted_information"),
+    weights = matrix(1, n, 1, dimnames = list(NULL, "all"))
+  )
+
+  expect_equal(dim(out$weighted_information), c(3L, 3L, 1L))
+  expect_equal(dimnames(out$weighted_information)[[3]], "all")
+  expect_equal(out$weighted_information[,, "all"], out$information)
+})
+
+test_that("an arbitrary column reproduces the hand-computed weighted sum", {
+  fit <- evaluate_fixture()
+  n <- length(fit$preprocessed$is_dependent)
+  # Two columns whose sum is the ones column: their two slices must therefore
+  # add back to the total, which pins the weighting per interval rather than
+  # only in aggregate.
+  ramp <- seq_len(n) / (n + 1)
+  weights <- cbind(ramp = ramp, complement = 1 - ramp)
+  out <- evaluate_model(
+    fit,
+    return = c("information", "weighted_information"),
+    weights = weights
+  )
+
+  expect_equal(dimnames(out$weighted_information)[[3]], c("ramp", "complement"))
+  expect_equal(
+    out$weighted_information[,, "ramp"] +
+      out$weighted_information[,, "complement"],
+    out$information
+  )
+  # The ramp slice is not the total scaled by a constant, so the test is not
+  # satisfied by a kernel that ignored the weights.
+  expect_false(isTRUE(all.equal(
+    out$weighted_information[,, "ramp"],
+    out$information * mean(ramp)
+  )))
+})
+
+test_that("disjoint indicators give the per-group information blocks", {
+  fit <- evaluate_fixture()
+  n <- length(fit$preprocessed$is_dependent)
+  cut <- floor(n / 2)
+  groups <- cbind(
+    early = as.numeric(seq_len(n) <= cut),
+    late = as.numeric(seq_len(n) > cut)
+  )
+  out <- evaluate_model(
+    fit,
+    return = c("information", "weighted_information"),
+    weights = groups
+  )
+
+  expect_equal(
+    out$weighted_information[,, "early"] + out$weighted_information[,, "late"],
+    out$information
+  )
+  # A group's block is the information of that segment alone, which the
+  # ones-column identity on a truncated weight matrix cannot fake.
+  expect_false(isTRUE(all.equal(
+    out$weighted_information[,, "early"],
+    out$weighted_information[,, "late"]
+  )))
+})
+
+test_that("the per-interval trace sums to the trace of the information", {
+  fit <- evaluate_fixture()
+  out <- evaluate_model(
+    fit,
+    return = c("information", "event_information_trace")
+  )
+
+  expect_length(out$event_information_trace, length(fit$interval_log_lik))
+  expect_equal(
+    sum(out$event_information_trace),
+    sum(diag(out$information))
+  )
+  # Every interval contributes a positive semi-definite block.
+  expect_true(all(out$event_information_trace >= 0))
+})
+
+test_that("weighted information agrees across the three backends", {
+  fit <- evaluate_fixture()
+  n <- length(fit$preprocessed$is_dependent)
+  weights <- cbind(all = rep(1, n), ramp = seq_len(n) / n)
+  quantities <- c("weighted_information", "event_information_trace")
+
+  reference <- evaluate_model(
+    fit,
+    return = quantities,
+    weights = weights,
+    backend = "cpp"
+  )
+  for (backend in c("r", "gather")) {
+    other <- evaluate_model(
+      fit,
+      return = quantities,
+      weights = weights,
+      backend = backend
+    )
+    expect_equal(
+      other$weighted_information,
+      reference$weighted_information,
+      tolerance = 1e-10
+    )
+    expect_equal(
+      other$event_information_trace,
+      reference$event_information_trace,
+      tolerance = 1e-10
+    )
+  }
+})
+
+test_that("an exact-time fit weights the compensator-scaled block", {
+  # The rate and REM families scale the per-interval block by the timespan
+  # before it reaches the running Fisher, and a right-censored interval carries
+  # a block of its own -- so the ones-column identity is what checks that the
+  # weighting saw the same scaled block, over every interval and not only the
+  # dependent ones. The exogenous layer is what opens those intervals.
+  fit <- estimate_wrapper(
+    depNetwork ~ 1 + indeg + outdeg + indeg(networkExog),
+    model = "DyNAM",
+    sub_model = "rate",
+    data = dataTest,
+    return_preprocessed = TRUE
+  )
+  n <- length(fit$preprocessed$is_dependent)
+  expect_gt(n, sum(fit$preprocessed$is_dependent))
+
+  out <- evaluate_model(
+    fit,
+    return = c(
+      "information",
+      "weighted_information",
+      "event_information_trace"
+    ),
+    weights = matrix(1, n, 1, dimnames = list(NULL, "all"))
+  )
+  expect_equal(out$weighted_information[,, "all"], out$information)
+  expect_equal(sum(out$event_information_trace), sum(diag(out$information)))
+})
+
+test_that("weighted information rejects a missing or misshapen weight matrix", {
+  fit <- evaluate_fixture()
+  expect_snapshot(
+    evaluate_model(fit, return = "weighted_information"),
+    error = TRUE
+  )
+  expect_snapshot(
+    evaluate_model(
+      fit,
+      return = "weighted_information",
+      weights = matrix(1, 5, 1)
+    ),
+    error = TRUE
+  )
+  expect_snapshot(
+    evaluate_model(
+      fit,
+      return = "weighted_information",
+      weights = matrix("a", length(fit$preprocessed$is_dependent), 1)
+    ),
+    error = TRUE
+  )
+})

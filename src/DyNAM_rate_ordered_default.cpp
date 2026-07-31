@@ -42,7 +42,9 @@ List estimate_DyNAM_rate_ordered(
     const bool return_ranks = false,
     const bool return_margins = false,
     const bool return_probabilities = false,
-    const bool return_availability = false
+    const bool return_availability = false,
+    const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
+    const bool return_event_information_trace = false
 ) {
     // initialize stat_mat and numbers
     arma::mat stat_mat = stat_mat_init;
@@ -91,6 +93,21 @@ List estimate_DyNAM_rate_ordered(
     if (return_availability) {
         availability_opportunities = arma::vec(n_actors_1, fill::zeros);
         availability_seen = arma::vec(n_actors_1, fill::zeros);
+    }
+    // Opt-in weighted per-interval information: one p x p slice per weight
+    // column, and the per-interval trace. Both stay empty when not requested,
+    // which is how the shared accumulator reads "not asked for".
+    const arma::mat weights_mat =
+      as_event_weights(event_weights, (arma::uword) n_events);
+    arma::cube weighted_information;
+    if (!weights_mat.is_empty()) {
+        weighted_information.zeros(
+          n_parameters, n_parameters, weights_mat.n_cols
+        );
+    }
+    arma::vec event_information_trace;
+    if (return_event_information_trace) {
+        event_information_trace.zeros(n_events);
     }
 
     // Check whether there are composition change and initialize
@@ -225,6 +242,10 @@ List estimate_DyNAM_rate_ordered(
           normalizer -
           expected_stat_current_event.t() * expected_stat_current_event;
         fisher += fisher_current_event;
+        accumulate_event_information(
+          fisher_current_event, 1.0, id_event, weights_mat,
+          weighted_information, event_information_trace
+        );
         // logLikelihood from the shifted predictor (finite under underflow)
         intervalLogL(id_event) = lin_pred(id_sender) - log_normalizer;
         logLikelihood += intervalLogL(id_event);
@@ -240,7 +261,9 @@ List estimate_DyNAM_rate_ordered(
       Named("margin_observed") = margin_observed,
       Named("margin_expected") = margin_expected,
       Named("availability_n_opportunities") = availability_opportunities,
-      Named("event_probabilities") = event_probabilities
+      Named("event_probabilities") = event_probabilities,
+      Named("weighted_information") = weighted_information,
+      Named("event_information_trace") = event_information_trace
     );
 }
 

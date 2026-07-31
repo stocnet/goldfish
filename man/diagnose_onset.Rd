@@ -24,12 +24,14 @@ unused).}
 \item{information}{how the accrual curve measures per-event
 information. \code{"opg"} (default) is the outer-product form
 \eqn{\sum_k s_k' s_k}, available from the stored score rows alone.
-\code{"expected"} — per-event Fisher contributions — is not available yet;
-it needs an accumulation inside the estimation kernels that no stored
-primitive carries, and requesting it aborts rather than quietly
-returning the outer-product curve. The distinction matters little
-here: the calibration weakness of the outer-product form is a property
-of tests, and a cumulative share is not one.}
+\code{"expected"} is the per-interval Fisher trace, which no stored
+primitive carries: it costs one \code{\link[=evaluate_model]{evaluate_model()}} pass and therefore
+requires the model's statistics, attached by
+\code{estimate_*(return_preprocessed = TRUE)} or supplied to that function.
+The two are counterparts — the outer-product contribution is itself the
+trace of the outer-product block — and the default stays \code{"opg"}
+because its calibration weakness is a property of tests, and a
+cumulative share is not one.}
 
 \item{tolerance}{the half-width, in standard errors, of the band a
 coefficient's path must stay inside for the remainder of the sequence

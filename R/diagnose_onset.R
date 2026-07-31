@@ -94,12 +94,14 @@
 #' @param information how the accrual curve measures per-event
 #'   information. `"opg"` (default) is the outer-product form
 #'   \eqn{\sum_k s_k' s_k}, available from the stored score rows alone.
-#'   `"expected"` — per-event Fisher contributions — is not available yet;
-#'   it needs an accumulation inside the estimation kernels that no stored
-#'   primitive carries, and requesting it aborts rather than quietly
-#'   returning the outer-product curve. The distinction matters little
-#'   here: the calibration weakness of the outer-product form is a property
-#'   of tests, and a cumulative share is not one.
+#'   `"expected"` is the per-interval Fisher trace, which no stored
+#'   primitive carries: it costs one [evaluate_model()] pass and therefore
+#'   requires the model's statistics, attached by
+#'   `estimate_*(return_preprocessed = TRUE)` or supplied to that function.
+#'   The two are counterparts — the outer-product contribution is itself the
+#'   trace of the outer-product block — and the default stays `"opg"`
+#'   because its calibration weakness is a property of tests, and a
+#'   cumulative share is not one.
 #' @param tolerance the half-width, in standard errors, of the band a
 #'   coefficient's path must stay inside for the remainder of the sequence
 #'   to count as stabilized.
@@ -168,16 +170,6 @@ diagnose_onset.result.goldfish <- function(
   )
   abort_if_stale_result(x, "onset diagnostics")
   information <- match.arg(information)
-  if (identical(information, "expected")) {
-    cli::cli_abort(c(
-      "{.code information = \"expected\"} has not shipped yet.",
-      "x" = "It needs the per-interval Fisher contributions, which no
-             stored primitive carries: the fit keeps the total information
-             matrix only.",
-      "i" = "Use {.code information = \"opg\"}, the outer-product form,
-             which is what a cumulative share needs."
-    ))
-  }
   if (!is.numeric(tolerance) || length(tolerance) != 1L || tolerance <= 0) {
     cli::cli_abort("{.arg tolerance} must be a single positive number.")
   }
@@ -185,7 +177,7 @@ diagnose_onset.result.goldfish <- function(
   scores <- x$event_scores
   dropped_events <- c(0L, cumsum(!x$right_censored_events))
   path <- onset_path_matrix(x, scores)
-  accrual <- onset_accrual(scores)
+  accrual <- onset_accrual(onset_contribution(x, scores, information))
 
   new_diagnostic_list(
     list(
@@ -235,11 +227,25 @@ onset_path_matrix <- function(x, scores) {
   path
 }
 
-# The outer-product information accrual: `tr(s_k' s_k)` is the squared norm of
-# a score row, so the cumulative share needs no matrix product at all. Indexed
-# like the path, starting at zero for the empty initial segment.
-onset_accrual <- function(scores) {
-  contribution <- rowSums(scores^2)
+# The per-interval information each accrual step adds. The outer-product form
+# reduces the stored score rows -- `tr(s_k' s_k)` is the squared norm of a
+# score row, so it needs no matrix product at all -- while the expected form is
+# the per-interval Fisher trace, which no stored primitive carries and which
+# one evaluation pass therefore has to produce. The two are the same functional
+# of the same block under two estimators of it.
+onset_contribution <- function(x, scores, information) {
+  if (identical(information, "opg")) {
+    return(rowSums(scores^2))
+  }
+  evaluate_model(
+    x,
+    return = "event_information_trace"
+  )$event_information_trace
+}
+
+# The cumulative information share, indexed like the path and starting at zero
+# for the empty initial segment.
+onset_accrual <- function(contribution) {
   c(0, cumsum(contribution) / sum(contribution))
 }
 

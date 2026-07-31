@@ -7,11 +7,16 @@
 
 # The quantities `evaluate_model()` can return, in the order a result reports
 # them. `loglik` / `score` / `information` come out of every pass; the rest are
-# opt-in components the engines compute in the event loop when asked.
+# opt-in components the engines compute in the event loop when asked. The two
+# information-family additions are accumulated beside the running total rather
+# than stored per interval, so asking for them costs the pass and not the
+# memory of n blocks.
 EVALUATE_QUANTITIES <- c(
   "loglik",
   "score",
   "information",
+  "weighted_information",
+  "event_information_trace",
   "interval_loglik",
   "total_rate",
   "conditional_logl",
@@ -70,7 +75,9 @@ EVALUATE_PRIMITIVE_OF <- c(
 #'   coefficient labels the model reports, in which case unnamed coefficients
 #'   keep their fitted value. Defaults to the fitted coefficients.
 #' @param return a character vector naming the quantities to compute, any
-#'   subset of `"loglik"`, `"score"`, `"information"`, `"interval_loglik"`,
+#'   subset of `"loglik"`, `"score"`, `"information"`,
+#'   `"weighted_information"`, `"event_information_trace"`,
+#'   `"interval_loglik"`,
 #'   `"total_rate"`, `"conditional_logl"`, `"event_scores"`,
 #'   `"conditional_scores"`, `"ranks"`, `"recall"`, `"margins"`,
 #'   `"exposure"`, `"n_opportunities"` and `"probabilities"`. The returned
@@ -80,6 +87,13 @@ EVALUATE_PRIMITIVE_OF <- c(
 #' @param preprocessed a `preprocessed.goldfish` object to evaluate over, as
 #'   returned by [compute_statistics()]. Defaults to the one attached to the
 #'   fit.
+#' @param weights a numeric matrix with one row per stored interval, required
+#'   by `"weighted_information"` and ignored otherwise. Each column is a
+#'   separate weighting of the per-interval expected information, and its name
+#'   labels the corresponding slice of the returned array. A column of ones
+#'   reproduces `"information"`; a set of disjoint indicator columns gives the
+#'   per-group blocks, at the cost of one accumulation per interval rather than
+#'   one per column, since zero weights are skipped.
 #' @param backend the computational implementation to evaluate on, defaulting
 #'   to the one that produced the fit. Requesting a quantity a backend cannot
 #'   produce aborts naming the backends that can.
@@ -91,7 +105,13 @@ EVALUATE_PRIMITIVE_OF <- c(
 #'
 #' @return A named list carrying the requested quantities, plus `backend`, the
 #'   implementation that produced them, and `at`, the vector they were
-#'   evaluated at. `"recall"` is a named numeric vector, one proportion per
+#'   evaluated at. `"weighted_information"` is a `p x p x m` array whose `m`-th
+#'   slice is `sum_k weights[k, m] * I_k`, with `I_k` the interval's expected
+#'   information contribution, and whose third dimension carries
+#'   `colnames(weights)`; `"event_information_trace"` is the length-`n` vector
+#'   of `trace(I_k)`, which sums to the trace of `"information"`. Neither
+#'   materializes the per-interval blocks: both accumulate inside the one pass.
+#'   `"recall"` is a named numeric vector, one proportion per
 #'   threshold; `"margins"` is the per-actor list documented under
 #'   [estimate_dynam()], labeled and scale-marked as a fit's own margins are.
 #'   `"exposure"` (the per-actor time at risk, summed over every interval
@@ -144,6 +164,7 @@ evaluate_model.result.goldfish <- function(
   at = stats::coef(x),
   return = c("loglik", "score"),
   preprocessed = NULL,
+  weights = NULL,
   backend = NULL,
   recall_at = c(1L, 5L, 10L),
   ...
@@ -156,15 +177,27 @@ evaluate_model.result.goldfish <- function(
 
   spec <- prep$model_spec %||% x$model_spec
   abort_if_exposure_undefined(quantities, spec)
+  weights <- resolve_evaluate_weights(weights, quantities, prep)
   needs <- evaluate_needs(quantities)
   res <- evaluate_engine_once(
     spec = spec,
     prep = prep,
     pars = pars,
     backend = backend,
-    needs = needs
+    needs = needs,
+    weights = weights
   )
-  assemble_evaluation(res, quantities, x, spec, prep, pars, backend, recall_at)
+  assemble_evaluation(
+    res,
+    quantities,
+    x,
+    spec,
+    prep,
+    pars,
+    backend,
+    recall_at,
+    weights
+  )
 }
 
 # The vocabulary check. Unknown names abort naming the valid ones rather than
@@ -242,6 +275,58 @@ abort_if_exposure_undefined <- function(
   )
 }
 
+# The weight matrix a weighted-information request runs on. Weights index
+# INTERVALS, not dependent events: the exact-time families carry right-censored
+# intervals that contribute to the information, so a column that skipped them
+# would misalign every downstream slice silently. Weights supplied without the
+# quantity are dropped rather than refused -- the pass would ignore them
+# anyway, and the argument is documented as belonging to that one return.
+resolve_evaluate_weights <- function(
+  weights,
+  quantities,
+  prep,
+  call = rlang::caller_env()
+) {
+  if (!"weighted_information" %in% quantities) {
+    return(NULL)
+  }
+  if (is.null(weights)) {
+    cli::cli_abort(
+      c(
+        "{.val weighted_information} needs {.arg weights}.",
+        "i" = "Supply a numeric matrix with one column per weighting and one
+               row per interval."
+      ),
+      call = call
+    )
+  }
+  if (!is.numeric(weights)) {
+    cli::cli_abort("{.arg weights} must be numeric.", call = call)
+  }
+  labels <- if (is.matrix(weights)) colnames(weights) else names(weights)
+  weights <- as.matrix(weights)
+  colnames(weights) <- labels
+  n_intervals <- length(prep$is_dependent)
+  if (nrow(weights) != n_intervals) {
+    cli::cli_abort(
+      c(
+        "{.arg weights} must have one row per interval.",
+        "x" = "It has {nrow(weights)}; the statistics carry {n_intervals}.",
+        "i" = "Right-censored intervals count: they contribute to the
+               information too."
+      ),
+      call = call
+    )
+  }
+  if (anyNA(weights)) {
+    cli::cli_abort(
+      "{.arg weights} must not contain missing values.",
+      call = call
+    )
+  }
+  weights
+}
+
 # The vector to evaluate at. A named vector seeds the coefficients it names on
 # top of the fitted ones -- the same convention `initial_parameters` uses --
 # so evaluating one constrained coefficient does not mean respelling the rest.
@@ -288,7 +373,8 @@ evaluate_needs <- function(quantities) {
     total_rate = any(c("total_rate", "conditional_logl") %in% quantities),
     probabilities = "probabilities" %in% quantities,
     availability = any(c("exposure", "n_opportunities") %in% quantities),
-    conditional_scores = "conditional_scores" %in% quantities
+    conditional_scores = "conditional_scores" %in% quantities,
+    information_trace = "event_information_trace" %in% quantities
   )
 }
 
@@ -296,7 +382,14 @@ evaluate_needs <- function(quantities) {
 # preprocessed statistics rather than from a formula. `seed_intercept = FALSE`
 # throughout: an evaluation uses the supplied vector verbatim, where estimation
 # would replace an unseeded time intercept with its data-derived start.
-evaluate_engine_once <- function(spec, prep, pars, backend, needs) {
+evaluate_engine_once <- function(
+  spec,
+  prep,
+  pars,
+  backend,
+  needs,
+  weights = NULL
+) {
   has_intercept <- isTRUE(prep$has_intercept %||% spec$has_intercept)
   is_rate_model <- identical(risk_set_axis(spec), "sender")
   is_two_mode <- isTRUE(spec$is_two_mode)
@@ -310,6 +403,14 @@ evaluate_engine_once <- function(spec, prep, pars, backend, needs) {
       has_intercept = has_intercept,
       is_rate_model = is_rate_model,
       is_two_mode = is_two_mode,
+      # The choice families reduce the per-event statistics array to the
+      # sender's matrix before the contribution reads it; estimation decides
+      # this from the same two spec classes, and an evaluation must make the
+      # same choice or the contribution meets an array of the wrong rank.
+      reduce_array_to_matrix = inherits(
+        spec,
+        c("dynam_choice_spec", "dynami_choice_spec")
+      ),
       seed_intercept = FALSE
     )
   } else {
@@ -332,7 +433,9 @@ evaluate_engine_once <- function(spec, prep, pars, backend, needs) {
     needs$total_rate,
     needs$probabilities,
     needs$availability,
-    needs$conditional_scores
+    needs$conditional_scores,
+    weights,
+    needs$information_trace
   )
 }
 
@@ -390,7 +493,8 @@ assemble_evaluation <- function(
   prep,
   pars,
   backend,
-  recall_at
+  recall_at,
+  weights = NULL
 ) {
   common <- normalize_engine_pass(res, backend)
   availability <- evaluate_availability(res, spec, prep, backend)
@@ -402,6 +506,8 @@ assemble_evaluation <- function(
       loglik = as.numeric(common$loglik),
       score = stats::setNames(as.numeric(common$score), coefficient_names),
       information = common$information,
+      weighted_information = evaluate_weighted_information(res, weights),
+      event_information_trace = as.numeric(res$event_information_trace),
       interval_loglik = as.numeric(common$interval_loglik),
       total_rate = evaluate_optional_numeric(res$total_rate),
       conditional_logl = evaluate_optional_numeric(res$conditional_logl),
@@ -418,6 +524,22 @@ assemble_evaluation <- function(
   out$backend <- backend
   out$at <- pars
   out
+}
+
+# The weighted-information array, labeled on its third dimension by the weight
+# column names. The first two dimensions are left unnamed, as `"information"`
+# itself is, so the two agree about what a p x p information block looks like.
+evaluate_weighted_information <- function(res, weights) {
+  weighted <- res$weighted_information
+  if (is.null(weighted)) {
+    return(NULL)
+  }
+  weighted <- array(as.numeric(weighted), dim = dim(weighted))
+  labels <- colnames(weights)
+  if (!is.null(labels)) {
+    dimnames(weighted) <- list(NULL, NULL, labels)
+  }
+  weighted
 }
 
 evaluate_optional_numeric <- function(x) {

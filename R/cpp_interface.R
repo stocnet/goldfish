@@ -221,7 +221,9 @@ make_engine_evaluator <- function(
     need_total_rate = FALSE,
     need_probabilities = FALSE,
     need_availability = FALSE,
-    need_conditional_scores = FALSE
+    need_conditional_scores = FALSE,
+    event_weights = NULL,
+    need_information_trace = FALSE
   ) {
     if (backend == "gather") {
       # The gathered stack computes the exact-time components whenever the
@@ -246,7 +248,9 @@ make_engine_evaluator <- function(
         return_availability = need_availability,
         return_conditional_scores = need_conditional_scores,
         sender_of_row = gathered_data$sender_of_row,
-        dyad_partner = gathered_data$dyad_partner
+        dyad_partner = gathered_data$dyad_partner,
+        event_weights = event_weights,
+        return_event_information_trace = need_information_trace
       ))
     }
     estimate_(
@@ -277,7 +281,9 @@ make_engine_evaluator <- function(
       return_total_rate = need_total_rate,
       return_probabilities = need_probabilities,
       return_availability = need_availability,
-      return_conditional_scores = need_conditional_scores
+      return_conditional_scores = need_conditional_scores,
+      event_weights = event_weights,
+      return_event_information_trace = need_information_trace
     )
   }
 
@@ -916,7 +922,9 @@ estimate_ <- function(
   return_total_rate = FALSE,
   return_probabilities = FALSE,
   return_availability = FALSE,
-  return_conditional_scores = FALSE
+  return_conditional_scores = FALSE,
+  event_weights = NULL,
+  return_event_information_trace = FALSE
 ) {
   # DyNAM-M (choice) consumes the folded `active_dyad` directly: at
   # the point encoding `active_dyad_init` is a flattened n1 x n2 mask with a
@@ -945,7 +953,9 @@ estimate_ <- function(
       return_ranks = return_ranks,
       return_margins = return_margins,
       return_probabilities = return_probabilities,
-      return_availability = return_availability
+      return_availability = return_availability,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
 
@@ -970,7 +980,9 @@ estimate_ <- function(
       return_ranks = return_ranks,
       return_margins = return_margins,
       return_probabilities = return_probabilities,
-      return_availability = return_availability
+      return_availability = return_availability,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
 
@@ -998,7 +1010,9 @@ estimate_ <- function(
       return_ranks = return_ranks,
       return_margins = return_margins,
       return_probabilities = return_probabilities,
-      return_availability = return_availability
+      return_availability = return_availability,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
 
@@ -1030,7 +1044,9 @@ estimate_ <- function(
       return_total_rate = return_total_rate,
       return_probabilities = return_probabilities,
       return_availability = return_availability,
-      return_conditional_scores = return_conditional_scores
+      return_conditional_scores = return_conditional_scores,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
 
@@ -1061,7 +1077,9 @@ estimate_ <- function(
       return_total_rate = return_total_rate,
       return_probabilities = return_probabilities,
       return_availability = return_availability,
-      return_conditional_scores = return_conditional_scores
+      return_conditional_scores = return_conditional_scores,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
 
@@ -1088,7 +1106,9 @@ estimate_ <- function(
       return_ranks = return_ranks,
       return_margins = return_margins,
       return_probabilities = return_probabilities,
-      return_availability = return_availability
+      return_availability = return_availability,
+      event_weights = event_weights,
+      return_event_information_trace = return_event_information_trace
     )
   }
   return(res)
@@ -1726,7 +1746,9 @@ compute_ <- function(
   return_availability = FALSE,
   return_conditional_scores = FALSE,
   sender_of_row = NULL,
-  dyad_partner = NULL
+  dyad_partner = NULL,
+  event_weights = NULL,
+  return_event_information_trace = FALSE
 ) {
   # Per-row actor slots for the margin sides, as the shared reduction wants
   # them: 0-based, and empty for an axis this shape does not have (the sender
@@ -1764,7 +1786,9 @@ compute_ <- function(
       return_ranks,
       return_margins,
       return_probabilities,
-      return_availability
+      return_availability,
+      event_weights,
+      return_event_information_trace
     )
   }
 
@@ -1785,7 +1809,9 @@ compute_ <- function(
       return_margins,
       return_probabilities,
       return_availability,
-      return_conditional_scores
+      return_conditional_scores,
+      event_weights,
+      return_event_information_trace
     )
   }
 
@@ -1804,7 +1830,9 @@ compute_ <- function(
       return_ranks,
       return_margins,
       return_probabilities,
-      return_availability
+      return_availability,
+      event_weights,
+      return_event_information_trace
     )
   }
 

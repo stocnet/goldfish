@@ -134,11 +134,36 @@ test_that("a cold start drifts and accrues nothing; a warm one does not", {
   expect_gt(max(cold$summary$stabilized_at), max(warm$summary$stabilized_at))
 })
 
-test_that("the unshipped information variant is named, not substituted", {
+test_that("bad tuning is named, not substituted", {
   withr::local_options(cli.width = 80, cli.unicode = FALSE, cli.num_colors = 1)
   fit <- onset_fixture()
-  expect_snapshot(diagnose_onset(fit, information = "expected"), error = TRUE)
   expect_snapshot(diagnose_onset(fit, tolerance = -1), error = TRUE)
+})
+
+test_that("the expected-information curve is the per-interval Fisher trace", {
+  # `"opg"` reduces the stored score rows; `"expected"` costs one evaluation
+  # pass, so it needs the statistics and says so without them. The two are
+  # different estimators of the same accrual, so they must agree on the shape
+  # of the curve without being the same numbers.
+  fit <- onset_fixture(return_preprocessed = TRUE)
+  opg <- diagnose_onset(fit, information = "opg")
+  expected <- diagnose_onset(fit, information = "expected")
+
+  expect_equal(nrow(expected$accrual), nrow(opg$accrual))
+  # A cumulative share: starts at nothing, ends at everything, never decreases.
+  expect_equal(expected$accrual$share[1], 0)
+  expect_equal(expected$accrual$share[nrow(expected$accrual)], 1)
+  expect_true(all(diff(expected$accrual$share) >= 0))
+  expect_equal(attr(expected, "params")$information, "expected")
+  # Same curve, different estimator -- so strongly agreeing but not identical.
+  expect_gt(stats::cor(expected$accrual$share, opg$accrual$share), 0.95)
+  expect_false(isTRUE(all.equal(expected$accrual$share, opg$accrual$share)))
+
+  # Only the path is arithmetic on the stored rows; the expected curve is not.
+  expect_snapshot(
+    diagnose_onset(onset_fixture(), information = "expected"),
+    error = TRUE
+  )
 })
 
 test_that("a fit without the score rows says which primitive to store", {

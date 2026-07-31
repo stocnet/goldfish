@@ -45,7 +45,9 @@ inline arma::mat reduce_mat_to_vector(
      const bool return_total_rate = false,
      const bool return_probabilities = false,
      const bool return_availability = false,
-     const bool return_conditional_scores = false
+     const bool return_conditional_scores = false,
+     const Rcpp::Nullable<Rcpp::NumericMatrix> event_weights = R_NilValue,
+     const bool return_event_information_trace = false
  ) {
    // initialize stat_mat and numbers
    arma::mat stat_mat = stat_mat_init;
@@ -62,6 +64,22 @@ inline arma::mat reduce_mat_to_vector(
    arma::mat derivative(1, n_parameters, fill::zeros);
    double logLikelihood = 0;
    arma::vec intervalLogL(n_events, fill::zeros);
+   // Opt-in weighted per-interval information: one p x p slice per weight
+   // column, and the per-interval trace. Both stay empty when not requested,
+   // which is how the shared accumulator reads "not asked for". The block this
+   // family contributes carries the timespan, matching what `fisher` receives.
+   const arma::mat weights_mat =
+     as_event_weights(event_weights, (arma::uword) n_events);
+   arma::cube weighted_information;
+   if (!weights_mat.is_empty()) {
+       weighted_information.zeros(
+         n_parameters, n_parameters, weights_mat.n_cols
+       );
+   }
+   arma::vec event_information_trace;
+   if (return_event_information_trace) {
+       event_information_trace.zeros(n_events);
+   }
    // Opt-in per-event score matrix. Each row is the per-event
    // increment already accumulated into `derivative` (the timed weighted sum
    // plus the observed statistic on dependent events); allocated only when
@@ -259,6 +277,10 @@ inline arma::mat reduce_mat_to_vector(
 
      // fisher matrix
      fisher += timespan_current_event * fisher_current_event;
+     accumulate_event_information(
+       fisher_current_event, timespan_current_event, id_event, weights_mat,
+       weighted_information, event_information_trace
+     );
      //Rcpp::Rcout << "fisher:" << std::endl << fisher_current_event << std::endl;
      if (return_total_rate) total_rate(id_event) = normalizer;
      // logLikelihood
@@ -370,7 +392,9 @@ inline arma::mat reduce_mat_to_vector(
      Named("conditional_scores") = conditional_scores,
      Named("availability_exposure") = availability_exposure,
      Named("availability_n_opportunities") = availability_opportunities,
-     Named("event_probabilities") = event_probabilities
+     Named("event_probabilities") = event_probabilities,
+     Named("weighted_information") = weighted_information,
+     Named("event_information_trace") = event_information_trace
    );
  }
 

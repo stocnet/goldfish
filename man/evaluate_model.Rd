@@ -12,6 +12,7 @@ evaluate_model(x, ...)
   at = stats::coef(x),
   return = c("loglik", "score"),
   preprocessed = NULL,
+  weights = NULL,
   backend = NULL,
   recall_at = c(1L, 5L, 10L),
   ...
@@ -29,7 +30,9 @@ coefficient labels the model reports, in which case unnamed coefficients
 keep their fitted value. Defaults to the fitted coefficients.}
 
 \item{return}{a character vector naming the quantities to compute, any
-subset of \code{"loglik"}, \code{"score"}, \code{"information"}, \code{"interval_loglik"},
+subset of \code{"loglik"}, \code{"score"}, \code{"information"},
+\code{"weighted_information"}, \code{"event_information_trace"},
+\code{"interval_loglik"},
 \code{"total_rate"}, \code{"conditional_logl"}, \code{"event_scores"},
 \code{"conditional_scores"}, \code{"ranks"}, \code{"recall"}, \code{"margins"},
 \code{"exposure"}, \code{"n_opportunities"} and \code{"probabilities"}. The returned
@@ -40,6 +43,14 @@ mean; see \code{\link[=estimate_dynam]{estimate_dynam()}}.}
 \item{preprocessed}{a \code{preprocessed.goldfish} object to evaluate over, as
 returned by \code{\link[=compute_statistics]{compute_statistics()}}. Defaults to the one attached to the
 fit.}
+
+\item{weights}{a numeric matrix with one row per stored interval, required
+by \code{"weighted_information"} and ignored otherwise. Each column is a
+separate weighting of the per-interval expected information, and its name
+labels the corresponding slice of the returned array. A column of ones
+reproduces \code{"information"}; a set of disjoint indicator columns gives the
+per-group blocks, at the cost of one accumulation per interval rather than
+one per column, since zero weights are skipped.}
 
 \item{backend}{the computational implementation to evaluate on, defaulting
 to the one that produced the fit. Requesting a quantity a backend cannot
@@ -52,7 +63,13 @@ the top \code{k}.}
 \value{
 A named list carrying the requested quantities, plus \code{backend}, the
 implementation that produced them, and \code{at}, the vector they were
-evaluated at. \code{"recall"} is a named numeric vector, one proportion per
+evaluated at. \code{"weighted_information"} is a \verb{p x p x m} array whose \code{m}-th
+slice is \verb{sum_k weights[k, m] * I_k}, with \code{I_k} the interval's expected
+information contribution, and whose third dimension carries
+\code{colnames(weights)}; \code{"event_information_trace"} is the length-\code{n} vector
+of \code{trace(I_k)}, which sums to the trace of \code{"information"}. Neither
+materializes the per-interval blocks: both accumulate inside the one pass.
+\code{"recall"} is a named numeric vector, one proportion per
 threshold; \code{"margins"} is the per-actor list documented under
 \code{\link[=estimate_dynam]{estimate_dynam()}}, labeled and scale-marked as a fit's own margins are.
 \code{"exposure"} (the per-actor time at risk, summed over every interval

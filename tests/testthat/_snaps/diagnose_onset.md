@@ -1,20 +1,20 @@
-# the unshipped information variant is named, not substituted
-
-    Code
-      diagnose_onset(fit, information = "expected")
-    Condition
-      Error in `diagnose_onset()`:
-      ! `information = "expected"` has not shipped yet.
-      x It needs the per-interval Fisher contributions, which no stored primitive carries: the fit keeps the total information matrix only.
-      i Use `information = "opg"`, the outer-product form, which is what a cumulative share needs.
-
----
+# bad tuning is named, not substituted
 
     Code
       diagnose_onset(fit, tolerance = -1)
     Condition
       Error in `diagnose_onset()`:
       ! `tolerance` must be a single positive number.
+
+# the expected-information curve is the per-interval Fisher trace
+
+    Code
+      diagnose_onset(onset_fixture(), information = "expected")
+    Condition
+      Error in `evaluate_model()`:
+      ! This diagnostic needs the preprocessed statistics of the model, which this fit does not carry.
+      i Re-estimate with `return_preprocessed = TRUE`, or
+      i supply `preprocessed = compute_statistics(..., output = "preprocessed")`.
 
 # a fit without the score rows says which primitive to store
 
