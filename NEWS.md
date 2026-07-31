@@ -1,3 +1,73 @@
+# goldfish 1.9.23
+
+* **The `test_*` family is complete: `test_gof()`, `test_parameter()` and
+  `test_time()`.** Three post-estimation tests, each asking a different
+  question of a fitted model. `test_gof()` asks whether an effect's
+  contribution is spread over the sequence the way a fixed coefficient implies,
+  reading the cumulative score processes. `test_parameter()` asks whether a
+  coefficient held at an imposed value through `offset()` is contradicted by
+  the score left over there. `test_time()` asks whether an estimated
+  coefficient was constant, by augmenting the model with an interaction between
+  the effect and time and testing that interaction's score.
+
+  `test_time()` offers two methods. `"trend"` adds `x_d * g(t)` for a monotone
+  transform of time: one degree of freedom per effect and a directed
+  alternative, most powerful against a coefficient that drifts. `"periods"`
+  adds period indicators and reports the one-step coefficient move in each
+  period, which is the method for a regime change at a known time. Both are
+  **exact** score tests of the augmented model, and the trend arm reproduces
+  `survival::cox.zph()` to 4.9e-09 on the sub-models whose classical twin is a
+  Cox partial likelihood.
+
+  A detail that decides whether the numbers mean anything: the time transform
+  is applied to **the clock the sub-model's own likelihood runs on** — the
+  event index for an ordinal sub-model, the event time for an exact-time one.
+  Using wall-clock time where the likelihood is ordinal moves the `"identity"`
+  statistic by 24% on the package's own fixture. A consequence is that
+  `"identity"` and `"rank"` are the same transform on an ordinal fit.
+
+  No outer-product variant is offered by any `test_*` function, on a line worth
+  stating once: an outer-product information is acceptable where nothing is
+  being tested and not where something is. `diagnose_onset()` keeps it as the
+  default of its accrual curve, a cumulative share being a description rather
+  than a claim.
+
+* **`evaluate_model()` gains weighted per-interval information.** Two new
+  `return` values and a public `weights` argument: `"weighted_information"`
+  takes an `n x m` matrix over the intervals and returns the `p x p x m` array
+  whose `m`-th slice is `sum_k weights[k, m] * I_k`, and
+  `"event_information_trace"` returns the per-interval `trace(I_k)`. Neither
+  materializes the per-interval blocks — both accumulate inside the single
+  evaluation pass, beside a `p x p` block every engine already formed and
+  discarded, so a weighting costs a scalar multiply-add rather than a second
+  walk of the risk sets. A column of ones reproduces `"information"` exactly.
+
+  `weights` is public because `evaluate_model()` is the only surface with
+  access to per-interval information, and a weighted-information return is what
+  lets a caller write a diagnostic goldfish does not ship.
+
+* **`diagnose_onset(information = "expected")`** now works, reading the
+  per-interval Fisher trace. Its `"opg"` default is unchanged.
+
+* **Effect selection accepts a bare effect name.** On a model carrying an
+  effect several times — `inertia`, `inertia(friendship)`,
+  `inertia(calls, weighted = TRUE)` — `test_gof(fit, effects = "inertia")` now
+  tests all three. Per-term spellings still win, so naming one variant selects
+  that variant.
+
+* **Every diagnostic page states what it needs.** A new `diagnostic-requirements`
+  help topic writes the vocabulary once — what a stored primitive is, the two
+  routes to the model's statistics, what an evaluation pass costs — and carries
+  the whole family in one table; each page inherits it and adds only its own
+  specifics.
+
+* Fixed two bugs in `evaluate_model(backend = "r")` that made it disagree with
+  the compiled engine. Choice sub-models errored outright, the evaluator never
+  having set the array reduction they need; and the R engine defaulted to
+  allowing the reflexive alternative where the compiled engine and estimation
+  both exclude it, inflating the information by about 0.4% without failing.
+  The three backends now agree to 1e-13.
+
 # goldfish 1.9.22
 
 * **The residual, fitted, predict and augment methods are checked against
