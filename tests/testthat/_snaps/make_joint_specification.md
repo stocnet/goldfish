@@ -9,16 +9,6 @@
       x The overlapping node space is a whole mode for neither: "board" spans mode "director" and "collab" spans mode "director" and "staff".
       i Subset/nested cross-process coupling is future development ("Gap B"); only whole-shared-mode identity conforms.
 
-# a join referencing no panel layer is rejected as separable
-
-    Code
-      make_joint_specification(calls_spec, emails_spec, data = data)
-    Condition
-      Error in `make_joint_specification()`:
-      ! A joint specification must reference a panel-observed layer.
-      x None of the composed formulas read a "panel" layer, so the processes are exactly separable.
-      i Estimate each specification on its own with `estimate_dynam()` or `estimate_rem()`.
-
 # processes over different mode-map objects are rejected
 
     Code

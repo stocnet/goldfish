@@ -4,13 +4,14 @@
 
 The package SHALL export `make_joint_specification(...)` accepting two or more
 `make_specification()` objects over one shared data object and returning a
-multivariate specification that portrays their co-evolution. At least one
-**panel-observed layer MUST be referenced** in the composed formulas — as a
-process's focal/dependent layer OR as an exogenous covariate read by another
-process's effects or support-constraint atoms (per the layer-info observation
-metadata); a combination that references no panel-observed layer SHALL abort
-explaining that the processes are exactly separable and should be estimated with
-the per-process estimators. DyNAM-i processes SHALL be rejected. All processes
+multivariate specification that portrays their co-evolution. Construction SHALL NOT
+require a panel-observed layer to be referenced — all viability is consumer-owned. A
+combination that references no panel-observed layer SHALL compose: it is
+estimation-separable (the factorized likelihood) yet generatively coupled through the
+shared clock, hence a valid `simulate()` input with no other constructor;
+`estimate_dynes()` (not construction) SHALL abort such an all-separable spec, naming
+`estimate_dynam()`. Construction MAY emit a separability note but SHALL NOT abort on
+it. DyNAM-i processes SHALL be rejected. All processes
 MUST reference one shared mode-map object; one- and two-mode processes MAY be
 composed, and dependent processes over distinct mode-pairs MAY be joined
 provided every cross-process read conforms by mode-set identity (see the
@@ -33,11 +34,13 @@ flavored or plain.
   static exogenous step-covariate — but no fid is coupled, so `estimate_dynes()`
   will abort on it, naming `estimate_dynam()` (nothing is latent).
 
-#### Scenario: no panel reference rejected
+#### Scenario: no panel reference composes (estimation-separable, generatively simulable)
 - **WHEN** no composed process references any panel-observed layer (focal or
   exogenous)
-- **THEN** construction aborts with a cli error stating the processes are
-  separable and each specification can be estimated on its own.
+- **THEN** a multivariate specification is returned — the processes are
+  estimation-separable but generatively coupled through the shared clock, so it is a
+  valid `simulate()` input — and `estimate_dynes()` (not construction) aborts it,
+  naming `estimate_dynam()` for per-process estimation.
 
 ### Requirement: Composition over a shared mode-map object conforms by mode-set identity
 
@@ -191,9 +194,11 @@ defaults SHALL be: a **uniform choice over the support-legal alternatives** (no
 effects) for a missing choice; a **uniform draw on both sides** for a missing
 `choice_coordination`; a **uniform ordered rate** (no effects) for a missing rate in
 the **ordered** regime; and, in the **timed** regime, an **intercept-only rate whose
-intercept is pinned** per wave-period from the per-period count `count_w` (the
-`intercept-only-rate-spec` primitive). A **rate-only DyNAM** flavor (choice absent)
-SHALL therefore complete to a uniform choice.
+intercept is pinned** per wave-period to the **per-actor** hazard
+`intercept_w = log(count_w / (T_w · |R_w|))` (the `intercept-only-rate-spec`
+primitive), where `|R_w|` is the period's average size of the flavor's rate entity. A
+**rate-only DyNAM** flavor (choice absent) SHALL therefore complete to a uniform
+choice.
 
 The completed uniform choice SHALL **inherit the layer's support constraints** where
 any were defined (uniform over the support-legal alternatives, never over all
@@ -204,20 +209,31 @@ automatic restriction.
 A composed specification's timing **regime** (ordered vs timed) SHALL be
 **inferred** — timed iff any process carries a waiting-time (intensity) rate — and a
 composition mixing an ordered process with a timed one SHALL be **rejected at
-`make_specification()`**. In the **timed** regime a modeled flavor missing its rate
+`make_joint_specification()`** (join time — a mix is visible only across the ≥2
+composed processes, never at a single-process `make_specification()`). In the
+**timed** regime a modeled flavor missing its rate
 (including a flavor that would otherwise be **choice-only**) SHALL be completed with
 the pinned intercept-only rate so its events land on the shared clock; in the
 **ordered** regime a **choice-only DyNAM** flavor SHALL NOT be rate-completed (its
 timing is supplied by the `process-simulation` pseudo-time modes). The pinned
-intercept `λ_w = count_w / T_w` (for a modeled panel flavor `count_w` is the net
-wave Hamming diff — a net-change floor, not a directly observed micro-count) is a
-**single aggregate flavor intensity** per wave-period, from which a sender is drawn
-**uniformly among the support-legal actors**. Its exclusion from the optimizer rests
-on **θ-independence**: `λ_w` does not depend on the estimated parameters, so its
-timing likelihood is **additive-constant w.r.t. θ** and is **excluded from the score
-and Hessian** (a constant offset that MAY appear in a *reported* log-likelihood). It
-is also iteration-constant today because `count_w` is the fixed net Hamming diff. REM
-requires only a rate and is already complete.
+per-actor intercept `intercept_w = log(count_w / (T_w · |R_w|))` (for a modeled panel
+flavor `count_w` is the net wave Hamming diff — a net-change floor, not a directly
+observed micro-count) is a **per-actor constant hazard** — identical for every
+support-legal actor, **commensurable** on the shared clock with a competing flavor's
+per-actor rate in the superposition `Σ_i exp(·)`, **not** a single aggregate flavor
+scalar — from which a sender is drawn **uniformly among the support-legal actors** as
+a consequence of the equal per-actor hazards. `|R_w|` (the period's average rate-entity
+size) SHALL be **supplied by the consumer**, its source keyed on how the flavor is
+observed — a **panel** wave-endpoint average `(|R_g(w_{k-1})| + |R_g(w_k)|)/2` or a
+**relational** time-weighted `avg_active_entity` (see design D9a) — and the period
+partition SHALL follow the half-open membership convention
+`findInterval(t, wave_times, rightmost.closed = TRUE)` (interior boundaries
+left-closed/right-open, final period right-closed). Its exclusion from the optimizer
+rests on **θ-independence**: `intercept_w` does not depend on the estimated
+parameters, so its timing likelihood is **additive-constant w.r.t. θ** and is
+**excluded from the score and Hessian** (a constant offset that MAY appear in a
+*reported* log-likelihood). It is also iteration-constant today because `count_w` is
+the fixed net Hamming diff. REM requires only a rate and is already complete.
 
 Completion is a **single transform** shared by every consumer (`simulate()`,
 `estimate_dynes()`, and each augmenter's setup) so that the walk-driven and
@@ -242,17 +258,19 @@ time on an unfilled gap.
 #### Scenario: missing timed rate is completed with a pinned intercept-only rate
 - **WHEN** a flavor is keyed in a **timed** specification's `choice` list but
   omitted from its `rate` list
-- **THEN** the missing rate is completed to an intercept-only rate whose intercept is
-  pinned per wave-period to `λ_w = count_w / T_w` (the `intercept-only-rate-spec`
-  primitive; for a panel flavor `count_w` is the net wave Hamming diff), the warning
-  names the added pinned rate, and **no** free parameter enters θ (the pin is
-  θ-independent, so it is excluded from the optimizer's score and Hessian).
+- **THEN** the missing rate is completed to an intercept-only rate whose per-actor
+  intercept is pinned per wave-period to `intercept_w = log(count_w / (T_w · |R_w|))`
+  (the `intercept-only-rate-spec` primitive; for a panel flavor `count_w` is the net
+  wave Hamming diff and `|R_w|` the consumer-supplied wave-endpoint average of the
+  flavor's rate entity), the warning names the added pinned rate, and **no** free
+  parameter enters θ (the pin is θ-independent, so it is excluded from the optimizer's
+  score and Hessian).
 
 #### Scenario: ordered–timed composition is rejected
-- **WHEN** a specification composed via `make_specification()` pairs a process with
-  a waiting-time (timed) rate and another process with an ordered rate
-- **THEN** `make_specification()` aborts naming the incompatible regimes, before any
-  completion runs.
+- **WHEN** a `make_joint_specification()` join pairs a process with a waiting-time
+  (timed) rate and another process with an ordered rate
+- **THEN** `make_joint_specification()` aborts naming the incompatible regimes, before
+  any completion runs.
 
 #### Scenario: single-process estimation is not completed
 - **WHEN** a rate-only DyNAM `specification.goldfish` (choice `NULL`) is passed to

@@ -58,7 +58,7 @@
       event-stream estimator aborts (cli snapshots under a pinned context)
 - [x] 1.7 Verification: `NOT_CRAN=true` run (baselines PASS not SKIP);
       `devtools::document()`; commit
-- [ ] 1.8 (re-open of 1.1/1.4 — D2 relaxed to consumer-owned viability now that
+- [x] 1.8 (re-open of 1.1/1.4 — D2 relaxed to consumer-owned viability now that
       `simulate()` consumes the joint specification directly) Remove the no-panel
       abort in `make_joint_specification()` (`R/make_joint_specification.R`, the
       panel-reference guard ~L148–166): a combination referencing no panel-observed

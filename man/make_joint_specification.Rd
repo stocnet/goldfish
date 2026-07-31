@@ -34,14 +34,14 @@ object is estimated by \code{estimate_dynes()} (its surface and augmentation liv
 in separate changes); the event-stream estimators \code{\link[=estimate_dynam]{estimate_dynam()}} /
 \code{\link[=estimate_rem]{estimate_rem()}} reject it.
 
-At least one \strong{panel-observed layer MUST be referenced} in the composed
-formulas -- as a process's focal/dependent layer OR as an exogenous covariate
-read by another process's effects or support-constraint atoms. A combination
-referencing no panel-observed layer is rejected: those processes are exactly
-separable and should be estimated with the per-process estimators. Note that
-construction checks \emph{structural} panel presence only; whether any panel layer
-is a \emph{modeled} process (the DyNES-viability requirement) is deferred to
-\code{estimate_dynes()}.
+A composition needs \strong{no panel-observed layer}: any two-or-more-process
+combination over one shared mode-map object composes. A combination
+referencing no panel layer is estimation-separable yet \strong{generatively coupled}
+-- a forward draw interleaves the processes on one shared clock and state -- so
+it is a valid \code{simulate()} input with no other constructor. Whether the join is
+\emph{estimable} as DyNES (whether any panel layer is a \strong{modeled} process) is a
+consumer concern: \code{estimate_dynes()}, not this constructor, aborts an
+all-separable join and redirects it to the per-process estimators.
 
 Each joined specification must model a \strong{distinct focal layer} -- a layer is
 modeled by at most one specification (a duplicated focal layer aborts, naming

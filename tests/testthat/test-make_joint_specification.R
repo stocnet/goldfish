@@ -511,8 +511,11 @@ test_that("an exogenous-only panel reference composes and stays separable", {
   expect_false(any(js$process_map$coupled))
 })
 
-test_that("a join referencing no panel layer is rejected as separable", {
-  local_cli_context()
+test_that("a join referencing no panel layer composes (simulate() input)", {
+  # A no-panel combination is estimation-separable yet generatively coupled, so
+  # it composes and is a valid `simulate()` input (D2). Construction no longer
+  # aborts it; `estimate_dynes()` -- not this constructor -- owns the redirect of
+  # an all-separable join toward the per-process estimators.
   data <- joint_data(friendship = "event")
   calls_spec <- make_specification(
     choice = ~inertia,
@@ -526,10 +529,14 @@ test_that("a join referencing no panel layer is rejected as separable", {
     model = "DyNAM",
     data = data
   )
-  expect_snapshot(
-    make_joint_specification(calls_spec, emails_spec, data = data),
-    error = TRUE
-  )
+  js <- make_joint_specification(calls_spec, emails_spec, data = data)
+  expect_s3_class(js, "joint_specification.goldfish")
+  # A simulable object: the composed process_map is assembled for both fids.
+  expect_setequal(js$process_map$layer, c("calls", "emails"))
+  # No panel layer is a modeled process, so every fid is separable -- the exact
+  # condition `estimate_dynes()` aborts on, deferred out of construction.
+  expect_true(all(goldfish:::joint_separable(js)))
+  expect_length(js$modeled_panel, 0)
 })
 
 test_that("processes over different mode-map objects are rejected", {

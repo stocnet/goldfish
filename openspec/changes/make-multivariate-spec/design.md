@@ -30,9 +30,13 @@ blocks; only subset/nested cross-process coupling stays future work.
 - Augmentation and MCEM (`dynes-augmentation`), the `estimate_dynes()` surface +
   ABEM loop (`abmcem`), and the general `simulate()` (the `process-simulation`
   change — a family-agnostic S3 generic driving this change's walk handle).
-- Any estimator for fully observed multivariate specifications (exactly
-  separable; per-process estimation is the answer, enforced by construction
-  and by the estimation-surface contract).
+- Any *estimator* for fully observed multivariate specifications (exactly
+  separable *for estimation*; per-process estimation is the answer, enforced by the
+  estimation-surface contract — `estimate_dynes()` aborts, the event-stream
+  estimators reject the joint object). Note this is an estimation non-goal only:
+  such a spec *composes* (D2) and is a valid `simulate()` input, since forward
+  simulation couples the processes on the shared clock even when their likelihood
+  factorizes — the generative surface is `process-simulation`'s.
 - Subset/nested cross-process coupling — a cross-process effect or constraint
   read that bridges a mode to a *union containing it* (the directors-only ↔
   all-employees shape, "Gap B"). It needs a subset embed/marginalize projection
@@ -52,10 +56,17 @@ multivariate specification exists to portray the co-evolving panel +
 relational-event system that augmentation couples; `estimate_dynes()` is its only
 estimator — its surface and ABEM loop live in `abmcem` and its panel data path in
 `dynes-augmentation` (the two share the `dynes-estimation` capability), and it
-takes a `make_joint_specification()` object as its `spec`. *Rejected:* a generic
+takes a `make_joint_specification()` object as its `spec`. Estimation is
+`estimate_dynes()` only; the surface's *other* first-class consumer is
+**generative** — `simulate()` (`process-simulation`) takes a
+`make_joint_specification()` object + `coef` and draws the system forward, coupling
+the processes through the shared clock and state rather than through augmentation.
+Neither is an `estimate()` generic, and a fully-observed (estimation-separable) join
+has no estimator yet is a valid `simulate()` input. *Rejected:* a generic
 multivariate estimator over fully observed processes — the factorization makes it
 identical to separate per-process estimation, so it would be surface without
-substance.
+substance (this is an *estimation* argument only; generatively those same processes
+are coupled, which is why `simulate()` consumes the multivariate surface).
 
 **Estimator guards (each `estimate_*()` owns its own case).** The joint object is a
 distinct S3 class (D2b), so the event-stream estimators can reject it by class
@@ -76,29 +87,47 @@ before their existing `specification.goldfish` dispatch branch:
 The duplicate-focal-layer abort itself lives in the constructor (D2b), not in the
 estimators — a malformed join is caught before any estimator sees it.
 
-### D2 — A referenced panel-observed layer is required at construction; DyNES-viability is estimation-time
-`make_joint_specification()` aborts unless at least one **panel-observed layer is
-referenced in the composed formulas** — either as a process's focal/dependent
-layer *or* as an exogenous covariate read by another process's effects or
-support-constraint atoms (the layer-info observation metadata decides; no model
-flag needed). Construction checks **structural** panel presence only; it does *not*
-require a *modeled* panel process. A spec whose only panel reference is an exogenous
-covariate composes: the panel layer enters as a **static step-covariate** (state
-jumps at wave times, not latent, no random sampling — `dynes-augmentation` D8),
-which is a legitimate DyNAM specification with a panel covariate. The **latent-path
-requirement is estimation-time**: `estimate_dynes()` aborts on such a spec, naming
-`estimate_dynam()` and explaining the panel layers would only be static exogenous
-covariates (`dynes-augmentation` D19) — the guardrail that catches a user reaching
-for DyNES on a DyNAM model. A combination that references **no** panel-observed
-layer is rejected at construction with guidance to estimate each specification
-separately (it is exactly separable). *Rejected:* requiring a panel *focal* process
-at construction — it would reject legitimate DyNAM-with-panel-covariate specs and
-move the tailored redirect message off `estimate_dynes()`, where the user expects
-it; *also rejected:* allowing pure relational combinations with no panel reference
-at all — those are separable and belong to the per-process estimators. *Superseded:*
-the earlier claim that an exogenous-only panel covariate's between-wave path is
-latent and so "still needs DyNES" — such a covariate is static, not latent, and its
-spec is DyNAM.
+### D2 — Construction composes any ≥2-process join; all viability is consumer-owned
+`make_joint_specification()` composes ≥2 process specifications over one shared
+mode-map object and **does not require a panel-observed layer to be referenced**.
+This relaxes the earlier rule (a referenced panel layer required at construction,
+no-panel combinations aborted). The panel requirement was an *estimation*-viability
+rule, and `simulate()` (`process-simulation`) is a consumer for which it does not
+hold: the factorized likelihood makes fully-observed processes *estimation*-separable,
+but a forward draw interleaves them on one shared clock and shared state, so a process
+reading another's layer is **generatively** coupled even when its likelihood factorizes.
+A no-panel relational multivariate join therefore has real generative value — and no
+other constructor (flavored `make_specification()` composes flavors of a single layer,
+not distinct relational processes), so aborting it at construction would leave it
+unsimulable.
+
+**All viability is deferred to the consumer** — generalizing what was already true
+for the exogenous-only-panel case, previously the sole deferred check:
+- `estimate_dynes()` aborts when **no** panel layer is a modeled process (the
+  all-separable case, D4 / `dynes-augmentation` D19), naming `estimate_dynam()` and
+  explaining the panel layers would only be static exogenous covariates — the redirect
+  a user reaching for DyNES on a separable/DyNAM model expects, delivered where they
+  expect it.
+- `estimate_dynam()` / `estimate_rem()` reject the joint object by class (D1),
+  pointing to `estimate_dynes()`.
+- `simulate()` accepts **any** composition, including a no-panel relational join.
+
+A spec whose only panel reference is an exogenous covariate still composes: the panel
+layer enters as a **static step-covariate** (state jumps at wave times, not latent —
+`dynes-augmentation` D8), a legitimate DyNAM-with-panel spec that `estimate_dynes()`
+aborts (nothing latent) but `simulate()` draws. Construction MAY emit a separability
+*note* (not an abort) so the "estimate each specification separately" guidance survives
+for a user who reached for the joint constructor by mistake, without forbidding the
+object a generative consumer needs.
+
+*Rejected:* requiring a panel *focal* process at construction — it rejects legitimate
+DyNAM-with-panel-covariate specs and moves the tailored redirect off `estimate_dynes()`,
+where the user expects it. *Superseded:* the earlier rule aborting no-panel combinations
+at construction — a no-panel join is estimation-separable but generatively coupled, so
+it is a valid `simulate()` input, and construction defers the separability judgment to
+the consumer instead of forbidding the object; also superseded, the earlier claim that
+an exogenous-only panel covariate "still needs DyNES" — it is static, not latent, its
+estimation home is DyNAM and its generative home is `simulate()`.
 
 ### D2b — Constructor named `make_joint_specification()`; distinct class; one focal layer per specification
 The composition constructor is **`make_joint_specification(...)`** (renamed from the
@@ -238,8 +267,24 @@ treatment is fully determined by whether the panel layer is a modeled process �
 there is no per-layer estimation-time choice — coupling is exactly computable at
 construction. Direct reference only: observed events of an intermediate relational
 layer are exogenous data in this fid's likelihood regardless of what that layer's
-own model references, so coupling is not transitive. The specification print marks
-separable (uncoupled) fids. The estimation contract (enforced by `estimate_dynes()`
+own model references, so coupling is not transitive.
+
+**`separable` is not the negation of `coupled`.** A fid whose *own* focal layer is a
+modeled panel process is **never separable**, even when its formula reads nothing: its
+likelihood is over that layer's latent augmented path, so it cannot be estimated apart
+from the augmentation. `coupled` (reads *another* modeled panel layer) is therefore a
+strict subset of non-separability:
+
+> `separable(fid)  :=  NOT coupled(fid)  AND  fid$layer is NOT a modeled panel process`
+
+This matters because D9's uniform-choice completion makes *reads-nothing* fids common:
+a modeled-panel flavor completed with a zero-effect default has `coupled = FALSE` yet
+must stay non-separable, or a single modeled-panel process could report "all fids
+separable" and wrongly abort. The definition above keeps the `dynes-augmentation` D19
+equivalence exact — **all fids separable ⟺ no panel layer is a modeled process** —
+because every modeled-panel layer contributes at least its own (non-separable) fids.
+The specification print marks separable fids by this rule (not by `coupled` alone). The
+estimation contract (enforced by `estimate_dynes()`
 in `dynes-augmentation`): a mixed specification proceeds with a cli message naming
 the separable fids (their likelihood terms touch no latent path, so joint estimation
 equals separate estimation for them); a specification whose fids are all separable —
@@ -248,6 +293,12 @@ and explaining its panel layers would only be static exogenous covariates. (This
 all-separable case **is** reachable through `make_joint_specification()`: D2 composes a
 spec whose only panel reference is an exogenous covariate, and the DyNES-viability
 check is deferred to `estimate_dynes()`.)
+
+Separability is an **estimation** property (the likelihood factorizes); a separable
+fid is still **generatively active** — `simulate()` draws it on the shared clock like
+any coupled fid, because the forward interleaving does not factorize. The separable
+marking therefore gates `estimate_dynes()` (where it means "estimate this fid on its
+own instead"), never `simulate()` (which needs every fid regardless).
 
 ### D5 — Merged one-walk; gid scope per statistic block; dedup within block only
 The two per-family walks merge into one single-clock walk hosting both
@@ -411,7 +462,9 @@ Completion must never touch it.
 
 **Regime governs the rate side.** A composed specification is either **ordered**
 or **timed**, and the two MUST NOT mix — a composition pairing an ordered process
-with a timed one is rejected at `make_specification()` time. Regime is
+with a timed one is rejected at **join time** (`make_joint_specification()`), where
+the composed `joint_specification.goldfish` first makes the mix visible across ≥2
+processes (a single-process `make_specification()` cannot see it). Regime is
 **inferred**, not declared: the system is timed iff any process's rate is a
 waiting-time (intensity) rate, ordered otherwise. Regime decides how a missing
 rate is handled, because coupling runs on **one shared clock**: a timed system
@@ -427,7 +480,7 @@ never adds an estimated coefficient to θ:
 | choice | uniform over the **support-legal** alternatives (no effects) | 0 |
 | choice_coordination | uniform on **both sides** (no effects) | 0 |
 | rate (ordered regime) | uniform `rate_ordered` (no effects) | 0 |
-| rate (timed regime) | intercept-only rate, intercept **pinned** per wave-period from the per-period count `count_w` (`intercept-only-rate-spec`) | 0 |
+| rate (timed regime) | intercept-only rate, per-actor intercept **pinned** per wave-period `intercept_w = log(count_w / (T_w · \|R_w\|))` (`intercept-only-rate-spec`) | 0 |
 
 The uniform choice **inherits the layer's support constraints** where any were
 defined (uniform over the support-legal alternatives, never over all actors); it
@@ -439,18 +492,28 @@ coordination sides.
 **Timed rate completion is pinned, not estimated.** In a timed system a modeled
 flavor missing its rate — including a flavor that would otherwise be *choice-only*
 — is completed with an **intercept-only rate** so its events land on the shared
-clock. The intercept is **not** a free parameter: it is pinned per wave-period to
-`λ_w = count_w / T_w`, where `count_w` is that flavor's per-period count (for a
-modeled panel flavor, the **net wave Hamming diff** between the two observed wave
-states bounding period *w* — a net-change *floor*, not a directly observed
-micro-count) and `T_w` the period's duration. The pinned rate is a **single
-aggregate flavor intensity**: when an event of that flavor fires, its sender is
-drawn **uniformly among the support-legal actors** and the per-period aggregate
-calibration reproduces `count_w` regardless of how the risk set changes — that draw
-and calibration property are the **`intercept-only-rate-spec`** primitive's
-semantics, not re-specified here. What grants the exclusion from the optimizer is
-**θ-independence**, not iteration-constancy: `λ_w` does not depend on the estimated
-parameters, so its timing likelihood is **additive-constant w.r.t. θ** and is
+clock. The intercept is **not** a free parameter: it is pinned per wave-period to a
+**per-actor constant hazard** `intercept_w = log(count_w / (T_w · |R_w|))`, where
+`count_w` is that flavor's per-period count (for a modeled panel flavor, the **net
+wave Hamming diff** between the two observed wave states bounding period *w* — a
+net-change *floor*, not a directly observed micro-count), `T_w` the period's
+duration, and `|R_w|` the period's average size of the flavor's rate entity (active
+senders for an actor-oriented flavor, active dyads for a tie-oriented one). Dividing
+by `|R_w|` places the pin at the **per-actor** layer (the analogue of RSiena's
+`÷ n_actors`), so `exp(intercept_w)` is a per-actor constant hazard —
+**commensurable** on the shared clock with a competing flavor's per-actor rate in the
+superposition `Σ_i exp(·)`, **not** a single aggregate flavor scalar (the aggregate
+`count_w / T_w` is *rejected* by the primitive's D8 as incommensurable). When an
+event of that flavor fires, its sender is drawn **uniformly among the support-legal
+actors** as a consequence of the equal per-actor hazards, and the aggregate
+`|R(t)| · exp(intercept_w)` reproduces `count_w` over the period regardless of how
+the risk set changes — that draw and calibration property are the
+**`intercept-only-rate-spec`** primitive's semantics, not re-specified here. `|R_w|`
+is **consumer-supplied** (D9a), its source keyed on how the flavor is observed: a
+panel wave-endpoint average vs a relational time-weighted `avg_active_entity`. What
+grants the exclusion from the optimizer is **θ-independence**, not
+iteration-constancy: `intercept_w` does not depend on the estimated parameters, so
+its timing likelihood is **additive-constant w.r.t. θ** and is
 **excluded from the score and Hessian**, used **generatively** to place events but
 never in the optimization objective (a constant offset that MAY be included in a
 *reported* log-likelihood). The likelihood value is also iteration-constant *today*
@@ -467,6 +530,32 @@ window (`process-simulation`).
 **Ordered regime: no rate completion.** In an ordered system a **choice-only
 DyNAM** flavor is *not* rate-completed — its timing rides `process-simulation`'s
 pseudo-time / fixed-template modes (there is no clock to place it on).
+
+**Period partition and boundary convention (consumer-supplied).** The pin is
+piecewise-constant with one plateau per inter-wave period; the consumer supplies the
+`K+1` period boundaries (the wave times, or a single window when there is no wave
+grid). Period membership follows the primitive's resolved half-open convention —
+interior boundaries left-closed / right-open, the **final** period right-closed, i.e.
+`findInterval(t, wave_times, rightmost.closed = TRUE)` — so an event landing exactly
+on an interior boundary belongs to the *next* period and a terminal-time event (the
+common last-wave observation in panel data) is never dropped. Completion neither
+infers windows nor diffs waves (D9a); it hands the primitive the boundaries the
+consumer already holds.
+
+**Regime inference is the primitive's timed-guard rule, shared.** The timed/ordered
+regime mv infers (timed iff any joined process carries a waiting-time/intensity rate)
+is the **same predicate** the `intercept-only-rate-spec` primitive guards with
+(`is_timed_joint_specification()`) — one shared `sub_model == "rate"` classifier, not
+two independent inferences that could drift. mv resolves it at **join time**
+(`make_joint_specification()`, where the composed `joint_specification.goldfish`
+exists and a **mixed** ordered+timed composition is rejected — a mix is only visible
+across ≥2 processes, so it cannot be a single-process `make_specification()` check).
+The primitive's `assert_timed_joint_specification()` is then an exact **backstop**
+downstream: because the join already aborted any mixed composition, every joint spec
+the primitive sees has been forced pure-timed or pure-ordered, so its plain
+`any(sub_model == "rate")` reads the regime exactly. Only the timed branch routes a
+missing rate to the pinned primitive; the ordered branch defers to
+`process-simulation`.
 
 **Two missing cases, opposite treatment** (the "modeled for all flavors or not at
 all" rule, `dynes-augmentation` D8/D19):
@@ -525,6 +614,46 @@ friendlier than an abort); per-open completion in the ABEM loop (warning spam pl
 a fid-consistency hazard across the augmenter / evaluator split — complete once,
 share the result).
 
+### D9a — `|R_w|` / count are consumer-supplied and reuse existing estimation machinery
+
+The `intercept-only-rate-spec` primitive is thin (its D5): it pins given
+`(count_w, T_w, |R_w|)` and **never derives them**. mv's completion transform is
+correspondingly thin — it installs the **pinned-rate structure** (the intercept-only
+descriptor, the `completed` flag, the θ-exclusion, the per-consumer-entry warning)
+but does **not** compute `|R_w|` or `count_w` inside the shared transform. Each
+**consumer supplies** the numbers (the boundary choice: *consumer-computes*, not
+*transform-computes*), because `|R_w|`'s source is keyed on **how the flavor is
+observed**, not on which consumer called the shared transform:
+
+| flavor observed as… | `\|R_w\|` source | reuse (already in the codebase) |
+|---|---|---|
+| **panel** (waves only) — DyNES, or `simulate()` handed only node sets (+ optional history) | wave-endpoint average `(\|R_g(w_{k-1})\| + \|R_g(w_k)\|)/2` of the flavor's **post-constraint** entity count | `materialize_network_state()` at each wave endpoint (`R/materialize_state.R`) → the flavor's support mask (`R/support_mask.R`, `assemble_model_mask`) → `active_dyad_count()` (`R/preprocess_writers.R:619`, documented as "the intercept denominator's per-event TRUE-count") |
+| **relational** (full event stream observed) | time-weighted `avg_active_entity = (1/T_w)·∫\|R_g(t)\| dt` | `time_weighted_risk_set()` (`R/preprocess_flavored.R:424`); a single window (K=1) reuses the preprocessed `avg_active_entity` as-is; a multi-period pin needs per-period slicing of the presence walk — the one genuinely new bit, **deferred to `process-simulation`** (it arises only for a relationally-observed flavor completed inside a wave-gridded join; the panel/DyNES path is fully served here) |
+
+The **panel/snapshot materialize+count path is the common one**: DyNES always uses
+it, and `simulate()` uses it whenever it is handed only node sets (+ optional
+history) rather than a full event stream — the between-event risk-set schedule is
+then unobserved and degrades to the same wave-endpoint computation. The relational
+time-weighted path is the special case reserved for a fully observed stream. `count_w`
+reuses the same materializer: the panel net **Hamming diff** is the count of differing
+cells between the two materialized wave states; a relational count is the observed
+events in the period.
+
+**Cross-check anchor.** goldfish's estimator already computes the intercept-only
+**starting value** `n_dep_events / total_time / avg_active_entity`
+(`R/estimation_core.R:210`) — the pin is exactly the per-period frozen form of that
+MLE. A single-period relational pin therefore satisfies
+`exp(intercept_1) == n_dep_events / total_time / avg_active_entity`, a cheap
+regression tie (asserted in 1c.5) that anchors the primitive to goldfish's own
+baseline-rate starting value.
+
+*Rejected — computing `|R_w|` inside the shared completion transform (transform-computes):*
+it would push wave/event-stream reading into a transform that should stay
+data-source-agnostic and duplicate the materialize/count machinery each consumer
+already reaches for. The thin boundary keeps the transform regime-agnostic and lets
+each consumer supply the numbers its own data yields, matching the primitive's own D5
+"consumer supplies `|R_w|`" contract.
+
 ## Risks / Trade-offs
 
 - **The merged-walk refactor touches both recipe loops at their core** → the
@@ -572,11 +701,11 @@ Rollback is reverting commits; no data-format or baseline impact.
   Compute-once-across-blocks vs recompute-per-block is a task-time measurement,
   gated the same way D3c's atom pooling is (worth it only if the shared
   computation is a substantial share of the block's work).
-- Whether fid separability (D4) should be computed as **coupled OR
-  on-a-modeled-panel-layer**, not `coupled` alone. D9's uniform-choice completion
-  makes reads-nothing panel fids common, so a modeled panel flavor's own completed
-  fid could be marked separable purely because its formula reads nothing (it is
-  rescued today only when a derived support constraint reads its own layer's
-  state). This interacts with `dynes-augmentation` D19's "all fids separable ⟺ no
-  modeled panel process" equivalence; deferred, but settle it before the coupling
-  column is consumed by `estimate_dynes()`.
+- ~~Whether fid separability (D4) should be computed as **coupled OR
+  on-a-modeled-panel-layer**, not `coupled` alone.~~ **Resolved 2026-07-30 (folded
+  into D4):** `separable(fid) := NOT coupled(fid) AND fid$layer is NOT a modeled
+  panel process`. A modeled-panel fid completed by D9 with a reads-nothing default
+  has `coupled = FALSE` but stays non-separable, preserving `dynes-augmentation`
+  D19's "all fids separable ⟺ no modeled panel process" equivalence. §1c must apply
+  this rule (not `coupled` alone) when it marks separable fids and when
+  `process_map$completed` is set — asserted in task 1c.5.

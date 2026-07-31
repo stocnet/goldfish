@@ -12,14 +12,14 @@
 #' [estimate_rem()] reject it.
 #'
 #' @details
-#' At least one **panel-observed layer MUST be referenced** in the composed
-#' formulas -- as a process's focal/dependent layer OR as an exogenous covariate
-#' read by another process's effects or support-constraint atoms. A combination
-#' referencing no panel-observed layer is rejected: those processes are exactly
-#' separable and should be estimated with the per-process estimators. Note that
-#' construction checks *structural* panel presence only; whether any panel layer
-#' is a *modeled* process (the DyNES-viability requirement) is deferred to
-#' `estimate_dynes()`.
+#' A composition needs **no panel-observed layer**: any two-or-more-process
+#' combination over one shared mode-map object composes. A combination
+#' referencing no panel layer is estimation-separable yet **generatively coupled**
+#' -- a forward draw interleaves the processes on one shared clock and state -- so
+#' it is a valid `simulate()` input with no other constructor. Whether the join is
+#' *estimable* as DyNES (whether any panel layer is a **modeled** process) is a
+#' consumer concern: `estimate_dynes()`, not this constructor, aborts an
+#' all-separable join and redirects it to the per-process estimators.
 #'
 #' Each joined specification must model a **distinct focal layer** -- a layer is
 #' modeled by at most one specification (a duplicated focal layer aborts, naming
@@ -145,20 +145,6 @@ make_joint_specification <- function(..., data = NULL) {
     ))
   }
 
-  # At least one panel-observed layer must be referenced -- as a focal layer or
-  # as an exogenous covariate. Otherwise the processes are exactly separable.
-  panel_layers <- names(which(shared_data$info$observation == "panel"))
-  referenced <- unique(unlist(lapply(specs, spec_referenced_layers)))
-  if (length(intersect(referenced, panel_layers)) == 0) {
-    cli::cli_abort(c(
-      "A joint specification must reference a panel-observed layer.",
-      "x" = "None of the composed formulas read a {.val panel} layer, so the
-             processes are exactly separable.",
-      "i" = "Estimate each specification on its own with {.fn estimate_dynam} or
-             {.fn estimate_rem}."
-    ))
-  }
-
   # Cross-process reads must conform by mode-set identity (D8): where a process
   # reads another process's focal layer, the two layers' overlapping sides must
   # be whole shared modes. A read bridging a mode subset to a union containing it
@@ -169,6 +155,7 @@ make_joint_specification <- function(..., data = NULL) {
   # Modeled panel layers: panel-observed layers that are themselves a focal
   # process of the join. Reading one of these couples a fid; reading a panel
   # layer that only appears as an exogenous covariate does not (D4).
+  panel_layers <- names(which(shared_data$info$observation == "panel"))
   modeled_panel <- intersect(focals, panel_layers)
 
   process_map <- build_joint_process_map(specs, modeled_panel)
