@@ -577,3 +577,910 @@ build_merged_blocks <- function(
     class = "merged_blocks.goldfish"
   )
 }
+
+# =========================================================================== #
+# The merged single-clock walk.
+#
+# `build_merged_blocks()` compiled the substrate (per-process spec_maps, one
+# shared state, one shared schedule); this section runs ONE event loop over that
+# schedule, hosting every statistic block over the one shared state and emitting
+# one preprocessed object per fid.
+#
+# It is the multi-process generalization of the two flavored family walks
+# (`run_sender_recipe_loop` / `run_dyad_recipe_loop`), merged onto one clock.
+# The oracle stays the byte-identical reference: this driver reuses the oracle's
+# per-unit setup (`prepare_recipe_context()`), consumer machinery
+# (`init_consumers` / `consumer_accumulate_*` / `finalize_consumers`) and folds,
+# and reimplements ONLY the loop body and its routing.
+#
+# Three contracts govern the merge (design D5 / D8a and the pinned RC rule):
+#
+#   * PER-UNIT INTERVAL CLOCK. The oracle's global `interval = t - time` is the
+#     gap between consecutive events of ONE walk's schedule. The merged schedule
+#     interleaves every process's events, so a rate fid's rate integral must NOT
+#     be split by an event its block never references. Each unit therefore keeps
+#     its own clock, advancing (and only then) at an event the unit is party to:
+#     its own dependent stream, a covariate it reads, or -- for a timed rate --
+#     any OTHER process's dependent event (the cross-process boundary).
+#
+#   * RC CONTRACT (byte-identity). A modeled dependent event is a dependent
+#     observation for its own `(layer, flavor)` fids and a right-censoring
+#     boundary for every OTHER timed rate fid (cross-flavor and cross-process
+#     alike). A covariate event right-censors a timed rate fid ONLY when that
+#     fid's own unit reads the object -- a rate fid never takes an RC row from a
+#     choice-only covariate. Single-process / flavored specifications have no
+#     other process, so no cross-process boundaries are injected and the outputs
+#     match the two-walk oracle byte-for-byte.
+#
+#   * PER-FID FOCAL (D8a). Focal is never stamped on the shared state. Each unit
+#     was compiled against its own focal (`compile_recipe_spec_map`, Pattern A),
+#     so a fid's dependent-row/side/mode resolution rides its own compiled
+#     spec_map over the one shared state.
+# =========================================================================== #
+
+# Wrap a single flavored or plain `specification.goldfish` as a degenerate joint
+# specification so the merged substrate builder can walk it. The one-process
+# case is what the frozen-baseline gate compares against `preprocess_flavored`:
+# it must run through the SAME merged driver as a true multi-process join. The
+# constructor's >=2 rule and its cross-process checks do not apply here (there is
+# one process), so the joint object is assembled directly.
+single_process_joint <- function(spec) {
+  structure(
+    list(
+      specifications = list(spec),
+      process_map = build_joint_process_map(list(spec), character(0)),
+      data = spec$data,
+      modeled_panel = character(0)
+    ),
+    class = "joint_specification.goldfish"
+  )
+}
+
+# The shared object property table the covariate branch reads by shared oid: the
+# union registry widened with each object's imputation policy (the one field the
+# per-process compile does not set, since it is a preprocessing-control input,
+# not a spec property). Mirrors the per-object policy stamp
+# `prepare_recipe_context()` applies before its own walk.
+build_shared_object_props <- function(objects, impute_policy) {
+  objects$policy <- vapply(
+    objects$key,
+    function(key) imputation_policy_for(impute_policy, key),
+    character(1)
+  )
+  objects
+}
+
+# Build a covariate event's `event_args` from the shared state and the shared
+# object properties, resolving increment semantics and a missing value exactly
+# as the recipe loops do (increment adds to the current state; a missing replace
+# imputes from the node's mode category, or the reserved level under the
+# as-category policy). Computed once per covariate event and shared by every
+# unit that reads the object, so the value each unit's effect sees -- and the one
+# written back to the shared state -- is identical.
+merged_build_event_args <- function(schedule, k, oid, props, state) {
+  shape <- schedule$shape[k]
+  if (shape == "global") {
+    replace_value <- schedule$value[[k]]
+    if (is.na(replace_value)) {
+      replace_value <- 0
+    }
+    return(list(replace = replace_value))
+  }
+  component <- props$component[oid]
+  key <- props$key[oid]
+  if (shape == "node") {
+    event_node <- schedule$node[k]
+    if (schedule$semantics[k] == "increment") {
+      increment_value <- schedule$value[[k]]
+      if (is.na(increment_value)) {
+        increment_value <- 0
+      }
+      replace_value <- state[[component]][[key]][event_node] + increment_value
+    } else {
+      replace_value <- schedule$value[[k]]
+      if (is.na(replace_value)) {
+        if (identical(props$policy[oid], "as_category")) {
+          replace_value <- IMPUTATION_MISSING_LEVEL
+        } else {
+          replace_value <- impute_nodal_value(
+            state[[component]][[key]],
+            event_node,
+            attr(state, "strata")[[component]],
+            props$value_type[oid]
+          )
+        }
+      }
+    }
+    return(list(node = event_node, replace = replace_value))
+  }
+  event_sender <- schedule$sender[k]
+  event_receiver <- schedule$receiver[k]
+  if (schedule$semantics[k] == "increment") {
+    increment_value <- schedule$value[[k]]
+    if (is.na(increment_value)) {
+      increment_value <- 0
+    }
+    replace_value <-
+      state$networks[[key]][event_sender, event_receiver] + increment_value
+  } else {
+    replace_value <- schedule$value[[k]]
+    if (is.na(replace_value)) {
+      replace_value <- 0
+    }
+  }
+  if (replace_value < 0) {
+    warning("You are dissolving a tie which doesn't exist!", call. = FALSE)
+  }
+  list(
+    sender = event_sender,
+    receiver = event_receiver,
+    replace = replace_value
+  )
+}
+
+# Apply one covariate event to the shared state, once, after every referencing
+# unit has read the pre-update state for its own statistics. Mirrors the state
+# write at the tail of the recipe loops' covariate branch.
+merged_apply_state_update <- function(state, oid, shape, event_args, props) {
+  component <- props$component[oid]
+  key <- props$key[oid]
+  if (shape == "global") {
+    state$globals[[key]] <- event_args$replace
+  } else if (shape == "node") {
+    state[[component]][[key]][event_args$node] <- event_args$replace
+  } else {
+    state$networks[[key]][event_args$sender, event_args$receiver] <-
+      event_args$replace
+    if (props$is_undirected[oid]) {
+      state$networks[[key]][event_args$receiver, event_args$sender] <-
+        event_args$replace
+    }
+  }
+  invisible(NULL)
+}
+
+# One effect template evaluation over the SHARED state. A verbatim port of the
+# recipe loops' `call_effect_template()` closure: state reads resolve by object
+# key against the one shared container, so a coupled process reads exactly what a
+# dependent process last wrote.
+merged_call_template <- function(
+  template,
+  state,
+  cache,
+  n1,
+  n2,
+  shape,
+  event_args,
+  net_update,
+  att_update,
+  event_order,
+  inter_event_time
+) {
+  args <- c(
+    list(
+      network = if (template$n_networks == 1L) {
+        state$networks[[template$net_keys]]
+      } else if (template$n_networks > 1L) {
+        lapply(template$net_keys, function(k) state$networks[[k]])
+      } else {
+        list()
+      },
+      attribute = if (template$n_attributes == 1L) {
+        state[[template$att_components]][[template$att_keys]]
+      } else if (template$n_attributes > 1L) {
+        lapply(
+          seq_len(template$n_attributes),
+          function(j) {
+            state[[template$att_components[j]]][[template$att_keys[j]]]
+          }
+        )
+      } else {
+        list()
+      },
+      cache = cache,
+      n1 = n1,
+      n2 = n2,
+      net_update = net_update,
+      att_update = att_update,
+      event_order = event_order,
+      inter_event_time = inter_event_time
+    ),
+    event_args
+  )
+  do.call(template$fun, args[template$args_by_shape[[shape]]])
+}
+
+# Compute one unit's statistics delta for a covariate event on its LOCAL object
+# `loid` and accumulate it into every consumer of the unit. A port of the recipe
+# loops' covariate body (routing loop, undirected mirror, interaction second-hop
+# and product emission, point/broadcast accumulation), shape-branching on
+# `engine$is_sender` exactly as the two loops diverge. Reads the shared state;
+# the state write is the caller's, once per event. The window pre-start branch is
+# intentionally absent -- the merged walk supports the full-window case only.
+merged_covariate_step <- function(
+  engine,
+  loid,
+  shape,
+  event_args,
+  is_undirected,
+  interval,
+  state
+) {
+  ctx <- engine$ctx
+  plan <- ctx$plan
+  n1 <- ctx$n1
+  n2 <- ctx$n2
+  n_fun <- ctx$n_fun
+  n_inter <- ctx$n_inter
+  is_sender <- engine$is_sender
+  bcast_kind <- plan$effects$broadcast_kind
+  event_order <- engine$i_total - engine$i_dep
+
+  for (gid in plan$routing[[loid]]) {
+    template <- ctx$effects_template[[gid]]
+    net_update_pos <- ctx$net_update_lookup[loid, gid]
+    if (is.na(net_update_pos)) {
+      net_update_pos <- NULL
+    }
+    att_update_pos <- ctx$att_update_lookup[loid, gid]
+    if (is.na(att_update_pos)) {
+      att_update_pos <- NULL
+    }
+
+    effect_update <- merged_call_template(
+      template,
+      state,
+      engine$stat_cache[[gid]],
+      n1,
+      n2,
+      shape,
+      event_args,
+      net_update_pos,
+      att_update_pos,
+      event_order,
+      interval
+    )
+    if (!is.null(attr(effect_update$cache, "last_update"))) {
+      attr(engine$stat_cache[[gid]], "last_update") <- attr(
+        effect_update$cache,
+        "last_update"
+      )
+    }
+    updates <- effect_update$changes
+    if (!is.null(effect_update$cache) && !is.null(effect_update$changes)) {
+      engine$stat_cache[[gid]] <- effect_update$cache
+    }
+
+    if (is_undirected) {
+      event_args2 <- event_args
+      event_args2$sender <- event_args$receiver
+      event_args2$receiver <- event_args$sender
+      effect_update2 <- merged_call_template(
+        template,
+        state,
+        engine$stat_cache[[gid]],
+        n1,
+        n2,
+        shape,
+        event_args2,
+        net_update_pos,
+        att_update_pos,
+        event_order,
+        interval
+      )
+      if (!is.null(effect_update2$cache) && !is.null(effect_update2$changes)) {
+        engine$stat_cache[[gid]] <- effect_update2$cache
+      }
+      updates <- rbind(updates, effect_update2$changes)
+    }
+
+    if (!is.null(updates)) {
+      if (n_inter > 0L && gid <= n_fun) {
+        feeds <- plan$operand_of[[as.character(gid)]]
+        if (!is.null(feeds)) {
+          if (is_sender) {
+            ov <- get(as.character(gid), envir = engine$op_state)
+            ov[updates[, "node1"]] <- updates[, "replace"]
+            assign(as.character(gid), ov, envir = engine$op_state)
+            for (ig in feeds) {
+              igc <- as.character(ig)
+              engine$dirty_inter[[igc]] <- c(
+                engine$dirty_inter[[igc]],
+                updates[, "node1"]
+              )
+            }
+          } else {
+            exp <- expand_operand_update(updates, bcast_kind[gid], n1, n2)
+            om <- get(as.character(gid), envir = engine$op_state)
+            om[exp$cells] <- exp$vals
+            assign(as.character(gid), om, envir = engine$op_state)
+            for (ig in feeds) {
+              igc <- as.character(ig)
+              engine$dirty_inter[[igc]] <- rbind(
+                engine$dirty_inter[[igc]],
+                exp$cells
+              )
+            }
+          }
+        }
+      }
+
+      if (bcast_kind[gid] != 0L) {
+        bc_block <- broadcast_entries_from_updates(
+          updates,
+          bcast_kind[gid],
+          gid
+        )
+        for (cs in engine$consumers) {
+          consumer_accumulate_broadcast(cs, bc_block)
+        }
+      } else {
+        block <- if (is_sender) {
+          rbind(updates[, "node1"] - 1, 0, gid - 1, updates[, "replace"])
+        } else {
+          rbind(
+            updates[, "node1"] - 1,
+            updates[, "node2"] - 1,
+            gid - 1,
+            updates[, "replace"]
+          )
+        }
+        for (cs in engine$consumers) {
+          consumer_accumulate_point(cs, block)
+        }
+      }
+    }
+  }
+
+  if (n_inter > 0L && length(engine$dirty_inter) > 0L) {
+    for (igc in names(engine$dirty_inter)) {
+      ig <- as.integer(igc)
+      ops <- plan$interactions[[igc]]
+      if (is_sender) {
+        senders <- unique(engine$dirty_inter[[igc]])
+        prodv <- get(as.character(ops[1]), envir = engine$op_state)[senders]
+        for (o in ops[-1]) {
+          prodv <- prodv *
+            get(as.character(o), envir = engine$op_state)[senders]
+        }
+        block <- rbind(senders - 1, 0, ig - 1, prodv)
+      } else {
+        cells <- dedup_cells(engine$dirty_inter[[igc]], n1)
+        prodv <- get(as.character(ops[1]), envir = engine$op_state)[cells]
+        for (o in ops[-1]) {
+          prodv <- prodv * get(as.character(o), envir = engine$op_state)[cells]
+        }
+        block <- rbind(cells[, 1] - 1, cells[, 2] - 1, ig - 1, prodv)
+      }
+      for (cs in engine$consumers) {
+        consumer_accumulate_point(cs, block)
+      }
+    }
+    engine$dirty_inter <- list()
+  }
+  invisible(NULL)
+}
+
+# The fid of the consumer a dependent event on `flavor` belongs to within a
+# unit, or `NA` when no modeled flavor of the unit owns it (an unmodeled-flavor
+# event on a modeled layer -- a boundary for the unit's rates, an observation of
+# none). A plain process has one fid and a NA flavor.
+engine_owning_fid <- function(engine, flavor) {
+  if (engine$plain) {
+    return(engine$fids[1L])
+  }
+  i <- match(flavor, engine$flavors)
+  if (is.na(i)) NA_integer_ else engine$fids[i]
+}
+
+# Route a dependent event within one owning unit: a dependent write to the fid
+# that owns `flavor`, and -- when the interval is positive -- a right-censored
+# write to every OTHER right-censoring consumer of the unit (the cross-flavor
+# boundary). The cross-process boundary is applied separately, by every other
+# timed rate unit. Mirrors `route_dependent_event()` but resolves the owner by
+# fid so a plain (NA-flavor) process routes correctly.
+merged_route_dependent <- function(engine, flavor, event_info) {
+  own_fid <- engine_owning_fid(engine, flavor)
+  own <- if (is.na(own_fid)) NULL else engine$consumers[[as.character(own_fid)]]
+  if (!is.null(own)) {
+    consumer_write_dependent(own, event_info)
+  }
+  if (event_info$interval > 0) {
+    event_info$is_dependent <- 0L
+    for (cs in engine$rc_consumers) {
+      if (!identical(cs, own)) {
+        consumer_write_rc(cs, event_info)
+      }
+    }
+  }
+  invisible(NULL)
+}
+
+# A right-censoring boundary for every right-censoring consumer of a unit (the
+# caller gates on a positive interval). Mirrors `route_right_censored_event()`.
+merged_route_rc <- function(engine, event_info) {
+  for (cs in engine$rc_consumers) {
+    consumer_write_rc(cs, event_info)
+  }
+  invisible(NULL)
+}
+
+# Build one per-unit walk engine: the recipe context (effects, cache, lookups,
+# composition, imputation policy) reused from `prepare_recipe_context()`, the
+# unit's `initialStats` and interaction operand state shaped as its recipe loop
+# would, and its per-fid consumers over the block union. The per-unit state and
+# schedule `prepare_recipe_context()` also builds are discarded: the walk runs
+# over the ONE shared state and schedule, which every unit's effect templates
+# read by object key.
+build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
+  spec_map <- unit$spec_map
+  loop_sub_model <- if (unit$is_sender) "rate" else "choice"
+  prep_envir <- new.env()
+  ctx <- prepare_recipe_context(
+    spec_map,
+    startTime = NULL,
+    endTime = NULL,
+    prep_envir = prep_envir,
+    sub_model = loop_sub_model,
+    progress = progress
+  )
+  if (any(ctx$is_window_effect)) {
+    cli::cli_abort(
+      "The merged walk does not yet support window effects.",
+      .internal = TRUE
+    )
+  }
+
+  n1 <- ctx$n1
+  n2 <- ctx$n2
+  n_fun <- ctx$n_fun
+  n_inter <- ctx$n_inter
+  nEffects <- ctx$nEffects
+  inter_ids <- ctx$inter_ids
+  plan <- ctx$plan
+
+  # Shape `initialStats` and the interaction operand state exactly as the sender
+  # (2D kernel) or dyad (3D array) recipe loop does before the walk begins.
+  op_state <- new.env(parent = emptyenv())
+  if (unit$is_sender) {
+    initial_stats <- matrix(0, nrow = n1, ncol = nEffects)
+    initial_stats[, seq_len(n_fun)] <- do.call(
+      cbind,
+      lapply(ctx$stat_cache, "[[", "stat")
+    )
+  } else {
+    initial_stats <- array(0, dim = c(n1, n2, nEffects))
+    initial_stats[,, seq_len(n_fun)] <- array(
+      unlist(lapply(ctx$stat_cache, "[[", "stat")),
+      dim = c(n1, n2, n_fun)
+    )
+  }
+  stat_cache <- lapply(ctx$stat_cache, "[[", "cache")
+
+  if (n_inter > 0) {
+    operand_gids <- sort(unique(unlist(plan$interactions)))
+    if (unit$is_sender) {
+      for (og in operand_gids) {
+        assign(as.character(og), initial_stats[, og], envir = op_state)
+      }
+      for (ig in inter_ids) {
+        ops <- plan$interactions[[as.character(ig)]]
+        prod_vec <- get(as.character(ops[1]), envir = op_state)
+        for (o in ops[-1]) {
+          prod_vec <- prod_vec * get(as.character(o), envir = op_state)
+        }
+        initial_stats[, ig] <- prod_vec
+      }
+    } else {
+      for (og in operand_gids) {
+        assign(as.character(og), initial_stats[,, og], envir = op_state)
+      }
+      for (ig in inter_ids) {
+        ops <- plan$interactions[[as.character(ig)]]
+        prod_mat <- get(as.character(ops[1]), envir = op_state)
+        for (o in ops[-1]) {
+          prod_mat <- prod_mat * get(as.character(o), envir = op_state)
+        }
+        initial_stats[,, ig] <- prod_mat
+      }
+    }
+  }
+
+  # One consumer per fid the unit owns, over the block union. A flavored unit
+  # projects the shared statistics onto each flavor's own columns
+  # (`unit$effect_maps`); a plain unit takes the identity projection
+  # (`seq_len(nEffects)`), which leaves its single output unchanged. Every fid
+  # keeps its own right-censoring and its compiled `(layer, flavor)` constraint.
+  pm <- merged$process_map
+  fid_has_intercept <- function(fid) {
+    pm$has_intercept[match(fid, pm$fid)]
+  }
+  fid_constraint_id <- function(fid) {
+    pm$constraint_id[match(fid, pm$fid)]
+  }
+
+  consumer_plan <- lapply(seq_along(unit$fids), function(i) {
+    fid <- unit$fids[i]
+    flavor <- unit$flavors[i]
+    effect_map <- if (is.null(unit$effect_maps)) {
+      seq_len(nEffects)
+    } else {
+      unit$effect_maps[[flavor]]
+    }
+    list(
+      fid = fid,
+      flavor = flavor,
+      effect_map = effect_map,
+      has_intercept = fid_has_intercept(fid),
+      constraint_id = fid_constraint_id(fid)
+    )
+  })
+  names(consumer_plan) <- as.character(unit$fids)
+
+  consumer_specs <- build_consumer_specs(
+    consumer_plan,
+    plan$support_constraints
+  )
+  consumers <- init_consumers(
+    consumer_specs,
+    writer = writer_default(),
+    right_censored = FALSE,
+    spec = spec_map,
+    dims = list(
+      nEffects = nEffects,
+      n1 = n1,
+      n2 = n2,
+      is_sender = unit$is_sender,
+      n_dependent = nrow(ctx$events[[1L]]),
+      max_store = merged$schedule$n + 1L
+    ),
+    initial_stats_fn = function() engine$initial_stats
+  )
+  rc_consumers <- Filter(function(cs) cs$right_censored, consumers)
+
+  engine <- new.env(parent = emptyenv())
+  engine$key <- unit$key
+  engine$focal <- unit$focal
+  engine$is_sender <- unit$is_sender
+  engine$sub_model <- unit$sub_model
+  engine$model <- unit$model
+  engine$plain <- is.null(unit$effect_maps)
+  engine$fids <- unit$fids
+  engine$flavors <- unit$flavors
+  engine$shared_to_local <- unit$shared_to_local
+  engine$ctx <- ctx
+  engine$prep_envir <- prep_envir
+  engine$spec_map <- spec_map
+  engine$initial_stats <- initial_stats
+  engine$stat_cache <- stat_cache
+  engine$op_state <- op_state
+  engine$dirty_inter <- list()
+  engine$consumers <- consumers
+  engine$consumer_specs <- consumer_specs
+  engine$rc_consumers <- rc_consumers
+  engine$is_timed_rate <- length(rc_consumers) > 0L
+  engine$i_total <- 0L
+  engine$i_dep <- 0L
+  engine$last_time <- NA_real_
+  engine
+}
+
+# Finalize one unit's consumers into its per-fid preprocessed objects, applying
+# the family's support-mask fold and intercept scalars. The sender and dyad
+# branches reproduce the two recipe loops' `finalize_consumers()` calls
+# (`project_initial_stats` on the second vs third margin, the sender-gate vs
+# dyad fold, and the risk-set entity the intercept scalar counts).
+finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
+  ctx <- engine$ctx
+  spec_map <- engine$spec_map
+  tail <- list(
+    spec = spec_map,
+    initialStats = engine$initial_stats,
+    active_sender_init = ctx$active_sender_init,
+    active_sender_changes = ctx$active_sender_changes,
+    active_dyad_init = ctx$active_dyad_init,
+    active_dyad_changes = ctx$active_dyad_changes,
+    startTime = start_time,
+    endTime = end_time,
+    intercept_scalars = engine$is_timed_rate
+  )
+
+  if (engine$is_sender) {
+    outputs <- finalize_consumers(
+      engine$consumers,
+      engine$consumer_specs,
+      tail = tail,
+      default_constraint = ctx$plan$support_constraint,
+      project_initial_stats = function(stats, effect_map) {
+        stats[, effect_map, drop = FALSE]
+      },
+      finish_output = function(out, constraint, support_mask = NULL) {
+        if (is.null(constraint)) {
+          return(out)
+        }
+        if (is.null(support_mask)) {
+          support_mask <- preprocess_support_mask(
+            constraint,
+            model = engine$model,
+            nodes = ctx$nodes,
+            nodes2 = ctx$nodes2,
+            symmetric = FALSE,
+            snapshot_times = out$event_time,
+            src = ctx$src,
+            prep_envir = engine$prep_envir
+          )
+        }
+        out$support_mask <- support_mask
+        fold_active_sender_support(
+          out,
+          out$support_mask,
+          ctx$active_dyad_init
+        )
+      },
+      realize_masks = function(requests) {
+        preprocess_pooled_support_masks(
+          requests,
+          model = engine$model,
+          nodes = ctx$nodes,
+          nodes2 = ctx$nodes2,
+          symmetric = FALSE,
+          prep_envir = engine$prep_envir,
+          src = ctx$src
+        )
+      },
+      scalar_entity = "sender"
+    )
+  } else {
+    outputs <- finalize_consumers(
+      engine$consumers,
+      engine$consumer_specs,
+      tail = tail,
+      default_constraint = ctx$plan$support_constraint,
+      project_initial_stats = function(stats, effect_map) {
+        stats[,, effect_map, drop = FALSE]
+      },
+      finish_output = function(out, constraint, support_mask = NULL) {
+        if (!is.null(constraint)) {
+          if (is.null(support_mask)) {
+            support_mask <- preprocess_support_mask(
+              constraint,
+              model = engine$model,
+              nodes = ctx$nodes,
+              nodes2 = ctx$nodes2,
+              symmetric = identical(spec_map$sub_model, "choice_coordination"),
+              snapshot_times = out$event_time,
+              src = ctx$src,
+              prep_envir = engine$prep_envir
+            )
+          }
+          out$support_mask <- support_mask
+          return(fold_active_dyad_support(
+            out,
+            out$support_mask,
+            spec_map,
+            constraint$mask_kind,
+            opportunitiesList = opportunities
+          ))
+        }
+        if (
+          !is.null(opportunities) &&
+            spec_map$sub_model %in% c("choice", "choice_coordination")
+        ) {
+          out <- fold_active_dyad_opportunity(out, opportunities)
+        }
+        out
+      },
+      realize_masks = function(requests) {
+        preprocess_pooled_support_masks(
+          requests,
+          model = engine$model,
+          nodes = ctx$nodes,
+          nodes2 = ctx$nodes2,
+          symmetric = identical(spec_map$sub_model, "choice_coordination"),
+          prep_envir = engine$prep_envir,
+          src = ctx$src
+        )
+      },
+      scalar_entity = "dyad"
+    )
+  }
+
+  # `finalize_consumers()` returns one object for a single output and a
+  # fid-named list otherwise; normalize to a fid-keyed list either way.
+  if (inherits(outputs, "preprocessed.goldfish")) {
+    outputs <- stats::setNames(list(outputs), as.character(engine$fids[1L]))
+  }
+  outputs
+}
+
+# Run the merged single-clock walk over the substrate `build_merged_blocks()`
+# assembled, returning one `preprocessed.goldfish` object per fid.
+run_merged_walk <- function(
+  merged,
+  control_preprocessing = set_preprocessing_opt(),
+  progress = FALSE,
+  verbose = FALSE
+) {
+  if (
+    !is.null(control_preprocessing$start_time) ||
+      !is.null(control_preprocessing$end_time)
+  ) {
+    cli::cli_abort(
+      "The merged walk does not yet support an explicit start or end time.",
+      .internal = TRUE
+    )
+  }
+
+  schedule <- merged$schedule
+  state <- merged$state
+  props <- build_shared_object_props(
+    merged$objects,
+    control_preprocessing$impute
+  )
+
+  engines <- lapply(
+    merged$units,
+    build_walk_engine,
+    merged = merged,
+    control_preprocessing = control_preprocessing,
+    progress = progress
+  )
+
+  # The shared clock spans every process's events; each unit's per-unit clock
+  # starts here so its first recorded interval is measured from the window open.
+  start_time <- if (schedule$n > 0L) min(schedule$time) else 0
+  end_time <- if (schedule$n > 0L) max(schedule$time) else 0
+  for (engine in engines) {
+    engine$last_time <- start_time
+  }
+
+  for (k in seq_len(schedule$n)) {
+    t <- schedule$time[k]
+    shape <- schedule$shape[k]
+
+    if (schedule$dependent[k]) {
+      layer <- schedule$layer[k]
+      flavor <- schedule$flavor[k]
+      if (shape == "node") {
+        ev_sender <- schedule$node[k]
+        ev_receiver <- schedule$node[k]
+      } else {
+        ev_sender <- schedule$sender[k]
+        ev_receiver <- schedule$receiver[k]
+      }
+
+      for (engine in engines) {
+        if (identical(engine$focal, layer)) {
+          interval <- t - engine$last_time
+          engine$last_time <- t
+          engine$i_total <- engine$i_total + 1L
+          engine$i_dep <- engine$i_dep + 1L
+          merged_route_dependent(
+            engine,
+            flavor,
+            list(
+              is_dependent = 1L,
+              interval = interval,
+              time = t,
+              sender = ev_sender,
+              receiver = ev_receiver
+            )
+          )
+        } else if (engine$is_timed_rate) {
+          interval <- t - engine$last_time
+          engine$last_time <- t
+          engine$i_total <- engine$i_total + 1L
+          if (interval > 0) {
+            merged_route_rc(
+              engine,
+              list(
+                is_dependent = 0L,
+                interval = interval,
+                time = t,
+                sender = ev_sender,
+                receiver = ev_receiver
+              )
+            )
+          }
+        }
+      }
+      next
+    }
+
+    # Covariate event: right-censor and update statistics for every unit that
+    # reads the object, all against the pre-update state, then write the state
+    # once. A rate fid never takes an RC row here unless its own unit reads the
+    # object, keeping a choice-only covariate off the rate fid's timeline.
+    oid <- schedule$target[k]
+    event_args <- merged_build_event_args(schedule, k, oid, props, state)
+    is_undirected <- props$is_undirected[oid]
+    if (shape == "global") {
+      ev_sender <- NA_integer_
+      ev_receiver <- NA_integer_
+    } else if (shape == "node") {
+      ev_sender <- schedule$node[k]
+      ev_receiver <- schedule$node[k]
+    } else {
+      ev_sender <- schedule$sender[k]
+      ev_receiver <- schedule$receiver[k]
+    }
+
+    for (engine in engines) {
+      loid <- engine$shared_to_local[oid]
+      if (is.na(loid)) {
+        next
+      }
+      interval <- t - engine$last_time
+      engine$last_time <- t
+      engine$i_total <- engine$i_total + 1L
+      if (engine$is_timed_rate && interval > 0) {
+        merged_route_rc(
+          engine,
+          list(
+            is_dependent = 0L,
+            interval = interval,
+            time = t,
+            sender = ev_sender,
+            receiver = ev_receiver
+          )
+        )
+      }
+      merged_covariate_step(
+        engine,
+        loid,
+        shape,
+        event_args,
+        is_undirected,
+        interval,
+        state
+      )
+    }
+
+    merged_apply_state_update(state, oid, shape, event_args, props)
+  }
+
+  outputs <- list()
+  for (engine in engines) {
+    engine_outputs <- finalize_walk_engine(
+      engine,
+      start_time,
+      end_time,
+      control_preprocessing$opportunities_list
+    )
+    outputs[names(engine_outputs)] <- engine_outputs
+  }
+
+  # Return fid-keyed in canonical fid order, with the process_map attached, so
+  # the merged output indexes exactly as the flavored / joint planners do.
+  ordered_keys <- as.character(sort(as.integer(names(outputs))))
+  structure(
+    outputs[ordered_keys],
+    process_map = merged$process_map,
+    class = "joint_preprocessed.goldfish"
+  )
+}
+
+# Preprocess a joint (or single) specification through the merged single-clock
+# walk. Accepts a `joint_specification.goldfish` directly, or a single
+# `specification.goldfish` (wrapped as a one-process join) so the same driver
+# serves the frozen-baseline gate.
+preprocess_joint <- function(
+  spec,
+  control_preprocessing = set_preprocessing_opt(),
+  progress = getOption("progress", default = FALSE),
+  verbose = getOption("verbose", default = FALSE)
+) {
+  joint_spec <- if (inherits(spec, "joint_specification.goldfish")) {
+    spec
+  } else if (inherits(spec, "specification.goldfish")) {
+    single_process_joint(spec)
+  } else {
+    cli::cli_abort(
+      "{.fn preprocess_joint} requires a {.cls specification.goldfish} or
+       {.cls joint_specification.goldfish}.",
+      .internal = TRUE
+    )
+  }
+  merged <- build_merged_blocks(joint_spec, control_preprocessing)
+  run_merged_walk(merged, control_preprocessing, progress, verbose)
+}

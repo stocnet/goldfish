@@ -261,7 +261,7 @@
       constraints' atoms once and evaluate each fid's own `expr` at its own
       snapshot times over that shared atom state. Independent of the merged
       walk — extractable to its own change if section 3 stalls.
-- [ ] 3.1 Merge the sender and dyad recipe walks into one clock hosting the
+- [x] 3.1 Merge the sender and dyad recipe walks into one clock hosting the
       statistic blocks keyed by mode-pair (`stat_block = (model, family,
       mode-pair)`, D8): the single-mode-pair join has the two blocks, a
       multi-mode-pair join has one sender block per distinct sender mode and one

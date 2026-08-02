@@ -197,3 +197,279 @@ test_that("the merged schedule spans the union of events over shared targets", {
   # friendship, an unmodeled panel covariate, only ever updates state.
   expect_false("friendship" %in% sch$layer[sch$dependent])
 })
+
+# ---- The merged single-clock walk -------------------------------------------
+
+# A single flavored specification over a mutually-exclusive layer: creation and
+# dissolution compete on `calls`, so the walk exercises the support-mask fold and
+# the per-flavor intercept scalars. This is the frozen-baseline gate's fixture --
+# the merged walk must reproduce `preprocess_flavored()` on it byte-for-byte.
+two_flavor_spec <- function() {
+  nodes <- data.frame(
+    label = c("A", "B", "C", "D"),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  ties <- data.frame(
+    from = c(1L, 3L, 1L, 2L, 3L),
+    to = c(2L, 4L, 2L, 3L, 4L),
+    time = c(NA, 1, 2, 3, 4),
+    layer = "calls",
+    weight = c(1, 1, -1, 1, -1),
+    stringsAsFactors = FALSE
+  )
+  info <- list(
+    name = "toy4",
+    focal = "calls",
+    update = c(calls = "increment"),
+    directed = c(calls = TRUE),
+    observation = c(calls = "event")
+  )
+  data <- add_flavor(
+    list(info = info, nodes = nodes, ties = ties),
+    layer = "calls",
+    values_equivalence = c(creation = 1, dissolution = -1)
+  )
+  make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg + outdeg),
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    model = "DyNAM",
+    data = data
+  )
+}
+
+# A plain single-process spec whose choice reads a friendship covariate placed at
+# times BETWEEN the calls events, so the rate (which reads only calls) and the
+# choice (which reads friendship) reference disjoint interior event times.
+calls_with_offbeat_friendship <- function() {
+  nodes <- data.frame(
+    label = paste0("N", 1:5),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L),
+      to = c(2L, 3L, 4L),
+      time = c(1.5, 2.5, 3.5),
+      layer = "friendship"
+    ),
+    data.frame(
+      from = c(1L, 2L, 3L, 4L),
+      to = c(2L, 3L, 4L, 5L),
+      time = c(1, 2, 3, 4),
+      layer = "calls"
+    )
+  )
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(friendship = "increment", calls = "increment"),
+    directed = c(friendship = TRUE, calls = TRUE),
+    observation = c(friendship = "panel", calls = "event")
+  )
+  data <- list(info = info, nodes = nodes, ties = ties)
+  make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~ inertia + tie(friendship),
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+}
+
+# Two uncoupled processes whose events fall at DISTINCT times, so a modeled
+# dependent event of one is a genuine interior right-censoring boundary of the
+# other's rate integral (calls at integers, emails staggered between them).
+joint_staggered <- function() {
+  nodes <- data.frame(
+    label = paste0("N", 1:6),
+    mode = "p",
+    stringsAsFactors = FALSE
+  )
+  ties <- rbind(
+    data.frame(
+      from = c(1L, 2L, 3L, 4L, 5L),
+      to = c(2L, 3L, 4L, 5L, 1L),
+      time = c(1, 2, 3, 4, 5),
+      layer = "calls"
+    ),
+    data.frame(
+      from = c(2L, 3L),
+      to = c(1L, 2L),
+      time = c(1.5, 2.5),
+      layer = "emails"
+    )
+  )
+  info <- list(
+    name = "toy",
+    focal = "calls",
+    update = c(calls = "increment", emails = "increment"),
+    directed = c(calls = TRUE, emails = TRUE),
+    observation = c(calls = "event", emails = "event")
+  )
+  data <- list(info = info, nodes = nodes, ties = ties)
+  calls_spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "calls",
+    model = "DyNAM",
+    data = data
+  )
+  emails_spec <- make_specification(
+    rate = ~ 1 + indeg,
+    choice = ~inertia,
+    layer = "emails",
+    model = "DyNAM",
+    data = data
+  )
+  list(
+    joint = make_joint_specification(calls_spec, emails_spec, data = data),
+    calls = calls_spec
+  )
+}
+
+# The wrapper decorations `estimate_wrapper()` / `preprocess_flavored()` add
+# AFTER the walk (metadata for estimation re-entry); the merged driver produces
+# the raw walk output, so strip these before a byte-identity comparison.
+strip_prep_deco <- function(prep) {
+  deco <- c(
+    "formula",
+    "model",
+    "sub_model",
+    "nodes",
+    "nodes2",
+    "node_lookup",
+    "model_spec",
+    "support_validated"
+  )
+  prep[setdiff(names(prep), deco)]
+}
+
+prep_by <- function(out, layer, family) {
+  map <- attr(out, "process_map")
+  key <- as.character(map$fid[map$layer == layer & map$family == family])
+  out[[key]]
+}
+
+prep_by_flavor <- function(out, flavor, family) {
+  map <- attr(out, "process_map")
+  key <- as.character(map$fid[map$flavor == flavor & map$family == family])
+  out[[key]]
+}
+
+test_that("the merged walk returns one preprocessed object per fid", {
+  out <- suppressWarnings(preprocess_joint(joint_two_process()))
+  map <- attr(out, "process_map")
+
+  expect_s3_class(out, "joint_preprocessed.goldfish")
+  expect_equal(names(out), as.character(sort(map$fid)))
+  expect_true(all(vapply(
+    out,
+    function(p) inherits(p, "preprocessed.goldfish"),
+    logical(1)
+  )))
+})
+
+test_that("the merged walk reproduces the flavored two-walk byte-for-byte", {
+  spec <- two_flavor_spec()
+  oracle <- suppressWarnings(preprocess_flavored(spec))
+  merged <- suppressWarnings(preprocess_joint(spec))
+  omap <- attr(oracle, "process_map")
+
+  # Aligned by (flavor, family): the joint map is flavor-major, the flavored map
+  # family-major, so the fid NUMBER differs while the content must not.
+  for (i in seq_len(nrow(omap))) {
+    o <- oracle[[as.character(omap$fid[i])]]
+    m <- prep_by_flavor(merged, omap$flavor[i], omap$family[i])
+    expect_equal(strip_prep_deco(m), strip_prep_deco(o))
+  }
+})
+
+test_that("a plain single process matches its standalone preprocessing", {
+  spec <- calls_with_offbeat_friendship()
+  merged <- suppressWarnings(preprocess_joint(spec))
+
+  rate_solo <- suppressWarnings(compute_stats(
+    calls ~ 1 + indeg,
+    data = spec$data,
+    model = "DyNAM",
+    sub_model = "rate"
+  ))
+  choice_solo <- suppressWarnings(compute_stats(
+    calls ~ inertia + tie(friendship),
+    data = spec$data,
+    model = "DyNAM",
+    sub_model = "choice"
+  ))
+
+  expect_equal(
+    strip_prep_deco(prep_by(merged, "calls", "rate")),
+    strip_prep_deco(rate_solo)
+  )
+  expect_equal(
+    strip_prep_deco(prep_by(merged, "calls", "choice")),
+    strip_prep_deco(choice_solo)
+  )
+})
+
+test_that("a choice-only covariate never right-censors a rate fid", {
+  # friendship is read only by the choice formula and fires at 1.5, 2.5, 3.5.
+  # The rate fid reads only calls, so those events update state for the choice
+  # but leave no row on the rate timeline -- the per-block-schedule RC gate.
+  merged <- suppressWarnings(preprocess_joint(calls_with_offbeat_friendship()))
+  rate <- prep_by(merged, "calls", "rate")
+  choice <- prep_by(merged, "calls", "choice")
+
+  expect_equal(rate$event_time, c(1, 2, 3, 4))
+  expect_false(any(c(1.5, 2.5, 3.5) %in% rate$event_time))
+  # The choice sees friendship as state (its tie() column changes) but records
+  # only its own dependent events, never a right-censored friendship row.
+  expect_equal(choice$event_time, c(1, 2, 3, 4))
+  expect_true(all(choice$is_dependent == 1L))
+})
+
+test_that("choice fids are unchanged by an uncoupled competing process", {
+  fx <- joint_staggered()
+  mv <- suppressWarnings(preprocess_joint(fx$joint))
+  solo <- suppressWarnings(preprocess_joint(fx$calls))
+
+  expect_equal(
+    strip_prep_deco(prep_by(mv, "calls", "choice")),
+    strip_prep_deco(prep_by(solo, "calls", "choice"))
+  )
+})
+
+test_that("a modeled dependent event right-censors another process's rate fid", {
+  fx <- joint_staggered()
+  mv <- suppressWarnings(preprocess_joint(fx$joint))
+  solo <- suppressWarnings(preprocess_joint(fx$calls))
+
+  mv_rate <- prep_by(mv, "calls", "rate")
+  solo_rate <- prep_by(solo, "calls", "rate")
+
+  # Standalone: calls-rate records only its own five events.
+  expect_equal(solo_rate$event_time, c(1, 2, 3, 4, 5))
+  # Joined: the two emails events at 1.5 and 2.5 add interior right-censoring
+  # boundaries, subdividing the rate integral without changing the dependent
+  # observations.
+  expect_equal(mv_rate$event_time, c(1, 1.5, 2, 2.5, 3, 4, 5))
+  expect_equal(mv_rate$is_dependent, c(1L, 0L, 1L, 0L, 1L, 1L, 1L))
+  # The extra rows only partition existing intervals: the same total observation
+  # time and the same dependent-event count as standalone.
+  expect_equal(sum(mv_rate$intervals), sum(solo_rate$intervals))
+  expect_equal(mv_rate$n_dep_events, solo_rate$n_dep_events)
+})
+
+test_that("focal is resolved per fid, never stamped on the shared state", {
+  # The joint data object carries a single info$focal ("calls"); the emails
+  # process must still resolve its own dependent rows and sender indices against
+  # emails, not the object-level focal. If a shared focal leaked in, the emails
+  # rate fid would key its dependent events off the calls layer.
+  mv <- suppressWarnings(preprocess_joint(joint_two_process()))
+  emails_rate <- prep_by(mv, "emails", "rate")
+  # emails has three events (senders 2, 3, 4); the dependent rows carry those
+  # senders, resolved against emails' own focal.
+  dep <- emails_rate$is_dependent == 1L
+  expect_equal(emails_rate$event_sender[dep], c(2L, 3L, 4L))
+})
