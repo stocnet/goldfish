@@ -4,6 +4,10 @@
 # of the processes' objects and events. No event loop runs here -- these read the
 # compiled substrate structure directly.
 
+local_cli_context <- function(env = parent.frame()) {
+  withr::local_options(cli.width = 80, cli.num_colors = 1, .local_envir = env)
+}
+
 # A plain two-process join over one node set: calls and emails are both DyNAM
 # rate + choice processes, and friendship is a panel-observed layer both choice
 # formulas read as an exogenous covariate. Four fids (calls rate/choice, emails
@@ -204,7 +208,7 @@ test_that("the merged schedule spans the union of events over shared targets", {
 # dissolution compete on `calls`, so the walk exercises the support-mask fold and
 # the per-flavor intercept scalars. This is the frozen-baseline gate's fixture --
 # the merged walk must reproduce `preprocess_flavored()` on it byte-for-byte.
-two_flavor_spec <- function() {
+two_flavor_data <- function() {
   nodes <- data.frame(
     label = c("A", "B", "C", "D"),
     mode = "p",
@@ -225,16 +229,20 @@ two_flavor_spec <- function() {
     directed = c(calls = TRUE),
     observation = c(calls = "event")
   )
-  data <- add_flavor(
+  add_flavor(
     list(info = info, nodes = nodes, ties = ties),
     layer = "calls",
     values_equivalence = c(creation = 1, dissolution = -1)
   )
+}
+
+two_flavor_spec <- function(data = two_flavor_data(), ...) {
   make_specification(
     rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg + outdeg),
     choice = list(creation ~ inertia, dissolution ~ inertia),
     model = "DyNAM",
-    data = data
+    data = data,
+    ...
   )
 }
 
@@ -472,4 +480,99 @@ test_that("focal is resolved per fid, never stamped on the shared state", {
   # senders, resolved against emails' own focal.
   dep <- emails_rate$is_dependent == 1L
   expect_equal(emails_rate$event_sender[dep], c(2L, 3L, 4L))
+})
+
+# ---- Per-fid driver: decoration, engine-readiness, compile-once -------------
+
+test_that("each fid's output carries the oracle's estimation-re-entry decoration", {
+  # The per-fid driver stamps each output with the metadata that makes it
+  # estimable on its own -- its OWN two-sided formula, model, sub-model, node
+  # sides, node lookup, and model spec -- resolved against its own per-fid focal
+  # (D8a). On the flavored fixture these must equal the two-walk oracle's
+  # decoration fid-for-fid (aligned by (flavor, family), since the joint map is
+  # flavor-major and the flavored map family-major).
+  spec <- two_flavor_spec()
+  oracle <- suppressWarnings(preprocess_flavored(spec))
+  merged <- suppressWarnings(preprocess_joint(spec))
+  omap <- attr(oracle, "process_map")
+
+  for (i in seq_len(nrow(omap))) {
+    o <- oracle[[as.character(omap$fid[i])]]
+    m <- prep_by_flavor(merged, omap$flavor[i], omap$family[i])
+    for (field in c(
+      "formula",
+      "model",
+      "sub_model",
+      "nodes",
+      "nodes2",
+      "node_lookup",
+      "model_spec"
+    )) {
+      expect_identical(m[[field]], o[[field]], info = field)
+    }
+    # A rate fid reports sub_model "rate", a choice fid "choice".
+    expect_identical(m$sub_model, omap$family[i])
+  }
+})
+
+test_that("engine-readiness stamps every fid and an empty risk set names the process", {
+  # Every fid is validated once and stamped so estimation does not re-run the
+  # check (mirroring the flavored driver).
+  merged <- suppressWarnings(preprocess_joint(two_flavor_spec()))
+  expect_true(all(vapply(
+    merged,
+    function(p) isTRUE(p$support_validated),
+    logical(1)
+  )))
+
+  # `~ tie(calls)` contradicts creation's derived `~ !tie(calls)`, leaving the
+  # creation process no supportable dyad; the abort names WHICH fid is empty,
+  # rendered from the process_map.
+  local_cli_context()
+  bad <- suppressMessages(make_specification(
+    rate = list(creation ~ 1 + indeg, dissolution ~ 1 + indeg + outdeg),
+    choice = list(creation ~ inertia, dissolution ~ inertia),
+    model = "DyNAM",
+    data = two_flavor_data(),
+    support_constraint = ~ tie(calls)
+  ))
+  err <- expect_error(
+    suppressWarnings(preprocess_joint(bad)),
+    "gated out"
+  )
+  expect_match(
+    paste(conditionMessage(err), collapse = "\n"),
+    "calls › creation › rate"
+  )
+})
+
+test_that("each constraint is compiled once into the merged plan, snapshot per fid", {
+  # Compile-once (D3b): the merged plan holds one compiled sub-plan per
+  # constraint_id (not one per family), and the per-unit compiles no longer
+  # carry the constraint at all -- it is hoisted to the merged level.
+  spec <- two_flavor_spec()
+  mb <- build_merged_blocks(single_process_joint(spec))
+  map <- mb$process_map
+  expect_setequal(
+    names(mb$support_constraints),
+    as.character(unique(stats::na.omit(map$constraint_id)))
+  )
+  for (key in names(mb$units)) {
+    expect_null(mb$units[[key]]$spec_map$plan$support_constraints)
+  }
+
+  # Snapshot-per-fid: creation's rate fid (timed, carries right-censored rows)
+  # and its choice fid (no right-censoring) share ONE constraint_id, so they read
+  # the SAME compiled sub-plan yet snapshot it against DIFFERENT stored
+  # timelines. The masks-before-any-event are therefore identical (one compiled
+  # constraint) while the snapshot sequences differ in length.
+  merged <- suppressWarnings(preprocess_joint(spec))
+  rate <- prep_by_flavor(merged, "creation", "rate")
+  choice <- prep_by_flavor(merged, "creation", "choice")
+  expect_identical(rate$support_mask$initial, choice$support_mask$initial)
+  expect_false(
+    length(rate$support_mask$support) == length(choice$support_mask$support)
+  )
+  expect_equal(length(rate$support_mask$support), length(rate$event_time))
+  expect_equal(length(choice$support_mask$support), length(choice$event_time))
 })

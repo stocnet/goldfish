@@ -276,7 +276,7 @@
       merged driver MUST NOT use the single-process `work_data$info$focal <-
       dep_name` stamp — a single shared focal would collapse N processes' side/
       mode/dependent resolution onto one layer
-- [ ] 3.2 Per-fid preprocessing driver over the merged walk: fid-indexed list
+- [x] 3.2 Per-fid preprocessing driver over the merged walk: fid-indexed list
       with the process_map attached, each element passing engine-readiness
       checks; empty-risk-set aborts name the fid label rendered from the
       process_map; compile each `(layer, flavor)` constraint ONCE into the

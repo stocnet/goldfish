@@ -170,6 +170,10 @@ compile_recipe_spec_map <- function(
   # reaches it without threading through the loop, exactly as `preprocess_recipe`
   # attaches it before dispatching `preprocess()`.
   spec_map$impute_policy <- impute_policy
+  # Keep the pristine model spec reachable so the merged driver can decorate each
+  # fid's output with it (the estimation-re-entry metadata), matching the
+  # single-process/flavored path without rebuilding it.
+  attr(spec_map, "model_spec") <- model_spec
   spec_map
 }
 
@@ -236,21 +240,69 @@ spec_constraint_plans <- function(spec, focal, process_map) {
   if (length(plans) == 0) NULL else plans
 }
 
+# Compile one parsed support constraint into the engine-ready sibling sub-plan
+# the mask realization consumes, using the owning layer's compile parameters
+# (drawn from any of its already-compiled units, since rate and choice share
+# them). A focal-stamped working copy resolves a focal-relative atom against the
+# owning layer, exactly as `build_spec_map()`'s own constraint compile does. The
+# compile is metadata-only and reference-transparent, so one shared sub-plan is
+# byte-equivalent to the per-family compiles it replaces.
+compile_one_joint_constraint <- function(constraint_plan, unit, data) {
+  work_data <- data
+  work_data$info$focal <- unit$focal
+  compile_support_constraint(
+    constraint_plan,
+    model = unit$model,
+    dep_name = unit$focal,
+    nodes = unit$spec_map$nodes,
+    nodes2 = unit$spec_map$nodes2,
+    window_derivations = unit$spec_map$parsed_terms$window_derivations,
+    envir = new.env(),
+    data = work_data
+  )
+}
+
+# Compile each distinct `(layer, flavor)` support constraint ONCE, keyed by the
+# `constraint_id` the process_map assigns it, into the one merged plan every fid
+# sharing that id reads (design D3b). The compile is family-invariant, so a
+# single sub-plan serves a layer's rate and choice fids; each fid still snapshots
+# the mask against its OWN stored `event_time` at finalize (compile once,
+# snapshot per fid). `NULL` when the join declares no constraint.
+build_joint_support_constraints <- function(joint_spec, units) {
+  compiled <- list()
+  for (spec in joint_spec$specifications) {
+    plans <- spec_constraint_plans(spec, spec$focal, joint_spec$process_map)
+    if (is.null(plans)) {
+      next
+    }
+    owner <- Filter(function(u) identical(u$focal, spec$focal), units)[[1L]]
+    for (id in names(plans)) {
+      if (is.null(compiled[[id]])) {
+        compiled[[id]] <- compile_one_joint_constraint(
+          plans[[id]],
+          owner,
+          joint_spec$data
+        )
+      }
+    }
+  }
+  if (length(compiled) == 0L) NULL else compiled
+}
+
 # Compile the `(spec, family)` process into a unit: its `spec_map` plus the
 # routing facts the block assembly needs (focal, family, the fids it owns in the
 # `process_map`, its stat block and shape, and the per-flavor projection).
 compile_process_unit <- function(spec, family, joint_spec, impute_policy) {
   fp <- process_family_plan(spec, family)
+  # The support constraints are compiled ONCE per `constraint_id` at the merged
+  # level (family-invariant, so a layer's rate and choice fids read one shared
+  # sub-plan), not here; the per-unit compile carries only its own statistics.
   spec_map <- compile_recipe_spec_map(
     formula = fp$formula,
     model = spec$model,
     sub_model = fp$sub_model,
     data = joint_spec$data,
-    support_constraint = spec_constraint_plans(
-      spec,
-      spec$focal,
-      joint_spec$process_map
-    ),
+    support_constraint = NULL,
     modeled_flavor = fp$modeled_flavor,
     impute_policy = impute_policy
   )
@@ -258,17 +310,48 @@ compile_process_unit <- function(spec, family, joint_spec, impute_policy) {
   pm <- joint_spec$process_map
   fid_rows <- pm[pm$layer == spec$focal & pm$family == family, , drop = FALSE]
 
+  # Each fid's own two-sided formula (the projection its statistics describe, not
+  # the union formula that drove the shared compile) -- the estimation-re-entry
+  # metadata the single-process/flavored path stamps per output.
+  processes <- spec_processes(spec)
+  proc_flavor <- vapply(processes, `[[`, character(1), "flavor")
+  own_formulas <- stats::setNames(
+    lapply(seq_len(nrow(fid_rows)), function(i) {
+      fl <- fid_rows$flavor[i]
+      proc <- if (is.na(fl)) {
+        processes[[which(is.na(proc_flavor))[1L]]]
+      } else {
+        processes[[match(fl, proc_flavor)]]
+      }
+      proc$submodels[[family]]$formula
+    }),
+    as.character(fid_rows$fid)
+  )
+
+  # The legacy sub-model the output is stamped with mirrors `estimate_wrapper()`:
+  # a `rate_ordered` process reports as rate, an REM process as choice.
+  legacy_sub_model <- fp$sub_model
+  if (legacy_sub_model == "rate_ordered") {
+    legacy_sub_model <- "rate"
+  }
+  if (spec$model == "REM") {
+    legacy_sub_model <- "choice"
+  }
+
   list(
     key = paste(spec$focal, family, sep = ":"),
     focal = spec$focal,
     family = family,
     model = spec$model,
     sub_model = fp$sub_model,
+    legacy_sub_model = legacy_sub_model,
     stat_block = paste(spec$model, fp$sub_model, sep = ":"),
     is_sender = inherits(spec_map, "sender_spec"),
     fids = fid_rows$fid,
     flavors = fp$flavors,
     effect_maps = fp$effect_maps,
+    own_formulas = own_formulas,
+    model_spec = attr(spec_map, "model_spec"),
     spec_map = spec_map
   )
 }
@@ -498,7 +581,8 @@ build_joint_schedule <- function(units, shared_objects) {
 #'   compiled `spec_map`s keyed by `focal:family`, each with its `shared_oid ->
 #'   block_oid` map); `objects` (the shared object registry); `state` (the shared
 #'   state container over the object union); `schedule` (the merged event
-#'   schedule); and the `process_map`.
+#'   schedule); `support_constraints` (each `(layer, flavor)` constraint compiled
+#'   once, keyed by `constraint_id`); and the `process_map`.
 #' @noRd
 build_merged_blocks <- function(
   joint_spec,
@@ -530,6 +614,10 @@ build_merged_blocks <- function(
     units[[key]]$shared_to_local <- shared_objects$shared_to_local[[key]]
     units[[key]]$local_to_shared <- shared_objects$local_to_shared[[key]]
   }
+
+  # One compiled sub-plan per `constraint_id`, shared across the families of the
+  # layer that owns it (compile once, snapshot per fid; design D3b).
+  support_constraints <- build_joint_support_constraints(joint_spec, units)
 
   # One source over the shared data drives the shared state; the cross-process
   # effect unions (one per block, deduplicating on resolved effect identity)
@@ -572,6 +660,7 @@ build_merged_blocks <- function(
       objects = shared_objects$registry,
       state = state,
       schedule = schedule,
+      support_constraints = support_constraints,
       process_map = joint_spec$process_map
     ),
     class = "merged_blocks.goldfish"
@@ -1117,9 +1206,12 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   })
   names(consumer_plan) <- as.character(unit$fids)
 
+  # The compiled constraints come from the ONE merged plan (compile once per
+  # constraint_id), not the per-unit plan, so a layer's rate and choice fids
+  # reference the SAME sub-plan and each snapshots it against its own timeline.
   consumer_specs <- build_consumer_specs(
     consumer_plan,
-    plan$support_constraints
+    merged$support_constraints
   )
   consumers <- init_consumers(
     consumer_specs,
@@ -1148,6 +1240,12 @@ build_walk_engine <- function(unit, merged, control_preprocessing, progress) {
   engine$fids <- unit$fids
   engine$flavors <- unit$flavors
   engine$shared_to_local <- unit$shared_to_local
+  # Per-fid estimation-re-entry decoration, threaded from the compile. Focal
+  # resolved per fid (Pattern A, D8a), so the node lookup is this unit's own.
+  engine$legacy_sub_model <- unit$legacy_sub_model
+  engine$model_spec <- unit$model_spec
+  engine$own_formulas <- unit$own_formulas
+  engine$node_lookup <- ds_node_lookup(ctx$src)
   engine$ctx <- ctx
   engine$prep_envir <- prep_envir
   engine$spec_map <- spec_map
@@ -1290,7 +1388,26 @@ finalize_walk_engine <- function(engine, start_time, end_time, opportunities) {
   if (inherits(outputs, "preprocessed.goldfish")) {
     outputs <- stats::setNames(list(outputs), as.character(engine$fids[1L]))
   }
-  outputs
+
+  # Decorate each fid's output with the estimation-re-entry metadata the
+  # single-process/flavored path stamps (formula, model, sub-model, node sides,
+  # node lookup, model spec), each carrying its OWN formula. Side/mode resolution
+  # rode the per-fid compiled spec_map (Pattern A, D8a), so the node sides and
+  # lookup are this unit's own, never a shared stamped focal.
+  stats::setNames(
+    lapply(names(outputs), function(key) {
+      out <- outputs[[key]]
+      out$formula <- engine$own_formulas[[key]]
+      out$model <- engine$model
+      out$sub_model <- engine$legacy_sub_model
+      out$nodes <- ctx$nodes
+      out$nodes2 <- ctx$nodes2
+      out$node_lookup <- engine$node_lookup
+      out$model_spec <- engine$model_spec
+      out
+    }),
+    names(outputs)
+  )
 }
 
 # Run the merged single-clock walk over the substrate `build_merged_blocks()`
@@ -1448,6 +1565,21 @@ run_merged_walk <- function(
       control_preprocessing$opportunities_list
     )
     outputs[names(engine_outputs)] <- engine_outputs
+  }
+
+  # Engine-readiness: fail fast, per fid, when a derived mask contradicts the
+  # user constraint and leaves an empty risk set -- naming the process the empty
+  # set belongs to via the label rendered from the map. The check is stamped so
+  # estimation does not re-run it, exactly as the flavored driver does.
+  process_map <- merged$process_map
+  for (i in seq_len(nrow(process_map))) {
+    key <- as.character(process_map$fid[i])
+    validate_prep_support(
+      outputs[[key]],
+      is_rate_family = identical(process_map$family[i], "rate"),
+      process_label = render_process_label(process_map, process_map$fid[i])
+    )
+    outputs[[key]]$support_validated <- TRUE
   }
 
   # Return fid-keyed in canonical fid order, with the process_map attached, so
