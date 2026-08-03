@@ -1,0 +1,656 @@
+## Context
+
+Two shapes the package produces and documents have no working diagnostic
+surface. A `start_time` fit — the remedy `diagnose_onset()` recommends in its own
+`@section Remedies` — aborts in `augment()` and the two describers built on it. A
+flavored fit — how `teaching2.Rmd.orig` and the Fisheries Treaties example are
+written — carries only nine methods, three of the gaps failing as silent `NULL`.
+
+Both were found by applying the shipped surface end to end rather than by
+testing it, which is also how the four adjacent bugs surfaced. The relevant
+current state, verified against the working tree:
+
+- `stocnet_dependent_events()` (`R/legacy_wrappers.R:534-551`) selects every tie
+  row of the focal layer with `!is.na(time)` and applies no window filter. The
+  result is stored at `R/model_estimate.R:2641` under a comment calling it "the
+  modeled dependent events".
+- The burn-in is a full sequential replay; its only specialization is a two-line
+  branch redirecting updates into `initial_stats`
+  (`R/model_preprocess.R:915-917`, `:1757-1762`).
+- `event_order` is passed as `i_total_events - i_dependent_events`
+  (`R/model_preprocess.R:853`). In-window a dependent row bumps both counters;
+  pre-`start_time` it bumps only the total, because the routing at `:718`/`:739`
+  leaves pre-start dependent rows falling through both branches.
+- The recipe loops `break` at `end_time` (`:982`, `:1826`);
+  `preprocess_monolith()` does not, draining pointers to exhaustion.
+- `attr(terms(y ~ 1), "factors")` is `integer(0)`, not a 0-row matrix, so
+  `nrow()` at `R/formula_parser.R:1225` raises `invalid 'length' argument`.
+- The `cox_snell` guard keys off the risk-set `normalizer`
+  (`R/methods_residuals.R:276-280`), which is correct; only its message is wrong.
+- `diagnostic-tests/spec.md:356-384` already requires every `test_*` **and**
+  `diagnose_*` to map over a flavored fit's processes, with `diagnose_outliers()`
+  as a named scenario. `residual-methods/spec.md:85-97` says the residual family
+  "SHALL NOT require the flavored container". The two are in tension and this
+  change resolves it.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- A fit's recorded dependent events are the events it modeled, so every consumer
+  pairs correctly with the per-interval vectors.
+- Per-event ordering state is continuous across the burn-in fold, so an
+  order-dependent effect means the same thing with and without a `start_time`.
+- One traversal-stop rule across both preprocessing paths, and documentation that
+  matches it.
+- A degenerate formula produces a cli abort naming the problem, never an internal
+  `nrow()` failure.
+- Every diagnostic reaches a flavored fit, in a shape the user can predict, with
+  the single-fit shape one argument away.
+- Absence that is an identity is announced once; absence that is a gap aborts.
+
+**Non-Goals:**
+
+- The vectorized `start_time` initialization. Deferred with its reasons recorded
+  in D3.
+- Changing which sub-models close the trailing interval. That is a property of
+  the likelihood, not a defect (D5).
+- The cross-package generic-ownership question of ADR-0008; only its `diagnose_*`
+  sub-question is settled here.
+- Any C++ change. Every fix is in R.
+
+## Decisions
+
+### D1 — The window filter belongs at the source, not at `augment()`
+
+`augment()` is where the failure is *observed*, so patching it there is the
+tempting fix, and it is the wrong layer: it would leave `fit$dependent_events`
+mis-paired for every other consumer while making the loud symptom disappear. The
+filter goes inside `stocnet_dependent_events()`, which needs the resolved window
+passed in from the call site at `R/model_estimate.R:2641`.
+
+The window must be the **resolved** one, not the user's raw argument — the
+resolution at `R/model_preprocess.R:425-448` substitutes `events_min`/`events_max`
+when an argument is `NULL`, and computes the span over non-window streams only.
+The resolved bounds are already stored on the fit as `start_time` / `end_time`.
+
+The boundary convention is read off the loop rather than assumed. The walk admits
+an event once `next_event_time >= startTime` (`:704-706`), and stops at
+`next_event_time > endTime` (`:698`), so the window is `[start_time, end_time]`
+on the closing side for the streams that store a final row. The acceptance test
+is not a row count but row identity: the filtered `time` column must equal
+`event_time[!right_censored_events]` exactly, since equal counts would pass even
+if the wrong rows were kept.
+
+*Alternative rejected:* recomputing the modeled events from `event_time` inside
+each consumer. It duplicates the rule per call site and loses the sender/receiver
+columns that only the tie table carries.
+
+### D2 — `event_order` counts events, not routed events
+
+The drift exists because `event_order` is derived as a difference of two counters
+whose increments diverge exactly when a dependent row is not routed. The fix
+keeps the derivation but makes the pre-start dependent row increment
+`i_dependent_events` as an in-window one does, so the difference advances by one
+per network change on both sides of the fold.
+
+This is preferable to special-casing the burn-in inside the effect functions:
+`compute_update_two_path_consecutive()` asks a question about adjacency in the
+event stream, and the burn-in *is* part of that stream. An effect should not have
+to know whether the observation window has opened.
+
+The test that pins it is a two-way equality: a model fitted with `start_time = t`
+and one fitted on data truncated so that `t` is the first event must agree on the
+consecutive-closure statistic wherever the histories coincide.
+
+### D3 — The burn-in stays a sequential replay
+
+Recorded here because the alternative is attractive and the reasons it fails are
+not obvious. A vectorized fold from a materialized state at `start_time` is sound
+only when an effect's cache is a pure function of that state. Measured against the
+code:
+
+- `history = "pooled"` qualifies, and the closed form already exists —
+  `cache <- unname(network %*% network)` at
+  `R/functions_effects_DyNAM_choice.R:1040-1049`.
+- `history = "sequential"` does not: on a creation only `inSender` is updated and
+  `outReceiver` deliberately is not (`:881-908`), so the count depends on tie
+  arrival order and is invisible in the final adjacency. Deletions decrement, so
+  it is not even monotone in the creations.
+- `history = "consecutive"` does not: it tests immediate adjacency in the stream
+  and has no closed form at all.
+- **Windowed effects do not, for a reason that is easy to miss.** Window expiry is
+  not a runtime promise — `create_windowed_events()`
+  (`R/formula_parser.R:869-885`) materializes dissolve pseudo-events at parse
+  time. A skip would therefore have to synthesize the still-pending expiries over
+  `[start_time - window, start_time)`, i.e. materialize the derived layer across
+  an interval rather than at a point.
+
+So the eligible set is "pooled and unwindowed", the fallback is per-formula rather
+than per-effect (one ineligible effect forces the whole walk), and the payoff is
+narrower than it first appears. `R/materialize_state.R:13-17` already names itself
+as the seam for this work. Deferred to its own change, where it can carry a
+benchmark and a bitwise-equality proof against the replay.
+
+### D4 — One traversal-stop rule, and the docs follow the code
+
+`preprocess_monolith()` changes to `break` as the recipe loops do. The monolith is
+the DyNAMi path, so this is a numeric change for DyNAMi fits with an `end_time`;
+it is nonetheless a correctness fix, since two preprocessing paths disagreeing
+about what "end time" means is a defect regardless of which one is nicer.
+
+`set_opt.R:703-704` currently documents the discarded behavior ("won't stop at
+this time and will continue processing events after this time"). The
+documentation is corrected to the code, not the reverse.
+
+The final right-censored row also stops carrying the sender/receiver of the
+out-of-window event that triggered the stop (`R/model_preprocess.R:741-750`).
+That metadata is stale rather than wrong for the likelihood, but it appears in
+`augment()` output, so a reader would take it for a real event.
+
+### D5 — The trailing interval is closed where the likelihood has a compensator
+
+**Measured, and worse than it first appears.** An `end_time` beyond the last
+event in the schedule is currently a *complete no-op*. The loop creates the
+closing interval only in the branch it enters on encountering an event with
+`next_event_time > endTime` (`R/model_preprocess.R:698-701`); when the schedule
+exhausts first, that branch never runs and no trailing row is emitted. On the
+`social_evolution` rate fixture, `end_time` at +1, +6 and +30 days past the last
+call all produce byte-identical results — same 439 intervals, same
+`logLik = -6048.530`, same `Intercept = -14.19247` — as setting no `end_time` at
+all. Thirty days of exposure time silently leave the likelihood, biasing the
+baseline rate high.
+
+So the fix is not documentation. The walk closes the window when it runs out of
+events, not only when it steps past the boundary.
+
+**Which sub-models store the row is still a likelihood property.** `rate` and
+exact-time REM have a compensator, so the trailing exposure is a genuine
+likelihood contribution and must be stored. The multinomial families have none —
+a censored row there would contribute exactly zero while changing interval
+counts, `augment()` row counts and every per-interval diagnostic — so they
+continue to store nothing.
+
+That asymmetry breaks the shipped scenario "the clock spans the observation
+window" (`diagnostic-object-contract`), which reads as universal and is currently
+false for *both* families whenever `end_time` exceeds the last event. It becomes
+normalizer-aware: the accumulated intervals reach `end_time` on the censoring
+sub-models, and reach the last dependent event on the multinomial ones, where the
+documentation states the difference and why.
+
+*Alternative rejected:* aborting on an `end_time` past the last event. A window
+in which nothing happened at the end is real information about the rate, not a
+user error.
+
+### D6 — Parse the degenerate shape, then judge it
+
+Two defects are entangled in the same crash and are fixed at two layers.
+
+The **shape** is normalized in `get_rhs_names()` immediately after the `factors`
+attribute is read, so a formula with no non-offset term parses instead of failing
+on `nrow()`. Lines 1236-1252 already tolerate zero terms; only the `row_to_rhs`
+construction needs it.
+
+The **verdict** is a free-parameter floor, evaluated where the fixed set is
+already known (`assemble_fixed_parameters()`, `R/formula_validate.R:501`). The
+existing "A model without effects cannot be estimated" check
+(`R/formula_parser.R:55-58`) is not reused: it is unreachable behind the crash,
+it runs before `parse_intercept()`, and it counts offset terms as effects, so it
+would pass every case in question. It is replaced by a cli abort naming the count.
+
+### D7 — An intercept is a free parameter only where the normalizer identifies it
+
+`~ 1` is a legitimate baseline on `rate` and exact-time REM, where the intercept
+is a baseline rate estimated against elapsed time. On `choice` and
+`choice_coordination` a constant statistic cancels in the normalization and
+identifies nothing, so `~ 1` there has zero free parameters and aborts.
+
+The predicate is the risk-set `normalizer` already carried on `model_spec`, which
+is the same field `is_exact_time_fit()` reads. Deriving it from `sub_model`
+strings a second time would be a second source of truth for one fact.
+
+### D8 — Absence that is an identity is announced once
+
+The living spec requires silence when `"conditional_scores"` is requested off the
+exact-time families, on the grounds that their `event_scores` rows *are* the
+conditional rows, "so the absence reads as an identity rather than as a gap"
+(`diagnostic-primitives/spec.md:198-205`). The fact is right; the inference is
+not. Silence does not make a user read the absence as an identity — it makes them
+not read it at all, and they keep passing an argument that does nothing.
+
+A cli **message**, not a warning: the condition is informational, it fires per
+estimate call and so would be noisy in a loop, and a warning would trip
+`options(warn = 2)` and surface in R CMD check for any example that requests the
+full primitive set. The message names the identity and the
+`set_algorithm_newton()` adjustment.
+
+This revisits a settled requirement, so it carries a MODIFIED delta and a new ADR
+rather than being folded in silently.
+
+*Alternative rejected:* messaging only when `"conditional_scores"` was the sole
+requested primitive. More precise, but the rule is subtle to document, hard to
+test, and rewards the case a user is least likely to hit.
+
+### D9 — `evaluate_model()` treats the two undefined returns alike
+
+`return = "exposure"` on a multinomial fit aborts, with the reason stated in
+`abort_if_exposure_undefined()` (`R/model_evaluate.R:261-285`): handing back
+nothing under a name that was asked for would be a lie. `return =
+"conditional_scores"` on the same fit returns `NULL`. These are the same case and
+get the same policy — abort — which also keeps `evaluate_model()` distinct from
+the estimation-time primitive request, where the same name is a no-op with a
+message. The asymmetry is deliberate: asking the evaluator *for* a value is a
+demand, requesting a primitive is a preference.
+
+### D10 — Flavored dispatch splits on whether the return is tidy
+
+The two spec requirements are in tension because they were written for different
+return shapes, and the resolution follows the shape rather than picking a winner.
+
+- **Tidy returns** (`augment()`, and the `test_*` / `margin_table` family that
+  already does this) row-bind per process with `flavor` and `family` **appended**,
+  so term columns stay positionally stable between a single-process fit and a
+  multi-process one, and so autograph facets on the columns rather than needing a
+  flavored plot method.
+- **Non-tidy returns** (`residuals()`, `fitted()`, `predict()`,
+  `evaluate_model()`) cannot carry a column. On a container they return a list
+  named by process label, and gain `flavor =` to return the ordinary single-fit
+  shape for one process. The list is the honest default — it neither invents a
+  shape nor pretends the container is one fit — and `flavor =` keeps the familiar
+  shape one argument away.
+
+`residual-methods/spec.md:85-97`'s "SHALL NOT require the flavored container" is
+preserved in substance: the per-process semantics are unchanged and each fid's
+result still answers exactly as a standalone fit would. What changes is that the
+container is no longer a dead end.
+
+*Alternative rejected:* requiring `flavor =` and aborting without it. It
+guarantees one output shape, but makes the common "look at everything" case an
+explicit `lapply` over an internal list the user has to know about.
+
+### D11 — The identity columns are not defining columns
+
+`flavor` and `family` stay non-defining, and this is now a decision rather than
+an accident of `new_diagnostic_list()` having no `defining` parameter.
+
+Making them defining has real appeal — a table that has silently collapsed
+several processes into one is misleading. It is rejected because the demotion
+rule (`diagnostic-plot-classes/spec.md:277-282`) strips the class when a defining
+column is lost, and autograph dispatches on class. A user subsetting columns for
+a table would silently lose their plot method. The failure mode we would be
+adding is worse than the one we would be catching.
+
+### D12 — Reaching for a missing component aborts
+
+`risk_set_axis()` returns `NULL` on a container because it is a plain function
+reading `model_spec`, which a container does not carry. That violates
+`diagnostic-object-contract/spec.md:99-103`, which requires aborting and naming
+the missing component and the remedy. It aborts, naming the `$results` route.
+
+### D13 — The `cox_snell` guard is right; its message is not
+
+The guard keys off the risk-set `normalizer`, which is the correct predicate and
+stays. The message asserts "a multinomial likelihood has none", which is false for
+`choice_coordination` (`normalizer = "coordination"`, the mutual `getLikelihoodMM`
+product). The message becomes normalizer-aware.
+
+DyNAMi `rate` is stamped `normalizer = "poisson"` and so passes the guard today
+with no test behind it. It shares the DyNAM-rate event contribution
+(`R/estimation_core.R:907-908`), so the arithmetic is the same family; the task is
+to add the test and let it pass, or to block it with a reason. The decision is
+deferred to the measurement, not to taste.
+
+### D14 — Two fixes move numbers, and that is verified before it is accepted
+
+D2, D4 and D5 change coefficients for specific combinations. The policy is:
+establish the blast radius **first** — which frozen baselines in
+`tests/testthat/_baselines/` use `history = "consecutive"` with a `start_time`,
+DyNAMi with an `end_time`, or a censoring sub-model with an `end_time` past the
+last event — before any of the three fixes is written. A baseline that moves was pinning wrong numbers, and
+regenerating it is a deliberate step recorded with its reason, never a silent
+side effect of a task. If neither combination is covered, that is itself worth
+recording: it means the bugs were reachable precisely because nothing pinned them.
+
+### D16 — One field lies, and almost every reader believes it
+
+`n_events` on a fitted object is set to `length(is_dependent)`
+(`R/cpp_interface.R:95`) — the number of likelihood **intervals**. The name says
+events. On the multinomial families the two coincide, which is why it survived;
+on a rate or REM fit a windowed effect opens a right-censored interval per event
+and they diverge by roughly a factor of two.
+
+```
+fit$n_events  =  876          the interval count, under an events name
+truth         =  876 intervals, 439 dependent events, 437 right-censored
+```
+
+Six consumers read the field as though it meant events, and every one of them is
+wrong:
+
+| reader | reads | should read |
+|---|---|---|
+| `logLik()` `nobs` → **BIC** | 876 | 439 |
+| **AICc** denominator (`R/methods_display.R:152`) | 876 | 439 |
+| `glance()` `nobs` | 876 | 439 |
+| `logLik(avgPerEvent = TRUE)` | −6.459 | −12.889 |
+| `margin_table()` print, "N events" | 876 | 439 |
+| `test_parameter()` print, "over N events" | 876 | 439 |
+
+`logLik(avgPerEvent = TRUE)` is the clearest: an argument named per-event
+dividing by intervals, off by exactly the censoring ratio.
+
+Three other consumers already read the right number, each by recomputing
+`sum(!x$right_censored_events)` for itself — the Grambsch-Therneau scaling in
+`scaled_schoenfeld_rows()`, and the printed contexts of `diagnose_onset()`,
+`test_gof()` and `test_time()`. That the workaround was invented independently
+three times is the evidence that the field, not the readers, is the defect.
+
+**Both consumers want the event count**, which is the correction to an earlier
+draft of this decision. It had claimed the Grambsch-Therneau constant wanted the
+interval count, on the grounds that every interval contributes a likelihood term.
+That is wrong, and the reason is worth recording because it is not obvious: the
+residual GT scales is the **conditional** score
+`s_k = x_obs(k) − sum_j pi_j x_j`, which carries no exposure term, does not sum
+to zero, and is undefined on a right-censored interval — `pi_j` needs a realized
+alternative. It is the Cox partial-likelihood residual, where inter-event times
+never enter the score, and GT's constant there is the number of events. The
+implementation already had this right; only the decision was wrong.
+
+So the fix is a rename plus a redirect, not a per-consumer negotiation:
+
+```
+n_events     ->  the number of dependent events        (was: intervals)
+n_intervals  ->  the number of likelihood intervals    (new; length(right_censored_events))
+```
+
+Every method then reads `n_events`, the three ad-hoc recomputations collapse onto
+the stored field, and `n_intervals` remains available for the printed contexts
+that legitimately report both.
+
+BIC and AICc taking the event count is also the standard survival convention —
+information accrues with events, not with exposure records — so the choice is not
+merely a goldfish convenience. The comparability argument and the statistical one
+agree.
+
+*Alternative rejected:* leaving BIC as it is and documenting the caveat. A
+reported number comparable only within a subset of models is a trap, and the
+package's own teaching vignette walks into it: `AIC(mod03Rate, mod04Rate)`
+compares exactly an unwindowed model against a windowed one.
+
+### D17 — A residual is per event, not per interval
+
+Every per-interval residual type accumulates the intervals between consecutive
+dependent events and returns one value per event. The Cox–Snell case forced the
+question — the time-rescaling quantity is the compensator *between events*, and
+window closures split it — but the correction generalizes, and applying it only
+there would leave `residuals()` with one length for one type and another for the
+rest.
+
+Aggregation is the right operation rather than a convenient one, because it is
+exactly total-preserving. Measured on a windowed rate fit, 876 intervals over 439
+events:
+
+```
+score column sums, which are zero at the maximum
+  all intervals      0.000119     the score equation
+  dependent only        372       what dropping the censored rows costs
+  aggregated         0.000119     identical to all-intervals
+```
+
+So the accumulated series carries the same information as the full interval
+series while being indexed by the thing users reason about.
+
+Not every type aggregates, and the distinction follows from where each is
+defined:
+
+| type | today | under this decision |
+|---|---|---|
+| `deviance`, `score`, `cox_snell` | per interval | accumulated between events |
+| `schoenfeld`, `scaled_schoenfeld` | `NA` on censored intervals | already per event; drop the `NA` rows |
+| `dfbeta`, `dfbetas` | per interval | accumulate the score, then transform — the map is linear, so it commutes |
+| `cooks` | per interval | compute **from** the accumulated score, never accumulate the scalar: the quadratic form does not commute, and the question is the influence of the whole event |
+| `response`, `martingale` | per event / per actor | unchanged |
+
+The trailing span is the one genuinely open edge: after D5 closes the window, a
+rate fit with an `end_time` past its last event has exposure with no event to
+attach to. Options are to attach it to the last event, drop it, or return it as a
+censored final observation. It is one observation out of hundreds, and it is
+listed under Open Questions rather than settled here.
+
+### D18 — `include_censored` retires because its problem is gone
+
+The argument exists to suppress the alternation of dependent and right-censored
+intervals, which makes a segmented series describe the censoring pattern rather
+than the fit. Under D17 the series has no alternation to suppress: it is one
+value per event.
+
+The existing requirement is careful and its reasoning survives — it is the
+*mechanism* that is superseded. Worth recording that the default was a decent
+approximation of the right answer rather than a wrong one: on the same fixture
+the dependent-only log-likelihood series has median 25.6 and IQR 7.7 against the
+accumulated series' 26.1 and 8.0. It discarded the censored contribution where
+accumulation attributes it, and for the log-likelihood series that difference is
+small. For the score series it is not, which is why the argument was already
+scoped away from `test_gof()` and `diagnose_onset()`.
+
+Two simplifications follow and are the reason to prefer this over keeping the
+argument:
+
+- The returned object no longer needs the "one row per interval under either
+  setting, candidacy read from the `NA` pattern on `.resid`" construction. One
+  row per event, all rows candidates.
+- `diagnose_onset()` stops being a special case. It currently has to explain why
+  it reads all intervals while reporting on a dependent-event axis; under D17
+  those are the same axis.
+
+Retirement follows the lifecycle skill — the argument is deprecated with a
+warning rather than removed, since it ships in 1.9.23.
+
+### D19 — Accumulation corrects `test_gof()`, it does not merely smooth it
+
+Measured, on a windowed rate fit with 876 intervals over 439 events, reproducing
+`gof_processes()` on both bases:
+
+| effect | T interval | T accumulated | scale ratio | p interval | p accumulated |
+|---|---|---|---|---|---|
+| Intercept | 1.2856 | 1.2694 | 1.03 | 0.0734 | 0.0797 |
+| indeg | 0.3532 | 0.3383 | 1.09 | 0.9996 | 0.9998 |
+| outdeg | 0.9997 | 0.9745 | 1.05 | 0.2704 | 0.2983 |
+| indeg [30m] | 0.7593 | 0.7020 | 1.17 | 0.6116 | 0.7079 |
+| outdeg [30m] | 0.5599 | 0.5352 | 1.09 | 0.9126 | 0.9369 |
+
+Every statistic falls and every p-value rises, and two mechanisms push the same
+way. The supremum is taken over a coarser grid, so it can only shrink; and the
+standardizing scale — the root of the summed squared per-row contributions —
+*grows* on every effect.
+
+That growing scale is the substantive finding. `scale` is an outer-product
+variance estimate, and it is only a valid one for **uncorrelated** increments. A
+ratio above one says the within-span pieces are positively correlated, which they
+must be: a dependent event and the window closure it opens are two views of the
+same tie, so their score contributions point the same way. The per-interval
+denominator therefore **understates** the variance of the cumulative process,
+which inflates the standardized path.
+
+So `test_gof()` is currently **anti-conservative on any fit carrying
+right-censored intervals** — it treats correlated pieces of one event's
+contribution as independent martingale increments. Accumulation restores the
+unit the theory assumes: score contributions at distinct events are martingale
+differences and are uncorrelated, spans between events are not. The 3–17%
+variance understatement here moved no conclusion, but it is the direction that
+over-rejects, and a borderline effect would flip the wrong way.
+
+The scope is narrow and worth stating: only the sub-models that store
+right-censored intervals are affected. A choice, ordinal or coordination fit has
+none, so its per-interval and accumulated bases coincide and its statistic is
+unchanged.
+
+The code comment at `gof_processes()` asserting that the statistic "does not
+depend on whether intervals or events are counted" is correct about the `n` in
+`sqrt(n · J_d)` cancelling, and does not speak to aggregation. It is worth
+amending so the two claims are not confused.
+
+*Consequence for the reference:* the analytic Kolmogorov band assumes
+proportional information accrual, and the accumulated process is closer to that
+than a path that alternates event and closure steps. This is a second, weaker
+argument in the same direction; the variance argument is the one that carries.
+
+### D21 — The margin reports level; a shape column reports what it cannot
+
+`margin_table()` gives each actor an observed count and an expected count. Those
+are exactly the count and the sum of that actor's stratified waiting-time
+residuals, so the whole table is a **first-moment** view. An actor whose events
+are correctly counted but clustered in time is calibrated on every column it
+carries.
+
+```
+  well-timed   r = (1.0, 1.0, 1.0, 1.0)     sum 4, n 4    margin ok, shape ok
+  bursty       r = (0.01, 0.02, 0.01, 3.96) sum 4, n 4    margin ok, shape wrong
+```
+
+So `margin_table()` gains a `dispersion` column — the variance of the actor's
+stratified residuals, one under the model — following the convention
+`expected_count` already established: always present, `NA` where the family
+defines no waiting time. It is the cheapest possible expression of the idea,
+because it adds a column to a table users already read rather than a second
+object they must learn to join.
+
+The per-actor curves this replaces were the obvious design and are the wrong one.
+Measured on the calls fixture: 84 actors, but only **34 ever send**, the median
+sender has **5 events**, and 13 senders with 10 or more events carry 84% of the
+data. A Kaplan-Meier curve per actor is therefore 34 curves of which about 13
+could support a reading — unreadable as a plot and misleading as a promise. One
+number per actor, read against its own event count, says the same thing without
+inviting a distributional interpretation the data cannot bear.
+
+The plot that follows is a scatter of level against shape — `observed − expected`
+on one axis, `dispersion` on the other, sized by event count — where the two
+diagnostics become two axes and each quadrant is a distinct misfit. That belongs
+to autograph and is not specified here beyond the column it consumes.
+
+### D22 — Screening is data, not a step; pagination is for batch
+
+A model with many terms breaks a one-panel-per-term figure, and the obvious
+remedy — look at the grid, then select — assumes a human between the fit and the
+figure. Fits go to a cluster, so that assumption fails exactly where the problem
+is worst.
+
+The decision is therefore to make each route work with no interactive step at
+all:
+
+```
+   fit on HPC ──▶ object ──┬─▶ ranked table       already in $effects; order it
+                           │   (survives having no screen)
+                           ├─▶ effects = "..."    already exists
+                           └─▶ plot(page = k)     new; n_pages known up front
+                                                  loop writes every page to file
+```
+
+**Screening is a property of the returned object, not an interaction.** The
+per-term statistic is already in `$effects`; what it needs is a defined order so
+a script can take the front of it without anyone looking. This is the route that
+degrades best: a table remains legible at fifty terms long after a grid stops
+being.
+
+**Pagination is enumerable or it is useless in batch.** The page count must be
+derivable without rendering, so a loop can write every page; a method that only
+knows it is on the last page once it gets there cannot be scripted. `ggforce` is
+already in autograph's Imports and `facet_wrap_paginate()` is the idiom, so this
+costs a dependency nobody has to add.
+
+**A reduced figure must say so.** `plot.result.goldfish` already ranks and keeps
+four. Silently drawing four of fifty-six is the same failure as the Hampel window
+reporting no outliers because it could not see any — the output looks like an
+answer. Whatever is dropped is named.
+
+*Alternative rejected:* an interactive `devAskNewPage()` walk, which is what base
+`plot.cox.zph` does. It is the wrong shape for the case that motivated this.
+
+### D15 — Three ADR sub-questions settle here
+
+- **ADR-0010** settles fully, and inverts its own recorded preference. It favored
+  a numeric vector (Option B) over a function (Option C) for a caller-supplied
+  time transform. The flavored `test_time()` method establishes that each process
+  has its own preprocessed object and its own interval count, so a length-`n`
+  vector provably cannot serve a container while a function can. C-first, and the
+  feature stays unplanned.
+- **ADR-0008**'s `diagnose_*` sub-question settles: adding three flavored
+  `diagnose_*` methods enlarges the generic surface it calls "the same situation
+  one release earlier and therefore the cheaper one to get right first". The
+  cross-package ownership question stays open.
+- **ADR-0003**'s flatness-flag placement settles as an output-shape question this
+  change is already answering for flavored tables. Its constraint is honored: no
+  test added here asserts a p-value on the flavored fixture, only
+  container-versus-standalone equality.
+
+**ADR-0005 is deliberately not touched.** It carries an explicit note that its
+remaining scoping question should not be resolved inside an implementation
+session.
+
+### D20 — `augment()` follows, and reports what it accumulated
+
+`augment()` returns one row per **dependent event**, matching `residuals()`, and
+carries a column giving how many likelihood intervals were accumulated into that
+event's span. The alternative — leaving it per interval — breaks the join the two
+describers depend on, and a `level =` argument on both would double the surface
+every consumer has to reason about for a distinction that has one right answer.
+
+The span count is not decoration. It is the only place the interval structure
+remains visible once every other surface is per event, and it is what lets a
+reader see that a fit with windows accumulated roughly two intervals per event
+while an unwindowed one accumulated one. It also makes the two counts of D16
+reconstructable from the augmented table alone.
+
+Consequences that follow rather than needing their own decisions: `.resid` and
+`.fitted` lose their `NA` rows, because every returned row now realizes an
+outcome; the describers stop reading candidacy from that `NA` pattern; and the
+augmented table becomes joinable with the dependent-events table of D1 by
+position, which it currently is not on a windowed fit.
+
+## Open Questions
+
+**What happens to the trailing span?** See D17. Live only once D5 lands, and one
+observation wide.
+
+**Is the `cox_snell` guard right for an ordinal REM?** `estimate_rem()` without an
+intercept warns "(ordinal likelihood)" yet the fit is stamped
+`normalizer = "poisson"`, so `is_exact_time_fit()` admits it and `cox_snell`
+computes. Either the stamp or the warning is wrong. Folded into task 5.2, which
+already settles the guard against the sub-models that pass it untested.
+
+## Risks / Trade-offs
+
+**Closing the trailing interval changes every rate fit that sets an `end_time`**
+→ the change is a correction, not a regression: those fits were estimated with
+part of their exposure missing. The blast-radius check of D14 covers this case
+too, and the NEWS entry states the direction (baseline rates fall).
+
+**A frozen 1e-6 baseline moves and the regression floor is weakened** → D14 makes
+the blast-radius check a prerequisite task rather than a discovery during
+implementation. Regeneration is separately committed with its reason, so the diff
+shows a decision rather than a drift.
+
+**The `event_order` fix changes an effect's meaning without users noticing** →
+`history = "consecutive"` under a `start_time` currently yields all zeros, so
+anyone relying on it has a coefficient estimated from a degenerate statistic.
+A NEWS entry states the combination and the direction, and the two-way equality
+test pins it.
+
+**Making the monolith break changes DyNAMi results** → DyNAMi's own tests are the
+guard; if none covers `end_time`, one is added before the change, so the fix is
+measured rather than assumed harmless.
+
+**The flavored list return is a third output shape to learn** → mitigated by
+`flavor =` giving the familiar shape, by the list being named with the same
+process labels `print()` already shows, and by the abort messages naming the
+argument. It is documented once in `?diagnostic-requirements` rather than per
+method.
+
+**Aborting `~ 1` on choice sub-models rejects something that used to "work"** →
+it did not work; it crashed with an internal error. The abort is strictly more
+informative.
+
+**Scope.** Four phases in one change is large, and the phases are separable if it
+proves too much: phase 1 is the release blocker, phase 3 is the spec-conformance
+work, phases 2 and 4 are small. The phase milestones are the natural split points
+if the change has to be cut.
