@@ -304,7 +304,7 @@
       would differ — the assertion that distinguishes Pattern A from B); the
       advice fid's per-fid outputs match the standalone single-process
       `preprocess()` of the advice spec
-- [ ] 3.4 Verification: full `NOT_CRAN=true` run (baselines PASS not SKIP);
+- [x] 3.4 Verification: full `NOT_CRAN=true` run (baselines PASS not SKIP);
       version bump in DESCRIPTION + NEWS.md entry (merged-walk milestone);
       commit
 

@@ -1,3 +1,59 @@
+# goldfish 1.9.12
+
+## New features
+
+* **`make_joint_specification()` composes co-evolving process specifications**
+  (experimental). It combines two or more `make_specification()` objects built
+  over one shared data object into a single multivariate specification
+  (`joint_specification.goldfish`) portraying their co-evolution -- the
+  specification surface for DyNES, where panel-observed relational states
+  co-evolve with time-stamped relational events. Each joined process models a
+  distinct focal layer (reading another process's layer as a covariate is
+  unrestricted -- it is exactly the coupling that makes joining meaningful);
+  processes compose over one shared mode-map object, one- or two-mode and over
+  distinct mode-pairs, with every cross-process read required to conform by
+  mode-set identity. The composed object carries a per-formula `process_map` that
+  marks which formulas are *coupled* (read a modeled panel layer's latent state)
+  and which are separable, and the `print()` method sections the composition per
+  layer with its flavors. A join is estimated by `estimate_dynes()` (its surface
+  and augmentation live in separate changes); the event-stream estimators
+  `estimate_dynam()` / `estimate_rem()` reject a joint specification and redirect
+  to it.
+
+## Internal
+
+* Cross-process preprocessing now runs on a single merged clock. The former
+  separate sender- and dyad-recipe walks are merged into one clock hosting the
+  statistic blocks keyed by mode-pair, with each process's likelihood-producing
+  formula attached as its own consumer and cross-mode-pair events right-censoring
+  the other processes' timed-rate consumers. Focal is resolved *per formula* over
+  the one shared state (each views the shared state through its own modeled
+  layer, never a single stamped focal), and each `(layer, flavor)` support
+  constraint is compiled once into the merged plan with its mask snapshotted per
+  formula against that formula's own event timeline (compile-once /
+  snapshot-per-formula). The single-process and flavored paths route through the
+  merged walk byte-identically -- the frozen 1e-6 coefficient and C++ golden
+  baselines pass unchanged.
+
+* Union planning and consumer routing generalize across processes: effect terms
+  are deduplicated across all formulas sharing a statistic block's dispatch
+  family (never across families), so a cross-process shared effect is computed
+  once, and the schedule routes each dependent stream by `(layer, flavor)`. The
+  support-constraint mask pass maintains the union of all constraints' atoms once
+  and projects each formula's own expression through that shared atom state,
+  replacing the per-output atom re-walk.
+
+* A generative-readiness completion transform fills a half-specified flavor's
+  gaps with zero-free-parameter defaults -- uniform choice over the support-legal
+  alternatives, uniform `choice_coordination` on both sides, uniform
+  `rate_ordered` in the ordered regime, and the pinned intercept-only rate in the
+  timed regime -- so a composed specification is generatively complete without
+  fabricating estimable parameters. It is idempotent, warns per
+  layer/flavor/sub-model at each consumer entry, and aborts when a modeled panel
+  layer omits a flavor entirely. The single-process estimation path is
+  unaffected: a rate-only specification is not completed and stays byte-identical
+  to the baselines.
+
 # goldfish 1.9.11
 
 ## Internal
