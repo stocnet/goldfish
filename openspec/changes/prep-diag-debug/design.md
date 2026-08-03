@@ -306,7 +306,36 @@ D2, D4 and D5 change coefficients for specific combinations. The policy is:
 establish the blast radius **first** — which frozen baselines in
 `tests/testthat/_baselines/` use `history = "consecutive"` with a `start_time`,
 DyNAMi with an `end_time`, or a censoring sub-model with an `end_time` past the
-last event — before any of the three fixes is written. A baseline that moves was pinning wrong numbers, and
+last event — before any of the three fixes is written.
+
+**Measured 2026-08-04, and the answer was none of them.** No test estimates with
+`history = "consecutive"` at all — it appears once, inside a name-formatting
+call. No test combines DyNAMi with an `end_time`. Every test that sets an
+`end_time` sets it *inside* the event stream, so the loop always meets an
+out-of-window event and takes the branch that already works; the defect lives
+past the stream's end, where nothing goes. And `baselines_model_grid()` carries
+no window, no `start_time`, no `end_time`, no `consecutive` and no DyNAMi, with
+no `control_prep` in the builder — so the frozen coefficient baselines cannot
+move under any of the three.
+
+Two consequences follow, and the second reverses a step this decision had
+planned.
+
+The reassuring one: nothing needs regenerating, and the fixes can land without
+touching the 1e-6 floor.
+
+The uncomfortable one: **zero coverage is why these bugs were reachable**, and it
+means the characterization-test step this policy called for has nothing to
+characterize. Pinning current behavior would assert the buggy values — a
+`consecutive` statistic of zeros, an `end_time` that does nothing — for the one
+commit before the fix inverts them, putting wrong expectations in the suite to
+document a bug that `progress.md` and the commit message already document. That
+step is therefore dropped, and its burden moves onto the regression tests, which
+gain two obligations they did not have: each must be **written against the
+unfixed code and confirmed to fail**, since with no before-baseline a passing
+test proves nothing; and each fix adds a control for the ordinary case its own
+absence of coverage left unguarded — `consecutive` estimated without a
+`start_time`, and `end_time` set inside the stream. A baseline that moves was pinning wrong numbers, and
 regenerating it is a deliberate step recorded with its reason, never a silent
 side effect of a task. If neither combination is covered, that is itself worth
 recording: it means the bugs were reachable precisely because nothing pinned them.

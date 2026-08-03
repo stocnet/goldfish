@@ -1,15 +1,19 @@
 ## 0. Blast radius, before anything is written
 
-- [ ] 0.1 Inventory the frozen baselines in `tests/testthat/_baselines/` and the
+- [x] 0.1 Inventory the frozen baselines in `tests/testthat/_baselines/` and the
       wider suite for exposure to the three numerically-moving fixes (D14):
       `history = "consecutive"` with a `start_time`; DyNAMi with an `end_time`;
       any censoring sub-model with an `end_time` past its last event. Record the
       findings in `progress.md`, including the case where nothing is covered —
       that is why the bugs were reachable.
-- [ ] 0.2 Add characterization tests pinning the **current** behavior of the
-      three cases found in 0.1 (or, where nothing is covered, new fixtures), so
-      each later fix shows its own diff rather than an unexplained baseline
-      move. Follow the r-lib:testing-r-packages skill.
+- [x] 0.2 **Not applicable — resolved by 0.1's result.** The task assumed some
+      current behavior worth pinning. 0.1 found zero coverage and zero baseline
+      exposure on all three movers, so characterization tests would assert the
+      buggy values (`consecutive` accumulating zeros, `end_time` doing nothing)
+      only for tasks 2.1-2.5 to invert them one commit later, putting wrong
+      expectations in the suite in the meantime. The burden moves to 2.2 and
+      2.5, strengthened below; the audit trail is 0.1's inventory in
+      `progress.md` plus the commit messages.
 - [ ] 0.3 Verify with the not-cran-test skill; confirm the frozen baselines
       report PASS not SKIP.
 
@@ -36,7 +40,14 @@
       data is truncated so `t` is the first event, with the earlier events as
       history, agree on the `history = "consecutive"` statistic where the
       histories coincide; and the burn-in statistic is not identically zero.
-      Record any baseline movement against 0.1's inventory.
+      This test carries the whole burden of proving the fix, 0.2 having been
+      dropped, so **write it against the unfixed code first and confirm it
+      fails** — a test that passes before the fix proves nothing here.
+- [ ] 2.2b Add the control 0.1 found missing: `history = "consecutive"` is never
+      estimated anywhere in the suite, only name-formatted. Cover it unwindowed
+      and without a `start_time`, so 2.1's counter change is pinned against
+      breaking the ordinary case as well as fixing the burn-in one. Follow the
+      r-lib:testing-r-packages skill.
 - [ ] 2.3 Close the observation window when the schedule exhausts before
       `end_time` (D5), storing the trailing exposure interval on the sub-models
       whose likelihood defines a compensator and nothing on the multinomial
@@ -47,7 +58,15 @@
 - [ ] 2.5 Test that an exact-time rate fit with `end_time` past its last event
       differs from the same fit without one, that a later `end_time` gives a
       lower baseline rate, and that a choice fit's log-likelihood is unchanged.
-      This is the regression for a bug that made `end_time` a silent no-op.
+      This is the regression for a bug that made `end_time` a silent no-op, and
+      with 0.2 dropped it is the only proof of the fix — **write it against the
+      unfixed code first and confirm it fails.**
+- [ ] 2.5b Pin the branch that already works, which 0.1 showed is the only one
+      the suite exercises: every existing `end_time` test sets it *inside* the
+      event stream (`dataTest` events run to 36; the tests stop at 24 and 30),
+      so the loop always meets an out-of-window event and takes the `final_step`
+      path. 2.3 adds a second way to close the window and must not disturb that
+      one — assert the in-stream `end_time` results are unchanged.
 - [ ] 2.6 Make `preprocess_monolith()` stop traversing at `end_time` as the
       recipe loops do (D4), and correct the `set_preprocessing()` documentation
       that states the opposite (`R/set_opt.R:703-704`). Run
